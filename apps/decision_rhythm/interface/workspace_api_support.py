@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from apps.ai_provider.application.chat_completion import AIClientFactory, generate_chat_completion
 from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.decision_rhythm.application.user_action_labels import build_user_action_label
 from apps.regime.application.current_regime import resolve_current_regime
 
 from ..application.dtos import (
@@ -108,12 +109,7 @@ def _build_valuation_repair_map(security_codes: list[str]) -> dict[str, dict[str
         return {}
 
 def _user_action_label(value: str) -> str:
-    return {
-        UserDecisionAction.PENDING.value: "待决策",
-        UserDecisionAction.WATCHING.value: "观察中",
-        UserDecisionAction.ADOPTED.value: "已采纳",
-        UserDecisionAction.IGNORED.value: "已忽略",
-    }.get(value, value)
+    return build_user_action_label(value)
 
 def _risk_checks(recommendation, market_price: Decimal | None) -> dict[str, Any]:
     return build_recommendation_risk_checks(recommendation, market_price)

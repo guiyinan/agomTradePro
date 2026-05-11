@@ -275,6 +275,8 @@
             <div class="alpha-list">
                 {% for item in alpha_exit_watchlist %}
                 <div class="alpha-list-item alpha-list-item-exit alpha-list-item-exit-{{ item.exit_action|lower }}{% if item.is_selected %} is-selected{% endif %}"
+                     data-exit-asset-code="{{ item.asset_code }}"
+                     {% if item.account_id %}data-exit-account-id="{{ item.account_id }}"{% endif %}
                      hx-get="{% url 'api_dashboard:alpha_exit_panel' %}?asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&account_id={{ item.account_id }}{% endif %}&top_n={{ top_n|default:10 }}&alpha_scope={{ alpha_scope|default:'portfolio'|urlencode }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}"
                      hx-trigger="click"
                      hx-target="#alphaExitDetailPanel"
@@ -285,6 +287,9 @@
                         <span>{{ item.asset_name }}</span>
                         <span class="alpha-exit-badge alpha-exit-badge-{{ item.exit_action|lower }}">{{ item.exit_action_label }}</span>
                         <span class="alpha-priority-text">{{ item.priority_label }}</span>
+                        {% if item.user_action_label %}
+                        <span class="alpha-priority-text">处理状态 {{ item.user_action_label }}</span>
+                        {% endif %}
                     </div>
                     <div class="alpha-list-meta">
                         <span>账户 {{ item.account_name }}</span>

@@ -126,6 +126,7 @@ class TestUnifiedRecommendationDTO:
         assert result["entry_price_low"] == "14.80"
         assert result["created_at"] == "2026-03-02T12:00:00+00:00"
         assert result["user_action"] == "PENDING"
+        assert result["user_action_label"] == "待决策"
 
 
 class TestRefreshRecommendationsRequestDTO:

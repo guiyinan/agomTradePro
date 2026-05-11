@@ -868,6 +868,8 @@ def test_alpha_stocks_partial_renders_exit_watchlist():
                     "recommendation_detail_url": "/api/decision/workspace/recommendations/?recommendation_id=urec_101",
                     "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
                     "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                    "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
+                    "user_action_label": "已采纳",
                 }
             ],
             "alpha_exit_watch_summary": {
@@ -897,6 +899,7 @@ def test_alpha_stocks_partial_renders_exit_watchlist():
     assert "/api/dashboard/alpha/exit-panel/" in content
     assert "hx-trigger=\"load\"" in content
     assert "alpha-list-item alpha-list-item-exit alpha-list-item-exit-sell is-selected" in content
+    assert "处理状态 已采纳" in content
     assert "/simulated-trading/my-accounts/21/" in content
     assert "/api/decision/workspace/recommendations/?recommendation_id=urec_101" in content
     assert "/api/decision/workspace/plans/plan_101/" in content
@@ -1479,6 +1482,11 @@ def test_main_workflow_panel_renders_candidate_asset_name():
             "action_weights": None,
             "action_sectors": None,
             "alpha_actionable_count": 1,
+            "alpha_exit_watchlist": [],
+            "alpha_exit_watch_summary": {},
+            "alpha_exit_entry_watchlist": [],
+            "alpha_exit_entry_watch_summary": {},
+            "alpha_exit_entry_hidden_count": 0,
             "actionable_candidates": [
                 {
                     "candidate_id": "cand-1",
@@ -1492,6 +1500,8 @@ def test_main_workflow_panel_renders_candidate_asset_name():
                     "current_top_rank": 1,
                     "origin_stage_label": "当前 Top 10 第 #1",
                     "chain_stage_label": "可行动候选",
+                    "decision_workspace_url": "/decision/workspace/?source=dashboard-workflow&security_code=000001.SZ",
+                    "decision_workspace_primary_url": "/decision/workspace/?source=dashboard-workflow&security_code=000001.SZ&step=4",
                 }
             ],
             "valuation_repair_config_summary": None,
@@ -1526,6 +1536,11 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
             "action_weights": None,
             "action_sectors": None,
             "alpha_actionable_count": 0,
+            "alpha_exit_watchlist": [],
+            "alpha_exit_watch_summary": {},
+            "alpha_exit_entry_watchlist": [],
+            "alpha_exit_entry_watch_summary": {},
+            "alpha_exit_entry_hidden_count": 0,
             "alpha_stock_scores": [
                 {
                     "code": "000001.SZ",
@@ -1538,6 +1553,8 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
                     "buy_reason_summary": "Alpha 排名第 1",
                     "invalidation_summary": "跌出 Top 10",
                     "asof_date": "2026-04-16",
+                    "decision_workspace_url": "/decision/workspace/?source=dashboard-alpha&security_code=000001.SZ",
+                    "decision_workspace_primary_url": "/decision/workspace/?source=dashboard-alpha&security_code=000001.SZ&step=4",
                 }
             ],
             "actionable_candidates": [],
@@ -1664,6 +1681,7 @@ def test_main_workflow_panel_renders_exit_chain_entry_links():
                     "contract_status_label": "已绑定退出契约",
                     "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
                     "decision_workspace_url": "/decision/workspace/",
+                    "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
                 }
             ],
             "alpha_exit_watch_summary": {
@@ -1682,7 +1700,68 @@ def test_main_workflow_panel_renders_exit_chain_entry_links():
     assert "退出链路入口" in content
     assert "打开退出详情" in content
     assert "立即退出" in content
-    assert "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21" in content
+    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
+
+
+def test_dashboard_exit_entry_panel_context_hides_processed_items():
+    context = views._build_dashboard_exit_entry_panel_context(
+        [
+            {
+                "asset_code": "000001.SZ",
+                "exit_action": "SELL",
+                "priority_rank": 0,
+                "recommendation_snapshot": {"user_action": "PENDING"},
+            },
+            {
+                "asset_code": "000002.SZ",
+                "exit_action": "SELL",
+                "priority_rank": 0,
+                "recommendation_snapshot": {"user_action": "ADOPTED"},
+            },
+            {
+                "asset_code": "000003.SZ",
+                "exit_action": "REDUCE",
+                "priority_rank": 1,
+                "recommendation_snapshot": {"user_action": "IGNORED"},
+            },
+        ]
+    )
+
+    assert [item["asset_code"] for item in context["items"]] == ["000001.SZ"]
+    assert context["summary"] == {
+        "total": 1,
+        "urgent_count": 1,
+        "sell_count": 1,
+        "reduce_count": 0,
+        "hold_count": 0,
+    }
+    assert context["hidden_processed_count"] == 2
+
+
+def test_build_dashboard_exit_detail_url_uses_shared_anchor():
+    url = views._build_dashboard_exit_detail_url(
+        asset_code="000001.SZ",
+        account_id=21,
+        alpha_scope="portfolio",
+        portfolio_id=9,
+    )
+
+    assert url == "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail"
+
+
+def test_build_decision_workspace_url_uses_canonical_query_order():
+    url = views._build_decision_workspace_url(
+        security_code="000001.SZ",
+        source="dashboard-workflow",
+        step=4,
+        account_id=21,
+        action="watch",
+    )
+
+    assert (
+        url
+        == "/decision/workspace/?source=dashboard-workflow&security_code=000001.SZ&step=4&account_id=21&action=WATCH"
+    )
 
 
 def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendations():
@@ -1697,6 +1776,11 @@ def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendation
             "action_weights": None,
             "action_sectors": None,
             "alpha_actionable_count": 0,
+            "alpha_exit_watchlist": [],
+            "alpha_exit_watch_summary": {},
+            "alpha_exit_entry_watchlist": [],
+            "alpha_exit_entry_watch_summary": {},
+            "alpha_exit_entry_hidden_count": 0,
             "alpha_stock_scores": [],
             "alpha_actionable_candidates": [],
             "alpha_pending_requests": [
@@ -1770,6 +1854,7 @@ def test_alpha_history_page_template_renders_detail_controls():
                     "recommendation_detail_url": "/api/decision/workspace/recommendations/?recommendation_id=urec_101",
                     "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
                     "decision_workspace_url": "/decision/workspace/",
+                    "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
                 }
             ],
             "current_exit_watch_summary": {
@@ -1781,6 +1866,7 @@ def test_alpha_history_page_template_renders_detail_controls():
             },
             "current_exit_portfolio_id": 9,
             "current_exit_alpha_scope": "portfolio",
+            "current_exit_dashboard_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9#alpha-exit-detail",
         },
         request=request,
     )
@@ -1792,7 +1878,7 @@ def test_alpha_history_page_template_renders_detail_controls():
     assert "/api/dashboard/alpha/history/5/" in content
     assert "当前持仓退出链路" in content
     assert "在 Dashboard 详情中打开" in content
-    assert "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21" in content
+    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
 
 
 def test_decision_workspace_template_renders_exit_chain_sidebar():
@@ -1820,6 +1906,7 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
                 "contract_status_label": "已绑定退出契约",
                 "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
                 "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
                 "transition_plan_detail_url": "/api/decision/workspace/plans/plan_101/",
             },
             "workspace_exit_watchlist": [
@@ -1833,6 +1920,7 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
                     "exit_source": "decision_rhythm.recommendation",
                     "invalidation_summary": "若政策闸门升至 L2 则退出。",
                     "decision_workspace_url": "/decision/workspace/?security_code=000001.SZ&step=5&account_id=21&action=SELL&source=dashboard-exit",
+                    "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
                     "is_selected": True,
                 }
             ],
@@ -1845,6 +1933,7 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
     assert "在 Workspace 中定位" in content
     assert "打开 Dashboard 详情" in content
     assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
+    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
 
 
 def test_dashboard_api_root_exposes_docs_and_mcp_entries():

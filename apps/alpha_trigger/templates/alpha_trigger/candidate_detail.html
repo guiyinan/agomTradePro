@@ -380,8 +380,14 @@ async function updateCandidateStatus(newStatus) {
 
 // 去执行
 function goToExecute(requestId, assetCode, direction) {
-    // 跳转到工作台并打开执行模态框
-    window.location.href = `/decision/workspace/?execute_request=${requestId}&asset_code=${assetCode}&direction=${direction}`;
+    // 跳转到工作台执行入口；Step 6 不可直达时会按当前 guardrail 自动回退。
+    const params = new URLSearchParams({
+        source: 'alpha-trigger-execute',
+        security_code: assetCode,
+        action: direction,
+        step: '6',
+    });
+    window.location.href = `/decision/workspace/?${params.toString()}`;
 }
 
 // 归档候选

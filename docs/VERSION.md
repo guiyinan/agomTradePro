@@ -42,6 +42,7 @@ Build: 2026-03-23
 
 ## 0.7.0 之后的开发快照（截至 2026-05-08）
 
+- `2026-05-10` Dashboard / Decision Workspace 的退出链路 deep link 已补齐锚点定位与高亮提示；首页“退出链路入口”现在会自动收起已采纳 / 已忽略项，避免重复提醒；Workspace 侧也已改为复用统一 `dashboard_detail_url`，并新增模板 guardrail 防止回退到手拼链接；Alpha Trigger → Workspace 的旧参数桥接也已兼容收口到 `security_code/action/step`；Dashboard / Equity 的 Workspace 入口现在统一走 canonical URL builder，`进入 Step 4 / 去 Step 5` 链接已与真实 step 参数对齐；Decision Workspace 的 `user_action_label` 也已改为后端单源下发，前端不再独立维护一套显示口径；主页 query / API / SDK / MCP 暴露的退出项也已收口到同一套 canonical Workspace URL 与 processed 状态字段，减少前后端各自补丁造成的漂移
 - `2026-05-08` 本地 Alpha ETF fallback 已补入 seed data，Fund / Dashboard 相关 smoke contract 也已对齐当前页面行为；离线回归与降级路径的可重复性更稳
 - `2026-05-07` 宏观治理与 Dashboard 数据流继续收口；累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
 - `2026-05-07` `task_monitor` 载荷口径已标准化，VPS SQLite 启动任务的序列化问题已修复，任务可见性与远端启动排障更稳定

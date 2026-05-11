@@ -39,6 +39,21 @@
         </div>
     </div>
 
+    {% if recommendation.user_action %}
+    <div style="margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: #f5f8ff; border: 1px solid #d7e3ff; color: #29467a; font-size: 12px; line-height: 1.6;">
+        <strong>当前处理状态</strong>
+        {% if recommendation.user_action == "ADOPTED" %}
+        <span>该退出项已在工作台标记为“已采纳”，首页入口会自动收起；你仍可在这里继续核对 recommendation / plan 明细。</span>
+        {% elif recommendation.user_action == "IGNORED" %}
+        <span>该退出项已在工作台标记为“已忽略”，首页入口会自动收起；如需重新处理，可回工作台改回观察或采纳。</span>
+        {% elif recommendation.user_action == "WATCHING" %}
+        <span>该退出项当前处于“观察中”，首页会继续保留入口，方便你回看同一条退出链路。</span>
+        {% else %}
+        <span>当前用户动作：{{ recommendation.user_action }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="{% if selected.contract_ready %}factor-decision-ready{% else %}factor-decision-blocked{% endif %}" style="padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6;">
         {% if selected.contract_ready %}
         <strong>Suggest Then Execute</strong>

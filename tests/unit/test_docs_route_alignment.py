@@ -81,6 +81,21 @@ def test_mcp_guide_contains_canonical_funnel_context_example() -> None:
     assert "Interpretation rule for agents" in content
 
 
+def test_live_docs_use_canonical_decision_workspace_entry_contract() -> None:
+    for path in [
+        "docs/mcp/mcp_guide.md",
+        "docs/development/decision-unified-workflow.md",
+        "docs/archive/completed/wp3/wp3-quick-integration.md",
+    ]:
+        content = _read(path)
+        assert "/decision/workspace/?execute_request=" not in content
+        assert "asset_code=${assetCode}&direction=${direction}" not in content
+
+    mcp_guide = _read("docs/mcp/mcp_guide.md")
+    assert "user_action_label" in mcp_guide
+    assert "source`、`security_code`、`step`、`account_id`、`action`" in mcp_guide
+
+
 def test_development_docs_include_api_change_sync_checklist() -> None:
     index_doc = _read("docs/INDEX.md")
     guardrails = _read("docs/development/engineering-guardrails.md")

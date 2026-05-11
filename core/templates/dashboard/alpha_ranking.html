@@ -107,7 +107,7 @@
                     <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.source|default:"-" }}</td>
                     <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">{{ stock.asof_date|default:"-" }}</td>
                     <td style="padding:10px 12px; border-bottom:1px solid #eef3f8;">
-                        <a href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}">在 Workflow 中查看</a>
+                        <a href="{{ stock.decision_workspace_url }}">在 Workflow 中查看</a>
                     </td>
                 </tr>
                 {% if stock.buy_reason_summary or stock.invalidation_summary %}

@@ -31,6 +31,11 @@ from apps.dashboard.application.repository_provider import (
     get_alpha_recommendation_history_repository,
     get_dashboard_alpha_context_repository,
 )
+from apps.dashboard.application.navigation import (
+    build_decision_workspace_url,
+    build_exit_user_action_label,
+    normalize_exit_user_action,
+)
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 from apps.task_monitor.application.tracking import record_pending_task
 
@@ -441,17 +446,23 @@ class AlphaHomepageQuery:
                 for item in (invalidation_rule.get("conditions") or [])
                 if str(item or "").strip()
             ]
+        recommendation_user_action = ""
         recommendation_snapshot = {}
         if recommendation is not None:
+            recommendation_user_action = normalize_exit_user_action(
+                getattr(
+                    getattr(recommendation, "user_action", None),
+                    "value",
+                    getattr(recommendation, "user_action", ""),
+                )
+            )
             recommendation_snapshot = {
                 "recommendation_id": recommendation_id,
                 "side": str(getattr(recommendation, "side", "") or ""),
                 "status": getattr(getattr(recommendation, "status", None), "value", getattr(recommendation, "status", "")),
-                "user_action": getattr(
-                    getattr(recommendation, "user_action", None),
-                    "value",
-                    getattr(recommendation, "user_action", ""),
-                ),
+                "user_action": recommendation_user_action,
+                "user_action_label": build_exit_user_action_label(recommendation_user_action),
+                "is_processed": recommendation_user_action in {"ADOPTED", "IGNORED"},
                 "confidence": float(getattr(recommendation, "confidence", 0.0) or 0.0),
                 "composite_score": float(getattr(recommendation, "composite_score", 0.0) or 0.0),
                 "alpha_model_score": float(getattr(recommendation, "alpha_model_score", 0.0) or 0.0),
@@ -499,13 +510,16 @@ class AlphaHomepageQuery:
             ),
             "conditions": invalidation_conditions,
         }
-        workspace_step = "5" if plan_id or exit_action in {"SELL", "REDUCE"} else "4"
-        workspace_query = [f"security_code={asset_code}", f"step={workspace_step}"]
-        if account_id is not None:
-            workspace_query.append(f"account_id={account_id}")
-        if exit_action:
-            workspace_query.append(f"action={exit_action}")
-        workspace_query.append("source=dashboard-exit")
+        user_action_label = build_exit_user_action_label(recommendation_user_action)
+        is_processed = recommendation_user_action in {"ADOPTED", "IGNORED"}
+        workspace_step = 5 if plan_id or exit_action in {"SELL", "REDUCE"} else 4
+        decision_workspace_url = build_decision_workspace_url(
+            security_code=asset_code,
+            source="dashboard-exit",
+            step=workspace_step,
+            account_id=account_id,
+            action=exit_action,
+        )
 
         return {
             "account_id": account_id,
@@ -547,6 +561,9 @@ class AlphaHomepageQuery:
                 2: "持续跟踪",
             }.get(priority_rank, "持续跟踪"),
             "recommendation_id": recommendation_id,
+            "user_action": recommendation_user_action,
+            "user_action_label": user_action_label,
+            "is_processed": is_processed,
             "recommendation_detail_url": (
                 f"/api/decision/workspace/recommendations/?recommendation_id={recommendation_id}"
                 if recommendation_id
@@ -566,7 +583,7 @@ class AlphaHomepageQuery:
                 if account_id is not None
                 else ""
             ),
-            "decision_workspace_url": f"/decision/workspace/?{'&'.join(workspace_query)}",
+            "decision_workspace_url": decision_workspace_url,
         }
 
     def _load_unified_recommendations(self, account_id: int) -> list[Any]:

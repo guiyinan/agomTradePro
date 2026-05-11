@@ -625,7 +625,6 @@ function renderAutoRecommendationGrid(items) {
         const score = formatMetric(item.score, 3);
         const confidence = formatMetric(item.confidence, 2);
         const detailUrl = `/equity/detail/${encodeURIComponent(item.code || '')}/`;
-        const workspaceUrl = `/decision/workspace/?source=equity-screen&security_code=${encodeURIComponent(item.code || '')}`;
 
         return `
             <div class="auto-recommendation-item">
@@ -643,8 +642,8 @@ function renderAutoRecommendationGrid(items) {
                 </div>
                 <div class="auto-recommendation-actions">
                     <a class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${detailUrl}">解释</a>
-                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=watch">观察</a>
-                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=adopt">采纳</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${buildDecisionWorkspaceUrl(item.code || '', { source: 'equity-screen', action: 'watch' })}">观察</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${buildDecisionWorkspaceUrl(item.code || '', { source: 'equity-screen', action: 'adopt' })}">采纳</a>
                 </div>
             </div>
         `;
@@ -657,6 +656,23 @@ function setModeBanner(message) {
     banner.style.display = 'block';
 }
 
+function buildDecisionWorkspaceUrl(securityCode, { source = '', action = '', step = '' } = {}) {
+    const params = new URLSearchParams();
+    if (source) {
+        params.set('source', source);
+    }
+    if (securityCode) {
+        params.set('security_code', String(securityCode).toUpperCase());
+    }
+    if (step) {
+        params.set('step', String(step));
+    }
+    if (action) {
+        params.set('action', String(action).toUpperCase());
+    }
+    return `/decision/workspace/?${params.toString()}`;
+}
+
 function renderResultsTable(items) {
     const tbody = document.getElementById('resultsTableBody');
     tbody.innerHTML = '';
@@ -666,7 +682,6 @@ function renderResultsTable(items) {
         const name = escapeHtml(item.name || '未命名');
         const sector = escapeHtml(item.sector || item.industry || '-');
         const detailUrl = `/equity/detail/${encodeURIComponent(item.code || '')}/`;
-        const workspaceUrl = `/decision/workspace/?source=equity-screen&security_code=${encodeURIComponent(item.code || '')}`;
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${escapeHtml(item.rank || index + 1)}</td>
@@ -682,8 +697,8 @@ function renderResultsTable(items) {
             <td>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <a class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${detailUrl}">个股详情</a>
-                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=watch">加入观察</a>
-                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=adopt">采纳</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${buildDecisionWorkspaceUrl(item.code || '', { source: 'equity-screen', action: 'watch' })}">加入观察</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${buildDecisionWorkspaceUrl(item.code || '', { source: 'equity-screen', action: 'adopt' })}">采纳</a>
                     <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="/dashboard/">首页来源</a>
                 </div>
             </td>

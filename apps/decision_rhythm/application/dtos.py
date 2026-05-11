@@ -10,6 +10,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .user_action_labels import build_user_action_label
+
 if TYPE_CHECKING:
     from ..domain.entities import UnifiedRecommendation
 
@@ -194,6 +196,7 @@ class UnifiedRecommendationDTO:
             "valuation_repair": self.valuation_repair,
             "status": self.status,
             "user_action": self.user_action,
+            "user_action_label": build_user_action_label(self.user_action),
             "user_action_note": self.user_action_note,
             "user_action_at": self.user_action_at.isoformat() if self.user_action_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -72,9 +72,20 @@ def alpha_history_page(request):
     context = {
         "history_runs": runs,
         "current_exit_watchlist": dashboard_views._mark_alpha_exit_watchlist_selection(
-            current_alpha_payload.get("exit_watchlist", [])
+            dashboard_views._annotate_alpha_exit_watchlist_navigation(
+                current_alpha_payload.get("exit_watchlist", []),
+                alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+                portfolio_id=parsed_portfolio_id
+                or current_alpha_payload.get("pool", {}).get("portfolio_id"),
+            )
         ),
         "current_exit_watch_summary": current_alpha_payload.get("exit_watch_summary", {}),
+        "current_exit_dashboard_url": dashboard_views._build_dashboard_exit_detail_url(
+            asset_code="",
+            alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+            portfolio_id=parsed_portfolio_id
+            or current_alpha_payload.get("pool", {}).get("portfolio_id"),
+        ),
         "current_exit_portfolio_id": parsed_portfolio_id
         or current_alpha_payload.get("pool", {}).get("portfolio_id"),
         "current_exit_alpha_scope": dashboard_views.ALPHA_SCOPE_PORTFOLIO,

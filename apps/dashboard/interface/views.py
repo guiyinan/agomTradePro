@@ -12,6 +12,7 @@ Dashboard Interface Views
 import logging
 from datetime import date
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from celery.result import AsyncResult
 from django.conf import settings
@@ -19,6 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
 from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone as django_timezone
 from apps.alpha.application.ops_locks import (
     ALPHA_REFRESH_LOCK_TTL_SECONDS,
@@ -41,6 +43,11 @@ from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_PORTFOLIO,
     normalize_alpha_scope,
 )
+from apps.dashboard.application.navigation import (
+    build_decision_workspace_url as _build_decision_workspace_url,
+    build_exit_user_action_label as _build_exit_user_action_label,
+    normalize_exit_user_action as _normalize_exit_user_action,
+)
 from apps.dashboard.interface import api_v1_views
 from apps.dashboard.interface import alpha_history_views
 from apps.dashboard.interface import alpha_metrics_views
@@ -58,6 +65,7 @@ from apps.dashboard.application.queries import (
 from apps.dashboard.application import interface_services as dashboard_interface_services
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
+_DASHBOARD_EXIT_DETAIL_ANCHOR = "alpha-exit-detail"
 
 
 def _get_request_user_id(user) -> int | None:
@@ -835,6 +843,137 @@ def _mark_alpha_exit_watchlist_selection(
     return annotated_items
 
 
+def _build_dashboard_exit_entry_panel_context(
+    exit_watchlist: list[dict[str, object]],
+) -> dict[str, object]:
+    """Filter homepage exit-entry items after the user has already handled them."""
+
+    visible_items: list[dict[str, object]] = []
+    hidden_processed_count = 0
+
+    for item in exit_watchlist:
+        recommendation_snapshot = item.get("recommendation_snapshot") or {}
+        if not isinstance(recommendation_snapshot, dict):
+            recommendation_snapshot = {}
+
+        user_action = str(recommendation_snapshot.get("user_action") or "").strip().upper()
+        if user_action in {"ADOPTED", "IGNORED"}:
+            hidden_processed_count += 1
+            continue
+        visible_items.append(item)
+
+    summary = {
+        "total": len(visible_items),
+        "urgent_count": sum(
+            1
+            for item in visible_items
+            if int(item.get("priority_rank", 99)) == 0
+        ),
+        "sell_count": sum(1 for item in visible_items if item.get("exit_action") == "SELL"),
+        "reduce_count": sum(1 for item in visible_items if item.get("exit_action") == "REDUCE"),
+        "hold_count": sum(1 for item in visible_items if item.get("exit_action") == "HOLD"),
+    }
+
+    return {
+        "items": visible_items,
+        "summary": summary,
+        "hidden_processed_count": hidden_processed_count,
+    }
+
+def _build_dashboard_exit_detail_url(
+    *,
+    asset_code: str | None,
+    account_id: int | str | None = None,
+    alpha_scope: str = ALPHA_SCOPE_PORTFOLIO,
+    portfolio_id: int | None = None,
+) -> str:
+    """Build the canonical deep link from any exit item back to Dashboard detail."""
+
+    params: list[tuple[str, str | int]] = [("alpha_scope", alpha_scope or ALPHA_SCOPE_PORTFOLIO)]
+    if portfolio_id is not None:
+        params.append(("portfolio_id", portfolio_id))
+
+    normalized_asset_code = str(asset_code or "").strip().upper()
+    if normalized_asset_code:
+        params.append(("exit_asset_code", normalized_asset_code))
+
+    if account_id not in (None, ""):
+        params.append(("exit_account_id", int(account_id)))
+
+    query = urlencode(params, doseq=True)
+    return f"{reverse('dashboard:index')}?{query}#{_DASHBOARD_EXIT_DETAIL_ANCHOR}"
+
+
+def _annotate_decision_workspace_navigation(
+    items: list[dict[str, object]],
+    *,
+    source: str,
+    security_code_key: str,
+    view_step: int | None = None,
+    primary_step: int | None = None,
+    account_id_key: str | None = None,
+    action_key: str | None = None,
+) -> list[dict[str, object]]:
+    """Attach canonical Decision Workspace links to dashboard cards and tables."""
+
+    annotated_items: list[dict[str, object]] = []
+    primary_step_value = primary_step if primary_step is not None else view_step
+
+    for item in items:
+        annotated_item = dict(item)
+        account_id = annotated_item.get(account_id_key) if account_id_key else None
+        action = annotated_item.get(action_key) if action_key else None
+        annotated_item["decision_workspace_url"] = _build_decision_workspace_url(
+            security_code=str(annotated_item.get(security_code_key) or ""),
+            source=source,
+            step=view_step,
+            account_id=account_id,
+            action=str(action or "") if action is not None else None,
+        )
+        annotated_item["decision_workspace_primary_url"] = _build_decision_workspace_url(
+            security_code=str(annotated_item.get(security_code_key) or ""),
+            source=source,
+            step=primary_step_value,
+            account_id=account_id,
+            action=str(action or "") if action is not None else None,
+        )
+        annotated_items.append(annotated_item)
+
+    return annotated_items
+
+
+def _annotate_alpha_exit_watchlist_navigation(
+    exit_watchlist: list[dict[str, object]],
+    *,
+    alpha_scope: str = ALPHA_SCOPE_PORTFOLIO,
+    portfolio_id: int | None = None,
+) -> list[dict[str, object]]:
+    """Attach shared deep links and normalized user-action metadata to exit items."""
+
+    annotated_items: list[dict[str, object]] = []
+    normalized_scope = normalize_alpha_scope(alpha_scope)
+
+    for item in exit_watchlist:
+        annotated_item = dict(item)
+        recommendation_snapshot = annotated_item.get("recommendation_snapshot") or {}
+        if not isinstance(recommendation_snapshot, dict):
+            recommendation_snapshot = {}
+
+        user_action = _normalize_exit_user_action(recommendation_snapshot.get("user_action"))
+        annotated_item["user_action"] = user_action
+        annotated_item["user_action_label"] = _build_exit_user_action_label(user_action)
+        annotated_item["is_processed"] = user_action in {"ADOPTED", "IGNORED"}
+        annotated_item["dashboard_detail_url"] = _build_dashboard_exit_detail_url(
+            asset_code=annotated_item.get("asset_code"),
+            account_id=annotated_item.get("account_id"),
+            alpha_scope=normalized_scope,
+            portfolio_id=portfolio_id,
+        )
+        annotated_items.append(annotated_item)
+
+    return annotated_items
+
+
 @login_required(login_url="/account/login/")
 def dashboard_entry(request):
     """
@@ -962,23 +1101,58 @@ def _build_dashboard_page_context(
     selected_exit_account_id: int | None,
 ) -> dict:
     """Build the dashboard template context from already-loaded read models."""
-    alpha_stock_scores = alpha_payload["items"]
+    alpha_stock_scores = _annotate_decision_workspace_navigation(
+        alpha_payload["items"],
+        source="dashboard-alpha",
+        security_code_key="code",
+        view_step=None,
+        primary_step=4,
+    )
     alpha_stock_scores_meta = alpha_payload["meta"]
-    alpha_actionable_candidates = alpha_payload["actionable_candidates"]
+    alpha_actionable_candidates = _annotate_decision_workspace_navigation(
+        alpha_payload["actionable_candidates"],
+        source="dashboard-alpha",
+        security_code_key="asset_code",
+        view_step=None,
+        primary_step=4,
+    )
     alpha_exit_watchlist = _mark_alpha_exit_watchlist_selection(
-        alpha_payload.get("exit_watchlist", []),
+        _annotate_alpha_exit_watchlist_navigation(
+            alpha_payload.get("exit_watchlist", []),
+            alpha_scope=selected_alpha_scope,
+            portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
+        ),
         account_id=selected_exit_account_id,
         asset_code=selected_exit_asset_code,
     )
     alpha_exit_watch_summary = alpha_payload.get("exit_watch_summary", {})
+    alpha_exit_entry_panel = _build_dashboard_exit_entry_panel_context(alpha_exit_watchlist)
     alpha_exit_detail_panel = _build_alpha_exit_detail_panel_context(
         exit_watchlist=alpha_exit_watchlist,
         account_id=selected_exit_account_id,
         asset_code=selected_exit_asset_code,
     )
-    alpha_pending_requests = alpha_payload["pending_requests"]
-    workflow_actionable_candidates = decision_plane_data.actionable_candidates
-    workflow_pending_requests = decision_plane_data.pending_requests
+    alpha_pending_requests = _annotate_decision_workspace_navigation(
+        alpha_payload["pending_requests"],
+        source="dashboard-pending",
+        security_code_key="asset_code",
+        view_step=5,
+        primary_step=5,
+    )
+    workflow_actionable_candidates = _annotate_decision_workspace_navigation(
+        decision_plane_data.actionable_candidates,
+        source="dashboard-workflow",
+        security_code_key="asset_code",
+        view_step=None,
+        primary_step=4,
+    )
+    workflow_pending_requests = _annotate_decision_workspace_navigation(
+        decision_plane_data.pending_requests,
+        source="dashboard-pending",
+        security_code_key="asset_code",
+        view_step=5,
+        primary_step=5,
+    )
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
 
     context = {
@@ -1044,6 +1218,9 @@ def _build_dashboard_page_context(
         "alpha_actionable_candidates": alpha_actionable_candidates,
         "alpha_exit_watchlist": alpha_exit_watchlist,
         "alpha_exit_watch_summary": alpha_exit_watch_summary,
+        "alpha_exit_entry_watchlist": alpha_exit_entry_panel["items"],
+        "alpha_exit_entry_watch_summary": alpha_exit_entry_panel["summary"],
+        "alpha_exit_entry_hidden_count": alpha_exit_entry_panel["hidden_processed_count"],
         "alpha_exit_detail_panel": alpha_exit_detail_panel,
         "alpha_exit_selected_asset_code": alpha_exit_detail_panel.get("selected", {}).get("asset_code")
         if alpha_exit_detail_panel.get("selected")

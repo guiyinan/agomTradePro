@@ -67,7 +67,13 @@ def alpha_ranking_page(request):
         else selected_portfolio_id or alpha_pool.get("portfolio_id")
     )
     context = {
-        "alpha_stocks": alpha_payload["items"],
+        "alpha_stocks": dashboard_views._annotate_decision_workspace_navigation(
+            alpha_payload["items"],
+            source="dashboard-alpha",
+            security_code_key="code",
+            view_step=None,
+            primary_step=4,
+        ),
         "alpha_meta": alpha_payload["meta"],
         "alpha_pool": alpha_pool,
         "alpha_scope": selected_alpha_scope,
@@ -488,7 +494,11 @@ def alpha_stocks_htmx(request):
     pool = scores_payload["pool"]
     actionable_candidates = scores_payload["actionable_candidates"]
     exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
-        scores_payload.get("exit_watchlist", []),
+        dashboard_views._annotate_alpha_exit_watchlist_navigation(
+            scores_payload.get("exit_watchlist", []),
+            alpha_scope=alpha_scope,
+            portfolio_id=portfolio_id or pool.get("portfolio_id"),
+        ),
         account_id=selected_exit_account_id,
         asset_code=selected_exit_asset_code,
     )
@@ -667,7 +677,11 @@ def alpha_exit_panel_htmx(request):
         alpha_scope=alpha_scope,
     )
     context = dashboard_views._build_alpha_exit_detail_panel_context(
-        exit_watchlist=payload.get("exit_watchlist", []),
+        exit_watchlist=dashboard_views._annotate_alpha_exit_watchlist_navigation(
+            payload.get("exit_watchlist", []),
+            alpha_scope=alpha_scope,
+            portfolio_id=portfolio_id or payload.get("pool", {}).get("portfolio_id"),
+        ),
         account_id=account_id,
         asset_code=asset_code,
     )

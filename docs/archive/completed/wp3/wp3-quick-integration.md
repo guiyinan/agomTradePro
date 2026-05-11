@@ -143,10 +143,21 @@ Added execution reference display section:
 
 Added `goToExecute()` JavaScript function:
 ```javascript
-function goToExecute(requestId, assetCode, direction) {
-    window.location.href = `/decision/workspace/?execute_request=${requestId}&asset_code=${assetCode}&direction=${direction}`;
+function goToExecute(requestId, assetCode, direction, accountId = "") {
+    const params = new URLSearchParams({
+        source: "alpha-trigger-execute",
+        security_code: assetCode,
+        action: direction,
+        step: "6",
+    });
+    if (accountId) {
+        params.set("account_id", accountId);
+    }
+    window.location.href = `/decision/workspace/?${params.toString()}`;
 }
 ```
+
+> Note: this archive guide keeps the historical workflow context, but the Workspace deep link example above has been updated to the current canonical query contract to avoid copy-paste drift from legacy `execute_request/asset_code/direction` examples.
 
 ## Step 7: Collect Static Files
 

@@ -72,6 +72,7 @@ Infrastructure 层 (models.py, repositories.py, feature_providers.py)
 2. 手动筛选接口 `/api/equity/screen/` 补充返回 `items`，前端不再依赖占位符渲染
 3. 结果项直接支持 `加入观察` / `采纳`，跳转到 `/decision/workspace/`
 4. 决策工作台新增 `user_action` 维度，用于表达用户显式决策，不污染审批执行状态
+5. `/decision/workspace/` 的页面 deep link 已统一收口到 `source`、`security_code`、`step`、`account_id`、`action`；推荐读取链路同步返回 `user_action_label`，前端与 MCP/SDK 不再各自维护动作显示口径
 
 ### 2.1 领域实体：UnifiedRecommendation
 

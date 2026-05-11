@@ -866,6 +866,47 @@ def test_alpha_homepage_pending_request_includes_cancel_identity():
     assert item["name"] == "贵州茅台"
 
 
+def test_alpha_homepage_exit_watch_item_uses_canonical_workspace_url_and_processed_label():
+    query = object.__new__(AlphaHomepageQuery)
+    recommendation = SimpleNamespace(
+        recommendation_id="rec-1",
+        side="SELL",
+        status="ACTIVE",
+        user_action="adopted",
+        source_signal_ids=[11],
+        human_rationale="统一推荐已转为 SELL。",
+    )
+
+    item = query._build_exit_watch_item(
+        position={
+            "account_id": 21,
+            "account_name": "默认账户",
+            "asset_code": "000001.sz",
+            "asset_name": "平安银行",
+            "signal_id": 11,
+            "shares": 100,
+            "market_value": 1200,
+            "avg_cost": 10.5,
+            "current_price": 12.0,
+            "unrealized_pnl_pct": 0.14,
+        },
+        recommendation_map={"000001.SZ": recommendation},
+        transition_order_map={},
+        signal_payloads={},
+    )
+
+    assert item["user_action"] == "ADOPTED"
+    assert item["user_action_label"] == "已采纳"
+    assert item["is_processed"] is True
+    assert item["recommendation_snapshot"]["user_action"] == "ADOPTED"
+    assert item["recommendation_snapshot"]["user_action_label"] == "已采纳"
+    assert item["recommendation_snapshot"]["is_processed"] is True
+    assert (
+        item["decision_workspace_url"]
+        == "/decision/workspace/?source=dashboard-exit&security_code=000001.SZ&step=5&account_id=21&action=SELL"
+    )
+
+
 def test_alpha_metrics_query_uses_lightweight_provider_registry(monkeypatch):
     query = AlphaVisualizationQuery()
 

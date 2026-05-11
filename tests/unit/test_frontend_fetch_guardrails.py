@@ -30,6 +30,76 @@ def test_high_risk_templates_use_shared_fetch_helpers():
             assert pattern not in content, f"{template} still contains unsafe JSON parsing pattern: {pattern}"
 
 
+def test_exit_chain_templates_use_shared_dashboard_detail_urls():
+    templates_with_expected_placeholders = {
+        Path("core/templates/dashboard/main_workflow_panel.html"): "dashboard_detail_url",
+        Path("core/templates/dashboard/alpha_history.html"): "current_exit_dashboard_url",
+        Path("core/templates/decision/workspace.html"): "dashboard_detail_url",
+    }
+
+    banned_patterns = [
+        "/dashboard/?alpha_scope=portfolio&exit_asset_code=",
+        "/dashboard/?alpha_scope={{",
+    ]
+
+    for template, placeholder in templates_with_expected_placeholders.items():
+        content = template.read_text(encoding="utf-8")
+        assert placeholder in content, f"{template} should use shared dashboard detail url placeholder"
+        for pattern in banned_patterns:
+            assert pattern not in content, f"{template} still hardcodes dashboard exit detail link: {pattern}"
+
+
+def test_workspace_entrypoints_use_canonical_bridge_params_and_keep_legacy_compat():
+    alpha_trigger_content = Path(
+        "apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html"
+    ).read_text(encoding="utf-8")
+    workspace_content = Path("core/templates/decision/workspace.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "security_code: assetCode" in alpha_trigger_content
+    assert "action: direction" in alpha_trigger_content
+    assert "step: '6'" in alpha_trigger_content
+    assert "execute_request=" not in alpha_trigger_content
+    assert "asset_code=${assetCode}" not in alpha_trigger_content
+    assert "direction=${direction}" not in alpha_trigger_content
+
+    assert "workspaceParams.get('security_code') || workspaceParams.get('asset_code') || ''" in workspace_content
+    assert "workspaceParams.get('action') || workspaceParams.get('direction') || ''" in workspace_content
+    assert "workspaceParams.get('execute_request') ? 'alpha-trigger-execute' : ''" in workspace_content
+    assert "getUserActionText(action, label = '')" in workspace_content
+    assert "rec.user_action_label" in workspace_content
+    assert "updated?.user_action_label" in workspace_content
+
+
+def test_dashboard_and_equity_workspace_entrypoints_use_canonical_builders():
+    main_workflow_content = Path(
+        "core/templates/dashboard/main_workflow_panel.html"
+    ).read_text(encoding="utf-8")
+    alpha_ranking_content = Path(
+        "core/templates/dashboard/alpha_ranking.html"
+    ).read_text(encoding="utf-8")
+    equity_screen_content = Path("core/templates/equity/screen.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "decision_workspace_url" in main_workflow_content
+    assert "decision_workspace_primary_url" in main_workflow_content
+    assert "?source=dashboard-alpha&security_code=" not in main_workflow_content
+    assert "?source=dashboard-workflow&security_code=" not in main_workflow_content
+    assert "?source=dashboard-pending&security_code=" not in main_workflow_content
+
+    assert "{{ stock.decision_workspace_url }}" in alpha_ranking_content
+    assert "?source=dashboard-alpha&security_code=" not in alpha_ranking_content
+
+    assert "function buildDecisionWorkspaceUrl(securityCode" in equity_screen_content
+    assert "params.set('security_code'" in equity_screen_content
+    assert "params.set('action'" in equity_screen_content
+    assert "/decision/workspace/?source=equity-screen&security_code=${encodeURIComponent(item.code || '')}" not in equity_screen_content
+    assert "&action=watch" not in equity_screen_content
+    assert "&action=adopt" not in equity_screen_content
+
+
 def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_timestamp():
     content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
 

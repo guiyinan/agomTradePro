@@ -532,7 +532,7 @@
                     </div>
                     <div class="workspace-exit-actions">
                         <a href="{{ workspace_selected_exit_item.decision_workspace_url }}">停留在当前工作台</a>
-                        <a href="/dashboard/?alpha_scope=portfolio&exit_asset_code={{ workspace_selected_exit_item.asset_code|urlencode }}{% if workspace_selected_exit_item.account_id %}&exit_account_id={{ workspace_selected_exit_item.account_id }}{% endif %}">打开 Dashboard 详情</a>
+                        <a href="{{ workspace_selected_exit_item.dashboard_detail_url }}">打开 Dashboard 详情</a>
                         {% if workspace_selected_exit_item.transition_plan_detail_url %}
                         <a href="{{ workspace_selected_exit_item.transition_plan_detail_url }}" target="_blank" rel="noopener">调仓计划 API</a>
                         {% endif %}
@@ -552,7 +552,7 @@
                         <div class="workspace-exit-note">{{ item.invalidation_summary }}</div>
                         <div class="workspace-exit-actions">
                             <a href="{{ item.decision_workspace_url }}">在 Workspace 中定位</a>
-                            <a href="/dashboard/?alpha_scope=portfolio&exit_asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&exit_account_id={{ item.account_id }}{% endif %}">Dashboard 详情</a>
+                            <a href="{{ item.dashboard_detail_url }}">Dashboard 详情</a>
                         </div>
                     </div>
                     {% endfor %}
@@ -984,9 +984,10 @@ let workspaceInitialized = false;
 const selectedRecommendationIds = new Set();
 const recommendationAutoRefreshAttempts = new Set();
 const workspaceBridge = {
-    source: workspaceParams.get('source') || '',
-    securityCode: workspaceParams.get('security_code') || '',
-    action: workspaceParams.get('action') || '',
+    source: workspaceParams.get('source') || (workspaceParams.get('execute_request') ? 'alpha-trigger-execute' : ''),
+    securityCode: workspaceParams.get('security_code') || workspaceParams.get('asset_code') || '',
+    action: workspaceParams.get('action') || workspaceParams.get('direction') || '',
+    legacyRequestId: workspaceParams.get('execute_request') || '',
     handled: false,
     highlightedRecommendationId: '',
 };
@@ -1039,13 +1040,30 @@ function renderSecurityLabel(securityName, securityCode, extraClass = '') {
     `;
 }
 
-function getUserActionText(action) {
+function getUserActionText(action, label = '') {
+    const normalizedLabel = String(label || '').trim();
+    if (normalizedLabel) {
+        return normalizedLabel;
+    }
     return {
         PENDING: '待决策',
         WATCHING: '观察中',
         ADOPTED: '已采纳',
         IGNORED: '已忽略',
     }[action] || action || '待决策';
+}
+
+function normalizeWorkspaceBridgeUserAction(action) {
+    const normalized = String(action || '').trim().toUpperCase();
+    return {
+        WATCH: 'watch',
+        WATCHING: 'watch',
+        ADOPT: 'adopt',
+        ADOPTED: 'adopt',
+        IGNORE: 'ignore',
+        IGNORED: 'ignore',
+        PENDING: 'pending',
+    }[normalized] || '';
 }
 
 function getWorkspaceAccountSelector() {
@@ -1427,7 +1445,8 @@ async function bootstrapWorkspaceBridge() {
 
         workspaceBridge.highlightedRecommendationId = targetRecommendation.recommendation_id;
 
-        if (workspaceBridge.action) {
+        const bridgeUserAction = normalizeWorkspaceBridgeUserAction(workspaceBridge.action);
+        if (bridgeUserAction) {
             const actionData = await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/action/', {
                 method: 'POST',
                 headers: {
@@ -1437,16 +1456,16 @@ async function bootstrapWorkspaceBridge() {
                 body: JSON.stringify({
                     recommendation_id: targetRecommendation.recommendation_id,
                     account_id: accountId,
-                    action: workspaceBridge.action,
+                    action: bridgeUserAction,
                     note: workspaceBridge.source ? `source=${workspaceBridge.source}` : '',
                 }),
             });
             if (!actionData.success) {
                 throw new Error(actionData.error || '用户动作写入失败');
             }
-            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，并标记为${getUserActionText(actionData.data.recommendation.user_action)}。`, 'success');
+            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，并标记为${getUserActionText(actionData.data.recommendation.user_action, actionData.data.recommendation.user_action_label)}。`, 'success');
         } else {
-            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，可继续执行加入观察、采纳或审批。`, 'success');
+            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台；请先核对退出详情，再选择观察、采纳或忽略。`, 'success');
         }
 
         workspaceBridge.handled = true;
@@ -1652,7 +1671,7 @@ function renderRecommendations(recommendations, totalCount) {
                         </label>
                     ${renderSecurityLabel(rec.security_name, rec.security_code, 'rec-asset-title')}
                     <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
-                    <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action)}</span>
+                    <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action, rec.user_action_label)}</span>
                 </div>
                 <div class="rec-confidence">
                     置信度: <strong>${(rec.confidence * 100).toFixed(1)}%</strong>
@@ -1815,7 +1834,7 @@ async function applyRecommendationAction(recommendationId, action) {
             workspaceBridge.securityCode = updated.security_code;
             workspaceBridge.highlightedRecommendationId = updated.recommendation_id;
         }
-        showBridgeBanner(data.data?.message || `已更新为${getUserActionText(updated?.user_action)}`, 'success');
+        showBridgeBanner(data.data?.message || `已更新为${getUserActionText(updated?.user_action, updated?.user_action_label)}`, 'success');
         await loadRecommendations();
         return updated || null;
     } catch (error) {

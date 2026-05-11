@@ -402,7 +402,10 @@ def decision_workspace_view(request):
             alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
         )
         workspace_exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
-            exit_alpha_payload.get("exit_watchlist", []),
+            dashboard_views._annotate_alpha_exit_watchlist_navigation(
+                exit_alpha_payload.get("exit_watchlist", []),
+                alpha_scope=dashboard_views.ALPHA_SCOPE_PORTFOLIO,
+            ),
             account_id=parsed_workspace_account_id,
             asset_code=requested_security_code or None,
         )

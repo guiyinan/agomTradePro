@@ -83,18 +83,24 @@
     </div>
     {% endif %}
 
-    {% if alpha_exit_watchlist %}
+    {% with exit_watchlist=alpha_exit_entry_watchlist|default:alpha_exit_watchlist exit_watch_summary=alpha_exit_entry_watch_summary|default:alpha_exit_watch_summary %}
+    {% if exit_watchlist %}
     <div class="candidate-actions-section alpha-recommendations-section" style="margin-top: 12px;">
-        <h3 class="subsection-title">退出链路入口 ({{ alpha_exit_watchlist|length }})</h3>
-        {% if alpha_exit_watch_summary.total %}
+        <h3 class="subsection-title">退出链路入口 ({{ exit_watchlist|length }})</h3>
+        {% if exit_watch_summary.total %}
         <div class="workflow-exit-summary">
-            <span class="workflow-exit-pill workflow-exit-pill-urgent">立即处理 {{ alpha_exit_watch_summary.urgent_count|default:0 }}</span>
-            <span class="workflow-exit-pill workflow-exit-pill-sell">SELL {{ alpha_exit_watch_summary.sell_count|default:0 }}</span>
-            <span class="workflow-exit-pill workflow-exit-pill-reduce">REDUCE {{ alpha_exit_watch_summary.reduce_count|default:0 }}</span>
-            <span class="workflow-exit-pill">HOLD {{ alpha_exit_watch_summary.hold_count|default:0 }}</span>
+            <span class="workflow-exit-pill workflow-exit-pill-urgent">立即处理 {{ exit_watch_summary.urgent_count|default:0 }}</span>
+            <span class="workflow-exit-pill workflow-exit-pill-sell">SELL {{ exit_watch_summary.sell_count|default:0 }}</span>
+            <span class="workflow-exit-pill workflow-exit-pill-reduce">REDUCE {{ exit_watch_summary.reduce_count|default:0 }}</span>
+            <span class="workflow-exit-pill">HOLD {{ exit_watch_summary.hold_count|default:0 }}</span>
         </div>
         {% endif %}
-        {% for item in alpha_exit_watchlist|slice:":3" %}
+        {% if alpha_exit_entry_hidden_count %}
+        <p class="candidate-meta" style="margin: 8px 0 0 0;">
+            已自动收起 {{ alpha_exit_entry_hidden_count }} 条已采纳 / 已忽略项，避免首页重复提醒；仍可在右侧详情面板继续核对。
+        </p>
+        {% endif %}
+        {% for item in exit_watchlist|slice:":3" %}
         <div class="candidate-action-row">
             <div class="candidate-info-cell">
                 <div class="candidate-main-info">
@@ -123,7 +129,10 @@
                 </div>
             </div>
             <a class="btn-precheck"
-               href="{% url 'dashboard:index' %}?alpha_scope={{ selected_alpha_scope|default:'portfolio' }}{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}&exit_asset_code={{ item.asset_code|urlencode }}{% if item.account_id %}&exit_account_id={{ item.account_id }}{% endif %}"
+               href="{{ item.dashboard_detail_url }}"
+               data-dashboard-exit-detail-link="true"
+               data-exit-asset-code="{{ item.asset_code }}"
+               {% if item.account_id %}data-exit-account-id="{{ item.account_id }}"{% endif %}
                style="text-decoration:none;">
                 🔍 打开退出详情
             </a>
@@ -136,6 +145,7 @@
         {% endfor %}
     </div>
     {% endif %}
+    {% endwith %}
 
     <!-- Alpha 推荐资产列表 -->
     <div class="candidate-actions-section alpha-recommendations-section" style="margin-top: 12px;">
@@ -192,12 +202,12 @@
                     </div>
                 </div>
                 <a class="btn-precheck"
-                   href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                   href="{{ stock.decision_workspace_url }}"
                    style="text-decoration:none;">
                     🔍 在 Workflow 中查看
                 </a>
                 <a class="btn-submit-decision"
-                   href="{% url 'decision-workspace' %}?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                   href="{{ stock.decision_workspace_primary_url }}"
                    style="text-decoration:none;">
                     📝 进入 Step 4
                 </a>
@@ -303,13 +313,13 @@
             </div>
 
             <a class="btn-precheck"
-               href="{% url 'decision-workspace' %}?source=dashboard-workflow&security_code={{ candidate.asset_code|urlencode }}"
+               href="{{ candidate.decision_workspace_url }}"
                style="text-decoration:none;">
                 🔍 在 Workflow 中查看
             </a>
 
             <a class="btn-submit-decision"
-               href="{% url 'decision-workspace' %}?source=dashboard-workflow&security_code={{ candidate.asset_code|urlencode }}"
+               href="{{ candidate.decision_workspace_primary_url }}"
                style="text-decoration:none;">
                 📝 进入 Step 4
             </a>
@@ -352,7 +362,7 @@
                         {% endif %}
                     </div>
                 </div>
-                <a class="btn-submit-decision" href="{% url 'decision-workspace' %}?source=dashboard-pending&security_code={{ req.asset_code|urlencode }}" style="text-decoration:none;">
+                <a class="btn-submit-decision" href="{{ req.decision_workspace_primary_url }}" style="text-decoration:none;">
                     去 Step 5
                 </a>
             </div>

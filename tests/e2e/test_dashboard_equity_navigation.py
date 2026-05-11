@@ -87,7 +87,9 @@ def test_equity_screen_page_contains_dashboard_alpha_navigation(authenticated_cl
     assert "查看完整排名" in content
     assert "系统自动推荐" in content
     assert "手动二次筛选" in content
-    assert "/decision/workspace/?source=equity-screen&security_code=" in content
+    assert "buildDecisionWorkspaceUrl" in content
+    assert "params.set('security_code'" in content
+    assert "params.set('action'" in content
 
 
 @pytest.mark.django_db
@@ -122,7 +124,8 @@ def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticat
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "/decision/workspace/?source=dashboard-alpha&security_code=" in content
+    assert "/decision/workspace/?source=dashboard-alpha&amp;security_code=600519.SH" in content
+    assert "/decision/workspace/?source=dashboard-alpha&amp;security_code=600519.SH&amp;step=4" in content
     assert "在 Workflow 中查看" in content
 
 

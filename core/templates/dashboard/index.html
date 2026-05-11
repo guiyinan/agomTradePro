@@ -494,10 +494,10 @@
                         </div>
                     </div>
 
-                    <div class="alpha-content-card factor-panel-card">
+                    <div class="alpha-content-card factor-panel-card" id="alpha-exit-detail" data-exit-asset-code="{{ alpha_exit_selected_asset_code|default:'' }}">
                         <div class="card-header">
                             <h3>Recommendation / Plan 详情</h3>
-                            <span class="card-hint">点击左侧持仓退出监控加载</span>
+                            <span class="card-hint">点击左侧持仓退出监控加载；深链打开时会自动定位到这里</span>
                         </div>
                         <div class="card-body" id="alphaExitDetailPanel">
                             {% include 'dashboard/partials/alpha_exit_detail_panel.html' with selected=alpha_exit_detail_panel.selected recommendation=alpha_exit_detail_panel.recommendation transition_plan=alpha_exit_detail_panel.transition_plan signal_contract=alpha_exit_detail_panel.signal_contract has_exit_watchlist=alpha_exit_detail_panel.has_exit_watchlist empty_reason=alpha_exit_detail_panel.empty_reason %}
@@ -3127,6 +3127,12 @@ chatSendBtn.onclick = async function() {
     box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
 }
 
+.alpha-content-card.alpha-exit-detail-highlight {
+    border-color: #3756a4;
+    box-shadow: 0 16px 40px rgba(55, 86, 164, 0.16);
+    transition: box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
 /* 响应式状态网格 */
 @media (max-width: 768px) {
     .status-grid {
@@ -3244,6 +3250,159 @@ chatSendBtn.onclick = async function() {
         toggle.addEventListener('click', toggleNotifications);
     }
     showNotificationIfNeeded();
+})();
+
+(function () {
+    function getExitDetailTarget() {
+        return document.getElementById('alpha-exit-detail');
+    }
+
+    function getExitDetailPanel() {
+        return document.getElementById('alphaExitDetailPanel');
+    }
+
+    function showExitDetailHint(assetCode, message) {
+        const panel = getExitDetailPanel();
+        if (!panel || !panel.parentElement) {
+            return;
+        }
+
+        panel.parentElement.querySelectorAll('[data-dashboard-exit-hint="true"]').forEach(node => node.remove());
+        const hint = document.createElement('div');
+        hint.className = 'app-notification-banner app-notification-banner-info';
+        hint.style.marginBottom = '12px';
+        hint.setAttribute('data-dashboard-exit-hint', 'true');
+        hint.innerHTML = `<strong>已定位退出详情</strong><span style="margin-left:8px;">${message || `${assetCode} 的 recommendation / transition plan 明细已加载在当前面板。`}</span>`;
+        panel.parentElement.insertBefore(hint, panel);
+    }
+
+    function highlightExitDetailPanel() {
+        const target = getExitDetailTarget();
+        if (!target) {
+            return;
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('alpha-exit-detail-highlight');
+        window.setTimeout(() => target.classList.remove('alpha-exit-detail-highlight'), 2200);
+    }
+
+    function activateExitWatchSelection(assetCode, accountId) {
+        document.querySelectorAll('.alpha-list-item-exit').forEach((item) => {
+            const itemCode = String(item.getAttribute('data-exit-asset-code') || '').toUpperCase();
+            const itemAccountId = String(item.getAttribute('data-exit-account-id') || '');
+            const matched = itemCode === String(assetCode || '').toUpperCase()
+                && (!accountId || itemAccountId === String(accountId));
+            item.classList.toggle('is-selected', matched);
+        });
+    }
+
+    async function openDashboardExitDetail(link) {
+        const target = getExitDetailTarget();
+        const panel = getExitDetailPanel();
+        if (!target || !panel || !link) {
+            return false;
+        }
+
+        const href = link.getAttribute('href');
+        if (!href) {
+            return false;
+        }
+
+        const targetUrl = new URL(href, window.location.origin);
+        const currentUrl = new URL(window.location.href);
+        const assetCode = targetUrl.searchParams.get('exit_asset_code') || link.getAttribute('data-exit-asset-code') || '';
+        const accountId = targetUrl.searchParams.get('exit_account_id') || link.getAttribute('data-exit-account-id') || '';
+        const alphaScope = targetUrl.searchParams.get('alpha_scope') || currentUrl.searchParams.get('alpha_scope') || 'portfolio';
+        const portfolioId = targetUrl.searchParams.get('portfolio_id') || currentUrl.searchParams.get('portfolio_id') || '';
+        const poolMode = document.getElementById('alphaPoolModeSelect')?.value || currentUrl.searchParams.get('pool_mode') || '';
+
+        if (!assetCode) {
+            window.location.href = href;
+            return true;
+        }
+
+        const apiUrl = new URL('/api/dashboard/alpha/exit-panel/', window.location.origin);
+        apiUrl.searchParams.set('asset_code', assetCode);
+        if (accountId) {
+            apiUrl.searchParams.set('account_id', accountId);
+        }
+        apiUrl.searchParams.set('alpha_scope', alphaScope);
+        apiUrl.searchParams.set('top_n', '10');
+        if (portfolioId) {
+            apiUrl.searchParams.set('portfolio_id', portfolioId);
+        }
+        if (poolMode && alphaScope !== 'general') {
+            apiUrl.searchParams.set('pool_mode', poolMode);
+        }
+
+        panel.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">定位退出详情...</p></div>';
+
+        try {
+            const response = await fetch(apiUrl.toString(), {
+                headers: {
+                    'HX-Request': 'true',
+                    'X-CSRFToken': window.csrfToken || '',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            panel.innerHTML = await response.text();
+            currentUrl.searchParams.set('alpha_scope', alphaScope);
+            if (portfolioId) {
+                currentUrl.searchParams.set('portfolio_id', portfolioId);
+            } else {
+                currentUrl.searchParams.delete('portfolio_id');
+            }
+            if (poolMode && alphaScope !== 'general') {
+                currentUrl.searchParams.set('pool_mode', poolMode);
+            }
+            currentUrl.searchParams.set('exit_asset_code', assetCode);
+            if (accountId) {
+                currentUrl.searchParams.set('exit_account_id', accountId);
+            } else {
+                currentUrl.searchParams.delete('exit_account_id');
+            }
+            currentUrl.hash = 'alpha-exit-detail';
+            window.history.replaceState({}, '', currentUrl.toString());
+            activateExitWatchSelection(assetCode, accountId);
+            showExitDetailHint(assetCode);
+            highlightExitDetailPanel();
+            return true;
+        } catch (error) {
+            console.error('Failed to open dashboard exit detail inline:', error);
+            window.location.href = href;
+            return true;
+        }
+    }
+
+    window.openDashboardExitDetail = openDashboardExitDetail;
+
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-dashboard-exit-detail-link="true"]');
+        if (!link) {
+            return;
+        }
+        event.preventDefault();
+        void openDashboardExitDetail(link);
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const initialAssetCode = params.get('exit_asset_code');
+    if (!getExitDetailTarget() || !initialAssetCode) {
+        return;
+    }
+
+    const initialAccountId = params.get('exit_account_id') || '';
+    showExitDetailHint(initialAssetCode);
+    activateExitWatchSelection(initialAssetCode, initialAccountId);
+    if (document.readyState === 'complete') {
+        window.setTimeout(highlightExitDetailPanel, 120);
+        return;
+    }
+
+    window.addEventListener('load', () => window.setTimeout(highlightExitDetailPanel, 120), { once: true });
 })();
 </script>
 {% endblock %}
