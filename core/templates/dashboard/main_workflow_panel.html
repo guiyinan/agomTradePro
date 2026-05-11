@@ -85,8 +85,16 @@
 
     {% with exit_watchlist=alpha_exit_entry_watchlist|default:alpha_exit_watchlist exit_watch_summary=alpha_exit_entry_watch_summary|default:alpha_exit_watch_summary %}
     {% if exit_watchlist %}
-    <div class="candidate-actions-section alpha-recommendations-section" style="margin-top: 12px;">
-        <h3 class="subsection-title">退出链路入口 ({{ exit_watchlist|length }})</h3>
+    <div class="candidate-actions-section alpha-recommendations-section workflow-exit-entry-section" style="margin-top: 12px;">
+        <div class="workflow-exit-entry-header">
+            <div class="workflow-exit-entry-title-group">
+                <h3 class="subsection-title">退出待办</h3>
+                <p class="workflow-exit-entry-subtitle">
+                    先在右侧核对退出契约与调仓计划，再决定是否进入工作台继续执行。
+                </p>
+            </div>
+            <span class="workflow-exit-entry-count">{{ exit_watchlist|length }} 条待处理</span>
+        </div>
         {% if exit_watch_summary.total %}
         <div class="workflow-exit-summary">
             <span class="workflow-exit-pill workflow-exit-pill-urgent">立即处理 {{ exit_watch_summary.urgent_count|default:0 }}</span>
@@ -96,13 +104,14 @@
         </div>
         {% endif %}
         {% if alpha_exit_entry_hidden_count %}
-        <p class="candidate-meta" style="margin: 8px 0 0 0;">
+        <p class="workflow-exit-entry-note">
             已自动收起 {{ alpha_exit_entry_hidden_count }} 条已采纳 / 已忽略项，避免首页重复提醒；仍可在右侧详情面板继续核对。
         </p>
         {% endif %}
+        <div class="workflow-exit-entry-list">
         {% for item in exit_watchlist|slice:":3" %}
-        <div class="candidate-action-row">
-            <div class="candidate-info-cell">
+        <div class="workflow-exit-entry">
+            <div class="workflow-exit-entry-main">
                 <div class="candidate-main-info">
                     <span class="candidate-asset-code">{{ item.asset_code }}</span>
                     {% if item.asset_name %}
@@ -120,29 +129,33 @@
                 <div class="candidate-chain-meta">
                     <span class="candidate-chain-badge candidate-chain-badge-pending">{{ item.priority_label }}</span>
                     {% if item.stop_loss_price %}
-                    <span class="candidate-chain-badge candidate-chain-badge-score">止损 {{ item.stop_loss_price }}</span>
+                        <span class="candidate-chain-badge candidate-chain-badge-score">止损 {{ item.stop_loss_price }}</span>
                     {% endif %}
                     <span class="candidate-chain-badge candidate-chain-badge-origin">{{ item.contract_status_label }}</span>
                 </div>
-                <div class="candidate-meta">
-                    <span>{{ item.exit_reason_text|default:"当前未触发退出动作。" }}</span>
+                <div class="workflow-exit-entry-reason">
+                    {{ item.exit_reason_text|default:"当前未触发退出动作。" }}
                 </div>
             </div>
-            <a class="btn-precheck"
-               href="{{ item.dashboard_detail_url }}"
-               data-dashboard-exit-detail-link="true"
-               data-exit-asset-code="{{ item.asset_code }}"
-               {% if item.account_id %}data-exit-account-id="{{ item.account_id }}"{% endif %}
-               style="text-decoration:none;">
-                🔍 打开退出详情
-            </a>
-            <a class="btn-submit-decision"
-               href="{{ item.decision_workspace_url|default:'/decision/workspace/' }}"
-               style="text-decoration:none;">
-                📝 进入决策工作台
-            </a>
+            <div class="workflow-exit-entry-actions">
+                <a class="btn-precheck workflow-exit-detail-btn"
+                   href="{{ item.dashboard_detail_url }}"
+                   data-dashboard-exit-detail-link="true"
+                   data-exit-asset-code="{{ item.asset_code }}"
+                   {% if item.account_id %}data-exit-account-id="{{ item.account_id }}"{% endif %}
+                   style="text-decoration:none;">
+                    查看右侧详情
+                </a>
+                <span class="workflow-exit-inline-cue">不会离开当前页</span>
+                <a class="btn-submit-decision workflow-exit-primary-btn"
+                   href="{{ item.decision_workspace_url|default:'/decision/workspace/' }}"
+                   style="text-decoration:none;">
+                    进入决策工作台
+                </a>
+            </div>
         </div>
         {% endfor %}
+        </div>
     </div>
     {% endif %}
     {% endwith %}

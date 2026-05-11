@@ -496,8 +496,8 @@
 
                     <div class="alpha-content-card factor-panel-card" id="alpha-exit-detail" data-exit-asset-code="{{ alpha_exit_selected_asset_code|default:'' }}">
                         <div class="card-header">
-                            <h3>Recommendation / Plan 详情</h3>
-                            <span class="card-hint">点击左侧持仓退出监控加载；深链打开时会自动定位到这里</span>
+                            <h3>退出契约详情</h3>
+                            <span class="card-hint">点击左侧退出待办后，会在这里加载退出建议、调仓计划和信号契约</span>
                         </div>
                         <div class="card-body" id="alphaExitDetailPanel">
                             {% include 'dashboard/partials/alpha_exit_detail_panel.html' with selected=alpha_exit_detail_panel.selected recommendation=alpha_exit_detail_panel.recommendation transition_plan=alpha_exit_detail_panel.transition_plan signal_contract=alpha_exit_detail_panel.signal_contract has_exit_watchlist=alpha_exit_detail_panel.has_exit_watchlist empty_reason=alpha_exit_detail_panel.empty_reason %}
@@ -3272,7 +3272,7 @@ chatSendBtn.onclick = async function() {
         hint.className = 'app-notification-banner app-notification-banner-info';
         hint.style.marginBottom = '12px';
         hint.setAttribute('data-dashboard-exit-hint', 'true');
-        hint.innerHTML = `<strong>已定位退出详情</strong><span style="margin-left:8px;">${message || `${assetCode} 的 recommendation / transition plan 明细已加载在当前面板。`}</span>`;
+        hint.innerHTML = `<strong>已在右侧打开退出详情</strong><span style="margin-left:8px;">${message || `${assetCode} 的退出契约、recommendation 与调仓计划已加载在当前面板。`}</span>`;
         panel.parentElement.insertBefore(hint, panel);
     }
 

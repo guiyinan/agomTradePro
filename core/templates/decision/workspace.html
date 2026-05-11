@@ -508,7 +508,7 @@
 
             <div class="workspace-sidebar-card">
                 <div class="workspace-sidebar-title">退出链路</div>
-                <p class="workspace-sidebar-subtitle">统一 recommendation / transition plan / signal contract 的当前卖出跟踪入口。</p>
+                <p class="workspace-sidebar-subtitle">统一退出建议、调仓计划与信号契约的当前卖出跟踪入口。</p>
                 {% if workspace_exit_watch_summary.total %}
                 <div class="workspace-exit-summary">
                     <span class="workspace-exit-pill workspace-exit-pill-urgent">立即处理 {{ workspace_exit_watch_summary.urgent_count|default:0 }}</span>
@@ -532,7 +532,7 @@
                     </div>
                     <div class="workspace-exit-actions">
                         <a href="{{ workspace_selected_exit_item.decision_workspace_url }}">停留在当前工作台</a>
-                        <a href="{{ workspace_selected_exit_item.dashboard_detail_url }}">打开 Dashboard 详情</a>
+                        <a href="{{ workspace_selected_exit_item.dashboard_detail_url }}">回到 Dashboard 右侧详情</a>
                         {% if workspace_selected_exit_item.transition_plan_detail_url %}
                         <a href="{{ workspace_selected_exit_item.transition_plan_detail_url }}" target="_blank" rel="noopener">调仓计划 API</a>
                         {% endif %}
@@ -552,7 +552,7 @@
                         <div class="workspace-exit-note">{{ item.invalidation_summary }}</div>
                         <div class="workspace-exit-actions">
                             <a href="{{ item.decision_workspace_url }}">在 Workspace 中定位</a>
-                            <a href="{{ item.dashboard_detail_url }}">Dashboard 详情</a>
+                            <a href="{{ item.dashboard_detail_url }}">回到 Dashboard 右侧详情</a>
                         </div>
                     </div>
                     {% endfor %}

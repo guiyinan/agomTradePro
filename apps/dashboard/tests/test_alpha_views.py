@@ -989,13 +989,13 @@ def test_alpha_exit_panel_htmx_renders_recommendation_and_plan_detail(monkeypatc
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "Recommendation / Plan 详情" in content
-    assert "Unified Recommendation" in content
-    assert "Transition Plan Order" in content
+    assert "退出契约详情" in content
+    assert "统一推荐建议" in content
+    assert "调仓计划" in content
     assert "ALPHA_DECAY" in content
     assert "减掉全部持仓" in content
     assert "政策闸门升至 L2" in content
-    assert "Suggest Then Execute" in content
+    assert "先建议，再执行" in content
     assert "查看账户持仓" in content
     assert "推荐明细 API" in content
     assert "调仓计划 API" in content
@@ -1698,8 +1698,9 @@ def test_main_workflow_panel_renders_exit_chain_entry_links():
         request=request,
     )
 
-    assert "退出链路入口" in content
-    assert "打开退出详情" in content
+    assert "退出待办" in content
+    assert "查看右侧详情" in content
+    assert "不会离开当前页" in content
     assert "立即退出" in content
     assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
 
@@ -1961,6 +1962,70 @@ def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendation
     assert "mcp smoke" not in content
 
 
+def test_main_workflow_panel_exit_entry_uses_right_panel_detail_language():
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    content = render_to_string(
+        "dashboard/main_workflow_panel.html",
+        {
+            "current_regime": "Recovery",
+            "policy_level": "P1",
+            "action_weights": None,
+            "action_sectors": None,
+            "alpha_actionable_count": 0,
+            "alpha_exit_watchlist": [],
+            "alpha_exit_watch_summary": {},
+            "alpha_exit_entry_watchlist": [
+                {
+                    "asset_code": "000001.SZ",
+                    "asset_name": "平安银行",
+                    "account_id": 21,
+                    "account_name": "模拟一号",
+                    "exit_action": "SELL",
+                    "exit_action_label": "立即退出",
+                    "priority_label": "立即处理",
+                    "exit_source": "decision_rhythm.recommendation",
+                    "decision_side_label": "统一推荐 SELL",
+                    "contract_status_label": "契约完整",
+                    "exit_reason_text": "Alpha 衰减且综合分跌入 SELL 区间。",
+                    "dashboard_detail_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail",
+                    "decision_workspace_url": "/decision/workspace/?source=dashboard-exit&security_code=000001.SZ&step=5&account_id=21&action=SELL",
+                }
+            ],
+            "alpha_exit_entry_watch_summary": {
+                "total": 1,
+                "urgent_count": 1,
+                "sell_count": 1,
+                "reduce_count": 0,
+                "hold_count": 0,
+            },
+            "alpha_exit_entry_hidden_count": 0,
+            "alpha_stock_scores": [],
+            "alpha_actionable_candidates": [],
+            "actionable_candidates": [],
+            "valuation_repair_config_summary": None,
+            "pending_requests": [],
+            "pending_count": 0,
+            "alpha_decision_chain_overview": {
+                "top_ranked_count": 0,
+                "top10_actionable_count": 0,
+                "top10_pending_count": 0,
+                "top10_rank_only_count": 0,
+                "actionable_outside_top10_count": 0,
+                "pending_outside_top10_count": 0,
+            },
+        },
+        request=request,
+    )
+
+    assert "退出待办" in content
+    assert "先在右侧核对退出契约与调仓计划" in content
+    assert "查看右侧详情" in content
+    assert "不会离开当前页" in content
+    assert "打开退出详情" not in content
+
+
 def test_alpha_history_page_template_renders_detail_controls():
     request = RequestFactory().get("/dashboard/alpha/history/")
     request.user = SimpleNamespace(is_authenticated=True, username="admin")
@@ -2019,7 +2084,7 @@ def test_alpha_history_page_template_renders_detail_controls():
     assert "loadAlphaHistoryDetail" in content
     assert "/api/dashboard/alpha/history/5/" in content
     assert "当前持仓退出链路" in content
-    assert "在 Dashboard 详情中打开" in content
+    assert "在 Dashboard 右侧查看" in content
     assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
 
 
@@ -2071,9 +2136,9 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
     )
 
     assert "退出链路" in content
-    assert "统一 recommendation / transition plan / signal contract" in content
+    assert "统一退出建议、调仓计划与信号契约" in content
     assert "在 Workspace 中定位" in content
-    assert "打开 Dashboard 详情" in content
+    assert "回到 Dashboard 右侧详情" in content
     assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
     assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
 

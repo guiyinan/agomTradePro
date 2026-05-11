@@ -16,9 +16,9 @@
         <div class="alpha-history-exit-head">
             <div>
                 <h3>当前持仓退出链路</h3>
-                <p>历史页也直接挂到当前的 SELL / REDUCE / HOLD 跟踪链路，可一键回到 Dashboard 详情面板。</p>
+                <p>历史页也直接挂到当前的 SELL / REDUCE / HOLD 跟踪链路，可一键回到 Dashboard 右侧退出详情。</p>
             </div>
-            <a href="{{ current_exit_dashboard_url }}" class="section-link">打开 Dashboard 退出面板</a>
+            <a href="{{ current_exit_dashboard_url }}" class="section-link">回到 Dashboard 右侧详情</a>
         </div>
         {% if current_exit_watch_summary.total %}
         <div class="alpha-history-exit-summary">
@@ -47,7 +47,7 @@
                     {{ item.exit_reason_text|default:"当前未触发退出动作。" }}
                 </div>
                 <div class="alpha-history-page-actions">
-                    <a href="{{ item.dashboard_detail_url }}">在 Dashboard 详情中打开</a>
+                    <a href="{{ item.dashboard_detail_url }}">在 Dashboard 右侧查看</a>
                     {% if item.recommendation_detail_url %}
                     <a href="{{ item.recommendation_detail_url }}" target="_blank" rel="noopener">推荐明细 API</a>
                     {% endif %}

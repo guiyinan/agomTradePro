@@ -1,14 +1,14 @@
 <div class="alpha-factor-panel">
     <div class="factor-panel-header">
         <div>
-            <h3 class="factor-panel-title">Recommendation / Plan 详情</h3>
+            <h3 class="factor-panel-title">退出契约详情</h3>
             {% if selected %}
             <div class="factor-panel-subtitle">
                 <strong>{{ selected.asset_code }}</strong>
                 {% if selected.asset_name %}<span class="factor-stock-name">{{ selected.asset_name }}</span>{% endif %}
             </div>
             {% else %}
-            <div class="factor-panel-subtitle">请选择左侧持仓退出监控项</div>
+            <div class="factor-panel-subtitle">请选择左侧退出待办项</div>
             {% endif %}
         </div>
         {% if selected %}
@@ -43,7 +43,7 @@
     <div style="margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: #f5f8ff; border: 1px solid #d7e3ff; color: #29467a; font-size: 12px; line-height: 1.6;">
         <strong>当前处理状态</strong>
         {% if recommendation.user_action == "ADOPTED" %}
-        <span>该退出项已在工作台标记为“已采纳”，首页入口会自动收起；你仍可在这里继续核对 recommendation / plan 明细。</span>
+        <span>该退出项已在工作台标记为“已采纳”，首页入口会自动收起；你仍可在这里继续核对退出建议与调仓计划明细。</span>
         {% elif recommendation.user_action == "IGNORED" %}
         <span>该退出项已在工作台标记为“已忽略”，首页入口会自动收起；如需重新处理，可回工作台改回观察或采纳。</span>
         {% elif recommendation.user_action == "WATCHING" %}
@@ -56,8 +56,8 @@
 
     <div class="{% if selected.contract_ready %}factor-decision-ready{% else %}factor-decision-blocked{% endif %}" style="padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.6;">
         {% if selected.contract_ready %}
-        <strong>Suggest Then Execute</strong>
-        <span>统一 recommendation / transition plan 负责给出卖出或减仓建议；模拟盘自动交易会在下一轮任务里执行对应卖单。</span>
+        <strong>先建议，再执行</strong>
+        <span>统一退出建议与调仓计划负责给出卖出或减仓动作；模拟盘自动交易会在下一轮任务里执行对应卖单。</span>
         {% else %}
         <strong>当前还不能直接执行</strong>
         <span>这笔持仓还缺完整退出契约，系统会继续展示建议与证伪摘要，但应先补齐失效条件或止损后再进入严格执行链路。</span>
@@ -67,26 +67,26 @@
     <div class="factor-detail-block">
         <h4>当前退出判断</h4>
         <div class="factor-detail-grid">
-            <div><span>Exit Source</span><strong>{{ selected.exit_source|default:"-" }}</strong></div>
-            <div><span>Decision Side</span><strong>{{ selected.decision_side|default:"HOLD" }}</strong></div>
-            <div><span>Stop Loss</span><strong>{{ selected.stop_loss_price|default:"-" }}</strong></div>
-            <div><span>Target Band</span><strong>{{ selected.target_price_low|default:"-" }} - {{ selected.target_price_high|default:"-" }}</strong></div>
+            <div><span>退出来源</span><strong>{{ selected.exit_source|default:"-" }}</strong></div>
+            <div><span>决策侧</span><strong>{{ selected.decision_side|default:"HOLD" }}</strong></div>
+            <div><span>止损价</span><strong>{{ selected.stop_loss_price|default:"-" }}</strong></div>
+            <div><span>目标区间</span><strong>{{ selected.target_price_low|default:"-" }} - {{ selected.target_price_high|default:"-" }}</strong></div>
         </div>
         <p class="factor-origin-note">{{ selected.exit_reason_text|default:"当前未触发退出动作。" }}</p>
     </div>
 
     <div class="factor-detail-block">
-        <h4>Unified Recommendation</h4>
+        <h4>统一推荐建议</h4>
         {% if recommendation.recommendation_id %}
         <div class="factor-detail-grid">
             <div><span>ID</span><strong>{{ recommendation.recommendation_id }}</strong></div>
-            <div><span>Side</span><strong>{{ recommendation.side|default:"-" }}</strong></div>
-            <div><span>Status</span><strong>{{ recommendation.status|default:"-" }}</strong></div>
-            <div><span>User Action</span><strong>{{ recommendation.user_action|default:"-" }}</strong></div>
-            <div><span>Composite</span><strong>{{ recommendation.composite_score|default:"-" }}</strong></div>
-            <div><span>Alpha Score</span><strong>{{ recommendation.alpha_model_score|default:"-" }}</strong></div>
-            <div><span>Confidence</span><strong>{{ recommendation.confidence|default:"-" }}</strong></div>
-            <div><span>Stop Loss</span><strong>{{ recommendation.stop_loss_price|default:"-" }}</strong></div>
+            <div><span>方向</span><strong>{{ recommendation.side|default:"-" }}</strong></div>
+            <div><span>状态</span><strong>{{ recommendation.status|default:"-" }}</strong></div>
+            <div><span>处理动作</span><strong>{{ recommendation.user_action|default:"-" }}</strong></div>
+            <div><span>综合分</span><strong>{{ recommendation.composite_score|default:"-" }}</strong></div>
+            <div><span>Alpha 分</span><strong>{{ recommendation.alpha_model_score|default:"-" }}</strong></div>
+            <div><span>置信度</span><strong>{{ recommendation.confidence|default:"-" }}</strong></div>
+            <div><span>止损价</span><strong>{{ recommendation.stop_loss_price|default:"-" }}</strong></div>
         </div>
         {% if recommendation.human_rationale %}
         <p class="factor-origin-note">{{ recommendation.human_rationale }}</p>
@@ -101,23 +101,23 @@
         {% else %}
         <div class="factor-empty-state">
             <div class="factor-empty-icon">◌</div>
-            <p>当前没有可展示的 unified recommendation 详情。</p>
+            <p>当前没有可展示的统一推荐建议详情。</p>
         </div>
         {% endif %}
     </div>
 
     <div class="factor-detail-block">
-        <h4>Transition Plan Order</h4>
+        <h4>调仓计划</h4>
         {% if transition_plan.plan_id %}
         <div class="factor-detail-grid">
-            <div><span>Plan ID</span><strong>{{ transition_plan.plan_id }}</strong></div>
-            <div><span>Action</span><strong>{{ transition_plan.action|default:"-" }}</strong></div>
-            <div><span>Current Qty</span><strong>{{ transition_plan.current_qty|default:"0" }}</strong></div>
-            <div><span>Target Qty</span><strong>{{ transition_plan.target_qty|default:"0" }}</strong></div>
-            <div><span>Delta Qty</span><strong>{{ transition_plan.delta_qty|default:"0" }}</strong></div>
-            <div><span>Ready</span><strong>{% if transition_plan.is_ready_for_approval %}yes{% else %}no{% endif %}</strong></div>
-            <div><span>Price Band</span><strong>{{ transition_plan.price_band_low|default:"-" }} - {{ transition_plan.price_band_high|default:"-" }}</strong></div>
-            <div><span>Stop Loss</span><strong>{{ transition_plan.stop_loss_price|default:"-" }}</strong></div>
+            <div><span>计划 ID</span><strong>{{ transition_plan.plan_id }}</strong></div>
+            <div><span>动作</span><strong>{{ transition_plan.action|default:"-" }}</strong></div>
+            <div><span>当前数量</span><strong>{{ transition_plan.current_qty|default:"0" }}</strong></div>
+            <div><span>目标数量</span><strong>{{ transition_plan.target_qty|default:"0" }}</strong></div>
+            <div><span>变化数量</span><strong>{{ transition_plan.delta_qty|default:"0" }}</strong></div>
+            <div><span>可审批</span><strong>{% if transition_plan.is_ready_for_approval %}是{% else %}否{% endif %}</strong></div>
+            <div><span>价格区间</span><strong>{{ transition_plan.price_band_low|default:"-" }} - {{ transition_plan.price_band_high|default:"-" }}</strong></div>
+            <div><span>止损价</span><strong>{{ transition_plan.stop_loss_price|default:"-" }}</strong></div>
         </div>
         {% if transition_plan.invalidation_description %}
         <p class="factor-origin-note">{{ transition_plan.invalidation_description }}</p>
@@ -132,7 +132,7 @@
         {% else %}
         <div class="factor-empty-state">
             <div class="factor-empty-icon">◌</div>
-            <p>当前没有生成持仓对应的 transition plan order。</p>
+            <p>当前没有生成这笔持仓对应的调仓计划。</p>
         </div>
         {% endif %}
     </div>
@@ -140,8 +140,8 @@
     <div class="factor-detail-block">
         <h4>退出契约 / 证伪</h4>
         <div class="factor-detail-grid">
-            <div><span>Signal ID</span><strong>{{ signal_contract.signal_id|default:"-" }}</strong></div>
-            <div><span>Contract</span><strong>{{ selected.contract_status_label|default:"-" }}</strong></div>
+            <div><span>信号 ID</span><strong>{{ signal_contract.signal_id|default:"-" }}</strong></div>
+            <div><span>契约状态</span><strong>{{ selected.contract_status_label|default:"-" }}</strong></div>
         </div>
         {% if signal_contract.invalidation_description %}
         <p class="factor-origin-note">{{ signal_contract.invalidation_description }}</p>

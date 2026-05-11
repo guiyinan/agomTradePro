@@ -369,6 +369,112 @@
     margin-top: 10px;
 }
 
+.workflow-exit-entry-section {
+    padding: 16px 18px;
+    border: 1px solid #f6d7bf;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at top right, rgba(255, 244, 230, 0.88), transparent 32%),
+        linear-gradient(180deg, rgba(255, 251, 245, 0.98), rgba(255, 247, 237, 0.94));
+}
+
+.workflow-exit-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.workflow-exit-entry-title-group .subsection-title {
+    margin: 0;
+}
+
+.workflow-exit-entry-subtitle,
+.workflow-exit-entry-note {
+    margin: 6px 0 0 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #7c5b36;
+}
+
+.workflow-exit-entry-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(234, 179, 8, 0.22);
+    color: #8a5a16;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.workflow-exit-entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.workflow-exit-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: start;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(246, 190, 112, 0.35);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 10px 24px rgba(148, 89, 20, 0.05);
+}
+
+.workflow-exit-entry-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.workflow-exit-entry-reason {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+
+.workflow-exit-entry-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 170px;
+}
+
+.workflow-exit-detail-btn,
+.workflow-exit-primary-btn {
+    justify-content: center;
+}
+
+.workflow-exit-detail-btn {
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(203, 132, 41, 0.28);
+    color: #7a4a13;
+}
+
+.workflow-exit-detail-btn:hover {
+    background: rgba(255, 244, 230, 0.96);
+}
+
+.workflow-exit-primary-btn {
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.16);
+}
+
+.workflow-exit-inline-cue {
+    text-align: center;
+    font-size: 11px;
+    color: #8f6b44;
+}
+
 /* 操作按钮组 */
 .action-buttons-cell {
     display: flex;
@@ -459,6 +565,14 @@
 @media (max-width: 960px) {
     .candidate-action-row {
         grid-template-columns: 1fr;
+    }
+
+    .workflow-exit-entry {
+        grid-template-columns: 1fr;
+    }
+
+    .workflow-exit-entry-actions {
+        min-width: 0;
     }
 
     .repair-config-inline-summary {
@@ -696,6 +810,7 @@
 /* 响应式设计 */
 @media (max-width: 768px) {
     .workflow-chain-summary-header,
+    .workflow-exit-entry-header,
     .workflow-chain-track,
     .candidate-main-info,
     .candidate-meta {
@@ -710,6 +825,14 @@
     .candidate-action-row {
         grid-template-columns: 1fr;
         gap: var(--spacing-sm);
+    }
+
+    .workflow-exit-entry {
+        gap: 12px;
+    }
+
+    .workflow-exit-entry-actions {
+        width: 100%;
     }
 
     .action-buttons-cell {
