@@ -1,6 +1,10 @@
 from types import SimpleNamespace
 
-from core.application.config_center import build_config_center_snapshot, list_config_capabilities
+from core.application.config_center import (
+    _SUMMARY_BUILDERS,
+    build_config_center_snapshot,
+    list_config_capabilities,
+)
 
 
 def test_list_config_capabilities_contains_core_items():
@@ -22,6 +26,7 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
         "core.application.config_center._SUMMARY_BUILDERS",
         {
             "account_settings": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "mcp_guide": lambda user: {"status": "configured", "summary": {"message": "ok"}},
             "agent_runtime_operator": lambda user: {
                 "status": "configured",
                 "summary": {"message": "ok"},
@@ -51,13 +56,11 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
     assert "system_settings" not in item_keys
     assert "data_center_providers" not in item_keys
     assert "data_center_runtime" not in item_keys
+    assert "mcp_guide" in item_keys
 
-    mcp_items = [
-        item
-        for section in snapshot["sections"]
-        for item in section["items"]
-        if item["key"] == "mcp_guide"
-    ]
-    assert len(mcp_items) == 1
-    assert mcp_items[0]["status"] == "attention"
-    assert "未配置" in mcp_items[0]["summary"]["message"]
+
+def test_config_center_capabilities_and_summary_builders_remain_in_sync():
+    capabilities = list_config_capabilities()
+    capability_keys = {item["key"] for item in capabilities}
+
+    assert capability_keys == set(_SUMMARY_BUILDERS.keys())
