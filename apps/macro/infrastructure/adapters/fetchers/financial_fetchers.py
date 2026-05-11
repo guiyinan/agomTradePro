@@ -6,6 +6,7 @@
 
 import logging
 import re
+from calendar import monthrange
 from datetime import date, timedelta
 from typing import List
 
@@ -18,12 +19,15 @@ logger = logging.getLogger(__name__)
 
 
 def parse_chinese_date(date_str: str) -> str:
-    """解析中文日期格式"""
+    """解析中文月份格式为期末日期。"""
     if '年' in str(date_str) and '月' in str(date_str):
         match = re.match(r'(\d{4})年(\d{1,2})月', str(date_str))
         if match:
             year, month = match.groups()
-            return f"{year}-{month.zfill(2)}"
+            year_int = int(year)
+            month_int = int(month)
+            last_day = monthrange(year_int, month_int)[1]
+            return f"{year}-{month.zfill(2)}-{last_day:02d}"
     return date_str
 
 

@@ -186,6 +186,12 @@
 - `apps/pulse/infrastructure/data_provider.py` 现会在 Pulse 宏观读数入口拦截 `derive_required` 指标，避免把跨年重置的累计值直接拿去做 `zscore / level / pct_change`。
 - 这意味着像 `CN_GDP`、`CN_FIXED_INVESTMENT`、`CN_INDUSTRIAL_PROFIT` 这类累计口径序列，只能先转换为同比、环比、单期增量或其他明确派生口径，再用于决策链路。
 
+## 2026-05-11 金融月频报告期修复
+
+- 金融类 AKShare fetcher 的中文月份解析已与基础宏观 fetcher 对齐：`2026年3月` 统一解析为 `2026-03-31`，不再落到月初。
+- 该修复会让 `CN_NEW_CREDIT` 等月频金融指标的 `published_at = reporting_period + publication_lag_days` 落到真实的次月发布窗口，避免 Pulse freshness 误把尚在有效窗口内的新增信贷判为 stale。
+- `repair_decision_data_reliability` 管理命令已补齐 `IndicatorUnitRuleRepository` 注入，手动修复链路可继续执行 macro sync、quote sync 与 Pulse 复验。
+
 ## 刷新但不需要重训
 
 - 宏观页面首屏上下文与图表缓存

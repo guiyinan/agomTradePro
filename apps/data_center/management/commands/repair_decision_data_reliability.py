@@ -26,6 +26,7 @@ from apps.data_center.application.use_cases import (
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
+    IndicatorUnitRuleRepository,
     MacroFactRepository,
     PriceBarRepository,
     ProviderConfigRepository,
@@ -82,6 +83,7 @@ class Command(BaseCommand):
             provider_factory=UnifiedProviderFactory(provider_repo),
             macro_fact_repo=MacroFactRepository(),
             indicator_catalog_repo=IndicatorCatalogRepository(),
+            indicator_unit_rule_repo=IndicatorUnitRuleRepository(),
             price_bar_repo=PriceBarRepository(),
             quote_snapshot_repo=QuoteSnapshotRepository(),
             raw_audit_repo=RawAuditRepository(),

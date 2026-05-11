@@ -7,6 +7,42 @@ from kombu.exceptions import OperationalError as KombuOperationalError
 from apps.data_center.management.commands import repair_decision_data_reliability as command_module
 
 
+def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeUseCase:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def execute(self, request):
+            captured["request"] = request
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "must_not_use_for_decision": False,
+                    "blocked_reasons": [],
+                }
+            )
+
+    monkeypatch.setattr(command_module, "RepairDecisionDataReliabilityUseCase", FakeUseCase)
+    monkeypatch.setattr(command_module.Command, "_resolve_user", lambda self, user_id: None)
+
+    command_module.Command().handle(
+        target_date="2026-05-11",
+        portfolio_id=None,
+        user_id=None,
+        asset_codes="000300.SH",
+        macro_indicator_codes="CN_NEW_CREDIT",
+        strict=False,
+        quote_max_age_hours=4.0,
+        skip_pulse=True,
+        skip_alpha=True,
+        sync_alpha=False,
+    )
+
+    assert "indicator_unit_rule_repo" in captured
+    assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
+
+
 def test_alpha_refresher_skips_qlib_rebuild_when_check_passes(monkeypatch):
     calls: list[dict[str, object]] = []
 
