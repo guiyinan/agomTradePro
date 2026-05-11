@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
@@ -31,6 +31,42 @@ def _point(
 
 def test_get_intraday_points_uses_primary_source_and_tracks_source(monkeypatch):
     repository = DjangoStockRepository()
+    primary_points = [_point(9, 30, "10.01", "10.00"), _point(9, 31, "10.02", "10.01")]
+
+    monkeypatch.setattr(
+        repository,
+        "_get_intraday_hist_min_points",
+        lambda stock_code, symbol: primary_points,
+    )
+    monkeypatch.setattr(
+        repository,
+        "_get_intraday_tick_points",
+        lambda stock_code, symbol: (_ for _ in ()).throw(AssertionError("fallback should not be used")),
+    )
+
+    points = repository.get_intraday_points("000001.SZ")
+
+    assert points == primary_points
+    assert repository.get_last_intraday_source() == "akshare_hist_min_em"
+
+
+def test_get_intraday_points_skips_stale_sparse_quote_snapshots(monkeypatch):
+    repository = DjangoStockRepository()
+    stale_time = timezone.now() - timedelta(days=14)
+    repository._dc_quote_repo = SimpleNamespace(
+        get_series=lambda stock_code, limit: [
+            SimpleNamespace(
+                snapshot_at=stale_time,
+                current_price=Decimal("10.00"),
+                volume=1000,
+            ),
+            SimpleNamespace(
+                snapshot_at=stale_time + timedelta(minutes=1),
+                current_price=Decimal("10.01"),
+                volume=1000,
+            ),
+        ]
+    )
     primary_points = [_point(9, 30, "10.01", "10.00"), _point(9, 31, "10.02", "10.01")]
 
     monkeypatch.setattr(

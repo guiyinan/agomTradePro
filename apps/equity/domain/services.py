@@ -9,7 +9,7 @@
 
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from .entities import FinancialData, ScoringWeightConfig, StockInfo, ValuationMetrics
 from .rules import StockScreeningRule
@@ -79,7 +79,7 @@ class StockScreener:
         roe_list = []
         pe_list = []
 
-        for stock_info, financial, valuation in all_stocks:
+        for _stock_info, financial, valuation in all_stocks:
             # 收集营收增长率（过滤负值和无效值）
             if financial.revenue_growth >= 0:
                 revenue_growth.append(financial.revenue_growth)
@@ -177,12 +177,6 @@ class StockScreener:
             market_metrics['profit_growth']
         )
 
-        # 成长性内部加权（使用配置）
-        growth_percentile = (
-            revenue_growth_percentile * self.scoring_config.revenue_growth_weight +
-            profit_growth_percentile * self.scoring_config.profit_growth_weight
-        )
-
         # 2. 盈利能力分位数（ROE 分位数）
         profitability_percentile = self._percentile(
             financial.roe,
@@ -194,7 +188,6 @@ class StockScreener:
             valuation.pe,
             market_metrics['pe']
         )
-        valuation_percentile = 1 - pe_percentile  # PE 越低，分位数越高
 
         # 4. 加权综合评分（使用配置的权重）
         total_score = self.scoring_config.get_total_score(
@@ -456,11 +449,11 @@ class RegimeCorrelationAnalyzer:
         # 计算各 Regime 下的 Beta
         regime_betas = {}
         for regime, data in regime_data.items():
-            if len(data['stock']) > 1 and len(data['market']) > 1:
+            if len(data['stock']) >= 20 and len(data['market']) >= 20:
                 beta = self._calculate_beta(data['stock'], data['market'])
                 regime_betas[regime] = beta
             else:
-                regime_betas[regime] = 1.0  # 默认 Beta
+                regime_betas[regime] = None
 
         return regime_betas
 
@@ -468,7 +461,7 @@ class RegimeCorrelationAnalyzer:
         self,
         stock_returns: list[float],
         market_returns: list[float]
-    ) -> float:
+    ) -> float | None:
         """
         计算 Beta（协方差 / 市场方差）
 
@@ -479,8 +472,8 @@ class RegimeCorrelationAnalyzer:
         Returns:
             Beta 值
         """
-        if len(stock_returns) != len(market_returns) or len(stock_returns) < 2:
-            return 1.0
+        if len(stock_returns) != len(market_returns) or len(stock_returns) < 20:
+            return None
 
         n = len(stock_returns)
 
@@ -500,7 +493,10 @@ class RegimeCorrelationAnalyzer:
             for i in range(n)
         ) / n
 
-        if variance == 0:
-            return 1.0
+        if variance < 1e-8:
+            return None
 
-        return covariance / variance
+        beta = covariance / variance
+        if abs(beta) > 10:
+            return None
+        return beta

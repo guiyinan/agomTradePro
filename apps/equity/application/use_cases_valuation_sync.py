@@ -7,8 +7,14 @@
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
+from apps.data_center.application.dtos import (
+    SyncValuationRequest as DataCenterSyncValuationRequest,
+)
+from apps.data_center.application.interface_services import (
+    get_active_provider_id_by_source,
+    make_sync_valuation_use_case,
+)
 from apps.equity.application.repository_provider import (
     build_akshare_valuation_gateway,
     build_quality_snapshot,
@@ -111,6 +117,7 @@ class SyncEquityValuationUseCase:
         self.stock_repo = stock_repository
         self.akshare_gateway = build_akshare_valuation_gateway()
         self.tushare_gateway = None
+        self.data_center_sync_use_case = make_sync_valuation_use_case()
 
     def execute(self, request: SyncEquityValuationRequest) -> SyncEquityValuationResponse:
         try:
@@ -141,8 +148,22 @@ class SyncEquityValuationUseCase:
                 try:
                     batch = self.akshare_gateway.fetch(stock_code, start_date, end_date)
                     source_used = "akshare"
+                    if not batch.records:
+                        self._sync_data_center_valuation(
+                            stock_code=stock_code,
+                            start_date=start_date,
+                            end_date=end_date,
+                            source=request.primary_source,
+                        )
+                        batch = self.akshare_gateway.fetch(stock_code, start_date, end_date)
 
                     if not batch.records and self.tushare_gateway:
+                        self._sync_data_center_valuation(
+                            stock_code=stock_code,
+                            start_date=start_date,
+                            end_date=end_date,
+                            source=request.fallback_source,
+                        )
                         batch = self.tushare_gateway.fetch(stock_code, start_date, end_date)
                         source_used = "tushare"
 
@@ -178,6 +199,28 @@ class SyncEquityValuationUseCase:
         except Exception as exc:
             logger.exception("估值数据同步失败")
             return SyncEquityValuationResponse(success=False, error=str(exc))
+
+    def _sync_data_center_valuation(
+        self,
+        *,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        source: str,
+    ) -> None:
+        provider_id = get_active_provider_id_by_source(source)
+        if provider_id is None:
+            logger.warning("未找到启用的估值数据源: %s", source)
+            return
+
+        self.data_center_sync_use_case.execute(
+            DataCenterSyncValuationRequest(
+                provider_id=provider_id,
+                asset_code=stock_code,
+                start=start_date,
+                end=end_date,
+            )
+        )
 
 
 class BackfillEquityValuationUseCase:

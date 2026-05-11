@@ -6,8 +6,6 @@
 - 禁止业务逻辑
 """
 
-from decimal import Decimal
-
 from rest_framework import serializers
 
 from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
@@ -86,7 +84,11 @@ class FinancialDataSerializer(serializers.Serializer):
     net_profit_growth = serializers.FloatField(allow_null=True)
     debt_ratio = serializers.FloatField(allow_null=True)
     gross_margin = serializers.FloatField(allow_null=True)
+    period_end = serializers.CharField(allow_null=True, required=False)
+    period_type = serializers.CharField(allow_null=True, required=False)
     report_date = serializers.CharField(allow_null=True)
+    source = serializers.CharField(allow_null=True, required=False)
+    fetched_at = serializers.CharField(allow_null=True, required=False)
 
 
 class AnalyzeValuationResponseSerializer(serializers.Serializer):
@@ -246,7 +248,7 @@ class RegimePerformanceSerializer(serializers.Serializer):
 
     regime = serializers.CharField()
     avg_return = serializers.FloatField(help_text="平均收益率（%）")
-    beta = serializers.FloatField(help_text="Beta 系数")
+    beta = serializers.FloatField(help_text="Beta 系数", allow_null=True)
     sample_days = serializers.IntegerField(help_text="样本天数")
 
 

@@ -9,7 +9,7 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -76,6 +76,10 @@ class FinancialData:
     roe: float
     roa: float
     debt_ratio: float
+    period_end: date | None = None
+    period_type: str = ""
+    source: str = ""
+    fetched_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -97,7 +101,7 @@ class ValuationMetrics:
 
         其他指标:
         dividend_yield: 股息率（%）
-    
+
     可信数据元信息:
         source_provider: 数据来源提供方
         source_updated_at: 源端更新时间

@@ -86,6 +86,9 @@ def test_get_financial_data_can_read_from_data_center_only():
     assert len(rows) == 1
     assert rows[0].revenue == Decimal("1000000.0000")
     assert rows[0].roe == 18.5
+    assert rows[0].period_end == date(2025, 12, 31)
+    assert rows[0].period_type == "annual"
+    assert rows[0].source == "tushare-main"
 
 
 @pytest.mark.django_db

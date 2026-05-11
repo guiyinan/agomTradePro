@@ -289,6 +289,7 @@
     <!-- 财务指标 -->
     <div class="card">
         <h2 class="card-title">财务指标</h2>
+        <div class="metric-subvalue" id="financialPeriodMeta" style="margin-bottom: 14px;">报告期: -- · 披露日: -- · 来源: --</div>
         <div class="metric-grid">
             <div class="metric-card">
                 <div class="metric-label">净资产收益率 (ROE)</div>
@@ -465,6 +466,11 @@ let pbChartInstance = null;
 let technicalChartInstance = null;
 let activeTechnicalTimeframe = 'intraday';
 let technicalRequestToken = 0;
+const technicalLookbackDays = {
+    day: 540,
+    week: 1260,
+    month: 2000,
+};
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
     if (typeof window.fetchJsonOrThrow === 'function') {
@@ -1024,7 +1030,7 @@ async function loadTechnicalChart(timeframe = activeTechnicalTimeframe) {
         }
 
         const payload = await fetchJsonOrThrowCompat(
-            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=540`
+            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=${technicalLookbackDays[timeframe] || 540}`
         );
         if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
             return;
@@ -1181,13 +1187,13 @@ function updateValuation(data) {
     const latest = getValuationSnapshot(data);
     if (latest) {
         setFallbackClosePrice(latest.price, latest.trade_date);
-        document.getElementById('detailPe').textContent = latest.pe ? latest.pe.toFixed(2) : '-';
-        document.getElementById('detailPb').textContent = latest.pb ? latest.pb.toFixed(2) : '-';
-        document.getElementById('detailPs').textContent = latest.ps ? latest.ps.toFixed(2) : '-';
-        document.getElementById('detailTotalMv').textContent = latest.total_mv ? formatMoney(latest.total_mv) : '-';
-        document.getElementById('detailCircMv').textContent = latest.circ_mv ? formatMoney(latest.circ_mv) : '-';
-        document.getElementById('detailDivYield').textContent = latest.dividend_yield ? latest.dividend_yield.toFixed(2) + '%' : '-';
-        document.getElementById('detailTurnover').textContent = latest.turnover_rate ? latest.turnover_rate.toFixed(2) + '%' : '-';
+        document.getElementById('detailPe').textContent = formatMetricNumber(latest.pe);
+        document.getElementById('detailPb').textContent = formatMetricNumber(latest.pb);
+        document.getElementById('detailPs').textContent = formatMetricNumber(latest.ps);
+        document.getElementById('detailTotalMv').textContent = formatMetricMoney(latest.total_mv);
+        document.getElementById('detailCircMv').textContent = formatMetricMoney(latest.circ_mv);
+        document.getElementById('detailDivYield').textContent = formatMetricPercent(latest.dividend_yield);
+        document.getElementById('detailTurnover').textContent = formatMetricPercent(latest.turnover_rate);
 
         // 更新数据时间
         updateDataTime(latest.updated_at || latest.trade_date);
@@ -1221,14 +1227,20 @@ function updateValuation(data) {
 function updateFinancials(data) {
     const financial = data.financial_data;
     if (financial) {
-        document.getElementById('detailRoe').textContent = financial.roe ? financial.roe.toFixed(2) + '%' : '-';
-        document.getElementById('detailRoa').textContent = financial.roa ? financial.roa.toFixed(2) + '%' : '-';
-        document.getElementById('detailRevenue').textContent = financial.revenue ? formatMoney(financial.revenue) : '-';
-        document.getElementById('detailNetProfit').textContent = financial.net_profit ? formatMoney(financial.net_profit) : '-';
-        document.getElementById('detailRevenueGrowth').textContent = financial.revenue_growth ? financial.revenue_growth.toFixed(2) + '%' : '-';
-        document.getElementById('detailProfitGrowth').textContent = financial.net_profit_growth ? financial.net_profit_growth.toFixed(2) + '%' : '-';
-        document.getElementById('detailDebtRatio').textContent = financial.debt_ratio ? financial.debt_ratio.toFixed(2) + '%' : '-';
-        document.getElementById('detailGrossMargin').textContent = financial.gross_margin ? financial.gross_margin.toFixed(2) + '%' : '-';
+        document.getElementById('financialPeriodMeta').textContent = [
+            `报告期: ${financial.period_end || '--'}`,
+            `披露日: ${financial.report_date || '--'}`,
+            `区间类型: ${formatFinancialPeriodType(financial.period_type)}`,
+            `来源: ${financial.source || '--'}`
+        ].join(' · ');
+        document.getElementById('detailRoe').textContent = formatMetricPercent(financial.roe);
+        document.getElementById('detailRoa').textContent = formatMetricPercent(financial.roa);
+        document.getElementById('detailRevenue').textContent = formatMetricMoney(financial.revenue);
+        document.getElementById('detailNetProfit').textContent = formatMetricMoney(financial.net_profit);
+        document.getElementById('detailRevenueGrowth').textContent = formatMetricPercent(financial.revenue_growth);
+        document.getElementById('detailProfitGrowth').textContent = formatMetricPercent(financial.net_profit_growth);
+        document.getElementById('detailDebtRatio').textContent = formatMetricPercent(financial.debt_ratio);
+        document.getElementById('detailGrossMargin').textContent = formatMetricPercent(financial.gross_margin);
     }
 }
 
@@ -1243,6 +1255,32 @@ function formatMoney(value) {
     if (value >= 1e8) return (value / 1e8).toFixed(2) + '亿';
     if (value >= 1e4) return (value / 1e4).toFixed(2) + '万';
     return value.toFixed(2);
+}
+
+function hasMetricValue(value) {
+    return value !== null && value !== undefined && !Number.isNaN(Number(value));
+}
+
+function formatMetricNumber(value, digits = 2) {
+    return hasMetricValue(value) ? Number(value).toFixed(digits) : '-';
+}
+
+function formatMetricPercent(value, digits = 2) {
+    return hasMetricValue(value) ? Number(value).toFixed(digits) + '%' : '-';
+}
+
+function formatMetricMoney(value) {
+    return hasMetricValue(value) ? formatMoney(Number(value)) : '-';
+}
+
+function formatFinancialPeriodType(value) {
+    const labels = {
+        annual: '年度',
+        semi_annual: '半年度',
+        quarterly: '季度',
+        ttm: 'TTM',
+    };
+    return labels[value] || value || '--';
 }
 
 function escapeHtml(value) {

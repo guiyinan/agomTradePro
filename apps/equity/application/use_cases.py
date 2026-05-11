@@ -278,7 +278,10 @@ class GetTechnicalChartUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             end_date = date.today()
-            start_date = end_date - timedelta(days=request.lookback_days)
+            lookback_days = self._resolve_technical_lookback_days(
+                request.timeframe, request.lookback_days
+            )
+            start_date = end_date - timedelta(days=lookback_days)
             bars = self.stock_repo.get_technical_bars(
                 request.stock_code,
                 start_date=start_date,
@@ -342,6 +345,15 @@ class GetTechnicalChartUseCase:
                 latest_signal=None,
                 error=str(exc),
             )
+
+    @staticmethod
+    def _resolve_technical_lookback_days(timeframe: str, requested_days: int) -> int:
+        """Use a period-aware minimum window so weekly/monthly charts are meaningful."""
+        minimum_by_timeframe = {
+            "week": 1260,
+            "month": 2000,
+        }
+        return max(requested_days, minimum_by_timeframe.get(timeframe, requested_days))
 
 
 class GetIntradayChartUseCase:
@@ -548,8 +560,16 @@ class AnalyzeValuationUseCase:
                     "net_profit_growth": financial.net_profit_growth,
                     "debt_ratio": financial.debt_ratio,
                     "gross_margin": None,  # 需要从其他地方获取
+                    "period_end": (
+                        financial.period_end.isoformat() if financial.period_end else None
+                    ),
+                    "period_type": financial.period_type or None,
                     "report_date": (
                         financial.report_date.isoformat() if financial.report_date else None
+                    ),
+                    "source": financial.source or None,
+                    "fetched_at": (
+                        financial.fetched_at.isoformat() if financial.fetched_at else None
                     ),
                 }
 
@@ -745,7 +765,7 @@ class RegimePerformance:
 
     regime: str
     avg_return: float
-    beta: float
+    beta: float | None
     sample_days: int
 
 

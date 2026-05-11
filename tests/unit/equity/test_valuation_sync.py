@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from apps.equity.application.use_cases_valuation_sync import (
@@ -52,6 +53,32 @@ def test_sync_use_case_persists_records_from_primary_gateway():
     assert response.success is True
     assert response.data["synced_count"] == 1
     assert len(repo.saved) == 1
+
+
+def test_sync_use_case_warms_data_center_when_primary_gateway_empty():
+    repo = DummyRepo()
+    use_case = SyncEquityValuationUseCase(stock_repository=repo)
+    empty_batch = SimpleNamespace(records=[])
+    loaded_batch = SimpleNamespace(
+        records=[_sample_metric("000001.SZ", date(2026, 3, 10))]
+    )
+
+    with (
+        patch.object(use_case.akshare_gateway, "fetch", side_effect=[empty_batch, loaded_batch]),
+        patch.object(use_case, "_sync_data_center_valuation") as mock_sync,
+    ):
+        response = use_case.execute(
+            SyncEquityValuationRequest(
+                stock_codes=["000001.SZ"],
+                start_date=date(2026, 3, 10),
+                end_date=date(2026, 3, 10),
+            )
+        )
+
+    assert response.success is True
+    assert response.data["synced_count"] == 1
+    assert len(repo.saved) == 1
+    mock_sync.assert_called_once()
 
 
 def test_backfill_use_case_batches_requests():

@@ -10,12 +10,6 @@ from decimal import Decimal
 
 import pytest
 
-from apps.equity.domain.entities import (
-    FinancialData,
-    ScoringWeightConfig,
-    StockInfo,
-    ValuationMetrics,
-)
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import (
     RegimeCorrelationAnalyzer,
@@ -35,18 +29,18 @@ from tests.factories.domain_factories import (
 
 def _default_rule(**overrides) -> StockScreeningRule:
     """Create a permissive screening rule with optional overrides."""
-    defaults = dict(
-        regime="Recovery",
-        name="测试规则",
-        min_roe=0.0,
-        min_revenue_growth=0.0,
-        min_profit_growth=0.0,
-        max_debt_ratio=100.0,
-        max_pe=999.0,
-        max_pb=999.0,
-        min_market_cap=Decimal(0),
-        max_count=50,
-    )
+    defaults = {
+        "regime": "Recovery",
+        "name": "测试规则",
+        "min_roe": 0.0,
+        "min_revenue_growth": 0.0,
+        "min_profit_growth": 0.0,
+        "max_debt_ratio": 100.0,
+        "max_pe": 999.0,
+        "max_pb": 999.0,
+        "min_market_cap": Decimal(0),
+        "max_count": 50,
+    }
     defaults.update(overrides)
     return StockScreeningRule(**defaults)
 
@@ -333,7 +327,7 @@ class TestRegimeCorrelationAnalyzer:
         self, rca: RegimeCorrelationAnalyzer
     ) -> None:
         """Identical stock and market returns yield beta 1.0 per regime."""
-        dates = [date(2024, 1, i) for i in range(2, 7)]
+        dates = [date(2024, 1, i) for i in range(2, 27)]
         returns = {d: 0.01 * (i + 1) for i, d in enumerate(dates)}
         regime = dict.fromkeys(dates, "Recovery")
 
@@ -344,15 +338,15 @@ class TestRegimeCorrelationAnalyzer:
     def test_regime_beta_empty_inputs(
         self, rca: RegimeCorrelationAnalyzer
     ) -> None:
-        """Empty inputs return default beta 1.0 for all regimes."""
+        """Empty inputs return null beta for all regimes."""
         result = rca.calculate_regime_beta({}, {}, {})
         for regime in ["Recovery", "Overheat", "Stagflation", "Deflation"]:
-            assert result[regime] == 1.0
+            assert result[regime] is None
 
     def test_regime_beta_single_data_point_default(
         self, rca: RegimeCorrelationAnalyzer
     ) -> None:
-        """Single data point per regime returns default beta 1.0."""
+        """Single data point per regime returns null beta."""
         d1 = date(2024, 1, 2)
         stock = {d1: 0.02}
         market = {d1: 0.01}
@@ -360,27 +354,27 @@ class TestRegimeCorrelationAnalyzer:
 
         result = rca.calculate_regime_beta(stock, market, regime)
 
-        assert result["Overheat"] == 1.0
+        assert result["Overheat"] is None
 
-    def test_regime_beta_zero_market_variance(
+    def test_regime_beta_zero_market_variance_returns_null(
         self, rca: RegimeCorrelationAnalyzer
     ) -> None:
-        """Constant market returns (zero variance) returns default beta."""
-        dates = [date(2024, 1, i) for i in range(2, 7)]
+        """Constant market returns make beta unavailable."""
+        dates = [date(2024, 1, i) for i in range(2, 27)]
         stock = {d: 0.01 * (i + 1) for i, d in enumerate(dates)}
         market = dict.fromkeys(dates, 0.05)
         regime = dict.fromkeys(dates, "Stagflation")
 
         result = rca.calculate_regime_beta(stock, market, regime)
 
-        assert result["Stagflation"] == 1.0
+        assert result["Stagflation"] is None
 
     def test_regime_beta_multiple_regimes(
         self, rca: RegimeCorrelationAnalyzer
     ) -> None:
         """Different regimes can produce different betas."""
-        dates_r = [date(2024, 1, i) for i in range(2, 7)]
-        dates_o = [date(2024, 2, i) for i in range(2, 7)]
+        dates_r = [date(2024, 1, i) for i in range(2, 27)]
+        dates_o = [date(2024, 2, i) for i in range(2, 27)]
 
         stock = {}
         market = {}

@@ -311,6 +311,8 @@ class DjangoStockRepository:
 
     _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
     _EASTMONEY_METADATA_FIELDS = "f43,f57,f58"
+    _INTRADAY_SNAPSHOT_MAX_STALE_DAYS = 5
+    _INTRADAY_SNAPSHOT_MIN_POINTS = 3
 
     def __init__(self) -> None:
         self._last_intraday_source: str | None = None
@@ -772,10 +774,16 @@ class DjangoStockRepository:
 
         grouped: dict[date, dict[str, FinancialFact]] = {}
         report_dates: dict[date, date | None] = {}
+        period_types: dict[date, str] = {}
+        sources: dict[date, str] = {}
+        fetched_ats: dict[date, datetime | None] = {}
         for fact in facts:
             grouped.setdefault(fact.period_end, {})[fact.metric_code] = fact
             if fact.period_end not in report_dates or report_dates[fact.period_end] is None:
                 report_dates[fact.period_end] = fact.report_date
+            period_types.setdefault(fact.period_end, fact.period_type.value)
+            sources.setdefault(fact.period_end, fact.source)
+            fetched_ats.setdefault(fact.period_end, fact.fetched_at)
 
         results: list[FinancialData] = []
         required_metrics = {
@@ -813,6 +821,10 @@ class DjangoStockRepository:
                     roe=float(metric_map["roe"].value),
                     roa=float(metric_map.get("roa").value) if metric_map.get("roa") else 0.0,
                     debt_ratio=float(metric_map["debt_ratio"].value),
+                    period_end=period_end,
+                    period_type=period_types.get(period_end, ""),
+                    source=sources.get(period_end, ""),
+                    fetched_at=fetched_ats.get(period_end),
                 )
             )
             if len(results) >= limit:
@@ -966,8 +978,13 @@ class DjangoStockRepository:
             end=end_date,
             limit=max((end_date - start_date).days + 10, 120),
         )
+        best_available_bars: list[TechnicalBar] = []
         if dc_bars:
-            return self._price_bars_to_technical_bars(stock_code, dc_bars)
+            best_available_bars = self._price_bars_to_technical_bars(stock_code, dc_bars)
+            if self._has_sufficient_bar_coverage(
+                best_available_bars, start_date=start_date, end_date=end_date
+            ):
+                return best_available_bars
 
         models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
@@ -996,11 +1013,20 @@ class DjangoStockRepository:
             for model in models
         ]
         if local_bars:
-            return local_bars
+            best_available_bars = local_bars
+            if self._has_sufficient_bar_coverage(
+                local_bars, start_date=start_date, end_date=end_date
+            ):
+                return local_bars
 
-        remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
+        try:
+            remote_bars = self._get_remote_historical_bars(stock_code, start_date, end_date)
+        except DataFetchError:
+            if best_available_bars:
+                return best_available_bars
+            raise
         self._cache_remote_historical_bars(stock_code, remote_bars)
-        return self._recalculate_technical_bars(
+        remote_technical_bars = self._recalculate_technical_bars(
             [
                 TechnicalBar(
                     stock_code=stock_code,
@@ -1022,6 +1048,23 @@ class DjangoStockRepository:
                 for bar in remote_bars
             ]
         )
+        return remote_technical_bars or best_available_bars
+
+    def _has_sufficient_bar_coverage(
+        self,
+        bars: list[TechnicalBar],
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> bool:
+        if not bars:
+            return False
+        calendar_days = max((end_date - start_date).days + 1, 1)
+        if calendar_days <= 45:
+            return len(bars) >= 2
+        expected_trading_days = max(int(calendar_days * 0.55), 1)
+        minimum_points = min(60, max(8, expected_trading_days // 4))
+        return len(bars) >= minimum_points
 
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
@@ -1067,9 +1110,15 @@ class DjangoStockRepository:
                     )
                 )
 
-            if points:
+            if self._has_usable_intraday_snapshot_points(points, market_tz):
                 self._last_intraday_source = "data_center_quote_snapshot"
                 return points
+            logger.info(
+                "Skip stale or sparse quote snapshots for %s: session=%s points=%s",
+                stock_code,
+                latest_session,
+                len(points),
+            )
 
         symbol = self._to_akshare_symbol(stock_code)
         self._last_intraday_source = None
@@ -1129,6 +1178,19 @@ class DjangoStockRepository:
             primary_error.message,
         )
         return validated_fallback
+
+    def _has_usable_intraday_snapshot_points(
+        self,
+        points: list[IntradayPricePoint],
+        market_tz: ZoneInfo,
+    ) -> bool:
+        """Return whether cached quote snapshots can stand in for an intraday line."""
+        if len(points) < self._INTRADAY_SNAPSHOT_MIN_POINTS:
+            return False
+        session_date = points[-1].timestamp.astimezone(market_tz).date()
+        market_today = timezone.now().astimezone(market_tz).date()
+        stale_days = (market_today - session_date).days
+        return 0 <= stale_days <= self._INTRADAY_SNAPSHOT_MAX_STALE_DAYS
 
     def get_last_intraday_source(self) -> str | None:
         """返回最近一次分时数据读取所使用的数据源。"""
