@@ -4,13 +4,14 @@
 测试 Top-down 和 Bottom-up 特征提供者。
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from apps.alpha_trigger.domain.entities import SignalStrength
-from types import SimpleNamespace
+from django.utils import timezone
 
+from apps.alpha_trigger.domain.entities import SignalStrength
 from apps.decision_rhythm.infrastructure.feature_providers import (
     AlphaCandidateProvider,
     AlphaModelFeatureProvider,
@@ -488,6 +489,212 @@ class TestAssetValuationProvider:
         assert result is not None
         assert result["fair_value"] == 15.50
         assert result["entry_price_low"] == 14.80
+
+    @pytest.mark.django_db
+    def test_get_valuation_prefers_data_center_fact_extra_before_fallback(self):
+        """测试优先使用 data_center 估值事实中的正式估值字段"""
+        with (
+            patch(
+                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
+            ) as mock_fact_repo_class,
+            patch(
+                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+            ) as mock_price_repo_class,
+        ):
+            mock_fact_repo = MagicMock()
+            mock_fact_repo.get_latest.return_value = SimpleNamespace(
+                val_date=timezone.localdate(),
+                extra={"intrinsic_value_per_share": "12.00"},
+            )
+            mock_fact_repo_class.return_value = mock_fact_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000003.SZ")
+
+        assert result is not None
+        assert result["valuation_source"] == "data_center_valuation_fact"
+        assert result["fair_value"] == 12.0
+        assert result["entry_price_low"] == 11.4
+        assert result["entry_price_high"] == 12.6
+        assert result["target_price_low"] == 13.8
+        assert result["target_price_high"] == 15.0
+        mock_price_repo_class.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_get_valuation_rejects_stale_data_center_fact(self):
+        """测试过期 data_center 估值不会只因非零而被使用"""
+        from decimal import Decimal
+
+        with (
+            patch(
+                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
+            ) as mock_fact_repo_class,
+            patch(
+                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+            ) as mock_price_repo_class,
+        ):
+            mock_fact_repo = MagicMock()
+            mock_fact_repo.get_latest.return_value = SimpleNamespace(
+                val_date=timezone.localdate()
+                - timedelta(days=AssetValuationProvider.MAX_FORMAL_VALUATION_AGE_DAYS + 1),
+                extra={"intrinsic_value_per_share": "12.00", "quality_flag": "ok"},
+            )
+            mock_fact_repo_class.return_value = mock_fact_repo
+            mock_price_repo = MagicMock()
+            mock_price_repo.get_latest_price.return_value = SimpleNamespace(
+                price=Decimal("10.00")
+            )
+            mock_price_repo_class.return_value = mock_price_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000004.SZ")
+
+        assert result is not None
+        assert result["valuation_source"] == "current_price_fallback"
+        assert result["fair_value"] == 10.0
+
+    @pytest.mark.django_db
+    def test_get_valuation_rejects_invalid_data_center_fact(self):
+        """测试低质量 data_center 估值不会只因非零而被使用"""
+        from decimal import Decimal
+
+        with (
+            patch(
+                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
+            ) as mock_fact_repo_class,
+            patch(
+                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+            ) as mock_price_repo_class,
+        ):
+            mock_fact_repo = MagicMock()
+            mock_fact_repo.get_latest.return_value = SimpleNamespace(
+                val_date=timezone.localdate(),
+                extra={
+                    "intrinsic_value_per_share": "12.00",
+                    "is_valid": False,
+                    "quality_flag": "invalid_pb",
+                },
+            )
+            mock_fact_repo_class.return_value = mock_fact_repo
+            mock_price_repo = MagicMock()
+            mock_price_repo.get_latest_price.return_value = SimpleNamespace(
+                price=Decimal("10.00")
+            )
+            mock_price_repo_class.return_value = mock_price_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000005.SZ")
+
+        assert result is not None
+        assert result["valuation_source"] == "current_price_fallback"
+        assert result["fair_value"] == 10.0
+
+    @pytest.mark.django_db
+    def test_get_valuation_uses_older_valid_fact_before_fallback(self):
+        """测试最新估值质量差时继续查找窗口内可用正式估值"""
+        with (
+            patch(
+                "apps.data_center.infrastructure.repositories.ValuationFactRepository"
+            ) as mock_fact_repo_class,
+            patch(
+                "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+            ) as mock_price_repo_class,
+        ):
+            mock_fact_repo = MagicMock()
+            mock_fact_repo.get_series.return_value = [
+                SimpleNamespace(
+                    val_date=timezone.localdate(),
+                    extra={
+                        "intrinsic_value_per_share": "12.00",
+                        "is_valid": False,
+                        "quality_flag": "invalid_pb",
+                    },
+                ),
+                SimpleNamespace(
+                    val_date=timezone.localdate() - timedelta(days=1),
+                    extra={"intrinsic_value_per_share": "11.80", "quality_flag": "ok"},
+                ),
+            ]
+            mock_fact_repo_class.return_value = mock_fact_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000007.SZ")
+
+        assert result is not None
+        assert result["valuation_source"] == "data_center_valuation_fact"
+        assert result["fair_value"] == 11.8
+        mock_fact_repo.get_latest.assert_not_called()
+        mock_price_repo_class.assert_not_called()
+
+    @pytest.mark.django_db
+    def test_get_valuation_rejects_legacy_snapshot(self):
+        """测试 legacy 快照不会只因价格非零而被推荐使用"""
+        from decimal import Decimal
+
+        from apps.decision_rhythm.infrastructure.models import ValuationSnapshotModel
+
+        ValuationSnapshotModel.objects.create(
+            snapshot_id="vs_legacy",
+            security_code="000006.SZ",
+            valuation_method="LEGACY",
+            fair_value=Decimal("15.50"),
+            entry_price_low=Decimal("14.80"),
+            entry_price_high=Decimal("15.20"),
+            target_price_low=Decimal("18.00"),
+            target_price_high=Decimal("20.00"),
+            stop_loss_price=Decimal("13.50"),
+            is_legacy=True,
+        )
+
+        with patch(
+            "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+        ) as mock_price_repo_class:
+            mock_price_repo = MagicMock()
+            mock_price_repo.get_latest_price.return_value = SimpleNamespace(
+                price=Decimal("10.00")
+            )
+            mock_price_repo_class.return_value = mock_price_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000006.SZ")
+
+        assert result is not None
+        assert result["valuation_source"] == "current_price_fallback"
+        assert result["valuation_method"] == "FALLBACK"
+
+    @pytest.mark.django_db
+    def test_get_valuation_creates_current_price_fallback(self):
+        """测试估值缺失时基于当前价创建兜底估值快照"""
+        from decimal import Decimal
+
+        from apps.decision_rhythm.infrastructure.models import ValuationSnapshotModel
+
+        with patch(
+            "apps.realtime.infrastructure.repositories.RedisRealtimePriceRepository"
+        ) as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo.get_latest_price.return_value = SimpleNamespace(price=Decimal("10.00"))
+            mock_repo_class.return_value = mock_repo
+
+            provider = AssetValuationProvider()
+            result = provider.get_valuation("000002.SZ")
+
+        assert result is not None
+        assert result["valuation_method"] == "FALLBACK"
+        assert result["valuation_source"] == "current_price_fallback"
+        assert result["fair_value"] == 10.0
+        assert result["entry_price_low"] == 9.5
+        assert result["entry_price_high"] == 10.2
+        assert result["target_price_low"] == 11.5
+        assert result["target_price_high"] == 12.5
+        assert result["stop_loss_price"] == 9.0
+        assert (
+            ValuationSnapshotModel.objects.filter(
+                security_code="000002.SZ",
+                valuation_method="FALLBACK",
+            ).count()
+            == 1
+        )
 
 
 class TestAlphaSignalProvider:

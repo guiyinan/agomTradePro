@@ -40,6 +40,9 @@ class ValuationMethod(Enum):
     COMPOSITE = "COMPOSITE"
     """综合估值法"""
 
+    FALLBACK = "FALLBACK"
+    """当前价兜底估值"""
+
 
 class ApprovalStatus(Enum):
     """

@@ -775,6 +775,7 @@ class ValuationSnapshotModel(models.Model):
         ("PEG", "PEG 估值法"),
         ("DIVIDEND", "股息折现法"),
         ("COMPOSITE", "综合估值法"),
+        ("FALLBACK", "当前价兜底估值"),
         ("LEGACY", "历史数据"),
         ("CONSOLIDATED", "聚合估值"),
     ]

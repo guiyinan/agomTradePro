@@ -2819,6 +2819,9 @@ class GenerateUnifiedRecommendationsUseCase:
 
                 # 获取估值数据
                 valuation = self.valuation_provider.get_valuation(security_code)
+                valuation_reason_codes = []
+                if valuation and valuation.get("valuation_source") == "current_price_fallback":
+                    valuation_reason_codes.append("valuation_current_price_fallback")
 
                 # 确定方向（基于综合分）
                 side = self._determine_side(
@@ -2863,6 +2866,7 @@ class GenerateUnifiedRecommendationsUseCase:
                     confidence=min(snapshot.regime_confidence + snapshot.alpha_model_score, 1.0)
                     / 2,
                     reason_codes=penalty_reasons
+                    + valuation_reason_codes
                     + self._generate_reason_codes(snapshot, composite_score),
                     human_rationale=self._generate_rationale(snapshot, composite_score, side),
                     fair_value=(

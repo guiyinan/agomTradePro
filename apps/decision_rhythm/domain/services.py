@@ -1080,6 +1080,38 @@ class ValuationSnapshotService:
         )
         return replace(snapshot, is_legacy=True)
 
+    def create_current_price_fallback_snapshot(
+        self,
+        security_code: str,
+        current_price: Decimal,
+        *,
+        source: str = "current_price",
+    ) -> ValuationSnapshot:
+        """
+        Create a conservative valuation snapshot from the latest observable price.
+
+        This is only a fallback for recommendation contracts when no formal
+        valuation is available; it must stay explicitly marked as FALLBACK.
+        """
+        return create_valuation_snapshot(
+            security_code=security_code,
+            valuation_method="FALLBACK",
+            fair_value=current_price,
+            entry_price_low=current_price * Decimal("0.95"),
+            entry_price_high=current_price * Decimal("1.02"),
+            target_price_low=current_price * Decimal("1.15"),
+            target_price_high=current_price * Decimal("1.25"),
+            stop_loss_price=current_price * Decimal("0.90"),
+            input_parameters={
+                "source": source,
+                "fallback_type": "current_price_based",
+                "fair_value_formula": "current_price",
+                "entry_band": "current_price * 0.95..1.02",
+                "target_band": "current_price * 1.15..1.25",
+                "stop_loss": "current_price * 0.90",
+            },
+        )
+
 
 class RecommendationConsolidationService:
     """

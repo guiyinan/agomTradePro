@@ -180,9 +180,17 @@
             <div class="candidate-action-row" data-stock-code="{{ stock.code }}">
                 <div class="candidate-info-cell">
                     <div class="candidate-main-info">
-                        <span class="candidate-asset-code">{{ stock.code }}</span>
+                        <a class="candidate-asset-code"
+                           href="{% url 'equity:detail' stock.code %}"
+                           style="text-decoration:none;">
+                            {{ stock.code }}
+                        </a>
                         {% if stock.name %}
-                        <span class="candidate-asset-name">{{ stock.name }}</span>
+                        <a class="candidate-asset-name"
+                           href="{% url 'equity:detail' stock.code %}"
+                           style="text-decoration:none;">
+                            {{ stock.name }}
+                        </a>
                         {% endif %}
                         <span class="candidate-direction-badge long">
                             排名 #{% if stock.rank %}{{ stock.rank }}{% else %}{{ forloop.counter }}{% endif %}

@@ -7,9 +7,8 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
+from apps.dashboard.interface import alpha_stock_views, views
 from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-from apps.dashboard.interface import alpha_stock_views
-from apps.dashboard.interface import views
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
 from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.domain.entities import TaskStatus
@@ -1579,6 +1578,7 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
     assert "查看完整排名" in content
     assert "000001.SZ" in content
     assert "平安银行" in content
+    assert 'href="/equity/detail/000001.SZ/"' in content
     assert "Alpha 排名第 1" in content
     assert "暂无通过触发器和风控约束的可行动候选" in content
 
