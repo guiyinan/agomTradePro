@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
+from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
 from apps.dashboard.interface import alpha_stock_views
 from apps.dashboard.interface import views
 from apps.regime.domain.action_mapper import RegimeActionRecommendation
@@ -1761,6 +1762,147 @@ def test_build_decision_workspace_url_uses_canonical_query_order():
     assert (
         url
         == "/decision/workspace/?source=dashboard-workflow&security_code=000001.SZ&step=4&account_id=21&action=WATCH"
+    )
+
+
+def test_annotate_decision_workspace_navigation_accepts_model_instances():
+    request_model = DecisionRequestModel(
+        request_id="req-000001",
+        asset_code="000001.SZ",
+        asset_class="equity",
+        direction="BUY",
+        execution_status="PENDING",
+    )
+
+    annotated = views._annotate_decision_workspace_navigation(
+        [request_model],
+        source="dashboard-pending",
+        security_code_key="asset_code",
+        view_step=5,
+        primary_step=5,
+    )
+
+    assert annotated[0]["request_id"] == "req-000001"
+    assert annotated[0]["asset_code"] == "000001.SZ"
+    assert (
+        annotated[0]["decision_workspace_primary_url"]
+        == "/decision/workspace/?source=dashboard-pending&security_code=000001.SZ&step=5"
+    )
+
+
+def test_dashboard_view_accepts_pending_request_models(monkeypatch):
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin", id=1)
+
+    dashboard_data = SimpleNamespace(
+        display_name="Admin",
+        current_regime="Recovery",
+        regime_date=None,
+        regime_confidence=0.82,
+        growth_momentum_z=0.4,
+        inflation_momentum_z=-0.1,
+        regime_distribution={},
+        regime_data_health=True,
+        regime_warnings=[],
+        pmi_value=50.1,
+        cpi_value=1.2,
+        current_policy_level="P1",
+        total_assets=0,
+        initial_capital=0,
+        total_return=0,
+        total_return_pct=0,
+        cash_balance=0,
+        invested_value=0,
+        invested_ratio=0,
+        positions=[],
+        position_count=0,
+        regime_match_score=0,
+        regime_recommendations=[],
+        active_signals=[],
+        signal_stats={},
+        asset_allocation=[],
+        ai_insights=[],
+        allocation_advice=[],
+        allocation_data={},
+        performance_data=[],
+    )
+
+    pending_request = DecisionRequestModel(
+        request_id="req-500",
+        asset_code="000001.SZ",
+        asset_class="equity",
+        direction="BUY",
+        execution_status="PENDING",
+    )
+    pending_request.asset_name = "平安银行"
+
+    rendered: dict[str, object] = {}
+
+    monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
+    monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
+    monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
+    monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
+    monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
+    monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
+    monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
+    monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
+    monkeypatch.setattr(views, "_build_attention_items_context", lambda data, navigator, pulse: {})
+    monkeypatch.setattr(views, "_build_browser_notification_context", lambda navigator, pulse: {})
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_metrics_data",
+        lambda ic_days=30: SimpleNamespace(
+            provider_status={},
+            coverage_metrics={},
+            ic_trends=[],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda **kwargs: {
+            "items": [],
+            "meta": {},
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "exit_watchlist": [],
+            "exit_watch_summary": {},
+            "pool": {},
+            "recent_runs": [],
+            "history_run_id": None,
+        },
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_decision_plane_data",
+        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+            beta_gate_visible_classes="equity",
+            alpha_watch_count=0,
+            alpha_candidate_count=0,
+            alpha_actionable_count=0,
+            quota_total=10,
+            quota_used=0,
+            quota_remaining=10,
+            quota_usage_percent=0.0,
+            actionable_candidates=[],
+            pending_requests=[pending_request],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "render",
+        lambda request, template_name, context: rendered.setdefault("context", context) or context,
+    )
+
+    views.dashboard_view(request)
+
+    assert rendered["context"]["pending_count"] == 1
+    assert rendered["context"]["pending_requests"][0]["request_id"] == "req-500"
+    assert rendered["context"]["pending_requests"][0]["asset_name"] == "平安银行"
+    assert (
+        rendered["context"]["pending_requests"][0]["decision_workspace_primary_url"]
+        == "/decision/workspace/?source=dashboard-pending&security_code=000001.SZ&step=5"
     )
 
 

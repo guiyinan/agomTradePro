@@ -1,6 +1,6 @@
 # Dashboard Alpha 决策链收束说明（2026-04-12）
 
-> 补充更新：2026-04-18、2026-04-22
+> 补充更新：2026-04-18、2026-04-22、2026-05-11
 
 ## 目标
 
@@ -53,6 +53,10 @@
 - 回答的问题：`哪些标的已进入 Step 5 等待执行`
 - 它不是当前 Alpha Top 排名的产物，而是历史决策请求的执行状态视图；测试、MCP smoke 或历史 workflow 生成的请求也会出现在这里，直到执行、失败后重试或取消。
 - Dashboard 上的“丢弃待执行”会调用 `POST /api/decision-rhythm/requests/{request_id}/cancel/`，将状态改为 `CANCELLED`；记录不删除，仍可通过决策请求和 Alpha 历史回溯。
+- Dashboard 视图层对待执行队列的入口数据必须兼容两种形态：
+  - 已序列化 `dict`
+  - `DecisionRequestModel` / `SimpleNamespace` 这类对象载荷
+- 页面导航注解逻辑不得假设 `pending_requests` 一定可直接 `dict(item)`；否则首页 `/dashboard/` 会在真实 ORM 实例输入下触发 500。
 
 ## 收束后的逻辑关系
 
@@ -205,3 +209,4 @@ Dashboard 现在按同一链路展示：
 - `tests/api/test_dashboard_api_edges.py`
 - `sdk/tests/test_mcp/test_tool_registration.py`
 - `sdk/tests/test_mcp/test_tool_execution.py`
+- `tests/e2e/test_dashboard_equity_navigation.py`

@@ -10,6 +10,7 @@ Dashboard Interface Views
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import date
 from types import SimpleNamespace
 from urllib.parse import urlencode
@@ -77,6 +78,24 @@ def _get_request_user_id(user) -> int | None:
         return int(user_id) if user_id not in (None, "") else None
     except (TypeError, ValueError):
         return None
+
+
+def _clone_dashboard_item(item: object) -> dict[str, object]:
+    """Normalize dashboard items from dict-like payloads or model objects."""
+
+    if isinstance(item, Mapping):
+        return dict(item)
+
+    try:
+        item_vars = vars(item)
+    except TypeError:
+        return {}
+
+    return {
+        key: value
+        for key, value in item_vars.items()
+        if not key.startswith("_")
+    }
 
 
 def _get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
@@ -837,7 +856,7 @@ def _mark_alpha_exit_watchlist_selection(
 
     annotated_items: list[dict[str, object]] = []
     for index, item in enumerate(exit_watchlist):
-        annotated_item = dict(item)
+        annotated_item = _clone_dashboard_item(item)
         annotated_item["is_selected"] = selected_index is not None and index == selected_index
         annotated_items.append(annotated_item)
     return annotated_items
@@ -920,7 +939,7 @@ def _annotate_decision_workspace_navigation(
     primary_step_value = primary_step if primary_step is not None else view_step
 
     for item in items:
-        annotated_item = dict(item)
+        annotated_item = _clone_dashboard_item(item)
         account_id = annotated_item.get(account_id_key) if account_id_key else None
         action = annotated_item.get(action_key) if action_key else None
         annotated_item["decision_workspace_url"] = _build_decision_workspace_url(
@@ -954,7 +973,7 @@ def _annotate_alpha_exit_watchlist_navigation(
     normalized_scope = normalize_alpha_scope(alpha_scope)
 
     for item in exit_watchlist:
-        annotated_item = dict(item)
+        annotated_item = _clone_dashboard_item(item)
         recommendation_snapshot = annotated_item.get("recommendation_snapshot") or {}
         if not isinstance(recommendation_snapshot, dict):
             recommendation_snapshot = {}
