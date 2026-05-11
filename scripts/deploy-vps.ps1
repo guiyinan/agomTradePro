@@ -122,51 +122,36 @@ try {
     Write-Info "Launching deploy..."
     & $PythonExe @pyArgs
     $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
+        Write-Info "=== Deploy succeeded ==="
+        Write-Info "Verifying health..."
+        $verifyScriptPath = Join-Path $PSScriptRoot "deploy_vps_verify.py"
+        $verifyArgs = @(
+            $verifyScriptPath,
+            '--host', $VpsHost,
+            '--user', $VpsUser,
+            '--password-file', $passFile,
+            '--port', $VpsPort,
+            '--http-port', $HttpPort,
+            '--target-dir', $TargetDir,
+            '--timeout', '15'
+        )
+        try {
+            & $PythonExe @verifyArgs
+            $verifyExitCode = $LASTEXITCODE
+            if ($verifyExitCode -ne 0) {
+                Write-Err "Post-deploy verification failed."
+                $exitCode = $verifyExitCode
+            }
+        } catch {
+            Write-Warn "Post-deploy verification skipped: $($_.Exception.Message)"
+        }
+    } else {
+        Write-Err "=== Deploy FAILED (exit code $exitCode) ==="
+    }
 }
 finally {
     Remove-Item $passFile -Force -ErrorAction SilentlyContinue
-}
-
-if ($exitCode -eq 0) {
-    Write-Info "=== Deploy succeeded ==="
-    Write-Info "Verifying health..."
-
-    $verifyScript = @"
-import paramiko, sys
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('$VpsHost', username='$VpsUser', password='$VpsPass', port=$VpsPort, timeout=15)
-
-checks = [
-    ('Health', 'docker exec agomtradepro-web-1 curl -fsS http://127.0.0.1:8000/api/health/'),
-    ('Caddyfile', 'head -1 $TargetDir/current/docker/Caddyfile'),
-    ('Containers', 'docker ps --format \"table {{.Names}}\\t{{.Status}}\"'),
-]
-ok = True
-for label, cmd in checks:
-    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=15)
-    out = stdout.read().decode().strip()
-    err = stderr.read().decode().strip()
-    if label == 'Caddyfile' and out.startswith(':80'):
-        print(f'[WARN] Caddyfile is :80 - DOMAIN not configured, HTTPS will not work')
-    if out:
-        print(f'[OK] {label}: {out[:200]}')
-    elif err:
-        print(f'[FAIL] {label}: {err[:200]}')
-        ok = False
-    else:
-        print(f'[FAIL] {label}: empty response')
-        ok = False
-ssh.close()
-sys.exit(0 if ok else 1)
-"@
-    try {
-        $verifyResult = & python -c $verifyScript 2>&1
-        $verifyResult | ForEach-Object { Write-Host $_ }
-    } catch {
-        Write-Warn "Post-deploy verification skipped (paramiko may not be available)"
-    }
-} else {
-    Write-Err "=== Deploy FAILED (exit code $exitCode) ==="
 }
 exit $exitCode

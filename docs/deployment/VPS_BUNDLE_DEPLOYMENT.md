@@ -250,6 +250,12 @@ HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomtradepro/current/deploy/.env | cut
 curl -f "http://127.0.0.1:${HTTP_PORT:-8000}/api/health/"
 ```
 
+判定口径：
+
+1. 以 `curl` 退出码和最终 HTTP 状态码为准。
+2. `2xx` 即视为健康，不能再把“响应体为空”误判成失败。
+3. 只有在需要核对 JSON 契约时，才额外检查响应体内容。
+
 If domain is configured:
 
 ```bash
