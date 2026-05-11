@@ -359,7 +359,16 @@ def build_config_center_snapshot(user: Any) -> dict[str, Any]:
     for capability in _CAPABILITIES:
         if capability.permission == "staff" and not getattr(user, "is_staff", False):
             continue
-        summary_payload = _SUMMARY_BUILDERS[capability.key](user)
+        summary_builder = _SUMMARY_BUILDERS.get(capability.key)
+        if summary_builder is None:
+            summary_payload = {
+                "status": "attention",
+                "summary": {
+                    "message": f"{capability.name} 摘要构建器未配置",
+                },
+            }
+        else:
+            summary_payload = summary_builder(user)
         section = sections.setdefault(
             capability.section,
             {"key": capability.section, "title": capability.section, "items": []},

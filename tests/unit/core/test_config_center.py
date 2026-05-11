@@ -51,3 +51,13 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
     assert "system_settings" not in item_keys
     assert "data_center_providers" not in item_keys
     assert "data_center_runtime" not in item_keys
+
+    mcp_items = [
+        item
+        for section in snapshot["sections"]
+        for item in section["items"]
+        if item["key"] == "mcp_guide"
+    ]
+    assert len(mcp_items) == 1
+    assert mcp_items[0]["status"] == "attention"
+    assert "未配置" in mcp_items[0]["summary"]["message"]
