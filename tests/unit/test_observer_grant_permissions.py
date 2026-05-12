@@ -8,7 +8,7 @@ Unit tests for ObserverAccessPermission and get_accessible_portfolios.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
@@ -505,7 +505,7 @@ class TestGetAccessiblePortfolios:
         )
 
         # 创建投资组合
-        portfolio = PortfolioModel.objects.create(
+        PortfolioModel.objects.create(
             user=owner,
             name='拥有者组合',
             base_currency=cny,
@@ -548,7 +548,7 @@ class TestGetAccessiblePortfolios:
         )
 
         # 创建投资组合
-        portfolio = PortfolioModel.objects.create(
+        PortfolioModel.objects.create(
             user=owner,
             name='拥有者组合',
             base_currency=cny,

@@ -9,10 +9,9 @@ Alpha 事件触发的数据仓储实现。
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -20,7 +19,6 @@ from ..domain.entities import (
     AlphaCandidate,
     AlphaTrigger,
     CandidateStatus,
-    InvalidationCondition,
     SignalStrength,
     TriggerStatus,
     TriggerType,
@@ -258,7 +256,7 @@ class AlphaTriggerRepository:
             return model.to_domain()
 
         except ObjectDoesNotExist:
-            raise ValueError(f"Trigger not found: {trigger_id}")
+            raise ValueError(f"Trigger not found: {trigger_id}") from None
 
     def get_expired(self) -> list[AlphaTrigger]:
         """
@@ -589,7 +587,7 @@ class AlphaCandidateRepository:
             return model.to_domain()
 
         except ObjectDoesNotExist:
-            raise ValueError(f"Candidate not found: {candidate_id}")
+            raise ValueError(f"Candidate not found: {candidate_id}") from None
 
     def update_last_decision_request_id(
         self,
@@ -758,7 +756,7 @@ class AlphaCandidateRepository:
             return model.to_domain()
 
         except ObjectDoesNotExist:
-            raise ValueError(f"Candidate not found: {candidate_id}")
+            raise ValueError(f"Candidate not found: {candidate_id}") from None
 
 
 # 便捷函数

@@ -12,8 +12,6 @@ NO Django, pandas, or numpy imports.
 
 import math
 from datetime import date
-from decimal import Decimal
-from typing import Dict, List, Optional
 
 import pytest
 
@@ -21,10 +19,6 @@ from apps.factor.domain.entities import (
     FactorCategory,
     FactorDefinition,
     FactorDirection,
-    FactorExposure,
-    FactorPortfolioConfig,
-    FactorScore,
-    get_common_factors,
 )
 from apps.factor.domain.services import (
     FactorCalculationContext,
@@ -33,9 +27,7 @@ from apps.factor.domain.services import (
 )
 from tests.factories.domain_factories import (
     make_factor_definition,
-    make_factor_exposure,
     make_factor_portfolio_config,
-    make_factor_score,
 )
 
 # ---------------------------------------------------------------------------
@@ -563,7 +555,7 @@ class TestScoringService:
         explanation = svc.explain_stock_score("000001", {"pe_ttm": 0.5, "roe": 0.5})
         assert explanation is not None
 
-        for factor_code, breakdown in explanation["factor_breakdown"].items():
+        for _factor_code, breakdown in explanation["factor_breakdown"].items():
             assert "score" in breakdown
             assert "weight" in breakdown
             assert "contribution" in breakdown

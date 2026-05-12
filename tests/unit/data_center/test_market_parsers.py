@@ -8,7 +8,6 @@ from datetime import date
 from decimal import Decimal
 
 import pandas as pd
-import pytest
 
 from apps.data_center.infrastructure.parsers.eastmoney_capital_flow_parser import (
     parse_akshare_capital_flow_row,

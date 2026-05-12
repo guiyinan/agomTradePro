@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Equity 个股分析模块
 
@@ -30,7 +31,7 @@ class EquityModule(BaseModule):
     def get_stock_score(
         self,
         stock_code: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取股票评分
@@ -62,9 +63,9 @@ class EquityModule(BaseModule):
 
     def list_stocks(
         self,
-        sector: Optional[str] = None,
-        min_score: Optional[float] = None,
-        max_score: Optional[float] = None,
+        sector: str | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -139,7 +140,7 @@ class EquityModule(BaseModule):
 
     def get_recommendations(
         self,
-        regime: Optional[str] = None,
+        regime: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         """
@@ -179,7 +180,7 @@ class EquityModule(BaseModule):
     def analyze_stock(
         self,
         stock_code: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         分析股票
@@ -255,7 +256,7 @@ class EquityModule(BaseModule):
     def get_valuation(
         self,
         stock_code: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取股票估值详情（完整数据）
@@ -366,7 +367,7 @@ class EquityModule(BaseModule):
         self,
         universe: str = "all_active",
         lookback_days: int = 756,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         """
         批量扫描估值修复股票
@@ -402,7 +403,7 @@ class EquityModule(BaseModule):
     def list_valuation_repairs(
         self,
         universe: str = "all_active",
-        phase: Optional[str] = None,
+        phase: str | None = None,
         limit: int = 50,
     ) -> dict[str, Any]:
         """
@@ -439,9 +440,9 @@ class EquityModule(BaseModule):
     def sync_valuation_data(
         self,
         days_back: int = 1,
-        stock_codes: Optional[list[str]] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        stock_codes: list[str] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         primary_source: str = "akshare",
         fallback_source: str = "tushare",
     ) -> dict[str, Any]:
@@ -475,7 +476,7 @@ class EquityModule(BaseModule):
 
     def validate_valuation_data(
         self,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
         primary_source: str = "akshare",
     ) -> dict[str, Any]:
         """

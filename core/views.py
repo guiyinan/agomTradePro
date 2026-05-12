@@ -187,7 +187,7 @@ def docs_view(request, doc_slug=""):
         try:
             doc = documentation_service.get_published_doc_by_slug(doc_slug)
         except DocumentationNotFound:
-            raise Http404(f"文档 {doc_slug} 不存在")
+            raise Http404(f"文档 {doc_slug} 不存在") from None
 
         context = {
             "doc": doc,

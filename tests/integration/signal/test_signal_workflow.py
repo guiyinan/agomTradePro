@@ -8,7 +8,6 @@ Integration Tests for Signal Complete Lifecycle
 """
 
 from datetime import date, timedelta
-from unittest.mock import Mock
 
 import pytest
 
@@ -16,8 +15,6 @@ from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-from apps.regime.domain.entities import RegimeSnapshot
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.application.use_cases import (
     CheckSignalInvalidationRequest,
     CheckSignalInvalidationUseCase,
@@ -396,7 +393,7 @@ class TestSignalReevaluation:
         )
 
         saved1 = signal_repo.save_signal(signal1)
-        saved2 = signal_repo.save_signal(signal2)
+        signal_repo.save_signal(signal2)
 
         # 2. Regime 变为 Stagflation（滞胀）
         # 创建重评用例
@@ -416,7 +413,7 @@ class TestSignalReevaluation:
         assert response.rejected_count > 0, f"应有信号被拒绝，实际拒绝: {response.rejected_count}/{response.total_count}"
 
         # 4. 验证信号状态已更新
-        updated1 = signal_repo.get_signal_by_id(saved1.id)
+        signal_repo.get_signal_by_id(saved1.id)
         # a_share_growth 在 Stagflation 下为 HOSTILE，应被拒绝
         # 但实际的拒绝逻辑由 domain rules 决定
 
@@ -442,7 +439,7 @@ class TestSignalReevaluation:
             rejection_reason=""
         )
 
-        saved = signal_repo.save_signal(signal)
+        signal_repo.save_signal(signal)
 
         # 2. Policy 变为 P3（危机模式）
         reevaluate_use_case = ReevaluateSignalsUseCase(signal_repository=signal_repo)
@@ -453,7 +450,7 @@ class TestSignalReevaluation:
             regime_confidence=0.7
         )
 
-        response = reevaluate_use_case.execute(request)
+        reevaluate_use_case.execute(request)
 
         # 3. 验证 P3 的影响
         # 在 P3 危机模式下，几乎所有投机性信号都应被暂停

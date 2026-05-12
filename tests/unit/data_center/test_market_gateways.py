@@ -8,7 +8,6 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 

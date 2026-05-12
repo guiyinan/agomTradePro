@@ -9,7 +9,7 @@ Events Domain Interfaces
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from .entities import DomainEvent
 

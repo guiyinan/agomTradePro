@@ -10,9 +10,6 @@ Infrastructure layer - fetches China macro data from AKShare.
 
 import logging
 from datetime import date
-from typing import List
-
-import pandas as pd
 
 from shared.infrastructure.sdk_bridge import get_akshare_module
 
@@ -147,9 +144,9 @@ class AKShareAdapter(BaseMacroAdapter):
                 self._ak = get_akshare_module()
                 logger.info("AKShare 初始化成功")
             except ImportError:
-                raise DataSourceUnavailableError("akshare 库未安装，请运行: pip install akshare")
+                raise DataSourceUnavailableError("akshare 库未安装，请运行: pip install akshare") from None
             except Exception as e:
-                raise DataSourceUnavailableError(f"AKShare 初始化失败: {e}")
+                raise DataSourceUnavailableError(f"AKShare 初始化失败: {e}") from e
         return self._ak
 
     @property
@@ -388,4 +385,4 @@ class AKShareAdapter(BaseMacroAdapter):
 
         except Exception as e:
             logger.error(f"获取 {indicator_code} 数据失败: {e}")
-            raise DataSourceUnavailableError(f"获取数据失败: {e}")
+            raise DataSourceUnavailableError(f"获取数据失败: {e}") from e

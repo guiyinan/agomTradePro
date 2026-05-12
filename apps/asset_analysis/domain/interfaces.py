@@ -6,7 +6,7 @@ Infrastructure 层实现这些接口，Application 层通过接口调用。
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 from apps.asset_analysis.domain.value_objects import WeightConfig
 

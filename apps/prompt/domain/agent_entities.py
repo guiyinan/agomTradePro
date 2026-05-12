@@ -5,10 +5,9 @@ Agent Runtime Domain Entities.
 遵循项目架构约束：Domain 层只使用 Python 标准库。
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class AgentTaskType(Enum):

@@ -5,8 +5,9 @@ This script identifies the issue with regime calculation and provides a correcte
 """
 
 import os
-from dotenv import load_dotenv
 from datetime import date
+
+from dotenv import load_dotenv
 
 load_dotenv()
 

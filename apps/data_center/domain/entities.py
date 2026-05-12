@@ -8,8 +8,7 @@ No Django, pandas, or external library imports allowed here.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
-from decimal import Decimal
+from datetime import UTC, date, datetime
 from typing import Any
 
 from apps.data_center.domain.enums import (
@@ -21,7 +20,6 @@ from apps.data_center.domain.enums import (
     PriceAdjustment,
     ProviderHealthStatus,
 )
-
 
 # ---------------------------------------------------------------------------
 # Provider configuration value objects
@@ -120,7 +118,7 @@ class ConnectionTestResult:
     summary: str
     logs: list[str] = field(default_factory=list)
     tested_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -312,7 +310,7 @@ class MacroFact:
     revision_number: int = 0
     published_at: date | None = None
     quality: DataQualityStatus = DataQualityStatus.VALID
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -349,7 +347,7 @@ class PriceBar:
     volume: float | None = None
     amount: float | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.asset_code:
@@ -428,7 +426,7 @@ class FundNavFact:
     acc_nav: float | None = None
     daily_return: float | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -460,7 +458,7 @@ class FinancialFact:
     unit: str = ""
     source: str = ""
     report_date: date | None = None
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -496,7 +494,7 @@ class ValuationFact:
     float_market_cap: float | None = None
     dv_ratio: float | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -531,7 +529,7 @@ class SectorMembershipFact:
     expiry_date: date | None = None
     weight: float | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.sector_code or not self.asset_code:
@@ -563,7 +561,7 @@ class NewsFact:
     external_id: str = ""
     sentiment_score: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.title:
@@ -597,7 +595,7 @@ class CapitalFlowFact:
     medium_net: float | None = None
     small_net: float | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -635,7 +633,7 @@ class RawAudit:
     row_count: int = 0
     latency_ms: float | None = None
     error_message: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

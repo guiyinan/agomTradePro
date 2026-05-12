@@ -4,8 +4,8 @@ Regime V2 Logic Verification Script
 Independent script to verify the new Regime calculation logic
 """
 
-import sys
 import json
+import sys
 from datetime import date
 
 
@@ -18,8 +18,8 @@ def main():
     sys.path.insert(0, '.')
     from apps.regime.domain.services_v2 import (
         RegimeCalculatorV2,
-        ThresholdConfig,
         RegimeType,
+        ThresholdConfig,
         calculate_regime_by_level,
     )
 
@@ -38,7 +38,7 @@ def main():
     print(f"   PMI: {result.growth_level} ({result.growth_state})")
     print(f"   CPI: {result.inflation_level}% ({result.inflation_state})")
 
-    print(f"\n   Distribution:")
+    print("\n   Distribution:")
     for regime, prob in result.distribution.items():
         print(f"     {regime}: {prob:.2%}")
 
@@ -79,7 +79,7 @@ def main():
 
     # Economic intuition check
     if result.growth_level < 50 and result.inflation_level < 2:
-        print(f"\n   [CORRECT] New algorithm matches economic intuition:")
+        print("\n   [CORRECT] New algorithm matches economic intuition:")
         print(f"     PMI {result.growth_level} < 50 (contraction)")
         print(f"     CPI {result.inflation_level}% < 2% (low inflation)")
         print(f"     -> Should be {result.regime.value}, not {old_result.snapshot.dominant_regime}")

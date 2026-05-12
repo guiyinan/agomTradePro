@@ -5,11 +5,9 @@ FROZEN: Model names and field names must not change.
 See: docs/plans/ai-native/schema-contract.md
 """
 
-from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
 
 from apps.agent_runtime.domain.entities import (
     ApprovalStatus,

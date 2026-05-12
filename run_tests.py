@@ -1,6 +1,5 @@
 """Run SDK/MCP tests with proper path setup."""
 import sys
-import os
 
 # Add SDK to path
 sys.path.insert(0, r"D:\githv\agomTradePro\sdk")

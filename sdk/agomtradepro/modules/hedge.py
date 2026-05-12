@@ -28,7 +28,7 @@ class HedgeModule:
         result = self._client.get("/api/hedge/pairs/")
         return result.get("results", result) if isinstance(result, dict) else result
 
-    def get_pair_info(self, pair_name: str) -> Optional[dict[str, Any]]:
+    def get_pair_info(self, pair_name: str) -> dict[str, Any] | None:
         """
         获取对冲对详情
 
@@ -154,7 +154,7 @@ class HedgeModule:
     # Portfolio State
     # ========================================================================
 
-    def get_portfolio_state(self, pair_name: str) -> Optional[dict[str, Any]]:
+    def get_portfolio_state(self, pair_name: str) -> dict[str, Any] | None:
         """
         获取组合状态
 

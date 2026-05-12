@@ -8,18 +8,18 @@ Account Infrastructure Repositories
 import json
 import logging
 import warnings
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Count, F, Q, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
 from django.utils import timezone
 
@@ -28,7 +28,6 @@ from apps.account.domain.entities import (
     AssetClassType,
     CrossBorderFlag,
     DrawdownTier,
-    InvestmentStyle,
     MacroSizingConfig,
     PortfolioSnapshot,
     Position,
@@ -110,7 +109,7 @@ class AccountRepository:
         try:
             user = User._default_manager.get(id=user_id)
         except User.DoesNotExist:
-            raise ValueError(f"用户 {user_id} 不存在")
+            raise ValueError(f"用户 {user_id} 不存在") from None
 
         return self.create_default_account(user)
 
@@ -473,11 +472,11 @@ class PortfolioRepository:
             monthly_baseline = float(monthly_snapshot.total_value)
             monthly_return = total_value - monthly_baseline
             if monthly_baseline == 0:
-                monthly_return_pct = 0.0
+                pass
             else:
-                monthly_return_pct = monthly_return / monthly_baseline * 100
+                monthly_return / monthly_baseline * 100
         else:
-            monthly_return_pct = 0.0
+            pass
 
         # 总收益使用年收益率
         total_return = yearly_return

@@ -8,13 +8,11 @@ Integration Tests for Regime Calculation Workflow
 """
 
 from datetime import date, timedelta
-from unittest.mock import Mock, patch
 
 import pytest
 
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.regime.application.tasks import notify_regime_change
 from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository

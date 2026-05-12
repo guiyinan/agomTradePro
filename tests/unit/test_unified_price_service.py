@@ -1,8 +1,6 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from unittest.mock import Mock
-
-import pytest
 
 from apps.data_center.application.price_service import UnifiedPriceService
 from core.exceptions import DataFetchError
@@ -119,7 +117,7 @@ def test_get_latest_price_prefers_data_center_quote():
         open=2.16,
         prev_close=2.1,
         source="dc_eastmoney",
-        snapshot_at=datetime(2026, 3, 20, 9, 31, tzinfo=timezone.utc),
+        snapshot_at=datetime(2026, 3, 20, 9, 31, tzinfo=UTC),
     )
 
     result = service.get_price_result("159915")

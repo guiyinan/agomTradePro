@@ -14,10 +14,11 @@ SOLUTION:
 - Recalculate momentum, Z-scores, and regime distribution
 """
 
-import os
-from dotenv import load_dotenv
-from datetime import date
 import math
+import os
+from datetime import date
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -214,7 +215,7 @@ if db_url.startswith('postgresql://'):
                     print(f'  AFTER:  Z=({corrected_gz:+.2f}, {corrected_iz:+.2f}) -> {corrected_dom}')
 
                     if abs(corrected_iz - stored_iz) > 0.5:
-                        print(f'  ^^ Significant difference in inflation Z-score!')
+                        print('  ^^ Significant difference in inflation Z-score!')
             except StopIteration:
                 pass
 

@@ -19,7 +19,6 @@ from rest_framework.test import APIClient
 from apps.account.infrastructure.models import (
     PortfolioModel,
     PositionModel,
-    TransactionModel,
 )
 from apps.simulated_trading.infrastructure.models import (
     LedgerMigrationMapModel,
@@ -29,7 +28,6 @@ from apps.simulated_trading.infrastructure.models import (
 from apps.simulated_trading.infrastructure.models import (
     PositionModel as SimPositionModel,
 )
-
 
 # ── helper fixtures ───────────────────────────────────────────────────────────
 

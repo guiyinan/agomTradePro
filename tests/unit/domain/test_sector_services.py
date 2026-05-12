@@ -6,7 +6,6 @@ Uses factory helpers from tests.factories.domain_factories.
 """
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
@@ -14,7 +13,6 @@ from apps.sector.domain.entities import (
     SectorIndex,
     SectorInfo,
     SectorRelativeStrength,
-    SectorScore,
 )
 from apps.sector.domain.services import SectorRotationAnalyzer
 from tests.factories.domain_factories import (

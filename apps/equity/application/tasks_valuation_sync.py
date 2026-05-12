@@ -1,9 +1,16 @@
-from django.conf import settings
 from celery import shared_task
+from django.conf import settings
+
 from apps.data_center.application.dtos import SyncFinancialRequest
 from apps.data_center.application.interface_services import (
     get_active_provider_id_by_source,
     make_sync_financial_use_case,
+)
+from apps.equity.application.repository_provider import (
+    DjangoStockRepository,
+    DjangoValuationDataQualityRepository,
+    DjangoValuationRepairRepository,
+    StockPoolRepositoryAdapter,
 )
 from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
@@ -14,12 +21,6 @@ from apps.equity.application.use_cases_valuation_sync import (
     SyncEquityValuationUseCase,
     ValidateEquityValuationQualityRequest,
     ValidateEquityValuationQualityUseCase,
-)
-from apps.equity.application.repository_provider import (
-    DjangoStockRepository,
-    DjangoValuationDataQualityRepository,
-    DjangoValuationRepairRepository,
-    StockPoolRepositoryAdapter,
 )
 
 
@@ -149,7 +150,7 @@ def sync_financial_data_task(
 ) -> dict:
     """
     同步财务数据
-    
+
     Args:
         source: 数据源（akshare 或 tushare）
         periods: 获取最近几个报告期

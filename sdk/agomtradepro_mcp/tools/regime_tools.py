@@ -191,7 +191,7 @@ def register_regime_tools(server: FastMCP) -> None:
             end_date=parsed_end,
         )
 
-        return {k: v for k, v in distribution.items()}
+        return dict(distribution.items())
 
     @server.tool()
     def explain_regime(regime_type: str) -> str:

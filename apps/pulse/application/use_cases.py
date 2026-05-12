@@ -9,8 +9,8 @@ from apps.pulse.application.repository_provider import (
 )
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
-from core.integration.decision_data_reliability import refresh_pulse_macro_inputs
 from core.integration.current_regime import resolve_current_regime_for_pulse
+from core.integration.decision_data_reliability import refresh_pulse_macro_inputs
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8

@@ -7,7 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from time import perf_counter
 from typing import Any
 
@@ -91,10 +91,10 @@ _FRED_SERIES_MAP: dict[str, tuple[str, str, str]] = {
 
 def _ensure_aware(value: datetime | None) -> datetime:
     if value is None:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _to_period_type(report_type: str) -> FinancialPeriodType:
@@ -371,12 +371,12 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         facts: list[FundNavFact] = []
         for row in df.itertuples(index=False):
-            nav_date = getattr(row, "trade_date").date()
+            nav_date = row.trade_date.date()
             facts.append(
                 FundNavFact(
                     fund_code=fund_code,
                     nav_date=nav_date,
-                    nav=float(getattr(row, "unit_nav")),
+                    nav=float(row.unit_nav),
                     acc_nav=_safe_float(getattr(row, "accum_nav", None)),
                     source=self.provider_source(),
                     extra=self._provider_extra(),
@@ -392,13 +392,13 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         batch = gateway.fetch(asset_code, periods=periods)
         facts: list[FinancialFact] = []
         for record in batch.records:
-            common = dict(
-                asset_code=record.stock_code,
-                period_end=record.report_date,
-                period_type=_to_period_type(record.report_type),
-                source=self.provider_source(),
-                extra=self._provider_extra(),
-            )
+            common = {
+                "asset_code": record.stock_code,
+                "period_end": record.report_date,
+                "period_type": _to_period_type(record.report_type),
+                "source": self.provider_source(),
+                "extra": self._provider_extra(),
+            }
             facts.extend(
                 [
                     FinancialFact(
@@ -641,14 +641,14 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             if revenue is None or net_profit is None or roe is None or debt_ratio is None:
                 continue
 
-            common = dict(
-                asset_code=canonical_asset_code,
-                period_end=period_end,
-                period_type=_period_type_from_period_end(period_end),
-                source=self.provider_source(),
-                report_date=period_end,
-                extra=self._provider_extra(),
-            )
+            common = {
+                "asset_code": canonical_asset_code,
+                "period_end": period_end,
+                "period_type": _period_type_from_period_end(period_end),
+                "source": self.provider_source(),
+                "report_date": period_end,
+                "extra": self._provider_extra(),
+            }
             metric_values = {
                 "revenue": (revenue, "元"),
                 "net_profit": (net_profit, "元"),

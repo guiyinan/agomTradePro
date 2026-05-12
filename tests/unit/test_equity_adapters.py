@@ -7,10 +7,8 @@ Unit tests for equity module adapters and TODO cleanup
 3. 行业过滤缓存
 """
 
-from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from datetime import date
+from unittest.mock import Mock
 
 
 class TestIncrementalScreeningEngineRuleDetection:

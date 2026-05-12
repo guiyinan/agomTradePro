@@ -11,22 +11,17 @@ Integration Tests for Decision Execution Approval Chain
 - 状态流转：NEW -> REVIEWING -> APPROVED/REJECTED -> EXECUTED/FAILED
 """
 
-from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone as django_timezone
-from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.decision_rhythm.domain.entities import (
     ApprovalStatus,
     QuotaPeriod,
-    RecommendationStatus,
-    UnifiedRecommendation,
-    create_valuation_snapshot,
 )
 from apps.decision_rhythm.infrastructure.models import (
     DecisionFeatureSnapshotModel,
@@ -430,7 +425,7 @@ class TestExecutionApprovalRepository(TestCase):
         uni_rec, approval = self._create_test_data()
 
         # 更新为 REJECTED
-        updated = self.repo.update_status(
+        self.repo.update_status(
             request_id="apr_repo_test",
             approval_status=ApprovalStatus.REJECTED,
             reviewer_comments="测试拒绝",
@@ -451,7 +446,7 @@ class TestExecutionApprovalRepository(TestCase):
         )
 
         # 再执行
-        updated = self.repo.update_status(
+        self.repo.update_status(
             request_id="apr_repo_test",
             approval_status=ApprovalStatus.EXECUTED,
         )

@@ -4,7 +4,7 @@ Terminal Domain Interfaces - Repository Protocols.
 定义仓储接口协议，供基础设施层实现。
 """
 
-from typing import Optional, Protocol
+from typing import Protocol
 
 from .entities import TerminalAuditEntry, TerminalCommand
 

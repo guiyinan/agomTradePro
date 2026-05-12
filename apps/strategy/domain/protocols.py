@@ -6,12 +6,11 @@ Domain 层 Protocol 接口定义
 - 通过依赖注入实现松耦合
 - 不依赖具体实现
 """
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Protocol
+from abc import abstractmethod
+from typing import Any, Optional, Protocol
 
 from .entities import (
     AIConfig,
-    RiskControlParams,
     RuleCondition,
     SignalRecommendation,
     Strategy,

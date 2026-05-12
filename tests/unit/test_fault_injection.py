@@ -12,8 +12,8 @@ Fault Injection Tests
 """
 
 import threading
-from datetime import UTC, datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from datetime import UTC, datetime
+from unittest.mock import Mock, patch
 
 import pytest
 from django.core.exceptions import ObjectDoesNotExist
@@ -22,13 +22,11 @@ from django.db import OperationalError
 from apps.events.application.decision_execution_handlers import (
     DecisionApprovedHandler,
     DecisionExecutedHandler,
-    DecisionExecutionFailedHandler,
 )
 from apps.events.application.event_retry import (
     EventRetryManager,
-    get_event_retry_manager,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 
 
 @pytest.mark.django_db
@@ -152,7 +150,7 @@ class TestEventRetryMechanism:
 
         # 创建成功和失败的处理器
         success_handler = Mock()
-        fail_handler = Mock(side_effect=Exception("Still failing"))
+        Mock(side_effect=Exception("Still failing"))
 
         # 处理器工厂
         def handler_factory(handler_id: str):
@@ -192,7 +190,7 @@ class TestEventRetryMechanism:
             return fail_handler
 
         # 重试多次直到耗尽
-        for i in range(3):
+        for _i in range(3):
             stats = manager.retry_pending_events(handler_factory=handler_factory)
 
         # 验证
@@ -419,7 +417,6 @@ class TestHealthCheckIntegration:
     def test_health_check_passes_after_initialization(self):
         """测试初始化后健康检查通过"""
         from apps.events.application.health_check import check_event_bus_health
-        from apps.events.domain.entities import EventBusConfig
         from apps.events.domain.services import get_event_bus, reset_event_bus
 
         # 重置并初始化事件总线

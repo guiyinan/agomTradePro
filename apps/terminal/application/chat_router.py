@@ -11,8 +11,8 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 from apps.policy.application.repository_provider import get_current_policy_repository

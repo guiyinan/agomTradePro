@@ -3,9 +3,9 @@ Domain Entities for Policy Events.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class PolicyLevel(Enum):

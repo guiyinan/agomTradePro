@@ -1,6 +1,5 @@
 """Tests for Regime Movement Assessment"""
 
-import pytest
 
 from apps.regime.domain.navigator_services import assess_regime_movement
 from apps.regime.domain.services_v2 import RegimeType, TrendIndicator

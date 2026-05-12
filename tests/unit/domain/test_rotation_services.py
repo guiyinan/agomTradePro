@@ -14,7 +14,6 @@ NO Django, pandas, or numpy imports.
 
 import math
 from datetime import date
-from typing import Dict, List, Optional
 
 import pytest
 

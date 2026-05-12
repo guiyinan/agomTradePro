@@ -224,7 +224,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'  ✗ 数据下载失败: {e}')
             )
-            raise CommandError(f'数据下载失败: {e}')
+            raise CommandError(f'数据下载失败: {e}') from e
 
     def _prepare_universe_data(self, data_path: Path, universe: str, days: int):
         """准备股票池数据"""
@@ -283,7 +283,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'  ✗ 数据准备失败: {e}')
             )
-            raise CommandError(f'数据准备失败: {e}')
+            raise CommandError(f'数据准备失败: {e}') from e
 
 
 def _run_qlib_init_scripts(data_path: Path, region: str):

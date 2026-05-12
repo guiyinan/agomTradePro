@@ -3,7 +3,6 @@ Unified selector definitions for Playwright tests.
 Centralizes all CSS selectors and XPath expressions.
 """
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass(frozen=True)

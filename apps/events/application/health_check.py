@@ -12,11 +12,10 @@ Features:
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 from ..domain.entities import EventType
-from ..domain.services import InMemoryEventBus, get_event_bus
+from ..domain.services import get_event_bus
 from .repository_provider import get_event_store
 
 logger = logging.getLogger(__name__)

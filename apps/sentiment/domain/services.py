@@ -1,6 +1,6 @@
 """Sentiment domain services."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apps.sentiment.domain.entities import SentimentAnalysisResult
 from apps.sentiment.domain.rules import categorize_sentiment_score, clamp_sentiment_score
@@ -23,6 +23,6 @@ def build_sentiment_result(
         confidence=max(0.0, min(1.0, confidence)),
         category=categorize_sentiment_score(normalized_score),
         keywords=keywords or [],
-        analyzed_at=analyzed_at or datetime.now(timezone.utc),
+        analyzed_at=analyzed_at or datetime.now(UTC),
         error_message=error_message,
     )

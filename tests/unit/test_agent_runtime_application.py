@@ -7,9 +7,8 @@ NOTE: These tests focus on domain layer logic (state machine, entities)
 and use integration-style tests for use cases that require Django ORM.
 """
 
-from dataclasses import dataclass, replace
-from datetime import UTC, datetime, timezone
-from unittest.mock import MagicMock, Mock
+from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
 

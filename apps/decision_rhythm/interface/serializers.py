@@ -6,7 +6,6 @@ Decision Rhythm DRF Serializers
 负责输入验证和输出格式化。
 """
 
-from typing import Any, Dict, List, Optional
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -17,7 +16,6 @@ from ..domain.entities import (
     DecisionPriority,
     DecisionQuota,
     DecisionRequest,
-    DecisionResponse,
     ExecutionStatus,
     ExecutionTarget,
     QuotaPeriod,
@@ -37,7 +35,7 @@ class DecisionPrioritySerializer(serializers.Field):
         try:
             return DecisionPriority(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid decision priority: {data}")
+            raise serializers.ValidationError(f"Invalid decision priority: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -51,7 +49,7 @@ class QuotaPeriodSerializer(serializers.Field):
         try:
             return QuotaPeriod(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid quota period: {data}")
+            raise serializers.ValidationError(f"Invalid quota period: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -65,7 +63,7 @@ class ExecutionTargetSerializer(serializers.Field):
         try:
             return ExecutionTarget(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid execution target: {data}")
+            raise serializers.ValidationError(f"Invalid execution target: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -79,7 +77,7 @@ class ExecutionStatusSerializer(serializers.Field):
         try:
             return ExecutionStatus(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid execution status: {data}")
+            raise serializers.ValidationError(f"Invalid execution status: {data}") from None
 
 
 # ========== Main Serializers ==========

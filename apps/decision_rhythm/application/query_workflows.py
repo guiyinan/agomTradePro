@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from ..domain.entities import CooldownPeriod, DecisionRequest, DecisionQuota, QuotaPeriod
+from ..domain.entities import CooldownPeriod, DecisionQuota, DecisionRequest, QuotaPeriod
 
 
 class QuotaRepositoryProtocol(Protocol):

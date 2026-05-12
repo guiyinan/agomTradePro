@@ -5,6 +5,7 @@ This script checks the raw data used for regime calculation.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -121,7 +122,7 @@ if db_url.startswith('postgresql://'):
                 rel_momentum = (current - three_months_ago) / abs(three_months_ago) if three_months_ago != 0 else 0
 
                 print()
-                print(f'3-month momentum calculation:')
+                print('3-month momentum calculation:')
                 print(f'  Current: {current}%')
                 print(f'  3 months ago: {three_months_ago}%')
                 print(f'  Absolute momentum: {abs_momentum:.4f} pp')

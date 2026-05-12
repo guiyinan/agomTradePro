@@ -5,12 +5,10 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import List, Optional
 
-from django.db import transaction
-from django.db.models import Count, Max
+from django.db.models import Count
 
-from ..domain.entities import KalmanState, RegimeSnapshot
+from ..domain.entities import RegimeSnapshot
 from .config_helper import ConfigHelper, ConfigKeys
 from .models import RegimeLog
 

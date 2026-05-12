@@ -3,7 +3,6 @@ Test configuration for Playwright tests.
 Centralizes URLs, credentials, and test settings.
 """
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass(frozen=True)

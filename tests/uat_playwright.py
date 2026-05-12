@@ -1,7 +1,6 @@
 ﻿"""AgomTradePro UAT + E2E Browser Tests via Playwright"""
 
 import os
-import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -88,7 +87,7 @@ def test_pages(page):
         try:
             response = page.goto(f"{BASE}{path}", wait_until="networkidle", timeout=20000)
             title = page.title()
-            status_code = page.evaluate("() => window.__pageError ? 'error' : 'ok'")
+            page.evaluate("() => window.__pageError ? 'error' : 'ok'")
             has_error = page.locator("text=Server Error").count() > 0
             http_status = response.status if response else None
             has_404 = (

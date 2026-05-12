@@ -7,7 +7,6 @@ DRF Serializers for the rotation module API.
 from django.apps import apps as django_apps
 from rest_framework import serializers
 
-
 AssetClassModel = django_apps.get_model('rotation', 'AssetClassModel')
 MomentumScoreModel = django_apps.get_model('rotation', 'MomentumScoreModel')
 PortfolioRotationConfigModel = django_apps.get_model('rotation', 'PortfolioRotationConfigModel')

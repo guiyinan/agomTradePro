@@ -6,6 +6,10 @@ from datetime import date
 from typing import Any
 
 from apps.asset_analysis.domain.value_objects import ScoreContext
+from apps.fund.application.repository_provider import (
+    DjangoFundAssetRepository,
+    DjangoFundRepository,
+)
 from apps.fund.application.services import FundMultiDimScorer
 from apps.fund.application.use_cases import (
     AnalyzeFundStyleRequest,
@@ -15,10 +19,6 @@ from apps.fund.application.use_cases import (
     RankFundsUseCase,
     ScreenFundsRequest,
     ScreenFundsUseCase,
-)
-from apps.fund.application.repository_provider import (
-    DjangoFundAssetRepository,
-    DjangoFundRepository,
 )
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime

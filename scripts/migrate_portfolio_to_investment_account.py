@@ -11,6 +11,7 @@
 """
 import os
 import sys
+
 import django
 
 # 设置 Django 环境
@@ -18,11 +19,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.db import transaction
-from django.contrib.auth.models import User
 from decimal import Decimal
 
-from apps.account.infrastructure.models import PortfolioModel, AccountProfileModel
+from django.contrib.auth.models import User
+from django.db import transaction
+
+from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
@@ -78,7 +80,7 @@ def migrate_portfolios_to_investment_accounts():
             ).first()
 
             if existing:
-                print(f"    ⚠️  已存在同名投资组合，跳过")
+                print("    ⚠️  已存在同名投资组合，跳过")
                 total_skipped += 1
                 continue
 
@@ -141,7 +143,7 @@ def migrate_real_simulated_accounts():
         old_account.save()
 
         migrated_real += 1
-        print(f"  ✅ 实仓迁移成功")
+        print("  ✅ 实仓迁移成功")
 
     # 迁移模拟仓
     for profile in profiles_with_simulated:
@@ -153,7 +155,7 @@ def migrate_real_simulated_accounts():
         old_account.save()
 
         migrated_simulated += 1
-        print(f"  ✅ 模拟仓迁移成功")
+        print("  ✅ 模拟仓迁移成功")
 
     print("\n" + "=" * 60)
     print(f"实仓迁移: {migrated_real}")

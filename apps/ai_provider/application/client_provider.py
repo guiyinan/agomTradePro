@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from apps.ai_provider.application.repository_provider import (
+from apps.ai_provider.application.repository_provider import (  # noqa: F401
     build_openai_compatible_adapter,
     get_ai_client_factory,
     get_ai_provider_repository,
 )
+

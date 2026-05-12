@@ -11,6 +11,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Apply custom admin branding
 import core.admin as agom_admin_config
+from apps.account.interface.backup_views import admin_db_backup_download_view
 
 # 文档管理后台视图
 from apps.account.interface.documentation_views import (
@@ -21,7 +22,6 @@ from apps.account.interface.documentation_views import (
     doc_import,
     docs_manage,
 )
-from apps.account.interface.backup_views import admin_db_backup_download_view
 from apps.ai_capability.interface.api_views import web_chat
 from apps.ai_capability.interface.views import (
     mcp_tools_page,

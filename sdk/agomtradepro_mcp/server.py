@@ -3,6 +3,8 @@
 import os
 from typing import Any
 
+from mcp.server.fastmcp import FastMCP
+
 from agomtradepro_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
@@ -43,7 +45,6 @@ from agomtradepro_mcp.tools.signal_tools import register_signal_tools
 from agomtradepro_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
 from agomtradepro_mcp.tools.strategy_tools import register_strategy_tools
 from agomtradepro_mcp.tools.task_monitor_tools import register_task_monitor_tools
-from mcp.server.fastmcp import FastMCP
 
 
 def _build_welcome_message() -> str:
@@ -163,7 +164,7 @@ def apply_tool_rbac_guards() -> None:
         if original is None:
             continue
         # 使用带审计的 RBAC 包装器
-        setattr(tool_obj, "fn", wrap_tool_with_rbac_and_audit(name, original))
+        tool_obj.fn = wrap_tool_with_rbac_and_audit(name, original)
 
 
 @server.resource(
@@ -282,10 +283,10 @@ def _format_context_snapshot(domain: str) -> str:
     policy = ctx.get("policy_summary", {})
     portfolio = ctx.get("portfolio_summary", {})
     signals = ctx.get("active_signals_summary", {})
-    decisions = ctx.get("open_decisions_summary", {})
-    risk = ctx.get("risk_alerts_summary", {})
+    ctx.get("open_decisions_summary", {})
+    ctx.get("risk_alerts_summary", {})
     tasks = ctx.get("task_health_summary", {})
-    freshness = ctx.get("data_freshness_summary", {})
+    ctx.get("data_freshness_summary", {})
 
     lines = [
         f"Domain: {ctx.get('domain', domain)}",

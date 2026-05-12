@@ -4,7 +4,6 @@ Configuration Initialization for Domain Layer
 在应用启动时将数据库配置注入到 Domain 层。
 """
 
-from typing import Dict
 
 from django.apps import apps as django_apps
 

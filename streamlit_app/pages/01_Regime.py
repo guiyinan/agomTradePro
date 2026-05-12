@@ -7,7 +7,6 @@ import streamlit as st
 
 from streamlit_app.services.session import get_api_client_from_sidebar
 
-
 st.set_page_config(page_title="Regime", page_icon="RG", layout="wide")
 st.title("Regime Quadrant")
 

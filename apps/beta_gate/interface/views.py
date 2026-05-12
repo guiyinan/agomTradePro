@@ -364,8 +364,8 @@ def beta_gate_test_view(request):
         # 获取当前 Policy
         current_policy = None
         try:
-            from apps.policy.application.use_cases import GetCurrentPolicyUseCase
             from apps.policy.application.repository_provider import get_current_policy_repository
+            from apps.policy.application.use_cases import GetCurrentPolicyUseCase
 
             policy_use_case = GetCurrentPolicyUseCase(get_current_policy_repository())
             policy_response = policy_use_case.execute()

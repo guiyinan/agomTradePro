@@ -391,7 +391,6 @@ def invalidate_pattern(pattern: str) -> int:
         if 'redis' in backend.lower():
             # Use Redis SCAN to find and delete keys
             from django.core.cache.backends.redis import RedisCache
-            cache_client = cache
 
             # Get Redis client
             if hasattr(cache, '_cache'):

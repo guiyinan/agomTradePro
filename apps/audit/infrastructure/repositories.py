@@ -4,11 +4,6 @@ Repository for Audit Domain.
 
 import logging
 from datetime import date
-from typing import List, Optional
-
-from django.db.models import QuerySet
-
-from apps.backtest.infrastructure.models import BacktestResultModel
 
 from .models import (
     AttributionReport,
@@ -1109,7 +1104,6 @@ class DjangoAuditRepository:
         Returns:
             tuple: (logs_list, total_count)
         """
-        from django.db.models import Q
 
         from .models import OperationLogModel
 
@@ -1256,7 +1250,7 @@ class DjangoAuditRepository:
         Returns:
             dict: 统计结果
         """
-        from django.db.models import Avg, Count, Q
+        from django.db.models import Avg, Count
 
         from .models import OperationLogModel
 

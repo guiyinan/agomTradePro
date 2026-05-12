@@ -13,7 +13,6 @@ Domain layer testing: NO Django, pandas, or numpy imports.
 
 import math
 from datetime import date
-from typing import Dict, List, Optional
 
 import pytest
 
@@ -269,7 +268,7 @@ class TestMonitorHedgePairs:
         """Near-zero correlation triggers a medium-severity alert."""
         # Generate two independent-ish series by using different base prices
         prices_a = make_price_series(base_price=100.0, days=200, daily_return_std=0.0001)
-        prices_b = make_price_series(base_price=200.0, days=200, daily_return_std=0.0001)
+        make_price_series(base_price=200.0, days=200, daily_return_std=0.0001)
         # Interleave to reduce correlation; simple approach: shift phase
         prices_b_shifted = [200.0] * 200
         for i in range(200):

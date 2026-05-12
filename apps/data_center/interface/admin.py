@@ -9,8 +9,8 @@ from apps.data_center.models import (
     DataProviderSettingsModel,
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
-    PublisherCatalogModel,
     ProviderConfigModel,
+    PublisherCatalogModel,
 )
 
 

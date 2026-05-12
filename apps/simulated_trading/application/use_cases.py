@@ -8,8 +8,8 @@ Application层:
 """
 import logging
 from dataclasses import replace
-from datetime import date, datetime
-from typing import List, Optional, Protocol
+from datetime import date
+from typing import Protocol
 
 from django.utils import timezone
 

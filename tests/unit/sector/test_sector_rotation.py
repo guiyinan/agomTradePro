@@ -4,7 +4,7 @@
 测试 Domain 层的 SectorRotationAnalyzer 服务
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest

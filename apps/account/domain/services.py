@@ -8,16 +8,13 @@ Account Domain Services
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from apps.account.domain.entities import (
-    AccountProfile,
     AssetAllocation,
     AssetClassType,
     CrossBorderFlag,
-    InvestmentStyle,
     Position,
-    PositionStatus,
     RegimeMatchAnalysis,
     Region,
     RiskTolerance,
@@ -978,7 +975,7 @@ class LimitCheckService:
 
         # 从 sector 属性获取行业信息（如果有的话）
         sector_value = 0.0
-        for pos in positions:
+        for _pos in positions:
             # 假设 sector 信息存储在某处，这里简化处理
             # 实际应从 AssetMetadata 或 Position 获取
             pass

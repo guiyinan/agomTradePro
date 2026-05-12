@@ -10,7 +10,6 @@ import pytest
 
 from apps.agent_runtime.domain.entities import (
     AgentTask,
-    EventSource,
     TaskDomain,
     TaskStatus,
     TimelineEventType,

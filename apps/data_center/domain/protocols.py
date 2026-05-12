@@ -7,9 +7,8 @@ Domain / application layers depend only on these abstractions.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
-
 from datetime import date
+from typing import Any, Protocol, runtime_checkable
 
 from apps.data_center.domain.entities import (
     AssetMaster,
@@ -23,9 +22,9 @@ from apps.data_center.domain.entities import (
     MacroFact,
     NewsFact,
     PriceBar,
-    PublisherCatalog,
     ProviderConfig,
     ProviderHealthSnapshot,
+    PublisherCatalog,
     QuoteSnapshot,
     RawAudit,
     SectorMembershipFact,

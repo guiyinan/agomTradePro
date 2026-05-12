@@ -7,8 +7,8 @@ Tests for Infrastructure layer models.
 from datetime import timedelta
 
 import pytest
-from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.utils import timezone
 
 from apps.share.infrastructure.models import (
@@ -74,7 +74,7 @@ class TestShareLinkModel:
             title="First",
         )
 
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):  # IntegrityError
             ShareLinkModel.objects.create(
                 owner=test_user,
                 account_id=test_account.id,
@@ -109,7 +109,6 @@ class TestShareLinkModel:
     def test_increment_access_count(self, active_share_link):
         """Test increment_access_count increments counter and updates timestamp."""
         initial_count = active_share_link.access_count
-        initial_time = active_share_link.last_accessed_at
 
         active_share_link.increment_access_count()
 
@@ -216,7 +215,7 @@ class TestShareSnapshotModel:
             summary_payload={"first": True},
         )
 
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):  # IntegrityError
             ShareSnapshotModel.objects.create(
                 share_link=active_share_link,
                 snapshot_version=1,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 ALIAS_ROWS = {
     "CN_CPI_YOY": {
         "canonical_code": "CN_CPI_NATIONAL_YOY",

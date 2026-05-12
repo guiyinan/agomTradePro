@@ -7,12 +7,6 @@ from typing import Any
 
 from ..domain.entities import AIProviderType
 from ..domain.services import BudgetChecker
-from .repository_provider import (
-    OpenAICompatibleAdapter,
-    get_ai_provider_repository,
-    get_ai_usage_repository,
-    get_ai_user_fallback_quota_repository,
-)
 from .dtos import (
     BatchQuotaApplyResultDTO,
     BudgetCheckResultDTO,
@@ -21,6 +15,12 @@ from .dtos import (
     ProviderStatsDTO,
     UsageLogListItemDTO,
     UserFallbackQuotaDTO,
+)
+from .repository_provider import (
+    OpenAICompatibleAdapter,
+    get_ai_provider_repository,
+    get_ai_usage_repository,
+    get_ai_user_fallback_quota_repository,
 )
 
 

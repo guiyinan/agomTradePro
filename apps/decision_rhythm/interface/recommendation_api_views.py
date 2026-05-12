@@ -1,8 +1,8 @@
 """Recommendation Api Views"""
 
+from ..domain.entities import RecommendationStatus, UserDecisionAction
 from .workspace_api_support import *  # noqa: F401,F403
 from .workspace_api_support import _user_action_label
-from ..domain.entities import RecommendationStatus, UserDecisionAction
 
 
 def _normalize_enum_filter(
@@ -18,7 +18,7 @@ def _normalize_enum_filter(
         return enum_cls(candidate).value
     except ValueError:
         allowed = ", ".join(item.value for item in enum_cls)
-        raise ValueError(f"{field_name} must be one of: {allowed}")
+        raise ValueError(f"{field_name} must be one of: {allowed}") from None
 
 
 def _validate_security_codes_payload(raw_value) -> list[str] | None:

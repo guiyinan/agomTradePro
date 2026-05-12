@@ -1,9 +1,9 @@
 """Views for AI Provider Management."""
 
 from .api_views import (
+    AdminUserFallbackQuotaViewSet,
     AIProviderConfigViewSet,
     AIUsageLogViewSet,
-    AdminUserFallbackQuotaViewSet,
     MyUsageLogViewSet,
     PersonalProviderViewSet,
     UserFallbackQuotaViewSet,

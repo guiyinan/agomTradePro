@@ -6,7 +6,7 @@ in prompt templates.
 """
 
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 

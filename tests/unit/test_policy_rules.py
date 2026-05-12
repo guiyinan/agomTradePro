@@ -4,7 +4,7 @@ Unit tests for Policy domain rules.
 Tests the core business logic for gate levels and auto-approval.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 

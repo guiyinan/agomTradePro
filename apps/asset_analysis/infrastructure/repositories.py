@@ -5,10 +5,8 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from datetime import date
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
-from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle, AssetType
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
     WeightConfigRepositoryProtocol,
@@ -17,8 +15,8 @@ from apps.asset_analysis.domain.pool import PoolType
 from apps.asset_analysis.domain.value_objects import WeightConfig
 from apps.asset_analysis.infrastructure.models import (
     AssetAnalysisAlert,
-    AssetScoreCache,
     AssetPoolEntry,
+    AssetScoreCache,
     AssetScoringLog,
     WeightConfigModel,
 )

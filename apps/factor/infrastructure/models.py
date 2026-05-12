@@ -5,7 +5,6 @@ Django ORM models for factor stock selection system.
 Follows four-layer architecture.
 """
 
-from decimal import Decimal
 
 from django.db import models
 

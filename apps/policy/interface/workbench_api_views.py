@@ -44,14 +44,10 @@ from .serializers import (
     WorkbenchBootstrapSerializer,
     WorkbenchFetchInputSerializer,
     WorkbenchFetchOutputSerializer,
-    WorkbenchFetchStatusSerializer,
-    WorkbenchFilterOptionsSerializer,
     WorkbenchItemDetailSerializer,
-    WorkbenchItemSerializer,
     WorkbenchItemsQuerySerializer,
     WorkbenchItemsResponseSerializer,
     WorkbenchSummarySerializer,
-    WorkbenchTrendSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -669,7 +665,7 @@ class WorkbenchFetchView(APIView):
     def post(self, request):
         """触发RSS抓取"""
         try:
-            from .serializers import WorkbenchFetchInputSerializer, WorkbenchFetchOutputSerializer
+            from .serializers import WorkbenchFetchInputSerializer
 
             serializer = WorkbenchFetchInputSerializer(data=request.data)
             if not serializer.is_valid():

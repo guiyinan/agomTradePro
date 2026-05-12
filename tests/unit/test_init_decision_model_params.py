@@ -7,7 +7,7 @@
 from io import StringIO
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from apps.decision_rhythm.infrastructure.models import (
@@ -120,7 +120,7 @@ class TestInitDecisionModelParamsCommand(TestCase):
         out = StringIO()
 
         # 运行无效环境应该报错
-        with pytest.raises(Exception):  # CommandError
+        with pytest.raises(CommandError):
             call_command("init_decision_model_params", "--env", "invalid", stdout=out)
 
     def test_command_creates_all_weight_params(self):

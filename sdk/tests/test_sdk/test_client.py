@@ -2,8 +2,9 @@
 Unit tests for AgomTradePro SDK Client
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from agomtradepro import AgomTradeProClient
 from agomtradepro.exceptions import (

@@ -1,13 +1,13 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.log_file_paths import (
     CELERY_LOG_BACKUP_COUNT_ENV,
     CELERY_LOG_MAX_MB_ENV,
-    DEFAULT_DEVELOPMENT_LOG_BACKUP_COUNT,
-    DEFAULT_DEVELOPMENT_LOG_MAX_MB,
     DEFAULT_CELERY_LOG_BACKUP_COUNT,
     DEFAULT_CELERY_LOG_MAX_MB,
+    DEFAULT_DEVELOPMENT_LOG_BACKUP_COUNT,
+    DEFAULT_DEVELOPMENT_LOG_MAX_MB,
     DEVELOPMENT_LOG_BACKUP_COUNT_ENV,
     DEVELOPMENT_LOG_MAX_MB_ENV,
     RUNSERVER_LOG_TIMESTAMP_ENV,
@@ -34,7 +34,7 @@ def test_get_or_create_runserver_log_timestamp_reuses_existing_value() -> None:
 def test_get_or_create_runserver_log_timestamp_persists_generated_value() -> None:
     """Generated startup timestamps should be written back into the environment."""
     env: dict[str, str] = {}
-    fixed_now = datetime(2026, 4, 3, 2, 30, 45, tzinfo=timezone.utc)
+    fixed_now = datetime(2026, 4, 3, 2, 30, 45, tzinfo=UTC)
 
     timestamp = get_or_create_runserver_log_timestamp(env=env, now=fixed_now)
 
@@ -45,7 +45,7 @@ def test_get_or_create_runserver_log_timestamp_persists_generated_value() -> Non
 def test_get_runserver_log_path_creates_timestamped_file_under_project_logs(tmp_path: Path) -> None:
     """Development logs should be written to the local logs directory."""
     env: dict[str, str] = {}
-    fixed_now = datetime(2026, 4, 3, 2, 30, 45, tzinfo=timezone.utc)
+    fixed_now = datetime(2026, 4, 3, 2, 30, 45, tzinfo=UTC)
 
     log_path = get_runserver_log_path(tmp_path, env=env, now=fixed_now)
 

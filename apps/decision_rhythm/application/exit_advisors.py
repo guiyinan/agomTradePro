@@ -91,7 +91,7 @@ class DecisionRhythmExitAdvisor(PositionExitAdvisorProtocol):
         self,
         account_id: int,
         as_of_date: date,
-    ) -> "PortfolioTransitionPlan" | None:
+    ) -> PortfolioTransitionPlan | None:
         try:
             plan = self.transition_plan_repo.get_latest_for_account(str(account_id))
         except Exception as exc:
@@ -106,9 +106,9 @@ class DecisionRhythmExitAdvisor(PositionExitAdvisorProtocol):
 
     def _latest_recommendations_by_security(
         self,
-        recommendations: list["UnifiedRecommendation"],
-    ) -> dict[str, "UnifiedRecommendation"]:
-        latest_by_security: dict[str, "UnifiedRecommendation"] = {}
+        recommendations: list[UnifiedRecommendation],
+    ) -> dict[str, UnifiedRecommendation]:
+        latest_by_security: dict[str, UnifiedRecommendation] = {}
         for recommendation in recommendations:
             security_code = str(getattr(recommendation, "security_code", "") or "").strip()
             if not security_code:

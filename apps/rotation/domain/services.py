@@ -12,15 +12,11 @@ Uses only:
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import date
 
 from apps.rotation.domain.entities import (
-    AssetCategory,
-    AssetClass,
     MomentumScore,
     RotationConfig,
-    RotationPortfolio,
     RotationSignal,
     RotationStrategyType,
 )
@@ -272,7 +268,7 @@ class MomentumRotationEngine:
         sorted_scores = sorted(scores, key=lambda s: s.composite_score, reverse=True)
 
         # Assign ranks
-        for i, score in enumerate(sorted_scores):
+        for _i, _score in enumerate(sorted_scores):
             # Can't modify frozen dataclass, so return new objects
             # For now, just track ranks externally
             pass

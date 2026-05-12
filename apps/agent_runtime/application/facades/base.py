@@ -8,8 +8,8 @@ a failure in one source does not block others.
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

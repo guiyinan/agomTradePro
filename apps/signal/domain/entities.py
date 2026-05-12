@@ -2,12 +2,10 @@
 Domain Entities for Investment Signals.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
-
-from apps.regime.domain.asset_eligibility import Eligibility
 
 if TYPE_CHECKING:
     from .invalidation import InvalidationRule

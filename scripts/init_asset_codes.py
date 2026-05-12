@@ -8,6 +8,7 @@ Usage:
 
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -15,9 +16,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
+from apps.account.domain.entities import AssetClassType, CrossBorderFlag, InvestmentStyle, Region
 from apps.asset_analysis.infrastructure.models import AssetConfigModel
-from apps.account.domain.entities import AssetClassType, Region, CrossBorderFlag, InvestmentStyle
-
 
 # 常用资产代码配置
 DEFAULT_ASSETS = [
@@ -144,7 +144,7 @@ def init_asset_codes():
             print(f"  [跳过] {asset_class} - {e}")
             skipped_count += 1
 
-    print(f"\n初始化完成:")
+    print("\n初始化完成:")
     print(f"  新建: {created_count}")
     print(f"  更新: {updated_count}")
     print(f"  跳过: {skipped_count}")

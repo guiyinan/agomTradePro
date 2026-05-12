@@ -4,11 +4,9 @@ Task Monitor Application Tasks
 Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 """
 
-import functools
 import logging
 import traceback as tb_module
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from celery import Task
 from celery.signals import (
@@ -425,7 +423,7 @@ def backup_database_task(
     except subprocess.CalledProcessError as exc:
         logger.error(f"Database backup command failed: {exc}")
         # 重试任务
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
     except Exception as exc:
         logger.error(f"Database backup task failed: {exc}")

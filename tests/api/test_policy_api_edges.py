@@ -1,7 +1,8 @@
-from django.contrib.auth import get_user_model
-from django.apps import apps as django_apps
 import pytest
+from django.apps import apps as django_apps
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+
 from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.domain.entities import TaskStatus
 

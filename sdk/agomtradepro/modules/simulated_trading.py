@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Simulated Trading 模拟盘交易模块
 
@@ -30,8 +31,8 @@ class SimulatedTradingModule(BaseModule):
 
     def list_accounts(
         self,
-        status: Optional[str] = None,
-        account_type: Optional[str] = None,
+        status: str | None = None,
+        account_type: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -163,7 +164,7 @@ class SimulatedTradingModule(BaseModule):
         asset_code: str,
         side: str,
         quantity: float,
-        price: Optional[float] = None,
+        price: float | None = None,
     ) -> dict[str, Any]:
         """
         执行交易
@@ -210,7 +211,7 @@ class SimulatedTradingModule(BaseModule):
     def get_positions(
         self,
         account_id: int,
-        asset_code: Optional[str] = None,
+        asset_code: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取模拟账户持仓
@@ -239,8 +240,8 @@ class SimulatedTradingModule(BaseModule):
     def get_performance(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取模拟账户绩效
@@ -323,7 +324,7 @@ class SimulatedTradingModule(BaseModule):
     def reset_account(
         self,
         account_id: int,
-        new_initial_capital: Optional[float] = None,
+        new_initial_capital: float | None = None,
     ) -> dict[str, Any]:
         """
         重置模拟账户
@@ -348,8 +349,8 @@ class SimulatedTradingModule(BaseModule):
 
     def run_auto_trading(
         self,
-        trade_date: Optional[date] = None,
-        account_ids: Optional[list[int]] = None,
+        trade_date: date | None = None,
+        account_ids: list[int] | None = None,
     ) -> dict[str, Any]:
         """
         手动触发模拟盘自动交易。
@@ -368,8 +369,8 @@ class SimulatedTradingModule(BaseModule):
     def run_daily_inspection(
         self,
         account_id: int,
-        strategy_id: Optional[int] = None,
-        inspection_date: Optional[date] = None,
+        strategy_id: int | None = None,
+        inspection_date: date | None = None,
         auto_create_proposal: bool = False,
     ) -> dict[str, Any]:
         """
@@ -388,7 +389,7 @@ class SimulatedTradingModule(BaseModule):
         self,
         account_id: int,
         limit: int = 20,
-        inspection_date: Optional[date] = None,
+        inspection_date: date | None = None,
     ) -> dict[str, Any]:
         """
         查询账户日更巡检历史报告。

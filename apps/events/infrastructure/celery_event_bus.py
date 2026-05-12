@@ -6,9 +6,8 @@ Celery Event Bus
 """
 
 import logging
-from typing import Optional
 
-from ..domain.entities import DomainEvent, EventBusConfig
+from ..domain.entities import DomainEvent
 from ..domain.services import InMemoryEventBus
 
 logger = logging.getLogger(__name__)

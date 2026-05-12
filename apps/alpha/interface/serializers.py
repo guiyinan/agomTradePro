@@ -4,8 +4,7 @@ Alpha Serializers
 Django REST Framework 序列化器定义。
 """
 
-from datetime import date
-from typing import Any, Dict
+from typing import Any
 
 from rest_framework import serializers
 

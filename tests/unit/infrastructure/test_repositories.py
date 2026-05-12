@@ -14,13 +14,13 @@ import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from apps.backtest.domain.entities import BacktestConfig, BacktestStatus
+from apps.backtest.domain.entities import BacktestConfig
+from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
     MacroFactModel,
 )
-from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.domain.entities import RegimeSnapshot
@@ -464,7 +464,7 @@ class TestDjangoRegimeRepository:
         regime_counts = {"Recovery": 5, "Overheat": 3, "Stagflation": 2}
         day_offset = 0
         for regime, count in regime_counts.items():
-            for i in range(count):
+            for _i in range(count):
                 snapshot = RegimeSnapshot(
                     growth_momentum_z=0.0,
                     inflation_momentum_z=0.0,
@@ -644,13 +644,13 @@ class TestDjangoSignalRepository:
             SignalStatus.REJECTED: 2
         }
         for status, count in status_counts.items():
-            for i in range(count):
+            for _i in range(count):
                 signal = InvestmentSignal(
                     id=None,
-                    asset_code=f"00000{i}.SH",
+                    asset_code=f"00000{_i}.SH",
                     asset_class="a_share_growth",
                     direction="LONG",
-                    logic_desc=f"测试信号 {i}",
+                    logic_desc=f"测试信号 {_i}",
                     invalidation_logic="测试证伪逻辑描述，长度至少需要十个字符",
                     invalidation_threshold=50.0,
                     target_regime="Recovery",

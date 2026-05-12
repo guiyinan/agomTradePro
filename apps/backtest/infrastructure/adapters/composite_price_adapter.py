@@ -6,7 +6,6 @@ Composite Asset Price Adapter.
 
 import logging
 from datetime import date, timedelta
-from typing import Optional
 
 from .base import (
     AssetPriceAdapterProtocol,
@@ -181,7 +180,7 @@ class CompositeAssetPriceAdapter:
     def get_supported_assets(self) -> list[str]:
         """获取支持的资产类别列表"""
         assets = set(self._default_prices.keys())
-        for adapter in self._adapters:
+        for _adapter in self._adapters:
             assets.update(get_asset_class_tickers().keys())
         return list(assets)
 

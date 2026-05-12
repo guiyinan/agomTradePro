@@ -6,24 +6,23 @@ Task Monitor Infrastructure Repositories
 
 import json
 import logging
-from io import StringIO
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
-from typing import Any, List, Optional
+from io import StringIO
+from typing import Any
 from uuid import UUID
 
 from django.core.management import call_command
-from django.db import models
-from django.db.models import Avg, Count, Q
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Avg, Count
 from django.utils import timezone
 from django_celery_beat.models import PeriodicTask
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    ScheduledTaskRecord,
     SchedulerBootstrapResult,
     SchedulerCatalogSummary,
-    ScheduledTaskRecord,
     TaskExecutionRecord,
     TaskPriority,
     TaskStatistics,

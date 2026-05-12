@@ -5,9 +5,8 @@ Integration Tests for Alpha Monitoring (Phase 4)
 """
 
 import json
-import time
-from datetime import date, datetime
-from unittest.mock import Mock, patch
+from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -25,7 +24,6 @@ from apps.alpha.infrastructure.alerts import (
     AlertSeverity,
     AlphaAlertConfig,
     AlphaAlertManager,
-    get_alpha_alert_manager,
 )
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from shared.infrastructure.metrics import (
@@ -282,7 +280,7 @@ class TestAlertManager:
                 rule.duration_seconds = 0
 
         # 第二次评估：应该触发告警
-        alerts2 = manager.evaluate_with_notification()
+        manager.evaluate_with_notification()
         # 注意：实际测试中可能需要调整持续时间逻辑
 
     def test_alert_summary(self):
@@ -378,7 +376,7 @@ class TestAlphaServiceMetricsIntegration:
         metrics.registry.reset_metrics()
 
         # 获取评分（会触发指标记录）
-        result = service.get_stock_scores("csi300")
+        service.get_stock_scores("csi300")
 
         # 验证指标被记录
         request_metric = metrics.registry.get_metric(
@@ -397,7 +395,7 @@ class TestAlphaServiceMetricsIntegration:
         # 应该包含所有注册的 provider
         assert len(status) > 0
 
-        for provider_name, info in status.items():
+        for _provider_name, info in status.items():
             assert "priority" in info
             assert "status" in info
 

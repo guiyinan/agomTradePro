@@ -6,7 +6,7 @@ Only uses Python standard library - no Django imports.
 """
 
 from dataclasses import FrozenInstanceError
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 
@@ -19,7 +19,6 @@ from apps.filter.domain.entities import (
 )
 from apps.filter.domain.services import (
     FilterComparison,
-    FilterProtocol,
     HPFilterService,
     KalmanFilterService,
     compare_filters,

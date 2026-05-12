@@ -6,9 +6,6 @@ Provides adapters for fetching macro economic data from various sources.
 
 import logging
 from datetime import date, datetime
-from typing import List, Optional
-
-import pandas as pd
 
 from shared.infrastructure.sdk_bridge import get_akshare_module
 
@@ -69,7 +66,6 @@ class AKShareAdapter:
         Returns:
             List[MacroDataPoint]: 数据点列表
         """
-        from apps.macro.application.use_cases import MacroDataPoint
 
         if indicator_code not in self.INDICATOR_MAP:
             logger.warning(f"AKShare 不支持指标: {indicator_code}")

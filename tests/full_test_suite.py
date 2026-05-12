@@ -3,11 +3,9 @@ AgomTradePro Full Test Suite - Localhost:8000
 Comprehensive test covering: API smoke, core business, UAT (Playwright), MCP, SDK
 """
 
-import json
 import os
 import sys
 import time
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -547,7 +545,7 @@ def test_mcp_server():
     print("=" * 60)
 
     try:
-        from agomtradepro_mcp import server
+        from agomtradepro_mcp import server  # noqa: F401
 
         record("MCP Server import", "PASS")
     except ImportError as e:
@@ -563,6 +561,7 @@ def test_mcp_server():
 
     try:
         import asyncio
+
         from agomtradepro_mcp.server import server as srv
 
         tools = asyncio.run(srv.list_tools())
@@ -576,6 +575,7 @@ def test_mcp_server():
 
     try:
         import asyncio
+
         from agomtradepro_mcp.server import list_resources
 
         resources = asyncio.run(list_resources())
@@ -585,6 +585,7 @@ def test_mcp_server():
 
     try:
         import asyncio
+
         from agomtradepro_mcp.server import list_prompts
 
         prompts = asyncio.run(list_prompts())
@@ -593,13 +594,13 @@ def test_mcp_server():
         record("MCP Prompts", "FAIL", str(e)[:150])
 
     try:
-        from agomtradepro_mcp.tools import (
-            regime_tools,
-            signal_tools,
+        from agomtradepro_mcp.tools import (  # noqa: F401
+            account_tools,
+            backtest_tools,
             data_center_tools,
             policy_tools,
-            backtest_tools,
-            account_tools,
+            regime_tools,
+            signal_tools,
             strategy_tools,
         )
 

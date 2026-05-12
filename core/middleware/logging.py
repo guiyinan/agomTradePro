@@ -181,7 +181,7 @@ class RequestLoggingMiddleware:
         start_time = time.time()
 
         # 获取 trace_id（应该已经被 TraceIDMiddleware 设置）
-        trace_id = get_trace_id() or '-'
+        get_trace_id() or '-'
 
         # 记录请求开始
         logger.info(

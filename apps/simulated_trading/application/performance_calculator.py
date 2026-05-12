@@ -10,20 +10,16 @@ Application层:
 import logging
 from collections import defaultdict
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import date
 from statistics import mean, pstdev
-from typing import Dict, List, Optional, Tuple
 
 from apps.data_center.application.price_service import UnifiedPriceService
 from apps.simulated_trading.application.repository_provider import (
-    DjangoPositionRepository,
-    DjangoSimulatedAccountRepository,
-    DjangoTradeRepository,
     get_simulated_account_repository,
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
-from apps.simulated_trading.domain.entities import Position, SimulatedAccount, TradeAction
+from apps.simulated_trading.domain.entities import SimulatedAccount, TradeAction
 from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
@@ -243,7 +239,6 @@ class PerformanceCalculator:
                 return 0.0
 
             # 假设无风险利率为3%
-            risk_free_rate = 3.0
 
             # 简化计算：使用交易收益率的均值/标准差
             sharpe = mean_return / std_return if std_return > 0 else 0

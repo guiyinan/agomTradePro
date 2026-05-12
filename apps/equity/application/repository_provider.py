@@ -8,7 +8,7 @@ from apps.equity.infrastructure.adapters import (
     StockPoolRepositoryAdapter,
     TushareStockAdapter,
 )
-from apps.equity.infrastructure.config_loader import get_stock_screening_rule
+from apps.equity.infrastructure.config_loader import get_stock_screening_rule  # noqa: F401
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
     DjangoStockRepository,
@@ -17,7 +17,7 @@ from apps.equity.infrastructure.providers import (
     EquityBootstrapConfigRepository,
     ScoringWeightConfigRepository,
     ValuationRepairConfigRepository,
-    build_quality_snapshot,
+    build_quality_snapshot,  # noqa: F401
 )
 from apps.equity.infrastructure.valuation_source_gateways import (
     AKShareValuationGateway,

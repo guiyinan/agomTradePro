@@ -6,22 +6,14 @@ DashboardChartService, DashboardAlertService, and convenience functions.
 No Django/pandas/numpy dependencies.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from apps.dashboard.domain.entities import (
-    AlertConfig,
     AlertSeverity,
-    CardType,
     ChartConfig,
-    ChartDataType,
-    DashboardCard,
     DashboardLayout,
-    DashboardPreferences,
-    DashboardWidget,
-    MetricCard,
     WidgetType,
 )
 from apps.dashboard.domain.services import (

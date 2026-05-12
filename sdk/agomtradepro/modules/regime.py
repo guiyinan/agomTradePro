@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Regime 判定模块
 
@@ -8,8 +9,8 @@ AgomTradePro SDK - Regime 判定模块
 from datetime import date
 from typing import Any, Optional
 
-from .base import BaseModule
 from ..types import RegimeCalculationParams, RegimeState, RegimeType
+from .base import BaseModule
 
 
 class RegimeModule(BaseModule):
@@ -51,7 +52,7 @@ class RegimeModule(BaseModule):
 
     def calculate(
         self,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
         use_kalman: bool = True,
@@ -96,8 +97,8 @@ class RegimeModule(BaseModule):
 
     def history(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
         limit: int = 100,
     ) -> list[RegimeState]:
         """
@@ -143,8 +144,8 @@ class RegimeModule(BaseModule):
 
     def get_regime_distribution(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[RegimeType, int]:
         """
         获取指定时间段内的 Regime 分布统计

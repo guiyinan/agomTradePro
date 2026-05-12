@@ -17,6 +17,7 @@ from typing import Any
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
 from django.utils import timezone as django_timezone
+
 from apps.dashboard.application.repository_provider import (
     get_dashboard_alpha_context_repository,
     get_dashboard_query_repository,

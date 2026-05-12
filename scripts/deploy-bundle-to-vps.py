@@ -104,7 +104,7 @@ def _ssh_connect(host: str, port: int, username: str, password: str, timeout: in
         msg = f"Authentication failed for {username}@{host}:{port}."
         if allowed:
             msg += f" Allowed auths: {allowed}"
-        raise paramiko.ssh_exception.AuthenticationException(msg)
+        raise paramiko.ssh_exception.AuthenticationException(msg) from None
 
 
 def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:

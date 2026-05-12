@@ -11,7 +11,7 @@ Tests for:
 
 import json
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -241,7 +241,7 @@ class TestGenerateAttributionReportAPI:
         assert response.status_code == status.HTTP_201_CREATED
 
         # Check for loss analyses
-        loss_analyses = LossAnalysis.objects.filter(report_id=response.data['id'])
+        LossAnalysis.objects.filter(report_id=response.data['id'])
         # May or may not exist depending on attribution logic
         # Just verify the field is present in response
         assert 'loss_analyses' in response.data

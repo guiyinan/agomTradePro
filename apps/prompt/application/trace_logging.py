@@ -6,8 +6,7 @@ Trace Logging Service.
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..domain.agent_entities import (
     AgentExecutionRequest,

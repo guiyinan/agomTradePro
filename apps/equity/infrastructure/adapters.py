@@ -7,7 +7,7 @@ data_center 或本地持久化事实表，避免模块继续直连外部 SDK。
 
 import logging
 from datetime import date, datetime
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
 import pandas as pd
 

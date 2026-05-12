@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 GOVERNANCE_SCOPE = "macro_console"
 
 GOVERNANCE_METADATA_UPDATES = {

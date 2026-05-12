@@ -4,11 +4,12 @@ Recalculate Regime Data with Fixed Parameters
 This script recalculates regime_log records using the corrected parameters.
 """
 
-import os
-from dotenv import load_dotenv
-from datetime import date, datetime
-import math
 import json
+import math
+import os
+from datetime import date, datetime
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -64,7 +65,7 @@ if db_url.startswith('postgresql://'):
             elif 'CPI' in code:
                 cpi_data.append((period, value))
 
-        print(f'Loaded data:')
+        print('Loaded data:')
         print(f'  PMI records: {len(pmi_data)}')
         print(f'  CPI records: {len(cpi_data)}')
         print()

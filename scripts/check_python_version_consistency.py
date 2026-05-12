@@ -191,7 +191,7 @@ def main() -> int:
     # Check Dockerfiles
     docker_versions = check_dockerfiles(project_root)
     if docker_versions:
-        print(f"Dockerfiles:")
+        print("Dockerfiles:")
         for dockerfile, version in docker_versions:
             print(f"  {dockerfile}: Python {version}")
 

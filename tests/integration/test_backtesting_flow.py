@@ -15,7 +15,6 @@ Usage:
 
 import os
 import sys
-from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -26,7 +25,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
 os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
-from sdk.agomtradepro import AgomTradeProClient
 
 pytestmark = [
     pytest.mark.integration,
@@ -47,7 +45,6 @@ def print_step(step: int, description: str) -> None:
 
 def print_result(success: bool, message: str) -> None:
     """Print a test result"""
-    status = "PASS" if success else "FAIL"
     symbol = "[OK]" if success else "[FAIL]"
     print(f"{symbol} {message}")
 

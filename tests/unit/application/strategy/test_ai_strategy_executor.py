@@ -8,12 +8,11 @@ AI 策略执行器单元测试
 - 待审核信号队列管理
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 from apps.strategy.application.ai_strategy_executor import (
-    AIClientFactory,
     AIResponseParser,
     AIStrategyExecutor,
     PendingApprovalQueue,
@@ -203,7 +202,7 @@ class TestAIStrategyExecutor:
 
         ai_config = AIConfig(prompt_template_id=1, approval_mode="auto", confidence_threshold=0.8)
 
-        strategy = Strategy(
+        Strategy(
             strategy_id=1,
             name="AI 策略",
             strategy_type=StrategyType.AI_DRIVEN,

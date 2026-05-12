@@ -12,10 +12,14 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from decimal import Decimal
-from typing import List, Optional
 
 from django.utils import timezone
 
+from apps.realtime.application.repository_provider import (
+    get_realtime_price_provider,
+    get_realtime_price_repository,
+    get_watchlist_provider,
+)
 from apps.realtime.domain.entities import (
     PricePollingConfig,
     PriceSnapshot,
@@ -26,11 +30,6 @@ from apps.realtime.domain.protocols import (
     PriceDataProviderProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
-)
-from apps.realtime.application.repository_provider import (
-    get_realtime_price_provider,
-    get_realtime_price_repository,
-    get_watchlist_provider,
 )
 from core.integration.simulated_positions import get_simulated_position_price_updater
 
@@ -89,7 +88,7 @@ class PricePollingService:
             self.price_repository.save_prices_batch(prices)
 
         # 4. 更新持仓模型中的价格
-        updates = self._update_position_prices(prices)
+        self._update_position_prices(prices)
 
         # 5. 统计结果
         success_count = len(prices)

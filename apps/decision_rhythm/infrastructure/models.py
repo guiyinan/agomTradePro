@@ -8,16 +8,13 @@ Domain 层实体映射到数据库表结构。
 
 import logging
 import uuid
-from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 
 from ..domain.entities import (
-    ApprovalStatus,
     CooldownPeriod,
     DecisionFeatureSnapshot,
     DecisionPriority,
@@ -32,7 +29,6 @@ from ..domain.entities import (
     ModelParamConfig,
     PortfolioTransitionPlan,
     QuotaPeriod,
-    RecommendationSide,
     RecommendationStatus,
     TransitionOrder,
     TransitionPlanStatus,

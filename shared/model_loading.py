@@ -7,7 +7,7 @@ from django.apps import apps as django_apps
 from django.db.models import Model
 
 
-def resolve_model(app_label: str, model_name: str, fallback_module: str | None = None) -> Type[Model]:
+def resolve_model(app_label: str, model_name: str, fallback_module: str | None = None) -> type[Model]:
     """Resolve a Django model from app registry, with optional import fallback."""
     try:
         return django_apps.get_model(app_label, model_name)

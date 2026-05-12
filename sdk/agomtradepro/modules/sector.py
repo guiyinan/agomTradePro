@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Sector 板块分析模块
 
@@ -56,7 +57,7 @@ class SectorModule(BaseModule):
     def get_sector_score(
         self,
         sector_name: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取板块评分
@@ -109,7 +110,7 @@ class SectorModule(BaseModule):
 
     def get_recommendations(
         self,
-        regime: Optional[str] = None,
+        regime: str | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
@@ -135,7 +136,7 @@ class SectorModule(BaseModule):
         response = self._get("rotation/", params=params)
         return response.get("top_sectors", [])
 
-    def _resolve_current_regime(self) -> Optional[str]:
+    def _resolve_current_regime(self) -> str | None:
         response = self._client.get("/api/regime/current/")
         if isinstance(response, dict):
             payload = response.get("data", response)
@@ -145,7 +146,7 @@ class SectorModule(BaseModule):
     def analyze_sector(
         self,
         sector_name: str,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         分析板块

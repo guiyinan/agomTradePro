@@ -503,7 +503,7 @@ class GetRegimeNavigatorHistoryUseCase:
 
             # 2. Pulse History
             pulses = repo.get_pulses_in_range(start_date, end_date)
-            
+
             pulse_history = [
                 {
                     "date": p.observed_at.isoformat(),
@@ -518,7 +518,7 @@ class GetRegimeNavigatorHistoryUseCase:
 
             # 3. Action History
             actions = repo.get_actions_in_range(start_date, end_date)
-            
+
             action_history = [
                 {
                     "date": a.observed_at.isoformat(),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -13,7 +13,7 @@ from apps.realtime.infrastructure.repositories import DataCenterPriceDataProvide
 def test_data_center_price_provider_prefers_quote_snapshot():
     QuoteSnapshotModel.objects.create(
         asset_code="000001.SZ",
-        snapshot_at=datetime(2026, 4, 5, 9, 31, tzinfo=timezone.utc),
+        snapshot_at=datetime(2026, 4, 5, 9, 31, tzinfo=UTC),
         current_price=Decimal("12.34"),
         volume=1000,
         source="eastmoney-main",

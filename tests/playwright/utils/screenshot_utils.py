@@ -2,10 +2,8 @@
 Screenshot utility functions for Playwright tests.
 Provides consistent screenshot capture and naming conventions.
 """
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from playwright.sync_api import Page
 
@@ -163,7 +161,7 @@ class ScreenshotUtils:
         for i, link in enumerate(links):
             try:
                 # Get link text and href
-                text = link.inner_text() or f"link_{i}"
+                link.inner_text() or f"link_{i}"
                 href = link.get_attribute("href") or "no_href"
                 href_clean = href.replace("/", "_").replace(":", "_")[:50]
 

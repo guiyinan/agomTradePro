@@ -5,8 +5,7 @@ Application layer orchestrating the workflow of syncing macro data from various 
 """
 
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Dict, List, Optional
+from datetime import date
 
 from ..domain.entities import MacroIndicator
 
@@ -175,7 +174,7 @@ class SyncMacroDataUseCase:
             Optional[object]: 适配器实例
         """
         # 简单的映射逻辑
-        for source, adapter in self.adapters.items():
+        for _source, adapter in self.adapters.items():
             if hasattr(adapter, 'supports') and adapter.supports(indicator_code):
                 return adapter
 
@@ -366,7 +365,7 @@ def build_sync_macro_data_use_case(
     repository = get_macro_repository()
 
     if source == "akshare":
-        adapters: Dict[str, object] = {"akshare": build_akshare_macro_adapter()}
+        adapters: dict[str, object] = {"akshare": build_akshare_macro_adapter()}
     elif source == "tushare":
         adapters = {"tushare": build_tushare_macro_adapter()}
     else:

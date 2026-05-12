@@ -4,19 +4,19 @@ Unit Tests for Qlib Training
 测试 Qlib 模型训练相关功能。
 """
 
+import inspect
 import json
 import os
 import pickle
-import inspect
 from datetime import date, datetime
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.core.management import call_command
-from django.test import override_settings
+from django.db import IntegrityError
 
 from apps.alpha.application.tasks import (
     _calculate_artifact_hash,
@@ -394,7 +394,7 @@ class TestQlibModelRegistry:
             model_path="/models/a1.pkl"
         )
 
-        active = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="model_a",
             artifact_hash="hash_a2",
             model_type="LGBModel",
@@ -415,7 +415,7 @@ class TestQlibModelRegistry:
 
     def test_model_uniqueness(self):
         """测试模型唯一性约束"""
-        model1 = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="test_model",
             artifact_hash="unique_hash",
             model_type="LGBModel",
@@ -428,7 +428,7 @@ class TestQlibModelRegistry:
         )
 
         # 尝试创建相同 artifact_hash 的记录应该失败
-        with pytest.raises(Exception):  # IntegrityError
+        with pytest.raises(IntegrityError):
             QlibModelRegistryModel.objects.create(
                 model_name="another_model",
                 artifact_hash="unique_hash",  # 相同
@@ -511,7 +511,7 @@ class TestQlibManagementCommands:
             model_path="/models/inactive.pkl"
         )
 
-        active = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="active_model",
             artifact_hash="hash2",
             model_type="LGBModel",
@@ -566,7 +566,7 @@ class TestQlibManagementCommands:
     def test_rollback_to_prev(self):
         """测试回滚到上一个版本"""
         # 创建模型序列
-        old_model = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="my_model",
             artifact_hash="old_hash",
             model_type="LGBModel",
@@ -578,7 +578,7 @@ class TestQlibManagementCommands:
             model_path="/models/old.pkl"
         )
 
-        current = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="my_model",
             artifact_hash="current_hash",
             model_type="LGBModel",

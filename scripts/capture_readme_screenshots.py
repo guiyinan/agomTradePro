@@ -7,7 +7,6 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-
 BASE_URL = os.environ.get("AGOM_BASE_URL", "http://127.0.0.1:8000")
 USERNAME = os.environ.get("AGOM_USERNAME", "admin")
 PASSWORD = os.environ.get("AGOM_PASSWORD", "Aa123456")

@@ -7,7 +7,6 @@ Pure domain logic using only Python standard library.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional
 
 
 class RegimeType(Enum):
@@ -241,12 +240,12 @@ def get_allocation_target(regime: str, risk_profile: str, policy_level: str | No
     try:
         regime_enum = RegimeType(regime)
     except ValueError:
-        raise ValueError(f"无效的Regime: {regime}，必须是 {list(RegimeType)} 之一")
+        raise ValueError(f"无效的Regime: {regime}，必须是 {list(RegimeType)} 之一") from None
 
     try:
         risk_enum = RiskProfile(risk_profile)
     except ValueError:
-        raise ValueError(f"无效的风险偏好: {risk_profile}，必须是 {list(RiskProfile)} 之一")
+        raise ValueError(f"无效的风险偏好: {risk_profile}，必须是 {list(RiskProfile)} 之一") from None
 
     # 获取基础配置
     target = ALLOCATION_MATRIX[regime_enum][risk_enum]
@@ -259,7 +258,7 @@ def get_allocation_target(regime: str, risk_profile: str, policy_level: str | No
     try:
         policy_enum = PolicyLevel(policy_level)
     except ValueError:
-        raise ValueError(f"无效的Policy档位: {policy_level}，必须是 {list(PolicyLevel)} 之一")
+        raise ValueError(f"无效的Policy档位: {policy_level}，必须是 {list(PolicyLevel)} 之一") from None
 
     adjustment_factor = POLICY_EQUITY_ADJUSTMENT[policy_enum]
 

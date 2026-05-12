@@ -9,8 +9,8 @@ Alpha 事件触发的核心业务逻辑实现。
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from .entities import (
     AlphaCandidate,
@@ -19,10 +19,8 @@ from .entities import (
     InvalidationCondition,
     SignalStrength,
     TriggerConfig,
-    TriggerEvent,
     TriggerStatus,
     TriggerType,
-    calculate_strength,
 )
 
 logger = logging.getLogger(__name__)

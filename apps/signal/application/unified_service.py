@@ -7,7 +7,7 @@ into a unified signal system.
 
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import UnifiedSignalRepository

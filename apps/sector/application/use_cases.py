@@ -10,14 +10,12 @@
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional
 
 from core.integration.market_index_returns import fetch_index_daily_returns
 
-from .repository_provider import DjangoSectorRepository
-from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
+from ..domain.entities import SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer
+from .repository_provider import DjangoSectorRepository
 
 logger = logging.getLogger(__name__)
 

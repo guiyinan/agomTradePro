@@ -11,8 +11,8 @@ from datetime import date, datetime
 from django.core.exceptions import ValidationError
 
 from apps.share.application.repository_provider import get_share_application_repository
-from apps.share.domain.interfaces import ShareApplicationRepositoryProtocol
 from apps.share.domain.entities import ShareLinkEntity
+from apps.share.domain.interfaces import ShareApplicationRepositoryProtocol
 
 
 class ShareLinkUseCases:

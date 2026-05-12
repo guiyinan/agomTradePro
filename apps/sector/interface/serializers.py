@@ -6,12 +6,10 @@
 - 只做输入验证和输出格式化
 """
 
-from datetime import date
 
 from rest_framework import serializers
 
-from ..application.use_cases import AnalyzeSectorRotationRequest, SectorRotationResult
-from ..domain.entities import SectorScore
+from ..application.use_cases import AnalyzeSectorRotationRequest
 
 
 class SectorScoreSerializer(serializers.Serializer):

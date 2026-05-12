@@ -6,7 +6,6 @@ Interface层:
 - 使用DRF Serializer进行数据转换
 """
 from django.apps import apps as django_apps
-from django.core.validators import MaxValueValidator, MinValueValidator
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers

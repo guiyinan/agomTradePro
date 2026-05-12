@@ -12,21 +12,20 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.task_monitor.application.provider import (
+    get_celery_health_checker,
+    get_task_record_repository,
+)
 from apps.task_monitor.application.use_cases import (
     CheckCeleryHealthUseCase,
     GetTaskStatisticsUseCase,
     GetTaskStatusUseCase,
     ListTasksUseCase,
 )
-from apps.task_monitor.application.provider import (
-    get_celery_health_checker,
-    get_task_record_repository,
-)
 from apps.task_monitor.interface.serializers import (
     HealthCheckSerializer,
     TaskListSerializer,
     TaskStatisticsSerializer,
-    TaskStatusRequestSerializer,
     TaskStatusSerializer,
 )
 

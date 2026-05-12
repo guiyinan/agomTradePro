@@ -9,7 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .stock_selection_backtest import (
     RebalanceFrequency,
@@ -113,7 +113,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
         logger.info(f"开始 Alpha 回测: {self.config.start_date} ~ {self.config.end_date}")
         logger.info(f"再平衡次数: {len(rebalance_dates)}")
 
-        for i, rebalance_date in enumerate(rebalance_dates):
+        for _i, rebalance_date in enumerate(rebalance_dates):
             # 1. 获取当前 Regime
             regime = self.get_regime_func(rebalance_date) or "Recovery"
 
@@ -148,7 +148,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             selected_stocks = selected_stocks[:self.alpha_config.max_positions]
 
             # 计算覆盖率（如果有目标股票数量）
-            coverage = len(selected_stocks) / self.alpha_config.max_positions
+            len(selected_stocks) / self.alpha_config.max_positions
 
             # 3. 卖出不在新股票池中的股票
             sold_stocks = []

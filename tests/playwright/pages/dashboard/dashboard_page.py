@@ -3,7 +3,6 @@ Dashboard page object for main dashboard testing.
 """
 from playwright.sync_api import Page, expect
 
-from tests.playwright.config.selectors import common
 from tests.playwright.config.test_config import config
 from tests.playwright.pages.base_page import BasePage
 

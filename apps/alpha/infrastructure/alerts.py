@@ -9,7 +9,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
 
 from django.utils import timezone
 
@@ -382,7 +381,6 @@ class AlertThresholds:
     @classmethod
     def update_from_env(cls):
         """从环境变量更新阈值"""
-        import os
 
         from environ import Env
 

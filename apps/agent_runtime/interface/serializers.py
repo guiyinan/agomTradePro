@@ -5,21 +5,15 @@ WP-M1-04: Serializers for Agent Runtime Module
 See: docs/plans/ai-native/schema-contract.md
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.apps import apps as django_apps
 from rest_framework import serializers
 
 from apps.agent_runtime.domain.entities import (
-    ApprovalStatus,
-    EventSource,
-    GuardrailDecision,
-    ProposalStatus,
     RiskLevel,
     TaskDomain,
     TaskStatus,
-    TimelineEventType,
 )
 from shared.sanitization import sanitize_plain_text
 
@@ -130,7 +124,7 @@ class AgentTaskCreateSerializer(serializers.Serializer):
         except ValueError:
             raise serializers.ValidationError(
                 f"Invalid task_domain. Must be one of: {[d.value for d in TaskDomain]}"
-            )
+            ) from None
         return value
 
     def validate_task_type(self, value: str) -> str:
@@ -215,7 +209,7 @@ class AgentTaskUpdateSerializer(serializers.Serializer):
             except ValueError:
                 raise serializers.ValidationError(
                     f"Invalid status. Must be one of: {[s.value for s in TaskStatus]}"
-                )
+                ) from None
         return value
 
     def validate_current_step(self, value: str | None) -> str | None:

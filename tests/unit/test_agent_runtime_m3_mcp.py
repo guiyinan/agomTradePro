@@ -12,6 +12,7 @@ import pytest
 
 # Ensure MCP server has tools registered
 from agomtradepro_mcp.server import server
+
 from tests.utils.async_helpers import run_async_callable
 
 

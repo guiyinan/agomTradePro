@@ -6,7 +6,7 @@ These tests can run while Task #13 is in progress.
 import pytest
 from django.conf import settings
 from django.test import Client
-from django.urls import resolve, reverse
+from django.urls import resolve
 
 
 class TestAPINamingConvention:
@@ -68,7 +68,7 @@ class TestNavigationRouteDefinition:
         }
 
         results = {}
-        for route, expected_name in nav_routes.items():
+        for route, _expected_name in nav_routes.items():
             try:
                 match = resolve(route)
                 results[route] = {
@@ -118,7 +118,7 @@ class TestNavigationRouteDefinition:
             try:
                 # Try to resolve a common route pattern
                 test_route = f"{prefix.rstrip('/')}/"
-                match = resolve(test_route)
+                resolve(test_route)
                 results[prefix] = 'defined'
             except Exception:
                 # Some modules might not have a root route
@@ -146,7 +146,7 @@ class TestUserJourneyRouteAccess:
         defined = []
         for route in journey_a_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass
@@ -170,7 +170,7 @@ class TestUserJourneyRouteAccess:
         defined = []
         for route in journey_b_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass
@@ -189,7 +189,7 @@ class TestUserJourneyRouteAccess:
         defined = []
         for route in journey_c_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass
@@ -209,7 +209,7 @@ class TestUserJourneyRouteAccess:
         defined = []
         for route in journey_d_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass
@@ -229,7 +229,7 @@ class TestUserJourneyRouteAccess:
         defined = []
         for route in journey_e_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass
@@ -269,7 +269,7 @@ class TestAPIDocumentation:
         defined = []
         for route in docs_routes:
             try:
-                match = resolve(route)
+                resolve(route)
                 defined.append(route)
             except Exception:
                 pass

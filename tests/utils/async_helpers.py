@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from concurrent.futures import Future
 from threading import Thread
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 

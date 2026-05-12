@@ -6,11 +6,11 @@ Application Layer - Celery Tasks for Policy Management
 
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
-from django.db import DatabaseError, IntegrityError
+from django.db import DatabaseError
 from django.utils import timezone
 
 from core.exceptions import (

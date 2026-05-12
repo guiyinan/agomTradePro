@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from apps.decision_rhythm.infrastructure.feature_providers import (
+from apps.decision_rhythm.infrastructure.feature_providers import (  # noqa: F401
     create_candidate_provider,
     create_feature_provider,
     create_signal_provider,
@@ -11,13 +11,13 @@ from apps.decision_rhythm.infrastructure.feature_providers import (
 from apps.decision_rhythm.infrastructure.providers import (
     CooldownRepository,
     DecisionModelParamConfigRepository,
+    DecisionRequestRepository,
     ExecutionApprovalRequestRepository,
     InvestmentRecommendationRepository,
     PortfolioTransitionPlanRepository,
     QuotaRepository,
     UnifiedRecommendationRepository,
     ValuationSnapshotRepository,
-    DecisionRequestRepository,
     get_request_repository,
 )
 

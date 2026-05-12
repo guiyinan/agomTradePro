@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Investment Signal 投资信号模块
 
@@ -8,7 +9,6 @@ AgomTradePro SDK - Investment Signal 投资信号模块
 from datetime import date, datetime
 from typing import Any, Optional
 
-from .base import BaseModule
 from ..types import (
     CreateSignalParams,
     InvestmentSignal,
@@ -16,6 +16,7 @@ from ..types import (
     SignalEligibilityResult,
     SignalStatus,
 )
+from .base import BaseModule
 
 
 def _infer_asset_class(asset_code: str) -> str:
@@ -49,8 +50,8 @@ class SignalModule(BaseModule):
 
     def list(
         self,
-        status: Optional[SignalStatus] = None,
-        asset_code: Optional[str] = None,
+        status: SignalStatus | None = None,
+        asset_code: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[InvestmentSignal]:
@@ -111,7 +112,7 @@ class SignalModule(BaseModule):
         logic_desc: str,
         invalidation_logic: str,
         invalidation_threshold: float,
-        target_regime: Optional[RegimeType] = None,
+        target_regime: RegimeType | None = None,
     ) -> InvestmentSignal:
         """
         创建投资信号
@@ -158,7 +159,7 @@ class SignalModule(BaseModule):
     def approve(
         self,
         signal_id: int,
-        approver: Optional[str] = None,
+        approver: str | None = None,
     ) -> InvestmentSignal:
         """
         审批投资信号
@@ -244,7 +245,7 @@ class SignalModule(BaseModule):
         self,
         asset_code: str,
         logic_desc: str,
-        target_regime: Optional[RegimeType] = None,
+        target_regime: RegimeType | None = None,
     ) -> SignalEligibilityResult:
         """
         检查信号准入条件
@@ -292,7 +293,7 @@ class SignalModule(BaseModule):
         Returns:
             InvestmentSignal 对象
         """
-        def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
+        def parse_datetime(dt_str: str | None) -> datetime | None:
             if dt_str is None:
                 return None
             if isinstance(dt_str, datetime):

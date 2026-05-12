@@ -8,6 +8,7 @@ Usage:
 
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -16,7 +17,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from apps.macro.infrastructure.models import IndicatorConfigModel
-
 
 # 常用宏观指标配置
 DEFAULT_INDICATORS = [
@@ -209,7 +209,7 @@ def init_indicators():
             print(f"  [跳过] {code} - {e}")
             skipped_count += 1
 
-    print(f"\n初始化完成:")
+    print("\n初始化完成:")
     print(f"  新建: {created_count}")
     print(f"  更新: {updated_count}")
     print(f"  跳过: {skipped_count}")

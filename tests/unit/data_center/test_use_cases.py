@@ -6,14 +6,14 @@ Uses in-memory stub implementations — no DB or Django required.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from apps.data_center.application.dtos import (
     CreateProviderRequest,
+    CreatePublisherCatalogRequest,
     DecisionReliabilityRepairRequest,
     LatestQuoteRequest,
     MacroSeriesRequest,
-    CreatePublisherCatalogRequest,
     UpdateProviderRequest,
     UpdatePublisherCatalogRequest,
 )
@@ -31,8 +31,8 @@ from apps.data_center.domain.entities import (
     IndicatorUnitRule,
     MacroFact,
     PriceBar,
-    PublisherCatalog,
     ProviderConfig,
+    PublisherCatalog,
     QuoteSnapshot,
     RawAudit,
 )
@@ -289,7 +289,7 @@ class _DecisionRepairProvider:
         return [
             QuoteSnapshot(
                 asset_code=asset_code,
-                snapshot_at=datetime.now(timezone.utc),
+                snapshot_at=datetime.now(UTC),
                 current_price=3.95,
                 source="akshare",
             )
@@ -870,7 +870,7 @@ class TestQueryLatestQuoteUseCase:
     def test_marks_fresh_quote_as_decision_eligible(self):
         fresh_snapshot = QuoteSnapshot(
             asset_code="510300.SH",
-            snapshot_at=datetime.now(timezone.utc) - timedelta(minutes=15),
+            snapshot_at=datetime.now(UTC) - timedelta(minutes=15),
             current_price=3.91,
             source="test",
             volume=12345.0,
@@ -889,7 +889,7 @@ class TestQueryLatestQuoteUseCase:
     def test_marks_stale_quote_as_non_decision_grade(self):
         stale_snapshot = QuoteSnapshot(
             asset_code="510300.SH",
-            snapshot_at=datetime.now(timezone.utc) - timedelta(hours=6),
+            snapshot_at=datetime.now(UTC) - timedelta(hours=6),
             current_price=3.88,
             source="test",
             volume=12345.0,

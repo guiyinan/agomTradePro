@@ -40,9 +40,9 @@ class RegimeState:
     inflation_level: InflationLevel
     growth_indicator: str
     inflation_indicator: str
-    growth_value: Optional[float] = None
-    inflation_value: Optional[float] = None
-    confidence: Optional[float] = None
+    growth_value: float | None = None
+    inflation_value: float | None = None
+    confidence: float | None = None
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class RegimeCalculationParams:
         use_kalman: 是否使用 Kalman 滤波
     """
 
-    as_of_date: Optional[date] = None
+    as_of_date: date | None = None
     growth_indicator: str = "PMI"
     inflation_indicator: str = "CPI"
     use_kalman: bool = True
@@ -93,11 +93,11 @@ class InvestmentSignal:
     logic_desc: str
     status: SignalStatus
     created_at: datetime
-    invalidation_logic: Optional[str] = None
-    invalidation_threshold: Optional[float] = None
-    approved_at: Optional[datetime] = None
-    invalidated_at: Optional[datetime] = None
-    created_by: Optional[str] = None
+    invalidation_logic: str | None = None
+    invalidation_threshold: float | None = None
+    approved_at: datetime | None = None
+    invalidated_at: datetime | None = None
+    created_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -117,9 +117,9 @@ class SignalEligibilityResult:
     is_eligible: bool
     regime_match: bool
     policy_match: bool
-    current_regime: Optional[RegimeType] = None
-    policy_status: Optional[str] = None
-    rejection_reason: Optional[str] = None
+    current_regime: RegimeType | None = None
+    policy_status: str | None = None
+    rejection_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -139,7 +139,7 @@ class CreateSignalParams:
     logic_desc: str
     invalidation_logic: str
     invalidation_threshold: float
-    target_regime: Optional[RegimeType] = None
+    target_regime: RegimeType | None = None
 
 
 # =============================================================================
@@ -249,10 +249,10 @@ class WorkbenchSummary:
 
     policy_level: PolicyLevel
     policy_level_name: str
-    gate_level: Optional[GateLevel] = None
-    gate_level_name: Optional[str] = None
-    global_heat: Optional[float] = None
-    global_sentiment: Optional[float] = None
+    gate_level: GateLevel | None = None
+    gate_level_name: str | None = None
+    global_heat: float | None = None
+    global_sentiment: float | None = None
     pending_review_count: int = 0
     sla_exceeded_count: int = 0
     today_events_count: int = 0
@@ -285,15 +285,15 @@ class WorkbenchEvent:
     event_type: EventType
     level: PolicyLevel
     title: str
-    description: Optional[str] = None
-    gate_level: Optional[GateLevel] = None
+    description: str | None = None
+    gate_level: GateLevel | None = None
     gate_effective: bool = False
     audit_status: str = "pending_review"
-    ai_confidence: Optional[float] = None
-    heat_score: Optional[float] = None
-    sentiment_score: Optional[float] = None
-    asset_class: Optional[str] = None
-    created_at: Optional[datetime] = None
+    ai_confidence: float | None = None
+    heat_score: float | None = None
+    sentiment_score: float | None = None
+    asset_class: str | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -330,7 +330,7 @@ class SentimentGateState:
     gate_level: GateLevel
     global_heat: float
     global_sentiment: float
-    max_position_cap: Optional[float] = None
+    max_position_cap: float | None = None
     signal_paused: bool = False
 
 
@@ -375,7 +375,7 @@ class BacktestResult:
     total_return: float
     annual_return: float
     max_drawdown: float
-    sharpe_ratio: Optional[float] = None
+    sharpe_ratio: float | None = None
 
 
 # =============================================================================

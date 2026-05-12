@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from apps.terminal.domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
 from apps.terminal.infrastructure.providers import (
-    TerminalApiRequestError,
+    TerminalApiRequestError,  # noqa: F401
+)
+from apps.terminal.infrastructure.providers import (
     get_terminal_audit_repository as _get_terminal_audit_repository,
 )
 from apps.terminal.infrastructure.providers import (
     get_terminal_command_http_client as _get_terminal_command_http_client,
+)
+from apps.terminal.infrastructure.providers import (
     get_terminal_command_repository as _get_terminal_command_repository,
 )
 from apps.terminal.infrastructure.providers import (

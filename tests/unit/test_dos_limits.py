@@ -8,8 +8,6 @@ Tests verify that:
 """
 
 import pytest
-from django.core.exceptions import RequestDataTooBig
-from django.test import override_settings
 
 
 class TestDosProtection:

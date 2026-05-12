@@ -24,10 +24,7 @@ from apps.simulated_trading.application.auto_trading_engine import AutoTradingEn
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.repository_provider import (
-    DjangoInspectionRepository,
-    DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
-    DjangoTradeRepository,
     get_simulated_account_repository,
     get_simulated_inspection_repository,
     get_simulated_position_repository,

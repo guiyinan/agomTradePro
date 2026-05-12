@@ -5,7 +5,7 @@ Tests for checking pending and approved signals with invalidation rules.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -18,7 +18,6 @@ from apps.signal.domain.entities import SignalStatus
 from apps.signal.domain.invalidation import (
     ComparisonOperator,
     IndicatorType,
-    IndicatorValue,
     InvalidationCheckResult,
     InvalidationCondition,
     InvalidationRule,

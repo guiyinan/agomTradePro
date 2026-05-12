@@ -8,10 +8,10 @@ Infrastructure层:
 """
 from datetime import date
 from decimal import Decimal
-from typing import Any, List, Optional
+from typing import Any
 
-from django.db import models, transaction
-from django.db.models import Avg, Count, F, Max, Min, Q, Sum
+from django.db import transaction
+from django.db.models import Sum
 
 from apps.simulated_trading.domain.entities import (
     AccountType,

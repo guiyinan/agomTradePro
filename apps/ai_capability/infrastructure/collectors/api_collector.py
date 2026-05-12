@@ -6,7 +6,7 @@ Auto-collects internal Django/DRF APIs and converts them to capabilities.
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from django.urls import get_resolver
 from rest_framework.views import APIView

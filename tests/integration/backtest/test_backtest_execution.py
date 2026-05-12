@@ -8,13 +8,11 @@ Integration Tests for Backtest Execution
 """
 
 from datetime import date, timedelta
-from unittest.mock import Mock
 
 import pytest
 
 from apps.backtest.application.use_cases import RunBacktestRequest, RunBacktestUseCase
-from apps.backtest.domain.entities import BacktestConfig, BacktestResult, BacktestStatus, Trade
-from apps.backtest.domain.services import BacktestEngine
+from apps.backtest.domain.entities import BacktestConfig
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -285,7 +283,7 @@ class TestBacktestExecution:
 
         # 验证不同频率产生了不同的交易数量
         # （这取决于实现，某些频率可能产生更多交易）
-        for freq, response in results:
+        for _freq, response in results:
             assert response.backtest_id is not None
 
     def test_backtest_crud_operations(self):
@@ -502,7 +500,6 @@ class TestBacktestAuditIntegration:
         2. 审计状态在响应中正确反映
         3. 审计失败不影响回测结果
         """
-        from apps.audit.infrastructure.models import AttributionReport
         from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
         base_date = date(2022, 1, 1)
@@ -648,9 +645,6 @@ class TestBacktestAuditIntegration:
         """
         from unittest.mock import patch
 
-        from apps.audit.application.use_cases import (
-            GenerateAttributionReportUseCase as OriginalAuditUC,
-        )
 
         base_date = date(2022, 1, 1)
 
@@ -713,7 +707,6 @@ class TestBacktestAuditIntegration:
         1. 当回测失败时，audit_status='skipped'
         2. 不会触发审计流程
         """
-        from unittest.mock import patch
 
         base_date = date(2022, 1, 1)
 

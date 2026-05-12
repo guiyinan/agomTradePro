@@ -4,6 +4,7 @@ Unit tests for Sentiment Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
+import dataclasses
 from datetime import datetime
 
 import pytest
@@ -165,7 +166,7 @@ class TestSentimentAnalysisResult:
             confidence=0.8,
             category=SentimentCategory.POSITIVE,
         )
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             result.sentiment_score = 2.0
 
 

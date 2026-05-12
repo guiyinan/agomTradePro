@@ -11,7 +11,6 @@ from django.core.management.base import BaseCommand
 from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
 from apps.pulse.infrastructure.models import NavigatorAssetConfigModel, PulseIndicatorConfigModel
 
-
 # Navigator 资产配置默认值
 NAVIGATOR_ASSET_DEFAULTS = [
     {

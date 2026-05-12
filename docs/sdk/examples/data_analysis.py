@@ -5,9 +5,11 @@ This file demonstrates how to use the SDK with pandas for data analysis.
 Requires: pip install pandas
 """
 
-from agomtradepro import AgomTradeProClient
 from datetime import date
+
 import pandas as pd
+
+from agomtradepro import AgomTradeProClient
 
 # Initialize client
 client = AgomTradeProClient(
@@ -68,11 +70,11 @@ pmi_df["date"] = pd.to_datetime(pmi_df["date"])
 pmi_df = pmi_df.sort_values("date")
 
 # Calculate statistics
-print(f"PMI Statistics:")
-print(f"  Mean: {pmi_df["value"].mean():.2f}")
-print(f"  Std: {pmi_df["value"].std():.2f}")
-print(f"  Min: {pmi_df["value"].min():.2f}")
-print(f"  Max: {pmi_df["value"].max():.2f}")
+print("PMI Statistics:")
+print(f"  Mean: {pmi_df['value'].mean():.2f}")
+print(f"  Std: {pmi_df['value'].std():.2f}")
+print(f"  Min: {pmi_df['value'].min():.2f}")
+print(f"  Max: {pmi_df['value'].max():.2f}")
 print()
 
 # PMI trend
@@ -106,8 +108,8 @@ print()
 signals_df["date"] = signals_df["created"].dt.date
 daily_signals = signals_df.groupby("date").size()
 print("Recent Signal Activity:")
-for date, count in daily_signals.tail(5).items():
-    print(f"  {date}: {count} signals")
+for signal_date, count in daily_signals.tail(5).items():
+    print(f"  {signal_date}: {count} signals")
 print()
 
 # Example 4: Portfolio Analysis
@@ -133,7 +135,7 @@ for portfolio in portfolios:
         ])
         pos_df = pos_df.sort_values("value", ascending=False)
 
-        print(f"\nTop 5 Positions:")
+        print("\nTop 5 Positions:")
         print(pos_df[["asset", "value", "pnl", "pnl_%"]].head(5).to_string(index=False))
 
         total_pnl = pos_df["pnl"].sum()

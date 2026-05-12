@@ -339,7 +339,7 @@ class AlertService:
     def send(self, message: AlertMessage) -> dict[str, bool]:
         """发送告警到所有渠道"""
         results = {}
-        for i, channel in enumerate(self.channels):
+        for _i, channel in enumerate(self.channels):
             channel_name = channel.__class__.__name__
             try:
                 success = channel.send(message)

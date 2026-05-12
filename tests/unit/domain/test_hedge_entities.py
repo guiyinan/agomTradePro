@@ -4,8 +4,7 @@ Unit tests for Hedge Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import date
 
 import pytest
 

@@ -107,8 +107,8 @@ class RotationModule:
     def generate_signal(
         self,
         config_name: str,
-        signal_date: Optional[date] = None
-    ) -> Optional[dict[str, Any]]:
+        signal_date: date | None = None
+    ) -> dict[str, Any] | None:
         """
         生成轮动信号
 
@@ -229,7 +229,7 @@ class RotationModule:
         """
         return self._client.get("/api/rotation/assets/export/", params={"format": export_format})
 
-    def get_asset_info(self, asset_code: str) -> Optional[dict[str, Any]]:
+    def get_asset_info(self, asset_code: str) -> dict[str, Any] | None:
         """
         获取资产详情
 

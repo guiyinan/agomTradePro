@@ -7,7 +7,6 @@ Following the principle: Domain layer should have 90%+ test coverage.
 
 from dataclasses import FrozenInstanceError
 from datetime import date
-from typing import Dict, List
 
 import pytest
 

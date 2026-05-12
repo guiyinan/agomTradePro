@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
-from apps.pulse.infrastructure.models import PulseWeightConfig, PulseIndicatorWeight
+
+from apps.pulse.infrastructure.models import PulseIndicatorWeight, PulseWeightConfig
+
 
 class Command(BaseCommand):
     help = "设置特定指标的权重"

@@ -6,7 +6,7 @@ Share Application DTOs
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass

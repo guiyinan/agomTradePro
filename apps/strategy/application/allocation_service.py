@@ -5,15 +5,11 @@ Provides business logic for calculating asset allocation recommendations
 based on current portfolio, regime, and risk profile.
 """
 
-from dataclasses import dataclass, field
-from datetime import date
-from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 from django.conf import settings
 
 from apps.strategy.domain.allocation_matrix import (
-    AllocationTarget,
     AssetAllocation,
     get_allocation_target,
 )

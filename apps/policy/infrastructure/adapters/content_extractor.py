@@ -8,8 +8,8 @@ Content Extractor - 从HTML页面提取文章正文
 
 import logging
 import re
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Protocol
+from abc import ABC
+from typing import Protocol
 
 try:
     import httpx
@@ -167,9 +167,9 @@ class ReadabilityExtractor(BaseContentExtractor):
             return text
 
         except httpx.HTTPError as e:
-            raise ContentExtractorError(f"HTTP error: {e}")
+            raise ContentExtractorError(f"HTTP error: {e}") from e
         except Exception as e:
-            raise ContentExtractorError(f"Failed to extract content: {e}")
+            raise ContentExtractorError(f"Failed to extract content: {e}") from e
 
 
 class BeautifulSoupExtractor(BaseContentExtractor):
@@ -283,9 +283,9 @@ class BeautifulSoupExtractor(BaseContentExtractor):
             return content
 
         except httpx.HTTPError as e:
-            raise ContentExtractorError(f"HTTP error: {e}")
+            raise ContentExtractorError(f"HTTP error: {e}") from e
         except Exception as e:
-            raise ContentExtractorError(f"Failed to extract content: {e}")
+            raise ContentExtractorError(f"Failed to extract content: {e}") from e
 
     def extract_with_custom_selector(
         self,
@@ -331,9 +331,9 @@ class BeautifulSoupExtractor(BaseContentExtractor):
             return content
 
         except httpx.HTTPError as e:
-            raise ContentExtractorError(f"HTTP error: {e}")
+            raise ContentExtractorError(f"HTTP error: {e}") from e
         except Exception as e:
-            raise ContentExtractorError(f"Failed to extract content: {e}")
+            raise ContentExtractorError(f"Failed to extract content: {e}") from e
 
 
 class HybridContentExtractor(BaseContentExtractor):
@@ -371,7 +371,7 @@ class HybridContentExtractor(BaseContentExtractor):
         try:
             return self.bs4_extractor.extract(url, proxy_config, timeout)
         except ContentExtractorError:
-            raise ContentExtractorError(f"All extraction methods failed for {url}")
+            raise ContentExtractorError(f"All extraction methods failed for {url}") from None
 
 
 # 工厂函数

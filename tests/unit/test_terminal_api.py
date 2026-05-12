@@ -4,12 +4,10 @@ Terminal API Tests.
 Tests for terminal governance API endpoints, permissions, and contracts.
 """
 
-import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
-from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.terminal.infrastructure.models import TerminalAuditLogORM, TerminalCommandORM

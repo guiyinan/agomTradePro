@@ -13,8 +13,8 @@ from django.utils import timezone
 from apps.alpha_trigger.domain.entities import CandidateStatus
 
 from ..domain.entities import (
-    DecisionRequest,
     DecisionFeatureSnapshot,
+    DecisionRequest,
     RecommendationStatus,
     UnifiedRecommendation,
 )

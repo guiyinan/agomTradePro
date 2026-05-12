@@ -7,41 +7,34 @@ Alpha 事件触发的 API 视图。
 """
 
 import logging
-from typing import Any, Dict, List, Optional
 
 from django.http import HttpResponseNotFound
 from django.shortcuts import render
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ..application.use_cases import (
-    CheckInvalidationRequest,
-    CheckInvalidationResponse,
-    CheckTriggerInvalidationUseCase,
-    CreateAlphaTriggerUseCase,
-    CreateTriggerRequest,
-    CreateTriggerResponse,
-    EvaluateAlphaTriggerUseCase,
-    EvaluateTriggerRequest,
-    EvaluateTriggerResponse,
-    GenerateCandidateRequest,
-    GenerateCandidateResponse,
-    GenerateCandidateUseCase,
-)
 from ..application.page_query_service import get_alpha_trigger_page_query_service
 from ..application.repository_provider import (
     get_alpha_candidate_repository,
     get_alpha_trigger_repository,
 )
+from ..application.use_cases import (
+    CheckInvalidationRequest,
+    CheckTriggerInvalidationUseCase,
+    CreateAlphaTriggerUseCase,
+    CreateTriggerRequest,
+    EvaluateAlphaTriggerUseCase,
+    EvaluateTriggerRequest,
+    GenerateCandidateRequest,
+    GenerateCandidateUseCase,
+)
 from ..domain.entities import (
     CandidateStatus,
-    InvalidationType,
     SignalStrength,
-    TriggerStatus,
     TriggerType,
 )
 from ..domain.services import TriggerConfig
@@ -89,7 +82,7 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
         """
         try:
             asset_code = request.query_params.get("asset_code", None)
-            status_str = request.query_params.get("status", None)
+            request.query_params.get("status", None)
 
             if asset_code:
                 triggers = self.trigger_repository.get_by_asset(asset_code)

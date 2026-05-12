@@ -5,17 +5,13 @@ Tests for batch validation functionality and report generation.
 """
 
 from datetime import date, timedelta
-from typing import Dict, List
 
 import pytest
 
 from apps.audit.domain.entities import (
     IndicatorPerformanceReport,
     IndicatorThresholdConfig,
-    RecommendedAction,
     RegimeSnapshot,
-    ThresholdValidationReport,
-    ValidationStatus,
 )
 from apps.audit.domain.services import ThresholdValidator
 

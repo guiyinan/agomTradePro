@@ -4,9 +4,9 @@ AgomTradePro SDK - Simulated Trading Example
 This file demonstrates simulated trading using the AgomTradePro SDK.
 """
 
-from agomtradepro import AgomTradeProClient
 from datetime import date, datetime
-import time
+
+from agomtradepro import AgomTradeProClient
 
 # Initialize client
 client = AgomTradeProClient(

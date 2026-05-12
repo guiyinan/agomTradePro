@@ -4,10 +4,11 @@ Deep Analysis of Regime Calculation Issue
 The problem is more complex than just data format.
 """
 
-import os
-from dotenv import load_dotenv
-from datetime import date
 import math
+import os
+from datetime import date
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -64,9 +65,9 @@ if db_url.startswith('postgresql://'):
         print(f'  - Actual data points: {len(cpi_all)}')
         print()
         print('When i=35 (latest data):')
-        print(f'  - Window start: max(0, 35-60+1) = 0')
+        print('  - Window start: max(0, 35-60+1) = 0')
         print(f'  - Window size: {min(60, len(cpi_all))} data points')
-        print(f'  - But with min_periods=24, first Z-score at i=23')
+        print('  - But with min_periods=24, first Z-score at i=23')
         print()
 
         # Calculate momentum the way the code does
@@ -111,7 +112,7 @@ if db_url.startswith('postgresql://'):
         variance = sum((x - mean_val) ** 2 for x in window_data) / len(window_data)
         std_val = math.sqrt(variance)
 
-        print(f'Window statistics:')
+        print('Window statistics:')
         print(f'  - Mean: {mean_val:.4f}')
         print(f'  - Std Dev: {std_val:.4f}')
         print(f'  - Current value: {cpi_momentums[last_idx]:.4f}')
@@ -119,7 +120,7 @@ if db_url.startswith('postgresql://'):
 
         z_score = (cpi_momentums[last_idx] - mean_val) / std_val if std_val > 0 else 0
 
-        print(f'Calculated Z-score:')
+        print('Calculated Z-score:')
         print(f'  - Z = ({cpi_momentums[last_idx]:.4f} - {mean_val:.4f}) / {std_val:.4f}')
         print(f'  - Z = {z_score:.4f}')
         print()

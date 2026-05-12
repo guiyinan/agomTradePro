@@ -5,7 +5,6 @@ Domain 层纯业务逻辑，只使用 Python 标准库。
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 from apps.regime.domain.asset_eligibility import (
     Eligibility,
@@ -14,8 +13,6 @@ from apps.regime.domain.asset_eligibility import (
 from apps.regime.domain.asset_eligibility import (
     check_eligibility as _check_eligibility,
 )
-
-from .entities import SignalStatus
 
 # 证伪逻辑量化关键词
 QUANTIFIABLE_KEYWORDS = [

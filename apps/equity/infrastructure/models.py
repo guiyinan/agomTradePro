@@ -6,7 +6,6 @@
 - 实现数据持久化逻辑
 """
 
-from decimal import Decimal
 
 from django.db import models
 from django.utils import timezone

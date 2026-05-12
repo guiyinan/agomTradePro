@@ -17,8 +17,8 @@ class AgomTradeProAPIError(Exception):
     def __init__(
         self,
         message: str,
-        status_code: Optional[int] = None,
-        response: Optional[dict] = None,
+        status_code: int | None = None,
+        response: dict | None = None,
     ) -> None:
         self.message = message
         self.status_code = status_code
@@ -41,7 +41,7 @@ class AuthenticationError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Authentication failed. Please check your API token.",
-        response: Optional[dict] = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=401, response=response)
 
@@ -56,8 +56,8 @@ class RateLimitError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Rate limit exceeded. Please retry later.",
-        retry_after: Optional[int] = None,
-        response: Optional[dict] = None,
+        retry_after: int | None = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=429, response=response)
         self.retry_after = retry_after
@@ -73,8 +73,8 @@ class ValidationError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Validation failed.",
-        errors: Optional[dict] = None,
-        response: Optional[dict] = None,
+        errors: dict | None = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=400, response=response)
         self.errors = errors or {}
@@ -90,7 +90,7 @@ class NotFoundError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Resource not found.",
-        response: Optional[dict] = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=404, response=response)
 
@@ -105,7 +105,7 @@ class ConflictError(AgomTradeProAPIError):
     def __init__(
         self,
         message: str = "Resource conflict.",
-        response: Optional[dict] = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=409, response=response)
 
@@ -121,7 +121,7 @@ class ServerError(AgomTradeProAPIError):
         self,
         message: str = "Internal server error.",
         status_code: int = 500,
-        response: Optional[dict] = None,
+        response: dict | None = None,
     ) -> None:
         super().__init__(message, status_code=status_code, response=response)
 
@@ -168,7 +168,7 @@ class ConfigurationError(AgomTradeProAPIError):
         super().__init__(message)
 
 
-def raise_for_status(status_code: int, response: Optional[dict] = None) -> None:
+def raise_for_status(status_code: int, response: dict | None = None) -> None:
     """
     根据状态码抛出对应的异常
 

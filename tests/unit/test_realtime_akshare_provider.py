@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pandas as pd
@@ -189,7 +189,7 @@ def test_composite_price_provider_merges_partial_batch_results() -> None:
                         change=None,
                         change_pct=None,
                         volume=100,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         source="eastmoney",
                     )
                 ]
@@ -203,7 +203,7 @@ def test_composite_price_provider_merges_partial_batch_results() -> None:
                         change=None,
                         change_pct=None,
                         volume=200,
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=datetime.now(UTC),
                         source="eastmoney",
                     )
                 ]

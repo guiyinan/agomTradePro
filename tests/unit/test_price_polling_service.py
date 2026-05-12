@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -58,7 +58,7 @@ def test_price_polling_service_updates_position_and_account_totals() -> None:
         market_value=Decimal("450.00"),
         unrealized_pnl=Decimal("0.00"),
         unrealized_pnl_pct=0.0,
-        first_buy_date=datetime.now(timezone.utc).date(),
+        first_buy_date=datetime.now(UTC).date(),
     )
 
     realtime_price = RealtimePrice(
@@ -68,7 +68,7 @@ def test_price_polling_service_updates_position_and_account_totals() -> None:
         change=None,
         change_pct=None,
         volume=1000,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         source="test",
     )
     service = PricePollingService(

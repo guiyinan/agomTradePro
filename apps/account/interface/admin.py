@@ -3,12 +3,10 @@ Django Admin for Account Module.
 
 提供 Account 模块所有模型的 Admin 管理界面。
 """
-from decimal import Decimal
 
 from django import forms
 from django.apps import apps as django_apps
 from django.contrib import admin
-from django.db.models import DecimalField, F, Sum
 from django.utils.html import format_html
 
 from apps.account.application.repository_provider import get_account_interface_repository

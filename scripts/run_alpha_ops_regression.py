@@ -7,7 +7,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 DEFAULT_TARGETS = [
     "apps/alpha/tests/test_ops_use_cases.py",
     "apps/alpha/tests/test_services_metadata.py",

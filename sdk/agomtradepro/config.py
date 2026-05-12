@@ -20,9 +20,9 @@ from .exceptions import ConfigurationError
 class AuthConfig:
     """认证配置"""
 
-    api_token: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    api_token: str | None = None
+    username: str | None = None
+    password: str | None = None
 
 
 @dataclass
@@ -88,13 +88,13 @@ def _load_env_config() -> dict:
         try:
             config["timeout"] = int(timeout)
         except ValueError:
-            raise ConfigurationError(f"Invalid AGOMTRADEPRO_TIMEOUT: {timeout}")
+            raise ConfigurationError(f"Invalid AGOMTRADEPRO_TIMEOUT: {timeout}") from None
 
     if max_retries := os.getenv("AGOMTRADEPRO_MAX_RETRIES"):
         try:
             config["max_retries"] = int(max_retries)
         except ValueError:
-            raise ConfigurationError(f"Invalid AGOMTRADEPRO_MAX_RETRIES: {max_retries}")
+            raise ConfigurationError(f"Invalid AGOMTRADEPRO_MAX_RETRIES: {max_retries}") from None
 
     if verify_ssl := os.getenv("AGOMTRADEPRO_VERIFY_SSL"):
         config["verify_ssl"] = verify_ssl.lower() in ("true", "1", "yes")
@@ -118,22 +118,22 @@ def _load_file_config() -> dict:
     for config_file in config_files:
         if config_file.exists():
             try:
-                with open(config_file, "r", encoding="utf-8") as f:
+                with open(config_file, encoding="utf-8") as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                raise ConfigurationError(f"Failed to load config file {config_file}: {e}")
+            except (OSError, json.JSONDecodeError) as e:
+                raise ConfigurationError(f"Failed to load config file {config_file}: {e}") from e
 
     return {}
 
 
 def load_config(
-    base_url: Optional[str] = None,
-    api_token: Optional[str] = None,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    timeout: Optional[int] = None,
-    max_retries: Optional[int] = None,
-    verify_ssl: Optional[bool] = None,
+    base_url: str | None = None,
+    api_token: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    timeout: int | None = None,
+    max_retries: int | None = None,
+    verify_ssl: bool | None = None,
 ) -> ClientConfig:
     """
     加载配置（按优先级合并）

@@ -6,21 +6,18 @@ Asset Name Resolver - 资产名称解析服务测试
 """
 
 import os
-from datetime import datetime, timezone
 
 import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 django.setup()
 
-from django.test import TestCase
 from django.core.cache import cache
+from django.test import TestCase
 
 from apps.asset_analysis.application.asset_name_service import (
     AssetNameResolver,
     enrich_with_asset_names,
-    resolve_asset_name,
-    resolve_asset_names,
 )
 
 
@@ -30,8 +27,7 @@ class AssetNameResolverTest(TestCase):
     def setUp(self):
         """准备测试数据"""
         from apps.equity.infrastructure.models import StockInfoModel
-        from apps.fund.infrastructure.models import FundHoldingModel
-        from apps.fund.infrastructure.models import FundInfoModel
+        from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()
@@ -100,8 +96,7 @@ class AssetNameResolverTest(TestCase):
     def tearDown(self):
         """清理测试数据"""
         from apps.equity.infrastructure.models import StockInfoModel
-        from apps.fund.infrastructure.models import FundHoldingModel
-        from apps.fund.infrastructure.models import FundInfoModel
+        from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()

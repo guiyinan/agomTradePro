@@ -19,8 +19,7 @@ Features:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 from django.core.cache import cache
 

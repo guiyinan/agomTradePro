@@ -5,11 +5,10 @@ Decision Rhythm Event Handlers
 """
 
 import logging
-from typing import Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
 
-from ..domain.entities import DecisionPriority, QuotaPeriod
+from ..domain.entities import QuotaPeriod
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,8 @@ Renders the /data-center/ HTML pages.  All data is loaded via the API
 from __future__ import annotations
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 
 from apps.data_center.application.interface_services import (
     load_macro_governance_payload,

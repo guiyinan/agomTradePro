@@ -8,6 +8,7 @@ Usage:
 
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -16,7 +17,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from apps.regime.infrastructure.models import RiskParameterConfigModel
-
 
 # 默认阈值配置
 DEFAULT_THRESHOLDS = [
@@ -236,7 +236,7 @@ def init_thresholds():
             print(f"  [跳过] {key} - {e}")
             skipped_count += 1
 
-    print(f"\n初始化完成:")
+    print("\n初始化完成:")
     print(f"  新建: {created_count}")
     print(f"  更新: {updated_count}")
     print(f"  跳过: {skipped_count}")

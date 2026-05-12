@@ -7,9 +7,9 @@ Account Application - Stop Loss Use Cases
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.account.application.repository_provider import (
     PositionRepository,
@@ -17,13 +17,6 @@ from apps.account.application.repository_provider import (
     TakeProfitRepository,
     build_in_memory_stop_loss_notification_service,
     build_market_price_service,
-)
-from apps.account.domain.entities import (
-    Position,
-    StopLossConfig,
-    StopLossStatus,
-    StopLossTrigger,
-    StopLossType,
 )
 from apps.account.domain.interfaces import (
     MarketDataPort,
@@ -36,7 +29,6 @@ from apps.account.domain.services import (
     TakeProfitCheckResult,
     TakeProfitService,
 )
-from core.exceptions import DataFetchError
 
 logger = logging.getLogger(__name__)
 

@@ -2,12 +2,10 @@
 Views for Audit API.
 """
 
-import json
 import logging
 from datetime import date, datetime
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
 from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
@@ -16,8 +14,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.audit.application.interface_services import (
-    build_audit_overview_context,
     build_attribution_detail_context,
+    build_audit_overview_context,
     build_indicator_performance_page_context,
     build_report_list_context,
     build_threshold_validation_page_context,
@@ -653,18 +651,15 @@ from rest_framework.renderers import JSONRenderer
 from .permissions import (
     HasInternalAuditSignature,
     IsAuditAdmin,
-    IsSelfOrAuditAdmin,
     OperationLogReadPermission,
 )
 from .serializers import (
     DecisionTraceDetailSerializer,
     DecisionTraceListSerializer,
-    ExportOperationLogsSerializer,
     OperationLogDetailSerializer,
     OperationLogIngestSerializer,
     OperationLogListSerializer,
     OperationLogQuerySerializer,
-    OperationLogSerializer,
     OperationStatsSerializer,
 )
 

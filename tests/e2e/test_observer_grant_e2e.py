@@ -9,7 +9,7 @@ E2E tests for Observer Grant flow.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
@@ -120,7 +120,7 @@ class TestObserverGrantE2E:
         grant_response = api_client.post('/api/account/observer-grants/', grant_payload)
 
         assert grant_response.status_code == 201
-        grant_id = grant_response.data['data']['id']
+        grant_response.data['data']['id']
         assert grant_response.data['data']['status'] == 'active'
 
         # 步骤 2：B 登录并查看 A 的投资组合
@@ -245,7 +245,7 @@ class TestObserverGrantE2E:
         api_client = APIClient()
 
         # 创建短期授权（已过期）
-        grant = PortfolioObserverGrantModel._default_manager.create(
+        PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=data['user_a'],
             observer_user_id=data['user_b'],
             status='active',
@@ -265,7 +265,7 @@ class TestObserverGrantE2E:
         api_client = APIClient()
 
         # 创建即将过期的授权（1分钟后过期）
-        grant = PortfolioObserverGrantModel._default_manager.create(
+        PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=data['user_a'],
             observer_user_id=data['user_b'],
             status='active',

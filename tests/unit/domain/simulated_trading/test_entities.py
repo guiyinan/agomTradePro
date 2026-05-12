@@ -5,8 +5,6 @@
 """
 from datetime import date, datetime
 
-import pytest
-
 from apps.simulated_trading.domain.entities import (
     AccountType,
     FeeConfig,

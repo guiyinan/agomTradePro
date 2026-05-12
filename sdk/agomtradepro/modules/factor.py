@@ -63,7 +63,7 @@ class FactorModule:
     def create_portfolio(
         self,
         config_name: str,
-        trade_date: Optional[date] = None
+        trade_date: date | None = None
     ) -> dict[str, Any]:
         """
         创建因子组合
@@ -107,7 +107,7 @@ class FactorModule:
             }
         )
 
-    def get_portfolio(self, config_name: str) -> Optional[dict[str, Any]]:
+    def get_portfolio(self, config_name: str) -> dict[str, Any] | None:
         """
         获取因子组合最新持仓
 

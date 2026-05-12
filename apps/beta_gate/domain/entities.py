@@ -8,9 +8,9 @@ Beta Gate Domain Entities
 """
 
 from dataclasses import InitVar, dataclass, field
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class GateStatus(Enum):

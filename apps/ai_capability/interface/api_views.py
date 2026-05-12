@@ -23,10 +23,8 @@ from .serializers import (
     CapabilitySummarySerializer,
     CatalogStatsSerializer,
     RouteRequestSerializer,
-    RouteResponseSerializer,
     SyncResultSerializer,
     WebChatRequestSerializer,
-    WebChatResponseSerializer,
 )
 
 logger = logging.getLogger(__name__)

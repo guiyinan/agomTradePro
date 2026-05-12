@@ -5,11 +5,9 @@ Celery Tasks for Signal Management
 """
 
 import logging
-from typing import List, Optional
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
-from django.conf import settings
 from django.db import DatabaseError
 from django.utils import timezone
 
@@ -173,7 +171,7 @@ def send_daily_signal_summary():
     today = timezone.now()
 
     # 统计变化
-    new_signals = repository.count_by_status('pending')  # 近期新建信号数
+    repository.count_by_status('pending')  # 近期新建信号数
 
     # 获取新建的信号详情
     new_signal_details = repository.get_signals_created_between(yesterday, today)
@@ -389,6 +387,6 @@ def _get_signal_notification_recipients() -> list[str]:
     recipients.extend(admin_emails)
 
     # 去重并过滤空值
-    recipients = list(set(r for r in recipients if r and '@' in r))
+    recipients = list({r for r in recipients if r and '@' in r})
 
     return recipients

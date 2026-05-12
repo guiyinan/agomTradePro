@@ -8,11 +8,8 @@ Tests verify that:
 4. XSS attacks are prevented
 """
 
-import pytest
 
 from shared.infrastructure.sanitization import (
-    SAFE_TAGS,
-    SAFE_URL_SCHEMES,
     get_sanitization_config,
     sanitize_field,
     sanitize_inputs,

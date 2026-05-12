@@ -12,8 +12,6 @@ P0-2: Verify that read operations are NOT throttled by BacktestRateThrottle
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from core.throttling import (
     BacktestRateThrottle,
     BurstRateThrottle,

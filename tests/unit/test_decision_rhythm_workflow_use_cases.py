@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from apps.alpha_trigger.domain.entities import CandidateStatus
@@ -40,8 +40,8 @@ from apps.decision_rhythm.application.use_cases import (
 from apps.decision_rhythm.domain.entities import (
     CooldownPeriod,
     DecisionPriority,
-    DecisionRequest,
     DecisionQuota,
+    DecisionRequest,
     ExecutionStatus,
     QuotaPeriod,
 )
@@ -548,8 +548,8 @@ def test_get_decision_quota_page_use_case_builds_template_compatible_context():
             max_execution_count=4,
             used_decisions=3,
             used_executions=1,
-            period_start=datetime(2026, 4, 1, tzinfo=timezone.utc),
-            period_end=datetime(2026, 4, 7, tzinfo=timezone.utc),
+            period_start=datetime(2026, 4, 1, tzinfo=UTC),
+            period_end=datetime(2026, 4, 7, tzinfo=UTC),
             account_id="101",
         )
     )
@@ -559,7 +559,7 @@ def test_get_decision_quota_page_use_case_builds_template_compatible_context():
                 asset_code="000001.SH",
                 min_decision_interval_hours=24,
                 min_execution_interval_hours=48,
-                last_decision_at=datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc),
+                last_decision_at=datetime(2026, 4, 1, 9, 0, tzinfo=UTC),
             )
         ]
     )
@@ -571,7 +571,7 @@ def test_get_decision_quota_page_use_case_builds_template_compatible_context():
                 asset_class="equity",
                 direction="BUY",
                 priority=DecisionPriority.HIGH,
-                requested_at=datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc),
+                requested_at=datetime(2026, 4, 1, 10, 0, tzinfo=UTC),
             )
         ]
     )

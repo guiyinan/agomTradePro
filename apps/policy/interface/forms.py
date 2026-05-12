@@ -8,10 +8,10 @@ from django import forms
 
 from .serializers import (
     POLICY_LEVEL_CHOICES,
-    RSSHUB_FORMAT_CHOICES,
     RSS_PARSER_TYPE_CHOICES,
     RSS_PROXY_TYPE_CHOICES,
     RSS_SOURCE_CATEGORY_CHOICES,
+    RSSHUB_FORMAT_CHOICES,
 )
 
 

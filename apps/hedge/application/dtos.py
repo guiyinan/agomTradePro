@@ -6,7 +6,6 @@ Data Transfer Objects for the hedge module.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 
 @dataclass

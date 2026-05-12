@@ -7,8 +7,9 @@ Tests cover:
   - is_stale
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from apps.data_center.domain.rules import (
     convert_currency_value,
@@ -133,26 +134,26 @@ class TestNormalizeAssetCode:
 
 class TestIsStale:
     def test_fresh_data_not_stale(self):
-        fetched = datetime.now(timezone.utc) - timedelta(minutes=30)
+        fetched = datetime.now(UTC) - timedelta(minutes=30)
         assert is_stale(fetched, max_age_hours=1) is False
 
     def test_old_data_is_stale(self):
-        fetched = datetime.now(timezone.utc) - timedelta(hours=2)
+        fetched = datetime.now(UTC) - timedelta(hours=2)
         assert is_stale(fetched, max_age_hours=1) is True
 
     def test_exactly_at_boundary_is_stale(self):
         # Just past the boundary
-        fetched = datetime.now(timezone.utc) - timedelta(hours=1, seconds=1)
+        fetched = datetime.now(UTC) - timedelta(hours=1, seconds=1)
         assert is_stale(fetched, max_age_hours=1) is True
 
     def test_naive_datetime_treated_as_utc(self):
-        fetched = (datetime.now(timezone.utc) - timedelta(hours=3)).replace(tzinfo=None)
+        fetched = (datetime.now(UTC) - timedelta(hours=3)).replace(tzinfo=None)
         assert is_stale(fetched, max_age_hours=2) is True
 
     def test_fractional_hours(self):
-        fetched = datetime.now(timezone.utc) - timedelta(minutes=20)
+        fetched = datetime.now(UTC) - timedelta(minutes=20)
         assert is_stale(fetched, max_age_hours=0.25) is True  # 20 min > 15 min
 
     def test_zero_age_threshold(self):
-        fetched = datetime.now(timezone.utc) - timedelta(seconds=1)
+        fetched = datetime.now(UTC) - timedelta(seconds=1)
         assert is_stale(fetched, max_age_hours=0) is True

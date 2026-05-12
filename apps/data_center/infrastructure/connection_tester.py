@@ -13,7 +13,6 @@ import logging
 import queue
 import threading
 from datetime import date, timedelta
-from datetime import datetime, timezone
 from typing import Any
 
 from apps.data_center.domain.entities import ConnectionTestResult, ProviderConfig

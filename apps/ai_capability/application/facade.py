@@ -7,19 +7,19 @@ Provides a simplified interface for terminal to use the unified routing system.
 import logging
 import uuid
 from dataclasses import replace
-from datetime import UTC, datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
 
+from ..application.dtos import RouteRequestDTO
 from ..application.repository_provider import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
 )
-from ..application.dtos import RouteRequestDTO
 from ..application.use_cases import RouteMessageUseCase
 from ..domain.entities import (
     CapabilityDecision,

@@ -4,20 +4,13 @@
 测试评分权重配置的加载、验证和使用
 """
 
-from datetime import date
-from decimal import Decimal
 
 import pytest
 
 from apps.equity.domain.entities import (
-    FinancialData,
     ScoringWeightConfig,
-    StockInfo,
-    ValuationMetrics,
 )
 from apps.equity.domain.services import StockScreener
-from apps.equity.infrastructure.models import ScoringWeightConfigModel
-from apps.equity.infrastructure.repositories import ScoringWeightConfigRepository
 
 
 class TestScoringWeightConfigEntity:

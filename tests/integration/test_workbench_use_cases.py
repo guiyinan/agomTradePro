@@ -4,7 +4,7 @@ Integration tests for Policy Workbench use cases.
 Tests the interaction between use cases, repositories, and models.
 """
 
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
@@ -21,7 +21,7 @@ from apps.policy.application.use_cases import (
     WorkbenchItemsInput,
     WorkbenchSummaryInput,
 )
-from apps.policy.domain.entities import EventType, GateLevel, PolicyLevel
+from apps.policy.domain.entities import PolicyLevel
 from apps.policy.infrastructure.models import (
     GateActionAuditLog,
     PolicyIngestionConfig,

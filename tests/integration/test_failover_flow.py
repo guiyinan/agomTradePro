@@ -7,8 +7,7 @@ Tests that the system gracefully degrades when primary data sources fail:
   - Alert on large deviations
 """
 
-from datetime import UTC, date, datetime, timezone
-from unittest.mock import MagicMock, PropertyMock, patch
+from datetime import UTC, datetime
 
 import pytest
 from django.test import TestCase

@@ -4,9 +4,9 @@
 测试 Top-down 和 Bottom-up 特征提供者。
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from types import SimpleNamespace
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.utils import timezone

@@ -5,13 +5,12 @@ Alpha Domain Entities
 仅使用 Python 标准库，不依赖 Django 或外部库。
 """
 
-import re
 import hashlib
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 _SUFFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<code>\d{6})\.(?P<exchange>SH|SZ|BJ)\b", re.IGNORECASE)
 _PREFIX_STOCK_CODE_PATTERN = re.compile(r"\b(?P<exchange>SH|SZ|BJ)(?P<code>\d{6})\b", re.IGNORECASE)

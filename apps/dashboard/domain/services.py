@@ -6,14 +6,12 @@ Dashboard Domain Services
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta, timezone
-from decimal import Decimal
-from typing import Any, Dict, List, Optional, Union
+from datetime import UTC, datetime
+from typing import Any
 
 from .entities import (
     AlertConfig,
     AlertSeverity,
-    CardType,
     ChartConfig,
     DashboardCard,
     DashboardLayout,

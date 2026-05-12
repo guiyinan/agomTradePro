@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 from core.application.decision_context import DecisionContextUseCase
@@ -48,7 +48,7 @@ def test_step1_context_prefers_cached_regime_and_non_refresh_pulse(monkeypatch):
 def test_step2_direction_exposes_snapshot_validity(monkeypatch):
     monkeypatch.setattr(
         "core.application.decision_context.timezone.now",
-        lambda: datetime(2026, 5, 9, 10, 0, tzinfo=timezone.utc),
+        lambda: datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
     )
 
     use_case = DecisionContextUseCase()
@@ -77,7 +77,7 @@ def test_step2_direction_exposes_snapshot_validity(monkeypatch):
 def test_step2_direction_marks_live_fallback(monkeypatch):
     monkeypatch.setattr(
         "core.application.decision_context.timezone.now",
-        lambda: datetime(2026, 5, 9, 10, 0, tzinfo=timezone.utc),
+        lambda: datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
     )
 
     use_case = DecisionContextUseCase()

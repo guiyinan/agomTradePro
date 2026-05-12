@@ -7,8 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from apps.fund.domain.services import FundPerformanceCalculator
 from apps.fund.domain.entities import FundNetValue
+from apps.fund.domain.services import FundPerformanceCalculator
 from apps.fund.infrastructure.models import FundInfoModel, FundNetValueModel, FundPerformanceModel
 from apps.fund.infrastructure.repositories import DjangoFundRepository
 

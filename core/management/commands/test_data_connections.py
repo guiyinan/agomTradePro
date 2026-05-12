@@ -22,13 +22,15 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PositionModel,
 )
-from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 
 # Import models and repositories
 from apps.data_center.infrastructure.models import (
     MacroFactModel,
+)
+from apps.data_center.infrastructure.models import (
     ProviderConfigModel as DataSourceConfig,
 )
+from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository

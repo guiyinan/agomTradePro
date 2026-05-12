@@ -11,12 +11,12 @@ import json
 import os
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-def parse_coverage_xml(xml_path: str) -> Dict[str, Any]:
+def parse_coverage_xml(xml_path: str) -> dict[str, Any]:
     """Parse pytest-cov XML report and extract metrics."""
     if not os.path.exists(xml_path):
         return {"error": f"File not found: {xml_path}"}
@@ -48,10 +48,10 @@ def parse_coverage_xml(xml_path: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-def generate_nightly_report(args: argparse.Namespace) -> Dict[str, Any]:
+def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
     """Generate nightly test report with full metrics."""
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "run_type": "nightly",
         "workflow": {
             "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
@@ -99,10 +99,10 @@ def generate_nightly_report(args: argparse.Namespace) -> Dict[str, Any]:
     return report
 
 
-def generate_pr_report(args: argparse.Namespace) -> Dict[str, Any]:
+def generate_pr_report(args: argparse.Namespace) -> dict[str, Any]:
     """Generate PR gate report with changed-file focus."""
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "run_type": "pr",
         "pr": {
             "number": os.environ.get("GITHUB_REF_NAME", "unknown"),
@@ -125,7 +125,7 @@ def generate_pr_report(args: argparse.Namespace) -> Dict[str, Any]:
     return report
 
 
-def generate_rc_report(args: argparse.Namespace) -> Dict[str, Any]:
+def generate_rc_report(args: argparse.Namespace) -> dict[str, Any]:
     """Generate RC gate report with full regression suite."""
     import subprocess
 
@@ -226,7 +226,6 @@ def generate_rc_report(args: argparse.Namespace) -> Dict[str, Any]:
                         blockers.append(f'{path}:{i}')
 
     p0_count = len(blockers)
-    p1_threshold = 2
     checks["p0_p1_defects"] = {
         "status": "passed" if p0_count == 0 else "failed",
         "value": f"P0={p0_count}",
@@ -239,7 +238,7 @@ def generate_rc_report(args: argparse.Namespace) -> Dict[str, Any]:
         checks_failed += 1
 
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "run_type": "rc",
         "version": args.version or os.environ.get("GITHUB_REF_NAME", "unknown"),
         "sha": os.environ.get("GITHUB_SHA", "unknown"),
@@ -273,13 +272,13 @@ def generate_rc_report(args: argparse.Namespace) -> Dict[str, Any]:
     return report
 
 
-def save_report(report: Dict[str, Any], output_dir: str) -> str:
+def save_report(report: dict[str, Any], output_dir: str) -> str:
     """Save report to JSON file."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     run_type = report["run_type"]
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"{run_type}_report_{timestamp}.json"
     filepath = output_path / filename
 

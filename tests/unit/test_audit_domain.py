@@ -2,9 +2,7 @@
 Unit tests for Operation Audit Log Domain layer.
 """
 
-from datetime import datetime, timezone
 
-import pytest
 
 from apps.audit.domain.entities import (
     OperationAction,

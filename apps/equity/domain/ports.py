@@ -7,7 +7,7 @@ Domain 层定义接口，Infrastructure 层实现接口。
 
 from abc import abstractmethod
 from datetime import date
-from typing import Dict, List, Optional, Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable

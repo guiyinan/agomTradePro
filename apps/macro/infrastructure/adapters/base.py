@@ -4,10 +4,10 @@ Base Protocol and Exceptions for Macro Data Adapters.
 Infrastructure layer - defines the interface that all adapters must implement.
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from core.integration.runtime_settings import get_runtime_macro_publication_lags
 

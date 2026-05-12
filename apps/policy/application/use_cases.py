@@ -7,8 +7,8 @@ Application Layer - Use Cases for Policy Management
 import logging
 import time
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Protocol
+from datetime import date
+from typing import Any, Protocol
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError, IntegrityError
@@ -30,7 +30,6 @@ from ..domain.entities import (
     PolicyLevel,
     ProxyConfig,
     RiskImpact,
-    RSSItem,
     RSSSourceConfig,
 )
 from ..domain.rules import (
@@ -1445,20 +1444,12 @@ class AutoAssignAuditsUseCase:
 # ============================================================
 
 from ..domain.entities import (
-    EventType,
-    GateLevel,
-    HeatSentimentScore,
-    IngestionConfig,
     SentimentGateThresholds,
-    WorkbenchEvent,
     WorkbenchSummary,
 )
 from ..domain.rules import (
     calculate_gate_level,
-    can_event_affect_policy_level,
     get_max_position_cap,
-    is_sla_exceeded,
-    should_auto_approve,
 )
 
 

@@ -9,7 +9,7 @@ Integration Tests for Backtest Metrics Completeness
 5. stock_performances（个股表现）整理
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -19,7 +19,7 @@ from apps.backtest.domain.alpha_backtest import (
     AlphaBacktestEngine,
 )
 from apps.backtest.domain.entities import BacktestConfig
-from apps.backtest.domain.services import BacktestEngine, RebalanceResult
+from apps.backtest.domain.services import BacktestEngine
 from apps.backtest.domain.stock_selection_backtest import (
     RebalanceFrequency,
     StockSelectionBacktestConfig,
@@ -348,7 +348,7 @@ class TestBacktestMetricsIntegration:
         assert hasattr(result, 'max_drawdown'), "结果应包含 max_drawdown"
 
         # 验证再平衡记录包含 old_weights
-        for history_item in result.regime_history:
+        for _history_item in result.regime_history:
             # regime_history 在当前实现中不包含 RebalanceResult
             # 但我们可以验证 trades 记录
             pass

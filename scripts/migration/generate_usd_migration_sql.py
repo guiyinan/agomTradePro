@@ -97,7 +97,7 @@ DO UPDATE SET
 
 conn.close()
 
-print(f"Generated SQL file: migrate_usd_data.sql")
+print("Generated SQL file: migrate_usd_data.sql")
 print(f"Total records: {len(usd_rows)}")
-print(f"\nTo execute:")
-print(f"  docker exec -i agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro < migrate_usd_data.sql")
+print("\nTo execute:")
+print("  docker exec -i agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro < migrate_usd_data.sql")

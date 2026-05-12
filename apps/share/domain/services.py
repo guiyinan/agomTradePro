@@ -5,7 +5,6 @@ Share Domain Services
 """
 import secrets
 import string
-from typing import Optional
 
 
 def generate_short_code(length: int = 10) -> str:

@@ -75,4 +75,4 @@ class Command(BaseCommand):
 
         except (subprocess.CalledProcessError, FileNotFoundError, OSError, RuntimeError, ValueError) as e:
             logger.error(f"Database backup failed: {e}")
-            raise CommandError(f"Backup failed: {e}")
+            raise CommandError(f"Backup failed: {e}") from e

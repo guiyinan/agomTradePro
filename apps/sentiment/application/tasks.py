@@ -6,7 +6,7 @@ Sentiment 模块 - Application 层 Celery 任务
 
 import logging
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any
 
 from celery import shared_task
 

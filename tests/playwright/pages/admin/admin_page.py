@@ -1,13 +1,11 @@
 """
 Admin page object for detecting Django Admin exposure.
 """
-from typing import List, Optional
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 from tests.playwright.config.selectors import admin as admin_sel
 from tests.playwright.config.selectors import common
-from tests.playwright.config.test_config import config
 from tests.playwright.pages.base_page import BasePage
 
 

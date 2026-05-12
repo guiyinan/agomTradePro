@@ -9,11 +9,10 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SETTINGS_MODULE = "core.settings.development_sqlite"

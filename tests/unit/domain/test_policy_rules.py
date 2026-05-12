@@ -6,7 +6,6 @@ Only uses Python standard library - no Django imports.
 """
 
 from dataclasses import FrozenInstanceError
-from datetime import date
 
 import pytest
 
@@ -16,8 +15,6 @@ from apps.policy.domain.rules import (
     POLICY_RESPONSE_RULES,
     MarketAction,
     PolicyLevelKeywordRule,
-    PolicyResponse,
-    PolicyTransition,
     analyze_policy_transition,
     get_cash_allocation_adjustment,
     get_policy_response,

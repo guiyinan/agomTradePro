@@ -38,14 +38,6 @@ def check_alerts(alerts_file: Path) -> tuple[bool, list[str], list[str]]:
         'AuditWriteFailure'
     ]
 
-    optional_alerts = [
-        'HighAPILatency',
-        'DataCollectionFailure',
-        'QlibInferenceFailure',
-        'DatabaseConnectionPoolExhausted',
-        'RedisConnectionFailure',
-        'DiskSpaceLow'
-    ]
 
     found_alerts = []
     groups = config.get('groups', [])
@@ -165,7 +157,7 @@ def main() -> int:
     if prom_valid:
         print("  OK: Prometheus configuration is valid")
     else:
-        print(f"  FAILED: Prometheus configuration has errors")
+        print("  FAILED: Prometheus configuration has errors")
 
     print()
 

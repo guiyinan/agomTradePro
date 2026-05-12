@@ -5,7 +5,6 @@ Tests the FieldEncryptionService class from shared.infrastructure.crypto.
 """
 import os
 
-import django
 import pytest
 from cryptography.fernet import InvalidToken
 from django.conf import settings
@@ -50,7 +49,7 @@ class TestFieldEncryptionService:
             if original:
                 os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original
             if original_setting is not None:
-                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
+                settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
     def test_encrypt_decrypt_roundtrip(self):
         """Test encryption and decryption roundtrip."""
@@ -181,7 +180,7 @@ class TestGetEncryptionService:
 
         # Update Django settings
         original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
-        setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', key)
+        settings.AGOMTRADEPRO_ENCRYPTION_KEY = key
 
         try:
             service = get_encryption_service()
@@ -192,7 +191,7 @@ class TestGetEncryptionService:
             if original_setting is None:
                 delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
             else:
-                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
+                settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
     def test_returns_none_when_key_not_configured(self):
         """Test that None is returned when key is not configured."""
@@ -210,7 +209,7 @@ class TestGetEncryptionService:
             if original_env:
                 os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original_env
             if original_setting:
-                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
+                settings.AGOMTRADEPRO_ENCRYPTION_KEY = original_setting
 
 
 class TestFieldEncryptionServiceMask:

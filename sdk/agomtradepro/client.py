@@ -18,15 +18,11 @@ from .exceptions import (
     AgomTradeProAPIError,
     AuthenticationError,
     ConfigurationError,
-)
-from .exceptions import ConnectionError as SDKConnectionError
-from .exceptions import (
     ServerError,
-)
-from .exceptions import TimeoutError as SDKTimeoutError
-from .exceptions import (
     raise_for_status,
 )
+from .exceptions import ConnectionError as SDKConnectionError
+from .exceptions import TimeoutError as SDKTimeoutError
 from .modules.account import AccountModule
 from .modules.agent_context import AgentContextModule
 from .modules.agent_proposal import AgentProposalModule
@@ -79,51 +75,51 @@ class AgomTradeProClient:
     """
 
     # 模块实例（延迟初始化）
-    _regime: Optional[RegimeModule] = None
-    _signal: Optional[SignalModule] = None
-    _policy: Optional[PolicyModule] = None
-    _backtest: Optional[BacktestModule] = None
-    _account: Optional[AccountModule] = None
-    _simulated_trading: Optional[SimulatedTradingModule] = None
-    _equity: Optional[EquityModule] = None
-    _factor: Optional[FactorModule] = None
-    _fund: Optional[FundModule] = None
-    _sector: Optional[SectorModule] = None
-    _strategy: Optional[StrategyModule] = None
-    _realtime: Optional[RealtimeModule] = None
-    _rotation: Optional[RotationModule] = None
-    _hedge: Optional[HedgeModule] = None
-    _alpha: Optional[AlphaModule] = None
-    _ai_provider: Optional[AIProviderModule] = None
-    _prompt: Optional[PromptModule] = None
-    _audit: Optional[AuditModule] = None
-    _events: Optional[EventsModule] = None
-    _decision_rhythm: Optional[DecisionRhythmModule] = None
-    _beta_gate: Optional[BetaGateModule] = None
-    _alpha_trigger: Optional[AlphaTriggerModule] = None
-    _dashboard: Optional[DashboardModule] = None
-    _config_center: Optional[ConfigCenterModule] = None
-    _asset_analysis: Optional[AssetAnalysisModule] = None
-    _sentiment: Optional[SentimentModule] = None
-    _task_monitor: Optional[TaskMonitorModule] = None
-    _filter: Optional[FilterModule] = None
-    _data_center: Optional[DataCenterModule] = None
-    _decision_workflow: Optional[DecisionWorkflowModule] = None
-    _agent_runtime: Optional[AgentRuntimeModule] = None
-    _agent_context: Optional[AgentContextModule] = None
-    _agent_proposal: Optional[AgentProposalModule] = None
-    _pulse: Optional[PulseModule] = None
+    _regime: RegimeModule | None = None
+    _signal: SignalModule | None = None
+    _policy: PolicyModule | None = None
+    _backtest: BacktestModule | None = None
+    _account: AccountModule | None = None
+    _simulated_trading: SimulatedTradingModule | None = None
+    _equity: EquityModule | None = None
+    _factor: FactorModule | None = None
+    _fund: FundModule | None = None
+    _sector: SectorModule | None = None
+    _strategy: StrategyModule | None = None
+    _realtime: RealtimeModule | None = None
+    _rotation: RotationModule | None = None
+    _hedge: HedgeModule | None = None
+    _alpha: AlphaModule | None = None
+    _ai_provider: AIProviderModule | None = None
+    _prompt: PromptModule | None = None
+    _audit: AuditModule | None = None
+    _events: EventsModule | None = None
+    _decision_rhythm: DecisionRhythmModule | None = None
+    _beta_gate: BetaGateModule | None = None
+    _alpha_trigger: AlphaTriggerModule | None = None
+    _dashboard: DashboardModule | None = None
+    _config_center: ConfigCenterModule | None = None
+    _asset_analysis: AssetAnalysisModule | None = None
+    _sentiment: SentimentModule | None = None
+    _task_monitor: TaskMonitorModule | None = None
+    _filter: FilterModule | None = None
+    _data_center: DataCenterModule | None = None
+    _decision_workflow: DecisionWorkflowModule | None = None
+    _agent_runtime: AgentRuntimeModule | None = None
+    _agent_context: AgentContextModule | None = None
+    _agent_proposal: AgentProposalModule | None = None
+    _pulse: PulseModule | None = None
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_token: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        timeout: Optional[int] = None,
-        max_retries: Optional[int] = None,
-        verify_ssl: Optional[bool] = None,
-        config: Optional[ClientConfig] = None,
+        base_url: str | None = None,
+        api_token: str | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        timeout: int | None = None,
+        max_retries: int | None = None,
+        verify_ssl: bool | None = None,
+        config: ClientConfig | None = None,
     ) -> None:
         """
         初始化客户端
@@ -155,7 +151,7 @@ class AgomTradeProClient:
         try:
             self._config.validate()
         except Exception as e:
-            raise ConfigurationError(f"Invalid configuration: {e}")
+            raise ConfigurationError(f"Invalid configuration: {e}") from e
 
         # 初始化 HTTP session
         self._session = self._create_session()
@@ -268,9 +264,9 @@ class AgomTradeProClient:
         self,
         method: str,
         endpoint: str,
-        params: Optional[dict[str, Any]] = None,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 HTTP 请求
@@ -326,13 +322,13 @@ class AgomTradeProClient:
             return response_data or {}
 
         except requests.exceptions.Timeout:
-            raise SDKTimeoutError(f"Request to {url} timed out")
+            raise SDKTimeoutError(f"Request to {url} timed out") from None
         except requests.exceptions.ConnectionError as e:
-            raise SDKConnectionError(f"Failed to connect to {url}: {e}")
+            raise SDKConnectionError(f"Failed to connect to {url}: {e}") from e
         except AgomTradeProAPIError:
             raise
         except Exception as e:
-            raise AgomTradeProAPIError(f"Unexpected error: {e}")
+            raise AgomTradeProAPIError(f"Unexpected error: {e}") from e
 
     # ========================================================================
     # 公共快捷方法
@@ -341,7 +337,7 @@ class AgomTradeProClient:
     def get(
         self,
         endpoint: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 GET 请求
@@ -358,8 +354,8 @@ class AgomTradeProClient:
     def post(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 POST 请求
@@ -377,8 +373,8 @@ class AgomTradeProClient:
     def put(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 PUT 请求
@@ -396,8 +392,8 @@ class AgomTradeProClient:
     def patch(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 PATCH 请求
@@ -415,7 +411,7 @@ class AgomTradeProClient:
     def delete(
         self,
         endpoint: str,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 DELETE 请求

@@ -4,7 +4,7 @@ Domain Layer - Protocol Interfaces for Policy
 本文件定义Policy模块的Protocol接口，用于依赖注入和解耦。
 """
 
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from .entities import AIClassificationResult, PolicyEvent, PolicyLevel, RSSItem
 

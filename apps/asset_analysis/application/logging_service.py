@@ -5,17 +5,14 @@
 """
 
 import logging
-import traceback
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone
 
 from apps.asset_analysis.application.repository_provider import (
     get_asset_analysis_log_repository,
 )
-from apps.asset_analysis.domain.entities import AssetScore
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 
 logger = logging.getLogger(__name__)

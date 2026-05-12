@@ -10,11 +10,9 @@
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 from apps.equity.application.config import get_valuation_repair_config
 from apps.equity.domain.entities_valuation_repair import (
-    PercentilePoint,
     ValuationRepairPhase,
     ValuationRepairStatus,
 )

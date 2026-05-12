@@ -48,7 +48,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Set, Tuple, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 # 设置标准输出编码为 UTF-8
 if sys.platform == 'win32':
@@ -112,7 +112,7 @@ class URLPatternExtractor(ast.NodeVisitor):
 
     def __init__(self, file_path: str):
         self.file_path = file_path
-        self.routes: List[Dict] = []
+        self.routes: list[dict] = []
 
     def visit_Call(self, node):
         """访问函数调用，查找 path() 调用"""
@@ -141,10 +141,10 @@ class URLPatternExtractor(ast.NodeVisitor):
         })
 
 
-def extract_routes_from_file(file_path: str) -> List[Dict]:
+def extract_routes_from_file(file_path: str) -> list[dict]:
     """从文件中提取路由"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             content = f.read()
 
         tree = ast.parse(content, filename=file_path)
@@ -156,7 +156,7 @@ def extract_routes_from_file(file_path: str) -> List[Dict]:
         return []
 
 
-def extract_mount_points_from_core_urls() -> Dict[str, List[str]]:
+def extract_mount_points_from_core_urls() -> dict[str, list[str]]:
     """从 core/urls.py 提取模块挂载点信息"""
     core_urls_path = Path('core/urls.py')
     if not core_urls_path.exists():
@@ -165,7 +165,7 @@ def extract_mount_points_from_core_urls() -> Dict[str, List[str]]:
     mount_points = defaultdict(list)
 
     try:
-        with open(core_urls_path, 'r', encoding='utf-8') as f:
+        with open(core_urls_path, encoding='utf-8') as f:
             content = f.read()
 
         tree = ast.parse(content, filename=str(core_urls_path))
@@ -221,7 +221,7 @@ def is_whitelisted(url: str) -> bool:
     return False
 
 
-def check_route_pattern(url: str) -> Tuple[bool, str, str]:
+def check_route_pattern(url: str) -> tuple[bool, str, str]:
     """
     检查路由模式
 
@@ -248,9 +248,9 @@ def check_route_pattern(url: str) -> Tuple[bool, str, str]:
     return True, 'other', 'other'
 
 
-def collect_all_routes() -> Tuple[List[RouteInfo], Dict[str, List[str]]]:
+def collect_all_routes() -> tuple[list[RouteInfo], dict[str, list[str]]]:
     """收集所有路由信息"""
-    routes: List[RouteInfo] = []
+    routes: list[RouteInfo] = []
     mount_points = extract_mount_points_from_core_urls()
 
     # 收集所有 urls.py 和 api_urls.py
@@ -339,9 +339,9 @@ def collect_all_routes() -> Tuple[List[RouteInfo], Dict[str, List[str]]]:
     return routes, mount_points
 
 
-def find_violations(routes: List[RouteInfo], mount_points: Dict[str, List[str]]) -> List[RouteViolation]:
+def find_violations(routes: list[RouteInfo], mount_points: dict[str, list[str]]) -> list[RouteViolation]:
     """查找路由违规"""
-    violations: List[RouteViolation] = []
+    violations: list[RouteViolation] = []
 
     # 已有 api_urls.py 的模块 - 这些模块的 API 路由应该都在 api_urls.py 中
     modules_with_api_urls = set()
@@ -366,7 +366,7 @@ def find_violations(routes: List[RouteInfo], mount_points: Dict[str, List[str]])
                     file_path=route.file_path,
                     line_number=route.line_number,
                     violation_type='duplicate_api_route',
-                    suggestion=f"模块已有 api_urls.py，API 路由应移至 api_urls.py 以避免重复",
+                    suggestion="模块已有 api_urls.py，API 路由应移至 api_urls.py 以避免重复",
                 ))
             # 注意: api_in_urls_file_suggested 不计入违规，仅作为建议
             # 因为模块可以只使用 urls.py，只要路由挂载到 /api/{module}/ 即可
@@ -390,7 +390,7 @@ def find_violations(routes: List[RouteInfo], mount_points: Dict[str, List[str]])
     return violations
 
 
-def print_summary(routes: List[RouteInfo], violations: List[RouteViolation], mount_points: Dict[str, List[str]]):
+def print_summary(routes: list[RouteInfo], violations: list[RouteViolation], mount_points: dict[str, list[str]]):
     """打印汇总信息"""
     # 统计
     total_routes = len(routes)
@@ -438,7 +438,7 @@ def print_summary(routes: List[RouteInfo], violations: List[RouteViolation], mou
             print(f"  建议: {v.suggestion}")
 
 
-def print_fix_suggestions(violations: List[RouteViolation]):
+def print_fix_suggestions(violations: list[RouteViolation]):
     """打印修复建议"""
     if not violations:
         return
@@ -448,7 +448,7 @@ def print_fix_suggestions(violations: List[RouteViolation]):
     print("=" * 80)
 
     # 按模块分组
-    by_module: Dict[str, List[RouteViolation]] = defaultdict(list)
+    by_module: dict[str, list[RouteViolation]] = defaultdict(list)
     for v in violations:
         by_module[v.module].append(v)
 

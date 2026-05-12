@@ -15,10 +15,7 @@ PMI Sub-items Data Fetcher（Regime 滞后性改进 Phase 3）
 import json
 import logging
 import os
-from datetime import date, timedelta
-from typing import Dict, List, Optional
-
-import pandas as pd
+from datetime import date
 
 from ..base import DataValidationError, MacroDataPoint
 

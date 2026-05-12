@@ -10,7 +10,6 @@ Feedparser RSS Adapter
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from django.utils import timezone
 
@@ -23,10 +22,10 @@ try:
     import feedparser
 except ImportError:
     feedparser = None
-    raise ImportError("feedparser is required. Install it with: pip install feedparser")
+    raise ImportError("feedparser is required. Install it with: pip install feedparser") from None
 
-from ...domain.entities import ProxyConfig, RSSSourceConfig
-from .rss_adapter import BaseRSSAdapter, RSSFetchError, RSSItem, RSSParseError
+from ...domain.entities import RSSSourceConfig
+from .rss_adapter import BaseRSSAdapter, RSSFetchError, RSSItem
 
 logger = logging.getLogger(__name__)
 

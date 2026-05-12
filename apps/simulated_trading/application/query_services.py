@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from apps.simulated_trading.application.repository_provider import (
-    get_simulated_daily_net_value_repository,
     get_simulated_account_repository,
+    get_simulated_daily_net_value_repository,
     get_simulated_position_repository,
 )
 

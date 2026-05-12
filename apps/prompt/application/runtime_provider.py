@@ -4,15 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from .repository_provider import (
-    build_macro_adapter,
-    build_regime_adapter,
-    create_builtin_tools,
-    get_chain_repository,
-    get_execution_log_repository,
-    get_prompt_repository,
-)
-
 from .agent_runtime import AgentRuntime
 from .context_builders import (
     AssetPoolContextProvider,
@@ -21,6 +12,12 @@ from .context_builders import (
     PortfolioContextProvider,
     RegimeContextProvider,
     SignalContextProvider,
+)
+from .repository_provider import (
+    build_macro_adapter,
+    build_regime_adapter,
+    create_builtin_tools,
+    get_execution_log_repository,
 )
 from .tool_execution import create_agent_tool_registry
 from .trace_logging import AgentExecutionLogger

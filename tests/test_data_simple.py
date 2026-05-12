@@ -8,13 +8,12 @@ AgomTradePro 综合数据连接测试脚本（简化版）
 """
 import json
 import os
-import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 # Django already set up when running via shell
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 from apps.account.infrastructure.models import (

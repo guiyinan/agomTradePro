@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from apps.filter.infrastructure.providers import (
     DjangoFilterRepository,
-    HPFilterAdapter,
-    KalmanFilterAdapter,
+    HPFilterAdapter,  # noqa: F401
+    KalmanFilterAdapter,  # noqa: F401
 )
 
 

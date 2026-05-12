@@ -8,10 +8,8 @@ Unit tests for High-Frequency Indicators (Phase 1)
 4. 混合 Regime 计算（HybridRegimeCalculator）
 """
 
-from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock
-
-import pytest
+from datetime import date
+from unittest.mock import Mock
 
 from apps.macro.domain.entities import (
     BondYieldCurve,
@@ -50,7 +48,6 @@ class TestHighFrequencyIndicator:
 
     def test_to_macro_indicator_conversion(self):
         """测试：转换为 MacroIndicator 实体"""
-        from apps.macro.domain.entities import MacroIndicator
 
         hf_indicator = HighFrequencyIndicator(
             code="CN_BOND_10Y",

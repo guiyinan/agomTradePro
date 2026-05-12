@@ -20,8 +20,8 @@ Environment Variables:
     AGOMTRADEPRO_RHIZOME_PATH: Path to rhizome knowledge base (optional)
 """
 
-import sys
 import os
+import sys
 
 # Ensure the parent directory is in the path for imports
 # This allows running: python -m agomtradepro_mcp

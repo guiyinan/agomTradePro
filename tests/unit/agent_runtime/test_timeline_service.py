@@ -9,7 +9,7 @@ Tests verify:
 - Both AgentTask entity and task_id integer are supported
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest

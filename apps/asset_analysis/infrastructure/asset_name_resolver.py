@@ -11,10 +11,11 @@ import hashlib
 import json
 import logging
 
+from django.core.cache import cache
+
 from core.integration.asset_analysis_market_registry import (
     get_asset_analysis_market_registry,
 )
-from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ class AssetNameResolver:
 
 def _build_cache_key(codes: list[str]) -> str:
     """Build the cache key for a code batch."""
-    sorted_codes = sorted(set(c for c in codes if c))
+    sorted_codes = sorted({c for c in codes if c})
     codes_hash = hashlib.sha256(json.dumps(sorted_codes).encode()).hexdigest()[:32]
     return f"{CACHE_PREFIX}:{codes_hash}"
 

@@ -6,8 +6,6 @@ Pure Domain layer tests using only Python standard library.
 
 from datetime import datetime
 
-import pytest
-
 from apps.ai_provider.domain.entities import (
     AIChatRequest,
     AIChatResponse,

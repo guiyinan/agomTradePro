@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 
 from apps.regime.domain.services_v2 import RegimeType, TrendIndicator
 
-
 # ==================== 配置 Dataclass（Domain 层默认值） ====================
 
 

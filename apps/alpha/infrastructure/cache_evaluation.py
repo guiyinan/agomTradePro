@@ -6,12 +6,11 @@ Alpha Cache Evaluation Functions
 
 import logging
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Set
 
 import numpy as np
 
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.alpha.infrastructure.cache_code_parser import extract_cached_score_code
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from shared.infrastructure.model_evaluation import (
     IC_Calculator,
     ModelEvaluator,

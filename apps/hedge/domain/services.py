@@ -12,8 +12,7 @@ Uses only:
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import date
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
@@ -22,7 +21,6 @@ from apps.hedge.domain.entities import (
     HedgeMethod,
     HedgePair,
     HedgePortfolio,
-    get_common_hedge_pairs,
 )
 from shared.domain.correlation import RollingCorrelationCalculator
 
@@ -137,7 +135,7 @@ class CorrelationMonitor:
         """
         correlation_matrix = {}
 
-        for i, asset1 in enumerate(asset_codes):
+        for _i, asset1 in enumerate(asset_codes):
             correlation_matrix[asset1] = {}
             for asset2 in asset_codes:
                 if asset1 == asset2:

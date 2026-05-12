@@ -10,7 +10,6 @@ Usage:
     python manage.py encrypt_api_keys --force
 """
 import logging
-from typing import Optional
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -52,7 +51,7 @@ class Command(BaseCommand):
                     "Please set AGOMTRADEPRO_ENCRYPTION_KEY environment variable."
                 )
         except Exception as e:
-            raise CommandError(f"Failed to initialize encryption service: {e}")
+            raise CommandError(f"Failed to initialize encryption service: {e}") from e
 
         # Find all providers with plaintext API keys
         providers_to_encrypt = AIProviderConfig.objects.exclude(

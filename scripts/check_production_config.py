@@ -226,7 +226,6 @@ def check_cors() -> SecurityCheck:
 
 def check_ssl() -> SecurityCheck:
     """检查 SSL 相关配置"""
-    checks = []
     all_passed = True
     messages = []
 

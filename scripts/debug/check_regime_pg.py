@@ -1,12 +1,14 @@
 """Check current Regime data in PostgreSQL database"""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from apps.regime.infrastructure.models import RegimeLog
 from django.db import connection
+
+from apps.regime.infrastructure.models import RegimeLog
 
 print("=" * 60)
 print("数据库连接信息:")

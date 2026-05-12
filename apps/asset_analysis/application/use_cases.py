@@ -5,9 +5,6 @@
 用例是 Application 层的核心，协调 Domain 层和 Infrastructure 层。
 """
 
-from dataclasses import replace
-from datetime import datetime
-from typing import List, Union
 
 from django.utils import timezone
 
@@ -18,7 +15,7 @@ from apps.asset_analysis.application.dtos import (
     WeightConfigDTO,
 )
 from apps.asset_analysis.application.services import AssetMultiDimScorer
-from apps.asset_analysis.domain.entities import AssetScore, AssetSize, AssetStyle, AssetType
+from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
     WeightConfigRepositoryProtocol,
@@ -73,7 +70,7 @@ class MultiDimScreenUseCase:
 
             # 3. 如果请求中指定了权重，创建临时权重配置
             if request.weights:
-                weights = WeightConfig(
+                WeightConfig(
                     regime_weight=request.weights.get("regime", 0.40),
                     policy_weight=request.weights.get("policy", 0.25),
                     sentiment_weight=request.weights.get("sentiment", 0.20),

@@ -10,11 +10,10 @@ from datetime import date, timedelta
 
 from django.core.management.base import BaseCommand
 
-from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
-
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
 from apps.macro.infrastructure.providers import DjangoMacroRepository
+from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 DOMAIN_PERIOD_TYPES = {
     "D": PeriodType.DAY,

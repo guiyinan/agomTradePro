@@ -5,8 +5,6 @@
 """
 from datetime import date
 
-import pytest
-
 from apps.simulated_trading.domain.entities import AccountType, Position, SimulatedAccount
 from apps.simulated_trading.domain.rules import PositionSizingRule, TradingConstraintRule
 

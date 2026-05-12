@@ -4,10 +4,10 @@ Base Protocol and Exceptions for Asset Price Adapters.
 Infrastructure layer - defines the interface for fetching asset prices.
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Protocol
+from typing import Protocol
 
 from core.integration.asset_proxy_map import get_runtime_asset_proxy_map
 

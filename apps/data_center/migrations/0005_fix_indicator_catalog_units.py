@@ -1,6 +1,5 @@
 from django.db import migrations
 
-
 UNIT_FIXES = {
     "CN_PMI": "指数",
     "CN_NON_MAN_PMI": "指数",

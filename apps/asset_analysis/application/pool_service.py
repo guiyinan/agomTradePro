@@ -5,13 +5,11 @@
 """
 
 import logging
-from datetime import date, datetime
-from typing import Dict, List, Optional, Tuple
+from datetime import date
 
-from apps.asset_analysis.domain.entities import AssetScore, AssetStyle, AssetType
+from apps.asset_analysis.domain.entities import AssetScore, AssetType
 from apps.asset_analysis.domain.pool import (
     EntryReason,
-    ExitReason,
     PoolCategory,
     PoolConfig,
     PoolEntry,

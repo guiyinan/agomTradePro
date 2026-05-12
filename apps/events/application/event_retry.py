@@ -12,9 +12,9 @@ Event Retry Mechanism
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from ..domain.entities import DomainEvent, EventType
 from ..domain.interfaces import FailedEventRepositoryProtocol

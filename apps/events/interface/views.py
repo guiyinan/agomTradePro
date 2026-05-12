@@ -5,20 +5,16 @@ Events Interface Views
 """
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.events.application.dtos import (
     EventPublishRequestDTO,
-    EventQueryRequestDTO,
-    EventReplayRequestDTO,
-    event_to_dto,
     metrics_to_dto,
 )
 from apps.events.application.use_cases import (
@@ -27,18 +23,12 @@ from apps.events.application.use_cases import (
     QueryEventsUseCase,
     ReplayEventsUseCase,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType
 
 from .serializers import (
-    BaseResponseSerializer,
-    EventBusStatusSerializer,
     EventPublishRequestSerializer,
-    EventPublishResponseSerializer,
     EventQueryRequestSerializer,
-    EventQueryResponseSerializer,
     EventReplayRequestSerializer,
-    EventReplayResponseSerializer,
-    EventStatisticsResponseSerializer,
 )
 
 logger = logging.getLogger(__name__)

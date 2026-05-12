@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 AkShare 数据同步脚本
 
 从 AkShare 获取中国宏观数据并保存到数据库
 """
 
-import sys
 import os
+import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -25,11 +24,12 @@ sys.path.insert(0, str(project_root))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 
 import django
+
 django.setup()
 
+from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.domain.entities import MacroIndicator, PeriodType
 
 
 def sync_data(

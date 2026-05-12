@@ -2,7 +2,6 @@
 资产分析模块单元测试
 """
 
-from datetime import date
 
 import pytest
 
@@ -15,7 +14,6 @@ from apps.asset_analysis.domain.services import (
     SignalMatcher,
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
-from apps.asset_analysis.infrastructure.repositories import DjangoWeightConfigRepository
 
 
 class TestAssetScore:

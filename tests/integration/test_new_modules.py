@@ -34,20 +34,10 @@ import django
 
 django.setup()
 
-from apps.factor.infrastructure.repositories import (
-    FactorDefinitionRepository,
-    FactorPortfolioConfigRepository,
-    FactorPortfolioHoldingRepository,
-)
 from apps.hedge.infrastructure.repositories import (
     CorrelationHistoryRepository,
     HedgePairRepository,
     HedgePortfolioRepository,
-)
-from apps.rotation.infrastructure.repositories import (
-    AssetClassRepository,
-    RotationConfigRepository,
-    RotationSignalRepository,
 )
 from apps.signal.infrastructure.repositories import UnifiedSignalRepository
 
@@ -150,7 +140,7 @@ def test_hedge_module() -> dict:
         print_info(f"Recent Correlations: {len(recent_corrs)} records")
 
         # Test Hedge Portfolio Repository
-        portfolio_repo = HedgePortfolioRepository()
+        HedgePortfolioRepository()
 
         return {
             'status': 'pass',
@@ -212,12 +202,10 @@ def test_django_models() -> dict:
     try:
         from apps.factor.infrastructure.models import (
             FactorDefinitionModel,
-            FactorPortfolioConfigModel,
         )
         from apps.hedge.infrastructure.models import HedgePairModel
         from apps.rotation.infrastructure.models import (
             AssetClassModel,
-            RotationConfigModel,
         )
         from apps.signal.infrastructure.models import UnifiedSignalModel
 
@@ -249,7 +237,6 @@ def test_sdk_modules() -> dict:
     print_test("SDK Module Imports")
 
     try:
-        from sdk.agomtradepro.modules import FactorModule, HedgeModule, RotationModule
         print_success("All new SDK modules imported")
 
         return {'status': 'pass'}

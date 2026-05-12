@@ -2,7 +2,6 @@
 使用 NBS JSON API 获取 PMI 分项数据
 """
 import json
-from datetime import datetime
 
 import requests
 

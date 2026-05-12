@@ -8,7 +8,7 @@ No Django, no ORM, no external libraries — only stdlib.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 # ---------------------------------------------------------------------------
 # Unit-normalisation (migrated from macro.domain.entities)
@@ -208,10 +208,10 @@ def is_stale(fetched_at: datetime, max_age_hours: float) -> bool:
         >>> is_stale(datetime.now(timezone.utc) - timedelta(minutes=30), max_age_hours=1)
         False
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Normalise naive datetime to UTC
     if fetched_at.tzinfo is None:
-        fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+        fetched_at = fetched_at.replace(tzinfo=UTC)
     age_hours = (now - fetched_at).total_seconds() / 3600
     return age_hours > max_age_hours
 

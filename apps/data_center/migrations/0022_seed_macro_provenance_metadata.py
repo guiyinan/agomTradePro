@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 PROVENANCE_UPDATES = {
     "CN_PMI": {
         "provenance_class": "official",

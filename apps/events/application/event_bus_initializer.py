@@ -8,7 +8,6 @@ Event Bus Initializer
 """
 
 import logging
-from typing import List, Optional
 
 from ..domain.entities import EventType
 from ..domain.services import EventBus, EventHandler, InMemoryEventBus

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Backtest 回测引擎模块
 
@@ -10,8 +11,8 @@ AgomTradePro SDK - Backtest 回测引擎模块
 from datetime import date
 from typing import Any, Optional
 
-from .base import BaseModule
 from ..types import BacktestParams, BacktestResult
+from .base import BaseModule
 
 
 class BacktestModule(BaseModule):
@@ -36,7 +37,7 @@ class BacktestModule(BaseModule):
         start_date: date,
         end_date: date,
         initial_capital: float = 1000000.0,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
     ) -> BacktestResult:
         """
         运行回测
@@ -104,8 +105,8 @@ class BacktestModule(BaseModule):
 
     def list_backtests(
         self,
-        strategy_name: Optional[str] = None,
-        status: Optional[str] = None,
+        strategy_name: str | None = None,
+        status: str | None = None,
         limit: int = 100,
     ) -> list[BacktestResult]:
         """
@@ -141,8 +142,8 @@ class BacktestModule(BaseModule):
 
     def list(
         self,
-        strategy_name: Optional[str] = None,
-        status: Optional[str] = None,
+        strategy_name: str | None = None,
+        status: str | None = None,
         limit: int = 100,
     ) -> list[BacktestResult]:
         """

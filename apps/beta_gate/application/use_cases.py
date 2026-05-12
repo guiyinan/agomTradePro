@@ -9,21 +9,18 @@ Beta Gate Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 
 from ..domain.entities import (
     GateConfig,
     GateDecision,
-    GateStatus,
     RiskProfile,
     VisibilityUniverse,
 )
 from ..domain.services import (
     BetaGateEvaluator,
-    VisibilityUniverseBuilder,
 )
 
 logger = logging.getLogger(__name__)

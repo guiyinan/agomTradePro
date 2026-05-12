@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """检查 SQLite 数据并迁移到 PostgreSQL"""
-import sqlite3
 import os
+import sqlite3
 
 print("=== 检查 SQLite 数据库 ===")
 db_path = 'D:/githv/agomTradePro/db.sqlite3'
@@ -31,7 +31,7 @@ for table in tables_to_check:
         cursor.execute(f"SELECT count(*) FROM {table}")
         count = cursor.fetchone()[0]
         print(f"  {table}: {count} 条记录")
-    except Exception as e:
+    except Exception:
         print(f"  {table}: 不存在")
 
 conn.close()

@@ -5,15 +5,14 @@
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
-from apps.equity.domain.services import StockScreener, ValuationAnalyzer
+from apps.equity.domain.services import StockScreener
 
 
 class RebalanceFrequency(Enum):
@@ -161,7 +160,7 @@ class StockSelectionBacktestEngine:
         # 初始基准
         initial_benchmark_price = self.get_benchmark_price_func(self.config.start_date)
 
-        for i, rebalance_date in enumerate(rebalance_dates):
+        for _i, rebalance_date in enumerate(rebalance_dates):
             # 1. 获取当前 Regime
             regime = self.get_regime_func(rebalance_date) or "Recovery"
 

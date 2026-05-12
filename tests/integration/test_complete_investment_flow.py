@@ -17,7 +17,6 @@ Usage:
 import os
 import sys
 from datetime import date
-from typing import Optional
 
 import pytest
 
@@ -49,7 +48,6 @@ def print_step(step: int, description: str) -> None:
 
 def print_result(success: bool, message: str) -> None:
     """Print a test result"""
-    status = "PASS" if success else "FAIL"
     symbol = "[OK]" if success else "[FAIL]"
     print(f"{symbol} {message}")
 
@@ -101,7 +99,6 @@ def test_complete_investment_flow() -> None:
 
         # Save regime data for later verification
         saved_regime = regime.dominant_regime
-        saved_regime_date = regime.observed_at
 
         # ====================================================================
         # STEP 3: Get Policy Status
@@ -120,7 +117,6 @@ def test_complete_investment_flow() -> None:
         print_result(True, f"Current policy gear is {policy_status.current_gear}")
 
         # Save policy data for later verification
-        saved_policy_gear = policy_status.current_gear
 
         # ====================================================================
         # STEP 4: Check Signal Eligibility

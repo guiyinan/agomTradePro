@@ -9,10 +9,8 @@ Following AgomSaaS architecture rules:
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from apps.realtime.domain.entities import (
-    PricePollingConfig,
     PriceSnapshot,
     PriceUpdate,
     RealtimePrice,

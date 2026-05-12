@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from functools import wraps
 
 from django.conf import settings
@@ -37,7 +37,7 @@ def server_logs_stream(request):
 @staff_member_required
 def server_logs_export(request):
     content = dump_as_text()
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     response = HttpResponse(content, content_type="text/plain; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="server_logs_{stamp}.txt"'
     return response

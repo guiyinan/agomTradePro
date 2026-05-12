@@ -10,7 +10,6 @@ class DataCenterConfig(AppConfig):
 
     def ready(self) -> None:
         import apps.data_center.interface.admin  # noqa: F401
-
         from apps.data_center.application.config_summary_service import (
             configure_data_center_config_summary_repository,
         )

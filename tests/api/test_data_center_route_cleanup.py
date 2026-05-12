@@ -1,5 +1,4 @@
-from datetime import date, datetime, timedelta
-from datetime import timezone as dt_timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -425,7 +424,7 @@ def test_data_center_quotes_resolve_alias_to_canonical_asset(authenticated_clien
     )
     QuoteSnapshotModel.objects.create(
         asset_code="300502.SZ",
-        snapshot_at=datetime(2026, 4, 12, 9, 35, tzinfo=dt_timezone.utc),
+        snapshot_at=datetime(2026, 4, 12, 9, 35, tzinfo=UTC),
         current_price="92.35",
         prev_close="91.10",
         volume="12345.00",

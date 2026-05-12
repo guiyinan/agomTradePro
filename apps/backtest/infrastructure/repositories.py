@@ -5,15 +5,12 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from django.db import transaction
 from django.db.models import Avg
-from django.utils import timezone
 
 from ..domain.entities import (
     BacktestConfig,
-    BacktestStatus,
     Trade,
 )
 from ..domain.entities import (

@@ -6,7 +6,6 @@ Data Center 网关层协议
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,

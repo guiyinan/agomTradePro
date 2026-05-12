@@ -3,9 +3,6 @@ Dashboard Application DTOs
 """
 
 from dataclasses import dataclass
-from datetime import date
-from decimal import Decimal
-from typing import Dict, List, Optional
 
 
 @dataclass

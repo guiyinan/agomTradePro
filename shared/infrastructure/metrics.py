@@ -261,17 +261,17 @@ class MetricsRegistry:
             lines.append(f"# HELP {name} {help_text}")
 
         # 导出 counters
-        for metric_name, label_dict in self._counters.items():
+        for _metric_name, label_dict in self._counters.items():
             for metric_value in label_dict.values():
                 lines.append(metric_value.to_prometheus().strip())
 
         # 导出 gauges
-        for metric_name, label_dict in self._gauges.items():
+        for _metric_name, label_dict in self._gauges.items():
             for metric_value in label_dict.values():
                 lines.append(metric_value.to_prometheus().strip())
 
         # 导出 histograms
-        for metric_name, label_dict in self._histograms.items():
+        for _metric_name, label_dict in self._histograms.items():
             for histogram_value in label_dict.values():
                 lines.append(histogram_value.to_prometheus().strip())
 

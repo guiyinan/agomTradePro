@@ -9,14 +9,13 @@ Provides functionality for:
 
 import logging
 from calendar import monthrange
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
-
-from ..domain.entities import MacroIndicator
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +398,6 @@ class ScheduleDataFetchUseCase:
             return False
 
         # 检查本月是否已有数据
-        from datetime import timedelta
 
         month_start = check_date.replace(day=1)
         latest = self.repository.get_latest_observation_date(indicator, check_date)

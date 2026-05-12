@@ -4,22 +4,22 @@
 使用模拟数据验证回测引擎的功能
 """
 
+import random
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Dict, Tuple, Optional
-import random
+from typing import Dict, List, Optional, Tuple
 
 # 导入回测引擎和相关实体
 from apps.backtest.domain.stock_selection_backtest import (
-    StockSelectionBacktestEngine,
+    RebalanceFrequency,
     StockSelectionBacktestConfig,
-    RebalanceFrequency
+    StockSelectionBacktestEngine,
 )
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
 
 
-def generate_mock_stocks(num_stocks: int = 100) -> List[StockInfo]:
+def generate_mock_stocks(num_stocks: int = 100) -> list[StockInfo]:
     """生成模拟股票信息"""
     sectors = ['证券', '建筑材料', '化工', '汽车', '电子', '医药生物', '食品饮料', '银行', '保险']
     markets = ['SH', 'SZ']
@@ -40,9 +40,9 @@ def generate_mock_stocks(num_stocks: int = 100) -> List[StockInfo]:
 
 
 def generate_mock_financial_data(
-    stock_codes: List[str],
+    stock_codes: list[str],
     report_date: date
-) -> Dict[str, FinancialData]:
+) -> dict[str, FinancialData]:
     """生成模拟财务数据"""
     financial_data = {}
 
@@ -81,10 +81,10 @@ def generate_mock_financial_data(
 
 
 def generate_mock_valuation_data(
-    stock_codes: List[str],
+    stock_codes: list[str],
     trade_date: date,
-    quality_codes: List[str]
-) -> Dict[str, ValuationMetrics]:
+    quality_codes: list[str]
+) -> dict[str, ValuationMetrics]:
     """生成模拟估值数据"""
     valuation_data = {}
 
@@ -114,11 +114,11 @@ def generate_mock_valuation_data(
 
 
 def generate_mock_prices(
-    stock_codes: List[str],
+    stock_codes: list[str],
     start_date: date,
     end_date: date,
-    quality_codes: List[str]
-) -> Dict[str, Dict[date, Decimal]]:
+    quality_codes: list[str]
+) -> dict[str, dict[date, Decimal]]:
     """生成模拟价格数据"""
     prices = {}
     days = (end_date - start_date).days
@@ -160,7 +160,7 @@ def generate_mock_prices(
 def generate_mock_regime_history(
     start_date: date,
     end_date: date
-) -> Dict[date, str]:
+) -> dict[date, str]:
     """生成模拟 Regime 历史"""
     regimes = {}
     current_date = start_date
@@ -183,7 +183,7 @@ def generate_mock_regime_history(
 def generate_mock_benchmark_prices(
     start_date: date,
     end_date: date
-) -> Dict[date, float]:
+) -> dict[date, float]:
     """生成模拟基准价格（沪深300）"""
     prices = {}
     base_value = 3000.0
@@ -208,9 +208,9 @@ def generate_mock_benchmark_prices(
     return prices
 
 
-def get_regime_func_factory(regime_history: Dict[date, str]):
+def get_regime_func_factory(regime_history: dict[date, str]):
     """创建获取 Regime 的函数"""
-    def get_regime(query_date: date) -> Optional[str]:
+    def get_regime(query_date: date) -> str | None:
         # 找到最接近的日期
         if query_date in regime_history:
             return regime_history[query_date]
@@ -230,12 +230,12 @@ def get_regime_func_factory(regime_history: Dict[date, str]):
 
 
 def get_stock_data_func_factory(
-    stocks: List[StockInfo],
-    financial_data_by_date: Dict[date, Dict[str, FinancialData]],
-    valuation_data_by_date: Dict[date, Dict[str, ValuationMetrics]]
+    stocks: list[StockInfo],
+    financial_data_by_date: dict[date, dict[str, FinancialData]],
+    valuation_data_by_date: dict[date, dict[str, ValuationMetrics]]
 ):
     """创建获取股票数据的函数"""
-    def get_stock_data(query_date: date) -> List[Tuple[StockInfo, FinancialData, ValuationMetrics]]:
+    def get_stock_data(query_date: date) -> list[tuple[StockInfo, FinancialData, ValuationMetrics]]:
         # 找到最近的财务和估值数据
         financial = financial_data_by_date.get(query_date, {})
         valuation = valuation_data_by_date.get(query_date, {})
@@ -250,9 +250,9 @@ def get_stock_data_func_factory(
     return get_stock_data
 
 
-def get_price_func_factory(prices_by_stock: Dict[str, Dict[date, Decimal]]):
+def get_price_func_factory(prices_by_stock: dict[str, dict[date, Decimal]]):
     """创建获取价格的函数"""
-    def get_price(stock_code: str, query_date: date) -> Optional[Decimal]:
+    def get_price(stock_code: str, query_date: date) -> Decimal | None:
         if stock_code not in prices_by_stock:
             return None
 
@@ -276,9 +276,9 @@ def get_price_func_factory(prices_by_stock: Dict[str, Dict[date, Decimal]]):
     return get_price
 
 
-def get_benchmark_price_func_factory(benchmark_prices: Dict[date, float]):
+def get_benchmark_price_func_factory(benchmark_prices: dict[date, float]):
     """创建获取基准价格的函数"""
-    def get_benchmark_price(query_date: date) -> Optional[float]:
+    def get_benchmark_price(query_date: date) -> float | None:
         if query_date in benchmark_prices:
             return benchmark_prices[query_date]
 
@@ -420,30 +420,30 @@ def run_backtest_validation():
     print("回测结果")
     print("=" * 60)
 
-    print(f"\n【收益指标】")
+    print("\n【收益指标】")
     print(f"  总收益率: {result.total_return*100:.2f}%")
     print(f"  年化收益率: {result.annualized_return*100:.2f}%")
     print(f"  基准收益率: {result.benchmark_return*100:.2f}%")
     print(f"  超额收益率: {result.excess_return*100:.2f}%")
 
-    print(f"\n【风险指标】")
+    print("\n【风险指标】")
     print(f"  波动率: {result.volatility*100:.2f}%")
     print(f"  最大回撤: {result.max_drawdown*100:.2f}%")
     print(f"  夏普比率: {result.sharpe_ratio:.2f}")
     print(f"  卡玛比率: {result.calmar_ratio:.2f}")
 
-    print(f"\n【交易统计】")
+    print("\n【交易统计】")
     print(f"  总再平衡次数: {result.total_rebalances}")
     print(f"  总交易次数: {result.total_trades}")
     print(f"  平均持仓数: {result.avg_positions:.1f}")
 
-    print(f"\n【持仓分析】")
+    print("\n【持仓分析】")
     print(f"  胜率: {result.win_rate*100:.1f}%")
     print(f"  平均盈利: {result.avg_win*100:.2f}%")
     print(f"  平均亏损: {result.avg_loss*100:.2f}%")
 
     # 显示前几次再平衡记录
-    print(f"\n【再平衡记录】(前5次)")
+    print("\n【再平衡记录】(前5次)")
     for i, record in enumerate(result.rebalance_records[:5]):
         print(f"\n  第{i+1}次 ({record.rebalance_date}):")
         print(f"    Regime: {record.regime}")

@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol, runtime_checkable
 
-
 # ---------------------------------------------------------------------------
 # Value objects returned by the protocols
 # ---------------------------------------------------------------------------

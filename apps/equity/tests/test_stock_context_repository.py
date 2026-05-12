@@ -5,8 +5,12 @@ from decimal import Decimal
 
 import pytest
 
-from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
-from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
+from apps.data_center.infrastructure.models import (
+    AssetMasterModel,
+    FinancialFactModel,
+    PriceBarModel,
+    ValuationFactModel,
+)
 from apps.equity.infrastructure.models import (
     FinancialDataModel,
     StockDailyModel,

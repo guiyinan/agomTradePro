@@ -22,7 +22,7 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from apps.strategy.application.repository_provider import (
     build_strategy_executor,

@@ -9,11 +9,11 @@ Usage:
     python scripts/validate_backtest.py --report report.html
 """
 
-import sys
-import os
-from datetime import date, timedelta
-from typing import List, Dict, Tuple
 import json
+import os
+import sys
+from datetime import date, timedelta
+from typing import Dict, List, Tuple
 
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,14 +21,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 import django
+
 django.setup()
 
 import logging
-from apps.regime.domain.services import RegimeCalculator
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.backtest.domain.services import BacktestConfig, BacktestEngine
+
 from apps.audit.domain.services import AttributionAnalyzer
-from scripts.run_backtest import get_simulated_asset_price, get_regime_for_date
+from apps.backtest.domain.services import BacktestConfig, BacktestEngine
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.domain.services import RegimeCalculator
+from scripts.run_backtest import get_regime_for_date, get_simulated_asset_price
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,8 +50,8 @@ class RegimeAccuracyValidator:
         self,
         start_date: date,
         end_date: date,
-        validate_dates: List[date] = None
-    ) -> Dict:
+        validate_dates: list[date] = None
+    ) -> dict:
         """
         计算 Regime 判定准确率
 
@@ -62,7 +64,7 @@ class RegimeAccuracyValidator:
             Dict: 准确率统计
         """
         logger.info(f"\n{'='*60}")
-        logger.info(f"Regime 准确率验证")
+        logger.info("Regime 准确率验证")
         logger.info(f"{'='*60}")
 
         # 获取历史数据
@@ -83,7 +85,7 @@ class RegimeAccuracyValidator:
             return {}
 
         # 计算完整时间序列的 Regime
-        result = self.calculator.calculate(
+        self.calculator.calculate(
             growth_series=growth_series,
             inflation_series=inflation_series,
             as_of_date=end_date
@@ -116,11 +118,11 @@ class RegimeAccuracyValidator:
 
     def _build_regime_history(
         self,
-        growth_series: List[float],
-        inflation_series: List[float],
+        growth_series: list[float],
+        inflation_series: list[float],
         start_date: date,
         end_date: date
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """构建 Regime 历史序列"""
         history = []
 
@@ -161,7 +163,7 @@ class RegimeAccuracyValidator:
 
         return history
 
-    def _analyze_transitions(self, history: List[Dict]) -> Dict:
+    def _analyze_transitions(self, history: list[dict]) -> dict:
         """分析 Regime 转换"""
         transitions = {
             "total_transitions": 0,
@@ -171,7 +173,7 @@ class RegimeAccuracyValidator:
 
         regimes = ["Recovery", "Overheat", "Stagflation", "Deflation"]
         for r1 in regimes:
-            transitions["transition_matrix"][r1] = {r2: 0 for r2 in regimes}
+            transitions["transition_matrix"][r1] = dict.fromkeys(regimes, 0)
 
         for i in range(1, len(history)):
             prev_regime = history[i - 1]["regime"]
@@ -188,7 +190,7 @@ class RegimeAccuracyValidator:
 
         return transitions
 
-    def _calculate_accuracy_metrics(self, history: List[Dict]) -> Dict:
+    def _calculate_accuracy_metrics(self, history: list[dict]) -> dict:
         """计算准确率指标"""
         if not history:
             return {}
@@ -215,9 +217,9 @@ class RegimeAccuracyValidator:
             "avg_duration_months": (len(history) / sum(1 for i in range(1, len(history)) if history[i]["regime"] != history[i-1]["regime"])) if len(history) > 1 else len(history),
         }
 
-    def _get_distribution(self, history: List[Dict]) -> Dict:
+    def _get_distribution(self, history: list[dict]) -> dict:
         """获取 Regime 分布"""
-        distribution = {r: 0 for r in ["Recovery", "Overheat", "Stagflation", "Deflation"]}
+        distribution = dict.fromkeys(["Recovery", "Overheat", "Stagflation", "Deflation"], 0)
 
         for h in history:
             distribution[h["regime"]] += 1
@@ -225,27 +227,27 @@ class RegimeAccuracyValidator:
         total = len(history)
         return {r: count / total for r, count in distribution.items()}
 
-    def _print_accuracy_report(self, report: Dict):
+    def _print_accuracy_report(self, report: dict):
         """打印准确率报告"""
         logger.info(f"\n验证周期: {report['period']}")
         logger.info(f"观测数量: {report['total_observations']}")
 
-        logger.info(f"\nRegime 分布:")
+        logger.info("\nRegime 分布:")
         for regime, ratio in report["regime_distribution"].items():
             logger.info(f"  {regime:12s}: {ratio*100:5.1f}%")
 
-        logger.info(f"\n准确率指标:")
+        logger.info("\n准确率指标:")
         metrics = report["accuracy_metrics"]
         logger.info(f"  平均置信度: {metrics['average_confidence']:.3f}")
         logger.info(f"  高置信度比例: {metrics['high_confidence_ratio']*100:.1f}%")
         logger.info(f"  稳定性比例: {metrics['stability_ratio']*100:.1f}%")
         logger.info(f"  平均持续时间: {metrics['avg_duration_months']:.1f} 月")
 
-        logger.info(f"\nRegime 转换:")
+        logger.info("\nRegime 转换:")
         logger.info(f"  总转换次数: {report['transitions']['total_transitions']}")
 
         if report['transitions']['transition_dates']:
-            logger.info(f"\n  主要转换时点:")
+            logger.info("\n  主要转换时点:")
             for trans in report['transitions']['transition_dates'][:10]:
                 logger.info(f"    {trans['date']} | {trans['from']} -> {trans['to']}")
 
@@ -258,7 +260,7 @@ class StrategyValidator:
         start_date: date,
         end_date: date,
         initial_capital: float = 100000.0
-    ) -> Dict:
+    ) -> dict:
         """
         对比有准入过滤 vs 无过滤策略
 
@@ -271,11 +273,11 @@ class StrategyValidator:
             Dict: 对比结果
         """
         logger.info(f"\n{'='*60}")
-        logger.info(f"策略有效性验证")
+        logger.info("策略有效性验证")
         logger.info(f"{'='*60}")
 
         # 1. 有准入过滤的策略（原始策略）
-        logger.info(f"\n1. 运行原始策略（有准入过滤）...")
+        logger.info("\n1. 运行原始策略（有准入过滤）...")
         from scripts.run_backtest import run_backtest
 
         result_filtered, _ = run_backtest(
@@ -287,7 +289,7 @@ class StrategyValidator:
         )
 
         # 2. 无准入过滤的策略（等权基准）
-        logger.info(f"\n2. 运行基准策略（无准入过滤，等权）...")
+        logger.info("\n2. 运行基准策略（无准入过滤，等权）...")
         result_benchmark = self._run_benchmark_strategy(
             start_date,
             end_date,
@@ -328,7 +330,6 @@ class StrategyValidator:
         )
 
         # 覆盖 _calculate_target_weights 方法为等权
-        original_method = engine._calculate_target_weights
 
         def equal_weights(regime, confidence):
             # 等权分配所有资产（忽略准入规则）
@@ -337,13 +338,13 @@ class StrategyValidator:
                 "gold", "commodity", "CASH"
             ]
             weight = 1.0 / len(all_assets)
-            return {asset: weight for asset in all_assets}
+            return dict.fromkeys(all_assets, weight)
 
         engine._calculate_target_weights = equal_weights
 
         return engine.run()
 
-    def _compare_results(self, result_filtered, result_benchmark) -> Dict:
+    def _compare_results(self, result_filtered, result_benchmark) -> dict:
         """对比两个策略的结果"""
         return {
             "filtered_strategy": {
@@ -369,10 +370,10 @@ class StrategyValidator:
             }
         }
 
-    def _print_comparison_report(self, comparison: Dict):
+    def _print_comparison_report(self, comparison: dict):
         """打印对比报告"""
         logger.info(f"\n{'='*60}")
-        logger.info(f"策略对比报告")
+        logger.info("策略对比报告")
         logger.info(f"{'='*60}")
 
         logger.info(f"\n{'指标':<20s} {'有准入过滤':>15s} {'无准入过滤':>15s} {'差异':>15s}")
@@ -396,7 +397,7 @@ class StrategyValidator:
                 logger.info(f"{label:<20s} {filtered_val:>14.2f} {benchmark_val:>14.2f} {diff:>14.2f}")
 
         # 结论
-        logger.info(f"\n结论:")
+        logger.info("\n结论:")
         if comparison["difference"]["annualized_return"] > 0:
             logger.info(f"  ✓ 准入过滤策略年化收益高出 {comparison['difference']['annualized_return']*100:.2f}%")
         else:
@@ -409,8 +410,8 @@ class StrategyValidator:
 
 
 def generate_html_report(
-    accuracy_report: Dict,
-    comparison_report: Dict,
+    accuracy_report: dict,
+    comparison_report: dict,
     output_path: str = "backtest_report.html"
 ):
     """生成 HTML 回测报告"""

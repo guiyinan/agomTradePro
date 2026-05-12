@@ -9,11 +9,11 @@ from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured
 
-from apps.dashboard.application.repository_provider import (
-    get_portfolio_repository,
-    get_dashboard_overview_repository,
-)
 from apps.dashboard.application.queries import DecisionPlaneData
+from apps.dashboard.application.repository_provider import (
+    get_dashboard_overview_repository,
+    get_portfolio_repository,
+)
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 
 logger = logging.getLogger(__name__)

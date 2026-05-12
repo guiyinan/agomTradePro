@@ -5,11 +5,10 @@ This module manages the registry of functions that AI can call
 during tool calling mode (OpenAI Function Calling format).
 """
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any
 
 
 @dataclass

@@ -8,7 +8,6 @@ Tests for:
 """
 
 from datetime import date, timedelta
-from typing import Dict, List, Tuple
 from unittest.mock import Mock
 
 import pytest
@@ -16,10 +15,7 @@ import pytest
 from apps.audit.domain.entities import (
     IndicatorThresholdConfig,
     RecommendedAction,
-    RegimePeriod,
     RegimeSnapshot,
-    SignalEvent,
-    ValidationStatus,
 )
 from apps.audit.domain.services import (
     AttributionAnalyzer,

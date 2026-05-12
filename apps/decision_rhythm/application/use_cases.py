@@ -10,7 +10,7 @@ Decision Rhythm Application Use Cases
 import logging
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
@@ -18,11 +18,10 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.alpha_trigger.domain.entities import CandidateStatus
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 from core.integration.account_positions import update_or_create_account_position
 
 from ..domain.entities import (
-    CooldownPeriod,
     DecisionPriority,
     DecisionQuota,
     DecisionRequest,
@@ -30,19 +29,12 @@ from ..domain.entities import (
     ExecutionStatus,
     ExecutionTarget,
     QuotaPeriod,
-    RhythmConfig,
 )
 from ..domain.services import (
     CandidateStatusStateMachine,
-    CooldownCheckResult,
-    CooldownManager,
-    DecisionScheduler,
     ExecutionResult,
     ExecutionStatusStateMachine,
     PrecheckResult,
-    QuotaCheckResult,
-    QuotaManager,
-    RhythmManager,
 )
 
 if TYPE_CHECKING:
@@ -458,8 +450,7 @@ class SubmitBatchRequestUseCase:
         rejected = total - approved
 
         # 按优先级统计
-        by_priority = {}
-        for response in responses:
+        for _response in responses:
             # 从 request_id 获取优先级（简化处理）
             pass
 
@@ -1898,7 +1889,7 @@ class PreviewExecutionUseCase:
         try:
             from decimal import Decimal
 
-            from ..domain.entities import ApprovalStatus, create_execution_approval_request
+            from ..domain.entities import create_execution_approval_request
 
             # 获取投资建议
             recommendation = self.recommendation_repo.get_by_id(request.recommendation_id)

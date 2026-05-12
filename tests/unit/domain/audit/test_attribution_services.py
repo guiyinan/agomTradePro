@@ -13,7 +13,6 @@ Tests for:
 """
 
 from datetime import date, timedelta
-from typing import Dict, List, NamedTuple, Tuple
 from unittest.mock import Mock
 
 import pytest

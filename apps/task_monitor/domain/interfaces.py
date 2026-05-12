@@ -4,14 +4,13 @@ Task Monitor Domain Interfaces
 定义任务监控仓储协议。
 """
 
-from datetime import datetime, timedelta
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    ScheduledTaskRecord,
     SchedulerBootstrapResult,
     SchedulerCatalogSummary,
-    ScheduledTaskRecord,
     TaskExecutionRecord,
     TaskStatistics,
 )

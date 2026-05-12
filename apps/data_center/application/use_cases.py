@@ -12,15 +12,15 @@ from __future__ import annotations
 import dataclasses
 import logging
 from collections.abc import Callable
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.dtos import (
     AssetResponse,
     CreateIndicatorCatalogRequest,
     CreateIndicatorUnitRuleRequest,
-    CreatePublisherCatalogRequest,
     CreateProviderRequest,
+    CreatePublisherCatalogRequest,
     DecisionReliabilityRepairReport,
     DecisionReliabilityRepairRequest,
     DecisionReliabilitySection,
@@ -32,8 +32,8 @@ from apps.data_center.application.dtos import (
     MacroSeriesResponse,
     PriceBarResponse,
     PriceHistoryRequest,
-    PublisherCatalogResponse,
     ProviderResponse,
+    PublisherCatalogResponse,
     QuoteResponse,
     ResolveAssetRequest,
     SyncCapitalFlowRequest,
@@ -48,15 +48,15 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
     UpdateIndicatorCatalogRequest,
     UpdateIndicatorUnitRuleRequest,
-    UpdatePublisherCatalogRequest,
     UpdateProviderRequest,
+    UpdatePublisherCatalogRequest,
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
     IndicatorCatalog,
     IndicatorUnitRule,
-    PublisherCatalog,
     ProviderConfig,
+    PublisherCatalog,
     RawAudit,
 )
 from apps.data_center.domain.enums import DataCapability, FinancialPeriodType
@@ -68,12 +68,12 @@ from apps.data_center.domain.protocols import (
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
     IndicatorUnitRuleRepositoryProtocol,
-    MacroGovernanceRepositoryProtocol,
     MacroFactRepositoryProtocol,
+    MacroGovernanceRepositoryProtocol,
     NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
-    PublisherCatalogRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
+    PublisherCatalogRepositoryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
     RegistryProtocol,
@@ -1064,13 +1064,13 @@ class QueryLatestQuoteUseCase:
 
         normalized_snapshot_at = snapshot_at
         if normalized_snapshot_at.tzinfo is None:
-            normalized_snapshot_at = normalized_snapshot_at.replace(tzinfo=timezone.utc)
+            normalized_snapshot_at = normalized_snapshot_at.replace(tzinfo=UTC)
         else:
-            normalized_snapshot_at = normalized_snapshot_at.astimezone(timezone.utc)
+            normalized_snapshot_at = normalized_snapshot_at.astimezone(UTC)
 
         age_seconds = max(
             0.0,
-            (datetime.now(timezone.utc) - normalized_snapshot_at).total_seconds(),
+            (datetime.now(UTC) - normalized_snapshot_at).total_seconds(),
         )
         age_minutes = int(age_seconds // 60)
         quote_is_stale = is_stale(normalized_snapshot_at, effective_max_age_hours)
@@ -1800,7 +1800,7 @@ class RunMacroGovernanceActionUseCase:
                 "message": "No supported missing indicator codes to sync.",
             }
 
-        target_date = datetime.now(timezone.utc).date()
+        target_date = datetime.now(UTC).date()
         start_date = target_date - timedelta(days=365 * 10)
         sync_runs: list[dict[str, Any]] = []
 
@@ -1880,7 +1880,7 @@ def _build_sync_audit(
         row_count=row_count,
         latency_ms=latency_ms,
         error_message=error_message,
-        fetched_at=datetime.now(timezone.utc),
+        fetched_at=datetime.now(UTC),
     )
 
 
@@ -1946,7 +1946,7 @@ class _BaseSyncUseCase:
         error: str = "",
         recorded_at: datetime | None = None,
     ) -> None:
-        recorded = recorded_at or datetime.now(timezone.utc)
+        recorded = recorded_at or datetime.now(UTC)
         extra_config = dict(config.extra_config or {})
         capability_metrics = dict(extra_config.get("health_metrics") or {})
         metric = dict(capability_metrics.get(capability) or {})
@@ -2066,7 +2066,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncMacroRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             facts = provider.fetch_macro_series(request.indicator_code, request.start, request.end)
             normalized = self._normalize_macro_facts(
@@ -2076,7 +2076,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
                 facts=facts,
             )
             stored_count = self._facts.bulk_upsert(normalized)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="macro",
@@ -2099,7 +2099,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
             )
             return SyncResult("macro", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="macro",
@@ -2138,7 +2138,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncPriceRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             bars = provider.fetch_price_history(request.asset_code, request.start, request.end)
             bars = self._normalize_fact_sources(
@@ -2147,7 +2147,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(bars)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="historical_price",
@@ -2170,7 +2170,7 @@ class SyncPriceUseCase(_BaseSyncUseCase):
             )
             return SyncResult("historical_price", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="historical_price",
@@ -2209,7 +2209,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncQuoteRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             quotes = provider.fetch_quote_snapshots(request.asset_codes)
             quotes = self._normalize_fact_sources(
@@ -2218,7 +2218,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(quotes)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="realtime_quote",
@@ -2237,7 +2237,7 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
             )
             return SyncResult("realtime_quote", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._persist_provider_health_metric(
                 config,
                 capability="realtime_quote",
@@ -2272,7 +2272,7 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncFundNavRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             facts = provider.fetch_fund_nav(request.fund_code, request.start, request.end)
             facts = self._normalize_fact_sources(
@@ -2281,7 +2281,7 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2298,7 +2298,7 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
             )
             return SyncResult("fund_nav", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2330,7 +2330,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             facts = provider.fetch_financials(request.asset_code, periods=request.periods)
             facts = self._normalize_fact_sources(
@@ -2339,7 +2339,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2352,7 +2352,7 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
             )
             return SyncResult("financial", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2380,7 +2380,7 @@ class SyncValuationUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncValuationRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         try:
             facts = provider.fetch_valuations(request.asset_code, request.start, request.end)
             facts = self._normalize_fact_sources(
@@ -2389,7 +2389,7 @@ class SyncValuationUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2406,7 +2406,7 @@ class SyncValuationUseCase(_BaseSyncUseCase):
             )
             return SyncResult("valuation", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2438,7 +2438,7 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncSectorMembershipRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         params = {
             "sector_code": request.sector_code,
             "sector_name": request.sector_name,
@@ -2458,7 +2458,7 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2473,7 +2473,7 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
                 "sector_membership", provider.provider_name(), stored_count, "success"
             )
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),
@@ -2501,7 +2501,7 @@ class SyncNewsUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncNewsRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         params = {"asset_code": request.asset_code, "limit": request.limit}
         try:
             facts = provider.fetch_news(request.asset_code, limit=request.limit)
@@ -2511,7 +2511,7 @@ class SyncNewsUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_insert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(), "news", params, "ok", stored_count, latency_ms
@@ -2519,7 +2519,7 @@ class SyncNewsUseCase(_BaseSyncUseCase):
             )
             return SyncResult("news", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(), "news", params, "error", 0, latency_ms, str(exc)
@@ -2541,7 +2541,7 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
 
     def execute(self, request: SyncCapitalFlowRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
-        started = datetime.now(timezone.utc)
+        started = datetime.now(UTC)
         params = {"asset_code": request.asset_code, "period": request.period}
         try:
             facts = provider.fetch_capital_flows(request.asset_code, period=request.period)
@@ -2551,7 +2551,7 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
                 provider_name=provider.provider_name(),
             )
             stored_count = self._facts.bulk_upsert(facts)
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(), "capital_flow", params, "ok", stored_count, latency_ms
@@ -2559,7 +2559,7 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
             )
             return SyncResult("capital_flow", provider.provider_name(), stored_count, "success")
         except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
-            latency_ms = (datetime.now(timezone.utc) - started).total_seconds() * 1000
+            latency_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._raw_audit_repo.log(
                 _build_sync_audit(
                     provider.provider_name(),

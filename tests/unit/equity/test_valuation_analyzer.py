@@ -10,8 +10,6 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from apps.equity.domain.services import RegimeCorrelationAnalyzer, ValuationAnalyzer
 
 

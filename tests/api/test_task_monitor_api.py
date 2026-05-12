@@ -7,7 +7,12 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.task_monitor.domain.entities import CeleryHealthStatus, TaskExecutionRecord, TaskPriority, TaskStatus
+from apps.task_monitor.domain.entities import (
+    CeleryHealthStatus,
+    TaskExecutionRecord,
+    TaskPriority,
+    TaskStatus,
+)
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 
 

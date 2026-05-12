@@ -9,15 +9,14 @@ Tushare Gateway
 import logging
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import List, Optional
 
+from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from core.integration.data_center_business_sources import build_tushare_stock_adapter
 
 logger = logging.getLogger(__name__)

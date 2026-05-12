@@ -13,7 +13,6 @@ import logging
 import sys
 import threading
 import time
-from datetime import datetime
 
 import pytest
 from django.http import HttpResponse
@@ -233,7 +232,7 @@ class TestTraceIDManagement:
 
         def set_thread_trace(thread_id):
             try:
-                trace = set_trace_id(f'thread-{thread_id}')
+                set_trace_id(f'thread-{thread_id}')
                 time.sleep(0.01)  # 确保线程交错
                 results[thread_id] = get_trace_id()
             except Exception as e:
@@ -345,7 +344,7 @@ class TestRequestLoggingMiddleware:
         set_trace_id('test-trace')
 
         with caplog.at_level(logging.INFO):
-            response = middleware(request)
+            middleware(request)
 
         clear_trace_id()
 
@@ -388,7 +387,7 @@ class TestRequestLoggingMiddleware:
         set_trace_id('test-trace')
 
         with caplog.at_level(logging.INFO):
-            response = middleware(request)
+            middleware(request)
 
         clear_trace_id()
 
@@ -429,7 +428,7 @@ class TestBindLogger:
 
             # 验证 trace_id 和绑定的字段都存在
             assert len(caplog.records) == 1
-            record = caplog.records[0]
+            caplog.records[0]
             # trace_id 应该从线程上下文获取
             assert get_trace_id() == 'trace-123'
         finally:
@@ -460,12 +459,12 @@ class TestIntegration:
 
         with caplog.at_level(logging.INFO):
             trace_middleware(request)
-            response = logging_middleware(request)
+            logging_middleware(request)
 
         clear_trace_id()
 
         # 验证日志包含 trace_id
-        log_with_trace = [
+        [
             record for record in caplog.records
             if hasattr(record, 'trace_id') or record.getMessage().count('trace_id')
         ]

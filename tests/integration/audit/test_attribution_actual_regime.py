@@ -314,7 +314,7 @@ class TestRegimeActualCalculation:
         assert len(parts) >= 3
         assert parts[1] == "Recovery"
         # parts[2] should be a date
-        extrapolated_date = date.fromisoformat(parts[2])
+        date.fromisoformat(parts[2])
 
     @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     @patch('shared.config.secrets.get_secrets')

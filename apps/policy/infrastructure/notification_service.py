@@ -9,8 +9,7 @@ Infrastructure Layer - Notification Service Implementations
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -19,7 +18,6 @@ from ..domain.entities import PolicyEvent, PolicyLevel
 from ..domain.interfaces import (
     NotificationChannel,
     NotificationMessage,
-    NotificationServicePort,
     PolicyAlertServicePort,
 )
 

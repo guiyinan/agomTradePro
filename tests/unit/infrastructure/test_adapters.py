@@ -9,8 +9,8 @@ Unit Tests for Data Adapters
 5. MultiSourceAdapter 多源聚合
 """
 
-from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from datetime import date
+from unittest.mock import Mock
 
 import pytest
 
@@ -20,7 +20,6 @@ from apps.macro.infrastructure.adapters.base import (
     DataValidationError,
     MacroAdapterProtocol,
     MacroDataPoint,
-    PublicationLag,
     get_publication_lags,
 )
 from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter, MultiSourceAdapter

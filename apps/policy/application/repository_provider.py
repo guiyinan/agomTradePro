@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from apps.policy.infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from apps.policy.infrastructure.adapters.ai_policy_classifier import (
     create_ai_policy_classifier,
 )
-from apps.policy.infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from apps.policy.infrastructure.adapters.content_extractor import ContentExtractorError
 from apps.policy.infrastructure.interface_repositories import (
     PolicyAdminInterfaceRepository,

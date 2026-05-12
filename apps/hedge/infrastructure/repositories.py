@@ -6,16 +6,13 @@ Provides clean separation between domain logic and data persistence.
 """
 
 from datetime import date
-from typing import Dict, List, Optional
 
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
-    HedgeAlertType,
-    HedgeMethod,
     HedgePair,
     HedgePortfolio,
 )
@@ -341,7 +338,6 @@ class HedgePortfolioRepository:
 
     def get_statistics(self) -> dict[str, int]:
         """Get statistics for snapshots"""
-        from django.db.models import Count
 
         total = HedgePortfolioSnapshotModel._default_manager.count()
         rebalance_needed = HedgePortfolioSnapshotModel._default_manager.filter(

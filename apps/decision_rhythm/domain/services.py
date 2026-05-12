@@ -10,11 +10,10 @@ Domain Services for Decision Rhythm
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -28,18 +27,13 @@ from .entities import (
     DecisionRequest,
     DecisionResponse,
     ExecutionApprovalRequest,
-    ExecutionStatus,
-    ExecutionTarget,
     InvestmentRecommendation,
     QuotaPeriod,
     RhythmConfig,
     ValuationSnapshot,
-    create_execution_approval_request,
-    create_investment_recommendation,
     create_valuation_snapshot,
     get_default_rhythm_config,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -1683,7 +1677,7 @@ class CompositeScoreCalculator:
 
     def calculate_from_snapshot(
         self,
-        snapshot: "DecisionFeatureSnapshot",
+        snapshot: DecisionFeatureSnapshot,
         cooldown_violation: bool = False,
         quota_tight: bool = False,
         volatility_high: bool = False,
@@ -1725,8 +1719,8 @@ class RecommendationAggregator:
 
     def aggregate(
         self,
-        recommendations: list["UnifiedRecommendation"],
-    ) -> tuple[list["UnifiedRecommendation"], list["UnifiedRecommendation"], list["ConflictPair"]]:
+        recommendations: list[UnifiedRecommendation],
+    ) -> tuple[list[UnifiedRecommendation], list[UnifiedRecommendation], list[ConflictPair]]:
         """
         聚合推荐列表
 
@@ -1736,7 +1730,6 @@ class RecommendationAggregator:
         Returns:
             (去重后的推荐列表, 冲突推荐列表, 冲突对列表)
         """
-        from .entities import RecommendationStatus
 
         # 按聚合键分组
         groups: dict[str, list[UnifiedRecommendation]] = {}
@@ -1803,8 +1796,8 @@ class RecommendationAggregator:
 
     def _merge_recommendations(
         self,
-        recommendations: list["UnifiedRecommendation"],
-    ) -> "UnifiedRecommendation":
+        recommendations: list[UnifiedRecommendation],
+    ) -> UnifiedRecommendation:
         """
         合并多个同键推荐
 
@@ -1894,5 +1887,5 @@ class ConflictPair:
         sell_recommendation: SELL 方向的推荐
     """
 
-    buy_recommendation: "UnifiedRecommendation"
-    sell_recommendation: "UnifiedRecommendation"
+    buy_recommendation: UnifiedRecommendation
+    sell_recommendation: UnifiedRecommendation

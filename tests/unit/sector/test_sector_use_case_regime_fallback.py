@@ -1,6 +1,5 @@
-from types import SimpleNamespace
-
 from datetime import date
+from types import SimpleNamespace
 
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,

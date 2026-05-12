@@ -9,7 +9,7 @@ import base64
 import hashlib
 import secrets
 import uuid
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Sum
+from django.db.models import Sum
 
 from apps.account.application.rbac import ROLE_CHOICES
 
@@ -1528,8 +1528,9 @@ class SystemSettingsModel(models.Model):
     # ========== Qlib 配置获取方法 ==========
     def get_qlib_provider_uri(self) -> str:
         """获取 Qlib 数据目录，如果数据库未配置则回退到 settings.QLIB_SETTINGS"""
-        from django.conf import settings
         from pathlib import Path
+
+        from django.conf import settings
 
         default_uri = settings.QLIB_SETTINGS.get("provider_uri", "~/.qlib/qlib_data/cn_data")
         if self.qlib_provider_uri:
@@ -1553,8 +1554,9 @@ class SystemSettingsModel(models.Model):
 
     def get_qlib_model_path(self) -> str:
         """获取 Qlib 模型目录"""
-        from django.conf import settings
         from pathlib import Path
+
+        from django.conf import settings
 
         default_path = settings.QLIB_SETTINGS.get("model_path", "/models/qlib")
         if self.qlib_model_path:

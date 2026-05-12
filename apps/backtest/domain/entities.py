@@ -8,7 +8,6 @@ Domain Entities for Backtesting Module.
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 
 class RebalanceFrequency(Enum):

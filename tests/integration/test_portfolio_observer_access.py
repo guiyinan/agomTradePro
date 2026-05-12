@@ -9,7 +9,7 @@ Integration tests for Portfolio Observer Access.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User

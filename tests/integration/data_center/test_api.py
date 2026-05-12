@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from django.contrib.auth.models import User
@@ -114,7 +114,7 @@ class _StubProvider:
         return [
             QuoteSnapshot(
                 asset_code=asset_codes[0],
-                snapshot_at=datetime(2025, 3, 1, 9, 30, tzinfo=timezone.utc),
+                snapshot_at=datetime(2025, 3, 1, 9, 30, tzinfo=UTC),
                 current_price=12.34,
                 source="stub-provider",
             )

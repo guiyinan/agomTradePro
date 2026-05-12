@@ -5,19 +5,13 @@ Unit tests for Backtest Domain Services.
 """
 
 from datetime import date, timedelta
-from typing import Dict, List, Optional
 
 import pytest
 
 from apps.backtest.domain.entities import (
-    DEFAULT_PUBLICATION_LAGS,
-    AssetClass,
     BacktestConfig,
     BacktestResult,
-    PITDataConfig,
     PortfolioState,
-    RebalanceFrequency,
-    RebalanceResult,
     Trade,
 )
 from apps.backtest.domain.services import (

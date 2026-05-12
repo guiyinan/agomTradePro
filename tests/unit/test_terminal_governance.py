@@ -4,9 +4,6 @@ Terminal Governance Domain & Application Tests.
 Tests for risk levels, permissions, confirmation tokens, and execution flow.
 """
 
-import json
-import time
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +16,6 @@ from apps.terminal.domain.entities import (
     TerminalRiskLevel,
 )
 from apps.terminal.domain.services import (
-    RISK_ROLE_MAP,
     TerminalPermissionService,
 )
 

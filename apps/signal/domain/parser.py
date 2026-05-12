@@ -8,7 +8,6 @@
 """
 
 import re
-from typing import Dict, List, Optional
 
 from .indicators import find_indicator_by_alias
 from .invalidation import (

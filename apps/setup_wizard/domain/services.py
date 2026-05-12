@@ -4,15 +4,9 @@ Domain services for Setup Wizard.
 纯业务逻辑，不依赖任何外部框架。
 """
 
-from typing import Optional
 
 from .entities import (
-    AdminConfig,
     AIProviderConfigDTO,
-    DataSourceConfigDTO,
-    SetupProgress,
-    SetupState,
-    SetupStatus,
     WizardStep,
 )
 

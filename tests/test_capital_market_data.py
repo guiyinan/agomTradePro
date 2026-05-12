@@ -5,7 +5,7 @@ AgomTradePro 资本市场数据连接测试脚本
 """
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import pytest
 
@@ -290,7 +290,7 @@ def test_database_operations():
     try:
         from apps.equity.infrastructure.adapters.akshare_stock_adapter import AKShareStockAdapter
 
-        from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
+        from apps.equity.infrastructure.models import StockInfoModel
 
         adapter = AKShareStockAdapter()
 

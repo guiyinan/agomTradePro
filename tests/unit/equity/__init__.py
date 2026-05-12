@@ -29,7 +29,7 @@ class TestEligibilityMatrix:
         matrix = get_eligibility_matrix()
         regimes = ["Recovery", "Overheat", "Stagflation", "Deflation"]
 
-        for asset_class, regime_map in matrix.items():
+        for _asset_class, regime_map in matrix.items():
             for regime in regimes:
                 assert regime in regime_map
                 assert isinstance(regime_map[regime], Eligibility)
@@ -289,7 +289,7 @@ class TestAnalyzeRegimeTransition:
         impacts = analyze_regime_transition("Recovery", "Overheat")
         assert len(impacts) > 0
         # Should mention assets that change status
-        impact_text = " ".join(impacts)
+        " ".join(impacts)
         # Commodity goes from NEUTRAL to PREFERRED
         assert any("commodity" in impact.lower() for impact in impacts)
 
@@ -304,7 +304,7 @@ class TestAnalyzeRegimeTransition:
         assert len(impacts) > 0
         # a_share_value goes from PREFERRED (Stagflation) to HOSTILE (Deflation)
         # china_bond goes from NEUTRAL to PREFERRED
-        impact_text = " ".join(impacts)
+        " ".join(impacts)
         assert any(("china_bond" in impact.lower() or "a_share_value" in impact.lower())
                    for impact in impacts)
 

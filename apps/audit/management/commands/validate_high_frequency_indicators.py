@@ -10,19 +10,15 @@ Usage:
     python manage.py validate_high_frequency_indicators --start-date=2018-01-01 --end-date=2024-12-31
 """
 
-import argparse
 import logging
 from datetime import date, timedelta
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from django.core.management.base import BaseCommand
-from django.db.models import Q
 from scipy import stats
 
 from apps.audit.infrastructure.models import (
-    IndicatorThresholdConfigModel,
     ValidationSummaryModel,
 )
 from apps.data_center.infrastructure.models import MacroFactModel
@@ -239,7 +235,7 @@ class IndicatorValidator:
             spread_df['group'] = (spread_df['inverted'] != spread_df['inverted'].shift()).cumsum()
 
             inversion_events = []
-            for group_id, group_df in spread_df.groupby('group'):
+            for _group_id, group_df in spread_df.groupby('group'):
                 if group_df['inverted'].iloc[0]:
                     inversion_events.append({
                         'start_date': group_df['date'].min(),

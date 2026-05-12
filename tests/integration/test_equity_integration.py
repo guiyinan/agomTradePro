@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.equity.infrastructure.models import (
@@ -163,7 +164,7 @@ class TestEquityRelationships(TestCase):
         )
 
         # 重复应该失败（unique_together 约束）
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             StockDailyModel.objects.create(
                 stock_code=self.stock.stock_code,
                 trade_date=trade_date,

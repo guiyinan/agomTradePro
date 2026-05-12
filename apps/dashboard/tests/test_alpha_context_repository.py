@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -66,7 +66,7 @@ def test_dashboard_alpha_context_loads_asset_and_quote_from_gateway():
                 return SimpleNamespace(
                     current_price=12.34,
                     volume=123456.0,
-                    snapshot_at=datetime(2026, 4, 30, 9, 35, tzinfo=timezone.utc),
+                    snapshot_at=datetime(2026, 4, 30, 9, 35, tzinfo=UTC),
                     source="akshare",
                 )
             return None

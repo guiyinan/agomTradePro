@@ -2,9 +2,10 @@
 Unit tests for AgomTradePro SDK Signal Module
 """
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+import pytest
 
 from agomtradepro import AgomTradeProClient
 from agomtradepro.types import SignalStatus

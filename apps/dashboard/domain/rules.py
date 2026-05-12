@@ -6,18 +6,11 @@ Dashboard Domain Rules
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .entities import (
-    AlertConfig,
     AlertSeverity,
-    CardType,
-    DashboardCard,
-    DashboardLayout,
-    DashboardWidget,
-    MetricCard,
 )
 
 

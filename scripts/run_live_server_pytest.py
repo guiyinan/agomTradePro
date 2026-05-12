@@ -12,12 +12,11 @@ import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import urlopen
-
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SETTINGS_MODULE = "core.settings.development_sqlite"

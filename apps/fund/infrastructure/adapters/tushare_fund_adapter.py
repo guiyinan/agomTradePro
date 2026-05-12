@@ -7,8 +7,6 @@ Tushare 基金数据适配器
 3. 获取基金持仓数据
 """
 
-from datetime import date, datetime
-from typing import List, Optional
 
 import pandas as pd
 

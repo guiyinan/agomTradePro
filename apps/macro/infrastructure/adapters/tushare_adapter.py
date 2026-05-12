@@ -6,7 +6,6 @@ Infrastructure layer - fetches data from Tushare Pro API.
 
 import logging
 from datetime import date, timedelta
-from typing import List, Optional
 
 import pandas as pd
 
@@ -69,9 +68,9 @@ class TushareAdapter(BaseMacroAdapter):
                 )
                 logger.info("Tushare API 初始化成功")
             except ImportError:
-                raise DataSourceUnavailableError("tushare 库未安装，请运行: pip install tushare")
+                raise DataSourceUnavailableError("tushare 库未安装，请运行: pip install tushare") from None
             except Exception as e:
-                raise DataSourceUnavailableError(f"Tushare API 初始化失败: {e}")
+                raise DataSourceUnavailableError(f"Tushare API 初始化失败: {e}") from e
         return self._pro
 
     def supports(self, indicator_code: str) -> bool:
@@ -118,7 +117,7 @@ class TushareAdapter(BaseMacroAdapter):
 
         except Exception as e:
             logger.error(f"获取 {indicator_code} 数据失败: {e}")
-            raise DataSourceUnavailableError(f"获取数据失败: {e}")
+            raise DataSourceUnavailableError(f"获取数据失败: {e}") from e
 
     def _fetch_shibor(
         self,

@@ -4,7 +4,7 @@ Unit tests for Agent Runtime M2 - SDK Modules.
 WP-M2-03: Tests for runtime and context SDK module endpoint contracts.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from agomtradepro.modules.agent_context import AgentContextModule
@@ -122,7 +122,7 @@ class TestAgentContextModule:
         assert module._prefix == "/api/agent-runtime/context"
 
     def test_get_context_snapshot(self, module, mock_client):
-        result = module.get_context_snapshot("research")
+        module.get_context_snapshot("research")
         mock_client.get.assert_called_once()
         url = mock_client.get.call_args[0][0]
         assert "research/" in url

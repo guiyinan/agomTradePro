@@ -6,7 +6,6 @@
 
 from datetime import date
 from functools import lru_cache
-from typing import Dict, List, Optional, Set, Tuple
 
 from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule

@@ -12,8 +12,7 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionModelParamConfigModel,
     UnifiedRecommendationModel,
 )
-from apps.equity.infrastructure.models import StockInfoModel
-from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+from apps.equity.infrastructure.models import StockInfoModel, ValuationRepairTrackingModel
 
 
 @pytest.fixture

@@ -6,7 +6,6 @@ Infrastructure layer - provides automatic failover between multiple data sources
 
 import logging
 from datetime import date
-from typing import List, Optional
 
 from .base import (
     DataSourceUnavailableError,

@@ -5,10 +5,10 @@ This module contains the core data entities for the audit module.
 Following four-layer architecture, this file uses ONLY Python standard library.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, date
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class LossSource(Enum):
@@ -415,7 +415,7 @@ class OperationLog:
     ) -> 'OperationLog':
         """创建操作日志实体"""
         import uuid
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         # 生成 UUID
         log_id = str(uuid.uuid4())

@@ -5,13 +5,14 @@ Celery Beat 定时任务配置脚本
 """
 
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django_celery_beat.models import PeriodicTask, CrontabSchedule, IntervalSchedule
 from django.db import transaction
+from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
 
 
 def setup_periodic_tasks():

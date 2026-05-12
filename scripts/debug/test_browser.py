@@ -1,8 +1,8 @@
 """Headless browser test script for AgomTradePro development server."""
+import io
 import subprocess
 import sys
 import time
-import io
 
 # Fix Windows console encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -75,7 +75,7 @@ def test_website():
         forms = page.locator("form").count()
         buttons = page.locator("button").count()
 
-        print(f"\nElement counts:")
+        print("\nElement counts:")
         print(f"  Links: {links}")
         print(f"  Forms: {forms}")
         print(f"  Buttons: {buttons}")

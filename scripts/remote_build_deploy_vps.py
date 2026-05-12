@@ -318,7 +318,7 @@ Write-Host 'Started: http://127.0.0.1:8000/' -ForegroundColor Green
 def _local_start_sh(image_filename: str, include_sqlite: bool) -> str:
     sqlite_block = ""
     if include_sqlite:
-        sqlite_block = f"""
+        sqlite_block = """
 if [ -f ./data/db.sqlite3 ]; then
   web_cid="$(docker compose ps -q web)"
   if [ -n "$web_cid" ]; then

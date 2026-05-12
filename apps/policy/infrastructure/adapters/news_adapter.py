@@ -6,10 +6,9 @@ News Policy Adapter - 新闻政策事件适配器
 """
 
 import logging
-import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -17,7 +16,6 @@ from ...domain.entities import PolicyEvent, PolicyLevel
 from .base import (
     PolicyAdapterError,
     PolicyAdapterProtocol,
-    PolicyParsingError,
     PolicySourceUnavailableError,
 )
 
@@ -125,7 +123,7 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
 
         except Exception as e:
             logger.error(f"Failed to fetch policy events: {e}")
-            raise PolicyAdapterError(f"Fetch failed: {e}")
+            raise PolicyAdapterError(f"Fetch failed: {e}") from e
 
         return events
 

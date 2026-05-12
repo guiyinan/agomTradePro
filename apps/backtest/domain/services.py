@@ -7,16 +7,12 @@ Only uses Python standard library (no pandas/numpy).
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import date, timedelta
-from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 # 从 entities 导入数据类
 from .entities import (
     BacktestConfig,
     BacktestResult,
-    PortfolioState,
     RebalanceResult,
     Trade,
 )

@@ -5,8 +5,9 @@ Tests the secrets loading with the new registry pattern that avoids
 direct dependencies on apps/ modules.
 """
 
+import dataclasses
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,7 +18,6 @@ class TestSecretsRegistry:
     def test_register_and_load_secrets(self):
         """Test registering a loader and loading secrets."""
         from shared.config.secrets import (
-            AppSecrets,
             clear_secrets_cache,
             get_secrets,
             register_database_secrets_loader,
@@ -53,7 +53,6 @@ class TestSecretsRegistry:
         """Test fallback to environment variables when no loader registered."""
         import shared.config.secrets as secrets_module
         from shared.config.secrets import (
-            _database_secrets_loader,
             clear_secrets_cache,
             get_secrets,
         )
@@ -135,7 +134,7 @@ class TestDataSourceSecretsDTO:
             fred_api_key="fred456",
         )
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             dto.tushare_token = "new_token"
 
     def test_dto_optional_juhe(self):
@@ -188,7 +187,7 @@ class TestAppSecrets:
 
         app = AppSecrets(data_sources=ds)
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             app.slack_webhook = "new_webhook"
 
 

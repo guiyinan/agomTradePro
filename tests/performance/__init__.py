@@ -243,7 +243,7 @@ class TestAgentRuntimeMigrations:
 
         # Create a task
         task = AgentTaskModel.objects.create(
-            request_id=f"test_migration_{id(task) if 'task' in dir() else 'unique'}",
+            request_id="test_migration_unique",
             task_domain="research",
             task_type="migration_test",
             status="draft",
@@ -405,7 +405,7 @@ class TestAgentRuntimeRelationships:
         )
 
         # Create steps
-        step1 = AgentTaskStepModel.objects.create(
+        AgentTaskStepModel.objects.create(
             request_id=task.request_id,
             task=task,
             step_key="step_1",
@@ -413,7 +413,7 @@ class TestAgentRuntimeRelationships:
             step_index=0,
             status="completed",
         )
-        step2 = AgentTaskStepModel.objects.create(
+        AgentTaskStepModel.objects.create(
             request_id=task.request_id,
             task=task,
             step_key="step_2",
@@ -453,7 +453,6 @@ class TestAgentRuntimeRelationships:
         )
 
         event_id = event.id
-        task_id = task.id
 
         # Delete task
         task.delete()

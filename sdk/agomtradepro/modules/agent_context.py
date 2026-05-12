@@ -28,7 +28,7 @@ class AgentContextModule(BaseModule):
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/agent-runtime/context")
 
-    def get_context_snapshot(self, domain: str) -> Dict[str, Any]:
+    def get_context_snapshot(self, domain: str) -> dict[str, Any]:
         """
         Get context snapshot for a given domain.
 
@@ -49,22 +49,22 @@ class AgentContextModule(BaseModule):
         """
         return self._get(f"{domain}/")
 
-    def get_research_context(self) -> Dict[str, Any]:
+    def get_research_context(self) -> dict[str, Any]:
         """Get research domain context snapshot."""
         return self.get_context_snapshot("research")
 
-    def get_monitoring_context(self) -> Dict[str, Any]:
+    def get_monitoring_context(self) -> dict[str, Any]:
         """Get monitoring domain context snapshot."""
         return self.get_context_snapshot("monitoring")
 
-    def get_decision_context(self) -> Dict[str, Any]:
+    def get_decision_context(self) -> dict[str, Any]:
         """Get decision domain context snapshot."""
         return self.get_context_snapshot("decision")
 
-    def get_execution_context(self) -> Dict[str, Any]:
+    def get_execution_context(self) -> dict[str, Any]:
         """Get execution domain context snapshot."""
         return self.get_context_snapshot("execution")
 
-    def get_ops_context(self) -> Dict[str, Any]:
+    def get_ops_context(self) -> dict[str, Any]:
         """Get ops domain context snapshot."""
         return self.get_context_snapshot("ops")

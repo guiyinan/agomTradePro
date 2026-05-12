@@ -8,13 +8,10 @@ FROZEN: This service implements WP-M1-03 from the implementation plan.
 """
 
 import logging
-from typing import Any, Dict, Optional, Union
-
-from django.utils import timezone
+from typing import Any
 
 from apps.agent_runtime.application.repository_provider import get_timeline_repository
 from apps.agent_runtime.domain.entities import (
-    AgentProposal,
     AgentTask,
     EventSource,
     TimelineEventType,

@@ -308,27 +308,28 @@ class RegimeActionView(APIView):
 
 class RegimeNavigatorHistoryView(APIView):
     """Regime 导航仪历史序列与叠加
-    
+
     GET /api/regime/navigator/history/?months=12
     """
 
     def get(self, request):
         try:
             from datetime import timedelta
+
             from apps.regime.application.navigator_use_cases import GetRegimeNavigatorHistoryUseCase
-            
+
             months_str = request.query_params.get("months", "12")
             try:
                 months = int(months_str)
             except ValueError:
                 months = 12
-                
+
             end_date = date.today()
             start_date = end_date - timedelta(days=30 * months)
-            
+
             use_case = GetRegimeNavigatorHistoryUseCase()
             data = use_case.execute(start_date, end_date)
-            
+
             return Response({"success": True, "data": data})
 
         except Exception as e:

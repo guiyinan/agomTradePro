@@ -4,8 +4,8 @@ Unit Tests for Alpha Providers
 测试 Alpha Provider 的核心功能。
 """
 
-from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from datetime import date
+from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
@@ -15,8 +15,8 @@ from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProvider, AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
+from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
 
 

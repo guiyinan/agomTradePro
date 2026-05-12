@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Prepare Qlib Training Data Script
 
@@ -166,8 +165,9 @@ def load_stock_codes(universe: str) -> list:
         raise ValueError(f"不支持的股票池: {universe}")
 
     try:
-        from shared.config.secrets import get_secrets
         import tushare as ts
+
+        from shared.config.secrets import get_secrets
 
         ts.set_token(get_secrets().data_sources.tushare_token)
         pro = ts.pro_api()
@@ -243,9 +243,10 @@ def fetch_daily_data(
 def _fetch_from_tushare(stock_codes: list, start_date: str, end_date: str) -> dict:
     """从 Tushare 获取数据"""
     try:
-        from shared.config.secrets import get_secrets
-        import tushare as ts
         import pandas as pd
+        import tushare as ts
+
+        from shared.config.secrets import get_secrets
 
         ts.set_token(get_secrets().data_sources.tushare_token)
         pro = ts.pro_api()
@@ -364,8 +365,8 @@ def calculate_features(df):
     Returns:
         包含特征的数据框
     """
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     df = df.copy()
 

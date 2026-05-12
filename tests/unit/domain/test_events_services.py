@@ -5,7 +5,6 @@ Pure-Python tests: no Django, pandas, or numpy imports.
 Uses factory helpers from tests.factories.domain_factories.
 """
 
-from datetime import datetime, timezone
 
 import pytest
 
@@ -13,7 +12,6 @@ from apps.events.domain.entities import (
     DomainEvent,
     EventBusConfig,
     EventHandler,
-    EventMetrics,
     EventSubscription,
     EventType,
     create_event,

@@ -1,13 +1,15 @@
 """验证最新 Regime 计算使用正确的算法"""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from datetime import date
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.services import RegimeCalculator
 
 print("=" * 60)
@@ -44,7 +46,7 @@ response = use_case.execute(request)
 
 if response.success:
     snapshot = response.snapshot
-    print(f"\n计算结果:")
+    print("\n计算结果:")
     print(f"  日期: {snapshot.observed_at}")
     print(f"  主导象限: {snapshot.dominant_regime}")
     print(f"  置信度: {snapshot.confidence:.1%}")
@@ -53,13 +55,13 @@ if response.success:
     print(f"  分布: {snapshot.distribution}")
 
     # 验证通胀动量计算
-    print(f"\n中间数据:")
+    print("\n中间数据:")
     if response.intermediate_data:
         inflation_momentum = response.intermediate_data.get('inflation_momentum', [])
         if inflation_momentum:
             latest_momentum = inflation_momentum[-1]
             print(f"  最新通胀动量: {latest_momentum:+.4f}")
-            print(f"  计算方式: 绝对差值 (current - past)")
+            print("  计算方式: 绝对差值 (current - past)")
             print(f"  算法验证: {'✓ 正确' if abs(latest_momentum) < 10 else '✗ 可能错误（相对动量）'}")
 else:
     print(f"计算失败: {response.error}")

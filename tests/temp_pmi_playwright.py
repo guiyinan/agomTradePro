@@ -3,7 +3,6 @@
 """
 import asyncio
 import json
-from datetime import datetime
 
 from playwright.async_api import async_playwright
 

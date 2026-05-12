@@ -5,8 +5,7 @@ Tests for API and page views in the sentiment module.
 """
 
 import uuid
-from datetime import date, datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth import get_user_model

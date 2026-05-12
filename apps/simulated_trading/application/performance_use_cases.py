@@ -9,14 +9,13 @@ Application 层：
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from datetime import date
+from typing import Any, Protocol
 
 from apps.simulated_trading.domain.entities import (
     AccountValuationSummary,
     BenchmarkComponent,
     BenchmarkStats,
-    CashFlowType,
     CoverageInfo,
     PerformancePeriod,
     PerformanceRatios,
@@ -24,7 +23,6 @@ from apps.simulated_trading.domain.entities import (
     PerformanceReturns,
     PerformanceRisk,
     TradeStats,
-    UnifiedAccountCashFlow,
     ValuationRow,
     ValuationSnapshot,
     ValuationTimelinePoint,
@@ -42,7 +40,7 @@ logger = logging.getLogger(__name__)
 class AccountRepositoryProtocol(Protocol):
     """账户只读仓储接口。"""
 
-    def get_by_id(self, account_id: int) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, account_id: int) -> dict[str, Any] | None:
         """返回账户字典（含 initial_capital, start_date, account_type）。"""
         ...
 
@@ -50,11 +48,11 @@ class AccountRepositoryProtocol(Protocol):
 class BenchmarkComponentRepositoryProtocol(Protocol):
     """基准成分仓储接口。"""
 
-    def list_active(self, account_id: int) -> List[Dict[str, Any]]:
+    def list_active(self, account_id: int) -> list[dict[str, Any]]:
         """返回账户的所有激活基准成分 dicts。"""
         ...
 
-    def upsert_components(self, account_id: int, components: List[Dict[str, Any]]) -> None:
+    def upsert_components(self, account_id: int, components: list[dict[str, Any]]) -> None:
         """覆盖写入账户的所有基准成分（先删再插）。"""
         ...
 
@@ -65,9 +63,9 @@ class UnifiedCashFlowRepositoryProtocol(Protocol):
     def list_for_account(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         """返回账户在区间内的现金流 dicts（按 flow_date 升序）。"""
         ...
 
@@ -75,7 +73,7 @@ class UnifiedCashFlowRepositoryProtocol(Protocol):
         """写入初始入金流水（幂等）。"""
         ...
 
-    def mirror_from_capital_flow(self, account_id: int, capital_flow_dict: Dict[str, Any]) -> None:
+    def mirror_from_capital_flow(self, account_id: int, capital_flow_dict: dict[str, Any]) -> None:
         """将 CapitalFlowModel 记录镜像到统一现金流（幂等）。"""
         ...
 
@@ -83,7 +81,7 @@ class UnifiedCashFlowRepositoryProtocol(Protocol):
 class ValuationSnapshotRepositoryProtocol(Protocol):
     """持仓估值快照仓储接口。"""
 
-    def get_for_date(self, account_id: int, record_date: date) -> List[Dict[str, Any]]:
+    def get_for_date(self, account_id: int, record_date: date) -> list[dict[str, Any]]:
         """返回某日所有持仓快照 dicts。"""
         ...
 
@@ -91,7 +89,7 @@ class ValuationSnapshotRepositoryProtocol(Protocol):
         self,
         account_id: int,
         record_date: date,
-        rows: List[Dict[str, Any]],
+        rows: list[dict[str, Any]],
     ) -> None:
         """覆盖写入某日持仓估值快照。"""
         ...
@@ -103,15 +101,15 @@ class DailyNetValueRepositoryProtocol(Protocol):
     def list_range(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         """按日期升序返回净值记录 dicts。"""
         ...
 
     def get_record_for_date(
         self, account_id: int, record_date: date
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
         ...
 
@@ -119,7 +117,7 @@ class DailyNetValueRepositoryProtocol(Protocol):
 class MarketDataRepositoryProtocol(Protocol):
     """行情数据仓储接口。"""
 
-    def get_close_price(self, asset_code: str, trade_date: date) -> Optional[float]:
+    def get_close_price(self, asset_code: str, trade_date: date) -> float | None:
         """返回某日收盘价，无数据返回 None。"""
         ...
 
@@ -128,7 +126,7 @@ class MarketDataRepositoryProtocol(Protocol):
         index_code: str,
         start_date: date,
         end_date: date,
-    ) -> List[Tuple[date, float]]:
+    ) -> list[tuple[date, float]]:
         """返回指数日收益率序列（小数，非百分比），按日期升序。"""
         ...
 
@@ -137,7 +135,7 @@ class MarketDataRepositoryProtocol(Protocol):
         index_code: str,
         start_date: date,
         end_date: date,
-    ) -> Optional[float]:
+    ) -> float | None:
         """返回指数区间累计收益率（%）。"""
         ...
 
@@ -147,7 +145,7 @@ class CapitalFlowRepositoryProtocol(Protocol):
 
     def list_for_account_via_ledger(
         self, account_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """通过 LedgerMigrationMapModel 返回该账户对应的全部 CapitalFlowModel 记录。"""
         ...
 
@@ -166,9 +164,9 @@ class TradeHistoryRepositoryProtocol(Protocol):
     def list_closed_trades(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         """返回区间内已实现盈亏的卖出交易 dicts（含 realized_pnl）。"""
         ...
 
@@ -212,7 +210,7 @@ class GetAccountPerformanceReportUseCase:
 
         未能可靠计算的指标返回 None，不伪造数据。
         """
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         account = self._account_repo.get_by_id(account_id)
         if account is None:
@@ -220,13 +218,13 @@ class GetAccountPerformanceReportUseCase:
 
         # 1. 获取日净值序列
         dnv_records = self._dnv_repo.list_range(account_id, start_date, end_date)
-        daily_values: List[Tuple[date, float]] = [
+        daily_values: list[tuple[date, float]] = [
             (r["record_date"], float(r["total_value"])) for r in dnv_records
         ]
 
         # 2. 获取区间现金流
         cf_records = self._cf_repo.list_for_account(account_id, start_date, end_date)
-        daily_cashflows: List[Tuple[date, float]] = [
+        daily_cashflows: list[tuple[date, float]] = [
             (r["flow_date"], float(r["amount"])) for r in cf_records
         ]
 
@@ -235,8 +233,8 @@ class GetAccountPerformanceReportUseCase:
         period = PerformancePeriod(start_date=start_date, end_date=end_date, days=days)
 
         # 4. TWR
-        twr_pct: Optional[float] = None
-        annualized_twr: Optional[float] = None
+        twr_pct: float | None = None
+        annualized_twr: float | None = None
         if len(daily_values) >= 2:
             twr_pct = PerformanceCalculatorService.calculate_twr(daily_values, daily_cashflows)
             if twr_pct is not None and days > 0:
@@ -245,8 +243,8 @@ class GetAccountPerformanceReportUseCase:
             warnings.append("日净值数据不足（少于 2 个交易日），无法计算 TWR")
 
         # 5. MWR/XIRR
-        mwr_pct: Optional[float] = None
-        annualized_mwr: Optional[float] = None
+        mwr_pct: float | None = None
+        annualized_mwr: float | None = None
         if cf_records and daily_values:
             terminal_value = daily_values[-1][1] if daily_values else 0.0
             xirr_result = PerformanceCalculatorService.calculate_xirr(
@@ -282,10 +280,10 @@ class GetAccountPerformanceReportUseCase:
 
         # 7. 比率
         ann_ret = annualized_twr  # 优先使用 TWR
-        sharpe: Optional[float] = None
-        sortino: Optional[float] = None
-        calmar: Optional[float] = None
-        treynor: Optional[float] = None
+        sharpe: float | None = None
+        sortino: float | None = None
+        calmar: float | None = None
+        treynor: float | None = None
 
         if ann_ret is not None and volatility is not None:
             sharpe = PerformanceCalculatorService.calculate_sharpe(ann_ret, volatility)
@@ -295,15 +293,15 @@ class GetAccountPerformanceReportUseCase:
             calmar = PerformanceCalculatorService.calculate_calmar(ann_ret, max_dd)
 
         # 8. 基准指标
-        benchmark_stats: Optional[BenchmarkStats] = None
+        benchmark_stats: BenchmarkStats | None = None
         bm_components = self._bm_repo.list_active(account_id)
         if bm_components:
-            component_returns: List[Tuple[float, float]] = []
-            bm_daily_returns_combined: List[float] = []
+            component_returns: list[tuple[float, float]] = []
+            bm_daily_returns_combined: list[float] = []
             bm_return_missing = False
 
             # 获取每个成分的区间收益和日收益
-            all_component_daily: List[List[float]] = []
+            all_component_daily: list[list[float]] = []
             for comp in bm_components:
                 bm_code = comp["benchmark_code"]
                 weight = float(comp["weight"])
@@ -318,7 +316,7 @@ class GetAccountPerformanceReportUseCase:
                 idx_daily = self._md_repo.get_index_daily_returns(bm_code, start_date, end_date)
                 all_component_daily.append([r for _, r in idx_daily])
 
-            bm_return: Optional[float] = None
+            bm_return: float | None = None
             if component_returns:
                 bm_return = PerformanceCalculatorService.calculate_weighted_benchmark_return(component_returns)
 
@@ -333,14 +331,14 @@ class GetAccountPerformanceReportUseCase:
                         for j in range(min_len)
                     ]
 
-            excess_return: Optional[float] = None
+            excess_return: float | None = None
             if twr_pct is not None and bm_return is not None:
                 excess_return = twr_pct - bm_return
 
-            beta: Optional[float] = None
-            alpha: Optional[float] = None
-            tracking_error: Optional[float] = None
-            information_ratio: Optional[float] = None
+            beta: float | None = None
+            alpha: float | None = None
+            tracking_error: float | None = None
+            information_ratio: float | None = None
 
             if daily_returns and bm_daily_returns_combined and ann_ret is not None:
                 ann_bm = PerformanceCalculatorService.calculate_annualized_twr(
@@ -430,7 +428,7 @@ class GetAccountValuationSnapshotUseCase:
         self._dnv_repo = daily_net_value_repo
 
     def execute(self, account_id: int, as_of_date: date) -> ValuationSnapshot:
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         account = self._account_repo.get_by_id(account_id)
         if account is None:
@@ -438,7 +436,7 @@ class GetAccountValuationSnapshotUseCase:
 
         rows_dicts = self._snapshot_repo.get_for_date(account_id, as_of_date)
 
-        rows: List[ValuationRow] = []
+        rows: list[ValuationRow] = []
         total_market_value = 0.0
         total_cost = 0.0
 
@@ -527,9 +525,9 @@ class ListAccountValuationTimelineUseCase:
     def execute(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[ValuationTimelinePoint]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[ValuationTimelinePoint]:
         account = self._account_repo.get_by_id(account_id)
         if account is None:
             raise ValueError(f"Account {account_id} not found")
@@ -539,7 +537,7 @@ class ListAccountValuationTimelineUseCase:
             return []
 
         cf_records = self._cf_repo.list_for_account(account_id, start_date, end_date)
-        cf_map: Dict[date, float] = {}
+        cf_map: dict[date, float] = {}
         for cf in cf_records:
             d = cf["flow_date"]
             cf_map[d] = cf_map.get(d, 0.0) + float(cf["amount"])
@@ -548,9 +546,9 @@ class ListAccountValuationTimelineUseCase:
         if initial_capital <= 0:
             initial_capital = 1.0
 
-        points: List[ValuationTimelinePoint] = []
+        points: list[ValuationTimelinePoint] = []
         cumulative_twr = 1.0  # 累乘因子
-        prev_total_value: Optional[float] = None
+        prev_total_value: float | None = None
         peak_value: float = 0.0
 
         for rec in dnv_records:
@@ -613,20 +611,20 @@ class BackfillUnifiedAccountHistoryUseCase:
         account_repo: AccountRepositoryProtocol,
         cash_flow_repo: UnifiedCashFlowRepositoryProtocol,
         daily_net_value_repo: DailyNetValueRepositoryProtocol,
-        capital_flow_repo: Optional[CapitalFlowRepositoryProtocol] = None,
+        capital_flow_repo: CapitalFlowRepositoryProtocol | None = None,
     ) -> None:
         self._account_repo = account_repo
         self._cf_repo = cash_flow_repo
         self._dnv_repo = daily_net_value_repo
         self._capital_flow_repo = capital_flow_repo
 
-    def execute(self, account_id: int) -> Dict[str, Any]:
+    def execute(self, account_id: int) -> dict[str, Any]:
         """
         Returns:
             summary dict with keys: account_id, initial_capital_written,
             mirrored_capital_flows, dnv_record_count, warnings
         """
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         account = self._account_repo.get_by_id(account_id)
         if account is None:
@@ -690,7 +688,7 @@ class BenchmarkCRUDUseCase:
     def __init__(self, benchmark_repo: BenchmarkComponentRepositoryProtocol) -> None:
         self._repo = benchmark_repo
 
-    def get(self, account_id: int) -> List[BenchmarkComponent]:
+    def get(self, account_id: int) -> list[BenchmarkComponent]:
         """获取账户所有激活基准成分。"""
         dicts = self._repo.list_active(account_id)
         return [
@@ -705,7 +703,7 @@ class BenchmarkCRUDUseCase:
             for d in dicts
         ]
 
-    def put(self, account_id: int, components: List[Dict[str, Any]]) -> List[BenchmarkComponent]:
+    def put(self, account_id: int, components: list[dict[str, Any]]) -> list[BenchmarkComponent]:
         """
         覆盖写入基准成分（归一化权重）。
 

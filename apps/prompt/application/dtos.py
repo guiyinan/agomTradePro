@@ -5,9 +5,9 @@ Data Transfer Objects for request/response handling
 in the Application layer.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass

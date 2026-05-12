@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
+
 from apps.pulse.infrastructure.models import PulseWeightConfig
+
 
 class Command(BaseCommand):
     help = "查看当前 Pulse 权重配置"

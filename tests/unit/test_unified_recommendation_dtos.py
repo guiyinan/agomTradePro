@@ -4,10 +4,8 @@
 测试 Application 层 DTO 的创建和转换。
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from apps.decision_rhythm.application.dtos import (
     ApproveExecutionRequestDTO,

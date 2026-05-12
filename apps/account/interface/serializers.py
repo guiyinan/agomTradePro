@@ -2,8 +2,6 @@
 DRF Serializers for Account API.
 """
 
-from datetime import date
-from decimal import Decimal
 
 from django.apps import apps as django_apps
 from rest_framework import serializers

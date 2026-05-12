@@ -4,7 +4,6 @@ Unit tests for Currency Unit Conversion
 测试货币单位转换的正确性
 """
 
-import pytest
 
 from apps.macro.domain.entities import (
     UNIT_CONVERSION_FACTORS,

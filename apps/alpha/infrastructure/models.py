@@ -5,10 +5,7 @@ Alpha 评分缓存和模型注册的数据持久化模型。
 Domain 层实体映射到数据库表结构。
 """
 
-import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.core.exceptions import ValidationError

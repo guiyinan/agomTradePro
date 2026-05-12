@@ -233,7 +233,7 @@ def get_task_queue_metrics() -> dict[str, Any]:
         inspect = app.control.inspect()
         active = inspect.active()
         reserved = inspect.reserved()
-        stats = inspect.stats()
+        inspect.stats()
 
         # 统计活跃任务
         active_count = 0
@@ -347,7 +347,7 @@ def track_celery_task(func):
 
             raise
 
-        except (SoftTimeLimitExceeded, TimeLimitExceeded) as e:
+        except (SoftTimeLimitExceeded, TimeLimitExceeded):
             # 记录超时
             duration = time.perf_counter() - start_time
             celery_task_total.labels(

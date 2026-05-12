@@ -7,17 +7,14 @@
 """
 
 from datetime import date, timedelta
-from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.equity.domain.entities_valuation_repair import (
-    PercentilePoint,
     ValuationRepairPhase,
     ValuationRepairStatus,
 )
@@ -186,7 +183,7 @@ class TestValuationRepairScanAPI:
         POST /valuation-repair/scan/ 应该到达 scan action，而非被 stock_code 路由拦截。
         """
         with patch('apps.equity.interface.views.DjangoStockRepository') as MockStockRepo, \
-             patch('apps.equity.interface.views.DjangoValuationRepairRepository') as MockRepairRepo:
+             patch('apps.equity.interface.views.DjangoValuationRepairRepository'):
 
             mock_stock = MockStockRepo.return_value
             mock_stock.list_active_stock_codes.return_value = []  # 空列表避免实际扫描

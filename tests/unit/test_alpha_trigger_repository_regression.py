@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +15,10 @@ from apps.alpha_trigger.domain.entities import (
     TriggerStatus,
     TriggerType,
 )
-from apps.alpha_trigger.infrastructure.repositories import AlphaCandidateRepository, AlphaTriggerRepository
+from apps.alpha_trigger.infrastructure.repositories import (
+    AlphaCandidateRepository,
+    AlphaTriggerRepository,
+)
 
 
 @pytest.mark.django_db
@@ -32,14 +35,14 @@ def test_alpha_candidate_repository_does_not_depend_on_custom_manager_methods():
         confidence=0.95,
         thesis="Momentum breakout confirmed",
         invalidation="Price breaks below support",
-        time_window_start=datetime(2026, 3, 29, tzinfo=timezone.utc).date(),
-        time_window_end=datetime(2026, 6, 27, tzinfo=timezone.utc).date(),
+        time_window_start=datetime(2026, 3, 29, tzinfo=UTC).date(),
+        time_window_end=datetime(2026, 6, 27, tzinfo=UTC).date(),
         time_horizon=90,
         expected_asymmetry="HIGH",
         risk_level="HIGH",
         status=CandidateStatus.ACTIONABLE,
-        created_at=datetime(2026, 3, 29, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 3, 29, tzinfo=timezone.utc),
+        created_at=datetime(2026, 3, 29, tzinfo=UTC),
+        updated_at=datetime(2026, 3, 29, tzinfo=UTC),
         audit_trail=["seeded for regression test"],
     )
     watch = AlphaCandidate(
@@ -52,14 +55,14 @@ def test_alpha_candidate_repository_does_not_depend_on_custom_manager_methods():
         confidence=0.7,
         thesis="Watch for confirmation",
         invalidation="PMI falls below 50",
-        time_window_start=datetime(2026, 3, 29, tzinfo=timezone.utc).date(),
-        time_window_end=datetime(2026, 6, 27, tzinfo=timezone.utc).date(),
+        time_window_start=datetime(2026, 3, 29, tzinfo=UTC).date(),
+        time_window_end=datetime(2026, 6, 27, tzinfo=UTC).date(),
         time_horizon=90,
         expected_asymmetry="MED",
         risk_level="MEDIUM",
         status=CandidateStatus.WATCH,
-        created_at=datetime(2026, 3, 29, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 3, 29, tzinfo=timezone.utc),
+        created_at=datetime(2026, 3, 29, tzinfo=UTC),
+        updated_at=datetime(2026, 3, 29, tzinfo=UTC),
         audit_trail=["seeded for regression test"],
     )
 

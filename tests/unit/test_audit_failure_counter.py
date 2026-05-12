@@ -9,8 +9,8 @@ Unit tests for Audit Failure Counter Module
 5. 健康状态判断
 """
 
-from datetime import UTC, datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from datetime import UTC, datetime
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -253,7 +253,6 @@ class TestGlobalFunctions:
     @patch("apps.audit.infrastructure.failure_counter.AuditFailureCounter")
     def test_get_audit_failure_counter(self, mock_counter_class):
         """测试获取计数器单例"""
-        import importlib
 
         from apps.audit.infrastructure import failure_counter
         from apps.audit.infrastructure.failure_counter import get_audit_failure_counter

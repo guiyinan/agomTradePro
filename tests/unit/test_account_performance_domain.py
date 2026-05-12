@@ -9,14 +9,13 @@
 - Win rate / Profit factor
 - BenchmarkComponent、PerformanceReport 等实体构造
 """
-import math
 from datetime import date, timedelta
 
 import pytest
 
 from apps.simulated_trading.domain.entities import (
+    AccountValuationSummary,
     BenchmarkComponent,
-    BenchmarkStats,
     CashFlowType,
     CoverageInfo,
     PerformancePeriod,
@@ -27,12 +26,9 @@ from apps.simulated_trading.domain.entities import (
     TradeStats,
     UnifiedAccountCashFlow,
     ValuationRow,
-    ValuationSnapshot,
     ValuationTimelinePoint,
-    AccountValuationSummary,
 )
 from apps.simulated_trading.domain.services import PerformanceCalculatorService
-
 
 # ---------------------------------------------------------------------------
 # 辅助

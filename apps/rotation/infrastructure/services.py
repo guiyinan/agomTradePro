@@ -7,14 +7,9 @@ integration between Application layer and Infrastructure.
 """
 
 import logging
-from collections.abc import Callable
-from datetime import date, datetime
-from typing import Dict, List, Optional
+from datetime import date
 
 from apps.rotation.domain.entities import (
-    AssetClass,
-    RotationConfig,
-    RotationSignal,
     RotationStrategyType,
 )
 from apps.rotation.domain.services import (
@@ -99,7 +94,7 @@ class RotationIntegrationService:
             # Save to database
             config_model = self.config_repo.get_model_by_name(config_name)
             if config_model:
-                signal_model = self.signal_repo.save(signal, config_model.id)
+                self.signal_repo.save(signal, config_model.id)
 
                 return {
                     'config_name': signal.config_name,

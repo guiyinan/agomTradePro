@@ -2,24 +2,25 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterable
 
-from core.integration.alpha_cache import (
-    collect_alpha_cache_codes,
-    normalize_alpha_cached_code,
-)
 from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.asset_master_backfill import AssetMasterBackfillService
-from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import AKShareEastMoneyGateway
-from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
-from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
+from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+    AKShareEastMoneyGateway,
+)
+from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
 from apps.data_center.infrastructure.models import PriceBarModel
 from apps.data_center.infrastructure.repositories import PriceBarRepository
+from core.integration.alpha_cache import (
+    collect_alpha_cache_codes,
+    normalize_alpha_cached_code,
+)
 
 
 @dataclass(frozen=True)

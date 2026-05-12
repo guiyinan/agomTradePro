@@ -66,13 +66,10 @@ def test_import_mcp() -> None:
     """Test 1: Import MCP Server"""
     print_test("Test 1: Import MCP Server")
     try:
-        from agomtradepro_mcp import server
+        from agomtradepro_mcp import server  # noqa: F401
         print_success("MCP server module imported successfully")
     except ImportError as e:
-        assert False, (
-            f"Failed to import MCP server: {e}. "
-            "Make sure the SDK is installed: pip install -e sdk/"
-        )
+        raise AssertionError(f"Failed to import MCP server: {e}. " "Make sure the SDK is installed: pip install -e sdk/") from e
 
 
 def test_server_instance() -> None:
@@ -83,7 +80,7 @@ def test_server_instance() -> None:
 
         print_success(f"Server instance created: {server.name}")
     except Exception as e:
-        assert False, f"Failed to create server instance: {e}"
+        raise AssertionError(f"Failed to create server instance: {e}") from e
 
 
 def test_list_tools() -> None:
@@ -106,7 +103,7 @@ def test_list_tools() -> None:
         print_info("  - Backtest: list_backtests, get_backtest_result")
         print_info("  - And more...")
     except Exception as e:
-        assert False, f"Failed to list tools: {e}"
+        raise AssertionError(f"Failed to list tools: {e}") from e
 
 
 def test_list_resources() -> None:
@@ -123,7 +120,7 @@ def test_list_resources() -> None:
         for resource in resources:
             print_info(f"  - {resource['uri']}: {resource['name']}")
     except Exception as e:
-        assert False, f"Failed to list resources: {e}"
+        raise AssertionError(f"Failed to list resources: {e}") from e
 
 
 def test_read_resource() -> None:
@@ -161,7 +158,7 @@ def test_list_prompts() -> None:
                 args_info = f" ({len(prompt['arguments'])} args)"
             print_info(f"  - {prompt['name']}{args_info}: {prompt['description']}")
     except Exception as e:
-        assert False, f"Failed to list prompts: {e}"
+        raise AssertionError(f"Failed to list prompts: {e}") from e
 
 
 def test_get_prompt() -> None:
@@ -178,14 +175,14 @@ def test_get_prompt() -> None:
         print_success("Prompt content retrieved")
         print_info(f"Prompt length: {len(prompt)} characters")
     except Exception as e:
-        assert False, f"Failed to get prompt: {e}"
+        raise AssertionError(f"Failed to get prompt: {e}") from e
 
 
 def test_tool_imports() -> None:
     """Test 8: Test Tool Module Imports"""
     print_test("Test 8: Test Tool Module Imports")
     try:
-        from agomtradepro_mcp.tools import (
+        from agomtradepro_mcp.tools import (  # noqa: F401
             account_tools,
             ai_provider_tools,
             alpha_trigger_tools,
@@ -194,12 +191,12 @@ def test_tool_imports() -> None:
             backtest_tools,
             beta_gate_tools,
             dashboard_tools,
+            data_center_tools,
             decision_rhythm_tools,
             equity_tools,
             events_tools,
             filter_tools,
             fund_tools,
-            data_center_tools,
             policy_tools,
             prompt_tools,
             realtime_tools,
@@ -239,7 +236,7 @@ def test_tool_imports() -> None:
         print_info("  - task_monitor_tools")
         print_info("  - filter_tools")
     except ImportError as e:
-        assert False, f"Failed to import tool modules: {e}"
+        raise AssertionError(f"Failed to import tool modules: {e}") from e
 
 
 def test_sdk_client_from_mcp() -> None:
@@ -259,7 +256,7 @@ def test_sdk_client_from_mcp() -> None:
             # Even if data is not available, the client should work
             print_success("SDK client initialized successfully")
     except Exception as e:
-        assert False, f"Failed to create SDK client: {e}"
+        raise AssertionError(f"Failed to create SDK client: {e}") from e
 
 
 def main() -> int:
@@ -270,7 +267,7 @@ def main() -> int:
     print_test("Server Check")
     try:
         import requests
-        response = requests.get("http://localhost:8000/api/", timeout=5)
+        requests.get("http://localhost:8000/api/", timeout=5)
         print_success("Server is running")
     except Exception as e:
         print_error(f"Cannot connect to server: {e}")

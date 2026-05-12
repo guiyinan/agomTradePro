@@ -7,16 +7,13 @@ Application layer should depend on these protocols, not concrete implementations
 """
 
 from dataclasses import dataclass
-from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from apps.account.domain.entities import (
     AccountProfile,
     PortfolioSnapshot,
     Position,
-    StopLossConfig,
-    StopLossTrigger,
     Transaction,
 )
 

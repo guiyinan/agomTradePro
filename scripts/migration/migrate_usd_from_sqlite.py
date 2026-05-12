@@ -4,17 +4,19 @@
 ⚠️ 安全第一：执行前确保 PostgreSQL 中有备份
 """
 
-import sqlite3
 import os
+import sqlite3
+
 import django
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from apps.macro.infrastructure.models import MacroIndicatorModel
 from django.db import transaction
 from dotenv import load_dotenv
+
+from apps.macro.infrastructure.models import MacroIndicatorModel
 
 load_dotenv()
 

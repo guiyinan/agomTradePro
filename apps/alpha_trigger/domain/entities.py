@@ -8,9 +8,9 @@ Alpha 事件触发的核心实体定义。
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class TriggerType(Enum):

@@ -280,7 +280,7 @@ class Command(BaseCommand):
 
     def _prepare_train_config(self, options: dict) -> dict:
         """准备训练配置"""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         end_date = options.get('end_date')
         if not end_date:

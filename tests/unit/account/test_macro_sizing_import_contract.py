@@ -1,10 +1,10 @@
-import pytest
 from pathlib import Path
 
-import apps.account.infrastructure.models as account_models
+import pytest
 
-from apps.account.infrastructure.repositories import MacroSizingConfigRepository
+import apps.account.infrastructure.models as account_models
 from apps.account.infrastructure.models import MacroSizingConfigModel
+from apps.account.infrastructure.repositories import MacroSizingConfigRepository
 
 
 def test_account_api_urls_import_sizing_context_view():

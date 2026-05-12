@@ -10,10 +10,10 @@ import traceback
 from collections.abc import Callable
 from datetime import date
 from functools import wraps
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
-from ...domain.interfaces import AlphaProvider, AlphaProviderStatus
+from ...domain.interfaces import AlphaProvider
 
 logger = logging.getLogger(__name__)
 

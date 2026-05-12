@@ -5,9 +5,7 @@
 """
 
 from dataclasses import dataclass
-from datetime import date
-from decimal import Decimal
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from apps.equity.domain.entities import FinancialData, ValuationMetrics
 
@@ -70,7 +68,6 @@ class ComprehensiveValuationAnalyzer:
         Returns:
             综合估值结果
         """
-        from apps.equity.domain.services import ValuationAnalyzer
 
         scores = []
         weights = []  # 各方法权重

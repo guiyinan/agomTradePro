@@ -5,7 +5,6 @@
 这些匹配器是纯函数实现，不依赖外部状态，符合 Domain 层的设计原则。
 """
 
-from typing import Dict, List, Tuple
 
 from apps.asset_analysis.domain.entities import AssetScore, AssetType
 

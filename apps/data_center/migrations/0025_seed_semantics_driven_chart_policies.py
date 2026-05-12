@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 SEMANTICS_TO_POLICY = {
     "cumulative_level": "yearly_reset_bar",
     "monthly_level": "period_bar",

@@ -4,8 +4,8 @@ Regime V2 逻辑验证脚本
 独立验证新版 Regime 判定逻辑的正确性
 """
 
-import sys
 import json
+import sys
 from datetime import date
 
 
@@ -15,8 +15,8 @@ def test_v2_logic():
     sys.path.insert(0, '.')
     from apps.regime.domain.services_v2 import (
         RegimeCalculatorV2,
-        ThresholdConfig,
         RegimeType,
+        ThresholdConfig,
         calculate_regime_by_level,
         calculate_regime_distribution_by_level,
     )
@@ -39,13 +39,13 @@ def test_v2_logic():
     print(f"   置信度: {result.confidence:.1%}")
     print(f"   PMI: {result.growth_level} ({result.growth_state})")
     print(f"   CPI: {result.inflation_level}% ({result.inflation_state})")
-    print(f"\n   概率分布:")
+    print("\n   概率分布:")
     for regime, prob in result.distribution.items():
         print(f"     {regime}: {prob:.2%}")
 
-    print(f"\n   Trend Indicators:")
+    print("\n   Trend Indicators:")
     for t in result.trend_indicators:
-        direction_icon = {"up": "UP", "down": "DOWN", "neutral": "FLAT"}[t.direction]
+        {"up": "UP", "down": "DOWN", "neutral": "FLAT"}[t.direction]
         print(f"     {t.indicator_code}: {t.current_value}, momentum={t.momentum:+.2f} ({t.strength}), direction={t.direction}")
 
     if result.prediction:
@@ -74,7 +74,7 @@ def test_v2_logic():
     )
 
     test = calculate_regime_by_level(50.5, 2.5, custom_config)
-    print(f"   PMI=50.5, CPI=2.5% (自定义阈值)")
+    print("   PMI=50.5, CPI=2.5% (自定义阈值)")
     print(f"   结果: {test.value}")
 
     # 4. 验证预测逻辑
@@ -106,7 +106,7 @@ def test_with_latest_data():
 
     # 读取最新数据
     try:
-        with open('data/macro_data_latest.json', 'r', encoding='utf-8') as f:
+        with open('data/macro_data_latest.json', encoding='utf-8') as f:
             data = json.load(f)
     except FileNotFoundError:
         print("请先运行 update_system_data.py 获取最新数据")
@@ -134,36 +134,36 @@ def test_with_latest_data():
         date.today()
     )
 
-    print(f"\n=== 判定结果 ===")
+    print("\n=== 判定结果 ===")
     print(f"Regime: {result.regime.value}")
     print(f"置信度: {result.confidence:.1%}")
     print(f"增长状态: {result.growth_state} (PMI: {result.growth_level})")
     print(f"通胀状态: {result.inflation_state} (CPI: {result.inflation_level}%)")
 
-    print(f"\n=== 趋势分析 ===")
+    print("\n=== 趋势分析 ===")
     for t in result.trend_indicators:
         direction_icon = {"up": "▲", "down": "▼", "neutral": "▶"}[t.direction]
-        strength_color = {"weak": "浅", "moderate": "中", "strong": "深"}[t.strength]
+        {"weak": "浅", "moderate": "中", "strong": "深"}[t.strength]
         print(f"{t.indicator_code}: {t.current_value} {direction_icon} ({strength}强度)")
 
     if result.prediction:
-        print(f"\n=== 预测 ===")
+        print("\n=== 预测 ===")
         print(result.prediction)
 
     # 对比旧算法
-    print(f"\n=== 与旧算法对比 ===")
+    print("\n=== 与旧算法对比 ===")
     from apps.regime.domain.services import RegimeCalculator as OldCalculator
 
     old_calc = OldCalculator()
     old_result = old_calc.calculate(pmi_series, cpi_series, date.today())
 
-    print(f"旧算法（动量法）:")
+    print("旧算法（动量法）:")
     print(f"  Regime: {old_result.snapshot.dominant_regime}")
     print(f"  置信度: {old_result.snapshot.confidence:.1%}")
     print(f"  增长动量 Z: {old_result.snapshot.growth_momentum_z:+.3f}")
     print(f"  通胀动量 Z: {old_result.snapshot.inflation_momentum_z:+.3f}")
 
-    print(f"\n新算法（水平法）:")
+    print("\n新算法（水平法）:")
     print(f"  Regime: {result.regime.value}")
     print(f"  置信度: {result.confidence:.1%}")
 

@@ -21,9 +21,6 @@ from rest_framework import filters, status, viewsets
 from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from core.integration.simulated_trading_facade import (
-    get_simulated_trading_facade_bridge,
-)
 
 from apps.strategy.application.interface_services import (
     bind_strategy_assignment,
@@ -82,6 +79,9 @@ from apps.strategy.interface.serializers import (
     StrategySerializer,
 )
 from core.exceptions import DuplicateResourceError, InvalidInputError
+from core.integration.simulated_trading_facade import (
+    get_simulated_trading_facade_bridge,
+)
 
 logger = logging.getLogger(__name__)
 

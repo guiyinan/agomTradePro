@@ -6,11 +6,10 @@ Dashboard Application Use Cases
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any
 
 from apps.account.domain.entities import (
-    AssetAllocation,
     Position,
     RegimeMatchAnalysis,
 )

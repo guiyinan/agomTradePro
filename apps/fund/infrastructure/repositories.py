@@ -10,10 +10,8 @@
 import math
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 
-from django.db.models import Avg, Max, Min, Q, Sum
-from django.utils import timezone
+from django.db.models import Max
 
 from apps.data_center.application.dtos import SyncFundNavRequest
 from apps.data_center.application.use_cases import SyncFundNavUseCase
@@ -21,13 +19,15 @@ from apps.data_center.infrastructure.provider_factory import UnifiedProviderFact
 from apps.data_center.infrastructure.repositories import (
     FundNavRepository as DataCenterFundNavRepository,
 )
-from apps.data_center.infrastructure.repositories import ProviderConfigRepository
-from apps.data_center.infrastructure.repositories import RawAuditRepository
+from apps.data_center.infrastructure.repositories import (
+    ProviderConfigRepository,
+    RawAuditRepository,
+)
+
 from ..domain.entities import (
     FundAssetScore,
     FundHolding,
     FundInfo,
-    FundManager,
     FundNetValue,
     FundPerformance,
     FundSectorAllocation,
@@ -36,7 +36,6 @@ from ..domain.services import FundPerformanceCalculator
 from .models import (
     FundHoldingModel,
     FundInfoModel,
-    FundManagerModel,
     FundNetValueModel,
     FundPerformanceModel,
     FundSectorAllocationModel,

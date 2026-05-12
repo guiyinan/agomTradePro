@@ -6,15 +6,12 @@ Application layer orchestrating filter workflows.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 from ..domain.entities import (
     FilterResult,
     FilterSeries,
     FilterType,
-    HPFilterParams,
     KalmanFilterParams,
-    KalmanFilterState,
 )
 from .repository_provider import (
     DjangoFilterRepository,

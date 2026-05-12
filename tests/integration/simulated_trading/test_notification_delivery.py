@@ -1,11 +1,8 @@
 """Integration tests for notification delivery in simulated trading."""
 
-from datetime import date, datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from django.core.mail import send_mail
-from django.utils import timezone
 
 from apps.simulated_trading.application.tasks import (
     NotificationConfig,
@@ -15,7 +12,6 @@ from apps.simulated_trading.application.tasks import (
 )
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionNotificationConfigModel,
-    DailyInspectionReportModel,
     NotificationHistoryModel,
     RebalanceProposalModel,
     SimulatedAccountModel,
@@ -27,9 +23,6 @@ from shared.infrastructure.notification_service import (
     NotificationPriority,
     NotificationRecipient,
     UnifiedNotificationService,
-)
-from shared.infrastructure.notification_service import (
-    NotificationChannel as NC,
 )
 
 
@@ -209,7 +202,7 @@ class TestDailyInspectionEmail:
         )
 
         # Create notification config
-        config = DailyInspectionNotificationConfigModel.objects.create(
+        DailyInspectionNotificationConfigModel.objects.create(
             account=account,
             is_enabled=True,
             include_owner_email=True,
@@ -288,7 +281,7 @@ class TestRebalanceProposalNotification:
         )
 
         # Create notification config
-        config = DailyInspectionNotificationConfigModel.objects.create(
+        DailyInspectionNotificationConfigModel.objects.create(
             account=account,
             is_enabled=True,
             include_owner_email=True,
@@ -349,7 +342,7 @@ class TestRebalanceProposalNotification:
         )
 
         # Create notification config with is_enabled=False
-        config = DailyInspectionNotificationConfigModel.objects.create(
+        DailyInspectionNotificationConfigModel.objects.create(
             account=account,
             is_enabled=False,
         )

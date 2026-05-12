@@ -11,9 +11,10 @@ import os
 import re
 import sys
 import time
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, List, Set
+from typing import List, Set
 
 import django
 import requests
@@ -62,8 +63,8 @@ def normalize_route(route: str) -> str:
     return value
 
 
-def collect_paths(patterns: Iterable, prefix: str = "", dynamic_prefix: bool = False) -> Set[RouteItem]:
-    paths: Set[RouteItem] = set()
+def collect_paths(patterns: Iterable, prefix: str = "", dynamic_prefix: bool = False) -> set[RouteItem]:
+    paths: set[RouteItem] = set()
     for entry in patterns:
         raw = getattr(entry.pattern, "_route", str(entry.pattern))
         route = normalize_route(raw)
@@ -141,7 +142,7 @@ def probe(base_url: str, route: RouteItem, timeout: int) -> ProbeResult:
         )
 
 
-def write_report(results: List[ProbeResult], out_dir: Path) -> Path:
+def write_report(results: list[ProbeResult], out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     json_path = out_dir / f"url-api-scan-{timestamp}.json"

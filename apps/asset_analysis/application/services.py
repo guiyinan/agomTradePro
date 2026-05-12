@@ -8,7 +8,6 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 import time
 import traceback
 from dataclasses import replace
-from typing import List, Optional
 
 from apps.asset_analysis.application.logging_service import AlertService, ScoringLogger
 from apps.asset_analysis.domain.entities import AssetScore

@@ -6,10 +6,10 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import urljoin
 
-from playwright.async_api import Browser, Page, async_playwright
+from playwright.async_api import async_playwright
 
 
 @dataclass
@@ -111,7 +111,7 @@ class AgomTradeProBrowserTest:
             screenshot_path = f"screenshots/{name.replace('/', '_').replace(' ', '_')}.png"
             try:
                 await self.page.screenshot(path=screenshot_path, full_page=True)
-            except:
+            except Exception:
                 screenshot_path = ""
 
             status = "success"

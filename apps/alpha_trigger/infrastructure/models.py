@@ -6,13 +6,10 @@ Alpha 事件触发的数据持久化模型。
 Domain 层实体映射到数据库表结构。
 """
 
-import json
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import models
 from django.utils import timezone
 
 from ..domain.entities import (
@@ -299,7 +296,7 @@ class AlphaTriggerModel(models.Model):
             related_policy_level=self.related_policy_level,
             thesis=self.thesis,
         )
-        setattr(trigger, "custom_data", self.custom_data or {})
+        trigger.custom_data = self.custom_data or {}
         return trigger
 
     @classmethod

@@ -6,6 +6,7 @@
 
 import os
 import sys
+
 import django
 
 # 设置UTF-8编码输出（Windows兼容）
@@ -75,7 +76,7 @@ def init_policy_keywords():
         level = rule_data['level']
         keywords = rule_data['keywords']
         category = rule_data.get('category')
-        weight = rule_data.get('weight', 1)
+        rule_data.get('weight', 1)
 
         # 检查是否已存在相似的规则
         existing = PolicyLevelKeywordModel.objects.filter(

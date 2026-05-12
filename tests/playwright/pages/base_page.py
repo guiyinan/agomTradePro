@@ -2,7 +2,6 @@
 Base page class for Playwright tests.
 Provides common functionality for all page objects.
 """
-from typing import List, Optional
 
 from playwright.sync_api import Locator, Page, expect
 

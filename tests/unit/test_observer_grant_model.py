@@ -9,11 +9,12 @@ Unit tests for PortfolioObserverGrantModel.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 
 from apps.account.infrastructure.models import PortfolioObserverGrantModel
 
@@ -549,7 +550,7 @@ class TestObserverGrantModelConstraints:
         )
 
         # 尝试创建第二个 active 授权应该违反数据库约束
-        with pytest.raises(Exception):  # 可能是 IntegrityError
+        with pytest.raises(IntegrityError):
             PortfolioObserverGrantModel._default_manager.create(
                 owner_user_id=owner,
                 observer_user_id=observer,

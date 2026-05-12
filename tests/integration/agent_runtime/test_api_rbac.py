@@ -9,7 +9,7 @@ Tests verify:
 - Audit trail exists for mutating runtime calls
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -175,8 +175,6 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CreateTaskUseCase")
     def test_create_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify create task operation creates audit log."""
-        from datetime import datetime
-        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes (avoid MagicMock infinite loop)
         mock_use_case = MagicMock()
@@ -240,8 +238,6 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.ResumeTaskUseCase")
     def test_resume_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify resume task operation creates audit log."""
-        from datetime import datetime
-        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()
@@ -292,8 +288,6 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CancelTaskUseCase")
     def test_cancel_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify cancel task operation creates audit log."""
-        from datetime import datetime
-        from datetime import timezone as tz
 
         # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()

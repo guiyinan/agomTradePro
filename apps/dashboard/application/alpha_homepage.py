@@ -18,24 +18,24 @@ from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver,
 )
 from apps.alpha.application.services import AlphaService
-from apps.decision_rhythm.application.repository_provider import (
-    get_portfolio_transition_plan_repository,
-    get_unified_recommendation_repository,
-)
-from apps.signal.application.repository_provider import get_signal_repository
-from apps.simulated_trading.application.query_services import list_user_position_payloads
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
+from apps.dashboard.application.navigation import (
+    build_decision_workspace_url,
+    build_exit_user_action_label,
+    normalize_exit_user_action,
+)
 from apps.dashboard.application.repository_provider import (
     AlphaRecommendationHistoryRepository,
     DashboardAlphaContextRepository,
     get_alpha_recommendation_history_repository,
     get_dashboard_alpha_context_repository,
 )
-from apps.dashboard.application.navigation import (
-    build_decision_workspace_url,
-    build_exit_user_action_label,
-    normalize_exit_user_action,
+from apps.decision_rhythm.application.repository_provider import (
+    get_portfolio_transition_plan_repository,
+    get_unified_recommendation_repository,
 )
+from apps.signal.application.repository_provider import get_signal_repository
+from apps.simulated_trading.application.query_services import list_user_position_payloads
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 from apps.task_monitor.application.tracking import record_pending_task
 

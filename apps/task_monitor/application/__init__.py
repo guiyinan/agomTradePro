@@ -8,6 +8,7 @@ from apps.task_monitor.application.dtos import (
     TaskStatisticsResponse,
     TaskStatusResponse,
 )
+from apps.task_monitor.application.tracking import record_pending_task
 from apps.task_monitor.application.use_cases import (
     CheckCeleryHealthUseCase,
     CleanupOldRecordsUseCase,
@@ -16,7 +17,6 @@ from apps.task_monitor.application.use_cases import (
     ListTasksUseCase,
     RecordTaskExecutionUseCase,
 )
-from apps.task_monitor.application.tracking import record_pending_task
 
 __all__ = [
     "TaskStatusResponse",

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Strategy 策略模块
 
@@ -30,7 +31,7 @@ class StrategyModule(BaseModule):
 
     def list_strategies(
         self,
-        status: Optional[str] = None,
+        status: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -81,7 +82,7 @@ class StrategyModule(BaseModule):
     def get_strategy_signals(
         self,
         strategy_id: int,
-        status: Optional[str] = None,
+        status: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """
@@ -112,7 +113,7 @@ class StrategyModule(BaseModule):
     def execute_strategy(
         self,
         strategy_id: int,
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> dict[str, Any]:
         """
         执行策略
@@ -173,8 +174,8 @@ class StrategyModule(BaseModule):
     def get_strategy_performance(
         self,
         strategy_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
     ) -> dict[str, Any]:
         """
         获取策略绩效
@@ -256,9 +257,9 @@ class StrategyModule(BaseModule):
     def update_strategy(
         self,
         strategy_id: int,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        params: Optional[dict[str, Any]] = None,
+        name: str | None = None,
+        description: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         更新策略
@@ -291,9 +292,9 @@ class StrategyModule(BaseModule):
 
     def list_ai_strategy_configs(
         self,
-        strategy_id: Optional[int] = None,
-        approval_mode: Optional[str] = None,
-        ai_provider_id: Optional[int] = None,
+        strategy_id: int | None = None,
+        approval_mode: str | None = None,
+        ai_provider_id: int | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """获取 AI 策略配置列表。"""
@@ -317,9 +318,9 @@ class StrategyModule(BaseModule):
     def create_ai_strategy_config(
         self,
         strategy_id: int,
-        prompt_template_id: Optional[int] = None,
-        chain_config_id: Optional[int] = None,
-        ai_provider_id: Optional[int] = None,
+        prompt_template_id: int | None = None,
+        chain_config_id: int | None = None,
+        ai_provider_id: int | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
         approval_mode: str = "conditional",
@@ -414,8 +415,8 @@ class StrategyModule(BaseModule):
 
     def list_position_rules(
         self,
-        strategy_id: Optional[int] = None,
-        is_active: Optional[bool] = None,
+        strategy_id: int | None = None,
+        is_active: bool | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """获取仓位管理规则列表。"""
@@ -444,8 +445,8 @@ class StrategyModule(BaseModule):
         sell_condition_expr: str = "",
         description: str = "",
         price_precision: int = 2,
-        variables_schema: Optional[list[dict[str, Any]]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        variables_schema: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
         is_active: bool = True,
     ) -> dict[str, Any]:
         """创建仓位管理规则。"""

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import date, datetime
-from typing import Any, Mapping
+from typing import Any
 
 from apps.factor.application.repository_provider import (
     get_factor_definition_repository,

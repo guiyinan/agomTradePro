@@ -5,9 +5,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from rest_framework.test import APIRequestFactory
 
-from core.throttling import ResilientUserRateThrottle
-
 from core.security import LockoutModelBackend
+from core.throttling import ResilientUserRateThrottle
 
 
 @pytest.mark.django_db

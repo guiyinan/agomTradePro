@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 
 from ..application.management_workflows import ResetQuotaByAccountRequest, TrendDataRequest
 from ..application.query_workflows import (

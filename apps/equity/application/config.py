@@ -13,15 +13,15 @@
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
 
-from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
 from apps.equity.application.repository_provider import (
     get_equity_valuation_repair_config_repository,
 )
+from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
 
 logger = logging.getLogger(__name__)
 

@@ -7,9 +7,7 @@
 - 通过依赖注入接收数据
 """
 
-from datetime import date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Tuple
+from datetime import date
 
 from .entities import SectorIndex, SectorInfo, SectorRelativeStrength, SectorScore
 

@@ -8,13 +8,12 @@
 """
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
 
-from .repository_provider import DjangoFundRepository
-from ..domain.entities import FundInfo, FundPerformance, FundScore, FundSectorAllocation
+from ..domain.entities import FundPerformance, FundScore
 from ..domain.services import FundPerformanceCalculator, FundScreener, FundStyleAnalyzer
+from .repository_provider import DjangoFundRepository
 
 
 @dataclass

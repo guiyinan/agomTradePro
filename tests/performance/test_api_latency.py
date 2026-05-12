@@ -19,7 +19,7 @@ def measure_latency(client: Client, url: str, n: int = 20) -> dict:
     latencies = []
     for _ in range(n):
         start = time.perf_counter()
-        response = client.get(url)
+        client.get(url)
         elapsed_ms = (time.perf_counter() - start) * 1000
         latencies.append(elapsed_ms)
     latencies.sort()

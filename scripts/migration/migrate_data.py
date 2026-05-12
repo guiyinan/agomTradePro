@@ -2,6 +2,7 @@
 """数据迁移脚本：SQLite -> PostgreSQL"""
 import os
 import sys
+
 import django
 
 # 第一步：从 SQLite 导出

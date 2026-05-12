@@ -6,7 +6,6 @@ Domain层业务规则：
 - 交易约束规则
 - 纯Python实现，无外部依赖
 """
-from typing import List, Optional, Tuple
 
 from .entities import Position, SimulatedAccount
 

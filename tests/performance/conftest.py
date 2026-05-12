@@ -4,7 +4,6 @@ Performance test fixtures.
 Pre-populates the database with large-scale test data for latency benchmarking.
 """
 
-import json
 import math
 from datetime import date, timedelta
 from pathlib import Path

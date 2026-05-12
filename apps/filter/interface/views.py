@@ -5,8 +5,6 @@ Page views for filter operations.
 """
 
 import json
-from datetime import date
-from typing import Dict, List
 
 from django.shortcuts import render
 
@@ -14,7 +12,6 @@ from ..application.repository_provider import get_filter_repository
 from ..application.use_cases import (
     ApplyFilterRequest,
     ApplyFilterUseCase,
-    CompareFiltersUseCase,
     GetFilterDataRequest,
     GetFilterDataUseCase,
 )

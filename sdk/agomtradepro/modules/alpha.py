@@ -40,10 +40,10 @@ class AlphaModule(BaseModule):
     def get_stock_scores(
         self,
         universe: str = "csi300",
-        trade_date: Optional[str] = None,
+        trade_date: str | None = None,
         top_n: int = 30,
-        user_id: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
         """
         获取股票评分
 
@@ -80,14 +80,14 @@ class AlphaModule(BaseModule):
 
     def upload_scores(
         self,
-        scores: List[Dict[str, Any]],
+        scores: list[dict[str, Any]],
         universe_id: str,
         asof_date: str,
         intended_trade_date: str,
         model_id: str = "local_qlib",
         model_artifact_hash: str = "",
         scope: str = "user",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         上传本地 Qlib 推理结果到 VPS
 
@@ -129,7 +129,7 @@ class AlphaModule(BaseModule):
 
         return self._post("scores/upload/", json=payload)
 
-    def get_provider_status(self) -> Dict[str, Any]:
+    def get_provider_status(self) -> dict[str, Any]:
         """
         获取 Provider 状态
 
@@ -145,7 +145,7 @@ class AlphaModule(BaseModule):
         """
         return self._get("providers/status/")
 
-    def get_ops_inference_overview(self) -> Dict[str, Any]:
+    def get_ops_inference_overview(self) -> dict[str, Any]:
         """
         获取 Alpha 推理运维概览。
 
@@ -158,12 +158,12 @@ class AlphaModule(BaseModule):
         self,
         *,
         mode: str,
-        trade_date: Optional[str] = None,
+        trade_date: str | None = None,
         top_n: int = 30,
-        universe_id: Optional[str] = None,
-        portfolio_id: Optional[int] = None,
-        pool_mode: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        universe_id: str | None = None,
+        portfolio_id: int | None = None,
+        pool_mode: str | None = None,
+    ) -> dict[str, Any]:
         """
         触发 Alpha 运维推理任务。
 
@@ -198,7 +198,7 @@ class AlphaModule(BaseModule):
                 return exc.response
             raise
 
-    def get_ops_qlib_data_overview(self) -> Dict[str, Any]:
+    def get_ops_qlib_data_overview(self) -> dict[str, Any]:
         """
         获取 Qlib 基础数据运维概览。
 
@@ -213,11 +213,11 @@ class AlphaModule(BaseModule):
         mode: str,
         target_date: str,
         lookback_days: int = 400,
-        universes: Optional[list[str]] = None,
-        portfolio_ids: Optional[list[int]] = None,
+        universes: list[str] | None = None,
+        portfolio_ids: list[int] | None = None,
         all_active_portfolios: bool = False,
-        pool_mode: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        pool_mode: str | None = None,
+    ) -> dict[str, Any]:
         """
         触发 Qlib 基础数据运维刷新任务。
 
@@ -253,7 +253,7 @@ class AlphaModule(BaseModule):
                 return exc.response
             raise
 
-    def get_available_universes(self) -> Dict[str, Any]:
+    def get_available_universes(self) -> dict[str, Any]:
         """
         获取支持的股票池列表
 
@@ -269,9 +269,9 @@ class AlphaModule(BaseModule):
     def get_factor_exposure(
         self,
         stock_code: str,
-        trade_date: Optional[str] = None,
+        trade_date: str | None = None,
         provider: str = "simple"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取个股因子暴露
 
@@ -312,7 +312,7 @@ class AlphaModule(BaseModule):
             "factors": factors,
         }
 
-    def check_health(self) -> Dict[str, Any]:
+    def check_health(self) -> dict[str, Any]:
         """
         检查 Alpha 服务健康状态
 
@@ -328,9 +328,9 @@ class AlphaModule(BaseModule):
     def get_top_stocks(
         self,
         universe: str = "csi300",
-        trade_date: Optional[str] = None,
+        trade_date: str | None = None,
         top_n: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取排名前 N 的股票（便捷方法）
 
@@ -356,10 +356,10 @@ class AlphaModule(BaseModule):
 
     def compare_stocks(
         self,
-        stock_codes: List[str],
+        stock_codes: list[str],
         universe: str = "csi300",
-        trade_date: Optional[str] = None
-    ) -> Dict[str, Dict[str, Any]]:
+        trade_date: str | None = None
+    ) -> dict[str, dict[str, Any]]:
         """
         比较多只股票的评分（便捷方法）
 
@@ -381,7 +381,7 @@ class AlphaModule(BaseModule):
         result = self.get_stock_scores(universe, trade_date, top_n=1000)
 
         if not result.get("success"):
-            return {code: None for code in stock_codes}
+            return dict.fromkeys(stock_codes)
 
         # 构建代码到评分的映射
         stock_map = {s["code"]: s for s in result.get("stocks", [])}

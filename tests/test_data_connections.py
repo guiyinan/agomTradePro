@@ -6,7 +6,7 @@ AgomTradePro 综合数据连接测试脚本
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 import django
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
 from django.contrib.auth import get_user_model
-from django.db.models import Avg, Count, Sum
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 from apps.account.infrastructure.models import (
@@ -27,10 +27,10 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PositionModel,
 )
-from apps.macro.application.use_cases import SyncMacroDataUseCase
 
 # Import models and repositories
 from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
+from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.policy.infrastructure.models import PolicyLog

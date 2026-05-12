@@ -1,5 +1,6 @@
 """Check current Regime data in database"""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

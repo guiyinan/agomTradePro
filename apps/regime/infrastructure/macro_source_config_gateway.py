@@ -4,8 +4,6 @@ Macro Source Config Gateway for Regime Module.
 封装 regime 页面层对 macro 数据源配置的访问。
 """
 
-from types import SimpleNamespace
-from typing import List
 
 from apps.regime.domain.protocols import (
     MacroSourceConfigGatewayProtocol,

@@ -3,9 +3,8 @@ Unit tests for Macro Sizing Multiplier domain services.
 Pure Python — no Django ORM dependency.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from types import SimpleNamespace
 
 import pytest
 
@@ -22,8 +21,8 @@ from apps.account.domain.entities import (
     PositionSource,
     PositionStatus,
     PulseTier,
-    Region,
     RegimeTier,
+    Region,
     RiskTolerance,
     StopLossConfig,
     StopLossStatus,
@@ -92,7 +91,7 @@ def build_position(
         market_value=market_value,
         unrealized_pnl=Decimal("100"),
         unrealized_pnl_pct=10.0,
-        opened_at=datetime.now(timezone.utc),
+        opened_at=datetime.now(UTC),
         status=PositionStatus.ACTIVE,
         source=PositionSource.MANUAL,
         source_id=None,
@@ -311,7 +310,7 @@ class TestAccountDomainEntities:
             display_name="tester",
             initial_capital=Decimal("100000"),
             risk_tolerance=risk_tolerance,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
         assert profile.get_max_position_pct() == expected
@@ -324,7 +323,7 @@ class TestAccountDomainEntities:
             portfolio_id=1,
             user_id=1,
             name="P1",
-            snapshot_date=datetime.now(timezone.utc),
+            snapshot_date=datetime.now(UTC),
             cash_balance=Decimal("200"),
             total_value=Decimal("1000"),
             invested_value=Decimal("800"),
@@ -337,7 +336,7 @@ class TestAccountDomainEntities:
             portfolio_id=1,
             user_id=1,
             name="P0",
-            snapshot_date=datetime.now(timezone.utc),
+            snapshot_date=datetime.now(UTC),
             cash_balance=Decimal("0"),
             total_value=Decimal("0"),
             invested_value=Decimal("0"),
@@ -523,8 +522,8 @@ class TestRiskServices:
             )
 
     def test_time_stop_loss_and_trailing_highest_updates(self):
-        opened_at = datetime.now(timezone.utc) - timedelta(days=10)
-        now = datetime.now(timezone.utc)
+        opened_at = datetime.now(UTC) - timedelta(days=10)
+        now = datetime.now(UTC)
 
         result = StopLossService.check_time_stop_loss(opened_at, now, max_holding_days=5)
         raised_high, raised_time = StopLossService.update_trailing_stop_highest(100, 110, now, None)

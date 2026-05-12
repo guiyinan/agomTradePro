@@ -6,7 +6,6 @@ This file contains pure validation logic using only Python standard library.
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -207,7 +206,7 @@ def _detect_cycle(steps: list) -> list[str] | None:
         graph[step.step_id] = []
 
     for step in steps:
-        for key, value in step.input_mapping.items():
+        for _key, value in step.input_mapping.items():
             # 解析依赖：step1.output.xxx -> step1
             if isinstance(value, str) and '.output.' in value:
                 parts = value.split('.')

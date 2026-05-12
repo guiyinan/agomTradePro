@@ -9,8 +9,8 @@ Usage:
     python scripts/run_backtest.py --plot
 """
 
-import sys
 import os
+import sys
 from datetime import date, timedelta
 
 # Add project root to Python path
@@ -19,24 +19,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 import django
+
 django.setup()
 
 import logging
+
+from apps.audit.domain.services import AttributionAnalyzer, AttributionConfig, analyze_attribution
 from apps.backtest.domain.services import (
     BacktestConfig,
     BacktestEngine,
+    PITDataProcessor,
     RebalanceFrequency,
-    PITDataProcessor
 )
-from apps.regime.domain.services import RegimeCalculator
-from apps.regime.application.use_cases import CalculateRegimeUseCase
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.macro.infrastructure.adapters import PUBLICATION_LAGS
-from apps.audit.domain.services import (
-    AttributionAnalyzer,
-    AttributionConfig,
-    analyze_attribution
-)
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.application.use_cases import CalculateRegimeUseCase
+from apps.regime.domain.services import RegimeCalculator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -165,7 +163,7 @@ def run_backtest(
         use_pit: 是否使用 Point-in-Time 数据
     """
     logger.info(f"\n{'='*60}")
-    logger.info(f"运行回测")
+    logger.info("运行回测")
     logger.info(f"{'='*60}")
     logger.info(f"时间范围: {start_date} ~ {end_date}")
     logger.info(f"再平衡频率: {frequency}")
@@ -201,15 +199,15 @@ def run_backtest(
     )
 
     # 运行回测
-    logger.info(f"\n开始运行回测...")
+    logger.info("\n开始运行回测...")
     result = engine.run()
 
     # 打印结果
     print_backtest_result(result)
 
     # 运行归因分析
-    logger.info(f"\n运行归因分析...")
-    analyzer = AttributionAnalyzer()
+    logger.info("\n运行归因分析...")
+    AttributionAnalyzer()
 
     # 简化的资产收益率
     asset_returns = {}
@@ -236,7 +234,7 @@ def run_backtest(
 def print_backtest_result(result):
     """打印回测结果"""
     logger.info(f"\n{'='*60}")
-    logger.info(f"回测结果")
+    logger.info("回测结果")
     logger.info(f"{'='*60}")
     logger.info(f"初始资金: {result.config.initial_capital:,.2f}")
     logger.info(f"最终价值: {result.final_value:,.2f}")
@@ -246,14 +244,14 @@ def print_backtest_result(result):
     if result.sharpe_ratio is not None:
         logger.info(f"夏普比率: {result.sharpe_ratio:.3f}")
     else:
-        logger.info(f"夏普比率: N/A")
+        logger.info("夏普比率: N/A")
 
     logger.info(f"最大回撤: {result.max_drawdown*100:.2f}%")
     logger.info(f"交易次数: {len(result.trades)}")
 
     # 打印前 10 笔交易
     if result.trades:
-        logger.info(f"\n最近 10 笔交易:")
+        logger.info("\n最近 10 笔交易:")
         for trade in result.trades[-10:]:
             logger.info(
                 f"  {trade.trade_date} | {trade.asset_class:15s} | "
@@ -265,28 +263,28 @@ def print_backtest_result(result):
 def print_attribution_result(attribution):
     """打印归因分析结果"""
     logger.info(f"\n{'='*60}")
-    logger.info(f"归因分析")
+    logger.info("归因分析")
     logger.info(f"{'='*60}")
     logger.info(f"经验总结: {attribution.lesson_learned}")
 
-    logger.info(f"\n收益归因:")
+    logger.info("\n收益归因:")
     logger.info(f"  择时收益: {attribution.regime_timing_pnl*100:.2f}%")
     logger.info(f"  选资产收益: {attribution.asset_selection_pnl*100:.2f}%")
     logger.info(f"  交互收益: {attribution.interaction_pnl*100:.2f}%")
     logger.info(f"  交易成本: {attribution.transaction_cost_pnl*100:.2f}%")
 
-    logger.info(f"\n损失分析:")
+    logger.info("\n损失分析:")
     logger.info(f"  主要来源: {attribution.loss_source.value}")
     logger.info(f"  损失金额: {attribution.loss_amount*100:.2f}%")
 
     if attribution.improvement_suggestions:
-        logger.info(f"\n改进建议:")
+        logger.info("\n改进建议:")
         for suggestion in attribution.improvement_suggestions:
             logger.info(f"  - {suggestion}")
 
     # 打印周期归因
     if attribution.period_attributions:
-        logger.info(f"\n周期归因 (前 5 个):")
+        logger.info("\n周期归因 (前 5 个):")
         for period_attr in attribution.period_attributions[:5]:
             logger.info(
                 f"  {period_attr['start_date']} ~ {period_attr['end_date']} | "

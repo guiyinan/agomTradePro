@@ -2,15 +2,12 @@
 Unit tests for SourceRegistry — priority, failover, circuit-breaker.
 """
 
-import time
-import pytest
 
 from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 from apps.data_center.infrastructure.registries.source_registry import (
-    SourceRegistry,
     _CIRCUIT_OPEN_THRESHOLD,
+    SourceRegistry,
 )
-
 
 # ---------------------------------------------------------------------------
 # Stub provider for testing

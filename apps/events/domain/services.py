@@ -12,9 +12,8 @@ import threading
 from collections import defaultdict, deque
 from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 from .entities import (
     DomainEvent,
@@ -24,7 +23,6 @@ from .entities import (
     EventSnapshot,
     EventSubscription,
     EventType,
-    create_event,
 )
 
 logger = logging.getLogger(__name__)
@@ -176,7 +174,7 @@ class InMemoryEventBus(EventBus):
             if subscription_id not in self._subscription_ids:
                 return False
 
-            for event_type, subscriptions in self._subscriptions.items():
+            for _event_type, subscriptions in self._subscriptions.items():
                 for i, sub in enumerate(subscriptions):
                     if sub.subscription_id == subscription_id:
                         subscriptions.pop(i)

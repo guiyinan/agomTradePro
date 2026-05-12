@@ -11,7 +11,6 @@ Decision Rhythm Event Subscribers.
 
 import logging
 from collections.abc import Callable
-from typing import Dict
 
 from apps.events.domain.entities import EventType
 from apps.events.domain.registry import get_event_subscriber_registry

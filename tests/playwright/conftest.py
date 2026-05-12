@@ -4,11 +4,10 @@ Global fixtures for Playwright tests.
 import os
 from collections.abc import Generator
 from pathlib import Path
-from typing import Optional
 
 import pytest
 import requests
-from playwright.sync_api import Browser, BrowserContext, Page
+from playwright.sync_api import Browser, Page
 
 from tests.playwright.config.test_config import config
 from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
@@ -49,8 +48,7 @@ def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
     """Ensure Playwright login credentials exist in the app database."""
     with django_db_blocker.unblock():
         from django.contrib.auth import get_user_model
-        from django.db import close_old_connections, connections
-        from django.db import IntegrityError
+        from django.db import IntegrityError, close_old_connections, connections
 
         close_old_connections()
         try:

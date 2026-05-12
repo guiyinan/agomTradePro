@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from apps.pulse.application.use_cases import (
-    CalculatePulseUseCase,
     PULSE_MACRO_SYNC_INDICATORS,
+    CalculatePulseUseCase,
 )
 from apps.pulse.domain.entities import PulseIndicatorReading
 

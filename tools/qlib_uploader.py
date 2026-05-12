@@ -132,7 +132,7 @@ def run_qlib_inference(model_path: str, universe: str, infer_date: str) -> list[
         raise ImportError(
             "未安装 qlib。请先安装：pip install pyqlib\n"
             "或者使用 --input 参数上传已计算好的评分文件"
-        )
+        ) from None
 
     print(f"初始化 Qlib（universe={universe}, date={infer_date}）...")
     qlib.init(provider_uri="~/.qlib/qlib_data/cn_data", region=REG_CN)

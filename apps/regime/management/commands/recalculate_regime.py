@@ -16,11 +16,9 @@
 - 主运行时链路（API/页面）使用 resolve_current_regime(V2)，已解耦
 """
 
-from datetime import date, timedelta
-from typing import Optional
+from datetime import date
 
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from django.utils import timezone
 
 # Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).

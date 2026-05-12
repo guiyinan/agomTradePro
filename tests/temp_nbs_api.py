@@ -2,7 +2,6 @@
 使用 NBS API 获取 PMI 分项数据
 """
 import json
-from datetime import datetime
 
 import requests
 
@@ -41,7 +40,7 @@ def fetch_pmi_subitems():
             data = r.json()
             print("\nJSON Data:")
             print(json.dumps(data, ensure_ascii=False, indent=2))
-        except:
+        except Exception:
             print("\nNot a JSON response, checking for data patterns...")
             # 查找数据模式
             if "data" in r.text:

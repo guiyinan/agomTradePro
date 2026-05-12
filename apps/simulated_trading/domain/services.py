@@ -9,7 +9,6 @@ Domain层:
 import math
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
 
 def _to_decimal(value: float | int | str | Decimal) -> Decimal:
@@ -69,14 +68,14 @@ class PositionCostBasisService:
 # 账户业绩计算服务
 # ============================================================================
 
-def _safe_mean(values: List[float]) -> Optional[float]:
+def _safe_mean(values: list[float]) -> float | None:
     """安全均值计算，空列表返回 None。"""
     if not values:
         return None
     return sum(values) / len(values)
 
 
-def _safe_std(values: List[float]) -> Optional[float]:
+def _safe_std(values: list[float]) -> float | None:
     """安全标准差（总体），少于 2 个点返回 None。"""
     n = len(values)
     if n < 2:
@@ -107,9 +106,9 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_twr(
-        daily_values: List[Tuple[date, float]],
-        daily_cashflows: Optional[List[Tuple[date, float]]] = None,
-    ) -> Optional[float]:
+        daily_values: list[tuple[date, float]],
+        daily_cashflows: list[tuple[date, float]] | None = None,
+    ) -> float | None:
         """
         计算时间加权收益率（TWR，%）。
 
@@ -141,7 +140,7 @@ class PerformanceCalculatorService:
         return (cumulative - 1.0) * 100.0
 
     @staticmethod
-    def calculate_annualized_twr(twr_pct: float, days: int) -> Optional[float]:
+    def calculate_annualized_twr(twr_pct: float, days: int) -> float | None:
         """
         将 TWR 年化（%）。
 
@@ -161,10 +160,10 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_xirr(
-        cashflows: List[Tuple[date, float]],
+        cashflows: list[tuple[date, float]],
         terminal_value: float,
         terminal_date: date,
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         计算资金加权收益率（XIRR，%）。
 
@@ -179,7 +178,7 @@ class PerformanceCalculatorService:
             年化 XIRR (%) 或 None（无法收敛）
         """
         # 将期末价值视为负现金流（出金）
-        all_flows: List[Tuple[date, float]] = list(cashflows) + [(terminal_date, -terminal_value)]
+        all_flows: list[tuple[date, float]] = list(cashflows) + [(terminal_date, -terminal_value)]
         if not all_flows:
             return None
 
@@ -226,9 +225,9 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def build_daily_returns(
-        daily_values: List[Tuple[date, float]],
-        daily_cashflows: Optional[List[Tuple[date, float]]] = None,
-    ) -> List[float]:
+        daily_values: list[tuple[date, float]],
+        daily_cashflows: list[tuple[date, float]] | None = None,
+    ) -> list[float]:
         """
         构造日收益率序列（用于风险指标计算）。
 
@@ -243,7 +242,7 @@ class PerformanceCalculatorService:
             for d, cf in daily_cashflows:
                 cf_map[d] = cf_map.get(d, 0.0) + cf
 
-        returns: List[float] = []
+        returns: list[float] = []
         for i in range(1, len(daily_values)):
             d_curr, v_curr = daily_values[i]
             _, v_prev = daily_values[i - 1]
@@ -259,7 +258,7 @@ class PerformanceCalculatorService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def calculate_max_drawdown(daily_values: List[Tuple[date, float]]) -> Optional[float]:
+    def calculate_max_drawdown(daily_values: list[tuple[date, float]]) -> float | None:
         """
         计算最大回撤（%，正数表示回撤幅度）。
         """
@@ -277,7 +276,7 @@ class PerformanceCalculatorService:
         return max_dd
 
     @staticmethod
-    def calculate_volatility(daily_returns: List[float]) -> Optional[float]:
+    def calculate_volatility(daily_returns: list[float]) -> float | None:
         """
         年化波动率（%）。
         """
@@ -287,7 +286,7 @@ class PerformanceCalculatorService:
         return std * math.sqrt(PerformanceCalculatorService.TRADING_DAYS_PER_YEAR) * 100.0
 
     @staticmethod
-    def calculate_downside_volatility(daily_returns: List[float]) -> Optional[float]:
+    def calculate_downside_volatility(daily_returns: list[float]) -> float | None:
         """
         下行波动率（%），仅统计负收益日。
         """
@@ -302,7 +301,7 @@ class PerformanceCalculatorService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def calculate_sharpe(annualized_return_pct: float, annualized_vol_pct: float) -> Optional[float]:
+    def calculate_sharpe(annualized_return_pct: float, annualized_vol_pct: float) -> float | None:
         """夏普比率（年化收益超过无风险利率之后除以年化波动率）。"""
         rf = PerformanceCalculatorService.RISK_FREE_RATE * 100.0
         if annualized_vol_pct <= 0:
@@ -310,7 +309,7 @@ class PerformanceCalculatorService:
         return (annualized_return_pct - rf) / annualized_vol_pct
 
     @staticmethod
-    def calculate_sortino(annualized_return_pct: float, annualized_downside_vol_pct: float) -> Optional[float]:
+    def calculate_sortino(annualized_return_pct: float, annualized_downside_vol_pct: float) -> float | None:
         """索提诺比率。"""
         rf = PerformanceCalculatorService.RISK_FREE_RATE * 100.0
         if annualized_downside_vol_pct <= 0:
@@ -318,7 +317,7 @@ class PerformanceCalculatorService:
         return (annualized_return_pct - rf) / annualized_downside_vol_pct
 
     @staticmethod
-    def calculate_calmar(annualized_return_pct: float, max_drawdown_pct: float) -> Optional[float]:
+    def calculate_calmar(annualized_return_pct: float, max_drawdown_pct: float) -> float | None:
         """卡玛比率（年化收益 / 最大回撤）。"""
         if max_drawdown_pct <= 0:
             return None
@@ -330,11 +329,11 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_beta_alpha(
-        portfolio_returns: List[float],
-        benchmark_returns: List[float],
+        portfolio_returns: list[float],
+        benchmark_returns: list[float],
         annualized_portfolio_pct: float,
         annualized_benchmark_pct: float,
-    ) -> Tuple[Optional[float], Optional[float]]:
+    ) -> tuple[float | None, float | None]:
         """
         计算 Beta 和 Alpha。
 
@@ -363,9 +362,9 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_tracking_error(
-        portfolio_returns: List[float],
-        benchmark_returns: List[float],
-    ) -> Optional[float]:
+        portfolio_returns: list[float],
+        benchmark_returns: list[float],
+    ) -> float | None:
         """跟踪误差（年化，%）。"""
         n = min(len(portfolio_returns), len(benchmark_returns))
         if n < 2:
@@ -380,14 +379,14 @@ class PerformanceCalculatorService:
     def calculate_information_ratio(
         excess_return_pct: float,
         tracking_error_pct: float,
-    ) -> Optional[float]:
+    ) -> float | None:
         """信息比率 = 超额收益 / 跟踪误差。"""
         if tracking_error_pct <= 0:
             return None
         return excess_return_pct / tracking_error_pct
 
     @staticmethod
-    def calculate_treynor(annualized_return_pct: float, beta: float) -> Optional[float]:
+    def calculate_treynor(annualized_return_pct: float, beta: float) -> float | None:
         """特雷诺比率 = (年化收益 - 无风险) / Beta。"""
         if beta == 0:
             return None
@@ -400,8 +399,8 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_win_rate_profit_factor(
-        realized_pnls: List[float],
-    ) -> Tuple[Optional[float], Optional[float]]:
+        realized_pnls: list[float],
+    ) -> tuple[float | None, float | None]:
         """
         基于已闭合交易的胜率与盈利因子。
 
@@ -431,8 +430,8 @@ class PerformanceCalculatorService:
 
     @staticmethod
     def calculate_weighted_benchmark_return(
-        component_returns: List[Tuple[float, float]],
-    ) -> Optional[float]:
+        component_returns: list[tuple[float, float]],
+    ) -> float | None:
         """
         计算加权组合基准收益（%）。
 

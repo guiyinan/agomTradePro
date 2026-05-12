@@ -3,6 +3,7 @@ Check macro_indicator data to diagnose regime calculation issues.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -115,14 +116,14 @@ if db_url.startswith('postgresql://'):
 
                 abs_momentum = current - three_months_ago
 
-                print(f'3-Month Absolute Momentum:')
+                print('3-Month Absolute Momentum:')
                 print(f'  Current: {current}')
                 print(f'  3 months ago: {three_months_ago}')
                 print(f'  Momentum: {abs_momentum} pp')
 
                 # Check if momentum seems unusually high
                 if abs(abs_momentum) > 1.0:
-                    print(f'  WARNING: Momentum seems very high!')
+                    print('  WARNING: Momentum seems very high!')
 
         print()
 

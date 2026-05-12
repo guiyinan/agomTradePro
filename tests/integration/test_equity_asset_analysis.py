@@ -15,7 +15,6 @@ from apps.equity.domain.entities import (
     EquityAssetScore,
     FinancialData,
     StockInfo,
-    TechnicalIndicators,
     ValuationMetrics,
 )
 from apps.equity.infrastructure.models import (

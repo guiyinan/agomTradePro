@@ -11,10 +11,10 @@ import os
 import time
 from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
-from typing import List, Optional
 
 import requests
 
+from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,
@@ -24,7 +24,6 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.parsers.eastmoney_capital_flow_parser import (
     parse_akshare_capital_flow_row,
 )
@@ -300,7 +299,6 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
         self._throttle()
         try:
             ak = get_akshare_module()
-            import pandas as pd
 
             normalized_asset_code = str(asset_code or "").strip().upper()
             code = _to_akshare_code(asset_code)

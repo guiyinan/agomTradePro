@@ -4,9 +4,9 @@ RSS Adapter - Base Protocol and Exception Classes
 定义RSS适配器的接口协议。
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from django.utils import timezone
 

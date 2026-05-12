@@ -28,7 +28,11 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
-from apps.simulated_trading.domain.entities import OrderStatus, Position, SimulatedTrade, TradeAction
+from apps.simulated_trading.domain.entities import (
+    OrderStatus,
+    SimulatedTrade,
+    TradeAction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -360,7 +364,7 @@ class UnifiedPositionService:
     # ── factory method ────────────────────────────────────────────────────
 
     @classmethod
-    def default(cls) -> "UnifiedPositionService":
+    def default(cls) -> UnifiedPositionService:
         """Return a service instance wired to the default Django repositories."""
         return cls(
             account_repo=get_simulated_account_repository(),

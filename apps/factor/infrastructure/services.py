@@ -5,19 +5,13 @@ Integration services that connect domain logic with data adapters.
 """
 
 import logging
-from collections.abc import Callable
-from datetime import date, datetime
-from typing import Dict, List, Optional
+from datetime import date
 
 from apps.factor.domain.entities import (
-    FactorDefinition,
-    FactorPortfolioConfig,
     FactorPortfolioHolding,
-    FactorScore,
 )
 from apps.factor.domain.services import (
     FactorCalculationContext,
-    FactorEngine,
     ScoringService,
 )
 from apps.factor.infrastructure.adapters import FailoverFactorAdapter

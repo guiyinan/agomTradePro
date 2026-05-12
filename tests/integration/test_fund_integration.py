@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.fund.infrastructure.models import (
@@ -194,7 +195,7 @@ class TestFundConstraints(TestCase):
         )
 
         # 重复代码应该失败
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             FundInfoModel.objects.create(
                 fund_code='000010',
                 fund_name='测试基金2',
@@ -223,7 +224,7 @@ class TestFundConstraints(TestCase):
         )
 
         # 重复应该失败（unique_together 约束）
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             FundNetValueModel.objects.create(
                 fund_code=fund.fund_code,
                 nav_date=nav_date,

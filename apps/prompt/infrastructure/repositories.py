@@ -4,11 +4,8 @@ Repositories for AI Prompt Management.
 Infrastructure layer implementation using Django ORM.
 """
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from ..domain.entities import (

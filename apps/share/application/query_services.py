@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apps.share.application.use_cases import ShareLinkUseCases
 from apps.share.domain.entities import ShareLinkEntity
@@ -17,6 +17,6 @@ def list_share_links_for_account_owner(owner_id: int, account_id: int) -> list[S
     )
     return sorted(
         links,
-        key=lambda link: link.created_at or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda link: link.created_at or datetime.min.replace(tzinfo=UTC),
         reverse=True,
     )

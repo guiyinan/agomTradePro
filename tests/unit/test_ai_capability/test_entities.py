@@ -2,9 +2,7 @@
 Tests for AI Capability Catalog domain entities.
 """
 
-from datetime import UTC, datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from apps.ai_capability.domain.entities import (
     CapabilityDecision,

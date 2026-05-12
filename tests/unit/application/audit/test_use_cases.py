@@ -9,33 +9,23 @@ Tests for:
 - AdjustIndicatorWeightsUseCase
 """
 
-from datetime import date, timedelta
-from typing import Dict, List
-from unittest.mock import MagicMock, Mock, patch
+from datetime import date
+from unittest.mock import Mock, patch
 
 import pytest
 
 from apps.audit.application.use_cases import (
     AdjustIndicatorWeightsRequest,
-    AdjustIndicatorWeightsResponse,
     AdjustIndicatorWeightsUseCase,
     EvaluateIndicatorPerformanceRequest,
-    EvaluateIndicatorPerformanceResponse,
     EvaluateIndicatorPerformanceUseCase,
     GenerateAttributionReportRequest,
     GenerateAttributionReportResponse,
     GenerateAttributionReportUseCase,
     GetAuditSummaryRequest,
-    GetAuditSummaryResponse,
     GetAuditSummaryUseCase,
     ValidateThresholdsRequest,
-    ValidateThresholdsResponse,
     ValidateThresholdsUseCase,
-)
-from apps.audit.domain.entities import (
-    DynamicWeightConfig,
-    IndicatorPerformanceReport,
-    ValidationStatus,
 )
 from apps.backtest.infrastructure.adapters.base import AssetPricePoint
 

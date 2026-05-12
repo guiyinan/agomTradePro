@@ -5,7 +5,7 @@ Provide a thin Django ORM wrapper so application use cases do not
 import ORM models directly.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Prefetch, Q

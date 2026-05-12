@@ -6,11 +6,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
 
 from playwright.sync_api import Page
 
-from tests.playwright.config.selectors import admin, common, modal
+from tests.playwright.config.selectors import admin, common
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 
 

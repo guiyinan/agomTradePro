@@ -23,7 +23,7 @@ Management command: migrate_account_ledger
 """
 
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -169,6 +169,8 @@ class Command(BaseCommand):
     def _migrate_positions(self, user_id, dry_run, stats):
         from apps.simulated_trading.infrastructure.models import (
             LedgerMigrationMapModel,
+        )
+        from apps.simulated_trading.infrastructure.models import (
             PositionModel as SimPositionModel,
         )
         from shared.domain.position_calculations import recalculate_derived_fields

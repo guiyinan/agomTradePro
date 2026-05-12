@@ -6,7 +6,6 @@
 ⚠️ 安全第一：执行前必须做全量备份
 """
 
-from datetime import datetime
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand

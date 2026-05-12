@@ -6,7 +6,7 @@ related to regime analysis.
 """
 
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
 
 from apps.regime.application.current_regime import resolve_current_regime
 

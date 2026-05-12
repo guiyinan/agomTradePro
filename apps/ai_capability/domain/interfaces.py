@@ -4,13 +4,12 @@ AI Capability Catalog Domain Interfaces.
 Protocol definitions for dependency injection.
 """
 
-from typing import Any, List, Optional, Protocol
+from typing import Any, Protocol
 
 from .entities import (
     CapabilityDefinition,
     CapabilityRoutingLog,
     CapabilitySyncLog,
-    RoutingContext,
     RoutingDecision,
 )
 

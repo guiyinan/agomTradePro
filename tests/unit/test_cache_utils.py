@@ -4,20 +4,15 @@ Unit tests for cache_utils module.
 Tests cache decorators, key building, and Prometheus metrics.
 """
 
-import time
 from unittest.mock import MagicMock, Mock, patch
 
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import RequestFactory, TestCase
-from prometheus_client import REGISTRY
 
 from core.cache_utils import (
     CACHE_TTL,
     CacheKeyBuilder,
-    cache_errors_total,
     cache_hits_total,
-    cache_latency_seconds,
     cache_misses_total,
     cache_stale_total,
     cached_api,
@@ -145,8 +140,8 @@ class CachedApiDecoratorTests(TestCase):
             return {'data': 'value'}
 
         request = self.factory.get('/api/test/')
-        response1 = test_view(request)
-        response2 = test_view(request)
+        test_view(request)
+        test_view(request)
 
         # With TTL=0, each call should be a cache miss
         # (Note: LocMemCache may not respect TTL=0 precisely)
@@ -162,12 +157,12 @@ class CachedApiDecoratorTests(TestCase):
 
         # First call
         request = self.factory.get('/api/test/')
-        response1 = test_view(request)
+        test_view(request)
         self.assertEqual(call_count[0], 1)
 
         # Bypass cache
         request = self.factory.get('/api/test/?force_refresh=1')
-        response2 = test_view(request)
+        test_view(request)
         self.assertEqual(call_count[0], 2)  # Should call function again
 
     def test_only_caches_get_method(self):
@@ -181,13 +176,13 @@ class CachedApiDecoratorTests(TestCase):
 
         # GET request - cached
         request = self.factory.get('/api/test/')
-        response1 = test_view(request)
-        response2 = test_view(request)
+        test_view(request)
+        test_view(request)
         self.assertEqual(call_count[0], 1)
 
         # POST request - not cached
         request = self.factory.post('/api/test/')
-        response3 = test_view(request)
+        test_view(request)
         self.assertEqual(call_count[0], 2)
 
     def test_caches_with_vary_on_params(self):
@@ -205,13 +200,13 @@ class CachedApiDecoratorTests(TestCase):
 
         # Call with type=a
         request1 = self.factory.get('/api/test/?type=a')
-        response1 = test_view(request1)
-        response1_again = test_view(request1)
+        test_view(request1)
+        test_view(request1)
 
         # Call with type=b
         request2 = self.factory.get('/api/test/?type=b')
-        response2 = test_view(request2)
-        response2_again = test_view(request2)
+        test_view(request2)
+        test_view(request2)
 
         # Each param should call function once
         self.assertEqual(call_counts['a'], 1)
@@ -359,7 +354,6 @@ class PrometheusMetricsTests(TestCase):
 
     def test_cache_hits_metric(self):
         """Test cache hits counter."""
-        from prometheus_client import Counter
 
         # Increment counter
         cache_hits_total.labels(endpoint='test', key_prefix='test').inc()

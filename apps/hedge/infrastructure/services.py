@@ -5,17 +5,13 @@ Integration service that coordinates data fetching, domain services,
 and persistence for hedge portfolio management.
 """
 
-from datetime import date, timedelta
-from typing import Dict, List, Optional
+from datetime import date
 
 from apps.hedge.domain.entities import (
     CorrelationMetric,
     HedgeAlert,
-    HedgeAlertType,
-    HedgeMethod,
     HedgePair,
     HedgePortfolio,
-    get_common_hedge_pairs,
 )
 from apps.hedge.domain.services import (
     CorrelationMonitor,
@@ -451,7 +447,6 @@ class HedgeIntegrationService:
         if not returns:
             return 0.0
 
-        import math
         volatility = self._calculate_volatility(returns)
         if volatility == 0:
             return 0.0

@@ -1,6 +1,7 @@
 """Admin panel headless browser test script."""
-import sys
 import io
+import sys
+
 from playwright.sync_api import sync_playwright
 
 # Fix Windows console encoding
@@ -56,7 +57,7 @@ def test_admin():
         page.screenshot(path="admin_02_dashboard.png")
 
         # Get admin sections
-        print(f"\n[3] Scanning admin sections...")
+        print("\n[3] Scanning admin sections...")
 
         # Get app modules
         app_modules = page.locator(".app-module").all()
@@ -80,12 +81,12 @@ def test_admin():
             })
             admin_data["models_count"] += len(models)
 
-        print(f"\n[4] Admin Statistics:")
+        print("\n[4] Admin Statistics:")
         print(f"    Total Apps: {len(admin_data['apps'])}")
         print(f"    Total Models: {admin_data['models_count']}")
 
         # Check for common admin features
-        print(f"\n[5] Checking admin features...")
+        print("\n[5] Checking admin features...")
 
         features = {
             "Recent Actions": page.locator("#recent-actions-module").count() > 0,
@@ -98,7 +99,7 @@ def test_admin():
             print(f"    {status} {feature}")
 
         page.screenshot(path="admin_03_full_page.png", full_page=True)
-        print(f"\n[6] Full page screenshot: admin_03_full_page.png")
+        print("\n[6] Full page screenshot: admin_03_full_page.png")
 
         # Check for any console errors
         console_errors = []
@@ -110,7 +111,7 @@ def test_admin():
 
         # Test navigating to a model (if any exists)
         if admin_data["models_count"] > 0:
-            print(f"\n[7] Testing model list view...")
+            print("\n[7] Testing model list view...")
 
             # Try to find and click first model link
             first_model = page.locator("tr.model a").first
@@ -122,7 +123,7 @@ def test_admin():
 
                 print(f"    URL: {page.url}")
                 page.screenshot(path="admin_04_model_list.png")
-                print(f"    Screenshot: admin_04_model_list.png")
+                print("    Screenshot: admin_04_model_list.png")
 
                 # Check for list elements
                 if "#result_list" in page.content() or page.locator("table").count() > 0:
@@ -130,7 +131,7 @@ def test_admin():
                     print(f"    Records in list: {rows}")
 
         # Logout
-        print(f"\n[8] Logging out...")
+        print("\n[8] Logging out...")
         logout_link = page.locator("a[href='/admin/logout/']")
         if logout_link.count() > 0:
             logout_link.click()
@@ -149,17 +150,17 @@ def test_admin():
         print(f"Console Errors: {len(console_errors)}")
 
         if console_errors:
-            print(f"\nConsole Errors:")
+            print("\nConsole Errors:")
             for err in console_errors:
                 print(f"  - {err}")
         else:
-            print(f"\nNo console errors detected.")
+            print("\nNo console errors detected.")
 
-        print(f"\nScreenshots saved:")
-        print(f"  - admin_01_login.png")
-        print(f"  - admin_02_dashboard.png")
-        print(f"  - admin_03_full_page.png")
-        print(f"  - admin_04_model_list.png")
+        print("\nScreenshots saved:")
+        print("  - admin_01_login.png")
+        print("  - admin_02_dashboard.png")
+        print("  - admin_03_full_page.png")
+        print("  - admin_04_model_list.png")
         print(f"{'=' * 60}")
 
         return admin_data

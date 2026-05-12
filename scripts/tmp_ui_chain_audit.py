@@ -3,7 +3,6 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-
 BASE_URL = "http://127.0.0.1:8000"
 USERNAME = "admin"
 PASSWORD = "Aa123456"

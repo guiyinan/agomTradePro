@@ -9,7 +9,7 @@ See: docs/plans/ai-native/vendor-baseline-contract.md Section 5
 
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class InvalidStateTransitionError(Exception):
@@ -238,7 +238,7 @@ class TaskStateMachine:
             )
 
         # Get transition info for audit
-        transition_info = self._TRANSITIONS[(current, target)]
+        self._TRANSITIONS[(current, target)]
 
         # Create updated task (using dataclass replace)
         updated_task = replace(task, status=target_status)

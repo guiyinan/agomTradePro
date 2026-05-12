@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apps.strategy.infrastructure.providers import (
     DjangoAssetNameResolver,
@@ -207,7 +207,7 @@ def test_asset_pool_provider_falls_back_to_latest_score_cache(monkeypatch):
 
 
 def test_signal_provider_uses_signal_query_service(monkeypatch):
-    created_at = datetime(2026, 4, 27, 1, 2, 3, tzinfo=timezone.utc)
+    created_at = datetime(2026, 4, 27, 1, 2, 3, tzinfo=UTC)
 
     def fake_list_signal_payloads(
         *,

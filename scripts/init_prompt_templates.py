@@ -8,6 +8,7 @@ Usage:
 
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -15,8 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from apps.prompt.infrastructure.models import PromptTemplateORM, ChainConfigORM
-
+from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
 
 # 预设 Prompt 模板
 DEFAULT_TEMPLATES = [
@@ -276,7 +276,7 @@ def init_prompt_templates():
             print(f"  [跳过] {name} - {e}")
             skipped_count += 1
 
-    print(f"\n模板初始化完成:")
+    print("\n模板初始化完成:")
     print(f"  新建: {created_count}")
     print(f"  更新: {updated_count}")
     print(f"  跳过: {skipped_count}")
@@ -308,7 +308,7 @@ def init_chain_configs():
             print(f"  [跳过] {name} - {e}")
             skipped_count += 1
 
-    print(f"\nChain 配置初始化完成:")
+    print("\nChain 配置初始化完成:")
     print(f"  新建: {created_count}")
     print(f"  更新: {updated_count}")
     print(f"  跳过: {skipped_count}")

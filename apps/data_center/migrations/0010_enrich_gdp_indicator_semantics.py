@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 GDP_METADATA = {
     "CN_GDP": {
         "name_cn": "GDP 国内生产总值累计值",

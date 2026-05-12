@@ -7,25 +7,30 @@ Account Application Use Cases
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+from apps.account.application.repository_provider import (
+    AccountRepository,
+    AssetMetadataRepository,
+    MacroSizingConfigRepository,
+    PortfolioRepository,
+    PortfolioSnapshotRepository,
+    PositionRepository,
+    SystemSettingsRepository,
+    build_market_price_service,
+)
 from apps.account.domain.entities import (
-    AccountProfile,
     AssetAllocation,
     AssetClassType,
-    CrossBorderFlag,
-    PortfolioSnapshot,
     Position,
-    PositionSource,
     RegimeMatchAnalysis,
     Region,
-    RiskTolerance,
 )
 from apps.account.domain.services import (
     MacroSizingContext,
@@ -33,17 +38,6 @@ from apps.account.domain.services import (
     SizingMultiplierResult,
     calculate_macro_multiplier,
     calculate_portfolio_drawdown,
-)
-from apps.account.application.repository_provider import (
-    AccountRepository,
-    AssetMetadataRepository,
-    build_market_price_service,
-    MacroSizingConfigRepository,
-    PortfolioRepository,
-    PortfolioSnapshotRepository,
-    PositionRepository,
-    SystemSettingsRepository,
-    TransactionRepository,
 )
 from apps.backtest.application.repository_provider import get_backtest_repository
 from apps.regime.application.current_regime import resolve_current_regime
@@ -471,7 +465,7 @@ class CreatePositionFromBacktestUseCase:
             asset_code = self._map_asset_class_to_code(asset_class)
 
             # 获取或创建资产元数据
-            asset_meta = self.asset_meta_repo.get_or_create_asset(
+            self.asset_meta_repo.get_or_create_asset(
                 asset_code=asset_code,
                 name=asset_class,  # 使用大类名称作为显示名称
                 asset_class=self._infer_asset_class_type(asset_class),

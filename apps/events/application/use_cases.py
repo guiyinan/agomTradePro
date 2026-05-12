@@ -6,15 +6,12 @@ Events Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from datetime import UTC, datetime
+from typing import Any
 
 from ..domain.entities import (
-    DomainEvent,
     EventHandler,
     # InMemoryEventBus is in services, not entities
-    EventMetrics,
-    EventSubscription,
     EventType,
     create_event,
     create_subscription,
@@ -23,9 +20,7 @@ from ..domain.services import InMemoryEventBus, get_event_bus
 from .repository_provider import (
     DatabaseEventStore,
     EventReplayHandler,
-    SnapshotStore,
     get_event_store,
-    get_snapshot_store,
 )
 
 logger = logging.getLogger(__name__)

@@ -8,18 +8,16 @@ Infrastructure层:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from django.db.models import F, Q
-from django.utils import timezone
-from core.integration.simulated_trading_facade import (
-    get_simulated_trading_facade_bridge,
-)
-from apps.strategy.infrastructure.repositories import (
-    DjangoStrategyGatewayRepository,
+from apps.strategy.infrastructure.repositories import (  # noqa: F401
     DjangoStrategyExecutionLogRepository,
+    DjangoStrategyGatewayRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,
+)
+from core.integration.simulated_trading_facade import (
+    get_simulated_trading_facade_bridge,
 )
 
 logger = logging.getLogger(__name__)
@@ -181,8 +179,8 @@ class DjangoAssetPoolProvider:
         try:
             from apps.asset_analysis.application.repository_provider import (
                 get_asset_pool_query_repository,
-                list_latest_scored_assets,
                 list_investable_asset_categories,
+                list_latest_scored_assets,
             )
 
             query_repository = get_asset_pool_query_repository()
@@ -412,12 +410,10 @@ class PaperExecutionAdapter:
         Returns:
             模拟订单ID（使用 intent_id）
         """
-        import uuid
 
         from django.utils import timezone
 
-        from apps.strategy.domain.entities import OrderEvent, OrderStatus
-        from apps.strategy.domain.services import OrderStateMachine
+        from apps.strategy.domain.entities import OrderStatus
 
         # 生成模拟订单ID
         paper_order_id = f"PAPER-{intent.intent_id}"

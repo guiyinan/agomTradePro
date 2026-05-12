@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -197,13 +197,13 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
 
     intraday_points = [
         SimpleNamespace(
-            timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=dt_timezone.utc),
+            timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=UTC),
             price=10.98,
             avg_price=10.98,
             volume=4482,
         ),
         SimpleNamespace(
-            timestamp=datetime(2026, 4, 3, 9, 31, 0, tzinfo=dt_timezone.utc),
+            timestamp=datetime(2026, 4, 3, 9, 31, 0, tzinfo=UTC),
             price=11.00,
             avg_price=10.99,
             volume=42820,
@@ -285,13 +285,13 @@ def test_equity_intraday_chart_uses_data_center_stock_info(authenticated_client)
     )
     intraday_points = [
         SimpleNamespace(
-            timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=dt_timezone.utc),
+            timestamp=datetime(2026, 4, 3, 9, 30, 0, tzinfo=UTC),
             price=606.00,
             avg_price=606.00,
             volume=1234,
         ),
         SimpleNamespace(
-            timestamp=datetime(2026, 4, 3, 9, 31, 0, tzinfo=dt_timezone.utc),
+            timestamp=datetime(2026, 4, 3, 9, 31, 0, tzinfo=UTC),
             price=606.52,
             avg_price=606.26,
             volume=5678,

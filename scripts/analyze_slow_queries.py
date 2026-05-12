@@ -54,8 +54,8 @@ class QueryPattern:
     total_ms: float = 0
     avg_ms: float = 0
     max_ms: float = 0
-    first_seen: Optional[str] = None
-    last_seen: Optional[str] = None
+    first_seen: str | None = None
+    last_seen: str | None = None
 
     def add(self, duration_ms: float, timestamp: str) -> None:
         """添加一次查询记录"""
@@ -121,7 +121,7 @@ SLOW_QUERY_PATTERN = re.compile(
 JSON_LOG_PATTERN = re.compile(r'^\{.*\}$')
 
 
-def parse_json_log(line: str) -> Optional[dict]:
+def parse_json_log(line: str) -> dict | None:
     """解析 JSON 格式日志"""
     try:
         return json.loads(line)
@@ -129,7 +129,7 @@ def parse_json_log(line: str) -> Optional[dict]:
         return None
 
 
-def parse_slow_query_from_json(data: dict) -> Optional[SlowQuery]:
+def parse_slow_query_from_json(data: dict) -> SlowQuery | None:
     """从 JSON 日志解析慢查询"""
     if data.get('event') != 'slow_query':
         return None
@@ -147,7 +147,7 @@ def parse_slow_query_from_json(data: dict) -> Optional[SlowQuery]:
     )
 
 
-def parse_slow_query_from_text(line: str) -> Optional[SlowQuery]:
+def parse_slow_query_from_text(line: str) -> SlowQuery | None:
     """从文本日志解析慢查询"""
     # 尝试 JSON 解析
     if JSON_LOG_PATTERN.match(line.strip()):
@@ -181,9 +181,9 @@ def normalize_sql_for_pattern(sql: str) -> str:
 
 def analyze_log_file(
     log_path: str,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    operation_filter: Optional[str] = None,
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    operation_filter: str | None = None,
 ) -> AnalysisReport:
     """
     分析日志文件
@@ -205,7 +205,7 @@ def analyze_log_file(
         print(f"Error: Log file not found: {log_path}", file=sys.stderr)
         return report
 
-    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(log_file, encoding='utf-8', errors='ignore') as f:
         for line in f:
             query = parse_slow_query_from_text(line)
             if not query:
@@ -259,13 +259,13 @@ def print_report(report: AnalysisReport, top_n: int = 20) -> None:
     print("           Slow Query Analysis Report")
     print("=" * 60)
 
-    print(f"\n📊 Overall Statistics:")
+    print("\n📊 Overall Statistics:")
     print(f"   Total slow queries:     {report.total_slow_queries:,}")
     print(f"   Total slow query time:  {report.total_slow_query_time_ms:.1f} ms")
     print(f"   Requests affected:      {report.requests_with_slow_queries:,}")
     print(f"   Avg per request:        {report.total_slow_query_time_ms / report.requests_with_slow_queries:.1f} ms" if report.requests_with_slow_queries > 0 else "")
 
-    print(f"\n🔍 By Operation Type:")
+    print("\n🔍 By Operation Type:")
     for op, count in sorted(report.operation_counts.items(), key=lambda x: x[1], reverse=True):
         percentage = (count / report.total_slow_queries * 100) if report.total_slow_queries > 0 else 0
         print(f"   {op:8s}: {count:6,d} ({percentage:5.1f}%)")

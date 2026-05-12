@@ -15,7 +15,6 @@ IMPORTANT:
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
     is_direct_consumer_input_allowed,
@@ -24,8 +23,8 @@ from apps.data_center.infrastructure.seed_data.macro_indicator_governance import
 from ..domain.protocols import (
     DataSourceConfigProtocol,
     IndicatorSeries,
-    MacroIndicator,
     MacroDataProviderProtocol,
+    MacroIndicator,
     MacroIndicatorValue,
     PeriodType,
 )

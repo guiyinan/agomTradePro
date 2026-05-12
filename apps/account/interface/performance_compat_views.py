@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -22,7 +21,7 @@ from apps.account.application import interface_services
 logger = logging.getLogger(__name__)
 
 
-def _resolve_account_id(portfolio_id: int) -> Optional[int]:
+def _resolve_account_id(portfolio_id: int) -> int | None:
     """
     通过 LedgerMigrationMapModel 将 portfolio_id 映射到统一账户 ID。
     未找到映射则返回 None。
@@ -46,7 +45,9 @@ class PortfolioPerformanceReportCompatView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, portfolio_id: int) -> Response:
-        from apps.simulated_trading.interface.performance_views import AccountPerformanceReportAPIView
+        from apps.simulated_trading.interface.performance_views import (
+            AccountPerformanceReportAPIView,
+        )
 
         account_id = _resolve_account_id(portfolio_id)
         if account_id is None:
@@ -65,7 +66,9 @@ class PortfolioValuationSnapshotCompatView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, portfolio_id: int) -> Response:
-        from apps.simulated_trading.interface.performance_views import AccountValuationSnapshotAPIView
+        from apps.simulated_trading.interface.performance_views import (
+            AccountValuationSnapshotAPIView,
+        )
 
         account_id = _resolve_account_id(portfolio_id)
         if account_id is None:
@@ -84,7 +87,9 @@ class PortfolioValuationTimelineCompatView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, portfolio_id: int) -> Response:
-        from apps.simulated_trading.interface.performance_views import AccountValuationTimelineAPIView
+        from apps.simulated_trading.interface.performance_views import (
+            AccountValuationTimelineAPIView,
+        )
 
         account_id = _resolve_account_id(portfolio_id)
         if account_id is None:

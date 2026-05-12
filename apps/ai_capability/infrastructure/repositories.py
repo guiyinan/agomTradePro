@@ -2,8 +2,8 @@
 AI Capability Catalog Infrastructure Repositories.
 """
 
-from datetime import UTC, datetime, timezone
-from typing import Any, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.db import transaction

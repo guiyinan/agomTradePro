@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django.core.management import BaseCommand
+
 from apps.data_center.infrastructure.repositories import MacroGovernanceRepository
 
 

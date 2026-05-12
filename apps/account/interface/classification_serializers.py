@@ -2,8 +2,6 @@
 DRF Serializers for Asset Classification and Multi-Currency Support.
 """
 
-from datetime import date
-from decimal import Decimal
 
 from django.apps import apps as django_apps
 from rest_framework import serializers

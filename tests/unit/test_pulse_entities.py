@@ -3,7 +3,12 @@ from datetime import date
 
 import pytest
 
-from apps.pulse.domain.entities import DimensionScore, PulseConfig, PulseIndicatorReading, PulseSnapshot
+from apps.pulse.domain.entities import (
+    DimensionScore,
+    PulseConfig,
+    PulseIndicatorReading,
+    PulseSnapshot,
+)
 
 
 def test_pulse_snapshot_properties():

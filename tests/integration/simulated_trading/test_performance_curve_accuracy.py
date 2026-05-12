@@ -7,16 +7,14 @@ Phase 2 验收测试：
 - 返回完整字段：cash/market_value/net_value/drawdown_pct
 """
 from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 from django.test import TestCase
 
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.use_cases import CreateSimulatedAccountUseCase
-from apps.simulated_trading.domain.entities import TradeAction
 from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
     SimulatedTradeModel,
 )
 from apps.simulated_trading.infrastructure.repositories import (

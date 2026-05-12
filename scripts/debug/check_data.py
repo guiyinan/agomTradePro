@@ -1,6 +1,6 @@
-# -*- coding: utf-8 -*-
 import os
 import sys
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

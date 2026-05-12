@@ -18,8 +18,8 @@ from apps.setup_wizard.infrastructure.encryption_setup import (
     _write_key_to_env,
     bootstrap_local_environment,
     ensure_all_keys,
-    ensure_env_file,
     ensure_encryption_key,
+    ensure_env_file,
     ensure_secret_key,
 )
 

@@ -9,7 +9,7 @@ Integration Tests for Strategy Execute Flow
 """
 import json
 import uuid
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 from django.contrib.auth.models import User

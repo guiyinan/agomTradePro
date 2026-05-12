@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from apps.policy.application.hedging_use_cases import (
@@ -108,7 +108,7 @@ def test_analyze_hedge_effectiveness_updates_missing_beta(monkeypatch):
         "policy_level": "P2",
         "status": "executed",
         "execution_price": Decimal("5000"),
-        "executed_at": datetime.now(timezone.utc),
+        "executed_at": datetime.now(UTC),
         "opening_cost": Decimal("20"),
         "closing_cost": Decimal("5"),
         "total_cost": None,

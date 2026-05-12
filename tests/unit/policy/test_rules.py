@@ -4,13 +4,13 @@ Unit Tests for Policy Domain Rules
 测试政策档位响应规则和业务逻辑。
 """
 
+import dataclasses
 from datetime import date
 
 import pytest
 
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.domain.rules import (
-    PolicyResponse,
     analyze_policy_transition,
     get_cash_allocation_adjustment,
     get_policy_response,
@@ -282,5 +282,5 @@ class TestPolicyEventCreation:
         )
 
         # frozen=True 的 dataclass 是不可变的
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             event.title = "修改后"

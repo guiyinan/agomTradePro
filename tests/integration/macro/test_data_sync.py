@@ -7,20 +7,19 @@ Integration Tests for Macro Data Sync Workflow
 3. Point-in-Time (PIT) 数据处理
 """
 
-from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from datetime import date
+from unittest.mock import Mock
 
 import pytest
-from django.test import TestCase
-from apps.data_center.infrastructure.models import MacroFactModel
 
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.macro.application.use_cases import (
     MacroDataPoint,
     SyncMacroDataRequest,
     SyncMacroDataUseCase,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError, MacroDataPoint
+from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from tests.integration.support.macro_rules import seed_indicator_rule

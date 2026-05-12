@@ -7,12 +7,7 @@
 - 返回 Domain 层实体
 """
 
-from datetime import date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
-
-from django.core.cache import cache
-from django.db import models
+from datetime import date
 
 from ..domain.entities import SectorIndex, SectorInfo, SectorRelativeStrength
 from .models import (

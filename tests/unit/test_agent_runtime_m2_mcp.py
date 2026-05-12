@@ -191,7 +191,7 @@ class TestAgentTaskToolExecution:
         register_agent_task_tools(test_server)
 
         tool_fn = test_server._tool_manager._tools["resume_agent_task"].fn
-        result = tool_fn(task_id=42, reason="Fixed data issue")
+        tool_fn(task_id=42, reason="Fixed data issue")
 
         mock_client.agent_runtime.resume_task.assert_called_once_with(
             task_id=42,
@@ -216,7 +216,7 @@ class TestAgentTaskToolExecution:
         register_agent_task_tools(test_server)
 
         tool_fn = test_server._tool_manager._tools["cancel_agent_task"].fn
-        result = tool_fn(task_id=42, reason="No longer needed")
+        tool_fn(task_id=42, reason="No longer needed")
 
         mock_client.agent_runtime.cancel_task.assert_called_once_with(
             task_id=42,

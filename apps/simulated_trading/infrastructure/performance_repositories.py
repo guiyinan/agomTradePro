@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.integration.account_ledger import (
     get_capital_flow_model,
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class DjangoPerformanceAccountRepository:
     """AccountRepositoryProtocol 实现。"""
 
-    def get_by_id(self, account_id: int) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, account_id: int) -> dict[str, Any] | None:
         from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
         try:
@@ -60,7 +60,7 @@ class DjangoObserverGrantRepository:
 class DjangoBenchmarkComponentRepository:
     """BenchmarkComponentRepositoryProtocol 实现。"""
 
-    def list_active(self, account_id: int) -> List[Dict[str, Any]]:
+    def list_active(self, account_id: int) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import AccountBenchmarkComponentModel
 
         qs = AccountBenchmarkComponentModel.objects.filter(
@@ -77,7 +77,7 @@ class DjangoBenchmarkComponentRepository:
             for obj in qs
         ]
 
-    def upsert_components(self, account_id: int, components: List[Dict[str, Any]]) -> None:
+    def upsert_components(self, account_id: int, components: list[dict[str, Any]]) -> None:
         from apps.simulated_trading.infrastructure.models import AccountBenchmarkComponentModel
 
         AccountBenchmarkComponentModel.objects.filter(account_id=account_id).delete()
@@ -102,9 +102,9 @@ class DjangoUnifiedCashFlowRepository:
     def list_for_account(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import UnifiedAccountCashFlowModel
 
         qs = UnifiedAccountCashFlowModel.objects.filter(account_id=account_id)
@@ -143,7 +143,7 @@ class DjangoUnifiedCashFlowRepository:
         )
 
     def mirror_from_capital_flow(
-        self, account_id: int, capital_flow_dict: Dict[str, Any]
+        self, account_id: int, capital_flow_dict: dict[str, Any]
     ) -> None:
         from apps.simulated_trading.infrastructure.models import UnifiedAccountCashFlowModel
 
@@ -182,9 +182,9 @@ class DjangoPerformanceDailyNetValueRepository:
     def list_range(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import DailyNetValueModel
 
         qs = DailyNetValueModel.objects.filter(account_id=account_id)
@@ -210,7 +210,7 @@ class DjangoPerformanceDailyNetValueRepository:
 
     def get_record_for_date(
         self, account_id: int, record_date: date
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """返回某日净值记录（用于历史时点现金获取）。无则返回 None。"""
         from apps.simulated_trading.infrastructure.models import DailyNetValueModel
 
@@ -231,7 +231,7 @@ class DjangoPerformanceDailyNetValueRepository:
 class DjangoValuationSnapshotRepository:
     """ValuationSnapshotRepositoryProtocol 实现。"""
 
-    def get_for_date(self, account_id: int, record_date: date) -> List[Dict[str, Any]]:
+    def get_for_date(self, account_id: int, record_date: date) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import (
             AccountPositionValuationSnapshotModel,
         )
@@ -259,7 +259,7 @@ class DjangoValuationSnapshotRepository:
         self,
         account_id: int,
         record_date: date,
-        rows: List[Dict[str, Any]],
+        rows: list[dict[str, Any]],
     ) -> None:
         from apps.simulated_trading.infrastructure.models import (
             AccountPositionValuationSnapshotModel,
@@ -295,9 +295,9 @@ class DjangoTradeHistoryRepository:
     def list_closed_trades(
         self,
         account_id: int,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, Any]]:
         from apps.simulated_trading.infrastructure.models import SimulatedTradeModel
 
         qs = SimulatedTradeModel.objects.filter(
@@ -322,7 +322,7 @@ class DjangoMarketDataRepository:
     单个收盘价委托给 UnifiedPriceService。
     """
 
-    def get_close_price(self, asset_code: str, trade_date: date) -> Optional[float]:
+    def get_close_price(self, asset_code: str, trade_date: date) -> float | None:
         try:
             from apps.data_center.application.price_service import UnifiedPriceService
 
@@ -355,11 +355,11 @@ class DjangoMarketDataRepository:
         index_code: str,
         start_date: date,
         end_date: date,
-    ) -> List[Tuple[date, float]]:
+    ) -> list[tuple[date, float]]:
         bars = self._fetch_index_bars(index_code, start_date, end_date)
         if len(bars) < 2:
             return []
-        result: List[Tuple[date, float]] = []
+        result: list[tuple[date, float]] = []
         for i in range(1, len(bars)):
             prev_close = float(bars[i - 1].close)
             curr_close = float(bars[i].close)
@@ -373,7 +373,7 @@ class DjangoMarketDataRepository:
         index_code: str,
         start_date: date,
         end_date: date,
-    ) -> Optional[float]:
+    ) -> float | None:
         bars = self._fetch_index_bars(index_code, start_date, end_date)
         if len(bars) < 2:
             return None
@@ -394,7 +394,7 @@ class DjangoCapitalFlowRepository:
 
     def list_for_account_via_ledger(
         self, account_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         查找该统一账户对应的全部 CapitalFlowModel 记录。
 

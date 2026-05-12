@@ -4,9 +4,7 @@ Dashboard URL Configuration
 
 from django.urls import path
 
-from apps.dashboard.interface import alpha_history_views
-from apps.dashboard.interface import alpha_stock_views
-from apps.dashboard.interface import views
+from apps.dashboard.interface import alpha_history_views, alpha_stock_views, views
 
 app_name = 'dashboard'
 

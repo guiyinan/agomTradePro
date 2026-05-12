@@ -10,7 +10,6 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from apps.alpha_trigger.domain.entities import (
-    AlphaCandidate,
     AlphaTrigger,
     CandidateStatus,
     InvalidationCondition,

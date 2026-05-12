@@ -7,23 +7,21 @@ Events Infrastructure Repositories
 """
 
 import logging
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+
 from core.integration.alpha_candidates import (
     AlphaCandidateRepositoryWrapper,
     get_alpha_candidate_repository,
 )
 from core.integration.decision_requests import (
     DecisionRequestRepositoryWrapper,
-    get_decision_request_repository,
+    get_decision_request_repository,  # noqa: F401
 )
 
-from ..domain.interfaces import (
-    FailedEventRepositoryProtocol,
-)
 from .models import FailedEventModel
 
 logger = logging.getLogger(__name__)

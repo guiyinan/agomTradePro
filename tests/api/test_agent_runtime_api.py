@@ -6,7 +6,7 @@ WP-M1-07: Tests (027-030)
 FROZEN: Tests verify that only allowed endpoints are exposed.
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest

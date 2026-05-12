@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 
-
 PUBLISHERS = {
     "NBS": {
         "canonical_name": "国家统计局",

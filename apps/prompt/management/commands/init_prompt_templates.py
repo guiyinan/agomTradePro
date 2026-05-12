@@ -15,7 +15,6 @@ Options:
 """
 
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 from apps.prompt.infrastructure.fixtures.templates import (
     get_predefined_chains,

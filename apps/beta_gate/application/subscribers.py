@@ -11,10 +11,9 @@ Beta Gate Event Subscribers.
 
 import logging
 from collections.abc import Callable
-from typing import Dict
 
 from apps.events.domain.entities import EventType
-from apps.events.domain.registry import SubscriberInfo, get_event_subscriber_registry
+from apps.events.domain.registry import get_event_subscriber_registry
 
 logger = logging.getLogger(__name__)
 

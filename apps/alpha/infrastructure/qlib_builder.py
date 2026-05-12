@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Callable, Iterable
 
 import numpy as np
 import pandas as pd

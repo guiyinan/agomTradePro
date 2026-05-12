@@ -4,10 +4,11 @@ Verify Regime Calculation Fix
 This script verifies that the fix for RegimeCalculator parameters works correctly.
 """
 
-import os
-from dotenv import load_dotenv
-from datetime import date
 import math
+import os
+from datetime import date
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -184,7 +185,7 @@ if db_url.startswith('postgresql://'):
                     if abs(new_iz) < abs(stored_iz):
                         print(f'  [OK] Inflation Z-score improved (|{new_iz:.2f}| < |{stored_iz:.2f}|)')
                     if new_dom != stored_dom:
-                        print(f'  [CHANGE] Regime classification changed!')
+                        print('  [CHANGE] Regime classification changed!')
                     print()
             except StopIteration:
                 pass
@@ -196,14 +197,14 @@ if db_url.startswith('postgresql://'):
         valid_old_z = [z for z in cpi_z_old if z != 0]
         valid_new_z = [z for z in cpi_z_new if z != 0]
 
-        print(f'OLD parameters (window=60, min=24):')
+        print('OLD parameters (window=60, min=24):')
         print(f'  Valid Z-scores: {len(valid_old_z)}')
         if valid_old_z:
             print(f'  Max absolute Z: {max(abs(z) for z in valid_old_z):.2f}')
             print(f'  Min absolute Z: {min(abs(z) for z in valid_old_z):.2f}')
         print()
 
-        print(f'NEW parameters (window=24, min=12):')
+        print('NEW parameters (window=24, min=12):')
         print(f'  Valid Z-scores: {len(valid_new_z)}')
         if valid_new_z:
             print(f'  Max absolute Z: {max(abs(z) for z in valid_new_z):.2f}')
@@ -214,7 +215,7 @@ if db_url.startswith('postgresql://'):
         extreme_old = sum(1 for z in valid_old_z if abs(z) > 2.0)
         extreme_new = sum(1 for z in valid_new_z if abs(z) > 2.0)
 
-        print(f'Extreme Z-scores (>2.0):')
+        print('Extreme Z-scores (>2.0):')
         print(f'  OLD: {extreme_old} / {len(valid_old_z)}')
         print(f'  NEW: {extreme_new} / {len(valid_new_z)}')
         print()
@@ -223,7 +224,7 @@ if db_url.startswith('postgresql://'):
         print('  CONCLUSION')
         print('='*70)
         print()
-        print(f'With the new parameters:')
+        print('With the new parameters:')
         print(f'- More valid Z-scores ({len(valid_new_z)} vs {len(valid_old_z)})')
         if len(valid_new_z) > 0:
             max_z_new = max(abs(z) for z in valid_new_z)

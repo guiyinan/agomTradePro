@@ -1,18 +1,19 @@
+from unittest.mock import patch
+
 import pytest
 from django.conf import settings as django_settings
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
-from unittest.mock import patch
 
 from apps.account.infrastructure.models import SystemSettingsModel
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, IndicatorUnitRuleModel
 from apps.macro.application.indicator_service import IndicatorService, IndicatorUnitRuleService
 from core.application.config_center import get_system_settings_summary
+from core.context_processors import get_market_visuals
 from core.integration.runtime_settings import (
     get_runtime_macro_index_metadata_map,
     get_runtime_macro_publication_lags,
 )
-from core.context_processors import get_market_visuals
 
 
 @pytest.mark.django_db

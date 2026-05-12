@@ -4,9 +4,10 @@ AgomTradePro SDK - Backtesting Examples
 This file demonstrates backtesting and advanced usage of the AgomTradePro SDK.
 """
 
-from agomtradepro import AgomTradeProClient
-from datetime import date, timedelta
 import time
+from datetime import date
+
+from agomtradepro import AgomTradeProClient
 
 # Initialize client
 client = AgomTradeProClient(

@@ -13,7 +13,6 @@ from .repository_provider import (
     get_alpha_trigger_repository,
 )
 
-
 ASSET_CLASSES = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
 
 

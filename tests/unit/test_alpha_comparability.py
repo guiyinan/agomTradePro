@@ -12,8 +12,6 @@
 from datetime import date
 from unittest.mock import Mock, patch
 
-import pytest
-
 from apps.alpha.application.services import (
     AlphaProviderRegistry,
     AlphaService,
@@ -217,7 +215,7 @@ class TestAlphaComparabilityImprovements:
 
         # Mock logger 并验证日志调用
         with patch("apps.alpha.application.services.logger") as mock_logger:
-            result = registry.get_scores_with_fallback("csi300", date.today(), 30)
+            registry.get_scores_with_fallback("csi300", date.today(), 30)
 
             # 验证关键日志
             log_calls = [str(call) for call in mock_logger.info.call_args_list]
@@ -227,7 +225,7 @@ class TestAlphaComparabilityImprovements:
 
     def test_api_response_metadata(self):
         """测试方案 1: API 响应增强"""
-        service = AlphaService()
+        AlphaService()
 
         # 创建测试结果
         test_scores = [

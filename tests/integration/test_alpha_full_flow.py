@@ -11,13 +11,12 @@ End-to-End Integration Tests for Alpha Module
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.utils import timezone
 
 from apps.alpha.application.services import AlphaService
-from apps.alpha.application.tasks import qlib_predict_scores
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from apps.signal.application.unified_service import UnifiedSignalService
 
@@ -47,7 +46,7 @@ class TestAlphaSignalIntegration:
 
         # 创建一些模拟的 Alpha 缓存数据
         today = date.today()
-        cache = AlphaScoreCacheModel.objects.create(
+        AlphaScoreCacheModel.objects.create(
             universe_id="csi300",
             intended_trade_date=today,
             provider_source="cache",
@@ -258,7 +257,7 @@ class TestAlphaMetricsRecording:
 
         # 获取评分
         service = AlphaService()
-        result = service.get_stock_scores("csi300", today)
+        service.get_stock_scores("csi300", today)
 
         # 验证指标被记录
         request_metric = metrics.registry.get_metric("alpha_score_request_count")
@@ -288,7 +287,7 @@ class TestAlphaMetricsRecording:
 
         # 获取评分
         service = AlphaService()
-        result = service.get_stock_scores("csi300", today)
+        service.get_stock_scores("csi300", today)
 
         # 验证覆盖率指标
         coverage_metric = metrics.registry.get_metric("alpha_coverage_ratio")
@@ -376,7 +375,7 @@ class TestAlphaEndToEndFlow:
     def test_complete_alpha_flow(self):
         """测试完整的 Alpha 流程"""
         # 1. 创建激活的模型
-        model = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="e2e_test_model",
             artifact_hash="e2e_hash",
             model_type="LGBModel",
@@ -392,7 +391,7 @@ class TestAlphaEndToEndFlow:
 
         # 2. 创建评分缓存（模拟 Qlib 推理结果）
         today = date.today()
-        cache = AlphaScoreCacheModel.objects.create(
+        AlphaScoreCacheModel.objects.create(
             universe_id="csi300",
             intended_trade_date=today,
             provider_source="qlib",

@@ -92,7 +92,7 @@ class FieldEncryptionService:
             fernet_key = base64.urlsafe_b64encode(hash_digest)
             return Fernet(fernet_key)
         except Exception as e:
-            raise ImproperlyConfigured(f"Invalid encryption key: {e}")
+            raise ImproperlyConfigured(f"Invalid encryption key: {e}") from e
 
     def encrypt(self, plaintext: str) -> str:
         """

@@ -5,8 +5,6 @@ DTO 用于在 Interface 层和 Application 层之间传输数据。
 """
 
 from dataclasses import dataclass, field
-from datetime import date
-from typing import Dict, List, Optional
 
 
 @dataclass

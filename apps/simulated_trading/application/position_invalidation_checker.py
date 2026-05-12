@@ -5,8 +5,7 @@
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Dict, List, Optional
+from datetime import date
 
 from django.utils import timezone
 
@@ -17,7 +16,6 @@ from apps.signal.domain.invalidation import (
     evaluate_rule,
 )
 from apps.simulated_trading.application.repository_provider import (
-    DjangoPositionRepository,
     get_simulated_position_repository,
 )
 from apps.simulated_trading.domain.entities import Position
@@ -125,7 +123,6 @@ class PositionInvalidationChecker:
         Returns:
             InvalidationCheckResult 或 None
         """
-        import json
 
         # 解析证伪规则
         try:

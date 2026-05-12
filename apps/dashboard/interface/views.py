@@ -19,26 +19,24 @@ from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
-from django.http import HttpResponseNotAllowed, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone as django_timezone
+
 from apps.alpha.application.ops_locks import (
     ALPHA_REFRESH_LOCK_TTL_SECONDS,
-    acquire_dashboard_alpha_refresh_pending_lock,
-    build_dashboard_alpha_refresh_lock_key as _shared_build_alpha_refresh_lock_key,
-    build_dashboard_alpha_refresh_metadata,
-    promote_dashboard_alpha_refresh_task_lock,
-    release_dashboard_alpha_refresh_lock,
     resolve_dashboard_alpha_refresh_lock,
+)
+from apps.alpha.application.ops_locks import (
+    build_dashboard_alpha_refresh_lock_key as _shared_build_alpha_refresh_lock_key,
 )
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
-    PortfolioAlphaPoolResolver,
     get_alpha_pool_mode_choices,
     normalize_alpha_pool_mode,
 )
-from apps.task_monitor.application.tracking import record_pending_task
+from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_GENERAL,
     ALPHA_SCOPE_PORTFOLIO,
@@ -46,24 +44,29 @@ from apps.dashboard.application.alpha_homepage import (
 )
 from apps.dashboard.application.navigation import (
     build_decision_workspace_url as _build_decision_workspace_url,
+)
+from apps.dashboard.application.navigation import (
     build_exit_user_action_label as _build_exit_user_action_label,
+)
+from apps.dashboard.application.navigation import (
     normalize_exit_user_action as _normalize_exit_user_action,
 )
-from apps.dashboard.interface import api_v1_views
-from apps.dashboard.interface import alpha_history_views
-from apps.dashboard.interface import alpha_metrics_views
-from apps.dashboard.interface import macro_views
-from apps.dashboard.interface import portfolio_views
-from apps.dashboard.interface import alpha_stock_views
-from apps.dashboard.interface import workflow_views
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
     get_alpha_homepage_query,
     get_alpha_visualization_query,
-    get_dashboard_detail_query,
     get_decision_plane_query,
 )
-from apps.dashboard.application import interface_services as dashboard_interface_services
+from apps.dashboard.interface import (
+    alpha_history_views,
+    alpha_metrics_views,
+    alpha_stock_views,
+    api_v1_views,
+    macro_views,
+    portfolio_views,
+    workflow_views,
+)
+
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
 _DASHBOARD_EXIT_DETAIL_ANCHOR = "alpha-exit-detail"

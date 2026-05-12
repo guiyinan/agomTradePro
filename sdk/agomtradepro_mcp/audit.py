@@ -14,9 +14,10 @@ import os
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,9 @@ MAX_RESPONSE_TEXT_LENGTH = 200000
 class AuditContext:
     """审计上下文，用于收集审计信息"""
     request_id: str
-    user_id: Optional[int] = None
+    user_id: int | None = None
     username: str = "anonymous"
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
     user_agent: str = ""
     client_id: str = ""
     mcp_role: str = ""
@@ -37,7 +38,7 @@ class AuditContext:
     start_time: float = field(default_factory=time.time)
 
     @classmethod
-    def create(cls, **kwargs) -> 'AuditContext':
+    def create(cls, **kwargs) -> AuditContext:
         """创建审计上下文"""
         return cls(
             request_id=kwargs.get('request_id') or str(uuid.uuid4()),
@@ -72,7 +73,7 @@ class AuditLogger:
     # 审计失败计数（用于监控）
     _failure_count: int = 0
 
-    def __init__(self, backend_url: Optional[str] = None, secret_key: Optional[str] = None):
+    def __init__(self, backend_url: str | None = None, secret_key: str | None = None):
         """
         初始化审计日志记录器
 
@@ -93,15 +94,15 @@ class AuditLogger:
     def log_mcp_call(
         self,
         tool_name: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         result: Any,
-        error: Optional[Exception],
+        error: Exception | None,
         context: AuditContext,
         module: str = "",
         action: str = "",
         resource_type: str = "",
-        resource_id: Optional[str] = None,
-    ) -> Optional[str]:
+        resource_id: str | None = None,
+    ) -> str | None:
         """
         记录 MCP 工具调用
 
@@ -187,11 +188,11 @@ class AuditLogger:
         self,
         method: str,
         path: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         result: Any,
-        error: Optional[Exception],
+        error: Exception | None,
         context: AuditContext,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         记录 SDK 调用
 
@@ -283,7 +284,7 @@ class AuditLogger:
 
         return self._send_audit_log(audit_data)
 
-    def _send_audit_log(self, data: Dict[str, Any]) -> Optional[str]:
+    def _send_audit_log(self, data: dict[str, Any]) -> str | None:
         """
         发送审计日志到后端
 
@@ -346,7 +347,7 @@ class AuditLogger:
             self._failure_count += 1
             return None
 
-    def _compute_signature(self, timestamp: str, data: Dict[str, Any]) -> str:
+    def _compute_signature(self, timestamp: str, data: dict[str, Any]) -> str:
         """计算签名"""
         if not self.secret_key:
             # In local DEBUG setups the backend may intentionally skip HMAC validation
@@ -492,7 +493,7 @@ class AuditLogger:
         return text
 
     @staticmethod
-    def _format_exception_traceback(error: Optional[Exception]) -> str:
+    def _format_exception_traceback(error: Exception | None) -> str:
         """提取异常堆栈，便于后续回溯。"""
         if not error:
             return ""
@@ -513,7 +514,7 @@ class AuditLogger:
 
 
 # 全局审计日志记录器实例
-_audit_logger: Optional[AuditLogger] = None
+_audit_logger: AuditLogger | None = None
 
 
 def get_audit_logger() -> AuditLogger:

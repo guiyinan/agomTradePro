@@ -13,7 +13,7 @@ Celery Tasks for Macro Data Synchronization.
 """
 
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from celery import shared_task
 from celery.utils.log import get_task_logger

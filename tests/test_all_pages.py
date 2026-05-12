@@ -11,7 +11,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from playwright.async_api import Browser, Page, async_playwright
 
@@ -24,8 +24,6 @@ import django
 
 django.setup()
 
-from django.conf import settings
-from django.test.utils import get_runner
 
 # 定义要测试的页面列表
 # 注意：只测试HTML页面视图，不测试POST-only API端点
@@ -344,15 +342,14 @@ class PageTester:
 
 def ensure_django_server():
     """确保 Django 服务器正在运行"""
-    import psutil
     import requests
 
     # 检查服务器是否已经在运行
     try:
-        response = requests.get('http://localhost:8000/api/health/', timeout=2)
+        requests.get('http://localhost:8000/api/health/', timeout=2)
         print("Django 开发服务器已在运行")
         return True
-    except:
+    except Exception:
         pass
 
     print("启动 Django 开发服务器...")
@@ -360,7 +357,7 @@ def ensure_django_server():
     env = os.environ.copy()
     env['PYTHONPATH'] = str(BASE_DIR)
 
-    server_process = subprocess.Popen(
+    subprocess.Popen(
         [sys.executable, 'manage.py', 'runserver', '--noreload'],
         cwd=str(BASE_DIR),
         env=env,
@@ -372,10 +369,10 @@ def ensure_django_server():
     import time
     for i in range(30):
         try:
-            response = requests.get('http://localhost:8000/api/health/', timeout=1)
+            requests.get('http://localhost:8000/api/health/', timeout=1)
             print("Django 开发服务器启动成功")
             return True
-        except:
+        except Exception:
             time.sleep(1)
             if i % 5 == 0:
                 print(f"等待服务器启动... ({i}/30秒)")

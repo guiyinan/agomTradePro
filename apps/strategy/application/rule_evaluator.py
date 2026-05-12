@@ -9,10 +9,9 @@
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.strategy.domain.entities import RuleCondition, RuleType
-from apps.strategy.domain.protocols import RuleEvaluatorProtocol
 
 logger = logging.getLogger(__name__)
 

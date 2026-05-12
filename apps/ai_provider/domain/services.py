@@ -5,7 +5,6 @@ Domain Services for AI Cost Calculation.
 遵循项目架构约束：Domain层只使用Python标准库。
 """
 
-from typing import Dict, Tuple
 
 
 class AICostCalculator:

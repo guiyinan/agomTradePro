@@ -6,16 +6,15 @@ Sentiment 模块 - Infrastructure 层仓储实现
 
 import hashlib
 from datetime import date, datetime
-from typing import List, Optional
 
+from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 from apps.sentiment.domain.entities import SentimentAnalysisResult, SentimentIndex
 from apps.sentiment.infrastructure.models import (
-    SentimentAnalysisLog,
     SentimentAlertModel,
+    SentimentAnalysisLog,
     SentimentCache,
     SentimentIndexModel,
 )
-from apps.regime.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 
 class SentimentIndexRepository:

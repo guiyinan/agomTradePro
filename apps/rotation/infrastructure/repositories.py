@@ -4,15 +4,9 @@ Rotation Module Infrastructure Layer - Repositories
 Data access layer for rotation module.
 """
 
-from datetime import date, datetime, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional
-
-from django.db.models import Q
-from django.utils import timezone
+from datetime import date, timedelta
 
 from apps.rotation.domain.entities import (
-    AssetCategory,
     AssetClass,
     MomentumScore,
     RotationConfig,

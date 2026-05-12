@@ -5,12 +5,8 @@
 RecommendationAggregator 等核心服务。
 """
 
-from datetime import UTC, datetime, timezone
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
-
-import pytest
 
 from apps.decision_rhythm.application.use_cases import (
     GetModelParamsUseCase,
@@ -19,11 +15,9 @@ from apps.decision_rhythm.application.use_cases import (
 )
 from apps.decision_rhythm.domain.entities import (
     DecisionFeatureSnapshot,
-    RecommendationStatus,
     UnifiedRecommendation,
 )
 from apps.decision_rhythm.domain.services import (
-    DEFAULT_MODEL_PARAMS,
     CompositeScoreCalculator,
     ConflictPair,
     GatePenalties,

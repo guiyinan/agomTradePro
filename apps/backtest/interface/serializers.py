@@ -2,8 +2,6 @@
 DRF Serializers for Backtest Module.
 """
 
-from datetime import date
-from typing import Optional
 
 from django.apps import apps as django_apps
 from rest_framework import serializers

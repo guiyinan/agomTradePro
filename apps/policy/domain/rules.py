@@ -6,9 +6,8 @@ Policy Response Rules - Domain Layer
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from .entities import PolicyLevel
 
@@ -475,7 +474,7 @@ def is_sla_exceeded(
     Returns:
         tuple[bool, int]: (是否超出 SLA, 超出小时数)
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     if now is None:
         now = datetime.now(UTC)

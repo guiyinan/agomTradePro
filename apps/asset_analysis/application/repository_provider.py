@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from apps.asset_analysis.domain.pool import PoolCategory
-from apps.asset_analysis.infrastructure.asset_name_resolver import (
+from apps.asset_analysis.infrastructure.asset_name_resolver import (  # noqa: F401
     AssetNameResolver,
     enrich_with_asset_names,
     resolve_asset_name,
@@ -11,8 +11,8 @@ from apps.asset_analysis.infrastructure.asset_name_resolver import (
 )
 from apps.asset_analysis.infrastructure.providers import (
     AssetAnalysisLogRepository,
-    DjangoAssetRepository,
     DjangoAssetPoolQueryRepository,
+    DjangoAssetRepository,
     DjangoWeightConfigRepository,
 )
 from core.integration.asset_analysis_market_registry import (

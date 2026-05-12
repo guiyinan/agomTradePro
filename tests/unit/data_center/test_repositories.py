@@ -3,7 +3,10 @@ from datetime import date
 import pytest
 
 from apps.data_center.infrastructure.models import MacroFactModel, PublisherCatalogModel
-from apps.data_center.infrastructure.repositories import MacroFactRepository, PublisherCatalogRepository
+from apps.data_center.infrastructure.repositories import (
+    MacroFactRepository,
+    PublisherCatalogRepository,
+)
 
 
 @pytest.mark.django_db

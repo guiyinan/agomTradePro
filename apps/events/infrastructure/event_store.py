@@ -7,19 +7,15 @@ Event Store Implementation
 这是 Infrastructure 层的实现，桥接 Domain 层和 Django ORM。
 """
 
-import json
 import logging
-from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import (
     DomainEvent,
-    EventBusConfig,
     EventMetrics,
     EventSnapshot,
     EventType,
@@ -660,7 +656,7 @@ class SnapshotStore:
         )
 
         # 保留最新的 N 个
-        to_keep = snapshots[:keep_latest]
+        snapshots[:keep_latest]
         to_delete = snapshots[keep_latest:]
 
         count = 0

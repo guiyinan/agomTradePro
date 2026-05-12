@@ -1,6 +1,5 @@
 from django.db import migrations
 
-
 GOVERNANCE_SCOPE = "macro_console"
 
 ADDITIONAL_SYNC_SUPPORTED_CODES = (

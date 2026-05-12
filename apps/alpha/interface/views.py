@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from core.cache_utils import CACHE_TTL, cached_api
+from core.cache_utils import cached_api
 
 from ..application.interface_services import (
     resolve_requested_alpha_user,

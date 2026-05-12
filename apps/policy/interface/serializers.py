@@ -6,8 +6,6 @@ Interface Layer - Serializers for Policy Management
 P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
-from datetime import date
-from typing import Optional
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -80,7 +78,7 @@ class PolicyLevelField(serializers.Field):
             raise serializers.ValidationError(
                 f"Invalid policy level. Must be one of: "
                 f"{[l.value for l in PolicyLevel]}"
-            )
+            ) from None
 
 
 class PolicyEventSerializer(serializers.Serializer):

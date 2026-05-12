@@ -18,11 +18,11 @@ from apps.data_center.application.interface_services import (
     make_manage_provider_config_use_case,
     make_run_provider_connection_test_use_case,
 )
+from apps.data_center.application.registry_factory import refresh_registry
 from apps.macro.application.data_management import (
     DeleteDataRequest,
     DeleteDataUseCase,
 )
-from apps.data_center.application.registry_factory import refresh_registry
 from apps.macro.interface.serializers import DataSourceConfigSerializer
 
 from .helpers import get_repository

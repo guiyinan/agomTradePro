@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 INDICATORS = [
     ("CN_GDP_YOY", "GDP同比增速", "GDP YoY", "%", "Q", "growth"),
     ("CN_M2_YOY", "M2同比增速", "M2 YoY", "%", "M", "money"),

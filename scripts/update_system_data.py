@@ -5,11 +5,10 @@ AgomTradePro 数据更新脚本
 不依赖 Django，可直接运行。
 """
 
+import json
 import sys
 from datetime import date, timedelta
-from typing import List, Dict, Optional
-import json
-
+from typing import Dict, List, Optional
 
 # ==================== AKShare 适配器 ====================
 
@@ -26,7 +25,7 @@ class AKShareFetcher:
             print("警告: 未安装 akshare 库")
             print("安装命令: pip install akshare")
 
-    def fetch_pmi(self, years: int = 3) -> List[Dict]:
+    def fetch_pmi(self, years: int = 3) -> list[dict]:
         """获取 PMI 数据"""
         if not self.available:
             return []
@@ -79,7 +78,7 @@ class AKShareFetcher:
             traceback.print_exc()
             return []
 
-    def fetch_cpi(self, years: int = 3) -> List[Dict]:
+    def fetch_cpi(self, years: int = 3) -> list[dict]:
         """获取 CPI 数据"""
         if not self.available:
             return []
@@ -130,7 +129,7 @@ class AKShareFetcher:
             traceback.print_exc()
             return []
 
-    def fetch_ppi(self, years: int = 3) -> List[Dict]:
+    def fetch_ppi(self, years: int = 3) -> list[dict]:
         """获取 PPI 数据"""
         if not self.available:
             return []
@@ -181,7 +180,7 @@ class AKShareFetcher:
             traceback.print_exc()
             return []
 
-    def fetch_shibor(self, years: int = 3) -> List[Dict]:
+    def fetch_shibor(self, years: int = 3) -> list[dict]:
         """获取 SHIBOR 数据"""
         if not self.available:
             return []
@@ -213,12 +212,9 @@ class AKShareFetcher:
 
 # ==================== Regime 计算 ====================
 
-def calculate_regime_from_data(growth_data: List[Dict], inflation_data: List[Dict]):
+def calculate_regime_from_data(growth_data: list[dict], inflation_data: list[dict]):
     """从宏观数据计算 Regime"""
-    from apps.regime.domain.services import (
-        RegimeCalculator,
-        calculate_regime_distribution
-    )
+    from apps.regime.domain.services import RegimeCalculator, calculate_regime_distribution
 
     # 提取序列
     growth_series = [d['value'] for d in sorted(growth_data, key=lambda x: x['date'])]
@@ -250,16 +246,16 @@ def calculate_regime_from_data(growth_data: List[Dict], inflation_data: List[Dic
 
 # ==================== 数据保存 ====================
 
-def save_to_json(data: Dict, filename: str):
+def save_to_json(data: dict, filename: str):
     """保存数据到 JSON 文件"""
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
 
-def load_from_json(filename: str) -> Optional[Dict]:
+def load_from_json(filename: str) -> dict | None:
     """从 JSON 文件加载数据"""
     try:
-        with open(filename, 'r', encoding='utf-8') as f:
+        with open(filename, encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         return None
@@ -326,7 +322,7 @@ def main():
                 print(f"  置信度: {snapshot.confidence:.1%}")
                 print(f"  增长动量 Z: {snapshot.growth_momentum_z:+.3f}")
                 print(f"  通胀动量 Z: {snapshot.inflation_momentum_z:+.3f}")
-                print(f"  分布:")
+                print("  分布:")
                 for regime, prob in snapshot.distribution.items():
                     print(f"    {regime}: {prob:.2%}")
 

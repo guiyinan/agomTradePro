@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from apps.simulated_trading.application.query_services import (
+    get_position_snapshots as _get_position_snapshots,
+)
 from apps.simulated_trading.application.repository_provider import get_simulated_position_repository
-from apps.simulated_trading.application.query_services import get_position_snapshots as _get_position_snapshots
 from apps.simulated_trading.infrastructure.models import PositionModel
 
 

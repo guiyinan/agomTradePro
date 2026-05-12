@@ -13,13 +13,13 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +172,6 @@ class QMTGateway(GatewayProviderProtocol):
     ) -> list[HistoricalPriceBar]:
         """从 QMT 获取日线历史 K 线。"""
         try:
-            import pandas as pd
 
             xtdata = self._load_xtdata()
             qmt_code = self._to_qmt_code(asset_code)

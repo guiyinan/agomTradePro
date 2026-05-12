@@ -5,16 +5,14 @@
 GetConflictsUseCase 等用例。
 """
 
-from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
 from apps.decision_rhythm.application.use_cases import (
     GenerateRecommendationsRequest,
-    GenerateRecommendationsResponse,
     GenerateUnifiedRecommendationsUseCase,
     GetConflictsRequest,
     GetConflictsUseCase,

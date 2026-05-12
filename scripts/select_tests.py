@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Set
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_LOCAL_TEST_DIRS = sorted(
     f"{path.relative_to(PROJECT_ROOT).as_posix()}/"
@@ -29,7 +28,7 @@ APP_LOCAL_TEST_DIRS = sorted(
 
 
 # 模块到测试的映射表
-MODULE_TEST_MAP: Dict[str, List[str]] = {
+MODULE_TEST_MAP: dict[str, list[str]] = {
     # 核心模块 - 这些变更运行更多测试
     "core": [
         "tests/guardrails/",
@@ -339,7 +338,7 @@ def _is_logic_guardrails_target(path: str) -> bool:
     return True
 
 
-def get_app_local_tests(module: str) -> List[str]:
+def get_app_local_tests(module: str) -> list[str]:
     """Return app-local pytest directories for a changed module."""
     app_tests_dir = PROJECT_ROOT / "apps" / module / "tests"
     if not app_tests_dir.exists():
@@ -347,7 +346,7 @@ def get_app_local_tests(module: str) -> List[str]:
     return [f"{app_tests_dir.relative_to(PROJECT_ROOT).as_posix()}/"]
 
 
-def get_changed_files(base: str, head: str) -> List[str]:
+def get_changed_files(base: str, head: str) -> list[str]:
     """获取变更的文件列表"""
     try:
         cmd = ["git", "diff", "--name-only", f"{base}...{head}"]
@@ -359,7 +358,7 @@ def get_changed_files(base: str, head: str) -> List[str]:
         return []
 
 
-def get_changed_modules(changed_files: List[str]) -> Set[str]:
+def get_changed_modules(changed_files: list[str]) -> set[str]:
     """从变更文件提取模块名"""
     modules = set()
 
@@ -386,10 +385,10 @@ def get_changed_modules(changed_files: List[str]) -> Set[str]:
 
 
 def select_tests(
-    modules: Set[str],
-    changed_files: List[str],
+    modules: set[str],
+    changed_files: list[str],
     profile: str = "default",
-) -> List[str]:
+) -> list[str]:
     """
     根据变更的模块选择相关测试
 

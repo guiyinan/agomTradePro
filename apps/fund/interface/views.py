@@ -11,7 +11,6 @@
 - 不包含业务逻辑
 """
 
-from typing import Any, Dict
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
@@ -23,12 +22,8 @@ from rest_framework.views import APIView
 from ..application import interface_services
 from ..application.use_cases import (
     AnalyzeFundStyleRequest,
-    AnalyzeFundStyleUseCase,
     CalculateFundPerformanceRequest,
-    CalculateFundPerformanceUseCase,
-    RankFundsUseCase,
     ScreenFundsRequest,
-    ScreenFundsUseCase,
 )
 from .serializers import (
     AnalyzeFundStyleRequestSerializer,

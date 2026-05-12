@@ -5,7 +5,7 @@
 DecisionModelParamConfigModel、DecisionModelParamAuditLogModel 的创建和查询。
 """
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -13,8 +13,6 @@ import pytest
 from apps.decision_rhythm.domain.entities import (
     ApprovalStatus,
     DecisionPriority,
-    ExecutionStatus,
-    ExecutionTarget,
     RecommendationStatus,
     UserDecisionAction,
 )
@@ -26,7 +24,6 @@ from apps.decision_rhythm.infrastructure.models import (
     ExecutionApprovalRequestModel,
     InvestmentRecommendationModel,
     UnifiedRecommendationModel,
-    ValuationSnapshotModel,
 )
 
 

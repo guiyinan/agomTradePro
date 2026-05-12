@@ -12,12 +12,12 @@ from typing import Any, Dict, List, Optional
 
 from django.utils import timezone
 
-from apps.regime.application.repository_provider import get_regime_repository
+from apps.pulse.application.use_cases import GetLatestPulseUseCase
 from apps.regime.application.navigator_use_cases import (
     BuildRegimeNavigatorUseCase,
     GetActionRecommendationUseCase,
 )
-from apps.pulse.application.use_cases import GetLatestPulseUseCase
+from apps.regime.application.repository_provider import get_regime_repository
 from apps.rotation.application.integration_service import RotationIntegrationService
 
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ class DecisionStep1Response:
     regime_name: str
     pulse_composite: float
     regime_strength: str
-    policy_level: Optional[str]
+    policy_level: str | None
     overall_verdict: str
     regime_freshness: dict[str, Any]
     pulse_freshness: dict[str, Any]
@@ -105,8 +105,8 @@ class DecisionStep1Response:
 class DecisionStep2Response:
     """Step 2: 方向选择 (Direction & Asset Allocation)"""
 
-    action_recommendation: Dict[str, Any]
-    asset_weights: Dict[str, float]
+    action_recommendation: dict[str, Any]
+    asset_weights: dict[str, float]
     risk_budget_pct: float
     recommendation_freshness: dict[str, Any]
 
@@ -115,21 +115,21 @@ class DecisionStep2Response:
 class DecisionStep3Response:
     """Step 3: 板块选择 (Sector Rotation)"""
 
-    sector_recommendations: List[Dict[str, Any]]
-    rotation_signals: List[Dict[str, Any]]
-    rotation_data_source: Optional[str] = None
+    sector_recommendations: list[dict[str, Any]]
+    rotation_signals: list[dict[str, Any]]
+    rotation_data_source: str | None = None
     rotation_is_stale: bool = False
-    rotation_warning_message: Optional[str] = None
-    rotation_signal_date: Optional[str] = None
-    recommendation_freshness: Optional[dict[str, Any]] = None
-    rotation_freshness: Optional[dict[str, Any]] = None
+    rotation_warning_message: str | None = None
+    rotation_signal_date: str | None = None
+    recommendation_freshness: dict[str, Any] | None = None
+    rotation_freshness: dict[str, Any] | None = None
 
 
 @dataclass
 class DecisionStep4Response:
     """Step 4: 推优筛选 (Unified Recommendation Screen)"""
 
-    unified_recommendations: List[Dict[str, Any]]
+    unified_recommendations: list[dict[str, Any]]
     total_candidates: int
     page: int
 
@@ -141,7 +141,7 @@ class DecisionStep5Response:
     approval_request_id: str
     suggested_weight: float
     position_limit: float
-    gate_penalties: Dict[str, Any]
+    gate_penalties: dict[str, Any]
     status: str
 
 
@@ -156,13 +156,13 @@ class DecisionStep6Response:
     allocation_effect: float
     selection_effect: float
     interaction_effect: float
-    loss_source: Optional[str]
+    loss_source: str | None
     lesson_learned: str
-    backtest_id: Optional[int] = None
-    report_id: Optional[int] = None
-    regime_accuracy: Optional[float] = None
-    regime_predicted: Optional[str] = None
-    regime_actual: Optional[str] = None
+    backtest_id: int | None = None
+    report_id: int | None = None
+    regime_accuracy: float | None = None
+    regime_predicted: str | None = None
+    regime_actual: str | None = None
 
 
 class DecisionContextUseCase:
@@ -192,7 +192,7 @@ class DecisionContextUseCase:
             self.backtest_repository = get_backtest_repository()
         return self.backtest_repository
 
-    def get_step1_context(self, as_of_date: Optional[date] = None) -> DecisionStep1Response:
+    def get_step1_context(self, as_of_date: date | None = None) -> DecisionStep1Response:
         """Step 1: Environment Assessment
         Combine Regime + Pulse + Policy to output an overall verdict.
         """
@@ -279,7 +279,7 @@ class DecisionContextUseCase:
             pulse_freshness=pulse_freshness,
         )
 
-    def get_step2_direction(self, as_of_date: Optional[date] = None) -> DecisionStep2Response:
+    def get_step2_direction(self, as_of_date: date | None = None) -> DecisionStep2Response:
         """Step 2: Direction Selection"""
         target_date = as_of_date or date.today()
         action_rec = self.action_usecase.execute(
@@ -322,7 +322,7 @@ class DecisionContextUseCase:
     def get_step3_sectors(
         self,
         category: str = "equity",
-        as_of_date: Optional[date] = None,
+        as_of_date: date | None = None,
     ) -> DecisionStep3Response:
         """Step 3: Sector Selection
         Combine Action Recommended sectors with Momentum Rotation logic.
@@ -445,8 +445,8 @@ class DecisionContextUseCase:
 
     def get_step6_audit(
         self,
-        trade_id: Optional[str] = None,
-        backtest_id: Optional[int] = None,
+        trade_id: str | None = None,
+        backtest_id: int | None = None,
     ) -> DecisionStep6Response:
         """Step 6: Audit Attribution
         Fetch the attribution results for a given trade/backtest.
@@ -543,9 +543,9 @@ class DecisionContextUseCase:
 
     def _resolve_backtest_id(
         self,
-        trade_id: Optional[str],
-        backtest_id: Optional[int],
-    ) -> Optional[int]:
+        trade_id: str | None,
+        backtest_id: int | None,
+    ) -> int | None:
         """Resolve the backtest identifier for audit lookup."""
         if backtest_id is not None:
             return backtest_id
@@ -573,7 +573,7 @@ class DecisionContextUseCase:
     def _empty_audit_response(
         self,
         lesson: str,
-        backtest_id: Optional[int] = None,
+        backtest_id: int | None = None,
     ) -> DecisionStep6Response:
         """Build a safe empty audit response."""
         return DecisionStep6Response(

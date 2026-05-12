@@ -2,7 +2,6 @@
 Page Views for Investment Signal Management.
 """
 
-from datetime import date
 
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -28,7 +27,6 @@ from apps.signal.application.use_cases import (
     ValidateSignalUseCase,
 )
 from apps.signal.domain.rules import Eligibility, get_eligibility_matrix
-from core.cache_utils import CACHE_TTL, cached_api
 
 
 def signal_manage_view(request):
@@ -159,8 +157,7 @@ def generate_invalidation_logic_text(rules: dict) -> str:
 
         conditions.append(cond_str)
 
-    logic = rules.get("logic", "AND")
-    logic_text = " 且 " if logic == "AND" else " 或 "
+    rules.get("logic", "AND")
     return f"当{' 且 '.join(conditions)}时证伪"
 
 
@@ -350,7 +347,7 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
 
     def list(self, request):
         """List unified signals"""
-        from datetime import date, timedelta
+        from datetime import date
 
         from apps.signal.application.unified_service import UnifiedSignalService
 

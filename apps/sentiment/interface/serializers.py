@@ -4,7 +4,6 @@ Sentiment 模块 - Interface 层序列化器
 本模块包含 DRF 序列化器，用于 API 数据格式化。
 """
 
-from typing import List, Optional
 
 from rest_framework import serializers
 

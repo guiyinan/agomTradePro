@@ -4,9 +4,8 @@ AgomTradePro SDK - Real-time Monitoring and Strategy Example
 This file demonstrates real-time price monitoring and strategy management.
 """
 
+
 from agomtradepro import AgomTradeProClient
-from datetime import date, datetime
-import time
 
 # Initialize client
 client = AgomTradeProClient(
@@ -55,7 +54,7 @@ try:
     print(f"   Shanghai Index: {summary.get('sh_index', 0):.2f}")
     print(f"   Shenzhen Index: {summary.get('sz_index', 0):.2f}")
     print(f"   ChiNext Index: {summary.get('cyb_index', 0):.2f}")
-    print(f"   ")
+    print("   ")
     print(f"   Up: {summary.get('up_count', 0)}")
     print(f"   Down: {summary.get('down_count', 0)}")
     print(f"   Unchanged: {summary.get('flat_count', 0)}")
@@ -215,7 +214,7 @@ try:
 
     # Clean up - delete the example alert
     client.realtime.delete_alert(alert['id'])
-    print(f"   (Alert deleted for cleanup)")
+    print("   (Alert deleted for cleanup)")
 except Exception as e:
     print(f"   Error: {e}")
 print()

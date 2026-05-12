@@ -4,7 +4,6 @@ Unit Tests for M4 WP-M4-01: Operator Dashboard API.
 Tests verify the dashboard views return structured data.
 """
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate

@@ -5,7 +5,7 @@ from django.test import Client
 
 @pytest.fixture
 def api_client(db):
-    user = User.objects.create_user(
+    User.objects.create_user(
         username="decision_rhythm_guard",
         email="decision_rhythm_guard@example.com",
         password="StrongPass123!",

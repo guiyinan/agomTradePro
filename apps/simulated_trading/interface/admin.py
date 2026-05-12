@@ -9,7 +9,6 @@ Django Admin 配置：
 """
 
 from django.contrib import admin
-from django.db.models import Q
 from django.utils.html import format_html
 
 from apps.simulated_trading.application.interface_services import build_admin_dashboard_context

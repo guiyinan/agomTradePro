@@ -1,9 +1,10 @@
 from django.http import JsonResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import serializers
+
 from core.application.decision_context import DecisionContextUseCase
 
 

@@ -4,7 +4,7 @@ Share Application Test Fixtures
 Pytest conftest for share app tests.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -12,16 +12,12 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.share.domain.entities import (
-    AccessResultStatus,
-    ShareAccessLogEntity,
     ShareLevel,
     ShareLinkEntity,
-    ShareSnapshotEntity,
     ShareStatus,
     ShareTheme,
 )
 from apps.share.infrastructure.models import (
-    ShareAccessLogModel,
     ShareDisclaimerConfigModel,
     ShareLinkModel,
     ShareSnapshotModel,

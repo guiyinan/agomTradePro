@@ -6,9 +6,7 @@ WP-M4-02: Resume and handoff behavior.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-
-from django.utils import timezone
+from typing import Any
 
 from apps.agent_runtime.application.repository_provider import (
     AgentContextRepository,
@@ -19,9 +17,7 @@ from apps.agent_runtime.application.repository_provider import (
 from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
     TERMINAL_PROPOSAL_STATUSES,
-    AgentTask,
     EventSource,
-    TaskStatus,
 )
 
 logger = logging.getLogger(__name__)

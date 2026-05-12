@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from apps.data_center.application.dtos import (
     SyncMacroRequest,
@@ -13,8 +12,14 @@ from apps.data_center.application.use_cases import (
     SyncMacroUseCase,
     SyncNewsUseCase,
 )
-from apps.data_center.domain.entities import MacroFact, NewsFact, ProviderConfig, RawAudit
-from apps.data_center.domain.entities import IndicatorCatalog, IndicatorUnitRule
+from apps.data_center.domain.entities import (
+    IndicatorCatalog,
+    IndicatorUnitRule,
+    MacroFact,
+    NewsFact,
+    ProviderConfig,
+    RawAudit,
+)
 
 
 def _provider_config() -> ProviderConfig:
@@ -137,7 +142,7 @@ class _Provider:
                 asset_code=asset_code,
                 title="headline",
                 summary="summary",
-                published_at=datetime(2025, 3, 2, tzinfo=timezone.utc),
+                published_at=datetime(2025, 3, 2, tzinfo=UTC),
                 source="provider-main",
                 external_id="news-1",
             )

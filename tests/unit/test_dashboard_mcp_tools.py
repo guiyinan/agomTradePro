@@ -2,9 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from mcp.server.fastmcp import FastMCP
-
 from agomtradepro_mcp.tools.dashboard_tools import register_dashboard_tools
+from mcp.server.fastmcp import FastMCP
 
 
 def test_register_dashboard_alpha_tools() -> None:

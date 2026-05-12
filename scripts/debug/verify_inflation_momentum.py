@@ -1,13 +1,15 @@
 """验证通胀动量计算是否正确使用绝对差值算法"""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
+import json
+
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.domain.services import calculate_absolute_momentum, calculate_rolling_zscore
-import json
 
 # 获取 CPI 数据
 repo = DjangoMacroRepository()
@@ -49,7 +51,7 @@ if len(cpi_series) >= 4:
     current = cpi_series[-1]
     past = cpi_series[-4]  # 3个月前
     manual_momentum = current - past
-    print(f"\n验证最后一个动量计算:")
+    print("\n验证最后一个动量计算:")
     print(f"  当前 CPI: {current:.2f}%")
     print(f"  3个月前 CPI: {past:.2f}%")
     print(f"  绝对差值动量: {current:.2f} - {past:.2f} = {manual_momentum:+.3f}pp")

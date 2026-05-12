@@ -6,14 +6,12 @@ Pure Python logic for capability retrieval, scoring, and decision.
 
 import re
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from .entities import (
-    CapabilityDecision,
     CapabilityDefinition,
     RouteGroup,
     RoutingContext,
-    RoutingDecision,
     SourceType,
 )
 
@@ -126,7 +124,7 @@ class CapabilityRetrievalScorer:
             (r"portfolio|持仓|账户", "portfolio"),
         ]
 
-        for pattern, category in key_patterns:
+        for pattern, _category in key_patterns:
             if re.search(pattern, query_lower) and re.search(pattern, text):
                 score += 1.5
                 break

@@ -31,8 +31,8 @@ class AgentRuntimeModule(BaseModule):
         self,
         task_domain: str,
         task_type: str,
-        input_payload: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        input_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a new agent task.
 
@@ -53,14 +53,14 @@ class AgentRuntimeModule(BaseModule):
             ... )
             >>> print(result["task"]["id"])
         """
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "task_domain": task_domain,
             "task_type": task_type,
             "input_payload": input_payload or {},
         }
         return self._post("tasks/", json=body)
 
-    def get_task(self, task_id: int) -> Dict[str, Any]:
+    def get_task(self, task_id: int) -> dict[str, Any]:
         """
         Get a single agent task by ID.
 
@@ -74,14 +74,14 @@ class AgentRuntimeModule(BaseModule):
 
     def list_tasks(
         self,
-        status: Optional[str] = None,
-        task_domain: Optional[str] = None,
-        task_type: Optional[str] = None,
-        requires_human: Optional[bool] = None,
-        search: Optional[str] = None,
+        status: str | None = None,
+        task_domain: str | None = None,
+        task_type: str | None = None,
+        requires_human: bool | None = None,
+        search: str | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         List agent tasks with optional filters.
 
@@ -97,7 +97,7 @@ class AgentRuntimeModule(BaseModule):
         Returns:
             Dict with request_id, tasks list, and total_count
         """
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
         if status is not None:
             params["status"] = status
         if task_domain is not None:
@@ -113,9 +113,9 @@ class AgentRuntimeModule(BaseModule):
     def resume_task(
         self,
         task_id: int,
-        target_status: Optional[str] = None,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        target_status: str | None = None,
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Resume a task from failed or needs_human state.
 
@@ -127,14 +127,14 @@ class AgentRuntimeModule(BaseModule):
         Returns:
             Dict with request_id, updated task, and timeline_event_id
         """
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if target_status is not None:
             body["target_status"] = target_status
         if reason is not None:
             body["reason"] = reason
         return self._post(f"tasks/{task_id}/resume/", json=body)
 
-    def cancel_task(self, task_id: int, reason: str) -> Dict[str, Any]:
+    def cancel_task(self, task_id: int, reason: str) -> dict[str, Any]:
         """
         Cancel a task.
 
@@ -147,7 +147,7 @@ class AgentRuntimeModule(BaseModule):
         """
         return self._post(f"tasks/{task_id}/cancel/", json={"reason": reason})
 
-    def get_task_timeline(self, task_id: int) -> Dict[str, Any]:
+    def get_task_timeline(self, task_id: int) -> dict[str, Any]:
         """
         Get timeline events for a task.
 
@@ -159,7 +159,7 @@ class AgentRuntimeModule(BaseModule):
         """
         return self._get(f"tasks/{task_id}/timeline/")
 
-    def get_task_artifacts(self, task_id: int) -> Dict[str, Any]:
+    def get_task_artifacts(self, task_id: int) -> dict[str, Any]:
         """
         Get artifacts for a task.
 
@@ -171,7 +171,7 @@ class AgentRuntimeModule(BaseModule):
         """
         return self._get(f"tasks/{task_id}/artifacts/")
 
-    def get_needs_attention(self, limit: int = 20) -> Dict[str, Any]:
+    def get_needs_attention(self, limit: int = 20) -> dict[str, Any]:
         """
         Get tasks that need human attention.
 

@@ -19,14 +19,13 @@ from django.utils import timezone
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
 from apps.alpha.application.repository_provider import (
-    TushareQlibBuilder,
     evaluate_model_from_cache,
-    get_alpha_score_cache_repository,
     get_alpha_pool_data_repository,
+    get_alpha_score_cache_repository,
     get_numpy,
     get_pandas,
-    normalize_qlib_symbol,
     get_qlib_model_registry_repository,
+    normalize_qlib_symbol,
     resolve_effective_trade_date,
 )
 from apps.alpha.domain.entities import normalize_stock_code
@@ -129,12 +128,12 @@ def _install_qlib_pandas_compat() -> None:
         return
 
     pd = get_pandas()
-    from qlib.config import C
     import qlib.data as qlib_data
     import qlib.data.data as qlib_data_module
     import qlib.data.dataset.processor as qlib_processor
     import qlib.data.dataset.utils as qlib_dataset_utils
     import qlib.utils.paral as qlib_paral
+    from qlib.config import C
 
     original_datetime_groupby_apply = qlib_paral.datetime_groupby_apply
     original_fetch_df_by_index = qlib_dataset_utils.fetch_df_by_index
@@ -775,7 +774,7 @@ def qlib_train_model(
 
         # 6. 写入 Registry
         logger.info("  写入模型注册表...")
-        registry_model = registry_repo.create_model_entry(
+        registry_repo.create_model_entry(
             model_name=model_name,
             artifact_hash=artifact_hash,
             model_type=model_type,
@@ -792,7 +791,7 @@ def qlib_train_model(
         )
 
         if activate_after_train:
-            registry_model = registry_repo.activate_model(
+            registry_repo.activate_model(
                 artifact_hash=artifact_hash,
                 activated_by="qlib_train_task",
             )

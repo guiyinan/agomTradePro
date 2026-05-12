@@ -8,8 +8,7 @@ Unit tests for Query Profiler Middleware
 - N+1 查询检测
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

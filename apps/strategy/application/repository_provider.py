@@ -2,12 +2,12 @@
 
 from apps.strategy.infrastructure.providers import (
     DjangoAssetPoolProvider,
-    DjangoStrategyExecutionLogRepository,
-    DjangoStrategyGatewayRepository,
     DjangoMacroDataProvider,
     DjangoPortfolioDataProvider,
     DjangoRegimeProvider,
     DjangoSignalProvider,
+    DjangoStrategyExecutionLogRepository,
+    DjangoStrategyGatewayRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,
 )

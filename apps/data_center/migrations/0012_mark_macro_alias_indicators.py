@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 ALIAS_UPDATES = {
     "CN_CPI_YOY": {
         "description": "兼容别名代码，canonical 指标为 CN_CPI_NATIONAL_YOY；不再单独维护独立时序。",

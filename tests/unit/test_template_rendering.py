@@ -6,13 +6,11 @@ without TemplateSyntaxError. Uses minimal context to catch
 broken template tags, missing includes, and syntax issues.
 """
 
-import os
 from pathlib import Path
 
 import pytest
-from django.template import engines
 from django.template.loader import get_template
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase
 
 
 def _discover_project_templates():

@@ -6,16 +6,15 @@ Celery Tasks for Backtest Module.
 
 import logging
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any
 
 from celery import shared_task
-from django.utils import timezone
 
 from apps.regime.application.repository_provider import get_regime_repository
 
-from .repository_provider import DjangoBacktestRepository, create_default_price_adapter
-from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig, PITDataConfig
+from ..domain.entities import DEFAULT_PUBLICATION_LAGS, BacktestConfig
 from ..domain.services import BacktestEngine, PITDataProcessor
+from .repository_provider import DjangoBacktestRepository, create_default_price_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,6 @@ def run_backtest_task(
         Dict: 任务结果
     """
     repository = DjangoBacktestRepository()
-    errors = []
     warnings = []
 
     try:
@@ -144,7 +142,7 @@ def run_backtest_task(
         if self.request.retries < self.max_retries:
             try:
                 raise self.retry(exc=e, countdown=60 * (2**self.request.retries))
-            except Exception as retry_error:
+            except Exception:
                 logger.warning(
                     f"Retry {self.request.retries + 1} scheduled for backtest {backtest_id}"
                 )

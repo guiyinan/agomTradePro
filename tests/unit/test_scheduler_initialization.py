@@ -1,6 +1,8 @@
 from io import StringIO
 
-from apps.account.management.commands.bootstrap_cold_start import Command as BootstrapColdStartCommand
+from apps.account.management.commands.bootstrap_cold_start import (
+    Command as BootstrapColdStartCommand,
+)
 from apps.account.management.commands.init_all import Command as InitAllCommand
 from apps.task_monitor.management.commands.init_scheduler_defaults import (
     Command as InitSchedulerDefaultsCommand,

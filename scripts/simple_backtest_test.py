@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 简化的回测验证脚本
 """
 import os
-import sys
 import random
+import sys
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -13,11 +12,11 @@ sys.path.insert(0, '.')
 
 # 导入模块
 from apps.backtest.domain.stock_selection_backtest import (
-    StockSelectionBacktestEngine,
+    RebalanceFrequency,
     StockSelectionBacktestConfig,
-    RebalanceFrequency
+    StockSelectionBacktestEngine,
 )
-from apps.equity.domain.entities import StockInfo, FinancialData, ValuationMetrics
+from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
 
 
@@ -255,23 +254,23 @@ def main():
     print("BACKTEST RESULTS")
     print("=" * 50)
 
-    print(f"\nReturn Metrics:")
+    print("\nReturn Metrics:")
     print(f"  Total Return: {result.total_return*100:.2f}%")
     print(f"  Annualized Return: {result.annualized_return*100:.2f}%")
     print(f"  Benchmark Return: {result.benchmark_return*100:.2f}%")
     print(f"  Excess Return: {result.excess_return*100:.2f}%")
 
-    print(f"\nRisk Metrics:")
+    print("\nRisk Metrics:")
     print(f"  Volatility: {result.volatility*100:.2f}%")
     print(f"  Max Drawdown: {result.max_drawdown*100:.2f}%")
     print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
 
-    print(f"\nTrading Stats:")
+    print("\nTrading Stats:")
     print(f"  Rebalances: {result.total_rebalances}")
     print(f"  Total Trades: {result.total_trades}")
     print(f"  Avg Positions: {result.avg_positions:.1f}")
 
-    print(f"\nPerformance:")
+    print("\nPerformance:")
     print(f"  Win Rate: {result.win_rate*100:.1f}%")
     print(f"  Avg Win: {result.avg_win*100:.2f}%")
     print(f"  Avg Loss: {result.avg_loss*100:.2f}%")

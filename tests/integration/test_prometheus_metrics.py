@@ -8,12 +8,10 @@ Prometheus Metrics Integration Tests
 - Metrics 端点可访问性
 """
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client, override_settings
-from django.urls import reverse
+from django.test import Client
 from prometheus_client import REGISTRY
 
 User = get_user_model()
@@ -115,11 +113,6 @@ class TestCeleryMetrics:
 
     def test_celery_task_metrics_exist(self):
         """测试 Celery 指标已定义"""
-        from core.metrics import (
-            celery_task_duration_seconds,
-            celery_task_retry_total,
-            celery_task_total,
-        )
 
         # 验证指标存在于 REGISTRY 中
         # 注意：指标名称可能包含后缀，使用 in 检查
@@ -162,10 +155,6 @@ class TestAuditMetrics:
 
     def test_audit_metrics_exist(self):
         """测试审计指标已定义"""
-        from core.metrics import (
-            audit_write_latency_seconds,
-            audit_write_total,
-        )
 
         # 验证指标存在于 REGISTRY 中
         # 注意：指标名称可能不含 _total 后缀

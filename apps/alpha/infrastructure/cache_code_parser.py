@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-
 _CANONICAL_CODE_PATTERN = re.compile(r"^(?P<digits>\d{6})\.(?P<exchange>SH|SZ|BJ)$")
 _PREFIX_CODE_PATTERN = re.compile(r"(?P<exchange>SH|SZ|BJ)(?P<digits>\d{6})")
 

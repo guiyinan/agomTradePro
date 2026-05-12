@@ -7,8 +7,6 @@ Fund 模块集成测试（通用资产分析框架）
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.fund.application.services import FundMultiDimScorer
 from apps.fund.domain.entities import FundAssetScore, FundInfo

@@ -15,7 +15,6 @@ from apps.alpha.application.repository_provider import (
     get_alpha_score_cache_repository,
     get_qlib_model_registry_repository,
     inspect_latest_trade_date,
-    normalize_qlib_symbol,
 )
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.task_monitor.application.provider import (

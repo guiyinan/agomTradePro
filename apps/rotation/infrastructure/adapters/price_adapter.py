@@ -6,9 +6,9 @@ Rotation Module Infrastructure Layer - Price Data Adapter
 
 import logging
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
 
 from django.utils import timezone
+
 from core.integration.price_history import fetch_close_prices_from_data_center
 
 logger = logging.getLogger(__name__)

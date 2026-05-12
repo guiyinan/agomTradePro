@@ -334,7 +334,6 @@ class TestSelectTests(unittest.TestCase):
                 for item in integration_path.iterdir():
                     if item.is_dir() and not item.name.startswith("_") and item.name != "__pycache__":
                         # 这些模块应该在映射表中有对应的测试路径
-                        module_name = item.name
                         # 某些模块可能不需要独立映射（如通用测试），这里只记录
                         pass
 

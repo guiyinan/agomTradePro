@@ -4,11 +4,10 @@ Repository implementations for Setup Wizard.
 实现数据持久化逻辑。
 """
 
-from datetime import UTC, datetime, timezone
-from typing import Optional, Protocol
+from datetime import UTC, datetime
+from typing import Protocol
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
 
 from apps.setup_wizard.domain.entities import (
     AdminConfig,

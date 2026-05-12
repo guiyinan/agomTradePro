@@ -6,7 +6,6 @@ Events Interface Admin
 
 from django.contrib import admin
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from apps.events.application.interface_services import (
     count_related_events_by_correlation_ids,

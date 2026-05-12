@@ -9,18 +9,14 @@ Application 层 DTO（Data Transfer Objects）
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from apps.strategy.domain.entities import (
     DecisionAction,
     DecisionResult,
     OrderIntent,
-    OrderSide,
-    OrderStatus,
     RiskSnapshot,
     SizingResult,
-    TimeInForce,
 )
 
 # ========================================================================

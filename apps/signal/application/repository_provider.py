@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 from apps.signal.infrastructure.providers import (
-    DjangoSignalRepository,
-    DjangoUserRepository,
-    UnifiedSignalRepository,
+    DjangoSignalRepository,  # noqa: F401
+    UnifiedSignalRepository,  # noqa: F401
     build_signal_repository,
     build_unified_signal_repository,
     build_user_repository,

@@ -19,6 +19,13 @@ from .context_builders import (
     RegimeContextProvider,
     SignalContextProvider,
 )
+from .repository_provider import (
+    build_macro_adapter,
+    build_regime_adapter,
+    get_chain_repository,
+    get_execution_log_repository,
+    get_prompt_repository,
+)
 from .tool_execution import create_agent_tool_registry
 from .trace_logging import AgentExecutionLogger
 from .use_cases import (
@@ -26,13 +33,6 @@ from .use_cases import (
     ExecutePromptUseCase,
     GenerateReportUseCase,
     GenerateSignalUseCase,
-)
-from .repository_provider import (
-    build_macro_adapter,
-    build_regime_adapter,
-    get_chain_repository,
-    get_execution_log_repository,
-    get_prompt_repository,
 )
 
 logger = logging.getLogger(__name__)

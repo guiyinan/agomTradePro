@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from datetime import date
+from types import SimpleNamespace
 
 from core.integration.current_regime import resolve_current_regime_for_pulse
 

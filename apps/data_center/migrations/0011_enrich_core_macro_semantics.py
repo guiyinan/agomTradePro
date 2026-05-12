@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 INDICATOR_UPDATES = {
     "CN_M2": {
         "name_cn": "M2 广义货币供应量余额",

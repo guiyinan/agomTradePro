@@ -4,8 +4,8 @@ Alpha Application Services
 Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 """
 
-import logging
 import inspect
+import logging
 import time
 from collections.abc import Callable
 from datetime import date, timezone
@@ -13,13 +13,17 @@ from typing import Any, Optional
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
+
 from core.integration.runtime_settings import (
     get_runtime_alpha_fixed_provider as load_runtime_alpha_fixed_provider,
+)
+from core.integration.runtime_settings import (
     get_runtime_qlib_config,
 )
 
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
+from .pool_resolver import PortfolioAlphaPoolResolver
 from .repository_provider import (
     CacheAlphaProvider,
     ETFFallbackProvider,
@@ -27,7 +31,6 @@ from .repository_provider import (
     build_qlib_alpha_provider,
     get_alpha_alert_repository,
 )
-from .pool_resolver import PortfolioAlphaPoolResolver
 
 logger = logging.getLogger(__name__)
 

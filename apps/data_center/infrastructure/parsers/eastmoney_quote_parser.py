@@ -7,7 +7,6 @@
 
 import logging
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
 

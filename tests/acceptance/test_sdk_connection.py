@@ -16,7 +16,6 @@ Requirements:
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -83,20 +82,17 @@ def _assert_or_skip_endpoint_error(test_name: str, error: Exception) -> None:
         or "Authentication failed" in error_text
     ):
         pytest.skip(f"{test_name} skipped: API endpoint/data not available in current environment ({error_text})")
-    assert False, f"Failed in {test_name}: {error}"
+    raise AssertionError(f"Failed in {test_name}: {error}")
 
 
 def test_import_sdk() -> None:
     """Test 1: Import SDK"""
     print_test("Test 1: Import SDK")
     try:
-        from sdk.agomtradepro import AgomTradeProClient
+        from sdk.agomtradepro import AgomTradeProClient  # noqa: F401
         print_success("SDK imported successfully")
     except ImportError as e:
-        assert False, (
-            f"Failed to import SDK: {e}. "
-            "Make sure the SDK is installed: pip install -e sdk/"
-        )
+        raise AssertionError(f"Failed to import SDK: {e}. " "Make sure the SDK is installed: pip install -e sdk/") from e
 
 
 def test_create_client() -> None:
@@ -109,7 +105,7 @@ def test_create_client() -> None:
         print_success("Client created successfully")
         print_info(f"Base URL: {client._config.base_url}")
     except Exception as e:
-        assert False, f"Failed to create client: {e}"
+        raise AssertionError(f"Failed to create client: {e}") from e
 
 
 def test_get_current_regime() -> None:
@@ -253,7 +249,7 @@ def main() -> int:
     print_test("Server Check")
     try:
         import requests
-        response = requests.get("http://localhost:8000/api/", timeout=5)
+        requests.get("http://localhost:8000/api/", timeout=5)
         print_success("Server is running")
     except Exception as e:
         print_error(f"Cannot connect to server: {e}")

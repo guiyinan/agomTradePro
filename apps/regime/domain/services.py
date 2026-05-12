@@ -7,7 +7,6 @@ Domain Services for Regime Calculation.
 import math
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -791,7 +790,6 @@ class HybridRegimeCalculator:
 
 # ==================== Phase 4: Probability Confidence Model ====================
 
-from typing import List as TypingList
 
 from .entities import (
     ConfidenceBreakdown,
@@ -982,7 +980,7 @@ def calculate_bayesian_confidence(
 
     # 4. 计算元数据
     avg_days_since_update = sum(ind.days_since_last_update for ind in indicators) / len(indicators)
-    has_daily_data = any(ind.days_since_last_update <= 7 for ind in indicators)
+    any(ind.days_since_last_update <= 7 for ind in indicators)
 
     # 数据新鲜度评分（越新越高）
     data_freshness_score = max(0.0, 1.0 - avg_days_since_update / 30)

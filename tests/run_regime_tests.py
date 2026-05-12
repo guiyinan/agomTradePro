@@ -11,18 +11,15 @@ This script runs tests without requiring Django setup.
 """
 
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 
 sys.path.insert(0, '.')
 
-from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.domain.services import (
-    RegimeCalculationResult,
     RegimeCalculator,
     calculate_absolute_momentum,
     calculate_momentum,
     calculate_regime_distribution,
-    calculate_rolling_zscore,
     find_dominant_regime,
     sigmoid,
 )

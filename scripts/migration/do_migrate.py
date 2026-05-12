@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+import json
 import os
 import sys
-import django
-import json
 from pathlib import Path
+
+import django
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -48,13 +49,16 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings.development'
 
 # Reload Django
 import importlib
+
 import core.settings.development
+
 importlib.reload(core.settings.development)
 
 # Re-setup Django
 django.setup()
 
 from django.db import connection
+
 with connection.cursor() as cursor:
     cursor.execute("SELECT version()")
     print(f"Connected to: {cursor.fetchone()[0][:50]}...")
@@ -66,4 +70,5 @@ print("\n=== Migration Complete ===")
 
 # Verify
 from django.contrib.auth.models import User
+
 print(f"Users in PostgreSQL: {User.objects.count()}")

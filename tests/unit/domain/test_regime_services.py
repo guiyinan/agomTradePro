@@ -4,6 +4,7 @@ Unit tests for Regime Domain Services.
 Pure Domain layer tests using only Python standard library.
 """
 
+import dataclasses
 from datetime import date
 
 import pytest
@@ -320,5 +321,5 @@ class TestRegimeSnapshot:
         )
 
         # Frozen dataclass should raise FrozenInstanceError on modification
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             snapshot.growth_momentum_z = 2.0

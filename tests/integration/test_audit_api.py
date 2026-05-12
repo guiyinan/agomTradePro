@@ -3,7 +3,6 @@ Integration tests for Operation Audit Log API.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
 
 import pytest
 from django.contrib.auth.models import User

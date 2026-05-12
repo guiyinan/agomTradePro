@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.db import migrations, models
 
-
 CURRENCY_MULTIPLIERS = {
     "元": Decimal("1"),
     "万元": Decimal("10000"),

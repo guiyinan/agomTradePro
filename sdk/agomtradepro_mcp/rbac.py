@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Callable
+from collections.abc import Callable
 
 
 def _split_csv_env(name: str) -> set[str]:
@@ -315,7 +315,8 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
     """
     def _wrapped(*args, **kwargs):
         import time
-        from .audit import get_audit_logger, AuditContext
+
+        from .audit import AuditContext, get_audit_logger
 
         # 创建审计上下文
         context = AuditContext.create(

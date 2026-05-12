@@ -11,11 +11,12 @@ import json
 import re
 import sys
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from importlib.util import resolve_name
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "apps"
@@ -43,7 +44,7 @@ class ImportRecord:
     source_module: str
     source_layer: str
     import_path: str
-    target_module: Optional[str]
+    target_module: str | None
     lineno: int
 
 
@@ -61,7 +62,7 @@ def load_rules(rules_path: Path) -> dict:
     return json.loads(rules_path.read_text(encoding="utf-8"))
 
 
-def iter_module_dirs(apps_root: Path) -> List[Path]:
+def iter_module_dirs(apps_root: Path) -> list[Path]:
     return sorted(
         path for path in apps_root.iterdir() if path.is_dir() and not path.name.startswith("__")
     )
@@ -121,8 +122,8 @@ def iter_source_files(source_roots: Sequence[str]) -> Iterable[SourceFile]:
 
 
 def resolve_import_path(
-    source_file: SourceFile, module: Optional[str], level: int
-) -> Optional[str]:
+    source_file: SourceFile, module: str | None, level: int
+) -> str | None:
     if level == 0:
         return module
     if not source_file.package:
@@ -138,7 +139,7 @@ def resolve_import_path(
         return None
 
 
-def build_target_module(import_path: str) -> Optional[str]:
+def build_target_module(import_path: str) -> str | None:
     if not import_path.startswith("apps."):
         return None
     parts = import_path.split(".")
@@ -159,7 +160,7 @@ def is_dynamic_import_call(node: ast.Call) -> bool:
     return False
 
 
-def resolve_dynamic_import_path(source_file: SourceFile, node: ast.Call) -> Optional[str]:
+def resolve_dynamic_import_path(source_file: SourceFile, node: ast.Call) -> str | None:
     """Resolve importlib.import_module/__import__ string-literal module names."""
 
     if not node.args:
@@ -176,8 +177,8 @@ def resolve_dynamic_import_path(source_file: SourceFile, node: ast.Call) -> Opti
     return module_name
 
 
-def extract_import_records(source_file: SourceFile) -> List[ImportRecord]:
-    records: List[ImportRecord] = []
+def extract_import_records(source_file: SourceFile) -> list[ImportRecord]:
+    records: list[ImportRecord] = []
     tree = ast.parse(source_file.text, filename=source_file.source_path)
 
     for node in ast.walk(tree):
@@ -228,15 +229,15 @@ def extract_import_records(source_file: SourceFile) -> List[ImportRecord]:
     return records
 
 
-def collect_import_records(source_files: Sequence[SourceFile]) -> List[ImportRecord]:
-    records: List[ImportRecord] = []
+def collect_import_records(source_files: Sequence[SourceFile]) -> list[ImportRecord]:
+    records: list[ImportRecord] = []
     for source_file in source_files:
         records.extend(extract_import_records(source_file))
     return records
 
 
-def collect_line_records(source_files: Sequence[SourceFile]) -> List[LineRecord]:
-    records: List[LineRecord] = []
+def collect_line_records(source_files: Sequence[SourceFile]) -> list[LineRecord]:
+    records: list[LineRecord] = []
     for source_file in source_files:
         for lineno, line_text in enumerate(source_file.text.splitlines(), start=1):
             stripped = line_text.strip()
@@ -286,8 +287,8 @@ def rule_matches_record(record: ImportRecord | LineRecord, rule: dict) -> bool:
     return True
 
 
-def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict]) -> List[dict]:
-    violations: List[dict] = []
+def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict]) -> list[dict]:
+    violations: list[dict] = []
     for rule in rules:
         prefixes = rule.get("forbidden_import_prefixes", [])
         patterns = rule.get("forbidden_import_patterns", [])
@@ -348,8 +349,8 @@ def find_import_violations(records: Sequence[ImportRecord], rules: Sequence[dict
     )
 
 
-def find_line_violations(records: Sequence[LineRecord], rules: Sequence[dict]) -> List[dict]:
-    violations: List[dict] = []
+def find_line_violations(records: Sequence[LineRecord], rules: Sequence[dict]) -> list[dict]:
+    violations: list[dict] = []
     for rule in rules:
         patterns = rule.get("forbidden_line_patterns", [])
         if not patterns:
@@ -387,11 +388,11 @@ def find_line_violations(records: Sequence[LineRecord], rules: Sequence[dict]) -
 
 
 def build_module_summary(
-    records: List[ImportRecord], module_metadata: Dict[str, dict]
-) -> List[dict]:
+    records: list[ImportRecord], module_metadata: dict[str, dict]
+) -> list[dict]:
     module_names = [path.name for path in iter_module_dirs(APPS_ROOT)]
-    outbound: Dict[str, set] = {name: set() for name in module_names}
-    inbound: Dict[str, set] = {name: set() for name in module_names}
+    outbound: dict[str, set] = {name: set() for name in module_names}
+    inbound: dict[str, set] = {name: set() for name in module_names}
 
     for record in records:
         if not record.target_module or record.target_module == record.source_module:
@@ -419,7 +420,7 @@ def build_module_summary(
     return summaries
 
 
-def build_top_counts(violations: Sequence[dict], key: str, label: str) -> List[dict]:
+def build_top_counts(violations: Sequence[dict], key: str, label: str) -> list[dict]:
     counter = Counter(item[key] for item in violations)
     return [
         {label: name, "count": count}
@@ -429,11 +430,11 @@ def build_top_counts(violations: Sequence[dict], key: str, label: str) -> List[d
 
 def render_ledger_markdown(
     ruleset: dict,
-    module_summary: List[dict],
-    violations: List[dict],
-    audit_report: Optional[dict] = None,
+    module_summary: list[dict],
+    violations: list[dict],
+    audit_report: dict | None = None,
 ) -> str:
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%SZ")
     lines = [
         "# Module Ledger",
         "",
@@ -529,9 +530,9 @@ def render_ledger_markdown(
 def build_report(
     ruleset: dict,
     source_files: Sequence[SourceFile],
-    import_records: List[ImportRecord],
-    violations: List[dict],
-    audit_violations: Optional[List[dict]] = None,
+    import_records: list[ImportRecord],
+    violations: list[dict],
+    audit_violations: list[dict] | None = None,
 ) -> dict:
     module_summary = build_module_summary(import_records, ruleset.get("module_metadata", {}))
     report = {
@@ -633,7 +634,7 @@ def main() -> int:
     import_records = collect_import_records(source_files)
     boundary_violations = find_import_violations(import_records, ruleset["boundary_rules"])
 
-    audit_violations: Optional[List[dict]] = None
+    audit_violations: list[dict] | None = None
     if args.include_audit:
         line_records = collect_line_records(source_files)
         audit_rules = ruleset.get("audit_rules", [])

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from collections.abc import MutableMapping
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import MutableMapping
 
 RUNSERVER_LOG_TIMESTAMP_ENV = "DJANGO_RUNSERVER_LOG_TIMESTAMP"
 DEVELOPMENT_LOG_MAX_MB_ENV = "DJANGO_DEV_LOG_MAX_MB"
@@ -30,7 +30,7 @@ def get_or_create_runserver_log_timestamp(
     if existing_timestamp:
         return existing_timestamp
 
-    current_time = now or datetime.now(timezone.utc).astimezone()
+    current_time = now or datetime.now(UTC).astimezone()
     timestamp = current_time.strftime("%Y%m%d-%H%M%S")
     env_map[RUNSERVER_LOG_TIMESTAMP_ENV] = timestamp
     return timestamp

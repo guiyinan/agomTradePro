@@ -5,7 +5,6 @@
 import asyncio
 import json
 import re
-from datetime import datetime
 
 from playwright.async_api import async_playwright
 

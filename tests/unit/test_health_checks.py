@@ -4,11 +4,10 @@ Unit tests for health check endpoints.
 Tests the liveness and readiness probes for Kubernetes deployment.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.core.cache import cache
 from django.test import Client
 
 
@@ -183,7 +182,6 @@ class TestHealthCheckIntegration:
     @patch('core.health_checks.check_database')
     def test_readiness_propagates_database_error(self, mock_check_db, db):
         """Test readiness probe returns 503 when database check fails"""
-        from core.health_checks import check_database
 
         # Mock database check to fail
         mock_check_db.return_value = {'status': 'error', 'error': 'Connection failed'}

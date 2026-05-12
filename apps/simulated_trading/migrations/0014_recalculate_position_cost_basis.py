@@ -1,8 +1,7 @@
 from collections import defaultdict
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import migrations
-
 
 AVG_COST_QUANT = Decimal("0.0001")
 MONEY_QUANT = Decimal("0.01")

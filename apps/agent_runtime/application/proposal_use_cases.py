@@ -7,7 +7,7 @@ high-risk action migration, and audit enrichment.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from django.utils import timezone
@@ -18,7 +18,6 @@ from apps.agent_runtime.application.repository_provider import (
 )
 from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
-    TERMINAL_PROPOSAL_STATUSES,
     AgentProposal,
     ApprovalStatus,
     EventSource,
@@ -28,7 +27,6 @@ from apps.agent_runtime.domain.entities import (
 )
 from apps.agent_runtime.domain.guardrails import (
     HIGH_RISK_PROPOSAL_TYPES,
-    GuardrailCheckOutput,
     GuardrailEngine,
     get_guardrail_engine,
 )
@@ -189,7 +187,7 @@ class CreateProposalUseCase:
         try:
             risk = RiskLevel(inp.risk_level)
         except ValueError:
-            raise ValueError(f"Invalid risk_level. Must be one of: {[r.value for r in RiskLevel]}")
+            raise ValueError(f"Invalid risk_level. Must be one of: {[r.value for r in RiskLevel]}") from None
 
         # Auto-detect approval_required for high-risk types
         approval_required = inp.approval_required

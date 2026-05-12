@@ -158,8 +158,25 @@ ignore = [
     "C901",  # too complex
 ]
 
+# ── Existing debt: ignored for now, fix gradually ──────────────────────
+# These rules trigger on existing code. New code must still pass them.
+# Remove entries from this list as debt is paid off.
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# Legacy code with django.setup() before imports (tests only)
+"tests/**" = ["E402"]
+# Generated / third-party-adjacent code
+"**/migrations/**" = ["E501", "F401", "F811"]
+"docs/**" = ["F401", "F821", "E402"]
+"sdk/**" = ["F401", "F821"]
+# Scripts are standalone, not imported
+"scripts/**" = ["F401", "F821", "E402"]
+"tools/**" = ["F401", "F821", "E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.11"

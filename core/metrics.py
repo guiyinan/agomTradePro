@@ -366,7 +366,7 @@ def track_celery_task(task_func: Callable) -> Callable:
 
             return result
 
-        except Exception as e:
+        except Exception:
             # 记录失败指标
             duration = perf_counter() - start_time
             record_celery_task(

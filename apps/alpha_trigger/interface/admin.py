@@ -7,7 +7,6 @@ Alpha 事件触发的 Django Admin 配置。
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from apps.alpha_trigger.models import (
     AlphaCandidateModel,
@@ -161,7 +160,6 @@ class AlphaTriggerAdmin(admin.ModelAdmin):
     def invalidation_conditions_display(self, obj):
         """显示证伪条件"""
         if obj.invalidation_conditions:
-            import json
 
             conditions = []
             for cond in obj.invalidation_conditions:

@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 DEFAULT_SYNC_SOURCE_TYPE = "akshare"
 GOVERNANCE_SCOPE = "macro_console"
 

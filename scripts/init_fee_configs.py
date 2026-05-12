@@ -14,6 +14,7 @@ Usage:
 """
 import os
 import sys
+
 import django
 
 # 添加项目根目录到Python路径
@@ -163,7 +164,7 @@ def init_fee_configs():
         print(f"[SKIP] Already exists: {universal_config.config_name}")
 
     print("\n" + "="*60)
-    print(f"Fee config initialization completed!")
+    print("Fee config initialization completed!")
     print(f"Total configs: {FeeConfigModel.objects.count()}")
     print("="*60)
 

@@ -7,7 +7,6 @@ import json
 from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import (

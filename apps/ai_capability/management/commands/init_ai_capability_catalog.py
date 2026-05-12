@@ -23,7 +23,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        start_time = time.time()
+        time.time()
 
         self.stdout.write("Initializing AI capability catalog...")
 

@@ -14,7 +14,6 @@ import math
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Dict, List, Optional, Protocol, Tuple
 
 
 class RegimeType(Enum):

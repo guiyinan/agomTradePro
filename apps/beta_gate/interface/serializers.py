@@ -21,7 +21,7 @@ class RiskProfileSerializer(serializers.Field):
         try:
             return RiskProfile(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid risk profile: {data}")
+            raise serializers.ValidationError(f"Invalid risk profile: {data}") from None
 
 
 class GateConfigSerializer(serializers.Serializer):

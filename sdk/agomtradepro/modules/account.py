@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Account 账户管理模块
 
@@ -7,8 +8,8 @@ AgomTradePro SDK - Account 账户管理模块
 
 from typing import Any, Optional
 
-from .base import BaseModule
 from ..types import Portfolio, Position
+from .base import BaseModule
 
 
 class AccountModule(BaseModule):
@@ -182,8 +183,8 @@ class AccountModule(BaseModule):
 
     def get_positions(
         self,
-        portfolio_id: Optional[int] = None,
-        asset_code: Optional[str] = None,
+        portfolio_id: int | None = None,
+        asset_code: str | None = None,
         limit: int = 100,
     ) -> list[Position]:
         """
@@ -288,8 +289,8 @@ class AccountModule(BaseModule):
     def update_position(
         self,
         position_id: int,
-        quantity: Optional[float] = None,
-        price: Optional[float] = None,
+        quantity: float | None = None,
+        price: float | None = None,
     ) -> Position:
         """
         更新持仓
@@ -450,11 +451,11 @@ class AccountModule(BaseModule):
     def update_trading_cost_config(
         self,
         config_id: int,
-        commission_rate: Optional[float] = None,
-        min_commission: Optional[float] = None,
-        stamp_duty_rate: Optional[float] = None,
-        transfer_fee_rate: Optional[float] = None,
-        is_active: Optional[bool] = None,
+        commission_rate: float | None = None,
+        min_commission: float | None = None,
+        stamp_duty_rate: float | None = None,
+        transfer_fee_rate: float | None = None,
+        is_active: bool | None = None,
     ) -> dict[str, Any]:
         """
         更新交易费率配置

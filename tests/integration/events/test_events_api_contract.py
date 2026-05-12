@@ -9,16 +9,10 @@ Phase 3: Events API Migration from placeholder to real implementation.
 """
 
 import json
-from datetime import datetime
-from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-
-from apps.events.domain.entities import EventType, create_event
-from apps.events.domain.services import get_event_bus
-from apps.events.infrastructure.event_store import get_event_store
 
 
 def _build_authenticated_api_client(username: str = "events_api_tester") -> APIClient:

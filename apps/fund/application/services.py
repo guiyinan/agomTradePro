@@ -5,8 +5,6 @@ Fund 模块 - Application 层服务（资产分析框架集成）
 """
 
 from dataclasses import replace
-from datetime import date
-from typing import Dict, List, Optional
 
 from apps.asset_analysis.domain.entities import AssetType
 from apps.asset_analysis.domain.services import (
@@ -16,8 +14,8 @@ from apps.asset_analysis.domain.services import (
     SignalMatcher,
 )
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.fund.domain.entities import FundAssetScore, FundInfo
 from apps.fund.application.repository_provider import DjangoFundAssetRepository
+from apps.fund.domain.entities import FundAssetScore
 
 
 class FundMultiDimScorer:

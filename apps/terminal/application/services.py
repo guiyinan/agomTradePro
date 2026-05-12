@@ -7,14 +7,14 @@ Terminal Application Services.
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 from apps.prompt.application.runtime_provider import build_terminal_agent_runtime
 from apps.terminal.application.repository_provider import (
     TerminalApiRequestError,
-    get_terminal_runtime_settings_repository,
     get_terminal_command_http_client,
+    get_terminal_runtime_settings_repository,
 )
 
 from ..domain.entities import TerminalCommand

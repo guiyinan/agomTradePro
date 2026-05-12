@@ -158,8 +158,8 @@ class Command(BaseCommand):
 
         # 6. 创建初始汇率
         self.stdout.write('\n6. Creating initial exchange rates...')
-        cny = CurrencyModel._default_manager.get(code='CNY')
-        usd = CurrencyModel._default_manager.get(code='USD')
+        CurrencyModel._default_manager.get(code='CNY')
+        CurrencyModel._default_manager.get(code='USD')
 
         initial_rates = [
             ('USD', 'CNY', Decimal('7.20')),  # 1 USD = 7.20 CNY

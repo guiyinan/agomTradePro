@@ -1,10 +1,10 @@
-import pytest
 from datetime import date
-from unittest.mock import patch, MagicMock
-from apps.macro.infrastructure.adapters.fetchers.financial_fetchers import FinancialIndicatorFetcher
-from apps.macro.infrastructure.adapters.base import MacroDataPoint
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
+
+from apps.macro.infrastructure.adapters.fetchers.financial_fetchers import FinancialIndicatorFetcher
 
 
 @pytest.fixture(autouse=True)
@@ -31,9 +31,9 @@ def test_fetch_dr007_success():
     ak_mock = MagicMock()
     # attach repo_rate_hist to our mock, so hasattr passes
     ak_mock.repo_rate_hist = MagicMock()
-    
+
     fetcher = FinancialIndicatorFetcher(ak_mock, "akshare", lambda x: None, dummy_dedup)
-    
+
     with patch.object(ak_mock, "repo_rate_hist", create=True) as mock_repo_rate:
         mock_repo_rate.side_effect = [
             pd.DataFrame([
@@ -44,7 +44,7 @@ def test_fetch_dr007_success():
                 {"date": "2025-01-01", "FDR007": 1.90},
             ]),
         ]
-        
+
         indicators = fetcher.fetch_dr007(date(2024, 1, 1), date(2025, 1, 31))
         assert len(indicators) == 3
         assert indicators[0].code == "CN_DR007"
@@ -140,12 +140,12 @@ def test_fetch_pboc_open_market_success():
     # attach macro_china_pboc_open_market so hasattr passes
     ak_mock.macro_china_pboc_open_market = MagicMock()
     fetcher = FinancialIndicatorFetcher(ak_mock, "akshare", lambda x: None, dummy_dedup)
-    
+
     with patch.object(ak_mock, "macro_china_pboc_open_market", create=True) as mock_pboc:
         mock_pboc.return_value = pd.DataFrame([
             {"日期": "2024-01-01", "净投放": "1500亿"}
         ])
-        
+
         indicators = fetcher.fetch_pboc_open_market(date(2024, 1, 1), date(2024, 1, 31))
         assert len(indicators) == 1
         assert indicators[0].code == "CN_PBOC_NET_INJECTION"

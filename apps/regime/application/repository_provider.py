@@ -3,7 +3,11 @@
 from apps.regime.domain.protocols import MacroSourceConfigGatewayProtocol
 from apps.regime.infrastructure.providers import (
     DjangoNavigatorRepository,
+)
+from apps.regime.infrastructure.providers import (
     get_navigator_repository as _get_navigator_repository,
+)
+from apps.regime.infrastructure.providers import (
     get_regime_repository as _get_regime_repository,
 )
 
@@ -65,7 +69,9 @@ def get_regime_config_repository():
 def get_macro_source_config_gateway() -> MacroSourceConfigGatewayProtocol:
     """Return the configured macro source gateway for regime views."""
 
-    from apps.regime.infrastructure.macro_source_config_gateway import DjangoMacroSourceConfigGateway
+    from apps.regime.infrastructure.macro_source_config_gateway import (
+        DjangoMacroSourceConfigGateway,
+    )
 
     return DjangoMacroSourceConfigGateway()
 

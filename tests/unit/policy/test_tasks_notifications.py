@@ -4,10 +4,8 @@ Unit Tests for Policy Tasks Notification Integration
 测试 policy tasks 与通知服务的集成。
 """
 
-from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from datetime import date, timedelta
+from unittest.mock import Mock, patch
 
 from apps.policy.application import tasks
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel
@@ -188,7 +186,7 @@ class TestCheckPolicyStatusAlert:
         mock_use_case_cls.return_value.execute.return_value = mock_status
 
         # 执行任务
-        result = tasks.check_policy_status_alert("2026-03-04")
+        tasks.check_policy_status_alert("2026-03-04")
 
         # 验证告警被发送
         mock_send_alert.assert_called_once()
@@ -217,7 +215,7 @@ class TestCheckPolicyStatusAlert:
 
         mock_use_case_cls.return_value.execute.return_value = mock_status
 
-        result = tasks.check_policy_status_alert("2026-03-04")
+        tasks.check_policy_status_alert("2026-03-04")
 
         mock_send_alert.assert_called_once()
 
@@ -235,7 +233,7 @@ class TestCheckPolicyStatusAlert:
 
             mock_use_case_cls.return_value.execute.return_value = mock_status
 
-            result = tasks.check_policy_status_alert("2026-03-04")
+            tasks.check_policy_status_alert("2026-03-04")
 
             # P0/P1 不应该发送告警
             mock_send_alert.assert_not_called()
@@ -259,7 +257,7 @@ class TestMonitorPolicyTransitions:
 
         mock_get_repository.return_value.get_events_in_range.return_value = [event1, event2]
 
-        result = tasks.monitor_policy_transitions()
+        tasks.monitor_policy_transitions()
 
         # 应该发送变更摘要
         mock_send_summary.assert_called_once()
@@ -283,7 +281,7 @@ class TestMonitorPolicyTransitions:
 
         mock_get_repository.return_value.get_events_in_range.return_value = [event1, event2]
 
-        result = tasks.monitor_policy_transitions()
+        tasks.monitor_policy_transitions()
 
         # 不应该发送变更摘要
         mock_send_summary.assert_not_called()

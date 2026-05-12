@@ -4,16 +4,14 @@ Events Application Tasks
 事件 Celery 异步任务定义。
 """
 
-import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 
 from ..domain.entities import (
-    DomainEvent,
     EventType,
     create_event,
 )
@@ -112,7 +110,7 @@ def publish_event_async(
 
         # 重试
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
 
         return {
             "success": False,
@@ -274,7 +272,7 @@ def replay_events_async(
         logger.error(f"Failed to replay events: {exc}", exc_info=True)
 
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
 
         return {
             "success": False,

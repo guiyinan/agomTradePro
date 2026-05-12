@@ -171,7 +171,7 @@ class ChainConfig:
 
         # 检查parallel_group之间没有order冲突
         all_parallel_orders = set()
-        for group, orders in group_orders.items():
+        for _group, orders in group_orders.items():
             for order in orders:
                 if order in all_parallel_orders:
                     raise ValueError(f"Order {order} is used by multiple parallel groups")

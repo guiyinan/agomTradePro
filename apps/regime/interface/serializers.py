@@ -3,7 +3,6 @@ DRF Serializers for Regime API.
 """
 
 from datetime import date
-from typing import Any, Dict
 
 from rest_framework import serializers
 

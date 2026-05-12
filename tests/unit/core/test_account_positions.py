@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 from decimal import Decimal
+from types import SimpleNamespace
 
 from core.integration.account_positions import update_or_create_account_position
 

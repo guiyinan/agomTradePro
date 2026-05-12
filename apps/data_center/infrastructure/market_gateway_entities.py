@@ -5,9 +5,8 @@ Data Center 网关层标准实体
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -30,7 +29,7 @@ class QuoteSnapshot:
     open: Decimal | None = None
     pre_close: Decimal | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -74,7 +73,7 @@ class CapitalFlowSnapshot:
     medium_net_inflow: float = 0.0
     small_net_inflow: float = 0.0
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -107,10 +106,10 @@ class StockNewsItem:
     news_id: str
     title: str
     content: str = ""
-    published_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    published_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     url: str | None = None
     source: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         if not self.stock_code:
@@ -277,4 +276,4 @@ class RawPayload:
     payload: dict
     parse_status: str = "success"
     error_message: str = ""
-    fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))

@@ -6,10 +6,9 @@
 - 只使用 Python 标准库和 dataclasses
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Optional
 
 
 @dataclass(frozen=True)

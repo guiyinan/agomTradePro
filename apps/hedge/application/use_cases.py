@@ -7,8 +7,8 @@ Orchestrates domain services and infrastructure adapters.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any
 
 from apps.hedge.application.dtos import (
     CorrelationMatrixRequest,

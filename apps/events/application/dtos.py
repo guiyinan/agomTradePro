@@ -5,9 +5,9 @@ Events Application Layer DTOs
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -165,7 +165,7 @@ class EventBusStatusDTO:
 # ========== 便捷转换函数 ==========
 
 
-def dto_to_event_publish_request(dto: EventPublishRequestDTO) -> "PublishEventRequest":
+def dto_to_event_publish_request(dto: EventPublishRequestDTO) -> PublishEventRequest:
     """
     转换 DTO 为用例请求
 

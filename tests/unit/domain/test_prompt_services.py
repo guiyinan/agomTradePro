@@ -5,10 +5,7 @@ Tests the pure domain logic in apps/prompt/domain/services.py
 Only uses Python standard library - no Django imports.
 """
 
-import json
-from typing import Any, Dict
-
-import pytest
+from typing import Any
 
 from apps.prompt.domain.entities import ChainExecutionMode, ChainStep
 from apps.prompt.domain.services import (

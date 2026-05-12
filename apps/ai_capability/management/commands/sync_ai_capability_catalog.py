@@ -29,7 +29,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        start_time = time.time()
+        time.time()
         sync_type = options["type"]
         source = options.get("source")
 

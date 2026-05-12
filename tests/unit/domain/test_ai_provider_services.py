@@ -172,7 +172,7 @@ class TestAICostCalculator:
 
     def test_model_pricing_completeness(self):
         """Test that all models in MODEL_PRICING have valid pricing"""
-        for model, pricing in AICostCalculator.MODEL_PRICING.items():
+        for _model, pricing in AICostCalculator.MODEL_PRICING.items():
             assert "input" in pricing
             assert "output" in pricing
             assert pricing["input"] >= 0

@@ -9,8 +9,8 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from verify_architecture import (
     DEFAULT_SCAN_ROOTS,

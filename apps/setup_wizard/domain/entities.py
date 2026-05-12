@@ -7,7 +7,6 @@ Domain entities for Setup Wizard.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class WizardStep(Enum):

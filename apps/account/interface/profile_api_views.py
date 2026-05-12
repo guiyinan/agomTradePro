@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.account.application import interface_services
+
 from .permissions import GeneralPermission, TradingPermission
 from .serializers import (
     AccountProfileSerializer,
@@ -16,6 +17,7 @@ from .serializers import (
     TradingCostConfigCreateSerializer,
     TradingCostConfigSerializer,
 )
+
 
 class AccountProfileView(APIView):
     """

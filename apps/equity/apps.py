@@ -1,5 +1,6 @@
-from django.apps import AppConfig
 import logging
+
+from django.apps import AppConfig
 
 
 class EquityConfig(AppConfig):

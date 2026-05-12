@@ -5,9 +5,9 @@ Tests for the stop loss/take profit notification service.
 """
 
 import logging
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.test import override_settings

@@ -4,21 +4,9 @@ Events Interface Serializers
 事件 DRF 序列化器定义。
 """
 
-from datetime import datetime
 
 from rest_framework import serializers
 
-from apps.events.application.dtos import (
-    EventBusStatusDTO,
-    EventDTO,
-    EventMetricsDTO,
-    EventPublishRequestDTO,
-    EventPublishResponseDTO,
-    EventQueryRequestDTO,
-    EventQueryResponseDTO,
-    EventReplayRequestDTO,
-    EventSubscriptionRequestDTO,
-)
 from apps.events.domain.entities import EventType
 
 # ========== 请求序列化器 ==========

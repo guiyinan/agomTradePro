@@ -9,7 +9,6 @@ import os
 import sys
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BASELINE_FILE = PROJECT_ROOT / "tests" / "uat" / "route_baseline.json"
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -19,7 +18,7 @@ def main() -> int:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 
     import django
-    from django.urls import resolve, Resolver404
+    from django.urls import Resolver404, resolve
 
     django.setup()
 

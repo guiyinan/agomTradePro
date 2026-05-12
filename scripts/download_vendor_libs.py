@@ -1,10 +1,10 @@
 """
 下载第三方 JavaScript/CSS 库到本地 vendor 目录
 """
+import hashlib
 import os
 import sys
 import urllib.request
-import hashlib
 from pathlib import Path
 
 # 设置 UTF-8 编码输出
@@ -101,7 +101,7 @@ def download_file(url: str, dest_path: Path, backup_url: str = None) -> bool:
         except Exception as e:
             print(f'  [FAIL] {e}')
             if download_url != urls_to_try[-1]:
-                print(f'  Trying backup source...')
+                print('  Trying backup source...')
             continue
 
     return False

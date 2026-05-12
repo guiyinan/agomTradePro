@@ -2,11 +2,12 @@
 Integration test: GET /api/account/sizing-context/
 """
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 from rest_framework import status
-from unittest.mock import patch
 
 from apps.account.infrastructure.models import MacroSizingConfigModel
 

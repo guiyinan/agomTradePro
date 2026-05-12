@@ -5,7 +5,6 @@ Permissions for Audit API.
 import hashlib
 import hmac
 import json
-import os
 import time
 
 from django.conf import settings

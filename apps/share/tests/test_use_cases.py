@@ -4,7 +4,7 @@ Share Application Use Cases Tests
 Tests for Application layer use cases.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -17,7 +17,7 @@ from apps.share.application.use_cases import (
     ShareLinkUseCases,
     ShareSnapshotUseCases,
 )
-from apps.share.domain.entities import AccessResultStatus, ShareLevel, ShareStatus
+from apps.share.domain.entities import ShareLevel, ShareStatus
 from apps.share.infrastructure.models import (
     ShareAccessLogModel,
     ShareLinkModel,

@@ -8,7 +8,6 @@ No Django, Pandas, or external dependencies allowed.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Dict, Optional, Tuple
 
 # 单位转换因子（相对于"元"的倍数）
 UNIT_CONVERSION_FACTORS: dict[str, float] = {

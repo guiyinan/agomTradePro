@@ -6,7 +6,6 @@
 
 import logging
 from datetime import date, datetime
-from typing import Optional
 
 from apps.data_center.infrastructure.market_gateway_entities import CapitalFlowSnapshot
 

@@ -8,8 +8,6 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 import json
 import logging
 import re
-from datetime import datetime
-from typing import List, Optional
 
 from django.utils import timezone
 
@@ -18,7 +16,6 @@ from apps.sentiment.application.repository_provider import (
     get_sentiment_alert_repository,
     get_sentiment_config_repository,
 )
-from apps.ai_provider.domain.entities import AIChatRequest
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
     SentimentCategory,

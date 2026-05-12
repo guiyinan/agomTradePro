@@ -5,30 +5,24 @@ Task Monitor Application Use Cases
 """
 
 import logging
-from datetime import datetime
-from typing import List, Optional
 
 from django.utils import timezone
 
 from apps.task_monitor.application.dtos import (
     HealthCheckResponse,
+    ScheduledTaskResponse,
     SchedulerBootstrapResponse,
     SchedulerConsoleResponse,
     SchedulerSummaryResponse,
-    ScheduledTaskResponse,
     TaskListResponse,
     TaskStatisticsResponse,
     TaskStatusResponse,
 )
 from apps.task_monitor.domain.entities import (
-    CeleryHealthStatus,
-    SchedulerBootstrapResult,
-    SchedulerCatalogSummary,
     ScheduledTaskRecord,
+    SchedulerCatalogSummary,
     TaskExecutionRecord,
     TaskFailureAlert,
-    TaskPriority,
-    TaskStatistics,
     TaskStatus,
 )
 from apps.task_monitor.domain.interfaces import (
@@ -307,7 +301,7 @@ class CheckCeleryHealthUseCase:
             raise ExternalServiceError(
                 message="Failed to check Celery health",
                 details={"error": str(e)}
-            )
+            ) from e
 
 
 class CleanupOldRecordsUseCase:

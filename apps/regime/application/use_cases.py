@@ -7,18 +7,17 @@ Application layer orchestrating the workflow of calculating Regime.
 import logging
 import os
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from datetime import date
+from typing import Optional
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
+
 from core.exceptions import (
     BusinessLogicError,
     DataFetchError,
     InsufficientDataError,
 )
-from core.metrics import record_exception
-from .repository_provider import get_regime_config_repository
 
 from ..domain.entities import RegimeSnapshot
 from ..domain.services import (
@@ -27,6 +26,7 @@ from ..domain.services import (
     calculate_momentum,
     calculate_rolling_zscore,
 )
+from .repository_provider import get_regime_config_repository
 
 logger = logging.getLogger(__name__)
 
@@ -1207,10 +1207,10 @@ class CalculateRegimeV2UseCase:
             from ..domain.services_v2 import RegimeCalculatorV2
 
             # 转换指标代码
-            growth_code = self.repository.GROWTH_INDICATORS.get(
+            self.repository.GROWTH_INDICATORS.get(
                 request.growth_indicator, request.growth_indicator
             )
-            inflation_code = self.repository.INFLATION_INDICATORS.get(
+            self.repository.INFLATION_INDICATORS.get(
                 request.inflation_indicator, request.inflation_indicator
             )
 

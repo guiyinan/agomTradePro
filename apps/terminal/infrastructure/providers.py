@@ -1,6 +1,6 @@
 """Repository provider re-exports for application composition roots."""
 
-from .http_client import TerminalApiRequestError, TerminalCommandHttpClient
+from .http_client import TerminalApiRequestError, TerminalCommandHttpClient  # noqa: F401
 from .repositories import *  # noqa: F401,F403
 
 

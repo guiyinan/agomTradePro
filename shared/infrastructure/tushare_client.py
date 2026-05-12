@@ -46,7 +46,7 @@ def configure_tushare_pro_client(pro: object, http_url: str | None) -> object:
     """Apply custom DataApi HTTP URL to an existing Tushare Pro client."""
     normalized_http_url = (http_url or "").strip()
     if normalized_http_url:
-        setattr(pro, "_DataApi__http_url", normalized_http_url)
+        pro._DataApi__http_url = normalized_http_url
     return pro
 
 

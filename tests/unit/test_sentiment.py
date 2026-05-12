@@ -300,7 +300,6 @@ class TestSentimentIndexRepository:
 
     def test_to_entity(self):
         """测试 ORM 转实体"""
-        from apps.sentiment.infrastructure.models import SentimentIndexModel
 
         # 创建模拟模型
         model = type('MockModel', (), {

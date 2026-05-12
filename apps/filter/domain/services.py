@@ -6,7 +6,7 @@ Pure business logic using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Protocol, Tuple
+from typing import Protocol
 
 from .entities import FilterResult, FilterSeries, FilterType, HPFilterParams, KalmanFilterParams
 

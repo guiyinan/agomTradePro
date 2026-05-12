@@ -4,27 +4,9 @@ Dashboard Interface Serializers
 仪表盘 DRF 序列化器定义。
 """
 
-from datetime import datetime
 
 from django.apps import apps as django_apps
 from rest_framework import serializers
-
-from apps.dashboard.domain.entities import (
-    AlertConfig,
-    AlertSeverity,
-    CardType,
-    ChartConfig,
-    DashboardCard,
-    DashboardLayout,
-    DashboardPreferences,
-    DashboardWidget,
-    MetricCard,
-    WidgetType,
-)
-from apps.dashboard.domain.services import (
-    LayoutResolutionResult,
-    MetricCalculationResult,
-)
 
 DashboardAlertModel = django_apps.get_model("dashboard", "DashboardAlertModel")
 DashboardCardModel = django_apps.get_model("dashboard", "DashboardCardModel")

@@ -10,7 +10,6 @@
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)

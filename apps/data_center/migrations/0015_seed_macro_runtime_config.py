@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 RUNTIME_EXTRA_UPDATES = {
     "CN_PMI": {
         "schedule_frequency": "monthly",

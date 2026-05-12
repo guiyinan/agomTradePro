@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -276,7 +276,7 @@ def test_close_position_fully_deletes_position():
             "invalidation_description": "",
             "is_invalidated": False,
             "invalidation_reason": "",
-            "invalidation_checked_at": datetime.now(timezone.utc),
+            "invalidation_checked_at": datetime.now(UTC),
         },
     )
 

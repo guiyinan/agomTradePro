@@ -2,7 +2,7 @@
 Data Center 网关层实体测试
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -11,7 +11,6 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,
     ProviderStatus,
     QuoteSnapshot,
-    RawPayload,
     StockNewsItem,
     TechnicalSnapshot,
 )

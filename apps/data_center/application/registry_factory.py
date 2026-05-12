@@ -18,11 +18,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from apps.data_center.domain.enums import DataCapability
 from apps.data_center.application.repository_provider import (
     SourceRegistry,
     get_provider_config_repository,
 )
+from apps.data_center.domain.enums import DataCapability
 
 if TYPE_CHECKING:
     pass

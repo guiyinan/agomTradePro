@@ -10,12 +10,9 @@ Application层:
 import logging
 from dataclasses import replace
 from datetime import date
-from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
 
 from apps.simulated_trading.application.ports import DailyNetValueRepositoryProtocol
 from apps.simulated_trading.application.repository_provider import (
-    DjangoDailyNetValueRepository,
     DjangoPositionRepository,
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
@@ -24,7 +21,6 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
-from apps.simulated_trading.domain.entities import SimulatedAccount
 
 logger = logging.getLogger(__name__)
 

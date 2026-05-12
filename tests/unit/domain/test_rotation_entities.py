@@ -5,7 +5,6 @@ Pure Domain layer tests using only Python standard library.
 """
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 

@@ -32,7 +32,7 @@ def _ssh_connect(host: str, port: int, username: str, password: str, timeout: in
         import paramiko  # type: ignore
     except Exception as exc:  # pragma: no cover - dependency failure is environment-specific
         print(f"[WARN] Post-deploy verification skipped: paramiko unavailable ({exc})")
-        raise SystemExit(0)
+        raise SystemExit(0) from exc
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())

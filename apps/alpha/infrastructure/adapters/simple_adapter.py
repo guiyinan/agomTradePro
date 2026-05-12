@@ -12,16 +12,14 @@ Simple Alpha Provider
 import logging
 import math
 from datetime import date, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional
 
 from django.conf import settings
-from django.db.models import Max, Q
+from django.db.models import Max
 from django.utils import timezone
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
-from .base import BaseAlphaProvider, create_stock_score, provider_safe
+from .base import BaseAlphaProvider, provider_safe
 
 logger = logging.getLogger(__name__)
 
@@ -99,8 +97,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             Provider 状态
         """
         try:
-            from apps.equity.infrastructure.models import ValuationModel
             from apps.data_center.infrastructure.models import QuoteSnapshotModel
+            from apps.equity.infrastructure.models import ValuationModel
 
             # 检查是否有最近 7 天内的估值数据
             cutoff_date = date.today() - timedelta(days=7)

@@ -12,7 +12,6 @@ All business modules should use this resolver to avoid divergent regime chains.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 from apps.regime.application.repository_provider import (
     build_macro_repository_adapter,

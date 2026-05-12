@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 # Playwright imports
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
 @dataclass
@@ -31,7 +31,7 @@ class TestResult:
     name: str
     passed: bool
     message: str = ""
-    screenshot: Optional[str] = None
+    screenshot: str | None = None
     duration_ms: int = 0
 
 
@@ -64,9 +64,9 @@ class UATTester:
             timestamp=datetime.now().isoformat(),
             base_url=base_url
         )
-        self.browser: Optional[Browser] = None
-        self.context: Optional[BrowserContext] = None
-        self.page: Optional[Page] = None
+        self.browser: Browser | None = None
+        self.context: BrowserContext | None = None
+        self.page: Page | None = None
         self.screenshot_dir = Path("reports/uat_screenshots")
         self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
@@ -410,8 +410,8 @@ class UATTester:
             "",
             "## Summary",
             "",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Total Tests | {self.report.total_tests} |",
             f"| Passed | {self.report.passed} |",
             f"| Failed | {self.report.failed} |",
@@ -430,7 +430,7 @@ class UATTester:
             lines.append("")
             for r in failed_tests:
                 lines.append(f"#### {r.name}")
-                lines.append(f"- **Status**: FAILED")
+                lines.append("- **Status**: FAILED")
                 lines.append(f"- **Message**: {r.message}")
                 if r.screenshot:
                     lines.append(f"- **Screenshot**: `{r.screenshot}`")

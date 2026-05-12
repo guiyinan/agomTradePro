@@ -8,9 +8,9 @@ Domain 层实体定义
 - 在 __post_init__ 中进行数据验证
 """
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ========================================================================
 # 枚举类型

@@ -5,12 +5,10 @@ Django Admin for Policy Events.
 """
 
 from django.contrib import admin
-from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from ..application.repository_provider import get_policy_admin_interface_service
-from ..domain.entities import PolicyLevel
 from ..models import (
     PolicyAuditQueue,
     PolicyLevelKeywordModel,
@@ -343,7 +341,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
             if response is not None and hasattr(response, 'context_data'):
                 response.context_data['stats_html'] = mark_safe(stats_html)
 
-        except Exception as e:
+        except Exception:
             # 统计失败不影响页面显示
             pass
 

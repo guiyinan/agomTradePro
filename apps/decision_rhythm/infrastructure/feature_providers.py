@@ -10,7 +10,7 @@ Bottom-up（舆情/资金/技术/基本面/Alpha）特征获取。
 import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone
 

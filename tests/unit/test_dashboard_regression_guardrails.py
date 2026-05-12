@@ -13,8 +13,8 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
 )
 from apps.ai_provider.infrastructure.models import AIProviderConfig
-from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.decision_rhythm.infrastructure.models import (
     DecisionRequestModel,
     DecisionResponseModel,

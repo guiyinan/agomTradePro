@@ -5,12 +5,10 @@ Beta Gate Event Handlers
 """
 
 import logging
-from typing import Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType
 
 from ..domain.entities import get_default_configs
-from ..domain.services import GateConfigSelector, VisibilityUniverseBuilder
 
 logger = logging.getLogger(__name__)
 

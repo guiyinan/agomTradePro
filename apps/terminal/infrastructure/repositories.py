@@ -5,7 +5,7 @@ Terminal Infrastructure Repositories.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from ..domain.entities import TerminalAuditEntry, TerminalCommand
 from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository

@@ -5,6 +5,7 @@ This script directly queries the database without Django dependencies.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()

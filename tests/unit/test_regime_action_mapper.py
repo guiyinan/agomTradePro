@@ -1,7 +1,8 @@
 """Tests for Regime Action Mapper"""
 
-import pytest
 from datetime import date
+
+import pytest
 
 from apps.regime.domain.action_mapper import (
     ActionMapperConfig,

@@ -6,14 +6,13 @@ Infrastructure layer implementation using Django ORM.
 
 import json
 from datetime import date
-from typing import Any, List, Optional
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.db import transaction
 from django.utils import timezone
 
-from ..domain.entities import Eligibility, InvestmentSignal, SignalStatus
+from ..domain.entities import InvestmentSignal, SignalStatus
 from .models import InvestmentSignalModel
 
 

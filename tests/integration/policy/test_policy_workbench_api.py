@@ -4,14 +4,13 @@
 测试新增的 Bootstrap/Detail/Fetch API 端点。
 """
 
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
 
 from apps.policy.application.use_cases import FetchRSSOutput
-from apps.policy.domain.entities import PolicyLevel
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
 
 
@@ -242,7 +241,7 @@ class TestWorkbenchItemsDefaultTab:
         response = auth_client.get('/api/policy/workbench/items/')
         assert response.status_code == 200
 
-        data = response.json()
+        response.json()
         # 验证默认返回的是 all tab 的数据
         # 由于没有指定 tab，应该使用默认值 'all'
 

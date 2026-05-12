@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.db import IntegrityError
 from django.test import TestCase
 
 from apps.sector.infrastructure.models import (
@@ -154,7 +155,7 @@ class TestSectorConstraints(TestCase):
         )
 
         # 重复代码应该失败
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             SectorInfoModel.objects.create(
                 sector_code='801030',
                 sector_name='医药生物2',
@@ -185,7 +186,7 @@ class TestSectorConstraints(TestCase):
         )
 
         # 重复应该失败（unique_together 约束）
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             SectorIndexModel.objects.create(
                 sector_code=sector.sector_code,
                 trade_date=trade_date,

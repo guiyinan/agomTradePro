@@ -14,7 +14,7 @@ IMPORTANT:
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Any, List, Optional, Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)

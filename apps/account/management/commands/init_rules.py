@@ -124,7 +124,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'[更新] {rule_data["name"]}')
             else:
                 # 创建新规则
-                rule = InvestmentRuleModel._default_manager.create(
+                InvestmentRuleModel._default_manager.create(
                     user=None,  # 全局默认规则
                     conditions=conditions,
                     **rule_data

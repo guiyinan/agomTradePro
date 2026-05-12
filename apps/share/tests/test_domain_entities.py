@@ -5,7 +5,7 @@ Tests for Domain layer entities (pure Python, no Django dependencies).
 """
 
 from dataclasses import FrozenInstanceError
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 

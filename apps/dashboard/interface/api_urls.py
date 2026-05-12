@@ -3,13 +3,15 @@
 from django.http import JsonResponse
 from django.urls import path
 
-from apps.dashboard.interface import alpha_history_views
-from apps.dashboard.interface import alpha_metrics_views
-from apps.dashboard.interface import api_v1_views
-from apps.dashboard.interface import macro_views
-from apps.dashboard.interface import portfolio_views
-from apps.dashboard.interface import alpha_stock_views
-from apps.dashboard.interface import workflow_views
+from apps.dashboard.interface import (
+    alpha_history_views,
+    alpha_metrics_views,
+    alpha_stock_views,
+    api_v1_views,
+    macro_views,
+    portfolio_views,
+    workflow_views,
+)
 
 app_name = "dashboard_api"
 

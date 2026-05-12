@@ -3,8 +3,8 @@ Sector API routes.
 """
 
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
+from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
 from .views import SectorDataUpdateView, SectorRotationViewSet

@@ -6,7 +6,7 @@ Application layer depends on these protocols, not concrete implementations.
 """
 
 from datetime import date
-from typing import Any, List, Optional, Protocol
+from typing import Any, Protocol
 
 from shared.domain.interfaces import FilterableRepositoryProtocol
 

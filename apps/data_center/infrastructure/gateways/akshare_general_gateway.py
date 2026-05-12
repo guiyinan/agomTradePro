@@ -11,12 +11,11 @@ AKShare 通用 Gateway
 import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Optional
 
+from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot, TechnicalSnapshot
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 
 logger = logging.getLogger(__name__)
 

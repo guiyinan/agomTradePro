@@ -7,9 +7,8 @@ Account Application - Stress Testing Use Cases
 import logging
 import statistics
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
 
 from apps.account.application.repository_provider import PositionRepository
 
@@ -137,18 +136,15 @@ class VaRService:
         peak = equity_curve[0]
         recovery_days = 0
         max_recovery_days = 0
-        in_drawdown = False
 
-        for i, value in enumerate(equity_curve):
+        for _i, value in enumerate(equity_curve):
             if value > peak:
                 peak = value
-                in_drawdown = False
                 recovery_days = 0
             else:
                 drawdown = (peak - value) / peak if peak > 0 else 0
                 if drawdown > max_drawdown:
                     max_drawdown = drawdown
-                in_drawdown = True
                 recovery_days += 1
                 if recovery_days > max_recovery_days:
                     max_recovery_days = recovery_days

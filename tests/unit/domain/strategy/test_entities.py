@@ -7,6 +7,7 @@ Domain 层实体单元测试
 - 枚举类型
 - 边界条件测试
 """
+import dataclasses
 from datetime import datetime
 
 import pytest
@@ -78,7 +79,7 @@ class TestRiskControlParams:
     def test_immutability(self):
         """测试不可变性"""
         params = RiskControlParams()
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             params.max_position_pct = 30.0
 
 
@@ -104,7 +105,7 @@ class TestStrategyConfig:
             strategy_type=StrategyType.RULE_BASED,
             risk_params=risk_params
         )
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             config.description = "修改后的描述"
 
 

@@ -5,12 +5,10 @@ Alpha Trigger Event Handlers
 """
 
 import logging
-from typing import List, Optional
 
 from apps.events.domain.entities import DomainEvent, EventHandler, EventType, create_event
 
-from ..domain.entities import SignalStrength, TriggerStatus, TriggerType
-from ..domain.services import calculate_strength
+from ..domain.entities import SignalStrength, TriggerType
 
 logger = logging.getLogger(__name__)
 
@@ -211,8 +209,8 @@ class TriggerInvalidationHandler(EventHandler):
     def _check_all_active_triggers(self, event: DomainEvent):
         """检查所有活跃触发器"""
         # 获取当前环境信息
-        current_regime = event.get_payload_value("new_regime")
-        current_policy_level = event.get_payload_value("new_level")
+        event.get_payload_value("new_regime")
+        event.get_payload_value("new_level")
 
         logger.info("Checking all active triggers for invalidation")
 
@@ -258,7 +256,7 @@ class CandidatePromotionHandler(EventHandler):
         """处理事件"""
         try:
             trigger_id = event.get_payload_value("trigger_id")
-            asset_code = event.get_payload_value("asset_code")
+            event.get_payload_value("asset_code")
             strength = event.get_payload_value("strength")
 
             # 根据信号强度决定候选状态

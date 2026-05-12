@@ -29,7 +29,7 @@ class BaseModule(ABC):
         self._client = client
         self._prefix = prefix.rstrip("/")
 
-    def _get(self, endpoint: str, params: Optional[dict[str, Any]] = None) -> dict:
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict:
         """
         发送 GET 请求
 
@@ -46,8 +46,8 @@ class BaseModule(ABC):
     def _post(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 POST 请求
@@ -66,8 +66,8 @@ class BaseModule(ABC):
     def _put(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 PUT 请求
@@ -86,8 +86,8 @@ class BaseModule(ABC):
     def _patch(
         self,
         endpoint: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 PATCH 请求
@@ -103,7 +103,7 @@ class BaseModule(ABC):
         url = f"{self._prefix}/{endpoint.lstrip('/')}"
         return self._client.patch(url, data=data, json=json)
 
-    def _delete(self, endpoint: str, params: Optional[dict[str, Any]] = None) -> dict:
+    def _delete(self, endpoint: str, params: dict[str, Any] | None = None) -> dict:
         """
         发送 DELETE 请求
 

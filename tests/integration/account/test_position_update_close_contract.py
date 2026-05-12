@@ -20,7 +20,6 @@ from apps.account.infrastructure.models import (
     TransactionModel,
 )
 
-
 # ── fixtures ──────────────────────────────────────────────────────────────
 
 @pytest.fixture

@@ -24,7 +24,7 @@ class TestStopLossPositiveSemantics:
 
         # 止损价 = 100 * (1 - 0.10) = 90
         # 当前价 89 < 90，应该触发止损
-        assert result.should_trigger == True
+        assert result.should_trigger
         assert result.stop_price == 90.0
         assert "止损触发" in result.trigger_reason
 
@@ -39,7 +39,7 @@ class TestStopLossPositiveSemantics:
         )
 
         # 止损价 = 90，当前价 95 > 90，不应该触发
-        assert result.should_trigger == False
+        assert not result.should_trigger
         assert result.stop_price == 90.0
 
     def test_negative_stop_loss_pct_raises_error(self):
@@ -76,7 +76,7 @@ class TestStopLossPositiveSemantics:
 
         # 止损价 = 100 * (1 - 0) = 100
         # 当前价 99.99 < 100，应该触发
-        assert result.should_trigger == True
+        assert result.should_trigger
         assert result.stop_price == 100.0
 
 
@@ -95,7 +95,7 @@ class TestTrailingStopLoss:
 
         # 移动止损价 = 120 * (1 - 0.10) = 108
         # 当前价 108 <= 108，应该触发
-        assert result.should_trigger == True
+        assert result.should_trigger
         assert result.stop_price == 108.0
         assert "移动止损触发" in result.trigger_reason
 
@@ -112,7 +112,7 @@ class TestTrailingStopLoss:
 
         # 移动止损价 = 120 * (1 - 0.05) = 114
         # 当前价 115 > 114，不应该触发
-        assert result.should_trigger == False
+        assert not result.should_trigger
         assert result.stop_price == 114.0
 
     def test_trailing_stop_negative_pct_raises_error(self):
@@ -142,7 +142,7 @@ class TestStopLossEdgeCases:
         )
 
         # 当前价 = 止损价，应该触发（<= 条件）
-        assert result.should_trigger == True
+        assert result.should_trigger
 
     def test_profit_position(self    ):
         """测试：盈利持仓"""
@@ -155,7 +155,7 @@ class TestStopLossEdgeCases:
         )
 
         # 当前价高于开仓价，不应该触发止损
-        assert result.should_trigger == False
+        assert not result.should_trigger
         # 未实现盈亏应该是正的
         assert result.unrealized_pnl_pct > 0
 
@@ -170,5 +170,5 @@ class TestStopLossEdgeCases:
         )
 
         # 未知类型不应该触发
-        assert result.should_trigger == False
+        assert not result.should_trigger
         assert "未触发" in result.trigger_reason

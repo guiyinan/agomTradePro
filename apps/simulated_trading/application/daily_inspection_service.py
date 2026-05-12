@@ -10,9 +10,6 @@ from typing import Any
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.simulated_trading.application.repository_provider import (
-    DjangoInspectionRepository,
-    DjangoPositionRepository,
-    DjangoSimulatedAccountRepository,
     get_simulated_account_repository,
     get_simulated_inspection_repository,
     get_simulated_position_repository,

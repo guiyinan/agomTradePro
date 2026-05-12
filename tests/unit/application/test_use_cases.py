@@ -8,17 +8,15 @@ Unit Tests for Application Use Cases
 """
 
 from datetime import date, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
 from apps.macro.application.use_cases import (
     GetLatestMacroDataRequest,
-    GetLatestMacroDataResponse,
     GetLatestMacroDataUseCase,
     MacroDataPoint,
     SyncMacroDataRequest,
-    SyncMacroDataResponse,
     SyncMacroDataUseCase,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
@@ -337,7 +335,7 @@ class TestGetLatestMacroDataUseCase:
             # 未指定 as_of_date
         )
 
-        response = use_case.execute(request)
+        use_case.execute(request)
 
         # repository 应该被调用
         repository.get_latest_observation_date.assert_called_once()

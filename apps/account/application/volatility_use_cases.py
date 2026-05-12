@@ -5,21 +5,18 @@ Account Application - Volatility Control Use Cases
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
-from decimal import Decimal
-from typing import Dict, List, Optional
 
-from apps.account.domain.services import (
-    VolatilityAdjustmentResult,
-    VolatilityCalculator,
-    VolatilityMetrics,
-    VolatilityTargetService,
-)
 from apps.account.application.repository_provider import (
     AccountRepository,
     PortfolioRepository,
     PortfolioSnapshotRepository,
     PositionRepository,
+)
+from apps.account.domain.services import (
+    VolatilityAdjustmentResult,
+    VolatilityCalculator,
+    VolatilityMetrics,
+    VolatilityTargetService,
 )
 
 

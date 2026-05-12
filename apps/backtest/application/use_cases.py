@@ -7,16 +7,14 @@ Application layer orchestrating the workflow of backtesting operations.
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any
 
 from core.integration.audit_reports import generate_audit_report_for_backtest
 
 from ..domain.entities import (
     DEFAULT_PUBLICATION_LAGS,
     BacktestConfig,
-    BacktestResult,
-    BacktestStatus,
     PITDataConfig,
 )
 from ..domain.services import BacktestEngine, PITDataProcessor

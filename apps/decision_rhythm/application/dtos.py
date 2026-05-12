@@ -5,10 +5,11 @@ Decision Rhythm Application Layer DTOs
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from .user_action_labels import build_user_action_label
 
@@ -105,8 +106,8 @@ class UnifiedRecommendationDTO:
     @classmethod
     def from_domain(
         cls,
-        recommendation: "UnifiedRecommendation",
-    ) -> "UnifiedRecommendationDTO":
+        recommendation: UnifiedRecommendation,
+    ) -> UnifiedRecommendationDTO:
         """
         从 Domain 实体创建 DTO
 
@@ -224,7 +225,7 @@ class RefreshRecommendationsRequestDTO:
     async_mode: bool = True
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RefreshRecommendationsRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> RefreshRecommendationsRequestDTO:
         """
         从字典创建 DTO
 
@@ -551,7 +552,7 @@ class ApproveExecutionRequestDTO:
     execution_params: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ApproveExecutionRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> ApproveExecutionRequestDTO:
         """
         从字典创建 DTO
 
@@ -584,7 +585,7 @@ class RejectExecutionRequestDTO:
     reviewer_comments: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "RejectExecutionRequestDTO":
+    def from_dict(cls, data: dict[str, Any]) -> RejectExecutionRequestDTO:
         """
         从字典创建 DTO
 

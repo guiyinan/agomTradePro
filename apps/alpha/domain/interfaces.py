@@ -10,10 +10,9 @@ Alpha Provider Protocol Interface
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .entities import AlphaPoolScope, AlphaResult
@@ -139,7 +138,7 @@ class AlphaProvider(ABC):
         top_n: int = 30,
         pool_scope: AlphaPoolScope | None = None,
         user=None,
-    ) -> "AlphaResult":
+    ) -> AlphaResult:
         """
         获取股票评分
 

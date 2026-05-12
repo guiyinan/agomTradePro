@@ -18,7 +18,6 @@ from django_celery_beat.models import (
     PeriodicTasks,
 )
 
-
 LEGACY_TASK_ALIASES = {
     "apps.macro.application.tasks.sync_and_calculate_regime": (
         "apps.regime.application.orchestration.sync_macro_then_refresh_regime"

@@ -36,7 +36,7 @@ class AIProviderModule(BaseModule):
     def overall_stats(self) -> dict[str, Any]:
         return self._get("providers/overall_stats/")
 
-    def list_usage_logs(self, provider_id: Optional[int] = None, status: Optional[str] = None) -> list[dict[str, Any]]:
+    def list_usage_logs(self, provider_id: int | None = None, status: str | None = None) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if provider_id is not None:
             params["provider"] = provider_id

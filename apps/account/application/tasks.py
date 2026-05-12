@@ -4,7 +4,6 @@ Account Application - Celery Tasks
 定时任务：自动止损止盈检查、波动率控制。
 """
 
-from typing import Dict, List
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -14,10 +13,6 @@ from django.core.mail import EmailMessage, send_mail
 from django.db import DatabaseError
 from django.utils import timezone
 
-from apps.account.application.stop_loss_use_cases import (
-    AutoStopLossUseCase,
-    AutoTakeProfitUseCase,
-)
 from apps.account.application.repository_provider import (
     PortfolioRepository,
     PositionRepository,
@@ -27,11 +22,15 @@ from apps.account.application.repository_provider import (
     generate_download_token,
     get_backup_email_connection,
 )
+from apps.account.application.stop_loss_use_cases import (
+    AutoStopLossUseCase,
+    AutoTakeProfitUseCase,
+)
 from apps.account.application.volatility_use_cases import (
     VolatilityAdjustmentUseCase,
     VolatilityAnalysisUseCase,
 )
-from core.exceptions import BusinessLogicError, DataFetchError, ExternalServiceError
+from core.exceptions import BusinessLogicError, DataFetchError
 from core.metrics import record_exception
 
 logger = get_task_logger(__name__)
@@ -94,7 +93,7 @@ def send_database_backup_email_task(self):
         return {"status": "sent", "email": config.backup_email}
     except Exception as exc:
         logger.exception("数据库备份邮件发送失败: %s", exc)
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @shared_task(
@@ -155,7 +154,7 @@ def check_stop_loss_task(self, user_id: int = None):
         # Unexpected error
         logger.exception(f"止损检查任务失败（未预期）: {exc}")
         record_exception(exc, module="account", is_handled=False)
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @shared_task(
@@ -192,7 +191,7 @@ def check_take_profit_task(self, user_id: int = None):
 
     except Exception as exc:
         logger.error(f"止盈检查任务失败: {exc}")
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 @shared_task(
@@ -248,7 +247,7 @@ def check_stop_loss_and_take_profit_task(self, user_id: int = None):
 
     except Exception as exc:
         logger.error(f"止损止盈检查任务失败: {exc}")
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 def _send_stop_loss_notifications(results: list, user_id: int = None):
@@ -445,7 +444,7 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
 
     except Exception as exc:
         logger.error(f"波动率检查任务失败: {exc}")
-        raise self.retry(exc=exc)
+        raise self.retry(exc=exc) from exc
 
 
 def _send_volatility_adjustment_notification(

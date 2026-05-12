@@ -4,19 +4,15 @@ Dashboard Infrastructure Models
 仪表盘 Django ORM 模型定义。
 """
 
-import json
 import logging
-from datetime import datetime
 
 from django.contrib.auth import get_user_model
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.utils import timezone
 
 from apps.dashboard.domain.entities import (
     AlertSeverity,
     CardType,
-    WidgetType,
 )
 
 logger = logging.getLogger(__name__)

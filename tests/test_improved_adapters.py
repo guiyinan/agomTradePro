@@ -15,6 +15,8 @@ from datetime import date, datetime
 
 import pytest
 
+from shared.infrastructure.resilience import MaxRetriesExceeded
+
 pytestmark = pytest.mark.skip(reason="script-style diagnostic module, not managed by pytest")
 
 
@@ -60,7 +62,7 @@ def test_resilience_features():
 
     # 测试2: 缓存机制
     print("\n2. 测试缓存机制")
-    from shared.infrastructure.resilience import _cache_manager, cached
+    from shared.infrastructure.resilience import cached
 
     call_count = {'count': 0}
 
@@ -70,11 +72,11 @@ def test_resilience_features():
         return x * 2
 
     # 第一次调用 - 未命中缓存
-    result1 = expensive_function(5)
+    expensive_function(5)
     first_calls = call_count['count']
 
     # 第二次调用 - 命中缓存
-    result2 = expensive_function(5)
+    expensive_function(5)
     second_calls = call_count['count']
 
     if first_calls == 1 and second_calls == 1:
@@ -106,10 +108,10 @@ def test_resilience_features():
 
     # 触发断路器
     try:
-        for i in range(3):
+        for _i in range(3):
             try:
                 unstable_service(should_fail=True)
-            except:
+            except Exception:
                 pass
 
         # 断路器应该已打开
@@ -170,7 +172,7 @@ def test_hybrid_stock_adapter():
 
                 # 第二次调用应该更快（缓存）
                 start2 = time.time()
-                df2 = adapter.fetch_stock_list_a()
+                adapter.fetch_stock_list_a()
                 elapsed2 = time.time() - start2
 
                 if elapsed2 < elapsed * 0.5:  # 至少快50%

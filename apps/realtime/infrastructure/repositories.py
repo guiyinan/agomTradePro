@@ -7,29 +7,22 @@ Following AgomSaaS architecture rules:
 - Implements the Protocol interfaces defined in Domain layer
 """
 
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
 
 import pandas as pd
 from django.core.cache import cache
-from django.db import models
 from django.utils import timezone
 
-from core.integration.watchlist_assets import get_active_watchlist_asset_codes
+from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
-from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
 from apps.realtime.domain.entities import (
     AssetType,
-    PriceSnapshot,
-    PriceUpdate,
-    PriceUpdateStatus,
     RealtimePrice,
 )
 from apps.realtime.domain.protocols import (
@@ -38,6 +31,7 @@ from apps.realtime.domain.protocols import (
     WatchlistProviderProtocol,
 )
 from core.integration.simulated_positions import list_held_simulated_asset_codes
+from core.integration.watchlist_assets import get_active_watchlist_asset_codes
 
 logger = logging.getLogger(__name__)
 

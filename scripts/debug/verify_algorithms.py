@@ -6,7 +6,8 @@ AgomTradePro 核心算法验证脚本
 
 import sys
 from datetime import date
-from typing import List, Dict
+from typing import Dict, List
+
 
 # 测试 Regime 算法
 def test_regime_algorithm():
@@ -17,10 +18,10 @@ def test_regime_algorithm():
 
     from apps.regime.domain.services import (
         RegimeCalculator,
-        calculate_regime_distribution,
-        sigmoid,
         calculate_momentum,
+        calculate_regime_distribution,
         calculate_rolling_zscore,
+        sigmoid,
     )
 
     # 测试 1: Sigmoid 函数
@@ -72,7 +73,7 @@ def test_regime_algorithm():
     print(f"   通胀动量 Z-score: {result.snapshot.inflation_momentum_z:.3f}")
     print(f"   主导 Regime: {result.snapshot.dominant_regime}")
     print(f"   置信度: {result.snapshot.confidence_percent:.1f}%")
-    print(f"   分布: ")
+    print("   分布: ")
     for regime, prob in result.snapshot.distribution.items():
         print(f"     {regime}: {prob:.2%}")
     if result.warnings:
@@ -87,16 +88,16 @@ def test_invalidation_algorithm():
     print("证伪逻辑算法测试")
     print("=" * 60)
 
+    from apps.signal.domain.indicators import get_all_indicators
     from apps.signal.domain.invalidation import (
+        ComparisonOperator,
+        IndicatorType,
+        IndicatorValue,
         InvalidationCondition,
         InvalidationRule,
         LogicOperator,
-        ComparisonOperator,
         evaluate_rule,
-        IndicatorValue,
-        IndicatorType,
     )
-    from apps.signal.domain.indicators import get_all_indicators
 
     # 测试 1: 条件创建
     print("\n1. 条件创建测试:")
@@ -107,7 +108,7 @@ def test_invalidation_algorithm():
         operator=ComparisonOperator.LT,
         threshold=50.0
     )
-    print(f"   条件: PMI < 50")
+    print("   条件: PMI < 50")
     print(f"   条件创建成功: {cond is not None}")
 
     # 测试 2: 规则创建
@@ -129,7 +130,7 @@ def test_invalidation_algorithm():
         ],
         logic=LogicOperator.AND
     )
-    print(f"   规则: PMI < 50 AND CPI < 2.0")
+    print("   规则: PMI < 50 AND CPI < 2.0")
     print(f"   规则创建成功: {rule is not None}")
 
     # 测试 3: 规则评估
@@ -152,7 +153,7 @@ def test_invalidation_algorithm():
     }
 
     eval_result = evaluate_rule(rule, indicator_values)
-    print(f"   PMI = 49.5, CPI = 1.8")
+    print("   PMI = 49.5, CPI = 1.8")
     print(f"   规则触发 (证伪): {eval_result.is_invalidated}")
     print(f"   检查原因: {eval_result.reason}")
 
@@ -188,7 +189,7 @@ def test_stop_loss_algorithm():
         stop_loss_pct=0.10,  # 10%
         stop_loss_type="fixed",
     )
-    print(f"   入场价: 100, 当前价: 89, 止损比例: 10%")
+    print("   入场价: 100, 当前价: 89, 止损比例: 10%")
     print(f"   止损价: {result.stop_price:.2f}")
     print(f"   触发止损: {result.should_trigger}")
     print(f"   原因: {result.trigger_reason}")
@@ -202,7 +203,7 @@ def test_stop_loss_algorithm():
         stop_loss_pct=0.05,  # 5% 移动止损
         stop_loss_type="trailing",
     )
-    print(f"   入场价: 100, 当前价: 115, 最高价: 115")
+    print("   入场价: 100, 当前价: 115, 最高价: 115")
     print(f"   移动止损价: {result.stop_price:.2f}")
     print(f"   触发止损: {result.should_trigger}")
 
@@ -215,7 +216,7 @@ def test_stop_loss_algorithm():
         stop_loss_pct=0.10,
         stop_loss_type="fixed",
     )
-    print(f"   当前价 95 > 止损价 90")
+    print("   当前价 95 > 止损价 90")
     print(f"   触发止损: {result.should_trigger}")
 
     return True
@@ -264,8 +265,9 @@ def test_backtest_pit_algorithm():
     print("回测 Point-in-Time 算法测试")
     print("=" * 60)
 
+    from datetime import date, timedelta
+
     from apps.backtest.domain.services import PITDataProcessor
-    from datetime import timedelta, date
 
     # 创建 PIT 处理器
     processor = PITDataProcessor(
@@ -300,7 +302,7 @@ def test_backtest_pit_algorithm():
     if latest:
         print(f"   最新可用数据: {latest[0]} -> {latest[1]}")
     else:
-        print(f"   无可用数据")
+        print("   无可用数据")
 
     return True
 

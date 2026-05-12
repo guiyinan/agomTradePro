@@ -4,6 +4,7 @@ Unit tests for Macro Domain Entities.
 Pure Domain layer tests using only Python standard library.
 """
 
+import dataclasses
 from datetime import date
 
 import pytest
@@ -53,7 +54,7 @@ class TestMacroIndicator:
         )
 
         # Should raise FrozenInstanceError when trying to modify
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(dataclasses.FrozenInstanceError):
             indicator.value = 51.0
 
     def test_macro_indicator_equality(self):

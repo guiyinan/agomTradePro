@@ -106,5 +106,5 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'  ✗ 激活失败: {e}')
             )
-            raise CommandError(f'激活失败: {e}')
+            raise CommandError(f'激活失败: {e}') from e
 

@@ -8,12 +8,11 @@ All external APIs are mocked. Tests verify data flows correctly through layers.
 """
 
 import json
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -67,7 +66,6 @@ class TestDataPipelineFlow(TestCase):
         """Verify regime can be calculated from fixture macro data."""
         self._load_macro_fixtures_to_db()
 
-        from apps.regime.domain.services import RegimeCalculator
 
         # Build growth and inflation series from fixtures
         pmi_data = self.macro_fixtures["indicators"]["CN_PMI_MANUFACTURING"]["data"]
@@ -171,7 +169,7 @@ class TestDataConsistencyValidation(TestCase):
         with open(fixtures_path, encoding="utf-8") as f:
             data = json.load(f)
 
-        for index_code, index_data in data["indices"].items():
+        for _index_code, index_data in data["indices"].items():
             for bar in index_data["data"]:
                 # High >= Open and Close
                 assert bar["high"] >= bar["open"], f"High < Open on {bar['date']}"

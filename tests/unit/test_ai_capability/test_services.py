@@ -6,7 +6,6 @@ import pytest
 
 from apps.ai_capability.domain.entities import (
     CapabilityDefinition,
-    RiskLevel,
     RouteGroup,
     RoutingContext,
     SourceType,

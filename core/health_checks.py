@@ -179,7 +179,7 @@ def is_healthy(checks: dict[str, dict[str, Any]]) -> bool:
     Returns:
         True if all checks are "ok" or "skipped", False otherwise
     """
-    for check_name, result in checks.items():
+    for _check_name, result in checks.items():
         status = result.get("status")
         # "skipped" and "warning" are acceptable (e.g., Redis not configured, empty tables)
         if status not in ("ok", "skipped", "warning"):

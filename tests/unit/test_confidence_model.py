@@ -8,9 +8,7 @@ Tests for:
 - Dynamic weight calculation
 """
 
-from datetime import date
 
-import pytest
 
 from apps.regime.domain.entities import (
     ConfidenceBreakdown,

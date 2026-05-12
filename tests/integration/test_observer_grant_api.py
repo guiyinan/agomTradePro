@@ -10,7 +10,7 @@ Integration tests for Observer Grant API.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
@@ -256,12 +256,12 @@ class TestObserverGrantListAPI:
         data = setup_users_and_portfolio
 
         # 创建授权
-        grant1 = PortfolioObserverGrantModel._default_manager.create(
+        PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=data['owner'],
             observer_user_id=data['observer'],
             status='active',
         )
-        grant2 = PortfolioObserverGrantModel._default_manager.create(
+        PortfolioObserverGrantModel._default_manager.create(
             owner_user_id=data['owner'],
             observer_user_id=data['other_user'],
             status='revoked',

@@ -5,12 +5,11 @@ Dashboard Domain Entities
 仅使用 Python 标准库，不依赖 Django、pandas 等外部库。
 """
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 class CardType(Enum):

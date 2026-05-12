@@ -17,8 +17,8 @@ Regime Orchestration Module.
     # sync_macro_data 通过 DjangoMacroSyncTaskGateway 延迟解析
 """
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, timedelta
+from typing import Any
 
 from celery import chain, shared_task
 from celery.utils.log import get_task_logger

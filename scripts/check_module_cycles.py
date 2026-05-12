@@ -7,9 +7,9 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
 
 from verify_architecture import (
     REPO_ROOT,
@@ -78,9 +78,9 @@ def build_pair_details(pairs: Iterable[tuple[str, str]], import_records: Sequenc
         direction = "forward" if pair == (source, target) else "reverse"
         grouped[pair][direction].append(
             {
-                "source_path": getattr(record, "source_path"),
-                "lineno": getattr(record, "lineno"),
-                "import_path": getattr(record, "import_path"),
+                "source_path": record.source_path,
+                "lineno": record.lineno,
+                "import_path": record.import_path,
             }
         )
 
@@ -170,7 +170,7 @@ def build_report(
     stale_allowlist = [list(pair) for pair in sorted(allowed_pairs - set(bidirectional_pairs))]
     edge_count = sum(len(targets) for targets in graph.values())
     return {
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "scan_roots": ["apps"],
         "module_count": len(modules),
         "edge_count": edge_count,

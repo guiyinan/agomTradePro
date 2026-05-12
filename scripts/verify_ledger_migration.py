@@ -15,9 +15,10 @@ Run after `manage.py migrate_account_ledger` to confirm the migration is complet
 """
 
 import os
-import sys
-import django
 import random
+import sys
+
+import django
 
 # Bootstrap Django
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,14 +27,17 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
 django.setup()
 
 from decimal import Decimal
-from apps.account.infrastructure.models import PortfolioModel, PositionModel as AccountPositionModel, TransactionModel
+
+from apps.account.infrastructure.models import PortfolioModel, TransactionModel
+from apps.account.infrastructure.models import PositionModel as AccountPositionModel
 from apps.simulated_trading.infrastructure.models import (
     LedgerMigrationMapModel,
     SimulatedAccountModel,
-    PositionModel as SimPositionModel,
     SimulatedTradeModel,
 )
-
+from apps.simulated_trading.infrastructure.models import (
+    PositionModel as SimPositionModel,
+)
 
 PASS = "\033[92m✓\033[0m"
 FAIL = "\033[91m✗\033[0m"

@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 CHART_POLICY_METADATA = {
     "CN_GDP": {"chart_policy": "yearly_segmented"},
     "CN_FIXED_INVESTMENT": {"chart_policy": "yearly_segmented"},

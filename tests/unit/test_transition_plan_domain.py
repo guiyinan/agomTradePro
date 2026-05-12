@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from apps.decision_rhythm.domain.entities import (
@@ -17,7 +17,7 @@ def _make_recommendation(
     suggested_quantity: int = 500,
     source_signal_ids: list[str] | None = None,
 ) -> UnifiedRecommendation:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return UnifiedRecommendation(
         recommendation_id=recommendation_id,
         account_id="acct-1",

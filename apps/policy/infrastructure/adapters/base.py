@@ -6,9 +6,8 @@ Base Policy Adapter - Protocol Definition
 
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import List, Optional
 
-from ...domain.entities import PolicyEvent, PolicyLevel
+from ...domain.entities import PolicyEvent
 
 
 class PolicyAdapterProtocol(ABC):

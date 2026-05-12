@@ -7,7 +7,7 @@ Policy Influence Service - 政策影响服务
 
 import logging
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone
 

@@ -3,7 +3,7 @@ AI Capability Catalog Application DTOs.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 
 @dataclass

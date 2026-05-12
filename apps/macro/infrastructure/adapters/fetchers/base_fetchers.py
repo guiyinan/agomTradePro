@@ -8,7 +8,6 @@ import logging
 import re
 from calendar import monthrange
 from datetime import date
-from typing import List
 
 import pandas as pd
 

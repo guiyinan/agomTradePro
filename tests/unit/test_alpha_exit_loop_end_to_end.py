@@ -1,6 +1,6 @@
 """End-to-end style tests for the alpha exit loop."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -151,7 +151,7 @@ def _build_engine(
 
 
 def _make_sell_recommendation(account_id: str, security_code: str) -> UnifiedRecommendation:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return UnifiedRecommendation(
         recommendation_id="urec_exit_001",
         account_id=account_id,

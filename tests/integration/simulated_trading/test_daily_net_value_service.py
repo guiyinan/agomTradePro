@@ -86,7 +86,7 @@ class TestDailyNetValueService(TestCase):
         )
 
         # 记录净值
-        metrics = self.net_value_service.record_and_update_performance(
+        self.net_value_service.record_and_update_performance(
             account_id=self.account.account_id,
             record_date=trade_date
         )

@@ -7,7 +7,6 @@ Cache Alpha Provider
 
 import logging
 from datetime import date, timedelta
-from typing import List, Optional
 
 from django.utils import timezone
 
@@ -253,7 +252,6 @@ class CacheAlphaProvider(BaseAlphaProvider):
             cache=cache,
             intended_trade_date=intended_trade_date,
         )
-        is_stale = staleness_days > self.max_staleness_days
 
         # 4. 解析评分
         scores = self._parse_scores(

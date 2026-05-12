@@ -5,8 +5,7 @@ Celery 任务用于定期监控 Alpha 模块状态并生成告警。
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import timedelta
 
 from celery import shared_task
 from django.utils import timezone
@@ -16,11 +15,7 @@ from apps.alpha.application.repository_provider import (
     QlibModelRegistryRepository,
     calculate_rolling_metrics,
 )
-from shared.infrastructure.metrics import AlertManager, MetricType, get_alpha_metrics
-from shared.infrastructure.model_evaluation import (
-    IC_Calculator,
-    RollingMetrics,
-)
+from shared.infrastructure.metrics import AlertManager, get_alpha_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +35,7 @@ def evaluate_alerts():
     3. 记录告警日志
     """
     try:
-        metrics = get_alpha_metrics()
+        get_alpha_metrics()
         alert_manager = AlertManager()
 
         # 评估所有告警规则
@@ -230,7 +225,7 @@ def check_queue_lag():
                 # 统计各队列的活动任务数
                 queue_tasks = {}
 
-                for worker, tasks in active.items():
+                for _worker, tasks in active.items():
                     for task in tasks:
                         queue = task.get("delivery_info", {}).get("routing_key", "default")
 

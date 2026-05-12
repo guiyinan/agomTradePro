@@ -123,7 +123,7 @@ class DataCenterModule(BaseModule):
     def delete_indicator_unit_rule(self, indicator_code: str, rule_id: int) -> dict[str, Any]:
         return self._delete(f"indicators/{indicator_code}/unit-rules/{rule_id}/")
 
-    def resolve_asset(self, code: str, source_type: Optional[str] = None) -> dict[str, Any]:
+    def resolve_asset(self, code: str, source_type: str | None = None) -> dict[str, Any]:
         params = {"code": code}
         if source_type:
             params["source_type"] = source_type
@@ -132,10 +132,10 @@ class DataCenterModule(BaseModule):
     def get_macro_series(
         self,
         indicator_code: str,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        limit: Optional[int] = None,
-        source: Optional[str] = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
+        source: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"indicator_code": indicator_code}
         if start:
@@ -154,11 +154,11 @@ class DataCenterModule(BaseModule):
     def get_price_history(
         self,
         asset_code: str,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        freq: Optional[str] = None,
-        adjustment: Optional[str] = None,
-        limit: Optional[int] = None,
+        start: str | None = None,
+        end: str | None = None,
+        freq: str | None = None,
+        adjustment: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if start:
@@ -180,8 +180,8 @@ class DataCenterModule(BaseModule):
         self,
         asset_code: str,
         *,
-        strict_freshness: Optional[bool] = None,
-        max_age_hours: Optional[float] = None,
+        strict_freshness: bool | None = None,
+        max_age_hours: float | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if strict_freshness is not None:
@@ -196,12 +196,12 @@ class DataCenterModule(BaseModule):
     def repair_decision_data_reliability(
         self,
         *,
-        target_date: Optional[str] = None,
-        portfolio_id: Optional[int] = None,
-        asset_codes: Optional[list[str]] = None,
-        macro_indicator_codes: Optional[list[str]] = None,
+        target_date: str | None = None,
+        portfolio_id: int | None = None,
+        asset_codes: list[str] | None = None,
+        macro_indicator_codes: list[str] | None = None,
         strict: bool = True,
-        quote_max_age_hours: Optional[float] = None,
+        quote_max_age_hours: float | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"strict": strict}
         if target_date:
@@ -219,9 +219,9 @@ class DataCenterModule(BaseModule):
     def get_fund_nav(
         self,
         fund_code: str,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        limit: Optional[int] = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"fund_code": fund_code}
         if start:
@@ -235,7 +235,7 @@ class DataCenterModule(BaseModule):
     def sync_fund_nav(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/funds/nav/", json=payload)
 
-    def get_financials(self, asset_code: str, limit: Optional[int] = None) -> dict[str, Any]:
+    def get_financials(self, asset_code: str, limit: int | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if limit is not None:
             params["limit"] = limit
@@ -247,9 +247,9 @@ class DataCenterModule(BaseModule):
     def get_valuations(
         self,
         asset_code: str,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-        limit: Optional[int] = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if start:
@@ -266,7 +266,7 @@ class DataCenterModule(BaseModule):
     def get_sector_constituents(
         self,
         sector_code: str,
-        as_of: Optional[str] = None,
+        as_of: str | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"sector_code": sector_code}
         if as_of:
@@ -276,7 +276,7 @@ class DataCenterModule(BaseModule):
     def sync_sector_constituents(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("sync/sectors/constituents/", json=payload)
 
-    def get_news(self, asset_code: str, limit: Optional[int] = None) -> dict[str, Any]:
+    def get_news(self, asset_code: str, limit: int | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if limit is not None:
             params["limit"] = limit
@@ -288,8 +288,8 @@ class DataCenterModule(BaseModule):
     def get_capital_flows(
         self,
         asset_code: str,
-        period: Optional[str] = None,
-        limit: Optional[int] = None,
+        period: str | None = None,
+        limit: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
         if period:

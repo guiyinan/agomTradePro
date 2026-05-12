@@ -11,7 +11,7 @@ Share Domain Entities
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class ShareLevel(Enum):

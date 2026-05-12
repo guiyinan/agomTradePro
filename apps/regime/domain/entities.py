@@ -6,7 +6,6 @@ Pure data classes using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)

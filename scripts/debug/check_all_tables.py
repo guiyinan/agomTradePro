@@ -3,6 +3,7 @@ Check all tables and find macro data.
 """
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()

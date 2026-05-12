@@ -2,21 +2,21 @@
 
 from apps.account.application.repository_provider import (
     get_account_position_repository,
-    get_account_repository,
-    get_portfolio_repository,
+    get_account_repository,  # noqa: F401
+    get_portfolio_repository,  # noqa: F401
 )
 from apps.dashboard.application.integration_gateways import (
     build_dashboard_application_gateway,
 )
 from apps.dashboard.infrastructure.providers import (
     AlphaRecommendationHistoryRepository,
-    DashboardAlphaContextRepository,
     DashboardAIInsightClient,
+    DashboardAlphaContextRepository,
     DashboardOverviewRepository,
     DashboardQueryRepository,
 )
-from apps.regime.application.repository_provider import get_regime_repository
-from apps.signal.application.repository_provider import get_signal_repository
+from apps.regime.application.repository_provider import get_regime_repository  # noqa: F401
+from apps.signal.application.repository_provider import get_signal_repository  # noqa: F401
 
 
 def get_position_repository():

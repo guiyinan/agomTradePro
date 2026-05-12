@@ -6,6 +6,7 @@
 
 import os
 import sys
+
 import django
 
 # 添加项目根目录到路径
@@ -110,7 +111,7 @@ def init_indicator_config():
                 'is_active': True
             }
         )
-    print(f"[OK] IndicatorConfigModel initialized")
+    print("[OK] IndicatorConfigModel initialized")
 
 
 def init_regime_eligibility():
@@ -128,7 +129,7 @@ def init_regime_eligibility():
                     'is_active': True
                 }
             )
-    print(f"[OK] RegimeEligibilityConfigModel initialized")
+    print("[OK] RegimeEligibilityConfigModel initialized")
 
 
 def init_risk_parameters():

@@ -10,8 +10,7 @@ Tests for Decision Execution Event Handlers
 4. 容错机制：主事务成功优先
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -20,7 +19,7 @@ from apps.events.application.decision_execution_handlers import (
     DecisionExecutedHandler,
     DecisionExecutionFailedHandler,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 
 
 @pytest.mark.django_db
@@ -254,7 +253,7 @@ class TestEventBusIntegration:
         # 重置事件总线
         reset_event_bus()
 
-        initializer = EventBusInitializer()
+        EventBusInitializer()
 
         # 只测试决策执行处理器，避免导入其他模块的问题
         from apps.events.application.decision_execution_handlers import (

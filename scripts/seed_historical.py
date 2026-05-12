@@ -9,10 +9,10 @@ Usage:
     python scripts/seed_historical.py --list
 """
 
-import sys
-import os
 import argparse
 import logging
+import os
+import sys
 from datetime import date, datetime
 from typing import List, Optional
 
@@ -22,12 +22,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 import django
+
 django.setup()
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.infrastructure.adapters import create_default_adapter, PUBLICATION_LAGS
 from apps.macro.domain.entities import MacroIndicator
-
+from apps.macro.infrastructure.adapters import PUBLICATION_LAGS, create_default_adapter
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
 # Configure logging
 logging.basicConfig(
@@ -106,7 +106,7 @@ def seed_indicator(
 
     try:
         # 1. 从数据源获取数据
-        logger.info(f"正在从数据源获取数据...")
+        logger.info("正在从数据源获取数据...")
         data_points = adapter.fetch(indicator_code, start_date, end_date)
 
         if not data_points:
@@ -153,7 +153,7 @@ def seed_indicator(
             repository.save_indicators_batch(indicators)
             logger.info(f"成功保存 {len(indicators)} 条数据到数据库")
         else:
-            logger.info(f"没有需要导入的新数据")
+            logger.info("没有需要导入的新数据")
 
         # 4. 验证导入结果
         total_count = repository.get_indicator_count(indicator_code)
@@ -166,7 +166,7 @@ def seed_indicator(
             end_date=end_date
         )
         if latest_indicators:
-            logger.info(f"最新 5 条数据:")
+            logger.info("最新 5 条数据:")
             for ind in latest_indicators[-5:]:
                 pub_lag = ""
                 if ind.published_at:
@@ -201,7 +201,7 @@ def seed_all_indicators(
     start_date: date,
     end_date: date,
     force_refresh: bool = False
-) -> List[dict]:
+) -> list[dict]:
     """
     导入所有默认指标的历史数据
 
@@ -219,7 +219,7 @@ def seed_all_indicators(
     results = []
 
     logger.info(f"\n{'#'*60}")
-    logger.info(f"# 批量导入历史数据")
+    logger.info("# 批量导入历史数据")
     logger.info(f"# 时间范围: {start_date} ~ {end_date}")
     logger.info(f"# 指标数量: {len(DEFAULT_INDICATORS)}")
     logger.info(f"{'#'*60}")
@@ -238,10 +238,10 @@ def seed_all_indicators(
     return results
 
 
-def print_summary(results: List[dict]):
+def print_summary(results: list[dict]):
     """打印导入摘要"""
     logger.info(f"\n{'='*60}")
-    logger.info(f"导入摘要")
+    logger.info("导入摘要")
     logger.info(f"{'='*60}")
 
     success_count = sum(1 for r in results if r["success"])
@@ -254,7 +254,7 @@ def print_summary(results: List[dict]):
     logger.info(f"导入: {total_imported} 条")
     logger.info(f"跳过: {total_skipped} 条")
 
-    logger.info(f"\n详细结果:")
+    logger.info("\n详细结果:")
     for r in results:
         status = "✅" if r["success"] else "❌"
         if r["success"]:
@@ -266,7 +266,7 @@ def print_summary(results: List[dict]):
 def list_indicators():
     """列出所有可用的指标"""
     logger.info(f"\n{'='*60}")
-    logger.info(f"可用的宏观指标")
+    logger.info("可用的宏观指标")
     logger.info(f"{'='*60}")
 
     for code, meta in INDICATOR_METADATA.items():
@@ -285,7 +285,7 @@ def list_indicators():
 def check_database():
     """检查数据库中的数据情况"""
     logger.info(f"\n{'='*60}")
-    logger.info(f"数据库数据检查")
+    logger.info("数据库数据检查")
     logger.info(f"{'='*60}")
 
     repository = DjangoMacroRepository()
@@ -391,7 +391,7 @@ def main():
     elif args.indicator:
         if args.indicator not in INDICATOR_METADATA:
             logger.error(f"未知指标: {args.indicator}")
-            logger.info(f"使用 --list 查看所有可用指标")
+            logger.info("使用 --list 查看所有可用指标")
             return 1
 
         repository = DjangoMacroRepository()

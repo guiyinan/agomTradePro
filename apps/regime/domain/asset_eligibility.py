@@ -5,9 +5,9 @@ This domain module defines the regime x asset eligibility matrix and related
 selection helpers. It intentionally contains only standard-library code.
 """
 
+import logging
 from collections.abc import Callable
 from enum import Enum
-import logging
 
 logger = logging.getLogger(__name__)
 

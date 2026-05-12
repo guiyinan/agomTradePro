@@ -3,6 +3,7 @@ Fix RSSHub routes for government sources
 """
 import os
 import sys
+
 import django
 
 # Fix encoding for Windows
@@ -41,7 +42,7 @@ print("\n" + "=" * 100)
 print("Updating RSSHub routes:")
 print("=" * 100)
 
-for source_id, (new_route, category) in ROUTES_TO_FIX.items():
+for source_id, (new_route, _category) in ROUTES_TO_FIX.items():
     try:
         source = RSSSourceConfigModel.objects.get(id=source_id)
         old_route = source.rsshub_route_path

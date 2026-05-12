@@ -7,9 +7,7 @@
 - 通过依赖注入接收数据
 """
 
-from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Tuple
 
 from .entities import (
     FundHolding,
@@ -62,7 +60,7 @@ class FundScreener:
         """
         matched_funds = []
 
-        for fund_info, fund_perf, sector_alloc in all_funds:
+        for fund_info, fund_perf, _sector_alloc in all_funds:
             # 1. 基金类型过滤
             if fund_info.fund_type not in preferred_types:
                 continue
@@ -108,7 +106,7 @@ class FundScreener:
         """
         fund_scores = []
 
-        for fund_info, fund_perf, sector_alloc in funds_data:
+        for fund_info, fund_perf, _sector_alloc in funds_data:
             # 1. 业绩评分（年化收益率映射到 0-100）
             perf_score = self._normalize_score(
                 fund_perf.annualized_return or fund_perf.total_return,

@@ -2,7 +2,6 @@
 ORM Models for Investment Signals.
 """
 
-import json
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -113,13 +112,13 @@ class InvestmentSignalModel(models.Model):
             try:
                 self._validate_new_format(self.invalidation_rule_json)
             except ValueError as e:
-                raise ValidationError({'invalidation_rule_json': str(e)})
+                raise ValidationError({'invalidation_rule_json': str(e)}) from e
         # 兼容旧格式
         elif self.invalidation_rules:
             try:
                 self._validate_rules(self.invalidation_rules)
             except ValueError as e:
-                raise ValidationError({'invalidation_rules': str(e)})
+                raise ValidationError({'invalidation_rules': str(e)}) from e
 
     def _validate_new_format(self, rule_dict):
         """验证新格式的规则结构"""

@@ -7,16 +7,8 @@ from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
-from core.integration.alpha_runtime import (
-    queue_alpha_score_prediction,
-    resolve_portfolio_alpha_scope,
-    run_alpha_score_prediction_now,
-)
-from core.integration.alpha_homepage import load_alpha_homepage_data
-from core.integration.pulse_refresh import refresh_pulse_snapshot
 
-from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
-from apps.data_center.application.dtos import SyncQuoteRequest
+from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     DEFAULT_DECISION_MACRO_INDICATORS,
@@ -33,6 +25,13 @@ from apps.data_center.infrastructure.repositories import (
     QuoteSnapshotRepository,
     RawAuditRepository,
 )
+from core.integration.alpha_homepage import load_alpha_homepage_data
+from core.integration.alpha_runtime import (
+    queue_alpha_score_prediction,
+    resolve_portfolio_alpha_scope,
+    run_alpha_score_prediction_now,
+)
+from core.integration.pulse_refresh import refresh_pulse_snapshot
 
 
 def _split_codes(raw: str | None, defaults: tuple[str, ...]) -> list[str]:

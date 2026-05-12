@@ -8,10 +8,7 @@ WP-M1-06: Security And Audit Hook
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
-
-from django.utils import timezone as django_timezone
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

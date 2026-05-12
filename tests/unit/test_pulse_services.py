@@ -1,7 +1,8 @@
 """Tests for Pulse Domain Services"""
 
-import pytest
 from datetime import date
+
+import pytest
 
 from apps.pulse.domain.entities import (
     DimensionScore,

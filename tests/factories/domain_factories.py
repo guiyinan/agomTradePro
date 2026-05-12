@@ -6,9 +6,9 @@ All factory functions return frozen dataclass instances with sensible defaults.
 """
 
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # ============================================================
 # Hedge Module Factories
@@ -135,7 +135,6 @@ def make_hedge_performance(
 from apps.fund.domain.entities import (
     FundHolding,
     FundInfo,
-    FundManager,
     FundNetValue,
     FundPerformance,
     FundScore,
@@ -250,10 +249,8 @@ def make_fund_score(
 from apps.factor.domain.entities import (
     FactorCategory,
     FactorDefinition,
-    FactorDirection,
     FactorExposure,
     FactorPortfolioConfig,
-    FactorPortfolioHolding,
     FactorScore,
 )
 
@@ -341,7 +338,6 @@ from apps.rotation.domain.entities import (
     AssetClass,
     MomentumScore,
     RotationConfig,
-    RotationPortfolio,
     RotationSignal,
     RotationStrategyType,
 )
@@ -420,8 +416,6 @@ from apps.dashboard.domain.entities import (
     AlertConfig,
     AlertSeverity,
     CardType,
-    ChartConfig,
-    ChartDataType,
     DashboardCard,
     DashboardLayout,
     DashboardPreferences,
@@ -515,7 +509,6 @@ from apps.sector.domain.entities import (
     SectorIndex,
     SectorInfo,
     SectorRelativeStrength,
-    SectorScore,
 )
 
 
@@ -581,9 +574,7 @@ def make_sector_relative_strength(
 
 from apps.equity.domain.entities import (
     FinancialData,
-    ScoringWeightConfig,
     StockInfo,
-    TechnicalIndicators,
     ValuationMetrics,
 )
 
@@ -663,8 +654,6 @@ def make_valuation_metrics(
 from apps.events.domain.entities import (
     DomainEvent,
     EventBusConfig,
-    EventMetrics,
-    EventSubscription,
     EventType,
 )
 

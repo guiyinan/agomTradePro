@@ -8,11 +8,10 @@ Only uses Python standard library (no pandas/numpy).
 import logging
 import math
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .entities import (
     AttributionConfig,
-    AttributionMethod,
     AttributionResult,
     BrinsonAttributionResult,
     IndicatorPerformanceReport,
@@ -23,7 +22,6 @@ from .entities import (
     RecommendedAction,
     RegimePeriod,
     RegimeSnapshot,
-    RegimeTransition,
     SignalEvent,
 )
 
@@ -100,7 +98,7 @@ def _build_regime_periods(regime_history: list[dict]) -> list[RegimePeriod]:
     current_start = None
     current_confidence = 0.0
 
-    for i, entry in enumerate(regime_history):
+    for _i, entry in enumerate(regime_history):
         regime = entry.get("regime")
         confidence = entry.get("confidence", 0.0)
         entry_date = entry.get("date")
@@ -1236,7 +1234,6 @@ class IndicatorPerformanceAnalyzer:
         """
         # 获取配置阈值
         keep_min_f1 = self.threshold_config.keep_min_f1
-        reduce_min_f1 = self.threshold_config.reduce_min_f1
         remove_max_f1 = self.threshold_config.remove_max_f1
         decay_threshold = self.threshold_config.decay_threshold
 

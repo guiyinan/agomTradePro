@@ -6,7 +6,6 @@ Equity Configuration Loader
 
 import logging
 from decimal import Decimal
-from typing import Optional
 
 from django.core.cache import cache
 

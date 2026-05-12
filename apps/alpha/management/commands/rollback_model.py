@@ -102,7 +102,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'  ✗ 模型不存在: {artifact_hash}')
             )
-            raise CommandError(f'模型不存在: {artifact_hash}')
+            raise CommandError(f'模型不存在: {artifact_hash}') from None
 
     def _rollback_to_prev(self, model_name: str):
         """回滚到上一个版本"""

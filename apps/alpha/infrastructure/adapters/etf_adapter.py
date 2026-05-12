@@ -15,13 +15,12 @@ import logging
 import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from typing import Dict, List, Optional
 
 from django.conf import settings
 
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
-from ...domain.entities import AlphaResult, StockScore
+from ...domain.entities import AlphaResult
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
 
@@ -464,7 +463,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             股票池标识列表
         """
         config_map = self._get_config_map()
-        return sorted(list(config_map.keys()))
+        return sorted(config_map.keys())
 
     def get_factor_exposure(
         self,

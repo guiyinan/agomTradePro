@@ -21,12 +21,8 @@ from ..application.use_cases import (
 from ..domain.entities import FilterType
 from .serializers import (
     ApplyFilterRequestSerializer,
-    ApplyFilterResponseSerializer,
     CompareFiltersRequestSerializer,
-    CompareFiltersResponseSerializer,
-    FilterSeriesSerializer,
     GetFilterDataRequestSerializer,
-    GetFilterDataResponseSerializer,
 )
 
 

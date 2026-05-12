@@ -7,11 +7,10 @@
 - 审计日志记录
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
-from django.utils import timezone as django_timezone
 from rest_framework.test import APIClient
 
 from apps.account.infrastructure.models import (

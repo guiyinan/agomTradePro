@@ -4,19 +4,17 @@ Repositories for Filter Operations.
 Data access layer for filter results and configurations.
 """
 
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional, Protocol
+from typing import Protocol
 
 from django.db import transaction
-from django.db.models import Q
 
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.filter.domain.entities import (
     FilterResult,
     FilterSeries,
     FilterType,
-    HPFilterParams,
     KalmanFilterParams,
     KalmanFilterState,
 )

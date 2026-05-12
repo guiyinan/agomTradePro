@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 CATALOG_UPDATES = {
     "CN_EXPORTS": {
         "name_cn": "当月出口额",

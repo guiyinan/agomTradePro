@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+
 """
 AgomTradePro SDK - Realtime 实时价格监控模块
 
@@ -125,7 +126,7 @@ class RealtimeModule(BaseModule):
 
     def list_alerts(
         self,
-        status: Optional[str] = None,
+        status: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
@@ -157,7 +158,7 @@ class RealtimeModule(BaseModule):
         asset_code: str,
         condition: str,
         threshold: float,
-        message: Optional[str] = None,
+        message: str | None = None,
     ) -> dict[str, Any]:
         """
         创建价格预警

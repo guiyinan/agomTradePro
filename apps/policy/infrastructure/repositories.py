@@ -5,7 +5,7 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from django.db import models, transaction
 from django.utils import timezone

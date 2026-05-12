@@ -10,11 +10,11 @@ Alpha 事件触发的用例编排层。
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.utils import timezone
 
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 
 from ..domain.entities import (
     AlphaCandidate,
@@ -30,7 +30,6 @@ from ..domain.services import (
     InvalidationCheckResult,
     TriggerEvaluator,
     TriggerInvalidator,
-    calculate_strength,
 )
 
 logger = logging.getLogger(__name__)

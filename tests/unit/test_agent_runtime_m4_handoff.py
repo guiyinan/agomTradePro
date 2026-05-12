@@ -4,13 +4,11 @@ Unit Tests for M4 WP-M4-02: Handoff Use Case.
 Tests verify handoff payload structure and timeline event creation.
 """
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from apps.agent_runtime.application.handoff_use_cases import (
     HandoffInput,
-    HandoffOutput,
     HandoffTaskUseCase,
 )
 

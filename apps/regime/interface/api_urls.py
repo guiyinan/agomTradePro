@@ -1,11 +1,17 @@
 """Regime API URL configuration."""
 
 from django.urls import include, path
-from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
+from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
-from .api_views import RegimeActionView, RegimeHealthView, RegimeNavigatorHistoryView, RegimeNavigatorView, RegimeViewSet
+from .api_views import (
+    RegimeActionView,
+    RegimeHealthView,
+    RegimeNavigatorHistoryView,
+    RegimeNavigatorView,
+    RegimeViewSet,
+)
 
 app_name = "regime_api"
 

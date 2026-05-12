@@ -11,18 +11,23 @@ from .exceptions import (
     AuthenticationError,
     ConfigurationError,
     ConflictError,
-    ConnectionError as SDKConnectionError,
     NotFoundError,
     RateLimitError,
     ServerError,
-    TimeoutError as SDKTimeoutError,
     ValidationError,
     raise_for_status,
+)
+from .exceptions import (
+    ConnectionError as SDKConnectionError,
+)
+from .exceptions import (
+    TimeoutError as SDKTimeoutError,
 )
 from .types import (
     BacktestParams,
     BacktestResult,
     CreateSignalParams,
+    EventType,
     GateLevel,
     GrowthLevel,
     InflationLevel,
@@ -44,7 +49,6 @@ from .types import (
     WorkbenchEvent,
     WorkbenchItemsResult,
     WorkbenchSummary,
-    EventType,
 )
 
 __version__ = "1.0.0"

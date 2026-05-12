@@ -30,12 +30,12 @@ class AgentProposalModule(BaseModule):
     def create_proposal(
         self,
         proposal_type: str,
-        task_id: Optional[int] = None,
+        task_id: int | None = None,
         risk_level: str = "medium",
         approval_required: bool = True,
-        proposal_payload: Optional[Dict[str, Any]] = None,
-        approval_reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        proposal_payload: dict[str, Any] | None = None,
+        approval_reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Create a new proposal, optionally linked to a task.
 
@@ -50,7 +50,7 @@ class AgentProposalModule(BaseModule):
         Returns:
             Dict with request_id and created proposal details
         """
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "proposal_type": proposal_type,
             "risk_level": risk_level,
             "approval_required": approval_required,
@@ -62,7 +62,7 @@ class AgentProposalModule(BaseModule):
             body["approval_reason"] = approval_reason
         return self._post("proposals/", json=body)
 
-    def get_proposal(self, proposal_id: int) -> Dict[str, Any]:
+    def get_proposal(self, proposal_id: int) -> dict[str, Any]:
         """
         Get a single proposal by ID.
 
@@ -77,7 +77,7 @@ class AgentProposalModule(BaseModule):
     def submit_proposal_for_approval(
         self,
         proposal_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Submit a proposal for approval (runs pre-approval guardrails).
 
@@ -92,8 +92,8 @@ class AgentProposalModule(BaseModule):
     def approve_proposal(
         self,
         proposal_id: int,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Approve a submitted proposal.
 
@@ -104,7 +104,7 @@ class AgentProposalModule(BaseModule):
         Returns:
             Dict with request_id and approved proposal
         """
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if reason is not None:
             body["reason"] = reason
         return self._post(f"proposals/{proposal_id}/approve/", json=body)
@@ -112,8 +112,8 @@ class AgentProposalModule(BaseModule):
     def reject_proposal(
         self,
         proposal_id: int,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """
         Reject a submitted proposal.
 
@@ -124,7 +124,7 @@ class AgentProposalModule(BaseModule):
         Returns:
             Dict with request_id and rejected proposal
         """
-        body: Dict[str, Any] = {}
+        body: dict[str, Any] = {}
         if reason is not None:
             body["reason"] = reason
         return self._post(f"proposals/{proposal_id}/reject/", json=body)
@@ -132,7 +132,7 @@ class AgentProposalModule(BaseModule):
     def execute_proposal(
         self,
         proposal_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Execute an approved proposal (runs pre-execution guardrails).
 

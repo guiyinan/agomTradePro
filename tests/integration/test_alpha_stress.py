@@ -11,15 +11,12 @@ Stress Tests for Qlib Failure Scenarios
 """
 
 from datetime import date, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.db import close_old_connections, connections
-from django.utils import timezone
 
 from apps.alpha.application.services import AlphaService
-from apps.alpha.application.tasks import qlib_predict_scores
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from shared.infrastructure.metrics import get_alpha_metrics
 
@@ -234,7 +231,7 @@ class TestModelLoadingFailure:
     def test_model_file_missing(self, _mock_etf):
         """测试模型文件缺失场景"""
         # 创建模型记录，但文件不存在
-        model = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="missing_file_model",
             artifact_hash="missing_hash",
             model_type="LGBModel",
@@ -434,7 +431,7 @@ class TestCacheFailureScenarios:
         """测试缓存损坏处理"""
         # 创建损坏的缓存（scores 为空）
         today = date.today()
-        cache = AlphaScoreCacheModel.objects.create(
+        AlphaScoreCacheModel.objects.create(
             universe_id="csi300",
             intended_trade_date=today,
             provider_source="cache",
@@ -494,7 +491,7 @@ class TestRecoveryScenarios:
         assert result1.source in ["cache", "simple", "etf"]
 
         # 2. 创建激活的模型
-        model = QlibModelRegistryModel.objects.create(
+        QlibModelRegistryModel.objects.create(
             model_name="recovery_test",
             artifact_hash="recovery_hash",
             model_type="LGBModel",
@@ -509,7 +506,7 @@ class TestRecoveryScenarios:
 
         # 创建 Qlib 缓存
         today = date.today()
-        cache = AlphaScoreCacheModel.objects.create(
+        AlphaScoreCacheModel.objects.create(
             universe_id="csi300",
             intended_trade_date=today,
             provider_source="qlib",
@@ -700,7 +697,7 @@ class TestErrorRecovery:
 
         # 1. 初始状态：没有缓存
         AlphaScoreCacheModel.objects.all().delete()
-        result1 = service.get_stock_scores("csi300")
+        service.get_stock_scores("csi300")
 
         # 2. 添加缓存数据
         today = date.today()

@@ -4,8 +4,10 @@ Unit tests for data_center domain entities.
 Domain layer only — no Django ORM, no external libraries.
 """
 
+import dataclasses
+from datetime import UTC, datetime
+
 import pytest
-from datetime import datetime, timezone
 
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
@@ -18,19 +20,19 @@ from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
 
 class TestProviderConfig:
     def _make(self, **overrides) -> ProviderConfig:
-        defaults = dict(
-            id=1,
-            name="tushare_main",
-            source_type="tushare",
-            is_active=True,
-            priority=10,
-            api_key="tok123",
-            api_secret="",
-            http_url="",
-            api_endpoint="",
-            extra_config={},
-            description="",
-        )
+        defaults = {
+            "id": 1,
+            "name": "tushare_main",
+            "source_type": "tushare",
+            "is_active": True,
+            "priority": 10,
+            "api_key": "tok123",
+            "api_secret": "",
+            "http_url": "",
+            "api_endpoint": "",
+            "extra_config": {},
+            "description": "",
+        }
         defaults.update(overrides)
         return ProviderConfig(**defaults)
 
@@ -50,7 +52,7 @@ class TestProviderConfig:
 
     def test_frozen(self):
         cfg = self._make()
-        with pytest.raises(Exception):  # frozen dataclass
+        with pytest.raises(dataclasses.FrozenInstanceError):
             cfg.priority = 99  # type: ignore[misc]
 
     def test_extra_config_default_is_dict(self):
@@ -116,7 +118,7 @@ class TestProviderHealthSnapshot:
             capability=DataCapability.MACRO,
             status=ProviderHealthStatus.HEALTHY,
             consecutive_failures=0,
-            last_success_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            last_success_at=datetime(2026, 4, 1, tzinfo=UTC),
             avg_latency_ms=42.5,
         )
         d = snap.to_dict()

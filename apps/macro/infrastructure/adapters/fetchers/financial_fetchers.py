@@ -8,7 +8,6 @@ import logging
 import re
 from calendar import monthrange
 from datetime import date, timedelta
-from typing import List
 
 import pandas as pd
 
@@ -511,7 +510,7 @@ class FinancialIndicatorFetcher:
 
             date_col = '日期' if '日期' in df.columns else df.columns[0]
             value_col = '净投放' if '净投放' in df.columns else (df.columns[-1] if len(df.columns) > 0 else None)
-            
+
             if not value_col:
                 return []
 
@@ -529,7 +528,7 @@ class FinancialIndicatorFetcher:
                 try:
                     value_str = str(row['value']).replace('亿', '').replace('元', '').replace(',', '')
                     value = _safe_float(value_str)
-                    
+
                     point = MacroDataPoint(
                         code="CN_PBOC_NET_INJECTION",
                         value=value,

@@ -12,7 +12,6 @@
 import logging
 import os
 from datetime import date
-from typing import Optional
 
 from django.core.cache import cache
 

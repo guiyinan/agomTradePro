@@ -177,7 +177,7 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
             "is_active": getattr(instance, "is_active", True),
         }
         merged_data.update(validated_data)
-        updated = update_prompt_template(int(getattr(instance, "id")), self._build_entity(merged_data))
+        updated = update_prompt_template(int(instance.id), self._build_entity(merged_data))
         if updated is None:
             raise serializers.ValidationError("模板不存在或更新失败")
         return updated
@@ -339,7 +339,7 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
             "is_active": getattr(instance, "is_active", True),
         }
         merged_data.update(validated_data)
-        updated = update_chain_config(int(getattr(instance, "id")), self._build_entity(merged_data))
+        updated = update_chain_config(int(instance.id), self._build_entity(merged_data))
         if updated is None:
             raise serializers.ValidationError("链配置不存在或更新失败")
         return updated

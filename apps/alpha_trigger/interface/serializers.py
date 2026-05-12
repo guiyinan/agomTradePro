@@ -6,7 +6,6 @@ Alpha 事件触发的 API 序列化器。
 负责输入验证和输出格式化。
 """
 
-from typing import Any, Dict, List, Optional
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -37,7 +36,7 @@ class TriggerTypeSerializer(serializers.Field):
         try:
             return TriggerType(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid trigger type: {data}")
+            raise serializers.ValidationError(f"Invalid trigger type: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -51,7 +50,7 @@ class TriggerStatusSerializer(serializers.Field):
         try:
             return TriggerStatus(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid trigger status: {data}")
+            raise serializers.ValidationError(f"Invalid trigger status: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -65,7 +64,7 @@ class SignalStrengthSerializer(serializers.Field):
         try:
             return SignalStrength(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid signal strength: {data}")
+            raise serializers.ValidationError(f"Invalid signal strength: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -79,7 +78,7 @@ class CandidateStatusSerializer(serializers.Field):
         try:
             return CandidateStatus(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid candidate status: {data}")
+            raise serializers.ValidationError(f"Invalid candidate status: {data}") from None
 
 
 @extend_schema_field(OpenApiTypes.STR)
@@ -93,7 +92,7 @@ class InvalidationTypeSerializer(serializers.Field):
         try:
             return InvalidationType(data)
         except ValueError:
-            raise serializers.ValidationError(f"Invalid invalidation type: {data}")
+            raise serializers.ValidationError(f"Invalid invalidation type: {data}") from None
 
 
 # ========== Nested Serializers ==========

@@ -9,7 +9,7 @@
 
 import ast
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from RestrictedPython import compile_restricted
 from RestrictedPython.Eval import default_guarded_getattr
@@ -17,8 +17,6 @@ from RestrictedPython.Guards import (
     full_write_guard,
     guarded_iter_unpack_sequence,
     guarded_unpack_sequence,
-    safe_builtins,
-    safer_getattr,
 )
 
 
@@ -32,11 +30,11 @@ def safe_dict_getattr(obj, attr):
         try:
             return obj[attr]
         except (KeyError, TypeError):
-            raise AttributeError(f"'dict' object has no attribute '{attr}'")
+            raise AttributeError(f"'dict' object has no attribute '{attr}'") from None
     return default_guarded_getattr(obj, attr)
 
 
-from apps.strategy.domain.entities import ActionType, ScriptConfig, SignalRecommendation, Strategy
+from apps.strategy.domain.entities import ActionType, SignalRecommendation, Strategy
 from apps.strategy.domain.protocols import (
     AssetPoolProviderProtocol,
     MacroDataProviderProtocol,
@@ -665,7 +663,7 @@ class ScriptExecutionEnvironment:
             # User-authored scripts may raise arbitrary runtime exceptions,
             # so this execution boundary intentionally normalizes them.
             logger.error(f"Script execution failed: {e}", exc_info=True)
-            raise ValueError(f"Script execution failed: {str(e)}")
+            raise ValueError(f"Script execution failed: {str(e)}") from e
 
 
 # ========================================================================

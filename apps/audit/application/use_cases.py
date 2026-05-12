@@ -6,10 +6,16 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import List, Optional
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
+
+from apps.audit.application.repository_provider import (
+    DjangoAuditRepository,
+    record_audit_failure,
+    record_audit_write_failure,
+    record_audit_write_success,
+)
 from apps.audit.domain.entities import (
     DynamicWeightConfig,
     IndicatorPerformanceReport,
@@ -21,20 +27,11 @@ from apps.audit.domain.entities import (
 from apps.audit.domain.services import (
     AttributionAnalyzer,
     AttributionConfig,
-    AttributionResult,
     IndicatorPerformanceAnalyzer,
-    ThresholdValidator,
     analyze_attribution,
-)
-from apps.audit.application.repository_provider import (
-    DjangoAuditRepository,
-    record_audit_failure,
-    record_audit_write_failure,
-    record_audit_write_success,
 )
 from apps.backtest.application.repository_provider import (
     create_default_price_adapter,
-    get_backtest_repository,
 )
 from apps.regime.application.repository_provider import get_regime_repository
 from core.exceptions import DataValidationError, InsufficientDataError
@@ -130,7 +127,7 @@ class GenerateAttributionReportUseCase:
 
             # 使用 Domain 层的 analyze_attribution 函数
             # 需要构造 backtest_result 对象
-            from dataclasses import dataclass, field
+            from dataclasses import dataclass
 
             @dataclass
             class SimpleBacktestResult:
@@ -183,7 +180,7 @@ class GenerateAttributionReportUseCase:
             )
 
             # 5. 分析 Regime 准确性
-            analyzer = AttributionAnalyzer(config)
+            AttributionAnalyzer(config)
 
             # 计算 Regime 准确率（基于回测中的 Regime 预测与实际收益的一致性）
             regime_accuracy = self._calculate_regime_accuracy(
@@ -306,7 +303,7 @@ class GenerateAttributionReportUseCase:
         # 2. 检查数据充足性
         period_days = (end_date - start_date).days
         data_points = len(regime_snapshots)
-        coverage_ratio = data_points / max(period_days, 1)
+        data_points / max(period_days, 1)
 
         if data_points < 10:
             logger.warning(
@@ -425,7 +422,6 @@ class GenerateAttributionReportUseCase:
         Raises:
             ValueError: 当无法获取真实数据时
         """
-        from datetime import timedelta
 
         from shared.config.secrets import get_secrets
 
@@ -1538,7 +1534,7 @@ class ExportOperationLogsUseCase:
         """
         try:
             import json
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             from django.conf import settings
 

@@ -8,10 +8,8 @@ Tests verify:
 - Unknown errors default to unknown_system_error
 """
 
-import pytest
 
 from apps.agent_runtime.domain.failure_classifier import (
-    FailureClassification,
     FailureType,
     classify_failure,
 )

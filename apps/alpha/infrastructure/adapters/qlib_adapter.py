@@ -5,21 +5,18 @@ Qlib Alpha Provider
 优先级为 1（最高），通过缓存提供快速响应。
 """
 
-import hashlib
-import json
 import logging
 import pickle
 import time
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from celery import current_app
 from django.core.cache import cache
 
 from ...domain.entities import AlphaPoolScope, AlphaResult, StockScore, normalize_stock_code
 from ...domain.interfaces import AlphaProviderStatus
-from .base import BaseAlphaProvider, create_stock_score, provider_safe, qlib_safe
+from .base import BaseAlphaProvider, provider_safe, qlib_safe
 
 logger = logging.getLogger(__name__)
 

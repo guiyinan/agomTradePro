@@ -7,15 +7,12 @@ Beta Gate Django ORM Models
 """
 
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from ..domain.entities import GateStatus, RiskProfile
+from ..domain.entities import RiskProfile
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +185,6 @@ class GateConfigModel(models.Model):
 
     def to_domain(self):
         """转换为 Domain 层实体"""
-        from datetime import date
 
         from ..domain.entities import (
             GateConfig,

@@ -32,7 +32,7 @@ from ..application.use_cases import (
     UpdateCommandRequest,
     UpdateCommandUseCase,
 )
-from ..domain.entities import TerminalMode, TerminalRiskLevel
+from ..domain.entities import TerminalRiskLevel
 from ..domain.services import TerminalPermissionService
 from .permissions import IsStaffOrAdmin
 from .serializers import (

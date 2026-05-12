@@ -4,8 +4,9 @@ AgomTradePro SDK - Equity and Fund Analysis Example
 This file demonstrates stock and fund analysis using the AgomTradePro SDK.
 """
 
-from agomtradepro import AgomTradeProClient
 from datetime import date
+
+from agomtradepro import AgomTradeProClient
 
 # Initialize client
 client = AgomTradeProClient(base_url="http://localhost:8000", api_token="your_token_here")

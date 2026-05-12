@@ -6,18 +6,16 @@ Notification Service - Account Module
 """
 
 import logging
-from typing import Optional
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
 
 from apps.account.domain.interfaces import (
     StopLossNotificationData,
     StopLossNotificationPort,
 )
-from apps.events.domain.entities import DomainEvent, EventType, create_event
+from apps.events.domain.entities import EventType, create_event
 from core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
@@ -161,7 +159,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             raise ExternalServiceError(
                 message=f"邮件发送失败: {e}",
                 code="EMAIL_SEND_FAILED"
-            )
+            ) from e
 
     def _send_take_profit_email(self, data: StopLossNotificationData) -> bool:
         """
@@ -206,7 +204,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             raise ExternalServiceError(
                 message=f"邮件发送失败: {e}",
                 code="EMAIL_SEND_FAILED"
-            )
+            ) from e
 
     def _build_stop_loss_text_message(self, context: dict) -> str:
         """构建止损通知纯文本内容"""

@@ -32,8 +32,8 @@ from apps.data_center.domain.entities import (
     MacroFact,
     NewsFact,
     PriceBar,
-    PublisherCatalog,
     ProviderConfig,
+    PublisherCatalog,
     QuoteSnapshot,
     RawAudit,
     SectorMembershipFact,
@@ -58,8 +58,8 @@ from apps.data_center.infrastructure.models import (
     MacroFactModel,
     NewsFactModel,
     PriceBarModel,
-    PublisherCatalogModel,
     ProviderConfigModel,
+    PublisherCatalogModel,
     QuoteSnapshotModel,
     RawAuditModel,
     SectorMembershipFactModel,
@@ -305,20 +305,20 @@ class AssetRepository:
     def upsert(self, asset: AssetMaster) -> AssetMaster:
         m, _ = AssetMasterModel.objects.update_or_create(
             code=asset.code,
-            defaults=dict(
-                name=asset.name,
-                short_name=asset.short_name,
-                asset_type=asset.asset_type.value,
-                exchange=asset.exchange.value,
-                is_active=asset.is_active,
-                list_date=asset.list_date,
-                delist_date=asset.delist_date,
-                sector=asset.sector,
-                industry=asset.industry,
-                currency=asset.currency,
-                total_shares=asset.total_shares,
-                extra=asset.extra,
-            ),
+            defaults={
+                "name": asset.name,
+                "short_name": asset.short_name,
+                "asset_type": asset.asset_type.value,
+                "exchange": asset.exchange.value,
+                "is_active": asset.is_active,
+                "list_date": asset.list_date,
+                "delist_date": asset.delist_date,
+                "sector": asset.sector,
+                "industry": asset.industry,
+                "currency": asset.currency,
+                "total_shares": asset.total_shares,
+                "extra": asset.extra,
+            },
         )
         return self._from_model(m)
 
@@ -381,16 +381,16 @@ class PublisherCatalogRepository:
         )
         model, _ = PublisherCatalogModel.objects.update_or_create(
             code=publisher.code.strip().upper(),
-            defaults=dict(
-                canonical_name=publisher.canonical_name,
-                canonical_name_en=publisher.canonical_name_en,
-                publisher_class=publisher.publisher_class,
-                aliases=aliases,
-                country_code=publisher.country_code,
-                website=publisher.website,
-                is_active=publisher.is_active,
-                description=publisher.description,
-            ),
+            defaults={
+                "canonical_name": publisher.canonical_name,
+                "canonical_name_en": publisher.canonical_name_en,
+                "publisher_class": publisher.publisher_class,
+                "aliases": aliases,
+                "country_code": publisher.country_code,
+                "website": publisher.website,
+                "is_active": publisher.is_active,
+                "description": publisher.description,
+            },
         )
         return self._from_model(model)
 
@@ -430,16 +430,16 @@ class IndicatorCatalogRepository:
     def upsert(self, catalog: IndicatorCatalog) -> IndicatorCatalog:
         m, _ = IndicatorCatalogModel.objects.update_or_create(
             code=catalog.code,
-            defaults=dict(
-                name_cn=catalog.name_cn,
-                name_en=catalog.name_en,
-                description=catalog.description,
-                default_unit=catalog.default_unit,
-                default_period_type=catalog.default_period_type,
-                category=catalog.category,
-                is_active=catalog.is_active,
-                extra=catalog.extra,
-            ),
+            defaults={
+                "name_cn": catalog.name_cn,
+                "name_en": catalog.name_en,
+                "description": catalog.description,
+                "default_unit": catalog.default_unit,
+                "default_period_type": catalog.default_period_type,
+                "category": catalog.category,
+                "is_active": catalog.is_active,
+                "extra": catalog.extra,
+            },
         )
         return self._from_model(m)
 
@@ -485,15 +485,15 @@ class IndicatorUnitRuleRepository:
             indicator_code=rule.indicator_code,
             source_type=rule.source_type,
             original_unit=rule.original_unit,
-            defaults=dict(
-                dimension_key=rule.dimension_key,
-                storage_unit=rule.storage_unit,
-                display_unit=rule.display_unit,
-                multiplier_to_storage=rule.multiplier_to_storage,
-                is_active=rule.is_active,
-                priority=rule.priority,
-                description=rule.description,
-            ),
+            defaults={
+                "dimension_key": rule.dimension_key,
+                "storage_unit": rule.storage_unit,
+                "display_unit": rule.display_unit,
+                "multiplier_to_storage": rule.multiplier_to_storage,
+                "is_active": rule.is_active,
+                "priority": rule.priority,
+                "description": rule.description,
+            },
         )
         return self._from_model(m)
 
@@ -577,13 +577,13 @@ class MacroFactRepository:
                 reporting_period=f.reporting_period,
                 source=f.source,
                 revision_number=f.revision_number,
-                defaults=dict(
-                    value=f.value,
-                    unit=f.unit,
-                    published_at=f.published_at,
-                    quality=f.quality.value,
-                    extra=f.extra,
-                ),
+                defaults={
+                    "value": f.value,
+                    "unit": f.unit,
+                    "published_at": f.published_at,
+                    "quality": f.quality.value,
+                    "extra": f.extra,
+                },
             )
             count += 1
         return count
@@ -1050,14 +1050,14 @@ class PriceBarRepository:
                 freq=b.freq,
                 adjustment=b.adjustment.value,
                 source=b.source,
-                defaults=dict(
-                    open=b.open,
-                    high=b.high,
-                    low=b.low,
-                    close=b.close,
-                    volume=b.volume,
-                    amount=b.amount,
-                ),
+                defaults={
+                    "open": b.open,
+                    "high": b.high,
+                    "low": b.low,
+                    "close": b.close,
+                    "volume": b.volume,
+                    "amount": b.amount,
+                },
             )
             count += 1
         return count
@@ -1117,18 +1117,18 @@ class QuoteSnapshotRepository:
                 asset_code=q.asset_code,
                 snapshot_at=q.snapshot_at,
                 source=q.source,
-                defaults=dict(
-                    current_price=q.current_price,
-                    open=q.open,
-                    high=q.high,
-                    low=q.low,
-                    prev_close=q.prev_close,
-                    volume=q.volume,
-                    amount=q.amount,
-                    bid=q.bid,
-                    ask=q.ask,
-                    extra=q.extra,
-                ),
+                defaults={
+                    "current_price": q.current_price,
+                    "open": q.open,
+                    "high": q.high,
+                    "low": q.low,
+                    "prev_close": q.prev_close,
+                    "volume": q.volume,
+                    "amount": q.amount,
+                    "bid": q.bid,
+                    "ask": q.ask,
+                    "extra": q.extra,
+                },
             )
             count += 1
         return count
@@ -1174,12 +1174,12 @@ class FundNavRepository:
                 fund_code=f.fund_code,
                 nav_date=f.nav_date,
                 source=f.source,
-                defaults=dict(
-                    nav=f.nav,
-                    acc_nav=f.acc_nav,
-                    daily_return=f.daily_return,
-                    extra=f.extra,
-                ),
+                defaults={
+                    "nav": f.nav,
+                    "acc_nav": f.acc_nav,
+                    "daily_return": f.daily_return,
+                    "extra": f.extra,
+                },
             )
             count += 1
         return count
@@ -1239,12 +1239,12 @@ class FinancialFactRepository:
                 period_type=f.period_type.value,
                 metric_code=f.metric_code,
                 source=f.source,
-                defaults=dict(
-                    value=f.value,
-                    unit=f.unit,
-                    report_date=f.report_date,
-                    extra=f.extra,
-                ),
+                defaults={
+                    "value": f.value,
+                    "unit": f.unit,
+                    "report_date": f.report_date,
+                    "extra": f.extra,
+                },
             )
             count += 1
         return count
@@ -1305,16 +1305,16 @@ class ValuationFactRepository:
                 asset_code=f.asset_code,
                 val_date=f.val_date,
                 source=f.source,
-                defaults=dict(
-                    pe_ttm=f.pe_ttm,
-                    pe_static=f.pe_static,
-                    pb=f.pb,
-                    ps_ttm=f.ps_ttm,
-                    market_cap=f.market_cap,
-                    float_market_cap=f.float_market_cap,
-                    dv_ratio=f.dv_ratio,
-                    extra=f.extra,
-                ),
+                defaults={
+                    "pe_ttm": f.pe_ttm,
+                    "pe_static": f.pe_static,
+                    "pb": f.pb,
+                    "ps_ttm": f.ps_ttm,
+                    "market_cap": f.market_cap,
+                    "float_market_cap": f.float_market_cap,
+                    "dv_ratio": f.dv_ratio,
+                    "extra": f.extra,
+                },
             )
             count += 1
         return count
@@ -1363,12 +1363,12 @@ class SectorMembershipRepository:
                 asset_code=f.asset_code,
                 sector_code=f.sector_code,
                 effective_date=f.effective_date,
-                defaults=dict(
-                    sector_name=f.sector_name,
-                    expiry_date=f.expiry_date,
-                    weight=f.weight,
-                    source=f.source,
-                ),
+                defaults={
+                    "sector_name": f.sector_name,
+                    "expiry_date": f.expiry_date,
+                    "weight": f.weight,
+                    "source": f.source,
+                },
             )
             count += 1
         return count
@@ -1428,15 +1428,15 @@ class NewsRepository:
                 _, created = NewsFactModel.objects.get_or_create(
                     source=a.source,
                     external_id=a.external_id,
-                    defaults=dict(
-                        asset_code=a.asset_code,
-                        title=a.title,
-                        summary=a.summary,
-                        url=a.url,
-                        published_at=a.published_at,
-                        sentiment_score=a.sentiment_score,
-                        extra=a.extra,
-                    ),
+                    defaults={
+                        "asset_code": a.asset_code,
+                        "title": a.title,
+                        "summary": a.summary,
+                        "url": a.url,
+                        "published_at": a.published_at,
+                        "sentiment_score": a.sentiment_score,
+                        "extra": a.extra,
+                    },
                 )
                 if created:
                     count += 1
@@ -1497,15 +1497,15 @@ class CapitalFlowRepository:
                 asset_code=f.asset_code,
                 flow_date=f.flow_date,
                 source=f.source,
-                defaults=dict(
-                    main_net=f.main_net,
-                    retail_net=f.retail_net,
-                    super_large_net=f.super_large_net,
-                    large_net=f.large_net,
-                    medium_net=f.medium_net,
-                    small_net=f.small_net,
-                    extra=f.extra,
-                ),
+                defaults={
+                    "main_net": f.main_net,
+                    "retail_net": f.retail_net,
+                    "super_large_net": f.super_large_net,
+                    "large_net": f.large_net,
+                    "medium_net": f.medium_net,
+                    "small_net": f.small_net,
+                    "extra": f.extra,
+                },
             )
             count += 1
         return count

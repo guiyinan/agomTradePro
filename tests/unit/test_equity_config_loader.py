@@ -5,7 +5,6 @@ Tests the stock screening rule loader that was moved from shared/infrastructure/
 """
 
 from decimal import Decimal
-from unittest.mock import Mock, patch
 
 import pytest
 

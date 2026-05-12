@@ -4,8 +4,6 @@ DRF Serializers for Filter API.
 
 from rest_framework import serializers
 
-from ..domain.entities import FilterResult, FilterSeries, FilterType, KalmanFilterState
-
 
 class FilterTypeSerializer(serializers.Serializer):
     """滤波器类型序列化器"""

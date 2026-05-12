@@ -1,7 +1,8 @@
 from django.core.management.base import BaseCommand
 
 from apps.pulse.infrastructure.data_provider import DEFAULT_PULSE_INDICATORS
-from apps.pulse.infrastructure.models import PulseWeightConfig, PulseIndicatorWeight
+from apps.pulse.infrastructure.models import PulseIndicatorWeight, PulseWeightConfig
+
 
 class Command(BaseCommand):
     help = "初始化 Pulse 权重配置"
@@ -15,7 +16,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('创建新的 PulseWeightConfig'))
         else:
             self.stdout.write('PulseWeightConfig 已存在')
-        
+
         # 将其设置为唯一的激活配置
         PulseWeightConfig.objects.exclude(id=config.id).update(is_active=False)
         config.is_active = True

@@ -1,7 +1,6 @@
 """
 Signal page object for investment signal testing.
 """
-from typing import List
 
 from playwright.sync_api import Page, expect
 

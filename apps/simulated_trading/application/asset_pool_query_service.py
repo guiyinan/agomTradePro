@@ -7,7 +7,6 @@ Application层:
 - 筛选有有效信号的资产
 """
 import logging
-from typing import Dict, List, Optional
 
 from apps.asset_analysis.domain.pool import PoolType
 from apps.simulated_trading.application.ports import (

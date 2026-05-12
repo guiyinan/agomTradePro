@@ -12,7 +12,7 @@ Features:
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from apps.audit.domain.interfaces import AuditRepositoryProtocol

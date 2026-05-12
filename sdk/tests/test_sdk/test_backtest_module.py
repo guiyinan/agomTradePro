@@ -2,9 +2,10 @@
 Unit tests for AgomTradePro SDK Backtest Module
 """
 
-import pytest
 from datetime import date
 from unittest.mock import patch
+
+import pytest
 
 from agomtradepro import AgomTradeProClient
 

@@ -7,7 +7,7 @@
 - ScriptBasedStrategyExecutor 端到端测试
 - 安全模式验证（strict/standard/relaxed）
 """
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -154,7 +154,7 @@ class TestScriptAPI:
 
     def test_get_portfolio_positions(self, script_api, mock_providers):
         """测试获取持仓"""
-        result = script_api.get_portfolio_positions()
+        script_api.get_portfolio_positions()
         mock_providers['portfolio_provider'].get_positions.assert_called_once_with(1)
 
     def test_get_portfolio_cash(self, script_api, mock_providers):
@@ -301,7 +301,7 @@ signals.append(calculate_signal('000001.SH', 'test', 'buy'))
 if True
     signals.append(calculate_signal('000001.SH', 'test', 'buy'))
 """
-        with pytest.raises(Exception):
+        with pytest.raises(SyntaxError):
             execution_env.execute(script_code, script_api)
 
     def test_script_with_invalid_signal_format(self, execution_env, script_api):
@@ -499,5 +499,5 @@ signals.append(calculate_signal('000001.SH', 'test', 'buy'))
 
         # 脚本执行应该失败，但不会崩溃
         # 实际行为取决于 get_macro_indicator 的错误处理
-        result = executor.execute(strategy, portfolio_id=1)
+        executor.execute(strategy, portfolio_id=1)
         # 由于 Mock 会返回 None，脚本逻辑应该能处理这种情况

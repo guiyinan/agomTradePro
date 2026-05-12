@@ -5,10 +5,10 @@ import types
 from unittest.mock import Mock, patch
 
 import pytest
-from django.db import IntegrityError, transaction
 from django.contrib.auth.models import User
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.db import IntegrityError, transaction
 from django.test import RequestFactory, TestCase
 
 from apps.regime.infrastructure.models import RegimeThresholdConfig
@@ -19,7 +19,7 @@ def _attach_session_and_messages(request) -> None:
     middleware = SessionMiddleware(lambda req: None)
     middleware.process_request(request)
     request.session.save()
-    setattr(request, "_messages", FallbackStorage(request))
+    request._messages = FallbackStorage(request)
 
 
 @pytest.mark.django_db

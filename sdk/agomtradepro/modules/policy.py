@@ -7,19 +7,19 @@ AgomTradePro SDK - Policy 政策事件模块
 from datetime import date, datetime
 from typing import Any, Optional
 
-from .base import BaseModule
 from ..types import (
+    EventType,
+    GateLevel,
     PolicyEvent,
     PolicyGear,
+    PolicyLevel,
     PolicyStatus,
-    WorkbenchSummary,
+    SentimentGateState,
     WorkbenchEvent,
     WorkbenchItemsResult,
-    SentimentGateState,
-    EventType,
-    PolicyLevel,
-    GateLevel,
+    WorkbenchSummary,
 )
+from .base import BaseModule
 
 
 class PolicyModule(BaseModule):
@@ -60,10 +60,10 @@ class PolicyModule(BaseModule):
 
     def get_events(
         self,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        event_type: Optional[str] = None,
-        gear: Optional[PolicyGear] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        event_type: str | None = None,
+        gear: PolicyGear | None = None,
         limit: int = 100,
     ) -> list[PolicyEvent]:
         """
@@ -133,9 +133,9 @@ class PolicyModule(BaseModule):
         description: str,
         gear: PolicyGear,
         *,
-        level: Optional[PolicyLevel] = None,
-        title: Optional[str] = None,
-        evidence_url: Optional[str] = None,
+        level: PolicyLevel | None = None,
+        title: str | None = None,
+        evidence_url: str | None = None,
     ) -> PolicyEvent:
         """
         创建政策事件
@@ -180,10 +180,10 @@ class PolicyModule(BaseModule):
     def update_event(
         self,
         event_id: int,
-        event_date: Optional[date] = None,
-        event_type: Optional[str] = None,
-        description: Optional[str] = None,
-        gear: Optional[PolicyGear] = None,
+        event_date: date | None = None,
+        event_type: str | None = None,
+        description: str | None = None,
+        gear: PolicyGear | None = None,
     ) -> PolicyEvent:
         """
         更新政策事件
@@ -263,11 +263,11 @@ class PolicyModule(BaseModule):
     def get_workbench_items(
         self,
         tab: str = "pending",
-        event_type: Optional[EventType] = None,
-        level: Optional[PolicyLevel] = None,
-        gate_level: Optional[GateLevel] = None,
-        asset_class: Optional[str] = None,
-        search: Optional[str] = None,
+        event_type: EventType | None = None,
+        level: PolicyLevel | None = None,
+        gate_level: GateLevel | None = None,
+        asset_class: str | None = None,
+        search: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> WorkbenchItemsResult:
@@ -386,7 +386,7 @@ class PolicyModule(BaseModule):
         self,
         event_id: int,
         reason: str,
-        expires_in_hours: Optional[int] = None,
+        expires_in_hours: int | None = None,
     ) -> dict[str, Any]:
         """
         临时豁免事件
@@ -484,7 +484,7 @@ class PolicyModule(BaseModule):
 
     def trigger_fetch(
         self,
-        source_id: Optional[int] = None,
+        source_id: int | None = None,
         force_refetch: bool = False,
     ) -> dict[str, Any]:
         """

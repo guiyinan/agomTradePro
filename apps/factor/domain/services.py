@@ -10,15 +10,12 @@ Uses only:
 """
 
 import math
-import statistics
 from bisect import bisect_right
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Optional, Tuple
 
 from apps.factor.domain.entities import (
-    FactorCategory,
     FactorDefinition,
     FactorDirection,
     FactorExposure,
@@ -345,7 +342,7 @@ class FactorEngine:
         result = []
         for i, score in enumerate(sorted_scores):
             # Create new immutable score with percentile rank
-            percentile_rank = (i + 1) / n
+            (i + 1) / n
             result.append(score)
 
         return result

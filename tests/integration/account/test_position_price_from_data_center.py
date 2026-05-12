@@ -9,9 +9,9 @@ Account Module Integration Tests - 持仓价格来源于 Data Center
 - 所有测试通过
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth.models import User
@@ -350,7 +350,6 @@ class TestPriceSourceTraceability:
         # 清除单例
         import apps.account.infrastructure.market_price_service as mps_module
         from apps.account.infrastructure.market_price_service import (
-            _price_service_instance,
             get_market_price_service,
         )
         mps_module._price_service_instance = None

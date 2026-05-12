@@ -7,12 +7,11 @@ Model Context Protocol (MCP) 工具定义。
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from agomtradepro import AgomTradeProClient
 from agomtradepro.exceptions import AgomTradeProAPIError
-
 
 logger = logging.getLogger(__name__)
 
@@ -463,7 +462,7 @@ def register_alpha_tools(server) -> None:
 
             return {
                 "status": health_status,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "providers": {
                     "available": available,
                     "total": total,
@@ -476,5 +475,5 @@ def register_alpha_tools(server) -> None:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(UTC).isoformat()
             }

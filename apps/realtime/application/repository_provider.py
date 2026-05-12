@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 def get_realtime_price_repository():
     """Return the realtime price repository."""
 

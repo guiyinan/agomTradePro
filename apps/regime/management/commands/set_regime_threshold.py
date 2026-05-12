@@ -6,7 +6,7 @@ Django Management Command: 快速设置 Regime 阈值
     python manage.py set_regime_threshold --activate
 """
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.regime.infrastructure.models import RegimeIndicatorThreshold, RegimeThresholdConfig

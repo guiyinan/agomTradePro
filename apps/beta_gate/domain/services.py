@@ -9,8 +9,8 @@ Beta Gate Domain Services
 
 import logging
 from collections.abc import Iterable
-from datetime import UTC, datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from .entities import (
     GateConfig,
@@ -434,7 +434,7 @@ class VisibilityUniverseBuilder:
             visible_asset_categories = [k for k, v in config.asset_category_visibility.items() if v]
             hard_exclusions.extend([k for k, v in config.asset_category_visibility.items() if not v])
         else:
-            visible_asset_categories = list(set(asset_class for _, asset_class in visible_assets))
+            visible_asset_categories = list({asset_class for _, asset_class in visible_assets})
 
         policy_match = config.policy_constraints.get(policy_level)
         if policy_match:

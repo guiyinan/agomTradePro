@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypeVar
 
 from apps.data_center.domain.entities import ProviderHealthSnapshot
@@ -66,7 +66,7 @@ class _ProviderState:
 
     def record_success(self, latency_ms: float) -> None:
         self.consecutive_failures = 0
-        self.last_success_at = datetime.now(timezone.utc)
+        self.last_success_at = datetime.now(UTC)
         self.circuit_open_until = None
         self.total_calls += 1
         self.total_latency_ms += latency_ms

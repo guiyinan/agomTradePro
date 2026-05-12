@@ -10,8 +10,8 @@ Unit Tests for Policy Notification Service
 """
 
 import logging
-from datetime import date, datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from datetime import date
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -19,8 +19,6 @@ from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.domain.interfaces import (
     NotificationChannel,
     NotificationMessage,
-    NotificationServicePort,
-    PolicyAlertServicePort,
 )
 from apps.policy.infrastructure.notification_service import (
     EmailNotificationService,
@@ -272,7 +270,7 @@ class TestInAppNotificationService:
             for i in range(3)
         ]
 
-        with patch('apps.policy.infrastructure.models.InAppNotification.objects') as mock_manager:
+        with patch('apps.policy.infrastructure.models.InAppNotification.objects'):
             result = service.send_batch(messages)
 
             assert result["success"] == 3

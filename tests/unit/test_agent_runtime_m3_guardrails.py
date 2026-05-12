@@ -8,8 +8,6 @@ Tests:
 - Audit payload enrichment
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -27,7 +25,6 @@ from apps.agent_runtime.domain.entities import (
 from apps.agent_runtime.domain.guardrails import (
     HIGH_RISK_PROPOSAL_TYPES,
     GuardrailEngine,
-    GuardrailResult,
 )
 
 

@@ -8,6 +8,7 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings.development_sqlite'
 
 # 创建临时 SQLite settings
 import pathlib
+
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 
 temp_settings = f'''
@@ -28,6 +29,7 @@ with open(settings_path, 'w', encoding='utf-8') as f:
     f.write(temp_settings)
 
 import django
+
 django.setup()
 
 from django.core.management import call_command
@@ -47,10 +49,13 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings.development'
 
 # 重新加载 Django
 from importlib import reload
+
 import core.settings.development
+
 reload(core.settings.development)
 
 from django.conf import settings
+
 print(f"当前数据库: {settings.DATABASES['default']['ENGINE']}")
 
 print("\n=== 步骤 3: 导入到 PostgreSQL ===")

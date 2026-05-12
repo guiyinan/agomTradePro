@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -15,8 +15,8 @@ from apps.decision_rhythm.infrastructure.repositories import PortfolioTransition
 @pytest.mark.django_db
 def test_transition_plan_repository_serializes_nested_json_snapshots():
     repository = PortfolioTransitionPlanRepository()
-    snapshot_at = datetime(2026, 3, 29, 9, 30, tzinfo=timezone.utc)
-    review_at = datetime(2026, 3, 29, 10, 0, tzinfo=timezone.utc)
+    snapshot_at = datetime(2026, 3, 29, 9, 30, tzinfo=UTC)
+    review_at = datetime(2026, 3, 29, 10, 0, tzinfo=UTC)
 
     plan = PortfolioTransitionPlan(
         plan_id="plan_repo_json",

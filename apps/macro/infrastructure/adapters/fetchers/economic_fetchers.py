@@ -7,7 +7,6 @@
 import logging
 import re
 from datetime import date
-from typing import List
 
 import pandas as pd
 

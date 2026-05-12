@@ -12,25 +12,18 @@ Agent Runtime 单元测试。
 
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from apps.prompt.application.agent_runtime import AgentRuntime
 from apps.prompt.application.context_builders import (
-    AssetPoolContextProvider,
     ContextBundleBuilder,
     MacroContextProvider,
     PortfolioContextProvider,
     RegimeContextProvider,
-    SignalContextProvider,
 )
-from apps.prompt.application.tool_execution import create_agent_tool_registry
 from apps.prompt.application.use_cases import ExecuteChainUseCase
 from apps.prompt.domain.agent_entities import (
     AgentExecutionRequest,
-    AgentExecutionResponse,
-    ToolCallRecord,
 )
 from apps.prompt.domain.context_entities import ContextBundle, ContextSection
 from apps.prompt.infrastructure.adapters.function_registry import (

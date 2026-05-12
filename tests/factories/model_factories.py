@@ -8,7 +8,7 @@ Usage:
     from tests.factories.model_factories import MacroIndicatorFactory, RegimeLogFactory
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 try:
     import factory
@@ -17,7 +17,7 @@ except ImportError:
     raise ImportError(
         "factory_boy is required for model factories. "
         "Install with: pip install factory-boy"
-    )
+    ) from None
 
 
 class MacroIndicatorFactory(DjangoModelFactory):

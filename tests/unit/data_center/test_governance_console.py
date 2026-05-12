@@ -1,9 +1,8 @@
 from types import SimpleNamespace
 
+import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
-import pytest
 
 from apps.data_center.application.dtos import SyncResult
 from apps.data_center.application.interface_services import load_macro_governance_payload

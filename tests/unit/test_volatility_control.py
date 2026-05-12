@@ -22,7 +22,7 @@ class TestVolatilityAdjustment:
         )
 
         # 18% vs 15%，波动率比率 1.2，在容忍度 1.2 内
-        assert result.should_reduce == False
+        assert not result.should_reduce
         assert result.suggested_position_multiplier == 1.0
         assert result.volatility_ratio == 1.2
 
@@ -36,7 +36,7 @@ class TestVolatilityAdjustment:
         )
 
         # 波动率比率 1.67，超过容忍度
-        assert result.should_reduce == True
+        assert result.should_reduce
         # target/current = 0.15/0.25 = 0.6
         assert result.suggested_position_multiplier == 0.6
         assert result.volatility_ratio == pytest.approx(1.6666666666666665)
@@ -51,7 +51,7 @@ class TestVolatilityAdjustment:
         )
 
         # 波动率比率 3.33，target/current = 0.3，但下限是 0.5
-        assert result.should_reduce == True
+        assert result.should_reduce
         # 应该返回 0.5（下限），而不是 0.3
         assert result.suggested_position_multiplier == 0.5
 
@@ -65,7 +65,7 @@ class TestVolatilityAdjustment:
         )
 
         # 18/15 = 1.2，恰好等于 1 + 0.2
-        assert result.should_reduce == False
+        assert not result.should_reduce
         assert result.suggested_position_multiplier == 1.0
 
     def test_invalid_target_volatility(self):
@@ -98,7 +98,7 @@ class TestVolatilityAdjustmentEdgeCases:
         )
 
         # target/current = 0.15，应该返回下限 0.5
-        assert result.should_reduce == True
+        assert result.should_reduce
         assert result.suggested_position_multiplier == 0.5
 
     def test_custom_max_reduction(self):
@@ -112,5 +112,5 @@ class TestVolatilityAdjustmentEdgeCases:
 
         # target/current = 0.3，下限 = 1 - 0.3 = 0.7
         # 应该返回 0.7，而不是 0.3
-        assert result.should_reduce == True
+        assert result.should_reduce
         assert result.suggested_position_multiplier == 0.7

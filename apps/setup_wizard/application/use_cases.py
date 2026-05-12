@@ -5,14 +5,13 @@ Application Use Cases for Setup Wizard.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from apps.setup_wizard.application.repository_provider import (
+    ensure_setup_security_keys,
     get_setup_admin_repository,
     get_setup_ai_provider_repository,
     get_setup_data_source_repository,
     get_setup_state_repository,
-    ensure_setup_security_keys,
 )
 from apps.setup_wizard.domain.entities import (
     AdminConfig,

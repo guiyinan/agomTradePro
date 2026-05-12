@@ -5,7 +5,7 @@ Repository interfaces for audit operations.
 """
 
 from datetime import date
-from typing import Dict, List, Optional, Protocol
+from typing import Protocol
 
 
 class AuditRepositoryProtocol(Protocol):

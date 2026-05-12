@@ -9,7 +9,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class AccountType(Enum):
@@ -368,9 +367,9 @@ class AccountValuationSummary:
 @dataclass(frozen=True)
 class CoverageInfo:
     """数据覆盖范围说明"""
-    data_start: Optional[date]
-    data_end: Optional[date]
-    warnings: List[str]
+    data_start: date | None
+    data_end: date | None
+    warnings: list[str]
 
 
 @dataclass(frozen=True)
@@ -382,7 +381,7 @@ class ValuationSnapshot:
     """
     as_of_date: date
     account_summary: AccountValuationSummary
-    rows: List[ValuationRow]
+    rows: list[ValuationRow]
     coverage: CoverageInfo
 
 
@@ -413,45 +412,45 @@ class PerformancePeriod:
 @dataclass(frozen=True)
 class PerformanceReturns:
     """收益指标"""
-    twr: Optional[float]             # 时间加权收益率（%）
-    mwr: Optional[float]             # 资金加权收益率/XIRR（%）
-    annualized_twr: Optional[float]  # 年化 TWR（%）
-    annualized_mwr: Optional[float]  # 年化 MWR（%）
+    twr: float | None             # 时间加权收益率（%）
+    mwr: float | None             # 资金加权收益率/XIRR（%）
+    annualized_twr: float | None  # 年化 TWR（%）
+    annualized_mwr: float | None  # 年化 MWR（%）
 
 
 @dataclass(frozen=True)
 class PerformanceRisk:
     """风险指标"""
-    volatility: Optional[float]           # 年化波动率（%）
-    downside_volatility: Optional[float]  # 下行波动率（%）
-    max_drawdown: Optional[float]         # 最大回撤（%）
+    volatility: float | None           # 年化波动率（%）
+    downside_volatility: float | None  # 下行波动率（%）
+    max_drawdown: float | None         # 最大回撤（%）
 
 
 @dataclass(frozen=True)
 class PerformanceRatios:
     """风险调整后收益比率"""
-    sharpe: Optional[float]
-    sortino: Optional[float]
-    calmar: Optional[float]
-    treynor: Optional[float]
+    sharpe: float | None
+    sortino: float | None
+    calmar: float | None
+    treynor: float | None
 
 
 @dataclass(frozen=True)
 class BenchmarkStats:
     """相对基准指标"""
-    benchmark_return: Optional[float]   # 基准收益率（%）
-    excess_return: Optional[float]      # 超额收益（%）
-    beta: Optional[float]
-    alpha: Optional[float]
-    tracking_error: Optional[float]     # 跟踪误差（%）
-    information_ratio: Optional[float]  # 信息比率
+    benchmark_return: float | None   # 基准收益率（%）
+    excess_return: float | None      # 超额收益（%）
+    beta: float | None
+    alpha: float | None
+    tracking_error: float | None     # 跟踪误差（%）
+    information_ratio: float | None  # 信息比率
 
 
 @dataclass(frozen=True)
 class TradeStats:
     """交易统计（基于已闭合交易）"""
-    win_rate: Optional[float]      # 胜率（%）
-    profit_factor: Optional[float] # 盈利因子
+    win_rate: float | None      # 胜率（%）
+    profit_factor: float | None # 盈利因子
     total_closed_trades: int
 
 
@@ -466,7 +465,7 @@ class PerformanceReport:
     returns: PerformanceReturns
     risk: PerformanceRisk
     ratios: PerformanceRatios
-    benchmark: Optional[BenchmarkStats]
+    benchmark: BenchmarkStats | None
     trade_stats: TradeStats
     coverage: CoverageInfo
-    warnings: List[str]
+    warnings: list[str]

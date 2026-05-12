@@ -11,10 +11,9 @@
 - evaluate_rule(): 评估证伪规则的纯函数
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 
 class ComparisonOperator(Enum):
@@ -148,7 +147,6 @@ class InvalidationRule:
                 text += f" (较{cond.compare_with})"
             parts.append(text)
 
-        logic_text = " 且 " if self.logic == LogicOperator.AND else " 或 "
         return f"当{'当'.join(parts)}时证伪"
 
 
@@ -328,7 +326,7 @@ def evaluate_rule(
         is_invalidated=is_invalidated,
         reason=reason,
         checked_conditions=checked_conditions,
-        checked_at=datetime.now(timezone.utc).isoformat()
+        checked_at=datetime.now(UTC).isoformat()
     )
 
 

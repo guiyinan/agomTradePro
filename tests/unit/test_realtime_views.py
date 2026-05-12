@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
@@ -110,7 +110,7 @@ def test_price_polling_use_case_fetches_missing_prices_from_provider():
         change=None,
         change_pct=None,
         volume=100,
-        timestamp=datetime(2026, 4, 6, 10, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 4, 6, 10, 0, tzinfo=UTC),
         source="cache",
     )
     fetched_price = RealtimePrice(
@@ -120,7 +120,7 @@ def test_price_polling_use_case_fetches_missing_prices_from_provider():
         change=None,
         change_pct=None,
         volume=200,
-        timestamp=datetime(2026, 4, 6, 10, 1, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 4, 6, 10, 1, tzinfo=UTC),
         source="provider",
     )
     use_case.price_repository.get_latest_prices.return_value = [cached_price]

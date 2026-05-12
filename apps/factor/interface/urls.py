@@ -4,15 +4,13 @@ Factor Module Interface Layer - URL Configuration
 URL patterns for the factor module API and pages.
 """
 
-from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from apps.factor.interface.views import (
     FactorActionViewSet,
     FactorDefinitionViewSet,
     FactorPortfolioConfigViewSet,
-    FactorScoreViewSet,
     calculate_scores_view,
     create_portfolio_config_view,
     explain_stock_view,

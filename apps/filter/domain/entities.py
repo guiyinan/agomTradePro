@@ -7,7 +7,6 @@ Pure data classes using only Python standard library.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class FilterType(Enum):

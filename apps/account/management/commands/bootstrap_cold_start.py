@@ -15,7 +15,11 @@ from apps.account.infrastructure.models import (
     InvestmentRuleModel,
 )
 from apps.audit.infrastructure.models import ConfidenceConfigModel, IndicatorThresholdConfigModel
-from apps.equity.infrastructure.models import ScoringWeightConfigModel, StockInfoModel
+from apps.equity.infrastructure.models import (
+    ScoringWeightConfigModel,
+    StockInfoModel,
+    StockScreeningRuleConfigModel,
+)
 from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
@@ -28,7 +32,6 @@ from apps.rotation.infrastructure.models import (
 )
 from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
-from apps.equity.infrastructure.models import StockScreeningRuleConfigModel
 
 
 @dataclass(frozen=True)

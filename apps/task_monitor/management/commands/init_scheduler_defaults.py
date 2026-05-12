@@ -5,7 +5,6 @@ from io import StringIO
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
-
 SCHEDULER_COMMANDS = (
     "setup_macro_daily_sync",
     "setup_equity_valuation_sync",

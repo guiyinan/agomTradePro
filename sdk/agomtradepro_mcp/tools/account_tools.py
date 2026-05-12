@@ -5,8 +5,8 @@ AgomTradePro MCP Tools - Account 账户管理工具
 """
 
 import csv
-from datetime import datetime, timezone
 import io
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -39,7 +39,7 @@ def _to_float(value: Any, field_name: str) -> float:
     try:
         return float(value)
     except (ValueError, TypeError):
-        raise ValueError(f"{field_name} 必须是数字")
+        raise ValueError(f"{field_name} 必须是数字") from None
 
 
 def _normalize_position_input(row: dict[str, Any]) -> dict[str, Any]:
@@ -81,7 +81,7 @@ def _normalize_position_input(row: dict[str, Any]) -> dict[str, Any]:
         try:
             result["source_id"] = int(row.get("source_id"))
         except (ValueError, TypeError):
-            raise ValueError("source_id 必须是整数")
+            raise ValueError("source_id 必须是整数") from None
 
     return result
 
@@ -124,7 +124,7 @@ def _normalize_transaction_input(row: dict[str, Any]) -> dict[str, Any]:
 
     traded_at = row.get("traded_at")
     if traded_at in (None, ""):
-        traded_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        traded_at = datetime.now(UTC).isoformat(timespec="seconds")
 
     result: dict[str, Any] = {
         "action": action,
@@ -150,7 +150,7 @@ def _normalize_capital_flow_input(row: dict[str, Any]) -> dict[str, Any]:
 
     flow_date = row.get("flow_date")
     if flow_date in (None, ""):
-        flow_date = datetime.now(timezone.utc).date().isoformat()
+        flow_date = datetime.now(UTC).date().isoformat()
 
     return {
         "flow_type": flow_type,
@@ -932,7 +932,7 @@ def register_account_tools(server: FastMCP) -> None:
 
         return {
             "schema_version": "agomtradepro-account-bundle-v1",
-            "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "exported_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "portfolio_id": portfolio_id,
             "portfolio": portfolio,
             "statistics": statistics,
@@ -1110,7 +1110,7 @@ def register_account_tools(server: FastMCP) -> None:
 
         return {
             "schema_version": "agomtradepro-account-bundle-v1",
-            "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "exported_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "portfolio_id": portfolio_id,
             "counts": {
                 "positions": positions_pack.get("count", 0),

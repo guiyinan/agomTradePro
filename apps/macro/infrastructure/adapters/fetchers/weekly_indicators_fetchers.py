@@ -12,9 +12,7 @@ Weekly Indicators Data Fetchers（Regime 滞后性改进 Phase 2）
 """
 
 import logging
-import re
-from datetime import date, timedelta
-from typing import Dict, List, Optional
+from datetime import date
 
 import pandas as pd
 

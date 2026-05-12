@@ -5,8 +5,9 @@ These views map to the 6 steps of the decision funnel and return HTML partials
 rendered via HTMX.
 """
 
-from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
 from core.application.decision_context import DecisionContextUseCase
 
 

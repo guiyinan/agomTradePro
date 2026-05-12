@@ -26,6 +26,7 @@ from apps.sentiment.application.interface_services import (
     get_sentiment_index_payload,
     get_sentiment_index_range_payload,
 )
+
 from .serializers import (
     BatchAnalysisRequestSerializer,
     BatchAnalysisResponseSerializer,

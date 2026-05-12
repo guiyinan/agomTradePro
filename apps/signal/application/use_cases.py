@@ -6,13 +6,11 @@ Application layer orchestrating the workflow of signal validation.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
 
 from ..domain.entities import InvestmentSignal, SignalStatus
 from ..domain.rules import (
     RejectionRecord,
     ValidationResult,
-    create_rejection_record,
     should_reject_signal,
     validate_invalidation_logic,
 )

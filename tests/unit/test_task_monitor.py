@@ -6,7 +6,7 @@ Unit Tests for Task Monitor Module
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -14,22 +14,17 @@ from django.utils import timezone
 
 from apps.task_monitor.application.tasks import backup_database_task
 from apps.task_monitor.application.use_cases import (
-    CheckCeleryHealthUseCase,
-    CleanupOldRecordsUseCase,
-    GetTaskStatisticsUseCase,
     GetTaskStatusUseCase,
     ListTasksUseCase,
 )
 from apps.task_monitor.domain.entities import (
-    CeleryHealthStatus,
     TaskExecutionRecord,
     TaskFailureAlert,
     TaskPriority,
-    TaskStatistics,
     TaskStatus,
 )
-from apps.task_monitor.infrastructure.models import TaskExecutionModel
 from apps.task_monitor.infrastructure.backup_service import DatabaseBackupResult
+from apps.task_monitor.infrastructure.models import TaskExecutionModel
 from apps.task_monitor.infrastructure.repositories import (
     CeleryHealthChecker,
     DjangoTaskRecordRepository,

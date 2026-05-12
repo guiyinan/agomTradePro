@@ -9,10 +9,10 @@ See: docs/plans/ai-native/vendor-baseline-contract.md
 """
 
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from django.utils import timezone
@@ -51,7 +51,7 @@ def generate_request_id() -> str:
     return f"atr_{date_part}_{random_part}"
 
 
-def _resolve_optional_audit_service() -> "AgentRuntimeAuditService | None":
+def _resolve_optional_audit_service() -> AgentRuntimeAuditService | None:
     """Load the optional audit service without hiding non-import failures."""
 
     try:
@@ -159,7 +159,7 @@ class CreateTaskUseCase:
         self,
         state_machine: TaskStateMachine | None = None,
         timeline_service: TimelineEventWriterService | None = None,
-        audit_service: Optional["AgentRuntimeAuditService"] = None,
+        audit_service: AgentRuntimeAuditService | None = None,
         task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
@@ -184,11 +184,11 @@ class CreateTaskUseCase:
         """
         # Validate domain
         try:
-            domain = TaskDomain(input_dto.task_domain)
+            TaskDomain(input_dto.task_domain)
         except ValueError:
             raise ValueError(
                 f"Invalid task_domain. Must be one of: {[d.value for d in TaskDomain]}"
-            )
+            ) from None
 
         # Generate request ID
         request_id = generate_request_id()
@@ -319,7 +319,7 @@ class ResumeTaskUseCase:
         self,
         state_machine: TaskStateMachine | None = None,
         timeline_service: TimelineEventWriterService | None = None,
-        audit_service: Optional["AgentRuntimeAuditService"] = None,
+        audit_service: AgentRuntimeAuditService | None = None,
         task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
@@ -444,7 +444,7 @@ class CancelTaskUseCase:
         self,
         state_machine: TaskStateMachine | None = None,
         timeline_service: TimelineEventWriterService | None = None,
-        audit_service: Optional["AgentRuntimeAuditService"] = None,
+        audit_service: AgentRuntimeAuditService | None = None,
         task_repo: AgentTaskRepository | None = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()

@@ -3,7 +3,6 @@
 
 from django.db import migrations
 
-
 INDICATORS = [
     # code, name_cn, name_en, default_unit, default_period_type, category
     ("CN_GDP",            "GDP 国内生产总值",                   "GDP",                       "亿元", "Q", "growth"),

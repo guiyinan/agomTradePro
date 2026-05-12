@@ -136,7 +136,7 @@ class TestDecisionPlatformWorkflow:
             config_id="test_gate_config",
             version=1,
             is_active=True,
-            is_valid=True,
+            _is_valid_init=True,
             risk_profile=RiskProfile.BALANCED,
             regime_constraint=RegimeConstraint(
                 current_regime="Recovery",

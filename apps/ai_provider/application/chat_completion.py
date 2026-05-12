@@ -6,7 +6,7 @@ import inspect
 from typing import Any
 
 from apps.ai_provider.application.repository_provider import (
-    AIClientFactory,
+    AIClientFactory,  # noqa: F401
     get_ai_client_factory,
 )
 

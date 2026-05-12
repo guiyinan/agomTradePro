@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
+from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider  # noqa: F401
+from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider  # noqa: F401
+from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider  # noqa: F401
+from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics  # noqa: F401
 from apps.alpha.infrastructure.providers import (
-    AlphaAlertRepository,
-    AlphaPoolDataRepository,
-    AlphaScoreCacheRepository,
-    QlibModelRegistryRepository,
+    AlphaAlertRepository,  # noqa: F401
+    AlphaPoolDataRepository,  # noqa: F401
+    AlphaScoreCacheRepository,  # noqa: F401
+    QlibModelRegistryRepository,  # noqa: F401
 )
-from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
-from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
-from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
-from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics
-from apps.alpha.infrastructure.qlib_builder import (
-    inspect_latest_trade_date,
-    TushareQlibBuilder,
-    normalize_qlib_symbol,
-    resolve_effective_trade_date,
+from apps.alpha.infrastructure.qlib_builder import (  # noqa: F401
+    TushareQlibBuilder,  # noqa: F401
+    inspect_latest_trade_date,  # noqa: F401
+    normalize_qlib_symbol,  # noqa: F401
+    resolve_effective_trade_date,  # noqa: F401
 )
-from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
+from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas  # noqa: F401
 
 
 def get_alpha_score_cache_repository():

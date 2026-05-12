@@ -7,8 +7,7 @@
 import hashlib
 import logging
 import re
-from datetime import UTC, datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
 from apps.data_center.infrastructure.market_gateway_entities import StockNewsItem
 

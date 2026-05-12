@@ -6,7 +6,7 @@ Account Module Unit Tests - Market Price Service
 
 from datetime import date, datetime
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -102,7 +102,7 @@ class TestMarketPriceServiceUnit:
         service._provider = mock_provider
 
         # 输入未格式化的代码
-        price = service.get_current_price("000001")
+        service.get_current_price("000001")
 
         # Provider 应该接收到格式化后的代码
         mock_provider.get_price.assert_called_once_with("000001.SZ", None)
@@ -236,7 +236,6 @@ class TestMarketPriceServiceSingleton:
         # 清除现有实例
         import apps.account.infrastructure.market_price_service as mps_module
         from apps.account.infrastructure.market_price_service import (
-            _price_service_instance,
             get_market_price_service,
         )
         mps_module._price_service_instance = None

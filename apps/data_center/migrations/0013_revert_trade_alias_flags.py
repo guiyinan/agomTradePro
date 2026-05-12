@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 TRADE_CODES = {
     "CN_EXPORT_YOY": {
         "description": "月度同比增速口径，反映出口变化方向；当前仍需与绝对值口径分离治理。",

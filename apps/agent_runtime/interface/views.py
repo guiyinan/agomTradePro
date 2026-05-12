@@ -8,10 +8,9 @@ See: docs/plans/ai-native/schema-contract.md
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.apps import apps as django_apps
-from django.db.models import Q
 from django.http import Http404
 from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
@@ -19,6 +18,21 @@ from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
+from apps.agent_runtime.application.interface_services import (
+    get_dashboard_executions_payload,
+    get_dashboard_guardrails_payload,
+    get_dashboard_proposals_payload,
+    get_dashboard_summary_payload,
+    get_dashboard_task_detail_payload,
+    get_needs_attention_tasks,
+    get_proposal_model,
+    get_task_artifacts,
+    get_task_for_actor,
+    get_task_models_by_ids,
+    get_task_queryset_for_actor,
+    get_task_request_id,
+    get_task_timeline_events,
+)
 from apps.agent_runtime.application.proposal_use_cases import (
     ApproveProposalUseCase,
     CreateProposalInput,
@@ -29,21 +43,6 @@ from apps.agent_runtime.application.proposal_use_cases import (
     InvalidProposalTransitionError,
     RejectProposalUseCase,
     SubmitProposalForApprovalUseCase,
-)
-from apps.agent_runtime.application.interface_services import (
-    get_dashboard_executions_payload,
-    get_dashboard_guardrails_payload,
-    get_dashboard_proposals_payload,
-    get_dashboard_summary_payload,
-    get_dashboard_task_detail_payload,
-    get_needs_attention_tasks,
-    get_proposal_model,
-    get_task_for_actor,
-    get_task_artifacts,
-    get_task_models_by_ids,
-    get_task_queryset_for_actor,
-    get_task_request_id,
-    get_task_timeline_events,
 )
 from apps.agent_runtime.application.use_cases import (
     CancelTaskInput,
@@ -56,7 +55,6 @@ from apps.agent_runtime.application.use_cases import (
     ResumeTaskInput,
     ResumeTaskUseCase,
 )
-from apps.agent_runtime.domain.entities import EventSource, TaskDomain, TaskStatus
 from apps.agent_runtime.domain.services import InvalidStateTransitionError
 from apps.agent_runtime.interface.serializers import (
     AgentArtifactSerializer,

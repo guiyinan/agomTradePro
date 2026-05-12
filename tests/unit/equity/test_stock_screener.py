@@ -9,8 +9,6 @@
 from datetime import date
 from decimal import Decimal
 
-import pytest
-
 from apps.equity.domain.entities import FinancialData, StockInfo, ValuationMetrics
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener

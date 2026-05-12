@@ -8,7 +8,7 @@ No Django, Pandas, or external dependencies allowed.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class PlaceholderType(Enum):
@@ -171,7 +171,7 @@ class ChainConfig:
 
         # 检查parallel_group之间没有order冲突
         all_parallel_orders = set()
-        for group, orders in group_orders.items():
+        for _group, orders in group_orders.items():
             for order in orders:
                 if order in all_parallel_orders:
                     raise ValueError(f"Order {order} is used by multiple parallel groups")

@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 """
 Temp script to force refresh macro data
 """
 import os
 import sys
+
 import django
 
 # Fix encoding for Windows console
@@ -14,11 +14,13 @@ if sys.platform == 'win32':
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from apps.macro.infrastructure.models import MacroIndicator
-from apps.macro.application.use_cases import SyncMacroDataUseCase, SyncMacroDataRequest
-from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from datetime import date, timedelta
+
+from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
+from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
+from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
 
 def main():
     print("=" * 60)

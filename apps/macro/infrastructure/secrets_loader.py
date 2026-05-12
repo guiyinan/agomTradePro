@@ -4,7 +4,6 @@ Macro Data Source Secrets Loader
 从数据库加载宏观数据源 API 密钥。
 """
 
-from typing import Optional
 
 from apps.data_center.application.repository_provider import list_active_provider_configs
 from shared.domain.interfaces import DataSourceSecretsDTO

@@ -2,10 +2,8 @@
 Unit tests for decision_rhythm domain entities/services.
 """
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
-
-import pytest
 
 from apps.decision_rhythm.domain.entities import (
     CooldownPeriod,

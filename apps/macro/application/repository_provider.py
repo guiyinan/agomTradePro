@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 def get_macro_repository():
     """Return the configured macro repository implementation."""
 

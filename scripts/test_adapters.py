@@ -4,8 +4,8 @@ Test script for data adapters.
 Quick validation that adapters are properly configured.
 """
 
-import sys
 import os
+import sys
 from datetime import date, timedelta
 
 # Add project root to Python path
@@ -17,13 +17,13 @@ def test_adapter_imports():
     print("Testing adapter imports...")
     try:
         from apps.macro.infrastructure.adapters import (
-            TushareAdapter,
+            PUBLICATION_LAGS,
             AKShareAdapter,
             FailoverAdapter,
-            MultiSourceAdapter,
-            create_default_adapter,
             MacroDataPoint,
-            PUBLICATION_LAGS,
+            MultiSourceAdapter,
+            TushareAdapter,
+            create_default_adapter,
         )
         print("  [OK] All adapters imported successfully")
         return True
@@ -108,7 +108,7 @@ def test_failover_adapter():
     """Test FailoverAdapter creation"""
     print("\nTesting FailoverAdapter...")
 
-    from apps.macro.infrastructure.adapters import FailoverAdapter, BaseMacroAdapter
+    from apps.macro.infrastructure.adapters import BaseMacroAdapter, FailoverAdapter
 
     # Create mock adapters
     class MockAdapter(BaseMacroAdapter):

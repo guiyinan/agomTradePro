@@ -5,7 +5,7 @@ Beta Gate Repositories
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Max, Q

@@ -7,15 +7,11 @@ Events Domain Rules
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from .entities import (
     DomainEvent,
-    EventBusConfig,
-    EventSnapshot,
-    EventSubscription,
     EventType,
 )
 
@@ -181,7 +177,6 @@ class EventDeduplicationRule(Rule):
         """
         # 使用事件类型和主要 payload 字段创建签名
         import hashlib
-        import json
 
         key_parts = [event.event_type.value]
 
