@@ -307,8 +307,7 @@ def check_application_third_party_baseline(baseline: dict) -> tuple[list[Violati
                         f"{package} imports increased from allowed {allowed_count} to {count}.",
                     )
                 )
-    for path in sorted(set(allowed) - set(actual)):
-        # Debt was removed; keep this as a report hint but not a failure.
+    for _path in sorted(set(allowed) - set(actual)):
         pass
 
     return violations, actual

@@ -8,7 +8,6 @@ Content Extractor - 从HTML页面提取文章正文
 
 import logging
 import re
-from abc import ABC
 from typing import Protocol
 
 try:
@@ -57,7 +56,7 @@ class ContentExtractorProtocol(Protocol):
         ...
 
 
-class BaseContentExtractor(ABC):
+class BaseContentExtractor:
     """内容提取器基类"""
 
     source_name: str = "base"

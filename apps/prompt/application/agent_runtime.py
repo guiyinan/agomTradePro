@@ -437,7 +437,7 @@ class AgentRuntime:
         new_messages.append(assistant_msg)
 
         # 添加每个工具的结果
-        for tc, record in zip(tool_calls_data, tool_records):
+        for tc, record in zip(tool_calls_data, tool_records, strict=True):
             result_content = self._serialize_tool_result(record)
             new_messages.append(
                 {

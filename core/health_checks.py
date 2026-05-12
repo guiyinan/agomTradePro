@@ -5,7 +5,7 @@ Provides health check functions for Kubernetes liveness and readiness probes.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from django.core.cache import cache
 from django.db import DatabaseError, connections

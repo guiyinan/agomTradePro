@@ -4,7 +4,6 @@ RSS Adapter - Base Protocol and Exception Classes
 定义RSS适配器的接口协议。
 """
 
-from abc import ABC
 from datetime import datetime
 from typing import Protocol
 
@@ -54,7 +53,7 @@ class RSSAdapterProtocol(Protocol):
         ...
 
 
-class BaseRSSAdapter(ABC):
+class BaseRSSAdapter:
     """
     RSS适配器基类
 

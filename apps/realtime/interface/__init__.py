@@ -5,7 +5,7 @@ Celery Tasks for Regime Calculation.
 """
 
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from celery import shared_task
 from celery.utils.log import get_task_logger

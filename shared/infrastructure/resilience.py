@@ -14,7 +14,7 @@ import time
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 

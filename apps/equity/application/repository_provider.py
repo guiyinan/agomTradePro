@@ -104,12 +104,6 @@ def get_equity_scoring_weight_config_repository() -> ScoringWeightConfigReposito
     return ScoringWeightConfigRepository()
 
 
-def get_equity_valuation_repair_config_repository() -> ValuationRepairConfigRepository:
-    """Return the valuation repair config repository."""
-
-    return ValuationRepairConfigRepository()
-
-
 def build_akshare_valuation_gateway() -> AKShareValuationGateway:
     """Build the AKShare valuation gateway."""
 

@@ -67,6 +67,10 @@ def _trade_repository():
     return _simulated_trading_repository_module().DjangoTradeRepository()
 
 
+def _signal_repository():
+    return import_module("apps.signal.infrastructure.repositories").DjangoSignalRepository()
+
+
 def _request_repository():
     return _decision_rhythm_repository_module().get_request_repository()
 

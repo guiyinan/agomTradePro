@@ -546,10 +546,10 @@ class AlphaProviderRegistry:
 
                     # 记录失败指标
                     _record_metrics(
-                        lambda metrics: metrics.record_provider_call(
-                            provider.name,
+                        lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
+                            _p.name,
                             success=False,
-                            latency_ms=latency_ms,
+                            latency_ms=_lat,
                         ),
                         context=f"{provider.name}_failed_result",
                     )
@@ -586,16 +586,16 @@ class AlphaProviderRegistry:
 
                         # 记录指标
                         _record_metrics(
-                            lambda metrics: (
+                            lambda metrics, _p=provider, _lat=latency_ms, _r=result: (
                                 metrics.record_provider_call(
-                                    provider.name,
+                                    _p.name,
                                     success=True,
-                                    latency_ms=latency_ms,
-                                    staleness_days=result.staleness_days,
+                                    latency_ms=_lat,
+                                    staleness_days=_r.staleness_days,
                                 ),
                                 (
-                                    metrics.record_coverage(len(result.scores), 300)
-                                    if result.scores
+                                    metrics.record_coverage(len(_r.scores), 300)
+                                    if _r.scores
                                     else None
                                 ),
                             ),
@@ -630,15 +630,15 @@ class AlphaProviderRegistry:
 
                 # 记录成功指标
                 _record_metrics(
-                    lambda metrics: (
+                    lambda metrics, _p=provider, _lat=latency_ms, _r=result, _ch=cache_hit: (
                         metrics.record_provider_call(
-                            provider.name,
+                            _p.name,
                             success=True,
-                            latency_ms=latency_ms,
-                            staleness_days=result.staleness_days,
+                            latency_ms=_lat,
+                            staleness_days=_r.staleness_days,
                         ),
-                        metrics.record_cache_hit(True) if cache_hit else None,
-                        metrics.record_coverage(len(result.scores), 300) if result.scores else None,
+                        metrics.record_cache_hit(True) if _ch else None,
+                        metrics.record_coverage(len(_r.scores), 300) if _r.scores else None,
                     ),
                     context=f"{provider.name}_provider_success",
                 )
@@ -653,10 +653,10 @@ class AlphaProviderRegistry:
 
                 # 记录异常指标
                 _record_metrics(
-                    lambda metrics: metrics.record_provider_call(
-                        provider.name,
+                    lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
+                        _p.name,
                         success=False,
-                        latency_ms=latency_ms,
+                        latency_ms=_lat,
                     ),
                     context=f"{provider.name}_provider_exception",
                 )
@@ -669,10 +669,10 @@ class AlphaProviderRegistry:
                     exc_info=True,
                 )
                 _record_metrics(
-                    lambda metrics: metrics.record_provider_call(
-                        provider.name,
+                    lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
+                        _p.name,
                         success=False,
-                        latency_ms=latency_ms,
+                        latency_ms=_lat,
                     ),
                     context=f"{provider.name}_provider_unclassified_exception",
                 )

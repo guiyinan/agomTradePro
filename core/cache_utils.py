@@ -10,7 +10,7 @@ import json
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from django.conf import settings
 from django.core.cache import cache

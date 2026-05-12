@@ -48,11 +48,11 @@ __all__ = [
     "HedgePositionRepository",
     "NotificationServiceFactory",
     "PolicyAdminInterfaceRepository",
-    "PolicyAdminInterfaceService",
+    "PolicyAdminInterfaceService",  # noqa: F822
     "PolicyWorkbenchInterfaceRepository",
-    "PolicyWorkbenchInterfaceService",
+    "PolicyWorkbenchInterfaceService",  # noqa: F822
     "PolicyRssApiInterfaceRepository",
-    "PolicyRssApiInterfaceService",
+    "PolicyRssApiInterfaceService",  # noqa: F822
     "RSSRepository",
     "WorkbenchRepository",
     "create_ai_policy_classifier",

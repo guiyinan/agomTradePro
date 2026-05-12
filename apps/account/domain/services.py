@@ -14,6 +14,7 @@ from apps.account.domain.entities import (
     AssetAllocation,
     AssetClassType,
     CrossBorderFlag,
+    MacroSizingConfig,
     Position,
     RegimeMatchAnalysis,
     Region,

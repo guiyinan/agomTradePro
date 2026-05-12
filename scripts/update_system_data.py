@@ -8,7 +8,7 @@ AgomTradePro 数据更新脚本
 import json
 import sys
 from datetime import date, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 # ==================== AKShare 适配器 ====================
 

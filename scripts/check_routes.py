@@ -48,7 +48,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 # 设置标准输出编码为 UTF-8
 if sys.platform == 'win32':

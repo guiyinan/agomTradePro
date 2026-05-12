@@ -13,7 +13,7 @@ import sys
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 def parse_coverage_xml(xml_path: str) -> dict[str, Any]:

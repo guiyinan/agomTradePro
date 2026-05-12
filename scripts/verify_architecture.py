@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timezone
 from importlib.util import resolve_name
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "apps"

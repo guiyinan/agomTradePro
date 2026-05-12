@@ -11,6 +11,8 @@ from typing import Any, Optional, Protocol
 
 from .entities import (
     AIConfig,
+    OrderIntent,
+    OrderStatus,
     RuleCondition,
     SignalRecommendation,
     Strategy,

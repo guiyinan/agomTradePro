@@ -6,7 +6,6 @@ AgomTradePro 核心算法验证脚本
 
 import sys
 from datetime import date
-from typing import Dict, List
 
 
 # 测试 Regime 算法

@@ -4,14 +4,13 @@ AgomTradePro SDK 模块基类
 所有业务模块的基类，提供统一的请求封装。
 """
 
-from abc import ABC
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from ..client import AgomTradeProClient
 
 
-class BaseModule(ABC):
+class BaseModule:
     """
     所有模块的基类
 

@@ -102,7 +102,7 @@ class ComprehensiveValuationAnalyzer:
         # weights.append(0.15)
 
         # 计算加权综合评分
-        overall_score = sum(s.score * w for s, w in zip(scores, weights))
+        overall_score = sum(s.score * w for s, w in zip(scores, weights, strict=True))
 
         # 确定信号
         overall_signal = self._determine_signal(overall_score)

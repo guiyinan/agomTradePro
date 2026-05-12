@@ -8,7 +8,7 @@ No Django, Pandas, or external dependencies allowed.
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class PlaceholderType(Enum):

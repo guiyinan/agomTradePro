@@ -125,7 +125,7 @@ def get_fund_holdings(fund_code: str, report_date):
 def screen_funds_multidim(*, filters: dict, context_data: dict, max_count: int) -> dict[str, Any]:
     """Execute multi-dimensional fund screening."""
 
-    active_signals = DjangoSignalRepository().get_active_signals()
+    active_signals = get_signal_repository().get_active_signals()
     context = ScoreContext(
         current_regime=context_data.get("regime", "Recovery"),
         policy_level=context_data.get("policy_level", "P0"),

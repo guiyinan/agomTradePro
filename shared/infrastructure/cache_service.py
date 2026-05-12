@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from django.conf import settings
 from django.core.cache import cache

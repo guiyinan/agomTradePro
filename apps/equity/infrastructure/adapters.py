@@ -284,7 +284,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
         frame = frame.dropna(subset=["trade_date", "close_price"])
         frame = frame[frame["close_price"] > 0]
         frame = frame.sort_values("trade_date").drop_duplicates(subset=["trade_date"], keep="last")
-        return list(zip(frame["trade_date"], frame["close_price"].astype(float)))
+        return list(zip(frame["trade_date"], frame["close_price"].astype(float), strict=True))
 
     def _persist_index_points(
         self,

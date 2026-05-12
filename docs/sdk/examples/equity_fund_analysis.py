@@ -122,7 +122,7 @@ try:
         limit=5,
     )
     print(f"   Success: {screen_result.get('success')}")
-    for code, name in zip(screen_result.get("fund_codes", []), screen_result.get("fund_names", [])):
+    for code, name in zip(screen_result.get("fund_codes", []), screen_result.get("fund_names", []), strict=False):
         print(f"   {code:<12} {name}")
 except Exception as e:
     print(f"   Error: {e}")

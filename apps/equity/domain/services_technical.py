@@ -70,7 +70,7 @@ class TechnicalChartService:
         signals: list[TechnicalCrossoverSignal] = []
         ordered_bars = sorted(bars, key=lambda item: item.trade_date)
 
-        for previous, current in zip(ordered_bars, ordered_bars[1:]):
+        for previous, current in zip(ordered_bars, ordered_bars[1:], strict=False):
             if (
                 previous.ma5 is None
                 or previous.ma20 is None

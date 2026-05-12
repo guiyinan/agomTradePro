@@ -189,7 +189,7 @@ class PerformanceCalculatorService:
 
         def npv(rate: float) -> float:
             total = 0.0
-            for t, cf in zip(times, amounts):
+            for t, cf in zip(times, amounts, strict=True):
                 denom = (1.0 + rate) ** t
                 if denom == 0:
                     return float("inf")
@@ -198,7 +198,7 @@ class PerformanceCalculatorService:
 
         def npv_derivative(rate: float) -> float:
             total = 0.0
-            for t, cf in zip(times, amounts):
+            for t, cf in zip(times, amounts, strict=True):
                 denom = (1.0 + rate) ** (t + 1)
                 if denom == 0:
                     return float("inf")

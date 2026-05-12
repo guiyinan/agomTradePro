@@ -15,7 +15,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -281,17 +281,14 @@ class MetricsRegistry:
         """导出所有指标为 JSON Lines 格式（日志友好）"""
         lines = []
 
-        # 导出 counters
-        for metric_name, label_dict in self._counters.items():
+        for _metric_name, label_dict in self._counters.items():
             for metric_value in label_dict.values():
                 lines.append(metric_value.to_json())
 
-        # 导出 gauges
-        for metric_name, label_dict in self._gauges.items():
+        for _metric_name, label_dict in self._gauges.items():
             for metric_value in label_dict.values():
                 lines.append(metric_value.to_json())
 
-        # 导出 histograms（简化版）
         for metric_name, label_dict in self._histograms.items():
             for histogram_value in label_dict.values():
                 lines.append(json.dumps({

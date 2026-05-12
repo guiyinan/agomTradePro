@@ -24,7 +24,7 @@ from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas  
 def get_alpha_score_cache_repository():
     """Return the alpha score cache repository."""
 
-    from apps.alpha.infrastructure.providers import AlphaScoreCacheRepository
+    from apps.alpha.infrastructure.providers import AlphaScoreCacheRepository  # noqa: F811
 
     return AlphaScoreCacheRepository()
 
@@ -32,7 +32,7 @@ def get_alpha_score_cache_repository():
 def get_qlib_model_registry_repository():
     """Return the qlib model registry repository."""
 
-    from apps.alpha.infrastructure.providers import QlibModelRegistryRepository
+    from apps.alpha.infrastructure.providers import QlibModelRegistryRepository  # noqa: F811
 
     return QlibModelRegistryRepository()
 
@@ -40,7 +40,7 @@ def get_qlib_model_registry_repository():
 def get_alpha_alert_repository():
     """Return the alpha alert repository."""
 
-    from apps.alpha.infrastructure.providers import AlphaAlertRepository
+    from apps.alpha.infrastructure.providers import AlphaAlertRepository  # noqa: F811
 
     return AlphaAlertRepository()
 
@@ -48,7 +48,7 @@ def get_alpha_alert_repository():
 def get_alpha_pool_data_repository():
     """Return the alpha pool data repository."""
 
-    from apps.alpha.infrastructure.providers import AlphaPoolDataRepository
+    from apps.alpha.infrastructure.providers import AlphaPoolDataRepository  # noqa: F811
 
     return AlphaPoolDataRepository()
 

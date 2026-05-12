@@ -15,7 +15,6 @@ from django.db import transaction
 
 from core.integration.alpha_candidates import (
     AlphaCandidateRepositoryWrapper,
-    get_alpha_candidate_repository,
 )
 from core.integration.decision_requests import (
     DecisionRequestRepositoryWrapper,

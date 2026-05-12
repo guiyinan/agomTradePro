@@ -7,6 +7,7 @@ Provides adapters for fetching macro economic data from various sources.
 import logging
 from datetime import date, datetime
 
+from apps.macro.application.use_cases import MacroDataPoint
 from shared.infrastructure.sdk_bridge import get_akshare_module
 
 logger = logging.getLogger(__name__)

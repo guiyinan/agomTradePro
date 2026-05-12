@@ -61,6 +61,7 @@ from apps.account.infrastructure.models import (
     SystemSettingsModel,
     TakeProfitConfigModel,
     TradingCostConfigModel,
+    TransactionCostConfigModel,
     TransactionModel,
     UserAccessTokenModel,
 )

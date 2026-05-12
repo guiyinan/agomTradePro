@@ -262,7 +262,7 @@ def _generate_invalidation_reason(
 ) -> str:
     """生成证伪原因描述"""
     parts = []
-    for cond, detail in zip(rule.conditions, checked_conditions):
+    for cond, detail in zip(rule.conditions, checked_conditions, strict=True):
         if not detail.get("is_met"):
             continue
         op_map = {

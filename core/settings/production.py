@@ -69,7 +69,7 @@ def _validate_secret_key() -> str:
 # This ensures our validation runs and overrides the default value
 SECRET_KEY = _validate_secret_key()
 
-from .base import *  # noqa: E402
+from .base import *  # noqa: E402, F403
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False

@@ -4,7 +4,6 @@ Base Protocol and Exceptions for Asset Price Adapters.
 Infrastructure layer - defines the interface for fetching asset prices.
 """
 
-from abc import ABC
 from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
@@ -111,7 +110,7 @@ class AssetPriceAdapterProtocol(Protocol):
         ...
 
 
-class BaseAssetPriceAdapter(ABC):
+class BaseAssetPriceAdapter:
     """
     资产价格适配器基类
 

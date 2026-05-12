@@ -9,6 +9,8 @@ import logging
 import re
 from datetime import UTC, datetime
 
+import pandas
+
 from apps.data_center.infrastructure.market_gateway_entities import StockNewsItem
 
 logger = logging.getLogger(__name__)

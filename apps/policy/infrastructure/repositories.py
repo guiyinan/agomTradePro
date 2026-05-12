@@ -11,7 +11,15 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from ..domain.entities import PolicyEvent, PolicyLevel, PolicyLevelKeywordRule
-from .models import PolicyLevelKeywordModel, PolicyLog, RSSFetchLog, RSSSourceConfigModel
+from .models import (
+    GateActionAuditLog,
+    PolicyIngestionConfig,
+    PolicyLevelKeywordModel,
+    PolicyLog,
+    RSSFetchLog,
+    RSSSourceConfigModel,
+    SentimentGateConfig,
+)
 
 
 class PolicyRepositoryError(Exception):

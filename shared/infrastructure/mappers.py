@@ -7,7 +7,7 @@ Entity-ORM Mapper Base Classes
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Generic, List, Optional, Type, TypeVar
+from typing import Generic, Optional, TypeVar
 
 TEntity = TypeVar('TEntity')
 TModel = TypeVar('TModel')
@@ -65,13 +65,13 @@ class DataclassMapper(EntityMapper[TEntity, TModel], ABC):
         if hasattr(target_type, '__origin__'):
             return value
 
-        if target_type == float and isinstance(value, (int, str, Decimal)):
+        if target_type is float and isinstance(value, (int, str, Decimal)):
             return float(value)
-        if target_type == int and isinstance(value, (str, float)):
+        if target_type is int and isinstance(value, (str, float)):
             return int(value)
-        if target_type == str and not isinstance(value, str):
+        if target_type is str and not isinstance(value, str):
             return str(value)
-        if target_type == Decimal and isinstance(value, (int, float, str)):
+        if target_type is Decimal and isinstance(value, (int, float, str)):
             return Decimal(str(value))
 
         return value

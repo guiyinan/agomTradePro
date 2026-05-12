@@ -6,7 +6,7 @@ Defines protocols that infrastructure layer must implement.
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, List, Optional, Protocol, TypeVar
+from typing import Any, Generic, Optional, Protocol, TypeVar
 
 # Generic type variable for entities
 T = TypeVar('T')

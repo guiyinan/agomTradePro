@@ -26,6 +26,7 @@ from ..domain.services import (
     calculate_momentum,
     calculate_rolling_zscore,
 )
+from ..domain.services_v2 import RegimeCalculationResult, ThresholdConfig
 from .repository_provider import get_regime_config_repository
 
 logger = logging.getLogger(__name__)

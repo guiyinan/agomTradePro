@@ -53,7 +53,8 @@ if not AGOMTRADEPRO_ENCRYPTION_KEY and _SHOW_ENCRYPTION_KEY_WARNING and not _IS_
 
     warnings.warn(
         "AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. "
-        'Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+        'Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"',
+        stacklevel=2,
     )
 
 # Decision Workspace V2 feature flag

@@ -49,7 +49,7 @@ def main() -> None:
         )
         print("Screen result:")
         print(f"  success={screened['success']} count={len(screened['fund_codes'])}")
-        for code, name in zip(screened["fund_codes"], screened["fund_names"]):
+        for code, name in zip(screened["fund_codes"], screened["fund_names"], strict=False):
             print(f"  {code} {name}")
         print()
 

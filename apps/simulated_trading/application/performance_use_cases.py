@@ -324,7 +324,7 @@ class GetAccountPerformanceReportUseCase:
             if all_component_daily and not bm_return_missing:
                 min_len = min(len(s) for s in all_component_daily)
                 weights = [float(c["weight"]) for c in bm_components if c["benchmark_code"] in
-                           [comp["benchmark_code"] for comp, _ in zip(bm_components, component_returns)]]
+                           [comp["benchmark_code"] for comp, _ in zip(bm_components, component_returns, strict=False)]]
                 if min_len > 0 and weights:
                     bm_daily_returns_combined = [
                         sum(all_component_daily[i][j] * weights[i] for i in range(len(weights)))

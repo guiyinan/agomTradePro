@@ -544,7 +544,7 @@ class GateConfig:
             self.portfolio_constraint = PortfolioConstraint(max_total_position_pct=max_total)
 
     @property
-    def is_valid(self) -> bool:
+    def is_valid(self) -> bool:  # noqa: F811
         """配置当前是否有效（兼容旧版 valid_from/valid_until 语义）。"""
         if self._is_valid_override is not None:
             return self._is_valid_override

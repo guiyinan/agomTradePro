@@ -1153,12 +1153,10 @@ class RecommendationConsolidationService:
 
         # 对每个分组进行聚合
         consolidated = []
-        for key, group in groups.items():
+        for _key, group in groups.items():
             if len(group) == 1:
-                # 单条建议不需要聚合
                 consolidated.append(group[0])
             else:
-                # 多条建议聚合
                 merged = self._merge_recommendations(group, account_id)
                 consolidated.append(merged)
 
@@ -1744,9 +1742,8 @@ class RecommendationAggregator:
         conflicts: list[UnifiedRecommendation] = []
         conflict_pairs: list[ConflictPair] = []
 
-        for key, group in groups.items():
+        for _key, group in groups.items():
             if len(group) == 1:
-                # 只有一个推荐，直接加入
                 deduplicated.append(group[0])
             else:
                 # 多个同键推荐，合并
@@ -1765,7 +1762,7 @@ class RecommendationAggregator:
 
         # 处理冲突
         final_recommendations: list[UnifiedRecommendation] = []
-        for as_key, side_groups in account_security_groups.items():
+        for _as_key, side_groups in account_security_groups.items():
             has_buy = "BUY" in side_groups and side_groups["BUY"]
             has_sell = "SELL" in side_groups and side_groups["SELL"]
 

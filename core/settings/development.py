@@ -15,7 +15,7 @@ from core.log_file_paths import (
 )
 from core.logging_utils import normalize_log_level
 
-from .base import *
+from .base import *  # noqa: F403
 
 # DEBUG
 DEBUG = True

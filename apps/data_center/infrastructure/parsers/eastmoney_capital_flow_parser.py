@@ -7,6 +7,8 @@
 import logging
 from datetime import date, datetime
 
+import pandas
+
 from apps.data_center.infrastructure.market_gateway_entities import CapitalFlowSnapshot
 
 logger = logging.getLogger(__name__)

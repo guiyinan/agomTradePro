@@ -185,8 +185,8 @@ class AssetMultiDimScorer:
                 # 获取权重用于日志
                 try:
                     weights = self.weight_repo.get_active_weights(asset_type=asset_type)
-                except:
-                    weights = WeightConfig()  # 使用默认权重
+                except Exception:
+                    weights = WeightConfig()
 
                 self.logger.log_scoring_from_context(
                     asset_type=asset_type,

@@ -77,7 +77,7 @@ class PolicyLevelField(serializers.Field):
         except ValueError:
             raise serializers.ValidationError(
                 f"Invalid policy level. Must be one of: "
-                f"{[l.value for l in PolicyLevel]}"
+                f"{[lvl.value for lvl in PolicyLevel]}"
             ) from None
 
 

@@ -8,6 +8,8 @@
 import logging
 from decimal import Decimal, InvalidOperation
 
+import pandas
+
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
 
 logger = logging.getLogger(__name__)

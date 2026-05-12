@@ -8,7 +8,7 @@ import functools
 import logging
 from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
 
 from core.exceptions import (
     AgomTradeProException,

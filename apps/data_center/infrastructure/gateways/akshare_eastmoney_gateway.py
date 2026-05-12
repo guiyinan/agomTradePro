@@ -12,6 +12,7 @@ import time
 from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 
+import pandas as pd
 import requests
 
 from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol

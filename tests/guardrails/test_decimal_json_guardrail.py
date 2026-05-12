@@ -79,7 +79,7 @@ def test_guardrail_no_raw_decimal_in_json_payload_builders():
         for child in ast.walk(node):
             if not isinstance(child, ast.Dict):
                 continue
-            for key, value in zip(child.keys, child.values):
+            for key, value in zip(child.keys, child.values, strict=True):
                 if not isinstance(key, ast.Constant):
                     continue
                 for attr in [

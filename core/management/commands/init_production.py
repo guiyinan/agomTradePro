@@ -15,7 +15,6 @@ import importlib
 import logging
 import sys
 import time
-from typing import List, Tuple
 
 from django.core.management.base import BaseCommand, CommandError
 

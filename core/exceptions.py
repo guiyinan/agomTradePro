@@ -5,7 +5,7 @@ Provides standardized exception classes for consistent error handling across the
 """
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from django.http import Http404
 from rest_framework import status

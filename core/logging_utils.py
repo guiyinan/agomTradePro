@@ -11,7 +11,7 @@ import sys
 import threading
 import uuid
 from datetime import UTC, datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class StructuredFormatter(logging.Formatter):

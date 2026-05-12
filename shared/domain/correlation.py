@@ -114,7 +114,7 @@ class RollingCorrelationCalculator:
         mean2 = sum(returns2) / n
         return sum(
             (r1 - mean1) * (r2 - mean2)
-            for r1, r2 in zip(returns1, returns2)
+            for r1, r2 in zip(returns1, returns2, strict=True)
         ) / (n - 1)
 
     def calculate_correlation_matrix(
@@ -165,7 +165,7 @@ class RollingCorrelationCalculator:
         mean_benchmark = sum(benchmark_returns) / n
         covariance = sum(
             (ra - mean_asset) * (rb - mean_benchmark)
-            for ra, rb in zip(asset_returns, benchmark_returns)
+            for ra, rb in zip(asset_returns, benchmark_returns, strict=True)
         ) / (n - 1)
         variance = sum((rb - mean_benchmark) ** 2 for rb in benchmark_returns) / (n - 1)
 
@@ -193,7 +193,7 @@ class RollingCorrelationCalculator:
 
         mean_x = sum(x) / n
         mean_y = sum(y) / n
-        numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+        numerator = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y, strict=True))
         sum_xx = sum((xi - mean_x) ** 2 for xi in x)
         sum_yy = sum((yi - mean_y) ** 2 for yi in y)
         denominator = (sum_xx * sum_yy) ** 0.5

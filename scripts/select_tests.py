@@ -17,7 +17,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Set
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 APP_LOCAL_TEST_DIRS = sorted(
@@ -59,10 +58,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/integration/policy/",
     ],
 
-    # Signal 模块
-    "signal": [
-        "tests/integration/signal/",
-    ],
 
     # Audit 模块
     "audit": [

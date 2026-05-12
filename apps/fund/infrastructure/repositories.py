@@ -887,7 +887,7 @@ class DjangoFundRepository:
         """Derive daily returns from NAV series when provider payload omitted them."""
 
         returns: list[float] = []
-        for previous, current in zip(nav_series, nav_series[1:]):
+        for previous, current in zip(nav_series, nav_series[1:], strict=False):
             prev_nav = float(previous.unit_nav)
             curr_nav = float(current.unit_nav)
             if prev_nav <= 0:

@@ -238,7 +238,7 @@ class MomentumRotationEngine:
 
         sum_x = sum(x_values)
         sum_y = sum(y_values)
-        sum_xy = sum(x * y for x, y in zip(x_values, y_values))
+        sum_xy = sum(x * y for x, y in zip(x_values, y_values, strict=True))
         sum_x2 = sum(x * x for x in x_values)
 
         # Calculate slope

@@ -7,7 +7,7 @@
 import random
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 # 导入回测引擎和相关实体
 from apps.backtest.domain.stock_selection_backtest import (

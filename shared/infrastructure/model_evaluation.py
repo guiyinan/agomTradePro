@@ -10,7 +10,7 @@ Qlib 模型评估相关的基础设施。
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 

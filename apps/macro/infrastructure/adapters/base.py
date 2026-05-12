@@ -4,7 +4,6 @@ Base Protocol and Exceptions for Macro Data Adapters.
 Infrastructure layer - defines the interface that all adapters must implement.
 """
 
-from abc import ABC
 from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
@@ -111,7 +110,7 @@ class MacroAdapterProtocol(Protocol):
         ...
 
 
-class BaseMacroAdapter(ABC):
+class BaseMacroAdapter:
     """
     宏观数据适配器基类
 

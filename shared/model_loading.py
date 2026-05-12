@@ -1,7 +1,6 @@
 """Pure technical helpers for resolving Django model classes."""
 
 from importlib import import_module
-from typing import Type
 
 from django.apps import apps as django_apps
 from django.db.models import Model

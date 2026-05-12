@@ -264,7 +264,7 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
 
             # 检查 Backend 连接
             try:
-                self.celery_app.backend
+                _ = self.celery_app.backend
                 backend_reachable = True
             except Exception as e:
                 logger.warning(f"Backend connection failed: {e}")

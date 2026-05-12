@@ -419,7 +419,7 @@ class SentimentIndexCalculator:
         n = len(scores)
         weights = list(range(1, n + 1))  # [1, 2, 3, ...]
 
-        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
+        weighted_sum = sum(score * weight for score, weight in zip(scores, weights, strict=True))
         total_weight = sum(weights)
 
         return weighted_sum / total_weight if total_weight > 0 else 0.0

@@ -68,16 +68,16 @@ def main() -> None:
             page_errors: list[str] = []
             failed_requests: list[dict] = []
 
-            def on_console(msg):
+            def on_console(msg, _errors=console_errors):
                 if msg.type == "error":
-                    console_errors.append(msg.text)
+                    _errors.append(msg.text)
 
-            def on_page_error(exc):
-                page_errors.append(str(exc))
+            def on_page_error(exc, _errors=page_errors):
+                _errors.append(str(exc))
 
-            def on_response(resp):
+            def on_response(resp, _failed=failed_requests):
                 if resp.status >= 400:
-                    failed_requests.append({"url": resp.url, "status": resp.status})
+                    _failed.append({"url": resp.url, "status": resp.status})
 
             page.on("console", on_console)
             page.on("pageerror", on_page_error)

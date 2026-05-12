@@ -71,7 +71,7 @@ if db_url.startswith('postgresql://'):
 
         print('=== CPI Data Analysis ===')
         print('CPI values (index):')
-        for i, (period, value) in enumerate(cpi_all[-10:]):
+        for _i, (period, value) in enumerate(cpi_all[-10:]):
             print(f'  {period}: {value}')
         print()
 

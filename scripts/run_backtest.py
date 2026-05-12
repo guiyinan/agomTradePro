@@ -218,7 +218,7 @@ def run_backtest(
             prev_price = get_simulated_asset_price(asset_class, dt - timedelta(days=30))
             ret = (price - prev_price) / prev_price if prev_price > 0 else 0
             returns.append(ret)
-        asset_returns[asset_class] = list(zip([dt for dt, _ in result.equity_curve], returns))
+        asset_returns[asset_class] = list(zip([dt for dt, _ in result.equity_curve], returns, strict=True))
 
     attribution = analyze_attribution(
         backtest_result=result,

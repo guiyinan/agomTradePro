@@ -216,7 +216,7 @@ class CachedFactorAdapter(FactorDataSource):
 
         covariance = sum(
             (a - mean_asset) * (b - mean_benchmark)
-            for a, b in zip(asset_returns, benchmark_returns)
+            for a, b in zip(asset_returns, benchmark_returns, strict=True)
         ) / (n - 1)
 
         variance = sum((b - mean_benchmark) ** 2 for b in benchmark_returns) / (n - 1)

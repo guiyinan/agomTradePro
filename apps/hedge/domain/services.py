@@ -424,8 +424,8 @@ class HedgeRatioCalculator:
         mean_hedge = sum(hedge_returns) / n
 
         covariance = sum(
-            (l - mean_long) * (h - mean_hedge)
-            for l, h in zip(long_returns, hedge_returns)
+            (lv - mean_long) * (h - mean_hedge)
+            for lv, h in zip(long_returns, hedge_returns, strict=True)
         ) / (n - 1)
 
         variance_hedge = sum((h - mean_hedge) ** 2 for h in hedge_returns) / (n - 1)

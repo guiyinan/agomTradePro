@@ -8,6 +8,8 @@ import math
 from dataclasses import dataclass
 from datetime import date
 
+from .entities import RegimeSnapshot
+
 
 @dataclass(frozen=True)
 class RegimeCalculationResult:

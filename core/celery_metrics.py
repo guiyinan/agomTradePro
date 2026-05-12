@@ -16,7 +16,7 @@ Celery Prometheus Metrics Signal Handlers
 
 import logging
 import time
-from typing import Any, Dict
+from typing import Any
 
 from celery.exceptions import Retry, SoftTimeLimitExceeded, TimeLimitExceeded
 from celery.signals import (
