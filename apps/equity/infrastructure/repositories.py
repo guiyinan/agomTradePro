@@ -17,6 +17,7 @@ import requests
 from django.db import models
 from django.utils import timezone
 
+from apps.data_center.application.interface_services import make_on_demand_data_center_service
 from apps.data_center.application.repository_provider import (
     fetch_akshare_eastmoney_historical_prices,
     fetch_tushare_historical_prices,
@@ -321,6 +322,7 @@ class DjangoStockRepository:
         self._dc_price_bar_repo = get_price_bar_repository()
         self._dc_quote_repo = get_quote_snapshot_repository()
         self._dc_valuation_repo = get_valuation_fact_repository()
+        self._dc_on_demand = make_on_demand_data_center_service()
 
     def get_all_stocks_with_fundamentals(
         self, as_of_date: date | None = None
@@ -519,7 +521,13 @@ class DjangoStockRepository:
             "dividend_yield": latest.dividend_yield,
         }
 
-    def get_financial_data(self, stock_code: str, limit: int = 4) -> list[FinancialData]:
+    def get_financial_data(
+        self,
+        stock_code: str,
+        limit: int = 4,
+        *,
+        hydrate: bool = False,
+    ) -> list[FinancialData]:
         """
         获取股票的财务数据
 
@@ -530,6 +538,8 @@ class DjangoStockRepository:
         Returns:
             FinancialData 列表，按日期降序排列
         """
+        if hydrate:
+            self._dc_on_demand.ensure_financials(stock_code, periods=max(limit, 1))
         dc_financials = self._get_financials_from_data_center(stock_code, limit=limit)
         if dc_financials:
             return dc_financials
@@ -560,7 +570,12 @@ class DjangoStockRepository:
         return []
 
     def get_valuation_history(
-        self, stock_code: str, start_date: date, end_date: date
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
     ) -> list[ValuationMetrics]:
         """
         获取股票的估值历史数据
@@ -573,6 +588,8 @@ class DjangoStockRepository:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
+        if hydrate:
+            self._dc_on_demand.ensure_valuations(stock_code, start_date, end_date)
         dc_valuations = self._get_valuations_from_data_center(stock_code, start_date, end_date)
         if dc_valuations:
             return dc_valuations
@@ -929,7 +946,12 @@ class DjangoStockRepository:
         )
 
     def get_daily_prices(
-        self, stock_code: str, start_date: date, end_date: date
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
     ) -> list[tuple[date, Decimal]]:
         """
         获取股票的日线收盘价数据
@@ -942,17 +964,37 @@ class DjangoStockRepository:
         Returns:
             [(日期, 收盘价), ...]，按日期升序排列
         """
-        dc_bars = self._dc_price_bar_repo.get_bars(
-            stock_code,
-            start=start_date,
-            end=end_date,
-            limit=max((end_date - start_date).days + 10, 120),
+        if not hydrate:
+            local_models = StockDailyModel._default_manager.filter(
+                stock_code=stock_code,
+                trade_date__gte=start_date,
+                trade_date__lte=end_date,
+            ).order_by("trade_date")
+            local_prices = [(m.trade_date, m.close) for m in local_models]
+            if local_prices and self._has_sufficient_price_coverage(
+                local_prices, start_date=start_date, end_date=end_date
+            ):
+                return local_prices
+
+        dc_bars = (
+            self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
+            if hydrate
+            else self._dc_price_bar_repo.get_bars(
+                stock_code,
+                start=start_date,
+                end=end_date,
+                limit=max((end_date - start_date).days + 10, 120),
+            )
         )
         if dc_bars:
-            return [
+            dc_prices = [
                 (bar.bar_date, Decimal(str(bar.close)))
                 for bar in sorted(dc_bars, key=lambda item: item.bar_date)
             ]
+            if self._has_sufficient_price_coverage(
+                dc_prices, start_date=start_date, end_date=end_date
+            ):
+                return dc_prices
 
         models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
@@ -960,7 +1002,9 @@ class DjangoStockRepository:
             trade_date__lte=end_date,
         ).order_by("trade_date")
         local_prices = [(m.trade_date, m.close) for m in models]
-        if local_prices:
+        if local_prices and self._has_sufficient_price_coverage(
+            local_prices, start_date=start_date, end_date=end_date
+        ):
             return local_prices
 
         return self._get_remote_daily_prices(stock_code, start_date, end_date)
@@ -970,13 +1014,19 @@ class DjangoStockRepository:
         stock_code: str,
         start_date: date,
         end_date: date,
+        *,
+        hydrate: bool = False,
     ) -> list[TechnicalBar]:
         """获取K线与技术指标序列。"""
-        dc_bars = self._dc_price_bar_repo.get_bars(
-            stock_code,
-            start=start_date,
-            end=end_date,
-            limit=max((end_date - start_date).days + 10, 120),
+        dc_bars = (
+            self._dc_on_demand.ensure_price_bars(stock_code, start_date, end_date).records
+            if hydrate
+            else self._dc_price_bar_repo.get_bars(
+                stock_code,
+                start=start_date,
+                end=end_date,
+                limit=max((end_date - start_date).days + 10, 120),
+            )
         )
         best_available_bars: list[TechnicalBar] = []
         if dc_bars:
@@ -1050,6 +1100,22 @@ class DjangoStockRepository:
         )
         return remote_technical_bars or best_available_bars
 
+    def _has_sufficient_price_coverage(
+        self,
+        prices: list[tuple[date, Decimal]],
+        *,
+        start_date: date,
+        end_date: date,
+    ) -> bool:
+        if not prices:
+            return False
+        calendar_days = max((end_date - start_date).days + 1, 1)
+        if calendar_days <= 45:
+            return len(prices) >= 1
+        expected_trading_days = max(int(calendar_days * 0.55), 1)
+        minimum_points = min(60, max(8, expected_trading_days // 4))
+        return len(prices) >= minimum_points
+
     def _has_sufficient_bar_coverage(
         self,
         bars: list[TechnicalBar],
@@ -1069,7 +1135,8 @@ class DjangoStockRepository:
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
         try:
-            quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
+            intraday_result = self._dc_on_demand.ensure_intraday(stock_code)
+            quotes = intraday_result.records
         except RuntimeError as exc:
             logger.debug(
                 "Skip data center intraday lookup for %s because DB access is unavailable: %s",
@@ -1197,7 +1264,12 @@ class DjangoStockRepository:
         return self._last_intraday_source
 
     def calculate_daily_returns(
-        self, stock_code: str, start_date: date, end_date: date
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = False,
     ) -> dict[date, float]:
         """
         计算股票的日收益率
@@ -1210,7 +1282,7 @@ class DjangoStockRepository:
         Returns:
             {日期: 收益率}，收益率以小数表示（如 0.01 表示 1%）
         """
-        prices = self.get_daily_prices(stock_code, start_date, end_date)
+        prices = self.get_daily_prices(stock_code, start_date, end_date, hydrate=hydrate)
 
         returns = {}
         for i in range(1, len(prices)):
@@ -1904,7 +1976,12 @@ class DjangoStockRepository:
         except (ValueError, TypeError):
             return None
 
-    def get_latest_financial_data(self, stock_code: str) -> FinancialData | None:
+    def get_latest_financial_data(
+        self,
+        stock_code: str,
+        *,
+        hydrate: bool = False,
+    ) -> FinancialData | None:
         """
         获取股票最新的财务数据
 
@@ -1914,6 +1991,9 @@ class DjangoStockRepository:
         Returns:
             FinancialData 或 None
         """
+        if hydrate:
+            items = self.get_financial_data(stock_code, limit=1, hydrate=True)
+            return items[0] if items else None
         return self._get_latest_financial(stock_code)
 
     def get_stock_count_by_sector(self, sector: str) -> int:

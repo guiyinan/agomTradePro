@@ -6,21 +6,44 @@ from datetime import date
 from typing import Any
 
 from apps.data_center.application.dtos import SyncQuoteRequest
+from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.domain.entities import DataProviderSettings
+from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
+from apps.task_monitor.application.tracking import record_pending_task
+from core.integration.alpha_homepage import load_alpha_homepage_data
 from core.integration.alpha_runtime import (
     queue_alpha_score_prediction,
     resolve_portfolio_alpha_scope,
 )
-from core.integration.alpha_homepage import load_alpha_homepage_data
 from core.integration.pulse_refresh import refresh_pulse_snapshot
 from core.integration.realtime_prices import fetch_latest_prices
-from apps.task_monitor.application.tracking import record_pending_task
 
+from .repository_provider import (
+    AssetRepository,
+    CapitalFlowRepository,
+    DataProviderSettingsRepository,
+    FinancialFactRepository,
+    FundNavRepository,
+    IndicatorCatalogRepository,
+    IndicatorUnitRuleRepository,
+    MacroFactRepository,
+    MacroGovernanceRepository,
+    NewsRepository,
+    PriceBarRepository,
+    ProviderConfigRepository,
+    PublisherCatalogRepository,
+    QuoteSnapshotRepository,
+    RawAuditRepository,
+    SectorMembershipRepository,
+    ValuationFactRepository,
+    build_unified_provider_factory,
+    run_data_center_connection_test,
+)
 from .use_cases import (
     ManageIndicatorCatalogUseCase,
     ManageIndicatorUnitRuleUseCase,
-    ManagePublisherCatalogUseCase,
     ManageProviderConfigUseCase,
+    ManagePublisherCatalogUseCase,
     QueryCapitalFlowsUseCase,
     QueryFinancialsUseCase,
     QueryFundNavUseCase,
@@ -43,27 +66,6 @@ from .use_cases import (
     SyncQuoteUseCase,
     SyncSectorMembershipUseCase,
     SyncValuationUseCase,
-)
-from .repository_provider import (
-    AssetRepository,
-    CapitalFlowRepository,
-    DataProviderSettingsRepository,
-    FinancialFactRepository,
-    FundNavRepository,
-    IndicatorCatalogRepository,
-    IndicatorUnitRuleRepository,
-    MacroGovernanceRepository,
-    MacroFactRepository,
-    NewsRepository,
-    PriceBarRepository,
-    PublisherCatalogRepository,
-    ProviderConfigRepository,
-    QuoteSnapshotRepository,
-    RawAuditRepository,
-    SectorMembershipRepository,
-    ValuationFactRepository,
-    build_unified_provider_factory,
-    run_data_center_connection_test,
 )
 
 
@@ -531,6 +533,22 @@ def make_sync_sector_membership_use_case() -> SyncSectorMembershipUseCase:
         provider_factory=_make_provider_factory(),
         fact_repo=SectorMembershipRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_on_demand_data_center_service() -> OnDemandDataCenterService:
+    """Build the single-asset read-through Data Center service."""
+
+    return OnDemandDataCenterService(
+        price_repo=PriceBarRepository(),
+        valuation_repo=ValuationFactRepository(),
+        financial_repo=FinancialFactRepository(),
+        quote_repo=QuoteSnapshotRepository(),
+        sync_price_use_case=make_sync_price_use_case(),
+        sync_valuation_use_case=make_sync_valuation_use_case(),
+        sync_financial_use_case=make_sync_financial_use_case(),
+        sync_quote_use_case=make_sync_quote_use_case(),
+        provider_id_resolver=get_active_provider_id_by_source,
     )
 
 

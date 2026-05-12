@@ -38,6 +38,16 @@ RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
 )
 
 
+def _call_repo_with_hydrate(method, *args, hydrate: bool = False, **kwargs):
+    """Call repositories that support optional read-through hydration when available."""
+    try:
+        return method(*args, hydrate=hydrate, **kwargs)
+    except TypeError as exc:
+        if "hydrate" not in str(exc):
+            raise
+        return method(*args, **kwargs)
+
+
 @dataclass
 class ScreenStocksRequest:
     """筛选个股请求"""
@@ -282,10 +292,12 @@ class GetTechnicalChartUseCase:
                 request.timeframe, request.lookback_days
             )
             start_date = end_date - timedelta(days=lookback_days)
-            bars = self.stock_repo.get_technical_bars(
+            bars = _call_repo_with_hydrate(
+                self.stock_repo.get_technical_bars,
                 request.stock_code,
                 start_date=start_date,
                 end_date=end_date,
+                hydrate=True,
             )
             if not bars:
                 raise ValueError(f"未找到股票 {request.stock_code} 的日线技术数据")
@@ -480,16 +492,28 @@ class AnalyzeValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code, start_date, end_date
+            valuation_history = _call_repo_with_hydrate(
+                self.stock_repo.get_valuation_history,
+                request.stock_code,
+                start_date,
+                end_date,
+                hydrate=True,
             )
 
             # 5. 获取财务数据
-            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+            financial = _call_repo_with_hydrate(
+                self.stock_repo.get_latest_financial_data,
+                request.stock_code,
+                hydrate=True,
+            )
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
-            daily_prices = self.stock_repo.get_daily_prices(
-                request.stock_code, start_date=end_date - timedelta(days=7), end_date=end_date
+            daily_prices = _call_repo_with_hydrate(
+                self.stock_repo.get_daily_prices,
+                request.stock_code,
+                start_date=end_date - timedelta(days=7),
+                end_date=end_date,
+                hydrate=True,
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 
@@ -674,7 +698,11 @@ class CalculateDCFUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             # 2. 获取最新财务数据
-            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+            financial = _call_repo_with_hydrate(
+                self.stock_repo.get_latest_financial_data,
+                request.stock_code,
+                hydrate=True,
+            )
             if not financial:
                 raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
 
@@ -693,10 +721,12 @@ class CalculateDCFUseCase:
             )
 
             # 5. 获取当前市值和股价
-            valuation = self.stock_repo.get_valuation_history(
+            valuation = _call_repo_with_hydrate(
+                self.stock_repo.get_valuation_history,
                 request.stock_code,
-                start_date=date.today() - timedelta(days=7),
-                end_date=date.today(),
+                date.today() - timedelta(days=7),
+                date.today(),
+                hydrate=True,
             )
 
             current_price = None
@@ -822,8 +852,12 @@ class AnalyzeRegimeCorrelationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            stock_returns = self.stock_repo.calculate_daily_returns(
-                request.stock_code, start_date, end_date
+            stock_returns = _call_repo_with_hydrate(
+                self.stock_repo.calculate_daily_returns,
+                request.stock_code,
+                start_date,
+                end_date,
+                hydrate=True,
             )
 
             if not stock_returns:
@@ -1087,7 +1121,11 @@ class ComprehensiveValuationUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code}")
 
             # 2. 获取最新财务数据
-            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+            financial = _call_repo_with_hydrate(
+                self.stock_repo.get_latest_financial_data,
+                request.stock_code,
+                hydrate=True,
+            )
             if not financial:
                 raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
 
@@ -1095,8 +1133,12 @@ class ComprehensiveValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = self.stock_repo.get_valuation_history(
-                request.stock_code, start_date, end_date
+            valuation_history = _call_repo_with_hydrate(
+                self.stock_repo.get_valuation_history,
+                request.stock_code,
+                start_date,
+                end_date,
+                hydrate=True,
             )
 
             if not valuation_history:
