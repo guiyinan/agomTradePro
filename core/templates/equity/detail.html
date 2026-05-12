@@ -1030,7 +1030,7 @@ async function loadTechnicalChart(timeframe = activeTechnicalTimeframe) {
         }
 
         const payload = await fetchJsonOrThrowCompat(
-            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=${technicalLookbackDays[timeframe] || 540}`
+            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=540`
         );
         if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
             return;

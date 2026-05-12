@@ -29,12 +29,27 @@ from apps.alpha.application.ops_locks import (
     resolve_dashboard_alpha_refresh_lock,
 )
 from apps.alpha.application.ops_locks import (
+    acquire_dashboard_alpha_refresh_pending_lock as _acquire_dashboard_alpha_refresh_pending_lock,
+)
+from apps.alpha.application.ops_locks import (
     build_dashboard_alpha_refresh_lock_key as _shared_build_alpha_refresh_lock_key,
+)
+from apps.alpha.application.ops_locks import (
+    build_dashboard_alpha_refresh_metadata as _build_dashboard_alpha_refresh_metadata,
+)
+from apps.alpha.application.ops_locks import (
+    promote_dashboard_alpha_refresh_task_lock as _promote_dashboard_alpha_refresh_task_lock,
+)
+from apps.alpha.application.ops_locks import (
+    release_dashboard_alpha_refresh_lock as _release_dashboard_alpha_refresh_lock,
 )
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
     get_alpha_pool_mode_choices,
     normalize_alpha_pool_mode,
+)
+from apps.alpha.application.pool_resolver import (
+    PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
 )
 from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.alpha_homepage import (
@@ -66,10 +81,17 @@ from apps.dashboard.interface import (
     portfolio_views,
     workflow_views,
 )
+from apps.task_monitor.application.tracking import record_pending_task as _record_pending_task
 
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
 _DASHBOARD_EXIT_DETAIL_ANCHOR = "alpha-exit-detail"
+acquire_dashboard_alpha_refresh_pending_lock = _acquire_dashboard_alpha_refresh_pending_lock
+PortfolioAlphaPoolResolver = _PortfolioAlphaPoolResolver
+build_dashboard_alpha_refresh_metadata = _build_dashboard_alpha_refresh_metadata
+promote_dashboard_alpha_refresh_task_lock = _promote_dashboard_alpha_refresh_task_lock
+record_pending_task = _record_pending_task
+release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
 
 
 def _get_request_user_id(user) -> int | None:

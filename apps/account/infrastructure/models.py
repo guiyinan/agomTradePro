@@ -1903,7 +1903,7 @@ class PortfolioObserverGrantModel(models.Model):
             raise ValidationError({"observer_user_id": "不能授权给自己"})
 
         # 检查是否已存在 active 授权
-        if self.status == "active":
+        if self.status == "active" and not getattr(self, "_skip_duplicate_active_validation", False):
             existing = PortfolioObserverGrantModel.objects.filter(
                 owner_user_id=self.owner_user_id,
                 observer_user_id=self.observer_user_id,
@@ -1918,7 +1918,11 @@ class PortfolioObserverGrantModel(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        self._skip_duplicate_active_validation = True
+        try:
+            self.full_clean(validate_constraints=False)
+        finally:
+            self._skip_duplicate_active_validation = False
         super().save(*args, **kwargs)
 
     def is_valid(self):

@@ -150,6 +150,14 @@ def build_unified_provider_factory() -> UnifiedProviderFactory:
     return UnifiedProviderFactory(get_provider_config_repository())
 
 
+def build_unified_provider_factory_for_repo(
+    provider_repo: ProviderConfigRepository,
+) -> UnifiedProviderFactory:
+    """Build a unified provider factory bound to a provided repository instance."""
+
+    return UnifiedProviderFactory(provider_repo)
+
+
 def get_source_registry() -> SourceRegistry:
     """Return the module-level source registry."""
 

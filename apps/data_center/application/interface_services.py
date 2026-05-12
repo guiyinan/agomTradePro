@@ -8,7 +8,6 @@ from typing import Any
 from apps.data_center.application.dtos import SyncQuoteRequest
 from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.domain.entities import DataProviderSettings
-from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.task_monitor.application.tracking import record_pending_task
 from core.integration.alpha_homepage import load_alpha_homepage_data
 from core.integration.alpha_runtime import (
@@ -37,6 +36,7 @@ from .repository_provider import (
     SectorMembershipRepository,
     ValuationFactRepository,
     build_unified_provider_factory,
+    build_unified_provider_factory_for_repo,
     run_data_center_connection_test,
 )
 from .use_cases import (
@@ -384,7 +384,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
     try:
         result = SyncQuoteUseCase(
             provider_repo=provider_repo,
-            provider_factory=UnifiedProviderFactory(provider_repo),
+            provider_factory=build_unified_provider_factory_for_repo(provider_repo),
             fact_repo=QuoteSnapshotRepository(),
             raw_audit_repo=RawAuditRepository(),
         ).execute(

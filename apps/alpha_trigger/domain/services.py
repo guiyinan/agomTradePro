@@ -22,6 +22,9 @@ from .entities import (
     TriggerStatus,
     TriggerType,
 )
+from .entities import (
+    calculate_strength as _calculate_strength,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +194,12 @@ class TriggerEvaluator:
             return True, f"Policy 档位变为 P{target_level}"
 
         return False, f"当前 Policy 档位 (P{current_level}) 不是目标档位 (P{target_level})"
+
+
+def calculate_strength(confidence: float, config: TriggerConfig | None = None) -> SignalStrength:
+    """Backward-compatible strength helper re-exported from domain services."""
+
+    return _calculate_strength(confidence, config)
 
 
 class TriggerInvalidator:

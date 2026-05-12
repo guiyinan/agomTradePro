@@ -30,6 +30,23 @@ SKIP_COUNT = 0
 RESULTS: list[dict] = []
 
 
+def _as_dict(payload: Any) -> dict[str, Any]:
+    return payload if isinstance(payload, dict) else {}
+
+
+def _payload_count(payload: Any) -> int | str:
+    if isinstance(payload, dict):
+        if "count" in payload:
+            return payload.get("count", "N/A")
+        data = payload.get("data")
+        if isinstance(data, list):
+            return len(data)
+        return "N/A"
+    if isinstance(payload, list):
+        return len(payload)
+    return "N/A"
+
+
 def _bootstrap_auth() -> None:
     global AUTH_BOOTSTRAPPED, AUTH_MODE
     if AUTH_BOOTSTRAPPED:
@@ -144,14 +161,16 @@ def test_health_infra():
     print("=" * 60)
 
     ok, data = api_get("/api/health/", use_auth=False)
+    health_payload = _as_dict(data)
     record(
         "Health check",
-        "PASS" if ok and data.get("status") == "ok" else "FAIL",
+        "PASS" if ok and health_payload.get("status") == "ok" else "FAIL",
         str(data)[:100] if ok else data,
     )
 
     ok, data = api_get("/api/ready/", use_auth=False)
-    checks = data.get("checks", {}) if ok else {}
+    readiness_payload = _as_dict(data)
+    checks = readiness_payload.get("checks", {}) if ok else {}
     db_ok = checks.get("database", {}).get("status") == "ok" if checks else False
     record(
         "Readiness - DB",
@@ -174,7 +193,8 @@ def test_health_infra():
     )
 
     ok, data = api_get("/api/", use_auth=False)
-    endpoints = data.get("endpoints", {}) if ok else {}
+    api_root_payload = _as_dict(data)
+    endpoints = api_root_payload.get("endpoints", {}) if ok else {}
     record(
         "API Root (endpoints count)",
         "PASS" if ok and len(endpoints) > 20 else "FAIL",
@@ -211,7 +231,7 @@ def test_core_business():
     record(
         "Regime history",
         "PASS" if ok else "FAIL",
-        f"count={data.get('count', len(data.get('data', [])))}" if ok else str(data)[:100],
+        f"count={_payload_count(data)}" if ok else str(data)[:100],
     )
 
     ok, data = api_get("/api/policy/status/")
@@ -228,7 +248,7 @@ def test_core_business():
     record(
         "Signals list",
         "PASS" if ok else "FAIL",
-        f"count={data.get('count', 'N/A')}" if ok else str(data)[:100],
+        f"count={_payload_count(data)}" if ok else str(data)[:100],
     )
 
     ok, data = api_get("/api/pulse/current/")
@@ -238,16 +258,17 @@ def test_core_business():
     record("Pulse history", "PASS" if ok else "FAIL", str(data)[:150] if ok else str(data)[:100])
 
     ok, data = api_get("/api/data-center/")
+    data_center_root = _as_dict(data)
     record(
         "Data center API root",
-        "PASS" if ok and "macro_series" in data.get("endpoints", {}) else "FAIL",
+        "PASS" if ok and "macro_series" in data_center_root.get("endpoints", {}) else "FAIL",
         str(data)[:150] if ok else str(data)[:100],
     )
 
     ok, data = api_get("/api/data-center/macro/series/?indicator_code=CN_PMI")
     record(
         "Data center macro series (PMI)",
-        "PASS" if ok and "data" in data else "FAIL",
+        "PASS" if ok and "data" in _as_dict(data) else "FAIL",
         str(data)[:150] if ok else str(data)[:100],
     )
 

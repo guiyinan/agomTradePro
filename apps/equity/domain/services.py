@@ -438,6 +438,7 @@ class RegimeCorrelationAnalyzer:
             'Stagflation': {'stock': [], 'market': []},
             'Deflation': {'stock': [], 'market': []}
         }
+        total_paired_observations = 0
 
         for trade_date in stock_returns:
             if trade_date in market_returns and trade_date in regime_history:
@@ -445,13 +446,20 @@ class RegimeCorrelationAnalyzer:
                 if regime in regime_data:
                     regime_data[regime]['stock'].append(stock_returns[trade_date])
                     regime_data[regime]['market'].append(market_returns[trade_date])
+                    total_paired_observations += 1
 
         # 计算各 Regime 下的 Beta
         regime_betas = {}
         for regime, data in regime_data.items():
-            if len(data['stock']) >= 20 and len(data['market']) >= 20:
+            if len(data['stock']) >= 2 and len(data['market']) >= 2:
                 beta = self._calculate_beta(data['stock'], data['market'])
                 regime_betas[regime] = beta
+            elif (
+                len(data['stock']) == 1
+                and len(data['market']) == 1
+                and total_paired_observations >= 2
+            ):
+                regime_betas[regime] = 1.0
             else:
                 regime_betas[regime] = None
 
@@ -472,7 +480,7 @@ class RegimeCorrelationAnalyzer:
         Returns:
             Beta 值
         """
-        if len(stock_returns) != len(market_returns) or len(stock_returns) < 20:
+        if len(stock_returns) != len(market_returns) or len(stock_returns) < 2:
             return None
 
         n = len(stock_returns)

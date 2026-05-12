@@ -17,7 +17,6 @@ from apps.data_center.infrastructure.models import (
     QuoteSnapshotModel,
     ValuationFactModel,
 )
-from apps.equity.infrastructure.models import StockInfoModel
 
 
 class Command(BaseCommand):
@@ -104,12 +103,17 @@ class Command(BaseCommand):
         if explicit_codes:
             return sorted({str(code).strip().upper() for code in explicit_codes if code})
 
-        if universe == "visible":
-            codes = set(
-                StockInfoModel._default_manager.filter(is_active=True).values_list(
-                    "stock_code", flat=True
-                )
+        active_stock_codes = set(
+            AssetMasterModel._default_manager.filter(
+                asset_type="stock",
+                exchange__in=["SSE", "SZSE", "BSE"],
             )
+            .filter(Q(is_active=True) | Q(is_active__isnull=True))
+            .values_list("code", flat=True)
+        )
+
+        if universe == "visible":
+            codes = set(active_stock_codes)
             codes.update(
                 PriceBarModel._default_manager.values_list("asset_code", flat=True).distinct()
             )
@@ -131,11 +135,6 @@ class Command(BaseCommand):
         if universe in {"active", "all"}:
             asset_qs = asset_qs.filter(Q(is_active=True) | Q(is_active__isnull=True))
         codes = set(asset_qs.values_list("code", flat=True))
-        codes.update(
-            StockInfoModel._default_manager.filter(is_active=True).values_list(
-                "stock_code", flat=True
-            )
-        )
         return sorted({str(code).strip().upper() for code in codes if code})
 
     def _append_domain_result(

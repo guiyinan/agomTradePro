@@ -7,8 +7,16 @@ from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
+from apps.regime.domain.asset_eligibility import Eligibility
+
 if TYPE_CHECKING:
     from .invalidation import InvalidationRule
+
+__all__ = [
+    "Eligibility",
+    "InvestmentSignal",
+    "SignalStatus",
+]
 
 
 class SignalStatus(Enum):

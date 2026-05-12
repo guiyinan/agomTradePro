@@ -25,6 +25,9 @@ from ..application.use_cases import (
     CalculateFundPerformanceRequest,
     ScreenFundsRequest,
 )
+from ..application.use_cases import (
+    AnalyzeFundStyleUseCase as _AnalyzeFundStyleUseCase,
+)
 from .serializers import (
     AnalyzeFundStyleRequestSerializer,
     AnalyzeFundStyleResponseSerializer,
@@ -34,6 +37,8 @@ from .serializers import (
     ScreenFundsRequestSerializer,
     ScreenFundsResponseSerializer,
 )
+
+AnalyzeFundStyleUseCase = _AnalyzeFundStyleUseCase
 
 # ============================================================================
 # 页面视图（前端）

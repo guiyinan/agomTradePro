@@ -524,13 +524,21 @@ class GateConfig:
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     is_valid: InitVar[bool | None] = None
+    _is_valid_init: InitVar[bool | None] = None
     _is_valid_override: bool | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self, is_valid: bool | None = None):
+    def __post_init__(
+        self,
+        is_valid: bool | None = None,
+        _is_valid_init: bool | None = None,
+    ):
         now = datetime.now(UTC)
         # dataclass InitVar and same-name @property can leak the property object
         # into __post_init__ when caller doesn't pass is_valid.
-        self._is_valid_override = None if isinstance(is_valid, property) else is_valid
+        normalized_is_valid = None if isinstance(is_valid, property) else is_valid
+        if normalized_is_valid is None and not isinstance(_is_valid_init, property):
+            normalized_is_valid = _is_valid_init
+        self._is_valid_override = normalized_is_valid
         if self.created_at is None:
             self.created_at = now
         if self.valid_from is None:

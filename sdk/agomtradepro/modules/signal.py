@@ -78,7 +78,7 @@ class SignalModule(BaseModule):
             params["asset_code"] = asset_code
 
         response = self._get("", params=params)
-        results = response.get("results", response)
+        results = response.get("results", response) if isinstance(response, dict) else response
         return [self._parse_signal(item) for item in results]
 
     def get(self, signal_id: int) -> InvestmentSignal:

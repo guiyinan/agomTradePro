@@ -19,6 +19,12 @@ from .repository_provider import (
     create_builtin_tools,
     get_execution_log_repository,
 )
+from .repository_provider import (
+    get_chain_repository as get_default_chain_repository,
+)
+from .repository_provider import (
+    get_prompt_repository as get_default_prompt_repository,
+)
 from .tool_execution import create_agent_tool_registry
 from .trace_logging import AgentExecutionLogger
 
@@ -87,3 +93,15 @@ def execute_builtin_tool(tool_name: str, params: dict[str, Any]) -> Any:
 
     registry = create_builtin_tools(build_macro_adapter(), build_regime_adapter())
     return registry.execute(tool_name, params)
+
+
+def get_prompt_repository() -> Any:
+    """Backward-compatible prompt repository accessor for existing consumers."""
+
+    return get_default_prompt_repository()
+
+
+def get_chain_repository() -> Any:
+    """Backward-compatible chain repository accessor for existing consumers."""
+
+    return get_default_chain_repository()

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}基金研究工作台 - AgomTradePro{% endblock %}
+{% block title %}基金分析工作台 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/fund.css' %}">
@@ -12,7 +12,7 @@
     <section class="fund-hero">
         <div class="fund-hero__content">
             <div class="fund-hero__copy">
-                <h1>基金研究工作台</h1>
+                <h1>基金分析工作台</h1>
                 <p class="fund-hero__lead">
                     把宏观环境、基金初筛、风格识别、业绩复核和持仓验证串成一条连续研究路径，减少来回切换和重复输入。
                 </p>
@@ -55,6 +55,7 @@
     </section>
 
     <section class="market-context-grid">
+        <div class="stat-card">
         <article class="context-card">
             <div class="context-card__icon"><i class="bi bi-globe2"></i></div>
             <div class="context-card__body">
@@ -63,6 +64,8 @@
                 <span class="context-card__detail">{{ current_regime }} / 置信度 {{ regime_confidence }}</span>
             </div>
         </article>
+        </div>
+        <div class="stat-card">
         <article class="context-card">
             <div class="context-card__icon"><i class="bi bi-sliders"></i></div>
             <div class="context-card__body">
@@ -71,6 +74,8 @@
                 <span class="context-card__detail">{{ policy_display }}</span>
             </div>
         </article>
+        </div>
+        <div class="stat-card">
         <article class="context-card">
             <div class="context-card__icon"><i class="bi bi-activity"></i></div>
             <div class="context-card__body">
@@ -79,6 +84,8 @@
                 <span class="context-card__detail">{{ sentiment_level }} / {{ sentiment_date }}</span>
             </div>
         </article>
+        </div>
+        <div class="stat-card">
         <article class="context-card">
             <div class="context-card__icon"><i class="bi bi-lightning-charge"></i></div>
             <div class="context-card__body">
@@ -87,6 +94,7 @@
                 <span class="context-card__detail">可用于辅助多维评分</span>
             </div>
         </article>
+        </div>
     </section>
 
     <div class="fund-shell">
@@ -273,7 +281,7 @@
                         </div>
                     </div>
                     <div class="table-wrap">
-                        <table class="fund-results-table">
+                        <table class="fund-results-table" id="multiDimTable">
                             <thead>
                                 <tr>
                                     <th>排名</th>
