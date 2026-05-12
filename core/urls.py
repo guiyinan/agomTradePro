@@ -10,7 +10,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 # Apply custom admin branding
-import core.admin as agom_admin_config
+import core.admin as agom_admin_config  # noqa: F401
 from apps.account.interface.backup_views import admin_db_backup_download_view
 
 # 文档管理后台视图

@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Regime 判定模块
 
@@ -7,9 +5,9 @@ AgomTradePro SDK - Regime 判定模块
 """
 
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
-from ..types import RegimeCalculationParams, RegimeState, RegimeType
+from ..types import RegimeState, RegimeType
 from .base import BaseModule
 
 

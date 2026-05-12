@@ -1,12 +1,10 @@
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Realtime 实时价格监控模块
 
 提供实时价格监控相关的 API 操作。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from .base import BaseModule
 

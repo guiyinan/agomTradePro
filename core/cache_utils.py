@@ -6,11 +6,10 @@ Supports Redis and in-memory cache with Prometheus metrics tracking.
 """
 
 import hashlib
-import json
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Optional
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -390,8 +389,6 @@ def invalidate_pattern(pattern: str) -> int:
         backend = settings.CACHES.get('default', {}).get('BACKEND', '')
         if 'redis' in backend.lower():
             # Use Redis SCAN to find and delete keys
-            from django.core.cache.backends.redis import RedisCache
-
             # Get Redis client
             if hasattr(cache, '_cache'):
                 client = cache._cache

@@ -6,8 +6,6 @@ Windows 兼容的 Celery Beat 管理命令
     python manage.py celery_beat_windows --loglevel=debug
 """
 
-import sys
-
 from django.core.management.base import BaseCommand
 
 

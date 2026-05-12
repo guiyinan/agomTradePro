@@ -9,7 +9,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 
-from .entities import PolicyLevel
+from .entities import (
+    EventType,
+    GateLevel,
+    IngestionConfig,
+    PolicyLevel,
+    SentimentGateThresholds,
+)
 
 
 class MarketAction(Enum):
@@ -328,18 +334,9 @@ DEFAULT_KEYWORD_RULES: list[PolicyLevelKeywordRule] = [
         weight=1
     ),
 ]
-
-
 # ============================================================
 # 工作台闸门规则
 # ============================================================
-
-from .entities import (
-    EventType,
-    GateLevel,
-    IngestionConfig,
-    SentimentGateThresholds,
-)
 
 
 def calculate_gate_level(

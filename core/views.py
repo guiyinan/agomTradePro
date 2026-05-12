@@ -4,7 +4,7 @@ Core Views for AgomTradePro
 项目级视图函数
 """
 
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import Http404, JsonResponse
@@ -113,8 +113,6 @@ def terminal_config_view(request):
 
     管理员可以在此配置终端命令，映射到Prompt模板或API端点
     """
-    from django.contrib.auth.decorators import permission_required
-
     # 检查权限
     if not (request.user.is_staff or request.user.is_superuser):
         from django.http import HttpResponseForbidden

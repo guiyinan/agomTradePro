@@ -1,6 +1,6 @@
 """AgomTradePro SDK - AI Provider 模块。"""
 
-from typing import Any, Optional
+from typing import Any
 
 from .base import BaseModule
 

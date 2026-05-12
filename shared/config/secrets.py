@@ -14,7 +14,6 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
 
 from shared.domain.interfaces import DataSourceSecretsDTO
 

@@ -8,13 +8,11 @@
 4. 缓存装饰器
 """
 
-import functools
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

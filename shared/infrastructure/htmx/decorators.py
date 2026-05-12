@@ -8,8 +8,7 @@ from functools import wraps
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect
+from django.http import HttpRequest, JsonResponse
 
 
 def is_htmx(request: HttpRequest) -> bool:

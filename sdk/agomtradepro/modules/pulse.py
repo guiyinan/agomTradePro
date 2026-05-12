@@ -4,8 +4,7 @@ AgomTradePro SDK - Pulse 脉搏模块
 提供 Pulse（宏观脉搏）相关的 API 操作。
 """
 
-from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 from .base import BaseModule
 

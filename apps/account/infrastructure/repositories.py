@@ -8,12 +8,10 @@ Account Infrastructure Repositories
 import json
 import logging
 import warnings
-from datetime import date, datetime
-from pathlib import Path
-
-logger = logging.getLogger(__name__)
 from collections.abc import Mapping
+from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from django.conf import settings
@@ -66,6 +64,8 @@ from apps.account.infrastructure.models import (
     UserAccessTokenModel,
 )
 from apps.signal.infrastructure.models import InvestmentSignalModel
+
+logger = logging.getLogger(__name__)
 
 
 class AccountRepository:

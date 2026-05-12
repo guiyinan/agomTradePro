@@ -27,7 +27,6 @@ import html
 import logging
 import re
 from functools import wraps
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

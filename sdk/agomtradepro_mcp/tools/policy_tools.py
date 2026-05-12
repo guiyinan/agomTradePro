@@ -5,7 +5,7 @@ AgomTradePro MCP Tools - Policy 政策事件工具
 """
 
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 

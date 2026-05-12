@@ -1,17 +1,15 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Backtest 回测引擎模块
 
 提供回测相关的 API 操作。
 """
 
-from datetime import date
-from typing import Any, Optional
+from __future__ import annotations
 
-from ..types import BacktestParams, BacktestResult
+from datetime import date
+from typing import Any
+
+from ..types import BacktestResult
 from .base import BaseModule
 
 

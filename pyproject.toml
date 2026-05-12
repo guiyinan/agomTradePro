@@ -168,6 +168,8 @@ ignore = [
 # Generated / third-party-adjacent code
 "**/migrations/**" = ["E501", "F401", "F811"]
 "docs/**" = ["F401", "F821", "E402"]
+"core/settings/development.py" = ["F405"]
+"core/settings/production.py" = ["F405"]
 "sdk/**" = ["F401", "F821"]
 # Scripts are standalone, not imported
 "scripts/**" = ["F401", "F821", "E402"]

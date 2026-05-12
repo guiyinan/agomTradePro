@@ -31,11 +31,15 @@ from ..domain.entities import (
     ProxyConfig,
     RiskImpact,
     RSSSourceConfig,
+    SentimentGateThresholds,
+    WorkbenchSummary,
 )
 from ..domain.rules import (
     DEFAULT_KEYWORD_RULES,
     PolicyResponse,
     analyze_policy_transition,
+    calculate_gate_level,
+    get_max_position_cap,
     get_policy_response,
     get_recommendations_for_level,
     is_high_risk_level,
@@ -1438,19 +1442,9 @@ class AutoAssignAuditsUseCase:
             "auditors": auditor_count,
         }
 
-
 # ============================================================
 # 工作台 Use Cases
 # ============================================================
-
-from ..domain.entities import (
-    SentimentGateThresholds,
-    WorkbenchSummary,
-)
-from ..domain.rules import (
-    calculate_gate_level,
-    get_max_position_cap,
-)
 
 
 @dataclass

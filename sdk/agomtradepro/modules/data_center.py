@@ -4,7 +4,7 @@ AgomTradePro SDK - Data Center 数据中台模块
 提供统一 Provider 管理、标准事实表查询与同步入口。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from .base import BaseModule
 

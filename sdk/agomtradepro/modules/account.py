@@ -1,12 +1,10 @@
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Account 账户管理模块
 
 提供账户和持仓管理相关的 API 操作。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from ..types import Portfolio, Position
 from .base import BaseModule

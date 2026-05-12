@@ -12,7 +12,7 @@ Public methods:
 - get_ops_context
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from .base import BaseModule
 

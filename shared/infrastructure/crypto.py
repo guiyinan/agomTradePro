@@ -7,7 +7,6 @@ Uses Fernet (symmetric encryption) from the cryptography library.
 import base64
 import logging
 import os
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings

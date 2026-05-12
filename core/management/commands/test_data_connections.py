@@ -7,13 +7,13 @@ AgomTradePro 综合数据连接测试脚本
     python manage.py test_data_connections
 """
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.db.models import Avg, Count, Sum
-from django.utils import timezone
+from django.db.models import Count, Sum
+from django.utils import timezone as django_timezone
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
@@ -58,7 +58,7 @@ class DataConnectionTester:
             "test": test_name,
             "status": status,
             "details": details,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(datetime.UTC).isoformat()
         }
         self.results.append(result)
         icon = "✅" if status == "success" else "❌" if status == "error" else "⚠️"
@@ -162,7 +162,7 @@ class DataConnectionTester:
             latest_pmi = repo.get_latest_indicator_data('PMI')
             if latest_pmi:
                 latest_date = latest_pmi[0].indicator_date
-                days_ago = (timezone.now().date() - latest_date).days
+                days_ago = (django_timezone.now().date() - latest_date).days
                 if days_ago <= 7:
                     self.log_result("Macro", "PMI数据新鲜度", "success",
                                   f"最新数据: {latest_date} ({days_ago} 天前)")
@@ -191,8 +191,8 @@ class DataConnectionTester:
             try:
                 use_case = SyncMacroDataUseCase(repository=repo)
                 request = SyncMacroDataRequest(
-                    start_date=(timezone.now() - timedelta(days=5)).date(),
-                    end_date=timezone.now().date(),
+                    start_date=(django_timezone.now() - timedelta(days=5)).date(),
+                    end_date=django_timezone.now().date(),
                     indicators=['PMI'],
                 )
                 result = use_case.execute(request)
@@ -232,7 +232,7 @@ class DataConnectionTester:
             # Check regime distribution
             all_regimes = repo.get_snapshots_in_range(
                 start_date=date(2000, 1, 1),
-                end_date=timezone.now().date(),
+                end_date=django_timezone.now().date(),
             )
             if all_regimes:
                 distribution = {}
@@ -249,7 +249,7 @@ class DataConnectionTester:
                     regime_repository=repo,
                 )
                 result = use_case.execute(
-                    request=CalculateRegimeRequest(as_of_date=timezone.now().date())
+                    request=CalculateRegimeRequest(as_of_date=django_timezone.now().date())
                 )
                 if result.success:
                     self.log_result("Regime", "Regime计算", "success",
@@ -466,7 +466,7 @@ class DataConnectionTester:
         self.stdout.write("\n" + "="*60)
         self.stdout.write("🚀 AgomTradePro 数据连接综合测试")
         self.stdout.write("="*60)
-        self.stdout.write(f"测试时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
+        self.stdout.write(f"测试时间: {datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')}")
 
         tests = [
             ("数据库连接", self.test_database_connection),
@@ -512,7 +512,7 @@ class DataConnectionTester:
         os.makedirs(os.path.dirname(results_file), exist_ok=True)
 
         summary = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(datetime.UTC).isoformat(),
             "total_tests": len(self.results),
             "success": len([r for r in self.results if r["status"] == "success"]),
             "errors": len([r for r in self.results if r["status"] == "error"]),

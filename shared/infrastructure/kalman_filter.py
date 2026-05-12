@@ -5,7 +5,6 @@ Infrastructure layer using NumPy for performance.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 

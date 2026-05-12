@@ -5,7 +5,7 @@ AgomTradePro SDK - Policy 政策事件模块
 """
 
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 
 from ..types import (
     EventType,

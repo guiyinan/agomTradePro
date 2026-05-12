@@ -19,6 +19,15 @@ from RestrictedPython.Guards import (
     guarded_unpack_sequence,
 )
 
+from apps.strategy.domain.entities import ActionType, SignalRecommendation, Strategy
+from apps.strategy.domain.protocols import (
+    AssetPoolProviderProtocol,
+    MacroDataProviderProtocol,
+    PortfolioDataProviderProtocol,
+    RegimeProviderProtocol,
+    SignalProviderProtocol,
+)
+
 
 def safe_dict_getattr(obj, attr):
     """
@@ -32,16 +41,6 @@ def safe_dict_getattr(obj, attr):
         except (KeyError, TypeError):
             raise AttributeError(f"'dict' object has no attribute '{attr}'") from None
     return default_guarded_getattr(obj, attr)
-
-
-from apps.strategy.domain.entities import ActionType, SignalRecommendation, Strategy
-from apps.strategy.domain.protocols import (
-    AssetPoolProviderProtocol,
-    MacroDataProviderProtocol,
-    PortfolioDataProviderProtocol,
-    RegimeProviderProtocol,
-    SignalProviderProtocol,
-)
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ Public methods:
 - get_task_timeline
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .base import BaseModule
 

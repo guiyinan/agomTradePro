@@ -8,7 +8,6 @@ from mcp.server.fastmcp import FastMCP
 from agomtradepro_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
-    wrap_tool_with_rbac,
     wrap_tool_with_rbac_and_audit,
 )
 from agomtradepro_mcp.tools.account_tools import register_account_tools

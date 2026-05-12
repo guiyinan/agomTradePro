@@ -6,9 +6,6 @@ Beta Gate Module
 通过 Regime + Policy + 风险画像的组合约束，实现资产的"可见性裁剪"。
 """
 
-# Import admin to ensure it's loaded when Django starts
-default_app_config = 'beta_gate.apps.BetaGateConfig'
-
 from .domain import (
     BetaGateEvaluator,
     GateConfig,
@@ -44,3 +41,6 @@ __all__ = [
     "evaluate_visibility",
     "build_universe",
 ]
+
+# Import admin to ensure it's loaded when Django starts
+default_app_config = 'beta_gate.apps.BetaGateConfig'

@@ -12,7 +12,7 @@ Public methods:
 - execute_proposal
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import BaseModule
 

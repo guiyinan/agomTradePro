@@ -309,8 +309,6 @@ class StrategyValidator:
         initial_capital: float
     ):
         """运行基准策略（等权，无准入过滤）"""
-        from apps.backtest.domain.services import BacktestConfig
-
         config = BacktestConfig(
             start_date=start_date,
             end_date=end_date,

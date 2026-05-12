@@ -1,8 +1,6 @@
 """URL Configuration for Strategy System."""
 from django.urls import path
 
-app_name = 'strategy'
-
 from apps.strategy.interface.views import (
     strategy_create,
     strategy_detail,
@@ -12,6 +10,8 @@ from apps.strategy.interface.views import (
     strategy_toggle_status,
     test_strategy,
 )
+
+app_name = 'strategy'
 
 urlpatterns = [
     # 前端页面路由

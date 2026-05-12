@@ -1,4 +1,3 @@
-import json
 from unittest.mock import Mock
 
 from agomtradepro_mcp.audit import AuditContext, AuditLogger

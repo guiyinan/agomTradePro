@@ -314,8 +314,6 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
         Wrapped function with RBAC and audit logging
     """
     def _wrapped(*args, **kwargs):
-        import time
-
         from .audit import AuditContext, get_audit_logger
 
         # 创建审计上下文

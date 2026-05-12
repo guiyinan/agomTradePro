@@ -4,8 +4,7 @@ AgomTradePro SDK - Hedge Module
 对冲组合模块 SDK 封装。
 """
 
-from datetime import date
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..client import AgomTradeProClient

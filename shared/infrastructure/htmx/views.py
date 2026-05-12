@@ -4,14 +4,12 @@ AgomTradePro - HTMX 视图基类
 提供基于 HTMX 的视图基类，简化 HTMX 请求处理。
 """
 
-from typing import Any, Optional
+from typing import Any
 
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.paginator import Paginator
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DetailView, FormView, ListView, TemplateView
 

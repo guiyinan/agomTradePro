@@ -4,7 +4,6 @@ AgomTradePro MCP Tools - Hedge 对冲组合工具
 提供对冲组合相关的 MCP 工具。
 """
 
-from datetime import date
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP

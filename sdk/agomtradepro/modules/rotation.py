@@ -5,7 +5,7 @@ AgomTradePro SDK - Rotation Module
 """
 
 from datetime import date
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..client import AgomTradeProClient

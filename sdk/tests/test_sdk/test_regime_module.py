@@ -3,12 +3,11 @@ Unit tests for AgomTradePro SDK Regime Module
 """
 
 from datetime import date
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from agomtradepro import AgomTradeProClient
-from agomtradepro.types import RegimeState, RegimeType
 
 
 class TestRegimeModule:

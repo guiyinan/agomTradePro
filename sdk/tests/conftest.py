@@ -3,7 +3,6 @@ Pytest configuration for AgomTradePro SDK tests
 """
 
 import os
-from unittest.mock import Mock
 
 import pytest
 

@@ -8,20 +8,17 @@ Architecture: Infrastructure layer (uses NumPy for computation)
 Domain layer interfaces: Pure Python types
 """
 
+import importlib.util
+
 from shared.domain.correlation import (
     CorrelationMatrix,
-    CorrelationResult,
     RollingCorrelationCalculator,
 )
 
 
 def try_use_numpy():
     """Try to import numpy for optimized calculations"""
-    try:
-        import numpy as np
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("numpy") is not None
 
 
 class NumPyCorrelationCalculator:

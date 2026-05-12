@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Optional
 
 from django.conf import settings
 from django.contrib.auth.backends import ModelBackend

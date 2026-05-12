@@ -15,8 +15,6 @@ from typing import Any, Protocol
 
 from django.utils import timezone
 
-logger = logging.getLogger(__name__)
-
 from apps.signal.application.repository_provider import (
     get_signal_repository,
     get_user_repository,
@@ -32,6 +30,8 @@ from apps.signal.domain.invalidation import (
     InvalidationRule,
     evaluate_rule,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationServiceProtocol(Protocol):

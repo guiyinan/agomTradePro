@@ -327,7 +327,7 @@ def task_revoked_handler(
 
 # ========== Celery 定时清理任务 ==========
 
-from celery import shared_task
+from celery import shared_task  # noqa: E402
 
 
 @shared_task(time_limit=300, soft_time_limit=280)

@@ -13,8 +13,6 @@ from typing import Any
 
 from django.utils import timezone
 
-logger = logging.getLogger(__name__)
-
 from apps.account.application.repository_provider import (
     AccountRepository,
     AssetMetadataRepository,
@@ -42,6 +40,8 @@ from apps.account.domain.services import (
 from apps.backtest.application.repository_provider import get_backtest_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import get_signal_repository
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

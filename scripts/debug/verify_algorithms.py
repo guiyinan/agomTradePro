@@ -100,7 +100,6 @@ def test_invalidation_algorithm():
 
     # 测试 1: 条件创建
     print("\n1. 条件创建测试:")
-    from apps.signal.domain.invalidation import IndicatorType
     cond = InvalidationCondition(
         indicator_code="CN_PMI_MANUFACTURING",
         indicator_type=IndicatorType.MACRO,

@@ -1,16 +1,13 @@
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Investment Signal 投资信号模块
 
 提供投资信号相关的 API 操作。
 """
 
-from datetime import date, datetime
-from typing import Any, Optional
+from datetime import datetime
+from typing import Any
 
 from ..types import (
-    CreateSignalParams,
     InvestmentSignal,
     RegimeType,
     SignalEligibilityResult,

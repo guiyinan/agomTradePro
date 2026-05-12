@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 """
 AgomTradePro SDK - Strategy 策略模块
 
@@ -7,7 +5,7 @@ AgomTradePro SDK - Strategy 策略模块
 """
 
 from datetime import date
-from typing import Any, Optional
+from typing import Any
 
 from .base import BaseModule
 

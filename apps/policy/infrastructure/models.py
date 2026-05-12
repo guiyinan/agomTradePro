@@ -701,10 +701,10 @@ class PolicyAuditQueue(models.Model):
 
 # ========== Django Signals ==========
 
-import logging
+import logging  # noqa: E402
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.db.models.signals import post_save  # noqa: E402
+from django.dispatch import receiver  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

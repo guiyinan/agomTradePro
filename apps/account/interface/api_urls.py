@@ -5,6 +5,12 @@ from rest_framework.routers import DefaultRouter
 
 from apps.account.interface import classification_api_views, sizing_views, views
 from apps.account.interface.observer_api_views import ObserverGrantViewSet
+from apps.account.interface.performance_compat_views import (
+    PortfolioBenchmarksCompatView,
+    PortfolioPerformanceReportCompatView,
+    PortfolioValuationSnapshotCompatView,
+    PortfolioValuationTimelineCompatView,
+)
 from apps.account.interface.portfolio_api_views import PortfolioViewSet, PositionViewSet
 from apps.account.interface.profile_api_views import (
     AccountHealthView,
@@ -51,13 +57,6 @@ classification_router = DefaultRouter()
 classification_router.register(r"categories", classification_api_views.AssetCategoryViewSet, basename="category_api")
 classification_router.register(r"currencies", classification_api_views.CurrencyViewSet, basename="currency_api")
 classification_router.register(r"exchange-rates", classification_api_views.ExchangeRateViewSet, basename="exchange_rate_api")
-
-from apps.account.interface.performance_compat_views import (
-    PortfolioBenchmarksCompatView,
-    PortfolioPerformanceReportCompatView,
-    PortfolioValuationSnapshotCompatView,
-    PortfolioValuationTimelineCompatView,
-)
 
 urlpatterns = [
     path("profile/", AccountProfileView.as_view(), name="profile"),

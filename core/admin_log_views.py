@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from functools import wraps
 
 from django.conf import settings

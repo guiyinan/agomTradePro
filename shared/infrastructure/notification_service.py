@@ -18,20 +18,19 @@ Unified Notification Service
 import logging
 import smtplib
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
 from django.core.mail import send_mail as django_send_mail
 from django.utils import timezone
 
-from core.exceptions import AgomTradeProException, ExternalServiceError
+from core.exceptions import AgomTradeProException
 from shared.infrastructure.resilience import MaxRetriesExceeded, retry_on_error
 
 logger = logging.getLogger(__name__)
@@ -673,7 +672,6 @@ class AlertNotificationChannel(NotificationChannelInterface):
     def __init__(self):
         """初始化告警通知通道"""
         from shared.infrastructure.alert_service import (
-            AlertLevel,
             ConsoleAlertChannel,
             MultiChannelAlertService,
         )

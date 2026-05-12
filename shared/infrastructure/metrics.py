@@ -15,7 +15,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 

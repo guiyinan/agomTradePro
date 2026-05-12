@@ -4,8 +4,6 @@ AgomTradePro SDK 异常定义
 所有与 API 交互相关的异常类型。
 """
 
-from typing import Optional
-
 
 class AgomTradeProAPIError(Exception):
     """

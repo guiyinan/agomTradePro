@@ -6,7 +6,7 @@ AgomTradePro SDK 类型定义
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Literal, Optional
+from typing import Literal
 
 # =============================================================================
 # Regime 相关类型

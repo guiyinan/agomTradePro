@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import MutableMapping
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 RUNSERVER_LOG_TIMESTAMP_ENV = "DJANGO_RUNSERVER_LOG_TIMESTAMP"

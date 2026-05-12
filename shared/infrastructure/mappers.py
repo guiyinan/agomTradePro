@@ -7,7 +7,7 @@ Entity-ORM Mapper Base Classes
 
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 TEntity = TypeVar('TEntity')
 TModel = TypeVar('TModel')

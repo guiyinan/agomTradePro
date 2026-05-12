@@ -10,8 +10,8 @@ import logging
 import sys
 import threading
 import uuid
-from datetime import UTC, datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 class StructuredFormatter(logging.Formatter):

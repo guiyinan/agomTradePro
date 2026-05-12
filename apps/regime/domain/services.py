@@ -8,7 +8,14 @@ import math
 from dataclasses import dataclass
 from datetime import date
 
-from .entities import RegimeSnapshot
+from .entities import (
+    ConfidenceBreakdown,
+    ConfidenceConfig,
+    IndicatorPredictivePower,
+    RegimeProbabilities,
+    RegimeSnapshot,
+    SignalConflict,
+)
 
 
 @dataclass(frozen=True)
@@ -788,18 +795,7 @@ class HybridRegimeCalculator:
             )
 
         return blended
-
-
 # ==================== Phase 4: Probability Confidence Model ====================
-
-
-from .entities import (
-    ConfidenceBreakdown,
-    ConfidenceConfig,
-    IndicatorPredictivePower,
-    RegimeProbabilities,
-    SignalConflict,
-)
 
 
 def calculate_confidence(
