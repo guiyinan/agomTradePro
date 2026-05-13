@@ -1635,7 +1635,7 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
 
     assert response.status_code == 200
     assert "Alpha 完整排名" in content
-    assert "不会为了展示而重排成 1-5" in content
+    assert "不会为了展示而重排成 1-3" in content
     assert "当前已加载 1 条，股票池规模约 320" in content
     assert "000001.SZ" in content
     assert "#8" in content
