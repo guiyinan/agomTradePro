@@ -1,0 +1,2 @@
+"""Config center app."""
+

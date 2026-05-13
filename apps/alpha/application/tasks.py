@@ -28,6 +28,7 @@ from apps.alpha.application.repository_provider import (
     normalize_qlib_symbol,
     resolve_effective_trade_date,
 )
+from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from apps.alpha.domain.entities import normalize_stock_code
 from core.integration.runtime_settings import get_runtime_qlib_config
 
@@ -255,7 +256,7 @@ def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
 
 
 def _get_runtime_qlib_config() -> dict:
-    """Return runtime qlib config through account-owned application service."""
+    """Return runtime qlib config through config-center owned application service."""
 
     return get_runtime_qlib_config()
 
@@ -732,14 +733,31 @@ def qlib_train_model(
     try:
         logger.info(f"开始 Qlib 训练: {model_name} ({model_type})")
         registry_repo = get_qlib_model_registry_repository()
+        runtime_qlib = _get_runtime_qlib_config()
+        training_run_repo = get_qlib_training_run_repository()
+        training_run_id = str(train_config.get("training_run_id") or "").strip()
+        if training_run_id:
+            training_run_repo.mark_running(
+                run_id=training_run_id,
+                celery_task_id=getattr(self.request, "id", "") or "",
+            )
 
         # 解析训练配置
-        universe = train_config.get("universe", "csi300")
+        universe = train_config.get("universe") or runtime_qlib.get("default_universe", "csi300")
         end_date = train_config.get("end_date")
-        model_path = train_config.get("model_path", "/models/qlib")
-        activate_after_train = bool(train_config.get("activate", False))
-        feature_set_id = train_config.get("feature_set_id", "v1")
-        label_id = train_config.get("label_id", "return_5d")
+        model_path = train_config.get("model_path") or runtime_qlib.get("model_path", "/models/qlib")
+        if "activate" in train_config:
+            activate_after_train = bool(train_config.get("activate", False))
+        else:
+            activate_after_train = bool(runtime_qlib.get("allow_auto_activate", False))
+        feature_set_id = train_config.get("feature_set_id") or runtime_qlib.get(
+            "default_feature_set_id",
+            "v1",
+        )
+        label_id = train_config.get("label_id") or runtime_qlib.get(
+            "default_label_id",
+            "return_5d",
+        )
 
         # 计算数据版本
         data_version = end_date or timezone.now().strftime("%Y-%m-%d")
@@ -796,6 +814,19 @@ def qlib_train_model(
                 activated_by="qlib_train_task",
             )
 
+        if training_run_id:
+            training_run_repo.mark_succeeded(
+                run_id=training_run_id,
+                result_model_name=model_name,
+                result_artifact_hash=artifact_hash,
+                result_metrics=metrics,
+                registry_result={
+                    "artifact_hash": artifact_hash,
+                    "activated": activate_after_train,
+                    "model_path": str(artifact_dir / "model.pkl"),
+                },
+            )
+
         logger.info(f"Qlib 训练完成: {model_name}")
         logger.info(f"  Artifact Hash: {artifact_hash[:12]}...")
         logger.info(f"  IC: {metrics.get('ic', 'N/A')}")
@@ -813,6 +844,15 @@ def qlib_train_model(
 
     except Exception as exc:
         logger.error(f"Qlib 训练失败: {exc}", exc_info=True)
+        training_run_id = str(train_config.get("training_run_id") or "").strip()
+        if training_run_id:
+            try:
+                get_qlib_training_run_repository().mark_failed(
+                    run_id=training_run_id,
+                    error_message=str(exc),
+                )
+            except Exception:
+                logger.exception("回写 QlibTrainingRun FAILED 状态失败: run_id=%s", training_run_id)
         raise
 
 

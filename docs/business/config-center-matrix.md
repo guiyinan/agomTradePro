@@ -11,6 +11,8 @@
 | `account_settings` | 账户设置 | `/account/settings/` | 无统一只读 API | 前端查看；与账户 API 协作 | 登录用户 | 保存后立即生效 | 个人资料、风险偏好、密码、MCP/SDK Token |
 | `mcp_guide` | MCP 接入说明 | `/account/mcp/` | `/api/account/profile/` | 前端复制参数；配合 SDK / MCP 使用 | 登录用户 | 实时读取 | 汇总 Base URL、Token、默认账户、Agent 配置片段 |
 | `system_settings` | 系统设置 | `/account/admin/settings/` | 无统一只读 API | 无统一 SDK/MCP，前端查看 | `staff` | 保存后立即生效 | 审批策略、默认 MCP、协议文案、市场颜色约定 |
+| `qlib_runtime` | Qlib Runtime 配置 | `/settings/` | `/api/system/config-center/qlib/runtime/` | 前端/SDK 读取；训练中心复用 | `staff` 读 / `superuser` 写 | 保存后立即生效 | `config_center` owning source；默认 universe / feature / label / queue 在此维护 |
+| `qlib_training` | Qlib 在线训练中心 | `/admin/alpha/qlibmodelregistrymodel/train-model/` | `/api/system/config-center/qlib/training-profiles/` `/api/system/config-center/qlib/training-runs/` `/api/system/config-center/qlib/training-runs/trigger/` | 前端/Admin 触发；Alpha 执行内核复用 | `staff` 读 / `superuser` 写/触发 | 异步投递后生效 | 模板、运行记录、状态追踪、并发锁 |
 | `data_center_providers` | 数据中台 Provider 配置 | `/data-center/providers/` | `/api/data-center/providers/` | `client.data_center` + MCP config-center 工具 | `staff` | 保存后立即生效；刷新 data_center registry | Tushare Token / HTTP URL、AKShare、EastMoney、QMT、FRED 等统一在这里维护 |
 | `data_center_runtime` | 数据中台运行状态 | `/data-center/monitor/` | `/api/data-center/providers/status/` | `client.data_center` + MCP data-center 工具 | `staff` | 状态实时读取 | 查看 Provider 健康状态、熔断和能力覆盖，不再保留旧 market_data 入口 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
@@ -22,6 +24,13 @@
 
 - `GET /api/system/config-center/`
 - `GET /api/system/config-capabilities/`
+- `GET /api/system/config-center/qlib/runtime/`
+- `POST /api/system/config-center/qlib/runtime/`
+- `GET /api/system/config-center/qlib/training-profiles/`
+- `POST /api/system/config-center/qlib/training-profiles/`
+- `GET /api/system/config-center/qlib/training-runs/`
+- `GET /api/system/config-center/qlib/training-runs/<run_id>/`
+- `POST /api/system/config-center/qlib/training-runs/trigger/`
 
 ## MCP Tools
 
@@ -36,6 +45,8 @@
 ## Notes
 
 - 配置中心继续负责“发现、摘要、跳转”，但数据源相关入口已经彻底收口到 `data_center`。
+- 2026-05-13 起，`SystemSettingsModel` 物理 owner 已从 `account` 迁移到 `config_center`；数据库表名仍保持 `system_settings`。
+- `core.integration.runtime_settings` 与 `core.integration.asset_proxy_map` 已切到 `config_center` service，不再直连 `account.infrastructure.models.SystemSettingsModel`。
 - `account_settings`、`mcp_guide`、`system_settings`、`data_center_providers`、`data_center_runtime` 均通过“设置中心”统一进入。
 - `data_center_providers` 是“配置页”，`data_center_runtime` 是“状态页”；顶部导航与页面文案保持这个区分。
 - 2026-04-05 起，旧 macro datasource 页面与旧 `market_data` 对外入口全部下线，不再保留兼容层。

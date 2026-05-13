@@ -14,7 +14,6 @@ class AccountConfig(AppConfig):
         import apps.account.infrastructure.signals  # noqa: F401
         from apps.account.application.config_summary_service import (
             configure_account_config_summary_repository,
-            get_account_config_summary_service,
         )
         from apps.account.application.documentation_use_cases import (
             configure_documentation_repository,
@@ -25,10 +24,6 @@ class AccountConfig(AppConfig):
         from apps.account.infrastructure.documentation_repository import (
             DjangoDocumentationRepository,
         )
-        from core.integration.runtime_settings import (
-            configure_runtime_settings_provider,
-        )
 
         configure_account_config_summary_repository(DjangoAccountConfigSummaryRepository())
         configure_documentation_repository(DjangoDocumentationRepository())
-        configure_runtime_settings_provider(get_account_config_summary_service())

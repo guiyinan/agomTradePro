@@ -146,6 +146,10 @@ core_patterns = [
         name="api-system-config-center",
     ),
     path(
+        "api/system/config-center/",
+        include(("apps.config_center.interface.api_urls", "config_center"), namespace="config_center"),
+    ),
+    path(
         "api/system/config-capabilities/",
         ConfigCapabilitiesView.as_view(),
         name="api-system-config-capabilities",

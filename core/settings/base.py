@@ -137,6 +137,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.ai_provider",
     "apps.prompt",
+    "apps.config_center",
     "apps.account",  # 新增：用户账户管理
     "apps.dashboard",  # 新增：仪表盘
     "apps.equity",  # 新增：个股分析模块
