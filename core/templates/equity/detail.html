@@ -275,7 +275,7 @@
         <h2 class="card-title">技术图谱</h2>
         <div class="technical-toolbar">
             <div class="technical-timeframe-group">
-                <button type="button" class="btn btn-secondary technical-timeframe-btn active" data-technical-timeframe="intraday">分时</button>
+                <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="intraday">分时</button>
                 <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="day">日线</button>
                 <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="week">周线</button>
                 <button type="button" class="btn btn-secondary technical-timeframe-btn" data-technical-timeframe="month">月线</button>
@@ -464,7 +464,7 @@ const stockCode = '{{ stock_code }}';
 let peChartInstance = null;
 let pbChartInstance = null;
 let technicalChartInstance = null;
-let activeTechnicalTimeframe = 'intraday';
+let activeTechnicalTimeframe = 'day';
 let technicalRequestToken = 0;
 const technicalLookbackDays = {
     day: 540,
@@ -472,6 +472,47 @@ const technicalLookbackDays = {
     month: 2000,
 };
 const valuationLoadTimeoutMs = 8000;
+
+function getShanghaiMarketClockParts(now = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Shanghai',
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    const entries = formatter
+        .formatToParts(now)
+        .filter(part => part.type !== 'literal')
+        .map(part => [part.type, part.value]);
+    return Object.fromEntries(entries);
+}
+
+function isShanghaiTradingSession(now = new Date()) {
+    const parts = getShanghaiMarketClockParts(now);
+    const weekday = parts.weekday || '';
+    if (weekday === 'Sat' || weekday === 'Sun') {
+        return false;
+    }
+
+    const hour = Number(parts.hour || 0);
+    const minute = Number(parts.minute || 0);
+    const minutesSinceMidnight = hour * 60 + minute;
+    const morningOpen = 9 * 60 + 30;
+    const morningClose = 11 * 60 + 30;
+    const afternoonOpen = 13 * 60;
+    const afternoonClose = 15 * 60;
+
+    const isMorningSession =
+        minutesSinceMidnight >= morningOpen && minutesSinceMidnight <= morningClose;
+    const isAfternoonSession =
+        minutesSinceMidnight >= afternoonOpen && minutesSinceMidnight <= afternoonClose;
+    return isMorningSession || isAfternoonSession;
+}
+
+function resolveInitialTechnicalTimeframe(now = new Date()) {
+    return isShanghaiTradingSession(now) ? 'intraday' : 'day';
+}
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
     if (typeof window.fetchJsonOrThrow === 'function') {
@@ -1641,6 +1682,7 @@ async function refreshStockData() {
 }
 
 function initializeDetailPage() {
+    activeTechnicalTimeframe = resolveInitialTechnicalTimeframe();
     setDetailHeaderFallback();
     initTechnicalControls();
     setExternalLinks();
