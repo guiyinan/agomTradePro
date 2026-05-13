@@ -235,6 +235,10 @@ STATICFILES_DIRS = [
     # are discovered via AppDirectoriesFinder from INSTALLED_APPS.
     os.path.join(BASE_DIR, "static"),
 ]
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "core.staticfiles.ProjectAppDirectoriesFinder",
+]
 
 # Templates
 TEMPLATES = [
