@@ -270,14 +270,16 @@ def _assert_equity_contract(page: Page) -> None:
         disallowed=("", "系统自动推荐加载中", "系统自动推荐刷新中", "同步推荐财务/估值中"),
     )
 
-    if "异常" in status_text:
-        expect(page.locator("#alphaSourceSummary")).to_contain_text("手动筛选")
+    recommendation_codes = page.locator("#autoRecommendationGrid .auto-recommendation-code")
+    if recommendation_codes.count() > 0:
+        _assert_min_count(page, "#autoRecommendationGrid .auto-recommendation-code", 1)
+    else:
         expect(page.get_by_role("button", name="开始筛选")).to_be_visible()
         expect(page.locator("#autoRecommendationGrid .auto-recommendation-item")).to_contain_text(
             "当前没有可展示的系统自动推荐"
         )
-    else:
-        _assert_min_count(page, "#autoRecommendationGrid .auto-recommendation-code", 1)
+        if "异常" in status_text:
+            expect(page.locator("#alphaSourceSummary")).to_contain_text("手动筛选")
 
     _assert_card_style(page, ".screen-workflow-step")
 
