@@ -262,7 +262,7 @@
 
         {% if new_token_payload %}
             <div class="token-banner">
-                <div><strong>新 Token</strong> - {{ new_token_payload.token_name }}</div>
+                <div><strong>新 Token</strong> - {{ new_token_payload.token_name }} - {{ new_token_payload.access_level_label }}</div>
                 <div class="token-banner-row">
                     <code id="selfNewTokenValue">{{ new_token_payload.token }}</code>
                     <button type="button" class="btn btn-secondary" onclick="copySelfToken()">复制</button>
@@ -275,8 +275,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'account:settings' %}">
                 <input type="text" name="token_name" class="form-control" placeholder="例如: my-local-sdk" maxlength="100">
+                <select name="access_level" class="form-control" style="max-width: 180px;">
+                    {% for value, label in token_access_level_choices %}
+                        <option value="{{ value }}" {% if value == default_token_access_level %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit" class="btn btn-primary">新建 Token</button>
             </form>
+            <span class="form-hint">推荐默认使用只读 Token；需要写接口时再单独创建读写 Token。</span>
         {% endif %}
 
         {% if access_tokens %}
@@ -285,6 +291,7 @@
                     <thead>
                         <tr>
                             <th>名称</th>
+                            <th>级别</th>
                             <th>预览</th>
                             <th>创建时间</th>
                             <th>最后使用</th>
@@ -295,6 +302,7 @@
                         {% for token in access_tokens %}
                         <tr>
                             <td>{{ token.name }}</td>
+                            <td>{{ token.get_access_level_display }}</td>
                             <td><code>{{ token.preview }}</code></td>
                             <td>{{ token.created_at|date:"Y-m-d H:i" }}</td>
                             <td>{% if token.last_used_at %}{{ token.last_used_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>

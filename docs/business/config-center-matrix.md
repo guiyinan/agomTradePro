@@ -8,11 +8,11 @@
 
 | Key | 配置域 | 前端入口 | API | SDK/MCP | 权限 | 生效方式 | 备注 |
 |---|---|---|---|---|---|---|---|
-| `account_settings` | 账户设置 | `/account/settings/` | 无统一只读 API | 前端查看；与账户 API 协作 | 登录用户 | 保存后立即生效 | 个人资料、风险偏好、密码、MCP/SDK Token |
-| `mcp_guide` | MCP 接入说明 | `/account/mcp/` | `/api/account/profile/` | 前端复制参数；配合 SDK / MCP 使用 | 登录用户 | 实时读取 | 汇总 Base URL、Token、默认账户、Agent 配置片段 |
+| `account_settings` | 账户设置 | `/account/settings/` | 无统一只读 API | 前端查看；与账户 API 协作 | 登录用户 | 保存后立即生效 | 个人资料、风险偏好、密码、MCP/SDK Token；新 Token 支持 `read_only` / `read_write` |
+| `mcp_guide` | MCP 接入说明 | `/account/mcp/` | `/api/account/profile/` | 前端复制参数；配合 SDK / MCP 使用 | 登录用户 | 实时读取 | 汇总 Base URL、Token、默认账户、Agent 配置片段；推荐默认签发只读 Token |
 | `system_settings` | 系统设置 | `/account/admin/settings/` | 无统一只读 API | 无统一 SDK/MCP，前端查看 | `staff` | 保存后立即生效 | 审批策略、默认 MCP、协议文案、市场颜色约定 |
-| `qlib_runtime` | Qlib Runtime 配置 | `/settings/` | `/api/system/config-center/qlib/runtime/` | 前端/SDK 读取；训练中心复用 | `staff` 读 / `superuser` 写 | 保存后立即生效 | `config_center` owning source；默认 universe / feature / label / queue 在此维护 |
-| `qlib_training` | Qlib 在线训练中心 | `/admin/alpha/qlibmodelregistrymodel/train-model/` | `/api/system/config-center/qlib/training-profiles/` `/api/system/config-center/qlib/training-runs/` `/api/system/config-center/qlib/training-runs/trigger/` | 前端/Admin 触发；Alpha 执行内核复用 | `staff` 读 / `superuser` 写/触发 | 异步投递后生效 | 模板、运行记录、状态追踪、并发锁 |
+| `qlib_runtime` | Qlib Runtime 配置 | `/settings/config-center/qlib/` | `/api/system/config-center/qlib/runtime/` | 前端/SDK/MCP 读取；训练中心复用 | `staff` 读 / `superuser` 写；Token 另受 `read_only/read_write` scope 控制 | 保存后立即生效 | `config_center` owning source；默认 universe / feature / label / queue 在此维护 |
+| `qlib_training` | Qlib 在线训练中心 | `/settings/config-center/qlib/` | `/api/system/config-center/qlib/training-profiles/` `/api/system/config-center/qlib/training-runs/` `/api/system/config-center/qlib/training-runs/trigger/` | 前端/Admin/SDK/MCP 触发；Alpha 执行内核复用 | `staff` 读 / `superuser` 写/触发；Token 另受 `read_only/read_write` scope 控制 | 异步投递后生效 | 模板、运行记录、状态追踪、并发锁 |
 | `data_center_providers` | 数据中台 Provider 配置 | `/data-center/providers/` | `/api/data-center/providers/` | `client.data_center` + MCP config-center 工具 | `staff` | 保存后立即生效；刷新 data_center registry | Tushare Token / HTTP URL、AKShare、EastMoney、QMT、FRED 等统一在这里维护 |
 | `data_center_runtime` | 数据中台运行状态 | `/data-center/monitor/` | `/api/data-center/providers/status/` | `client.data_center` + MCP data-center 工具 | `staff` | 状态实时读取 | 查看 Provider 健康状态、熔断和能力覆盖，不再保留旧 market_data 入口 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
@@ -31,11 +31,19 @@
 - `GET /api/system/config-center/qlib/training-runs/`
 - `GET /api/system/config-center/qlib/training-runs/<run_id>/`
 - `POST /api/system/config-center/qlib/training-runs/trigger/`
+- `GET /settings/config-center/qlib/`
 
 ## MCP Tools
 
 - `list_config_capabilities`
 - `get_config_center_snapshot`
+- `get_qlib_runtime_config`
+- `update_qlib_runtime_config`
+- `list_qlib_training_profiles`
+- `save_qlib_training_profile`
+- `list_qlib_training_runs`
+- `get_qlib_training_run_detail`
+- `trigger_qlib_training`
 - `list_data_center_providers`
 - `create_data_center_provider`
 - `update_data_center_provider`
@@ -51,6 +59,7 @@
 - `data_center_providers` 是“配置页”，`data_center_runtime` 是“状态页”；顶部导航与页面文案保持这个区分。
 - 2026-04-05 起，旧 macro datasource 页面与旧 `market_data` 对外入口全部下线，不再保留兼容层。
 - 权限、审计、版本控制仍由原模块负责。
+- 2026-05-13 起，MCP/SDK Token 支持 `read_only` 与 `read_write` 两级 scope：`read_only` 只能调用安全读方法，`read_write` 仍不会绕过账号角色权限。
 - 2026-03-23 起，`system_settings` 增加 `market_color_convention`，用于统一控制全站 `rise/fall/inflow/outflow` 的语义颜色映射；基础模板通过全局 CSS token 下发。
 - 自定义系统配置页 `/account/admin/settings/` 与 Django Admin 已同步提供该开关，管理员无需手改 JSON 或模板。
 - 2026-03-28 起，Provider 配置支持 `http_url`，用于给 Tushare Pro client 注入 `pro._DataApi__http_url`，适配第三方 Tushare 代理源。

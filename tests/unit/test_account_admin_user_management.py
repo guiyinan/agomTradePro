@@ -98,6 +98,7 @@ class AccountAdminUserManagementTests(TestCase):
         self.assertEqual(payload["username"], user.username)
         self.assertEqual(payload["token_name"], "new-one")
         self.assertEqual(payload["token"], new_token)
+        self.assertEqual(payload["access_level"], "read_write")
 
         messages = list(resp.context["messages"])
         self.assertTrue(any("创建 Token" in str(m) for m in messages))

@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Qlib 配置与训练中心 - AgomTradePro{% endblock %}
+
+{% block content %}
+<div style="max-width: 1360px; margin: 0 auto; padding: 24px;">
+    <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom: 20px;">
+        <div>
+            <h1 style="margin-bottom: 10px;">{{ page_title }}</h1>
+            <p style="color: #64748b; margin: 0;">{{ page_subtitle }}</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{{ settings_center_url }}" class="btn btn-secondary" style="text-decoration:none;">返回设置中心</a>
+            <a href="{{ api_runtime_url }}" class="btn btn-secondary" style="text-decoration:none;">Runtime API</a>
+            <a href="{{ api_runs_url }}" class="btn btn-secondary" style="text-decoration:none;">Runs API</a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom: 18px;">
+        {% for message in messages %}
+        <div style="padding:12px 14px; border-radius:12px; {% if message.tags == 'success' %}background:#dcfce7;color:#166534;border:1px solid #86efac;{% else %}background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <section style="margin-bottom: 22px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+            <article style="background:linear-gradient(135deg, #ffffff, #f8fafc); border:1px solid #dbe7f5; border-radius:16px; padding:18px;">
+                <div style="font-size:12px; color:#64748b;">Runtime 状态</div>
+                <div style="font-size:24px; font-weight:700; margin-top:6px;">{% if runtime_payload.enabled %}已启用{% else %}未启用{% endif %}</div>
+                <div style="margin-top:8px; color:#64748b; font-size:13px;">configured={{ runtime_payload.configured }}</div>
+            </article>
+            <article style="background:linear-gradient(135deg, #ffffff, #f8fafc); border:1px solid #dbe7f5; border-radius:16px; padding:18px;">
+                <div style="font-size:12px; color:#64748b;">Active Model</div>
+                <div style="font-size:18px; font-weight:700; margin-top:6px;">{{ runtime_payload.active_model.model_name|default:"-" }}</div>
+                <div style="margin-top:8px; color:#64748b; font-size:13px;">{{ runtime_payload.active_model.artifact_hash|default:"无激活模型" }}</div>
+            </article>
+            <article style="background:linear-gradient(135deg, #ffffff, #f8fafc); border:1px solid #dbe7f5; border-radius:16px; padding:18px;">
+                <div style="font-size:12px; color:#64748b;">训练任务</div>
+                <div style="font-size:24px; font-weight:700; margin-top:6px;">{% if runtime_payload.training_task_running %}运行中{% else %}空闲{% endif %}</div>
+                <div style="margin-top:8px; color:#64748b; font-size:13px;">latest={{ runtime_payload.latest_run_status|default:"-" }}</div>
+            </article>
+            <article style="background:linear-gradient(135deg, #ffffff, #f8fafc); border:1px solid #dbe7f5; border-radius:16px; padding:18px;">
+                <div style="font-size:12px; color:#64748b;">默认配方</div>
+                <div style="font-size:18px; font-weight:700; margin-top:6px;">{{ runtime_payload.default_universe }}</div>
+                <div style="margin-top:8px; color:#64748b; font-size:13px;">{{ runtime_payload.default_feature_set_id }} / {{ runtime_payload.default_label_id }}</div>
+            </article>
+        </div>
+        {% if runtime_payload.validation_errors %}
+        <div style="margin-top:14px; padding:14px 16px; border-radius:14px; background:#fff7ed; border:1px solid #fdba74; color:#9a3412;">
+            <strong>运行前校验提示</strong>
+            <ul style="margin:8px 0 0 18px;">
+                {% for error in runtime_payload.validation_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <div style="display:grid; grid-template-columns:1.05fr 1fr; gap:18px; align-items:start;">
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px;">Qlib Runtime 配置</h2>
+                    <div style="font-size:13px; color:#64748b; margin-top:4px;">全局默认值、队列名、auto-activate 和 Alpha Runtime 入口。</div>
+                </div>
+                {% if not can_write %}
+                <span style="font-size:12px; background:#e2e8f0; color:#334155; border-radius:999px; padding:4px 10px;">staff 只读</span>
+                {% endif %}
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_runtime">
+                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+                    {% for field in runtime_form %}
+                    <div {% if field.name in "provider_uri model_root" %}style="grid-column:1 / -1;"{% endif %}>
+                        <label style="display:block; font-size:13px; color:#475569; margin-bottom:6px;">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div style="font-size:12px; color:#64748b; margin-top:4px;">{{ field.help_text }}</div>{% endif %}
+                        {% for error in field.errors %}<div style="font-size:12px; color:#b91c1c; margin-top:4px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for error in runtime_form.non_field_errors %}<div style="font-size:12px; color:#b91c1c; margin-top:10px;">{{ error }}</div>{% endfor %}
+                <div style="margin-top:16px;">
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>保存 Runtime 配置</button>
+                </div>
+            </form>
+        </section>
+
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px;">立即触发训练</h2>
+                    <div style="font-size:13px; color:#64748b; margin-top:4px;">支持显式参数覆盖；优先级是 请求 > Profile > Runtime > 代码默认值。</div>
+                </div>
+                {% if selected_profile_key %}
+                <span style="font-size:12px; background:#eff6ff; color:#1d4ed8; border-radius:999px; padding:4px 10px;">profile={{ selected_profile_key }}</span>
+                {% endif %}
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="trigger_training">
+                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+                    {% for field in trigger_form %}
+                    <div {% if field.name in "model_params extra_train_config" %}style="grid-column:1 / -1;"{% endif %}>
+                        <label style="display:block; font-size:13px; color:#475569; margin-bottom:6px;">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<div style="font-size:12px; color:#b91c1c; margin-top:4px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for error in trigger_form.non_field_errors %}<div style="font-size:12px; color:#b91c1c; margin-top:10px;">{{ error }}</div>{% endfor %}
+                <div style="margin-top:16px;">
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>提交训练任务</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <div style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:18px; align-items:start; margin-top:18px;">
+        <section id="profiles" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px;">训练模板</h2>
+                    <div style="font-size:13px; color:#64748b; margin-top:4px;">模板保存到数据库，不再依赖表单默认值和散落代码参数。</div>
+                </div>
+                <a href="?profile=" class="btn btn-secondary" style="text-decoration:none;">新建模板</a>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+                {% for profile in profiles %}
+                <article style="padding:14px; border-radius:14px; border:1px solid {% if selected_profile_key == profile.profile_key %}#93c5fd{% else %}#e2e8f0{% endif %}; background:{% if selected_profile_key == profile.profile_key %}#eff6ff{% else %}#f8fafc{% endif %};">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                        <div>
+                            <div style="font-weight:700;">{{ profile.name }}</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ profile.profile_key }} · {{ profile.model_name }} · {{ profile.model_type }}</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ profile.universe|default:"-" }} · {{ profile.feature_set_id|default:"-" }} / {{ profile.label_id|default:"-" }}</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                            <span style="font-size:12px; padding:4px 8px; border-radius:999px; {% if profile.is_active %}background:#dcfce7;color:#166534;{% else %}background:#e2e8f0;color:#334155;{% endif %}">{% if profile.is_active %}active{% else %}paused{% endif %}</span>
+                            <a href="?profile={{ profile.profile_key }}#profiles" style="font-size:12px;">编辑/套用</a>
+                        </div>
+                    </div>
+                </article>
+                {% empty %}
+                <div style="padding:14px; border-radius:14px; border:1px dashed #cbd5e1; color:#64748b;">暂无训练模板。</div>
+                {% endfor %}
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_profile">
+                {{ profile_form.profile_id }}
+                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+                    {% for field in profile_form %}
+                    {% if field.name != "profile_id" %}
+                    <div {% if field.name in "model_params extra_train_config notes" %}style="grid-column:1 / -1;"{% endif %}>
+                        <label style="display:block; font-size:13px; color:#475569; margin-bottom:6px;">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<div style="font-size:12px; color:#b91c1c; margin-top:4px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% for error in profile_form.non_field_errors %}<div style="font-size:12px; color:#b91c1c; margin-top:10px;">{{ error }}</div>{% endfor %}
+                <div style="margin-top:16px;">
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>保存训练模板</button>
+                </div>
+            </form>
+        </section>
+
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+                <div>
+                    <h2 style="margin:0; font-size:20px;">最近训练记录</h2>
+                    <div style="font-size:13px; color:#64748b; margin-top:4px;">运行状态、最终配置、metrics 和 registry 结果统一在这里审计。</div>
+                </div>
+                <a href="{{ api_runs_url }}" class="btn btn-secondary" style="text-decoration:none;">查看 API</a>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                {% for run in runs %}
+                <details style="border:1px solid #e2e8f0; border-radius:14px; background:#f8fafc; padding:14px;">
+                    <summary style="cursor:pointer; list-style:none;">
+                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                            <div>
+                                <div style="font-weight:700;">{{ run.model_name }} · {{ run.model_type }}</div>
+                                <div style="font-size:12px; color:#64748b; margin-top:4px;">run_id={{ run.run_id }}{% if run.profile_name %} · profile={{ run.profile_name }}{% endif %}</div>
+                                <div style="font-size:12px; color:#64748b; margin-top:4px;">请求时间 {{ run.requested_at|date:"Y-m-d H:i:s" }}{% if run.requested_by %} · {{ run.requested_by }}{% endif %}</div>
+                            </div>
+                            <span style="font-size:12px; padding:4px 10px; border-radius:999px; {% if run.status == 'SUCCEEDED' %}background:#dcfce7;color:#166534;{% elif run.status == 'FAILED' %}background:#fee2e2;color:#991b1b;{% elif run.status == 'RUNNING' %}background:#dbeafe;color:#1d4ed8;{% else %}background:#fef3c7;color:#92400e;{% endif %}">
+                                {{ run.status }}
+                            </span>
+                        </div>
+                    </summary>
+                    <div style="margin-top:14px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                        <div style="padding:12px; background:#fff; border-radius:12px;">
+                            <div style="font-size:12px; color:#64748b;">Artifact</div>
+                            <div style="font-size:13px; font-weight:600; word-break:break-all;">{{ run.result_artifact_hash|default:"-" }}</div>
+                        </div>
+                        <div style="padding:12px; background:#fff; border-radius:12px;">
+                            <div style="font-size:12px; color:#64748b;">Celery Task</div>
+                            <div style="font-size:13px; font-weight:600; word-break:break-all;">{{ run.celery_task_id|default:"-" }}</div>
+                        </div>
+                    </div>
+                    {% if run.error_message %}
+                    <div style="margin-top:12px; padding:12px; border-radius:12px; background:#fee2e2; color:#991b1b;">{{ run.error_message }}</div>
+                    {% endif %}
+                    <div style="margin-top:12px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px;">
+                        <div>
+                            <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Resolved Train Config</div>
+                            <pre style="margin:0; padding:12px; background:#0f172a; color:#e2e8f0; border-radius:12px; overflow:auto; font-size:11px;">{{ run.resolved_train_config_json }}</pre>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Result Metrics</div>
+                            <pre style="margin:0; padding:12px; background:#0f172a; color:#e2e8f0; border-radius:12px; overflow:auto; font-size:11px;">{{ run.result_metrics_json }}</pre>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Registry Result</div>
+                            <pre style="margin:0; padding:12px; background:#0f172a; color:#e2e8f0; border-radius:12px; overflow:auto; font-size:11px;">{{ run.registry_result_json }}</pre>
+                        </div>
+                    </div>
+                </details>
+                {% empty %}
+                <div style="padding:14px; border-radius:14px; border:1px dashed #cbd5e1; color:#64748b;">暂无训练记录。</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+
+<style>
+    #id_provider_uri, #id_model_root, #id_model_params, #id_extra_train_config, #id_notes,
+    #id_model_params, #id_extra_train_config, #id_profile_key, #id_name, #id_model_name,
+    #id_model_type, #id_universe, #id_feature_set_id, #id_label_id, #id_train_queue_name,
+    #id_infer_queue_name, #id_alpha_fixed_provider, #id_profile_key, #id_region {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        box-sizing: border-box;
+    }
+    select, input[type="date"], input[type="number"], input[type="text"], textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+

@@ -491,6 +491,7 @@ def settings_center_view(request):
         "mcp_guide",
         "trading_cost",
         "system_settings",
+        "qlib_runtime",
         "data_center_providers",
         "data_center_runtime",
     ]

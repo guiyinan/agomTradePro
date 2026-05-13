@@ -49,7 +49,11 @@ def test_mcp_guide_view_renders_connection_contract():
         total_return=5.0,
         start_date=settings_obj.created_at.date(),
     )
-    _, raw_key = UserAccessTokenModel.create_token(user=user, name="codex-local")
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=user,
+        name="codex-local",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
 
     client = Client()
     client.force_login(user)
@@ -61,6 +65,8 @@ def test_mcp_guide_view_renders_connection_contract():
     assert "MCP 接入说明" in content
     assert raw_key in content
     assert "Authorization: Token" in content
+    assert "只读 Token" in content
+    assert "只读" in content
     assert "/api/account/profile/" in content
     assert "/api/dashboard/v1/summary/" in content
     assert "agomtradepro_mcp" in content

@@ -14,6 +14,7 @@ from apps.config_center.application.use_cases import (
     GetQlibTrainingRunDetailUseCase,
     ListQlibTrainingProfilesUseCase,
     ListQlibTrainingRunsUseCase,
+    QlibAccessDeniedError,
     TriggerQlibTrainingUseCase,
     UpdateQlibRuntimeConfigUseCase,
     ValidationFailureError,
@@ -28,10 +29,9 @@ from apps.config_center.interface.serializers import (
 class StaffReadSuperuserWriteMixin:
     permission_classes = [IsAdminUser]
 
-    def _ensure_write_allowed(self, request) -> Response | None:
-        if request.method in {"POST", "PUT", "PATCH", "DELETE"} and not request.user.is_superuser:
-            return Response({"detail": "需要 superuser 权限。"}, status=status.HTTP_403_FORBIDDEN)
-        return None
+    @staticmethod
+    def _permission_denied(exc: QlibAccessDeniedError) -> Response:
+        return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
 
 def _serialize_profile(model) -> dict:
@@ -88,44 +88,62 @@ def _serialize_run(model) -> dict:
 
 class QlibRuntimeConfigView(StaffReadSuperuserWriteMixin, APIView):
     def get(self, request):
-        payload = GetQlibRuntimeConfigUseCase().execute()
+        try:
+            payload = GetQlibRuntimeConfigUseCase().execute(actor=request.user)
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         return Response({"success": True, "data": payload})
 
     def post(self, request):
-        denied = self._ensure_write_allowed(request)
-        if denied is not None:
-            return denied
         serializer = QlibRuntimeConfigSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        payload = UpdateQlibRuntimeConfigUseCase().execute(serializer.validated_data)
+        try:
+            payload = UpdateQlibRuntimeConfigUseCase().execute(
+                actor=request.user,
+                payload=serializer.validated_data,
+            )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         return Response({"success": True, "data": payload})
 
 
 class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin, APIView):
     def get(self, request):
-        models = ListQlibTrainingProfilesUseCase().execute()
+        try:
+            models = ListQlibTrainingProfilesUseCase().execute(actor=request.user)
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         return Response({"success": True, "data": [_serialize_profile(item) for item in models]})
 
     def post(self, request):
-        denied = self._ensure_write_allowed(request)
-        if denied is not None:
-            return denied
         serializer = QlibTrainingProfileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        model = CreateOrUpdateQlibTrainingProfileUseCase().execute(serializer.validated_data)
+        try:
+            model = CreateOrUpdateQlibTrainingProfileUseCase().execute(
+                actor=request.user,
+                payload=serializer.validated_data,
+            )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         return Response({"success": True, "data": _serialize_profile(model)})
 
 
 class QlibTrainingRunListView(StaffReadSuperuserWriteMixin, APIView):
     def get(self, request):
         limit = int(request.query_params.get("limit", 50) or 50)
-        models = ListQlibTrainingRunsUseCase().execute(limit=limit)
+        try:
+            models = ListQlibTrainingRunsUseCase().execute(actor=request.user, limit=limit)
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         return Response({"success": True, "data": [_serialize_run(item) for item in models]})
 
 
 class QlibTrainingRunDetailView(StaffReadSuperuserWriteMixin, APIView):
     def get(self, request, run_id: str):
-        model = GetQlibTrainingRunDetailUseCase().execute(run_id)
+        try:
+            model = GetQlibTrainingRunDetailUseCase().execute(actor=request.user, run_id=run_id)
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         if model is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response({"success": True, "data": _serialize_run(model)})
@@ -133,9 +151,6 @@ class QlibTrainingRunDetailView(StaffReadSuperuserWriteMixin, APIView):
 
 class QlibTrainingRunTriggerView(StaffReadSuperuserWriteMixin, APIView):
     def post(self, request):
-        denied = self._ensure_write_allowed(request)
-        if denied is not None:
-            return denied
         serializer = QlibTrainingRunTriggerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -143,9 +158,10 @@ class QlibTrainingRunTriggerView(StaffReadSuperuserWriteMixin, APIView):
                 actor=request.user,
                 payload=serializer.validated_data,
             )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
         except ConflictError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         except ValidationFailureError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"success": True, "data": payload}, status=status.HTTP_202_ACCEPTED)
-

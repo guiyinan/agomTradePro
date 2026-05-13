@@ -17,6 +17,7 @@ from django.utils import timezone
 from apps.alpha.application.tasks import _execute_qlib_prediction
 from apps.config_center.application.use_cases import (
     ConflictError,
+    QlibAccessDeniedError,
     TriggerQlibTrainingUseCase,
     ValidationFailureError,
 )
@@ -301,7 +302,7 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         return render(request, "admin/alpha/qlibmodelregistry/validation_result.html", context)
 
     def train_model_view(self, request: HttpRequest):
-        if not self.has_add_permission(request):
+        if not request.user.is_superuser:
             self.message_user(request, "你没有发起训练的权限。", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:index"))
 
@@ -333,6 +334,8 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
                     },
                 )
             except ConflictError as exc:
+                form.add_error(None, str(exc))
+            except QlibAccessDeniedError as exc:
                 form.add_error(None, str(exc))
             except ValidationFailureError as exc:
                 form.add_error(None, str(exc))

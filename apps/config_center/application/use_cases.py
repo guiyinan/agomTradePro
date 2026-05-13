@@ -9,6 +9,13 @@ from typing import Any
 from django.db import transaction
 
 from apps.alpha.application.tasks import qlib_train_model
+from apps.config_center.application.access_policies import (
+    QlibAccessDeniedError,
+    ensure_can_manage_qlib_runtime,
+    ensure_can_manage_qlib_training_profiles,
+    ensure_can_trigger_qlib_training,
+    ensure_can_view_qlib_center,
+)
 from apps.config_center.application.repository_provider import (
     get_config_center_settings_repository,
     get_qlib_training_profile_repository,
@@ -25,32 +32,38 @@ class ValidationFailureError(ValueError):
 
 
 class GetQlibRuntimeConfigUseCase:
-    def execute(self) -> dict[str, Any]:
+    def execute(self, *, actor) -> dict[str, Any]:
+        ensure_can_view_qlib_center(actor)
         return get_config_center_settings_repository().build_runtime_config_payload()
 
 
 class UpdateQlibRuntimeConfigUseCase:
-    def execute(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def execute(self, *, actor, payload: dict[str, Any]) -> dict[str, Any]:
+        ensure_can_manage_qlib_runtime(actor)
         return get_config_center_settings_repository().update_runtime_config(payload)
 
 
 class ListQlibTrainingProfilesUseCase:
-    def execute(self) -> list[Any]:
+    def execute(self, *, actor) -> list[Any]:
+        ensure_can_view_qlib_center(actor)
         return get_qlib_training_profile_repository().list_profiles()
 
 
 class CreateOrUpdateQlibTrainingProfileUseCase:
-    def execute(self, payload: dict[str, Any]):
+    def execute(self, *, actor, payload: dict[str, Any]):
+        ensure_can_manage_qlib_training_profiles(actor)
         return get_qlib_training_profile_repository().save_profile(payload)
 
 
 class ListQlibTrainingRunsUseCase:
-    def execute(self, *, limit: int = 50):
+    def execute(self, *, actor, limit: int = 50):
+        ensure_can_view_qlib_center(actor)
         return get_qlib_training_run_repository().list_runs(limit=limit)
 
 
 class GetQlibTrainingRunDetailUseCase:
-    def execute(self, run_id: str):
+    def execute(self, *, actor, run_id: str):
+        ensure_can_view_qlib_center(actor)
         return get_qlib_training_run_repository().get_run(run_id)
 
 
@@ -64,6 +77,7 @@ class TriggerQlibTrainingUseCase:
     }
 
     def execute(self, *, actor, payload: dict[str, Any]) -> dict[str, Any]:
+        ensure_can_trigger_qlib_training(actor)
         settings_repo = get_config_center_settings_repository()
         profile_repo = get_qlib_training_profile_repository()
         run_repo = get_qlib_training_run_repository()
@@ -222,3 +236,17 @@ class TriggerQlibTrainingUseCase:
             "source": extra_train_config.get("source", "config_center_trigger"),
         }
         return resolved
+
+
+__all__ = [
+    "ConflictError",
+    "ValidationFailureError",
+    "QlibAccessDeniedError",
+    "GetQlibRuntimeConfigUseCase",
+    "UpdateQlibRuntimeConfigUseCase",
+    "ListQlibTrainingProfilesUseCase",
+    "CreateOrUpdateQlibTrainingProfileUseCase",
+    "ListQlibTrainingRunsUseCase",
+    "GetQlibTrainingRunDetailUseCase",
+    "TriggerQlibTrainingUseCase",
+]

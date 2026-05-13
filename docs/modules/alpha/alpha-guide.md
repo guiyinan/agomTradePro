@@ -154,6 +154,7 @@ python manage.py list_models
 - 训练模板 API：`GET/POST /api/system/config-center/qlib/training-profiles/`
 - 训练记录 API：`GET /api/system/config-center/qlib/training-runs/`、`GET /api/system/config-center/qlib/training-runs/<run_id>/`
 - 触发训练 API：`POST /api/system/config-center/qlib/training-runs/trigger/`
+- 统一页面入口：`/settings/config-center/qlib/`
 - Django Admin 中原有“发起训练”入口保持不变，但后端已改为走 `TriggerQlibTrainingUseCase`，并回写 `QlibTrainingRun` 生命周期。
 
 ## 快速开始

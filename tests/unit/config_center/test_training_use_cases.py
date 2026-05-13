@@ -15,6 +15,11 @@ from apps.config_center.infrastructure.models import QlibTrainingRunModel, Syste
 
 @pytest.mark.django_db
 def test_get_runtime_config_use_case_exposes_training_state(tmp_path):
+    actor = User.objects.create_user(
+        username="config_staff_reader",
+        password="pass12345",
+        is_staff=True,
+    )
     provider_dir = tmp_path / "qlib" / "cn_data"
     model_dir = tmp_path / "qlib" / "models"
     provider_dir.mkdir(parents=True)
@@ -33,7 +38,7 @@ def test_get_runtime_config_use_case_exposes_training_state(tmp_path):
         ]
     )
 
-    payload = GetQlibRuntimeConfigUseCase().execute()
+    payload = GetQlibRuntimeConfigUseCase().execute(actor=actor)
 
     assert payload["configured"] is True
     assert payload["enabled"] is True
@@ -43,6 +48,12 @@ def test_get_runtime_config_use_case_exposes_training_state(tmp_path):
 
 @pytest.mark.django_db
 def test_trigger_training_use_case_rejects_when_pending_run_exists(tmp_path):
+    actor = User.objects.create_user(
+        username="config_superuser_pending",
+        password="pass12345",
+        is_staff=True,
+        is_superuser=True,
+    )
     provider_dir = tmp_path / "qlib" / "cn_data"
     model_dir = tmp_path / "qlib" / "models"
     provider_dir.mkdir(parents=True)
@@ -70,7 +81,7 @@ def test_trigger_training_use_case_rejects_when_pending_run_exists(tmp_path):
 
     with pytest.raises(ConflictError):
         TriggerQlibTrainingUseCase().execute(
-            actor=SimpleNamespace(is_authenticated=False),
+            actor=actor,
             payload={
                 "model_name": "new_model",
                 "model_type": "LGBModel",
@@ -103,6 +114,9 @@ def test_trigger_training_use_case_creates_run_and_queues_task(monkeypatch, tmp_
         lambda kwargs, queue: SimpleNamespace(id=f"{queue}-task-1"),
     )
     user = User.objects.create_user(username="config_admin", password="pass12345")
+    user.is_staff = True
+    user.is_superuser = True
+    user.save(update_fields=["is_staff", "is_superuser"])
 
     result = TriggerQlibTrainingUseCase().execute(
         actor=user,
@@ -118,3 +132,39 @@ def test_trigger_training_use_case_creates_run_and_queues_task(monkeypatch, tmp_
     assert result["resolved_train_config"]["feature_set_id"] == "v1"
     assert run.status == QlibTrainingRunModel.STATUS_PENDING
     assert run.celery_task_id == "qlib_train-task-1"
+
+
+@pytest.mark.django_db
+def test_trigger_training_use_case_rejects_non_superuser(tmp_path):
+    actor = User.objects.create_user(
+        username="config_staff_only",
+        password="pass12345",
+        is_staff=True,
+        is_superuser=False,
+    )
+    provider_dir = tmp_path / "qlib" / "cn_data"
+    model_dir = tmp_path / "qlib" / "models"
+    provider_dir.mkdir(parents=True)
+    model_dir.mkdir(parents=True)
+
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.qlib_enabled = True
+    settings_obj.qlib_provider_uri = str(provider_dir)
+    settings_obj.qlib_model_path = str(model_dir)
+    settings_obj.save(
+        update_fields=[
+            "qlib_enabled",
+            "qlib_provider_uri",
+            "qlib_model_path",
+            "updated_at",
+        ]
+    )
+
+    with pytest.raises(PermissionError, match="superuser"):
+        TriggerQlibTrainingUseCase().execute(
+            actor=actor,
+            payload={
+                "model_name": "lgb_csi300",
+                "model_type": "LGBModel",
+            },
+        )

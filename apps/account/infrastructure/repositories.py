@@ -2435,6 +2435,8 @@ class AccountInterfaceRepository:
                 "id": token.id,
                 "name": token.name,
                 "preview": token.preview,
+                "access_level": token.access_level,
+                "access_level_label": token.get_access_level_display(),
                 "plaintext": token.reveal_key() if token_plaintext_allowed else "",
                 "created_at": token.created_at,
                 "last_used_at": token.last_used_at,
@@ -2873,6 +2875,7 @@ class AccountInterfaceRepository:
         target_user_id: int,
         created_by_user_id: int,
         token_name: str,
+        access_level: str,
     ) -> tuple[UserAccessTokenModel, str]:
         """Create a token for the target user."""
 
@@ -2882,6 +2885,7 @@ class AccountInterfaceRepository:
             user=target_user,
             name=token_name,
             created_by=created_by,
+            access_level=access_level,
         )
         return token, raw_key
 
@@ -3021,6 +3025,11 @@ class AccountInterfaceRepository:
                     "tokens": user_tokens,
                     "has_token": bool(user_tokens),
                     "token_count": len(user_tokens),
+                    "read_only_token_count": sum(
+                        1
+                        for token in user_tokens
+                        if token.access_level == UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY
+                    ),
                 }
             )
 

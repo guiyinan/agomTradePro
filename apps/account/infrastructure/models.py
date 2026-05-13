@@ -9,9 +9,10 @@ import base64
 import hashlib
 import secrets
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -1144,6 +1145,13 @@ from apps.config_center.infrastructure.models import SystemSettingsModel
 class UserAccessTokenModel(models.Model):
     """支持多 Token 的 MCP/SDK 访问凭证。"""
 
+    ACCESS_LEVEL_READ_ONLY = "read_only"
+    ACCESS_LEVEL_READ_WRITE = "read_write"
+    ACCESS_LEVEL_CHOICES = [
+        (ACCESS_LEVEL_READ_ONLY, "只读"),
+        (ACCESS_LEVEL_READ_WRITE, "读写"),
+    ]
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -1174,6 +1182,13 @@ class UserAccessTokenModel(models.Model):
         blank=True,
         related_name="created_access_tokens",
         verbose_name="创建人",
+    )
+    access_level = models.CharField(
+        max_length=20,
+        choices=ACCESS_LEVEL_CHOICES,
+        default=ACCESS_LEVEL_READ_WRITE,
+        verbose_name="访问级别",
+        help_text="只读 Token 仅允许 GET/HEAD/OPTIONS；读写 Token 仍需通过账号角色鉴权。",
     )
     last_used_at = models.DateTimeField(
         null=True,
@@ -1223,7 +1238,14 @@ class UserAccessTokenModel(models.Model):
         return secrets.token_hex(20)
 
     @classmethod
-    def create_token(cls, *, user: User, name: str, created_by: User | None = None):
+    def create_token(
+        cls,
+        *,
+        user: User,
+        name: str,
+        created_by: User | None = None,
+        access_level: str = ACCESS_LEVEL_READ_WRITE,
+    ):
         raw_name = (name or "").strip() or f"token-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
         raw_key = cls.generate_key()
         token = cls._default_manager.create(
@@ -1232,8 +1254,13 @@ class UserAccessTokenModel(models.Model):
             key=raw_key,
             key_encrypted=_build_app_fernet().encrypt(raw_key.encode("utf-8")).decode("utf-8"),
             created_by=created_by,
+            access_level=access_level,
         )
         return token, raw_key
+
+    @property
+    def allows_write(self) -> bool:
+        return self.access_level == self.ACCESS_LEVEL_READ_WRITE
 
     def reveal_key(self) -> str:
         if not self.key_encrypted:

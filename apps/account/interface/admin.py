@@ -440,8 +440,8 @@ class PortfolioDailySnapshotModelAdmin(admin.ModelAdmin):
 
 @admin.register(UserAccessTokenModel)
 class UserAccessTokenModelAdmin(admin.ModelAdmin):
-    list_display = ['user', 'name', 'token_preview', 'is_active', 'created_by', 'created_at', 'last_used_at', 'revoked_at']
-    list_filter = ['is_active', 'created_at', 'revoked_at']
+    list_display = ['user', 'name', 'access_level', 'token_preview', 'is_active', 'created_by', 'created_at', 'last_used_at', 'revoked_at']
+    list_filter = ['access_level', 'is_active', 'created_at', 'revoked_at']
     search_fields = ['user__username', 'name']
     readonly_fields = ['token_preview', 'created_at', 'updated_at', 'last_used_at', 'revoked_at']
     exclude = ['key', 'key_encrypted']
