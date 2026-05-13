@@ -21,6 +21,150 @@ def register_config_center_tools(server: FastMCP) -> None:
         return client.config_center.get_snapshot()
 
     @server.tool()
+    def get_qlib_runtime_config() -> dict[str, Any]:
+        """读取 Qlib Runtime 配置摘要。"""
+        client = AgomTradeProClient()
+        return client.config_center.get_qlib_runtime()
+
+    @server.tool()
+    def update_qlib_runtime_config(
+        enabled: bool | None = None,
+        provider_uri: str | None = None,
+        region: str | None = None,
+        model_root: str | None = None,
+        default_universe: str | None = None,
+        default_feature_set_id: str | None = None,
+        default_label_id: str | None = None,
+        train_queue_name: str | None = None,
+        infer_queue_name: str | None = None,
+        allow_auto_activate: bool | None = None,
+        alpha_fixed_provider: str | None = None,
+        alpha_pool_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """更新 Qlib Runtime 配置。需要读写 Token，且调用账号必须是 superuser。"""
+        client = AgomTradeProClient()
+        payload = {
+            key: value
+            for key, value in {
+                "enabled": enabled,
+                "provider_uri": provider_uri,
+                "region": region,
+                "model_root": model_root,
+                "default_universe": default_universe,
+                "default_feature_set_id": default_feature_set_id,
+                "default_label_id": default_label_id,
+                "train_queue_name": train_queue_name,
+                "infer_queue_name": infer_queue_name,
+                "allow_auto_activate": allow_auto_activate,
+                "alpha_fixed_provider": alpha_fixed_provider,
+                "alpha_pool_mode": alpha_pool_mode,
+            }.items()
+            if value is not None
+        }
+        return client.config_center.update_qlib_runtime(payload)
+
+    @server.tool()
+    def list_qlib_training_profiles() -> list[dict[str, Any]]:
+        """列出 Qlib 训练模板。"""
+        client = AgomTradeProClient()
+        return client.config_center.list_qlib_training_profiles()
+
+    @server.tool()
+    def save_qlib_training_profile(
+        profile_key: str,
+        name: str,
+        model_name: str,
+        model_type: str,
+        universe: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
+        feature_set_id: str = "",
+        label_id: str = "",
+        learning_rate: float | None = None,
+        epochs: int | None = None,
+        model_params: dict[str, Any] | None = None,
+        extra_train_config: dict[str, Any] | None = None,
+        activate_after_train: bool = False,
+        is_active: bool = True,
+        notes: str = "",
+        profile_id: int | None = None,
+    ) -> dict[str, Any]:
+        """创建或更新 Qlib 训练模板。需要读写 Token，且调用账号必须是 superuser。"""
+        client = AgomTradeProClient()
+        payload = {
+            "profile_key": profile_key,
+            "name": name,
+            "model_name": model_name,
+            "model_type": model_type,
+            "universe": universe,
+            "start_date": start_date,
+            "end_date": end_date,
+            "feature_set_id": feature_set_id,
+            "label_id": label_id,
+            "learning_rate": learning_rate,
+            "epochs": epochs,
+            "model_params": model_params or {},
+            "extra_train_config": extra_train_config or {},
+            "activate_after_train": activate_after_train,
+            "is_active": is_active,
+            "notes": notes,
+        }
+        if profile_id is not None:
+            payload["id"] = profile_id
+        return client.config_center.save_qlib_training_profile(payload)
+
+    @server.tool()
+    def list_qlib_training_runs(limit: int = 20) -> list[dict[str, Any]]:
+        """列出最近的 Qlib 训练任务。"""
+        client = AgomTradeProClient()
+        return client.config_center.list_qlib_training_runs(limit=limit)
+
+    @server.tool()
+    def get_qlib_training_run_detail(run_id: str) -> dict[str, Any]:
+        """读取单个 Qlib 训练任务详情。"""
+        client = AgomTradeProClient()
+        return client.config_center.get_qlib_training_run_detail(run_id)
+
+    @server.tool()
+    def trigger_qlib_training(
+        model_name: str = "",
+        model_type: str = "",
+        profile_key: str = "",
+        universe: str = "",
+        start_date: str | None = None,
+        end_date: str | None = None,
+        feature_set_id: str = "",
+        label_id: str = "",
+        learning_rate: float | None = None,
+        epochs: int | None = None,
+        model_params: dict[str, Any] | None = None,
+        extra_train_config: dict[str, Any] | None = None,
+        activate: bool | None = None,
+    ) -> dict[str, Any]:
+        """触发一条新的 Qlib 异步训练任务。需要读写 Token，且调用账号必须是 superuser。"""
+        client = AgomTradeProClient()
+        payload = {
+            key: value
+            for key, value in {
+                "model_name": model_name,
+                "model_type": model_type,
+                "profile_key": profile_key,
+                "universe": universe,
+                "start_date": start_date,
+                "end_date": end_date,
+                "feature_set_id": feature_set_id,
+                "label_id": label_id,
+                "learning_rate": learning_rate,
+                "epochs": epochs,
+                "model_params": model_params or {},
+                "extra_train_config": extra_train_config or {},
+                "activate": activate,
+            }.items()
+            if value not in (None, "")
+        }
+        return client.config_center.trigger_qlib_training(payload)
+
+    @server.tool()
     def list_data_center_providers() -> list[dict[str, Any]]:
         """列出数据中台中的 Provider 配置。"""
         client = AgomTradeProClient()

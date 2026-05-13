@@ -79,7 +79,7 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
     ConfigCapability(
         key="system_settings",
         name="系统设置",
-        module="account",
+        module="config_center",
         section="系统级配置",
         description="审批策略、默认 MCP、协议文案与系统基础参数。",
         permission="staff",
@@ -89,6 +89,40 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         mcp_tools=(),
         supports_edit=True,
         docs_ref="docs/business/config-center-matrix.md#system_settings",
+    ),
+    ConfigCapability(
+        key="qlib_runtime",
+        name="Qlib Runtime 配置",
+        module="config_center",
+        section="系统级配置",
+        description="Qlib provider、模型目录、默认 universe/feature/label 与训练队列配置。",
+        permission="staff",
+        frontend_url="/settings/config-center/qlib/",
+        api_url="/api/system/config-center/qlib/runtime/",
+        sdk_module="config_center",
+        mcp_tools=("get_qlib_runtime_config", "update_qlib_runtime_config"),
+        supports_edit=True,
+        docs_ref="docs/business/config-center-matrix.md#qlib_runtime",
+    ),
+    ConfigCapability(
+        key="qlib_training",
+        name="Qlib 在线训练中心",
+        module="config_center",
+        section="系统级配置",
+        description="训练模板、训练记录与异步训练触发入口。",
+        permission="staff",
+        frontend_url="/settings/config-center/qlib/",
+        api_url="/api/system/config-center/qlib/training-runs/",
+        sdk_module="config_center",
+        mcp_tools=(
+            "list_qlib_training_profiles",
+            "save_qlib_training_profile",
+            "list_qlib_training_runs",
+            "get_qlib_training_run_detail",
+            "trigger_qlib_training",
+        ),
+        supports_edit=True,
+        docs_ref="docs/business/config-center-matrix.md#qlib_training",
     ),
     ConfigCapability(
         key="data_center_providers",
@@ -224,11 +258,38 @@ def get_account_settings_summary(user: Any) -> dict[str, Any]:
 
 
 def get_system_settings_summary(user: Any = None) -> dict[str, Any]:
-    from apps.account.application.config_summary_service import (
-        get_account_config_summary_service,
+    from apps.config_center.application.config_summary_service import (
+        get_config_center_summary_service,
     )
 
-    return get_account_config_summary_service().get_system_settings_summary()
+    return get_config_center_summary_service().get_system_settings_summary()
+
+
+def get_qlib_runtime_summary(user: Any = None) -> dict[str, Any]:
+    from apps.config_center.application.use_cases import GetQlibRuntimeConfigUseCase
+
+    return {
+        "status": "configured",
+        "summary": GetQlibRuntimeConfigUseCase().execute(),
+    }
+
+
+def get_qlib_training_summary(user: Any = None) -> dict[str, Any]:
+    from apps.config_center.application.use_cases import ListQlibTrainingRunsUseCase
+
+    runs = ListQlibTrainingRunsUseCase().execute(limit=5)
+    latest_run = runs[0] if runs else None
+    return {
+        "status": "configured",
+        "summary": {
+            "latest_run_status": getattr(latest_run, "status", None),
+            "recent_run_count": len(runs),
+            "training_task_running": any(
+                run.status in {"PENDING", "RUNNING"}
+                for run in runs
+            ),
+        },
+    }
 
 
 def get_mcp_guide_summary(user: Any) -> dict[str, Any]:
@@ -318,6 +379,8 @@ _SUMMARY_BUILDERS = {
         get_agent_runtime_operator_summary, "Agent Runtime Operator", user
     ),
     "system_settings": lambda user: _safe_summary(get_system_settings_summary, "系统设置", user),
+    "qlib_runtime": lambda user: _safe_summary(get_qlib_runtime_summary, "Qlib Runtime 配置", user),
+    "qlib_training": lambda user: _safe_summary(get_qlib_training_summary, "Qlib 在线训练中心", user),
     "data_center_providers": lambda user: _safe_summary(
         get_data_center_provider_summary, "数据中台 Provider 配置", user
     ),

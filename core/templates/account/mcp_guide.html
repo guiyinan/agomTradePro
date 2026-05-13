@@ -241,7 +241,7 @@
 
     {% if new_token_payload %}
     <div class="mcp-banner">
-        <strong>新 Token 已生成：</strong> {{ new_token_payload.token_name }}
+        <strong>新 Token 已生成：</strong> {{ new_token_payload.token_name }} / {{ new_token_payload.access_level_label }}
         <div class="mcp-token-box">
             <code id="newTokenValue">{{ new_token_payload.token }}</code>
             <button type="button" class="btn btn-primary" data-copy-target="newTokenValue">复制新 Token</button>
@@ -291,6 +291,9 @@
             <p>你已经有活跃 Token，但系统已关闭历史 Token 明文查看。若要重新复制到新 Agent，建议生成一个新 Token 并立即复制。</p>
             <div class="mcp-token-box">
                 <code>{{ access_tokens.0.preview }}</code>
+                <span class="mcp-status-pill {% if access_tokens.0.access_level == 'read_only' %}is-on{% else %}is-off{% endif %}">
+                    {{ access_tokens.0.get_access_level_display }}
+                </span>
             </div>
             {% else %}
             <p>当前账户还没有可用 Token。下面可以直接一键生成一个专门给 Codex 或其他 Agent 使用的 Token。</p>
@@ -301,8 +304,14 @@
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{% url 'account:mcp_guide' %}">
                 <input type="text" name="token_name" class="form-control" value="codex-local" maxlength="100" placeholder="例如：codex-local / claude-desktop">
+                <select name="access_level" class="form-control" style="max-width: 180px;">
+                    {% for value, label in token_access_level_choices %}
+                        <option value="{{ value }}" {% if value == default_token_access_level %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit" class="btn btn-primary">生成新 Token</button>
             </form>
+            <p style="margin-top: 12px; margin-bottom: 0;">只读 Token 仅允许 GET/HEAD/OPTIONS；即使账号是管理员，也不会误触发写接口。读写 Token 仍然继续受账号角色权限约束。</p>
             {% else %}
             <div class="mcp-banner" style="margin-top: 16px; margin-bottom: 0; background: #fff7ed; border-color: #fed7aa; color: #9a3412;">
                 管理员已关闭当前账户的 MCP/SDK 访问权限。此时不能创建新 Token，请先联系管理员开启。
@@ -427,7 +436,7 @@
                 <div>
                     <strong>{{ token.name }}</strong>
                     <div class="mcp-token-meta">
-                        创建于 {{ token.created_at|date:"Y-m-d H:i" }}
+                        {{ token.access_level_label }} / 创建于 {{ token.created_at|date:"Y-m-d H:i" }}
                         {% if token.last_used_at %}，最后使用 {{ token.last_used_at|date:"Y-m-d H:i" }}{% endif %}
                     </div>
                 </div>

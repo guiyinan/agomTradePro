@@ -32,6 +32,7 @@ from apps.alpha.application.tasks import (
     qlib_train_model,
 )
 from apps.alpha.infrastructure.models import QlibModelRegistryModel
+from apps.config_center.infrastructure.models import QlibTrainingRunModel
 
 
 def test_resolve_qlib_model_path_falls_back_to_runtime_model_dir(tmp_path):
@@ -94,12 +95,18 @@ class TestQlibTrainingTasks:
 
         mock_artifact_dir = Path("/models/qlib/test_model/abc123")
         mock_save.return_value = mock_artifact_dir
+        run = QlibTrainingRunModel.objects.create(
+            model_name="test_model",
+            model_type="LGBModel",
+            resolved_train_config={},
+        )
 
         # 执行任务
         result = qlib_train_model(
             model_name="test_model",
             model_type="LGBModel",
             train_config={
+                "training_run_id": str(run.run_id),
                 "universe": "csi300",
                 "start_date": "2025-01-01",
                 "end_date": "2026-01-01",
@@ -109,24 +116,36 @@ class TestQlibTrainingTasks:
         )
 
         # 验证结果
+        run.refresh_from_db()
         assert result["status"] == "success"
         assert result["model_name"] == "test_model"
         assert "artifact_hash" in result
         assert result["ic"] == 0.05
+        assert run.status == QlibTrainingRunModel.STATUS_SUCCEEDED
+        assert run.result_artifact_hash == result["artifact_hash"]
+        assert run.result_metrics["ic"] == 0.05
 
     @patch('apps.alpha.application.tasks._train_qlib_model')
     def test_qlib_train_model_failure(self, mock_train):
         """测试训练任务失败"""
         mock_train.side_effect = Exception("Training failed")
+        run = QlibTrainingRunModel.objects.create(
+            model_name="test_model",
+            model_type="LGBModel",
+            resolved_train_config={},
+        )
 
         with pytest.raises(Exception) as exc_info:
             qlib_train_model(
                 model_name="test_model",
                 model_type="LGBModel",
-                train_config={}
+                train_config={"training_run_id": str(run.run_id)}
             )
 
+        run.refresh_from_db()
         assert "Training failed" in str(exc_info.value)
+        assert run.status == QlibTrainingRunModel.STATUS_FAILED
+        assert "Training failed" in run.error_message
 
     @patch("apps.alpha.infrastructure.cache_evaluation.evaluate_model_from_cache")
     def test_qlib_evaluate_model_updates_registry_metrics(self, mock_evaluate):

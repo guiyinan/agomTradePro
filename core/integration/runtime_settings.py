@@ -33,26 +33,26 @@ class RuntimeSettingsProvider(Protocol):
 _provider: RuntimeSettingsProvider | None = None
 
 
-def get_account_config_summary_service():
-    """Return the account-owned runtime settings service."""
+def get_config_center_summary_service():
+    """Return the config-center owned runtime settings service."""
 
-    from apps.account.application.config_summary_service import (
-        get_account_config_summary_service as load_account_config_summary_service,
+    from apps.config_center.application.config_summary_service import (
+        get_config_center_summary_service as load_config_center_summary_service,
     )
 
-    return load_account_config_summary_service()
+    return load_config_center_summary_service()
 
 
 def _get_runtime_settings_source() -> RuntimeSettingsProvider | None:
     """Resolve the current runtime settings source.
 
-    Prefer the account-owned summary service so tests can monkeypatch the public
+    Prefer the config-center owned summary service so tests can monkeypatch the public
     bridge entrypoint. Fall back to the explicitly configured provider during
     early bootstrap or partial app initialization.
     """
 
     try:
-        return get_account_config_summary_service()
+        return get_config_center_summary_service()
     except Exception:
         return _provider
 

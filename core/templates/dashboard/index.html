@@ -64,6 +64,10 @@
                     <span class="nav-icon">🎯</span>
                     <span class="nav-text">投资信号</span>
                 </a>
+                <a href="{% url 'dashboard:alpha_ranking' %}" class="nav-item">
+                    <span class="nav-icon">⭐</span>
+                    <span class="nav-text">Alpha 完整排名</span>
+                </a>
                 <a href="{% url 'backtest:create' %}" class="nav-item">
                     <span class="nav-icon">🧪</span>
                     <span class="nav-text">策略回测</span>
@@ -356,181 +360,113 @@
             </div>
         </section>
 
-        <!-- Alpha 可视化（新增） -->
-        <section class="alpha-visualization-section">
+        <!-- Alpha 摘要：完整排名与参数切换移至专门页面 -->
+        <section class="alpha-visualization-section alpha-summary-section">
             <div class="section-header">
-                <h2 class="section-title">🤖 Alpha 候选/排名</h2>
-                <!-- 数据源依赖标识 -->
-                <div class="data-source-badges">
-                    <span class="ds-badge ds-qlib" title="Qlib AI 模型预测">🧠 Qlib</span>
-                    <span class="ds-badge ds-cache" title="历史评分缓存">💾 缓存</span>
-                    <span class="ds-badge ds-simple" title="简单因子计算">📊 因子</span>
-                    <span class="ds-badge ds-etf" title="ETF 成份股兜底">🛡️ ETF</span>
+                <div>
+                    <h2 class="section-title">🤖 Alpha 摘要</h2>
+                    <p class="section-subtitle">
+                        首页只保留决策摘要；完整排名、scope、组合、股票池模式和返回条数在 Alpha 专门页调整。
+                    </p>
                 </div>
-                <div class="header-actions">
-                    <input type="hidden" id="alphaScopeMode" value="{{ selected_alpha_scope|default:'portfolio' }}">
-                    <div class="alpha-scope-tabs" role="tablist" aria-label="Alpha scope">
-                        <button type="button"
-                                id="alphaScopeGeneralTab"
-                                class="alpha-scope-tab {% if selected_alpha_scope == 'general' %}active{% endif %}"
-                                onclick="setAlphaScopeMode('general')">
-                            通用 Alpha
-                        </button>
-                        <button type="button"
-                                id="alphaScopePortfolioTab"
-                                class="alpha-scope-tab {% if selected_alpha_scope != 'general' %}active{% endif %}"
-                                onclick="setAlphaScopeMode('portfolio')">
-                            账户专属 Alpha
-                        </button>
-                    </div>
-                    <select id="alphaPortfolioSelect" class="sort-select" onchange="reloadAlphaStocksTable(10)">
-                        {% for portfolio in portfolio_options %}
-                        <option value="{{ portfolio.id }}" {% if portfolio.id == selected_portfolio_id %}selected{% endif %}>
-                            {{ portfolio.name }}
-                        </option>
-                        {% empty %}
-                        <option value="">当前组合</option>
-                        {% endfor %}
-                    </select>
-                    <button type="button" class="refresh-btn" onclick="reloadAlphaStocksTable(10)">
-                        <span>🔄 刷新</span>
-                    </button>
-                    <button
-                        type="button"
-                        id="alphaRealtimeRefreshBtn"
-                        class="refresh-btn refresh-btn-realtime"
-                        onclick="triggerAlphaRealtimeRefresh(10, this)"
-                    >
-                        <span>⚡ 立即推理</span>
-                    </button>
-                    <span id="alphaRefreshStatus" class="alpha-refresh-status" aria-live="polite"></span>
+                <div class="header-actions alpha-summary-actions">
+                    <a href="{% url 'dashboard:alpha_ranking' %}?alpha_scope={{ selected_alpha_scope|default:'portfolio' }}{% if selected_portfolio_id and selected_alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and selected_alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}&top_n=200" class="refresh-btn">
+                        <span>查看完整排名与参数</span>
+                    </a>
+                    <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="refresh-btn">
+                        <span>推荐历史</span>
+                    </a>
+                    <a href="{% url 'equity:screen' %}?source=dashboard-alpha{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if alpha_pool.pool_mode %}&pool_mode={{ alpha_pool.pool_mode }}{% endif %}" class="refresh-btn">
+                        <span>进入个股筛选</span>
+                    </a>
                 </div>
             </div>
 
-            <!-- 数据源说明 -->
-            <div class="data-source-info">
-                <span class="info-icon">ℹ️</span>
-                <span class="info-text">
-                    <strong>数据源说明：</strong>
-                    <span class="ds-tag ds-qlib-tag">🧠 Qlib</span> AI 模型预测（高精度，需要训练）
-                    <span class="ds-tag ds-cache-tag">💾 缓存</span> 历史评分（快速，可能有延迟）
-                    <span class="ds-tag ds-simple-tag">📊 因子</span> 简单因子计算（PE/PB/ROE）
-                    <span class="ds-tag ds-etf-tag">🛡️ ETF</span> ETF 成份股兜底（始终可用）
-                </span>
-            </div>
-
-            <!-- 投资免责声明 -->
-            {% include 'components/investment_disclaimer.html' %}
-
-            <!-- Alpha 指标卡片 -->
             <div class="alpha-metrics-grid">
-                <!-- 覆盖率指标 -->
+                <div class="alpha-metric-card">
+                    <div class="metric-icon">🏷️</div>
+                    <div class="metric-content">
+                        <div class="metric-title">当前口径</div>
+                        <div class="metric-value">{% if selected_alpha_scope == 'general' %}通用{% else %}账户{% endif %}</div>
+                        <div class="metric-subtitle">{{ alpha_pool.label|default:"Alpha 池" }}</div>
+                    </div>
+                </div>
                 <div class="alpha-metric-card">
                     <div class="metric-icon">📊</div>
                     <div class="metric-content">
-                        <div class="metric-title">覆盖率</div>
-                        <div class="metric-value">{{ alpha_coverage_metrics.coverage_ratio|floatformat:1 }}%</div>
-                        <div class="metric-subtitle">覆盖股票池比例</div>
+                        <div class="metric-title">首页摘要</div>
+                        <div class="metric-value">{{ alpha_stock_scores|length }}</div>
+                        <div class="metric-subtitle">已加载 Top 候选</div>
                     </div>
                 </div>
-
-                <!-- 总请求数 -->
                 <div class="alpha-metric-card">
-                    <div class="metric-icon">📈</div>
+                    <div class="metric-icon">✅</div>
                     <div class="metric-content">
-                        <div class="metric-title">总请求</div>
-                        <div class="metric-value">{{ alpha_coverage_metrics.total_requests }}</div>
-                        <div class="metric-subtitle">累计评分请求</div>
+                        <div class="metric-title">可行动</div>
+                        <div class="metric-value">{{ alpha_actionable_candidates|length }}</div>
+                        <div class="metric-subtitle">通过账户级约束</div>
                     </div>
                 </div>
-
-                <!-- 缓存命中率 -->
                 <div class="alpha-metric-card">
-                    <div class="metric-icon">💾</div>
+                    <div class="metric-icon">🛡️</div>
                     <div class="metric-content">
-                        <div class="metric-title">缓存命中</div>
-                        <div class="metric-value">{{ alpha_coverage_metrics.cache_hit_rate|floatformat:1 }}%</div>
-                        <div class="metric-subtitle">缓存命中率</div>
-                    </div>
-                </div>
-
-                <!-- Provider 状态 -->
-                <div class="alpha-metric-card">
-                    <div class="metric-icon">⚡</div>
-                    <div class="metric-content">
-                        <div class="metric-title">Provider</div>
-                        <div class="metric-value">{{ alpha_provider_status.providers|length }}</div>
-                        <div class="metric-subtitle">活跃数据源</div>
+                        <div class="metric-title">退出监控</div>
+                        <div class="metric-value">{{ alpha_exit_watch_summary.total|default:0 }}</div>
+                        <div class="metric-subtitle">持仓退出待办</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Alpha 内容区域 -->
-            <div class="alpha-content-row">
-                <!-- 左侧：选股结果表格 -->
-                <div class="alpha-content-card alpha-stocks-card">
+            <div class="alpha-summary-grid">
+                <div class="alpha-summary-card">
                     <div class="card-header">
-                        <h3>Alpha 候选/排名</h3>
-                        <div class="alpha-card-actions">
-                            <a href="{% url 'equity:screen' %}?source=dashboard-alpha{% if selected_portfolio_id %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if alpha_pool.pool_mode %}&pool_mode={{ alpha_pool.pool_mode }}{% endif %}" class="alpha-section-link">进入个股筛选</a>
-                            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="alpha-section-link">推荐历史</a>
-                            <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
-                        </div>
+                        <h3>Top Alpha 候选</h3>
+                        <span class="card-badge">首页最多展示 3 只</span>
                     </div>
-                    <div class="card-body" id="alphaStocksTable">
-                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores alpha_meta=alpha_stock_scores_meta alpha_pool=alpha_pool alpha_actionable_candidates=alpha_actionable_candidates alpha_exit_watchlist=alpha_exit_watchlist alpha_exit_watch_summary=alpha_exit_watch_summary alpha_pending_requests=alpha_pending_requests alpha_recent_runs=alpha_recent_runs alpha_history_run_id=alpha_history_run_id selected_portfolio_id=selected_portfolio_id selected_alpha_pool_mode=selected_alpha_pool_mode alpha_scope=selected_alpha_scope %}
+                    {% if alpha_stock_scores %}
+                    <div class="alpha-summary-list">
+                        {% for stock in alpha_stock_scores|slice:":3" %}
+                        <a class="alpha-summary-item" href="{{ stock.decision_workspace_primary_url|default:stock.decision_workspace_url }}">
+                            <span class="alpha-summary-rank">#{{ stock.rank|default:forloop.counter }}</span>
+                            <span class="alpha-summary-main">
+                                <strong>{{ stock.code }}</strong>
+                                <span>{{ stock.name|default:"-" }}</span>
+                            </span>
+                            <span class="alpha-summary-score">
+                                {% if stock.alpha_score != None %}{{ stock.alpha_score|floatformat:3 }}{% elif stock.score != None %}{{ stock.score|floatformat:3 }}{% else %}-{% endif %}
+                            </span>
+                        </a>
+                        {% endfor %}
                     </div>
+                    {% else %}
+                    <p class="alpha-summary-empty">暂无可信 Alpha 候选数据；系统不会用静态名单冒充推荐。</p>
+                    {% endif %}
                 </div>
 
-                <!-- 右侧：Provider 状态面板 + IC 趋势图 -->
-                <div class="alpha-content-right">
-                    <div class="alpha-content-card factor-panel-card">
-                        <div class="card-header">
-                            <h3>Alpha 分值解释</h3>
-                            <span class="card-hint">点击左侧分值或股票加载</span>
-                        </div>
-                        <div class="card-body" id="alphaFactorPanel">
-                            {% include 'dashboard/partials/alpha_factor_panel.html' with stock=alpha_factor_panel.stock stock_code=alpha_factor_panel.stock_code provider=alpha_factor_panel.provider alpha_scope=alpha_factor_panel.alpha_scope alpha_meta=alpha_factor_panel.alpha_meta alpha_pool=alpha_factor_panel.alpha_pool recommendation_basis=alpha_factor_panel.recommendation_basis factor_basis=alpha_factor_panel.factor_basis buy_reasons=alpha_factor_panel.buy_reasons no_buy_reasons=alpha_factor_panel.no_buy_reasons risk_snapshot=alpha_factor_panel.risk_snapshot factor_origin=alpha_factor_panel.factor_origin factors=alpha_factor_panel.factors factor_count=alpha_factor_panel.factor_count empty_reason=alpha_factor_panel.empty_reason %}
-                        </div>
+                <div class="alpha-summary-card">
+                    <div class="card-header">
+                        <h3>Alpha 数据状态</h3>
+                        <span class="card-badge">{{ alpha_stock_scores_meta.source|default:"-" }}</span>
                     </div>
-
-                    <div class="alpha-content-card factor-panel-card" id="alpha-exit-detail" data-exit-asset-code="{{ alpha_exit_selected_asset_code|default:'' }}">
-                        <div class="card-header">
-                            <h3>退出契约详情</h3>
-                            <span class="card-hint">点击左侧退出待办后，会在这里加载退出建议、调仓计划和信号契约</span>
-                        </div>
-                        <div class="card-body" id="alphaExitDetailPanel">
-                            {% include 'dashboard/partials/alpha_exit_detail_panel.html' with selected=alpha_exit_detail_panel.selected recommendation=alpha_exit_detail_panel.recommendation transition_plan=alpha_exit_detail_panel.transition_plan signal_contract=alpha_exit_detail_panel.signal_contract has_exit_watchlist=alpha_exit_detail_panel.has_exit_watchlist empty_reason=alpha_exit_detail_panel.empty_reason %}
-                        </div>
+                    <div class="alpha-summary-meta">
+                        <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
+                        <span>股票池模式 {{ selected_alpha_pool_mode|default:alpha_pool.pool_mode|default:"-" }}</span>
+                        <span>
+                            评分日
+                            {% if alpha_stock_scores_meta.effective_asof_date %}
+                                {{ alpha_stock_scores_meta.effective_asof_date }}
+                            {% elif alpha_stock_scores_meta.cache_date %}
+                                {{ alpha_stock_scores_meta.cache_date }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </span>
+                        {% if alpha_stock_scores_meta.warning_message %}
+                        <span class="alpha-summary-warning">{{ alpha_stock_scores_meta.warning_message }}</span>
+                        {% endif %}
                     </div>
-
-                    <!-- Provider 状态面板 -->
-                    <div class="alpha-content-card provider-status-card">
-                        <div class="card-header">
-                            <h3>Provider 健康状态</h3>
-                            <button class="mini-refresh-btn" onclick="refreshProviderStatus()">
-                                🔄
-                            </button>
-                        </div>
-                        <div class="card-body" id="providerStatusPanel">
-                            <!-- Provider status will be rendered by JavaScript -->
-                            <div class="provider-list" id="providerListContainer"></div>
-                        </div>
-                    </div>
-
-                    <!-- IC/ICIR 趋势图 -->
-                    <div class="alpha-content-card ic-trends-card">
-                        <div class="card-header">
-                            <h3>IC/ICIR 趋势</h3>
-                            <select class="period-select" id="icPeriodSelect">
-                                <option value="7">7 天</option>
-                                <option value="14">14 天</option>
-                                <option value="30" selected>30 天</option>
-                            </select>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="icTrendsChart" width="400" height="200"></canvas>
-                        </div>
+                    <div class="alpha-summary-footer">
+                        <span>完整排名、scope、组合、股票池模式、返回条数和历史记录入口已移至 Alpha 专门页。</span>
                     </div>
                 </div>
             </div>
@@ -2552,6 +2488,137 @@ chatSendBtn.onclick = async function() {
     color: var(--text-muted);
 }
 
+.alpha-summary-section {
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 32%),
+        var(--bg-secondary);
+}
+
+.alpha-summary-section .section-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.alpha-summary-actions .refresh-btn {
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+.alpha-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: 16px;
+}
+
+.alpha-summary-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+}
+
+.alpha-summary-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.alpha-summary-card .card-header h3 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.alpha-summary-card .card-badge {
+    padding: 4px 10px;
+    background: rgba(18, 44, 87, 0.08);
+    color: #122c57;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.alpha-summary-list,
+.alpha-summary-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alpha-summary-item {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    color: inherit;
+    text-decoration: none;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.alpha-summary-item:hover {
+    transform: translateY(-1px);
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.alpha-summary-rank {
+    color: #122c57;
+    font-weight: 700;
+}
+
+.alpha-summary-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.alpha-summary-main span,
+.alpha-summary-meta span,
+.alpha-summary-footer {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.alpha-summary-score {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.alpha-summary-empty {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.alpha-summary-meta span {
+    display: inline-flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+}
+
+.alpha-summary-meta .alpha-summary-warning {
+    color: #92400e;
+    background: #fff7ed;
+}
+
+.alpha-summary-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
 .alpha-content-row {
     display: grid;
     grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
@@ -3076,6 +3143,10 @@ chatSendBtn.onclick = async function() {
 /* Alpha 可视化响应式 */
 @media (max-width: 1200px) {
     .alpha-content-row {
+        grid-template-columns: 1fr;
+    }
+
+    .alpha-summary-grid {
         grid-template-columns: 1fr;
     }
 

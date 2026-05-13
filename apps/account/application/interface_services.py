@@ -55,6 +55,13 @@ class RegisteredUserOutcome:
 _interface_repo = AccountInterfaceRepository
 _classification_repo = AccountClassificationRepository
 
+TOKEN_ACCESS_LEVEL_READ_ONLY = "read_only"
+TOKEN_ACCESS_LEVEL_READ_WRITE = "read_write"
+TOKEN_ACCESS_LEVEL_CHOICES = (
+    (TOKEN_ACCESS_LEVEL_READ_ONLY, "只读"),
+    (TOKEN_ACCESS_LEVEL_READ_WRITE, "读写"),
+)
+
 
 def get_system_settings():
     """Return the singleton system settings model."""
@@ -87,19 +94,41 @@ def touch_access_token(token) -> None:
 
 
 def build_token_payload(
-    *, username: str, token_name: str, token_value: str
+    *,
+    username: str,
+    token_name: str,
+    token_value: str,
+    access_level: str,
 ) -> dict[str, str] | None:
     """Build the session payload for newly created tokens when plaintext display is enabled."""
 
     settings_obj = get_system_settings()
     if not settings_obj.allow_token_plaintext_view:
         return None
+    access_level_label = dict(TOKEN_ACCESS_LEVEL_CHOICES).get(access_level, access_level)
     return {
         "username": username,
         "token_name": token_name,
         "token": token_value,
+        "access_level": access_level,
+        "access_level_label": access_level_label,
         "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+
+def normalize_token_access_level(raw_value: str | None) -> str:
+    """Normalize one token access-level input into a supported value."""
+
+    value = str(raw_value or "").strip().lower()
+    if value == TOKEN_ACCESS_LEVEL_READ_ONLY:
+        return TOKEN_ACCESS_LEVEL_READ_ONLY
+    return TOKEN_ACCESS_LEVEL_READ_WRITE
+
+
+def get_token_access_level_choices() -> tuple[tuple[str, str], ...]:
+    """Expose token access-level choices for interface rendering."""
+
+    return TOKEN_ACCESS_LEVEL_CHOICES
 
 
 def provision_registered_user(
@@ -482,7 +511,12 @@ def get_portfolio_allocation_payload(
     }
 
 
-def create_self_token(user_id: int, *, token_name: str) -> TokenCreationOutcome:
+def create_self_token(
+    user_id: int,
+    *,
+    token_name: str,
+    access_level: str,
+) -> TokenCreationOutcome:
     """Create a token for the current user."""
 
     settings_context = _interface_repo().build_settings_context(user_id)
@@ -494,11 +528,13 @@ def create_self_token(user_id: int, *, token_name: str) -> TokenCreationOutcome:
         target_user_id=user_id,
         created_by_user_id=user_id,
         token_name=token_name,
+        access_level=normalize_token_access_level(access_level),
     )
     payload = build_token_payload(
         username=token.user.username,
         token_name=token.name,
         token_value=raw_key,
+        access_level=token.access_level,
     )
     if payload:
         message = f"已创建 Token：{token.name}"
@@ -596,7 +632,11 @@ def build_token_management_context(search_query: str, only_without_token: bool) 
 
 
 def rotate_user_token(
-    *, actor_user_id: int, target_user_id: int, token_name: str
+    *,
+    actor_user_id: int,
+    target_user_id: int,
+    token_name: str,
+    access_level: str,
 ) -> TokenCreationOutcome:
     """Create a token for another user as an administrator."""
 
@@ -608,11 +648,13 @@ def rotate_user_token(
         target_user_id=target_user_id,
         created_by_user_id=actor_user_id,
         token_name=token_name,
+        access_level=normalize_token_access_level(access_level),
     )
     payload = build_token_payload(
         username=token.user.username,
         token_name=token.name,
         token_value=raw_key,
+        access_level=token.access_level,
     )
     if payload:
         message = f"已为用户 {token.user.username} 创建 Token：{token.name}"

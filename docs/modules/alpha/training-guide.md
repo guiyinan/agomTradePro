@@ -1,6 +1,6 @@
 # Qlib Model Training Guide
 
-> **最后更新**: 2026-03-03
+> **最后更新**: 2026-05-13
 > **版本**: V1.0
 
 本指南介绍如何使用 Qlib 训练 Alpha 模型，包括环境配置、数据准备、模型训练、评估和部署。
@@ -162,6 +162,32 @@ python manage.py train_qlib_model --name lgb_csi300 --type LGBModel --async
 - 是否训练完成后自动激活
 
 提交后系统会把任务投递到 `qlib_train` Celery 队列。
+
+### 3.1.2 使用配置中心 API 触发训练
+
+Qlib 在线训练中心现已收口到 `config_center`：
+
+```text
+GET  /settings/config-center/qlib/
+GET  /api/system/config-center/qlib/runtime/
+POST /api/system/config-center/qlib/runtime/
+GET  /api/system/config-center/qlib/training-profiles/
+POST /api/system/config-center/qlib/training-profiles/
+GET  /api/system/config-center/qlib/training-runs/
+GET  /api/system/config-center/qlib/training-runs/<run_id>/
+POST /api/system/config-center/qlib/training-runs/trigger/
+```
+
+行为说明：
+
+- `staff` 只读 runtime / profile / run
+- `superuser` 可修改 runtime、维护 profile、触发训练
+- MCP/SDK Token 现在分为 `read_only` 与 `read_write` 两级 scope
+- `read_only` Token 只能调用 GET/HEAD/OPTIONS，适合给 Codex / Claude 等 Agent 做只读接入，避免误操作
+- `read_write` Token 也不会越过账号权限；普通 staff 拿到读写 Token 仍然不能改 runtime 或触发训练
+- 触发时会按 `显式请求 > profile > runtime config > 代码默认值` 合成最终 `train_config`
+- v1 仅允许单个 `PENDING/RUNNING` 训练并发
+- 训练实际执行、模型注册、auto-activate 仍由 `apps.alpha` 负责；`config_center` 负责入口、审计和状态追踪
 
 ### 3.2 模型类型选择
 

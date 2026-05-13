@@ -26,7 +26,7 @@
 
     {% if new_token_payload %}
         <div class="alert alert-warning token-once-alert">
-            <div><strong>Token 明文</strong> - 用户: {{ new_token_payload.username }} - 名称: {{ new_token_payload.token_name }}</div>
+            <div><strong>Token 明文</strong> - 用户: {{ new_token_payload.username }} - 名称: {{ new_token_payload.token_name }} - 级别: {{ new_token_payload.access_level_label }}</div>
             <div class="token-once-row">
                 <code id="newTokenValue">{{ new_token_payload.token }}</code>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="copyNewToken()">复制</button>
@@ -133,6 +133,7 @@
                                             <strong>{{ token.name }}</strong>
                                             <div class="token-meta">
                                                 <code>{{ token.preview }}</code>
+                                                <span>{{ token.get_access_level_display }}</span>
                                                 <span>{{ token.created_at|date:"Y-m-d H:i" }}</span>
                                                 {% if token.created_by %}<span>创建人: {{ token.created_by.username }}</span>{% endif %}
                                             </div>
@@ -156,6 +157,11 @@
                         <form method="post" action="{% url 'account:rotate_user_token' row.user.id %}" class="create-token-form">
                             {% csrf_token %}
                             <input type="text" name="token_name" class="form-control form-control-sm" placeholder="例如: claude-desktop" maxlength="100">
+                            <select name="access_level" class="form-control form-control-sm">
+                                {% for value, label in token_access_level_choices %}
+                                    <option value="{{ value }}" {% if value == default_token_access_level %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
                             <button type="submit" class="btn btn-sm btn-primary">生成</button>
                         </form>
                     </td>

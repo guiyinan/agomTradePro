@@ -20,10 +20,10 @@ def test_system_settings_admin_singleton_entry_opens_change_form():
     client = Client()
     client.force_login(admin_user)
 
-    response = client.get("/admin/account/systemsettingsmodel/")
+    response = client.get("/admin/config_center/systemsettingsmodel/")
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "系统配置" in content
     assert "name=\"backup_enabled\"" in content
-    assert "TypeError at /admin/account/systemsettingsmodel/" not in content
+    assert "TypeError at /admin/config_center/systemsettingsmodel/" not in content

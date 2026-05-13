@@ -15,11 +15,18 @@ from django.urls import path, reverse
 from django.utils import timezone
 
 from apps.alpha.application.tasks import _execute_qlib_prediction
+from apps.config_center.application.use_cases import (
+    ConflictError,
+    QlibAccessDeniedError,
+    TriggerQlibTrainingUseCase,
+    ValidationFailureError,
+)
 from apps.alpha.models import (
     AlphaAlertModel,
     AlphaScoreCacheModel,
     QlibModelRegistryModel,
 )
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 
 class QlibModelImportForm(forms.Form):
@@ -295,51 +302,62 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
         return render(request, "admin/alpha/qlibmodelregistry/validation_result.html", context)
 
     def train_model_view(self, request: HttpRequest):
-        if not self.has_add_permission(request):
+        if not request.user.is_superuser:
             self.message_user(request, "你没有发起训练的权限。", level=messages.ERROR)
             return HttpResponseRedirect(reverse("admin:index"))
 
-        form = QlibModelTrainForm(request.POST or None)
+        runtime_qlib = get_runtime_qlib_config()
+        initial = {
+            "universe": runtime_qlib.get("default_universe", "csi300"),
+            "feature_set_id": runtime_qlib.get("default_feature_set_id", "v1"),
+            "label_id": runtime_qlib.get("default_label_id", "return_5d"),
+            "activate_now": runtime_qlib.get("allow_auto_activate", False),
+        }
+        form = QlibModelTrainForm(request.POST or None, initial=initial)
         if request.method == "POST" and form.is_valid():
-            from apps.alpha.application.tasks import qlib_train_model
-
-            extra_train_config = form.cleaned_data["extra_train_config"]
-            train_config = {
-                **extra_train_config,
-                "universe": form.cleaned_data["universe"],
-                "start_date": form.cleaned_data["start_date"].isoformat(),
-                "end_date": form.cleaned_data["end_date"].isoformat(),
-                "learning_rate": form.cleaned_data["learning_rate"],
-                "epochs": form.cleaned_data["epochs"],
-                "model_params": form.cleaned_data["model_params"],
-                "feature_set_id": form.cleaned_data["feature_set_id"],
-                "label_id": form.cleaned_data["label_id"],
-                "model_path": str(self._model_root()),
-                "activate": form.cleaned_data["activate_now"],
-            }
-
-            task = qlib_train_model.delay(
-                model_name=form.cleaned_data["model_name"],
-                model_type=form.cleaned_data["model_type"],
-                train_config=train_config,
-            )
-
-            context = {
-                **self.admin_site.each_context(request),
-                "opts": self.model._meta,
-                "title": "Qlib 训练任务已提交",
-                "task_id": task.id,
-                "payload": {
-                    "model_name": form.cleaned_data["model_name"],
-                    "model_type": form.cleaned_data["model_type"],
-                    "universe": form.cleaned_data["universe"],
-                    "start_date": train_config["start_date"],
-                    "end_date": train_config["end_date"],
-                    "activate": train_config["activate"],
-                },
-                "list_url": reverse("admin:alpha_qlibmodelregistrymodel_changelist"),
-            }
-            return render(request, "admin/alpha/qlibmodelregistry/train_queued.html", context)
+            try:
+                trigger_result = TriggerQlibTrainingUseCase().execute(
+                    actor=request.user,
+                    payload={
+                        "model_name": form.cleaned_data["model_name"],
+                        "model_type": form.cleaned_data["model_type"],
+                        "universe": form.cleaned_data["universe"],
+                        "start_date": form.cleaned_data["start_date"],
+                        "end_date": form.cleaned_data["end_date"],
+                        "learning_rate": form.cleaned_data["learning_rate"],
+                        "epochs": form.cleaned_data["epochs"],
+                        "model_params": form.cleaned_data["model_params"],
+                        "feature_set_id": form.cleaned_data["feature_set_id"],
+                        "label_id": form.cleaned_data["label_id"],
+                        "extra_train_config": form.cleaned_data["extra_train_config"],
+                        "activate": form.cleaned_data["activate_now"],
+                    },
+                )
+            except ConflictError as exc:
+                form.add_error(None, str(exc))
+            except QlibAccessDeniedError as exc:
+                form.add_error(None, str(exc))
+            except ValidationFailureError as exc:
+                form.add_error(None, str(exc))
+            else:
+                resolved_config = trigger_result["resolved_train_config"]
+                context = {
+                    **self.admin_site.each_context(request),
+                    "opts": self.model._meta,
+                    "title": "Qlib 训练任务已提交",
+                    "task_id": trigger_result["task_id"],
+                    "run_id": trigger_result["run_id"],
+                    "payload": {
+                        "model_name": form.cleaned_data["model_name"],
+                        "model_type": form.cleaned_data["model_type"],
+                        "universe": resolved_config["universe"],
+                        "start_date": resolved_config["start_date"],
+                        "end_date": resolved_config["end_date"],
+                        "activate": resolved_config["activate"],
+                    },
+                    "list_url": reverse("admin:alpha_qlibmodelregistrymodel_changelist"),
+                }
+                return render(request, "admin/alpha/qlibmodelregistry/train_queued.html", context)
 
         context = {
             **self.admin_site.each_context(request),

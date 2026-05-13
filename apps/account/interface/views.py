@@ -36,6 +36,7 @@ def _build_token_payload(*, username: str, token_name: str, token_value: str):
         username=username,
         token_name=token_name,
         token_value=token_value,
+        access_level=interface_services.TOKEN_ACCESS_LEVEL_READ_WRITE,
     )
 
 
@@ -44,6 +45,11 @@ def _get_token_name_from_request(request, default_prefix: str = "token") -> str:
     if raw_name:
         return raw_name
     return f"{default_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+
+def _get_token_access_level_from_request(request) -> str:
+    raw_value = request.POST.get("access_level")
+    return interface_services.normalize_token_access_level(raw_value)
 
 
 def _add_flash_message(request, level: str, message: str) -> None:
@@ -298,6 +304,8 @@ def settings_view(request):
 
     context = interface_services.build_settings_context(request.user.id)
     context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
+    context["token_access_level_choices"] = interface_services.get_token_access_level_choices()
+    context["default_token_access_level"] = interface_services.TOKEN_ACCESS_LEVEL_READ_ONLY
     return render(request, "account/settings.html", context)
 
 
@@ -308,6 +316,8 @@ def mcp_guide_view(request):
     base_url = request.build_absolute_uri("/").rstrip("/")
     context = interface_services.build_mcp_guide_context(request.user.id, base_url=base_url)
     context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
+    context["token_access_level_choices"] = interface_services.get_token_access_level_choices()
+    context["default_token_access_level"] = interface_services.TOKEN_ACCESS_LEVEL_READ_ONLY
     return render(request, "account/mcp_guide.html", context)
 
 
@@ -318,7 +328,11 @@ def create_self_token_view(request):
     redirect_path = _get_safe_next_path(request, default_path="/account/settings/")
     try:
         token_name = _get_token_name_from_request(request, default_prefix="self")
-        outcome = interface_services.create_self_token(request.user.id, token_name=token_name)
+        outcome = interface_services.create_self_token(
+            request.user.id,
+            token_name=token_name,
+            access_level=_get_token_access_level_from_request(request),
+        )
         if outcome.payload:
             request.session["self_new_token_payload"] = outcome.payload
         _add_flash_message(request, outcome.level, outcome.message)
@@ -526,6 +540,8 @@ def token_management_view(request):
     only_without_token = request.GET.get("without_token") == "1"
     context = interface_services.build_token_management_context(search_query, only_without_token)
     context["new_token_payload"] = request.session.pop("new_token_payload", None)
+    context["token_access_level_choices"] = interface_services.get_token_access_level_choices()
+    context["default_token_access_level"] = interface_services.TOKEN_ACCESS_LEVEL_READ_ONLY
     return render(request, "account/token_management.html", context)
 
 
@@ -542,6 +558,7 @@ def rotate_user_token_view(request, user_id):
             actor_user_id=request.user.id,
             target_user_id=user_id,
             token_name=token_name,
+            access_level=_get_token_access_level_from_request(request),
         )
         if outcome.payload:
             request.session["new_token_payload"] = outcome.payload

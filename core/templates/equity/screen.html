@@ -180,7 +180,7 @@
     <div class="screen-workflow">
         <div class="screen-workflow-step">
             <strong>1. 系统自动</strong>
-            <p>首页 Alpha 推荐会同步到这里，导航栏进来也能看到同一批自动推荐。</p>
+            <p>系统 Alpha 推荐会同步到这里，导航栏、首页摘要和完整排名页使用同一批自动推荐。</p>
         </div>
         <div class="screen-workflow-step">
             <strong>2. 用户加条件</strong>
@@ -838,11 +838,11 @@ async function loadDashboardAlphaRecommendations(renderResults = true, options =
 
         const refreshMessage = options.refreshMessage ? `${options.refreshMessage} ` : '';
         if (urlParams.get('source') === 'dashboard-alpha') {
-            document.getElementById('autoRecommendationStatus').textContent = meta.uses_cached_data ? '来自首页 Alpha 推荐（缓存）' : '来自首页 Alpha 推荐';
-            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}已从首页带入 ${items.length} 只 Alpha 推荐，当前页面与首页使用同一批系统推荐。最新评分日 ${asofDate}。`;
+            document.getElementById('autoRecommendationStatus').textContent = meta.uses_cached_data ? '来自系统 Alpha 推荐（缓存）' : '来自系统 Alpha 推荐';
+            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}已带入 ${items.length} 只系统 Alpha 推荐，当前页面与首页摘要、完整排名页使用同一批系统推荐。最新评分日 ${asofDate}。`;
         } else {
             document.getElementById('autoRecommendationStatus').textContent = meta.uses_cached_data ? '系统自动推荐（缓存）' : '系统自动推荐';
-            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}当前系统推荐共 ${items.length} 只股票。最新评分日 ${asofDate}。导航栏进入和首页进入看到的是同一批推荐，只是首页会直接把结果带到下方结果区。`;
+            document.getElementById('alphaSourceSummary').textContent = `${refreshMessage}当前系统推荐共 ${items.length} 只股票。最新评分日 ${asofDate}。导航栏、首页摘要和完整排名页看到的是同一批推荐。`;
         }
 
         if (meta.warning_message) {

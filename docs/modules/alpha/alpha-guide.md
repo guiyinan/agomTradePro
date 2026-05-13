@@ -1,6 +1,6 @@
 # Alpha 模块指南
 
-> **最后更新**: 2026-04-18
+> **最后更新**: 2026-05-13
 
 ## 概述
 
@@ -146,6 +146,16 @@ python manage.py list_models
 | `qlib_train_model` | qlib_train | Qlib 训练 |
 | `qlib_evaluate_model` | qlib_train | Qlib 评估 |
 | `qlib_refresh_cache` | qlib_infer | 刷新缓存 |
+
+## 配置中心接入
+
+- 自 2026-05-13 起，Qlib 运行时默认值和全局开关由 `config_center` owning。
+- Runtime 配置 API：`GET/POST /api/system/config-center/qlib/runtime/`
+- 训练模板 API：`GET/POST /api/system/config-center/qlib/training-profiles/`
+- 训练记录 API：`GET /api/system/config-center/qlib/training-runs/`、`GET /api/system/config-center/qlib/training-runs/<run_id>/`
+- 触发训练 API：`POST /api/system/config-center/qlib/training-runs/trigger/`
+- 统一页面入口：`/settings/config-center/qlib/`
+- Django Admin 中原有“发起训练”入口保持不变，但后端已改为走 `TriggerQlibTrainingUseCase`，并回写 `QlibTrainingRun` 生命周期。
 
 ## 快速开始
 

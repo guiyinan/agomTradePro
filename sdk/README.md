@@ -42,12 +42,27 @@ AgomTradePro backend uses DRF Token authentication.
 
 - Header format: `Authorization: Token <your_token>`
 - SDK `api_token` can be either raw token or prefixed form (`Token ...` / `Bearer ...`).
+- Token now supports two scopes:
+  - `read_only`: only `GET/HEAD/OPTIONS`
+  - `read_write`: allows write requests, but still cannot bypass backend role checks such as `staff` read / `superuser` write for Qlib config-center
+
+Recommended:
+
+- Give Codex / Claude Desktop / automation scripts a dedicated `read_only` token by default
+- Only mint `read_write` tokens for workflows that really need mutation APIs
 
 Generate a token for an existing user (example: `admin`):
 
 ```bash
 cd D:/githv/agomTradePro
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from apps.account.infrastructure.models import UserAccessTokenModel; u=User.objects.get(username='admin'); t,key=UserAccessTokenModel.create_token(user=u, name='sdk-readme'); print(key)"
+```
+
+If you want a read-only token instead:
+
+```bash
+cd D:/githv/agomTradePro
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from apps.account.infrastructure.models import UserAccessTokenModel; u=User.objects.get(username='admin'); t,key=UserAccessTokenModel.create_token(user=u, name='sdk-readonly', access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY); print(key)"
 ```
 
 ## Quick Start
@@ -170,7 +185,7 @@ Three methods (priority order):
 | `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, workspace recommendation bridge, funnel context |
 | `client.pulse` | **Pulse + Navigator** - pulse snapshot/history, regime navigator, action recommendation |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
-| `client.config_center` | **Config center** - unified config snapshot and capabilities |
+| `client.config_center` | **Config center** - unified config snapshot, Qlib runtime config, training profiles, training runs, trigger |
 
 ## MCP Tools
 
@@ -272,7 +287,31 @@ These calls mirror the staff/superuser web console:
 - **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_list_recommendations`, `decision_workflow_refresh_recommendations`, `decision_workflow_apply_recommendation_action`, `decision_workflow_get_funnel_context`
 - **Pulse + Navigator**: `get_pulse_current`, `get_pulse_history`, `get_regime_navigator`, `get_action_recommendation`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
-- **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`
+- **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`, `get_qlib_runtime_config`, `update_qlib_runtime_config`, `list_qlib_training_profiles`, `save_qlib_training_profile`, `list_qlib_training_runs`, `get_qlib_training_run_detail`, `trigger_qlib_training`
+
+### Qlib Config Center Contract
+
+`client.config_center` now exposes the full Qlib config/train center contract:
+
+- `client.config_center.get_qlib_runtime()`
+- `client.config_center.update_qlib_runtime(payload)`
+- `client.config_center.list_qlib_training_profiles()`
+- `client.config_center.save_qlib_training_profile(payload)`
+- `client.config_center.list_qlib_training_runs(limit=20)`
+- `client.config_center.get_qlib_training_run_detail(run_id)`
+- `client.config_center.trigger_qlib_training(payload)`
+
+Web entry:
+
+- `/settings/config-center/qlib/`
+
+API entry:
+
+- `GET/POST /api/system/config-center/qlib/runtime/`
+- `GET/POST /api/system/config-center/qlib/training-profiles/`
+- `GET /api/system/config-center/qlib/training-runs/`
+- `GET /api/system/config-center/qlib/training-runs/<run_id>/`
+- `POST /api/system/config-center/qlib/training-runs/trigger/`
 
 Decision workflow note:
 
