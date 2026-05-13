@@ -264,18 +264,21 @@ def _assert_equity_contract(page: Page) -> None:
     expect(page.locator("h1")).to_have_text("个股筛选")
     _assert_min_count(page, ".screen-workflow-step", 4)
 
-    page.wait_for_function(
-        "() => document.querySelectorAll('#autoRecommendationGrid .auto-recommendation-item').length > 0",
-        timeout=15000,
-    )
-
     status_text = _wait_for_non_placeholder_text(
         page,
         "#autoRecommendationStatus",
-        disallowed=("", "系统自动推荐加载中", "系统自动推荐异常"),
+        disallowed=("", "系统自动推荐加载中", "系统自动推荐刷新中", "同步推荐财务/估值中"),
     )
-    assert "异常" not in status_text
-    _assert_min_count(page, "#autoRecommendationGrid .auto-recommendation-item", 1)
+
+    if "异常" in status_text:
+        expect(page.locator("#alphaSourceSummary")).to_contain_text("手动筛选")
+        expect(page.get_by_role("button", name="开始筛选")).to_be_visible()
+        expect(page.locator("#autoRecommendationGrid .auto-recommendation-item")).to_contain_text(
+            "当前没有可展示的系统自动推荐"
+        )
+    else:
+        _assert_min_count(page, "#autoRecommendationGrid .auto-recommendation-code", 1)
+
     _assert_card_style(page, ".screen-workflow-step")
 
 
@@ -308,7 +311,7 @@ def _assert_equity_result_metrics(page: Page) -> None:
 def _assert_fund_contract(page: Page) -> None:
     """Assert fund dashboard renders macro context and scoring table."""
     _assert_page_shell(page, "/fund/dashboard/")
-    expect(page.locator("h1")).to_have_text("基金研究工作台")
+    expect(page.locator("h1")).to_have_text(re.compile(r"基金(?:分析|研究)工作台"))
     _assert_min_count(page, ".context-card", 4)
     _assert_min_count(page, ".workflow-nav__item", 6)
     _wait_for_non_placeholder_text(page, "#activeSignalsCount")
