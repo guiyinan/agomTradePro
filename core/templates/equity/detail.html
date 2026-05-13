@@ -471,24 +471,47 @@ const technicalLookbackDays = {
     week: 1260,
     month: 2000,
 };
+const valuationLoadTimeoutMs = 8000;
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
     if (typeof window.fetchJsonOrThrow === 'function') {
         return window.fetchJsonOrThrow(resource, init);
     }
 
-    const method = (init.method || 'GET').toUpperCase();
-    const headers = new Headers(init.headers || {});
+    const { timeoutMs, ...fetchInit } = init;
+    const method = (fetchInit.method || 'GET').toUpperCase();
+    const headers = new Headers(fetchInit.headers || {});
     if (!['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && window.csrfToken && !headers.has('X-CSRFToken')) {
         headers.set('X-CSRFToken', window.csrfToken);
     }
 
-    const response = await fetch(resource, {
-        credentials: init.credentials || 'same-origin',
-        ...init,
-        method,
-        headers,
-    });
+    const shouldCreateTimeoutSignal =
+        Number.isFinite(timeoutMs) &&
+        timeoutMs > 0 &&
+        !fetchInit.signal &&
+        typeof AbortController !== 'undefined';
+    const controller = shouldCreateTimeoutSignal ? new AbortController() : null;
+    const timeoutHandle = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+
+    let response;
+    try {
+        response = await fetch(resource, {
+            credentials: fetchInit.credentials || 'same-origin',
+            ...fetchInit,
+            method,
+            headers,
+            signal: controller ? controller.signal : fetchInit.signal,
+        });
+    } catch (error) {
+        if (error && error.name === 'AbortError') {
+            throw new Error('请求超时');
+        }
+        throw error;
+    } finally {
+        if (timeoutHandle !== null) {
+            window.clearTimeout(timeoutHandle);
+        }
+    }
 
     if (!response.ok) {
         let message = `HTTP ${response.status}`;
@@ -514,6 +537,14 @@ async function fetchJsonOrThrowCompat(resource, init = {}) {
     }
 
     return response.json();
+}
+
+function setDetailHeaderFallback() {
+    const stockNameEl = document.getElementById('stockName');
+    if (!stockNameEl || (stockNameEl.textContent && stockNameEl.textContent.trim() !== '加载中...')) {
+        return;
+    }
+    stockNameEl.textContent = stockCode;
 }
 
 // 生成东方财富链接
@@ -1124,21 +1155,24 @@ function createPercentileChart(canvasId, percentileValue, label, color) {
 // 加载股票详情
 async function loadStockDetail() {
     try {
-        const result = await fetchJsonOrThrowCompat(`/api/equity/valuation/${stockCode}/`);
+        const result = await fetchJsonOrThrowCompat(`/api/equity/valuation/${stockCode}/`, {
+            timeoutMs: valuationLoadTimeoutMs,
+        });
 
         if (result.success) {
             updateBasicInfo(result);
             updateValuation(result);
             updateFinancials(result);
             createCharts(result);
-            loadTechnicalChart(activeTechnicalTimeframe);
-            // 获取实时价格覆盖
-            loadRealtimePrice();
         } else {
-            alert('加载失败: ' + result.error);
+            setDetailHeaderFallback();
+            updateDataTime(null);
+            console.warn('估值详情返回失败状态:', result.error || result);
         }
     } catch (error) {
         console.error('加载股票详情失败:', error);
+        setDetailHeaderFallback();
+        updateDataTime(null);
     }
 }
 
@@ -1576,8 +1610,12 @@ async function refreshStockData() {
         });
         
         // 3. 重新加载数据
-        await loadStockDetail();
-        await loadCapitalFlow();
+        await Promise.allSettled([
+            loadStockDetail(),
+            loadCapitalFlow(),
+            loadTechnicalChart(activeTechnicalTimeframe),
+            loadRealtimePrice(),
+        ]);
         
         // 4. 更新时间显示
         updateDataTime(new Date().toISOString());
@@ -1603,9 +1641,12 @@ async function refreshStockData() {
 }
 
 function initializeDetailPage() {
+    setDetailHeaderFallback();
     initTechnicalControls();
     setExternalLinks();
     loadStockDetail();
+    loadTechnicalChart(activeTechnicalTimeframe);
+    loadRealtimePrice();
     loadPulseContext();
     loadRegimeCorrelation();
     loadCapitalFlow();

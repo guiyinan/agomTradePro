@@ -48,6 +48,23 @@ def _call_repo_with_hydrate(method, *args, hydrate: bool = False, **kwargs):
         return method(*args, **kwargs)
 
 
+def _has_meaningful_repo_payload(payload: object) -> bool:
+    """Return True when a repository read produced usable data."""
+    if payload is None:
+        return False
+    if isinstance(payload, (list, tuple, dict, set, str, bytes)):
+        return bool(payload)
+    return True
+
+
+def _load_repo_cache_first(method, *args, **kwargs):
+    """Prefer cached/local reads and only hydrate when nothing usable exists."""
+    cached_payload = _call_repo_with_hydrate(method, *args, hydrate=False, **kwargs)
+    if _has_meaningful_repo_payload(cached_payload):
+        return cached_payload
+    return _call_repo_with_hydrate(method, *args, hydrate=True, **kwargs)
+
+
 @dataclass
 class ScreenStocksRequest:
     """筛选个股请求"""
@@ -492,28 +509,25 @@ class AnalyzeValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = _call_repo_with_hydrate(
+            valuation_history = _load_repo_cache_first(
                 self.stock_repo.get_valuation_history,
                 request.stock_code,
                 start_date,
                 end_date,
-                hydrate=True,
             )
 
             # 5. 获取财务数据
-            financial = _call_repo_with_hydrate(
+            financial = _load_repo_cache_first(
                 self.stock_repo.get_latest_financial_data,
                 request.stock_code,
-                hydrate=True,
             )
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
-            daily_prices = _call_repo_with_hydrate(
+            daily_prices = _load_repo_cache_first(
                 self.stock_repo.get_daily_prices,
                 request.stock_code,
                 start_date=end_date - timedelta(days=7),
                 end_date=end_date,
-                hydrate=True,
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 
