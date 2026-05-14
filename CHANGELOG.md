@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 新增独立 `config_center` 模块，承接 Qlib 训练管理、运行时摘要、管理入口，以及对应的 API / SDK / MCP 能力
+- 新增 Task Monitor 调度控制台与 Workspace Snapshot 刷新页面/命令，便于查看周期任务和工作台快照状态
+- 新增 MCP onboarding 页面与启动欢迎上下文，首次接入 AI Agent 时可直接看到可用能力、配置入口和使用方式
+- 新增 Data Center 按需 hydration 能力与 `audit_on_demand_coverage` 审计命令，补齐“读取时缺数据”的补抓路径
 - 新增 Dashboard Alpha 完整排名入口，候选页现在可直接跳转到全量 ranking 视图
 - 新增本地 Alpha ETF fallback 种子数据，离线回归与降级路径的可重复性更稳定
 - 新增宏观指标治理 seeds，Data Center governance 与宏观治理元数据可在新环境中更快落到一致基线
@@ -43,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
+- 系统模块覆盖口径更新为 `36/36`，新增 `config_center` 作为独立业务模块
+- Qlib 训练相关系统配置与管理入口继续从 `account` 收口到 `config_center`，对应页面、SDK、MCP 与文档说明同步对齐
 - 宏观数据页探索体验继续增强，宏观同步状态与批量刷新语义现更明确区分“未同步”和“未接入”
 - 宏观治理与 Dashboard 数据流继续收口，累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
 - `task_monitor` 任务载荷口径已标准化，VPS SQLite 启动任务的投递与排障链路更稳定
@@ -94,6 +100,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 已移除旧的 `core/integration/asset_analysis_market_sources.py` bridge，跨模块市场协作改由 app-owned provider + shared registry 暴露
 
 ### Fixed
+- 修复 Equity Detail 页面加载阻塞问题，缺失局部上下文时改为更稳的部分加载
+- 修复 Equity Detail 图表默认日期在盘中、收盘后和非交易时段可能错位的问题；默认值现按交易时段回落到正确的已完成交易日
+- 修复 Pulse 宏观新鲜度判定链路，避免战术/可靠性修复继续基于过期宏观输入
+- 修复 Factor 计算页结果读取与展示细节，结果页在空值与已有结果场景下更稳定
+- 修复 Jazzmin 后台页重复静态资源注入问题，减少重复资源加载和页面噪音
 - 修复多项宏观数据质量与治理元数据问题，宏观治理 metadata pipeline 和多指标数据口径进一步加固
 - 修复 `CN_DR007` 宏观同步链路，恢复按当前真实区间数据抓取
 - 修复 CI 治理基线与测试基线漂移，Alpha / governance guardrails 与 fund / macro smoke contract 重新对齐当前实现
@@ -171,7 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 一批 Domain / Application 的静默降级分支现已补齐显式日志，fallback 仍保留，但运行时故障不再被无痕吞掉
 
 ### Security
-- (TBD)
+- Qlib 配置 token 新增 access-level 权限控制，配置中心、MCP Guide、SDK 与页面入口的访问边界已同步收紧
 
 ---
 

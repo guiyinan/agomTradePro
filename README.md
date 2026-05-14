@@ -10,8 +10,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C212-brightgreen.svg)](#测试)
-[![Modules](https://img.shields.io/badge/业务模块-35-purple.svg)](#架构)
+[![Tests](https://img.shields.io/badge/tests-5%2C655-brightgreen.svg)](#测试)
+[![Modules](https://img.shields.io/badge/业务模块-36-purple.svg)](#架构)
 [![MCP Tools](https://img.shields.io/badge/MCP_工具-326-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -25,6 +25,25 @@
 ## What's New
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
+
+### 2026-05-14
+
+- Equity Detail 图表默认日期现在会按交易时段自动推导：盘中、收盘后和非交易时段都会回落到正确的已完成交易日，避免详情页首屏默认图表错位到未收盘或未来日期
+
+### 2026-05-13
+
+- 新增 `config_center` 模块与 Qlib 训练管理台；训练配置、运行时摘要、管理入口和相关 API/SDK/MCP 能力开始统一收口到专门配置中心
+- Qlib 相关 token 权限已进一步细化；MCP 引导页、配置中心页面和访问控制一起补齐；个股详情页加载链也已解除阻塞，缺失局部上下文时支持更稳的部分加载
+
+### 2026-05-12
+
+- Data Center 新增按需 hydration 能力，个股等读链在本地缺少真源数据时可触发更明确的补抓与覆盖审计
+- Pulse 宏观新鲜度修复、Factor 计算结果页可读性与结果链路也同步补了一轮，研究页稳定性更好
+
+### 2026-05-10
+
+- 新增 Workspace Snapshot 与 Task Monitor 调度控制台页面，系统初始化后可以更直观看到周期任务、快照刷新和调度状态
+- MCP onboarding 页面和启动欢迎上下文已接入，首次接入 AI Agent 时能更快看到可用能力、配置入口和使用方式
 
 ### 2026-05-08
 
@@ -409,7 +428,7 @@ AgomTradePro 只相信一个原则：
 
 - **它不是 demo 站，而是一套可运行的投资系统骨架**：登录、配置、分析、决策、审批、执行、审计已经串起来了
 - **它不是 AI wrapper，而是 AI-native**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都在系统内部，不靠外面硬接
-- **它不是单点脚本，而是可扩展架构**：35 个业务模块、DDD 四层、明确边界，适合继续长功能
+- **它不是单点脚本，而是可扩展架构**：36 个业务模块、DDD 四层、明确边界，适合继续长功能
 - **它不是“只能作者自己维护”的代码**：模块拆分清楚，文档量够大，适合二开、Fork、做私有策略内核
 - **它有明显的产品感**：Setup Wizard、Dashboard、CLI、MCP 管理台都已经能展示“这是个系统”，而不是一堆脚本拼盘
 
@@ -729,11 +748,11 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 ## 项目规模
 
 ```
-35    业务模块（apps/，排除 __pycache__）
+36    业务模块（apps/，排除 __pycache__）
 326   MCP 工具（当前本地注册快照）
-515   REST API 路径（OpenAPI 快照）
-5,212 自动化测试项（pytest --collect-only 快照）
-271   文档文件（docs/ 目录）
+525   REST API 路径（OpenAPI 快照）
+5,655 自动化测试项（pytest --collect-only 快照）
+302   文档文件（docs/ 目录）
 ```
 
 ---

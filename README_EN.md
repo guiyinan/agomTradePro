@@ -10,8 +10,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C487-brightgreen.svg)](#testing)
-[![Modules](https://img.shields.io/badge/business_modules-35-purple.svg)](#architecture)
+[![Tests](https://img.shields.io/badge/tests-5%2C655-brightgreen.svg)](#testing)
+[![Modules](https://img.shields.io/badge/business_modules-36-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-326-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -25,6 +25,25 @@
 ## What's New
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
+
+### 2026-05-14
+
+- Equity Detail chart defaults are now derived from real market sessions, so intraday, post-close, and non-trading-time visits all fall back to the correct completed trading day instead of a not-yet-closed or future date
+
+### 2026-05-13
+
+- A dedicated `config_center` module and Qlib training console are now in place, consolidating training config, runtime summaries, management entrypoints, and related API/SDK/MCP capabilities into one configuration surface
+- Qlib token permissions were tightened, with matching updates across the MCP guide, config-center pages, and access control; the equity detail loading path was also unblocked so the page degrades more safely when some local context is missing
+
+### 2026-05-12
+
+- Data Center now supports on-demand hydration, giving equity and related read paths a clearer fetch-and-audit route when canonical source data is missing locally
+- Pulse macro freshness repair and Factor calculation-result page cleanup landed in the same pass, improving reliability across research-facing screens
+
+### 2026-05-10
+
+- Workspace Snapshot and Task Monitor scheduler-console pages are now available, making periodic jobs, snapshot refreshes, and scheduler state easier to inspect after setup
+- MCP onboarding and startup welcome context are now built in, so first-time AI-agent integration surfaces available capabilities, config entrypoints, and usage hints earlier
 
 ### 2026-05-02
 
@@ -252,7 +271,7 @@ If you're looking for more than "yet another stock dashboard" and want a **base 
 
 - **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
 - **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
-- **It is not a one-off script pile**: 35 business modules with explicit DDD boundaries make it suitable for long-term extension
+- **It is not a one-off script pile**: 36 business modules with explicit DDD boundaries make it suitable for long-term extension
 - **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
 - **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
 
@@ -683,18 +702,18 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 | **Visualization** | Streamlit, Plotly |
 | **Frontend** | Django Templates + HTMX |
 | **AI Integration** | MCP Server, Python SDK |
-| **Testing** | Pytest (5,212 collected tests), Playwright (E2E) |
+| **Testing** | Pytest (5,655 collected tests), Playwright (E2E) |
 
 ---
 
 ## Project Stats
 
 ```
-35    business modules (apps/, excluding __pycache__)
+36    business modules (apps/, excluding __pycache__)
 326   MCP tools (current local registration snapshot)
-515   REST API paths (OpenAPI snapshot)
-5,212 automated test items (pytest --collect-only snapshot)
-271   documentation files (docs/ directory)
+525   REST API paths (OpenAPI snapshot)
+5,655 automated test items (pytest --collect-only snapshot)
+302   documentation files (docs/ directory)
 ```
 
 ---

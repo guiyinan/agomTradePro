@@ -3,7 +3,7 @@
 > **当前版本**: `0.7.0`
 > **Build 日期**: `2026-03-23`
 > **完整版本号**: `0.7.0-build.20260323`
-> **开发文档快照**: `2026-05-08`
+> **开发文档快照**: `2026-05-14`
 
 ---
 
@@ -35,13 +35,20 @@
 代号: AgomTradePro
 状态: 开发中
 Build: 2026-03-23
-文档快照: 2026-05-08
+文档快照: 2026-05-14
 ```
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-05-08）
+## 0.7.0 之后的开发快照（截至 2026-05-14）
 
+- `2026-05-14` Equity Detail 图表默认日期现按交易时段自动推导：盘中、收盘后和非交易时段都会回落到正确的已完成交易日，避免详情页首屏默认图表错位到未收盘或未来日期
+- `2026-05-13` 新增独立 `config_center` 业务模块，Qlib 训练管理、运行时摘要、管理入口与 API/SDK/MCP 相关能力开始统一收口到专门配置中心；Qlib token 权限边界也同步收紧
+- `2026-05-13` Equity Detail 页面加载链已解除阻塞，缺失局部上下文时支持更稳的部分加载；后台重复 Jazzmin 静态资源注入问题也已修复
+- `2026-05-12` Data Center 新增按需 hydration 能力与覆盖审计命令；个股等读链在本地缺少真源数据时可触发更明确的补抓路径
+- `2026-05-12` Pulse 宏观新鲜度链路已修复；Factor 计算结果页的结果读取与展示也同步补强
+- `2026-05-10` 新增 Workspace Snapshot 与 Task Monitor 调度控制台页面；系统初始化后可更直观看到周期任务、快照刷新和调度状态
+- `2026-05-10` MCP onboarding 页面与启动欢迎上下文已接入，首次接入 AI Agent 时能更快看到可用能力、配置入口和使用方式
 - `2026-05-10` Dashboard / Decision Workspace 的退出链路 deep link 已补齐锚点定位与高亮提示；首页“退出链路入口”现在会自动收起已采纳 / 已忽略项，避免重复提醒；Workspace 侧也已改为复用统一 `dashboard_detail_url`，并新增模板 guardrail 防止回退到手拼链接；Alpha Trigger → Workspace 的旧参数桥接也已兼容收口到 `security_code/action/step`；Dashboard / Equity 的 Workspace 入口现在统一走 canonical URL builder，`进入 Step 4 / 去 Step 5` 链接已与真实 step 参数对齐；Decision Workspace 的 `user_action_label` 也已改为后端单源下发，前端不再独立维护一套显示口径；主页 query / API / SDK / MCP 暴露的退出项也已收口到同一套 canonical Workspace URL 与 processed 状态字段，减少前后端各自补丁造成的漂移
 - `2026-05-08` 本地 Alpha ETF fallback 已补入 seed data，Fund / Dashboard 相关 smoke contract 也已对齐当前页面行为；离线回归与降级路径的可重复性更稳
 - `2026-05-07` 宏观治理与 Dashboard 数据流继续收口；累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
@@ -137,7 +144,7 @@ Build: 2026-03-23
 - 密码强度实时检查
 - 已初始化系统需密码验证才能修改配置
 
-**模块数量**: 35 个业务模块
+**模块数量**: 36 个业务模块
 
 ---
 
@@ -272,4 +279,4 @@ git push origin v0.7.0
 ---
 
 **维护者**: AgomTradePro Team  
-**最后更新**: 2026-04-30
+**最后更新**: 2026-05-14
