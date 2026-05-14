@@ -121,16 +121,22 @@ def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_tim
     assert 'data-technical-timeframe="intraday"' in content
     assert 'data-technical-timeframe="day"' in content
     assert 'id="technicalChart"' in content
-    assert 'fetchJsonOrThrowCompat(`/api/equity/intraday/${stockCode}/`)' in content
-    assert 'fetchJsonOrThrowCompat(' in content and '/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=540' in content
+    assert "function buildTechnicalRequest(timeframe)" in content
+    assert '/api/equity/intraday/${stockCode}/' in content
+    assert '/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=${technicalLookbackDays[timeframe] || technicalLookbackDays.day}' in content
     assert "let technicalRequestToken = 0;" in content
+    assert "let technicalRequestController = null;" in content
+    assert "const technicalChartCache = new Map();" in content
     assert "const requestToken = ++technicalRequestToken;" in content
+    assert "const cachedPayload = getCachedTechnicalPayload(timeframe);" in content
+    assert "technicalRequestController.abort();" in content
+    assert "function warmTechnicalChartCache()" in content
     assert "if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe)" in content
     assert '{{ market_session_profile|json_script:"equity-detail-market-session" }}' in content
     assert "const marketSessionProfile = JSON.parse(" in content
     assert "function isMarketTradingSession(profile, now = new Date())" in content
     assert "function resolveInitialTechnicalTimeframe(profile, now = new Date())" in content
-    assert "return profile.default_timeframe_out_of_session || 'day';" in content
+    assert "return profile.default_timeframe_out_of_session || 'intraday';" in content
     assert "activeTechnicalTimeframe = resolveInitialTechnicalTimeframe(marketSessionProfile);" in content
     assert 'class="btn btn-secondary technical-timeframe-btn active" data-technical-timeframe="intraday"' not in content
     assert "timeZone: 'Asia/Shanghai'" not in content

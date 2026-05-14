@@ -1148,17 +1148,16 @@ class DjangoStockRepository:
     def get_intraday_points(self, stock_code: str) -> list[IntradayPricePoint]:
         """获取单资产最新交易日的 1 分钟分时数据。"""
         try:
-            intraday_result = self._dc_on_demand.ensure_intraday(stock_code)
-            quotes = intraday_result.records
+            quotes = self._dc_quote_repo.get_series(stock_code, limit=600)
         except RuntimeError as exc:
             logger.debug(
-                "Skip data center intraday lookup for %s because DB access is unavailable: %s",
+                "Skip local quote snapshot lookup for %s because DB access is unavailable: %s",
                 stock_code,
                 exc,
             )
             quotes = []
         except Exception as exc:
-            logger.warning("Failed to load quote snapshots for %s: %s", stock_code, exc)
+            logger.warning("Failed to load local quote snapshots for %s: %s", stock_code, exc)
             quotes = []
 
         if quotes:

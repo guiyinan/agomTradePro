@@ -50,6 +50,43 @@ def test_get_intraday_points_uses_primary_source_and_tracks_source(monkeypatch):
     assert repository.get_last_intraday_source() == "akshare_hist_min_em"
 
 
+def test_get_intraday_points_prefers_local_quote_snapshots_before_remote(monkeypatch):
+    repository = DjangoStockRepository()
+    market_tz = ZoneInfo("Asia/Shanghai")
+    session_start = timezone.now().astimezone(market_tz).replace(hour=9, minute=30, second=0, microsecond=0)
+    repository._dc_quote_repo = SimpleNamespace(
+        get_series=lambda stock_code, limit: [
+            SimpleNamespace(snapshot_at=session_start, current_price=Decimal("10.00"), volume=1000),
+            SimpleNamespace(
+                snapshot_at=session_start + timedelta(minutes=1),
+                current_price=Decimal("10.02"),
+                volume=1500,
+            ),
+            SimpleNamespace(
+                snapshot_at=session_start + timedelta(minutes=2),
+                current_price=Decimal("10.03"),
+                volume=1800,
+            ),
+        ]
+    )
+    monkeypatch.setattr(
+        repository,
+        "_get_intraday_hist_min_points",
+        lambda stock_code, symbol: (_ for _ in ()).throw(AssertionError("primary should not be used")),
+    )
+    monkeypatch.setattr(
+        repository,
+        "_get_intraday_tick_points",
+        lambda stock_code, symbol: (_ for _ in ()).throw(AssertionError("fallback should not be used")),
+    )
+
+    points = repository.get_intraday_points("000001.SZ")
+
+    assert len(points) == 3
+    assert points[-1].price == Decimal("10.03")
+    assert repository.get_last_intraday_source() == "data_center_quote_snapshot"
+
+
 def test_get_intraday_points_skips_stale_sparse_quote_snapshots(monkeypatch):
     repository = DjangoStockRepository()
     stale_time = timezone.now() - timedelta(days=14)

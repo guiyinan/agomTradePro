@@ -30,7 +30,7 @@ class MarketSessionProfile:
     timezone: str
     sessions: tuple[MarketSessionWindow, ...]
     default_timeframe_in_session: str = "intraday"
-    default_timeframe_out_of_session: str = "day"
+    default_timeframe_out_of_session: str = "intraday"
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -104,6 +104,7 @@ _MARKET_SESSION_PROFILES: dict[str, MarketSessionProfile] = {
         exchange=MarketExchange.OTHER.value,
         timezone="UTC",
         sessions=(),
+        default_timeframe_out_of_session="day",
     ),
 }
 

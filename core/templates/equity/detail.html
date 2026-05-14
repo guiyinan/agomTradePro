@@ -470,6 +470,8 @@ let pbChartInstance = null;
 let technicalChartInstance = null;
 let activeTechnicalTimeframe = 'day';
 let technicalRequestToken = 0;
+let technicalRequestController = null;
+const technicalChartCache = new Map();
 const technicalLookbackDays = {
     day: 540,
     week: 1260,
@@ -535,7 +537,37 @@ function resolveInitialTechnicalTimeframe(profile, now = new Date()) {
     if (isMarketTradingSession(profile, now)) {
         return profile.default_timeframe_in_session || 'intraday';
     }
-    return profile.default_timeframe_out_of_session || 'day';
+    return profile.default_timeframe_out_of_session || 'intraday';
+}
+
+function getTechnicalCacheKey(timeframe) {
+    return `${stockCode}:${timeframe}`;
+}
+
+function getCachedTechnicalPayload(timeframe) {
+    return technicalChartCache.get(getTechnicalCacheKey(timeframe)) || null;
+}
+
+function setCachedTechnicalPayload(timeframe, payload) {
+    technicalChartCache.set(getTechnicalCacheKey(timeframe), payload);
+}
+
+function buildTechnicalRequest(timeframe) {
+    if (timeframe === 'intraday') {
+        return {
+            url: `/api/equity/intraday/${stockCode}/`,
+            render(payload) {
+                renderIntradayChart({ ...payload, timeframe });
+            },
+        };
+    }
+
+    return {
+        url: `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=${technicalLookbackDays[timeframe] || technicalLookbackDays.day}`,
+        render(payload) {
+            renderTechnicalChart(payload);
+        },
+    };
 }
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
@@ -1112,26 +1144,34 @@ async function loadTechnicalChart(timeframe = activeTechnicalTimeframe) {
     const requestToken = ++technicalRequestToken;
     setTechnicalButtonState(timeframe);
 
+    const cachedPayload = getCachedTechnicalPayload(timeframe);
+    if (cachedPayload) {
+        if (timeframe === 'intraday') {
+            renderIntradayChart(cachedPayload);
+        } else {
+            renderTechnicalChart(cachedPayload);
+        }
+        return;
+    }
+
     const summaryEl = document.getElementById('technicalSummary');
     summaryEl.textContent = `${getTimeframeLabel(timeframe)}加载中...`;
+    if (technicalRequestController) {
+        technicalRequestController.abort();
+    }
+    technicalRequestController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const request = buildTechnicalRequest(timeframe);
 
     try {
-        if (timeframe === 'intraday') {
-            const payload = await fetchJsonOrThrowCompat(`/api/equity/intraday/${stockCode}/`);
-            if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
-                return;
-            }
-            renderIntradayChart({ ...payload, timeframe });
-            return;
-        }
-
-        const payload = await fetchJsonOrThrowCompat(
-            `/api/equity/technical/${stockCode}/?timeframe=${timeframe}&lookback_days=540`
-        );
+        const payload = await fetchJsonOrThrowCompat(request.url, {
+            signal: technicalRequestController ? technicalRequestController.signal : undefined,
+        });
         if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
             return;
         }
-        renderTechnicalChart(payload);
+        const normalizedPayload = timeframe === 'intraday' ? { ...payload, timeframe } : payload;
+        setCachedTechnicalPayload(timeframe, normalizedPayload);
+        request.render(normalizedPayload);
     } catch (error) {
         if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe) {
             return;
@@ -1146,7 +1186,33 @@ async function loadTechnicalChart(timeframe = activeTechnicalTimeframe) {
             renderTechnicalChart(emptyPayload);
         }
         summaryEl.textContent = `${getTimeframeLabel(timeframe)}加载失败`;
+    } finally {
+        if (requestToken === technicalRequestToken) {
+            technicalRequestController = null;
+        }
     }
+}
+
+function prefetchTechnicalChart(timeframe) {
+    if (timeframe === activeTechnicalTimeframe || getCachedTechnicalPayload(timeframe)) {
+        return;
+    }
+
+    const request = buildTechnicalRequest(timeframe);
+    fetchJsonOrThrowCompat(request.url)
+        .then(payload => {
+            const normalizedPayload = timeframe === 'intraday' ? { ...payload, timeframe } : payload;
+            setCachedTechnicalPayload(timeframe, normalizedPayload);
+        })
+        .catch(error => {
+            console.debug(`预取${getTimeframeLabel(timeframe)}图表失败:`, error);
+        });
+}
+
+function warmTechnicalChartCache() {
+    ['intraday', 'day', 'week', 'month'].forEach((timeframe, index) => {
+        window.setTimeout(() => prefetchTechnicalChart(timeframe), 300 * (index + 1));
+    });
 }
 
 function initTechnicalControls() {
@@ -1712,6 +1778,7 @@ function initializeDetailPage() {
     setExternalLinks();
     loadStockDetail();
     loadTechnicalChart(activeTechnicalTimeframe);
+    warmTechnicalChartCache();
     loadRealtimePrice();
     loadPulseContext();
     loadRegimeCorrelation();

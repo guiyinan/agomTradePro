@@ -24,7 +24,7 @@ def test_market_session_profile_uses_exchange_specific_timezone_and_sessions() -
         {"start": "13:00", "end": "16:00"},
     ]
     assert payload["default_timeframe_in_session"] == "intraday"
-    assert payload["default_timeframe_out_of_session"] == "day"
+    assert payload["default_timeframe_out_of_session"] == "intraday"
 
 
 def test_market_session_profile_supports_us_markets() -> None:
