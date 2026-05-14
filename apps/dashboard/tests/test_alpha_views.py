@@ -1,9 +1,11 @@
 import json
+import logging
 from datetime import date
 from types import SimpleNamespace
 
 import pytest
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 
@@ -1468,6 +1470,95 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     )
     assert rendered["context"]["alpha_actionable_candidates"][0]["code"] == "000001.SZ"
     assert rendered["context"]["quota_remaining"] == 8
+
+
+def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
+    request = RequestFactory().get(
+        "/dashboard/",
+        {
+            "portfolio_id": "21",
+            "alpha_scope": "portfolio",
+            "pool_mode": "price_covered",
+            "exit_asset_code": "000001.SZ",
+            "exit_account_id": "9",
+        },
+    )
+    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+
+    dashboard_data = SimpleNamespace(
+        username="admin",
+        positions=[{"asset_code": "000001.SZ"}],
+        invested_value=100000.0,
+    )
+    decision_plane_data = SimpleNamespace(
+        actionable_candidates=[{"asset_code": "000001.SZ"}],
+        pending_requests=[{"asset_code": "000002.SZ"}],
+    )
+    alpha_payload = {
+        "items": [{"code": "000001.SZ"}],
+        "meta": {},
+        "pool": {"portfolio_id": 21},
+        "actionable_candidates": [{"asset_code": "000001.SZ"}],
+        "pending_requests": [{"asset_code": "000002.SZ"}],
+        "exit_watchlist": [],
+        "exit_watch_summary": {},
+        "recent_runs": [],
+        "history_run_id": None,
+    }
+
+    monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
+    monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
+    monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [{"id": 21}])
+    monkeypatch.setattr(
+        views,
+        "_get_decision_plane_data",
+        lambda max_candidates, max_pending: decision_plane_data,
+    )
+    monkeypatch.setattr(views, "_get_alpha_metrics_data", lambda ic_days=30: {"provider_status": {}})
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda top_n, user, portfolio_id, pool_mode, alpha_scope: alpha_payload,
+    )
+    monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [{"id": 9}, {"id": 10}])
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_valuation_repair_config_summary",
+        lambda: {"enabled": True},
+    )
+    monkeypatch.setattr(
+        views,
+        "_build_dashboard_page_context",
+        lambda **kwargs: {"ok": True, "alpha_stock_scores": kwargs["alpha_payload"]["items"]},
+    )
+    monkeypatch.setattr(views, "render", lambda request, template_name, context: HttpResponse("ok"))
+
+    with caplog.at_level(logging.INFO):
+        response = views.dashboard_view(request)
+
+    assert response.status_code == 200
+    records = [record for record in caplog.records if record.message == "Dashboard page request completed"]
+    assert records
+
+    record = records[-1]
+    assert record.user_id == 7
+    assert record.portfolio_id == 21
+    assert record.alpha_scope == "portfolio"
+    assert record.pool_mode == "price_covered"
+    assert record.exit_asset_code == "000001.SZ"
+    assert record.exit_account_id == 9
+    assert record.position_count == 1
+    assert record.investment_account_count == 2
+    assert record.alpha_candidate_count == 1
+    assert record.alpha_actionable_count == 1
+    assert record.alpha_pending_count == 1
+    assert record.workflow_actionable_count == 1
+    assert record.workflow_pending_count == 1
+    assert record.duration_ms >= 0
+    assert "build_dashboard_data" in record.step_durations_ms
+    assert "alpha_payload" in record.step_durations_ms
+    assert "render" in record.step_durations_ms
 
 
 def test_main_workflow_panel_renders_candidate_asset_name():

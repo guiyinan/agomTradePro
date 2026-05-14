@@ -7,6 +7,7 @@ Dashboard Application Use Cases
 import logging
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from apps.account.domain.entities import (
@@ -24,6 +25,7 @@ from apps.dashboard.application.repository_provider import (
 )
 
 logger = logging.getLogger(__name__)
+_DASHBOARD_DATA_PERF_WARNING_MS = 3000
 
 
 def _display_risk_tolerance(risk_tolerance) -> str:
@@ -171,11 +173,19 @@ class GetDashboardDataUseCase:
         5. 投资信号统计
         6. AI建议生成
         """
+        started_at = perf_counter()
+        step_durations_ms: dict[str, int] = {}
+
+        def _track_step(step_name: str, step_started_at: float) -> None:
+            step_durations_ms[step_name] = int((perf_counter() - step_started_at) * 1000)
+
         # 1. 获取用户配置，如果不存在则自动创建
+        step_started_at = perf_counter()
         profile = self.account_repo.get_by_user_id(user_id)
         if not profile:
             # 自动创建默认账户配置
             profile = self.account_repo.create_default_profile(user_id)
+        _track_step("profile", step_started_at)
 
         # 2. 实时计算当前Regime（使用 V2 水平法）
         # V2 水平法：基于 PMI/CPI 的绝对水平判定
@@ -185,12 +195,15 @@ class GetDashboardDataUseCase:
         #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
         from apps.regime.application.current_regime import resolve_current_regime
 
+        step_started_at = perf_counter()
         health = self._assess_macro_data_health(
             growth_indicator="PMI",
             inflation_indicator="CPI",
             as_of_date=date.today(),
         )
+        _track_step("macro_health", step_started_at)
 
+        step_started_at = perf_counter()
         current = resolve_current_regime(as_of_date=date.today())
         if current.dominant_regime != "Unknown":
             current_regime = current.dominant_regime
@@ -231,44 +244,60 @@ class GetDashboardDataUseCase:
                 )
                 regime_data_health = "unavailable"
                 regime_warnings = ["Regime 实时计算失败，且无可用历史快照"]
+        _track_step("regime_resolution", step_started_at)
 
         # 获取最新的 PMI 和 CPI 值
+        step_started_at = perf_counter()
         pmi_value, cpi_value = self._get_latest_macro_values()
+        _track_step("macro_values", step_started_at)
 
         # 3. 获取投资组合快照
+        step_started_at = perf_counter()
         portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
         snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
         account_totals = self._get_user_account_totals(user_id)
+        _track_step("portfolio_snapshot", step_started_at)
 
         # 4. 获取持仓列表（优先展示当前模拟账户体系的持仓）
+        step_started_at = perf_counter()
         simulated_positions = self._get_simulated_positions(user_id)
         positions_dict = simulated_positions or self._format_positions(snapshot.positions)
+        _track_step("positions", step_started_at)
 
         # 5. 计算Regime匹配度
         from apps.account.domain.services import PositionService
 
+        step_started_at = perf_counter()
         match_analysis = PositionService.calculate_regime_match_score(
             positions=snapshot.positions,
             current_regime=current_regime,
         )
+        _track_step("regime_match", step_started_at)
 
         # 6. 获取投资信号
+        step_started_at = perf_counter()
         active_signals = self._get_user_signals(user_id)
         signal_stats = self._calculate_signal_stats(user_id)
+        _track_step("signals", step_started_at)
 
         # 7. 资产配置分布
+        step_started_at = perf_counter()
         asset_allocation = (
             self._format_simulated_asset_allocation(simulated_positions)
             if simulated_positions
             else self._format_asset_allocation(snapshot.positions)
         )
+        _track_step("asset_allocation", step_started_at)
 
         # 8. 获取政策环境信息
+        step_started_at = perf_counter()
         current_policy_level, current_policy_date, pending_review_count, recent_policies = (
             self._get_policy_environment(user_id)
         )
+        _track_step("policy_environment", step_started_at)
 
         # 9. 生成AI建议
+        step_started_at = perf_counter()
         ai_insights = self._generate_ai_insights(
             current_regime=current_regime,
             snapshot=snapshot,
@@ -276,8 +305,10 @@ class GetDashboardDataUseCase:
             active_signals=active_signals,
             policy_level=current_policy_level,
         )
+        _track_step("ai_insights", step_started_at)
 
         # 10. 生成资产配置建议（新增）
+        step_started_at = perf_counter()
         allocation_advice = self._generate_allocation_advice(
             current_regime=current_regime,
             policy_level=current_policy_level,
@@ -285,12 +316,15 @@ class GetDashboardDataUseCase:
             total_assets=float(snapshot.total_value),
             positions=snapshot.positions,
         )
+        _track_step("allocation_advice", step_started_at)
 
         # 11. 生成图表数据
+        step_started_at = perf_counter()
         allocation_data = self._generate_allocation_chart_data(asset_allocation)
         performance_data = self._generate_performance_chart_data(user_id=user_id)
+        _track_step("charts", step_started_at)
 
-        return DashboardData(
+        dashboard_data = DashboardData(
             user_id=user_id,
             username="",  # 由视图层填充
             display_name=profile.display_name,
@@ -327,6 +361,29 @@ class GetDashboardDataUseCase:
             allocation_data=allocation_data,
             performance_data=performance_data,
         )
+
+        total_duration_ms = int((perf_counter() - started_at) * 1000)
+        log_method = (
+            logger.warning
+            if total_duration_ms >= _DASHBOARD_DATA_PERF_WARNING_MS
+            else logger.info
+        )
+        log_method(
+            "Dashboard data aggregation completed",
+            extra={
+                "event": "dashboard_data_aggregation_completed",
+                "user_id": user_id,
+                "duration_ms": total_duration_ms,
+                "step_durations_ms": step_durations_ms,
+                "position_count": len(positions_dict),
+                "signal_count": len(active_signals),
+                "ai_insight_count": len(ai_insights),
+                "regime": current_regime,
+                "policy_level": current_policy_level,
+                "used_simulated_positions": bool(simulated_positions),
+            },
+        )
+        return dashboard_data
 
     def _get_user_account_totals(self, user_id: int) -> dict[str, float]:
         """Prefer the current simulated-account system for dashboard totals."""

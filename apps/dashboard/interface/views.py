@@ -12,6 +12,7 @@ Dashboard Interface Views
 import logging
 from collections.abc import Mapping
 from datetime import date
+from time import perf_counter
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
@@ -86,6 +87,7 @@ from apps.task_monitor.application.tracking import record_pending_task as _recor
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
 _DASHBOARD_EXIT_DETAIL_ANCHOR = "alpha-exit-detail"
+_DASHBOARD_VIEW_PERF_WARNING_MS = 4000
 acquire_dashboard_alpha_refresh_pending_lock = _acquire_dashboard_alpha_refresh_pending_lock
 PortfolioAlphaPoolResolver = _PortfolioAlphaPoolResolver
 build_dashboard_alpha_refresh_metadata = _build_dashboard_alpha_refresh_metadata
@@ -103,6 +105,24 @@ def _get_request_user_id(user) -> int | None:
         return int(user_id) if user_id not in (None, "") else None
     except (TypeError, ValueError):
         return None
+
+
+def _log_dashboard_view_timing(
+    message: str,
+    *,
+    duration_ms: int,
+    **extra_fields: object,
+) -> None:
+    """Emit structured timing logs for the dashboard page request."""
+    log_method = logger.warning if duration_ms >= _DASHBOARD_VIEW_PERF_WARNING_MS else logger.info
+    log_method(
+        message,
+        extra={
+            "event": "dashboard_view_completed",
+            "duration_ms": duration_ms,
+            **extra_fields,
+        },
+    )
 
 
 def _clone_dashboard_item(item: object) -> dict[str, object]:
@@ -1043,10 +1063,24 @@ def dashboard_view(request):
     4. 我的投资信号
     5. AI操作建议
     """
+    request_started_at = perf_counter()
+    step_durations_ms: dict[str, int] = {}
+
+    def _track_step(step_name: str, step_started_at: float) -> None:
+        step_durations_ms[step_name] = int((perf_counter() - step_started_at) * 1000)
+
     # 获取首页数据
+    step_started_at = perf_counter()
     data = _build_dashboard_data(request.user.id)
+    _track_step("build_dashboard_data", step_started_at)
+
+    step_started_at = perf_counter()
     data = _ensure_dashboard_positions(data, request.user.id)
+    _track_step("ensure_positions", step_started_at)
+
+    step_started_at = perf_counter()
     navigator, pulse, action = _load_phase1_macro_components()
+    _track_step("macro_components", step_started_at)
 
     # 补充用户名
     data.username = request.user.username
@@ -1079,10 +1113,15 @@ def dashboard_view(request):
     if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
         selected_alpha_scope = ALPHA_SCOPE_GENERAL
 
+    step_started_at = perf_counter()
     decision_plane_data = _get_decision_plane_data(max_candidates=5, max_pending=10)
+    _track_step("decision_plane", step_started_at)
 
+    step_started_at = perf_counter()
     alpha_metrics_data = _get_alpha_metrics_data(ic_days=30)
+    _track_step("alpha_metrics", step_started_at)
 
+    step_started_at = perf_counter()
     alpha_payload = _get_alpha_stock_scores_payload(
         top_n=10,
         user=request.user,
@@ -1090,6 +1129,7 @@ def dashboard_view(request):
         pool_mode=selected_alpha_pool_mode,
         alpha_scope=selected_alpha_scope,
     )
+    _track_step("alpha_payload", step_started_at)
     alpha_actionable_candidates = alpha_payload["actionable_candidates"]
     alpha_pending_requests = alpha_payload["pending_requests"]
     alpha_stock_scores = alpha_payload["items"]
@@ -1098,9 +1138,15 @@ def dashboard_view(request):
         actionable_candidates=alpha_actionable_candidates,
         pending_requests=alpha_pending_requests,
     )
+    step_started_at = perf_counter()
     investment_accounts = _get_dashboard_accounts(request.user)
-    valuation_repair_config_summary = _get_dashboard_valuation_repair_config_summary()
+    _track_step("investment_accounts", step_started_at)
 
+    step_started_at = perf_counter()
+    valuation_repair_config_summary = _get_dashboard_valuation_repair_config_summary()
+    _track_step("valuation_repair_summary", step_started_at)
+
+    step_started_at = perf_counter()
     context = _build_dashboard_page_context(
         request=request,
         data=data,
@@ -1120,8 +1166,33 @@ def dashboard_view(request):
         selected_exit_asset_code=selected_exit_asset_code,
         selected_exit_account_id=selected_exit_account_id,
     )
+    _track_step("build_context", step_started_at)
 
-    return render(request, 'dashboard/index.html', context)
+    step_started_at = perf_counter()
+    response = render(request, 'dashboard/index.html', context)
+    _track_step("render", step_started_at)
+
+    total_duration_ms = int((perf_counter() - request_started_at) * 1000)
+    _log_dashboard_view_timing(
+        "Dashboard page request completed",
+        duration_ms=total_duration_ms,
+        user_id=_get_request_user_id(request.user),
+        portfolio_id=selected_portfolio_id,
+        alpha_scope=selected_alpha_scope,
+        pool_mode=selected_alpha_pool_mode,
+        exit_asset_code=selected_exit_asset_code,
+        exit_account_id=selected_exit_account_id,
+        step_durations_ms=step_durations_ms,
+        position_count=len(getattr(data, "positions", []) or []),
+        investment_account_count=len(investment_accounts),
+        alpha_candidate_count=len(alpha_stock_scores),
+        alpha_actionable_count=len(alpha_actionable_candidates),
+        alpha_pending_count=len(alpha_pending_requests),
+        workflow_actionable_count=len(getattr(decision_plane_data, "actionable_candidates", []) or []),
+        workflow_pending_count=len(getattr(decision_plane_data, "pending_requests", []) or []),
+    )
+
+    return response
 
 
 def _build_dashboard_page_context(

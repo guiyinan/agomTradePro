@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
+from time import perf_counter
 from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured
@@ -17,6 +18,7 @@ from apps.dashboard.application.repository_provider import (
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 
 logger = logging.getLogger(__name__)
+_DASHBOARD_INTERFACE_PERF_WARNING_MS = 2500
 
 RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS = (
     AttributeError,
@@ -38,6 +40,27 @@ class DashboardMacroComponents:
     navigator: object | None = None
     pulse: object | None = None
     action: object | None = None
+
+
+def _log_dashboard_interface_timing(
+    message: str,
+    *,
+    event: str,
+    duration_ms: int,
+    **extra_fields: object,
+) -> None:
+    """Emit dashboard interface-layer timing logs with a slow-request warning threshold."""
+    log_method = (
+        logger.warning if duration_ms >= _DASHBOARD_INTERFACE_PERF_WARNING_MS else logger.info
+    )
+    log_method(
+        message,
+        extra={
+            "event": event,
+            "duration_ms": duration_ms,
+            **extra_fields,
+        },
+    )
 
 
 def _empty_decision_plane_data() -> DecisionPlaneData:
@@ -106,6 +129,7 @@ def get_alpha_stock_scores_payload(
     query_factory,
 ) -> dict[str, Any]:
     """Return Alpha stock items plus reliability metadata."""
+    started_at = perf_counter()
     try:
         data = query_factory().execute(
             top_n=top_n,
@@ -151,6 +175,18 @@ def get_alpha_stock_scores_payload(
             "recent_runs": [],
             "history_run_id": None,
         }
+    finally:
+        duration_ms = int((perf_counter() - started_at) * 1000)
+        _log_dashboard_interface_timing(
+            "Dashboard alpha homepage query completed",
+            event="dashboard_alpha_homepage_query_completed",
+            duration_ms=duration_ms,
+            top_n=top_n,
+            portfolio_id=portfolio_id,
+            pool_mode=pool_mode,
+            alpha_scope=alpha_scope,
+            user_id=getattr(user, "id", None),
+        )
 
 
 def get_portfolio_options(user_id: int) -> list[dict]:
@@ -181,14 +217,19 @@ def load_phase1_macro_components(
     navigator = None
     pulse = None
     action = None
+    step_durations_ms: dict[str, int] = {}
 
+    step_started_at = perf_counter()
     try:
         from apps.regime.application.navigator_use_cases import BuildRegimeNavigatorUseCase
 
         navigator = BuildRegimeNavigatorUseCase().execute(target_date)
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to load regime navigator widget data: %s", exc)
+    finally:
+        step_durations_ms["navigator"] = int((perf_counter() - step_started_at) * 1000)
 
+    step_started_at = perf_counter()
     try:
         from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
@@ -198,7 +239,10 @@ def load_phase1_macro_components(
         )
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to load pulse widget data: %s", exc)
+    finally:
+        step_durations_ms["pulse"] = int((perf_counter() - step_started_at) * 1000)
 
+    step_started_at = perf_counter()
     try:
         from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 
@@ -208,6 +252,20 @@ def load_phase1_macro_components(
         )
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to load action recommendation widget data: %s", exc)
+    finally:
+        step_durations_ms["action"] = int((perf_counter() - step_started_at) * 1000)
+
+    _log_dashboard_interface_timing(
+        "Dashboard macro widget load completed",
+        event="dashboard_macro_widget_load_completed",
+        duration_ms=sum(step_durations_ms.values()),
+        as_of_date=target_date.isoformat(),
+        refresh_if_stale=refresh_if_stale,
+        step_durations_ms=step_durations_ms,
+        navigator_loaded=navigator is not None,
+        pulse_loaded=pulse is not None,
+        action_loaded=action is not None,
+    )
 
     return DashboardMacroComponents(
         navigator=navigator,
@@ -224,11 +282,22 @@ def get_alpha_visualization_data(
     query_factory,
 ):
     """Return the aggregated Alpha visualization payload with a single query execution."""
+    started_at = perf_counter()
     try:
         return query_factory().execute(top_n=top_n, ic_days=ic_days, user=user)
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to get alpha visualization data: %s", exc)
         return None
+    finally:
+        duration_ms = int((perf_counter() - started_at) * 1000)
+        _log_dashboard_interface_timing(
+            "Dashboard alpha visualization query completed",
+            event="dashboard_alpha_visualization_query_completed",
+            duration_ms=duration_ms,
+            top_n=top_n,
+            ic_days=ic_days,
+            user_id=getattr(user, "id", None),
+        )
 
 
 def get_alpha_decision_chain_data(
@@ -288,11 +357,21 @@ def get_decision_plane_data(
     query_factory,
 ) -> DecisionPlaneData:
     """Return the aggregated decision-plane payload with a single query execution."""
+    started_at = perf_counter()
     try:
         return query_factory().execute(max_candidates=max_candidates, max_pending=max_pending)
     except RECOVERABLE_DASHBOARD_INTERFACE_EXCEPTIONS as exc:
         logger.warning("Failed to get decision plane data: %s", exc)
         return _empty_decision_plane_data()
+    finally:
+        duration_ms = int((perf_counter() - started_at) * 1000)
+        _log_dashboard_interface_timing(
+            "Dashboard decision plane query completed",
+            event="dashboard_decision_plane_query_completed",
+            duration_ms=duration_ms,
+            max_candidates=max_candidates,
+            max_pending=max_pending,
+        )
 
 
 def load_simulated_positions_fallback(

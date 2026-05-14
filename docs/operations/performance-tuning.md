@@ -331,6 +331,52 @@ pytest tests/benchmark/test_api_performance.py --benchmark-only
    pip install django-debug-toolbar
    ```
 
+## Dashboard 首屏慢加载排查
+
+自 `2026-05-14` 起，`/dashboard/` 首屏增加了结构化耗时日志，方便直接在生产日志里定位聚合慢点。
+
+### 关键事件
+
+- `dashboard_view_completed`
+  - 页面级总耗时，字段包含 `duration_ms`、`step_durations_ms`、`alpha_scope`、`portfolio_id`、`alpha_candidate_count`
+- `dashboard_data_aggregation_completed`
+  - 首页主聚合 `GetDashboardDataUseCase.execute()` 的分步耗时
+- `dashboard_macro_widget_load_completed`
+  - 顶部宏观卡片三段耗时：`navigator` / `pulse` / `action`
+- `dashboard_alpha_homepage_query_completed`
+  - Alpha 首页推荐查询耗时
+- `dashboard_alpha_visualization_query_completed`
+  - Alpha 指标/可视化查询耗时
+- `dashboard_decision_plane_query_completed`
+  - Workflow 决策面板查询耗时
+
+### 建议排查顺序
+
+1. 先看 `dashboard_view_completed.duration_ms`，确认慢请求的总耗时。
+2. 再看 `step_durations_ms`，判断是 `build_dashboard_data`、`macro_components`、`alpha_payload`、`alpha_metrics` 还是 `render` 慢。
+3. 如果 `build_dashboard_data` 慢，继续看 `dashboard_data_aggregation_completed.step_durations_ms`。
+4. 如果 `macro_components` 或 Alpha 相关步骤慢，继续看对应子事件。
+
+### 日志示例
+
+```json
+{
+  "event": "dashboard_view_completed",
+  "duration_ms": 4821,
+  "user_id": 7,
+  "portfolio_id": 21,
+  "alpha_scope": "portfolio",
+  "step_durations_ms": {
+    "build_dashboard_data": 1850,
+    "macro_components": 920,
+    "decision_plane": 180,
+    "alpha_metrics": 640,
+    "alpha_payload": 1015,
+    "render": 95
+  }
+}
+```
+
 ## 参考资料
 
 - [Django 数据库优化](https://docs.djangoproject.com/en/4.2/topics/db/optimization/)
