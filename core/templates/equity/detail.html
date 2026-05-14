@@ -459,8 +459,12 @@
     </div>
 </div>
 
+{{ market_session_profile|json_script:"equity-detail-market-session" }}
 <script>
 const stockCode = '{{ stock_code }}';
+const marketSessionProfile = JSON.parse(
+    document.getElementById('equity-detail-market-session').textContent
+);
 let peChartInstance = null;
 let pbChartInstance = null;
 let technicalChartInstance = null;
@@ -473,9 +477,12 @@ const technicalLookbackDays = {
 };
 const valuationLoadTimeoutMs = 8000;
 
-function getShanghaiMarketClockParts(now = new Date()) {
+function getMarketClockParts(timezoneName, now = new Date()) {
+    if (!timezoneName) {
+        return {};
+    }
     const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Shanghai',
+        timeZone: timezoneName,
         weekday: 'short',
         hour: '2-digit',
         minute: '2-digit',
@@ -488,8 +495,12 @@ function getShanghaiMarketClockParts(now = new Date()) {
     return Object.fromEntries(entries);
 }
 
-function isShanghaiTradingSession(now = new Date()) {
-    const parts = getShanghaiMarketClockParts(now);
+function isMarketTradingSession(profile, now = new Date()) {
+    if (!profile || !profile.timezone || !Array.isArray(profile.sessions) || !profile.sessions.length) {
+        return false;
+    }
+
+    const parts = getMarketClockParts(profile.timezone, now);
     const weekday = parts.weekday || '';
     if (weekday === 'Sat' || weekday === 'Sun') {
         return false;
@@ -498,20 +509,33 @@ function isShanghaiTradingSession(now = new Date()) {
     const hour = Number(parts.hour || 0);
     const minute = Number(parts.minute || 0);
     const minutesSinceMidnight = hour * 60 + minute;
-    const morningOpen = 9 * 60 + 30;
-    const morningClose = 11 * 60 + 30;
-    const afternoonOpen = 13 * 60;
-    const afternoonClose = 15 * 60;
 
-    const isMorningSession =
-        minutesSinceMidnight >= morningOpen && minutesSinceMidnight <= morningClose;
-    const isAfternoonSession =
-        minutesSinceMidnight >= afternoonOpen && minutesSinceMidnight <= afternoonClose;
-    return isMorningSession || isAfternoonSession;
+    return profile.sessions.some(session => {
+        if (!session || !session.start || !session.end) {
+            return false;
+        }
+        const [startHour, startMinute] = session.start.split(':').map(Number);
+        const [endHour, endMinute] = session.end.split(':').map(Number);
+        if (
+            !Number.isFinite(startHour) ||
+            !Number.isFinite(startMinute) ||
+            !Number.isFinite(endHour) ||
+            !Number.isFinite(endMinute)
+        ) {
+            return false;
+        }
+
+        const startMinutes = startHour * 60 + startMinute;
+        const endMinutes = endHour * 60 + endMinute;
+        return minutesSinceMidnight >= startMinutes && minutesSinceMidnight <= endMinutes;
+    });
 }
 
-function resolveInitialTechnicalTimeframe(now = new Date()) {
-    return isShanghaiTradingSession(now) ? 'intraday' : 'day';
+function resolveInitialTechnicalTimeframe(profile, now = new Date()) {
+    if (isMarketTradingSession(profile, now)) {
+        return profile.default_timeframe_in_session || 'intraday';
+    }
+    return profile.default_timeframe_out_of_session || 'day';
 }
 
 async function fetchJsonOrThrowCompat(resource, init = {}) {
@@ -1682,7 +1706,7 @@ async function refreshStockData() {
 }
 
 function initializeDetailPage() {
-    activeTechnicalTimeframe = resolveInitialTechnicalTimeframe();
+    activeTechnicalTimeframe = resolveInitialTechnicalTimeframe(marketSessionProfile);
     setDetailHeaderFallback();
     initTechnicalControls();
     setExternalLinks();

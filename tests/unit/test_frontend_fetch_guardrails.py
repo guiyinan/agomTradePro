@@ -126,11 +126,14 @@ def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_tim
     assert "let technicalRequestToken = 0;" in content
     assert "const requestToken = ++technicalRequestToken;" in content
     assert "if (requestToken !== technicalRequestToken || timeframe !== activeTechnicalTimeframe)" in content
-    assert "function isShanghaiTradingSession(now = new Date())" in content
-    assert "function resolveInitialTechnicalTimeframe(now = new Date())" in content
-    assert "return isShanghaiTradingSession(now) ? 'intraday' : 'day';" in content
-    assert "activeTechnicalTimeframe = resolveInitialTechnicalTimeframe();" in content
+    assert '{{ market_session_profile|json_script:"equity-detail-market-session" }}' in content
+    assert "const marketSessionProfile = JSON.parse(" in content
+    assert "function isMarketTradingSession(profile, now = new Date())" in content
+    assert "function resolveInitialTechnicalTimeframe(profile, now = new Date())" in content
+    assert "return profile.default_timeframe_out_of_session || 'day';" in content
+    assert "activeTechnicalTimeframe = resolveInitialTechnicalTimeframe(marketSessionProfile);" in content
     assert 'class="btn btn-secondary technical-timeframe-btn active" data-technical-timeframe="intraday"' not in content
+    assert "timeZone: 'Asia/Shanghai'" not in content
 
 
 def test_equity_detail_bootstraps_after_dom_ready_and_guards_chartjs_loading():

@@ -33,6 +33,9 @@ from apps.equity.application.interface_services import (
     list_valuation_repair_configs,
     update_valuation_repair_config,
 )
+from apps.equity.application.market_sessions import (
+    get_equity_detail_market_session_profile,
+)
 from apps.equity.application.repository_provider import (
     get_equity_asset_repository,
     get_equity_regime_history_repository,
@@ -146,7 +149,10 @@ def detail_page(request, stock_code):
 
     GET /equity/detail/<stock_code>/
     """
-    context = {"stock_code": stock_code}
+    context = {
+        "stock_code": stock_code,
+        "market_session_profile": get_equity_detail_market_session_profile(stock_code),
+    }
     return render(request, "equity/detail.html", context)
 
 

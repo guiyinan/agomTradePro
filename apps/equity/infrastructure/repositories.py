@@ -398,6 +398,19 @@ class DjangoStockRepository:
             return fallback_info
         return None
 
+    def get_listing_exchange(self, stock_code: str) -> str:
+        """Resolve the primary listing exchange for the given stock code."""
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            asset = self._dc_asset_repo.get_by_code(candidate)
+            if asset is not None:
+                return asset.exchange.value
+
+        stock_info = self.get_stock_info(stock_code)
+        if stock_info is not None:
+            return self._infer_exchange_from_market(stock_info.market)
+        return self._infer_exchange_from_stock_code(stock_code)
+
     def resolve_stock_names(self, stock_codes: list[str]) -> dict[str, str]:
         """批量解析股票名称。"""
         normalized_codes = [str(code).upper() for code in stock_codes if code]
@@ -1959,6 +1972,19 @@ class DjangoStockRepository:
         if code.startswith(("4", "8")):
             return "BJ"
         return ""
+
+    def _infer_exchange_from_market(self, market: str) -> str:
+        market_code = str(market or "").upper()
+        market_map = {
+            "SH": "SSE",
+            "SZ": "SZSE",
+            "BJ": "BSE",
+            "HK": "HKEX",
+        }
+        return market_map.get(market_code, "OTHER")
+
+    def _infer_exchange_from_stock_code(self, stock_code: str) -> str:
+        return self._infer_exchange_from_market(self._infer_market_from_stock_code(stock_code))
 
     def _to_eastmoney_secid(self, stock_code: str) -> str:
         code = stock_code.strip().upper()
