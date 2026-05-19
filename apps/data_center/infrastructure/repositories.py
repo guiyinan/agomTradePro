@@ -13,12 +13,13 @@ Phase 2: AssetRepository, IndicatorCatalogRepository, MacroFactRepository,
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
-from django.db.models import Count, Max
+from django.db.models import Avg, Count, Max, Q
+from django.db.models.functions import TruncDate
 
 from apps.data_center.domain.entities import (
     AssetAlias,
@@ -30,6 +31,10 @@ from apps.data_center.domain.entities import (
     IndicatorCatalog,
     IndicatorUnitRule,
     MacroFact,
+    MarketNewsDailyMetrics,
+    MarketThermometerConfig,
+    MarketThermometerSnapshot,
+    MarketThermometerUserOverride,
     NewsFact,
     PriceBar,
     ProviderConfig,
@@ -56,6 +61,9 @@ from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
     MacroFactModel,
+    MarketThermometerConfigModel,
+    MarketThermometerSnapshotModel,
+    MarketThermometerUserOverrideModel,
     NewsFactModel,
     PriceBarModel,
     ProviderConfigModel,
@@ -141,6 +149,98 @@ class DataProviderSettingsRepository:
         model.enable_failover = settings.enable_failover
         model.failover_tolerance = settings.failover_tolerance
         model.save()
+        return model.to_domain()
+
+
+class MarketThermometerConfigRepository:
+    """Persists and retrieves singleton market thermometer config."""
+
+    def load(self) -> MarketThermometerConfig:
+        return MarketThermometerConfigModel.load().to_domain()
+
+    def save(self, config: MarketThermometerConfig) -> MarketThermometerConfig:
+        model = MarketThermometerConfigModel.load()
+        model.short_window = config.short_window
+        model.medium_window = config.medium_window
+        model.long_window = config.long_window
+        model.monthly_long_window = config.monthly_long_window
+        model.daily_stale_days = config.daily_stale_days
+        model.monthly_stale_days = config.monthly_stale_days
+        model.min_valid_components = config.min_valid_components
+        model.component_weights = dict(config.component_weights)
+        model.warm_threshold = config.thresholds.warm_threshold
+        model.hot_threshold = config.thresholds.hot_threshold
+        model.overheat_threshold = config.thresholds.overheat_threshold
+        model.extreme_threshold = config.thresholds.extreme_threshold
+        model.save()
+        return model.to_domain()
+
+
+class MarketThermometerUserOverrideRepository:
+    """Persists per-user market thermometer threshold overrides."""
+
+    def get_by_user_id(self, user_id: int) -> MarketThermometerUserOverride | None:
+        try:
+            return MarketThermometerUserOverrideModel.objects.get(user_id=user_id).to_domain()
+        except MarketThermometerUserOverrideModel.DoesNotExist:
+            return None
+
+    def save(
+        self,
+        override: MarketThermometerUserOverride,
+    ) -> MarketThermometerUserOverride:
+        model, _ = MarketThermometerUserOverrideModel.objects.update_or_create(
+            user_id=override.user_id,
+            defaults={
+                "warm_threshold": override.thresholds.warm_threshold,
+                "hot_threshold": override.thresholds.hot_threshold,
+                "overheat_threshold": override.thresholds.overheat_threshold,
+                "extreme_threshold": override.thresholds.extreme_threshold,
+            },
+        )
+        return model.to_domain()
+
+    def delete(self, user_id: int) -> None:
+        MarketThermometerUserOverrideModel.objects.filter(user_id=user_id).delete()
+
+
+class MarketThermometerSnapshotRepository:
+    """Persists and retrieves market thermometer snapshots."""
+
+    def get_latest(self) -> MarketThermometerSnapshot | None:
+        model = MarketThermometerSnapshotModel.objects.order_by("-observed_at").first()
+        return model.to_domain() if model is not None else None
+
+    def get_by_date(self, observed_at: date) -> MarketThermometerSnapshot | None:
+        try:
+            return MarketThermometerSnapshotModel.objects.get(observed_at=observed_at).to_domain()
+        except MarketThermometerSnapshotModel.DoesNotExist:
+            return None
+
+    def list_history(self, days: int = 90) -> list[MarketThermometerSnapshot]:
+        cutoff = date.today() if days <= 0 else date.today() - timedelta(days=days)
+        rows = MarketThermometerSnapshotModel.objects.filter(observed_at__gte=cutoff)
+        return [row.to_domain() for row in rows.order_by("-observed_at")]
+
+    def save(self, snapshot: MarketThermometerSnapshot) -> MarketThermometerSnapshot:
+        model, _ = MarketThermometerSnapshotModel.objects.update_or_create(
+            observed_at=snapshot.observed_at,
+            defaults={
+                "score": snapshot.score,
+                "band": snapshot.band,
+                "change_5d": snapshot.change_5d,
+                "change_20d": snapshot.change_20d,
+                "components": [component.to_dict() for component in snapshot.components],
+                "trigger_reasons": list(snapshot.trigger_reasons),
+                "stale_components": list(snapshot.stale_components),
+                "missing_components": list(snapshot.missing_components),
+                "valid_component_count": snapshot.valid_component_count,
+                "data_source": snapshot.data_source,
+                "must_not_use_for_decision": snapshot.must_not_use_for_decision,
+                "blocked_reason": snapshot.blocked_reason,
+                "calculated_at": snapshot.calculated_at,
+            },
+        )
         return model.to_domain()
 
 
@@ -1441,6 +1541,47 @@ class NewsRepository:
                 if created:
                     count += 1
         return count
+
+    def aggregate_market_daily(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> list[MarketNewsDailyMetrics]:
+        qs = NewsFactModel.objects.filter(asset_code="")
+        if start:
+            qs = qs.filter(published_at__date__gte=start)
+        if end:
+            qs = qs.filter(published_at__date__lte=end)
+
+        rows = (
+            qs.annotate(observed_date=TruncDate("published_at"))
+            .values("observed_date")
+            .annotate(
+                news_count=Count("id"),
+                avg_sentiment=Avg("sentiment_score"),
+                positive_count=Count("id", filter=Q(sentiment_score__gt=0)),
+            )
+            .order_by("-observed_date")
+        )
+
+        metrics: list[MarketNewsDailyMetrics] = []
+        for row in rows:
+            observed_date = row.get("observed_date")
+            if observed_date is None:
+                continue
+            news_count = int(row.get("news_count") or 0)
+            positive_count = int(row.get("positive_count") or 0)
+            positive_ratio = (positive_count / news_count) if news_count > 0 else None
+            avg_sentiment = row.get("avg_sentiment")
+            metrics.append(
+                MarketNewsDailyMetrics(
+                    observed_date=observed_date,
+                    news_count=news_count,
+                    avg_sentiment=float(avg_sentiment) if avg_sentiment is not None else None,
+                    positive_ratio=positive_ratio,
+                )
+            )
+        return metrics
 
 
 class CapitalFlowRepository:

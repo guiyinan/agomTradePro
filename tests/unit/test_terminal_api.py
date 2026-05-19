@@ -4,12 +4,14 @@ Terminal API Tests.
 Tests for terminal governance API endpoints, permissions, and contracts.
 """
 
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
+from apps.data_center.infrastructure.models import MarketThermometerSnapshotModel
 from apps.terminal.infrastructure.models import TerminalAuditLogORM, TerminalCommandORM
 
 
@@ -216,6 +218,51 @@ class TestExecuteEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data['success'] is True
+
+    def test_market_temperature_command_dispatches_internal_api(self, api_client, staff_user, db):
+        today = date.today()
+        TerminalCommandORM.objects.update_or_create(
+            name='market_temperature',
+            defaults={
+                'description': 'market thermometer',
+                'command_type': 'api',
+                'api_endpoint': '/api/data-center/market-thermometer/current/',
+                'risk_level': 'read',
+                'requires_mcp': False,
+                'enabled_in_terminal': True,
+                'is_active': True,
+            },
+        )
+        MarketThermometerSnapshotModel.objects.create(
+            observed_at=today,
+            score=82.0,
+            band='overheat',
+            change_5d=7.5,
+            change_20d=18.0,
+            components=[],
+            trigger_reasons=['成交额抬升', '融资余额抬升'],
+            stale_components=[],
+            missing_components=[],
+            valid_component_count=5,
+            data_source='calculated',
+            must_not_use_for_decision=False,
+            blocked_reason='',
+            calculated_at=datetime.now(UTC),
+        )
+
+        api_client.force_authenticate(user=staff_user)
+        resp = api_client.post('/api/terminal/commands/execute_by_name/', {
+            'name': 'market_temperature',
+            'params': {'use_personal_thresholds': True},
+            'mode': 'auto_confirm',
+        }, format='json')
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['success'] is True
+        assert '市场温度分数' in data['output']
+        assert '温度分段' in data['output']
+        assert '阈值来源' in data['output']
 
     def test_write_returns_confirmation(self, api_client, staff_user, write_command):
         api_client.force_authenticate(user=staff_user)

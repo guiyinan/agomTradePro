@@ -27,6 +27,9 @@ from .repository_provider import (
     IndicatorUnitRuleRepository,
     MacroFactRepository,
     MacroGovernanceRepository,
+    MarketThermometerConfigRepository,
+    MarketThermometerSnapshotRepository,
+    MarketThermometerUserOverrideRepository,
     NewsRepository,
     PriceBarRepository,
     ProviderConfigRepository,
@@ -38,6 +41,14 @@ from .repository_provider import (
     build_unified_provider_factory,
     build_unified_provider_factory_for_repo,
     run_data_center_connection_test,
+)
+from .market_thermometer import (
+    CalculateMarketThermometerUseCase,
+    ImportInvestorAccountsUseCase,
+    ManageMarketThermometerConfigUseCase,
+    ManageMarketThermometerUserOverrideUseCase,
+    SyncMarketThermometerInputsUseCase,
+    build_market_thermometer_override_payload,
 )
 from .use_cases import (
     ManageIndicatorCatalogUseCase,
@@ -284,6 +295,69 @@ def make_query_capital_flows_use_case() -> QueryCapitalFlowsUseCase:
     """Build the capital flow query use case."""
 
     return QueryCapitalFlowsUseCase(CapitalFlowRepository())
+
+
+def make_manage_market_thermometer_config_use_case() -> ManageMarketThermometerConfigUseCase:
+    """Build the market-thermometer config use case."""
+
+    return ManageMarketThermometerConfigUseCase(MarketThermometerConfigRepository())
+
+
+def make_manage_market_thermometer_user_override_use_case(
+) -> ManageMarketThermometerUserOverrideUseCase:
+    """Build the market-thermometer user override use case."""
+
+    return ManageMarketThermometerUserOverrideUseCase(MarketThermometerUserOverrideRepository())
+
+
+def make_calculate_market_thermometer_use_case() -> CalculateMarketThermometerUseCase:
+    """Build the market-thermometer calculation use case."""
+
+    return CalculateMarketThermometerUseCase(
+        config_repo=MarketThermometerConfigRepository(),
+        snapshot_repo=MarketThermometerSnapshotRepository(),
+        override_repo=MarketThermometerUserOverrideRepository(),
+        macro_repo=MacroFactRepository(),
+    )
+
+
+def make_sync_market_thermometer_inputs_use_case() -> SyncMarketThermometerInputsUseCase:
+    """Build the market-thermometer input sync use case."""
+
+    return SyncMarketThermometerInputsUseCase(
+        provider_repo=ProviderConfigRepository(),
+        provider_factory=build_unified_provider_factory(),
+        macro_repo=MacroFactRepository(),
+        news_repo=NewsRepository(),
+        raw_audit_repo=RawAuditRepository(),
+    )
+
+
+def make_import_investor_accounts_use_case() -> ImportInvestorAccountsUseCase:
+    """Build the investor-account import use case."""
+
+    return ImportInvestorAccountsUseCase(MacroFactRepository())
+
+
+def load_market_thermometer_payload(
+    *,
+    user_id: int | None = None,
+    use_personal_thresholds: bool = True,
+) -> dict[str, Any]:
+    """Return the latest market-thermometer payload for UI/API consumers."""
+
+    return make_calculate_market_thermometer_use_case().build_current_payload(
+        user_id=user_id,
+        use_personal_thresholds=use_personal_thresholds,
+    )
+
+
+def load_market_thermometer_override_payload(*, user_id: int) -> dict[str, Any]:
+    """Return effective and override thresholds for one user."""
+
+    config = MarketThermometerConfigRepository().load()
+    override = MarketThermometerUserOverrideRepository().get_by_user_id(user_id)
+    return build_market_thermometer_override_payload(config=config, override=override)
 
 
 def _build_pulse_refresher():

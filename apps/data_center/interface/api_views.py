@@ -21,11 +21,11 @@ No business logic here — only HTTP plumbing + delegation to use cases.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -56,6 +56,12 @@ from apps.data_center.application.dtos import (
 from apps.data_center.application.interface_services import (
     fetch_latest_realtime_prices,
     load_provider_settings_payload,
+    load_market_thermometer_override_payload,
+    load_market_thermometer_payload,
+    make_calculate_market_thermometer_use_case,
+    make_import_investor_accounts_use_case,
+    make_manage_market_thermometer_config_use_case,
+    make_manage_market_thermometer_user_override_use_case,
     make_decision_repair_use_case,
     make_manage_indicator_catalog_use_case,
     make_manage_indicator_unit_rule_use_case,
@@ -76,6 +82,7 @@ from apps.data_center.application.interface_services import (
     make_sync_financial_use_case,
     make_sync_fund_nav_use_case,
     make_sync_macro_use_case,
+    make_sync_market_thermometer_inputs_use_case,
     make_sync_news_use_case,
     make_sync_price_use_case,
     make_sync_quote_use_case,
@@ -94,6 +101,9 @@ from apps.data_center.interface.serializers import (
     DecisionReliabilityRepairRequestSerializer,
     IndicatorCatalogSerializer,
     IndicatorUnitRuleSerializer,
+    MarketThermometerConfigSerializer,
+    MarketThermometerImportSerializer,
+    MarketThermometerUserOverrideSerializer,
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
     ProviderHealthSnapshotSerializer,
@@ -896,6 +906,113 @@ def capital_flows(request: Request) -> Response:
         end=_parse_date(request.query_params.get("end", "")),
     )
     return Response({"asset_code": asset_code, "total": len(data), "data": data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def market_thermometer_current(request: Request) -> Response:
+    """Return the latest market-thermometer payload."""
+
+    use_personal_thresholds = _parse_bool_param(
+        request.query_params.get("use_personal_thresholds"),
+        default=True,
+    )
+    payload = load_market_thermometer_payload(
+        user_id=request.user.id if request.user.is_authenticated else None,
+        use_personal_thresholds=use_personal_thresholds,
+    )
+    return Response(payload)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def market_thermometer_history(request: Request) -> Response:
+    """Return recent market-thermometer snapshots."""
+
+    days = _parse_positive_int_param(
+        request.query_params.get("days"),
+        field_name="days",
+        default=90,
+    )
+    data = make_calculate_market_thermometer_use_case().list_history(days=days or 90)
+    return Response({"results": data})
+
+
+@api_view(["GET", "PUT", "PATCH"])
+@permission_classes([IsAdminUser])
+def market_thermometer_config(request: Request) -> Response:
+    """Return or update global market-thermometer config."""
+
+    use_case = make_manage_market_thermometer_config_use_case()
+    if request.method == "GET":
+        return Response(use_case.get().to_dict())
+
+    serializer = MarketThermometerConfigSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    updated = use_case.update(**serializer.validated_data)
+    return Response(updated.to_dict())
+
+
+@api_view(["GET", "PUT", "PATCH", "DELETE"])
+@permission_classes([IsAuthenticated])
+def market_thermometer_me(request: Request) -> Response:
+    """Return or update current user's threshold override."""
+
+    use_case = make_manage_market_thermometer_user_override_use_case()
+    if request.method == "GET":
+        return Response(load_market_thermometer_override_payload(user_id=request.user.id))
+
+    if request.method == "DELETE":
+        use_case.delete(request.user.id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    serializer = MarketThermometerUserOverrideSerializer(data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    use_case.upsert(user_id=request.user.id, **serializer.validated_data)
+    return Response(load_market_thermometer_override_payload(user_id=request.user.id))
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def market_thermometer_calculate(request: Request) -> Response:
+    """Trigger a manual market-thermometer recalculation."""
+
+    raw_date = str(request.data.get("as_of_date") or "").strip()
+    as_of_date = date.fromisoformat(raw_date) if raw_date else None
+    snapshot = make_calculate_market_thermometer_use_case().execute(as_of_date=as_of_date)
+    return Response(snapshot.to_dict())
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def market_thermometer_sync_inputs(request: Request) -> Response:
+    """Trigger input synchronization for the market thermometer."""
+
+    raw_date = str(request.data.get("as_of_date") or "").strip()
+    as_of_date = date.fromisoformat(raw_date) if raw_date else None
+    payload = make_sync_market_thermometer_inputs_use_case().execute(as_of_date=as_of_date)
+    return Response(payload)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def market_thermometer_import_investor_accounts(request: Request) -> Response:
+    """Import investor-account CSV text into canonical MacroFact storage."""
+
+    csv_text = ""
+    upload = request.FILES.get("file")
+    if upload is not None:
+        csv_text = upload.read().decode("utf-8-sig")
+    else:
+        serializer = MarketThermometerImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        csv_text = serializer.validated_data.get("csv_text", "")
+
+    if not str(csv_text or "").strip():
+        return Response({"detail": "csv_text or file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    result = make_import_investor_accounts_use_case().execute(csv_text)
+    return Response(result, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])

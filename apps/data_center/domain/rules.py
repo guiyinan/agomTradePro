@@ -249,3 +249,99 @@ def is_macro_observation_stale(
         published_at,
         as_of_date=as_of_date,
     ) > get_macro_max_lag_days(period_type)
+
+
+# ---------------------------------------------------------------------------
+# Market thermometer scoring helpers
+# ---------------------------------------------------------------------------
+
+
+def clamp_score_0_100(value: float) -> float:
+    """Clamp a numeric score into the inclusive [0, 100] range."""
+
+    return max(0.0, min(100.0, float(value)))
+
+
+def normalize_signed_value(
+    value: float | None,
+    *,
+    negative_bound: float,
+    positive_bound: float,
+) -> float:
+    """Normalize a signed metric into a 0-100 score.
+
+    Values at ``negative_bound`` map to 0, at 0 map to 50, and at
+    ``positive_bound`` map to 100.
+    """
+
+    if value is None:
+        return 50.0
+    numeric = float(value)
+    if numeric >= 0:
+        if positive_bound <= 0:
+            return 50.0
+        return clamp_score_0_100(50.0 + (numeric / positive_bound) * 50.0)
+    if negative_bound >= 0:
+        return 50.0
+    return clamp_score_0_100(50.0 - (numeric / negative_bound) * 50.0)
+
+
+def compute_percentile_score(values: list[float], current_value: float | None) -> float:
+    """Compute a simple percentile rank score in [0, 100]."""
+
+    if current_value is None or not values:
+        return 50.0
+    ordered = sorted(float(value) for value in values)
+    rank = sum(1 for value in ordered if value <= float(current_value))
+    if len(ordered) == 1:
+        return 50.0
+    return clamp_score_0_100(((rank - 1) / (len(ordered) - 1)) * 100.0)
+
+
+def compute_rate_of_change(current_value: float | None, previous_value: float | None) -> float | None:
+    """Return fractional rate of change ``(current / previous) - 1``."""
+
+    if current_value is None or previous_value in (None, 0):
+        return None
+    return (float(current_value) / float(previous_value)) - 1.0
+
+
+def market_indicator_is_stale(
+    observed_at: date | None,
+    *,
+    frequency: str,
+    as_of_date: date | None = None,
+    daily_stale_days: int = 3,
+    monthly_stale_days: int = 45,
+) -> tuple[bool, int | None]:
+    """Return stale flag and age for market thermometer inputs."""
+
+    if observed_at is None:
+        return (True, None)
+    target_date = as_of_date or date.today()
+    age_days = max(0, (target_date - observed_at).days)
+    if str(frequency).upper() == "M":
+        return (age_days > monthly_stale_days, age_days)
+    return (age_days > daily_stale_days, age_days)
+
+
+def determine_market_thermometer_band(
+    score: float,
+    *,
+    warm_threshold: float,
+    hot_threshold: float,
+    overheat_threshold: float,
+    extreme_threshold: float,
+) -> str:
+    """Map a thermometer score into a stable interpretation band."""
+
+    bounded = clamp_score_0_100(score)
+    if bounded < warm_threshold:
+        return "cold"
+    if bounded < hot_threshold:
+        return "warm"
+    if bounded < overheat_threshold:
+        return "hot"
+    if bounded < extreme_threshold:
+        return "overheat"
+    return "extreme"

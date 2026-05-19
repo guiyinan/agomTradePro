@@ -61,3 +61,13 @@ def governance_page(request: HttpRequest) -> HttpResponse:
         "action_result": action_result,
     }
     return render(request, "data_center/governance.html", context)
+
+
+@staff_member_required
+def market_thermometer_page(request: HttpRequest) -> HttpResponse:
+    """Market thermometer control panel at /data-center/market-thermometer/."""
+
+    return render(request, "data_center/market_thermometer.html", {
+        "page_title": "Data Center — Market Thermometer",
+        "active_nav": "data-center",
+    })

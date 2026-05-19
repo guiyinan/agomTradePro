@@ -52,6 +52,7 @@ from apps.alpha.application.pool_resolver import (
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
 )
+from apps.data_center.application import interface_services as data_center_interface_services
 from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_GENERAL,
@@ -444,6 +445,56 @@ def _build_pulse_card_context(pulse) -> dict:
     }
 
 
+def _load_market_thermometer_payload(user_id: int | None) -> dict:
+    """Load the latest market thermometer payload via the data-center boundary."""
+
+    if user_id is None:
+        return {}
+    return data_center_interface_services.load_market_thermometer_payload(
+        user_id=user_id,
+        use_personal_thresholds=True,
+    )
+
+
+def _build_market_thermometer_context(payload: dict | None) -> dict:
+    """Build template context for the market-thermometer dashboard widget."""
+
+    payload = dict(payload or {})
+    components = list(payload.get("components") or [])
+    sorted_components = sorted(
+        components,
+        key=lambda item: float(item.get("score", 0.0)) * float(item.get("weight", 0.0)),
+        reverse=True,
+    )
+    top_reasons = list(payload.get("trigger_reasons") or [])[:3]
+    band = str(payload.get("effective_band") or payload.get("band") or "cold")
+    change_5d = payload.get("change_5d")
+    change_20d = payload.get("change_20d")
+    return {
+        "market_temperature_observed_at": payload.get("observed_at"),
+        "market_temperature_score": float(payload.get("score", 0.0) or 0.0),
+        "market_temperature_band": band,
+        "market_temperature_band_label": {
+            "cold": "冷",
+            "warm": "温",
+            "hot": "热",
+            "overheat": "过热",
+            "extreme": "极热",
+        }.get(band, band),
+        "market_temperature_change_5d": change_5d,
+        "market_temperature_change_20d": change_20d,
+        "market_temperature_change_5d_arrow": "↑" if (change_5d or 0) > 0 else ("↓" if (change_5d or 0) < 0 else "→"),
+        "market_temperature_change_20d_arrow": "↑" if (change_20d or 0) > 0 else ("↓" if (change_20d or 0) < 0 else "→"),
+        "market_temperature_is_hot": band in {"hot", "overheat", "extreme"},
+        "market_temperature_is_overheat": band in {"overheat", "extreme"},
+        "market_temperature_threshold_source": payload.get("threshold_source", "system"),
+        "market_temperature_components": sorted_components,
+        "market_temperature_top_reasons": top_reasons,
+        "market_temperature_degraded": bool(payload.get("must_not_use_for_decision", False)),
+        "market_temperature_blocked_reason": payload.get("blocked_reason", ""),
+    }
+
+
 def _build_action_recommendation_context(action) -> dict:
     """Build template context for the action recommendation widget."""
     if not action:
@@ -485,7 +536,7 @@ def _build_action_recommendation_context(action) -> dict:
     }
 
 
-def _build_attention_items_context(data, navigator, pulse) -> dict:
+def _build_attention_items_context(data, navigator, pulse, market_thermometer: dict | None = None) -> dict:
     """Build template context for the dashboard attention widget."""
     items: list[dict[str, str]] = []
     active_signals = list(getattr(data, "active_signals", []) or [])
@@ -533,6 +584,22 @@ def _build_attention_items_context(data, navigator, pulse) -> dict:
                 "meta": "来源: account",
             }
         )
+
+    if market_thermometer:
+        band = str(
+            market_thermometer.get("effective_band")
+            or market_thermometer.get("band")
+            or ""
+        )
+        if band in {"overheat", "extreme"}:
+            items.append(
+                {
+                    "level": "high",
+                    "title": "市场温度过高",
+                    "detail": "谨慎追高，避免情绪化加仓，优先复核仓位与风控阈值。",
+                    "meta": "来源: market_thermometer",
+                }
+            )
 
     if not items:
         items.append(
@@ -1147,6 +1214,10 @@ def dashboard_view(request):
     _track_step("valuation_repair_summary", step_started_at)
 
     step_started_at = perf_counter()
+    market_thermometer_payload = _load_market_thermometer_payload(request.user.id)
+    _track_step("market_thermometer", step_started_at)
+
+    step_started_at = perf_counter()
     context = _build_dashboard_page_context(
         request=request,
         data=data,
@@ -1165,6 +1236,7 @@ def dashboard_view(request):
         valuation_repair_config_summary=valuation_repair_config_summary,
         selected_exit_asset_code=selected_exit_asset_code,
         selected_exit_account_id=selected_exit_account_id,
+        market_thermometer_payload=market_thermometer_payload,
     )
     _track_step("build_context", step_started_at)
 
@@ -1214,6 +1286,7 @@ def _build_dashboard_page_context(
     valuation_repair_config_summary: dict | None,
     selected_exit_asset_code: str | None,
     selected_exit_account_id: int | None,
+    market_thermometer_payload: dict | None,
 ) -> dict:
     """Build the dashboard template context from already-loaded read models."""
     alpha_stock_scores = _annotate_decision_workspace_navigation(
@@ -1368,8 +1441,9 @@ def _build_dashboard_page_context(
     }
     context.update(_build_regime_status_context(navigator, pulse, action))
     context.update(_build_pulse_card_context(pulse))
+    context.update(_build_market_thermometer_context(market_thermometer_payload))
     context.update(_build_action_recommendation_context(action))
-    context.update(_build_attention_items_context(data, navigator, pulse))
+    context.update(_build_attention_items_context(data, navigator, pulse, market_thermometer_payload))
     context.update(_build_browser_notification_context(navigator, pulse))
     return context
 

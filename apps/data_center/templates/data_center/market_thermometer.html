@@ -1,0 +1,184 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div>
+        <h1>Market Thermometer</h1>
+        <p class="lead">统一管理市场热度输入、温度快照、全局阈值和个人阈值覆盖。</p>
+        <div class="metrics-row">
+            <span class="metric-pill">Current: <span class="mono">/api/data-center/market-thermometer/current/</span></span>
+            <span class="metric-pill">Config: <span class="mono">/api/data-center/market-thermometer/config/</span></span>
+            <span class="metric-pill">Import: <span class="mono">/api/data-center/market-thermometer/import/investor-accounts/</span></span>
+        </div>
+    </div>
+</section>
+
+<section class="panel-grid">
+    <article class="panel-card">
+        <h2>当前快照</h2>
+        <div id="thermometer-summary" class="stack">
+            <p class="inline-note">正在加载市场温度计快照…</p>
+        </div>
+        <div id="thermometer-components" class="stack"></div>
+    </article>
+
+    <article class="panel-card">
+        <h2>全局配置</h2>
+        <form id="config-form" class="stack">
+            <label><span>short_window</span><input name="short_window" type="number" min="1"></label>
+            <label><span>medium_window</span><input name="medium_window" type="number" min="1"></label>
+            <label><span>long_window</span><input name="long_window" type="number" min="1"></label>
+            <label><span>daily_stale_days</span><input name="daily_stale_days" type="number" min="1"></label>
+            <label><span>monthly_stale_days</span><input name="monthly_stale_days" type="number" min="1"></label>
+            <label><span>warm_threshold</span><input name="warm_threshold" type="number" step="0.1" min="0" max="100"></label>
+            <label><span>hot_threshold</span><input name="hot_threshold" type="number" step="0.1" min="0" max="100"></label>
+            <label><span>overheat_threshold</span><input name="overheat_threshold" type="number" step="0.1" min="0" max="100"></label>
+            <label><span>extreme_threshold</span><input name="extreme_threshold" type="number" step="0.1" min="0" max="100"></label>
+            <button type="submit" class="btn-primary">保存全局配置</button>
+        </form>
+        <div id="config-status" class="status-line"></div>
+    </article>
+
+    <article class="panel-card">
+        <h2>操作</h2>
+        <div class="stack">
+            <button id="sync-inputs-btn" type="button" class="btn-secondary">同步输入</button>
+            <button id="calculate-btn" type="button" class="btn-secondary">重算快照</button>
+        </div>
+        <div id="action-status" class="status-line"></div>
+    </article>
+
+    <article class="panel-card">
+        <h2>开户数导入</h2>
+        <form id="import-form" class="stack">
+            <label><span>CSV Text</span><textarea id="csv-text" name="csv_text" rows="10" placeholder="reporting_period,value&#10;2026-03-31,4601400"></textarea></label>
+            <button type="submit" class="btn-primary">导入开户数</button>
+        </form>
+        <div id="import-status" class="status-line"></div>
+    </article>
+</section>
+
+<script>
+const currentApi = "/api/data-center/market-thermometer/current/";
+const configApi = "/api/data-center/market-thermometer/config/";
+const syncApi = "/api/data-center/market-thermometer/sync-inputs/";
+const calculateApi = "/api/data-center/market-thermometer/calculate/";
+const importApi = "/api/data-center/market-thermometer/import/investor-accounts/";
+
+function setStatus(id, message, level = "") {
+    const node = document.getElementById(id);
+    node.textContent = message;
+    node.className = `status-line ${level}`.trim();
+}
+
+function fillConfigForm(payload) {
+    const form = document.getElementById("config-form");
+    form.short_window.value = payload.short_window ?? 5;
+    form.medium_window.value = payload.medium_window ?? 20;
+    form.long_window.value = payload.long_window ?? 252;
+    form.daily_stale_days.value = payload.daily_stale_days ?? 3;
+    form.monthly_stale_days.value = payload.monthly_stale_days ?? 45;
+    form.warm_threshold.value = payload.thresholds?.warm_threshold ?? 35;
+    form.hot_threshold.value = payload.thresholds?.hot_threshold ?? 60;
+    form.overheat_threshold.value = payload.thresholds?.overheat_threshold ?? 75;
+    form.extreme_threshold.value = payload.thresholds?.extreme_threshold ?? 85;
+}
+
+function renderCurrent(payload) {
+    document.getElementById("thermometer-summary").innerHTML = `
+        <div class="stack">
+            <strong>分数 ${Number(payload.score || 0).toFixed(1)} / 100</strong>
+            <span>分段 ${payload.effective_band || payload.band || "cold"}</span>
+            <span>阈值来源 ${payload.threshold_source || "system"}</span>
+            <span>5日变化 ${payload.change_5d ?? "—"} / 20日变化 ${payload.change_20d ?? "—"}</span>
+            <span>${payload.must_not_use_for_decision ? (payload.blocked_reason || "仅供参考") : "可用于观察"}</span>
+        </div>
+    `;
+    const items = payload.components || [];
+    document.getElementById("thermometer-components").innerHTML = items.map(item => `
+        <div class="metric-pill">
+            <strong>${item.label}</strong>: ${Number(item.score || 0).toFixed(1)}
+            <span class="mono">${item.reason || ""}</span>
+        </div>
+    `).join("");
+}
+
+async function loadCurrent() {
+    const response = await fetch(currentApi, { credentials: "same-origin" });
+    if (!response.ok) {
+        setStatus("action-status", "加载当前快照失败。", "error");
+        return;
+    }
+    renderCurrent(await response.json());
+}
+
+async function loadConfig() {
+    const response = await fetch(configApi, { credentials: "same-origin" });
+    if (!response.ok) {
+        setStatus("config-status", "加载全局配置失败。", "error");
+        return;
+    }
+    fillConfigForm(await response.json());
+}
+
+document.getElementById("config-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = {
+        short_window: Number(form.short_window.value),
+        medium_window: Number(form.medium_window.value),
+        long_window: Number(form.long_window.value),
+        daily_stale_days: Number(form.daily_stale_days.value),
+        monthly_stale_days: Number(form.monthly_stale_days.value),
+        thresholds: {
+            warm_threshold: Number(form.warm_threshold.value),
+            hot_threshold: Number(form.hot_threshold.value),
+            overheat_threshold: Number(form.overheat_threshold.value),
+            extreme_threshold: Number(form.extreme_threshold.value),
+        },
+    };
+    const response = await fetch(configApi, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    setStatus("config-status", response.ok ? "全局配置已更新。" : "保存失败。", response.ok ? "success" : "error");
+    if (response.ok) {
+        loadCurrent();
+    }
+});
+
+document.getElementById("sync-inputs-btn").addEventListener("click", async () => {
+    setStatus("action-status", "正在同步输入…");
+    const response = await fetch(syncApi, { method: "POST", credentials: "same-origin" });
+    setStatus("action-status", response.ok ? "输入同步完成。" : "输入同步失败。", response.ok ? "success" : "error");
+});
+
+document.getElementById("calculate-btn").addEventListener("click", async () => {
+    setStatus("action-status", "正在重算快照…");
+    const response = await fetch(calculateApi, { method: "POST", credentials: "same-origin" });
+    setStatus("action-status", response.ok ? "快照重算完成。" : "快照重算失败。", response.ok ? "success" : "error");
+    if (response.ok) {
+        loadCurrent();
+    }
+});
+
+document.getElementById("import-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = { csv_text: document.getElementById("csv-text").value };
+    const response = await fetch(importApi, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    setStatus("import-status", response.ok ? "开户数导入成功。" : "开户数导入失败。", response.ok ? "success" : "error");
+});
+
+loadCurrent();
+loadConfig();
+</script>
+{% endblock %}

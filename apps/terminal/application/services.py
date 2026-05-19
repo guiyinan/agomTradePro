@@ -9,6 +9,10 @@ import logging
 import re
 from typing import Any
 
+from django.contrib.auth import get_user_model
+from django.urls import Resolver404, resolve
+from rest_framework.test import APIRequestFactory, force_authenticate
+
 from apps.ai_provider.application.client_provider import get_ai_client_factory
 from apps.prompt.application.runtime_provider import build_terminal_agent_runtime
 from apps.terminal.application.repository_provider import (
@@ -119,6 +123,7 @@ class CommandExecutionService:
         self,
         command: TerminalCommand,
         params: dict[str, Any],
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """
         执行API类型命令
@@ -127,7 +132,7 @@ class CommandExecutionService:
             dict with 'output' and 'metadata' keys
         """
         # 替换URL中的参数占位符
-        url = command.api_endpoint
+        url = command.api_endpoint or ""
         for key, value in params.items():
             placeholder = f"{{{key}}}"
             url = url.replace(placeholder, str(value))
@@ -135,8 +140,16 @@ class CommandExecutionService:
         # 构建请求参数
         request_params = {}
         for key, value in params.items():
-            if f"{{{key}}}" not in command.api_endpoint:
+            if f"{{{key}}}" not in (command.api_endpoint or ""):
                 request_params[key] = value
+
+        if url.startswith("/"):
+            return self._execute_internal_api_command(
+                command=command,
+                url=url,
+                request_params=request_params,
+                user_id=user_id,
+            )
 
         try:
             status_code, data = get_terminal_command_http_client().request_json(
@@ -149,7 +162,86 @@ class CommandExecutionService:
             logger.error(f"API request failed: {e}")
             return {"output": f"API request failed: {e}", "metadata": {"error": str(e)}}
 
-        # 应用JQ过滤
+        output = self._filter_and_format_api_output(
+            command=command,
+            data=data,
+            params=params,
+        )
+
+        return {
+            "output": output,
+            "metadata": {
+                "api_endpoint": command.api_endpoint,
+                "api_method": command.api_method,
+                "status_code": status_code,
+            },
+        }
+
+    def _execute_internal_api_command(
+        self,
+        *,
+        command: TerminalCommand,
+        url: str,
+        request_params: dict[str, Any],
+        user_id: int | None,
+    ) -> dict[str, Any]:
+        """Execute a relative API endpoint inside Django without external HTTP."""
+
+        method = (command.api_method or "GET").upper()
+        factory = APIRequestFactory()
+        request_builder = getattr(factory, method.lower())
+        request = request_builder(
+            url,
+            request_params,
+            format="json",
+        )
+        if user_id:
+            user = get_user_model().objects.filter(pk=user_id).first()
+            if user is not None:
+                force_authenticate(request, user=user)
+
+        try:
+            match = resolve(url)
+        except Resolver404:
+            return {
+                "output": f"Internal API path not found: {url}",
+                "metadata": {
+                    "api_endpoint": command.api_endpoint,
+                    "api_method": method,
+                    "status_code": 404,
+                },
+            }
+
+        response = match.func(request, **match.kwargs)
+        if hasattr(response, "render"):
+            response.render()
+        payload = getattr(response, "data", None)
+        if payload is None:
+            payload = response.content.decode("utf-8")
+        output = self._filter_and_format_api_output(
+            command=command,
+            data=payload,
+            params=request_params,
+        )
+        return {
+            "output": output,
+            "metadata": {
+                "api_endpoint": command.api_endpoint,
+                "api_method": method,
+                "status_code": getattr(response, "status_code", 200),
+                "internal_dispatch": True,
+            },
+        }
+
+    def _filter_and_format_api_output(
+        self,
+        *,
+        command: TerminalCommand,
+        data: Any,
+        params: dict[str, Any] | None = None,
+    ) -> str:
+        """Apply optional filters and render a terminal-friendly output string."""
+
         output = data
         if command.response_jq_filter:
             try:
@@ -157,20 +249,45 @@ class CommandExecutionService:
             except Exception as e:
                 logger.warning(f"JQ filter failed: {e}, returning raw data")
 
-        # 格式化输出
-        if isinstance(output, (dict, list)):
-            output_str = json.dumps(output, indent=2, ensure_ascii=False)
-        else:
-            output_str = str(output)
+        if (
+            command.name == "market_temperature"
+            and isinstance(output, dict)
+            and not bool((params or {}).get("verbose", False))
+        ):
+            return self._format_market_temperature_output(output)
 
-        return {
-            "output": output_str,
-            "metadata": {
-                "api_endpoint": command.api_endpoint,
-                "api_method": command.api_method,
-                "status_code": status_code,
-            },
-        }
+        if isinstance(output, (dict, list)):
+            return json.dumps(output, indent=2, ensure_ascii=False)
+        return str(output)
+
+    @staticmethod
+    def _format_market_temperature_output(payload: dict[str, Any]) -> str:
+        """Render a compact textual summary for the market thermometer command."""
+
+        reasons = list(payload.get("trigger_reasons") or [])[:3]
+        reason_text = "；".join(reasons) if reasons else "暂无明显升温原因。"
+        threshold_source = (
+            "个人阈值"
+            if str(payload.get("threshold_source") or "") == "user_override"
+            else "系统阈值"
+        )
+        effective_band = str(payload.get("effective_band") or payload.get("band") or "cold")
+        avoid_chasing = "是" if effective_band in {"hot", "overheat", "extreme"} else "否"
+        degraded = bool(payload.get("must_not_use_for_decision", False))
+        lines = [
+            f"市场温度分数: {float(payload.get('score', 0.0) or 0.0):.1f}",
+            f"温度分段: {effective_band}",
+            f"阈值来源: {threshold_source}",
+            f"5日变化: {payload.get('change_5d')}",
+            f"20日变化: {payload.get('change_20d')}",
+            f"主要升温原因: {reason_text}",
+            f"是否建议避免追高: {avoid_chasing}",
+        ]
+        if degraded:
+            lines.append(
+                f"数据完整性提示: 数据不完整，当前仅供参考。{payload.get('blocked_reason', '')}".strip()
+            )
+        return "\n".join(lines)
 
     def _apply_jq_filter(self, data: Any, filter_expr: str) -> Any:
         """

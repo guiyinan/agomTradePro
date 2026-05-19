@@ -1255,19 +1255,35 @@ class SyncCapabilitiesUseCase:
         commands = get_terminal_command_repository().get_all_active()
 
         for cmd in commands:
+            summary = cmd.description or f"Terminal command: {cmd.name}"
+            tags = list(cmd.tags or [])
+            when_to_use: list[str] = []
+            examples: list[str] = []
+            if cmd.name == "market_temperature":
+                summary = "Get the current market thermometer score, band, and overheating risk."
+                tags.extend(["market", "temperature", "heat", "overheat", "散户热度", "接盘风险"])
+                when_to_use = [
+                    "User asks whether the market is overheated.",
+                    "User asks about market heat, retail heat, or chasing risk.",
+                ]
+                examples = [
+                    "市场是不是过热了",
+                    "现在散户热度高吗",
+                    "我会不会接盘",
+                ]
             cap = CapabilityDefinition(
                 capability_key=f"terminal_command.{cmd.name}",
                 source_type=SourceType.TERMINAL_COMMAND,
-                source_ref=str(cmd.pk),
+                source_ref=str(cmd.id),
                 name=cmd.name,
-                summary=cmd.description or f"Terminal command: {cmd.name}",
+                summary=summary,
                 description=cmd.description,
                 route_group=RouteGroup.TOOL,
                 category=cmd.category,
-                tags=cmd.tags or [],
-                when_to_use=[],
+                tags=tags,
+                when_to_use=when_to_use,
                 when_not_to_use=[],
-                examples=[],
+                examples=examples,
                 input_schema={},
                 execution_target={
                     "type": "terminal_command",

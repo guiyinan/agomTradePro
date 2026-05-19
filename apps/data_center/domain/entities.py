@@ -619,6 +619,203 @@ class CapitalFlowFact:
 
 
 # ---------------------------------------------------------------------------
+# Market thermometer entities
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MarketNewsDailyMetrics:
+    """Daily aggregated market-wide news metrics."""
+
+    observed_date: date
+    news_count: int
+    avg_sentiment: float | None = None
+    positive_ratio: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observed_date": self.observed_date.isoformat(),
+            "news_count": self.news_count,
+            "avg_sentiment": self.avg_sentiment,
+            "positive_ratio": self.positive_ratio,
+        }
+
+
+@dataclass(frozen=True)
+class MarketThermometerThresholds:
+    """Threshold bands for market thermometer interpretation."""
+
+    warm_threshold: float = 35.0
+    hot_threshold: float = 60.0
+    overheat_threshold: float = 75.0
+    extreme_threshold: float = 85.0
+
+    def __post_init__(self) -> None:
+        if not (
+            0 <= self.warm_threshold
+            <= self.hot_threshold
+            <= self.overheat_threshold
+            <= self.extreme_threshold
+            <= 100
+        ):
+            raise ValueError("MarketThermometerThresholds must be monotonic within [0, 100]")
+
+    def to_dict(self) -> dict[str, float]:
+        return {
+            "warm_threshold": self.warm_threshold,
+            "hot_threshold": self.hot_threshold,
+            "overheat_threshold": self.overheat_threshold,
+            "extreme_threshold": self.extreme_threshold,
+        }
+
+
+@dataclass(frozen=True)
+class MarketThermometerConfig:
+    """System-level singleton configuration for market thermometer scoring."""
+
+    short_window: int = 5
+    medium_window: int = 20
+    long_window: int = 252
+    monthly_long_window: int = 24
+    daily_stale_days: int = 3
+    monthly_stale_days: int = 45
+    min_valid_components: int = 4
+    component_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "turnover": 0.25,
+            "margin_balance": 0.20,
+            "new_investor_accounts": 0.15,
+            "etf_net_flow": 0.15,
+            "market_news_count": 0.15,
+            "market_news_sentiment": 0.10,
+        }
+    )
+    thresholds: MarketThermometerThresholds = field(
+        default_factory=MarketThermometerThresholds
+    )
+
+    def __post_init__(self) -> None:
+        if min(
+            self.short_window,
+            self.medium_window,
+            self.long_window,
+            self.monthly_long_window,
+            self.daily_stale_days,
+            self.monthly_stale_days,
+            self.min_valid_components,
+        ) <= 0:
+            raise ValueError("MarketThermometerConfig numeric values must be positive")
+        total_weight = sum(float(value) for value in self.component_weights.values())
+        if total_weight <= 0:
+            raise ValueError("MarketThermometerConfig component weights must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "short_window": self.short_window,
+            "medium_window": self.medium_window,
+            "long_window": self.long_window,
+            "monthly_long_window": self.monthly_long_window,
+            "daily_stale_days": self.daily_stale_days,
+            "monthly_stale_days": self.monthly_stale_days,
+            "min_valid_components": self.min_valid_components,
+            "component_weights": dict(self.component_weights),
+            "thresholds": self.thresholds.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class MarketThermometerUserOverride:
+    """Per-user threshold overrides for market thermometer."""
+
+    user_id: int
+    thresholds: MarketThermometerThresholds
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "thresholds": self.thresholds.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class MarketThermometerComponentScore:
+    """One scored component contributing to the market thermometer."""
+
+    component_key: str
+    label: str
+    indicator_code: str
+    score: float
+    weight: float
+    current_value: float | None = None
+    unit: str = ""
+    growth_score: float | None = None
+    percentile_score: float | None = None
+    sentiment_score: float | None = None
+    positive_ratio_score: float | None = None
+    is_stale: bool = False
+    is_missing: bool = False
+    age_days: int | None = None
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "component_key": self.component_key,
+            "label": self.label,
+            "indicator_code": self.indicator_code,
+            "score": self.score,
+            "weight": self.weight,
+            "current_value": self.current_value,
+            "unit": self.unit,
+            "growth_score": self.growth_score,
+            "percentile_score": self.percentile_score,
+            "sentiment_score": self.sentiment_score,
+            "positive_ratio_score": self.positive_ratio_score,
+            "is_stale": self.is_stale,
+            "is_missing": self.is_missing,
+            "age_days": self.age_days,
+            "reason": self.reason,
+        }
+
+
+@dataclass(frozen=True)
+class MarketThermometerSnapshot:
+    """One persisted market thermometer snapshot."""
+
+    observed_at: date
+    score: float
+    band: str
+    change_5d: float | None
+    change_20d: float | None
+    components: list[MarketThermometerComponentScore] = field(default_factory=list)
+    trigger_reasons: list[str] = field(default_factory=list)
+    stale_components: list[str] = field(default_factory=list)
+    missing_components: list[str] = field(default_factory=list)
+    valid_component_count: int = 0
+    data_source: str = "calculated"
+    must_not_use_for_decision: bool = False
+    blocked_reason: str = ""
+    calculated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "observed_at": self.observed_at.isoformat(),
+            "score": self.score,
+            "band": self.band,
+            "change_5d": self.change_5d,
+            "change_20d": self.change_20d,
+            "components": [component.to_dict() for component in self.components],
+            "trigger_reasons": list(self.trigger_reasons),
+            "stale_components": list(self.stale_components),
+            "missing_components": list(self.missing_components),
+            "valid_component_count": self.valid_component_count,
+            "data_source": self.data_source,
+            "must_not_use_for_decision": self.must_not_use_for_decision,
+            "blocked_reason": self.blocked_reason,
+            "calculated_at": self.calculated_at.isoformat(),
+        }
+
+
+# ---------------------------------------------------------------------------
 # Raw payload audit value object
 # ---------------------------------------------------------------------------
 

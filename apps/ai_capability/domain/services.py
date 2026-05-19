@@ -117,6 +117,7 @@ class CapabilityRetrievalScorer:
         key_patterns = [
             (r"status|状态|健康|health", "system_status"),
             (r"regime|市场环境|象限", "market_regime"),
+            (r"温度|热度|过热|接盘|散户热度|市场温度|市场热度", "market_temperature"),
             (r"pmi|cpi|ppi|m2|宏观|macro", "macro"),
             (r"policy|政策|档位", "policy"),
             (r"signal|信号", "signal"),

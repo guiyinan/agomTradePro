@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pandas as pd
@@ -254,3 +254,59 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
     assert by_metric["revenue"].source == "akshare"
     assert by_metric["revenue"].extra["provider_name"] == "AKShare Public"
     assert by_metric["revenue"].extra["source_type"] == "akshare"
+
+
+def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
+    class _FakeAkshare:
+        def stock_zh_index_daily_em(self, symbol):
+            if symbol == "sh000001":
+                return pd.DataFrame(
+                    [{"date": "2026-05-19", "amount": 100.0}],
+                )
+            return pd.DataFrame(
+                [{"date": "2026-05-19", "amount": 200.0}],
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert len(facts) == 1
+    assert facts[0].value == 300.0
+    assert facts[0].unit == "元"
+    assert facts[0].extra["proxy"] == "sh_index_plus_sz_index"
+
+
+def test_akshare_unified_provider_adapter_fetches_market_news(monkeypatch):
+    class _FakeGateway:
+        def get_market_news(self, limit=20):
+            assert limit == 2
+            return [
+                SimpleNamespace(
+                    title="市场回暖",
+                    content="市场回暖，资金净流入，情绪走强",
+                    published_at=datetime(2026, 5, 19, 9, 30, tzinfo=UTC),
+                    url="https://example.com/news/1",
+                    news_id="m1",
+                )
+            ]
+
+        def get_stock_news(self, asset_code, limit=20):
+            raise AssertionError("stock news path should not be used for market scope")
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway.AKShareEastMoneyGateway",
+        _FakeGateway,
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_news("", limit=2)
+
+    assert len(facts) == 1
+    assert facts[0].asset_code == ""
+    assert facts[0].sentiment_score and facts[0].sentiment_score > 0
+    assert facts[0].extra["market_scope"] == "broad_market"

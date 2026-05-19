@@ -52,6 +52,17 @@ class TestCapabilityRetrievalScorer:
                 priority_weight=10.0,
             ),
             CapabilityDefinition(
+                capability_key="terminal_command.market_temperature",
+                source_type=SourceType.TERMINAL_COMMAND,
+                source_ref="terminal:market_temperature",
+                name="market_temperature",
+                summary="Get current market thermometer and overheating risk",
+                tags=["market", "temperature", "heat", "overheat", "接盘风险"],
+                when_to_use=["User asks whether the market is overheated"],
+                examples=["市场是不是过热了", "我会不会接盘", "散户热度高吗"],
+                priority_weight=9.0,
+            ),
+            CapabilityDefinition(
                 capability_key="mcp_tool.get_macro_indicator",
                 source_type=SourceType.MCP_TOOL,
                 source_ref="get_macro_indicator",
@@ -129,6 +140,16 @@ class TestCapabilityRetrievalScorer:
         )
 
         assert len(results) == 0
+
+    def test_market_temperature_query_prefers_market_temperature_capability(self, scorer, sample_capabilities):
+        results = scorer.retrieve_top_k(
+            sample_capabilities,
+            "市场是不是过热了，我会不会接盘",
+            k=3,
+        )
+
+        assert results
+        assert results[0].capability.capability_key == "terminal_command.market_temperature"
 
 
 class TestCapabilityFilter:

@@ -147,6 +147,32 @@ def _safe_date(value: Any) -> date | None:
         return None
 
 
+_MARKET_NEWS_POSITIVE_KEYWORDS = (
+    "上涨",
+    "回升",
+    "走强",
+    "净流入",
+    "反弹",
+    "修复",
+    "改善",
+    "增长",
+    "突破",
+    "新高",
+)
+_MARKET_NEWS_NEGATIVE_KEYWORDS = (
+    "下跌",
+    "走弱",
+    "净流出",
+    "回落",
+    "杀跌",
+    "风险",
+    "波动",
+    "承压",
+    "收缩",
+    "新低",
+)
+
+
 def _first_present(row: dict[str, Any], *keys: str) -> Any:
     for key in keys:
         if key in row:
@@ -165,6 +191,19 @@ def _valuation_period(start_date: date, end_date: date) -> str:
     if span_days <= 366 * 10:
         return "近十年"
     return "全部"
+
+
+def _score_market_news_sentiment(text: str) -> float:
+    """Heuristically score one market-news text into [-1, 1]."""
+
+    normalized = str(text or "").strip()
+    if not normalized:
+        return 0.0
+
+    positive_hits = sum(1 for item in _MARKET_NEWS_POSITIVE_KEYWORDS if item in normalized)
+    negative_hits = sum(1 for item in _MARKET_NEWS_NEGATIVE_KEYWORDS if item in normalized)
+    raw_score = (positive_hits - negative_hits) / 3.0
+    return max(-1.0, min(1.0, raw_score))
 
 
 class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
@@ -494,6 +533,13 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
+        if indicator_code == "CN_A_TOTAL_TURNOVER":
+            return self._fetch_market_turnover(start_date, end_date)
+        if indicator_code == "CN_A_MARGIN_BALANCE":
+            return self._fetch_margin_balance(start_date, end_date)
+        if indicator_code == "CN_A_ETF_NET_FLOW":
+            return self._fetch_etf_net_flow(start_date, end_date)
+
         adapter = build_akshare_macro_adapter()
         points = adapter.fetch(indicator_code, start_date, end_date)
         results: list[MacroFact] = []
@@ -520,6 +566,125 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 )
             )
         return results
+
+    def _fetch_market_turnover(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Approximate total A-share turnover by summing SH/SZ broad-index amounts."""
+
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
+        ak = get_akshare_module()
+        index_symbols = ("sh000001", "sz399001")
+        rows_by_date: dict[date, float] = {}
+
+        for symbol in index_symbols:
+            df = ak.stock_zh_index_daily_em(symbol=symbol)
+            if df is None or df.empty:
+                continue
+            for row in df.to_dict("records"):
+                observed_at = _safe_date(_first_present(row, "date", "日期"))
+                if observed_at is None or observed_at < start_date or observed_at > end_date:
+                    continue
+                amount = _safe_float(_first_present(row, "amount", "成交额"))
+                if amount is None:
+                    continue
+                rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_TOTAL_TURNOVER",
+                reporting_period=observed_at,
+                value=value,
+                unit="元",
+                source=self.provider_source(),
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra({"proxy": "sh_index_plus_sz_index"}),
+            )
+            for observed_at, value in sorted(rows_by_date.items())
+        ]
+
+    def _fetch_margin_balance(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch total A-share margin balance by summing SH and SZ market rows."""
+
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
+        ak = get_akshare_module()
+        sh_df = ak.macro_china_market_margin_sh()
+        sz_df = ak.macro_china_market_margin_sz()
+        rows_by_date: dict[date, float] = {}
+
+        for df in (sh_df, sz_df):
+            if df is None or df.empty:
+                continue
+            for row in df.to_dict("records"):
+                observed_at = _safe_date(_first_present(row, "日期", "date"))
+                if observed_at is None or observed_at < start_date or observed_at > end_date:
+                    continue
+                value = _safe_float(_first_present(row, "融资余额"))
+                if value is None:
+                    continue
+                rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + value
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_MARGIN_BALANCE",
+                reporting_period=observed_at,
+                value=value,
+                unit="元",
+                source=self.provider_source(),
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra({"proxy": "sh_margin_plus_sz_margin"}),
+            )
+            for observed_at, value in sorted(rows_by_date.items())
+        ]
+
+    def _fetch_etf_net_flow(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch market-wide ETF net flow from the latest ETF spot snapshot."""
+
+        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+
+        ak = get_akshare_module()
+        df = ak.fund_etf_spot_em()
+        if df is None or df.empty:
+            return []
+
+        records = df.to_dict("records")
+        observed_at: date | None = None
+        total_flow = 0.0
+        for row in records:
+            current_date = _safe_date(_first_present(row, "数据日期"))
+            if current_date is None:
+                continue
+            observed_at = current_date if observed_at is None else max(observed_at, current_date)
+            flow = _safe_float(_first_present(row, "主力净流入-净额"))
+            if flow is not None:
+                total_flow += flow
+
+        if observed_at is None or observed_at < start_date or observed_at > end_date:
+            return []
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_ETF_NET_FLOW",
+                reporting_period=observed_at,
+                value=total_flow,
+                unit="元",
+                source=self.provider_source(),
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra({"proxy": "fund_etf_spot_em"}),
+            )
+        ]
 
     def fetch_price_history(
         self,
@@ -771,6 +936,25 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
 
         gateway = AKShareEastMoneyGateway()
+        if not str(asset_code or "").strip():
+            articles = gateway.get_market_news(limit=limit)
+            return [
+                NewsFact(
+                    asset_code="",
+                    title=article.title,
+                    summary=article.content,
+                    published_at=_ensure_aware(article.published_at),
+                    url=article.url or "",
+                    source=self.provider_source(),
+                    external_id=article.news_id,
+                    sentiment_score=_score_market_news_sentiment(
+                        f"{article.title} {article.content}"
+                    ),
+                    extra=self._provider_extra({"market_scope": "broad_market"}),
+                )
+                for article in articles
+            ]
+
         articles = gateway.get_stock_news(asset_code, limit=limit)
         return [
             NewsFact(
@@ -781,6 +965,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 url=article.url or "",
                 source=self.provider_source(),
                 external_id=article.news_id,
+                sentiment_score=_score_market_news_sentiment(
+                    f"{article.title} {article.content}"
+                ),
                 extra=self._provider_extra(),
             )
             for article in articles

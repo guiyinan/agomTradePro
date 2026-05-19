@@ -1,0 +1,54 @@
+<!-- market_thermometer_card.html — 市场温度计 -->
+<div class="pulse-dashboard-card" id="marketThermometerCard">
+    <div class="pulse-card__header">
+        <h3 class="pulse-card__title">🌡️ 市场温度计</h3>
+        {% if market_temperature_observed_at %}
+        <span class="pulse-card__date">{{ market_temperature_observed_at }}</span>
+        {% endif %}
+    </div>
+
+    <div class="pulse-composite">
+        <div class="pulse-composite__score pulse-composite--{% if market_temperature_is_overheat %}strong{% elif market_temperature_is_hot %}moderate{% else %}weak{% endif %}">
+            {{ market_temperature_score|floatformat:1 }}
+        </div>
+        <div class="pulse-composite__label">
+            {{ market_temperature_band_label }}
+            {% if market_temperature_threshold_source == 'user_override' %}· 个人阈值{% endif %}
+        </div>
+    </div>
+
+    <div class="pulse-warning" {% if not market_temperature_is_hot %}style="background: rgba(17, 24, 39, 0.04); color: #334155;"{% endif %}>
+        <span class="pulse-warning__icon">{% if market_temperature_is_overheat %}⚠️{% elif market_temperature_is_hot %}🔥{% else %}🧊{% endif %}</span>
+        <span class="pulse-warning__text">
+            5日 {{ market_temperature_change_5d_arrow }} {{ market_temperature_change_5d|default:0|floatformat:1 }}
+            · 20日 {{ market_temperature_change_20d_arrow }} {{ market_temperature_change_20d|default:0|floatformat:1 }}
+            {% if market_temperature_is_overheat %}· 谨慎追高{% endif %}
+        </span>
+    </div>
+
+    {% if market_temperature_top_reasons %}
+    <div class="pulse-transition-reasons" style="margin-top: 12px;">
+        {% for reason in market_temperature_top_reasons %}
+        <div style="font-size: 0.9rem; color: #475569; margin-bottom: 6px;">{{ reason }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="pulse-dimensions" style="margin-top: 12px;">
+        {% for component in market_temperature_components %}
+        <div class="pulse-dim pulse-dim--neutral">
+            <div class="pulse-dim__label">{{ component.label }}</div>
+            <div class="pulse-dim__score">{{ component.score|floatformat:1 }}</div>
+            <div class="pulse-dim__bar">
+                <div class="pulse-dim__fill" style="width: {{ component.score|floatformat:0 }}%; background: linear-gradient(90deg, #f59e0b, #ef4444);"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if market_temperature_degraded %}
+    <div class="pulse-stale-notice">
+        仅供参考，不可直接决策。{{ market_temperature_blocked_reason }}
+    </div>
+    {% endif %}
+</div>

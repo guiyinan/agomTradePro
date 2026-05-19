@@ -16,6 +16,9 @@ from apps.data_center.infrastructure.providers import (
     IndicatorUnitRuleRepository,
     MacroFactRepository,
     MacroGovernanceRepository,  # noqa: F401
+    MarketThermometerConfigRepository,
+    MarketThermometerSnapshotRepository,
+    MarketThermometerUserOverrideRepository,
     NewsRepository,
     PriceBarRepository,
     ProviderConfigRepository,
@@ -52,6 +55,18 @@ def get_asset_repository() -> AssetRepository:
 
 def get_capital_flow_repository() -> CapitalFlowRepository:
     return CapitalFlowRepository()
+
+
+def get_market_thermometer_config_repository() -> MarketThermometerConfigRepository:
+    return MarketThermometerConfigRepository()
+
+
+def get_market_thermometer_user_override_repository() -> MarketThermometerUserOverrideRepository:
+    return MarketThermometerUserOverrideRepository()
+
+
+def get_market_thermometer_snapshot_repository() -> MarketThermometerSnapshotRepository:
+    return MarketThermometerSnapshotRepository()
 
 
 def get_financial_fact_repository() -> FinancialFactRepository:

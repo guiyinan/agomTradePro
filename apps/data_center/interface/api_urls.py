@@ -21,6 +21,13 @@ from apps.data_center.interface.api_views import (
     indicator_unit_rule_detail,
     indicator_unit_rule_list_create,
     macro_series,
+    market_thermometer_calculate,
+    market_thermometer_config,
+    market_thermometer_current,
+    market_thermometer_history,
+    market_thermometer_import_investor_accounts,
+    market_thermometer_me,
+    market_thermometer_sync_inputs,
     news,
     price_history,
     price_latest_quote,
@@ -68,6 +75,10 @@ class DataCenterApiRootView(APIView):
                     "sector_constituents": "/api/data-center/sectors/constituents/",
                     "news": "/api/data-center/news/",
                     "capital_flows": "/api/data-center/capital-flows/",
+                    "market_thermometer_current": "/api/data-center/market-thermometer/current/",
+                    "market_thermometer_history": "/api/data-center/market-thermometer/history/",
+                    "market_thermometer_config": "/api/data-center/market-thermometer/config/",
+                    "market_thermometer_me": "/api/data-center/market-thermometer/me/",
                     "decision_reliability_repair": "/api/data-center/decision-reliability/repair/",
                 }
             }
@@ -115,6 +126,41 @@ urlpatterns = [
     path("sectors/constituents/", sector_constituents, name="dc-sector-constituents"),
     path("news/", news, name="dc-news"),
     path("capital-flows/", capital_flows, name="dc-capital-flows"),
+    path(
+        "market-thermometer/current/",
+        market_thermometer_current,
+        name="dc-market-thermometer-current",
+    ),
+    path(
+        "market-thermometer/history/",
+        market_thermometer_history,
+        name="dc-market-thermometer-history",
+    ),
+    path(
+        "market-thermometer/config/",
+        market_thermometer_config,
+        name="dc-market-thermometer-config",
+    ),
+    path(
+        "market-thermometer/me/",
+        market_thermometer_me,
+        name="dc-market-thermometer-me",
+    ),
+    path(
+        "market-thermometer/calculate/",
+        market_thermometer_calculate,
+        name="dc-market-thermometer-calculate",
+    ),
+    path(
+        "market-thermometer/sync-inputs/",
+        market_thermometer_sync_inputs,
+        name="dc-market-thermometer-sync-inputs",
+    ),
+    path(
+        "market-thermometer/import/investor-accounts/",
+        market_thermometer_import_investor_accounts,
+        name="dc-market-thermometer-import-investor-accounts",
+    ),
     path(
         "decision-reliability/repair/",
         repair_decision_reliability,

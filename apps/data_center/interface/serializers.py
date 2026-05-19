@@ -237,3 +237,38 @@ class SyncCapitalFlowRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     period = serializers.CharField(max_length=10, default="5d")
+
+
+class MarketThermometerConfigSerializer(serializers.Serializer):
+    """Serializer for market thermometer config payloads."""
+
+    short_window = serializers.IntegerField(required=False, min_value=1)
+    medium_window = serializers.IntegerField(required=False, min_value=1)
+    long_window = serializers.IntegerField(required=False, min_value=1)
+    monthly_long_window = serializers.IntegerField(required=False, min_value=1)
+    daily_stale_days = serializers.IntegerField(required=False, min_value=1)
+    monthly_stale_days = serializers.IntegerField(required=False, min_value=1)
+    min_valid_components = serializers.IntegerField(required=False, min_value=1)
+    component_weights = serializers.DictField(
+        child=serializers.FloatField(min_value=0.0),
+        required=False,
+    )
+    thresholds = serializers.DictField(
+        child=serializers.FloatField(min_value=0.0, max_value=100.0),
+        required=False,
+    )
+
+
+class MarketThermometerUserOverrideSerializer(serializers.Serializer):
+    """Serializer for per-user market thermometer threshold overrides."""
+
+    warm_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+    hot_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+    overheat_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+    extreme_threshold = serializers.FloatField(required=False, min_value=0.0, max_value=100.0)
+
+
+class MarketThermometerImportSerializer(serializers.Serializer):
+    """Serializer for investor-account CSV import."""
+
+    csv_text = serializers.CharField(required=False, allow_blank=True)

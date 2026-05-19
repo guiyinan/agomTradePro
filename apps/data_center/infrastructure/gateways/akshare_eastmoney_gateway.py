@@ -8,7 +8,9 @@ AKShare 东方财富 Gateway
 
 import logging
 import os
+import re
 import time
+from datetime import UTC, datetime
 from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 
@@ -249,6 +251,58 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
         except Exception:
             logger.exception("获取东方财富股票新闻失败: %s", stock_code)
             return []
+
+    def get_market_news(self, limit: int = 20) -> list[StockNewsItem]:
+        """获取市场级新闻。
+
+        v1 复用财新市场动态流作为市场新闻输入，并对摘要做轻量情绪打分。
+        """
+
+        self._throttle()
+        try:
+            ak = get_akshare_module()
+            with _eastmoney_direct_network():
+                df = ak.stock_news_main_cx()
+            if df is None or df.empty:
+                return []
+
+            items: list[StockNewsItem] = []
+            for index, row in enumerate(df.head(limit).to_dict("records")):
+                summary = str(row.get("summary") or "").strip()
+                url = str(row.get("url") or "").strip()
+                tag = str(row.get("tag") or "市场动态").strip() or "市场动态"
+                if not summary:
+                    continue
+
+                published_at = self._extract_market_news_datetime(url)
+                items.append(
+                    StockNewsItem(
+                        stock_code="",
+                        title=f"{tag}: {summary[:40]}",
+                        content=summary,
+                        published_at=published_at,
+                        source="eastmoney",
+                        url=url,
+                        news_id=url or f"cx-market-{index}",
+                    )
+                )
+
+            return items
+        except Exception:
+            logger.exception("获取市场级新闻失败")
+            return []
+
+    @staticmethod
+    def _extract_market_news_datetime(url: str) -> datetime:
+        match = re.search(r"/(\d{4})-(\d{2})-(\d{2})/", str(url or ""))
+        if match:
+            return datetime(
+                int(match.group(1)),
+                int(match.group(2)),
+                int(match.group(3)),
+                tzinfo=UTC,
+            )
+        return datetime.now(UTC)
 
     # ------------------------------------------------------------------
     # TECHNICAL_FACTORS

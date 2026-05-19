@@ -309,6 +309,7 @@ class ExecuteCommandUseCase:
                 result = self._execution_service.execute_api_command(
                     command=command,
                     params=params,
+                    user_id=request.user_id,
                 )
 
             duration_ms = int((time.monotonic() - start_time) * 1000)

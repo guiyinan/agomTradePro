@@ -20,6 +20,10 @@ from apps.data_center.domain.entities import (
     IndicatorCatalog,
     IndicatorUnitRule,
     MacroFact,
+    MarketNewsDailyMetrics,
+    MarketThermometerConfig,
+    MarketThermometerSnapshot,
+    MarketThermometerUserOverride,
     NewsFact,
     PriceBar,
     ProviderConfig,
@@ -359,6 +363,11 @@ class NewsRepositoryProtocol(Protocol):
     ) -> list[NewsFact]: ...
 
     def bulk_insert(self, articles: list[NewsFact]) -> int: ...
+    def aggregate_market_daily(
+        self,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> list[MarketNewsDailyMetrics]: ...
 
 
 @runtime_checkable
@@ -374,6 +383,36 @@ class CapitalFlowRepositoryProtocol(Protocol):
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None: ...
     def bulk_upsert(self, facts: list[CapitalFlowFact]) -> int: ...
+
+
+@runtime_checkable
+class MarketThermometerConfigRepositoryProtocol(Protocol):
+    """Persistence contract for singleton market thermometer config."""
+
+    def load(self) -> MarketThermometerConfig: ...
+    def save(self, config: MarketThermometerConfig) -> MarketThermometerConfig: ...
+
+
+@runtime_checkable
+class MarketThermometerUserOverrideRepositoryProtocol(Protocol):
+    """Persistence contract for per-user market thermometer overrides."""
+
+    def get_by_user_id(self, user_id: int) -> MarketThermometerUserOverride | None: ...
+    def save(
+        self,
+        override: MarketThermometerUserOverride,
+    ) -> MarketThermometerUserOverride: ...
+    def delete(self, user_id: int) -> None: ...
+
+
+@runtime_checkable
+class MarketThermometerSnapshotRepositoryProtocol(Protocol):
+    """Persistence contract for market thermometer snapshots."""
+
+    def get_latest(self) -> MarketThermometerSnapshot | None: ...
+    def get_by_date(self, observed_at: date) -> MarketThermometerSnapshot | None: ...
+    def list_history(self, days: int = 90) -> list[MarketThermometerSnapshot]: ...
+    def save(self, snapshot: MarketThermometerSnapshot) -> MarketThermometerSnapshot: ...
 
 
 @runtime_checkable
