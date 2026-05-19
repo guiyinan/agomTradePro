@@ -1312,6 +1312,7 @@ def test_alpha_history_detail_api_returns_snapshot_detail(monkeypatch):
     assert payload["data"]["snapshots"][0]["stock_code"] == "000001.SZ"
 
 
+@pytest.mark.django_db
 def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(monkeypatch):
     captured: dict[str, int] = {
         "metrics_calls": 0,
@@ -1447,7 +1448,11 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
     monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
     monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
-    monkeypatch.setattr(views, "_build_attention_items_context", lambda data, navigator, pulse: {})
+    monkeypatch.setattr(
+        views,
+        "_build_attention_items_context",
+        lambda data, navigator, pulse, market_thermometer=None: {},
+    )
     monkeypatch.setattr(views, "_build_browser_notification_context", lambda navigator, pulse: {})
     monkeypatch.setattr(views, "get_alpha_visualization_query", lambda: FakeAlphaQuery())
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeHomepageQuery())
@@ -1472,6 +1477,7 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     assert rendered["context"]["quota_remaining"] == 8
 
 
+@pytest.mark.django_db
 def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     request = RequestFactory().get(
         "/dashboard/",
@@ -1882,6 +1888,7 @@ def test_annotate_decision_workspace_navigation_accepts_model_instances():
     )
 
 
+@pytest.mark.django_db
 def test_dashboard_view_accepts_pending_request_models(monkeypatch):
     request = RequestFactory().get("/dashboard/")
     request.user = SimpleNamespace(is_authenticated=True, username="admin", id=1)
@@ -1939,7 +1946,11 @@ def test_dashboard_view_accepts_pending_request_models(monkeypatch):
     monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
     monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
     monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
-    monkeypatch.setattr(views, "_build_attention_items_context", lambda data, navigator, pulse: {})
+    monkeypatch.setattr(
+        views,
+        "_build_attention_items_context",
+        lambda data, navigator, pulse, market_thermometer=None: {},
+    )
     monkeypatch.setattr(views, "_build_browser_notification_context", lambda navigator, pulse: {})
     monkeypatch.setattr(
         views,
