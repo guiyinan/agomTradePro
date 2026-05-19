@@ -182,6 +182,28 @@ class QlibTrainingRunRepository:
         ).exists()
 
     @transaction.atomic
+    def create_pending_run_if_idle(
+        self,
+        *,
+        settings_repo: ConfigCenterSettingsRepository,
+        profile: QlibTrainingProfileModel | None,
+        requested_by,
+        model_name: str,
+        model_type: str,
+        resolved_train_config: dict[str, Any],
+    ) -> QlibTrainingRunModel | None:
+        settings_repo.acquire_system_settings_lock()
+        if self.has_active_run():
+            return None
+        return self.create_run(
+            profile=profile,
+            requested_by=requested_by,
+            model_name=model_name,
+            model_type=model_type,
+            resolved_train_config=resolved_train_config,
+        )
+
+    @transaction.atomic
     def create_run(
         self,
         *,

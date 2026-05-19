@@ -6,8 +6,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from django.db import transaction
-
 from apps.alpha.application.tasks import qlib_train_model
 from apps.config_center.application.access_policies import (
     QlibAccessDeniedError,
@@ -136,17 +134,16 @@ class TriggerQlibTrainingUseCase:
         if not model_type:
             raise ValidationFailureError("model_type 不能为空")
 
-        with transaction.atomic():
-            settings_repo.acquire_system_settings_lock()
-            if run_repo.has_active_run():
-                raise ConflictError("当前已有训练任务处于 PENDING/RUNNING")
-            run = run_repo.create_run(
-                profile=profile,
-                requested_by=actor if getattr(actor, "is_authenticated", False) else None,
-                model_name=model_name,
-                model_type=model_type,
-                resolved_train_config=resolved_train_config,
-            )
+        run = run_repo.create_pending_run_if_idle(
+            settings_repo=settings_repo,
+            profile=profile,
+            requested_by=actor if getattr(actor, "is_authenticated", False) else None,
+            model_name=model_name,
+            model_type=model_type,
+            resolved_train_config=resolved_train_config,
+        )
+        if run is None:
+            raise ConflictError("当前已有训练任务处于 PENDING/RUNNING")
         resolved_train_config["training_run_id"] = str(run.run_id)
 
         task = qlib_train_model.apply_async(

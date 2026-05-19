@@ -1,6 +1,6 @@
 {
   "version": "2026-05-06.v3",
-  "mcp_tool_count": 326,
+  "mcp_tool_count": 333,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -12,6 +12,7 @@
     "audit": 9,
     "backtest": 9,
     "beta_gate": 9,
+    "config_center": 8,
     "dashboard": 11,
     "data_center": 10,
     "decision_rhythm": 9,

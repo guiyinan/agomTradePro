@@ -13,6 +13,9 @@ from apps.terminal.infrastructure.providers import (
     get_terminal_command_http_client as _get_terminal_command_http_client,
 )
 from apps.terminal.infrastructure.providers import (
+    get_terminal_auth_user as _get_terminal_auth_user,
+)
+from apps.terminal.infrastructure.providers import (
     get_terminal_command_repository as _get_terminal_command_repository,
 )
 from apps.terminal.infrastructure.providers import (
@@ -42,3 +45,9 @@ def get_terminal_command_http_client():
     """Return the default terminal command HTTP client."""
 
     return _get_terminal_command_http_client()
+
+
+def get_terminal_auth_user(user_id: int):
+    """Return the authenticated user object for internal terminal API calls."""
+
+    return _get_terminal_auth_user(user_id)
