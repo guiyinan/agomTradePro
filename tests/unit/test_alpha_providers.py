@@ -4,7 +4,7 @@ Unit Tests for Alpha Providers
 测试 Alpha Provider 的核心功能。
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -482,7 +482,19 @@ class TestAlphaService:
     def test_get_stock_scores(self):
         """测试获取股票评分"""
         service = AlphaService()
-        result = service.get_stock_scores("csi300", date.today())
+        expected = AlphaResult(
+            success=True,
+            scores=[],
+            source="test",
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+
+        with patch.object(
+            service._registry,
+            "get_scores_with_fallback",
+            return_value=expected,
+        ):
+            result = service.get_stock_scores("csi300", date.today())
 
         # 由于可能没有实际数据，我们只检查返回格式
         assert isinstance(result, AlphaResult)
