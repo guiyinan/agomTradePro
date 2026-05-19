@@ -183,14 +183,20 @@ def _assert_macro_contract(page: Page) -> None:
         placeholder_text = _normalize_text(
             page.locator("#chartPlaceholder").inner_text(timeout=5000)
         )
-        assert "该指标暂无同步数据" in placeholder_text
+        assert (
+            "该指标暂无同步数据" in placeholder_text
+            or "该指标尚未接入自动同步" in placeholder_text
+        )
         assert _normalize_text(
             page.locator("#currentIndicatorValue").inner_text(timeout=5000)
         ) == "-"
         assert _normalize_text(
             page.locator("#currentIndicatorRecords").inner_text(timeout=5000)
         ) == "0 条"
-        expect(page.locator("#refreshIndicatorBtn")).to_be_visible()
+        refresh_button = page.locator("#refreshIndicatorBtn")
+        expect(refresh_button).to_be_visible()
+        if "该指标尚未接入自动同步" in placeholder_text:
+            expect(refresh_button).to_be_disabled()
         _assert_card_style(page, ".stat-card")
         return
 
