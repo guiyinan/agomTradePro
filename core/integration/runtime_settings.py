@@ -43,6 +43,12 @@ def get_config_center_summary_service():
     return load_config_center_summary_service()
 
 
+def get_account_config_summary_service():
+    """Backward-compatible alias for callers still patching the old bridge name."""
+
+    return get_config_center_summary_service()
+
+
 def _get_runtime_settings_source() -> RuntimeSettingsProvider | None:
     """Resolve the current runtime settings source.
 
@@ -52,7 +58,7 @@ def _get_runtime_settings_source() -> RuntimeSettingsProvider | None:
     """
 
     try:
-        return get_config_center_summary_service()
+        return get_account_config_summary_service()
     except Exception:
         return _provider
 

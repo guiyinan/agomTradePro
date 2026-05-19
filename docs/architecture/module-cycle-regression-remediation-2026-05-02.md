@@ -87,6 +87,12 @@ pytest tests/unit/test_regime_data_center_macro_provider.py tests/unit/test_regi
 
 合计：`26 passed`
 
+### 2026-05-18 补充
+
+- `core.integration.runtime_settings` 在所有权迁移到 `config_center` 后，继续保留 `get_account_config_summary_service()` 兼容别名。
+- 原因不是要回退依赖方向，而是为了保持既有 monkeypatch 点和桥接调用方稳定；别名内部仍统一转发到 `config_center` service。
+- 同日补回 `apps/account/infrastructure/models.py` 中 `PortfolioObserverGrantModel.clean()` 所需的 `ValidationError` import，收口 nightly 的两个 observer grant 单测回归。
+
 ## 为什么已有 CI 和开发规范，问题还是会回来
 
 ### 1. 现有 cycle CI 只覆盖“成环”，不覆盖“单向违规依赖”

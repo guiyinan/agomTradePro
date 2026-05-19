@@ -235,7 +235,24 @@ class TestConcurrencyAndThreadSafety:
 
     def test_concurrent_event_processing(self):
         """测试并发事件处理"""
-        handler = DecisionApprovedHandler()
+        class _ThreadSafeAlphaCandidateRepo:
+            """Thread-safe fake repository used to avoid ORM access in worker threads."""
+
+            def __init__(self) -> None:
+                self.updated_candidates: list[tuple[str, str]] = []
+                self._lock = threading.Lock()
+
+            def update_last_decision_request_id(
+                self,
+                candidate_id: str,
+                request_id: str,
+            ) -> bool:
+                with self._lock:
+                    self.updated_candidates.append((candidate_id, request_id))
+                return True
+
+        fake_repo = _ThreadSafeAlphaCandidateRepo()
+        handler = DecisionApprovedHandler(alpha_candidate_repo=fake_repo)
 
         events = [
             create_event(
@@ -259,7 +276,7 @@ class TestConcurrencyAndThreadSafety:
             thread.join()
 
         # 如果所有线程都完成，说明线程安全
-        assert True
+        assert len(fake_repo.updated_candidates) == len(events)
 
     def test_event_bus_concurrent_publish(self):
         """测试事件总线并发发布"""

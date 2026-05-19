@@ -806,6 +806,15 @@ Remove fake data generation from Alpha providers
 - 实盘对接
 - 多用户支持
 
+---
+
+## 2026-05-18 补充记录 | Nightly 线程测试资源清理
+
+- 现象：`tests/unit/test_fault_injection.py` 在通过断言后，仍会在 pytest teardown 阶段报 SQLite `PermissionError`，全量 unit run 还会伴随 `unclosed database` warning。
+- 根因：`test_concurrent_event_processing` 在线程里直接走 `DecisionApprovedHandler` 的真实 ORM repository，线程结束后连接句柄没有被这个“单元测试”主动回收。
+- 处理：该测试改为注入线程安全 fake repository，只验证事件处理器并发调用不崩溃、且每个事件都被处理一次；不再在线程里触发真实数据库访问。
+- 结果：`tests/unit/test_fault_injection.py` 本地复跑不再产生 teardown warning，也消除了全量 unit run 里的 SQLite 占用噪音。
+
 **敬请期待后续连载！**
 
 ---
