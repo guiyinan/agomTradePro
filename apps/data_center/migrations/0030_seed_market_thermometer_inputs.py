@@ -5,6 +5,15 @@ from __future__ import annotations
 from django.db import migrations
 
 
+CHART_POLICY_BY_SEMANTICS = {
+    "balance_level": "continuous_line",
+    "flow_level": "period_bar",
+    "index_level": "continuous_line",
+    "monthly_level": "period_bar",
+    "rate": "continuous_line",
+}
+
+
 MARKET_INDICATORS = [
     {
         "code": "CN_A_NEW_INVESTOR_ACCOUNTS",
@@ -13,6 +22,7 @@ MARKET_INDICATORS = [
         "default_unit": "户",
         "default_period_type": "M",
         "category": "market_heat",
+        "series_semantics": "monthly_level",
     },
     {
         "code": "CN_A_TOTAL_TURNOVER",
@@ -21,6 +31,7 @@ MARKET_INDICATORS = [
         "default_unit": "元",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "flow_level",
     },
     {
         "code": "CN_A_MARGIN_BALANCE",
@@ -29,6 +40,7 @@ MARKET_INDICATORS = [
         "default_unit": "元",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "balance_level",
     },
     {
         "code": "CN_A_ETF_NET_FLOW",
@@ -37,6 +49,7 @@ MARKET_INDICATORS = [
         "default_unit": "元",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "flow_level",
     },
     {
         "code": "CN_A_MARKET_NEWS_COUNT",
@@ -45,6 +58,7 @@ MARKET_INDICATORS = [
         "default_unit": "篇",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "flow_level",
     },
     {
         "code": "CN_A_MARKET_NEWS_SENTIMENT",
@@ -53,6 +67,7 @@ MARKET_INDICATORS = [
         "default_unit": "score",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "index_level",
     },
     {
         "code": "CN_A_MARKET_NEWS_POSITIVE_RATIO",
@@ -61,6 +76,7 @@ MARKET_INDICATORS = [
         "default_unit": "ratio",
         "default_period_type": "D",
         "category": "market_heat",
+        "series_semantics": "rate",
     },
 ]
 
@@ -116,6 +132,7 @@ def seed_market_thermometer_inputs(apps, schema_editor):
     IndicatorUnitRule = apps.get_model("data_center", "IndicatorUnitRuleModel")
 
     for item in MARKET_INDICATORS:
+        series_semantics = item["series_semantics"]
         indicator, _ = IndicatorCatalog.objects.update_or_create(
             code=item["code"],
             defaults={
@@ -130,6 +147,12 @@ def seed_market_thermometer_inputs(apps, schema_editor):
                     "governance_scope": "macro",
                     "governance_sync_supported": False,
                     "thermometer_component": True,
+                    "series_semantics": series_semantics,
+                    "chart_policy": CHART_POLICY_BY_SEMANTICS[series_semantics],
+                    "chart_reset_frequency": "",
+                    "chart_segment_basis": "",
+                    "regime_input_policy": "direct_allowed",
+                    "pulse_input_policy": "direct_allowed",
                 },
             },
         )
