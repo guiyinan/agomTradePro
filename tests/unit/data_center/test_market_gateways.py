@@ -269,6 +269,33 @@ class TestCodeConversion:
 
 
 class TestAKShareEastMoneyGateway:
+    @patch("apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway.get_akshare_module")
+    def test_market_news_uses_sentinel_market_code(self, mock_get_akshare):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+
+        class _AkshareStub:
+            @staticmethod
+            def stock_news_main_cx():
+                return pd.DataFrame(
+                    [
+                        {
+                            "summary": "市场成交活跃度回升",
+                            "url": "https://example.com/2026-05-20/news",
+                            "tag": "市场动态",
+                        }
+                    ]
+                )
+
+        mock_get_akshare.return_value = _AkshareStub()
+        gw = AKShareEastMoneyGateway()
+
+        items = gw.get_market_news(limit=1)
+
+        assert len(items) == 1
+        assert items[0].stock_code == "MARKET"
+
     @patch("akshare.stock_individual_fund_flow")
     def test_capital_flow_uses_bj_market_for_bj_stocks(self, mock_fund_flow):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (

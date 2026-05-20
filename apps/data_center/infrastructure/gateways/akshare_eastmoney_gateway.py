@@ -277,7 +277,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                 published_at = self._extract_market_news_datetime(url)
                 items.append(
                     StockNewsItem(
-                        stock_code="",
+                        stock_code="MARKET",
                         title=f"{tag}: {summary[:40]}",
                         content=summary,
                         published_at=published_at,
