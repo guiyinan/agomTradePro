@@ -8,6 +8,7 @@ from datetime import UTC, date, datetime
 from apps.data_center.application.market_thermometer import (
     CalculateMarketThermometerUseCase,
     ImportInvestorAccountsUseCase,
+    SyncMarketThermometerInputsUseCase,
     build_market_thermometer_override_payload,
 )
 from apps.data_center.domain.entities import (
@@ -16,6 +17,7 @@ from apps.data_center.domain.entities import (
     MarketThermometerSnapshot,
     MarketThermometerThresholds,
     MarketThermometerUserOverride,
+    ProviderConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
 
@@ -46,7 +48,9 @@ class _FakeSnapshotRepo:
         return sorted(self.snapshots, key=lambda item: item.observed_at, reverse=True)
 
     def save(self, snapshot: MarketThermometerSnapshot) -> MarketThermometerSnapshot:
-        self.snapshots = [item for item in self.snapshots if item.observed_at != snapshot.observed_at]
+        self.snapshots = [
+            item for item in self.snapshots if item.observed_at != snapshot.observed_at
+        ]
         self.snapshots.append(snapshot)
         return snapshot
 
@@ -75,6 +79,59 @@ class _FakeMacroRepo:
         return len(facts)
 
 
+@dataclass
+class _FakeProviderRepo:
+    providers: list[ProviderConfig]
+
+    def list_all(self) -> list[ProviderConfig]:
+        return list(self.providers)
+
+
+@dataclass
+class _FakeProviderFactory:
+    providers: dict[int, object]
+
+    def get_by_id(self, provider_id: int):
+        return self.providers.get(provider_id)
+
+
+@dataclass
+class _FakeRawAuditRepo:
+    rows: list[object] = field(default_factory=list)
+
+    def log(self, audit):
+        self.rows.append(audit)
+        return audit
+
+
+@dataclass
+class _FakeNewsRepo:
+    def bulk_insert(self, items):
+        return len(items)
+
+    def aggregate_market_daily(self, start, end):
+        del start, end
+        return []
+
+
+class _NoDataProvider:
+    def provider_name(self) -> str:
+        return "AKShare Public"
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del indicator_code, start, end
+        return []
+
+
+class _RealDataProvider:
+    def provider_name(self) -> str:
+        return "Tushare Pro"
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del start, end
+        return [_macro_fact(indicator_code, date(2026, 5, 19), 123.0, "元")]
+
+
 def _macro_fact(indicator_code: str, reporting_period: date, value: float, unit: str) -> MacroFact:
     return MacroFact(
         indicator_code=indicator_code,
@@ -85,6 +142,50 @@ def _macro_fact(indicator_code: str, reporting_period: date, value: float, unit:
         quality=DataQualityStatus.VALID,
         fetched_at=datetime(2026, 5, 19, tzinfo=UTC),
     )
+
+
+def _provider_config(provider_id: int, source_type: str, priority: int) -> ProviderConfig:
+    return ProviderConfig(
+        id=provider_id,
+        name=source_type,
+        source_type=source_type,
+        is_active=True,
+        priority=priority,
+        api_key="",
+        api_secret="",
+        http_url="",
+        api_endpoint="",
+        extra_config={},
+        description="",
+    )
+
+
+def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "tushare", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _NoDataProvider(),
+                2: _RealDataProvider(),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    successes = [item for item in payload["results"] if item["status"] == "success"]
+    assert successes
+    assert all(item["provider"] == "Tushare Pro" for item in successes)
+    assert {fact.source for fact in macro_repo.stored} == {"tushare"}
 
 
 def test_build_current_payload_applies_user_override_band():
@@ -117,7 +218,9 @@ def test_build_current_payload_applies_user_override_band():
         macro_repo=_FakeMacroRepo(series_map={}),
     )
 
-    payload = use_case.build_current_payload(user_id=7, use_personal_thresholds=True, auto_calculate=False)
+    payload = use_case.build_current_payload(
+        user_id=7, use_personal_thresholds=True, auto_calculate=False
+    )
 
     assert payload["threshold_source"] == "user_override"
     assert payload["effective_band"] == "overheat"

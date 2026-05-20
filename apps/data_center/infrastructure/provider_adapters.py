@@ -144,6 +144,10 @@ def _safe_date(value: Any) -> date | None:
     try:
         return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
     except (TypeError, ValueError):
+        pass
+    try:
+        return datetime.strptime(str(value)[:8], "%Y%m%d").date()
+    except (TypeError, ValueError):
         return None
 
 
@@ -306,6 +310,13 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
+        if indicator_code == "CN_A_TOTAL_TURNOVER":
+            return self._fetch_market_turnover(start_date, end_date)
+        if indicator_code == "CN_A_MARGIN_BALANCE":
+            return self._fetch_margin_balance(start_date, end_date)
+        if indicator_code == "CN_A_ETF_NET_FLOW":
+            return []
+
         adapter = build_tushare_macro_adapter(
             token=self._config.api_key,
             http_url=self._config.http_url,
@@ -336,6 +347,99 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 )
             )
         return results
+
+    def _fetch_market_turnover(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch broad A-share turnover from Tushare index daily amount fields."""
+
+        from shared.infrastructure.tushare_client import create_tushare_pro_client
+
+        pro = create_tushare_pro_client(token=self._config.api_key, http_url=self._config.http_url)
+        rows_by_date: dict[date, float] = {}
+        for ts_code in ("000001.SH", "399001.SZ"):
+            df = pro.index_daily(
+                ts_code=ts_code,
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+            )
+            if df is None or df.empty:
+                continue
+            for row in df.to_dict("records"):
+                observed_at = _safe_date(_first_present(row, "trade_date", "date"))
+                if observed_at is None:
+                    continue
+                amount = _safe_float(_first_present(row, "amount"))
+                if amount is None:
+                    continue
+                rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount * 1000.0
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_TOTAL_TURNOVER",
+                reporting_period=observed_at,
+                value=value,
+                unit="元",
+                source=self.provider_source(),
+                published_at=observed_at,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "proxy": "tushare_index_daily_sh000001_plus_sz399001",
+                        "original_unit": "千元",
+                    }
+                ),
+            )
+            for observed_at, value in sorted(rows_by_date.items())
+        ]
+
+    def _fetch_margin_balance(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch A-share financing balance from Tushare margin rows."""
+
+        from shared.infrastructure.tushare_client import create_tushare_pro_client
+
+        pro = create_tushare_pro_client(token=self._config.api_key, http_url=self._config.http_url)
+        df = pro.margin(
+            start_date=start_date.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+        )
+        if df is None or df.empty:
+            return []
+
+        rows_by_date: dict[date, float] = {}
+        for row in df.to_dict("records"):
+            observed_at = _safe_date(_first_present(row, "trade_date", "date"))
+            if observed_at is None:
+                continue
+            value = _safe_float(_first_present(row, "rzye"))
+            if value is None:
+                continue
+            rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + value
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_MARGIN_BALANCE",
+                reporting_period=observed_at,
+                value=value,
+                unit="元",
+                source=self.provider_source(),
+                published_at=observed_at,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "proxy": "tushare_margin_sum_rzye",
+                        "original_unit": "元",
+                    }
+                ),
+            )
+            for observed_at, value in sorted(rows_by_date.items())
+        ]
 
     def fetch_price_history(
         self,
@@ -575,13 +679,17 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         """Approximate total A-share turnover by summing SH/SZ broad-index amounts."""
 
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _eastmoney_direct_network,
+        )
 
         ak = get_akshare_module()
         index_symbols = ("sh000001", "sz399001")
         rows_by_date: dict[date, float] = {}
 
         for symbol in index_symbols:
-            df = ak.stock_zh_index_daily_em(symbol=symbol)
+            with _eastmoney_direct_network():
+                df = ak.stock_zh_index_daily_em(symbol=symbol)
             if df is None or df.empty:
                 continue
             for row in df.to_dict("records"):
@@ -653,9 +761,13 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         """Fetch market-wide ETF net flow from the latest ETF spot snapshot."""
 
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _eastmoney_direct_network,
+        )
 
         ak = get_akshare_module()
-        df = ak.fund_etf_spot_em()
+        with _eastmoney_direct_network():
+            df = ak.fund_etf_spot_em()
         if df is None or df.empty:
             return []
 
@@ -835,7 +947,9 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             for metric_code, (value, unit) in metric_values.items():
                 if value is None:
                     continue
-                facts.append(FinancialFact(metric_code=metric_code, value=value, unit=unit, **common))
+                facts.append(
+                    FinancialFact(metric_code=metric_code, value=value, unit=unit, **common)
+                )
         return facts
 
     def fetch_valuations(
@@ -965,9 +1079,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 url=article.url or "",
                 source=self.provider_source(),
                 external_id=article.news_id,
-                sentiment_score=_score_market_news_sentiment(
-                    f"{article.title} {article.content}"
-                ),
+                sentiment_score=_score_market_news_sentiment(f"{article.title} {article.content}"),
                 extra=self._provider_extra(),
             )
             for article in articles

@@ -208,14 +208,16 @@ class ManageMarketThermometerUserOverrideUseCase:
         """Create or update one user's threshold override."""
 
         existing = self._repo.get_by_user_id(user_id)
-        base = existing.thresholds.to_dict() if existing else MarketThermometerThresholds().to_dict()
+        base = (
+            existing.thresholds.to_dict() if existing else MarketThermometerThresholds().to_dict()
+        )
         payload = {
-            "warm_threshold": warm_threshold if warm_threshold is not None else base["warm_threshold"],
+            "warm_threshold": (
+                warm_threshold if warm_threshold is not None else base["warm_threshold"]
+            ),
             "hot_threshold": hot_threshold if hot_threshold is not None else base["hot_threshold"],
             "overheat_threshold": (
-                overheat_threshold
-                if overheat_threshold is not None
-                else base["overheat_threshold"]
+                overheat_threshold if overheat_threshold is not None else base["overheat_threshold"]
             ),
             "extreme_threshold": (
                 extreme_threshold if extreme_threshold is not None else base["extreme_threshold"]
@@ -251,9 +253,9 @@ class ImportInvestorAccountsUseCase:
         reader = csv.DictReader(io.StringIO(csv_text.strip()))
         facts: list[MacroFact] = []
         for row in reader:
-            raw_period = (
-                str(row.get("reporting_period") or row.get("date") or row.get("month") or "").strip()
-            )
+            raw_period = str(
+                row.get("reporting_period") or row.get("date") or row.get("month") or ""
+            ).strip()
             raw_value = str(
                 row.get("value") or row.get("accounts") or row.get("new_accounts") or ""
             ).strip()
@@ -264,7 +266,9 @@ class ImportInvestorAccountsUseCase:
             value = float(raw_value.replace(",", ""))
             facts.append(
                 MacroFact(
-                    indicator_code=MARKET_COMPONENT_SPECS["new_investor_accounts"]["indicator_code"],
+                    indicator_code=MARKET_COMPONENT_SPECS["new_investor_accounts"][
+                        "indicator_code"
+                    ],
                     reporting_period=reporting_period,
                     value=value,
                     unit="户",
@@ -300,11 +304,10 @@ class SyncMarketThermometerInputsUseCase:
         target_date = as_of_date or date.today()
         results: list[dict[str, Any]] = []
 
-        market_provider = self._resolve_provider(DEFAULT_MARKET_DATA_SOURCE_TYPES)
-        if market_provider is not None:
-            config, provider = market_provider
-            for component_key in ("turnover", "margin_balance", "etf_net_flow"):
-                spec = MARKET_COMPONENT_SPECS[component_key]
+        market_providers = self._resolve_providers(DEFAULT_MARKET_DATA_SOURCE_TYPES)
+        for component_key in ("turnover", "margin_balance", "etf_net_flow"):
+            spec = MARKET_COMPONENT_SPECS[component_key]
+            for config, provider in market_providers:
                 try:
                     facts = provider.fetch_macro_series(
                         spec["indicator_code"],
@@ -323,6 +326,28 @@ class SyncMarketThermometerInputsUseCase:
                         )
                         for fact in facts
                     ]
+                    if not normalized:
+                        self._raw_audit_repo.log(
+                            _build_market_audit(
+                                provider_name=provider.provider_name(),
+                                capability="market_thermometer_sync",
+                                request_params={
+                                    "indicator_code": spec["indicator_code"],
+                                    "date": target_date.isoformat(),
+                                },
+                                status="no_data",
+                                row_count=0,
+                            )
+                        )
+                        results.append(
+                            {
+                                "component": component_key,
+                                "provider": provider.provider_name(),
+                                "stored_count": 0,
+                                "status": "no_data",
+                            }
+                        )
+                        continue
                     stored_count = self._macro_repo.bulk_upsert(normalized)
                     self._raw_audit_repo.log(
                         _build_market_audit(
@@ -344,6 +369,7 @@ class SyncMarketThermometerInputsUseCase:
                             "status": "success",
                         }
                     )
+                    break
                 except RECOVERABLE_THERMOMETER_EXCEPTIONS as exc:
                     self._raw_audit_repo.log(
                         _build_market_audit(
@@ -387,30 +413,42 @@ class SyncMarketThermometerInputsUseCase:
                     for item in news_items
                 ]
                 stored_news = self._news_repo.bulk_insert(normalized_news)
-                aggregated = self._news_repo.aggregate_market_daily(start=target_date, end=target_date)
+                aggregated = self._news_repo.aggregate_market_daily(
+                    start=target_date, end=target_date
+                )
                 macro_facts: list[MacroFact] = []
                 for item in aggregated:
                     macro_facts.append(
                         MacroFact(
-                            indicator_code=MARKET_COMPONENT_SPECS["market_news_count"]["indicator_code"],
+                            indicator_code=MARKET_COMPONENT_SPECS["market_news_count"][
+                                "indicator_code"
+                            ],
                             reporting_period=item.observed_date,
                             value=float(item.news_count),
                             unit="篇",
                             source=config.source_type,
                             quality=DataQualityStatus.VALID,
-                            extra={"source_type": config.source_type, "provider_name": provider.provider_name()},
+                            extra={
+                                "source_type": config.source_type,
+                                "provider_name": provider.provider_name(),
+                            },
                         )
                     )
                     if item.avg_sentiment is not None:
                         macro_facts.append(
                             MacroFact(
-                                indicator_code=MARKET_COMPONENT_SPECS["market_news_sentiment"]["indicator_code"],
+                                indicator_code=MARKET_COMPONENT_SPECS["market_news_sentiment"][
+                                    "indicator_code"
+                                ],
                                 reporting_period=item.observed_date,
                                 value=float(item.avg_sentiment),
                                 unit="score",
                                 source=config.source_type,
                                 quality=DataQualityStatus.VALID,
-                                extra={"source_type": config.source_type, "provider_name": provider.provider_name()},
+                                extra={
+                                    "source_type": config.source_type,
+                                    "provider_name": provider.provider_name(),
+                                },
                             )
                         )
                     if item.positive_ratio is not None:
@@ -422,7 +460,10 @@ class SyncMarketThermometerInputsUseCase:
                                 unit="ratio",
                                 source=config.source_type,
                                 quality=DataQualityStatus.VALID,
-                                extra={"source_type": config.source_type, "provider_name": provider.provider_name()},
+                                extra={
+                                    "source_type": config.source_type,
+                                    "provider_name": provider.provider_name(),
+                                },
                             )
                         )
                 stored_metrics = self._macro_repo.bulk_upsert(macro_facts)
@@ -467,18 +508,24 @@ class SyncMarketThermometerInputsUseCase:
         return {"as_of_date": target_date.isoformat(), "results": results}
 
     def _resolve_provider(self, source_types: tuple[str, ...]):
+        resolved = self._resolve_providers(source_types)
+        if not resolved:
+            return None
+        return resolved[0]
+
+    def _resolve_providers(self, source_types: tuple[str, ...]):
         providers = [
             provider
             for provider in self._provider_repo.list_all()
             if provider.is_active and provider.source_type in source_types
         ]
         providers.sort(key=lambda item: (source_types.index(item.source_type), item.priority))
-        if not providers:
-            return None
-        provider = self._provider_factory.get_by_id(int(providers[0].id or 0))
-        if provider is None:
-            return None
-        return providers[0], provider
+        resolved = []
+        for config in providers:
+            provider = self._provider_factory.get_by_id(int(config.id or 0))
+            if provider is not None:
+                resolved.append((config, provider))
+        return resolved
 
 
 class CalculateMarketThermometerUseCase:
@@ -510,10 +557,17 @@ class CalculateMarketThermometerUseCase:
             self._score_news_sentiment(target_date, config),
         ]
 
-        valid_components = [component for component in components if not component.is_stale and not component.is_missing]
+        valid_components = [
+            component
+            for component in components
+            if not component.is_stale and not component.is_missing
+        ]
         total_weight = sum(component.weight for component in valid_components)
         if total_weight > 0:
-            score = sum(component.score * component.weight for component in valid_components) / total_weight
+            score = (
+                sum(component.score * component.weight for component in valid_components)
+                / total_weight
+            )
         else:
             score = 0.0
         score = round(clamp_score_0_100(score), 2)
@@ -530,11 +584,17 @@ class CalculateMarketThermometerUseCase:
         change_20d = self._compute_change(previous_by_date, target_date, score, 20)
         ordered_reasons = [
             component.reason
-            for component in sorted(valid_components, key=lambda item: item.score * item.weight, reverse=True)
+            for component in sorted(
+                valid_components, key=lambda item: item.score * item.weight, reverse=True
+            )
             if component.reason
         ]
-        stale_components = [component.component_key for component in components if component.is_stale]
-        missing_components = [component.component_key for component in components if component.is_missing]
+        stale_components = [
+            component.component_key for component in components if component.is_stale
+        ]
+        missing_components = [
+            component.component_key for component in components if component.is_missing
+        ]
         must_not_use_for_decision = len(valid_components) < config.min_valid_components
         blocked_reason = (
             f"有效组件数不足，当前仅 {len(valid_components)} 个，低于要求 {config.min_valid_components} 个。"
@@ -552,7 +612,9 @@ class CalculateMarketThermometerUseCase:
             stale_components=stale_components,
             missing_components=missing_components,
             valid_component_count=len(valid_components),
-            data_source="calculated" if not stale_components and not missing_components else "degraded",
+            data_source=(
+                "calculated" if not stale_components and not missing_components else "degraded"
+            ),
             must_not_use_for_decision=must_not_use_for_decision,
             blocked_reason=blocked_reason,
             calculated_at=datetime.now(UTC),
@@ -569,10 +631,16 @@ class CalculateMarketThermometerUseCase:
     ) -> dict[str, Any]:
         """Return the current payload enriched with threshold source metadata."""
 
-        target_date = as_of_date or date.today()
-        snapshot = self._snapshot_repo.get_by_date(target_date)
-        if snapshot is None and auto_calculate:
-            snapshot = self.execute(as_of_date=target_date)
+        if as_of_date is None:
+            snapshot = self._snapshot_repo.get_latest()
+            target_date = snapshot.observed_at if snapshot is not None else date.today()
+            if snapshot is None and auto_calculate:
+                snapshot = self.execute(as_of_date=target_date)
+        else:
+            target_date = as_of_date
+            snapshot = self._snapshot_repo.get_by_date(target_date)
+            if snapshot is None and auto_calculate:
+                snapshot = self.execute(as_of_date=target_date)
         if snapshot is None:
             latest = self._snapshot_repo.get_latest()
             snapshot = latest
@@ -731,7 +799,9 @@ class CalculateMarketThermometerUseCase:
             [value for _, value in sentiment_series[-config.long_window :]],
             latest_value,
         )
-        sentiment_score = normalize_signed_value(latest_value, negative_bound=-0.5, positive_bound=0.5)
+        sentiment_score = normalize_signed_value(
+            latest_value, negative_bound=-0.5, positive_bound=0.5
+        )
         latest_ratio = ratio_series[-1][1] if ratio_series else None
         positive_ratio_score = clamp_score_0_100((latest_ratio or 0.5) * 100.0)
         score = round(
@@ -819,12 +889,18 @@ class CalculateMarketThermometerUseCase:
             score=score,
             weight=weight,
             current_value=latest_value,
-            unit="户" if component_key == "new_investor_accounts" else ("篇" if component_key == "market_news_count" else "元"),
+            unit=(
+                "户"
+                if component_key == "new_investor_accounts"
+                else ("篇" if component_key == "market_news_count" else "元")
+            ),
             growth_score=growth_score,
             percentile_score=percentile_score,
             is_stale=is_stale,
             age_days=age_days,
-            reason=_component_reason(label, growth_score=growth_score, percentile_score=percentile_score),
+            reason=_component_reason(
+                label, growth_score=growth_score, percentile_score=percentile_score
+            ),
         )
 
     @staticmethod
