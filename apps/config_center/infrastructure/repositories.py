@@ -7,10 +7,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from django.apps import apps as django_apps
 from django.db import transaction
 from django.utils import timezone
 
-from apps.alpha.application.repository_provider import get_qlib_model_registry_repository
 from apps.config_center.infrastructure.models import (
     QlibTrainingProfileModel,
     QlibTrainingRunModel,
@@ -46,16 +46,15 @@ class ConfigCenterSettingsRepository:
     def build_runtime_config_payload(self) -> dict[str, Any]:
         settings_obj = self.get_system_settings()
         runtime = dict(settings_obj.get_runtime_qlib_config_payload())
-        active_model = get_qlib_model_registry_repository().get_active_model()
+        qlib_model_registry_model = django_apps.get_model("alpha", "QlibModelRegistryModel")
+        active_model = qlib_model_registry_model._default_manager.filter(is_active=True).first()
         training_task_running = QlibTrainingRunModel._default_manager.filter(
             status__in=[
                 QlibTrainingRunModel.STATUS_PENDING,
                 QlibTrainingRunModel.STATUS_RUNNING,
             ]
         ).exists()
-        latest_run = (
-            QlibTrainingRunModel._default_manager.order_by("-requested_at", "-id").first()
-        )
+        latest_run = QlibTrainingRunModel._default_manager.order_by("-requested_at", "-id").first()
 
         validation_errors: list[str] = []
         provider_path = Path(str(runtime.get("provider_uri") or "")).expanduser()
@@ -168,10 +167,14 @@ class QlibTrainingRunRepository:
         return list(QlibTrainingRunModel._default_manager.order_by("-requested_at", "-id")[:limit])
 
     def get_run(self, run_id: str) -> QlibTrainingRunModel | None:
-        return QlibTrainingRunModel._default_manager.filter(run_id=run_id).select_related(
-            "profile",
-            "requested_by",
-        ).first()
+        return (
+            QlibTrainingRunModel._default_manager.filter(run_id=run_id)
+            .select_related(
+                "profile",
+                "requested_by",
+            )
+            .first()
+        )
 
     def has_active_run(self) -> bool:
         return QlibTrainingRunModel._default_manager.filter(
@@ -235,7 +238,9 @@ class QlibTrainingRunRepository:
         if celery_task_id:
             run.celery_task_id = celery_task_id
         run.error_message = ""
-        run.save(update_fields=["status", "started_at", "celery_task_id", "error_message", "updated_at"])
+        run.save(
+            update_fields=["status", "started_at", "celery_task_id", "error_message", "updated_at"]
+        )
         return run
 
     def mark_succeeded(

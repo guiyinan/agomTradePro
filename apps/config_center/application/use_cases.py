@@ -6,7 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from apps.alpha.application.tasks import qlib_train_model
+from celery import current_app
+
 from apps.config_center.application.access_policies import (
     QlibAccessDeniedError,
     ensure_can_manage_qlib_runtime,
@@ -66,6 +67,8 @@ class GetQlibTrainingRunDetailUseCase:
 
 
 class TriggerQlibTrainingUseCase:
+    TRAIN_TASK_NAME = "apps.alpha.application.tasks.qlib_train_model"
+
     CODE_DEFAULTS = {
         "default_universe": "csi300",
         "default_feature_set_id": "v1",
@@ -107,8 +110,7 @@ class TriggerQlibTrainingUseCase:
             raise ValidationFailureError(f"Qlib model_root 无法创建: {exc}") from exc
 
         runtime_defaults = {
-            key: runtime_payload.get(key, value)
-            for key, value in self.CODE_DEFAULTS.items()
+            key: runtime_payload.get(key, value) for key, value in self.CODE_DEFAULTS.items()
         }
         profile_defaults = self._profile_defaults(profile)
         request_values = self._request_overrides(payload)
@@ -146,7 +148,8 @@ class TriggerQlibTrainingUseCase:
             raise ConflictError("当前已有训练任务处于 PENDING/RUNNING")
         resolved_train_config["training_run_id"] = str(run.run_id)
 
-        task = qlib_train_model.apply_async(
+        task = current_app.send_task(
+            self.TRAIN_TASK_NAME,
             kwargs={
                 "model_name": model_name,
                 "model_type": model_type,
@@ -206,7 +209,9 @@ class TriggerQlibTrainingUseCase:
         return {key: payload[key] for key in allowed if key in payload}
 
     @staticmethod
-    def _build_train_config(*, runtime_payload: dict[str, Any], merged: dict[str, Any]) -> dict[str, Any]:
+    def _build_train_config(
+        *, runtime_payload: dict[str, Any], merged: dict[str, Any]
+    ) -> dict[str, Any]:
         extra_train_config = dict(merged.get("extra_train_config") or {})
         start_date_value = merged.get("start_date")
         end_date_value = merged.get("end_date")
@@ -214,12 +219,15 @@ class TriggerQlibTrainingUseCase:
             **extra_train_config,
             "universe": merged.get("universe") or runtime_payload["default_universe"],
             "start_date": (
-                start_date_value.isoformat() if isinstance(start_date_value, date) else start_date_value
+                start_date_value.isoformat()
+                if isinstance(start_date_value, date)
+                else start_date_value
             ),
             "end_date": (
                 end_date_value.isoformat() if isinstance(end_date_value, date) else end_date_value
             ),
-            "feature_set_id": merged.get("feature_set_id") or runtime_payload["default_feature_set_id"],
+            "feature_set_id": merged.get("feature_set_id")
+            or runtime_payload["default_feature_set_id"],
             "label_id": merged.get("label_id") or runtime_payload["default_label_id"],
             "learning_rate": merged.get("learning_rate"),
             "epochs": merged.get("epochs"),

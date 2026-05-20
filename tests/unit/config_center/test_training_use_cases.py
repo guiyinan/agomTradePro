@@ -110,8 +110,8 @@ def test_trigger_training_use_case_creates_run_and_queues_task(monkeypatch, tmp_
     )
 
     monkeypatch.setattr(
-        "apps.config_center.application.use_cases.qlib_train_model.apply_async",
-        lambda kwargs, queue: SimpleNamespace(id=f"{queue}-task-1"),
+        "apps.config_center.application.use_cases.current_app.send_task",
+        lambda task_name, kwargs, queue: SimpleNamespace(id=f"{queue}-task-1"),
     )
     user = User.objects.create_user(username="config_admin", password="pass12345")
     user.is_staff = True

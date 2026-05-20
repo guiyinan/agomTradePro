@@ -118,8 +118,8 @@ def test_qlib_config_center_page_triggers_training_for_superuser(monkeypatch, tm
     )
 
     monkeypatch.setattr(
-        "apps.config_center.application.use_cases.qlib_train_model.apply_async",
-        lambda kwargs, queue: SimpleNamespace(id="task-page-1"),
+        "apps.config_center.application.use_cases.current_app.send_task",
+        lambda task_name, kwargs, queue: SimpleNamespace(id="task-page-1"),
     )
 
     client = Client()
@@ -143,4 +143,3 @@ def test_qlib_config_center_page_triggers_training_for_superuser(monkeypatch, tm
     run = QlibTrainingRunModel.objects.get(model_name="lgb_csi300")
     assert run.celery_task_id == "task-page-1"
     assert run.status == QlibTrainingRunModel.STATUS_PENDING
-
