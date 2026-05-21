@@ -22,7 +22,7 @@ def _lock_meta_key(lock_key: str) -> str:
 
 
 def _stable_fragment(value: str) -> str:
-    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()
+    digest = hashlib.blake2s(str(value).encode("utf-8"), digest_size=8).hexdigest()
     return digest[:16]
 
 
