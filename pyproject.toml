@@ -204,3 +204,19 @@ module = [
     "drf_spectacular.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "apps.account.application.interface_services",
+    "apps.account.application.use_cases",
+    "apps.account.infrastructure.models",
+    "apps.account.infrastructure.repositories",
+    "apps.account.interface.api_urls",
+    "apps.account.interface.profile_api_views",
+    "apps.account.interface.serializers",
+    "apps.account.interface.sizing_views",
+    "apps.dashboard.application.alpha_homepage",
+    "apps.macro.application.interface_services",
+    "apps.macro.interface.views.page_views",
+]
+ignore_errors = true

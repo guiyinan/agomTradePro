@@ -2160,9 +2160,7 @@ class MacroSizingConfigRepository:
         payload["is_active"] = True
 
         with transaction.atomic():
-            MacroSizingConfigModel._default_manager.filter(is_active=True).update(
-                is_active=False
-            )
+            MacroSizingConfigModel._default_manager.filter(is_active=True).update(is_active=False)
             created = MacroSizingConfigModel._default_manager.create(**payload)
 
         return self._serialize_model(created)

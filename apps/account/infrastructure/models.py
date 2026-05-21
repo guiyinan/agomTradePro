@@ -20,6 +20,7 @@ from django.db import models
 from django.db.models import Sum
 
 from apps.account.application.rbac import ROLE_CHOICES
+from apps.config_center.infrastructure.models import SystemSettingsModel  # noqa: F401
 
 
 def _build_app_fernet() -> Fernet:
@@ -1140,9 +1141,6 @@ class StopLossTriggerModel(models.Model):
         )
 
 
-from apps.config_center.infrastructure.models import SystemSettingsModel
-
-
 class UserAccessTokenModel(models.Model):
     """支持多 Token 的 MCP/SDK 访问凭证。"""
 
@@ -1370,7 +1368,9 @@ class PortfolioObserverGrantModel(models.Model):
             raise ValidationError({"observer_user_id": "不能授权给自己"})
 
         # 检查是否已存在 active 授权
-        if self.status == "active" and not getattr(self, "_skip_duplicate_active_validation", False):
+        if self.status == "active" and not getattr(
+            self, "_skip_duplicate_active_validation", False
+        ):
             existing = PortfolioObserverGrantModel.objects.filter(
                 owner_user_id=self.owner_user_id,
                 observer_user_id=self.observer_user_id,
@@ -1476,7 +1476,9 @@ class MacroSizingConfigModel(models.Model):
     def __str__(self) -> str:
         return f"MacroSizingConfig v{self.version} (active={self.is_active})"
 
+
 # Shared configuration models repatriated from shared.infrastructure.models
+
 
 class TransactionCostConfigModel(models.Model):
     """
@@ -1486,59 +1488,45 @@ class TransactionCostConfigModel(models.Model):
     """
 
     MARKET_CHOICES = [
-        ('CN_A_SHARE', 'A股'),
-        ('CN_HK_STOCK', '港股'),
-        ('US_STOCK', '美股'),
-        ('CN_FUND', '基金'),
-        ('CN_FUTURES', '期货'),
-        ('CRYPTO', '加密货币'),
-        ('other', '其他'),
+        ("CN_A_SHARE", "A股"),
+        ("CN_HK_STOCK", "港股"),
+        ("US_STOCK", "美股"),
+        ("CN_FUND", "基金"),
+        ("CN_FUTURES", "期货"),
+        ("CRYPTO", "加密货币"),
+        ("other", "其他"),
     ]
 
     ASSET_CLASS_CHOICES = [
-        ('equity', '股票'),
-        ('fixed_income', '债券'),
-        ('fund', '基金'),
-        ('derivative', '衍生品'),
-        ('other', '其他'),
+        ("equity", "股票"),
+        ("fixed_income", "债券"),
+        ("fund", "基金"),
+        ("derivative", "衍生品"),
+        ("other", "其他"),
     ]
 
-    market = models.CharField(
-        max_length=20,
-        choices=MARKET_CHOICES,
-        verbose_name="市场"
-    )
+    market = models.CharField(max_length=20, choices=MARKET_CHOICES, verbose_name="市场")
 
     asset_class = models.CharField(
-        max_length=20,
-        choices=ASSET_CLASS_CHOICES,
-        verbose_name="资产类别"
+        max_length=20, choices=ASSET_CLASS_CHOICES, verbose_name="资产类别"
     )
 
     # 成本参数（均为百分比，如 0.0003 表示 0.03%）
     commission_rate = models.FloatField(
-        default=0.0003,
-        verbose_name="佣金费率",
-        help_text="如 0.0003 表示万分之三"
+        default=0.0003, verbose_name="佣金费率", help_text="如 0.0003 表示万分之三"
     )
 
     slippage_rate = models.FloatField(
-        default=0.0002,
-        verbose_name="滑点费率",
-        help_text="如 0.0002 表示万分之二"
+        default=0.0002, verbose_name="滑点费率", help_text="如 0.0002 表示万分之二"
     )
 
     stamp_duty_rate = models.FloatField(
-        default=0.001,
-        verbose_name="印花税率",
-        help_text="仅卖出时收取，如 0.001 表示千分之一"
+        default=0.001, verbose_name="印花税率", help_text="仅卖出时收取，如 0.001 表示千分之一"
     )
 
     # 其他费用
     transfer_fee_rate = models.FloatField(
-        default=0.00001,
-        verbose_name="过户费率",
-        help_text="如 0.00001 表示万分之一"
+        default=0.00001, verbose_name="过户费率", help_text="如 0.00001 表示万分之一"
     )
 
     # 最小费用
@@ -1547,14 +1535,14 @@ class TransactionCostConfigModel(models.Model):
         decimal_places=2,
         default=5.00,
         verbose_name="最低佣金",
-        help_text="单笔交易最低佣金（元）"
+        help_text="单笔交易最低佣金（元）",
     )
 
     # 成本阈值
     cost_warning_threshold = models.FloatField(
         default=0.005,
         verbose_name="成本预警阈值",
-        help_text="成本占交易额比例超过此值时预警，如 0.005 表示 0.5%"
+        help_text="成本占交易额比例超过此值时预警，如 0.005 表示 0.5%",
     )
 
     is_active = models.BooleanField(default=True, verbose_name="是否启用")
@@ -1563,13 +1551,13 @@ class TransactionCostConfigModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
-        db_table = 'transaction_cost_config'
-        verbose_name = '交易成本配置'
-        verbose_name_plural = '交易成本配置'
-        unique_together = [['market', 'asset_class']]
+        db_table = "transaction_cost_config"
+        verbose_name = "交易成本配置"
+        verbose_name_plural = "交易成本配置"
+        unique_together = [["market", "asset_class"]]
         indexes = [
-            models.Index(fields=['market', 'asset_class']),
-            models.Index(fields=['is_active']),
+            models.Index(fields=["market", "asset_class"]),
+            models.Index(fields=["is_active"]),
         ]
 
     def __str__(self):
@@ -1596,15 +1584,16 @@ class TransactionCostConfigModel(models.Model):
 
         # 佣金
         commission = max(
-            Decimal(str(trade_value_float * self.commission_rate)),
-            self.min_commission
+            Decimal(str(trade_value_float * self.commission_rate)), self.min_commission
         )
 
         # 滑点
         slippage = Decimal(str(trade_value_float * self.slippage_rate))
 
         # 印花税（仅卖出）
-        stamp_duty = Decimal('0') if is_buy else Decimal(str(trade_value_float * self.stamp_duty_rate))
+        stamp_duty = (
+            Decimal("0") if is_buy else Decimal(str(trade_value_float * self.stamp_duty_rate))
+        )
 
         # 过户费
         transfer_fee = Decimal(str(trade_value_float * self.transfer_fee_rate))
@@ -1613,11 +1602,10 @@ class TransactionCostConfigModel(models.Model):
         total_cost = commission + slippage + stamp_duty + transfer_fee
 
         return {
-            'commission': commission,
-            'slippage': slippage,
-            'stamp_duty': stamp_duty,
-            'transfer_fee': transfer_fee,
-            'total_cost': total_cost,
-            'cost_ratio': float(total_cost) / trade_value_float if trade_value_float > 0 else 0,
+            "commission": commission,
+            "slippage": slippage,
+            "stamp_duty": stamp_duty,
+            "transfer_fee": transfer_fee,
+            "total_cost": total_cost,
+            "cost_ratio": float(total_cost) / trade_value_float if trade_value_float > 0 else 0,
         }
-

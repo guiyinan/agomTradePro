@@ -437,7 +437,7 @@ class TradingCostConfig:
     # 是否启用
     is_active: bool = True
 
-    def calculate_buy_cost(self, amount: float, is_shanghai: bool = False) -> dict:
+    def calculate_buy_cost(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
         计算买入总费用
 
@@ -459,7 +459,7 @@ class TradingCostConfig:
             "total": round(total, 2),
         }
 
-    def calculate_sell_cost(self, amount: float, is_shanghai: bool = False) -> dict:
+    def calculate_sell_cost(self, amount: float, is_shanghai: bool = False) -> dict[str, float]:
         """
         计算卖出总费用
 
