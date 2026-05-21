@@ -42,6 +42,7 @@ Build: 2026-03-23
 
 ## 0.7.0 之后的开发快照（截至 2026-05-20）
 
+- `2026-05-21` Security Scan 的依赖审计门禁已补充对 `joblib` 争议型漏洞 `PYSEC-2024-277 / CVE-2024-34997` 的显式窄豁免；该告警当前无上游 fix version，CI 不再因不可处置的审计噪音阻断 push，但豁免范围仅限该单一 advisory
 - `2026-05-20` 市场温度计已接入 Macro 页面、账户宏观仓位系数和 Dashboard Alpha 推荐链路；具体资产建议现在会同时考虑 `Regime + Pulse + Market Thermometer + Drawdown`，并支持按 band 独立调节缩仓系数与 `extreme` 新仓阻断开关
 
 - `2026-05-14` Equity Detail 技术图切换链路已提速：分时接口改为本地快照优先、分钟主备源后置；前端新增同页缓存与预取，收盘后默认也会优先展示最近交易时段分时

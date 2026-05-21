@@ -144,7 +144,17 @@ jobs:
       - name: Run pip-audit
         id: pip-audit
         run: |
-          pip-audit -r requirements-dev.txt --format json --output reports/security/pip-audit-report.json 2>/dev/null || true
+          # PYSEC-2024-277 / CVE-2024-34997 on joblib is currently disputed by the
+          # upstream maintainer and pip-audit does not publish a fix version. The
+          # affected path is deserialization of trusted cached content rather than
+          # a repo-owned unsafe loading entrypoint, so we keep an explicit, narrow
+          # ignore here instead of failing every push on an untriageable advisory.
+          pip-audit \
+            -r requirements-dev.txt \
+            --ignore-vuln PYSEC-2024-277 \
+            --format json \
+            --output reports/security/pip-audit-report.json \
+            2>/dev/null || true
 
           # Parse results
           AUDIT_COUNT=$(python3 -c "
