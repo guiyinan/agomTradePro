@@ -149,7 +149,14 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
 
     selected_indicator = request.GET.get("indicator", "")
     search_query = request.GET.get("search", "")
-    snapshot = get_macro_data_page_snapshot(selected_indicator=selected_indicator)
+    snapshot = get_macro_data_page_snapshot(
+        selected_indicator=selected_indicator,
+        user_id=(
+            getattr(request.user, "id", None)
+            if getattr(request.user, "is_authenticated", False)
+            else None
+        ),
+    )
 
     indicator_map = snapshot["indicator_map"]
     resolved_selected_indicator = snapshot["selected_indicator"]
@@ -197,6 +204,7 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
         "sync_supported_indicator_count": snapshot["sync_supported_indicator_count"],
         "sync_unsupported_indicator_count": snapshot["sync_unsupported_indicator_count"],
         "bulk_refresh_indicator_codes": snapshot["bulk_refresh_indicator_codes"],
+        "market_thermometer": snapshot["market_thermometer"],
     }
     return render(request, "macro/data.html", context)
 

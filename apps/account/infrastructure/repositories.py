@@ -27,6 +27,7 @@ from apps.account.domain.entities import (
     CrossBorderFlag,
     DrawdownTier,
     MacroSizingConfig,
+    MarketTemperatureTier,
     PortfolioSnapshot,
     Position,
     PositionSource,
@@ -2097,27 +2098,115 @@ class MacroSizingConfigRepository:
         {"min_drawdown": 0.05, "factor": 0.8},
         {"min_drawdown": 0.0, "factor": 1.0},
     ]
+    _DEFAULT_MARKET_TEMPERATURE_TIERS = [
+        {"band": "cold", "factor": 1.0, "block_new_position": False},
+        {"band": "warm", "factor": 1.0, "block_new_position": False},
+        {"band": "hot", "factor": 0.9, "block_new_position": False},
+        {"band": "overheat", "factor": 0.75, "block_new_position": False},
+        {"band": "extreme", "factor": 0.35, "block_new_position": True},
+    ]
 
     def get_active_config(self) -> MacroSizingConfig:
         """返回当前生效配置；若库中不存在则返回默认配置。"""
-        try:
-            model = (
-                MacroSizingConfigModel._default_manager.filter(is_active=True)
-                .order_by("-version")
-                .first()
-            )
-        except (OperationalError, ProgrammingError):
-            logger.warning("MacroSizingConfigModel table unavailable; using default sizing config")
-            model = None
+        model = self._get_active_model()
         if model is None:
             return self._build_config(
                 regime_tiers=self._DEFAULT_REGIME_TIERS,
                 pulse_tiers=self._DEFAULT_PULSE_TIERS,
                 warning_factor=0.5,
                 drawdown_tiers=self._DEFAULT_DRAWDOWN_TIERS,
+                market_temperature_tiers=self._DEFAULT_MARKET_TEMPERATURE_TIERS,
                 version=1,
             )
         return self._to_entity(model)
+
+    def get_active_config_payload(self) -> dict[str, Any]:
+        """返回当前生效配置的 API 载荷。"""
+
+        model = self._get_active_model()
+        if model is None:
+            return self._serialize_payload(
+                {
+                    "id": None,
+                    "version": 1,
+                    "is_active": True,
+                    "description": "",
+                    "warning_factor": 0.5,
+                    "regime_tiers_json": self._DEFAULT_REGIME_TIERS,
+                    "pulse_tiers_json": self._DEFAULT_PULSE_TIERS,
+                    "drawdown_tiers_json": self._DEFAULT_DRAWDOWN_TIERS,
+                    "market_temperature_cold_factor": 1.0,
+                    "market_temperature_warm_factor": 1.0,
+                    "market_temperature_hot_factor": 0.9,
+                    "market_temperature_overheat_factor": 0.75,
+                    "market_temperature_extreme_factor": 0.35,
+                    "block_new_position_on_extreme": True,
+                    "created_at": None,
+                    "updated_at": None,
+                }
+            )
+        return self._serialize_model(model)
+
+    def save_active_config_payload(self, *, validated_data: Mapping[str, Any]) -> dict[str, Any]:
+        """创建新的生效版本并返回其 API 载荷。"""
+
+        current = self._get_active_model()
+        payload = self.get_active_config_payload()
+        payload.update(dict(validated_data))
+        payload.pop("id", None)
+        payload.pop("created_at", None)
+        payload.pop("updated_at", None)
+        payload["version"] = (current.version + 1) if current is not None else 1
+        payload["is_active"] = True
+
+        with transaction.atomic():
+            MacroSizingConfigModel._default_manager.filter(is_active=True).update(
+                is_active=False
+            )
+            created = MacroSizingConfigModel._default_manager.create(**payload)
+
+        return self._serialize_model(created)
+
+    def _get_active_model(self) -> MacroSizingConfigModel | None:
+        try:
+            return (
+                MacroSizingConfigModel._default_manager.filter(is_active=True)
+                .order_by("-version")
+                .first()
+            )
+        except (OperationalError, ProgrammingError):
+            logger.warning("MacroSizingConfigModel table unavailable; using default sizing config")
+            return None
+
+    def _serialize_model(self, model: MacroSizingConfigModel) -> dict[str, Any]:
+        return self._serialize_payload(
+            {
+                "id": model.id,
+                "version": model.version,
+                "is_active": model.is_active,
+                "description": model.description,
+                "warning_factor": model.warning_factor,
+                "regime_tiers_json": model.regime_tiers_json,
+                "pulse_tiers_json": model.pulse_tiers_json,
+                "drawdown_tiers_json": model.drawdown_tiers_json,
+                "market_temperature_cold_factor": model.market_temperature_cold_factor,
+                "market_temperature_warm_factor": model.market_temperature_warm_factor,
+                "market_temperature_hot_factor": model.market_temperature_hot_factor,
+                "market_temperature_overheat_factor": model.market_temperature_overheat_factor,
+                "market_temperature_extreme_factor": model.market_temperature_extreme_factor,
+                "block_new_position_on_extreme": model.block_new_position_on_extreme,
+                "created_at": model.created_at,
+                "updated_at": model.updated_at,
+            }
+        )
+
+    @staticmethod
+    def _serialize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+        serialized = dict(payload)
+        for key in ("created_at", "updated_at"):
+            value = serialized.get(key)
+            serialized[key] = value.isoformat() if value is not None else None
+        return serialized
 
     def _to_entity(self, model: MacroSizingConfigModel) -> MacroSizingConfig:
         return self._build_config(
@@ -2125,6 +2214,33 @@ class MacroSizingConfigRepository:
             pulse_tiers=model.pulse_tiers_json,
             warning_factor=model.warning_factor,
             drawdown_tiers=model.drawdown_tiers_json,
+            market_temperature_tiers=[
+                {
+                    "band": "cold",
+                    "factor": model.market_temperature_cold_factor,
+                    "block_new_position": False,
+                },
+                {
+                    "band": "warm",
+                    "factor": model.market_temperature_warm_factor,
+                    "block_new_position": False,
+                },
+                {
+                    "band": "hot",
+                    "factor": model.market_temperature_hot_factor,
+                    "block_new_position": False,
+                },
+                {
+                    "band": "overheat",
+                    "factor": model.market_temperature_overheat_factor,
+                    "block_new_position": False,
+                },
+                {
+                    "band": "extreme",
+                    "factor": model.market_temperature_extreme_factor,
+                    "block_new_position": model.block_new_position_on_extreme,
+                },
+            ],
             version=model.version,
         )
 
@@ -2135,6 +2251,7 @@ class MacroSizingConfigRepository:
         pulse_tiers: list[dict[str, Any]],
         warning_factor: float,
         drawdown_tiers: list[dict[str, Any]],
+        market_temperature_tiers: list[dict[str, Any]],
         version: int,
     ) -> MacroSizingConfig:
         return MacroSizingConfig(
@@ -2160,6 +2277,14 @@ class MacroSizingConfigRepository:
                     factor=float(item["factor"]),
                 )
                 for item in drawdown_tiers
+            ],
+            market_temperature_tiers=[
+                MarketTemperatureTier(
+                    band=str(item["band"]),
+                    factor=float(item["factor"]),
+                    block_new_position=bool(item.get("block_new_position", False)),
+                )
+                for item in market_temperature_tiers
             ],
             version=version,
         )

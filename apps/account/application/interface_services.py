@@ -15,6 +15,7 @@ from apps.account.application.repository_provider import (
     AccountInterfaceRepository,
     AccountRepository,
     AssetMetadataRepository,
+    MacroSizingConfigRepository,
     PositionRepository,
 )
 from apps.account.application.use_cases import (
@@ -54,6 +55,7 @@ class RegisteredUserOutcome:
 
 _interface_repo = AccountInterfaceRepository
 _classification_repo = AccountClassificationRepository
+_macro_sizing_repo = MacroSizingConfigRepository
 
 TOKEN_ACCESS_LEVEL_READ_ONLY = "read_only"
 TOKEN_ACCESS_LEVEL_READ_WRITE = "read_write"
@@ -281,6 +283,18 @@ def save_trading_cost_config(
         message="交易费率已保存",
         redirect_to="/account/settings/",
     )
+
+
+def get_macro_sizing_config_payload() -> dict[str, Any]:
+    """Return the active macro sizing config for API/SDK/MCP consumers."""
+
+    return _macro_sizing_repo().get_active_config_payload()
+
+
+def save_macro_sizing_config_payload(*, validated_data: Mapping[str, Any]) -> dict[str, Any]:
+    """Persist one new active macro sizing config version."""
+
+    return _macro_sizing_repo().save_active_config_payload(validated_data=validated_data)
 
 
 def get_api_profile(user_id: int):

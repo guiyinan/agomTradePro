@@ -2,7 +2,7 @@
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +13,8 @@ from .serializers import (
     AccountProfileSerializer,
     AccountProfileUpdateSerializer,
     AssetMetadataSerializer,
+    MacroSizingConfigSerializer,
+    MacroSizingConfigUpdateSerializer,
     TradingCostCalculationSerializer,
     TradingCostConfigCreateSerializer,
     TradingCostConfigSerializer,
@@ -43,10 +45,46 @@ class AccountProfileView(APIView):
             profile = interface_services.update_api_profile(
                 request.user.id,
                 profile_data=serializer.validated_data,
-                email=request.data.get('email'),
+                email=request.data.get("email"),
             )
             return Response(AccountProfileUpdateSerializer(profile).data)
-        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MacroSizingConfigView(APIView):
+    """
+    宏观仓位系数配置 API
+
+    - GET /api/account/macro-sizing-config/ - 读取当前生效配置
+    - PATCH /api/account/macro-sizing-config/ - 创建新的生效版本
+    - PUT /api/account/macro-sizing-config/ - 创建新的生效版本
+    """
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), GeneralPermission()]
+        return [IsAuthenticated(), IsAdminUser()]
+
+    def get(self, request):
+        payload = interface_services.get_macro_sizing_config_payload()
+        return Response(MacroSizingConfigSerializer(payload).data)
+
+    def put(self, request):
+        serializer = MacroSizingConfigUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = interface_services.save_macro_sizing_config_payload(
+            validated_data=serializer.validated_data
+        )
+        return Response(MacroSizingConfigSerializer(payload).data)
+
+    def patch(self, request):
+        serializer = MacroSizingConfigUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        payload = interface_services.save_macro_sizing_config_payload(
+            validated_data=serializer.validated_data
+        )
+        return Response(MacroSizingConfigSerializer(payload).data)
+
 
 class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -65,7 +103,7 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
 
         return interface_services.get_asset_metadata_queryset()
 
-    @action(detail=False, methods=['get'], url_path='by-class/(?P<asset_class>[^/]+)')
+    @action(detail=False, methods=["get"], url_path="by-class/(?P<asset_class>[^/]+)")
     def by_class(self, request, asset_class=None):
         """
         按资产类别查询
@@ -74,11 +112,8 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
         """
         assets = self.get_queryset().filter(asset_class=asset_class)
         serializer = AssetMetadataSerializer(assets, many=True)
-        return Response({
-            'success': True,
-            'count': assets.count(),
-            'data': serializer.data
-        })
+        return Response({"success": True, "count": assets.count(), "data": serializer.data})
+
 
 class AccountHealthView(APIView):
     """Account 服务健康检查"""
@@ -88,6 +123,7 @@ class AccountHealthView(APIView):
     def get(self, request):
         """检查 Account 服务健康状态"""
         return Response(interface_services.get_account_health_payload(request.user.id))
+
 
 class UserSearchView(APIView):
     """
@@ -110,18 +146,18 @@ class UserSearchView(APIView):
         query = request.GET.get("q", "").strip()
 
         if not query or len(query) < 2:
-            return Response({
-                "success": True,
-                "results": []
-            })
+            return Response({"success": True, "results": []})
 
-        return Response({
-            "success": True,
-            "results": interface_services.search_observer_candidates(
-                owner_user_id=request.user.id,
-                query=query,
-            ),
-        })
+        return Response(
+            {
+                "success": True,
+                "results": interface_services.search_observer_candidates(
+                    owner_user_id=request.user.id,
+                    query=query,
+                ),
+            }
+        )
+
 
 class TradingCostConfigViewSet(viewsets.ModelViewSet):
     """
@@ -143,15 +179,16 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         return interface_services.get_trading_cost_config_queryset(self.request.user.id)
 
     def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
+        if self.action in ["create", "update", "partial_update"]:
             return TradingCostConfigCreateSerializer
         return TradingCostConfigSerializer
 
     def perform_create(self, serializer):
         """创建时验证投资组合归属"""
-        portfolio = serializer.validated_data['portfolio']
+        portfolio = serializer.validated_data["portfolio"]
         if portfolio.user != self.request.user:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("无权为此投资组合配置费率")
         serializer.instance = interface_services.save_api_trading_cost_config(
             actor_user_id=self.request.user.id,
@@ -170,6 +207,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         portfolio = serializer.validated_data.get("portfolio", serializer.instance.portfolio)
         if portfolio.user != self.request.user:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("无权修改此投资组合的费率")
         serializer.instance = interface_services.save_api_trading_cost_config(
             actor_user_id=self.request.user.id,
@@ -193,7 +231,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
             },
         )
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def calculate(self, request, pk=None):
         """
         计算交易费用
@@ -216,15 +254,14 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
         amount = payload.validated_data["amount"]
         is_shanghai = payload.validated_data["is_shanghai"]
 
-        if action_type == 'sell':
+        if action_type == "sell":
             cost = config.calculate_sell_cost(amount, is_shanghai)
         else:
             cost = config.calculate_buy_cost(amount, is_shanghai)
 
-        cost['action'] = action_type
-        cost['amount'] = amount
-        cost['is_shanghai'] = is_shanghai
-        cost['cost_ratio'] = round(cost['total'] / amount * 100, 4) if amount > 0 else 0
+        cost["action"] = action_type
+        cost["amount"] = amount
+        cost["is_shanghai"] = is_shanghai
+        cost["cost_ratio"] = round(cost["total"] / amount * 100, 4) if amount > 0 else 0
 
-        return Response({'success': True, 'data': cost})
-
+        return Response({"success": True, "data": cost})

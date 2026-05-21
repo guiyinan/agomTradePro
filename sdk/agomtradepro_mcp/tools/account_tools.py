@@ -164,6 +164,59 @@ def register_account_tools(server: FastMCP) -> None:
     """注册 Account 相关的 MCP 工具"""
 
     @server.tool()
+    def get_macro_sizing_config() -> dict[str, Any]:
+        """
+        读取当前生效的宏观仓位系数配置。
+
+        Returns:
+            当前 active 的 macro sizing config
+        """
+
+        client = AgomTradeProClient()
+        return client.account.get_macro_sizing_config()
+
+    @server.tool()
+    def update_macro_sizing_config(
+        warning_factor: float | None = None,
+        regime_tiers_json: list[dict[str, Any]] | None = None,
+        pulse_tiers_json: list[dict[str, Any]] | None = None,
+        drawdown_tiers_json: list[dict[str, Any]] | None = None,
+        market_temperature_cold_factor: float | None = None,
+        market_temperature_warm_factor: float | None = None,
+        market_temperature_hot_factor: float | None = None,
+        market_temperature_overheat_factor: float | None = None,
+        market_temperature_extreme_factor: float | None = None,
+        block_new_position_on_extreme: bool | None = None,
+        description: str | None = None,
+        partial: bool = True,
+    ) -> dict[str, Any]:
+        """
+        创建新的宏观仓位系数配置版本并切换为 active。
+
+        需要 staff/superuser Token。
+        """
+
+        client = AgomTradeProClient()
+        payload = {
+            key: value
+            for key, value in {
+                "warning_factor": warning_factor,
+                "regime_tiers_json": regime_tiers_json,
+                "pulse_tiers_json": pulse_tiers_json,
+                "drawdown_tiers_json": drawdown_tiers_json,
+                "market_temperature_cold_factor": market_temperature_cold_factor,
+                "market_temperature_warm_factor": market_temperature_warm_factor,
+                "market_temperature_hot_factor": market_temperature_hot_factor,
+                "market_temperature_overheat_factor": market_temperature_overheat_factor,
+                "market_temperature_extreme_factor": market_temperature_extreme_factor,
+                "block_new_position_on_extreme": block_new_position_on_extreme,
+                "description": description,
+            }.items()
+            if value is not None
+        }
+        return client.account.update_macro_sizing_config(payload, partial=partial)
+
+    @server.tool()
     def list_portfolios(limit: int = 50) -> list[dict[str, Any]]:
         """
         获取投资组合列表
@@ -208,7 +261,9 @@ def register_account_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
         portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
-        pos_payload = client.get("api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 200})
+        pos_payload = client.get(
+            "api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 200}
+        )
         pos_rows = [r for r in _extract_results(pos_payload) if not r.get("is_closed")]
 
         return {
@@ -454,8 +509,12 @@ def register_account_tools(server: FastMCP) -> None:
             return {"success": False, "error": "mode 仅支持 upsert 或 replace"}
 
         client = AgomTradeProClient()
-        existing = get_positions_detailed(portfolio_id=portfolio_id, include_closed=False, limit=5000)
-        existing_by_code = {str(r.get("asset_code")).strip(): r for r in existing if r.get("asset_code")}
+        existing = get_positions_detailed(
+            portfolio_id=portfolio_id, include_closed=False, limit=5000
+        )
+        existing_by_code = {
+            str(r.get("asset_code")).strip(): r for r in existing if r.get("asset_code")
+        }
 
         normalized: dict[str, dict[str, Any]] = {}
         errors: list[dict[str, Any]] = []
@@ -509,11 +568,13 @@ def register_account_tools(server: FastMCP) -> None:
                 try:
                     client.post("api/account/positions/", json=payload)
                 except Exception as exc:  # noqa: BLE001
-                    runtime_errors.append({
-                        "operation": "create",
-                        "asset_code": row.get("asset_code"),
-                        "error": str(exc),
-                    })
+                    runtime_errors.append(
+                        {
+                            "operation": "create",
+                            "asset_code": row.get("asset_code"),
+                            "error": str(exc),
+                        }
+                    )
 
             for item in to_update:
                 payload = {
@@ -526,23 +587,27 @@ def register_account_tools(server: FastMCP) -> None:
                 try:
                     client.patch(f"api/account/positions/{item['id']}/", json=payload)
                 except Exception as exc:  # noqa: BLE001
-                    runtime_errors.append({
-                        "operation": "update",
-                        "id": item.get("id"),
-                        "asset_code": item.get("asset_code"),
-                        "error": str(exc),
-                    })
+                    runtime_errors.append(
+                        {
+                            "operation": "update",
+                            "id": item.get("id"),
+                            "asset_code": item.get("asset_code"),
+                            "error": str(exc),
+                        }
+                    )
 
             for row in to_close:
                 try:
                     client.post(f"api/account/positions/{row['id']}/close/", json={})
                 except Exception as exc:  # noqa: BLE001
-                    runtime_errors.append({
-                        "operation": "close",
-                        "id": row.get("id"),
-                        "asset_code": row.get("asset_code"),
-                        "error": str(exc),
-                    })
+                    runtime_errors.append(
+                        {
+                            "operation": "close",
+                            "id": row.get("id"),
+                            "asset_code": row.get("asset_code"),
+                            "error": str(exc),
+                        }
+                    )
 
         return {
             "success": len(errors) == 0 and len(runtime_errors) == 0,
@@ -680,11 +745,13 @@ def register_account_tools(server: FastMCP) -> None:
                     try:
                         client.delete(f"api/account/transactions/{row['id']}/")
                     except Exception as exc:  # noqa: BLE001
-                        runtime_errors.append({
-                            "operation": "delete",
-                            "id": row.get("id"),
-                            "error": str(exc),
-                        })
+                        runtime_errors.append(
+                            {
+                                "operation": "delete",
+                                "id": row.get("id"),
+                                "error": str(exc),
+                            }
+                        )
 
             for row in normalized:
                 payload = {
@@ -701,11 +768,13 @@ def register_account_tools(server: FastMCP) -> None:
                 try:
                     client.post("api/account/transactions/", json=payload)
                 except Exception as exc:  # noqa: BLE001
-                    runtime_errors.append({
-                        "operation": "create",
-                        "asset_code": row.get("asset_code"),
-                        "error": str(exc),
-                    })
+                    runtime_errors.append(
+                        {
+                            "operation": "create",
+                            "asset_code": row.get("asset_code"),
+                            "error": str(exc),
+                        }
+                    )
 
         return {
             "success": len(errors) == 0 and len(runtime_errors) == 0,
@@ -835,11 +904,13 @@ def register_account_tools(server: FastMCP) -> None:
                     try:
                         client.delete(f"api/account/capital-flows/{row['id']}/")
                     except Exception as exc:  # noqa: BLE001
-                        runtime_errors.append({
-                            "operation": "delete",
-                            "id": row.get("id"),
-                            "error": str(exc),
-                        })
+                        runtime_errors.append(
+                            {
+                                "operation": "delete",
+                                "id": row.get("id"),
+                                "error": str(exc),
+                            }
+                        )
 
             for row in normalized:
                 payload = {
@@ -852,11 +923,13 @@ def register_account_tools(server: FastMCP) -> None:
                 try:
                     client.post("api/account/capital-flows/", json=payload)
                 except Exception as exc:  # noqa: BLE001
-                    runtime_errors.append({
-                        "operation": "create",
-                        "flow_type": row.get("flow_type"),
-                        "error": str(exc),
-                    })
+                    runtime_errors.append(
+                        {
+                            "operation": "create",
+                            "flow_type": row.get("flow_type"),
+                            "error": str(exc),
+                        }
+                    )
 
         return {
             "success": len(errors) == 0 and len(runtime_errors) == 0,
@@ -967,10 +1040,7 @@ def register_account_tools(server: FastMCP) -> None:
             params={"limit": 100},
         )
         rows = _extract_results(payload)
-        return [
-            r for r in rows
-            if r.get("portfolio") == portfolio_id
-        ]
+        return [r for r in rows if r.get("portfolio") == portfolio_id]
 
     @server.tool()
     def create_trading_cost_config(

@@ -17,6 +17,7 @@ from apps.account.domain.entities import (
     DrawdownTier,
     InvestmentStyle,
     MacroSizingConfig,
+    MarketTemperatureTier,
     Position,
     PositionSource,
     PositionStatus,
@@ -64,6 +65,13 @@ def build_default_config() -> MacroSizingConfig:
             DrawdownTier(min_drawdown=0.10, factor=0.5),
             DrawdownTier(min_drawdown=0.05, factor=0.8),
             DrawdownTier(min_drawdown=0.00, factor=1.0),
+        ],
+        market_temperature_tiers=[
+            MarketTemperatureTier(band="cold", factor=1.0),
+            MarketTemperatureTier(band="warm", factor=1.0),
+            MarketTemperatureTier(band="hot", factor=0.9),
+            MarketTemperatureTier(band="overheat", factor=0.75),
+            MarketTemperatureTier(band="extreme", factor=0.35, block_new_position=True),
         ],
         version=1,
     )
@@ -134,6 +142,9 @@ class TestCalculateMacroMultiplier:
             regime_name="Test",
             pulse_composite=pulse_comp,
             pulse_warning=pulse_warn,
+            market_temperature_score=48.0,
+            market_temperature_band="warm",
+            market_temperature_degraded=False,
             portfolio_drawdown_pct=drawdown,
         )
         result = calculate_macro_multiplier(ctx, self.config)
@@ -149,26 +160,68 @@ class TestCalculateMacroMultiplier:
             regime_name="Recovery",
             pulse_composite=0.5,
             pulse_warning=False,
+            market_temperature_score=48.0,
+            market_temperature_band="warm",
+            market_temperature_degraded=False,
             portfolio_drawdown_pct=0.0,
         )
         result = calculate_macro_multiplier(ctx, self.config)
         assert result.regime_factor == 1.0
         assert result.pulse_factor == 1.0
+        assert result.market_temperature_factor == 1.0
         assert result.drawdown_factor == 1.0
         assert result.multiplier == 1.0
 
-    def test_reasoning_contains_three_factors(self):
+    def test_reasoning_contains_four_factors(self):
         ctx = MacroSizingContext(
             regime_confidence=0.5,
             regime_name="Recovery",
             pulse_composite=0.1,
             pulse_warning=True,
+            market_temperature_score=78.5,
+            market_temperature_band="overheat",
+            market_temperature_degraded=False,
             portfolio_drawdown_pct=0.08,
         )
         result = calculate_macro_multiplier(ctx, self.config)
         assert "Regime置信度" in result.reasoning
         assert "Pulse" in result.reasoning
+        assert "市场温度" in result.reasoning
         assert "组合回撤" in result.reasoning
+
+    def test_hot_market_temperature_reduces_multiplier(self):
+        ctx = MacroSizingContext(
+            regime_confidence=0.7,
+            regime_name="Recovery",
+            pulse_composite=0.5,
+            pulse_warning=False,
+            market_temperature_score=68.0,
+            market_temperature_band="hot",
+            market_temperature_degraded=False,
+            portfolio_drawdown_pct=0.0,
+        )
+
+        result = calculate_macro_multiplier(ctx, self.config)
+
+        assert result.market_temperature_factor == pytest.approx(0.9)
+        assert result.multiplier == pytest.approx(0.9)
+
+    def test_degraded_market_temperature_stays_neutral(self):
+        ctx = MacroSizingContext(
+            regime_confidence=0.7,
+            regime_name="Recovery",
+            pulse_composite=0.5,
+            pulse_warning=False,
+            market_temperature_score=92.0,
+            market_temperature_band="extreme",
+            market_temperature_degraded=True,
+            portfolio_drawdown_pct=0.0,
+        )
+
+        result = calculate_macro_multiplier(ctx, self.config)
+
+        assert result.market_temperature_factor == pytest.approx(1.0)
+        assert result.multiplier == pytest.approx(1.0)
 
 
 # ── calculate_portfolio_drawdown ────────────────────────────────────────
@@ -238,6 +291,12 @@ class TestMacroSizingConfigTierLookup:
     def test_pulse_factor_neutral(self, config: MacroSizingConfig):
         assert config.get_pulse_factor(composite=0.0, warning=False) == 0.85
 
+    def test_market_temperature_factor_lookup(self, config: MacroSizingConfig):
+        assert config.get_market_temperature_factor("overheat") == 0.75
+
+    def test_market_temperature_block_lookup(self, config: MacroSizingConfig):
+        assert config.should_block_new_position("extreme") is True
+
 
 # ── MacroSizingContext dataclass ────────────────────────────────────────
 
@@ -249,6 +308,9 @@ class TestMacroSizingContext:
             regime_name="Test",
             pulse_composite=0.3,
             pulse_warning=False,
+            market_temperature_score=45.0,
+            market_temperature_band="warm",
+            market_temperature_degraded=False,
             portfolio_drawdown_pct=0.05,
         )
         with pytest.raises(AttributeError):
@@ -260,12 +322,18 @@ class TestMacroSizingContext:
             regime_name="Recovery",
             pulse_composite=-0.2,
             pulse_warning=True,
+            market_temperature_score=88.0,
+            market_temperature_band="extreme",
+            market_temperature_degraded=True,
             portfolio_drawdown_pct=0.08,
         )
         assert ctx.regime_confidence == 0.5
         assert ctx.regime_name == "Recovery"
         assert ctx.pulse_composite == -0.2
         assert ctx.pulse_warning is True
+        assert ctx.market_temperature_score == 88.0
+        assert ctx.market_temperature_band == "extreme"
+        assert ctx.market_temperature_degraded is True
         assert ctx.portfolio_drawdown_pct == 0.08
 
 
@@ -286,14 +354,20 @@ class TestAccountDomainEntities:
         classification = metadata.get_full_classification()
 
         assert classification == "EQUITY | CN | domestic | bank | growth"
-        assert metadata.is_eligible_for_regime(
-            "Recovery",
-            {"equity_CN": {"Recovery": "preferred"}},
-        ) is True
-        assert metadata.is_eligible_for_regime(
-            "Stagflation",
-            {"equity_CN": {"Stagflation": "hostile"}},
-        ) is False
+        assert (
+            metadata.is_eligible_for_regime(
+                "Recovery",
+                {"equity_CN": {"Recovery": "preferred"}},
+            )
+            is True
+        )
+        assert (
+            metadata.is_eligible_for_regime(
+                "Stagflation",
+                {"equity_CN": {"Stagflation": "hostile"}},
+            )
+            is False
+        )
         assert metadata.is_eligible_for_regime("Unknown", {}) is True
 
     @pytest.mark.parametrize(
@@ -319,7 +393,9 @@ class TestAccountDomainEntities:
         position = build_position(shares=5, avg_cost=Decimal("100"), current_price=Decimal("120"))
         pnl, pnl_pct = position.calculate_pnl()
 
-        snapshot = __import__("apps.account.domain.entities", fromlist=["PortfolioSnapshot"]).PortfolioSnapshot(
+        snapshot = __import__(
+            "apps.account.domain.entities", fromlist=["PortfolioSnapshot"]
+        ).PortfolioSnapshot(
             portfolio_id=1,
             user_id=1,
             name="P1",
@@ -332,7 +408,9 @@ class TestAccountDomainEntities:
             positions=[position],
         )
 
-        zero_snapshot = __import__("apps.account.domain.entities", fromlist=["PortfolioSnapshot"]).PortfolioSnapshot(
+        zero_snapshot = __import__(
+            "apps.account.domain.entities", fromlist=["PortfolioSnapshot"]
+        ).PortfolioSnapshot(
             portfolio_id=1,
             user_id=1,
             name="P0",
@@ -425,9 +503,24 @@ class TestPositionService:
     def test_calculate_regime_match_score_handles_empty_and_non_empty_positions(self):
         empty_result = PositionService.calculate_regime_match_score([], "Recovery")
         positions = [
-            build_position(asset_code="CN1", market_value=Decimal("1000"), asset_class=AssetClassType.EQUITY, region=Region.CN),
-            build_position(asset_code="US1", market_value=Decimal("500"), asset_class=AssetClassType.EQUITY, region=Region.US),
-            build_position(asset_code="CASH1", market_value=Decimal("500"), asset_class=AssetClassType.CASH, region=Region.CN),
+            build_position(
+                asset_code="CN1",
+                market_value=Decimal("1000"),
+                asset_class=AssetClassType.EQUITY,
+                region=Region.CN,
+            ),
+            build_position(
+                asset_code="US1",
+                market_value=Decimal("500"),
+                asset_class=AssetClassType.EQUITY,
+                region=Region.US,
+            ),
+            build_position(
+                asset_code="CASH1",
+                market_value=Decimal("500"),
+                asset_class=AssetClassType.CASH,
+                region=Region.CN,
+            ),
         ]
         non_empty = PositionService.calculate_regime_match_score(positions, "Recovery")
 
@@ -460,13 +553,30 @@ class TestPositionService:
 
     def test_calculate_asset_allocation_and_risk(self):
         positions = [
-            build_position(asset_code="CN1", market_value=Decimal("1000"), asset_class=AssetClassType.EQUITY, region=Region.CN),
-            build_position(asset_code="US1", market_value=Decimal("500"), asset_class=AssetClassType.FUND, region=Region.US),
-            build_position(asset_code="US2", market_value=Decimal("1500"), asset_class=AssetClassType.FUND, region=Region.US),
+            build_position(
+                asset_code="CN1",
+                market_value=Decimal("1000"),
+                asset_class=AssetClassType.EQUITY,
+                region=Region.CN,
+            ),
+            build_position(
+                asset_code="US1",
+                market_value=Decimal("500"),
+                asset_class=AssetClassType.FUND,
+                region=Region.US,
+            ),
+            build_position(
+                asset_code="US2",
+                market_value=Decimal("1500"),
+                asset_class=AssetClassType.FUND,
+                region=Region.US,
+            ),
         ]
 
         allocation = PositionService.calculate_asset_allocation(positions, dimension="region")
-        other_allocation = PositionService.calculate_asset_allocation(positions, dimension="unknown")
+        other_allocation = PositionService.calculate_asset_allocation(
+            positions, dimension="unknown"
+        )
         risk = PositionService.assess_portfolio_risk(positions, Decimal("3000"))
         empty_risk = PositionService.assess_portfolio_risk([], Decimal("3000"))
 
@@ -510,7 +620,15 @@ class TestRiskServices:
         assert unknown.should_trigger is False
         assert unknown.trigger_reason == "未触发"
 
-    @pytest.mark.parametrize("kwargs", [{"stop_loss_pct": -0.1}, {"stop_loss_pct": 1.1}, {"stop_loss_pct": 0.1, "trailing_stop_pct": -0.1}, {"stop_loss_pct": 0.1, "trailing_stop_pct": 1.1}])
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"stop_loss_pct": -0.1},
+            {"stop_loss_pct": 1.1},
+            {"stop_loss_pct": 0.1, "trailing_stop_pct": -0.1},
+            {"stop_loss_pct": 0.1, "trailing_stop_pct": 1.1},
+        ],
+    )
     def test_stop_loss_service_validates_inputs(self, kwargs):
         with pytest.raises(ValueError):
             StopLossService.check_stop_loss(
@@ -527,7 +645,9 @@ class TestRiskServices:
 
         result = StopLossService.check_time_stop_loss(opened_at, now, max_holding_days=5)
         raised_high, raised_time = StopLossService.update_trailing_stop_highest(100, 110, now, None)
-        same_high, same_time = StopLossService.update_trailing_stop_highest(110, 100, now, opened_at)
+        same_high, same_time = StopLossService.update_trailing_stop_highest(
+            110, 100, now, opened_at
+        )
 
         assert result.should_trigger is True
         assert "时间止损触发" in result.trigger_reason
@@ -563,7 +683,9 @@ class TestRiskServices:
 
     def test_volatility_calculator_and_target_service(self):
         empty_metrics = VolatilityCalculator.calculate_volatility([], window_days=30)
-        metrics = VolatilityCalculator.calculate_volatility([0.01, -0.01, 0.02], window_days=2, annualize=False)
+        metrics = VolatilityCalculator.calculate_volatility(
+            [0.01, -0.01, 0.02], window_days=2, annualize=False
+        )
         rolling = VolatilityCalculator.calculate_portfolio_volatility(
             [
                 {"date": "2024-01-01", "total_value": 100},
@@ -597,7 +719,9 @@ class TestRiskServices:
         ("current_volatility", "target_volatility"),
         [(-0.1, 0.15), (0.2, 0.0)],
     )
-    def test_volatility_target_service_validates_inputs(self, current_volatility, target_volatility):
+    def test_volatility_target_service_validates_inputs(
+        self, current_volatility, target_volatility
+    ):
         with pytest.raises(ValueError):
             VolatilityTargetService.assess_volatility_adjustment(
                 current_volatility=current_volatility,
@@ -613,7 +737,9 @@ class TestLimitCheckService:
         object.__setattr__(value_position, "style", InvestmentStyle.VALUE)
 
         positions = [growth_position, value_position]
-        limits = MultiDimensionLimits(max_style_ratio=0.4, max_sector_ratio=0.25, max_foreign_currency_ratio=0.3)
+        limits = MultiDimensionLimits(
+            max_style_ratio=0.4, max_sector_ratio=0.25, max_foreign_currency_ratio=0.3
+        )
 
         style_result = LimitCheckService.check_style_limit(positions, "growth", limits)
         sector_result = LimitCheckService.check_sector_limit(positions, "tech", limits)
@@ -637,7 +763,11 @@ class TestLimitCheckService:
             [style_result, sector_result, currency_result]
         )
         allow, allow_reason = LimitCheckService.should_reject_position(
-            [LimitCheckResult("style", "value", Decimal("10"), Decimal("40"), 0.1, 0.4, False, True, "")]
+            [
+                LimitCheckResult(
+                    "style", "value", Decimal("10"), Decimal("40"), 0.1, 0.4, False, True, ""
+                )
+            ]
         )
 
         assert style_result.exceeds_limit is True

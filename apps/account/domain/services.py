@@ -640,9 +640,11 @@ class TakeProfitService:
 
         return TakeProfitCheckResult(
             should_trigger=should_trigger,
-            trigger_reason=f"止盈触发：当前价 {current_price:.2f} 达到止盈价 {take_profit_price:.2f}"
-            if should_trigger
-            else "未触发",
+            trigger_reason=(
+                f"止盈触发：当前价 {current_price:.2f} 达到止盈价 {take_profit_price:.2f}"
+                if should_trigger
+                else "未触发"
+            ),
             take_profit_price=take_profit_price,
             current_price=current_price,
             unrealized_pnl_pct=unrealized_pnl_pct,
@@ -1145,6 +1147,9 @@ class MacroSizingContext:
     regime_name: str
     pulse_composite: float
     pulse_warning: bool
+    market_temperature_score: float
+    market_temperature_band: str
+    market_temperature_degraded: bool
     portfolio_drawdown_pct: float
 
 
@@ -1155,6 +1160,7 @@ class SizingMultiplierResult:
     multiplier: float
     regime_factor: float
     pulse_factor: float
+    market_temperature_factor: float
     drawdown_factor: float
     action_hint: str
     reasoning: str
@@ -1166,8 +1172,9 @@ def calculate_macro_multiplier(
     config: "MacroSizingConfig",
 ) -> SizingMultiplierResult:
     """
-    根据宏观环境三因子计算仓位系数。
-    三因子相乘：最终系数 = regime_factor * pulse_factor * drawdown_factor。
+    根据宏观环境四因子计算仓位系数。
+    四因子相乘：
+    最终系数 = regime_factor * pulse_factor * market_temperature_factor * drawdown_factor。
 
     Args:
         ctx: 当前宏观状态快照
@@ -1178,19 +1185,34 @@ def calculate_macro_multiplier(
     """
     regime_factor = config.get_regime_factor(ctx.regime_confidence)
     pulse_factor = config.get_pulse_factor(ctx.pulse_composite, ctx.pulse_warning)
+    market_temperature_factor = (
+        1.0
+        if ctx.market_temperature_degraded
+        else config.get_market_temperature_factor(ctx.market_temperature_band)
+    )
     drawdown_factor = config.get_drawdown_factor(ctx.portfolio_drawdown_pct)
 
-    multiplier = round(regime_factor * pulse_factor * drawdown_factor, 4)
+    multiplier = round(
+        regime_factor * pulse_factor * market_temperature_factor * drawdown_factor,
+        4,
+    )
 
     regime_desc = _describe_regime_factor(regime_factor, ctx.regime_confidence)
     pulse_desc = _describe_pulse_factor(pulse_factor, ctx.pulse_composite, ctx.pulse_warning)
+    market_temperature_desc = _describe_market_temperature_factor(
+        factor=market_temperature_factor,
+        band=ctx.market_temperature_band,
+        score=ctx.market_temperature_score,
+        degraded=ctx.market_temperature_degraded,
+    )
     drawdown_desc = _describe_drawdown_factor(drawdown_factor, ctx.portfolio_drawdown_pct)
-    reasoning = "；".join([regime_desc, pulse_desc, drawdown_desc])
+    reasoning = "；".join([regime_desc, pulse_desc, market_temperature_desc, drawdown_desc])
 
     return SizingMultiplierResult(
         multiplier=multiplier,
         regime_factor=regime_factor,
         pulse_factor=pulse_factor,
+        market_temperature_factor=market_temperature_factor,
         drawdown_factor=drawdown_factor,
         action_hint=_derive_action_hint(multiplier),
         reasoning=reasoning,
@@ -1232,6 +1254,27 @@ def _describe_drawdown_factor(factor: float, drawdown: float) -> str:
     if factor == 0.0:
         return f"组合回撤{drawdown:.1%}已超上限，暂停新仓"
     return f"组合回撤{drawdown:.1%}（系数{factor:.2f}）"
+
+
+def _describe_market_temperature_factor(
+    *,
+    factor: float,
+    band: str,
+    score: float,
+    degraded: bool,
+) -> str:
+    if degraded:
+        return f"市场温度数据降级，未参与缩仓（系数{factor:.2f}）"
+
+    label_map = {
+        "cold": "冷",
+        "warm": "温",
+        "hot": "热",
+        "overheat": "过热",
+        "extreme": "极热",
+    }
+    label = label_map.get(str(band or "").strip().lower(), str(band or "未知"))
+    return f"市场温度{label}({score:.1f})（系数{factor:.2f}）"
 
 
 def _derive_action_hint(multiplier: float) -> str:

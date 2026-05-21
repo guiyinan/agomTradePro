@@ -38,6 +38,7 @@ from apps.account.domain.services import (
     calculate_portfolio_drawdown,
 )
 from apps.backtest.application.repository_provider import get_backtest_repository
+from apps.data_center.application.interface_services import load_market_thermometer_payload
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import get_signal_repository
 
@@ -617,6 +618,12 @@ class SizingContextOutput:
     regime_confidence: float
     pulse_composite: float
     pulse_warning: bool
+    market_temperature_score: float
+    market_temperature_band: str
+    market_temperature_threshold_source: str
+    market_temperature_degraded: bool
+    market_temperature_blocked_reason: str
+    market_temperature_blocks_new_position: bool
     portfolio_drawdown_pct: float
     snapshot_count: int
     multiplier_result: SizingMultiplierResult
@@ -665,6 +672,12 @@ class GetSizingContextUseCase:
         from apps.pulse.application.use_cases import GetLatestPulseUseCase
 
         pulse_unavailable = False
+        market_temperature_score = 0.0
+        market_temperature_band = "warm"
+        market_temperature_threshold_source = "system"
+        market_temperature_degraded = False
+        market_temperature_blocked_reason = ""
+        market_temperature_blocks_new_position = False
         try:
             pulse_snapshot = GetLatestPulseUseCase().execute(
                 as_of_date=target_date,
@@ -699,23 +712,69 @@ class GetSizingContextUseCase:
 
         value_history = [float(snapshot["total_value"]) for snapshot in snapshots]
         portfolio_drawdown_pct = calculate_portfolio_drawdown(value_history)
+        config = self.config_repo.get_active_config()
+
+        try:
+            market_thermometer_payload = load_market_thermometer_payload(
+                user_id=user_id,
+                use_personal_thresholds=True,
+            )
+        except Exception:
+            logger.exception("Failed to load market thermometer for macro sizing context")
+            market_thermometer_payload = None
+
+        if market_thermometer_payload is None:
+            warnings.append("market_temperature_unavailable")
+            market_temperature_degraded = True
+            market_temperature_blocked_reason = "市场温度数据不可用"
+        else:
+            market_temperature_score = float(market_thermometer_payload.get("score", 0.0) or 0.0)
+            market_temperature_band = (
+                str(
+                    market_thermometer_payload.get("effective_band")
+                    or market_thermometer_payload.get("band")
+                    or "warm"
+                )
+                .strip()
+                .lower()
+            )
+            market_temperature_threshold_source = str(
+                market_thermometer_payload.get("threshold_source") or "system"
+            )
+            market_temperature_degraded = bool(
+                market_thermometer_payload.get("must_not_use_for_decision", False)
+            )
+            market_temperature_blocked_reason = str(
+                market_thermometer_payload.get("blocked_reason") or ""
+            )
+            if market_temperature_degraded:
+                warnings.append("market_temperature_degraded")
+            market_temperature_blocks_new_position = (
+                config.should_block_new_position(market_temperature_band)
+                and not market_temperature_degraded
+            )
 
         context = MacroSizingContext(
             regime_confidence=regime_confidence,
             regime_name=regime_name,
             pulse_composite=pulse_composite,
             pulse_warning=pulse_warning,
+            market_temperature_score=market_temperature_score,
+            market_temperature_band=market_temperature_band,
+            market_temperature_degraded=market_temperature_degraded,
             portfolio_drawdown_pct=portfolio_drawdown_pct,
         )
         multiplier_result = calculate_macro_multiplier(
             context,
-            self.config_repo.get_active_config(),
+            config,
         )
         reasoning = self._build_reasoning(
             context=context,
             result=multiplier_result,
             regime_unavailable=regime_unavailable,
             pulse_unavailable=pulse_unavailable,
+            market_temperature_threshold_source=market_temperature_threshold_source,
+            market_temperature_blocked_reason=market_temperature_blocked_reason,
             snapshot_unavailable=snapshot_unavailable,
         )
 
@@ -726,12 +785,19 @@ class GetSizingContextUseCase:
             regime_confidence=context.regime_confidence,
             pulse_composite=context.pulse_composite,
             pulse_warning=context.pulse_warning,
+            market_temperature_score=context.market_temperature_score,
+            market_temperature_band=context.market_temperature_band,
+            market_temperature_threshold_source=market_temperature_threshold_source,
+            market_temperature_degraded=context.market_temperature_degraded,
+            market_temperature_blocked_reason=market_temperature_blocked_reason,
+            market_temperature_blocks_new_position=market_temperature_blocks_new_position,
             portfolio_drawdown_pct=context.portfolio_drawdown_pct,
             snapshot_count=len(snapshots),
             multiplier_result=SizingMultiplierResult(
                 multiplier=multiplier_result.multiplier,
                 regime_factor=multiplier_result.regime_factor,
                 pulse_factor=multiplier_result.pulse_factor,
+                market_temperature_factor=multiplier_result.market_temperature_factor,
                 drawdown_factor=multiplier_result.drawdown_factor,
                 action_hint=multiplier_result.action_hint,
                 reasoning=reasoning,
@@ -747,6 +813,8 @@ class GetSizingContextUseCase:
         result: SizingMultiplierResult,
         regime_unavailable: bool,
         pulse_unavailable: bool,
+        market_temperature_threshold_source: str,
+        market_temperature_blocked_reason: str,
         snapshot_unavailable: bool,
     ) -> str:
         regime_reason = (
@@ -762,6 +830,24 @@ class GetSizingContextUseCase:
             pulse_reason = (
                 f"Pulse综合分{context.pulse_composite:+.2f}（系数{result.pulse_factor:.2f}）"
             )
+        if context.market_temperature_degraded:
+            temperature_reason = (
+                f"市场温度数据降级，未参与缩仓（系数{result.market_temperature_factor:.2f}）"
+            )
+        else:
+            threshold_suffix = (
+                "，个人阈值" if market_temperature_threshold_source == "user_override" else ""
+            )
+            blocked_suffix = (
+                f"；{market_temperature_blocked_reason}"
+                if market_temperature_blocked_reason
+                else ""
+            )
+            temperature_reason = (
+                f"市场温度{context.market_temperature_band}"
+                f"({context.market_temperature_score:.1f}){threshold_suffix}"
+                f"（系数{result.market_temperature_factor:.2f}）{blocked_suffix}"
+            )
 
         if snapshot_unavailable:
             drawdown_reason = (
@@ -774,4 +860,4 @@ class GetSizingContextUseCase:
                 f"组合回撤{context.portfolio_drawdown_pct:.1%}（系数{result.drawdown_factor:.2f}）"
             )
 
-        return "；".join([regime_reason, pulse_reason, drawdown_reason])
+        return "；".join([regime_reason, pulse_reason, temperature_reason, drawdown_reason])

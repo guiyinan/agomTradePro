@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-05-19
+最后更新: 2026-05-21
 
 ## 概述
 
@@ -52,8 +52,62 @@
 
 - 页面: `/data-center/market-thermometer/`
 - Dashboard 卡片: 首页新增市场温度计卡片与 overheat/extreme attention 提示
+- Macro 页面: `/macro/data/` 顶部同步展示市场温度计卡片，方便宏观事实浏览与市场热度同屏观察
 - Terminal 命令: `market_temperature`
 - AI capability: `terminal_command.market_temperature`
+
+## 推荐链路集成
+
+市场温度计现在已经进入账户 sizing 与 Dashboard Alpha 推荐链路，具体规则如下：
+
+- Recommendation multiplier = `regime_factor * pulse_factor * market_temperature_factor * drawdown_factor`
+- `market_temperature_factor` 不复用温度计阈值本身，而是由 `account.MacroSizingConfigModel` 单独配置，便于把“分段判定”和“仓位缩放”拆开管理
+- 默认缩放规则：
+  - `cold = 1.00`
+  - `warm = 1.00`
+  - `hot = 0.90`
+  - `overheat = 0.75`
+  - `extreme = 0.35`
+- 默认 `extreme` 还会触发 `block_new_position_on_extreme=True`，对“当前无持仓的新建仓建议”直接阻断
+- 如果温度计 payload 标记为 `must_not_use_for_decision=True`，推荐链路会降级为中性，不使用温度因子缩仓，也不会触发 extreme 阻断
+
+## 可调参数
+
+以下字段位于 `apps/account/infrastructure/models.py::MacroSizingConfigModel`，可单独调整：
+
+- `market_temperature_cold_factor`
+- `market_temperature_warm_factor`
+- `market_temperature_hot_factor`
+- `market_temperature_overheat_factor`
+- `market_temperature_extreme_factor`
+- `block_new_position_on_extreme`
+
+这意味着：
+
+- `data_center` 负责“温度怎么算、band 怎么判”
+- `account` 负责“不同 band 对仓位和是否允许开新仓有什么影响”
+
+两层权责分离，避免把交易动作权重硬编码回温度计模块。
+
+## SDK / MCP
+
+这组权重现在已经打通到 API、SDK 和 MCP：
+
+- HTTP API:
+  - `GET /api/account/macro-sizing-config/`
+  - `PATCH /api/account/macro-sizing-config/`
+  - `PUT /api/account/macro-sizing-config/`
+- Python SDK:
+  - `client.account.get_macro_sizing_config()`
+  - `client.account.update_macro_sizing_config(payload, partial=True)`
+- MCP tools:
+  - `get_macro_sizing_config`
+  - `update_macro_sizing_config`
+
+权限边界：
+
+- 读取：任意已认证用户可读当前生效配置
+- 更新：仅 `staff/superuser` 可通过 API / SDK / MCP 创建新版本并切换生效配置
 
 ## 默认规则
 

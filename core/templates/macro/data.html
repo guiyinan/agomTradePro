@@ -1764,7 +1764,15 @@ function getCookie(name) {
             </div>
         </div>
     </div>
-    </div>
+</div>
+
+{% with mt=market_thermometer %}
+{% if mt %}
+<div class="macro-thermometer-row">
+    {% include "components/market_thermometer_card.html" with market_temperature_observed_at=mt.market_temperature_observed_at market_temperature_score=mt.market_temperature_score market_temperature_band=mt.market_temperature_band market_temperature_band_label=mt.market_temperature_band_label market_temperature_change_5d=mt.market_temperature_change_5d market_temperature_change_20d=mt.market_temperature_change_20d market_temperature_change_5d_arrow=mt.market_temperature_change_5d_arrow market_temperature_change_20d_arrow=mt.market_temperature_change_20d_arrow market_temperature_is_hot=mt.market_temperature_is_hot market_temperature_is_overheat=mt.market_temperature_is_overheat market_temperature_threshold_source=mt.market_temperature_threshold_source market_temperature_components=mt.market_temperature_components market_temperature_top_reasons=mt.market_temperature_top_reasons market_temperature_degraded=mt.market_temperature_degraded market_temperature_blocked_reason=mt.market_temperature_blocked_reason only %}
+</div>
+{% endif %}
+{% endwith %}
 
 <div class="macro-dashboard">
     <!-- 左侧边栏 -->
@@ -2022,6 +2030,10 @@ function getCookie(name) {
     margin-bottom: 20px;
 }
 
+.macro-thermometer-row {
+    margin-bottom: 20px;
+}
+
 .stat-card {
     display: flex;
     align-items: center;
@@ -2055,6 +2067,134 @@ function getCookie(name) {
 
 .stat-value.stat-date {
     font-size: 14px;
+}
+
+.pulse-dashboard-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+}
+
+.pulse-card__header,
+.pulse-composite {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.pulse-card__header {
+    margin-bottom: 16px;
+}
+
+.pulse-card__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.pulse-card__date {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.pulse-composite__score {
+    min-width: 88px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.pulse-composite--weak {
+    background: rgba(14, 165, 233, 0.12);
+    color: #0369A1;
+}
+
+.pulse-composite--moderate {
+    background: rgba(245, 158, 11, 0.12);
+    color: #B45309;
+}
+
+.pulse-composite--strong {
+    background: rgba(239, 68, 68, 0.12);
+    color: #B91C1C;
+}
+
+.pulse-composite__label {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-align: right;
+}
+
+.pulse-warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #92400E;
+}
+
+.pulse-warning__text {
+    font-size: 13px;
+}
+
+.pulse-transition-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pulse-dimensions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.pulse-dim {
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.pulse-dim__label,
+.pulse-dim__score {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.pulse-dim__score {
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+
+.pulse-dim__bar {
+    height: 8px;
+    background: rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.pulse-dim__fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.pulse-stale-notice {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    color: #991B1B;
+    font-size: 13px;
 }
 
 /* 主布局 */
@@ -2822,6 +2962,20 @@ function getCookie(name) {
     }
 
     .stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .pulse-composite,
+    .pulse-card__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pulse-composite__label {
+        text-align: left;
+    }
+
+    .pulse-dimensions {
         grid-template-columns: 1fr;
     }
 

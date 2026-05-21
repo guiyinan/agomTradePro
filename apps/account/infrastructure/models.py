@@ -1434,6 +1434,30 @@ class MacroSizingConfigModel(models.Model):
     warning_factor = models.FloatField(
         default=0.5, help_text="Pulse 转折预警时的系数覆盖值（0.0-1.0），优先于 pulse_tiers"
     )
+    market_temperature_cold_factor = models.FloatField(
+        default=1.0,
+        help_text="市场温度 cold 分段对应的仓位系数。",
+    )
+    market_temperature_warm_factor = models.FloatField(
+        default=1.0,
+        help_text="市场温度 warm 分段对应的仓位系数。",
+    )
+    market_temperature_hot_factor = models.FloatField(
+        default=0.9,
+        help_text="市场温度 hot 分段对应的仓位系数。",
+    )
+    market_temperature_overheat_factor = models.FloatField(
+        default=0.75,
+        help_text="市场温度 overheat 分段对应的仓位系数。",
+    )
+    market_temperature_extreme_factor = models.FloatField(
+        default=0.35,
+        help_text="市场温度 extreme 分段对应的仓位系数。",
+    )
+    block_new_position_on_extreme = models.BooleanField(
+        default=True,
+        help_text="当市场温度进入 extreme 时是否阻断新增仓位建议。",
+    )
     drawdown_tiers_json = models.JSONField(
         help_text='格式：[{"min_drawdown": 0.15, "factor": 0.0}, ...]，按 min_drawdown 降序'
     )

@@ -833,6 +833,161 @@ def test_alpha_homepage_watch_candidate_remains_usable_for_decision():
     assert item["no_buy_reasons"][0]["code"] == "DECISION_WATCH"
 
 
+def test_alpha_homepage_market_temperature_extreme_blocks_new_position():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "allow", ["ALLOW"], "可执行", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=0.91,
+            rank=1,
+            source="qlib",
+            confidence=0.82,
+            factors={"momentum": 0.9},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=SimpleNamespace(
+            multiplier_result=SimpleNamespace(multiplier=0.35, market_temperature_factor=0.35),
+            regime_name="Recovery",
+            regime_confidence=0.8,
+            pulse_composite=0.2,
+            pulse_warning=False,
+            market_temperature_score=91.0,
+            market_temperature_band="extreme",
+            market_temperature_threshold_source="system",
+            market_temperature_degraded=False,
+            market_temperature_blocked_reason="市场温度已进入 extreme，新仓建议暂时关闭。",
+            market_temperature_blocks_new_position=True,
+        ),
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "provider_source": "qlib",
+            "scope_hash": "scope-1",
+            "scope_label": "账户驱动 Alpha 池",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "recommendation_ready": True,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+            "scope_verification_status": "verified",
+            "freshness_status": "fresh",
+            "result_age_days": 0,
+            "verified_scope_hash": "scope-1",
+            "verified_asof_date": "2026-04-21",
+            "latest_available_qlib_result": True,
+            "derived_from_broader_cache": False,
+        },
+    )
+
+    assert item["stage"] == "top_ranked"
+    assert item["recommendation_ready"] is False
+    assert item["blocked_reason"] == "市场温度已进入 extreme，新仓建议暂时关闭。"
+    assert any(reason["code"] == "MARKET_TEMPERATURE_BLOCK" for reason in item["no_buy_reasons"])
+    assert item["risk_snapshot"]["market_temperature_band"] == "extreme"
+
+
+def test_alpha_homepage_hot_market_temperature_shrinks_notional_without_blocking():
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeDecisionEngine:
+        @staticmethod
+        def evaluate(**kwargs):
+            return "allow", ["ALLOW"], "可执行", {}
+
+    class FakeSizingEngine:
+        @staticmethod
+        def calculate(**kwargs):
+            return 10000.0, 100.0, None, None, "sizing ok"
+
+    class FakeRiskGate:
+        @staticmethod
+        def check(**kwargs):
+            return True, [], [], {"liquidity": "ok"}
+
+    query.decision_engine = FakeDecisionEngine()
+    query.sizing_engine = FakeSizingEngine()
+    query.risk_gate = FakeRiskGate()
+
+    item = query._build_candidate_item(
+        score=SimpleNamespace(
+            code="000001.SZ",
+            score=0.91,
+            rank=1,
+            source="qlib",
+            confidence=0.82,
+            factors={"momentum": 0.9},
+            asof_date=date(2026, 4, 21),
+        ),
+        stock_context={"name": "平安银行", "close": 10.0, "volume": 1000000},
+        actionable_candidate=None,
+        pending_request=None,
+        sizing_context=SimpleNamespace(
+            multiplier_result=SimpleNamespace(multiplier=0.9, market_temperature_factor=0.9),
+            regime_name="Recovery",
+            regime_confidence=0.8,
+            pulse_composite=0.2,
+            pulse_warning=False,
+            market_temperature_score=68.0,
+            market_temperature_band="hot",
+            market_temperature_threshold_source="user_override",
+            market_temperature_degraded=False,
+            market_temperature_blocked_reason="",
+            market_temperature_blocks_new_position=False,
+        ),
+        portfolio_snapshot=SimpleNamespace(total_value=100000.0),
+        position_map={},
+        policy_state={"gate_level": "L1"},
+        meta={
+            "provider_source": "qlib",
+            "scope_hash": "scope-1",
+            "scope_label": "账户驱动 Alpha 池",
+            "requested_trade_date": "2026-04-21",
+            "effective_asof_date": "2026-04-21",
+            "recommendation_ready": True,
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+            "scope_verification_status": "verified",
+            "freshness_status": "fresh",
+            "result_age_days": 0,
+            "verified_scope_hash": "scope-1",
+            "verified_asof_date": "2026-04-21",
+            "latest_available_qlib_result": True,
+            "derived_from_broader_cache": False,
+        },
+    )
+
+    assert item["stage"] == "actionable"
+    assert item["recommendation_ready"] is True
+    assert item["suggested_notional"] == 9000.0
+    assert item["risk_snapshot"]["market_temperature_factor"] == 0.9
+    assert item["recommendation_basis"]["market_temperature_threshold_source"] == "user_override"
+    assert any(reason["code"] == "MARKET_TEMPERATURE_CONTEXT" for reason in item["buy_reasons"])
+
+
 def test_alpha_homepage_factor_basis_is_explicit_and_data_driven():
     query = object.__new__(AlphaHomepageQuery)
 

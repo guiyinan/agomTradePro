@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 from typing import Any
 
@@ -9,6 +10,7 @@ from apps.data_center.application.dtos import MacroDataPoint, MacroSeriesRequest
 from apps.data_center.application.interface_services import (
     get_active_provider_id_by_source,
     load_macro_governance_payload,
+    load_market_thermometer_payload,
     make_query_macro_series_use_case,
 )
 from apps.data_center.application.repository_provider import get_indicator_catalog_repository
@@ -41,6 +43,7 @@ TABLE_SORT_FIELDS = {
 }
 
 _UNSET = object()
+logger = logging.getLogger(__name__)
 
 
 def _format_reporting_period_label(reporting_period: date, period_type: str) -> str:
@@ -78,9 +81,7 @@ def _select_default_indicator_code(indicator_map: dict[str, dict[str, Any]]) -> 
 
     with_data = [item for item in indicator_map.values() if item.get("has_data")]
     if with_data:
-        with_data.sort(
-            key=lambda item: (-int(item.get("display_priority", 0)), item["code"])
-        )
+        with_data.sort(key=lambda item: (-int(item.get("display_priority", 0)), item["code"]))
         return with_data[0]["code"]
     return next(iter(indicator_map), "")
 
@@ -218,7 +219,11 @@ def _format_macro_data_point_for_display(
     }
 
 
-def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, Any]:
+def get_macro_data_page_snapshot(
+    *,
+    selected_indicator: str = "",
+    user_id: int | None = None,
+) -> dict[str, Any]:
     """Return view-model data for the macro data management page."""
 
     read_repository = get_macro_read_repository()
@@ -330,23 +335,23 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
             key=lambda row: row["reporting_period"],
         )
         serialized_history = history_rows
-        indicator_map[resolved_selected_indicator]["freshness_status"] = (
-            series_response.freshness_status
-        )
-        indicator_map[resolved_selected_indicator]["decision_grade"] = (
-            series_response.decision_grade
-        )
-        indicator_map[resolved_selected_indicator]["blocked_reason"] = (
-            series_response.blocked_reason
-        )
+        indicator_map[resolved_selected_indicator][
+            "freshness_status"
+        ] = series_response.freshness_status
+        indicator_map[resolved_selected_indicator][
+            "decision_grade"
+        ] = series_response.decision_grade
+        indicator_map[resolved_selected_indicator][
+            "blocked_reason"
+        ] = series_response.blocked_reason
         indicator_map[resolved_selected_indicator]["latest_published_at"] = (
             series_response.latest_published_at.isoformat()
             if series_response.latest_published_at
             else ""
         )
-        indicator_map[resolved_selected_indicator]["latest_quality"] = (
-            series_response.latest_quality
-        )
+        indicator_map[resolved_selected_indicator][
+            "latest_quality"
+        ] = series_response.latest_quality
     else:
         serialized_history = [_format_indicator_row_for_display(row) for row in history_rows]
 
@@ -354,6 +359,48 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
     bulk_refresh_indicator_codes = [
         code for code, item in indicator_map.items() if item.get("sync_supported")
     ]
+    try:
+        market_thermometer_payload = load_market_thermometer_payload(
+            user_id=user_id,
+            use_personal_thresholds=True,
+        )
+    except Exception:
+        logger.exception("Failed to load market thermometer for macro page snapshot")
+        market_thermometer_payload = {
+            "observed_at": "",
+            "score": 0.0,
+            "effective_band": "warm",
+            "threshold_source": "system",
+            "change_5d": 0.0,
+            "change_20d": 0.0,
+            "components": [],
+            "top_reasons": [],
+            "must_not_use_for_decision": True,
+            "blocked_reason": "市场温度数据暂不可用",
+        }
+    effective_band = (
+        str(
+            market_thermometer_payload.get("effective_band")
+            or market_thermometer_payload.get("band")
+            or "warm"
+        )
+        .strip()
+        .lower()
+    )
+    band_label_map = {
+        "cold": "偏冷",
+        "warm": "温和",
+        "hot": "偏热",
+        "overheat": "过热",
+        "extreme": "极热",
+    }
+    change_5d = float(market_thermometer_payload.get("change_5d", 0.0) or 0.0)
+    change_20d = float(market_thermometer_payload.get("change_20d", 0.0) or 0.0)
+    sorted_components = sorted(
+        market_thermometer_payload.get("components") or [],
+        key=lambda item: float(item.get("score", 0.0) or 0.0),
+        reverse=True,
+    )
     return {
         "indicator_map": indicator_map,
         "selected_indicator": resolved_selected_indicator,
@@ -373,6 +420,33 @@ def get_macro_data_page_snapshot(*, selected_indicator: str = "") -> dict[str, A
         "sync_supported_indicator_count": len(bulk_refresh_indicator_codes),
         "sync_unsupported_indicator_count": len(indicator_map) - len(bulk_refresh_indicator_codes),
         "bulk_refresh_indicator_codes": bulk_refresh_indicator_codes,
+        "market_thermometer": {
+            "market_temperature_observed_at": market_thermometer_payload.get("observed_at"),
+            "market_temperature_score": float(market_thermometer_payload.get("score", 0.0) or 0.0),
+            "market_temperature_band": effective_band,
+            "market_temperature_band_label": band_label_map.get(effective_band, "未知"),
+            "market_temperature_change_5d": change_5d,
+            "market_temperature_change_20d": change_20d,
+            "market_temperature_change_5d_arrow": (
+                "↑" if change_5d > 0 else ("↓" if change_5d < 0 else "→")
+            ),
+            "market_temperature_change_20d_arrow": (
+                "↑" if change_20d > 0 else ("↓" if change_20d < 0 else "→")
+            ),
+            "market_temperature_is_hot": effective_band in {"hot", "overheat", "extreme"},
+            "market_temperature_is_overheat": effective_band in {"overheat", "extreme"},
+            "market_temperature_threshold_source": market_thermometer_payload.get(
+                "threshold_source", "system"
+            ),
+            "market_temperature_components": sorted_components,
+            "market_temperature_top_reasons": market_thermometer_payload.get("top_reasons") or [],
+            "market_temperature_degraded": bool(
+                market_thermometer_payload.get("must_not_use_for_decision", False)
+            ),
+            "market_temperature_blocked_reason": str(
+                market_thermometer_payload.get("blocked_reason") or ""
+            ),
+        },
     }
 
 

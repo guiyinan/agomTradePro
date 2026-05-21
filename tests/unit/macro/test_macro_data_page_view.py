@@ -59,6 +59,26 @@ class MacroDataPageViewTests(TestCase):
             "sync_supported_indicator_count": 1,
             "sync_unsupported_indicator_count": 0,
             "bulk_refresh_indicator_codes": ["CN_PMI"],
+            "market_thermometer": {
+                "market_temperature_observed_at": "2026-05-20",
+                "market_temperature_score": 76.8,
+                "market_temperature_band": "overheat",
+                "market_temperature_band_label": "过热",
+                "market_temperature_change_5d": 4.2,
+                "market_temperature_change_20d": 11.8,
+                "market_temperature_change_5d_arrow": "↑",
+                "market_temperature_change_20d_arrow": "↑",
+                "market_temperature_is_hot": True,
+                "market_temperature_is_overheat": True,
+                "market_temperature_threshold_source": "user_override",
+                "market_temperature_components": [
+                    {"label": "成交额", "score": 81.0},
+                    {"label": "融资余额", "score": 77.0},
+                ],
+                "market_temperature_top_reasons": ["成交额抬升", "融资余额抬升"],
+                "market_temperature_degraded": False,
+                "market_temperature_blocked_reason": "",
+            },
         }
 
         request = self.factory.get("/macro/data/?indicator=CN_PMI")
@@ -77,6 +97,8 @@ class MacroDataPageViewTests(TestCase):
         self.assertIn("dataDetailDrawer", content)
         self.assertIn("复制当前区间 Markdown", content)
         self.assertIn("indicatorGovernanceNote", content)
+        self.assertIn("市场温度计", content)
+        self.assertIn("过热", content)
 
     def test_macro_data_view_keeps_same_quarter_color_across_reset_cycles(self) -> None:
         """Quarter-based reset-stack charts should reuse one fixed color per quarter."""
@@ -146,6 +168,23 @@ class MacroDataPageViewTests(TestCase):
             "sync_supported_indicator_count": 1,
             "sync_unsupported_indicator_count": 0,
             "bulk_refresh_indicator_codes": ["CN_GDP"],
+            "market_thermometer": {
+                "market_temperature_observed_at": "2026-05-20",
+                "market_temperature_score": 52.0,
+                "market_temperature_band": "warm",
+                "market_temperature_band_label": "温和",
+                "market_temperature_change_5d": 0.0,
+                "market_temperature_change_20d": 1.2,
+                "market_temperature_change_5d_arrow": "→",
+                "market_temperature_change_20d_arrow": "↑",
+                "market_temperature_is_hot": False,
+                "market_temperature_is_overheat": False,
+                "market_temperature_threshold_source": "system",
+                "market_temperature_components": [],
+                "market_temperature_top_reasons": [],
+                "market_temperature_degraded": False,
+                "market_temperature_blocked_reason": "",
+            },
         }
 
         request = self.factory.get("/macro/data/?indicator=CN_GDP")
@@ -166,7 +205,9 @@ class MacroDataPageViewTests(TestCase):
         self.assertIn("return `Q${Math.floor((monthNumber - 1) / 3) + 1}`;", content)
         self.assertIn("return ['Q1', 'Q2', 'Q3', 'Q4'];", content)
         self.assertIn("periodType: String(row.period_type || payload.period_type || ''),", content)
-        self.assertIn("const periodType = String(chartPoints?.[0]?.periodType || '').toUpperCase();", content)
+        self.assertIn(
+            "const periodType = String(chartPoints?.[0]?.periodType || '').toUpperCase();", content
+        )
 
     def test_macro_data_view_uses_grouped_visible_range_for_reset_stack_charts(self) -> None:
         """Reset-stack charts should apply range presets on grouped bars, not raw rows."""
@@ -262,6 +303,23 @@ class MacroDataPageViewTests(TestCase):
             "sync_supported_indicator_count": 1,
             "sync_unsupported_indicator_count": 0,
             "bulk_refresh_indicator_codes": ["CN_FIXED_INVESTMENT"],
+            "market_thermometer": {
+                "market_temperature_observed_at": "2026-05-20",
+                "market_temperature_score": 48.0,
+                "market_temperature_band": "warm",
+                "market_temperature_band_label": "温和",
+                "market_temperature_change_5d": -1.0,
+                "market_temperature_change_20d": 0.5,
+                "market_temperature_change_5d_arrow": "↓",
+                "market_temperature_change_20d_arrow": "↑",
+                "market_temperature_is_hot": False,
+                "market_temperature_is_overheat": False,
+                "market_temperature_threshold_source": "system",
+                "market_temperature_components": [],
+                "market_temperature_top_reasons": [],
+                "market_temperature_degraded": False,
+                "market_temperature_blocked_reason": "",
+            },
         }
 
         request = self.factory.get("/macro/data/?indicator=CN_FIXED_INVESTMENT")
@@ -278,8 +336,14 @@ class MacroDataPageViewTests(TestCase):
         self.assertIn("function getCurrentChartContext(payload = currentIndicatorPayload)", content)
         self.assertIn("const visiblePointCount = getVisiblePointCount();", content)
         self.assertIn("个周期 / 覆盖", content)
-        self.assertIn("chartContext ? chartContext.chartConfig.xAxisData.length : initialPayload.data.length", content)
-        self.assertIn("chartContext ? chartContext.chartConfig.xAxisData.length : currentIndicatorPayload.data.length", content)
+        self.assertIn(
+            "chartContext ? chartContext.chartConfig.xAxisData.length : initialPayload.data.length",
+            content,
+        )
+        self.assertIn(
+            "chartContext ? chartContext.chartConfig.xAxisData.length : currentIndicatorPayload.data.length",
+            content,
+        )
 
     def test_macro_data_view_labels_first_monthly_cumulative_segment_as_ytd_span(self) -> None:
         """Monthly cumulative reset-stack charts should explain the first YTD segment."""
@@ -362,6 +426,23 @@ class MacroDataPageViewTests(TestCase):
             "sync_supported_indicator_count": 1,
             "sync_unsupported_indicator_count": 0,
             "bulk_refresh_indicator_codes": ["CN_FIXED_INVESTMENT"],
+            "market_thermometer": {
+                "market_temperature_observed_at": "2026-05-20",
+                "market_temperature_score": 48.0,
+                "market_temperature_band": "warm",
+                "market_temperature_band_label": "温和",
+                "market_temperature_change_5d": -1.0,
+                "market_temperature_change_20d": 0.5,
+                "market_temperature_change_5d_arrow": "↓",
+                "market_temperature_change_20d_arrow": "↑",
+                "market_temperature_is_hot": False,
+                "market_temperature_is_overheat": False,
+                "market_temperature_threshold_source": "system",
+                "market_temperature_components": [],
+                "market_temperature_top_reasons": [],
+                "market_temperature_degraded": False,
+                "market_temperature_blocked_reason": "",
+            },
         }
 
         request = self.factory.get("/macro/data/?indicator=CN_FIXED_INVESTMENT")
@@ -436,6 +517,23 @@ class MacroDataPageViewTests(TestCase):
             "sync_supported_indicator_count": 1,
             "sync_unsupported_indicator_count": 0,
             "bulk_refresh_indicator_codes": ["CN_GDP"],
+            "market_thermometer": {
+                "market_temperature_observed_at": "2026-05-20",
+                "market_temperature_score": 48.0,
+                "market_temperature_band": "warm",
+                "market_temperature_band_label": "温和",
+                "market_temperature_change_5d": 0.0,
+                "market_temperature_change_20d": 1.0,
+                "market_temperature_change_5d_arrow": "→",
+                "market_temperature_change_20d_arrow": "↑",
+                "market_temperature_is_hot": False,
+                "market_temperature_is_overheat": False,
+                "market_temperature_threshold_source": "system",
+                "market_temperature_components": [],
+                "market_temperature_top_reasons": [],
+                "market_temperature_degraded": False,
+                "market_temperature_blocked_reason": "",
+            },
         }
 
         request = self.factory.get("/macro/data/?indicator=CN_GDP")

@@ -89,6 +89,7 @@ class TestSizingContextAPI:
         components = resp.json()["components"]
         assert "regime_factor" in components
         assert "pulse_factor" in components
+        assert "market_temperature_factor" in components
         assert "drawdown_factor" in components
 
     def test_context_structure(self, auth_client, default_config):
@@ -98,6 +99,12 @@ class TestSizingContextAPI:
         assert "regime_confidence" in ctx
         assert "pulse_composite" in ctx
         assert "pulse_warning" in ctx
+        assert "market_temperature_score" in ctx
+        assert "market_temperature_band" in ctx
+        assert "market_temperature_threshold_source" in ctx
+        assert "market_temperature_degraded" in ctx
+        assert "market_temperature_blocked_reason" in ctx
+        assert "market_temperature_blocks_new_position" in ctx
         assert "portfolio_drawdown_pct" in ctx
 
     def test_calculated_at_is_iso8601(self, auth_client, default_config):
@@ -143,6 +150,23 @@ class TestSizingContextAPI:
         assert resp.status_code == status.HTTP_200_OK
         assert "snapshot_unavailable" in data["warnings"]
         assert "组合回撤数据不可用" in data["reasoning"]
+
+    def test_market_temperature_unavailable_degrades_to_neutral_context(
+        self, auth_client, default_config
+    ):
+        with patch(
+            "apps.account.application.use_cases.load_market_thermometer_payload",
+            side_effect=RuntimeError("thermometer down"),
+        ):
+            resp = auth_client.get("/api/account/sizing-context/")
+
+        data = resp.json()
+        assert resp.status_code == status.HTTP_200_OK
+        assert "market_temperature_unavailable" in data["warnings"]
+        assert data["components"]["market_temperature_factor"] == 1.0
+        assert data["context"]["market_temperature_degraded"] is True
+        assert data["context"]["market_temperature_band"] == "warm"
+        assert "市场温度数据降级" in data["reasoning"]
 
     def test_pulse_unreliable_degrades_to_neutral_context(self, auth_client, default_config):
         captured: dict[str, object] = {}

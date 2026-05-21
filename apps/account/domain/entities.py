@@ -6,7 +6,7 @@ Account Domain Entities
 禁止依赖 Django、Pandas 等外部库。
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
@@ -540,6 +540,15 @@ class DrawdownTier:
 
 
 @dataclass(frozen=True)
+class MarketTemperatureTier:
+    """市场温度档位配置（单档）"""
+
+    band: str
+    factor: float
+    block_new_position: bool = False
+
+
+@dataclass(frozen=True)
 class MacroSizingConfig:
     """
     宏观感知仓位系数配置（值对象）。
@@ -560,6 +569,15 @@ class MacroSizingConfig:
     pulse_tiers: list[PulseTier]
     warning_factor: float
     drawdown_tiers: list[DrawdownTier]
+    market_temperature_tiers: list[MarketTemperatureTier] = field(
+        default_factory=lambda: [
+            MarketTemperatureTier(band="cold", factor=1.0, block_new_position=False),
+            MarketTemperatureTier(band="warm", factor=1.0, block_new_position=False),
+            MarketTemperatureTier(band="hot", factor=0.9, block_new_position=False),
+            MarketTemperatureTier(band="overheat", factor=0.75, block_new_position=False),
+            MarketTemperatureTier(band="extreme", factor=0.35, block_new_position=True),
+        ]
+    )
     version: int = 1
 
     def get_regime_factor(self, confidence: float) -> float:
@@ -587,3 +605,21 @@ class MacroSizingConfig:
             if drawdown_pct >= tier.min_drawdown:
                 return tier.factor
         return 1.0
+
+    def get_market_temperature_factor(self, band: str) -> float:
+        """按市场温度分段返回仓位缩放系数。"""
+
+        normalized_band = str(band or "").strip().lower()
+        for tier in self.market_temperature_tiers:
+            if tier.band.lower() == normalized_band:
+                return tier.factor
+        return 1.0
+
+    def should_block_new_position(self, band: str) -> bool:
+        """判断当前市场温度是否应阻断新增仓位。"""
+
+        normalized_band = str(band or "").strip().lower()
+        for tier in self.market_temperature_tiers:
+            if tier.band.lower() == normalized_band:
+                return bool(tier.block_new_position)
+        return False

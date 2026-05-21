@@ -191,6 +191,24 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
         "apps.macro.application.interface_services.make_query_macro_series_use_case",
         lambda: _FakeM2QueryUseCase(),
     )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_market_thermometer_payload",
+        lambda user_id=None, use_personal_thresholds=True: {
+            "observed_at": "2026-05-20",
+            "score": 72.4,
+            "effective_band": "hot",
+            "threshold_source": "user_override",
+            "change_5d": 4.2,
+            "change_20d": 11.5,
+            "top_reasons": ["成交额抬升", "融资余额抬升"],
+            "components": [
+                {"label": "成交额", "score": 81.0},
+                {"label": "融资余额", "score": 77.0},
+            ],
+            "must_not_use_for_decision": False,
+            "blocked_reason": "",
+        },
+    )
 
     snapshot = get_macro_data_page_snapshot()
 
@@ -216,6 +234,12 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
     assert snapshot["history"][0]["decision_grade"] == "decision_safe"
     assert snapshot["indicator_map"]["CN_M2"]["freshness_status"] == "fresh"
     assert snapshot["indicator_map"]["CN_M2"]["decision_grade"] == "decision_safe"
+    assert snapshot["market_thermometer"]["market_temperature_band"] == "hot"
+    assert snapshot["market_thermometer"]["market_temperature_threshold_source"] == "user_override"
+    assert snapshot["market_thermometer"]["market_temperature_top_reasons"] == [
+        "成交额抬升",
+        "融资余额抬升",
+    ]
 
 
 def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):

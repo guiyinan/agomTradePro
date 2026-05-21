@@ -2,7 +2,6 @@
 DRF Serializers for Account API.
 """
 
-
 from django.apps import apps as django_apps
 from rest_framework import serializers
 
@@ -27,16 +26,22 @@ TransactionModel = django_apps.get_model("account", "TransactionModel")
 
 # ==================== Account Profile ====================
 
+
 class AccountProfileSerializer(serializers.ModelSerializer):
     """账户配置序列化器"""
 
     class Meta:
         model = AccountProfileModel
         fields = [
-            'id', 'display_name', 'initial_capital', 'risk_tolerance', 'rbac_role',
-            'created_at', 'updated_at'
+            "id",
+            "display_name",
+            "initial_capital",
+            "risk_tolerance",
+            "rbac_role",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['rbac_role', 'created_at', 'updated_at']
+        read_only_fields = ["rbac_role", "created_at", "updated_at"]
 
 
 class AccountProfileUpdateSerializer(serializers.ModelSerializer):
@@ -44,17 +49,22 @@ class AccountProfileUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AccountProfileModel
-        fields = ['display_name', 'risk_tolerance']
+        fields = ["display_name", "risk_tolerance"]
 
 
 # ==================== Portfolio ====================
 
+
 class PortfolioSerializer(serializers.ModelSerializer):
     """投资组合序列化器"""
 
-    username = serializers.CharField(source='user.username', read_only=True)
-    base_currency_code = serializers.CharField(source='base_currency.code', read_only=True, allow_null=True)
-    base_currency_name = serializers.CharField(source='base_currency.name', read_only=True, allow_null=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    base_currency_code = serializers.CharField(
+        source="base_currency.code", read_only=True, allow_null=True
+    )
+    base_currency_name = serializers.CharField(
+        source="base_currency.name", read_only=True, allow_null=True
+    )
     total_value = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     total_cost = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
     total_pnl = serializers.DecimalField(max_digits=20, decimal_places=2, read_only=True)
@@ -64,11 +74,22 @@ class PortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortfolioModel
         fields = [
-            'id', 'name', 'is_active', 'base_currency', 'base_currency_code', 'base_currency_name',
-            'total_value', 'total_cost', 'total_pnl', 'total_pnl_pct', 'position_count',
-            'username', 'created_at', 'updated_at'
+            "id",
+            "name",
+            "is_active",
+            "base_currency",
+            "base_currency_code",
+            "base_currency_name",
+            "total_value",
+            "total_cost",
+            "total_pnl",
+            "total_pnl_pct",
+            "position_count",
+            "username",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ["created_at", "updated_at"]
 
 
 class PortfolioCreateSerializer(serializers.ModelSerializer):
@@ -76,10 +97,11 @@ class PortfolioCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PortfolioModel
-        fields = ['name', 'is_active', 'base_currency']
+        fields = ["name", "is_active", "base_currency"]
 
 
 # ==================== Position ====================
+
 
 class PositionSerializer(serializers.Serializer):
     """统一账本持仓输出序列化器。"""
@@ -121,9 +143,17 @@ class PositionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = PositionModel
         fields = [
-            'asset_code', 'category', 'currency',
-            'asset_class', 'region', 'cross_border',
-            'shares', 'avg_cost', 'current_price', 'source', 'source_id'
+            "asset_code",
+            "category",
+            "currency",
+            "asset_class",
+            "region",
+            "cross_border",
+            "shares",
+            "avg_cost",
+            "current_price",
+            "source",
+            "source_id",
         ]
 
     def validate_shares(self, value):
@@ -142,25 +172,36 @@ class PositionUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PositionModel
-        fields = ['shares', 'avg_cost', 'current_price']
+        fields = ["shares", "avg_cost", "current_price"]
 
 
 # ==================== Transaction ====================
 
+
 class TransactionSerializer(serializers.ModelSerializer):
     """交易记录序列化器"""
 
-    portfolio_name = serializers.CharField(source='portfolio.name', read_only=True)
+    portfolio_name = serializers.CharField(source="portfolio.name", read_only=True)
     asset_code = serializers.CharField(read_only=True)
 
     class Meta:
         model = TransactionModel
         fields = [
-            'id', 'portfolio', 'portfolio_name', 'position', 'asset_code',
-            'action', 'shares', 'price', 'notional', 'commission',
-            'notes', 'traded_at', 'created_at'
+            "id",
+            "portfolio",
+            "portfolio_name",
+            "position",
+            "asset_code",
+            "action",
+            "shares",
+            "price",
+            "notional",
+            "commission",
+            "notes",
+            "traded_at",
+            "created_at",
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = ["created_at"]
 
 
 class TransactionCreateSerializer(serializers.ModelSerializer):
@@ -169,8 +210,15 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TransactionModel
         fields = [
-            'portfolio', 'position', 'action', 'asset_code',
-            'shares', 'price', 'commission', 'notes', 'traded_at'
+            "portfolio",
+            "position",
+            "action",
+            "asset_code",
+            "shares",
+            "price",
+            "commission",
+            "notes",
+            "traded_at",
         ]
 
     def validate_shares(self, value):
@@ -186,18 +234,25 @@ class TransactionCreateSerializer(serializers.ModelSerializer):
 
 # ==================== Capital Flow ====================
 
+
 class CapitalFlowSerializer(serializers.ModelSerializer):
     """资金流水序列化器"""
 
-    portfolio_name = serializers.CharField(source='portfolio.name', read_only=True)
+    portfolio_name = serializers.CharField(source="portfolio.name", read_only=True)
 
     class Meta:
         model = CapitalFlowModel
         fields = [
-            'id', 'portfolio', 'portfolio_name', 'flow_type',
-            'amount', 'flow_date', 'notes', 'created_at'
+            "id",
+            "portfolio",
+            "portfolio_name",
+            "flow_type",
+            "amount",
+            "flow_date",
+            "notes",
+            "created_at",
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = ["created_at"]
 
 
 class CapitalFlowCreateSerializer(serializers.ModelSerializer):
@@ -205,7 +260,7 @@ class CapitalFlowCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CapitalFlowModel
-        fields = ['flow_type', 'amount', 'flow_date', 'notes']
+        fields = ["flow_type", "amount", "flow_date", "notes"]
 
     def validate_amount(self, value):
         if value <= 0:
@@ -215,20 +270,31 @@ class CapitalFlowCreateSerializer(serializers.ModelSerializer):
 
 # ==================== Asset Metadata ====================
 
+
 class AssetMetadataSerializer(serializers.ModelSerializer):
     """资产元数据序列化器"""
 
     class Meta:
         model = AssetMetadataModel
         fields = [
-            'id', 'asset_code', 'name', 'description',
-            'asset_class', 'region', 'cross_border', 'style',
-            'sector', 'sub_class', 'created_at', 'updated_at'
+            "id",
+            "asset_code",
+            "name",
+            "description",
+            "asset_class",
+            "region",
+            "cross_border",
+            "style",
+            "sector",
+            "sub_class",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ["created_at", "updated_at"]
 
 
 # ==================== Statistics ====================
+
 
 class PortfolioStatisticsSerializer(serializers.Serializer):
     """投资组合统计序列化器"""
@@ -247,23 +313,35 @@ class PortfolioStatisticsSerializer(serializers.Serializer):
 
 # ==================== Observer Grant ====================
 
+
 class ObserverGrantSerializer(serializers.ModelSerializer):
     """观察员授权序列化器"""
 
-    owner_username = serializers.CharField(source='owner_user_id.username', read_only=True)
-    observer_username = serializers.CharField(source='observer_user_id.username', read_only=True)
-    scope_display = serializers.CharField(source='get_scope_display', read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    owner_username = serializers.CharField(source="owner_user_id.username", read_only=True)
+    observer_username = serializers.CharField(source="observer_user_id.username", read_only=True)
+    scope_display = serializers.CharField(source="get_scope_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
     is_valid = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = PortfolioObserverGrantModel
         fields = [
-            'id', 'owner_user_id', 'observer_user_id', 'owner_username', 'observer_username',
-            'scope', 'scope_display', 'status', 'status_display', 'expires_at',
-            'is_valid', 'created_at', 'revoked_at', 'revoked_by'
+            "id",
+            "owner_user_id",
+            "observer_user_id",
+            "owner_username",
+            "observer_username",
+            "scope",
+            "scope_display",
+            "status",
+            "status_display",
+            "expires_at",
+            "is_valid",
+            "created_at",
+            "revoked_at",
+            "revoked_by",
         ]
-        read_only_fields = ['id', 'created_at', 'revoked_at', 'revoked_by']
+        read_only_fields = ["id", "created_at", "revoked_at", "revoked_by"]
 
 
 class ObserverGrantCreateSerializer(serializers.ModelSerializer):
@@ -271,59 +349,47 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
 
     # 支持通过 observer_user_id 或 username 指定观察员
     observer_user_id = serializers.IntegerField(
-        required=False,
-        write_only=True,
-        help_text="观察员用户ID（与 username 二选一）"
+        required=False, write_only=True, help_text="观察员用户ID（与 username 二选一）"
     )
     username = serializers.CharField(
-        write_only=True,
-        required=False,
-        help_text="观察员用户名（与 observer_user_id 二选一）"
+        write_only=True, required=False, help_text="观察员用户名（与 observer_user_id 二选一）"
     )
 
     class Meta:
         model = PortfolioObserverGrantModel
-        fields = ['observer_user_id', 'username', 'expires_at']
+        fields = ["observer_user_id", "username", "expires_at"]
 
     def validate(self, attrs):
         """验证创建授权请求"""
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user:
             raise serializers.ValidationError("用户未登录")
 
         # 获取观察员用户
-        observer_user_id = attrs.get('observer_user_id')
-        username = attrs.get('username')
+        observer_user_id = attrs.get("observer_user_id")
+        username = attrs.get("username")
 
         if not observer_user_id and not username:
-            raise serializers.ValidationError({
-                "observer_user_id": "请提供 observer_user_id 或 username"
-            })
+            raise serializers.ValidationError(
+                {"observer_user_id": "请提供 observer_user_id 或 username"}
+            )
 
         if username:
             observer = find_user_by_username(username)
             if observer is None:
-                raise serializers.ValidationError({
-                    "username": f"用户 '{username}' 不存在"
-                })
+                raise serializers.ValidationError({"username": f"用户 '{username}' 不存在"})
         elif observer_user_id:
             observer = find_user_by_id(int(observer_user_id))
             if observer is None:
-                raise serializers.ValidationError({
-                    "observer_user_id": "观察员用户不存在"
-                })
+                raise serializers.ValidationError({"observer_user_id": "观察员用户不存在"})
         else:
-            raise serializers.ValidationError({
-                "observer_user_id": "请提供观察员用户"
-            })
+            raise serializers.ValidationError({"observer_user_id": "请提供观察员用户"})
 
-        attrs['observer_user_id'] = observer.id
+        attrs["observer_user_id"] = observer.id
 
         # 不能授权给自己
         if observer.id == request.user.id:
-            raise serializers.ValidationError({
-                "observer_user_id": "不能授权给自己"
-            })
+            raise serializers.ValidationError({"observer_user_id": "不能授权给自己"})
 
         # 检查是否已存在 active 授权
         existing = get_active_observer_grant(
@@ -331,37 +397,36 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
             observer_user_id=observer.id,
         )
         if existing:
-            raise serializers.ValidationError({
-                "observer_user_id": f"该用户已被授权为观察员，授权 ID: {existing.id}"
-            })
+            raise serializers.ValidationError(
+                {"observer_user_id": f"该用户已被授权为观察员，授权 ID: {existing.id}"}
+            )
 
         # 检查观察员数量限制（每账户最多 10 个）
         active_count = count_owned_active_observer_grants(request.user.id)
         if active_count >= 10:
-            raise serializers.ValidationError({
-                "__all__": "已达到观察员数量上限（10个），请先撤销部分授权"
-            })
+            raise serializers.ValidationError(
+                {"__all__": "已达到观察员数量上限（10个），请先撤销部分授权"}
+            )
 
         # 验证过期时间
-        expires_at = attrs.get('expires_at')
+        expires_at = attrs.get("expires_at")
         if expires_at:
             from django.utils import timezone
+
             if expires_at <= timezone.now():
-                raise serializers.ValidationError({
-                    "expires_at": "过期时间必须大于当前时间"
-                })
+                raise serializers.ValidationError({"expires_at": "过期时间必须大于当前时间"})
 
         return attrs
 
     def create(self, validated_data):
         """创建授权记录"""
-        validated_data.pop('username', None)  # 移除临时字段
-        owner = validated_data.pop('owner_user_id')
+        validated_data.pop("username", None)  # 移除临时字段
+        owner = validated_data.pop("owner_user_id")
         grant = create_observer_grant_record(
-            owner_user_id=getattr(owner, 'id', owner),
-            observer_user_id=int(validated_data.pop('observer_user_id')),
-            created_by_user_id=self.context['request'].user.id,
-            expires_at=validated_data.get('expires_at'),
+            owner_user_id=getattr(owner, "id", owner),
+            observer_user_id=int(validated_data.pop("observer_user_id")),
+            created_by_user_id=self.context["request"].user.id,
+            expires_at=validated_data.get("expires_at"),
         )
         return grant
 
@@ -371,18 +436,20 @@ class ObserverGrantUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PortfolioObserverGrantModel
-        fields = ['expires_at']
+        fields = ["expires_at"]
 
     def validate_expires_at(self, value):
         """验证过期时间"""
         if value:
             from django.utils import timezone
+
             if value <= timezone.now():
                 raise serializers.ValidationError("过期时间必须大于当前时间")
         return value
 
 
 # ==================== Trading Cost Config ====================
+
 
 class TradingCostConfigSerializer(serializers.ModelSerializer):
     """交易费率配置序列化器"""
@@ -394,12 +461,19 @@ class TradingCostConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = TradingCostConfigModel
         fields = [
-            'id', 'portfolio', 'commission_rate', 'min_commission',
-            'stamp_duty_rate', 'transfer_fee_rate', 'is_active',
-            'commission_rate_wan', 'stamp_duty_rate_qian',
-            'created_at', 'updated_at',
+            "id",
+            "portfolio",
+            "commission_rate",
+            "min_commission",
+            "stamp_duty_rate",
+            "transfer_fee_rate",
+            "is_active",
+            "commission_rate_wan",
+            "stamp_duty_rate_qian",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_commission_rate_wan(self, obj) -> float:
         """佣金率（万）"""
@@ -416,13 +490,21 @@ class TradingCostConfigCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TradingCostConfigModel
         fields = [
-            'portfolio', 'commission_rate', 'min_commission',
-            'stamp_duty_rate', 'transfer_fee_rate', 'is_active',
+            "portfolio",
+            "commission_rate",
+            "min_commission",
+            "stamp_duty_rate",
+            "transfer_fee_rate",
+            "is_active",
         ]
 
     def validate(self, attrs):
         portfolio = attrs.get("portfolio")
-        if self.instance is not None and portfolio is not None and portfolio != self.instance.portfolio:
+        if (
+            self.instance is not None
+            and portfolio is not None
+            and portfolio != self.instance.portfolio
+        ):
             raise serializers.ValidationError({"portfolio": "更新时不允许修改所属投资组合"})
         return attrs
 
@@ -455,3 +537,95 @@ class TradingCostCalculationSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     amount = serializers.FloatField(min_value=0.01)
     is_shanghai = serializers.BooleanField(required=False, default=False)
+
+
+class MacroSizingConfigSerializer(serializers.Serializer):
+    """宏观仓位系数配置输出序列化器。"""
+
+    id = serializers.IntegerField(allow_null=True, required=False)
+    version = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+    description = serializers.CharField(allow_blank=True)
+    warning_factor = serializers.FloatField()
+    regime_tiers_json = serializers.JSONField()
+    pulse_tiers_json = serializers.JSONField()
+    drawdown_tiers_json = serializers.JSONField()
+    market_temperature_cold_factor = serializers.FloatField()
+    market_temperature_warm_factor = serializers.FloatField()
+    market_temperature_hot_factor = serializers.FloatField()
+    market_temperature_overheat_factor = serializers.FloatField()
+    market_temperature_extreme_factor = serializers.FloatField()
+    block_new_position_on_extreme = serializers.BooleanField()
+    created_at = serializers.DateTimeField(allow_null=True, required=False)
+    updated_at = serializers.DateTimeField(allow_null=True, required=False)
+
+
+class MacroSizingConfigUpdateSerializer(serializers.Serializer):
+    """宏观仓位系数配置更新序列化器。"""
+
+    description = serializers.CharField(required=False, allow_blank=True)
+    warning_factor = serializers.FloatField(required=False, min_value=0.0, max_value=1.0)
+    regime_tiers_json = serializers.JSONField(required=False)
+    pulse_tiers_json = serializers.JSONField(required=False)
+    drawdown_tiers_json = serializers.JSONField(required=False)
+    market_temperature_cold_factor = serializers.FloatField(
+        required=False,
+        min_value=0.0,
+        max_value=1.0,
+    )
+    market_temperature_warm_factor = serializers.FloatField(
+        required=False,
+        min_value=0.0,
+        max_value=1.0,
+    )
+    market_temperature_hot_factor = serializers.FloatField(
+        required=False,
+        min_value=0.0,
+        max_value=1.0,
+    )
+    market_temperature_overheat_factor = serializers.FloatField(
+        required=False,
+        min_value=0.0,
+        max_value=1.0,
+    )
+    market_temperature_extreme_factor = serializers.FloatField(
+        required=False,
+        min_value=0.0,
+        max_value=1.0,
+    )
+    block_new_position_on_extreme = serializers.BooleanField(required=False)
+
+    def validate_regime_tiers_json(self, value):
+        self._validate_tiers(
+            value,
+            required_keys=("min_confidence", "factor"),
+            field_name="regime_tiers_json",
+        )
+        return value
+
+    def validate_pulse_tiers_json(self, value):
+        self._validate_tiers(
+            value,
+            required_keys=("min_composite", "factor"),
+            field_name="pulse_tiers_json",
+        )
+        return value
+
+    def validate_drawdown_tiers_json(self, value):
+        self._validate_tiers(
+            value,
+            required_keys=("min_drawdown", "factor"),
+            field_name="drawdown_tiers_json",
+        )
+        return value
+
+    @staticmethod
+    def _validate_tiers(value, *, required_keys: tuple[str, ...], field_name: str) -> None:
+        if not isinstance(value, list) or not value:
+            raise serializers.ValidationError(f"{field_name} 必须是非空数组")
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError(f"{field_name} 每一项都必须是对象")
+            missing = [key for key in required_keys if key not in item]
+            if missing:
+                raise serializers.ValidationError(f"{field_name} 缺少字段: {', '.join(missing)}")

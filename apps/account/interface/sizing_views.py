@@ -53,6 +53,7 @@ class SizingContextView(APIView):
                 "components": {
                     "regime_factor": result.regime_factor,
                     "pulse_factor": result.pulse_factor,
+                    "market_temperature_factor": result.market_temperature_factor,
                     "drawdown_factor": result.drawdown_factor,
                 },
                 "context": {
@@ -60,6 +61,12 @@ class SizingContextView(APIView):
                     "regime_confidence": output.regime_confidence,
                     "pulse_composite": output.pulse_composite,
                     "pulse_warning": output.pulse_warning,
+                    "market_temperature_score": output.market_temperature_score,
+                    "market_temperature_band": output.market_temperature_band,
+                    "market_temperature_threshold_source": output.market_temperature_threshold_source,
+                    "market_temperature_degraded": output.market_temperature_degraded,
+                    "market_temperature_blocked_reason": output.market_temperature_blocked_reason,
+                    "market_temperature_blocks_new_position": output.market_temperature_blocks_new_position,
                     "portfolio_drawdown_pct": output.portfolio_drawdown_pct,
                 },
                 "config_version": result.config_version,

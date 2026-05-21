@@ -309,6 +309,8 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/account/health/` | GET | 账户模块健康检查 (需认证) |
 | `/api/account/volatility/` | GET | 获取当前活跃组合波动率视图数据 (需认证) |
 | `/api/account/sizing-context/` | GET | 获取宏观仓位系数上下文与建议乘数，支持 `portfolio_id` 查询参数 (需认证) |
+| `/api/account/macro-sizing-config/` | GET | 获取当前生效的宏观仓位配置 (需认证) |
+| `/api/account/macro-sizing-config/` | PATCH / PUT | 创建新的宏观仓位配置版本并切换为 active（需 staff） |
 
 ### Sentiment API (舆情分析)
 

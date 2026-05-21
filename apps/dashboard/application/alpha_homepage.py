@@ -385,9 +385,7 @@ class AlphaHomepageQuery:
                 getattr(order, "invalidation_description", "") or f"调仓计划建议 {order_action}"
             )
             reduce_quantity = (
-                abs(int(getattr(order, "delta_qty", 0) or 0))
-                if exit_action == "REDUCE"
-                else None
+                abs(int(getattr(order, "delta_qty", 0) or 0)) if exit_action == "REDUCE" else None
             )
             priority_rank = 0 if exit_action == "SELL" else 1
         elif str(getattr(recommendation, "side", "") or "").upper() == "SELL":
@@ -402,7 +400,8 @@ class AlphaHomepageQuery:
 
         decision_side = str(getattr(recommendation, "side", "") or "HOLD").upper()
         stop_loss_price = self._normalize_decimal_string(
-            getattr(order, "stop_loss_price", None) or getattr(recommendation, "stop_loss_price", None)
+            getattr(order, "stop_loss_price", None)
+            or getattr(recommendation, "stop_loss_price", None)
         )
         target_price_low = self._normalize_decimal_string(
             getattr(recommendation, "target_price_low", None)
@@ -459,13 +458,19 @@ class AlphaHomepageQuery:
             recommendation_snapshot = {
                 "recommendation_id": recommendation_id,
                 "side": str(getattr(recommendation, "side", "") or ""),
-                "status": getattr(getattr(recommendation, "status", None), "value", getattr(recommendation, "status", "")),
+                "status": getattr(
+                    getattr(recommendation, "status", None),
+                    "value",
+                    getattr(recommendation, "status", ""),
+                ),
                 "user_action": recommendation_user_action,
                 "user_action_label": build_exit_user_action_label(recommendation_user_action),
                 "is_processed": recommendation_user_action in {"ADOPTED", "IGNORED"},
                 "confidence": float(getattr(recommendation, "confidence", 0.0) or 0.0),
                 "composite_score": float(getattr(recommendation, "composite_score", 0.0) or 0.0),
-                "alpha_model_score": float(getattr(recommendation, "alpha_model_score", 0.0) or 0.0),
+                "alpha_model_score": float(
+                    getattr(recommendation, "alpha_model_score", 0.0) or 0.0
+                ),
                 "human_rationale": str(getattr(recommendation, "human_rationale", "") or ""),
                 "reason_codes": list(getattr(recommendation, "reason_codes", []) or []),
                 "target_price_low": self._normalize_decimal_string(
@@ -498,7 +503,11 @@ class AlphaHomepageQuery:
                 "invalidation_description": str(
                     getattr(order, "invalidation_description", "") or ""
                 ),
-                "notes": [str(item) for item in (getattr(order, "notes", []) or []) if str(item or "").strip()],
+                "notes": [
+                    str(item)
+                    for item in (getattr(order, "notes", []) or [])
+                    if str(item or "").strip()
+                ],
                 "is_ready_for_approval": bool(getattr(order, "is_ready_for_approval", False)),
             }
         signal_contract_snapshot = {
@@ -571,17 +580,13 @@ class AlphaHomepageQuery:
             ),
             "transition_plan_id": plan_id,
             "transition_plan_detail_url": (
-                f"/api/decision/workspace/plans/{plan_id}/"
-                if plan_id
-                else ""
+                f"/api/decision/workspace/plans/{plan_id}/" if plan_id else ""
             ),
             "recommendation_snapshot": recommendation_snapshot,
             "transition_plan_snapshot": transition_plan_snapshot,
             "signal_contract_snapshot": signal_contract_snapshot,
             "account_detail_url": (
-                f"/simulated-trading/my-accounts/{account_id}/"
-                if account_id is not None
-                else ""
+                f"/simulated-trading/my-accounts/{account_id}/" if account_id is not None else ""
             ),
             "decision_workspace_url": decision_workspace_url,
         }
@@ -597,7 +602,9 @@ class AlphaHomepageQuery:
             )
             return []
 
-    def _load_transition_orders(self, *, account_id: int, trade_date: date) -> dict[str, dict[str, Any]]:
+    def _load_transition_orders(
+        self, *, account_id: int, trade_date: date
+    ) -> dict[str, dict[str, Any]]:
         try:
             plan = self.transition_plan_repo.get_latest_for_account(str(account_id))
         except Exception as exc:
@@ -626,7 +633,9 @@ class AlphaHomepageQuery:
                 }
         return order_map
 
-    def _load_signal_invalidation_payloads(self, signal_ids: list[int]) -> dict[str, dict[str, Any]]:
+    def _load_signal_invalidation_payloads(
+        self, signal_ids: list[int]
+    ) -> dict[str, dict[str, Any]]:
         if not signal_ids:
             return {}
         try:
@@ -665,7 +674,9 @@ class AlphaHomepageQuery:
                 latest_by_security[security_code] = recommendation
                 continue
 
-            current_time = getattr(current, "updated_at", None) or getattr(current, "created_at", None)
+            current_time = getattr(current, "updated_at", None) or getattr(
+                current, "created_at", None
+            )
             next_time = getattr(recommendation, "updated_at", None) or getattr(
                 recommendation,
                 "created_at",
@@ -1309,6 +1320,48 @@ class AlphaHomepageQuery:
         regime_confidence = float(sizing_context.regime_confidence) if sizing_context else 0.0
         pulse_composite = float(sizing_context.pulse_composite) if sizing_context else 0.0
         pulse_warning = bool(sizing_context.pulse_warning) if sizing_context else False
+        market_temperature_score = (
+            float(getattr(sizing_context, "market_temperature_score", 0.0) or 0.0)
+            if sizing_context is not None
+            else 0.0
+        )
+        market_temperature_band = (
+            str(getattr(sizing_context, "market_temperature_band", "") or "").strip().lower()
+            if sizing_context is not None
+            else ""
+        )
+        market_temperature_degraded = (
+            bool(getattr(sizing_context, "market_temperature_degraded", False))
+            if sizing_context is not None
+            else False
+        )
+        market_temperature_threshold_source = (
+            str(getattr(sizing_context, "market_temperature_threshold_source", "") or "")
+            if sizing_context is not None
+            else ""
+        )
+        market_temperature_blocked_reason = (
+            str(getattr(sizing_context, "market_temperature_blocked_reason", "") or "")
+            if sizing_context is not None
+            else ""
+        )
+        market_temperature_blocks_new_position = (
+            bool(getattr(sizing_context, "market_temperature_blocks_new_position", False))
+            if sizing_context is not None
+            else False
+        )
+        market_temperature_factor = (
+            float(
+                getattr(
+                    getattr(sizing_context, "multiplier_result", None),
+                    "market_temperature_factor",
+                    1.0,
+                )
+                or 1.0
+            )
+            if sizing_context is not None
+            else 1.0
+        )
         signal_strength = max(min((float(score.score) + 1.0) / 2.0, 1.0), 0.0)
         action, decision_codes, decision_text, _ = self.decision_engine.evaluate(
             signal_strength=signal_strength,
@@ -1349,6 +1402,9 @@ class AlphaHomepageQuery:
             daily_pnl_pct=0.0,
             avg_volume=float(stock_context.get("volume") or 0.0) or None,
         )
+        new_position_temperature_block = (
+            market_temperature_blocks_new_position and current_position_value <= 0
+        )
 
         stage = "top_ranked"
         gate_status = "blocked"
@@ -1388,6 +1444,18 @@ class AlphaHomepageQuery:
             },
             {"code": "PULSE_CONTEXT", "text": f"Pulse 综合分 {pulse_composite:+.2f}"},
         ]
+        if market_temperature_band:
+            temperature_text = (
+                f"市场温度 {market_temperature_band} {market_temperature_score:.1f}"
+                f"（系数 {market_temperature_factor:.2f}）"
+            )
+            if market_temperature_threshold_source == "user_override":
+                temperature_text += "，使用个人阈值"
+            if market_temperature_degraded:
+                temperature_text += "，当前仅供参考"
+            elif market_temperature_band in {"hot", "overheat", "extreme"}:
+                temperature_text += "，已收缩建议仓位"
+            buy_reasons.append({"code": "MARKET_TEMPERATURE_CONTEXT", "text": temperature_text})
         factor_basis = self._build_factor_basis(getattr(score, "factors", {}) or {})
         if factor_basis:
             buy_reasons.append(
@@ -1409,6 +1477,14 @@ class AlphaHomepageQuery:
                 {
                     "code": "ALPHA_RELIABILITY_BLOCK",
                     "text": reliability_blocked_reason,
+                }
+            )
+        if new_position_temperature_block:
+            no_buy_reasons.append(
+                {
+                    "code": "MARKET_TEMPERATURE_BLOCK",
+                    "text": market_temperature_blocked_reason
+                    or "市场温度已进入 extreme，新仓建议暂时关闭。",
                 }
             )
         if policy_state.get("gate_level") in {"L2", "L3"}:
@@ -1440,16 +1516,26 @@ class AlphaHomepageQuery:
                 "当前候选进入待执行队列或被 workflow 显式否决",
             ],
         }
-        recommendation_ready = stage == "actionable" and not reliability_blocked
+        if stage == "actionable" and new_position_temperature_block:
+            stage = "top_ranked"
+            gate_status = "warn"
+
+        recommendation_ready = (
+            stage == "actionable" and not reliability_blocked and not new_position_temperature_block
+        )
         decision_usable = not reliability_blocked
         not_actionable_reason = (
             "当前已在待执行队列中。"
             if pending_request is not None
-            else reliability_blocked_reason
-            or (
-                no_buy_reasons[0]["text"]
-                if no_buy_reasons
-                else "当前候选仅供研究，不构成可执行推荐。"
+            else (
+                (market_temperature_blocked_reason or "市场温度已进入 extreme，新仓建议暂时关闭。")
+                if new_position_temperature_block
+                else reliability_blocked_reason
+                or (
+                    no_buy_reasons[0]["text"]
+                    if no_buy_reasons
+                    else "当前候选仅供研究，不构成可执行推荐。"
+                )
             )
         )
 
@@ -1493,6 +1579,12 @@ class AlphaHomepageQuery:
                 "regime_confidence": regime_confidence,
                 "pulse_composite": pulse_composite,
                 "pulse_warning": pulse_warning,
+                "market_temperature_score": market_temperature_score,
+                "market_temperature_band": market_temperature_band,
+                "market_temperature_factor": market_temperature_factor,
+                "market_temperature_threshold_source": market_temperature_threshold_source,
+                "market_temperature_degraded": market_temperature_degraded,
+                "market_temperature_blocks_new_position": market_temperature_blocks_new_position,
                 "risk_checks": details,
                 "sizing_explain": sizing_explain,
             },
@@ -1526,6 +1618,13 @@ class AlphaHomepageQuery:
                 "research_only": bool(meta.get("research_only", False)),
                 "must_not_use_for_decision": bool(meta.get("must_not_use_for_decision", False)),
                 "blocked_reason": reliability_blocked_reason,
+                "market_temperature_score": market_temperature_score,
+                "market_temperature_band": market_temperature_band,
+                "market_temperature_factor": market_temperature_factor,
+                "market_temperature_threshold_source": market_temperature_threshold_source,
+                "market_temperature_degraded": market_temperature_degraded,
+                "market_temperature_blocked_reason": market_temperature_blocked_reason,
+                "market_temperature_blocks_new_position": market_temperature_blocks_new_position,
             },
             "no_buy_reasons": no_buy_reasons,
             "no_buy_reason_summary": "；".join(reason["text"] for reason in no_buy_reasons[:3]),

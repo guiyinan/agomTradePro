@@ -133,6 +133,44 @@ class AccountModule(BaseModule):
             return response.get("performance", response)
         return response
 
+    def get_macro_sizing_config(self) -> dict[str, Any]:
+        """
+        获取当前生效的宏观仓位系数配置。
+
+        Returns:
+            当前 active 的 macro sizing config
+        """
+
+        response = self._get("macro-sizing-config/")
+        if isinstance(response, dict):
+            return response
+        return {}
+
+    def update_macro_sizing_config(
+        self,
+        payload: dict[str, Any],
+        *,
+        partial: bool = True,
+    ) -> dict[str, Any]:
+        """
+        创建新的宏观仓位系数配置版本并切换为 active。
+
+        Args:
+            payload: 配置变更字段
+            partial: True 时走 PATCH；False 时走 PUT
+
+        Returns:
+            新创建并生效的配置版本
+        """
+
+        if partial:
+            response = self._patch("macro-sizing-config/", json=payload)
+        else:
+            response = self._put("macro-sizing-config/", json=payload)
+        if isinstance(response, dict):
+            return response
+        return {}
+
     def get_portfolios(
         self,
         limit: int = 100,

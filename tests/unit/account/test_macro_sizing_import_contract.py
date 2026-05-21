@@ -13,6 +13,7 @@ def test_account_api_urls_import_sizing_context_view():
     names = [pattern.name for pattern in api_urls.urlpatterns if getattr(pattern, "name", None)]
 
     assert "sizing-context" in names
+    assert "macro-sizing-config" in names
 
 
 @pytest.mark.django_db
