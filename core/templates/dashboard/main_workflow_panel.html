@@ -166,7 +166,7 @@
             <div>
                 <h3 class="subsection-title">Alpha 推荐资产 (展示 {{ alpha_stock_scores|slice:":5"|length }} / 共 {{ alpha_stock_scores|length|default:0 }})</h3>
                 <p class="candidate-meta" style="margin: 6px 0 0 0;">
-                    注：这里保留 Alpha 原始排名。首页只截取前 5 条展示，且账户池可能是从更大缓存裁剪出来的 scoped 结果，因此不会重排成 1-5。
+                    这里只展示已通过账户 scope、数据新鲜度和风控 readiness 的资产；研究排名请进入完整排名页核对。
                 </p>
             </div>
             <a class="btn-precheck"
@@ -239,7 +239,7 @@
                 <div class="empty-icon">📊</div>
                 <p>暂无可信 Alpha 推荐资产</p>
                 <p class="empty-hint">
-                    账户池尚无真实推理或缓存结果；系统不会用硬编码股票池、静态名单或默认 ETF 冒充推荐。
+                    当前没有通过 readiness 的账户推荐；系统不会用市场 broad pool、硬编码股票池、静态名单或默认 ETF 冒充推荐。
                 </p>
                 <button type="button" class="btn-precheck" onclick="triggerAlphaRealtimeRefresh(10)">
                     ⚡ 立即推理刷新

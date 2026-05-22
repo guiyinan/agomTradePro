@@ -1049,6 +1049,10 @@ class AlphaHomepageQuery:
         research_only = bool(metadata.get("research_only", False)) or (
             metadata.get("alpha_scope") == ALPHA_SCOPE_GENERAL
         )
+        broad_pool_research_only = (
+            not research_only
+            and getattr(scope, "pool_mode", "") in {"market", "price_covered"}
+        )
         no_recommendation_reason = str(metadata.get("no_recommendation_reason") or "")
         fallback_mode = str(metadata.get("fallback_mode") or "")
         scores = list(getattr(alpha_result, "scores", []) or [])
@@ -1122,6 +1126,13 @@ class AlphaHomepageQuery:
             blocked_reason = str(
                 ((metadata.get("reliability_notice") or {}).get("message"))
                 or "请求交易日的 Alpha 数据尚未落地，当前只拿到了最新可用交易日结果。"
+            )
+            recommendation_ready = False
+        elif broad_pool_research_only:
+            readiness_status = "blocked_broad_pool_research_only"
+            blocked_reason = (
+                "当前 Alpha 股票池仅为市场/价格覆盖研究池，不含账户特异约束；"
+                "系统不会把这类 broad pool 排名包装成账户推荐。"
             )
             recommendation_ready = False
         elif fallback_mode == "forward_fill_latest_qlib_cache":

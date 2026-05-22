@@ -52,7 +52,6 @@ from apps.alpha.application.pool_resolver import (
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
 )
-from apps.data_center.application import interface_services as data_center_interface_services
 from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_GENERAL,
@@ -83,6 +82,7 @@ from apps.dashboard.interface import (
     portfolio_views,
     workflow_views,
 )
+from apps.data_center.application import interface_services as data_center_interface_services
 from apps.task_monitor.application.tracking import record_pending_task as _record_pending_task
 
 logger = logging.getLogger(__name__)
@@ -1401,7 +1401,10 @@ def _build_dashboard_page_context(
         "pending_count": len(workflow_pending_requests),
         "alpha_decision_chain_overview": alpha_decision_chain_overview,
         # Alpha 可视化数据（新增）
-        "alpha_stock_scores": alpha_stock_scores,
+        "alpha_stock_scores": [
+            item for item in alpha_stock_scores if bool(item.get("recommendation_ready", False))
+        ],
+        "alpha_research_rankings": alpha_stock_scores,
         "alpha_stock_scores_meta": alpha_stock_scores_meta,
         "alpha_actionable_candidates": alpha_actionable_candidates,
         "alpha_exit_watchlist": alpha_exit_watchlist,

@@ -1388,6 +1388,7 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
                         "asof_date": "2026-04-12",
                         "stage": "actionable",
                         "stage_label": "可行动候选",
+                        "recommendation_ready": True,
                     }
                 ],
                 meta={},
@@ -1671,7 +1672,7 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
     )
 
     assert "Alpha 推荐资产" in content
-    assert "不会重排成 1-5" in content
+    assert "研究排名请进入完整排名页核对" in content
     assert "查看完整排名" in content
     assert "000001.SZ" in content
     assert "平安银行" in content
@@ -2069,7 +2070,7 @@ def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendation
 
     assert "Alpha 推荐资产" in content
     assert "暂无可信 Alpha 推荐资产" in content
-    assert "系统不会用硬编码股票池" in content
+    assert "系统不会用市场 broad pool" in content
     assert "510300" not in content
     assert "沪深300ETF" not in content
     assert "mcp smoke" not in content

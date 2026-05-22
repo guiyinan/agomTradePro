@@ -543,8 +543,8 @@ def test_alpha_homepage_meta_allows_fresh_data_driven_simple_result():
     query = object.__new__(AlphaHomepageQuery)
     scope = SimpleNamespace(
         scope_hash="deadbeef",
-        display_label="默认组合 · CN A-share 可交易池",
-        pool_mode="market",
+        display_label="默认组合 · 严格估值覆盖池",
+        pool_mode="strict_valuation",
         pool_size=42,
         to_dict=lambda: {"scope_hash": "deadbeef"},
     )
@@ -570,6 +570,37 @@ def test_alpha_homepage_meta_allows_fresh_data_driven_simple_result():
     assert meta["scope_verification_status"] == "verified"
     assert meta["freshness_status"] == "fresh"
     assert meta["readiness_status"] == "ready"
+
+
+def test_alpha_homepage_meta_blocks_broad_price_pool_as_research_only():
+    query = object.__new__(AlphaHomepageQuery)
+    scope = SimpleNamespace(
+        scope_hash="price-scope",
+        display_label="默认组合 · 价格覆盖池",
+        pool_mode="price_covered",
+        pool_size=42,
+        to_dict=lambda: {"scope_hash": "price-scope"},
+    )
+    result = SimpleNamespace(
+        success=True,
+        scores=[SimpleNamespace(code="600346.SH")],
+        source="cache",
+        status="available",
+        staleness_days=0,
+        metadata={
+            "provider_source": "qlib",
+            "requested_trade_date": "2026-05-21",
+            "effective_asof_date": "2026-05-21",
+            "latest_available_qlib_result": True,
+        },
+    )
+
+    meta = query._build_meta(alpha_result=result, scope=scope)
+
+    assert meta["recommendation_ready"] is False
+    assert meta["must_not_use_for_decision"] is True
+    assert meta["readiness_status"] == "blocked_broad_pool_research_only"
+    assert "broad pool" in meta["blocked_reason"]
 
 
 def test_alpha_homepage_meta_marks_general_scope_as_research_only():
@@ -651,8 +682,8 @@ def test_alpha_homepage_meta_allows_weekend_request_latest_completed_session():
     query = object.__new__(AlphaHomepageQuery)
     scope = SimpleNamespace(
         scope_hash="weekend-scope",
-        display_label="默认组合 · 价格覆盖池",
-        pool_mode="price_covered",
+        display_label="默认组合 · 严格估值覆盖池",
+        pool_mode="strict_valuation",
         pool_size=42,
         to_dict=lambda: {"scope_hash": "weekend-scope"},
     )
