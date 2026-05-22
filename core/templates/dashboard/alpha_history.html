@@ -9,7 +9,10 @@
             <h2 class="section-title">Alpha 推荐历史</h2>
             <p class="text-muted">支持按组合、阶段与来源回看历史候选和理由。</p>
         </div>
-        <a href="{% url 'dashboard:index' %}" class="section-link">返回首页</a>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <a href="{% url 'dashboard:alpha_ranking' %}?alpha_scope=portfolio{% if filters.portfolio_id %}&portfolio_id={{ filters.portfolio_id }}{% endif %}&top_n=200" class="section-link">查看当前完整排名</a>
+            <a href="{% url 'dashboard:index' %}" class="section-link">返回首页</a>
+        </div>
     </div>
 
     <section class="alpha-history-exit-entry">

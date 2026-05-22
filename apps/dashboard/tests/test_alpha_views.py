@@ -1722,7 +1722,14 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
             },
             "actionable_candidates": [],
             "pending_requests": [],
-            "recent_runs": [],
+            "recent_runs": [
+                {
+                    "id": 12,
+                    "trade_date": "2026-04-16",
+                    "source": "cache",
+                    "effective_asof_date": "2026-04-16",
+                }
+            ],
             "history_run_id": 12,
         },
     )
@@ -1736,6 +1743,10 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
     assert "当前已加载 1 条，股票池规模约 320" in content
     assert "000001.SZ" in content
     assert "#8" in content
+    assert "推荐历史" in content
+    assert "/dashboard/alpha/history/?portfolio_id=9" in content
+    assert "历史推荐入口" in content
+    assert "2026-04-16 / cache" in content
     assert "打开 JSON" in content
 
 
@@ -2176,11 +2187,14 @@ def test_alpha_history_page_template_renders_detail_controls():
             "current_exit_portfolio_id": 9,
             "current_exit_alpha_scope": "portfolio",
             "current_exit_dashboard_url": "/dashboard/?alpha_scope=portfolio&portfolio_id=9#alpha-exit-detail",
+            "filters": {"portfolio_id": 9},
         },
         request=request,
     )
 
     assert "查看详情" in content
+    assert "查看当前完整排名" in content
+    assert "/dashboard/alpha/ranking/?alpha_scope=portfolio&portfolio_id=9&top_n=200" in content
     assert "打开 JSON" in content
     assert "复制 JSON" in content
     assert "loadAlphaHistoryDetail" in content

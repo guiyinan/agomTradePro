@@ -84,6 +84,7 @@ def alpha_ranking_page(request):
         "top_n": top_n,
         "loaded_count": len(alpha_payload["items"]),
         "pool_size_hint": alpha_pool.get("pool_size") or 0,
+        "alpha_recent_runs": alpha_payload.get("recent_runs", []),
         "alpha_history_run_id": alpha_payload.get("history_run_id"),
     }
     return render(request, "dashboard/alpha_ranking.html", context)

@@ -11,6 +11,7 @@
         </div>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
             <a href="{% url 'dashboard:index' %}{% if alpha_scope %}?alpha_scope={{ alpha_scope }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}{% endif %}" class="section-link">返回首页</a>
+            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id and alpha_scope != 'general' %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="section-link">推荐历史</a>
             <a href="{% url 'api_dashboard:alpha_stocks' %}?format=json&top_n={{ top_n }}&alpha_scope={{ alpha_scope }}{% if selected_portfolio_id and alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}" class="section-link" target="_blank" rel="noopener">打开 JSON</a>
         </div>
     </div>
@@ -77,6 +78,27 @@
                 -
             {% endif %}
         </span>
+    </div>
+
+    <div style="border: 1px solid #dde6f0; border-radius: 14px; background: #fff; padding: 14px 16px; margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+            <div>
+                <strong>历史推荐入口</strong>
+                <p style="margin: 6px 0 0 0; color: #556274;">
+                    当前页用于核对最新完整排名；要回看历次落库的账户 Alpha 推荐快照，请进入推荐历史。
+                </p>
+            </div>
+            <a href="{% url 'dashboard:alpha_history' %}{% if selected_portfolio_id and alpha_scope != 'general' %}?portfolio_id={{ selected_portfolio_id }}{% endif %}" class="section-link">打开推荐历史</a>
+        </div>
+        {% if alpha_recent_runs %}
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px; color:#556274; font-size:13px;">
+            {% for run in alpha_recent_runs|slice:":3" %}
+            <span>{{ run.trade_date }} / {{ run.source }}{% if run.effective_asof_date %} / 评分日 {{ run.effective_asof_date }}{% endif %}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin: 10px 0 0 0; color:#556274; font-size:13px;">当前口径暂无推荐历史；通用研究池排名不写入账户推荐历史。</p>
+        {% endif %}
     </div>
 
     {% if alpha_stocks %}

@@ -97,6 +97,7 @@ Build: 2026-03-23
 - `qlib_daily_scoped_inference` 现改为按“最近一个已收盘交易日”而不是裸 `localdate()` 决定目标交易日，并对已有 `asof_date == intended_trade_date` 的 scoped qlib cache 做幂等跳过；午夜到次日收盘前的恢复任务会继续补前一交易日，不会误切到尚未收盘的“今天”
 - Celery 现显式声明 `celery / qlib_infer / qlib_train` 队列，并新增 `qlib-post-close-scoped-inference-recovery` 收盘后恢复调度；即使 beat 晚于 `17:40` 启动，后续 `18:00-23:50` 的恢复窗口仍会自动补跑缺失 scoped inference，不再依赖页面手点触发
 - `/equity/screen/` 新增直达 `/dashboard/alpha/ranking/` 的“查看完整排名”入口，并沿用当前 URL 中的 `portfolio_id / pool_mode / alpha_scope`；财务与估值展示继续坚持单一真源优先，未同步时保持空值而不是混源 fallback
+- `/dashboard/alpha/ranking/` 现补齐“推荐历史”直达入口，并展示最近账户 Alpha 推荐记录摘要；`/dashboard/alpha/history/` 也提供返回当前完整排名的入口，避免用户只能从首页摘要区发现历史快照
 - `/equity/screen/` / Dashboard Alpha 上下文中的财务与估值字段现已明确只读取 `data_center` canonical fact tables；旧 `equity_financial_data` / `equity_valuation` 镜像表不再参与页面展示兜底，避免 Alpha 股票池看到“有旧本地值但不是真源”的混源结果
 - `DjangoStockRepository.list_active_stock_codes()` 的默认 universe 已从仅 `equity_stock_info.is_active=True` 扩到“legacy active + Data Center 当前 `price_covered` canonical stock”，财务同步、估值同步与估值质量校验的默认覆盖面已从本地 10 只扩大到当前实际可见的 49 只，避免后台定时任务继续只围着旧 active 清单打转
 - `/api/dashboard/alpha/stocks/` 现已通过 `never_cache` 返回 `Cache-Control: no-store`，避免 Dashboard / Equity Screen / 浏览器 fetch 在同一登录态下继续复用陈旧 Alpha JSON
