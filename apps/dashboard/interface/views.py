@@ -467,12 +467,18 @@ def _build_market_thermometer_context(payload: dict | None) -> dict:
         reverse=True,
     )
     top_reasons = list(payload.get("trigger_reasons") or [])[:3]
+    score_available = bool(payload.get("score_available", True))
     band = str(payload.get("effective_band") or payload.get("band") or "cold")
+    if not score_available:
+        band = "unavailable"
     change_5d = payload.get("change_5d")
     change_20d = payload.get("change_20d")
     return {
         "market_temperature_observed_at": payload.get("observed_at"),
-        "market_temperature_score": float(payload.get("score", 0.0) or 0.0),
+        "market_temperature_score": (
+            float(payload.get("score", 0.0) or 0.0) if score_available else None
+        ),
+        "market_temperature_score_available": score_available,
         "market_temperature_band": band,
         "market_temperature_band_label": {
             "cold": "冷",
@@ -480,6 +486,7 @@ def _build_market_thermometer_context(payload: dict | None) -> dict:
             "hot": "热",
             "overheat": "过热",
             "extreme": "极热",
+            "unavailable": "数据缺失",
         }.get(band, band),
         "market_temperature_change_5d": change_5d,
         "market_temperature_change_20d": change_20d,

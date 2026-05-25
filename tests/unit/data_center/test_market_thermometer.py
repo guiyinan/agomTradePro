@@ -328,6 +328,34 @@ def test_market_thermometer_marks_degraded_when_valid_components_below_minimum()
     assert "有效组件数不足" in snapshot.blocked_reason
 
 
+def test_build_current_payload_marks_score_unavailable_when_all_components_missing():
+    snapshot_repo = _FakeSnapshotRepo(
+        snapshots=[
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 5, 22),
+                score=0.0,
+                band="cold",
+                change_5d=None,
+                change_20d=None,
+                valid_component_count=0,
+                data_source="degraded",
+                must_not_use_for_decision=True,
+                blocked_reason="有效组件数不足，当前仅 0 个，低于要求 4 个。",
+            )
+        ]
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=_FakeMacroRepo(series_map={}),
+    )
+
+    payload = use_case.build_current_payload(auto_calculate=False)
+
+    assert payload["score_available"] is False
+
+
 def test_import_investor_accounts_use_case_parses_csv_rows():
     macro_repo = _FakeMacroRepo(series_map={})
     use_case = ImportInvestorAccountsUseCase(macro_repo)

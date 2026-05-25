@@ -15,7 +15,6 @@ from apps.data_center.domain.entities import (
     MarketThermometerSnapshot,
     MarketThermometerThresholds,
     MarketThermometerUserOverride,
-    NewsFact,
     RawAudit,
 )
 from apps.data_center.domain.enums import DataQualityStatus
@@ -670,6 +669,10 @@ class CalculateMarketThermometerUseCase:
         payload = snapshot.to_dict()
         payload["threshold_source"] = threshold_source
         payload["thresholds"] = thresholds.to_dict()
+        payload["score_available"] = not (
+            bool(payload.get("must_not_use_for_decision", False))
+            and int(payload.get("valid_component_count") or 0) <= 0
+        )
         payload["effective_band"] = determine_market_thermometer_band(
             payload["score"],
             warm_threshold=thresholds.warm_threshold,
