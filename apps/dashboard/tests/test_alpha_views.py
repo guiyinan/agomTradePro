@@ -417,6 +417,7 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
                 meta={
                     "status": "degraded",
                     "source": "cache",
+                    "recommendation_ready": True,
                     "uses_cached_data": True,
                     "warning_message": "当前展示的是历史缓存评分。",
                 },
@@ -531,6 +532,8 @@ def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
+    assert payload["data"]["count"] == 0
+    assert payload["data"]["top_candidates"] == []
     assert contract["recommendation_ready"] is False
     assert contract["must_not_treat_as_recommendation"] is True
     assert contract["readiness_status"] == "blocked_broader_scope_cache"
@@ -592,6 +595,8 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
     assert captured["alpha_scope"] == "general"
     assert captured["portfolio_id"] is None
     assert payload["data"]["alpha_scope"] == "general"
+    assert payload["data"]["count"] == 1
+    assert payload["data"]["top_candidates"][0]["code"] == "000001.SZ"
     assert payload["data"]["actionable_candidates"] == []
     assert contract["must_not_use_for_decision"] is True
     assert contract["readiness_status"] == "research_only"
@@ -648,6 +653,8 @@ def test_alpha_stocks_htmx_json_contract_exposes_trade_date_adjustment(monkeypat
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
+    assert payload["data"]["count"] == 0
+    assert payload["data"]["top_candidates"] == []
     assert contract["recommendation_ready"] is False
     assert contract["must_not_use_for_decision"] is True
     assert contract["readiness_status"] == "blocked_trade_date_adjusted"
@@ -696,6 +703,7 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
                     }
                 ],
                 meta={
+                    "recommendation_ready": True,
                     "uses_cached_data": True,
                     "requested_trade_date": "2026-04-16",
                     "effective_asof_date": "2026-04-14",
@@ -754,6 +762,108 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
     assert "req\\u002D123" in content
     assert "mcp smoke" in content
     assert "股票池模式" in content
+
+
+def test_alpha_stocks_htmx_portfolio_scope_hides_blocked_cached_rankings(monkeypatch):
+    request = RequestFactory().get(
+        "/api/dashboard/alpha/stocks/",
+        {"top_n": 1},
+        HTTP_HX_REQUEST="true",
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    class FakeQuery:
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "alpha_score": 0.91,
+                        "rank": 1,
+                        "source": "cache",
+                        "stage": "top_ranked",
+                        "stage_label": "仅排名",
+                    }
+                ],
+                meta={
+                    "recommendation_ready": False,
+                    "uses_cached_data": True,
+                    "requested_trade_date": "2026-05-25",
+                    "effective_asof_date": "2026-05-22",
+                    "blocked_reason": "请求交易日 2026-05-25 的 Qlib 日线尚未落地，当前展示的是截至 2026-05-22 的最新可用推理结果。",
+                },
+                pool={
+                    "label": "账户驱动 Alpha 池",
+                    "pool_size": 3200,
+                    "pool_mode": "price_covered",
+                    "market": "CN",
+                    "portfolio_name": "默认组合",
+                },
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=8,
+            )
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_stocks_htmx(request)
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "暂无可信 Alpha 候选数据" in content
+    assert "2026-05-25" in content
+    assert "2026-05-22" in content
+    assert "000001.SZ" not in content
+    assert "平安银行" not in content
+
+
+def test_alpha_stocks_htmx_general_scope_keeps_research_rankings_visible(monkeypatch):
+    request = RequestFactory().get(
+        "/api/dashboard/alpha/stocks/",
+        {"top_n": 1, "alpha_scope": "general"},
+        HTTP_HX_REQUEST="true",
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    class FakeQuery:
+        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+            return SimpleNamespace(
+                top_candidates=[
+                    {
+                        "code": "000001.SZ",
+                        "name": "平安银行",
+                        "alpha_score": 0.91,
+                        "rank": 1,
+                        "source": "cache",
+                        "stage": "top_ranked",
+                        "stage_label": "Alpha Top 候选/排名",
+                    }
+                ],
+                meta={
+                    "alpha_scope": "general",
+                    "recommendation_ready": False,
+                    "must_not_use_for_decision": True,
+                    "readiness_status": "research_only",
+                    "blocked_reason": "通用 Alpha 仅用于研究排名。",
+                },
+                pool={"alpha_scope": "general", "label": "通用 Alpha 研究池", "pool_size": 1},
+                actionable_candidates=[],
+                pending_requests=[],
+                recent_runs=[],
+                history_run_id=None,
+            )
+
+    monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
+
+    response = views.alpha_stocks_htmx(request)
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "通用 Alpha 仅供研究排名" in content
+    assert "000001.SZ" in content
+    assert "平安银行" in content
 
 
 def test_alpha_stocks_empty_state_renders_refresh_cta():
@@ -1611,7 +1721,13 @@ def test_dashboard_view_keeps_verified_top_rankings_in_workflow_panel(monkeypatc
 
 @pytest.mark.django_db
 def test_dashboard_view_hides_unverified_top_rankings_in_workflow_panel(monkeypatch):
-    request = RequestFactory().get("/dashboard/")
+    request = RequestFactory().get(
+        "/dashboard/",
+        {
+            "alpha_scope": "portfolio",
+            "portfolio_id": "21",
+        },
+    )
     request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
 
     dashboard_data = SimpleNamespace(
@@ -2330,6 +2446,54 @@ def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendation
     assert "510300" not in content
     assert "沪深300ETF" not in content
     assert "mcp smoke" not in content
+
+
+def test_main_workflow_panel_shows_blocked_alpha_reason_in_empty_state():
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    content = render_to_string(
+        "dashboard/main_workflow_panel.html",
+        {
+            "current_regime": "Recovery",
+            "policy_level": "P1",
+            "action_weights": None,
+            "action_sectors": None,
+            "alpha_actionable_count": 0,
+            "alpha_exit_watchlist": [],
+            "alpha_exit_watch_summary": {},
+            "alpha_exit_entry_watchlist": [],
+            "alpha_exit_entry_watch_summary": {},
+            "alpha_exit_entry_hidden_count": 0,
+            "alpha_stock_scores": [],
+            "alpha_stock_scores_meta": {
+                "uses_cached_data": True,
+                "requested_trade_date": "2026-05-25",
+                "effective_asof_date": "2026-05-22",
+                "blocked_reason": "请求交易日 2026-05-25 的 Qlib 日线尚未落地，当前展示的是截至 2026-05-22 的最新可用推理结果。",
+            },
+            "alpha_actionable_candidates": [],
+            "alpha_pending_requests": [],
+            "actionable_candidates": [],
+            "valuation_repair_config_summary": None,
+            "pending_requests": [],
+            "pending_count": 0,
+            "alpha_decision_chain_overview": {
+                "top_ranked_count": 0,
+                "top10_actionable_count": 0,
+                "top10_pending_count": 0,
+                "top10_rank_only_count": 0,
+                "actionable_outside_top10_count": 0,
+                "pending_outside_top10_count": 0,
+            },
+        },
+        request=request,
+    )
+
+    assert "暂无可信 Alpha 推荐资产" in content
+    assert "2026-05-25" in content
+    assert "2026-05-22" in content
+    assert "首页不会把这类缓存结果当成可执行推荐展示" in content
 
 
 def test_main_workflow_panel_exit_entry_uses_right_panel_detail_language():
