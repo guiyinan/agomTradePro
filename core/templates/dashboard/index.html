@@ -835,6 +835,11 @@ const API_URLS = {
     alphaRefresh: "{% url 'api_dashboard:alpha_refresh' %}",
     decisionRequestCancelBase: "/api/decision-rhythm/requests/"
 };
+const DASHBOARD_ALPHA_DEFAULTS = {
+    alphaScope: "{{ selected_alpha_scope|default:'portfolio'|escapejs }}",
+    portfolioId: "{{ selected_portfolio_id|default:''|escapejs }}",
+    poolMode: "{{ selected_alpha_pool_mode|default:alpha_pool.pool_mode|default:''|escapejs }}"
+};
 
 // 初始化共享渲染器
 const chatRenderer = new AgomSharedChatRenderer({
@@ -999,7 +1004,30 @@ function getCookie(name) {
 
 function getAlphaScopeMode() {
     const scopeInput = document.getElementById('alphaScopeMode');
-    return scopeInput && scopeInput.value === 'general' ? 'general' : 'portfolio';
+    if (scopeInput) {
+        return scopeInput.value === 'general' ? 'general' : 'portfolio';
+    }
+    return DASHBOARD_ALPHA_DEFAULTS.alphaScope === 'general' ? 'general' : 'portfolio';
+}
+
+function getAlphaPortfolioId() {
+    const portfolioSelect = document.getElementById('alphaPortfolioSelect');
+    return portfolioSelect ? portfolioSelect.value : DASHBOARD_ALPHA_DEFAULTS.portfolioId;
+}
+
+function getAlphaPoolMode() {
+    const poolModeSelect = document.getElementById('alphaPoolModeSelect');
+    return poolModeSelect ? poolModeSelect.value : DASHBOARD_ALPHA_DEFAULTS.poolMode;
+}
+
+function refreshAlphaHomepageFallback(delayMs = 300) {
+    window.setTimeout(() => {
+        window.location.reload();
+    }, delayMs);
+}
+
+function hasInlineAlphaStocksTarget() {
+    return Boolean(document.getElementById('alphaStocksTable'));
 }
 
 function updateAlphaScopeControls() {
@@ -1035,11 +1063,10 @@ function setAlphaScopeMode(scope) {
 }
 
 function reloadAlphaStocksTable(topN = 10) {
-    const portfolioSelect = document.getElementById('alphaPortfolioSelect');
-    const poolModeSelect = document.getElementById('alphaPoolModeSelect');
+    const target = document.getElementById('alphaStocksTable');
     const alphaScope = getAlphaScopeMode();
-    const portfolioId = portfolioSelect ? portfolioSelect.value : '';
-    const poolMode = poolModeSelect ? poolModeSelect.value : '';
+    const portfolioId = getAlphaPortfolioId();
+    const poolMode = getAlphaPoolMode();
     const query = new URLSearchParams({ top_n: String(topN), alpha_scope: alphaScope });
     if (alphaScope === 'portfolio' && portfolioId) {
         query.set('portfolio_id', portfolioId);
@@ -1047,12 +1074,14 @@ function reloadAlphaStocksTable(topN = 10) {
     if (alphaScope === 'portfolio' && poolMode) {
         query.set('pool_mode', poolMode);
     }
-    if (window.htmx) {
+    if (window.htmx && target) {
         window.htmx.ajax('GET', `${API_URLS.alphaStocks}?${query.toString()}`, {
             target: '#alphaStocksTable',
             swap: 'innerHTML',
         });
+        return;
     }
+    refreshAlphaHomepageFallback();
 }
 
 let alphaAutoRefreshTimer = null;
@@ -1101,10 +1130,8 @@ async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
     }
 
     try {
-        const portfolioSelect = document.getElementById('alphaPortfolioSelect');
-        const poolModeSelect = document.getElementById('alphaPoolModeSelect');
-        const portfolioId = portfolioSelect ? portfolioSelect.value : '';
-        const poolMode = poolModeSelect ? poolModeSelect.value : '';
+        const portfolioId = getAlphaPortfolioId();
+        const poolMode = getAlphaPoolMode();
         if (alphaScope === 'portfolio' && !portfolioId) {
             throw new Error('账户专属 Alpha 推理必须先选择组合。');
         }
@@ -1132,6 +1159,10 @@ async function triggerAlphaRealtimeRefresh(topN = 10, triggerButton = null) {
 
         if (statusNode) {
             statusNode.textContent = data.message || 'Alpha 刷新完成。';
+        }
+        if (!hasInlineAlphaStocksTarget()) {
+            refreshAlphaHomepageFallback(data.sync ? 0 : (data.poll_after_ms || 5000));
+            return;
         }
         reloadAlphaStocksTable(topN);
         if (!data.sync) {

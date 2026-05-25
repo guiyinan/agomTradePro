@@ -1391,7 +1391,12 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
                         "recommendation_ready": True,
                     }
                 ],
-                meta={},
+                meta={
+                    "recommendation_ready": True,
+                    "must_not_use_for_decision": False,
+                    "source": "cache",
+                    "effective_asof_date": "2026-04-12",
+                },
                 pool={"portfolio_id": 21, "portfolio_name": "默认组合"},
                 actionable_candidates=[
                     {
@@ -1476,6 +1481,257 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     )
     assert rendered["context"]["alpha_actionable_candidates"][0]["code"] == "000001.SZ"
     assert rendered["context"]["quota_remaining"] == 8
+
+
+@pytest.mark.django_db
+def test_dashboard_view_keeps_verified_top_rankings_in_workflow_panel(monkeypatch):
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+
+    dashboard_data = SimpleNamespace(
+        display_name="Admin",
+        username="admin",
+        current_regime="Recovery",
+        regime_date="2026-04-12",
+        regime_confidence=0.82,
+        growth_momentum_z=0.2,
+        inflation_momentum_z=-0.1,
+        regime_distribution={},
+        regime_data_health=True,
+        regime_warnings=[],
+        pmi_value=50.2,
+        cpi_value=1.3,
+        current_policy_level="P1",
+        total_assets=100000.0,
+        initial_capital=80000.0,
+        total_return=20000.0,
+        total_return_pct=25.0,
+        cash_balance=20000.0,
+        invested_value=80000.0,
+        invested_ratio=80.0,
+        positions=[],
+        position_count=0,
+        regime_match_score=0.9,
+        regime_recommendations=[],
+        active_signals=[],
+        signal_stats={},
+        asset_allocation={},
+        ai_insights=[],
+        allocation_advice=None,
+        allocation_data={},
+        performance_data=[],
+    )
+    rendered: dict[str, object] = {}
+
+    monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
+    monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
+    monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
+    monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
+    monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
+    monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
+    monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
+    monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
+    monkeypatch.setattr(
+        views,
+        "_build_attention_items_context",
+        lambda data, navigator, pulse, market_thermometer=None: {},
+    )
+    monkeypatch.setattr(views, "_build_browser_notification_context", lambda navigator, pulse: {})
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_metrics_data",
+        lambda ic_days=30: SimpleNamespace(
+            provider_status={},
+            coverage_metrics={},
+            ic_trends=[],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda **kwargs: {
+            "items": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "alpha_score": 0.91,
+                    "rank": 1,
+                    "source": "qlib",
+                    "confidence": 0.88,
+                    "asof_date": "2026-04-12",
+                    "stage": "top_ranked",
+                    "stage_label": "仅排名",
+                    "recommendation_ready": False,
+                }
+            ],
+            "meta": {
+                "recommendation_ready": True,
+                "must_not_use_for_decision": False,
+                "source": "qlib",
+                "effective_asof_date": "2026-04-12",
+            },
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "exit_watchlist": [],
+            "exit_watch_summary": {},
+            "pool": {"portfolio_id": 21, "portfolio_name": "默认组合"},
+            "recent_runs": [],
+            "history_run_id": 5,
+        },
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_decision_plane_data",
+        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+            beta_gate_visible_classes="equity",
+            alpha_watch_count=1,
+            alpha_candidate_count=1,
+            alpha_actionable_count=0,
+            quota_total=10,
+            quota_used=0,
+            quota_remaining=10,
+            quota_usage_percent=0.0,
+            actionable_candidates=[],
+            pending_requests=[],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "render",
+        lambda request, template_name, context: rendered.setdefault("context", context) or context,
+    )
+
+    views.dashboard_view(request)
+
+    assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_stock_scores"][0]["stage"] == "top_ranked"
+    assert rendered["context"]["alpha_research_rankings"][0]["code"] == "000001.SZ"
+
+
+@pytest.mark.django_db
+def test_dashboard_view_hides_unverified_top_rankings_in_workflow_panel(monkeypatch):
+    request = RequestFactory().get("/dashboard/")
+    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+
+    dashboard_data = SimpleNamespace(
+        display_name="Admin",
+        username="admin",
+        current_regime="Recovery",
+        regime_date="2026-04-12",
+        regime_confidence=0.82,
+        growth_momentum_z=0.2,
+        inflation_momentum_z=-0.1,
+        regime_distribution={},
+        regime_data_health=True,
+        regime_warnings=[],
+        pmi_value=50.2,
+        cpi_value=1.3,
+        current_policy_level="P1",
+        total_assets=100000.0,
+        initial_capital=80000.0,
+        total_return=20000.0,
+        total_return_pct=25.0,
+        cash_balance=20000.0,
+        invested_value=80000.0,
+        invested_ratio=80.0,
+        positions=[],
+        position_count=0,
+        regime_match_score=0.9,
+        regime_recommendations=[],
+        active_signals=[],
+        signal_stats={},
+        asset_allocation={},
+        ai_insights=[],
+        allocation_advice=None,
+        allocation_data={},
+        performance_data=[],
+    )
+    rendered: dict[str, object] = {}
+
+    monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
+    monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
+    monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
+    monkeypatch.setattr(views, "_get_dashboard_portfolio_options", lambda user_id: [])
+    monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [])
+    monkeypatch.setattr(views, "_get_dashboard_valuation_repair_config_summary", lambda: None)
+    monkeypatch.setattr(views, "_build_regime_status_context", lambda navigator, pulse, action: {})
+    monkeypatch.setattr(views, "_build_pulse_card_context", lambda pulse: {})
+    monkeypatch.setattr(views, "_build_action_recommendation_context", lambda action: {})
+    monkeypatch.setattr(
+        views,
+        "_build_attention_items_context",
+        lambda data, navigator, pulse, market_thermometer=None: {},
+    )
+    monkeypatch.setattr(views, "_build_browser_notification_context", lambda navigator, pulse: {})
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_metrics_data",
+        lambda ic_days=30: SimpleNamespace(
+            provider_status={},
+            coverage_metrics={},
+            ic_trends=[],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_alpha_stock_scores_payload",
+        lambda **kwargs: {
+            "items": [
+                {
+                    "code": "000001.SZ",
+                    "name": "平安银行",
+                    "alpha_score": 0.91,
+                    "rank": 1,
+                    "source": "cache",
+                    "confidence": 0.88,
+                    "asof_date": "2026-04-12",
+                    "stage": "top_ranked",
+                    "stage_label": "仅排名",
+                    "recommendation_ready": False,
+                }
+            ],
+            "meta": {
+                "recommendation_ready": False,
+                "must_not_use_for_decision": True,
+                "blocked_reason": "当前结果来自 broader-scope cache 映射。",
+                "source": "cache",
+            },
+            "actionable_candidates": [],
+            "pending_requests": [],
+            "exit_watchlist": [],
+            "exit_watch_summary": {},
+            "pool": {"portfolio_id": 21, "portfolio_name": "默认组合"},
+            "recent_runs": [],
+            "history_run_id": 5,
+        },
+    )
+    monkeypatch.setattr(
+        views,
+        "_get_decision_plane_data",
+        lambda max_candidates=5, max_pending=10: SimpleNamespace(
+            beta_gate_visible_classes="equity",
+            alpha_watch_count=1,
+            alpha_candidate_count=1,
+            alpha_actionable_count=0,
+            quota_total=10,
+            quota_used=0,
+            quota_remaining=10,
+            quota_usage_percent=0.0,
+            actionable_candidates=[],
+            pending_requests=[],
+        ),
+    )
+    monkeypatch.setattr(
+        views,
+        "render",
+        lambda request, template_name, context: rendered.setdefault("context", context) or context,
+    )
+
+    views.dashboard_view(request)
+
+    assert rendered["context"]["alpha_stock_scores"] == []
+    assert rendered["context"]["alpha_research_rankings"][0]["code"] == "000001.SZ"
 
 
 @pytest.mark.django_db

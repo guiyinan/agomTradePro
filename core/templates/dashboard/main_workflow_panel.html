@@ -241,9 +241,12 @@
                 <p class="empty-hint">
                     当前没有通过 readiness 的账户推荐；系统不会用市场 broad pool、硬编码股票池、静态名单或默认 ETF 冒充推荐。
                 </p>
-                <button type="button" class="btn-precheck" onclick="triggerAlphaRealtimeRefresh(10)">
-                    ⚡ 立即推理刷新
-                </button>
+                <div style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn-precheck" onclick="triggerAlphaRealtimeRefresh(10, this)">
+                        ⚡ 立即推理刷新
+                    </button>
+                    <span id="alphaRefreshStatus" class="alpha-refresh-status"></span>
+                </div>
             </div>
         {% endif %}
     </div>

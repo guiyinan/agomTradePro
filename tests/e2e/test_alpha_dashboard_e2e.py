@@ -47,6 +47,8 @@ def _assert_dashboard_alpha_contract(response) -> str:
         "/api/dashboard/alpha/provider-status/",
         "/api/dashboard/alpha/ic-trends/",
         "/api/dashboard/alpha/stocks/",
+        "DASHBOARD_ALPHA_DEFAULTS",
+        "alphaRefreshStatus",
         "?source=dashboard-alpha",
         "reloadAlphaStocksTable",
     ):

@@ -1289,7 +1289,7 @@ def _build_dashboard_page_context(
     market_thermometer_payload: dict | None,
 ) -> dict:
     """Build the dashboard template context from already-loaded read models."""
-    alpha_stock_scores = _annotate_decision_workspace_navigation(
+    raw_alpha_stock_scores = _annotate_decision_workspace_navigation(
         alpha_payload["items"],
         source="dashboard-alpha",
         security_code_key="code",
@@ -1297,6 +1297,11 @@ def _build_dashboard_page_context(
         primary_step=4,
     )
     alpha_stock_scores_meta = alpha_payload["meta"]
+    alpha_stock_scores = (
+        raw_alpha_stock_scores
+        if bool(alpha_stock_scores_meta.get("recommendation_ready", False))
+        else []
+    )
     alpha_actionable_candidates = _annotate_decision_workspace_navigation(
         alpha_payload["actionable_candidates"],
         source="dashboard-alpha",
@@ -1341,7 +1346,7 @@ def _build_dashboard_page_context(
         view_step=5,
         primary_step=5,
     )
-    initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
+    initial_alpha_stock = raw_alpha_stock_scores[0]["code"] if raw_alpha_stock_scores else ""
 
     context = {
         "user": request.user,
@@ -1401,10 +1406,8 @@ def _build_dashboard_page_context(
         "pending_count": len(workflow_pending_requests),
         "alpha_decision_chain_overview": alpha_decision_chain_overview,
         # Alpha 可视化数据（新增）
-        "alpha_stock_scores": [
-            item for item in alpha_stock_scores if bool(item.get("recommendation_ready", False))
-        ],
-        "alpha_research_rankings": alpha_stock_scores,
+        "alpha_stock_scores": alpha_stock_scores,
+        "alpha_research_rankings": raw_alpha_stock_scores,
         "alpha_stock_scores_meta": alpha_stock_scores_meta,
         "alpha_actionable_candidates": alpha_actionable_candidates,
         "alpha_exit_watchlist": alpha_exit_watchlist,
@@ -1433,7 +1436,7 @@ def _build_dashboard_page_context(
         "alpha_factor_panel": _build_alpha_factor_panel(
             initial_alpha_stock,
             top_n=10,
-            scores=alpha_stock_scores,
+            scores=raw_alpha_stock_scores,
             user=request.user,
             portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
             pool_mode=selected_alpha_pool_mode,
