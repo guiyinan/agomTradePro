@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from django.utils import timezone
-
 from apps.alpha.application.ops_locks import (
     acquire_dashboard_alpha_refresh_pending_lock,
     acquire_inference_batch_pending_lock,
@@ -31,6 +29,7 @@ from apps.alpha.application.ops_services import (
 )
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.repository_provider import get_alpha_pool_data_repository
+from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.task_monitor.application.tracking import record_pending_task
 
 
@@ -200,7 +199,7 @@ class TriggerScopedBatchInferenceUseCase:
     def execute(self, *, top_n: int, pool_mode: str, portfolio_limit: int = 0) -> dict[str, Any]:
         from apps.alpha.application.tasks import qlib_daily_scoped_inference
 
-        trade_date = timezone.localdate()
+        trade_date = resolve_recent_closed_trade_date()
         metadata = {
             "lock_type": "alpha_inference_batch",
             "mode": "daily_scoped_batch",

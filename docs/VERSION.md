@@ -42,7 +42,7 @@ Build: 2026-03-23
 
 ## 0.7.0 之后的开发快照（截至 2026-05-25）
 
-- `2026-05-25` Dashboard 首页 Alpha 摘要、`/api/dashboard/alpha/stocks/` JSON 和 HTMX 局部刷新已统一使用同一套 readiness gate：账户专属 scope 下，`recommendation_ready=false` 的 broader-scope cache / trade-date-adjusted 历史结果不再继续伪装成可展示推荐；首页空状态也会直接说明阻断原因与实际评分日，避免用户误以为“点击推理刷新没有反应”
+- `2026-05-25` Dashboard 首页 Alpha 摘要、`/api/dashboard/alpha/stocks/` JSON 和 HTMX 局部刷新已统一使用同一套 readiness gate：账户专属 scope 下，`recommendation_ready=false` 的 broader-scope cache / trade-date-adjusted 历史结果不再继续伪装成可展示推荐；同时首页查询、手动刷新和批量 scoped 推理的目标交易日也已统一收口到“最近一个已收盘交易日”，避免交易日白天仍拿 `today` 去请求、却只能读到上一个收盘结果时被误判成数据链断裂
 - `2026-05-21` Security Scan 的依赖审计门禁已补充对 `joblib` 争议型漏洞 `PYSEC-2024-277 / CVE-2024-34997` 的显式窄豁免；该告警当前无上游 fix version，CI 不再因不可处置的审计噪音阻断 push，但豁免范围仅限该单一 advisory
 - `2026-05-20` 市场温度计已接入 Macro 页面、账户宏观仓位系数和 Dashboard Alpha 推荐链路；具体资产建议现在会同时考虑 `Regime + Pulse + Market Thermometer + Drawdown`，并支持按 band 独立调节缩仓系数与 `extreme` 新仓阻断开关
 

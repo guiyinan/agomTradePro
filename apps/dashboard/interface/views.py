@@ -52,6 +52,9 @@ from apps.alpha.application.pool_resolver import (
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
 )
+from apps.alpha.application.trade_dates import (
+    resolve_recent_closed_trade_date as _resolve_dashboard_alpha_trade_date,
+)
 from apps.dashboard.application import interface_services as dashboard_interface_services
 from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_GENERAL,
@@ -95,6 +98,7 @@ build_dashboard_alpha_refresh_metadata = _build_dashboard_alpha_refresh_metadata
 promote_dashboard_alpha_refresh_task_lock = _promote_dashboard_alpha_refresh_task_lock
 record_pending_task = _record_pending_task
 release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
+resolve_dashboard_alpha_trade_date = _resolve_dashboard_alpha_trade_date
 
 
 def _get_request_user_id(user) -> int | None:

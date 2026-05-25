@@ -18,6 +18,7 @@ from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver,
 )
 from apps.alpha.application.services import AlphaService
+from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.domain.entities import AlphaPoolScope, AlphaResult
 from apps.dashboard.application.navigation import (
     build_decision_workspace_url,
@@ -98,7 +99,7 @@ class AlphaHomepageQuery:
         alpha_scope: str | None = None,
         refresh_sizing_pulse_if_stale: bool = False,
     ) -> AlphaHomepageData:
-        today = django_timezone.localdate()
+        today = resolve_recent_closed_trade_date()
         normalized_scope = normalize_alpha_scope(alpha_scope)
         if normalized_scope == ALPHA_SCOPE_GENERAL:
             return self._execute_general(
