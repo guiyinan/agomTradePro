@@ -131,4 +131,11 @@
 
 - `python manage.py sync_market_thermometer_inputs`
 - `python manage.py calculate_market_thermometer`
+
+## 调度与故障语义
+
+- Celery Beat 现在默认启用 `apps.data_center.application.tasks.refresh_market_thermometer_task`
+- 调度窗口: 交易日 `17:20 / 18:20 / 19:20` 自动重试，统一刷新最近收盘后的温度计快照
+- 任务流程: 先执行 `sync_market_thermometer_inputs`，再执行 `calculate_market_thermometer`
+- 当快照 `valid_component_count == 0` 且 `must_not_use_for_decision == True` 时，Dashboard 首页不再把结果展示为 `0.0`，而是明确标识为“数据缺失”
 - `python manage.py import_investor_accounts --file <csv_path>`

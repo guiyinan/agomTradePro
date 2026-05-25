@@ -563,6 +563,13 @@ CELERY_BEAT_SCHEDULE = {
             "expires": 1800,
         },
     },
+    "market-thermometer-refresh-post-close": {
+        "task": "apps.data_center.application.tasks.refresh_market_thermometer_task",
+        "schedule": crontab(hour="17-19", minute=20, day_of_week="mon-fri"),
+        "options": {
+            "expires": 1800,
+        },
+    },
     # ============================================================
     # ========== 模拟盘自动交易 ==========
     "simulated-daily-auto-trading": {

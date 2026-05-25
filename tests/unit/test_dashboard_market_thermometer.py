@@ -44,3 +44,22 @@ def test_attention_items_include_market_thermometer_warning():
     )
 
     assert any(item["meta"] == "来源: market_thermometer" for item in context["attention_items"])
+
+
+def test_build_market_thermometer_context_hides_zero_score_when_snapshot_is_fully_missing():
+    context = _build_market_thermometer_context(
+        {
+            "observed_at": "2026-05-22",
+            "score": 0.0,
+            "band": "cold",
+            "effective_band": "cold",
+            "score_available": False,
+            "valid_component_count": 0,
+            "must_not_use_for_decision": True,
+            "blocked_reason": "有效组件数不足，当前仅 0 个，低于要求 4 个。",
+        }
+    )
+
+    assert context["market_temperature_score"] is None
+    assert context["market_temperature_score_available"] is False
+    assert context["market_temperature_band_label"] == "数据缺失"
