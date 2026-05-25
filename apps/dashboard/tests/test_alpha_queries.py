@@ -361,6 +361,71 @@ def test_alpha_homepage_query_uses_simple_when_cache_is_broader_mapping():
     assert result.scores[0].code == "000002.SZ"
 
 
+def test_alpha_homepage_execute_uses_recent_closed_trade_date(monkeypatch):
+    captured: dict[str, object] = {}
+    query = object.__new__(AlphaHomepageQuery)
+    query.history_repo = SimpleNamespace(list_recent_runs=lambda **kwargs: [])
+    query._fetch_alpha_result = lambda **kwargs: SimpleNamespace(
+        success=False,
+        scores=[],
+        source="cache",
+        status="unavailable",
+        metadata={},
+    )
+    query._attach_scope_resolution_metadata = lambda **kwargs: None
+    query._build_meta = lambda **kwargs: {"recommendation_ready": False}
+    query._load_stock_context = lambda codes: {}
+    query._load_actionable_map = lambda: {}
+    query._load_pending_map = lambda: {}
+    query._load_portfolio_context = lambda **kwargs: ({}, None, None)
+    query._load_policy_state = lambda: {}
+    query._build_exit_watchlist = lambda **kwargs: []
+    query._build_exit_watch_summary = lambda items: {}
+    query._persist_history = lambda **kwargs: None
+    query._serialize_recent_runs = lambda rows: []
+
+    class FakeResolver:
+        def resolve(self, *, user_id: int, portfolio_id=None, trade_date=None, pool_mode=None):
+            captured["trade_date"] = trade_date
+            return SimpleNamespace(
+                portfolio_id=portfolio_id or 21,
+                portfolio_name="默认组合",
+                requested_pool_mode=pool_mode,
+                requested_pool_size=42,
+                scope_fallback=False,
+                fallback_reason="",
+                scope=SimpleNamespace(
+                    universe_id="portfolio-21-scope",
+                    display_label="默认组合 · 严格估值覆盖池",
+                    pool_type="portfolio",
+                    market="CN",
+                    pool_mode=pool_mode or "price_covered",
+                    pool_size=42,
+                    selection_reason="test",
+                    scope_hash="scope-21",
+                ),
+            )
+
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.resolve_recent_closed_trade_date",
+        lambda: date(2026, 5, 22),
+    )
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.PortfolioAlphaPoolResolver",
+        FakeResolver,
+    )
+
+    query.execute(
+        user=SimpleNamespace(id=7, is_authenticated=True, username="admin"),
+        top_n=10,
+        portfolio_id=21,
+        pool_mode="price_covered",
+        alpha_scope="portfolio",
+    )
+
+    assert captured["trade_date"] == date(2026, 5, 22)
+
+
 @pytest.mark.django_db
 def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
     captured: dict[str, object] = {}

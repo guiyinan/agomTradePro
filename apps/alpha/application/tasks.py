@@ -14,7 +14,6 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from celery import shared_task
-from django.utils import timezone
 
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
@@ -28,14 +27,14 @@ from apps.alpha.application.repository_provider import (
     normalize_qlib_symbol,
     resolve_effective_trade_date,
 )
+from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from apps.alpha.domain.entities import normalize_stock_code
 from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
 
-POST_CLOSE_HOUR = 16
-POST_CLOSE_MINUTE = 0
+_resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
 
 
 def _normalize_qlib_region(region_value):
@@ -99,29 +98,6 @@ def _reset_qlib_runtime_state() -> None:
     for func in (_get_qlib_data_latest_date, _execute_qlib_prediction):
         if hasattr(func, "_qlib_initialized"):
             delattr(func, "_qlib_initialized")
-
-
-def _previous_business_day(target_date: date) -> date:
-    """Return the previous weekday for scheduler fallback usage."""
-    previous_day = target_date - timedelta(days=1)
-    while previous_day.weekday() >= 5:
-        previous_day -= timedelta(days=1)
-    return previous_day
-
-
-def _resolve_recent_closed_trade_date(reference_dt: datetime | None = None) -> date:
-    """Resolve the most recent trade date that should have post-close inference."""
-    local_now = timezone.localtime(reference_dt) if reference_dt else timezone.localtime()
-    current_date = local_now.date()
-
-    if current_date.weekday() >= 5:
-        return _previous_business_day(current_date)
-
-    if (local_now.hour, local_now.minute) < (POST_CLOSE_HOUR, POST_CLOSE_MINUTE):
-        return _previous_business_day(current_date)
-
-    return current_date
-
 
 def _install_qlib_pandas_compat() -> None:
     """Patch known qlib+pandas MultiIndex incompatibilities used by Alpha360 on local runtime."""

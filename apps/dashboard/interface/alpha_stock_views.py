@@ -99,7 +99,7 @@ def alpha_refresh_htmx(request):
 
     dashboard_views = _dashboard_views()
     try:
-        target_date = dashboard_views.django_timezone.localdate()
+        target_date = dashboard_views.resolve_dashboard_alpha_trade_date()
         top_n = dashboard_views._parse_positive_int_param(
             request.POST.get("top_n", 10),
             field_name="top_n",

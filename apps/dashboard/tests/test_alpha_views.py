@@ -16,9 +16,18 @@ from apps.task_monitor.application.repository_provider import get_task_record_re
 from apps.task_monitor.domain.entities import TaskStatus
 
 
+def _pin_dashboard_alpha_trade_date(monkeypatch, target_date: date | None = None) -> date:
+    """Keep dashboard Alpha tests deterministic regardless of wall-clock time."""
+
+    resolved_date = target_date or date.today()
+    monkeypatch.setattr(views, "resolve_dashboard_alpha_trade_date", lambda: resolved_date)
+    return resolved_date
+
+
 @pytest.mark.django_db
 def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     captured: dict[str, object] = {}
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
 
     class FakeTask:
         id = "task-123"
@@ -49,7 +58,7 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
-            target_date=date.today(),
+            target_date=target_date,
             top_n=12,
             raw_universe_id="csi300",
             resolved_pool=None,
@@ -65,6 +74,8 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
 
 @pytest.mark.django_db
 def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
+
     class FakeTask:
         id = "task-123"
 
@@ -91,7 +102,7 @@ def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
-            target_date=date.today(),
+            target_date=target_date,
             top_n=12,
             raw_universe_id="csi300",
             resolved_pool=None,
@@ -105,13 +116,14 @@ def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
     assert record is not None
     assert record.status == TaskStatus.PENDING
     assert record.task_name == "apps.alpha.application.tasks.qlib_predict_scores"
-    assert record.args == ("csi300", date.today().isoformat(), 12)
+    assert record.args == ("csi300", target_date.isoformat(), 12)
     assert record.kwargs == {}
 
 
 @pytest.mark.django_db
 def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     captured: dict[str, object] = {}
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
 
     class FakeTask:
         id = "task-456"
@@ -155,7 +167,7 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
-            target_date=date.today(),
+            target_date=target_date,
             top_n=10,
             raw_universe_id="csi300",
             resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
@@ -170,8 +182,53 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     assert payload["must_not_use_for_decision"] is True
 
 
+def test_alpha_refresh_htmx_uses_recent_closed_trade_date_for_requested_trade_date(monkeypatch):
+    captured: dict[str, object] = {}
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch, date(2026, 5, 22))
+
+    class FakeTask:
+        id = "task-closed-date"
+
+    class FakeDelayWrapper:
+        @staticmethod
+        def delay(universe_id: str, intended_trade_date: str, top_n: int):
+            captured["intended_trade_date"] = intended_trade_date
+            return FakeTask()
+
+    request = RequestFactory().post(
+        "/api/dashboard/alpha/refresh/",
+        {"top_n": 12, "universe_id": "csi300"},
+    )
+    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+    monkeypatch.setattr(
+        views,
+        "_get_dashboard_alpha_refresh_celery_health",
+        lambda: {"available": True, "active_workers": ["worker@local"], "reason": "healthy"},
+    )
+    monkeypatch.setattr(views, "record_pending_task", lambda **kwargs: None)
+
+    response = views.alpha_refresh_htmx(request)
+    payload = json.loads(response.content)
+    cache.delete(
+        views._build_alpha_refresh_lock_key(
+            alpha_scope="portfolio",
+            target_date=target_date,
+            top_n=12,
+            raw_universe_id="csi300",
+            resolved_pool=None,
+        )
+    )
+
+    assert response.status_code == 200
+    assert captured["intended_trade_date"] == "2026-05-22"
+    assert payload["requested_trade_date"] == "2026-05-22"
+
+
 def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
     captured: dict[str, object] = {}
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
 
     class FakeTaskResult:
         def get(self, propagate=False):
@@ -223,7 +280,7 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
-            target_date=date.today(),
+            target_date=target_date,
             top_n=10,
             raw_universe_id="csi300",
             resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
@@ -242,6 +299,7 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
 
 def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch):
     captured: dict[str, object] = {}
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
 
     class FakeTaskResult:
         def get(self, propagate=False):
@@ -279,7 +337,7 @@ def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
-            target_date=date.today(),
+            target_date=target_date,
             top_n=10,
             raw_universe_id="csi300",
             resolved_pool=None,
@@ -296,6 +354,7 @@ def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch
 
 
 def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
         {"top_n": 12, "universe_id": "csi300"},
@@ -304,7 +363,7 @@ def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
 
     lock_key = views._build_alpha_refresh_lock_key(
         alpha_scope="portfolio",
-        target_date=date.today(),
+        target_date=target_date,
         top_n=12,
         raw_universe_id="csi300",
         resolved_pool=None,
@@ -331,6 +390,8 @@ def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
 
 
 def test_alpha_refresh_htmx_rejects_duplicate_sync_request(monkeypatch):
+    target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
+
     class FakeResolver:
         def resolve(self, *, user_id: int, portfolio_id=None, trade_date=None, pool_mode=None):
             return SimpleNamespace(
@@ -356,7 +417,7 @@ def test_alpha_refresh_htmx_rejects_duplicate_sync_request(monkeypatch):
 
     lock_key = views._build_alpha_refresh_lock_key(
         alpha_scope="portfolio",
-        target_date=date.today(),
+        target_date=target_date,
         top_n=10,
         raw_universe_id="csi300",
         resolved_pool=SimpleNamespace(scope=SimpleNamespace(scope_hash="scope-9")),
