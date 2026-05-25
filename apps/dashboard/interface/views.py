@@ -282,6 +282,15 @@ def _build_alpha_readiness_contract(
     }
 
 
+def _should_render_alpha_top_candidates(*, meta: dict, alpha_scope: str) -> bool:
+    """Return whether Alpha top candidates may be rendered as visible rankings."""
+
+    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
+    if normalized_alpha_scope == ALPHA_SCOPE_GENERAL:
+        return True
+    return bool(meta.get("recommendation_ready", False))
+
+
 class DashboardModuleContract:
     """Shared helpers for dashboard readiness contract formatting."""
 
@@ -1306,7 +1315,10 @@ def _build_dashboard_page_context(
     alpha_stock_scores_meta = alpha_payload["meta"]
     alpha_stock_scores = (
         raw_alpha_stock_scores
-        if bool(alpha_stock_scores_meta.get("recommendation_ready", False))
+        if _should_render_alpha_top_candidates(
+            meta=alpha_stock_scores_meta,
+            alpha_scope=selected_alpha_scope,
+        )
         else []
     )
     alpha_actionable_candidates = _annotate_decision_workspace_navigation(

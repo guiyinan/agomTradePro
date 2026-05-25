@@ -492,6 +492,14 @@ def alpha_stocks_htmx(request):
     )
     scores = scores_payload["items"]
     meta = scores_payload["meta"]
+    visible_scores = (
+        scores
+        if dashboard_views._should_render_alpha_top_candidates(
+            meta=meta,
+            alpha_scope=alpha_scope,
+        )
+        else []
+    )
     pool = scores_payload["pool"]
     actionable_candidates = scores_payload["actionable_candidates"]
     exit_watchlist = dashboard_views._mark_alpha_exit_watchlist_selection(
@@ -508,7 +516,7 @@ def alpha_stocks_htmx(request):
     recent_runs = scores_payload["recent_runs"]
     contract = dashboard_views._build_alpha_readiness_contract(
         meta=meta,
-        top_candidates=scores,
+        top_candidates=visible_scores,
         actionable_candidates=actionable_candidates,
         pending_requests=pending_requests,
     )
@@ -518,8 +526,8 @@ def alpha_stocks_htmx(request):
             {
                 "success": True,
                 "data": {
-                    "items": scores,
-                    "top_candidates": scores,
+                    "items": visible_scores,
+                    "top_candidates": visible_scores,
                     "actionable_candidates": actionable_candidates,
                     "exit_watchlist": exit_watchlist,
                     "exit_watch_summary": exit_watch_summary,
@@ -530,7 +538,7 @@ def alpha_stocks_htmx(request):
                     "history_run_id": scores_payload["history_run_id"],
                     "contract": contract,
                     "alpha_scope": alpha_scope,
-                    "count": len(scores),
+                    "count": len(visible_scores),
                     "top_n": top_n,
                 },
             }
@@ -540,7 +548,7 @@ def alpha_stocks_htmx(request):
         return redirect("dashboard:index")
 
     context = {
-        "alpha_stocks": scores,
+        "alpha_stocks": visible_scores,
         "alpha_meta": meta,
         "alpha_pool": pool,
         "alpha_actionable_candidates": actionable_candidates,
