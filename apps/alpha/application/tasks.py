@@ -14,6 +14,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from celery import shared_task
+from django.utils import timezone
 
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
@@ -28,8 +29,8 @@ from apps.alpha.application.repository_provider import (
     resolve_effective_trade_date,
 )
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
-from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from apps.alpha.domain.entities import normalize_stock_code
+from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)

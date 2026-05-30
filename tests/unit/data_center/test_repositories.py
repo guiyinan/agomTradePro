@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
@@ -105,8 +105,10 @@ def test_market_thermometer_user_override_repository_round_trip():
 
 @pytest.mark.django_db
 def test_market_thermometer_snapshot_repository_history_reads_latest():
+    latest_day = date.today()
+    previous_day = latest_day - timedelta(days=1)
     MarketThermometerSnapshotModel.objects.create(
-        observed_at=date(2026, 5, 18),
+        observed_at=previous_day,
         score=68.0,
         band="hot",
         components=[],
@@ -117,10 +119,15 @@ def test_market_thermometer_snapshot_repository_history_reads_latest():
         data_source="calculated",
         must_not_use_for_decision=False,
         blocked_reason="",
-        calculated_at=datetime(2026, 5, 18, tzinfo=UTC),
+        calculated_at=datetime(
+            previous_day.year,
+            previous_day.month,
+            previous_day.day,
+            tzinfo=UTC,
+        ),
     )
     MarketThermometerSnapshotModel.objects.create(
-        observed_at=date(2026, 5, 19),
+        observed_at=latest_day,
         score=79.0,
         band="overheat",
         components=[],
@@ -131,7 +138,12 @@ def test_market_thermometer_snapshot_repository_history_reads_latest():
         data_source="calculated",
         must_not_use_for_decision=False,
         blocked_reason="",
-        calculated_at=datetime(2026, 5, 19, tzinfo=UTC),
+        calculated_at=datetime(
+            latest_day.year,
+            latest_day.month,
+            latest_day.day,
+            tzinfo=UTC,
+        ),
     )
 
     repo = MarketThermometerSnapshotRepository()
@@ -139,8 +151,8 @@ def test_market_thermometer_snapshot_repository_history_reads_latest():
     history = repo.list_history(days=10)
 
     assert latest is not None
-    assert latest.observed_at == date(2026, 5, 19)
-    assert [item.observed_at for item in history][:2] == [date(2026, 5, 19), date(2026, 5, 18)]
+    assert latest.observed_at == latest_day
+    assert [item.observed_at for item in history][:2] == [latest_day, previous_day]
 
 
 @pytest.mark.django_db
