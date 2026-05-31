@@ -171,8 +171,8 @@ Three methods (priority order):
 | `client.signal` | Investment signals - create, approve, check eligibility |
 | `client.data_center` | Unified data center - provider status, indicator governance, macro/price/fund/news facts |
 | `client.policy` | Policy events - status, event management, **workbench operations** |
-| `client.backtest` | Backtesting - run, get results, equity curve |
-| `client.account` | Unified account management - accounts, positions, performance; old portfolio APIs remain compatibility-only |
+| `client.backtest` | Backtesting - run, get results, equity curve, manual decision replay |
+| `client.account` | Unified account management - accounts, positions, performance, broker trade import; old portfolio APIs remain compatibility-only |
 | `client.simulated_trading` | Unified account trading/execution module; module name retained for compatibility |
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
 | `client.fund` | Fund research - rank, screen, detail, NAV, style, holdings, performance |
@@ -189,7 +189,7 @@ Three methods (priority order):
 
 ## MCP Tools
 
-Current local MCP registration snapshot on `2026-05-03`: `318` tools.
+Current local MCP registration snapshot on `2026-05-31`: `340` tools.
 
 Canonical API routing for SDK/MCP is documented in:
 
@@ -199,7 +199,7 @@ Canonical API routing for SDK/MCP is documented in:
 - **Regime**: `get_current_regime`, `calculate_regime`, `get_regime_history`, `explain_regime`
 - **Signal**: `list_signals`, `create_signal`, `check_signal_eligibility`, `approve_signal`
 - **Data Center Macro**: `data_center_list_indicators`, `data_center_get_macro_series`, `data_center_sync_macro`
-- **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
+- **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`, `run_decision_replay_backtest`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
 - **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
 
@@ -276,6 +276,7 @@ These calls mirror the staff/superuser web console:
 
 ### Extended Tools
 - **Unified Accounts**: `list_accounts`, `get_account`, `create_account`, `get_account_positions`, `get_account_performance`
+- **Manual Trade Import**: `preview_broker_trades_csv`, `import_broker_trades_csv`, `preview_broker_trades_json`, `import_broker_trades_json`
 - **Simulated Trading Compat**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_auto_trading`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
 - **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
 - **Fund**: `rank_funds`, `screen_funds`, `get_fund_score`, `list_funds`, `get_fund_detail`, `get_fund_nav_history`, `analyze_fund`, `get_fund_holdings`, `get_fund_performance`
@@ -435,7 +436,7 @@ agomtradepro-mcp
 - **Version**: 1.2.0
 - **App Modules**: 35 business modules
 - **SDK Modules**: 36 service modules
-- **MCP Tools**: 318 tools
+- **MCP Tools**: 340 tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
 - **Last Updated**: 2026-05-04

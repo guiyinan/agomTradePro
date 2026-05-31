@@ -130,3 +130,30 @@ class TestBacktestModule:
             client.backtest.delete_result(1)
             # Should not raise any exception
             assert True
+
+    def test_run_decision_replay(self, client):
+        """测试手动交易决策分支回放"""
+        mock_response = {"backtest_id": 99}
+
+        with patch.object(client, "_request", return_value=mock_response) as mock_request:
+            result = client.backtest.run_decision_replay(
+                portfolio_id=3,
+                start_date=date(2026, 5, 1),
+                end_date=date(2026, 5, 31),
+                branch_type="no_action",
+                initial_capital=500000.0,
+            )
+
+        assert result["backtest_id"] == 99
+        mock_request.assert_called_once_with(
+            "POST",
+            "/api/backtest/decision-replay/",
+            data=None,
+            json={
+                "portfolio_id": 3,
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31",
+                "branch_type": "no_action",
+                "initial_capital": 500000.0,
+            },
+        )

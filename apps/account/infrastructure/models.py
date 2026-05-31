@@ -470,6 +470,32 @@ class TransactionModel(models.Model):
     traded_at = models.DateTimeField(verbose_name="交易时间")
     notes = models.TextField(blank=True, verbose_name="备注")
 
+    # Manual broker import metadata.
+    broker_name = models.CharField(max_length=64, blank=True, default="", verbose_name="券商名称")
+    external_trade_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        verbose_name="外部成交编号",
+    )
+    broker_trade_key = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        verbose_name="券商成交去重键",
+    )
+    raw_payload = models.JSONField(default=dict, blank=True, verbose_name="原始导入行")
+    import_batch = models.ForeignKey(
+        "BrokerTradeImportBatchModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transactions",
+        verbose_name="导入批次",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
 
     class Meta:
@@ -480,10 +506,72 @@ class TransactionModel(models.Model):
         indexes = [
             models.Index(fields=["portfolio", "traded_at"]),
             models.Index(fields=["asset_code"]),
+            models.Index(fields=["broker_name", "external_trade_id"]),
         ]
 
     def __str__(self):
         return f"{self.action.upper()} {self.asset_code} {self.shares}@{self.price}"
+
+
+class BrokerTradeImportBatchModel(models.Model):
+    """One manual broker trade import attempt."""
+
+    STATUS_CHOICES = [
+        ("previewed", "已预览"),
+        ("completed", "已完成"),
+        ("completed_with_errors", "完成但有错误"),
+        ("failed", "失败"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="broker_trade_import_batches",
+        verbose_name="用户",
+    )
+    portfolio = models.ForeignKey(
+        PortfolioModel,
+        on_delete=models.CASCADE,
+        related_name="broker_trade_import_batches",
+        verbose_name="投资组合",
+    )
+    broker_name = models.CharField(max_length=64, default="manual", verbose_name="券商名称")
+    source_filename = models.CharField(max_length=255, blank=True, default="", verbose_name="文件名")
+    file_hash = models.CharField(max_length=64, db_index=True, verbose_name="文件哈希")
+    status = models.CharField(
+        max_length=32,
+        choices=STATUS_CHOICES,
+        default="previewed",
+        db_index=True,
+        verbose_name="状态",
+    )
+    total_rows = models.IntegerField(default=0, verbose_name="总行数")
+    imported_rows = models.IntegerField(default=0, verbose_name="导入行数")
+    skipped_rows = models.IntegerField(default=0, verbose_name="跳过行数")
+    error_rows = models.IntegerField(default=0, verbose_name="错误行数")
+    errors = models.JSONField(default=list, blank=True, verbose_name="错误详情")
+    preview_rows = models.JSONField(default=list, blank=True, verbose_name="预览行")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "broker_trade_import_batch"
+        verbose_name = "券商交易导入批次"
+        verbose_name_plural = "券商交易导入批次"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "portfolio", "file_hash"],
+                name="uq_broker_import_user_portfolio_hash",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="idx_broker_import_user_time"),
+            models.Index(fields=["portfolio", "-created_at"], name="idx_broker_import_pf_time"),
+        ]
+
+    def __str__(self):
+        return f"{self.broker_name} {self.source_filename} ({self.status})"
 
 
 # ============================================================

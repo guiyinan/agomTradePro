@@ -47,6 +47,7 @@ class BaseModule:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 POST 请求
@@ -55,11 +56,14 @@ class BaseModule:
             endpoint: 端点路径（相对于模块前缀）
             data: 表单数据
             json: JSON 数据
+            files: multipart 文件数据
 
         Returns:
             响应 JSON 数据
         """
         url = f"{self._prefix}/{endpoint.lstrip('/')}"
+        if files is not None:
+            return self._client.post(url, data=data, json=json, files=files)
         return self._client.post(url, data=data, json=json)
 
     def _put(

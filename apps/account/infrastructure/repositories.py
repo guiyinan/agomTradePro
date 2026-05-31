@@ -46,6 +46,7 @@ from apps.account.infrastructure.models import (
     AccountProfileModel,
     AssetCategoryModel,
     AssetMetadataModel,
+    BrokerTradeImportBatchModel,
     CapitalFlowModel,
     CurrencyModel,
     ExchangeRateModel,
@@ -1273,6 +1274,31 @@ class PortfolioApiRepository:
             .first()
         )
 
+    def mark_legacy_projection_closed_for_unified(self, *, target_id: int, closed_at=None):
+        """Mark the legacy account.position projection closed for a unified position."""
+
+        legacy_projection = self.get_legacy_projection_for_unified_position(target_id)
+        if legacy_projection is None:
+            return None
+        legacy_projection.shares = 0
+        legacy_projection.market_value = Decimal("0")
+        legacy_projection.unrealized_pnl = Decimal("0")
+        legacy_projection.unrealized_pnl_pct = 0.0
+        legacy_projection.is_closed = True
+        legacy_projection.closed_at = closed_at or timezone.now()
+        legacy_projection.save(
+            update_fields=[
+                "shares",
+                "market_value",
+                "unrealized_pnl",
+                "unrealized_pnl_pct",
+                "is_closed",
+                "closed_at",
+                "updated_at",
+            ]
+        )
+        return legacy_projection
+
     def build_position_payload(self, unified_position, portfolio=None) -> dict[str, Any]:
         """Build the position response payload for one unified position."""
 
@@ -1586,6 +1612,155 @@ class TransactionRepository:
             "cost_variance_pct": model.cost_variance_pct,
             "traded_at": model.traded_at,
         }
+
+
+class ManualTradeSyncRepository:
+    """Persistence operations for manual broker trade imports."""
+
+    def get_owned_portfolio(self, *, user_id: int, portfolio_id: int):
+        return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()
+
+    def broker_trade_key_exists(self, broker_trade_key: str) -> bool:
+        return TransactionModel._default_manager.filter(
+            broker_trade_key=broker_trade_key,
+        ).exists()
+
+    def create_import_batch(
+        self,
+        *,
+        user_id: int,
+        portfolio_id: int,
+        broker_name: str,
+        source_filename: str,
+        file_hash: str,
+        total_rows: int,
+        preview_rows: list[dict[str, Any]],
+    ):
+        batch, _ = BrokerTradeImportBatchModel._default_manager.update_or_create(
+            user_id=user_id,
+            portfolio_id=portfolio_id,
+            file_hash=file_hash,
+            defaults={
+                "broker_name": broker_name,
+                "source_filename": source_filename,
+                "status": "previewed",
+                "total_rows": total_rows,
+                "imported_rows": 0,
+                "skipped_rows": 0,
+                "error_rows": 0,
+                "errors": [],
+                "preview_rows": preview_rows,
+            },
+        )
+        return batch
+
+    def update_import_batch_result(
+        self,
+        batch,
+        *,
+        imported_rows: int,
+        skipped_rows: int,
+        error_rows: int,
+        errors: list[dict[str, Any]],
+    ):
+        batch.imported_rows = imported_rows
+        batch.skipped_rows = skipped_rows
+        batch.error_rows = error_rows
+        batch.errors = errors
+        if error_rows and imported_rows:
+            batch.status = "completed_with_errors"
+        elif error_rows and not imported_rows:
+            batch.status = "failed"
+        else:
+            batch.status = "completed"
+        batch.save(
+            update_fields=[
+                "imported_rows",
+                "skipped_rows",
+                "error_rows",
+                "errors",
+                "status",
+                "updated_at",
+            ]
+        )
+        return batch
+
+    def create_imported_transaction(
+        self,
+        *,
+        portfolio,
+        position=None,
+        action: str,
+        asset_code: str,
+        shares: float,
+        price: Decimal,
+        commission: Decimal,
+        stamp_duty: Decimal,
+        transfer_fee: Decimal,
+        traded_at: datetime,
+        notes: str,
+        broker_name: str,
+        external_trade_id: str,
+        broker_trade_key: str,
+        raw_payload: dict[str, Any],
+        import_batch,
+    ):
+        return TransactionModel._default_manager.create(
+            portfolio=portfolio,
+            position=position,
+            action=action,
+            asset_code=asset_code,
+            shares=shares,
+            price=price,
+            notional=Decimal(str(shares)) * price,
+            commission=commission,
+            stamp_duty=stamp_duty,
+            transfer_fee=transfer_fee,
+            traded_at=traded_at,
+            notes=notes,
+            broker_name=broker_name,
+            external_trade_id=external_trade_id,
+            broker_trade_key=broker_trade_key,
+            raw_payload=raw_payload,
+            import_batch=import_batch,
+        )
+
+    def list_recent_import_batches(self, *, user_id: int, limit: int = 20):
+        return list(
+            BrokerTradeImportBatchModel._default_manager.filter(user_id=user_id)
+            .select_related("portfolio")
+            .order_by("-created_at")[:limit]
+        )
+
+    def list_imported_transactions(self, *, user_id: int, limit: int = 50):
+        return list(
+            TransactionModel._default_manager.filter(
+                portfolio__user_id=user_id,
+                import_batch__isnull=False,
+            )
+            .select_related("portfolio", "import_batch")
+            .order_by("-traded_at")[:limit]
+        )
+
+    def list_imported_transactions_for_portfolio(
+        self,
+        *,
+        user_id: int,
+        portfolio_id: int,
+        start_date: date,
+        end_date: date,
+    ):
+        return list(
+            TransactionModel._default_manager.filter(
+                portfolio_id=portfolio_id,
+                portfolio__user_id=user_id,
+                import_batch__isnull=False,
+                traded_at__date__gte=start_date,
+                traded_at__date__lte=end_date,
+            )
+            .select_related("portfolio", "import_batch")
+            .order_by("traded_at", "id")
+        )
 
 
 class AssetMetadataRepository:

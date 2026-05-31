@@ -4,6 +4,7 @@ AgomTradePro SDK - Account 账户管理模块
 提供账户和持仓管理相关的 API 操作。
 """
 
+from pathlib import Path
 from typing import Any
 
 from ..types import Portfolio, Position
@@ -132,6 +133,77 @@ class AccountModule(BaseModule):
         if isinstance(response, dict):
             return response.get("performance", response)
         return response
+
+    def preview_broker_trades_file(
+        self,
+        portfolio_id: int,
+        file_path: str | Path,
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """
+        预览券商/股票 APP 成交流水文件，不写入交易或持仓。
+
+        文件列要求：traded_at, action, asset_code, shares, price。
+        支持 CSV/XLSX，返回行级校验、去重预估和导入批次摘要。
+        """
+        path = Path(file_path)
+        with path.open("rb") as handle:
+            return self._post(
+                "broker-trades/preview/",
+                data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+                files={"file": (path.name, handle)},
+            )
+
+    def import_broker_trades_file(
+        self,
+        portfolio_id: int,
+        file_path: str | Path,
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """
+        导入券商/股票 APP 成交流水文件，并同步交易、持仓和推荐匹配。
+
+        重复文件或重复成交会按 broker_trade_key 跳过。
+        """
+        path = Path(file_path)
+        with path.open("rb") as handle:
+            return self._post(
+                "broker-trades/import/",
+                data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+                files={"file": (path.name, handle)},
+            )
+
+    def preview_broker_trades_csv(
+        self,
+        portfolio_id: int,
+        csv_text: str,
+        broker_name: str = "manual",
+        filename: str = "broker_trades.csv",
+    ) -> dict[str, Any]:
+        """
+        通过 CSV 文本预览券商流水导入，适合 MCP/Agent 直接传入表格文本。
+        """
+        return self._post(
+            "broker-trades/preview/",
+            data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+            files={"file": (filename, csv_text.encode("utf-8"))},
+        )
+
+    def import_broker_trades_csv(
+        self,
+        portfolio_id: int,
+        csv_text: str,
+        broker_name: str = "manual",
+        filename: str = "broker_trades.csv",
+    ) -> dict[str, Any]:
+        """
+        通过 CSV 文本确认导入券商流水，并触发真实账本同步。
+        """
+        return self._post(
+            "broker-trades/import/",
+            data={"portfolio_id": portfolio_id, "broker_name": broker_name},
+            files={"file": (filename, csv_text.encode("utf-8"))},
+        )
 
     def get_macro_sizing_config(self) -> dict[str, Any]:
         """

@@ -156,3 +156,49 @@ def register_backtest_tools(server: FastMCP) -> None:
 
         return curve
 
+    @server.tool()
+    def run_decision_replay_backtest(
+        portfolio_id: int,
+        start_date: str,
+        end_date: str,
+        branch_type: str,
+        initial_capital: float = 1000000.0,
+    ) -> dict[str, Any]:
+        """
+        运行手动交易决策分支回测。
+
+        Args:
+            portfolio_id: 组合 ID
+            start_date: 回测开始日期（YYYY-MM-DD）
+            end_date: 回测结束日期（YYYY-MM-DD）
+            branch_type: actual|no_action|system_plan|delayed_1d
+            initial_capital: 初始资金
+
+        Returns:
+            创建的 BacktestResult id 或错误信息
+        """
+        if branch_type not in {"actual", "no_action", "system_plan", "delayed_1d"}:
+            return {
+                "success": False,
+                "error": "branch_type 仅支持 actual/no_action/system_plan/delayed_1d",
+            }
+
+        client = AgomTradeProClient()
+        try:
+            result = client.backtest.run_decision_replay(
+                portfolio_id=portfolio_id,
+                start_date=start_date,
+                end_date=end_date,
+                branch_type=branch_type,
+                initial_capital=initial_capital,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "portfolio_id": portfolio_id,
+                "branch_type": branch_type,
+            }
+
+        return {"success": True, **result}
+

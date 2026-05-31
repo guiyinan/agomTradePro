@@ -8,6 +8,7 @@ from apps.account.infrastructure.providers import (
     AccountRepository,
     AssetMetadataRepository,
     MacroSizingConfigRepository,
+    ManualTradeSyncRepository,
     PortfolioApiRepository,
     PortfolioRepository,
     PortfolioSnapshotRepository,
@@ -54,6 +55,20 @@ def get_portfolio_snapshot_repository() -> PortfolioSnapshotRepository:
     """Return the account portfolio snapshot repository."""
 
     return PortfolioSnapshotRepository()
+
+
+def get_manual_trade_sync_repository() -> ManualTradeSyncRepository:
+    """Return the manual trade sync repository."""
+
+    return ManualTradeSyncRepository()
+
+
+def build_broker_trade_file_parser():
+    """Build the default broker trade file parser lazily."""
+
+    from apps.account.infrastructure.broker_import_parser import BrokerTradeFileParser
+
+    return BrokerTradeFileParser()
 
 
 def build_market_price_service():
@@ -120,6 +135,7 @@ __all__ = [
     "AccountRepository",
     "AssetMetadataRepository",
     "MacroSizingConfigRepository",
+    "ManualTradeSyncRepository",
     "PortfolioRepository",
     "PortfolioApiRepository",
     "PortfolioSnapshotRepository",
@@ -130,6 +146,7 @@ __all__ = [
     "TransactionCostConfigRepository",
     "TransactionRepository",
     "build_in_memory_stop_loss_notification_service",
+    "build_broker_trade_file_parser",
     "build_market_price_service",
     "build_backup_download_url",
     "describe_backup_package",
@@ -141,4 +158,5 @@ __all__ = [
     "get_backup_email_connection",
     "get_portfolio_repository",
     "get_portfolio_api_repository",
+    "get_manual_trade_sync_repository",
 ]

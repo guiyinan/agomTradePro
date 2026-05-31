@@ -119,6 +119,27 @@ class RunBacktestSerializer(serializers.Serializer):
         return data
 
 
+class DecisionReplayBacktestSerializer(serializers.Serializer):
+    """Run a manual decision replay branch."""
+
+    portfolio_id = serializers.IntegerField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    branch_type = serializers.ChoiceField(
+        choices=["actual", "no_action", "system_plan", "delayed_1d"]
+    )
+    initial_capital = serializers.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default="1000000.00",
+    )
+
+    def validate(self, data):
+        if data["start_date"] >= data["end_date"]:
+            raise serializers.ValidationError("start_date must be before end_date")
+        return data
+
+
 class BacktestStatisticsSerializer(serializers.Serializer):
     """回测统计序列化器"""
     total = serializers.IntegerField()

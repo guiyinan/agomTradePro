@@ -21,6 +21,8 @@ from apps.account.interface.profile_api_views import (
     UserSearchView,
 )
 from apps.account.interface.transaction_api_views import (
+    BrokerTradeImportConfirmView,
+    BrokerTradeImportPreviewView,
     CapitalFlowViewSet,
     TransactionViewSet,
 )
@@ -72,6 +74,16 @@ urlpatterns = [
     path("health/", AccountHealthView.as_view(), name="health"),
     path("macro-sizing-config/", MacroSizingConfigView.as_view(), name="macro-sizing-config"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
+    path(
+        "broker-trades/preview/",
+        BrokerTradeImportPreviewView.as_view(),
+        name="broker-trade-preview",
+    ),
+    path(
+        "broker-trades/import/",
+        BrokerTradeImportConfirmView.as_view(),
+        name="broker-trade-import",
+    ),
     # 统一账户 canonical API
     path("accounts/", AccountListAPIView.as_view(), name="account-list"),
     path(

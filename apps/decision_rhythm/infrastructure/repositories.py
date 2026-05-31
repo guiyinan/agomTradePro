@@ -1819,6 +1819,104 @@ class UnifiedRecommendationRepository:
         model.save(update_fields=["user_action", "user_action_note", "user_action_at", "updated_at"])
         return self._model_to_entity(model)
 
+    def find_execution_match(
+        self,
+        *,
+        account_id: str,
+        security_code: str,
+        side: str,
+        traded_at,
+        window_days: int = 5,
+    ) -> dict[str, Any] | None:
+        """Return the best recommendation match for one manual transaction."""
+        from datetime import timedelta
+
+        from .models import UnifiedRecommendationModel
+
+        start = traded_at - timedelta(days=window_days)
+        end = traded_at + timedelta(days=window_days)
+        model = (
+            UnifiedRecommendationModel.objects.filter(
+                account_id=account_id,
+                security_code=security_code,
+                side=side,
+                created_at__gte=start,
+                created_at__lte=end,
+            )
+            .exclude(user_action="IGNORED")
+            .order_by("-composite_score", "-created_at")
+            .first()
+        )
+        if model is None:
+            return None
+        return {
+            "recommendation_id": model.recommendation_id,
+            "match_confidence": 0.85,
+        }
+
+    def record_execution_link(
+        self,
+        *,
+        recommendation_id: str,
+        transaction_id: int,
+        account_id: str,
+        security_code: str,
+        actual_action: str,
+        match_method: str,
+        match_confidence: float,
+        notes: str = "",
+    ) -> dict[str, Any]:
+        """Persist one recommendation/manual transaction execution link."""
+        from .models import DecisionExecutionLinkModel
+
+        model, _ = DecisionExecutionLinkModel.objects.update_or_create(
+            transaction_id=transaction_id,
+            recommendation_id=recommendation_id,
+            defaults={
+                "account_id": account_id,
+                "security_code": security_code,
+                "actual_action": actual_action,
+                "match_method": match_method,
+                "match_confidence": match_confidence,
+                "notes": notes,
+            },
+        )
+        return {
+            "id": model.id,
+            "recommendation_id": model.recommendation_id,
+            "transaction_id": model.transaction_id,
+            "match_method": model.match_method,
+            "match_confidence": model.match_confidence,
+        }
+
+    def get_execution_plan_for_transaction(self, transaction_id: int) -> dict[str, Any] | None:
+        """Return recommendation trade parameters linked to an account transaction."""
+        from .models import DecisionExecutionLinkModel, UnifiedRecommendationModel
+
+        link = (
+            DecisionExecutionLinkModel.objects.filter(transaction_id=transaction_id)
+            .exclude(recommendation_id="")
+            .order_by("-match_confidence", "-created_at")
+            .first()
+        )
+        if link is None:
+            return None
+        recommendation = UnifiedRecommendationModel.objects.filter(
+            recommendation_id=link.recommendation_id
+        ).first()
+        if recommendation is None:
+            return None
+        return {
+            "recommendation_id": recommendation.recommendation_id,
+            "side": recommendation.side,
+            "suggested_quantity": recommendation.suggested_quantity,
+            "entry_price_low": recommendation.entry_price_low,
+            "entry_price_high": recommendation.entry_price_high,
+            "target_price_low": recommendation.target_price_low,
+            "target_price_high": recommendation.target_price_high,
+            "stop_loss_price": recommendation.stop_loss_price,
+        }
+
     def get_candidate_ids_for_recommendations(self, recommendation_ids: list[str]) -> list[str]:
         """返回推荐集合关联的候选 ID。"""
         from .models import UnifiedRecommendationModel

@@ -21,6 +21,7 @@ from apps.audit.application.interface_services import (
     build_attribution_detail_context,
     build_audit_overview_context,
     build_indicator_performance_page_context,
+    build_manual_trade_review_context,
     build_report_list_context,
     build_threshold_validation_page_context,
     export_audit_metrics_payload,
@@ -515,6 +516,18 @@ class AuditReviewPageView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(_build_audit_overview_context())
+        return context
+
+
+class ManualTradeReviewPageView(LoginRequiredMixin, TemplateView):
+    """手动交易同步与决策分支复盘页。"""
+
+    template_name = 'audit/manual_trade_review.html'
+    login_url = '/account/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(build_manual_trade_review_context(self.request.user.id))
         return context
 
 

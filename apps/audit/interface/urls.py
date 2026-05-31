@@ -23,6 +23,7 @@ urlpatterns = [
     path('indicator-performance/', views.IndicatorPerformancePageView.as_view(), name='indicator_performance'),
     path('threshold-validation/', views.ThresholdValidationPageView.as_view(), name='threshold_validation'),
     path('review/', views.AuditReviewPageView.as_view(), name='review'),
+    path('manual-trades/', views.ManualTradeReviewPageView.as_view(), name='manual_trades'),
 
     # HTML page routes - Operation Logs
     path('operation-logs/', views.OperationLogsAdminPageView.as_view(), name='operation_logs_admin'),

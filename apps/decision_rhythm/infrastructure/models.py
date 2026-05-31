@@ -2131,6 +2131,59 @@ class UnifiedRecommendationModel(models.Model):
         )
 
 
+class DecisionExecutionLinkModel(models.Model):
+    """Link a manual account transaction to the system recommendation it followed."""
+
+    MATCH_METHOD_CHOICES = [
+        ("auto", "自动匹配"),
+        ("manual", "人工关联"),
+        ("manual_only", "仅人工操作"),
+    ]
+
+    recommendation_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="关联的统一推荐 ID；manual_only 时为空",
+    )
+    transaction_id = models.IntegerField(db_index=True, help_text="account.TransactionModel ID")
+    account_id = models.CharField(max_length=64, db_index=True, help_text="账户 ID")
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
+    actual_action = models.CharField(max_length=16, help_text="实际动作 buy/sell")
+    match_method = models.CharField(
+        max_length=32,
+        choices=MATCH_METHOD_CHOICES,
+        default="auto",
+        db_index=True,
+        help_text="匹配方式",
+    )
+    match_confidence = models.FloatField(default=0.0, help_text="匹配置信度")
+    notes = models.TextField(blank=True, default="", help_text="备注")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        app_label = "decision_rhythm"
+        db_table = "decision_execution_link"
+        verbose_name = "推荐执行关联"
+        verbose_name_plural = "推荐执行关联"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["transaction_id", "recommendation_id"],
+                name="uq_decision_exec_link_tx_recommendation",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["account_id", "security_code"], name="idx_exec_link_acc_sec"),
+            models.Index(fields=["match_method", "-created_at"], name="idx_exec_link_method_time"),
+        ]
+
+    def __str__(self):
+        target = self.recommendation_id or "manual_only"
+        return f"{self.transaction_id} -> {target}"
+
+
 class DecisionModelParamConfigModel(models.Model):
     """
     决策模型参数配置 ORM 模型

@@ -264,6 +264,7 @@ class AgomTradeProClient:
         params: dict[str, Any] | None = None,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 HTTP 请求
@@ -274,6 +275,7 @@ class AgomTradeProClient:
             params: URL 查询参数
             data: 表单数据
             json: JSON 数据
+            files: multipart 文件数据
 
         Returns:
             响应 JSON 数据
@@ -291,13 +293,18 @@ class AgomTradeProClient:
         url = f"{self._config.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         try:
+            headers = self._build_request_headers(method)
+            if files is not None:
+                headers.pop("Content-Type", None)
+
             response = self._session.request(
                 method=method,
                 url=url,
-                headers=self._build_request_headers(method),
+                headers=headers,
                 params=params,
                 data=data,
                 json=json,
+                files=files,
                 timeout=self._config.timeout,
             )
 
@@ -353,6 +360,7 @@ class AgomTradeProClient:
         endpoint: str,
         data: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
     ) -> dict:
         """
         发送 POST 请求
@@ -361,10 +369,13 @@ class AgomTradeProClient:
             endpoint: API 端点
             data: 表单数据
             json: JSON 数据
+            files: multipart 文件数据
 
         Returns:
             响应 JSON 数据
         """
+        if files is not None:
+            return self._request("POST", endpoint, data=data, json=json, files=files)
         return self._request("POST", endpoint, data=data, json=json)
 
     def put(

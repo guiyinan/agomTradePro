@@ -17,7 +17,7 @@ that:
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
@@ -92,6 +92,7 @@ class UnifiedPositionService:
         source: str = "manual",
         source_id: int | None = None,
         entry_reason: str = "",
+        traded_at: datetime | None = None,
     ):
         """
         Open a new position (or merge into an existing one) in the unified ledger.
@@ -104,6 +105,8 @@ class UnifiedPositionService:
         qty = _to_decimal(shares, _QUANTITY_PLACES)
         avg_cost_d = _to_decimal(price, _COST_PLACES)
         cur_price_d = _to_decimal(current_price if current_price is not None else price, _COST_PLACES)
+        execution_time = traded_at or timezone.now()
+        execution_date = execution_time.date()
 
         existing = self._position_repo.get_position(account_id, asset_code)
 
@@ -153,8 +156,8 @@ class UnifiedPositionService:
                 "market_value": _to_decimal(mv, _VALUE_PLACES),
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct,
-                "first_buy_date": date.today(),
-                "last_update_date": date.today(),
+                "first_buy_date": execution_date,
+                "last_update_date": execution_date,
                 "signal_id": source_id if source == "signal" else None,
                 "entry_reason": entry_reason or f"created via {source}",
             }
@@ -174,9 +177,9 @@ class UnifiedPositionService:
             "realized_pnl": None,
             "realized_pnl_pct": None,
             "reason": entry_reason or f"开仓 ({source})",
-            "order_date": date.today(),
-            "execution_date": date.today(),
-            "execution_time": timezone.now(),
+            "order_date": execution_date,
+            "execution_date": execution_date,
+            "execution_time": execution_time,
             "status": "executed",
         }
         model = self._mutation_repo.create_or_merge_position_with_buy_trade(
@@ -263,6 +266,7 @@ class UnifiedPositionService:
         close_shares: float | Decimal | None = None,
         close_price: float | Decimal | None = None,
         reason: str = "平仓",
+        traded_at: datetime | None = None,
     ):
         """
         Close (全部或部分平仓) a position and record a sell trade.
@@ -287,6 +291,8 @@ class UnifiedPositionService:
             if close_price is not None
             else _to_decimal(model.current_price, _COST_PLACES)
         )
+        execution_time = traded_at or timezone.now()
+        execution_date = execution_time.date()
         amount = (qty_to_close * price_d).quantize(_VALUE_PLACES)
         realized_pnl = amount - (avg_cost_d * qty_to_close).quantize(_VALUE_PLACES)
         realized_pnl_pct = (
@@ -305,9 +311,9 @@ class UnifiedPositionService:
             quantity=qty_to_close,
             price=float(price_d),
             amount=float(amount),
-            order_date=date.today(),
-            execution_date=date.today(),
-            execution_time=timezone.now(),
+            order_date=execution_date,
+            execution_date=execution_date,
+            execution_time=execution_time,
             commission=0.0,
             slippage=0.0,
             total_cost=0.0,
@@ -347,7 +353,7 @@ class UnifiedPositionService:
                 "unrealized_pnl": _to_decimal(pnl, _VALUE_PLACES),
                 "unrealized_pnl_pct": pnl_pct,
                 "first_buy_date": model.first_buy_date,
-                "last_update_date": date.today(),
+                "last_update_date": execution_date,
                 "signal_id": model.signal_id,
                 "entry_reason": model.entry_reason,
                 "invalidation_rule_json": model.invalidation_rule_json,

@@ -160,6 +160,29 @@ def _normalize_capital_flow_input(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_BROKER_TRADE_COLUMNS = [
+    "traded_at",
+    "action",
+    "asset_code",
+    "shares",
+    "price",
+    "commission",
+    "stamp_duty",
+    "transfer_fee",
+    "external_trade_id",
+    "notes",
+]
+
+
+def _broker_trades_to_csv(trades: list[dict[str, Any]]) -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=_BROKER_TRADE_COLUMNS)
+    writer.writeheader()
+    for row in trades:
+        writer.writerow({column: row.get(column, "") for column in _BROKER_TRADE_COLUMNS})
+    return out.getvalue()
+
+
 def register_account_tools(server: FastMCP) -> None:
     """注册 Account 相关的 MCP 工具"""
 
@@ -708,6 +731,83 @@ def register_account_tools(server: FastMCP) -> None:
             "count": len(rows),
             "csv": out.getvalue(),
         }
+
+    @server.tool()
+    def preview_broker_trades_csv(
+        portfolio_id: int,
+        csv_text: str,
+        broker_name: str = "manual",
+        filename: str = "broker_trades.csv",
+    ) -> dict[str, Any]:
+        """
+        预览股票 APP/券商成交流水 CSV 导入，不写入账本。
+
+        必填列：traded_at, action, asset_code, shares, price。
+        可选列：commission, stamp_duty, transfer_fee, external_trade_id, notes。
+        """
+        client = AgomTradeProClient()
+        return client.account.preview_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=csv_text,
+            broker_name=broker_name,
+            filename=filename,
+        )
+
+    @server.tool()
+    def import_broker_trades_csv(
+        portfolio_id: int,
+        csv_text: str,
+        broker_name: str = "manual",
+        filename: str = "broker_trades.csv",
+    ) -> dict[str, Any]:
+        """
+        导入股票 APP/券商成交流水 CSV，并同步交易、持仓和推荐匹配。
+
+        重复成交会按 broker_trade_key 跳过；这是手动交易同步的 canonical 导入入口。
+        """
+        client = AgomTradeProClient()
+        return client.account.import_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=csv_text,
+            broker_name=broker_name,
+            filename=filename,
+        )
+
+    @server.tool()
+    def preview_broker_trades_json(
+        portfolio_id: int,
+        trades: list[dict[str, Any]],
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """
+        预览股票 APP/券商成交流水 JSON 导入，不写入账本。
+
+        JSON 会转换为与 CSV 相同的列契约后走统一导入预览接口。
+        """
+        return preview_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=_broker_trades_to_csv(trades),
+            broker_name=broker_name,
+            filename="broker_trades.json.csv",
+        )
+
+    @server.tool()
+    def import_broker_trades_json(
+        portfolio_id: int,
+        trades: list[dict[str, Any]],
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """
+        导入股票 APP/券商成交流水 JSON，并同步交易、持仓和推荐匹配。
+
+        JSON 会转换为与 CSV 相同的列契约后走统一导入确认接口。
+        """
+        return import_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=_broker_trades_to_csv(trades),
+            broker_name=broker_name,
+            filename="broker_trades.json.csv",
+        )
 
     @server.tool()
     def import_transactions_json(

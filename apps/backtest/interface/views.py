@@ -14,6 +14,10 @@ from rest_framework.response import Response
 
 from core.throttling import BacktestRateThrottle, WriteRateThrottle
 
+from ..application.decision_replay import (
+    DecisionReplayBacktestRequest,
+    DecisionReplayBacktestUseCase,
+)
 from ..application.interface_services import (
     backtest_exists,
     delete_backtest_payload,
@@ -27,6 +31,7 @@ from ..application.interface_services import (
 )
 from .serializers import (
     BacktestStatisticsSerializer,
+    DecisionReplayBacktestSerializer,
     RunBacktestSerializer,
 )
 
@@ -189,3 +194,29 @@ def run_backtest_api_view(request):
         'result': response.result,
         'warnings': response.warnings,
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def decision_replay_backtest_api_view(request):
+    """Run a manual decision replay branch backtest."""
+
+    serializer = DecisionReplayBacktestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    response = DecisionReplayBacktestUseCase().execute(
+        DecisionReplayBacktestRequest(
+            user_id=request.user.id,
+            portfolio_id=data["portfolio_id"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            branch_type=data["branch_type"],
+            initial_capital=data["initial_capital"],
+        )
+    )
+    if not response.success:
+        return Response(
+            {"backtest_id": response.backtest_id, "error": response.error},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response({"backtest_id": response.backtest_id}, status=status.HTTP_201_CREATED)

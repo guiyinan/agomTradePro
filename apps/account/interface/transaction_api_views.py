@@ -1,15 +1,19 @@
 """Account transaction and capital flow API views."""
 
 
-from rest_framework import viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.account.application.interface_services import (
     get_user_capital_flow_queryset,
     get_user_portfolio,
     get_user_transaction_queryset,
 )
+from apps.account.application.manual_trade_sync import ManualTradeImportUseCase
 
 from .permissions import TradingPermission
 from .serializers import (
@@ -57,6 +61,54 @@ class TransactionViewSet(viewsets.ModelViewSet):
         notional = shares * float(price)
 
         serializer.save(notional=notional)
+
+
+class BrokerTradeImportSerializer(serializers.Serializer):
+    """Validate manual broker trade import requests."""
+
+    portfolio_id = serializers.IntegerField()
+    broker_name = serializers.CharField(required=False, allow_blank=True, default="manual")
+    file = serializers.FileField()
+
+
+class BrokerTradeImportPreviewView(APIView):
+    """Preview CSV/XLSX broker trades before importing."""
+
+    permission_classes = [IsAuthenticated, TradingPermission]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = BrokerTradeImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        uploaded_file = serializer.validated_data["file"]
+        result = ManualTradeImportUseCase().preview(
+            user_id=request.user.id,
+            portfolio_id=serializer.validated_data["portfolio_id"],
+            broker_name=serializer.validated_data.get("broker_name") or "manual",
+            filename=uploaded_file.name,
+            content=uploaded_file.read(),
+        )
+        return Response(result.__dict__, status=status.HTTP_200_OK)
+
+
+class BrokerTradeImportConfirmView(APIView):
+    """Import CSV/XLSX broker trades and sync account positions."""
+
+    permission_classes = [IsAuthenticated, TradingPermission]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = BrokerTradeImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        uploaded_file = serializer.validated_data["file"]
+        result = ManualTradeImportUseCase().confirm(
+            user_id=request.user.id,
+            portfolio_id=serializer.validated_data["portfolio_id"],
+            broker_name=serializer.validated_data.get("broker_name") or "manual",
+            filename=uploaded_file.name,
+            content=uploaded_file.read(),
+        )
+        return Response(result.__dict__, status=status.HTTP_201_CREATED)
 
 class CapitalFlowViewSet(viewsets.ModelViewSet):
     """

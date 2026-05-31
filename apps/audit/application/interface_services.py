@@ -6,6 +6,7 @@ import json
 from datetime import date
 from typing import Any
 
+from apps.account.application.manual_trade_sync import ManualTradeReviewSummaryUseCase
 from apps.backtest.application.repository_provider import get_backtest_repository
 
 from .repository_provider import (
@@ -270,6 +271,12 @@ def build_audit_overview_context() -> dict[str, Any]:
         "report_total_count": audit_repo.count_attribution_reports(),
         "completed_backtest_count": len(completed_backtests),
     }
+
+
+def build_manual_trade_review_context(user_id: int) -> dict[str, Any]:
+    """Build the manual trade review page context."""
+
+    return ManualTradeReviewSummaryUseCase().execute(user_id=user_id)
 
 
 def build_report_list_context(method_filter: str) -> dict[str, Any]:

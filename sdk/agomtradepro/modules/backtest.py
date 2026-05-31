@@ -194,6 +194,32 @@ class BacktestModule(BaseModule):
         response = self._get(f"backtests/{backtest_id}/equity-curve/")
         return response.get("curve", response)
 
+    def run_decision_replay(
+        self,
+        portfolio_id: int,
+        start_date: date | str,
+        end_date: date | str,
+        branch_type: str,
+        initial_capital: float = 1000000.0,
+    ) -> dict[str, Any]:
+        """
+        运行手动交易决策分支回测。
+
+        branch_type 支持 actual、no_action、system_plan、delayed_1d。
+        """
+        start_value = start_date.isoformat() if isinstance(start_date, date) else start_date
+        end_value = end_date.isoformat() if isinstance(end_date, date) else end_date
+        return self._post(
+            "decision-replay/",
+            json={
+                "portfolio_id": portfolio_id,
+                "start_date": start_value,
+                "end_date": end_value,
+                "branch_type": branch_type,
+                "initial_capital": initial_capital,
+            },
+        )
+
     def _parse_result(self, data: dict[str, Any]) -> BacktestResult:
         """
         解析回测结果数据

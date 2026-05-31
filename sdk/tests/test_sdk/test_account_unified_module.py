@@ -51,3 +51,37 @@ class TestAccountModuleUnifiedAliases:
             "/api/account/accounts/3/performance-report/",
             params={"start_date": "2024-01-01", "end_date": "2024-01-31"},
         )
+
+    def test_preview_broker_trades_csv_uses_multipart_endpoint(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        csv_text = "traded_at,action,asset_code,shares,price\n2026-05-01,buy,600519.SH,100,1500\n"
+
+        with patch.object(client, "post", return_value={"valid_rows": 1}) as mock_post:
+            result = client.account.preview_broker_trades_csv(
+                portfolio_id=9,
+                csv_text=csv_text,
+                broker_name="eastmoney",
+            )
+
+        assert result["valid_rows"] == 1
+        mock_post.assert_called_once()
+        assert mock_post.call_args.args[0] == "/api/account/broker-trades/preview/"
+        assert mock_post.call_args.kwargs["data"] == {
+            "portfolio_id": 9,
+            "broker_name": "eastmoney",
+        }
+        filename, content = mock_post.call_args.kwargs["files"]["file"]
+        assert filename == "broker_trades.csv"
+        assert content == csv_text.encode("utf-8")
+
+    def test_import_broker_trades_csv_uses_confirm_endpoint(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(client, "post", return_value={"created_rows": 1}) as mock_post:
+            result = client.account.import_broker_trades_csv(
+                portfolio_id=9,
+                csv_text="traded_at,action,asset_code,shares,price\n2026-05-01,sell,600519.SH,100,1510\n",
+            )
+
+        assert result["created_rows"] == 1
+        assert mock_post.call_args.args[0] == "/api/account/broker-trades/import/"

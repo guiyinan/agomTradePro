@@ -96,6 +96,7 @@
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
 | [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API | 完整 |
+| [manual-trade-sync-mvp-2026-05-31.md](development/manual-trade-sync-mvp-2026-05-31.md) | **手动交易同步与决策分支回测 MVP（CSV/Excel 导入、推荐匹配、反事实回放）** | ✅ 2026-05-31 新增 |
 | [startup-scripts.md](development/startup-scripts.md) | 启动脚本使用指南 | 完整 |
 | [module-ledger.md](development/module-ledger.md) | 模块账本（边界规则/依赖统计） | ✅ 2026-03-18 更新 |
 | [system-review-report.md](development/system-review-report.md) | 系统审视报告 | ✅ 2026-03-18 更新 |
@@ -267,7 +268,7 @@
 
 **业务模块**: 35个
 
-**MCP 工具**: 335个（本地注册快照）
+**MCP 工具**: 340个（本地注册快照）
 
 **REST API 路径**: 515个（OpenAPI 快照）
 

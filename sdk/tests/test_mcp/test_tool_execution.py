@@ -229,6 +229,34 @@ class _FakeClient:
             },
             get_account_positions=lambda account_id: [{"account_id": account_id}],
             get_account_performance=lambda account_id: {"account_id": account_id},
+            preview_broker_trades_csv=(
+                lambda portfolio_id, csv_text, broker_name="manual", filename="broker_trades.csv": {
+                    "portfolio_id": portfolio_id,
+                    "broker_name": broker_name,
+                    "filename": filename,
+                    "valid_rows": 1 if csv_text else 0,
+                }
+            ),
+            import_broker_trades_csv=(
+                lambda portfolio_id, csv_text, broker_name="manual", filename="broker_trades.csv": {
+                    "portfolio_id": portfolio_id,
+                    "broker_name": broker_name,
+                    "filename": filename,
+                    "created_rows": 1 if csv_text else 0,
+                }
+            ),
+        )
+        self.backtest = SimpleNamespace(
+            run_decision_replay=(
+                lambda portfolio_id, start_date, end_date, branch_type, initial_capital=1000000.0: {
+                    "backtest_id": 42,
+                    "portfolio_id": portfolio_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "branch_type": branch_type,
+                    "initial_capital": initial_capital,
+                }
+            ),
         )
         self.asset_analysis = SimpleNamespace(
             multidim_screen=lambda payload: {"screen": True, "payload": payload},
@@ -421,6 +449,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomtradepro_mcp.tools.simulated_trading_tools",
         "agomtradepro_mcp.tools.strategy_tools",
         "agomtradepro_mcp.tools.account_tools",
+        "agomtradepro_mcp.tools.backtest_tools",
         "agomtradepro_mcp.tools.asset_analysis_tools",
         "agomtradepro_mcp.tools.sentiment_tools",
         "agomtradepro_mcp.tools.task_monitor_tools",
@@ -566,6 +595,38 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ),
         ("asset_multidim_screen", {"payload": {"asset_type": "equity"}}),
         ("get_trading_cost_configs", {"portfolio_id": 1}),
+        (
+            "preview_broker_trades_csv",
+            {
+                "portfolio_id": 1,
+                "csv_text": "traded_at,action,asset_code,shares,price\n2026-05-01,buy,600519.SH,100,1500\n",
+            },
+        ),
+        (
+            "import_broker_trades_json",
+            {
+                "portfolio_id": 1,
+                "trades": [
+                    {
+                        "traded_at": "2026-05-01",
+                        "action": "buy",
+                        "asset_code": "600519.SH",
+                        "shares": 100,
+                        "price": 1500,
+                    }
+                ],
+            },
+        ),
+        (
+            "run_decision_replay_backtest",
+            {
+                "portfolio_id": 1,
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-31",
+                "branch_type": "no_action",
+                "initial_capital": 1000000.0,
+            },
+        ),
         ("get_asset_current_weight", {}),
         ("asset_pool_screen", {"asset_type": "equity", "payload": {"top_n": 10}}),
         ("asset_pool_summary", {"payload": {"asset_type": "equity"}}),

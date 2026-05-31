@@ -47,6 +47,27 @@
 | audit | `/api/audit/` | 历史页面式前缀已移除 |
 | decision_workflow | `/api/decision/...` | `workspace/recommendations/`, `funnel/context/` 已对齐 |
 
+### 2026-05-31 手动交易导入与分支回测
+
+- 手动交易同步 canonical API：
+  - `POST /api/account/broker-trades/preview/`
+  - `POST /api/account/broker-trades/import/`
+- 决策分支回测 canonical API：
+  - `POST /api/backtest/decision-replay/`
+- SDK 对应方法：
+  - `account.preview_broker_trades_file(...)`
+  - `account.import_broker_trades_file(...)`
+  - `account.preview_broker_trades_csv(...)`
+  - `account.import_broker_trades_csv(...)`
+  - `backtest.run_decision_replay(...)`
+- MCP 对应工具：
+  - `preview_broker_trades_csv`
+  - `import_broker_trades_csv`
+  - `preview_broker_trades_json`
+  - `import_broker_trades_json`
+  - `run_decision_replay_backtest`
+- 旧 `import_transactions_csv/json` 仅保留为原始交易 CRUD 兼容工具，不应作为手动交易同步主链路；主链路必须走 broker-trades 入口，才能触发去重、持仓同步和推荐匹配。
+
 ### 2026-05-03 宏观治理补充
 
 - staff 宏观治理页入口：`/data-center/governance/`

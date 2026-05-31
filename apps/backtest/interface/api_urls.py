@@ -21,6 +21,7 @@ class BacktestApiRootView(APIView):
                     "backtests": "/api/backtest/backtests/",
                     "statistics": "/api/backtest/statistics/",
                     "run": "/api/backtest/run/",
+                    "decision_replay": "/api/backtest/decision-replay/",
                 }
             }
         )
@@ -30,5 +31,6 @@ urlpatterns = [
     path("", BacktestApiRootView.as_view(), name="api-root"),
     path("statistics/", views.backtest_statistics_api_view, name="statistics-api"),
     path("run/", views.run_backtest_api_view, name="run-api"),
+    path("decision-replay/", views.decision_replay_backtest_api_view, name="decision-replay-api"),
     path("", include(router.urls)),
 ]
