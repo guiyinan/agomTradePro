@@ -21,3 +21,14 @@ def build_manual_trade_review_context(user_id: int) -> dict[str, Any]:
     from apps.account.application.manual_trade_sync import ManualTradeReviewSummaryUseCase
 
     return ManualTradeReviewSummaryUseCase().execute(user_id=user_id)
+
+
+def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
+    """Return the legacy portfolio id used by manual trade import for one account."""
+
+    from apps.account.application.repository_provider import get_portfolio_api_repository
+
+    portfolio = get_portfolio_api_repository().get_portfolio_for_account(account_id)
+    if portfolio is None:
+        return None
+    return int(portfolio.id)

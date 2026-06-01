@@ -188,6 +188,24 @@ def test_manual_trade_review_entry_is_exposed_in_account_execution_navigation():
     assert reverse("audit:manual_trades") == "/audit/manual-trades/"
 
 
+def test_manual_trade_review_links_are_exposed_from_portfolio_pages():
+    template_dir = Path("core/templates/simulated_trading")
+
+    accounts_template = (template_dir / "my_accounts.html").read_text(encoding="utf-8")
+    detail_template = (template_dir / "my_account_detail.html").read_text(encoding="utf-8")
+    positions_template = (template_dir / "my_positions.html").read_text(encoding="utf-8")
+    review_template = Path("apps/audit/templates/audit/manual_trade_review.html").read_text(
+        encoding="utf-8"
+    )
+
+    for template in [accounts_template, detail_template, positions_template]:
+        assert "{% url 'audit:manual_trades' %}?portfolio_id=" in template
+        assert "manual_trade_portfolio_id" in template
+
+    assert 'get("portfolio_id")' in review_template
+    assert "selectRequestedPortfolio" in review_template
+
+
 def test_removed_legacy_page_routes_return_404():
     client = Client()
 

@@ -13,6 +13,9 @@
             </div>
             <div class="header-actions">
                 <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-secondary">返回账户详情</a>
+                {% if manual_trade_portfolio_id %}
+                <a href="{% url 'audit:manual_trades' %}?portfolio_id={{ manual_trade_portfolio_id }}" class="btn btn-primary">导入成交流水</a>
+                {% endif %}
                 <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">账户列表</a>
             </div>
         </div>

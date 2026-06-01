@@ -614,6 +614,7 @@
     };
     const branchOrder = ["actual", "no_action", "system_plan", "delayed_1d"];
     const branchData = [];
+    const requestedPortfolioId = new URLSearchParams(window.location.search).get("portfolio_id") || "";
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
@@ -658,12 +659,19 @@
                     return;
                 }
                 options.forEach((option) => select.appendChild(option.cloneNode(true)));
+                selectRequestedPortfolio(select);
             });
         } catch (error) {
             [portfolioSelect, replayPortfolioSelect].forEach((select) => {
                 select.innerHTML = '<option value="">组合加载失败</option>';
             });
         }
+    }
+
+    function selectRequestedPortfolio(select) {
+        if (!requestedPortfolioId) return;
+        const hasOption = Array.from(select.options).some((option) => option.value === requestedPortfolioId);
+        if (hasOption) select.value = requestedPortfolioId;
     }
 
     function buildImportFormData() {

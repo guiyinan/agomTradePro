@@ -30,6 +30,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
 )
 from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
+from core.integration.manual_trade_sync import get_manual_trade_portfolio_id_for_account
 from core.integration.share_context import get_account_owner_share_links
 
 
@@ -143,6 +144,7 @@ def build_my_accounts_context(user: Any) -> dict[str, Any]:
 
     for account in accounts:
         account.active_strategy = facade.get_active_strategy_summary(account.id)
+        account.manual_trade_portfolio_id = _manual_trade_portfolio_id(account)
         total_assets += Decimal(account.total_value or 0)
 
     return {
@@ -163,6 +165,7 @@ def build_my_account_detail_context(user: Any, account_id: int) -> dict[str, Any
         "account": account,
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
+        "manual_trade_portfolio_id": _manual_trade_portfolio_id(account),
         "positions": get_simulated_position_repository().list_position_models_for_account(
             account.id,
             limit=10,
@@ -190,6 +193,7 @@ def build_my_positions_context(user: Any, account_id: int) -> dict[str, Any] | N
         "account": account,
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
+        "manual_trade_portfolio_id": _manual_trade_portfolio_id(account),
         "positions": get_simulated_position_repository().list_position_models_for_account(account.id),
         "user": user,
     }
@@ -356,3 +360,11 @@ def _account_type_label(account_type: str) -> str:
     """Return display label for account type."""
 
     return "真实账户" if account_type == "real" else "模拟账户"
+
+
+def _manual_trade_portfolio_id(account: Any) -> int | None:
+    """Return the manual-trade import portfolio id for mapped real accounts."""
+
+    if getattr(account, "account_type", None) != "real":
+        return None
+    return get_manual_trade_portfolio_id_for_account(int(account.id))

@@ -18,6 +18,9 @@
             </div>
             <div class="header-actions">
                 <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回账户列表</a>
+                {% if manual_trade_portfolio_id %}
+                <a href="{% url 'audit:manual_trades' %}?portfolio_id={{ manual_trade_portfolio_id }}" class="btn btn-secondary">导入成交流水</a>
+                {% endif %}
                 <a href="{% url 'share:manage' %}?account_id={{ account.id }}" class="btn btn-primary">创建分享链接</a>
                 <a href="{% url 'simulated_trading:my-inspection-notify' account.id %}" class="btn btn-secondary">巡检邮件配置</a>
             </div>

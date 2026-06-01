@@ -135,6 +135,11 @@
                     <a href="{% url 'simulated_trading:my-trades' account.id %}" class="btn btn-secondary">
                         交易记录
                     </a>
+                    {% if account.manual_trade_portfolio_id %}
+                    <a href="{% url 'audit:manual_trades' %}?portfolio_id={{ account.manual_trade_portfolio_id }}" class="btn btn-secondary">
+                        导入流水
+                    </a>
+                    {% endif %}
                     <button
                         type="button"
                         class="btn btn-danger btn-delete-account"
