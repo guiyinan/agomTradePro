@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -15,6 +15,7 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionExecutionLinkModel,
     UnifiedRecommendationModel,
 )
+from apps.data_center.infrastructure.models import PriceBarModel
 
 
 def _csv(rows: list[str]) -> bytes:
@@ -164,3 +165,58 @@ def test_decision_replay_no_action_preserves_initial_capital(owner_portfolio):
     backtest = user.backtests.get(id=response.backtest_id)
     assert backtest.final_capital == Decimal("10000.00")
     assert backtest.trades == []
+
+
+@pytest.mark.django_db
+def test_decision_replay_values_open_positions_with_data_center_prices(owner_portfolio):
+    user, portfolio = owner_portfolio
+    ManualTradeImportUseCase().confirm(
+        user_id=user.id,
+        portfolio_id=portfolio.id,
+        broker_name="demo",
+        filename="replay-market.csv",
+        content=_csv(["2026-05-20T10:00:00,buy,000001.SZ,100,10.00,t1,first buy"]),
+    )
+    PriceBarModel.objects.bulk_create(
+        [
+            PriceBarModel(
+                asset_code="000001.SZ",
+                bar_date=date(2026, 5, 20),
+                freq="1d",
+                adjustment="none",
+                open=Decimal("10.00"),
+                high=Decimal("10.20"),
+                low=Decimal("9.90"),
+                close=Decimal("10.00"),
+                source="test-data-center",
+            ),
+            PriceBarModel(
+                asset_code="000001.SZ",
+                bar_date=date(2026, 5, 25),
+                freq="1d",
+                adjustment="none",
+                open=Decimal("11.80"),
+                high=Decimal("12.20"),
+                low=Decimal("11.70"),
+                close=Decimal("12.00"),
+                source="test-data-center",
+            ),
+        ]
+    )
+
+    response = DecisionReplayBacktestUseCase().execute(
+        DecisionReplayBacktestRequest(
+            user_id=user.id,
+            portfolio_id=portfolio.id,
+            start_date=date(2026, 5, 19),
+            end_date=date(2026, 5, 25),
+            branch_type="actual",
+            initial_capital=Decimal("10000"),
+        )
+    )
+
+    assert response.success
+    backtest = user.backtests.get(id=response.backtest_id)
+    assert backtest.final_capital == Decimal("10200.00")
+    assert backtest.equity_curve[-1]["value"] == 10200.0
+    assert "no data_center close prices" not in " ".join(backtest.warnings)

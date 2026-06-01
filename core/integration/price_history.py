@@ -7,6 +7,18 @@ from datetime import date, timedelta
 from apps.data_center.infrastructure.repositories import PriceBarRepository
 
 
+def fetch_close_price_series_from_data_center(
+    asset_code: str,
+    start_date: date,
+    end_date: date,
+) -> list[tuple[date, float]]:
+    """Return close-price history from data_center facts, oldest to newest."""
+
+    repo = PriceBarRepository()
+    bars = repo.get_bars(asset_code, start=start_date, end=end_date, limit=5000)
+    return [(bar.bar_date, float(bar.close)) for bar in reversed(bars)]
+
+
 def fetch_close_prices_from_data_center(
     asset_code: str,
     end_date: date,

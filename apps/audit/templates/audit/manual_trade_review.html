@@ -2,75 +2,887 @@
 
 {% block title %}手动交易复盘 - AgomTradePro{% endblock %}
 
+{% block page_subtitle %}
+<p class="page-subtitle">同步股票 APP 成交流水，复盘实际操作与系统建议的偏差。</p>
+{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+.manual-shell {
+    display: grid;
+    gap: 20px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.audit-container {
+    box-sizing: border-box;
+    max-width: min(1400px, 100vw);
+    overflow-x: clip;
+}
+
+.manual-shell .overview-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.manual-shell .stat-card {
+    min-width: 0;
+    border-radius: 8px;
+}
+
+.manual-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+    gap: 20px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.panel {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 18px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.panel-title i {
+    color: #2563eb;
+}
+
+.panel-subtitle {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.form-grid .span-2 {
+    grid-column: 1 / -1;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.field input,
+.field select {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #0f172a;
+    background: #fff;
+    font-size: 14px;
+}
+
+.file-drop {
+    display: grid;
+    gap: 10px;
+    align-items: center;
+    min-height: 112px;
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 16px;
+    background: #f8fafc;
+}
+
+.file-drop input {
+    border: 0;
+    padding: 0;
+    min-height: auto;
+    background: transparent;
+    max-width: 100%;
+}
+
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.status-line {
+    min-height: 22px;
+    margin-top: 12px;
+    color: #475569;
+    font-size: 13px;
+}
+
+.status-line.error {
+    color: #b91c1c;
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0;
+}
+
+.metric {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f8fafc;
+}
+
+.metric-value {
+    display: block;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.metric-label {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.preview-wrap,
+.replay-wrap {
+    display: none;
+    margin-top: 18px;
+}
+
+.preview-wrap.active,
+.replay-wrap.active {
+    display: block;
+}
+
+.table-scroll {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+    background: white;
+}
+
+.compact-table th,
+.compact-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    font-size: 13px;
+}
+
+.compact-table th {
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+}
+
+.compact-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.pill-buy,
+.pill-ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.pill-sell,
+.pill-error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.pill-warn,
+.pill-manual {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.pill-info {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.branch-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.branch-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #ffffff;
+}
+
+.branch-name {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.branch-meta {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.chart-box {
+    margin-top: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f8fafc;
+}
+
+#replayChart {
+    width: 100%;
+    height: 180px;
+}
+
+.history-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 20px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.empty-row {
+    color: #64748b;
+    text-align: center;
+}
+
+.muted {
+    color: #64748b;
+}
+
+@media (max-width: 1180px) {
+    .manual-top,
+    .history-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .manual-shell .overview-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .audit-container {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .manual-top,
+    .history-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .form-grid,
+    .metric-grid,
+    .branch-grid,
+    .manual-shell .overview-stats {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .panel-header,
+    .action-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .manual-shell .stat-card {
+        padding: 14px;
+    }
+
+    .manual-shell .stat-icon {
+        font-size: 24px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block audit_content %}
-<section>
-    <h2>手动交易复盘</h2>
-    <p>通过 `/api/account/broker-trades/preview/` 预览 CSV/XLSX，通过 `/api/account/broker-trades/import/` 确认导入。系统会记录实际成交、同步持仓，并自动匹配附近的系统推荐。</p>
-</section>
+<div class="manual-shell">
+    <div class="overview-stats">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="bi bi-cloud-arrow-up"></i></div>
+            <div>
+                <span class="stat-value">{{ batches|length }}</span>
+                <span class="stat-label">导入批次</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+            <div>
+                <span class="stat-value">{{ transactions|length }}</span>
+                <span class="stat-label">最近成交</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="bi bi-link-45deg"></i></div>
+            <div>
+                <span class="stat-value" id="matchedCount">-</span>
+                <span class="stat-label">本次匹配</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="bi bi-bar-chart-line"></i></div>
+            <div>
+                <span class="stat-value" id="replayCount">0</span>
+                <span class="stat-label">分支回测</span>
+            </div>
+        </div>
+    </div>
 
-<section>
-    <h3>最近导入批次</h3>
-    <table class="audit-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>组合</th>
-                <th>券商</th>
-                <th>文件</th>
-                <th>状态</th>
-                <th>导入/跳过/错误</th>
-                <th>时间</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for batch in batches %}
-            <tr>
-                <td>{{ batch.id }}</td>
-                <td>{{ batch.portfolio_name }}</td>
-                <td>{{ batch.broker_name }}</td>
-                <td>{{ batch.source_filename }}</td>
-                <td>{{ batch.status }}</td>
-                <td>{{ batch.imported_rows }} / {{ batch.skipped_rows }} / {{ batch.error_rows }}</td>
-                <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="7">暂无导入批次。</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
+    <div class="manual-top">
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><i class="bi bi-file-earmark-spreadsheet"></i>导入成交流水</h2>
+                    <p class="panel-subtitle">CSV/XLSX 列：traded_at, action, asset_code, shares, price</p>
+                </div>
+            </div>
 
-<section>
-    <h3>最近导入成交</h3>
-    <table class="audit-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>组合</th>
-                <th>股票</th>
-                <th>方向</th>
-                <th>数量</th>
-                <th>价格</th>
-                <th>金额</th>
-                <th>成交时间</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for tx in transactions %}
-            <tr>
-                <td>{{ tx.id }}</td>
-                <td>{{ tx.portfolio_name }}</td>
-                <td>{{ tx.asset_code }}</td>
-                <td>{{ tx.action }}</td>
-                <td>{{ tx.shares }}</td>
-                <td>{{ tx.price }}</td>
-                <td>{{ tx.notional }}</td>
-                <td>{{ tx.traded_at|date:"Y-m-d H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="8">暂无导入成交。</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
+            <form id="importForm">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="portfolioSelect">组合</label>
+                        <select id="portfolioSelect" name="portfolio_id" required>
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="brokerName">来源</label>
+                        <input id="brokerName" name="broker_name" type="text" value="manual" maxlength="64">
+                    </div>
+                    <div class="field span-2">
+                        <label for="tradeFile">流水文件</label>
+                        <div class="file-drop">
+                            <input id="tradeFile" name="file" type="file" accept=".csv,.xlsx,.xls" required>
+                            <span class="muted">支持 CSV、Excel；重复成交会在预览和确认导入时标记。</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-row">
+                    <button class="btn btn-outline" type="button" id="previewBtn">
+                        <i class="bi bi-eye"></i>&nbsp;预览
+                    </button>
+                    <button class="btn btn-primary" type="button" id="confirmImportBtn" disabled>
+                        <i class="bi bi-cloud-arrow-up"></i>&nbsp;确认导入
+                    </button>
+                </div>
+                <div id="importStatus" class="status-line"></div>
+            </form>
+
+            <div id="previewWrap" class="preview-wrap">
+                <div class="metric-grid">
+                    <div class="metric"><span class="metric-value" id="mTotal">0</span><span class="metric-label">总行数</span></div>
+                    <div class="metric"><span class="metric-value" id="mValid">0</span><span class="metric-label">有效行</span></div>
+                    <div class="metric"><span class="metric-value" id="mDup">0</span><span class="metric-label">重复行</span></div>
+                    <div class="metric"><span class="metric-value" id="mError">0</span><span class="metric-label">错误行</span></div>
+                </div>
+                <div class="table-scroll">
+                    <table class="compact-table">
+                        <thead>
+                            <tr>
+                                <th>行</th>
+                                <th>时间</th>
+                                <th>股票</th>
+                                <th>方向</th>
+                                <th>数量</th>
+                                <th>价格</th>
+                                <th>状态</th>
+                                <th>匹配</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><i class="bi bi-diagram-3"></i>决策分支回测</h2>
+                    <p class="panel-subtitle">固定规则：一次只改变一个关键决策。</p>
+                </div>
+            </div>
+
+            <form id="replayForm">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="replayPortfolioSelect">组合</label>
+                        <select id="replayPortfolioSelect" name="portfolio_id" required>
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="branchType">分支</label>
+                        <select id="branchType" name="branch_type">
+                            <option value="all">全部分支</option>
+                            <option value="actual">actual</option>
+                            <option value="no_action">no_action</option>
+                            <option value="system_plan">system_plan</option>
+                            <option value="delayed_1d">delayed_1d</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="startDate">开始日期</label>
+                        <input id="startDate" name="start_date" type="date" required>
+                    </div>
+                    <div class="field">
+                        <label for="endDate">结束日期</label>
+                        <input id="endDate" name="end_date" type="date" required>
+                    </div>
+                    <div class="field span-2">
+                        <label for="initialCapital">初始资金</label>
+                        <input id="initialCapital" name="initial_capital" type="number" min="0" step="1000" value="1000000">
+                    </div>
+                </div>
+                <div class="action-row">
+                    <button class="btn btn-primary" type="button" id="runReplayBtn">
+                        <i class="bi bi-play-fill"></i>&nbsp;运行回测
+                    </button>
+                </div>
+                <div id="replayStatus" class="status-line"></div>
+            </form>
+
+            <div id="replayWrap" class="replay-wrap">
+                <div class="branch-grid" id="branchResults"></div>
+                <div class="chart-box">
+                    <canvas id="replayChart" width="640" height="180"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="history-grid">
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title"><i class="bi bi-clock-history"></i>最近导入批次</h2>
+            </div>
+            <div class="table-scroll">
+                <table class="compact-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>组合</th>
+                            <th>来源</th>
+                            <th>状态</th>
+                            <th>导入/跳过/错误</th>
+                            <th>时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in batches %}
+                        <tr>
+                            <td>{{ batch.id }}</td>
+                            <td>{{ batch.portfolio_name }}</td>
+                            <td>{{ batch.broker_name }}</td>
+                            <td><span class="pill pill-info">{{ batch.status }}</span></td>
+                            <td>{{ batch.imported_rows }} / {{ batch.skipped_rows }} / {{ batch.error_rows }}</td>
+                            <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="empty-row" colspan="6">暂无导入批次</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title"><i class="bi bi-list-check"></i>最近导入成交</h2>
+            </div>
+            <div class="table-scroll">
+                <table class="compact-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>组合</th>
+                            <th>股票</th>
+                            <th>方向</th>
+                            <th>数量</th>
+                            <th>价格</th>
+                            <th>金额</th>
+                            <th>成交时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                        <tr>
+                            <td>{{ tx.id }}</td>
+                            <td>{{ tx.portfolio_name }}</td>
+                            <td>{{ tx.asset_code }}</td>
+                            <td><span class="pill {% if tx.action == 'buy' %}pill-buy{% else %}pill-sell{% endif %}">{{ tx.action }}</span></td>
+                            <td>{{ tx.shares }}</td>
+                            <td>{{ tx.price }}</td>
+                            <td>{{ tx.notional }}</td>
+                            <td>{{ tx.traded_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="empty-row" colspan="8">暂无导入成交</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script>
+(function () {
+    const portfolioSelect = document.getElementById("portfolioSelect");
+    const replayPortfolioSelect = document.getElementById("replayPortfolioSelect");
+    const previewBtn = document.getElementById("previewBtn");
+    const confirmImportBtn = document.getElementById("confirmImportBtn");
+    const runReplayBtn = document.getElementById("runReplayBtn");
+    const importStatus = document.getElementById("importStatus");
+    const replayStatus = document.getElementById("replayStatus");
+    const previewWrap = document.getElementById("previewWrap");
+    const replayWrap = document.getElementById("replayWrap");
+    const previewRows = document.getElementById("previewRows");
+    const branchResults = document.getElementById("branchResults");
+    const replayChart = document.getElementById("replayChart");
+    const branchLabels = {
+        actual: "实际操作",
+        no_action: "不做动作",
+        system_plan: "按系统建议",
+        delayed_1d: "延迟一天",
+    };
+    const branchOrder = ["actual", "no_action", "system_plan", "delayed_1d"];
+    const branchData = [];
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return "";
+    }
+
+    function setStatus(target, message, isError) {
+        target.textContent = message || "";
+        target.classList.toggle("error", Boolean(isError));
+    }
+
+    function parseRows(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.results)) return payload.results;
+        if (Array.isArray(payload.portfolios)) return payload.portfolios;
+        return [];
+    }
+
+    async function loadPortfolios() {
+        try {
+            const response = await fetch("/api/account/portfolios/?limit=100", {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" },
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const rows = parseRows(await response.json());
+            const options = rows.map((item) => {
+                const option = document.createElement("option");
+                option.value = item.id;
+                option.textContent = `${item.name || "组合"} #${item.id}`;
+                return option;
+            });
+            [portfolioSelect, replayPortfolioSelect].forEach((select) => {
+                select.innerHTML = "";
+                if (!options.length) {
+                    const option = document.createElement("option");
+                    option.value = "";
+                    option.textContent = "暂无可用组合";
+                    select.appendChild(option);
+                    return;
+                }
+                options.forEach((option) => select.appendChild(option.cloneNode(true)));
+            });
+        } catch (error) {
+            [portfolioSelect, replayPortfolioSelect].forEach((select) => {
+                select.innerHTML = '<option value="">组合加载失败</option>';
+            });
+        }
+    }
+
+    function buildImportFormData() {
+        const file = document.getElementById("tradeFile").files[0];
+        const portfolioId = portfolioSelect.value;
+        if (!portfolioId) throw new Error("请选择组合");
+        if (!file) throw new Error("请选择流水文件");
+        const data = new FormData();
+        data.append("portfolio_id", portfolioId);
+        data.append("broker_name", document.getElementById("brokerName").value || "manual");
+        data.append("file", file);
+        return data;
+    }
+
+    function badge(text, className) {
+        return `<span class="pill ${className}">${text}</span>`;
+    }
+
+    function renderPreview(payload, imported) {
+        document.getElementById("mTotal").textContent = payload.total_rows || 0;
+        document.getElementById("mValid").textContent = payload.valid_rows || 0;
+        document.getElementById("mDup").textContent = payload.duplicate_rows || payload.skipped_rows || 0;
+        document.getElementById("mError").textContent = payload.error_rows || 0;
+
+        const rows = Array.isArray(payload.rows) ? payload.rows.slice(0, 80) : [];
+        const matched = rows.filter((row) => row.match && row.match.match_method === "auto").length;
+        if (imported) document.getElementById("matchedCount").textContent = String(matched);
+        previewRows.innerHTML = rows.map((row) => {
+            const actionClass = row.action === "buy" ? "pill-buy" : "pill-sell";
+            let status = row.duplicate ? badge("重复", "pill-warn") : badge(imported ? "已导入" : "可导入", "pill-ok");
+            if (row.status === "skipped_duplicate") status = badge("已跳过", "pill-warn");
+            const match = row.match
+                ? (row.match.match_method === "auto"
+                    ? badge(`ADOPTED ${Math.round((row.match.match_confidence || 0) * 100)}%`, "pill-ok")
+                    : badge("manual_only", "pill-manual"))
+                : '<span class="muted">-</span>';
+            return `
+                <tr>
+                    <td>${row.row_number || ""}</td>
+                    <td>${String(row.traded_at || "").replace("T", " ").slice(0, 16)}</td>
+                    <td>${row.asset_code || ""}</td>
+                    <td>${badge(row.action || "", actionClass)}</td>
+                    <td>${row.shares || ""}</td>
+                    <td>${row.price || ""}</td>
+                    <td>${status}</td>
+                    <td>${match}</td>
+                </tr>`;
+        }).join("");
+
+        const errors = Array.isArray(payload.errors) ? payload.errors : [];
+        if (!rows.length && errors.length) {
+            previewRows.innerHTML = errors.slice(0, 20).map((error) => `
+                <tr>
+                    <td>${error.row_number || ""}</td>
+                    <td colspan="6">${error.error || "行级错误"}</td>
+                    <td>${badge("错误", "pill-error")}</td>
+                </tr>`).join("");
+        }
+        if (!previewRows.innerHTML) {
+            previewRows.innerHTML = '<tr><td class="empty-row" colspan="8">没有可展示的行</td></tr>';
+        }
+        previewWrap.classList.add("active");
+    }
+
+    async function submitImport(previewOnly) {
+        const endpoint = previewOnly
+            ? "/api/account/broker-trades/preview/"
+            : "/api/account/broker-trades/import/";
+        const button = previewOnly ? previewBtn : confirmImportBtn;
+        try {
+            button.disabled = true;
+            setStatus(importStatus, previewOnly ? "正在预览..." : "正在导入...");
+            const response = await fetch(endpoint, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "X-CSRFToken": getCookie("csrftoken") },
+                body: buildImportFormData(),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.detail || payload.error || `HTTP ${response.status}`);
+            renderPreview(payload, !previewOnly);
+            confirmImportBtn.disabled = !previewOnly || (payload.valid_rows || 0) === 0;
+            setStatus(
+                importStatus,
+                previewOnly
+                    ? `预览完成：有效 ${payload.valid_rows || 0}，重复 ${payload.duplicate_rows || 0}，错误 ${payload.error_rows || 0}`
+                    : `导入完成：新增 ${payload.imported_rows || 0}，跳过 ${payload.skipped_rows || 0}，错误 ${payload.error_rows || 0}`
+            );
+        } catch (error) {
+            setStatus(importStatus, error.message, true);
+        } finally {
+            previewBtn.disabled = false;
+            if (!previewOnly) confirmImportBtn.disabled = false;
+        }
+    }
+
+    async function fetchBacktestDetail(id) {
+        try {
+            const response = await fetch(`/api/backtest/backtests/${id}/`, {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" },
+            });
+            if (!response.ok) return {};
+            return await response.json();
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function drawReplayChart() {
+        const ctx = replayChart.getContext("2d");
+        const width = replayChart.width;
+        const height = replayChart.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.beginPath();
+        ctx.moveTo(32, height - 32);
+        ctx.lineTo(width - 12, height - 32);
+        ctx.stroke();
+        const values = branchData.map((item) => Number(item.total_return || 0));
+        const maxAbs = Math.max(0.05, ...values.map((value) => Math.abs(value)));
+        const barWidth = Math.max(38, (width - 80) / Math.max(1, branchData.length) - 16);
+        branchData.forEach((item, index) => {
+            const value = Number(item.total_return || 0);
+            const x = 46 + index * (barWidth + 16);
+            const h = Math.max(4, Math.abs(value) / maxAbs * 98);
+            const y = value >= 0 ? height - 32 - h : height - 32;
+            ctx.fillStyle = value >= 0 ? "#16a34a" : "#dc2626";
+            ctx.fillRect(x, y, barWidth, h);
+            ctx.fillStyle = "#334155";
+            ctx.font = "12px sans-serif";
+            ctx.fillText(item.branch.slice(0, 10), x, height - 10);
+        });
+    }
+
+    function renderReplayResults() {
+        branchResults.innerHTML = branchData.map((item) => {
+            const status = item.error ? badge("失败", "pill-error") : badge("已创建", "pill-ok");
+            const result = item.result || {};
+            const totalReturn = result.total_return !== undefined ? `${Number(result.total_return).toFixed(2)}%` : "-";
+            const maxDrawdown = result.max_drawdown !== undefined ? `${Number(result.max_drawdown).toFixed(2)}%` : "-";
+            return `
+                <div class="branch-card">
+                    <div class="branch-name"><span>${branchLabels[item.branch] || item.branch}</span>${status}</div>
+                    <div class="branch-meta">
+                        Backtest #${item.backtest_id || "-"}<br>
+                        收益：${totalReturn}<br>
+                        回撤：${maxDrawdown}
+                    </div>
+                </div>`;
+        }).join("");
+        replayWrap.classList.add("active");
+        document.getElementById("replayCount").textContent = String(branchData.length);
+        drawReplayChart();
+    }
+
+    async function runReplay() {
+        const portfolioId = replayPortfolioSelect.value;
+        if (!portfolioId) {
+            setStatus(replayStatus, "请选择组合", true);
+            return;
+        }
+        const selected = document.getElementById("branchType").value;
+        const branches = selected === "all" ? branchOrder : [selected];
+        const payloadBase = {
+            portfolio_id: Number(portfolioId),
+            start_date: document.getElementById("startDate").value,
+            end_date: document.getElementById("endDate").value,
+            initial_capital: document.getElementById("initialCapital").value || "1000000",
+        };
+        branchData.length = 0;
+        branchResults.innerHTML = "";
+        runReplayBtn.disabled = true;
+        setStatus(replayStatus, "正在运行...");
+        for (const branch of branches) {
+            try {
+                const response = await fetch("/api/backtest/decision-replay/", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    body: JSON.stringify({ ...payloadBase, branch_type: branch }),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+                const detail = payload.backtest_id ? await fetchBacktestDetail(payload.backtest_id) : {};
+                branchData.push({
+                    branch,
+                    backtest_id: payload.backtest_id,
+                    result: detail.result || {},
+                    total_return: detail.result ? detail.result.total_return : 0,
+                });
+            } catch (error) {
+                branchData.push({ branch, error: error.message });
+            }
+            renderReplayResults();
+        }
+        setStatus(replayStatus, `完成 ${branchData.length} 个分支`);
+        runReplayBtn.disabled = false;
+    }
+
+    function setDefaultDates() {
+        const today = new Date();
+        const start = new Date(today);
+        start.setDate(start.getDate() - 30);
+        document.getElementById("endDate").value = today.toISOString().slice(0, 10);
+        document.getElementById("startDate").value = start.toISOString().slice(0, 10);
+    }
+
+    previewBtn.addEventListener("click", () => submitImport(true));
+    confirmImportBtn.addEventListener("click", () => submitImport(false));
+    runReplayBtn.addEventListener("click", runReplay);
+    setDefaultDates();
+    loadPortfolios();
+})();
+</script>
 {% endblock %}
