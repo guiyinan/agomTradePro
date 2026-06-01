@@ -7,7 +7,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Callable
 
-from apps.account.application.repository_provider import get_manual_trade_sync_repository
 from apps.backtest.application.repository_provider import (
     get_backtest_repository,
     get_close_price_series_reader,
@@ -16,6 +15,7 @@ from apps.backtest.domain.entities import BacktestConfig
 from apps.decision_rhythm.application.repository_provider import (
     get_unified_recommendation_repository,
 )
+from core.integration.manual_trade_sync import get_manual_trade_sync_repository
 
 
 @dataclass(frozen=True)
