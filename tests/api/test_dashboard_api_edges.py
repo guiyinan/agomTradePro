@@ -114,7 +114,7 @@ def test_dashboard_alpha_stocks_contract_includes_equity_screen_metrics(
         },
     )
 
-    response = client.get("/api/dashboard/alpha/stocks/?format=json&top_n=1")
+    response = client.get("/api/dashboard/alpha/stocks/?format=json&top_n=1&alpha_scope=general")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
