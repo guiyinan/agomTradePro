@@ -180,6 +180,14 @@ def test_mcp_guide_entry_is_exposed_in_dashboard_and_global_navigation():
     assert "{% url 'account:mcp_guide' %}" in account_settings_template
 
 
+def test_manual_trade_review_entry_is_exposed_in_account_execution_navigation():
+    base_template = Path("core/templates/base.html").read_text(encoding="utf-8")
+
+    assert "{% url 'audit:manual_trades' %}" in base_template
+    assert "手动交易复盘" in base_template
+    assert reverse("audit:manual_trades") == "/audit/manual-trades/"
+
+
 def test_removed_legacy_page_routes_return_404():
     client = Client()
 

@@ -106,6 +106,9 @@
                         <a href="{% url 'account:profile' %}#positions" class="dropdown-item">
                             <i class="bi bi-briefcase"></i> 我的持仓
                         </a>
+                        <a href="{% url 'audit:manual_trades' %}" class="dropdown-item">
+                            <i class="bi bi-file-earmark-spreadsheet"></i> 手动交易复盘
+                        </a>
                         {% if user.is_staff %}
                         <a href="{% url 'audit:reports' %}" class="dropdown-item">
                             <i class="bi bi-clipboard-data"></i> 审计归因报告
