@@ -12,6 +12,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Optional, Protocol
 
 from apps.simulated_trading.application.ports import (
+    ExecutionLinkRecorderProtocol,
     PositionExitAdvice,
     PositionExitAdvisorProtocol,
 )
@@ -96,6 +97,7 @@ class AutoTradingEngine:
         price_provider: PriceProviderProtocol | None = None,
         regime_service: RegimeServiceProtocol | None = None,
         exit_advisor: PositionExitAdvisorProtocol | None = None,
+        execution_link_recorder: ExecutionLinkRecorderProtocol | None = None,
         strategy_executor: Optional["StrategyExecutor"] = None,
     ):
         self.account_repo = account_repo
@@ -109,6 +111,7 @@ class AutoTradingEngine:
         self.price_provider = price_provider
         self.regime_service = regime_service
         self.exit_advisor = exit_advisor
+        self.execution_link_recorder = execution_link_recorder
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
 
     def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> dict:
@@ -252,16 +255,36 @@ class AutoTradingEngine:
                         if price is None:
                             logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过卖出")
                             continue
+                        if not self._is_price_triggered(
+                            action="sell",
+                            price=price,
+                            payload=getattr(signal, "metadata", {}) or {},
+                        ):
+                            logger.info(
+                                "    跳过 %s: 当前价 %.4f 未进入卖出触发区间",
+                                signal.asset_code,
+                                price,
+                            )
+                            continue
 
                         position = next(p for p in positions if p.asset_code == signal.asset_code)
                         quantity = signal.quantity or position.quantity
 
-                        self.sell_use_case.execute(
+                        trade = self.sell_use_case.execute(
                             account_id=account.account_id,
                             asset_code=signal.asset_code,
                             quantity=quantity,
                             price=price,
                             reason=f"策略信号: {signal.reason}"
+                        )
+                        self._record_execution_link(
+                            trade_id=trade.trade_id,
+                            account_id=account.account_id,
+                            security_code=signal.asset_code,
+                            actual_action="sell",
+                            executed_at=trade.execution_time,
+                            match_if_missing=True,
+                            notes=f"Auto strategy sell: {signal.reason}",
                         )
                         sell_count += 1
                         logger.info(f"    ✓ 卖出: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
@@ -282,6 +305,17 @@ class AutoTradingEngine:
                         if price is None:
                             logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过")
                             continue
+                        if not self._is_price_triggered(
+                            action="buy",
+                            price=price,
+                            payload=getattr(signal, "metadata", {}) or {},
+                        ):
+                            logger.info(
+                                "    跳过 %s: 当前价 %.4f 未进入买入触发区间",
+                                signal.asset_code,
+                                price,
+                            )
+                            continue
 
                         # 计算买入数量
                         quantity = signal.quantity
@@ -299,7 +333,7 @@ class AutoTradingEngine:
                             logger.info(f"    跳过 {signal.asset_code}: 计算买入数量为0")
                             continue
 
-                        self.buy_use_case.execute(
+                        trade = self.buy_use_case.execute(
                             account_id=account.account_id,
                             asset_code=signal.asset_code,
                             asset_name=signal.asset_name,
@@ -308,6 +342,15 @@ class AutoTradingEngine:
                             price=price,
                             reason=f"策略信号: {signal.reason}",
                             signal_id=signal.signal_id
+                        )
+                        self._record_execution_link(
+                            trade_id=trade.trade_id,
+                            account_id=account.account_id,
+                            security_code=signal.asset_code,
+                            actual_action="buy",
+                            executed_at=trade.execution_time,
+                            match_if_missing=True,
+                            notes=f"Auto strategy buy: {signal.reason}",
                         )
                         buy_count += 1
                         logger.info(f"    ✓ 买入: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
@@ -357,18 +400,38 @@ class AutoTradingEngine:
                     if price is None:
                         logger.warning(f"    无法获取 {position.asset_code} 价格,跳过卖出")
                         continue
+                    if not self._is_exit_advice_price_triggered(exit_advice, price):
+                        logger.info(
+                            "    跳过 %s: 当前价 %.4f 未进入退出触发区间",
+                            position.asset_code,
+                            price,
+                        )
+                        continue
 
                     quantity = self._resolve_exit_quantity(position, exit_advice)
                     if quantity <= 0:
                         logger.info(f"    跳过 {position.asset_code}: 退出建议数量为0")
                         continue
 
-                    self.sell_use_case.execute(
+                    trade = self.sell_use_case.execute(
                         account_id=account.account_id,
                         asset_code=position.asset_code,
                         quantity=quantity,
                         price=price,
                         reason=self._get_sell_reason(position, exit_advice),
+                    )
+                    self._record_execution_link(
+                        trade_id=trade.trade_id,
+                        account_id=account.account_id,
+                        security_code=position.asset_code,
+                        actual_action="sell",
+                        executed_at=trade.execution_time,
+                        recommendation_id=exit_advice.recommendation_id,
+                        match_if_missing=False,
+                        notes=(
+                            f"Auto exit via {exit_advice.source}: "
+                            f"{exit_advice.reason_code}"
+                        ),
                     )
                     sell_count += 1
                     logger.info(
@@ -411,6 +474,41 @@ class AutoTradingEngine:
             return {}
 
         return {advice.asset_code: advice for advice in advices if advice.asset_code}
+
+    def _record_execution_link(
+        self,
+        *,
+        trade_id: int,
+        account_id: int,
+        security_code: str,
+        actual_action: str,
+        executed_at,
+        recommendation_id: str | None = None,
+        match_if_missing: bool = False,
+        notes: str = "",
+    ) -> None:
+        if self.execution_link_recorder is None or not trade_id:
+            return
+
+        try:
+            self.execution_link_recorder.record_execution(
+                recommendation_id=recommendation_id,
+                transaction_id=trade_id,
+                account_id=account_id,
+                security_code=security_code,
+                actual_action=actual_action,
+                executed_at=executed_at,
+                match_if_missing=match_if_missing,
+                notes=notes,
+            )
+        except Exception as exc:
+            logger.warning(
+                "记录自动交易执行关联失败: trade=%s asset=%s action=%s error=%s",
+                trade_id,
+                security_code,
+                actual_action,
+                exc,
+            )
 
     def _get_position_exit_advice(
         self,
@@ -587,6 +685,13 @@ class AutoTradingEngine:
         if price is None:
             logger.warning(f"    无法获取 {asset_code} 价格,跳过")
             return False
+        if not self._is_price_triggered(action="buy", price=price, payload=candidate):
+            logger.info(
+                "    跳过 %s: 当前价 %.4f 未进入买入触发区间",
+                asset_code,
+                price,
+            )
+            return False
 
         # 2. 检查是否已有持仓
         existing = self.position_repo.get_position(account.account_id, asset_code)
@@ -634,6 +739,78 @@ class AutoTradingEngine:
             require_price = getattr(self.price_provider, "require_price", None)
             if callable(require_price):
                 return require_price(asset_code, trade_date)
+        return None
+
+    def _is_exit_advice_price_triggered(
+        self,
+        advice: PositionExitAdvice,
+        price: float,
+    ) -> bool:
+        payload = {
+            "target_price_low": advice.target_price_low,
+            "target_price_high": advice.target_price_high,
+            "stop_loss_price": advice.stop_loss_price,
+        }
+        return self._is_price_triggered(action="sell", price=price, payload=payload)
+
+    def _is_price_triggered(
+        self,
+        *,
+        action: str,
+        price: float,
+        payload: dict,
+    ) -> bool:
+        """Return whether current price satisfies optional execution bands."""
+
+        if not payload:
+            return True
+
+        normalized_action = str(action or "").lower()
+        if normalized_action == "sell":
+            stop_loss_price = self._pick_float(payload, "stop_loss_price", "stop_loss")
+            if stop_loss_price is not None and price <= stop_loss_price:
+                return True
+            low = self._pick_float(payload, "target_price_low", "sell_price_low", "exit_price_low")
+            high = self._pick_float(payload, "target_price_high", "sell_price_high", "exit_price_high")
+        else:
+            low = self._pick_float(payload, "entry_price_low", "buy_price_low", "price_band_low")
+            high = self._pick_float(payload, "entry_price_high", "buy_price_high", "price_band_high")
+
+        if low is None and high is None:
+            single_price = self._pick_float(
+                payload,
+                "entry_price",
+                "buy_price",
+                "target_price",
+                "sell_price",
+                "limit_price",
+            )
+            if single_price is None:
+                return True
+            if normalized_action == "sell":
+                low = single_price
+            else:
+                high = single_price
+
+        if low is not None and price < low:
+            return False
+        if high is not None and price > high:
+            return False
+        return True
+
+    @staticmethod
+    def _pick_float(payload: dict, *keys: str) -> float | None:
+        for key in keys:
+            value = payload.get(key)
+            if value in [None, ""]:
+                continue
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                continue
+            if parsed <= 0:
+                continue
+            return parsed
         return None
 
     def _update_account_performance(self, account_id: int, trade_date: date):

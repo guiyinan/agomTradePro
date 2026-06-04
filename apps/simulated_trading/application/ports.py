@@ -47,6 +47,10 @@ class PositionExitAdvice:
     reason_code: str = ""
     reason_text: str = ""
     source: str = ""
+    recommendation_id: str = ""
+    target_price_low: float | None = None
+    target_price_high: float | None = None
+    stop_loss_price: float | None = None
 
 
 class PositionExitAdvisorProtocol(Protocol):
@@ -58,6 +62,24 @@ class PositionExitAdvisorProtocol(Protocol):
         positions: list[object],
         as_of_date: date,
     ) -> list[PositionExitAdvice]:
+        ...
+
+
+class ExecutionLinkRecorderProtocol(Protocol):
+    """Record links between simulated executions and system recommendations."""
+
+    def record_execution(
+        self,
+        *,
+        recommendation_id: str | None,
+        transaction_id: int,
+        account_id: int,
+        security_code: str,
+        actual_action: str,
+        executed_at,
+        match_if_missing: bool = False,
+        notes: str = "",
+    ) -> dict | None:
         ...
 
 

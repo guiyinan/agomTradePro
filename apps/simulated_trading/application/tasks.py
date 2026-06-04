@@ -36,6 +36,7 @@ from apps.simulated_trading.application.use_cases import (
     GetAccountPerformanceUseCase,
 )
 from core.exceptions import DataFetchError
+from core.integration.decision_execution_links import build_decision_execution_link_recorder
 from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
 from core.integration.realtime_polling import execute_realtime_price_polling
 
@@ -110,6 +111,7 @@ def daily_auto_trading_task(
             price_provider=price_provider,
             signal_service=signal_repo,
             exit_advisor=build_decision_rhythm_exit_advisor(),
+            execution_link_recorder=build_decision_execution_link_recorder(),
         )
 
         # 4. 执行交易

@@ -7,6 +7,7 @@ from datetime import date
 from typing import Any
 
 from apps.backtest.application.repository_provider import get_backtest_repository
+from core.integration.decision_execution_links import list_decision_execution_links
 from core.integration.manual_trade_sync import (
     build_manual_trade_review_context as build_manual_trade_review_context_payload,
 )
@@ -551,6 +552,27 @@ def get_decision_trace_payload(
         mcp_client_id=mcp_client_id,
         current_user_id=current_user_id,
         is_admin=is_admin,
+    )
+
+
+def list_execution_links_payload(
+    *,
+    current_user_id: int | None,
+    is_admin: bool,
+    account_id: str | None,
+    recommendation_id: str | None,
+    transaction_source: str | None,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """List recommendation execution links for audit review surfaces."""
+
+    return list_decision_execution_links(
+        current_user_id=current_user_id,
+        is_admin=is_admin,
+        account_id=account_id,
+        recommendation_id=recommendation_id,
+        transaction_source=transaction_source,
+        limit=limit,
     )
 
 

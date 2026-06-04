@@ -40,8 +40,10 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-05-25）
+## 0.7.0 之后的开发快照（截至 2026-06-03）
 
+- `2026-06-03` 模拟盘自动交易执行链路已补齐推荐执行关联：Decision Rhythm 退出建议现在会携带 `recommendation_id`，自动交易卖出成功后会通过集成桥写入 `DecisionExecutionLinkModel` 并标记统一推荐为 `ADOPTED`；策略模式自动买卖也会在存在近 5 日同账户、同证券、同方向统一推荐时自动匹配关联；执行关联新增 `transaction_source` 区分手工成交与模拟盘成交，并已通过 `/api/audit/execution-links/`、SDK `audit.list_execution_links`、MCP `list_audit_execution_links` 和 Audit/手工复盘页面“推荐执行关联”表格打通推荐 -> 执行的回溯展示闭环
+- `2026-06-03` 模拟盘自动交易新增价格触发约束：策略信号/资产候选可通过 `entry_price_low/high`、`buy_price_low/high` 或 `limit_price` 限制买入触发区间；卖出可通过 `target_price_low/high`、`sell_price_low/high` 或 `limit_price` 限制目标卖出区间，并支持 `stop_loss_price` 跌破触发。15:30 收盘后任务仍使用当日收盘价作为模拟成交价格源，但只有价格进入触发区间才会成交
 - `2026-05-25` Dashboard 首页 Alpha 摘要、`/api/dashboard/alpha/stocks/` JSON 和 HTMX 局部刷新已统一使用同一套 readiness gate：账户专属 scope 下，`recommendation_ready=false` 的 broader-scope cache / trade-date-adjusted 历史结果不再继续伪装成可展示推荐；同时首页查询、手动刷新和批量 scoped 推理的目标交易日也已统一收口到“最近一个已收盘交易日”，避免交易日白天仍拿 `today` 去请求、却只能读到上一个收盘结果时被误判成数据链断裂
 - `2026-05-21` Security Scan 的依赖审计门禁已补充对 `joblib` 争议型漏洞 `PYSEC-2024-277 / CVE-2024-34997` 的显式窄豁免；该告警当前无上游 fix version，CI 不再因不可处置的审计噪音阻断 push，但豁免范围仅限该单一 advisory
 - `2026-05-20` 市场温度计已接入 Macro 页面、账户宏观仓位系数和 Dashboard Alpha 推荐链路；具体资产建议现在会同时考虑 `Regime + Pulse + Market Thermometer + Drawdown`，并支持按 band 独立调节缩仓系数与 `extreme` 新仓阻断开关

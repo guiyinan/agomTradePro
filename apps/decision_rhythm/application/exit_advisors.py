@@ -82,6 +82,18 @@ class DecisionRhythmExitAdvisor(PositionExitAdvisorProtocol):
                         reason_code="UNIFIED_RECOMMENDATION_SELL",
                         reason_text=getattr(recommendation, "human_rationale", "") or "统一推荐转为 SELL",
                         source="decision_rhythm.recommendation",
+                        recommendation_id=str(
+                            getattr(recommendation, "recommendation_id", "") or ""
+                        ),
+                        target_price_low=self._as_float(
+                            getattr(recommendation, "target_price_low", None)
+                        ),
+                        target_price_high=self._as_float(
+                            getattr(recommendation, "target_price_high", None)
+                        ),
+                        stop_loss_price=self._as_float(
+                            getattr(recommendation, "stop_loss_price", None)
+                        ),
                     )
                 )
 
@@ -127,6 +139,15 @@ class DecisionRhythmExitAdvisor(PositionExitAdvisorProtocol):
                 latest_by_security[security_code] = recommendation
 
         return latest_by_security
+
+    @staticmethod
+    def _as_float(value) -> float | None:
+        if value in [None, "", 0, "0"]:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
 
 def build_decision_rhythm_exit_advisor() -> PositionExitAdvisorProtocol:

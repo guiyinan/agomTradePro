@@ -33,6 +33,16 @@ class _FakeClient:
             run_validation=lambda payload: {"ok": True, "payload": payload},
             validate_all_indicators=lambda: {"ok": True},
             update_threshold=lambda payload: {"ok": True, "payload": payload},
+            list_execution_links=lambda account_id=None,
+            recommendation_id=None,
+            transaction_source=None,
+            limit=50: {
+                "links": [],
+                "account_id": account_id,
+                "recommendation_id": recommendation_id,
+                "transaction_source": transaction_source,
+                "limit": limit,
+            },
         )
         self.events = SimpleNamespace(
             publish=lambda payload: {"published": True, "payload": payload},
@@ -491,6 +501,10 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("run_audit_validation", {"payload": {"scope": "all"}}),
         ("validate_all_indicators", {}),
         ("update_audit_threshold", {"payload": {"indicator": "cpi", "value": 0.3}}),
+        (
+            "list_audit_execution_links",
+            {"account_id": "1", "transaction_source": "simulated_trade", "limit": 20},
+        ),
         ("publish_event", {"payload": {"event_type": "x"}}),
         ("query_events", {"payload": {"event_type": "x"}}),
         ("get_event_metrics", {}),

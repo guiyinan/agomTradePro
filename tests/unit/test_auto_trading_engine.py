@@ -103,6 +103,56 @@ def test_exit_advisor_reduce_generates_partial_sell():
     assert engine.sell_use_case.execute.call_args.kwargs["reason"] == "统一调仓建议减仓"
 
 
+def test_exit_advisor_sell_waits_until_target_price_band():
+    position = _build_position()
+    exit_advisor = Mock()
+    exit_advisor.get_exit_advices.return_value = [
+        PositionExitAdvice(
+            asset_code="000001.SZ",
+            should_exit=True,
+            quantity=1000,
+            reason_code="UNIFIED_RECOMMENDATION_SELL",
+            reason_text="目标价卖出",
+            source="decision_rhythm.recommendation",
+            target_price_low=12.0,
+            target_price_high=13.0,
+            stop_loss_price=8.0,
+        )
+    ]
+    engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
+
+    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+
+    assert buy_count == 0
+    assert sell_count == 0
+    engine.sell_use_case.execute.assert_not_called()
+
+
+def test_exit_advisor_sell_allows_stop_loss_even_below_target_band():
+    position = _build_position()
+    exit_advisor = Mock()
+    exit_advisor.get_exit_advices.return_value = [
+        PositionExitAdvice(
+            asset_code="000001.SZ",
+            should_exit=True,
+            quantity=1000,
+            reason_code="UNIFIED_RECOMMENDATION_SELL",
+            reason_text="止损卖出",
+            source="decision_rhythm.recommendation",
+            target_price_low=12.0,
+            target_price_high=13.0,
+            stop_loss_price=10.5,
+        )
+    ]
+    engine = _build_engine(positions=[position], exit_advisor=exit_advisor)
+
+    buy_count, sell_count = engine._execute_legacy_trading(_build_account(), date(2026, 4, 30))
+
+    assert buy_count == 0
+    assert sell_count == 1
+    engine.sell_use_case.execute.assert_called_once()
+
+
 def test_exit_advisor_absent_falls_back_to_legacy_signal_invalid_logic():
     position = _build_position(signal_id=11)
     signal_service = Mock()
@@ -119,3 +169,53 @@ def test_exit_advisor_absent_falls_back_to_legacy_signal_invalid_logic():
     assert advice is not None
     assert advice.should_exit is True
     assert advice.reason_code == "SIGNAL_INVALID"
+
+
+def test_price_trigger_buy_uses_entry_band_and_limit_price():
+    engine = _build_engine(positions=[])
+
+    assert engine._is_price_triggered(
+        action="buy",
+        price=10.5,
+        payload={"entry_price_low": 10.0, "entry_price_high": 11.0},
+    )
+    assert not engine._is_price_triggered(
+        action="buy",
+        price=11.5,
+        payload={"entry_price_low": 10.0, "entry_price_high": 11.0},
+    )
+    assert engine._is_price_triggered(
+        action="buy",
+        price=10.5,
+        payload={"limit_price": 11.0},
+    )
+    assert not engine._is_price_triggered(
+        action="buy",
+        price=11.5,
+        payload={"limit_price": 11.0},
+    )
+
+
+def test_price_trigger_sell_uses_target_band_and_limit_price():
+    engine = _build_engine(positions=[])
+
+    assert engine._is_price_triggered(
+        action="sell",
+        price=12.5,
+        payload={"target_price_low": 12.0, "target_price_high": 13.0},
+    )
+    assert not engine._is_price_triggered(
+        action="sell",
+        price=11.5,
+        payload={"target_price_low": 12.0, "target_price_high": 13.0},
+    )
+    assert engine._is_price_triggered(
+        action="sell",
+        price=12.5,
+        payload={"limit_price": 12.0},
+    )
+    assert not engine._is_price_triggered(
+        action="sell",
+        price=11.5,
+        payload={"limit_price": 12.0},
+    )

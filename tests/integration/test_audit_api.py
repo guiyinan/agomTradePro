@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
 from apps.audit.infrastructure.models import OperationLogModel
+from apps.decision_rhythm.infrastructure.models import DecisionExecutionLinkModel
 
 pytestmark = [pytest.mark.django_db]
 
@@ -370,6 +371,37 @@ class TestOperationLogAPI:
         traces = [item for item in response.json()['traces'] if item['request_id'] == 'trace-003']
         assert len(traces) == 2
         assert {item['mcp_client_id'] for item in traces} == {'token-a', 'token-b'}
+
+    def test_execution_link_list_returns_simulated_trade_links(self, api_client, admin_user):
+        """测试推荐执行关联列表可回溯模拟盘成交。"""
+        DecisionExecutionLinkModel._default_manager.create(
+            recommendation_id='rec-auto-001',
+            transaction_id=9001,
+            transaction_source='simulated_trade',
+            account_id='7',
+            security_code='510300',
+            actual_action='sell',
+            match_method='auto',
+            match_confidence=0.91,
+            notes='Auto trading exit linked to recommendation.',
+        )
+
+        api_client.force_authenticate(user=admin_user)
+        response = api_client.get(
+            '/api/audit/execution-links/?transaction_source=simulated_trade&limit=10'
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload['success'] is True
+        link = next(
+            item for item in payload['links'] if item['recommendation_id'] == 'rec-auto-001'
+        )
+        assert link['transaction_source'] == 'simulated_trade'
+        assert link['transaction_id'] == 9001
+        assert link['account_id'] == '7'
+        assert link['security_code'] == '510300'
+        assert link['actual_action'] == 'sell'
 
 
 @pytest.mark.django_db

@@ -38,6 +38,7 @@ from apps.audit.application.interface_services import (
     get_operation_stats_payload,
     get_threshold_validation_data_payload,
     list_decision_traces_payload,
+    list_execution_links_payload,
     log_operation_payload,
     query_operation_logs_payload,
     reset_audit_failure_counter,
@@ -54,6 +55,7 @@ from .serializers import (
     AttributionReportSerializer,
     DecisionTraceDetailSerializer,
     DecisionTraceListSerializer,
+    ExecutionLinkListSerializer,
     GenerateAttributionReportRequestSerializer,
     GenerateAttributionReportResponseSerializer,
     OperationLogDetailSerializer,
@@ -1146,6 +1148,32 @@ class DecisionTraceDetailView(APIView):
         if not trace:
             return Response({'success': False, 'error': '决策链不存在或无权访问'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'success': True, 'trace': trace})
+
+
+class ExecutionLinkListView(APIView):
+    """推荐执行关联列表 API"""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="查询推荐执行关联",
+        description="展示统一推荐与模拟盘/账户成交之间的执行闭环关联。",
+        responses={200: ExecutionLinkListSerializer},
+    )
+    def get(self, request):
+        is_admin = IsAuditAdmin().has_permission(request, self)
+        limit = int(request.query_params.get("limit", 50))
+        links = list_execution_links_payload(
+            current_user_id=request.user.id if request.user.is_authenticated else None,
+            is_admin=is_admin,
+            account_id=request.query_params.get("account_id") or None,
+            recommendation_id=request.query_params.get("recommendation_id") or None,
+            transaction_source=request.query_params.get("transaction_source") or None,
+            limit=limit,
+        )
+        return Response({"success": True, "links": links})
 
 
 # ============ Health Check API Views ============

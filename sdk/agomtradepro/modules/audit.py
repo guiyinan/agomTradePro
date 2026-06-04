@@ -60,3 +60,19 @@ class AuditModule(BaseModule):
 
     def run_validation(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("run-validation/", json=payload)
+
+    def list_execution_links(
+        self,
+        account_id: str | int | None = None,
+        recommendation_id: str | None = None,
+        transaction_source: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {"limit": limit}
+        if account_id is not None:
+            params["account_id"] = account_id
+        if recommendation_id:
+            params["recommendation_id"] = recommendation_id
+        if transaction_source:
+            params["transaction_source"] = transaction_source
+        return self._get("execution-links/", params=params)

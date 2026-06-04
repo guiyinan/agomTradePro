@@ -102,6 +102,18 @@ class NullTransitionPlanRepo:
         return None
 
 
+class FakeExecutionLinkRecorder:
+    def __init__(self):
+        self.calls = []
+
+    def record_execution(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "recommendation_id": kwargs.get("recommendation_id"),
+            "transaction_id": kwargs.get("transaction_id"),
+        }
+
+
 def _build_account() -> SimulatedAccount:
     return SimulatedAccount(
         account_id=1,
@@ -122,6 +134,7 @@ def _build_engine(
     trade_repo: InMemoryTradeRepo,
     price: float,
     exit_advisor=None,
+    execution_link_recorder=None,
 ):
     buy_use_case = ExecuteBuyOrderUseCase(
         account_repo=account_repo,
@@ -144,6 +157,7 @@ def _build_engine(
         price_provider=StaticPriceProvider(price),
         signal_service=StaticSignalService(),
         exit_advisor=exit_advisor,
+        execution_link_recorder=execution_link_recorder,
     )
     engine._get_buy_candidates = Mock(return_value=[])
     engine._update_account_performance = Mock()
@@ -229,6 +243,7 @@ def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
     recommendation_repo = FakeRecommendationRepo(
         [_make_sell_recommendation(account_id="1", security_code="000001.SZ")]
     )
+    execution_link_recorder = FakeExecutionLinkRecorder()
     exit_advisor = DecisionRhythmExitAdvisor(
         recommendation_repo=recommendation_repo,
         transition_plan_repo=NullTransitionPlanRepo(),
@@ -237,8 +252,9 @@ def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
         account_repo=account_repo,
         position_repo=position_repo,
         trade_repo=trade_repo,
-        price=10.2,
+        price=11.8,
         exit_advisor=exit_advisor,
+        execution_link_recorder=execution_link_recorder,
     )
 
     buy_use_case.execute(
@@ -260,3 +276,18 @@ def test_buy_then_sell_recommendation_exits_on_next_auto_trading_cycle():
     assert len(trade_repo.saved) == 2
     assert trade_repo.saved[-1].action == TradeAction.SELL
     assert trade_repo.saved[-1].reason == "Alpha 衰减，统一推荐转 SELL"
+    assert execution_link_recorder.calls == [
+        {
+            "recommendation_id": "urec_exit_001",
+            "transaction_id": 2,
+            "account_id": 1,
+            "security_code": "000001.SZ",
+            "actual_action": "sell",
+            "executed_at": trade_repo.saved[-1].execution_time,
+            "match_if_missing": False,
+            "notes": (
+                "Auto exit via decision_rhythm.recommendation: "
+                "UNIFIED_RECOMMENDATION_SELL"
+            ),
+        }
+    ]

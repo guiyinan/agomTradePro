@@ -69,3 +69,20 @@ def register_audit_tools(server: FastMCP) -> None:
     def update_audit_threshold(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomTradeProClient()
         return client.audit.update_threshold(payload)
+
+    @server.tool()
+    def list_audit_execution_links(
+        account_id: str | None = None,
+        recommendation_id: str | None = None,
+        transaction_source: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """List recommendation-to-execution links for audit replay."""
+
+        client = AgomTradeProClient()
+        return client.audit.list_execution_links(
+            account_id=account_id,
+            recommendation_id=recommendation_id,
+            transaction_source=transaction_source,
+            limit=limit,
+        )

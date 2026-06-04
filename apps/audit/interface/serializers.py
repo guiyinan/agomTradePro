@@ -269,3 +269,24 @@ class DecisionTraceDetailSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     trace = serializers.DictField(required=False)
     error = serializers.CharField(allow_null=True, required=False)
+
+
+class ExecutionLinkSerializer(serializers.Serializer):
+    """推荐执行关联序列化器"""
+    id = serializers.IntegerField()
+    recommendation_id = serializers.CharField(allow_blank=True)
+    transaction_id = serializers.IntegerField()
+    transaction_source = serializers.CharField()
+    account_id = serializers.CharField()
+    security_code = serializers.CharField()
+    actual_action = serializers.CharField()
+    match_method = serializers.CharField()
+    match_confidence = serializers.FloatField()
+    notes = serializers.CharField(allow_blank=True)
+    created_at = serializers.CharField(allow_null=True)
+
+
+class ExecutionLinkListSerializer(serializers.Serializer):
+    """推荐执行关联列表响应序列化器"""
+    success = serializers.BooleanField()
+    links = ExecutionLinkSerializer(many=True)

@@ -2134,6 +2134,10 @@ class UnifiedRecommendationModel(models.Model):
 class DecisionExecutionLinkModel(models.Model):
     """Link a manual account transaction to the system recommendation it followed."""
 
+    TRANSACTION_SOURCE_CHOICES = [
+        ("account_transaction", "账户成交"),
+        ("simulated_trade", "模拟盘成交"),
+    ]
     MATCH_METHOD_CHOICES = [
         ("auto", "自动匹配"),
         ("manual", "人工关联"),
@@ -2148,6 +2152,13 @@ class DecisionExecutionLinkModel(models.Model):
         help_text="关联的统一推荐 ID；manual_only 时为空",
     )
     transaction_id = models.IntegerField(db_index=True, help_text="account.TransactionModel ID")
+    transaction_source = models.CharField(
+        max_length=32,
+        choices=TRANSACTION_SOURCE_CHOICES,
+        default="account_transaction",
+        db_index=True,
+        help_text="成交来源：account.TransactionModel 或 simulated_trading.SimulatedTradeModel",
+    )
     account_id = models.CharField(max_length=64, db_index=True, help_text="账户 ID")
     security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
     actual_action = models.CharField(max_length=16, help_text="实际动作 buy/sell")
@@ -2170,12 +2181,15 @@ class DecisionExecutionLinkModel(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["transaction_id", "recommendation_id"],
+                fields=["transaction_source", "transaction_id", "recommendation_id"],
                 name="uq_decision_exec_link_tx_recommendation",
             ),
         ]
         indexes = [
             models.Index(fields=["account_id", "security_code"], name="idx_exec_link_acc_sec"),
+            models.Index(
+                fields=["transaction_source", "-created_at"], name="idx_exec_link_src_time"
+            ),
             models.Index(fields=["match_method", "-created_at"], name="idx_exec_link_method_time"),
         ]
 

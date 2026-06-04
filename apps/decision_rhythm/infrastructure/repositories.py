@@ -1859,6 +1859,7 @@ class UnifiedRecommendationRepository:
         *,
         recommendation_id: str,
         transaction_id: int,
+        transaction_source: str = "account_transaction",
         account_id: str,
         security_code: str,
         actual_action: str,
@@ -1871,6 +1872,7 @@ class UnifiedRecommendationRepository:
 
         model, _ = DecisionExecutionLinkModel.objects.update_or_create(
             transaction_id=transaction_id,
+            transaction_source=transaction_source,
             recommendation_id=recommendation_id,
             defaults={
                 "account_id": account_id,
@@ -1885,16 +1887,60 @@ class UnifiedRecommendationRepository:
             "id": model.id,
             "recommendation_id": model.recommendation_id,
             "transaction_id": model.transaction_id,
+            "transaction_source": model.transaction_source,
             "match_method": model.match_method,
             "match_confidence": model.match_confidence,
         }
+
+    def list_execution_links(
+        self,
+        *,
+        account_ids: list[str] | None = None,
+        account_id: str | None = None,
+        recommendation_id: str | None = None,
+        transaction_source: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return recent recommendation-to-execution links."""
+        from .models import DecisionExecutionLinkModel
+
+        queryset = DecisionExecutionLinkModel.objects.all().order_by("-created_at")
+        if account_ids is not None:
+            queryset = queryset.filter(account_id__in=account_ids)
+        if account_id:
+            queryset = queryset.filter(account_id=str(account_id))
+        if recommendation_id:
+            queryset = queryset.filter(recommendation_id=recommendation_id)
+        if transaction_source:
+            queryset = queryset.filter(transaction_source=transaction_source)
+
+        rows = queryset[: max(1, min(int(limit or 50), 200))]
+        return [
+            {
+                "id": model.id,
+                "recommendation_id": model.recommendation_id,
+                "transaction_id": model.transaction_id,
+                "transaction_source": model.transaction_source,
+                "account_id": model.account_id,
+                "security_code": model.security_code,
+                "actual_action": model.actual_action,
+                "match_method": model.match_method,
+                "match_confidence": model.match_confidence,
+                "notes": model.notes,
+                "created_at": model.created_at.isoformat() if model.created_at else None,
+            }
+            for model in rows
+        ]
 
     def get_execution_plan_for_transaction(self, transaction_id: int) -> dict[str, Any] | None:
         """Return recommendation trade parameters linked to an account transaction."""
         from .models import DecisionExecutionLinkModel, UnifiedRecommendationModel
 
         link = (
-            DecisionExecutionLinkModel.objects.filter(transaction_id=transaction_id)
+            DecisionExecutionLinkModel.objects.filter(
+                transaction_id=transaction_id,
+                transaction_source="account_transaction",
+            )
             .exclude(recommendation_id="")
             .order_by("-match_confidence", "-created_at")
             .first()

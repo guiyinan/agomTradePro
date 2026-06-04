@@ -38,6 +38,7 @@ def test_extended_mcp_tools_registered():
         "list_ai_providers",
         "list_prompt_templates",
         "get_audit_summary",
+        "list_audit_execution_links",
         "publish_event",
         "submit_decision_request",
         "decision_workflow_precheck",

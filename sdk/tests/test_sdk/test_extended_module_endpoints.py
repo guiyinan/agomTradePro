@@ -131,6 +131,12 @@ def client():
             "/api/audit/threshold-validation-data/5/",
         ),
         (lambda c: c.audit.run_validation({"force": True}), "POST", "/api/audit/run-validation/"),
+        (
+            lambda c: c.audit.list_execution_links(account_id=1, transaction_source="simulated_trade"),
+            "GET",
+            "/api/audit/execution-links/",
+            {"params": {"account_id": 1, "transaction_source": "simulated_trade", "limit": 50}},
+        ),
         (lambda c: c.events.status(), "GET", "/api/events/status/"),
         (lambda c: c.events.publish({"event_type": "test"}), "POST", "/api/events/publish/"),
         (

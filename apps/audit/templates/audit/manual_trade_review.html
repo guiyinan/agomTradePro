@@ -588,6 +588,35 @@
             </div>
         </section>
     </div>
+
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="bi bi-link-45deg"></i>推荐执行关联</h2>
+                <p class="panel-subtitle">统一推荐与账户成交、模拟盘自动交易之间的闭环记录。</p>
+            </div>
+        </div>
+        <div class="table-scroll">
+            <table class="compact-table">
+                <thead>
+                    <tr>
+                        <th>推荐 ID</th>
+                        <th>来源</th>
+                        <th>成交 ID</th>
+                        <th>账户</th>
+                        <th>证券</th>
+                        <th>方向</th>
+                        <th>匹配</th>
+                        <th>备注</th>
+                        <th>时间</th>
+                    </tr>
+                </thead>
+                <tbody id="executionLinkRows">
+                    <tr><td class="empty-row" colspan="9">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
 </div>
 {% endblock %}
 
@@ -604,6 +633,7 @@
     const previewWrap = document.getElementById("previewWrap");
     const replayWrap = document.getElementById("replayWrap");
     const previewRows = document.getElementById("previewRows");
+    const executionLinkRows = document.getElementById("executionLinkRows");
     const branchResults = document.getElementById("branchResults");
     const replayChart = document.getElementById("replayChart");
     const branchLabels = {
@@ -665,6 +695,41 @@
             [portfolioSelect, replayPortfolioSelect].forEach((select) => {
                 select.innerHTML = '<option value="">组合加载失败</option>';
             });
+        }
+    }
+
+    async function loadExecutionLinks() {
+        try {
+            const params = new URLSearchParams({ limit: "50" });
+            const response = await fetch(`/api/audit/execution-links/?${params.toString()}`, {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" },
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+            const links = Array.isArray(payload.links) ? payload.links : [];
+            executionLinkRows.innerHTML = links.map((link) => {
+                const actionClass = link.actual_action === "buy" ? "pill-buy" : "pill-sell";
+                const sourceClass = link.transaction_source === "simulated_trade" ? "pill-info" : "pill-manual";
+                const confidence = Math.round(Number(link.match_confidence || 0) * 100);
+                return `
+                    <tr>
+                        <td>${link.recommendation_id || "-"}</td>
+                        <td>${badge(link.transaction_source || "-", sourceClass)}</td>
+                        <td>${link.transaction_id || ""}</td>
+                        <td>${link.account_id || ""}</td>
+                        <td>${link.security_code || ""}</td>
+                        <td>${badge(link.actual_action || "", actionClass)}</td>
+                        <td>${badge(`${link.match_method || "-"} ${confidence}%`, "pill-ok")}</td>
+                        <td>${link.notes || ""}</td>
+                        <td>${String(link.created_at || "").replace("T", " ").slice(0, 16)}</td>
+                    </tr>`;
+            }).join("");
+            if (!executionLinkRows.innerHTML) {
+                executionLinkRows.innerHTML = '<tr><td class="empty-row" colspan="9">暂无推荐执行关联</td></tr>';
+            }
+        } catch (error) {
+            executionLinkRows.innerHTML = `<tr><td class="empty-row" colspan="9">${error.message}</td></tr>`;
         }
     }
 
@@ -891,6 +956,7 @@
     runReplayBtn.addEventListener("click", runReplay);
     setDefaultDates();
     loadPortfolios();
+    loadExecutionLinks();
 })();
 </script>
 {% endblock %}

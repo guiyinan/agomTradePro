@@ -20,7 +20,7 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
     )
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Protocol
 
@@ -54,6 +54,7 @@ class SignalInfo:
     quantity: int | None
     confidence: float
     reason: str
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -225,6 +226,7 @@ class StrategyExecutionGateway:
                     quantity=sig.quantity,
                     confidence=sig.confidence,
                     reason=sig.reason,
+                    metadata=dict(getattr(sig, "metadata", {}) or {}),
                 ))
 
             return ExecutionResult(
