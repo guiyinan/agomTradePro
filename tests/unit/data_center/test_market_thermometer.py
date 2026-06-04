@@ -132,6 +132,23 @@ class _RealDataProvider:
         return [_macro_fact(indicator_code, date(2026, 5, 19), 123.0, "元")]
 
 
+class _WindowAwareProvider:
+    def __init__(self) -> None:
+        self.requests: list[tuple[str, date, date]] = []
+
+    def provider_name(self) -> str:
+        return "AKShare Public"
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        self.requests.append((indicator_code, start, end))
+        if indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS":
+            return [
+                _macro_fact(indicator_code, date(2026, 3, 31), 100_000, "户"),
+                _macro_fact(indicator_code, date(2026, 4, 30), 150_000, "户"),
+            ]
+        return [_macro_fact(indicator_code, end, 123.0, "元")]
+
+
 def _macro_fact(indicator_code: str, reporting_period: date, value: float, unit: str) -> MacroFact:
     return MacroFact(
         indicator_code=indicator_code,
@@ -186,6 +203,36 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
     assert successes
     assert all(item["provider"] == "Tushare Pro" for item in successes)
     assert {fact.source for fact in macro_repo.stored} == {"tushare"}
+
+
+def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_window():
+    macro_repo = _FakeMacroRepo(series_map={})
+    provider = _WindowAwareProvider()
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    success_by_component = {
+        item["component"]: item for item in payload["results"] if item["status"] == "success"
+    }
+    assert success_by_component["new_investor_accounts"]["stored_count"] == 2
+    investor_requests = [
+        item for item in provider.requests if item[0] == "CN_A_NEW_INVESTOR_ACCOUNTS"
+    ]
+    assert investor_requests == [
+        ("CN_A_NEW_INVESTOR_ACCOUNTS", date(2023, 5, 20), date(2026, 5, 19))
+    ]
+    assert [
+        fact.reporting_period
+        for fact in macro_repo.stored
+        if fact.indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS"
+    ] == [date(2026, 3, 31), date(2026, 4, 30)]
 
 
 def test_build_current_payload_applies_user_override_band():

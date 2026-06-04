@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-05-21
+最后更新: 2026-06-04
 
 ## 概述
 
@@ -131,6 +131,13 @@
 
 - `python manage.py sync_market_thermometer_inputs`
 - `python manage.py calculate_market_thermometer`
+- `python manage.py import_investor_accounts --file <csv_path>`
+
+## 数据源覆盖
+
+- 开户数 `CN_A_NEW_INVESTOR_ACCOUNTS` 现在由 `SyncMarketThermometerInputsUseCase` 通过 AKShare/EastMoney-backed `stock_account_statistics_em` 自动同步。
+- AKShare 原始 `新增投资者-数量` 为“万户”口径，入库前统一转换为 canonical `户`，并在 `MacroFact.extra.original_unit` 保留 `万户` 供审计。
+- CSV 导入仍作为兜底入口，适用于远端数据源不可用或需要补历史月份的情况。
 
 ## 调度与故障语义
 
@@ -138,4 +145,3 @@
 - 调度窗口: 交易日 `17:20 / 18:20 / 19:20` 自动重试，统一刷新最近收盘后的温度计快照
 - 任务流程: 先执行 `sync_market_thermometer_inputs`，再执行 `calculate_market_thermometer`
 - 当快照 `valid_component_count == 0` 且 `must_not_use_for_decision == True` 时，Dashboard 首页不再把结果展示为 `0.0`，而是明确标识为“数据缺失”
-- `python manage.py import_investor_accounts --file <csv_path>`

@@ -99,7 +99,7 @@ function renderCurrent(payload) {
     const items = payload.components || [];
     document.getElementById("thermometer-components").innerHTML = items.map(item => `
         <div class="metric-pill">
-            <strong>${item.label}</strong>: ${Number(item.score || 0).toFixed(1)}
+            <strong>${item.label}</strong>: ${item.is_missing ? "数据缺失" : Number(item.score || 0).toFixed(1)}
             <span class="mono">${item.reason || ""}</span>
         </div>
     `).join("");

@@ -304,14 +304,23 @@ class SyncMarketThermometerInputsUseCase:
         results: list[dict[str, Any]] = []
 
         market_providers = self._resolve_providers(DEFAULT_MARKET_DATA_SOURCE_TYPES)
-        for component_key in ("turnover", "margin_balance", "etf_net_flow"):
+        for component_key in (
+            "new_investor_accounts",
+            "turnover",
+            "margin_balance",
+            "etf_net_flow",
+        ):
             spec = MARKET_COMPONENT_SPECS[component_key]
+            start_date, end_date = self._component_sync_window(
+                component_key,
+                target_date,
+            )
             for config, provider in market_providers:
                 try:
                     facts = provider.fetch_macro_series(
                         spec["indicator_code"],
-                        target_date,
-                        target_date,
+                        start_date,
+                        end_date,
                     )
                     normalized = [
                         dataclasses.replace(
@@ -332,7 +341,8 @@ class SyncMarketThermometerInputsUseCase:
                                 capability="market_thermometer_sync",
                                 request_params={
                                     "indicator_code": spec["indicator_code"],
-                                    "date": target_date.isoformat(),
+                                    "start": start_date.isoformat(),
+                                    "end": end_date.isoformat(),
                                 },
                                 status="no_data",
                                 row_count=0,
@@ -354,7 +364,8 @@ class SyncMarketThermometerInputsUseCase:
                             capability="market_thermometer_sync",
                             request_params={
                                 "indicator_code": spec["indicator_code"],
-                                "date": target_date.isoformat(),
+                                "start": start_date.isoformat(),
+                                "end": end_date.isoformat(),
                             },
                             status="ok",
                             row_count=stored_count,
@@ -376,7 +387,8 @@ class SyncMarketThermometerInputsUseCase:
                             capability="market_thermometer_sync",
                             request_params={
                                 "indicator_code": spec["indicator_code"],
-                                "date": target_date.isoformat(),
+                                "start": start_date.isoformat(),
+                                "end": end_date.isoformat(),
                             },
                             status="error",
                             row_count=0,
@@ -505,6 +517,16 @@ class SyncMarketThermometerInputsUseCase:
                 )
 
         return {"as_of_date": target_date.isoformat(), "results": results}
+
+    def _component_sync_window(
+        self,
+        component_key: str,
+        target_date: date,
+    ) -> tuple[date, date]:
+        spec = MARKET_COMPONENT_SPECS[component_key]
+        if spec.get("frequency") == "M":
+            return target_date - timedelta(days=365 * 3), target_date
+        return target_date, target_date
 
     def _resolve_provider(self, source_types: tuple[str, ...]):
         resolved = self._resolve_providers(source_types)

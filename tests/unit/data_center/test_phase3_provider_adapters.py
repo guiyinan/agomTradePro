@@ -281,6 +281,40 @@ def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     assert facts[0].extra["proxy"] == "sh_index_plus_sz_index"
 
 
+def test_akshare_unified_provider_adapter_fetches_new_investor_accounts(monkeypatch):
+    class _FakeAkshare:
+        def stock_account_statistics_em(self):
+            return pd.DataFrame(
+                [
+                    {"数据日期": "2026-03", "新增投资者-数量": 12.34},
+                    {"数据日期": "2026-04", "新增投资者-数量": 23.45},
+                    {"数据日期": "2026-05", "新增投资者-数量": None},
+                ]
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series(
+        "CN_A_NEW_INVESTOR_ACCOUNTS",
+        date(2026, 3, 1),
+        date(2026, 4, 30),
+    )
+
+    assert len(facts) == 2
+    assert facts[0].reporting_period == date(2026, 3, 31)
+    assert facts[0].value == 123_400.0
+    assert facts[0].unit == "户"
+    assert facts[1].reporting_period == date(2026, 4, 30)
+    assert facts[1].value == 234_500.0
+    assert facts[0].source == "akshare"
+    assert facts[0].extra["proxy"] == "stock_account_statistics_em"
+    assert facts[0].extra["original_unit"] == "万户"
+
+
 def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     class _FakePro:
         def index_daily(self, ts_code, start_date, end_date):
