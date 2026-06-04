@@ -364,13 +364,13 @@
             </div>
         </section>
 
-        <!-- Alpha 摘要：完整排名与参数切换移至专门页面 -->
+        <!-- Alpha 入口：完整排名与参数切换移至专门页面 -->
         <section class="alpha-visualization-section alpha-summary-section">
             <div class="section-header">
                 <div>
-                    <h2 class="section-title">🤖 Alpha 摘要</h2>
+                    <h2 class="section-title">🤖 Alpha 排名</h2>
                     <p class="section-subtitle">
-                        首页只保留决策摘要；完整排名、scope、组合、股票池模式和返回条数在 Alpha 专门页调整。
+                        首页不再加载 Alpha 排行数据；完整排名、scope、组合、股票池模式和返回条数在专门页调整。
                     </p>
                 </div>
                 <div class="header-actions alpha-summary-actions">
@@ -392,31 +392,31 @@
                     <div class="metric-content">
                         <div class="metric-title">当前口径</div>
                         <div class="metric-value">{% if selected_alpha_scope == 'general' %}通用{% else %}账户{% endif %}</div>
-                        <div class="metric-subtitle">{{ alpha_pool.label|default:"Alpha 池" }}</div>
+                        <div class="metric-subtitle">进入完整排名页后加载</div>
                     </div>
                 </div>
                 <div class="alpha-metric-card">
                     <div class="metric-icon">📊</div>
                     <div class="metric-content">
-                        <div class="metric-title">首页摘要</div>
-                        <div class="metric-value">{{ alpha_stock_scores|length }}</div>
-                        <div class="metric-subtitle">已加载 Top 候选</div>
+                        <div class="metric-title">首页加载</div>
+                        <div class="metric-value">已关闭</div>
+                        <div class="metric-subtitle">排行数据不阻塞首屏</div>
                     </div>
                 </div>
                 <div class="alpha-metric-card">
                     <div class="metric-icon">✅</div>
                     <div class="metric-content">
-                        <div class="metric-title">可行动</div>
-                        <div class="metric-value">{{ alpha_actionable_candidates|length }}</div>
-                        <div class="metric-subtitle">通过账户级约束</div>
+                        <div class="metric-title">完整排名</div>
+                        <div class="metric-value">入口</div>
+                        <div class="metric-subtitle">集中查看 Alpha 结果</div>
                     </div>
                 </div>
                 <div class="alpha-metric-card">
                     <div class="metric-icon">🛡️</div>
                     <div class="metric-content">
-                        <div class="metric-title">退出监控</div>
-                        <div class="metric-value">{{ alpha_exit_watch_summary.total|default:0 }}</div>
-                        <div class="metric-subtitle">持仓退出待办</div>
+                        <div class="metric-title">推荐历史</div>
+                        <div class="metric-value">入口</div>
+                        <div class="metric-subtitle">查看历史快照</div>
                     </div>
                 </div>
             </div>
@@ -424,53 +424,27 @@
             <div class="alpha-summary-grid">
                 <div class="alpha-summary-card">
                     <div class="card-header">
-                        <h3>Top Alpha 候选</h3>
-                        <span class="card-badge">首页最多展示 3 只</span>
+                        <h3>完整 Alpha 排名</h3>
+                        <span class="card-badge">专门页面</span>
                     </div>
-                    {% if alpha_stock_scores %}
-                    <div class="alpha-summary-list">
-                        {% for stock in alpha_stock_scores|slice:":3" %}
-                        <a class="alpha-summary-item" href="{{ stock.decision_workspace_primary_url|default:stock.decision_workspace_url }}">
-                            <span class="alpha-summary-rank">#{{ stock.rank|default:forloop.counter }}</span>
-                            <span class="alpha-summary-main">
-                                <strong>{{ stock.code }}</strong>
-                                <span>{{ stock.name|default:"-" }}</span>
-                            </span>
-                            <span class="alpha-summary-score">
-                                {% if stock.alpha_score != None %}{{ stock.alpha_score|floatformat:3 }}{% elif stock.score != None %}{{ stock.score|floatformat:3 }}{% else %}-{% endif %}
-                            </span>
-                        </a>
-                        {% endfor %}
+                    <p class="alpha-summary-empty">Alpha 排行已从首页移除，避免账户级股票池、评分缓存和退出链路阻塞首页打开。</p>
+                    <div class="alpha-summary-footer">
+                        <a href="{% url 'dashboard:alpha_ranking' %}?alpha_scope={{ selected_alpha_scope|default:'portfolio' }}{% if selected_portfolio_id and selected_alpha_scope != 'general' %}&portfolio_id={{ selected_portfolio_id }}{% endif %}{% if selected_alpha_pool_mode and selected_alpha_scope != 'general' %}&pool_mode={{ selected_alpha_pool_mode|urlencode }}{% endif %}&top_n=200" class="alpha-section-link">打开完整排名</a>
                     </div>
-                    {% else %}
-                    <p class="alpha-summary-empty">暂无可信 Alpha 候选数据；系统不会用静态名单冒充推荐。</p>
-                    {% endif %}
                 </div>
 
                 <div class="alpha-summary-card">
                     <div class="card-header">
-                        <h3>Alpha 数据状态</h3>
-                        <span class="card-badge">{{ alpha_stock_scores_meta.source|default:"-" }}</span>
+                        <h3>相关入口</h3>
+                        <span class="card-badge">快速操作</span>
                     </div>
                     <div class="alpha-summary-meta">
-                        <span>池子规模 {{ alpha_pool.pool_size|default:0 }}</span>
-                        <span>股票池模式 {{ selected_alpha_pool_mode|default:alpha_pool.pool_mode|default:"-" }}</span>
-                        <span>
-                            评分日
-                            {% if alpha_stock_scores_meta.effective_asof_date %}
-                                {{ alpha_stock_scores_meta.effective_asof_date }}
-                            {% elif alpha_stock_scores_meta.cache_date %}
-                                {{ alpha_stock_scores_meta.cache_date }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </span>
-                        {% if alpha_stock_scores_meta.warning_message %}
-                        <span class="alpha-summary-warning">{{ alpha_stock_scores_meta.warning_message }}</span>
-                        {% endif %}
+                        <span>股票池模式 {{ selected_alpha_pool_mode|default:"默认" }}</span>
+                        <span>推荐历史 在历史页查看</span>
+                        <span>个股筛选 在筛选页使用 Alpha 来源</span>
                     </div>
                     <div class="alpha-summary-footer">
-                        <span>完整排名、scope、组合、股票池模式、返回条数和历史记录入口已移至 Alpha 专门页。</span>
+                        <span>需要排行明细时直接进入完整排名页，首页只保留入口和决策概览。</span>
                     </div>
                 </div>
             </div>

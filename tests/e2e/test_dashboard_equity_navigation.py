@@ -24,7 +24,7 @@ def admin_client(db):
 
 @pytest.mark.django_db
 def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_client, monkeypatch):
-    from apps.dashboard.interface import views
+    from apps.dashboard.interface import alpha_stock_views, views
 
     monkeypatch.setattr(
         views,
@@ -43,7 +43,11 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
                     "workflow_stage_label": "仅在 Alpha Top 排名",
                 }
             ],
-            "meta": {"provider_source": "cache"},
+            "meta": {
+                "provider_source": "cache",
+                "recommendation_ready": True,
+                "must_not_use_for_decision": False,
+            },
             "pool": {},
             "actionable_candidates": [],
             "pending_requests": [],
@@ -51,6 +55,7 @@ def test_dashboard_alpha_stocks_json_endpoint_returns_contract(authenticated_cli
             "history_run_id": None,
         },
     )
+    monkeypatch.setattr(alpha_stock_views, "_dashboard_views", lambda: views)
 
     response = authenticated_client.get("/api/dashboard/alpha/stocks/?format=json&top_n=5")
 
@@ -93,40 +98,14 @@ def test_equity_screen_page_contains_dashboard_alpha_navigation(authenticated_cl
 
 
 @pytest.mark.django_db
-def test_dashboard_alpha_partial_contains_decision_workspace_actions(authenticated_client, monkeypatch):
-    from apps.dashboard.interface import views
-
-    monkeypatch.setattr(
-        views,
-        "_get_alpha_stock_scores_payload",
-        lambda top_n=10, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None: {
-            "items": [
-                {
-                    "code": "600519.SH",
-                    "name": "贵州茅台",
-                    "score": 0.95,
-                    "rank": 1,
-                    "confidence": 0.91,
-                    "source": "cache",
-                    "asof_date": "2026-03-22",
-                }
-            ],
-            "meta": {"provider_source": "cache"},
-            "pool": {},
-            "actionable_candidates": [],
-            "pending_requests": [],
-            "recent_runs": [],
-            "history_run_id": None,
-        },
-    )
-
+def test_dashboard_alpha_section_links_to_full_ranking(authenticated_client):
     response = authenticated_client.get("/dashboard/")
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "/decision/workspace/?source=dashboard-alpha&amp;security_code=600519.SH" in content
-    assert "/decision/workspace/?source=dashboard-alpha&amp;security_code=600519.SH&amp;step=4" in content
-    assert "在 Workflow 中查看" in content
+    assert "/dashboard/alpha/ranking/" in content
+    assert "打开完整排名" in content
+    assert "首页不再加载 Alpha 排行数据" in content
 
 
 @pytest.mark.django_db

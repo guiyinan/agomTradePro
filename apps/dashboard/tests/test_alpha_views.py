@@ -1484,7 +1484,7 @@ def test_alpha_history_detail_api_returns_snapshot_detail(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(monkeypatch):
+def test_dashboard_view_skips_homepage_alpha_payload_and_keeps_workflow_candidates(monkeypatch):
     captured: dict[str, int] = {
         "metrics_calls": 0,
         "homepage_calls": 0,
@@ -1643,19 +1643,19 @@ def test_dashboard_view_uses_light_alpha_metrics_and_keeps_workflow_candidates(m
     views.dashboard_view(request)
 
     assert captured["metrics_calls"] == 1
-    assert captured["homepage_calls"] == 1
+    assert captured["homepage_calls"] == 0
     assert captured["decision_calls"] == 1
-    assert rendered["context"]["alpha_stock_scores"][0]["name"] == "平安银行"
-    assert rendered["context"]["alpha_decision_chain_overview"]["top10_actionable_count"] == 1
+    assert rendered["context"]["alpha_stock_scores"] == []
+    assert rendered["context"]["alpha_decision_chain_overview"]["top10_actionable_count"] == 0
     assert (
         rendered["context"]["actionable_candidates"][0]["origin_stage_label"] == "当前 Top 10 第 #1"
     )
-    assert rendered["context"]["alpha_actionable_candidates"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_actionable_candidates"] == []
     assert rendered["context"]["quota_remaining"] == 8
 
 
 @pytest.mark.django_db
-def test_dashboard_view_keeps_verified_top_rankings_in_workflow_panel(monkeypatch):
+def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypatch):
     request = RequestFactory().get("/dashboard/")
     request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
 
@@ -1775,13 +1775,13 @@ def test_dashboard_view_keeps_verified_top_rankings_in_workflow_panel(monkeypatc
 
     views.dashboard_view(request)
 
-    assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
-    assert rendered["context"]["alpha_stock_scores"][0]["stage"] == "top_ranked"
-    assert rendered["context"]["alpha_research_rankings"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_stock_scores"] == []
+    assert rendered["context"]["alpha_research_rankings"] == []
+    assert rendered["context"]["alpha_pool"]["portfolio_id"] is None
 
 
 @pytest.mark.django_db
-def test_dashboard_view_hides_unverified_top_rankings_in_workflow_panel(monkeypatch):
+def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkeypatch):
     request = RequestFactory().get(
         "/dashboard/",
         {
@@ -1908,7 +1908,8 @@ def test_dashboard_view_hides_unverified_top_rankings_in_workflow_panel(monkeypa
     views.dashboard_view(request)
 
     assert rendered["context"]["alpha_stock_scores"] == []
-    assert rendered["context"]["alpha_research_rankings"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_research_rankings"] == []
+    assert rendered["context"]["alpha_pool"]["portfolio_id"] == 21
 
 
 @pytest.mark.django_db
@@ -1934,18 +1935,6 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
         actionable_candidates=[{"asset_code": "000001.SZ"}],
         pending_requests=[{"asset_code": "000002.SZ"}],
     )
-    alpha_payload = {
-        "items": [{"code": "000001.SZ"}],
-        "meta": {},
-        "pool": {"portfolio_id": 21},
-        "actionable_candidates": [{"asset_code": "000001.SZ"}],
-        "pending_requests": [{"asset_code": "000002.SZ"}],
-        "exit_watchlist": [],
-        "exit_watch_summary": {},
-        "recent_runs": [],
-        "history_run_id": None,
-    }
-
     monkeypatch.setattr(views, "_build_dashboard_data", lambda user_id: dashboard_data)
     monkeypatch.setattr(views, "_ensure_dashboard_positions", lambda data, user_id: data)
     monkeypatch.setattr(views, "_load_phase1_macro_components", lambda: (None, None, None))
@@ -1956,11 +1945,6 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
         lambda max_candidates, max_pending: decision_plane_data,
     )
     monkeypatch.setattr(views, "_get_alpha_metrics_data", lambda ic_days=30: {"provider_status": {}})
-    monkeypatch.setattr(
-        views,
-        "_get_alpha_stock_scores_payload",
-        lambda top_n, user, portfolio_id, pool_mode, alpha_scope: alpha_payload,
-    )
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [{"id": 9}, {"id": 10}])
     monkeypatch.setattr(
         views,
@@ -1970,7 +1954,7 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     monkeypatch.setattr(
         views,
         "_build_dashboard_page_context",
-        lambda **kwargs: {"ok": True, "alpha_stock_scores": kwargs["alpha_payload"]["items"]},
+        lambda **kwargs: {"ok": True, "alpha_stock_scores": []},
     )
     monkeypatch.setattr(views, "render", lambda request, template_name, context: HttpResponse("ok"))
 
@@ -1990,14 +1974,14 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     assert record.exit_account_id == 9
     assert record.position_count == 1
     assert record.investment_account_count == 2
-    assert record.alpha_candidate_count == 1
-    assert record.alpha_actionable_count == 1
-    assert record.alpha_pending_count == 1
+    assert record.alpha_candidate_count == 0
+    assert record.alpha_actionable_count == 0
+    assert record.alpha_pending_count == 0
     assert record.workflow_actionable_count == 1
     assert record.workflow_pending_count == 1
     assert record.duration_ms >= 0
     assert "build_dashboard_data" in record.step_durations_ms
-    assert "alpha_payload" in record.step_durations_ms
+    assert "alpha_payload" not in record.step_durations_ms
     assert "render" in record.step_durations_ms
 
 

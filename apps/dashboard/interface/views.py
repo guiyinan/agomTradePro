@@ -1209,23 +1209,6 @@ def dashboard_view(request):
     _track_step("alpha_metrics", step_started_at)
 
     step_started_at = perf_counter()
-    alpha_payload = _get_alpha_stock_scores_payload(
-        top_n=10,
-        user=request.user,
-        portfolio_id=selected_portfolio_id,
-        pool_mode=selected_alpha_pool_mode,
-        alpha_scope=selected_alpha_scope,
-    )
-    _track_step("alpha_payload", step_started_at)
-    alpha_actionable_candidates = alpha_payload["actionable_candidates"]
-    alpha_pending_requests = alpha_payload["pending_requests"]
-    alpha_stock_scores = alpha_payload["items"]
-    alpha_decision_chain_overview = _build_alpha_decision_chain_overview(
-        top_candidates=alpha_stock_scores,
-        actionable_candidates=alpha_actionable_candidates,
-        pending_requests=alpha_pending_requests,
-    )
-    step_started_at = perf_counter()
     investment_accounts = _get_dashboard_accounts(request.user)
     _track_step("investment_accounts", step_started_at)
 
@@ -1251,8 +1234,6 @@ def dashboard_view(request):
         selected_alpha_scope=selected_alpha_scope,
         decision_plane_data=decision_plane_data,
         alpha_metrics_data=alpha_metrics_data,
-        alpha_payload=alpha_payload,
-        alpha_decision_chain_overview=alpha_decision_chain_overview,
         valuation_repair_config_summary=valuation_repair_config_summary,
         selected_exit_asset_code=selected_exit_asset_code,
         selected_exit_account_id=selected_exit_account_id,
@@ -1277,9 +1258,9 @@ def dashboard_view(request):
         step_durations_ms=step_durations_ms,
         position_count=len(getattr(data, "positions", []) or []),
         investment_account_count=len(investment_accounts),
-        alpha_candidate_count=len(alpha_stock_scores),
-        alpha_actionable_count=len(alpha_actionable_candidates),
-        alpha_pending_count=len(alpha_pending_requests),
+        alpha_candidate_count=0,
+        alpha_actionable_count=0,
+        alpha_pending_count=0,
         workflow_actionable_count=len(getattr(decision_plane_data, "actionable_candidates", []) or []),
         workflow_pending_count=len(getattr(decision_plane_data, "pending_requests", []) or []),
     )
@@ -1301,59 +1282,35 @@ def _build_dashboard_page_context(
     selected_alpha_scope: str,
     decision_plane_data,
     alpha_metrics_data,
-    alpha_payload: dict,
-    alpha_decision_chain_overview: dict,
     valuation_repair_config_summary: dict | None,
     selected_exit_asset_code: str | None,
     selected_exit_account_id: int | None,
     market_thermometer_payload: dict | None,
 ) -> dict:
     """Build the dashboard template context from already-loaded read models."""
-    raw_alpha_stock_scores = _annotate_decision_workspace_navigation(
-        alpha_payload["items"],
-        source="dashboard-alpha",
-        security_code_key="code",
-        view_step=None,
-        primary_step=4,
-    )
-    alpha_stock_scores_meta = alpha_payload["meta"]
-    alpha_stock_scores = (
-        raw_alpha_stock_scores
-        if _should_render_alpha_top_candidates(
-            meta=alpha_stock_scores_meta,
-            alpha_scope=selected_alpha_scope,
-        )
-        else []
-    )
-    alpha_actionable_candidates = _annotate_decision_workspace_navigation(
-        alpha_payload["actionable_candidates"],
-        source="dashboard-alpha",
-        security_code_key="asset_code",
-        view_step=None,
-        primary_step=4,
-    )
-    alpha_exit_watchlist = _mark_alpha_exit_watchlist_selection(
-        _annotate_alpha_exit_watchlist_navigation(
-            alpha_payload.get("exit_watchlist", []),
-            alpha_scope=selected_alpha_scope,
-            portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
-        ),
-        account_id=selected_exit_account_id,
-        asset_code=selected_exit_asset_code,
-    )
-    alpha_exit_watch_summary = alpha_payload.get("exit_watch_summary", {})
+    raw_alpha_stock_scores: list[dict] = []
+    alpha_stock_scores: list[dict] = []
+    alpha_stock_scores_meta: dict = {}
+    alpha_actionable_candidates: list[dict] = []
+    alpha_exit_watchlist: list[dict] = []
+    alpha_exit_watch_summary: dict = {"total": 0}
     alpha_exit_entry_panel = _build_dashboard_exit_entry_panel_context(alpha_exit_watchlist)
     alpha_exit_detail_panel = _build_alpha_exit_detail_panel_context(
         exit_watchlist=alpha_exit_watchlist,
         account_id=selected_exit_account_id,
         asset_code=selected_exit_asset_code,
     )
-    alpha_pending_requests = _annotate_decision_workspace_navigation(
-        alpha_payload["pending_requests"],
-        source="dashboard-pending",
-        security_code_key="asset_code",
-        view_step=5,
-        primary_step=5,
+    alpha_pending_requests: list[dict] = []
+    alpha_pool = {
+        "portfolio_id": selected_portfolio_id,
+        "pool_mode": selected_alpha_pool_mode,
+        "label": "Alpha 排名入口",
+        "pool_size": 0,
+    }
+    alpha_decision_chain_overview = _build_alpha_decision_chain_overview(
+        top_candidates=[],
+        actionable_candidates=[],
+        pending_requests=[],
     )
     workflow_actionable_candidates = _annotate_decision_workspace_navigation(
         decision_plane_data.actionable_candidates,
@@ -1369,8 +1326,6 @@ def _build_dashboard_page_context(
         view_step=5,
         primary_step=5,
     )
-    initial_alpha_stock = raw_alpha_stock_scores[0]["code"] if raw_alpha_stock_scores else ""
-
     context = {
         "user": request.user,
         "display_name": data.display_name,
@@ -1446,26 +1401,17 @@ def _build_dashboard_page_context(
         if alpha_exit_detail_panel.get("selected")
         else "",
         "alpha_pending_requests": alpha_pending_requests,
-        "alpha_pool": alpha_payload["pool"],
-        "alpha_recent_runs": alpha_payload["recent_runs"],
-        "alpha_history_run_id": alpha_payload["history_run_id"],
-        "selected_portfolio_id": selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
-        "selected_alpha_pool_mode": selected_alpha_pool_mode or alpha_payload["pool"].get("pool_mode"),
+        "alpha_pool": alpha_pool,
+        "alpha_recent_runs": [],
+        "alpha_history_run_id": None,
+        "selected_portfolio_id": selected_portfolio_id,
+        "selected_alpha_pool_mode": selected_alpha_pool_mode,
         "selected_alpha_scope": selected_alpha_scope,
         "alpha_pool_mode_choices": get_alpha_pool_mode_choices(),
         "alpha_provider_status": alpha_metrics_data.provider_status,
         "alpha_coverage_metrics": alpha_metrics_data.coverage_metrics,
         "alpha_ic_trends": alpha_metrics_data.ic_trends,
-        "alpha_factor_panel": _build_alpha_factor_panel(
-            initial_alpha_stock,
-            top_n=10,
-            scores=raw_alpha_stock_scores,
-            user=request.user,
-            portfolio_id=selected_portfolio_id or alpha_payload["pool"].get("portfolio_id"),
-            pool_mode=selected_alpha_pool_mode,
-            alpha_scope=selected_alpha_scope,
-            load_provider_factors=False,
-        ),
+        "alpha_factor_panel": None,
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
     context.update(_build_regime_status_context(navigator, pulse, action))
