@@ -16,6 +16,7 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
     price_provider = object()
     asset_pool_service = object()
     exit_advisor = object()
+    execution_link_recorder = object()
     engine = MagicMock()
     engine.run_daily_trading.return_value = {1: {"buy_count": 1, "sell_count": 2}}
 
@@ -65,6 +66,10 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
             return_value=exit_advisor,
         ) as exit_advisor_builder,
         patch(
+            "apps.simulated_trading.application.tasks.build_decision_execution_link_recorder",
+            return_value=execution_link_recorder,
+        ) as execution_link_recorder_builder,
+        patch(
             "apps.simulated_trading.application.tasks.AutoTradingEngine",
             return_value=engine,
         ) as engine_cls,
@@ -87,6 +92,7 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
         signal_repo=signal_repo,
     )
     exit_advisor_builder.assert_called_once_with()
+    execution_link_recorder_builder.assert_called_once_with()
     engine_cls.assert_called_once_with(
         account_repo=account_repo,
         position_repo=position_repo,
@@ -98,6 +104,7 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
         price_provider=price_provider,
         signal_service=signal_repo,
         exit_advisor=exit_advisor,
+        execution_link_recorder=execution_link_recorder,
     )
     engine.run_daily_trading.assert_called_once_with(date(2026, 4, 30), account_ids=[1])
     assert result == {
