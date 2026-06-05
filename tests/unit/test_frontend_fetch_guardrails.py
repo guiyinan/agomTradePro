@@ -100,6 +100,20 @@ def test_dashboard_and_equity_workspace_entrypoints_use_canonical_builders():
     assert "&action=adopt" not in equity_screen_content
 
 
+def test_decision_workspace_stock_cards_link_to_equity_detail_and_keep_card_hierarchy():
+    content = Path("core/templates/decision/workspace.html").read_text(encoding="utf-8")
+
+    assert "function buildEquityDetailUrl(securityCode)" in content
+    assert "`/equity/detail/${encodeURIComponent(code)}/`" in content
+    assert "const tagName = detailUrl ? 'a' : 'span';" in content
+    assert 'title="打开个股详情"' in content
+    assert "recommendation-card-${String(rec.side || 'hold').toLowerCase()}" in content
+    assert "approval-card-${String(order.action || 'hold').toLowerCase()}" in content
+    assert ".recommendation-card-buy," in content
+    assert ".approval-card-exit" in content
+    assert "a.security-display:hover .security-display-name" in content
+
+
 def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_timestamp():
     content = Path("core/templates/equity/detail.html").read_text(encoding="utf-8")
 

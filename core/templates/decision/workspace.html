@@ -1052,18 +1052,26 @@ function escapeHtml(value) {
         .replaceAll("'", '&#39;');
 }
 
+function buildEquityDetailUrl(securityCode) {
+    const code = String(securityCode || '').trim().toUpperCase();
+    return code ? `/equity/detail/${encodeURIComponent(code)}/` : '';
+}
+
 function renderSecurityLabel(securityName, securityCode, extraClass = '') {
     const code = String(securityCode || '').trim();
     const name = String(securityName || '').trim();
     const classAttr = extraClass ? ` security-display ${extraClass}` : ' security-display';
+    const detailUrl = buildEquityDetailUrl(code);
+    const tagName = detailUrl ? 'a' : 'span';
+    const hrefAttr = detailUrl ? ` href="${escapeHtml(detailUrl)}" title="打开个股详情"` : '';
     if (!name || name === code) {
-        return `<span class="${classAttr.trim()}"><span class="security-display-name">${escapeHtml(code || '-')}</span></span>`;
+        return `<${tagName} class="${classAttr.trim()}"${hrefAttr}><span class="security-display-name">${escapeHtml(code || '-')}</span></${tagName}>`;
     }
     return `
-        <span class="${classAttr.trim()}">
+        <${tagName} class="${classAttr.trim()}"${hrefAttr}>
             <span class="security-display-name">${escapeHtml(name)}</span>
             <span class="security-display-code">${escapeHtml(code)}</span>
-        </span>
+        </${tagName}>
     `;
 }
 
@@ -1689,7 +1697,7 @@ function renderRecommendations(recommendations, totalCount) {
     }
 
     container.innerHTML = recommendations.map(rec => `
-        <div class="recommendation-card ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
+        <div class="recommendation-card recommendation-card-${String(rec.side || 'hold').toLowerCase()} ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
                 <div class="rec-header">
                     <div class="rec-asset">
                         <label style="display: inline-flex; align-items: center; gap: 6px; margin-right: 10px;">
@@ -1963,7 +1971,7 @@ function renderTransitionPlan(plan) {
     }
 
     ordersContainer.innerHTML = orders.map(order => `
-        <div class="approval-card" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
+        <div class="approval-card approval-card-${String(order.action || 'hold').toLowerCase()}" data-plan-order-row="${escapeHtml(order.source_recommendation_id || '')}" data-security-code="${escapeHtml(order.security_code)}">
             <div class="approval-header">
                 ${renderSecurityLabel(order.security_name, order.security_code, 'approval-asset-title')}
                 <span class="approval-side approval-side-${String(order.action || 'hold').toLowerCase()}">${escapeHtml(order.action)}</span>
@@ -2433,7 +2441,7 @@ function renderApprovals(approvals, totalCount) {
     }
 
     container.innerHTML = approvals.map(rec => `
-        <div class="approval-card">
+        <div class="approval-card approval-card-${String(rec.side || 'hold').toLowerCase()}">
             <div class="approval-header">
                 ${renderSecurityLabel(rec.security_name, rec.security_code, 'approval-asset-title')}
                 <span class="approval-side approval-side-${rec.side.toLowerCase()}">${rec.side}</span>
@@ -3010,20 +3018,42 @@ Object.assign(window, {
 /* 推荐卡片 */
 .recommendation-card {
     background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #94a3b8;
+    border-radius: 8px;
     padding: 16px;
     margin-bottom: 12px;
-    transition: box-shadow 0.2s;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .recommendation-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #94a3b8;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.10);
+    transform: translateY(-1px);
 }
 
 .recommendation-card-highlight {
     border-color: #4f46e5;
+    border-left-color: #4f46e5;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.recommendation-card-buy,
+.approval-card-buy {
+    border-left-color: var(--color-rise-strong);
+}
+
+.recommendation-card-sell,
+.approval-card-sell,
+.approval-card-exit {
+    border-left-color: var(--color-fall-strong);
+}
+
+.recommendation-card-hold,
+.approval-card-hold,
+.approval-card-reduce {
+    border-left-color: #64748b;
 }
 
 .rec-header {
@@ -3039,6 +3069,8 @@ Object.assign(window, {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .rec-asset strong {
@@ -3052,6 +3084,20 @@ Object.assign(window, {
     gap: 2px;
     line-height: 1.1;
     min-width: 0;
+}
+
+a.security-display {
+    color: inherit;
+    text-decoration: none;
+    border-radius: 6px;
+    outline-offset: 3px;
+}
+
+a.security-display:hover .security-display-name,
+a.security-display:focus-visible .security-display-name {
+    color: #2563eb;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .security-display-name {
@@ -3271,10 +3317,12 @@ Object.assign(window, {
 /* 审批卡片 */
 .approval-card {
     background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #64748b;
+    border-radius: 8px;
     padding: 16px;
     margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .approval-header {
@@ -3282,6 +3330,7 @@ Object.assign(window, {
     align-items: center;
     gap: 12px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .approval-side {
@@ -3310,6 +3359,7 @@ Object.assign(window, {
     gap: 16px;
     font-size: 13px;
     color: #64748b;
+    flex-wrap: wrap;
 }
 
 .approval-footer {
@@ -3322,9 +3372,11 @@ Object.assign(window, {
 .conflict-card {
     background: #fffbeb;
     border: 1px solid #fbbf24;
-    border-radius: 12px;
+    border-left: 4px solid #f59e0b;
+    border-radius: 8px;
     padding: 16px;
     margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(146, 64, 14, 0.08);
 }
 
 .conflict-header {
@@ -3332,6 +3384,7 @@ Object.assign(window, {
     align-items: center;
     gap: 12px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .conflict-badge {
