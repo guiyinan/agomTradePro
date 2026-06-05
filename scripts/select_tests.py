@@ -171,6 +171,9 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/test_execute_decision_use_case.py",
         "tests/unit/test_transition_plan_domain.py",
         "tests/unit/test_unified_recommendation_use_cases.py",
+        "tests/unit/decision_rhythm/test_alpha_workspace_consistency.py",
+        "tests/unit/test_alpha_workspace_consistency_snapshots.py",
+        "tests/guardrails/test_alpha_workspace_consistency_guardrail.py",
         "tests/guardrails/test_decision_rhythm_api_error_mapping.py",
     ],
 
@@ -298,6 +301,7 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
 CORE_GUARDRAIL_TESTS = [
     "tests/guardrails/test_architecture_boundaries.py",
     "tests/guardrails/test_logic_guardrails.py",
+    "tests/guardrails/test_alpha_workspace_consistency_guardrail.py",
     "tests/guardrails/test_no_501_on_primary_paths.py",
     "tests/guardrails/test_security_hardening_guardrails.py",
     "tests/guardrails/test_api_contract_minimal.py",  # API 合同最小集测试

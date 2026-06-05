@@ -147,6 +147,25 @@ def check_critical_data() -> dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
+def check_alpha_workspace_consistency() -> dict[str, Any]:
+    """
+    Check Alpha ranking and decision workspace recommendation consistency.
+
+    Returns warning instead of failing readiness when recommendations lag behind
+    rankings, because the site can still serve traffic while operators refresh
+    the recommendation chain.
+    """
+    try:
+        from apps.decision_rhythm.infrastructure.consistency_snapshots import (
+            check_alpha_workspace_consistency_health,
+        )
+
+        return check_alpha_workspace_consistency_health()
+    except Exception as e:
+        logger.warning(f"Alpha/workspace consistency check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
 def run_readiness_checks() -> dict[str, dict[str, Any]]:
     """
     Run all readiness checks.
@@ -165,6 +184,7 @@ def run_readiness_checks() -> dict[str, dict[str, Any]]:
         "redis": check_redis(),
         "celery": check_celery(),
         "critical_data": check_critical_data(),
+        "alpha_workspace_consistency": check_alpha_workspace_consistency(),
     }
     return checks
 
