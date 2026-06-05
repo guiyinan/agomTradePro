@@ -104,14 +104,22 @@ def test_decision_workspace_stock_cards_link_to_equity_detail_and_keep_card_hier
     content = Path("core/templates/decision/workspace.html").read_text(encoding="utf-8")
 
     assert "function buildEquityDetailUrl(securityCode)" in content
+    assert "function renderRecommendationDecisionBrief(rec)" in content
+    assert "function renderOrderDecisionBrief(order)" in content
+    assert "function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice)" in content
     assert "`/equity/detail/${encodeURIComponent(code)}/`" in content
     assert "const tagName = detailUrl ? 'a' : 'span';" in content
     assert 'title="打开个股详情"' in content
     assert "recommendation-card-${String(rec.side || 'hold').toLowerCase()}" in content
     assert "approval-card-${String(order.action || 'hold').toLowerCase()}" in content
+    assert "${renderRecommendationDecisionBrief(rec)}" in content
+    assert "${renderOrderDecisionBrief(order)}" in content
     assert ".recommendation-card-buy," in content
     assert ".approval-card-exit" in content
     assert "a.security-display:hover .security-display-name" in content
+    assert ".decision-brief-pill.strong" in content
+    assert ".funnel-next-panel" in content
+    assert "position: sticky;" in content
 
 
 def test_equity_detail_uses_single_asset_realtime_endpoint_and_renders_price_timestamp():

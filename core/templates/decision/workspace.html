@@ -418,6 +418,25 @@
     min-height: 400px;
 }
 
+.funnel-next-panel {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 30px -30px -30px;
+    padding: 14px 30px;
+    border-top: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(8px);
+}
+
+.funnel-next-spacer {
+    flex-grow: 1;
+}
+
 /* Spinner for HTMX loading */
 .htmx-indicator {
     display: none;
@@ -665,11 +684,11 @@
                 </div>
                 
                 <!-- Next Step Control Panel -->
-                <div style="margin-top: 30px; display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 20px;">
+                <div class="funnel-next-panel">
                     <button class="btn btn-outline" x-show="currentStep > 1" @click="goToStep(currentStep - 1)">
                         ← 返回上一步
                     </button>
-                    <div style="flex-grow: 1;"></div>
+                    <div class="funnel-next-spacer"></div>
                     <button class="btn btn-primary" x-show="currentStep < 6" @click="progressToNextStep()">
                         <span x-text="'进入 ' + getNextStepName() + ' →'"></span>
                     </button>
@@ -1072,6 +1091,115 @@ function renderSecurityLabel(securityName, securityCode, extraClass = '') {
             <span class="security-display-name">${escapeHtml(name)}</span>
             <span class="security-display-code">${escapeHtml(code)}</span>
         </${tagName}>
+    `;
+}
+
+function parsePriceValue(value) {
+    const parsed = Number.parseFloat(String(value ?? '').replace(/,/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function midpointValue(low, high) {
+    const lowValue = parsePriceValue(low);
+    const highValue = parsePriceValue(high);
+    if (lowValue !== null && highValue !== null && lowValue > 0 && highValue > 0) {
+        return (lowValue + highValue) / 2;
+    }
+    if (lowValue !== null && lowValue > 0) {
+        return lowValue;
+    }
+    if (highValue !== null && highValue > 0) {
+        return highValue;
+    }
+    return null;
+}
+
+function formatSignedPercent(value) {
+    if (!Number.isFinite(value)) {
+        return '-';
+    }
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toFixed(1)}%`;
+}
+
+function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice) {
+    if (!entryPrice || !targetPrice || !stopLossPrice || entryPrice <= 0) {
+        return null;
+    }
+    const upsidePct = ((targetPrice - entryPrice) / entryPrice) * 100;
+    const downsidePct = ((entryPrice - stopLossPrice) / entryPrice) * 100;
+    if (downsidePct <= 0) {
+        return null;
+    }
+    return {
+        upsidePct,
+        downsidePct,
+        ratio: upsidePct / downsidePct,
+    };
+}
+
+function renderRewardRiskPill(metrics) {
+    if (!metrics) {
+        return `<span class="decision-brief-pill muted">收益风险比 -</span>`;
+    }
+    const ratioClass = metrics.ratio >= 2 ? 'strong' : metrics.ratio >= 1 ? 'neutral' : 'weak';
+    return `
+        <span class="decision-brief-pill ${ratioClass}">
+            收益风险比 ${metrics.ratio.toFixed(1)}x
+            <small>${formatSignedPercent(metrics.upsidePct)} / -${Math.abs(metrics.downsidePct).toFixed(1)}%</small>
+        </span>
+    `;
+}
+
+function renderRecommendationDecisionBrief(rec) {
+    const reasonCodes = Array.isArray(rec.reason_codes) ? rec.reason_codes : [];
+    const rationale = String(rec.human_rationale || reasonCodes.join(', ') || '暂无推荐理由').trim();
+    const entryMid = midpointValue(rec.entry_price_low, rec.entry_price_high);
+    const targetMid = midpointValue(rec.target_price_low, rec.target_price_high);
+    const stopLoss = parsePriceValue(rec.stop_loss_price);
+    const rewardRisk = calculateRewardRisk(entryMid, targetMid, stopLoss);
+    const riskText = stopLoss
+        ? `跌破 ${rec.stop_loss_price} 后重新评估`
+        : '缺少止损价，需补齐后再进入执行';
+    return `
+        <div class="decision-brief">
+            <div class="decision-brief-item">
+                <span class="decision-brief-label">投资论点</span>
+                <strong>${escapeHtml(rationale)}</strong>
+            </div>
+            <div class="decision-brief-item">
+                <span class="decision-brief-label">关键风险</span>
+                <strong>${escapeHtml(riskText)}</strong>
+            </div>
+            <div class="decision-brief-item compact">
+                <span class="decision-brief-label">纪律</span>
+                ${renderRewardRiskPill(rewardRisk)}
+            </div>
+        </div>
+    `;
+}
+
+function renderOrderDecisionBrief(order) {
+    const executionPrice = parsePriceValue(order.execution_price);
+    const takeProfit = parsePriceValue(order.take_profit_price);
+    const stopLoss = parsePriceValue(order.stop_loss_price);
+    const rewardRisk = calculateRewardRisk(executionPrice, takeProfit, stopLoss);
+    const invalidationText = String(order.invalidation_description || '').trim();
+    return `
+        <div class="decision-brief decision-brief-plan">
+            <div class="decision-brief-item">
+                <span class="decision-brief-label">执行摘要</span>
+                <strong>${escapeHtml(order.action || 'HOLD')} ${escapeHtml(order.security_code || '')}，数量变化 ${escapeHtml(order.delta_qty ?? '-')}</strong>
+            </div>
+            <div class="decision-brief-item">
+                <span class="decision-brief-label">关键风险</span>
+                <strong>${escapeHtml(invalidationText || '证伪条件待补充')}</strong>
+            </div>
+            <div class="decision-brief-item compact">
+                <span class="decision-brief-label">纪律</span>
+                ${renderRewardRiskPill(rewardRisk)}
+            </div>
+        </div>
     `;
 }
 
@@ -1746,9 +1874,7 @@ function renderRecommendations(recommendations, totalCount) {
                     <span class="capital-label">上限:</span>
                     <span class="capital-value">${rec.max_capital}元</span>
                 </div>
-                <div class="rec-rationale">
-                    ${rec.human_rationale || rec.reason_codes.join(', ')}
-                </div>
+                ${renderRecommendationDecisionBrief(rec)}
                 <div class="rec-valuation-repair">
                     ${renderValuationRepairSummary(rec.valuation_repair)}
                 </div>
@@ -1983,6 +2109,7 @@ function renderTransitionPlan(plan) {
                     <span>Delta ${order.delta_qty}</span>
                     <span>目标权重 ${order.target_weight}%</span>
                 </div>
+                ${renderOrderDecisionBrief(order)}
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">${order.action === 'BUY' ? '推荐买入价' : '计划成交价'}</label>
@@ -2452,6 +2579,7 @@ function renderApprovals(approvals, totalCount) {
                     <span>仓位: ${rec.position_pct}% (${rec.suggested_quantity}股)</span>
                     <span>入场: ${rec.entry_price_low} - ${rec.entry_price_high}</span>
                 </div>
+                ${renderRecommendationDecisionBrief(rec)}
             </div>
             <div class="approval-footer">
                 <button class="btn btn-sm btn-primary" onclick="openApprovalModal('${rec.recommendation_id}')">
@@ -3239,12 +3367,77 @@ a.security-display:focus-visible .security-display-name {
     font-size: 13px;
 }
 
-.rec-rationale {
-    padding: 8px 12px;
-    background: #fffbeb;
-    border-radius: 6px;
+.decision-brief {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(190px, 0.75fr);
+    gap: 10px;
+}
+
+.decision-brief-plan {
+    margin-bottom: 14px;
+}
+
+.decision-brief-item {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.decision-brief-item strong {
+    display: block;
+    margin-top: 4px;
     font-size: 13px;
-    color: #92400e;
+    line-height: 1.45;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+}
+
+.decision-brief-item.compact {
+    background: #ffffff;
+}
+
+.decision-brief-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.decision-brief-pill {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.decision-brief-pill small {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.decision-brief-pill.strong {
+    background: #ecfdf3;
+    color: #166534;
+}
+
+.decision-brief-pill.neutral {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.decision-brief-pill.weak {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.decision-brief-pill.muted {
+    background: #f1f5f9;
+    color: #64748b;
 }
 
 .rec-footer {
@@ -3252,8 +3445,10 @@ a.security-display:focus-visible .security-display-name {
     justify-content: space-between;
     align-items: center;
     margin-top: 12px;
-    padding-top: 12px;
+    padding: 12px;
     border-top: 1px solid #f1f5f9;
+    border-radius: 8px;
+    background: #f8fafc;
 }
 
 .rec-status {
@@ -3279,6 +3474,7 @@ a.security-display:focus-visible .security-display-name {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .status-new { background: #e0f2fe; color: #0284c7; }
@@ -3364,8 +3560,14 @@ a.security-display:focus-visible .security-display-name {
 
 .approval-footer {
     margin-top: 12px;
-    padding-top: 12px;
+    padding: 12px;
     border-top: 1px solid #f1f5f9;
+    border-radius: 8px;
+    background: #f8fafc;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
 }
 
 /* 冲突卡片 */
@@ -3948,6 +4150,38 @@ textarea.form-input {
 
 .alert-close:hover {
     opacity: 1;
+}
+
+@media (max-width: 900px) {
+    .decision-brief {
+        grid-template-columns: 1fr;
+    }
+
+    .rec-prices {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rec-footer,
+    .approval-footer,
+    .funnel-next-panel {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .rec-actions,
+    .approval-footer {
+        justify-content: stretch;
+    }
+
+    .rec-actions .btn,
+    .approval-footer .btn,
+    .funnel-next-panel .btn {
+        width: 100%;
+    }
+
+    .funnel-next-spacer {
+        display: none;
+    }
 }
 </style>
 {% endblock %}
