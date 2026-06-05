@@ -1374,6 +1374,8 @@ class TransitionOrder:
     invalidation_rule: dict[str, Any]
     execution_price: Decimal | None = None
     price_source: str = ""
+    take_profit_price: Decimal | None = None
+    take_profit_source: str = ""
     stop_loss_source: str = ""
     invalidation_description: str = ""
     requires_user_confirmation: bool = False
@@ -1413,6 +1415,10 @@ class TransitionOrder:
                 str(self.execution_price) if self.execution_price is not None else None
             ),
             "price_source": self.price_source,
+            "take_profit_price": (
+                str(self.take_profit_price) if self.take_profit_price is not None else None
+            ),
+            "take_profit_source": self.take_profit_source,
             "max_capital": str(self.max_capital),
             "stop_loss_price": str(self.stop_loss_price) if self.stop_loss_price is not None else None,
             "stop_loss_source": self.stop_loss_source,
@@ -1704,6 +1710,24 @@ def _resolve_transition_stop_loss(
     return None, "", None
 
 
+def _resolve_transition_take_profit(
+    action: str,
+    target_price_low: Decimal,
+    target_price_high: Decimal,
+    execution_price: Decimal | None,
+) -> tuple[Decimal | None, str]:
+    if action == "HOLD":
+        return None, ""
+    target_midpoint = _midpoint_price(target_price_low, target_price_high)
+    if target_midpoint is not None:
+        return target_midpoint, "target_price_band_midpoint"
+    if execution_price is not None and execution_price > 0:
+        return (execution_price * Decimal("1.15")).quantize(Decimal("0.0001")), (
+            "auto_115pct_execution_price"
+        )
+    return None, ""
+
+
 def create_portfolio_transition_plan(
     account_id: str,
     recommendations: list["UnifiedRecommendation"],
@@ -1790,16 +1814,12 @@ def create_portfolio_transition_plan(
             list(getattr(recommendation, "source_signal_ids", []) or []),
             signal_payload_map,
         )
-        price_band_low = (
-            getattr(recommendation, "entry_price_low", Decimal("0"))
-            if action == "BUY"
-            else getattr(recommendation, "target_price_low", Decimal("0"))
-        )
-        price_band_high = (
-            getattr(recommendation, "entry_price_high", Decimal("0"))
-            if action == "BUY"
-            else getattr(recommendation, "target_price_high", Decimal("0"))
-        )
+        entry_price_low = Decimal(str(getattr(recommendation, "entry_price_low", Decimal("0")) or "0"))
+        entry_price_high = Decimal(str(getattr(recommendation, "entry_price_high", Decimal("0")) or "0"))
+        target_price_low = Decimal(str(getattr(recommendation, "target_price_low", Decimal("0")) or "0"))
+        target_price_high = Decimal(str(getattr(recommendation, "target_price_high", Decimal("0")) or "0"))
+        price_band_low = entry_price_low if action == "BUY" else target_price_low
+        price_band_high = entry_price_high if action == "BUY" else target_price_high
         price_band_low = Decimal(str(price_band_low or "0"))
         price_band_high = Decimal(str(price_band_high or "0"))
         execution_price, price_source = _resolve_transition_execution_price(
@@ -1811,6 +1831,12 @@ def create_portfolio_transition_plan(
         stop_loss_price, stop_loss_source, stop_loss_note = _resolve_transition_stop_loss(
             action,
             getattr(recommendation, "stop_loss_price", None),
+            execution_price,
+        )
+        take_profit_price, take_profit_source = _resolve_transition_take_profit(
+            action,
+            target_price_low,
+            target_price_high,
             execution_price,
         )
         if stop_loss_note:
@@ -1830,6 +1856,8 @@ def create_portfolio_transition_plan(
             invalidation_rule=invalidation_rule,
             execution_price=execution_price,
             price_source=price_source,
+            take_profit_price=take_profit_price,
+            take_profit_source=take_profit_source,
             stop_loss_source=stop_loss_source,
             invalidation_description=invalidation_description,
             requires_user_confirmation=requires_confirmation,

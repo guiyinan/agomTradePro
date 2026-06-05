@@ -1917,6 +1917,7 @@ function formatOrderPriceSource(source) {
         entry_price_band_midpoint: '入场价带中位数',
         target_price_band_midpoint: '目标价带中位数',
         current_position_price: '当前持仓价',
+        auto_115pct_execution_price: '成交价 115% 自动止盈',
         recommendation_stop_loss: '推荐止损价',
         auto_90pct_execution_price: '成交价 90% 自动止损',
         manual_override: '手工覆盖',
@@ -1976,12 +1977,17 @@ function renderTransitionPlan(plan) {
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">计划成交价</label>
+                        <label class="form-label">${order.action === 'BUY' ? '推荐买入价' : '计划成交价'}</label>
                         <input class="form-input" data-plan-execution-price type="number" min="0" step="0.01" value="${order.execution_price || ''}" />
                         <div class="workspace-sidebar-subtitle">
                             来源：${escapeHtml(formatOrderPriceSource(order.price_source))}
                             ${order.price_band_low || order.price_band_high ? ` · 价格带 ${escapeHtml(order.price_band_low || '0')} - ${escapeHtml(order.price_band_high || '0')}` : ''}
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">止盈价</label>
+                        <input class="form-input" data-plan-take-profit type="number" min="0" step="0.01" value="${order.take_profit_price || ''}" />
+                        <div class="workspace-sidebar-subtitle">来源：${escapeHtml(formatOrderPriceSource(order.take_profit_source))}</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">止损价</label>
@@ -2069,6 +2075,7 @@ function collectTransitionPlanPayload() {
                 source_recommendation_id: row.dataset.planOrderRow,
                 security_code: row.dataset.securityCode,
                 execution_price: row.querySelector('[data-plan-execution-price]')?.value || null,
+                take_profit_price: row.querySelector('[data-plan-take-profit]')?.value || null,
                 stop_loss_price: row.querySelector('[data-plan-stop-loss]')?.value || null,
                 review_by: row.querySelector('[data-plan-review-by]')?.value || null,
                 invalidation_rule: invalidationRule,

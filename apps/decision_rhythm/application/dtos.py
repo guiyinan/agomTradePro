@@ -467,6 +467,8 @@ class TransitionOrderDTO:
     price_band_high: str
     execution_price: str | None
     price_source: str
+    take_profit_price: str | None
+    take_profit_source: str
     max_capital: str
     stop_loss_price: str | None
     stop_loss_source: str
@@ -491,6 +493,8 @@ class TransitionOrderDTO:
             "price_band_high": self.price_band_high,
             "execution_price": self.execution_price,
             "price_source": self.price_source,
+            "take_profit_price": self.take_profit_price,
+            "take_profit_source": self.take_profit_source,
             "max_capital": self.max_capital,
             "stop_loss_price": self.stop_loss_price,
             "stop_loss_source": self.stop_loss_source,

@@ -272,6 +272,11 @@ def _update_transition_plan_from_payload(
             if "stop_loss_price" in patch
             else order.stop_loss_price
         )
+        take_profit_price = (
+            _decimal(patch.get("take_profit_price"), default=order.take_profit_price)
+            if "take_profit_price" in patch
+            else order.take_profit_price
+        )
         updated_order = replace(
             order,
             execution_price=execution_price,
@@ -279,6 +284,12 @@ def _update_transition_plan_from_payload(
                 "manual_override"
                 if execution_price != order.execution_price
                 else order.price_source
+            ),
+            take_profit_price=take_profit_price,
+            take_profit_source=(
+                "manual_override"
+                if take_profit_price != order.take_profit_price
+                else order.take_profit_source
             ),
             stop_loss_price=stop_loss_price,
             stop_loss_source=(

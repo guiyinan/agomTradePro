@@ -74,6 +74,8 @@ def test_create_transition_plan_generates_buy_order_for_new_position():
     assert order.delta_qty == 500
     assert order.execution_price == Decimal("10.75")
     assert order.price_source == "entry_price_band_midpoint"
+    assert order.take_profit_price == Decimal("13.5")
+    assert order.take_profit_source == "target_price_band_midpoint"
     assert order.stop_loss_price == Decimal("9.5")
     assert order.stop_loss_source == "recommendation_stop_loss"
 
@@ -137,6 +139,7 @@ def test_create_transition_plan_autofills_stop_loss_when_recommendation_stop_mis
     order = plan.orders[0]
     assert order.action == "BUY"
     assert order.execution_price == Decimal("10.75")
+    assert order.take_profit_price == Decimal("13.5")
     assert order.stop_loss_price == Decimal("9.6750")
     assert order.stop_loss_source == "auto_90pct_execution_price"
     assert "auto_stop_loss_from_execution_price" in order.notes
@@ -170,7 +173,35 @@ def test_create_transition_plan_converts_hold_target_to_reduce():
     assert order.delta_qty == -300
     assert order.execution_price == Decimal("10.50")
     assert order.price_source == "current_position_price"
+    assert order.take_profit_price == Decimal("13.5")
+    assert order.take_profit_source == "target_price_band_midpoint"
     assert "reduce_from_hold_target" in order.notes
+
+
+def test_create_transition_plan_autofills_take_profit_when_target_price_missing():
+    recommendation = _make_recommendation("rec-buy-no-target", "000006.SH", "BUY", source_signal_ids=["1"])
+    recommendation.target_price_low = Decimal("0")
+    recommendation.target_price_high = Decimal("0")
+
+    plan = create_portfolio_transition_plan(
+        account_id="acct-1",
+        recommendations=[recommendation],
+        current_positions=[],
+        signal_payloads={
+            "1": {
+                "invalidation_rule_json": {
+                    "logic": "AND",
+                    "conditions": [{"indicator_code": "PMI", "operator": "<", "threshold": 50}],
+                },
+                "invalidation_description": "PMI 跌破 50",
+            }
+        },
+    )
+
+    order = plan.orders[0]
+    assert order.execution_price == Decimal("10.75")
+    assert order.take_profit_price == Decimal("12.3625")
+    assert order.take_profit_source == "auto_115pct_execution_price"
 
 
 def test_create_transition_plan_blocks_hold_only_plans_from_approval():

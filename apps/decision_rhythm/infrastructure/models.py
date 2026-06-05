@@ -1259,6 +1259,12 @@ class PortfolioTransitionPlanModel(models.Model):
                     else None
                 ),
                 price_source=str(item.get("price_source") or ""),
+                take_profit_price=(
+                    Decimal(str(item.get("take_profit_price")))
+                    if item.get("take_profit_price") not in [None, ""]
+                    else None
+                ),
+                take_profit_source=str(item.get("take_profit_source") or ""),
                 stop_loss_source=str(item.get("stop_loss_source") or ""),
                 invalidation_description=str(item.get("invalidation_description") or ""),
                 requires_user_confirmation=bool(item.get("requires_user_confirmation", False)),
