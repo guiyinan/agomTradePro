@@ -1253,6 +1253,13 @@ class PortfolioTransitionPlanModel(models.Model):
                     else None
                 ),
                 invalidation_rule=item.get("invalidation_rule") or {},
+                execution_price=(
+                    Decimal(str(item.get("execution_price")))
+                    if item.get("execution_price") not in [None, ""]
+                    else None
+                ),
+                price_source=str(item.get("price_source") or ""),
+                stop_loss_source=str(item.get("stop_loss_source") or ""),
                 invalidation_description=str(item.get("invalidation_description") or ""),
                 requires_user_confirmation=bool(item.get("requires_user_confirmation", False)),
                 review_by=item.get("review_by"),

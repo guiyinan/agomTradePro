@@ -9,7 +9,7 @@ Decision Rhythm Domain Entities
 
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -1372,6 +1372,9 @@ class TransitionOrder:
     max_capital: Decimal
     stop_loss_price: Decimal | None
     invalidation_rule: dict[str, Any]
+    execution_price: Decimal | None = None
+    price_source: str = ""
+    stop_loss_source: str = ""
     invalidation_description: str = ""
     requires_user_confirmation: bool = False
     review_by: str | None = None
@@ -1406,8 +1409,13 @@ class TransitionOrder:
             "target_weight": self.target_weight,
             "price_band_low": str(self.price_band_low),
             "price_band_high": str(self.price_band_high),
+            "execution_price": (
+                str(self.execution_price) if self.execution_price is not None else None
+            ),
+            "price_source": self.price_source,
             "max_capital": str(self.max_capital),
             "stop_loss_price": str(self.stop_loss_price) if self.stop_loss_price is not None else None,
+            "stop_loss_source": self.stop_loss_source,
             "invalidation_rule": self.invalidation_rule,
             "invalidation_description": self.invalidation_description,
             "requires_user_confirmation": self.requires_user_confirmation,
@@ -1640,6 +1648,62 @@ def _resolve_invalidation_payload(
     return _build_default_invalidation_rule(), "待补充证伪条件", True
 
 
+def _decimal_or_none(value: Any) -> Decimal | None:
+    if value in [None, ""]:
+        return None
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _midpoint_price(low: Decimal, high: Decimal) -> Decimal | None:
+    if low > 0 and high > 0:
+        return (low + high) / Decimal("2")
+    if low > 0:
+        return low
+    if high > 0:
+        return high
+    return None
+
+
+def _resolve_transition_execution_price(
+    action: str,
+    current_position: dict[str, Any],
+    price_band_low: Decimal,
+    price_band_high: Decimal,
+) -> tuple[Decimal | None, str]:
+    if action == "HOLD":
+        return None, ""
+    current_price = _decimal_or_none(current_position.get("current_price"))
+    if action in ["REDUCE", "EXIT"] and current_price is not None:
+        return current_price, "current_position_price"
+    band_midpoint = _midpoint_price(price_band_low, price_band_high)
+    if band_midpoint is not None:
+        source = "entry_price_band_midpoint" if action == "BUY" else "target_price_band_midpoint"
+        return band_midpoint, source
+    if current_price is not None:
+        return current_price, "current_position_price"
+    return None, ""
+
+
+def _resolve_transition_stop_loss(
+    action: str,
+    recommendation_stop_loss: Any,
+    execution_price: Decimal | None,
+) -> tuple[Decimal | None, str, str | None]:
+    stop_loss_price = _decimal_or_none(recommendation_stop_loss)
+    if stop_loss_price is not None:
+        return stop_loss_price, "recommendation_stop_loss", None
+    if action != "HOLD" and execution_price is not None and execution_price > 0:
+        auto_stop = (execution_price * Decimal("0.90")).quantize(Decimal("0.0001"))
+        return auto_stop, "auto_90pct_execution_price", "auto_stop_loss_from_execution_price"
+    if action != "HOLD":
+        return None, "", "missing_stop_loss"
+    return None, "", None
+
+
 def create_portfolio_transition_plan(
     account_id: str,
     recommendations: list["UnifiedRecommendation"],
@@ -1726,9 +1790,6 @@ def create_portfolio_transition_plan(
             list(getattr(recommendation, "source_signal_ids", []) or []),
             signal_payload_map,
         )
-        stop_loss_price = getattr(recommendation, "stop_loss_price", None)
-        if action != "HOLD" and stop_loss_price in [None, Decimal("0"), "0"]:
-            notes.append("missing_stop_loss")
         price_band_low = (
             getattr(recommendation, "entry_price_low", Decimal("0"))
             if action == "BUY"
@@ -1739,6 +1800,21 @@ def create_portfolio_transition_plan(
             if action == "BUY"
             else getattr(recommendation, "target_price_high", Decimal("0"))
         )
+        price_band_low = Decimal(str(price_band_low or "0"))
+        price_band_high = Decimal(str(price_band_high or "0"))
+        execution_price, price_source = _resolve_transition_execution_price(
+            action,
+            current_position,
+            price_band_low,
+            price_band_high,
+        )
+        stop_loss_price, stop_loss_source, stop_loss_note = _resolve_transition_stop_loss(
+            action,
+            getattr(recommendation, "stop_loss_price", None),
+            execution_price,
+        )
+        if stop_loss_note:
+            notes.append(stop_loss_note)
         order = TransitionOrder(
             security_code=security_code,
             action=action,
@@ -1747,15 +1823,14 @@ def create_portfolio_transition_plan(
             delta_qty=delta_qty,
             current_weight=round(current_weight, 2),
             target_weight=round(target_weight, 2),
-            price_band_low=Decimal(str(price_band_low or "0")),
-            price_band_high=Decimal(str(price_band_high or "0")),
+            price_band_low=price_band_low,
+            price_band_high=price_band_high,
             max_capital=Decimal(str(getattr(recommendation, "max_capital", "0") or "0")),
-            stop_loss_price=(
-                Decimal(str(stop_loss_price))
-                if stop_loss_price not in [None, ""]
-                else None
-            ),
+            stop_loss_price=stop_loss_price,
             invalidation_rule=invalidation_rule,
+            execution_price=execution_price,
+            price_source=price_source,
+            stop_loss_source=stop_loss_source,
             invalidation_description=invalidation_description,
             requires_user_confirmation=requires_confirmation,
             review_by=(as_of_time + timedelta(days=5)).date().isoformat(),

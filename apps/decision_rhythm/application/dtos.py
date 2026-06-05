@@ -465,8 +465,11 @@ class TransitionOrderDTO:
     target_weight: float
     price_band_low: str
     price_band_high: str
+    execution_price: str | None
+    price_source: str
     max_capital: str
     stop_loss_price: str | None
+    stop_loss_source: str
     invalidation_rule: dict[str, Any]
     invalidation_description: str
     requires_user_confirmation: bool
@@ -486,8 +489,11 @@ class TransitionOrderDTO:
             "target_weight": self.target_weight,
             "price_band_low": self.price_band_low,
             "price_band_high": self.price_band_high,
+            "execution_price": self.execution_price,
+            "price_source": self.price_source,
             "max_capital": self.max_capital,
             "stop_loss_price": self.stop_loss_price,
+            "stop_loss_source": self.stop_loss_source,
             "invalidation_rule": self.invalidation_rule,
             "invalidation_description": self.invalidation_description,
             "requires_user_confirmation": self.requires_user_confirmation,

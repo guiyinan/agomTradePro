@@ -262,12 +262,29 @@ def _update_transition_plan_from_payload(
         invalidation_rule = patch.get("invalidation_rule", order.invalidation_rule)
         if invalidation_rule is None:
             invalidation_rule = {}
+        execution_price = (
+            _decimal(patch.get("execution_price"), default=order.execution_price)
+            if "execution_price" in patch
+            else order.execution_price
+        )
+        stop_loss_price = (
+            _decimal(patch.get("stop_loss_price"), default=order.stop_loss_price)
+            if "stop_loss_price" in patch
+            else order.stop_loss_price
+        )
         updated_order = replace(
             order,
-            stop_loss_price=(
-                _decimal(patch.get("stop_loss_price"), default=order.stop_loss_price)
-                if "stop_loss_price" in patch
-                else order.stop_loss_price
+            execution_price=execution_price,
+            price_source=(
+                "manual_override"
+                if execution_price != order.execution_price
+                else order.price_source
+            ),
+            stop_loss_price=stop_loss_price,
+            stop_loss_source=(
+                "manual_override"
+                if stop_loss_price != order.stop_loss_price
+                else order.stop_loss_source
             ),
             invalidation_rule=invalidation_rule,
             invalidation_description=str(

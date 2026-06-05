@@ -72,6 +72,10 @@ def test_create_transition_plan_generates_buy_order_for_new_position():
     assert order.current_qty == 0
     assert order.target_qty == 500
     assert order.delta_qty == 500
+    assert order.execution_price == Decimal("10.75")
+    assert order.price_source == "entry_price_band_midpoint"
+    assert order.stop_loss_price == Decimal("9.5")
+    assert order.stop_loss_source == "recommendation_stop_loss"
 
 
 def test_create_transition_plan_filters_sell_when_no_position_exists():
@@ -110,7 +114,7 @@ def test_create_transition_plan_blocks_approval_when_invalidation_missing():
     assert "缺少完整证伪条件" in plan.blocking_issues[0]
 
 
-def test_create_transition_plan_blocks_approval_when_stop_loss_missing():
+def test_create_transition_plan_autofills_stop_loss_when_recommendation_stop_missing():
     recommendation = _make_recommendation("rec-buy-no-stop", "000004.SH", "BUY", source_signal_ids=["1"])
     recommendation.stop_loss_price = Decimal("0")
 
@@ -130,9 +134,13 @@ def test_create_transition_plan_blocks_approval_when_stop_loss_missing():
     )
 
     assert len(plan.orders) == 1
-    assert plan.orders[0].action == "BUY"
-    assert plan.can_enter_approval is False
-    assert "缺少止损价" in plan.blocking_issues[0]
+    order = plan.orders[0]
+    assert order.action == "BUY"
+    assert order.execution_price == Decimal("10.75")
+    assert order.stop_loss_price == Decimal("9.6750")
+    assert order.stop_loss_source == "auto_90pct_execution_price"
+    assert "auto_stop_loss_from_execution_price" in order.notes
+    assert plan.can_enter_approval is True
 
 
 def test_create_transition_plan_converts_hold_target_to_reduce():
@@ -160,6 +168,8 @@ def test_create_transition_plan_converts_hold_target_to_reduce():
     assert order.current_qty == 500
     assert order.target_qty == 200
     assert order.delta_qty == -300
+    assert order.execution_price == Decimal("10.50")
+    assert order.price_source == "current_position_price"
     assert "reduce_from_hold_target" in order.notes
 
 

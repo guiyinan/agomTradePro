@@ -51,8 +51,11 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
                 target_weight=0.05,
                 price_band_low=Decimal("10.50"),
                 price_band_high=Decimal("11.00"),
+                execution_price=Decimal("10.75"),
+                price_source="entry_price_band_midpoint",
                 max_capital=Decimal("50000.00"),
                 stop_loss_price=Decimal("9.50"),
+                stop_loss_source="recommendation_stop_loss",
                 invalidation_rule={
                     "logic": "AND",
                     "conditions": [
@@ -86,9 +89,15 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
     assert model.current_positions_snapshot[0]["metrics"]["avg_cost"] == "10.0000"
     assert model.target_positions_snapshot[0]["target_value"] == "50000.00"
     assert model.target_positions_snapshot[0]["rebalanced_on"] == "2026-03-29"
+    assert model.orders[0]["execution_price"] == "10.75"
+    assert model.orders[0]["price_source"] == "entry_price_band_midpoint"
+    assert model.orders[0]["stop_loss_source"] == "recommendation_stop_loss"
     assert model.orders[0]["invalidation_rule"]["conditions"][0]["threshold"] == "50.0"
     assert model.risk_contract["review_at"] == "2026-03-29T10:00:00+00:00"
     assert model.risk_contract["max_drawdown"] == "0.08"
     assert model.summary["totals"]["target_capital"] == "50000.00"
     assert saved_plan.current_positions_snapshot[0]["market_value"] == "1100.00"
     assert saved_plan.target_positions_snapshot[0]["rebalanced_on"] == "2026-03-29"
+    assert saved_plan.orders[0].execution_price == Decimal("10.75")
+    assert saved_plan.orders[0].price_source == "entry_price_band_midpoint"
+    assert saved_plan.orders[0].stop_loss_source == "recommendation_stop_loss"
