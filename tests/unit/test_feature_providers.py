@@ -741,7 +741,9 @@ class TestAlphaCandidateProvider:
         """测试获取活跃候选"""
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
-        ) as mock_repo_class:
+        ) as mock_repo_class, patch(
+            "core.integration.alpha_scores.fetch_stock_scores"
+        ) as mock_fetch_scores:
             mock_repo = MagicMock()
             mock_candidate = MagicMock()
             mock_candidate.candidate_id = "cand_001"
@@ -750,9 +752,84 @@ class TestAlphaCandidateProvider:
             mock_candidate.direction = "BUY"
             mock_repo.get_actionable.return_value = [mock_candidate]
             mock_repo_class.return_value = mock_repo
+            mock_fetch_scores.return_value = SimpleNamespace(success=True, scores=[])
 
             provider = AlphaCandidateProvider()
             result = provider.get_active_candidates("account_001")
 
             assert len(result) == 1
             assert result[0]["candidate_id"] == "cand_001"
+
+    def test_get_active_candidates_appends_latest_alpha_ranking(self):
+        """测试追加最新 Alpha 排名候选并按证券代码去重"""
+        with patch(
+            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+        ) as mock_repo_class, patch(
+            "core.integration.alpha_scores.fetch_stock_scores"
+        ) as mock_fetch_scores:
+            mock_repo = MagicMock()
+            mock_candidate = MagicMock()
+            mock_candidate.candidate_id = "cand_001"
+            mock_candidate.asset_code = "000001.SZ"
+            mock_candidate.alpha_score = 0.85
+            mock_candidate.direction = "BUY"
+            mock_repo.get_actionable.return_value = [mock_candidate]
+            mock_repo_class.return_value = mock_repo
+            mock_fetch_scores.return_value = SimpleNamespace(
+                success=True,
+                scores=[
+                    SimpleNamespace(
+                        code="000001.SZ",
+                        score=0.6,
+                        intended_trade_date=date(2026, 6, 4),
+                    ),
+                    SimpleNamespace(
+                        code="002709.SZ",
+                        score=0.8,
+                        intended_trade_date=date(2026, 6, 4),
+                    ),
+                ],
+            )
+
+            provider = AlphaCandidateProvider()
+            result = provider.get_active_candidates("account_001")
+
+            assert [item["security_code"] for item in result] == [
+                "000001.SZ",
+                "002709.SZ",
+            ]
+            assert result[0]["candidate_id"] == "cand_001"
+            assert result[1]["candidate_id"] == "alpha_rank:002709.SZ:2026-06-04"
+            assert result[1]["alpha_score"] == 0.9
+
+    def test_get_active_candidates_falls_back_to_latest_alpha_ranking(self):
+        """测试 alpha_trigger 不可用时使用最新 Alpha 排名兜底"""
+        with patch(
+            "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
+        ) as mock_repo_class, patch(
+            "core.integration.alpha_scores.fetch_stock_scores"
+        ) as mock_fetch_scores:
+            mock_repo_class.side_effect = RuntimeError("repository unavailable")
+            mock_fetch_scores.return_value = SimpleNamespace(
+                success=True,
+                scores=[
+                    SimpleNamespace(
+                        code="002709.SZ",
+                        score=0.8,
+                        intended_trade_date=date(2026, 6, 4),
+                    ),
+                ],
+            )
+
+            provider = AlphaCandidateProvider()
+            result = provider.get_active_candidates("account_001")
+
+            assert result == [
+                {
+                    "candidate_id": "alpha_rank:002709.SZ:2026-06-04",
+                    "account_id": "account_001",
+                    "security_code": "002709.SZ",
+                    "alpha_score": 0.9,
+                    "direction": "BUY",
+                }
+            ]

@@ -1078,8 +1078,70 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
     """
     Alpha 候选提供者
 
-    从 alpha_trigger 模块获取活跃候选。
+    从 alpha_trigger 模块获取活跃候选，并追加最新 Alpha 排名作为默认候选池。
     """
+
+    DEFAULT_ALPHA_UNIVERSE_ID = "csi300"
+    DEFAULT_ALPHA_TOP_N = 30
+
+    def __init__(self) -> None:
+        self._active_candidates_cache: dict[str, list[dict[str, Any]]] = {}
+
+    @staticmethod
+    def _normalize_alpha_score(raw_score: object) -> float:
+        """Normalize Alpha score from [-1, 1] into [0, 1]."""
+        try:
+            score = float(raw_score)
+        except (TypeError, ValueError):
+            return 0.5
+        normalized = (score + 1.0) / 2.0
+        return max(0.0, min(1.0, normalized))
+
+    def _get_latest_alpha_ranking_candidates(
+        self,
+        account_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch latest Alpha ranking scores through the owning application service."""
+        try:
+            from datetime import date
+
+            from core.integration.alpha_scores import fetch_stock_scores
+
+            result = fetch_stock_scores(
+                universe_id=self.DEFAULT_ALPHA_UNIVERSE_ID,
+                intended_trade_date=date.today(),
+                top_n=self.DEFAULT_ALPHA_TOP_N,
+            )
+            if not getattr(result, "success", False) or not getattr(result, "scores", None):
+                return []
+
+            candidates: list[dict[str, Any]] = []
+            for score in result.scores:
+                security_code = str(getattr(score, "code", "") or "").strip()
+                if not security_code:
+                    continue
+                intended_trade_date = getattr(score, "intended_trade_date", None)
+                date_suffix = (
+                    intended_trade_date.isoformat()
+                    if hasattr(intended_trade_date, "isoformat")
+                    else str(intended_trade_date or date.today().isoformat())
+                )
+                candidates.append(
+                    {
+                        "candidate_id": f"alpha_rank:{security_code}:{date_suffix}",
+                        "account_id": account_id or "default",
+                        "security_code": security_code,
+                        "alpha_score": self._normalize_alpha_score(
+                            getattr(score, "score", None)
+                        ),
+                        "direction": "BUY",
+                    }
+                )
+            return candidates
+
+        except Exception as e:
+            logger.warning(f"Failed to get latest alpha ranking candidates: {e}")
+            return []
 
     def get_active_candidates(
         self,
@@ -1094,6 +1156,10 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
         Returns:
             候选列表
         """
+        cache_key = account_id or "default"
+        if cache_key in self._active_candidates_cache:
+            return list(self._active_candidates_cache[cache_key])
+
         try:
             from apps.alpha_trigger.infrastructure.repositories import (
                 AlphaCandidateRepository,
@@ -1103,7 +1169,7 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
             # 使用 get_actionable 获取可操作的候选
             candidates = repo.get_actionable()
 
-            return [
+            active_candidates = [
                 {
                     "candidate_id": c.candidate_id,
                     "account_id": account_id or "default",
@@ -1114,9 +1180,23 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
                 for c in candidates
             ]
 
+            alpha_ranking_candidates = self._get_latest_alpha_ranking_candidates(account_id)
+            merged_candidates: list[dict[str, Any]] = []
+            seen_codes: set[str] = set()
+            for candidate in active_candidates + alpha_ranking_candidates:
+                security_code = str(candidate.get("security_code") or "").strip()
+                if not security_code or security_code in seen_codes:
+                    continue
+                seen_codes.add(security_code)
+                merged_candidates.append(candidate)
+            self._active_candidates_cache[cache_key] = list(merged_candidates)
+            return merged_candidates
+
         except Exception as e:
             logger.warning(f"Failed to get active candidates: {e}")
-            return []
+            alpha_ranking_candidates = self._get_latest_alpha_ranking_candidates(account_id)
+            self._active_candidates_cache[cache_key] = list(alpha_ranking_candidates)
+            return alpha_ranking_candidates
 
 
 # ============================================================================

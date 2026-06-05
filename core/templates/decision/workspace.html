@@ -993,6 +993,33 @@ const workspaceBridge = {
 };
 const requestedWorkspaceAccountId = workspaceParams.get('account_id') || '';
 
+function getLatestRecommendationUpdatedAt(recommendations) {
+    return (recommendations || []).reduce((latest, recommendation) => {
+        const timestamp = recommendation.updated_at || recommendation.created_at;
+        if (!timestamp) {
+            return latest;
+        }
+        const parsed = new Date(timestamp);
+        if (Number.isNaN(parsed.getTime())) {
+            return latest;
+        }
+        return !latest || parsed > latest ? parsed : latest;
+    }, null);
+}
+
+function shouldAutoRefreshRecommendations(recommendations) {
+    if (!recommendations || recommendations.length === 0) {
+        return true;
+    }
+    const latestUpdatedAt = getLatestRecommendationUpdatedAt(recommendations);
+    if (!latestUpdatedAt) {
+        return false;
+    }
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return latestUpdatedAt < todayStart;
+}
+
 function formatRepairPercent(value) {
     if (value === null || value === undefined || value === '') return '-';
     return `${(Number(value) * 100).toFixed(1)}%`;
@@ -1585,7 +1612,7 @@ async function loadRecommendations() {
             currentWorkspaceRecommendations = recommendations;
 
             if (
-                recommendations.length === 0 &&
+                shouldAutoRefreshRecommendations(recommendations) &&
                 !workspaceBridge.securityCode &&
                 !statusFilter &&
                 !decisionFilter &&
@@ -2511,7 +2538,8 @@ async function refreshRecommendations() {
                 'X-CSRFToken': window.csrfToken
             },
             body: JSON.stringify({
-                account_id: getSelectedWorkspaceAccountId()
+                account_id: getSelectedWorkspaceAccountId(),
+                force: true
             })
         });
 
