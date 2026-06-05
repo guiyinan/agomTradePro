@@ -65,6 +65,7 @@ from ..domain.entities import (
     TransitionOrder,
     TransitionPlanStatus,
     UserDecisionAction,  # noqa: F401
+    calculate_transition_reward_risk,
 )
 from ..domain.services import (  # noqa: F401
     ApprovalStatusStateMachine,  # noqa: F401
@@ -277,6 +278,9 @@ def _update_transition_plan_from_payload(
             if "take_profit_price" in patch
             else order.take_profit_price
         )
+        invalidation_description = str(
+            patch.get("invalidation_description", order.invalidation_description)
+        )
         updated_order = replace(
             order,
             execution_price=execution_price,
@@ -298,8 +302,12 @@ def _update_transition_plan_from_payload(
                 else order.stop_loss_source
             ),
             invalidation_rule=invalidation_rule,
-            invalidation_description=str(
-                patch.get("invalidation_description", order.invalidation_description)
+            invalidation_description=invalidation_description,
+            risk_summary=invalidation_description or order.risk_summary,
+            reward_risk=calculate_transition_reward_risk(
+                execution_price,
+                take_profit_price,
+                stop_loss_price,
             ),
             requires_user_confirmation=bool(
                 invalidation_rule.get("requires_user_confirmation", False)

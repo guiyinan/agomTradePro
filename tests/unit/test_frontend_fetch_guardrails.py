@@ -107,6 +107,12 @@ def test_decision_workspace_stock_cards_link_to_equity_detail_and_keep_card_hier
     assert "function renderRecommendationDecisionBrief(rec)" in content
     assert "function renderOrderDecisionBrief(order)" in content
     assert "function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice)" in content
+    assert "function normalizeRewardRiskMetrics(contract)" in content
+    assert "function formatDecisionDateTime(value)" in content
+    assert "normalizeRewardRiskMetrics(order.reward_risk)" in content
+    assert "order.risk_summary || order.invalidation_description" in content
+    assert "order.thesis ||" in content
+    assert "renderDataAsOf(order.data_asof)" in content
     assert "`/equity/detail/${encodeURIComponent(code)}/`" in content
     assert "const tagName = detailUrl ? 'a' : 'span';" in content
     assert 'title="打开个股详情"' in content

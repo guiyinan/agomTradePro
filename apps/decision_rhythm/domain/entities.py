@@ -1377,6 +1377,10 @@ class TransitionOrder:
     take_profit_price: Decimal | None = None
     take_profit_source: str = ""
     stop_loss_source: str = ""
+    thesis: str = ""
+    risk_summary: str = ""
+    reward_risk: dict[str, Any] = field(default_factory=dict)
+    data_asof: str = ""
     invalidation_description: str = ""
     requires_user_confirmation: bool = False
     review_by: str | None = None
@@ -1422,6 +1426,10 @@ class TransitionOrder:
             "max_capital": str(self.max_capital),
             "stop_loss_price": str(self.stop_loss_price) if self.stop_loss_price is not None else None,
             "stop_loss_source": self.stop_loss_source,
+            "thesis": self.thesis,
+            "risk_summary": self.risk_summary,
+            "reward_risk": self.reward_risk,
+            "data_asof": self.data_asof,
             "invalidation_rule": self.invalidation_rule,
             "invalidation_description": self.invalidation_description,
             "requires_user_confirmation": self.requires_user_confirmation,
@@ -1728,6 +1736,51 @@ def _resolve_transition_take_profit(
     return None, ""
 
 
+def _pct_value(numerator: Decimal, denominator: Decimal) -> str:
+    return str(((numerator / denominator) * Decimal("100")).quantize(Decimal("0.01")))
+
+
+def calculate_transition_reward_risk(
+    execution_price: Decimal | None,
+    take_profit_price: Decimal | None,
+    stop_loss_price: Decimal | None,
+) -> dict[str, Any]:
+    """Return the normalized reward-risk contract for a transition order."""
+    payload: dict[str, Any] = {
+        "entry_price": str(execution_price) if execution_price is not None else None,
+        "take_profit_price": str(take_profit_price) if take_profit_price is not None else None,
+        "stop_loss_price": str(stop_loss_price) if stop_loss_price is not None else None,
+        "upside_pct": None,
+        "downside_pct": None,
+        "ratio": None,
+    }
+    if not execution_price or not take_profit_price or not stop_loss_price or execution_price <= 0:
+        return payload
+    upside = take_profit_price - execution_price
+    downside = execution_price - stop_loss_price
+    if downside <= 0:
+        return payload
+    payload["upside_pct"] = _pct_value(upside, execution_price)
+    payload["downside_pct"] = _pct_value(downside, execution_price)
+    payload["ratio"] = str((upside / downside).quantize(Decimal("0.01")))
+    return payload
+
+
+def _resolve_transition_thesis(recommendation: "UnifiedRecommendation", action: str) -> str:
+    rationale = str(getattr(recommendation, "human_rationale", "") or "").strip()
+    if rationale:
+        return rationale
+    reason_codes = list(getattr(recommendation, "reason_codes", []) or [])
+    if reason_codes:
+        return ", ".join(str(code) for code in reason_codes)
+    security_code = str(getattr(recommendation, "security_code", "") or "").upper()
+    action_label = {"BUY": "买入", "SELL": "卖出", "EXIT": "清仓", "REDUCE": "减仓"}.get(
+        action,
+        action,
+    )
+    return f"{action_label} {security_code}：推荐理由待补充"
+
+
 def create_portfolio_transition_plan(
     account_id: str,
     recommendations: list["UnifiedRecommendation"],
@@ -1841,6 +1894,7 @@ def create_portfolio_transition_plan(
         )
         if stop_loss_note:
             notes.append(stop_loss_note)
+        risk_summary = invalidation_description or "证伪条件待补充"
         order = TransitionOrder(
             security_code=security_code,
             action=action,
@@ -1859,6 +1913,14 @@ def create_portfolio_transition_plan(
             take_profit_price=take_profit_price,
             take_profit_source=take_profit_source,
             stop_loss_source=stop_loss_source,
+            thesis=_resolve_transition_thesis(recommendation, action),
+            risk_summary=risk_summary,
+            reward_risk=calculate_transition_reward_risk(
+                execution_price,
+                take_profit_price,
+                stop_loss_price,
+            ),
+            data_asof=getattr(recommendation, "updated_at", as_of_time).isoformat(),
             invalidation_description=invalidation_description,
             requires_user_confirmation=requires_confirmation,
             review_by=(as_of_time + timedelta(days=5)).date().isoformat(),

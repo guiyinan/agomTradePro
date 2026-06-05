@@ -472,6 +472,10 @@ class TransitionOrderDTO:
     max_capital: str
     stop_loss_price: str | None
     stop_loss_source: str
+    thesis: str
+    risk_summary: str
+    reward_risk: dict[str, Any]
+    data_asof: str
     invalidation_rule: dict[str, Any]
     invalidation_description: str
     requires_user_confirmation: bool
@@ -498,6 +502,10 @@ class TransitionOrderDTO:
             "max_capital": self.max_capital,
             "stop_loss_price": self.stop_loss_price,
             "stop_loss_source": self.stop_loss_source,
+            "thesis": self.thesis,
+            "risk_summary": self.risk_summary,
+            "reward_risk": self.reward_risk,
+            "data_asof": self.data_asof,
             "invalidation_rule": self.invalidation_rule,
             "invalidation_description": self.invalidation_description,
             "requires_user_confirmation": self.requires_user_confirmation,

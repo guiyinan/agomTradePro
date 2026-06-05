@@ -155,6 +155,17 @@ def test_transition_plan_generate_update_and_preview_flow():
     assert str(generate_payload["current_positions"][0]["market_value"]) == "1100.00"
     assert generate_payload["target_positions"][0]["security_name"] == "平安银行"
     assert generate_payload["orders"][0]["security_name"] == "平安银行"
+    assert generate_payload["orders"][0]["thesis"]
+    assert generate_payload["orders"][0]["risk_summary"]
+    assert generate_payload["orders"][0]["reward_risk"] == {
+        "entry_price": "10.7500",
+        "take_profit_price": "13.7500",
+        "stop_loss_price": "9.5000",
+        "upside_pct": "27.91",
+        "downside_pct": "11.63",
+        "ratio": "2.40",
+    }
+    assert generate_payload["orders"][0]["data_asof"]
 
     update_response = client.post(
         f"/api/decision/workspace/plans/{generate_payload['plan_id']}/update/",
@@ -163,8 +174,11 @@ def test_transition_plan_generate_update_and_preview_flow():
                 {
                     "source_recommendation_id": recommendation.recommendation_id,
                     "security_code": "000001.SH",
-                    "stop_loss_price": "9.50",
+                    "execution_price": "10.50",
+                    "take_profit_price": "13.65",
+                    "stop_loss_price": "9.45",
                     "review_by": "2026-03-31",
+                    "invalidation_description": "PMI 跌破 50",
                     "invalidation_rule": {
                         "logic": "AND",
                         "conditions": [
@@ -184,6 +198,15 @@ def test_transition_plan_generate_update_and_preview_flow():
     updated_payload = update_response.json()["data"]
     assert updated_payload["can_enter_approval"] is True
     assert updated_payload["status"] == "READY_FOR_APPROVAL"
+    assert updated_payload["orders"][0]["risk_summary"] == "PMI 跌破 50"
+    assert updated_payload["orders"][0]["reward_risk"] == {
+        "entry_price": "10.50",
+        "take_profit_price": "13.65",
+        "stop_loss_price": "9.45",
+        "upside_pct": "30.00",
+        "downside_pct": "10.00",
+        "ratio": "3.00",
+    }
 
     preview_response = client.post(
         "/api/decision/execute/preview/",

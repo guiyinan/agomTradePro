@@ -1122,6 +1122,22 @@ function formatSignedPercent(value) {
     return `${sign}${value.toFixed(1)}%`;
 }
 
+function formatDecisionDateTime(value) {
+    if (!value) {
+        return '';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return String(value);
+    }
+    return parsed.toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
 function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice) {
     if (!entryPrice || !targetPrice || !stopLossPrice || entryPrice <= 0) {
         return null;
@@ -1138,6 +1154,19 @@ function calculateRewardRisk(entryPrice, targetPrice, stopLossPrice) {
     };
 }
 
+function normalizeRewardRiskMetrics(contract) {
+    if (!contract || typeof contract !== 'object') {
+        return null;
+    }
+    const upsidePct = Number(contract.upside_pct ?? contract.upsidePct);
+    const downsidePct = Number(contract.downside_pct ?? contract.downsidePct);
+    const ratio = Number(contract.ratio);
+    if (!Number.isFinite(upsidePct) || !Number.isFinite(downsidePct) || !Number.isFinite(ratio)) {
+        return null;
+    }
+    return { upsidePct, downsidePct, ratio };
+}
+
 function renderRewardRiskPill(metrics) {
     if (!metrics) {
         return `<span class="decision-brief-pill muted">收益风险比 -</span>`;
@@ -1149,6 +1178,14 @@ function renderRewardRiskPill(metrics) {
             <small>${formatSignedPercent(metrics.upsidePct)} / -${Math.abs(metrics.downsidePct).toFixed(1)}%</small>
         </span>
     `;
+}
+
+function renderDataAsOf(dataAsOf) {
+    const value = String(dataAsOf || '').trim();
+    if (!value) {
+        return '';
+    }
+    return `<span class="decision-brief-asof">数据 ${escapeHtml(formatDecisionDateTime(value))}</span>`;
 }
 
 function renderRecommendationDecisionBrief(rec) {
@@ -1183,13 +1220,17 @@ function renderOrderDecisionBrief(order) {
     const executionPrice = parsePriceValue(order.execution_price);
     const takeProfit = parsePriceValue(order.take_profit_price);
     const stopLoss = parsePriceValue(order.stop_loss_price);
-    const rewardRisk = calculateRewardRisk(executionPrice, takeProfit, stopLoss);
-    const invalidationText = String(order.invalidation_description || '').trim();
+    const rewardRisk = normalizeRewardRiskMetrics(order.reward_risk)
+        || calculateRewardRisk(executionPrice, takeProfit, stopLoss);
+    const invalidationText = String(order.risk_summary || order.invalidation_description || '').trim();
+    const thesis = String(order.thesis || '').trim();
+    const fallbackSummary = `${order.action || 'HOLD'} ${order.security_code || ''}，数量变化 ${order.delta_qty ?? '-'}`;
     return `
         <div class="decision-brief decision-brief-plan">
             <div class="decision-brief-item">
                 <span class="decision-brief-label">执行摘要</span>
-                <strong>${escapeHtml(order.action || 'HOLD')} ${escapeHtml(order.security_code || '')}，数量变化 ${escapeHtml(order.delta_qty ?? '-')}</strong>
+                <strong>${escapeHtml(thesis || fallbackSummary)}</strong>
+                ${renderDataAsOf(order.data_asof)}
             </div>
             <div class="decision-brief-item">
                 <span class="decision-brief-label">关键风险</span>
@@ -3392,6 +3433,13 @@ a.security-display:focus-visible .security-display-name {
     line-height: 1.45;
     color: #0f172a;
     overflow-wrap: anywhere;
+}
+
+.decision-brief-asof {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #64748b;
 }
 
 .decision-brief-item.compact {

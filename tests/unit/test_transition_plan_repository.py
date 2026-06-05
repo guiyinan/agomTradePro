@@ -58,6 +58,17 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
                 max_capital=Decimal("50000.00"),
                 stop_loss_price=Decimal("9.50"),
                 stop_loss_source="recommendation_stop_loss",
+                thesis="PMI recovery and valuation discount",
+                risk_summary="PMI 跌破 50",
+                reward_risk={
+                    "entry_price": "10.75",
+                    "take_profit_price": "13.50",
+                    "stop_loss_price": "9.50",
+                    "upside_pct": "25.58",
+                    "downside_pct": "11.63",
+                    "ratio": "2.20",
+                },
+                data_asof="2026-03-29T09:30:00+00:00",
                 invalidation_rule={
                     "logic": "AND",
                     "conditions": [
@@ -96,6 +107,10 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
     assert model.orders[0]["take_profit_price"] == "13.50"
     assert model.orders[0]["take_profit_source"] == "target_price_band_midpoint"
     assert model.orders[0]["stop_loss_source"] == "recommendation_stop_loss"
+    assert model.orders[0]["thesis"] == "PMI recovery and valuation discount"
+    assert model.orders[0]["risk_summary"] == "PMI 跌破 50"
+    assert model.orders[0]["reward_risk"]["ratio"] == "2.20"
+    assert model.orders[0]["data_asof"] == "2026-03-29T09:30:00+00:00"
     assert model.orders[0]["invalidation_rule"]["conditions"][0]["threshold"] == "50.0"
     assert model.risk_contract["review_at"] == "2026-03-29T10:00:00+00:00"
     assert model.risk_contract["max_drawdown"] == "0.08"
@@ -107,3 +122,7 @@ def test_transition_plan_repository_serializes_nested_json_snapshots():
     assert saved_plan.orders[0].take_profit_price == Decimal("13.50")
     assert saved_plan.orders[0].take_profit_source == "target_price_band_midpoint"
     assert saved_plan.orders[0].stop_loss_source == "recommendation_stop_loss"
+    assert saved_plan.orders[0].thesis == "PMI recovery and valuation discount"
+    assert saved_plan.orders[0].risk_summary == "PMI 跌破 50"
+    assert saved_plan.orders[0].reward_risk["ratio"] == "2.20"
+    assert saved_plan.orders[0].data_asof == "2026-03-29T09:30:00+00:00"

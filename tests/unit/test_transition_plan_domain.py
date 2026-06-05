@@ -5,6 +5,7 @@ from apps.decision_rhythm.domain.entities import (
     RecommendationStatus,
     UnifiedRecommendation,
     UserDecisionAction,
+    calculate_transition_reward_risk,
     create_portfolio_transition_plan,
 )
 
@@ -47,11 +48,12 @@ def _make_recommendation(
 
 
 def test_create_transition_plan_generates_buy_order_for_new_position():
+    recommendation = _make_recommendation(
+        "rec-buy", "000001.SH", "BUY", source_signal_ids=["1"]
+    )
     plan = create_portfolio_transition_plan(
         account_id="acct-1",
-        recommendations=[
-            _make_recommendation("rec-buy", "000001.SH", "BUY", source_signal_ids=["1"])
-        ],
+        recommendations=[recommendation],
         current_positions=[],
         signal_payloads={
             "1": {
@@ -78,6 +80,28 @@ def test_create_transition_plan_generates_buy_order_for_new_position():
     assert order.take_profit_source == "target_price_band_midpoint"
     assert order.stop_loss_price == Decimal("9.5")
     assert order.stop_loss_source == "recommendation_stop_loss"
+    assert order.thesis == "买入 000001.SH：推荐理由待补充"
+    assert order.risk_summary == "PMI 跌破 50"
+    assert order.reward_risk == {
+        "entry_price": "10.75",
+        "take_profit_price": "13.5",
+        "stop_loss_price": "9.5",
+        "upside_pct": "25.58",
+        "downside_pct": "11.63",
+        "ratio": "2.20",
+    }
+    assert order.data_asof == recommendation.updated_at.isoformat()
+
+
+def test_transition_reward_risk_contract_keeps_shape_when_prices_missing():
+    assert calculate_transition_reward_risk(None, Decimal("13.5"), None) == {
+        "entry_price": None,
+        "take_profit_price": "13.5",
+        "stop_loss_price": None,
+        "upside_pct": None,
+        "downside_pct": None,
+        "ratio": None,
+    }
 
 
 def test_create_transition_plan_filters_sell_when_no_position_exists():
