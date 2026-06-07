@@ -136,6 +136,90 @@ def register_decision_workflow_tools(server: FastMCP) -> None:
             }
 
     @server.tool()
+    def decision_workflow_generate_transition_plan(
+        account_id: str,
+        recommendation_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """生成账户级调仓计划。
+
+        返回订单包含后端标准决策契约字段：
+        `thesis`、`risk_summary`、`reward_risk`、`data_asof`。
+        """
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.generate_transition_plan(
+                account_id=account_id,
+                recommendation_ids=recommendation_ids,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "recommendation_ids": recommendation_ids or [],
+                "error": str(exc),
+            }
+
+    @server.tool()
+    def decision_workflow_get_transition_plan(plan_id: str) -> dict[str, Any]:
+        """获取已保存的调仓计划详情。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.get_transition_plan(plan_id)
+        except Exception as exc:
+            return {
+                "success": False,
+                "plan_id": plan_id,
+                "error": str(exc),
+            }
+
+    @server.tool()
+    def decision_workflow_update_transition_plan(
+        plan_id: str,
+        orders: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """更新调仓计划订单参数，后端会重算收益风险比。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.update_transition_plan(
+                plan_id=plan_id,
+                orders=orders,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "plan_id": plan_id,
+                "orders": orders,
+                "error": str(exc),
+            }
+
+    @server.tool()
+    def decision_workflow_preview_execution(
+        account_id: str,
+        plan_id: str = "",
+        recommendation_id: str = "",
+        create_request: bool = False,
+        market_price: str | float | int | None = None,
+    ) -> dict[str, Any]:
+        """预览调仓计划或单条推荐的执行结果，可选创建审批请求。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.preview_execution(
+                account_id=account_id,
+                plan_id=plan_id or None,
+                recommendation_id=recommendation_id or None,
+                create_request=create_request,
+                market_price=market_price,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "plan_id": plan_id or None,
+                "recommendation_id": recommendation_id or None,
+                "error": str(exc),
+            }
+
+    @server.tool()
     def decision_workflow_get_funnel_context(
         trade_id: str = "unknown",
         backtest_id: int | None = None,

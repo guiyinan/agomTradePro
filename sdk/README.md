@@ -182,7 +182,7 @@ Three methods (priority order):
 | `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
 | `client.alpha` | Alpha scoring + ops console bridges - scores, provider status, universes, health, factor exposure, inference/data ops |
 | `client.dashboard` | Dashboard account view - Alpha candidates, history, async refresh status, and recommendation contract |
-| `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, workspace recommendation bridge, funnel context |
+| `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, workspace recommendation bridge, transition plans, execution preview, funnel context |
 | `client.pulse` | **Pulse + Navigator** - pulse snapshot/history, regime navigator, action recommendation |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
 | `client.config_center` | **Config center** - unified config snapshot, Qlib runtime config, training profiles, training runs, trigger |
@@ -285,7 +285,7 @@ These calls mirror the staff/superuser web console:
 - **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
-- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_list_recommendations`, `decision_workflow_refresh_recommendations`, `decision_workflow_apply_recommendation_action`, `decision_workflow_get_funnel_context`
+- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_list_recommendations`, `decision_workflow_refresh_recommendations`, `decision_workflow_apply_recommendation_action`, `decision_workflow_generate_transition_plan`, `decision_workflow_get_transition_plan`, `decision_workflow_update_transition_plan`, `decision_workflow_preview_execution`, `decision_workflow_get_funnel_context`
 - **Pulse + Navigator**: `get_pulse_current`, `get_pulse_history`, `get_regime_navigator`, `get_action_recommendation`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 - **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`, `get_qlib_runtime_config`, `update_qlib_runtime_config`, `list_qlib_training_profiles`, `save_qlib_training_profile`, `list_qlib_training_runs`, `get_qlib_training_run_detail`, `trigger_qlib_training`
@@ -317,6 +317,9 @@ API entry:
 Decision workflow note:
 
 - `decision_workflow_get_funnel_context` now exposes Step 3 freshness metadata in `step3_sectors`: `rotation_data_source`, `rotation_is_stale`, `rotation_warning_message`, `rotation_signal_date`.
+- `client.decision_workflow.generate_transition_plan()` and MCP `decision_workflow_generate_transition_plan` expose Step 5 transition orders with the backend decision contract: `thesis`, `risk_summary`, `reward_risk`, and `data_asof`.
+- `client.decision_workflow.update_transition_plan()` and MCP `decision_workflow_update_transition_plan` accept price/risk-rule order patches and rely on the backend to recalculate `reward_risk`.
+- `client.decision_workflow.preview_execution()` and MCP `decision_workflow_preview_execution` preview plan/recommendation execution and can create approval requests when `create_request=true`.
 
 ## Rotation Account Config Examples
 

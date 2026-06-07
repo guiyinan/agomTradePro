@@ -61,6 +61,83 @@ class _FakeClient:
         )
         self.decision_workflow = SimpleNamespace(
             precheck=lambda candidate_id: {"candidate_id": candidate_id, "ok": True},
+            list_recommendations=lambda account_id,
+            status=None,
+            user_action=None,
+            security_code=None,
+            recommendation_id=None,
+            include_ignored=False,
+            page=1,
+            page_size=20: {
+                "account_id": account_id,
+                "recommendations": [],
+                "page": page,
+                "page_size": page_size,
+            },
+            refresh_recommendations=lambda account_id=None,
+            security_codes=None,
+            force=False,
+            async_mode=True: {
+                "account_id": account_id,
+                "security_codes": security_codes or [],
+                "force": force,
+                "async_mode": async_mode,
+            },
+            apply_recommendation_action=lambda recommendation_id,
+            action,
+            account_id=None,
+            note=None: {
+                "recommendation_id": recommendation_id,
+                "action": action,
+                "account_id": account_id,
+                "note": note,
+            },
+            generate_transition_plan=lambda account_id, recommendation_ids=None: {
+                "success": True,
+                "data": {
+                    "plan_id": "plan-1",
+                    "account_id": account_id,
+                    "source_recommendation_ids": recommendation_ids or [],
+                    "orders": [
+                        {
+                            "security_code": "000001.SH",
+                            "thesis": "买入 000001.SH：推荐理由待补充",
+                            "risk_summary": "PMI 跌破 50",
+                            "reward_risk": {
+                                "entry_price": "10.50",
+                                "take_profit_price": "13.65",
+                                "stop_loss_price": "9.45",
+                                "upside_pct": "30.00",
+                                "downside_pct": "10.00",
+                                "ratio": "3.00",
+                            },
+                            "data_asof": "2026-06-07T09:30:00+08:00",
+                        }
+                    ],
+                },
+            },
+            get_transition_plan=lambda plan_id: {
+                "success": True,
+                "data": {"plan_id": plan_id, "orders": []},
+            },
+            update_transition_plan=lambda plan_id, orders: {
+                "success": True,
+                "data": {"plan_id": plan_id, "orders": orders},
+            },
+            preview_execution=lambda account_id,
+            plan_id=None,
+            recommendation_id=None,
+            create_request=False,
+            market_price=None: {
+                "success": True,
+                "data": {
+                    "account_id": account_id,
+                    "plan_id": plan_id,
+                    "recommendation_id": recommendation_id,
+                    "request_id": "req-1" if create_request else None,
+                    "market_price": market_price,
+                },
+            },
             get_funnel_context=lambda trade_id="unknown", backtest_id=None: {
                 "trade_id": trade_id,
                 "backtest_id": backtest_id,
@@ -520,6 +597,41 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_decision_rhythm_summary", {"payload": {"window_days": 7}}),
         ("reset_decision_quota", {"payload": {"user_id": "u1"}}),
         ("decision_workflow_precheck", {"candidate_id": "cand-1"}),
+        (
+            "decision_workflow_list_recommendations",
+            {"account_id": "acct-1", "user_action": "ADOPTED"},
+        ),
+        (
+            "decision_workflow_refresh_recommendations",
+            {"account_id": "acct-1", "security_codes": ["000001.SH"], "force": True},
+        ),
+        (
+            "decision_workflow_apply_recommendation_action",
+            {"recommendation_id": "rec-1", "action": "adopt", "account_id": "acct-1"},
+        ),
+        (
+            "decision_workflow_generate_transition_plan",
+            {"account_id": "acct-1", "recommendation_ids": ["rec-1"]},
+        ),
+        ("decision_workflow_get_transition_plan", {"plan_id": "plan-1"}),
+        (
+            "decision_workflow_update_transition_plan",
+            {
+                "plan_id": "plan-1",
+                "orders": [
+                    {
+                        "security_code": "000001.SH",
+                        "execution_price": "10.50",
+                        "take_profit_price": "13.65",
+                        "stop_loss_price": "9.45",
+                    }
+                ],
+            },
+        ),
+        (
+            "decision_workflow_preview_execution",
+            {"account_id": "acct-1", "plan_id": "plan-1", "create_request": False},
+        ),
         ("decision_workflow_get_funnel_context", {"trade_id": "trade-1", "backtest_id": 123}),
         ("list_beta_gate_configs", {}),
         ("create_beta_gate_config", {"payload": {"name": "cfg1"}}),
@@ -786,6 +898,32 @@ def test_decision_workflow_funnel_context_exposes_freshness_metadata(
     assert "step3_status" in rendered
     assert "step3_data_source" in rendered
     assert "step3_signal_date" in rendered
+
+
+def test_decision_workflow_transition_plan_exposes_decision_contract(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    try:
+        from agomtradepro_mcp.server import server
+    except ModuleNotFoundError as exc:
+        if "mcp" in str(exc):
+            pytest.skip("mcp package not installed in current test environment")
+        raise
+
+    _patch_extended_tool_modules(monkeypatch)
+
+    result = asyncio.run(
+        server.call_tool(
+            "decision_workflow_generate_transition_plan",
+            {"account_id": "acct-1", "recommendation_ids": ["rec-1"]},
+        )
+    )
+    rendered = str(result)
+    assert "thesis" in rendered
+    assert "risk_summary" in rendered
+    assert "reward_risk" in rendered
+    assert "data_asof" in rendered
+    assert "ratio" in rendered
 
 
 def test_dashboard_alpha_candidates_contract_exposes_async_status(monkeypatch: pytest.MonkeyPatch):

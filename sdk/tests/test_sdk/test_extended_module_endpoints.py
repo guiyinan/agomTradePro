@@ -543,6 +543,120 @@ def client():
             "/api/decision/funnel/context/",
             {"params": {"trade_id": "trade-1", "backtest_id": 123}},
         ),
+        (
+            lambda c: c.decision_workflow.list_recommendations(
+                account_id="acct-1",
+                user_action="ADOPTED",
+                security_code="000001.SH",
+                include_ignored=True,
+            ),
+            "GET",
+            "/api/decision/workspace/recommendations/",
+            {
+                "params": {
+                    "account_id": "acct-1",
+                    "include_ignored": True,
+                    "page": 1,
+                    "page_size": 20,
+                    "user_action": "ADOPTED",
+                    "security_code": "000001.SH",
+                }
+            },
+        ),
+        (
+            lambda c: c.decision_workflow.refresh_recommendations(
+                account_id="acct-1",
+                security_codes=["000001.SH"],
+                force=True,
+            ),
+            "POST",
+            "/api/decision/workspace/recommendations/refresh/",
+            {
+                "json": {
+                    "force": True,
+                    "async_mode": True,
+                    "account_id": "acct-1",
+                    "security_codes": ["000001.SH"],
+                }
+            },
+        ),
+        (
+            lambda c: c.decision_workflow.apply_recommendation_action(
+                "rec-1",
+                "adopt",
+                account_id="acct-1",
+                note="ok",
+            ),
+            "POST",
+            "/api/decision/workspace/recommendations/action/",
+            {
+                "json": {
+                    "recommendation_id": "rec-1",
+                    "action": "adopt",
+                    "account_id": "acct-1",
+                    "note": "ok",
+                }
+            },
+        ),
+        (
+            lambda c: c.decision_workflow.generate_transition_plan(
+                "acct-1",
+                recommendation_ids=["rec-1"],
+            ),
+            "POST",
+            "/api/decision/workspace/plans/generate/",
+            {"json": {"account_id": "acct-1", "recommendation_ids": ["rec-1"]}},
+        ),
+        (
+            lambda c: c.decision_workflow.get_transition_plan("plan-1"),
+            "GET",
+            "/api/decision/workspace/plans/plan-1/",
+        ),
+        (
+            lambda c: c.decision_workflow.update_transition_plan(
+                "plan-1",
+                orders=[
+                    {
+                        "security_code": "000001.SH",
+                        "execution_price": "10.50",
+                        "take_profit_price": "13.65",
+                        "stop_loss_price": "9.45",
+                    }
+                ],
+            ),
+            "POST",
+            "/api/decision/workspace/plans/plan-1/update/",
+            {
+                "json": {
+                    "orders": [
+                        {
+                            "security_code": "000001.SH",
+                            "execution_price": "10.50",
+                            "take_profit_price": "13.65",
+                            "stop_loss_price": "9.45",
+                        }
+                    ]
+                }
+            },
+        ),
+        (
+            lambda c: c.decision_workflow.preview_execution(
+                account_id="acct-1",
+                plan_id="plan-1",
+                create_request=True,
+                market_price="10.80",
+            ),
+            "POST",
+            "/api/decision/execute/preview/",
+            {
+                "json": {
+                    "account_id": "acct-1",
+                    "create_request": True,
+                    "plan_id": "plan-1",
+                    "market_price": "10.80",
+                }
+            },
+        ),
         (lambda c: c.pulse.get_current(), "GET", "/api/pulse/current/"),
         (lambda c: c.pulse.get_history(), "GET", "/api/pulse/history/", {"params": {"limit": 30}}),
         (

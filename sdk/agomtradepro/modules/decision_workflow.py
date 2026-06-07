@@ -106,6 +106,65 @@ class DecisionWorkflowModule(BaseModule):
             payload["note"] = note
         return self._client.post("/api/decision/workspace/recommendations/action/", json=payload)
 
+    def generate_transition_plan(
+        self,
+        account_id: str,
+        *,
+        recommendation_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """生成并保存账户调仓计划。
+
+        返回的订单包含后端标准决策契约字段：
+        `thesis`、`risk_summary`、`reward_risk`、`data_asof`。
+        """
+        payload: dict[str, Any] = {"account_id": account_id}
+        if recommendation_ids is not None:
+            payload["recommendation_ids"] = recommendation_ids
+        return self._client.post("/api/decision/workspace/plans/generate/", json=payload)
+
+    def get_transition_plan(self, plan_id: str) -> dict[str, Any]:
+        """获取已保存的调仓计划详情。"""
+        return self._client.get(f"/api/decision/workspace/plans/{plan_id}/")
+
+    def update_transition_plan(
+        self,
+        plan_id: str,
+        *,
+        orders: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """更新调仓计划订单参数。
+
+        常用字段包括 `execution_price`、`take_profit_price`、`stop_loss_price`、
+        `invalidation_rule`、`invalidation_description`、`review_by`。后端会同步重算
+        `reward_risk`。
+        """
+        return self._client.post(
+            f"/api/decision/workspace/plans/{plan_id}/update/",
+            json={"orders": orders},
+        )
+
+    def preview_execution(
+        self,
+        *,
+        account_id: str,
+        plan_id: str | None = None,
+        recommendation_id: str | None = None,
+        create_request: bool = False,
+        market_price: str | float | int | None = None,
+    ) -> dict[str, Any]:
+        """预览执行计划，可选创建审批请求。"""
+        payload: dict[str, Any] = {
+            "account_id": account_id,
+            "create_request": create_request,
+        }
+        if plan_id is not None:
+            payload["plan_id"] = plan_id
+        if recommendation_id is not None:
+            payload["recommendation_id"] = recommendation_id
+        if market_price is not None:
+            payload["market_price"] = market_price
+        return self._client.post("/api/decision/execute/preview/", json=payload)
+
     def get_funnel_context(
         self,
         trade_id: str = "unknown",

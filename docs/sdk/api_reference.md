@@ -347,6 +347,22 @@ client.decision_workflow.apply_recommendation_action(
     account_id=None,
     note=None,
 ) -> dict
+client.decision_workflow.generate_transition_plan(
+    account_id,
+    recommendation_ids=None,
+) -> dict
+client.decision_workflow.get_transition_plan(plan_id) -> dict
+client.decision_workflow.update_transition_plan(
+    plan_id,
+    orders,
+) -> dict
+client.decision_workflow.preview_execution(
+    account_id,
+    plan_id=None,
+    recommendation_id=None,
+    create_request=False,
+    market_price=None,
+) -> dict
 client.decision_workflow.get_funnel_context(
     trade_id="unknown",
     backtest_id=None,
@@ -354,6 +370,21 @@ client.decision_workflow.get_funnel_context(
 ```
 
 `action` 支持：`watch` / `adopt` / `ignore` / `pending`
+
+Transition-plan orders returned by `generate_transition_plan()` and
+`get_transition_plan()` include the backend decision contract:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `thesis` | `str` | 投资论点或执行摘要 |
+| `risk_summary` | `str` | 关键风险/证伪摘要 |
+| `reward_risk` | `dict` | 标准收益风险比，含 `entry_price`、`take_profit_price`、`stop_loss_price`、`upside_pct`、`downside_pct`、`ratio` |
+| `data_asof` | `str` | 推荐/计划所依据数据时间 |
+
+`update_transition_plan()` accepts order patches such as
+`execution_price` / `take_profit_price` / `stop_loss_price` /
+`invalidation_rule` / `invalidation_description` / `review_by`; the backend
+recalculates `reward_risk` after price changes.
 
 `client.decision_workflow.get_funnel_context()` 返回的 `data["step3_sectors"]` 额外包含：
 

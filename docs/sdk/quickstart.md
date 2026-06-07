@@ -174,10 +174,42 @@ print(recommendation["security_name"], recommendation["security_code"])
 # 3) Mark user's choice
 client.decision_workflow.apply_recommendation_action(
     recommendation_id=recommendation["recommendation_id"],
-    action="watch",
+    action="adopt",
     account_id="default",
     note="from dashboard alpha",
 )
+
+# 4) Generate a transition plan from adopted recommendations
+plan_response = client.decision_workflow.generate_transition_plan(
+    account_id="default",
+    recommendation_ids=[recommendation["recommendation_id"]],
+)
+plan = plan_response["data"]
+order = plan["orders"][0]
+print(order["thesis"])
+print(order["risk_summary"])
+print(order["reward_risk"]["ratio"])
+
+# 5) Update executable prices and preview execution
+updated = client.decision_workflow.update_transition_plan(
+    plan["plan_id"],
+    orders=[
+        {
+            "security_code": order["security_code"],
+            "execution_price": "10.50",
+            "take_profit_price": "13.65",
+            "stop_loss_price": "9.45",
+        }
+    ],
+)
+print(updated["data"]["orders"][0]["reward_risk"]["ratio"])
+
+preview = client.decision_workflow.preview_execution(
+    account_id="default",
+    plan_id=plan["plan_id"],
+    create_request=False,
+)
+print(preview["data"]["risk_checks"]["plan_validation"]["passed"])
 ```
 
 ### 8. Read Pulse And Funnel Context
@@ -282,7 +314,7 @@ Notes:
 - `client.decision_workflow.get_funnel_context()` supports both `trade_id` and `backtest_id`.
 - `context["step3_sectors"]` includes `rotation_data_source / rotation_is_stale / rotation_warning_message / rotation_signal_date`, so callers can distinguish fresh computation from stored-signal fallback.
 - `client.decision_workflow.list_recommendations()` returns the same unified recommendation payload as the Decision Workspace API, including `security_name`.
-- SDK 当前内建的是 `precheck / list_recommendations / refresh_recommendations / apply_recommendation_action / get_funnel_context`；交易计划生成与审批仍使用 HTTP Decision Workspace API。
+- `client.decision_workflow.generate_transition_plan()` / `get_transition_plan()` / `update_transition_plan()` / `preview_execution()` expose the Step 5 transition-plan workflow. Transition orders include the backend decision contract: `thesis / risk_summary / reward_risk / data_asof`.
 - `client.pulse.*` reads canonical JSON APIs directly; it does not depend on dashboard HTML rendering.
 - `client.dashboard.alpha_*` 现在支持 `pool_mode`，可显式控制首页 Alpha 推理/读取所用的股票池范围，而不是依赖后端默认值。
 
