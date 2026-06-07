@@ -35,16 +35,28 @@ def test_decision_workspace_templates_bind_simulated_accounts_and_step4_preview_
 
 
 def test_decision_workspace_step_templates_show_account_context_as_system_level():
-    templates = [
-        Path("core/templates/decision/steps/environment.html"),
-        Path("core/templates/decision/steps/direction.html"),
-        Path("core/templates/decision/steps/sector.html"),
-    ]
+    environment = Path("core/templates/decision/steps/environment.html").read_text(
+        encoding="utf-8"
+    )
+    direction = Path("core/templates/decision/steps/direction.html").read_text(
+        encoding="utf-8"
+    )
+    sector = Path("core/templates/decision/steps/sector.html").read_text(encoding="utf-8")
 
-    for template in templates:
-        content = template.read_text(encoding="utf-8")
+    for content in [environment, direction, sector]:
         assert "data-workspace-account-name" in content
-        assert "系统级分析" in content
+
+    assert "阶段 1: 宏观准入判断" in environment
+    assert "只读判断" in environment
+    assert "不在这里修改账户配置" in environment
+
+    assert "阶段 2: 资产方向建议" in direction
+    assert "建议风险敞口上限" in direction
+    assert "不可在此处编辑" in direction
+    assert "不是单笔交易限额" in direction
+    assert "risk_budget_display_pct" in direction
+
+    assert "系统级分析" in sector
 
 
 def test_decision_workspace_step_templates_use_window_bound_actions():

@@ -1,5 +1,13 @@
 <div class="funnel-step-content" style="animation: fadeIn 0.3s ease-in-out;">
-    <h3 style="margin-bottom: 20px;">阶段 2: 大类资产方向</h3>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;">
+        <div>
+            <h3 style="margin: 0 0 6px 0;">阶段 2: 资产方向建议</h3>
+            <p style="margin: 0; color: var(--color-text-secondary); font-size: 13px;">
+                本阶段把宏观准入结果翻译成权益、债券、商品、现金的系统建议，不直接下单。
+            </p>
+        </div>
+        <span class="badge badge-neutral">系统建议</span>
+    </div>
     <div class="attention-card" style="margin-bottom: 20px; border-left: 4px solid #0f766e;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
             <div>
@@ -13,6 +21,7 @@
         </div>
         <p style="margin: 12px 0 0 0; color: var(--color-text-secondary); font-size: 13px;">
             本阶段输出的是系统级资产方向，不会因当前账户仓位不同而改变建议比例。
+            账户级交易数量、价格、止盈止损在 Step 5 生成调仓计划时确定。
         </p>
         <div class="workspace-freshness-panel">
             <div class="workspace-freshness-card">
@@ -50,12 +59,21 @@
             </ul>
         </div>
         
-        <div class="attention-card">
-            <h4 class="attention-card__title">风险预算 (Risk Budget)</h4>
-            <div style="font-size: 36px; font-weight: 700; color: var(--color-text-primary); margin: 20px 0;">
-                {{ risk_budget_pct|floatformat:2 }}
+        <div class="attention-card" style="border-left: 4px solid #f59e0b;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                <h4 class="attention-card__title" style="margin: 0;">建议风险敞口上限</h4>
+                <span class="badge badge-neutral">不可在此处编辑</span>
             </div>
-            <p style="color: var(--color-text-muted); font-size: 13px;">最大允许暴露度（Beta Gate硬约束）。</p>
+            <div style="font-size: 36px; font-weight: 700; color: var(--color-text-primary); margin: 18px 0 8px;">
+                {{ risk_budget_display_pct|floatformat:0 }}%
+            </div>
+            <p style="color: var(--color-text-muted); font-size: 13px; line-height: 1.6; margin: 0;">
+                含义：当前宏观与 Pulse 条件下，系统建议账户对权益/风险资产的总敞口不要超过该比例。
+                它不是单笔交易限额，也不是本页可调参数；后续 Step 5 会结合持仓、现金和采纳推荐生成具体数量。
+            </p>
+            <p style="color: var(--color-text-muted); font-size: 12px; line-height: 1.6; margin: 10px 0 0;">
+                计算来源：Regime 基础风险预算 × Pulse 强弱修正，并受 Beta Gate 上限约束。若要改变个人风险偏好，请到账户设置调整风险偏好；若要改变模型阈值，请到配置中心。
+            </p>
         </div>
     </div>
 </div>

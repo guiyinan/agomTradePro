@@ -44,6 +44,7 @@ def funnel_step2_view(request):
         {
             "asset_weights": direction_data.asset_weights,
             "risk_budget_pct": direction_data.risk_budget_pct,
+            "risk_budget_display_pct": direction_data.risk_budget_pct * 100,
             "action_recommendation": direction_data.action_recommendation,
             "recommendation_freshness": direction_data.recommendation_freshness,
         },

@@ -244,7 +244,9 @@ def test_decision_step1_and_step2_partials_show_freshness_metadata(authenticated
 
     step1_content = _assert_html_partial_contract(
         step1_response,
-        "阶段 1: 宏观环境评估",
+        "阶段 1: 宏观准入判断",
+        "只读判断",
+        "不在这里修改账户配置",
         "数据日期",
         "有效至",
         "口径: 每晚预计算",
@@ -255,13 +257,18 @@ def test_decision_step1_and_step2_partials_show_freshness_metadata(authenticated
 
     step2_content = _assert_html_partial_contract(
         step2_response,
-        "阶段 2: 大类资产方向",
+        "阶段 2: 资产方向建议",
+        "建议风险敞口上限",
+        "不可在此处编辑",
+        "不是单笔交易限额",
         "数据日期",
         "有效至",
         "口径: 每晚预计算",
         "配置建议快照",
     )
     assert "2026-05-09" in step2_content
+    assert "70%" in step2_content
+    assert ">0.70<" not in step2_content
 
 
 @pytest.mark.django_db
