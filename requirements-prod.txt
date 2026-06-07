@@ -39,6 +39,9 @@ feedparser
 requests>=2.33.0
 urllib3>=2.6.3
 
+# MCP server runtime
+mcp>=1.20,<2
+
 # Dashboard / docs / metrics
 streamlit>=1.54.0
 plotly>=5.24
