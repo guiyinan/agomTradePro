@@ -348,6 +348,11 @@ def test_sync_etf_net_flow_stores_consensus_when_sources_match():
     assert stored[0].extra["verification_status"] == "verified"
     assert stored[0].extra["primary_indicator"] == "CN_A_ETF_NET_FLOW_MAIN"
     assert len(stored[0].extra["candidates"]) == 2
+    atomic_rows = [
+        fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW_MAIN"
+    ]
+    assert len(atomic_rows) == 2
+    assert {fact.source for fact in atomic_rows} == {"akshare", "eastmoney"}
 
 
 def test_sync_etf_net_flow_rejects_mismatched_sources():
@@ -373,6 +378,10 @@ def test_sync_etf_net_flow_rejects_mismatched_sources():
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
 
     assert not [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
+    atomic_rows = [
+        fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW_MAIN"
+    ]
+    assert len(atomic_rows) == 2
     assert any(
         item["component"] == "etf_net_flow"
         and item["provider"] == "data_center_consensus"
@@ -406,6 +415,11 @@ def test_sync_etf_net_flow_marks_single_source_when_only_one_provider_returns_da
     stored = [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
     assert len(stored) == 1
     assert stored[0].extra["verification_status"] == "single_source"
+    atomic_rows = [
+        fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW_MAIN"
+    ]
+    assert len(atomic_rows) == 1
+    assert atomic_rows[0].source == "akshare"
     assert any(
         item["component"] == "etf_net_flow"
         and item["provider"] == "data_center_consensus"
@@ -441,6 +455,12 @@ def test_sync_etf_net_flow_falls_back_to_size_flow_proxy():
     assert stored[0].value == 88.0
     assert stored[0].extra["verification_status"] == "fallback_proxy"
     assert stored[0].extra["proxy_indicator"] == "CN_A_ETF_SIZE_FLOW"
+    proxy_rows = [
+        fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_SIZE_FLOW"
+    ]
+    assert len(proxy_rows) == 1
+    assert proxy_rows[0].source == "tushare"
+    assert proxy_rows[0].value == 88.0
     assert any(
         item["component"] == "etf_net_flow"
         and item["provider"] == "data_center_consensus"

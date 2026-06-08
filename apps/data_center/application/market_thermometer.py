@@ -649,6 +649,7 @@ class SyncMarketThermometerInputsUseCase:
                     continue
 
                 latest = max(normalized, key=lambda item: item.reporting_period)
+                atomic_stored_count = self._macro_repo.bulk_upsert(normalized)
                 candidates.append(latest)
                 candidate_meta.append(
                     {
@@ -670,14 +671,14 @@ class SyncMarketThermometerInputsUseCase:
                             "verification": "multi_source",
                         },
                         status="candidate",
-                        row_count=len(normalized),
+                        row_count=atomic_stored_count,
                     )
                 )
                 results.append(
                     {
                         "component": component_key,
                         "provider": provider.provider_name(),
-                        "stored_count": 0,
+                        "stored_count": atomic_stored_count,
                         "status": "candidate",
                     }
                 )
