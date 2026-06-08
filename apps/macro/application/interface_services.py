@@ -11,6 +11,7 @@ from apps.data_center.application.interface_services import (
     get_active_provider_id_by_source,
     load_macro_governance_payload,
     load_market_thermometer_payload,
+    make_calculate_market_thermometer_use_case,
     make_query_macro_series_use_case,
 )
 from apps.data_center.application.repository_provider import get_indicator_catalog_repository
@@ -129,6 +130,196 @@ def _suggest_refresh_start(
     return max(suggested, _default_refresh_start(period_type, today=today))
 
 
+def _score_to_percent(score: float) -> int:
+    """Map a Pulse score in [-1, 1] to a percentage width in [0, 100]."""
+
+    bounded = max(-1.0, min(1.0, float(score or 0.0)))
+    return int(round((bounded + 1.0) * 50))
+
+
+def _safe_iso_date(value: Any) -> str:
+    """Return an ISO date string for date-like values."""
+
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value or "")
+
+
+def _build_regime_summary() -> dict[str, Any]:
+    """Return current Regime context for the macro overview page."""
+
+    try:
+        from apps.regime.application.interface_services import get_regime_current_payload
+
+        payload = get_regime_current_payload()
+        data = dict(payload.get("data") or {})
+    except Exception:
+        logger.exception("Failed to load Regime summary for macro page snapshot")
+        data = {}
+
+    regime_name = str(data.get("dominant_regime") or "Unknown")
+    label_map = {
+        "Recovery": "复苏",
+        "Overheat": "过热",
+        "Stagflation": "滞胀",
+        "Deflation": "通缩",
+        "Unknown": "未知",
+    }
+    confidence = float(data.get("confidence", 0.0) or 0.0)
+    return {
+        "observed_at": _safe_iso_date(data.get("observed_at")),
+        "regime_name": regime_name,
+        "regime_label": label_map.get(regime_name, regime_name),
+        "confidence": confidence,
+        "confidence_pct": confidence * 100,
+        "source": str(data.get("source") or ""),
+        "is_fallback": bool(data.get("is_fallback", False)),
+        "warnings": list(data.get("warnings") or []),
+    }
+
+
+def _build_pulse_card_context() -> dict[str, Any]:
+    """Return Pulse card context for the macro overview page."""
+
+    try:
+        from apps.pulse.application.use_cases import GetLatestPulseUseCase
+
+        pulse = GetLatestPulseUseCase().execute(refresh_if_stale=False)
+    except Exception:
+        logger.exception("Failed to load Pulse summary for macro page snapshot")
+        pulse = None
+
+    dimensions = {ds.dimension: ds for ds in getattr(pulse, "dimension_scores", [])}
+
+    def _dim_value(name: str, field: str, default: Any) -> Any:
+        entry = dimensions.get(name)
+        return getattr(entry, field, default) if entry else default
+
+    return {
+        "pulse_observed_at": pulse.observed_at.isoformat() if pulse else "",
+        "pulse_composite": float(getattr(pulse, "composite_score", 0.0) or 0.0),
+        "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
+        "growth_score": _dim_value("growth", "score", 0.0),
+        "growth_signal": _dim_value("growth", "signal", "neutral"),
+        "growth_pct": _score_to_percent(_dim_value("growth", "score", 0.0)),
+        "inflation_score": _dim_value("inflation", "score", 0.0),
+        "inflation_signal": _dim_value("inflation", "signal", "neutral"),
+        "inflation_pct": _score_to_percent(_dim_value("inflation", "score", 0.0)),
+        "liquidity_score": _dim_value("liquidity", "score", 0.0),
+        "liquidity_signal": _dim_value("liquidity", "signal", "neutral"),
+        "liquidity_pct": _score_to_percent(_dim_value("liquidity", "score", 0.0)),
+        "sentiment_score": _dim_value("sentiment", "score", 0.0),
+        "sentiment_signal": _dim_value("sentiment", "signal", "neutral"),
+        "sentiment_pct": _score_to_percent(_dim_value("sentiment", "score", 0.0)),
+        "pulse_transition_warning": bool(pulse and pulse.transition_warning),
+        "pulse_transition_direction": getattr(pulse, "transition_direction", None),
+        "pulse_transition_reasons": getattr(pulse, "transition_reasons", []),
+        "pulse_is_reliable": bool(pulse and pulse.is_reliable),
+        "pulse_stale_count": getattr(pulse, "stale_indicator_count", 0),
+    }
+
+
+def _build_regime_segments(regime_rows: list[dict[str, Any]], *, end_label: str) -> list[dict[str, str]]:
+    """Build Regime mark-area segments for the overview timeline."""
+
+    if not regime_rows:
+        return []
+    segments: list[dict[str, str]] = []
+    ordered = sorted(regime_rows, key=lambda item: item["date"])
+    for index, row in enumerate(ordered):
+        next_start = ordered[index + 1]["date"] if index + 1 < len(ordered) else end_label
+        segments.append(
+            {
+                "start": row["date"],
+                "end": next_start,
+                "regime": row["regime"],
+            }
+        )
+    return segments
+
+
+def _build_macro_risk_timeline(*, days: int = 180) -> dict[str, Any]:
+    """Return Regime / Pulse / market temperature history for one combined chart."""
+
+    today = date.today()
+    start_date = today - timedelta(days=days)
+    thermometer_rows: list[dict[str, Any]] = []
+    pulse_rows: list[dict[str, Any]] = []
+    regime_rows: list[dict[str, Any]] = []
+
+    try:
+        thermometer_rows = [
+            {
+                "date": str(item.get("observed_at") or ""),
+                "score": float(item.get("score", 0.0) or 0.0),
+                "band": str(item.get("band") or ""),
+            }
+            for item in make_calculate_market_thermometer_use_case().list_history(days=days)
+            if item.get("observed_at")
+        ]
+    except Exception:
+        logger.exception("Failed to load market thermometer timeline for macro page snapshot")
+
+    try:
+        from apps.pulse.application.query_services import list_pulse_history_payloads
+
+        pulse_rows = [
+            {
+                "date": str(item.get("observed_at") or ""),
+                "score": float(item.get("composite_score", 0.0) or 0.0),
+                "normalized_score": _score_to_percent(float(item.get("composite_score", 0.0) or 0.0)),
+                "transition_warning": bool(item.get("transition_warning", False)),
+            }
+            for item in list_pulse_history_payloads(months=max(1, round(days / 30)))
+            if item.get("observed_at")
+        ]
+    except Exception:
+        logger.exception("Failed to load Pulse timeline for macro page snapshot")
+
+    try:
+        from apps.regime.application.interface_services import get_regime_history_payload
+
+        regime_payload = get_regime_history_payload(
+            start_date=start_date,
+            end_date=today,
+            limit=days + 30,
+        )
+        regime_rows = [
+            {
+                "date": _safe_iso_date(item.get("observed_at")),
+                "regime": str(item.get("dominant_regime") or "Unknown"),
+                "confidence": float(item.get("confidence", 0.0) or 0.0),
+            }
+            for item in regime_payload.get("data", [])
+            if item.get("observed_at")
+        ]
+    except Exception:
+        logger.exception("Failed to load Regime timeline for macro page snapshot")
+
+    dates = sorted(
+        {
+            item["date"]
+            for collection in (thermometer_rows, pulse_rows, regime_rows)
+            for item in collection
+            if item.get("date")
+        }
+    )
+    return {
+        "dates": dates,
+        "temperature": sorted(thermometer_rows, key=lambda item: item["date"]),
+        "pulse": sorted(pulse_rows, key=lambda item: item["date"]),
+        "regime": sorted(regime_rows, key=lambda item: item["date"]),
+        "regime_segments": _build_regime_segments(
+            regime_rows,
+            end_label=dates[-1] if dates else today.isoformat(),
+        ),
+        "period": {
+            "start": start_date.isoformat(),
+            "end": today.isoformat(),
+        },
+    }
+
+
 def get_supported_macro_indicators(*, source: str = "akshare") -> list[dict[str, Any]]:
     """Return the supported macro indicator definitions for the requested source."""
 
@@ -223,6 +414,7 @@ def get_macro_data_page_snapshot(
     *,
     selected_indicator: str = "",
     user_id: int | None = None,
+    can_sync_macro_data: bool = False,
 ) -> dict[str, Any]:
     """Return view-model data for the macro data management page."""
 
@@ -417,6 +609,7 @@ def get_macro_data_page_snapshot(
         "max_date": summary["max_date"],
         "refresh_provider_id": refresh_provider_id,
         "refresh_end_date": refresh_end_date,
+        "can_sync_macro_data": bool(can_sync_macro_data),
         "sync_supported_indicator_count": len(bulk_refresh_indicator_codes),
         "sync_unsupported_indicator_count": len(indicator_map) - len(bulk_refresh_indicator_codes),
         "bulk_refresh_indicator_codes": bulk_refresh_indicator_codes,
@@ -447,6 +640,9 @@ def get_macro_data_page_snapshot(
                 market_thermometer_payload.get("blocked_reason") or ""
             ),
         },
+        "regime_summary": _build_regime_summary(),
+        "pulse_card": _build_pulse_card_context(),
+        "macro_risk_timeline": _build_macro_risk_timeline(),
     }
 
 

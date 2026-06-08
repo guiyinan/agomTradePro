@@ -130,6 +130,58 @@ class _FakeM2QueryUseCase:
         )
 
 
+def _patch_macro_overview_helpers(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services._build_regime_summary",
+        lambda: {
+            "observed_at": "2026-05-20",
+            "regime_name": "Recovery",
+            "regime_label": "复苏",
+            "confidence_pct": 72.0,
+            "source": "test",
+            "warnings": [],
+        },
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services._build_pulse_card_context",
+        lambda: {
+            "pulse_observed_at": "2026-05-20",
+            "pulse_composite": 0.24,
+            "pulse_strength": "moderate",
+            "growth_score": 0.2,
+            "growth_signal": "positive",
+            "growth_pct": 60,
+            "inflation_score": -0.1,
+            "inflation_signal": "neutral",
+            "inflation_pct": 45,
+            "liquidity_score": 0.1,
+            "liquidity_signal": "neutral",
+            "liquidity_pct": 55,
+            "sentiment_score": 0.3,
+            "sentiment_signal": "positive",
+            "sentiment_pct": 65,
+            "pulse_transition_warning": False,
+            "pulse_transition_direction": "",
+            "pulse_transition_reasons": [],
+            "pulse_is_reliable": True,
+            "pulse_stale_count": 0,
+        },
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services._build_macro_risk_timeline",
+        lambda: {
+            "dates": ["2026-05-20"],
+            "temperature": [{"date": "2026-05-20", "score": 72.4, "band": "hot"}],
+            "pulse": [{"date": "2026-05-20", "score": 0.24, "normalized_score": 62}],
+            "regime": [{"date": "2026-05-20", "regime": "Recovery", "confidence": 0.72}],
+            "regime_segments": [
+                {"start": "2026-05-20", "end": "2026-05-20", "regime": "Recovery"}
+            ],
+            "period": {"start": "2025-11-21", "end": "2026-05-20"},
+        },
+    )
+
+
 def test_get_supported_macro_indicators_prefers_indicator_metadata(monkeypatch):
     monkeypatch.setattr(
         "apps.macro.application.interface_services.build_sync_macro_data_use_case",
@@ -154,6 +206,7 @@ def test_get_supported_macro_indicators_prefers_indicator_metadata(monkeypatch):
 
 
 def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(monkeypatch):
+    _patch_macro_overview_helpers(monkeypatch)
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_macro_read_repository",
         lambda: _FakeMacroReadRepository(),
@@ -218,6 +271,7 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
     assert snapshot["stats"]["sync_supported_indicators"] == 1
     assert snapshot["stats"]["sync_unsupported_indicators"] == 1
     assert snapshot["refresh_provider_id"] == 7
+    assert snapshot["can_sync_macro_data"] is False
     assert snapshot["indicator_map"]["CN_GDP"]["has_data"] is False
     assert snapshot["indicator_map"]["CN_GDP"]["sync_supported"] is False
     assert snapshot["indicator_map"]["CN_GDP"]["unit"] == "亿元"
@@ -240,6 +294,45 @@ def test_get_macro_data_page_snapshot_lists_catalog_indicators_without_facts(mon
         "成交额抬升",
         "融资余额抬升",
     ]
+    assert snapshot["regime_summary"]["regime_name"] == "Recovery"
+    assert snapshot["pulse_card"]["pulse_composite"] == 0.24
+    assert snapshot["macro_risk_timeline"]["dates"] == ["2026-05-20"]
+
+
+def test_get_macro_data_page_snapshot_preserves_sync_permission_flag(monkeypatch):
+    _patch_macro_overview_helpers(monkeypatch)
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_macro_read_repository",
+        lambda: _FakeMacroReadRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_indicator_catalog_repository",
+        lambda: _FakeCatalogRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",
+        classmethod(lambda cls: {}),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.get_active_provider_id_by_source",
+        lambda source_type: 7 if source_type == "akshare" else None,
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_macro_governance_payload",
+        lambda: {"supported_sync_codes": ["CN_M2"]},
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.make_query_macro_series_use_case",
+        lambda: _FakeM2QueryUseCase(),
+    )
+    monkeypatch.setattr(
+        "apps.macro.application.interface_services.load_market_thermometer_payload",
+        lambda user_id=None, use_personal_thresholds=True: {},
+    )
+
+    snapshot = get_macro_data_page_snapshot(can_sync_macro_data=True)
+
+    assert snapshot["can_sync_macro_data"] is True
 
 
 def test_get_macro_indicator_data_requests_chronological_series(monkeypatch):
@@ -413,6 +506,7 @@ class _FakeGdpYoyQueryUseCase:
 
 
 def test_get_macro_data_page_snapshot_prefers_gdp_yoy_over_cumulative_level(monkeypatch):
+    _patch_macro_overview_helpers(monkeypatch)
     monkeypatch.setattr(
         "apps.macro.application.interface_services.get_macro_read_repository",
         lambda: _FakeGdpReadRepository(),

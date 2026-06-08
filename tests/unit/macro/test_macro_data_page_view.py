@@ -99,6 +99,50 @@ class MacroDataPageViewTests(TestCase):
         self.assertIn("indicatorGovernanceNote", content)
         self.assertIn("市场温度计", content)
         self.assertIn("过热", content)
+        self.assertIn("Regime 宏观象限", content)
+        self.assertIn("Pulse 脉搏", content)
+        self.assertIn("Regime / Pulse / 温度时间轴", content)
+        self.assertIn("macroRiskTimelineChart", content)
+        self.assertIn("const canSyncMacroData = false;", content)
+
+    def test_macro_data_view_allows_staff_sync_controls(self) -> None:
+        """Staff users can trigger the admin-only Data Center macro sync endpoint."""
+
+        snapshot = {
+            "indicator_map": {},
+            "selected_indicator": "",
+            "history": [],
+            "stats": {
+                "total_indicators": 0,
+                "synced_indicators": 0,
+                "sync_supported_indicators": 0,
+                "sync_unsupported_indicators": 0,
+                "total_records": 0,
+                "latest_date": "-",
+            },
+            "min_date": "-",
+            "max_date": "-",
+            "refresh_provider_id": 1,
+            "refresh_end_date": "2026-05-04",
+            "can_sync_macro_data": True,
+            "sync_supported_indicator_count": 0,
+            "sync_unsupported_indicator_count": 0,
+            "bulk_refresh_indicator_codes": [],
+            "market_thermometer": {},
+        }
+        request = self.factory.get("/macro/data/")
+        request.user = Mock(is_authenticated=True, is_staff=True, is_superuser=False)
+
+        with patch(
+            "apps.macro.interface.views.page_views.get_macro_data_page_snapshot",
+            return_value=snapshot,
+        ) as snapshot_loader:
+            response = macro_data_view(request)
+
+        self.assertEqual(response.status_code, 200)
+        snapshot_loader.assert_called_once()
+        self.assertTrue(snapshot_loader.call_args.kwargs["can_sync_macro_data"])
+        self.assertIn("const canSyncMacroData = true;", response.content.decode("utf-8"))
 
     def test_macro_data_view_keeps_same_quarter_color_across_reset_cycles(self) -> None:
         """Quarter-based reset-stack charts should reuse one fixed color per quarter."""

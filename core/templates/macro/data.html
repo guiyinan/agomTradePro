@@ -30,6 +30,7 @@
 </div>
 
 {{ initial_history_rows|json_script:"initialHistoryRowsData" }}
+{{ macro_risk_timeline|json_script:"macroRiskTimelineData" }}
 <script>
 const indicatorNamesMap = {};
 const indicatorDescriptionsMap = {};
@@ -43,6 +44,7 @@ const macroSeriesUrl = '{% url "api_data_center:dc-macro-series" %}';
 const macroSyncUrl = '{% url "api_data_center:dc-sync-macro" %}';
 const manualRefreshProviderId = Number('{{ refresh_provider_id|default:"0" }}');
 const manualRefreshEndDate = '{{ refresh_end_date|date:"Y-m-d"|default:"" }}';
+const canSyncMacroData = {% if can_sync_macro_data %}true{% else %}false{% endif %};
 const bulkRefreshIndicatorCodes = {{ bulk_refresh_indicator_codes|safe }};
 const DEFAULT_VISIBLE_POINTS = 36;
 const RANGE_PRESET_OPTIONS = ['12', '24', '36', '60', 'all'];
@@ -62,6 +64,7 @@ const RESET_STACK_CHART_POLICIES = new Set(['yearly_reset_bar', 'reset_stack_bar
 
 const initialIndicator = '{{ selected_indicator|escapejs }}';
 const initialHistoryRows = JSON.parse(document.getElementById('initialHistoryRowsData').textContent || '[]');
+const macroRiskTimeline = JSON.parse(document.getElementById('macroRiskTimelineData').textContent || '{}');
 const initialIndicatorMeta = {
     name: '{{ selected_indicator_data.name|default:""|escapejs }}',
     description: '{{ selected_indicator_data.description|default:""|escapejs }}',
@@ -83,6 +86,7 @@ const initialIndicatorMeta = {
 
 let currentIndicatorCode = initialIndicator;
 let currentChart = null;
+let macroRiskTimelineChart = null;
 let refreshStatusTimer = null;
 let isBulkRefreshing = false;
 let currentIndicatorPayload = null;
@@ -92,6 +96,7 @@ let chartResizeHandlerAttached = false;
 const autoRefreshAttemptedIndicators = new Set();
 
 document.addEventListener('DOMContentLoaded', function() {
+    renderMacroRiskTimeline();
     updateRefreshAllButtonState();
     if (initialIndicator) {
         showIndicatorInfoBar();
@@ -122,6 +127,181 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDetailButtonState();
     showChartPlaceholder('选择一个指标查看趋势', '从左侧列表点击指标名称，默认先展示最近 36 个周期。');
 });
+
+function buildRowMap(rows) {
+    const map = {};
+    (rows || []).forEach(row => {
+        if (row && row.date) {
+            map[row.date] = row;
+        }
+    });
+    return map;
+}
+
+function renderMacroRiskTimeline() {
+    const chartDom = document.getElementById('macroRiskTimelineChart');
+    if (!chartDom || typeof echarts === 'undefined') {
+        return;
+    }
+
+    const dates = Array.isArray(macroRiskTimeline.dates) ? macroRiskTimeline.dates : [];
+    const emptyState = document.getElementById('macroRiskTimelineEmpty');
+    if (!dates.length) {
+        if (emptyState) {
+            emptyState.style.display = 'flex';
+        }
+        chartDom.style.display = 'none';
+        return;
+    }
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+    chartDom.style.display = 'block';
+
+    const temperatureByDate = buildRowMap(macroRiskTimeline.temperature);
+    const pulseByDate = buildRowMap(macroRiskTimeline.pulse);
+    const regimeByDate = buildRowMap(macroRiskTimeline.regime);
+    const regimeColors = {
+        Recovery: 'rgba(34, 197, 94, 0.08)',
+        Overheat: 'rgba(239, 68, 68, 0.08)',
+        Stagflation: 'rgba(245, 158, 11, 0.10)',
+        Deflation: 'rgba(14, 165, 233, 0.08)',
+        Unknown: 'rgba(148, 163, 184, 0.08)',
+    };
+    const regimeLabelMap = {
+        Recovery: '复苏',
+        Overheat: '过热',
+        Stagflation: '滞胀',
+        Deflation: '通缩',
+        Unknown: '未知',
+    };
+    const markAreas = (macroRiskTimeline.regime_segments || [])
+        .filter(segment => segment.start && segment.end)
+        .map(segment => ([
+            {
+                xAxis: segment.start,
+                itemStyle: { color: regimeColors[segment.regime] || regimeColors.Unknown },
+                label: {
+                    show: true,
+                    color: '#64748B',
+                    fontSize: 11,
+                    formatter: regimeLabelMap[segment.regime] || segment.regime || '未知',
+                },
+            },
+            { xAxis: segment.end },
+        ]));
+    const temperatureData = dates.map(date => {
+        const row = temperatureByDate[date];
+        return row ? Number(row.score) : null;
+    });
+    const pulseData = dates.map(date => {
+        const row = pulseByDate[date];
+        return row ? Number(row.normalized_score) : null;
+    });
+    const regimeData = dates.map(date => {
+        const row = regimeByDate[date];
+        return row ? 8 : null;
+    });
+
+    if (macroRiskTimelineChart) {
+        macroRiskTimelineChart.dispose();
+    }
+    macroRiskTimelineChart = echarts.init(chartDom);
+    macroRiskTimelineChart.setOption({
+        color: ['#EF4444', '#2563EB', '#64748B'],
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            formatter(params) {
+                const date = params?.[0]?.axisValue || '';
+                const temp = temperatureByDate[date];
+                const pulse = pulseByDate[date];
+                const regime = regimeByDate[date];
+                const lines = [`<strong>${date}</strong>`];
+                if (regime) {
+                    const label = regimeLabelMap[regime.regime] || regime.regime || '未知';
+                    lines.push(`Regime: ${label} (${(Number(regime.confidence || 0) * 100).toFixed(0)}%)`);
+                }
+                if (pulse) {
+                    lines.push(`Pulse: ${Number(pulse.score || 0).toFixed(2)} / 归一 ${Number(pulse.normalized_score || 0).toFixed(0)}`);
+                }
+                if (temp) {
+                    lines.push(`温度计: ${Number(temp.score || 0).toFixed(1)} (${temp.band || '-'})`);
+                }
+                return lines.join('<br>');
+            },
+        },
+        legend: {
+            top: 4,
+            data: ['市场温度', 'Pulse 归一', 'Regime'],
+        },
+        grid: {
+            left: 44,
+            right: 24,
+            top: 52,
+            bottom: 46,
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            boundaryGap: false,
+            axisLabel: {
+                color: '#64748B',
+                hideOverlap: true,
+            },
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            name: '分数',
+            splitLine: { lineStyle: { type: 'dashed', color: 'rgba(148, 163, 184, 0.28)' } },
+            axisLabel: { color: '#64748B' },
+        },
+        dataZoom: [
+            { type: 'inside', start: Math.max(0, 100 - (90 / dates.length) * 100), end: 100 },
+            { type: 'slider', height: 18, bottom: 14, start: Math.max(0, 100 - (90 / dates.length) * 100), end: 100 },
+        ],
+        series: [
+            {
+                name: '市场温度',
+                type: 'line',
+                smooth: true,
+                connectNulls: false,
+                symbol: 'circle',
+                symbolSize: 6,
+                lineStyle: { width: 3 },
+                data: temperatureData,
+                markArea: {
+                    silent: true,
+                    data: markAreas,
+                },
+            },
+            {
+                name: 'Pulse 归一',
+                type: 'line',
+                smooth: true,
+                connectNulls: false,
+                symbol: 'circle',
+                symbolSize: 6,
+                lineStyle: { width: 3 },
+                data: pulseData,
+            },
+            {
+                name: 'Regime',
+                type: 'scatter',
+                symbolSize: 9,
+                data: regimeData,
+                tooltip: { show: false },
+            },
+        ],
+    });
+    window.addEventListener('resize', () => {
+        if (macroRiskTimelineChart) {
+            macroRiskTimelineChart.resize();
+        }
+    });
+}
 
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
@@ -902,7 +1082,7 @@ function shouldAutoRefreshIndicator(code, payload) {
     if (!code || autoRefreshAttemptedIndicators.has(code)) {
         return false;
     }
-    if (isBulkRefreshing || !manualRefreshProviderId || !isIndicatorSyncSupported(code)) {
+    if (isBulkRefreshing || !canSyncMacroData || !manualRefreshProviderId || !isIndicatorSyncSupported(code)) {
         return false;
     }
     if (!payload || !Array.isArray(payload.data) || payload.data.length === 0) {
@@ -959,10 +1139,14 @@ function updateRefreshButtonState(code, isLoading = false) {
     const hasProvider = manualRefreshProviderId > 0;
     const hasIndicator = Boolean(code);
     const syncSupported = hasIndicator && isIndicatorSyncSupported(code);
-    button.disabled = !hasProvider || !hasIndicator || !syncSupported || isLoading || isBulkRefreshing;
+    button.disabled = !canSyncMacroData || !hasProvider || !hasIndicator || !syncSupported || isLoading || isBulkRefreshing;
     button.textContent = isLoading ? '抓取中...' : '手动刷新抓取';
     if (isBulkRefreshing) {
         button.title = '全部抓取进行中，暂不支持单指标刷新';
+        return;
+    }
+    if (!canSyncMacroData) {
+        button.title = '当前账号没有宏观数据同步权限';
         return;
     }
     if (!hasProvider) {
@@ -988,8 +1172,12 @@ function updateRefreshAllButtonState(isLoading = false) {
     const hasProvider = manualRefreshProviderId > 0;
     const hasSupportedIndicators = bulkRefreshIndicatorCodes.length > 0;
     const loading = isLoading || isBulkRefreshing;
-    button.disabled = !hasProvider || !hasSupportedIndicators || loading;
+    button.disabled = !canSyncMacroData || !hasProvider || !hasSupportedIndicators || loading;
     button.textContent = loading ? '全部抓取中...' : '全部刷新可抓取指标';
+    if (!canSyncMacroData) {
+        button.title = '当前账号没有宏观数据同步权限';
+        return;
+    }
     if (!hasProvider) {
         button.title = '当前未配置可用的 Data Center 宏观 provider';
         return;
@@ -1014,6 +1202,9 @@ function markIndicatorAsSynced(code) {
 }
 
 async function requestIndicatorRefresh(code) {
+    if (!canSyncMacroData) {
+        throw new Error('当前账号没有宏观数据同步权限');
+    }
     if (!manualRefreshProviderId) {
         throw new Error('当前未配置可用的 Data Center 宏观 provider');
     }
@@ -1119,6 +1310,12 @@ async function refreshIndicator(code = currentIndicatorCode) {
         return;
     }
 
+    if (!canSyncMacroData) {
+        setRefreshStatus('当前账号没有宏观数据同步权限', 'warning');
+        updateRefreshButtonState(code);
+        return;
+    }
+
     if (!manualRefreshProviderId) {
         setRefreshStatus('当前未配置可用的 Data Center 宏观 provider', 'error');
         updateRefreshButtonState(code);
@@ -1148,6 +1345,11 @@ async function refreshIndicator(code = currentIndicatorCode) {
 
 async function refreshAllIndicators() {
     if (isBulkRefreshing) {
+        return;
+    }
+    if (!canSyncMacroData) {
+        setRefreshStatus('当前账号没有宏观数据同步权限', 'warning');
+        updateRefreshAllButtonState();
         return;
     }
     if (!manualRefreshProviderId) {
@@ -1766,13 +1968,65 @@ function getCookie(name) {
     </div>
 </div>
 
-{% with mt=market_thermometer %}
-{% if mt %}
-<div class="macro-thermometer-row">
+<div class="macro-state-overview">
+    {% with rg=regime_summary %}
+    <div class="pulse-dashboard-card macro-regime-card">
+        <div class="pulse-card__header">
+            <h3 class="pulse-card__title">Regime 宏观象限</h3>
+            {% if rg.observed_at %}
+            <span class="pulse-card__date">{{ rg.observed_at }}</span>
+            {% endif %}
+        </div>
+        <div class="pulse-composite">
+            <div class="pulse-composite__score macro-regime-score macro-regime--{{ rg.regime_name|lower }}">
+                {{ rg.regime_label|default:"未知" }}
+            </div>
+            <div class="pulse-composite__label">
+                {{ rg.regime_name|default:"Unknown" }} / 置信度 {{ rg.confidence_pct|default:0|floatformat:0 }}%
+            </div>
+        </div>
+        <div class="macro-regime-meta">
+            <span>来源 {{ rg.source|default:"-" }}</span>
+            {% if rg.is_fallback %}<span>Fallback</span>{% endif %}
+        </div>
+        {% if rg.warnings %}
+        <div class="pulse-stale-notice">
+            {% for warning in rg.warnings %}{{ warning }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endwith %}
+
+    {% with pc=pulse_card %}
+    {% include "components/pulse_card.html" with pulse_observed_at=pc.pulse_observed_at pulse_composite=pc.pulse_composite pulse_strength=pc.pulse_strength growth_score=pc.growth_score growth_signal=pc.growth_signal growth_pct=pc.growth_pct inflation_score=pc.inflation_score inflation_signal=pc.inflation_signal inflation_pct=pc.inflation_pct liquidity_score=pc.liquidity_score liquidity_signal=pc.liquidity_signal liquidity_pct=pc.liquidity_pct sentiment_score=pc.sentiment_score sentiment_signal=pc.sentiment_signal sentiment_pct=pc.sentiment_pct pulse_transition_warning=pc.pulse_transition_warning pulse_transition_direction=pc.pulse_transition_direction pulse_transition_reasons=pc.pulse_transition_reasons pulse_is_reliable=pc.pulse_is_reliable pulse_stale_count=pc.pulse_stale_count only %}
+    {% endwith %}
+
+    {% with mt=market_thermometer %}
+    {% if mt %}
     {% include "components/market_thermometer_card.html" with market_temperature_observed_at=mt.market_temperature_observed_at market_temperature_score=mt.market_temperature_score market_temperature_band=mt.market_temperature_band market_temperature_band_label=mt.market_temperature_band_label market_temperature_change_5d=mt.market_temperature_change_5d market_temperature_change_20d=mt.market_temperature_change_20d market_temperature_change_5d_arrow=mt.market_temperature_change_5d_arrow market_temperature_change_20d_arrow=mt.market_temperature_change_20d_arrow market_temperature_is_hot=mt.market_temperature_is_hot market_temperature_is_overheat=mt.market_temperature_is_overheat market_temperature_threshold_source=mt.market_temperature_threshold_source market_temperature_components=mt.market_temperature_components market_temperature_top_reasons=mt.market_temperature_top_reasons market_temperature_degraded=mt.market_temperature_degraded market_temperature_blocked_reason=mt.market_temperature_blocked_reason only %}
+    {% endif %}
+    {% endwith %}
 </div>
-{% endif %}
-{% endwith %}
+
+<div class="macro-risk-timeline-card">
+    <div class="macro-risk-timeline-header">
+        <div>
+            <h2>Regime / Pulse / 温度时间轴</h2>
+            <p>{{ macro_risk_timeline.period.start }} 至 {{ macro_risk_timeline.period.end }}</p>
+        </div>
+        <div class="macro-risk-timeline-legend">
+            <span class="legend-dot legend-dot--temperature"></span>市场温度
+            <span class="legend-dot legend-dot--pulse"></span>Pulse
+            <span class="legend-dot legend-dot--regime"></span>Regime
+        </div>
+    </div>
+    <div class="macro-risk-timeline-body">
+        <div id="macroRiskTimelineChart" class="macro-risk-timeline-chart"></div>
+        <div id="macroRiskTimelineEmpty" class="macro-risk-timeline-empty" style="display: none;">
+            暂无可展示的 Regime / Pulse / 温度历史数据
+        </div>
+    </div>
+</div>
 
 <div class="macro-dashboard">
     <!-- 左侧边栏 -->
@@ -2030,10 +2284,6 @@ function getCookie(name) {
     margin-bottom: 20px;
 }
 
-.macro-thermometer-row {
-    margin-bottom: 20px;
-}
-
 .stat-card {
     display: flex;
     align-items: center;
@@ -2074,6 +2324,140 @@ function getCookie(name) {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 20px;
+    min-width: 0;
+}
+
+.macro-state-overview {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.macro-regime-card {
+    min-height: 100%;
+}
+
+.macro-regime-score {
+    min-width: 96px;
+    font-size: 22px;
+}
+
+.macro-regime--recovery {
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803D;
+}
+
+.macro-regime--overheat {
+    background: rgba(239, 68, 68, 0.12);
+    color: #B91C1C;
+}
+
+.macro-regime--stagflation {
+    background: rgba(245, 158, 11, 0.14);
+    color: #B45309;
+}
+
+.macro-regime--deflation {
+    background: rgba(14, 165, 233, 0.12);
+    color: #0369A1;
+}
+
+.macro-regime--unknown {
+    background: rgba(148, 163, 184, 0.14);
+    color: #475569;
+}
+
+.macro-regime-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.macro-regime-meta span {
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.macro-risk-timeline-card {
+    margin-bottom: 20px;
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+}
+
+.macro-risk-timeline-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.macro-risk-timeline-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--color-text-primary);
+}
+
+.macro-risk-timeline-header p {
+    margin: 4px 0 0;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.macro-risk-timeline-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot--temperature {
+    background: #EF4444;
+}
+
+.legend-dot--pulse {
+    background: #2563EB;
+}
+
+.legend-dot--regime {
+    background: #64748B;
+}
+
+.macro-risk-timeline-body {
+    position: relative;
+    min-height: 330px;
+}
+
+.macro-risk-timeline-chart {
+    width: 100%;
+    height: 330px;
+}
+
+.macro-risk-timeline-empty {
+    min-height: 260px;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-secondary);
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
 }
 
 .pulse-card__header,
@@ -2951,6 +3335,10 @@ function getCookie(name) {
         grid-template-columns: 1fr;
     }
 
+    .macro-state-overview {
+        grid-template-columns: 1fr;
+    }
+
     .left-sidebar, .right-sidebar {
         position: static;
         height: auto;
@@ -2985,6 +3373,18 @@ function getCookie(name) {
 }
 
 @media (max-width: 768px) {
+    .macro-risk-timeline-header {
+        flex-direction: column;
+    }
+
+    .macro-risk-timeline-legend {
+        justify-content: flex-start;
+    }
+
+    .macro-risk-timeline-chart {
+        height: 280px;
+    }
+
     .indicator-info-bar {
         flex-direction: column;
         gap: 12px;
