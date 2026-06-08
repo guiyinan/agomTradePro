@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-06-04
+最后更新: 2026-06-08
 
 ## 概述
 
@@ -55,6 +55,24 @@
 - Macro 页面: `/macro/data/` 顶部同步展示市场温度计卡片，方便宏观事实浏览与市场热度同屏观察
 - Terminal 命令: `market_temperature`
 - AI capability: `terminal_command.market_temperature`
+
+## ETF 资金净流入同步口径
+
+`CN_A_ETF_NET_FLOW` 通过数据中台同步，不由页面或 Dashboard 直接请求外部接口。它是市场温度计使用的 canonical 输入，底层拆成两个原子口径：
+
+- `CN_A_ETF_NET_FLOW_MAIN`: ETF 主力净流入，来自 AKShare / EastMoney ETF spot 的 `f62` 聚合。
+- `CN_A_ETF_SIZE_FLOW`: ETF 规模变化代理，来自 Tushare 协议兼容源的 `etf_share_size.total_size` 日差。
+
+- Infrastructure provider 只负责取数：
+  - AKShare `fund_etf_spot_em`
+  - EastMoney `clist/get` 直连回退，读取 `f62` 主力净流入和 `f297` 数据日期
+  - Tushare 协议兼容源通过 `trade_cal` 找最近交易日，再用 `etf_share_size` 汇总沪深 ETF 总规模，计算当日规模变化
+- Application `SyncMarketThermometerInputsUseCase` 会采集所有 active market providers，不再首个成功即停止。
+- 对 `CN_A_ETF_NET_FLOW_MAIN` 多个同口径渠道返回同一日期数据时，按 1% 容差做一致性校验。
+- 校验通过后只写入一条 `source=data_center_consensus` 的 canonical fact，`extra.candidates` 保留各渠道原始候选值。
+- 只有单一渠道返回时允许写入，但 `extra.verification_status=single_source`，用于后续审计区分。
+- 多渠道偏差超过 1% 时不静默切换，不写入 consensus，只记录 `mismatch` 审计结果。
+- 如果主力净流入口径不可用，会降级使用 `CN_A_ETF_SIZE_FLOW`，写入 canonical `CN_A_ETF_NET_FLOW` 时标记 `extra.verification_status=fallback_proxy` 与 `extra.proxy_indicator=CN_A_ETF_SIZE_FLOW`。
 
 ## 推荐链路集成
 

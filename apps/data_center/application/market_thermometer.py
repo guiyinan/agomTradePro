@@ -69,6 +69,8 @@ MARKET_COMPONENT_SPECS: dict[str, dict[str, Any]] = {
     },
 }
 MARKET_NEWS_POSITIVE_RATIO_CODE = "CN_A_MARKET_NEWS_POSITIVE_RATIO"
+ETF_MAIN_FLOW_CODE = "CN_A_ETF_NET_FLOW_MAIN"
+ETF_SIZE_FLOW_CODE = "CN_A_ETF_SIZE_FLOW"
 DEFAULT_MARKET_DATA_SOURCE_TYPES = ("akshare", "eastmoney", "tushare")
 DEFAULT_NEWS_SOURCE_TYPES = ("akshare", "eastmoney")
 RECOVERABLE_THERMOMETER_EXCEPTIONS = (
@@ -81,6 +83,8 @@ RECOVERABLE_THERMOMETER_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+MARKET_THERMOMETER_CONSENSUS_SOURCE = "data_center_consensus"
+MARKET_THERMOMETER_SOURCE_TOLERANCE = 0.01
 
 
 def _build_market_audit(
@@ -315,6 +319,17 @@ class SyncMarketThermometerInputsUseCase:
                 component_key,
                 target_date,
             )
+            if component_key == "etf_net_flow":
+                results.extend(
+                    self._sync_etf_net_flow_component(
+                        component_key=component_key,
+                        spec=spec,
+                        start_date=start_date,
+                        end_date=end_date,
+                        providers=market_providers,
+                    )
+                )
+                continue
             for config, provider in market_providers:
                 try:
                     facts = provider.fetch_macro_series(
@@ -518,6 +533,290 @@ class SyncMarketThermometerInputsUseCase:
 
         return {"as_of_date": target_date.isoformat(), "results": results}
 
+    def _sync_etf_net_flow_component(
+        self,
+        *,
+        component_key: str,
+        spec: dict[str, Any],
+        start_date: date,
+        end_date: date,
+        providers: list[tuple[Any, Any]],
+    ) -> list[dict[str, Any]]:
+        """Sync canonical ETF flow from main-flow sources, then size-flow proxy fallback."""
+
+        results = self._sync_verified_component(
+            component_key=component_key,
+            spec=spec,
+            start_date=start_date,
+            end_date=end_date,
+            providers=providers,
+            indicator_code=ETF_MAIN_FLOW_CODE,
+            output_indicator_code=spec["indicator_code"],
+            consensus_extra={
+                "primary_indicator": ETF_MAIN_FLOW_CODE,
+                "flow_family": "etf_main_flow",
+            },
+        )
+        if any(
+            item.get("component") == component_key
+            and item.get("provider") == MARKET_THERMOMETER_CONSENSUS_SOURCE
+            and item.get("status") == "success"
+            for item in results
+        ):
+            return results
+
+        results.extend(
+            self._sync_verified_component(
+                component_key=component_key,
+                spec=spec,
+                start_date=start_date,
+                end_date=end_date,
+                providers=providers,
+                indicator_code=ETF_SIZE_FLOW_CODE,
+                output_indicator_code=spec["indicator_code"],
+                consensus_extra={
+                    "primary_indicator": ETF_MAIN_FLOW_CODE,
+                    "proxy_indicator": ETF_SIZE_FLOW_CODE,
+                    "flow_family": "etf_size_flow_proxy",
+                },
+                verification_status_override="fallback_proxy",
+            )
+        )
+        return results
+
+    def _sync_verified_component(
+        self,
+        *,
+        component_key: str,
+        spec: dict[str, Any],
+        start_date: date,
+        end_date: date,
+        providers: list[tuple[Any, Any]],
+        indicator_code: str | None = None,
+        output_indicator_code: str | None = None,
+        consensus_extra: dict[str, Any] | None = None,
+        verification_status_override: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch one component from all providers and persist a verified consensus row."""
+
+        results: list[dict[str, Any]] = []
+        candidates: list[MacroFact] = []
+        candidate_meta: list[dict[str, Any]] = []
+        requested_indicator_code = indicator_code or str(spec["indicator_code"])
+
+        for config, provider in providers:
+            try:
+                facts = provider.fetch_macro_series(
+                    requested_indicator_code,
+                    start_date,
+                    end_date,
+                )
+                normalized = [
+                    dataclasses.replace(
+                        fact,
+                        source=config.source_type,
+                        extra={
+                            **dict(getattr(fact, "extra", {}) or {}),
+                            "source_type": config.source_type,
+                            "provider_name": provider.provider_name(),
+                        },
+                    )
+                    for fact in facts
+                ]
+                if not normalized:
+                    self._raw_audit_repo.log(
+                        _build_market_audit(
+                            provider_name=provider.provider_name(),
+                            capability="market_thermometer_sync",
+                            request_params={
+                                "indicator_code": requested_indicator_code,
+                                "start": start_date.isoformat(),
+                                "end": end_date.isoformat(),
+                                "verification": "multi_source",
+                            },
+                            status="no_data",
+                            row_count=0,
+                        )
+                    )
+                    results.append(
+                        {
+                            "component": component_key,
+                            "provider": provider.provider_name(),
+                            "stored_count": 0,
+                            "status": "no_data",
+                        }
+                    )
+                    continue
+
+                latest = max(normalized, key=lambda item: item.reporting_period)
+                candidates.append(latest)
+                candidate_meta.append(
+                    {
+                        "provider": provider.provider_name(),
+                        "source_type": config.source_type,
+                        "reporting_period": latest.reporting_period.isoformat(),
+                        "value": float(latest.value),
+                        "unit": latest.unit,
+                    }
+                )
+                self._raw_audit_repo.log(
+                    _build_market_audit(
+                        provider_name=provider.provider_name(),
+                        capability="market_thermometer_sync",
+                        request_params={
+                            "indicator_code": requested_indicator_code,
+                            "start": start_date.isoformat(),
+                            "end": end_date.isoformat(),
+                            "verification": "multi_source",
+                        },
+                        status="candidate",
+                        row_count=len(normalized),
+                    )
+                )
+                results.append(
+                    {
+                        "component": component_key,
+                        "provider": provider.provider_name(),
+                        "stored_count": 0,
+                        "status": "candidate",
+                    }
+                )
+            except RECOVERABLE_THERMOMETER_EXCEPTIONS as exc:
+                self._raw_audit_repo.log(
+                    _build_market_audit(
+                        provider_name=provider.provider_name(),
+                        capability="market_thermometer_sync",
+                        request_params={
+                            "indicator_code": requested_indicator_code,
+                            "start": start_date.isoformat(),
+                            "end": end_date.isoformat(),
+                            "verification": "multi_source",
+                        },
+                        status="error",
+                        row_count=0,
+                        error_message=str(exc),
+                    )
+                )
+                results.append(
+                    {
+                        "component": component_key,
+                        "provider": provider.provider_name(),
+                        "stored_count": 0,
+                        "status": "error",
+                        "error": str(exc),
+                    }
+                )
+
+        if not candidates:
+            return results
+
+        consensus = self._build_consensus_fact(
+            candidates=candidates,
+            candidate_meta=candidate_meta,
+            indicator_code=output_indicator_code,
+            extra=consensus_extra,
+            verification_status_override=verification_status_override,
+        )
+        if consensus is None:
+            self._raw_audit_repo.log(
+                _build_market_audit(
+                    provider_name=MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                    capability="market_thermometer_sync",
+                    request_params={
+                        "indicator_code": requested_indicator_code,
+                        "start": start_date.isoformat(),
+                        "end": end_date.isoformat(),
+                        "verification": "multi_source",
+                        "candidates": candidate_meta,
+                    },
+                    status="mismatch",
+                    row_count=0,
+                    error_message="ETF net flow source deviation exceeded tolerance",
+                )
+            )
+            results.append(
+                {
+                    "component": component_key,
+                    "provider": MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                    "stored_count": 0,
+                    "status": "mismatch",
+                    "tolerance": MARKET_THERMOMETER_SOURCE_TOLERANCE,
+                }
+            )
+            return results
+
+        stored_count = self._macro_repo.bulk_upsert([consensus])
+        self._raw_audit_repo.log(
+            _build_market_audit(
+                provider_name=MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                capability="market_thermometer_sync",
+                request_params={
+                    "indicator_code": consensus.indicator_code,
+                    "input_indicator_code": requested_indicator_code,
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                    "verification": consensus.extra.get("verification_status"),
+                    "candidates": candidate_meta,
+                },
+                status="ok",
+                row_count=stored_count,
+            )
+        )
+        results.append(
+            {
+                "component": component_key,
+                "provider": MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                "stored_count": stored_count,
+                "status": "success",
+                "verification_status": consensus.extra.get("verification_status"),
+            }
+        )
+        return results
+
+    def _build_consensus_fact(
+        self,
+        *,
+        candidates: list[MacroFact],
+        candidate_meta: list[dict[str, Any]],
+        indicator_code: str | None = None,
+        extra: dict[str, Any] | None = None,
+        verification_status_override: str | None = None,
+    ) -> MacroFact | None:
+        """Build a canonical fact when providers agree within tolerance."""
+
+        latest_period = max(item.reporting_period for item in candidates)
+        comparable = [item for item in candidates if item.reporting_period == latest_period]
+        values = [float(item.value) for item in comparable]
+        if len(values) >= 2:
+            max_abs = max(abs(value) for value in values)
+            denominator = max(max_abs, 1.0)
+            relative_spread = (max(values) - min(values)) / denominator
+            if relative_spread > MARKET_THERMOMETER_SOURCE_TOLERANCE:
+                return None
+            verification_status = "verified"
+        else:
+            relative_spread = None
+            verification_status = "single_source"
+        if verification_status_override is not None:
+            verification_status = verification_status_override
+
+        primary = comparable[0]
+        return dataclasses.replace(
+            primary,
+            indicator_code=indicator_code or primary.indicator_code,
+            source=MARKET_THERMOMETER_CONSENSUS_SOURCE,
+            extra={
+                **dict(getattr(primary, "extra", {}) or {}),
+                **dict(extra or {}),
+                "source_type": MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                "provider_name": MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                "verification_status": verification_status,
+                "source_tolerance": MARKET_THERMOMETER_SOURCE_TOLERANCE,
+                "relative_spread": relative_spread,
+                "candidates": candidate_meta,
+            },
+        )
+
     def _component_sync_window(
         self,
         component_key: str,
@@ -526,6 +825,8 @@ class SyncMarketThermometerInputsUseCase:
         spec = MARKET_COMPONENT_SPECS[component_key]
         if spec.get("frequency") == "M":
             return target_date - timedelta(days=365 * 3), target_date
+        if component_key == "etf_net_flow":
+            return target_date - timedelta(days=7), target_date
         return target_date, target_date
 
     def _resolve_provider(self, source_types: tuple[str, ...]):

@@ -124,6 +124,47 @@ class _NoDataProvider:
 
 
 class _RealDataProvider:
+    def __init__(self, value: float = 123.0, name: str = "Tushare Pro") -> None:
+        self.value = value
+        self.name = name
+
+    def provider_name(self) -> str:
+        return self.name
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del start, end
+        return [_macro_fact(indicator_code, date(2026, 5, 19), self.value, "元")]
+
+
+class _NamedRealDataProvider:
+    def __init__(self, name: str, value: float) -> None:
+        self.name = name
+        self.value = value
+
+    def provider_name(self) -> str:
+        return self.name
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del start, end
+        return [_macro_fact(indicator_code, date(2026, 5, 19), self.value, "元")]
+
+
+class _SelectiveProvider:
+    def __init__(self, name: str, values: dict[str, float]) -> None:
+        self.name = name
+        self.values = values
+
+    def provider_name(self) -> str:
+        return self.name
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del start, end
+        if indicator_code not in self.values:
+            return []
+        return [_macro_fact(indicator_code, date(2026, 5, 19), self.values[indicator_code], "元")]
+
+
+class _OriginalRealDataProvider:
     def provider_name(self) -> str:
         return "Tushare Pro"
 
@@ -199,10 +240,16 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
 
-    successes = [item for item in payload["results"] if item["status"] == "success"]
+    successes = [
+        item
+        for item in payload["results"]
+        if item["status"] == "success" and item["component"] != "etf_net_flow"
+    ]
     assert successes
     assert all(item["provider"] == "Tushare Pro" for item in successes)
-    assert {fact.source for fact in macro_repo.stored} == {"tushare"}
+    assert {
+        fact.source for fact in macro_repo.stored if fact.indicator_code != "CN_A_ETF_NET_FLOW"
+    } == {"tushare"}
 
 
 def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_window():
@@ -233,6 +280,173 @@ def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_w
         for fact in macro_repo.stored
         if fact.indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS"
     ] == [date(2026, 3, 31), date(2026, 4, 30)]
+
+
+def test_sync_market_thermometer_inputs_fetches_etf_net_flow_with_recent_window():
+    macro_repo = _FakeMacroRepo(series_map={})
+    provider = _WindowAwareProvider()
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    use_case.execute(as_of_date=date(2026, 6, 8))
+
+    etf_requests = [
+        item
+        for item in provider.requests
+        if item[0] in {"CN_A_ETF_NET_FLOW_MAIN", "CN_A_ETF_SIZE_FLOW"}
+    ]
+    assert etf_requests == [
+        ("CN_A_ETF_NET_FLOW_MAIN", date(2026, 6, 1), date(2026, 6, 8))
+    ]
+
+
+def test_sync_etf_net_flow_stores_consensus_when_sources_match():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "eastmoney", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
+                2: _SelectiveProvider("EastMoney", {"CN_A_ETF_NET_FLOW_MAIN": 100.5}),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    consensus_rows = [
+        item
+        for item in payload["results"]
+        if item["component"] == "etf_net_flow" and item["provider"] == "data_center_consensus"
+    ]
+    assert consensus_rows == [
+        {
+            "component": "etf_net_flow",
+            "provider": "data_center_consensus",
+            "stored_count": 1,
+            "status": "success",
+            "verification_status": "verified",
+        }
+    ]
+    stored = [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
+    assert len(stored) == 1
+    assert stored[0].source == "data_center_consensus"
+    assert stored[0].value == 100.0
+    assert stored[0].extra["verification_status"] == "verified"
+    assert stored[0].extra["primary_indicator"] == "CN_A_ETF_NET_FLOW_MAIN"
+    assert len(stored[0].extra["candidates"]) == 2
+
+
+def test_sync_etf_net_flow_rejects_mismatched_sources():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "eastmoney", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
+                2: _SelectiveProvider("EastMoney", {"CN_A_ETF_NET_FLOW_MAIN": 130.0}),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    assert not [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
+    assert any(
+        item["component"] == "etf_net_flow"
+        and item["provider"] == "data_center_consensus"
+        and item["status"] == "mismatch"
+        for item in payload["results"]
+    )
+
+
+def test_sync_etf_net_flow_marks_single_source_when_only_one_provider_returns_data():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "eastmoney", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
+                2: _NoDataProvider(),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    stored = [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
+    assert len(stored) == 1
+    assert stored[0].extra["verification_status"] == "single_source"
+    assert any(
+        item["component"] == "etf_net_flow"
+        and item["provider"] == "data_center_consensus"
+        and item["verification_status"] == "single_source"
+        for item in payload["results"]
+    )
+
+
+def test_sync_etf_net_flow_falls_back_to_size_flow_proxy():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "tushare", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _NoDataProvider(),
+                2: _SelectiveProvider("Tushare Pro", {"CN_A_ETF_SIZE_FLOW": 88.0}),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    stored = [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_NET_FLOW"]
+    assert len(stored) == 1
+    assert stored[0].value == 88.0
+    assert stored[0].extra["verification_status"] == "fallback_proxy"
+    assert stored[0].extra["proxy_indicator"] == "CN_A_ETF_SIZE_FLOW"
+    assert any(
+        item["component"] == "etf_net_flow"
+        and item["provider"] == "data_center_consensus"
+        and item["verification_status"] == "fallback_proxy"
+        for item in payload["results"]
+    )
 
 
 def test_build_current_payload_applies_user_override_band():

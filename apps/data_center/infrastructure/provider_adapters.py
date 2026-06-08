@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import logging
 from calendar import monthrange
-from datetime import UTC, date, datetime
-from time import perf_counter
+from datetime import UTC, date, datetime, timedelta
+from time import perf_counter, sleep
 from typing import Any
 
 import requests
@@ -334,6 +334,10 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             return self._fetch_margin_balance(start_date, end_date)
         if indicator_code == "CN_A_ETF_NET_FLOW":
             return []
+        if indicator_code == "CN_A_ETF_NET_FLOW_MAIN":
+            return []
+        if indicator_code == "CN_A_ETF_SIZE_FLOW":
+            return self._fetch_etf_size_flow(start_date, end_date)
 
         adapter = build_tushare_macro_adapter(
             token=self._config.api_key,
@@ -458,6 +462,86 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             )
             for observed_at, value in sorted(rows_by_date.items())
         ]
+
+    def _fetch_etf_size_flow(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fetch ETF net flow proxy from Tushare ETF daily size deltas."""
+
+        from shared.infrastructure.tushare_client import create_tushare_pro_client
+
+        pro = create_tushare_pro_client(token=self._config.api_key, http_url=self._config.http_url)
+        trade_dates = self._fetch_tushare_open_dates(pro, start_date, end_date)
+        if len(trade_dates) < 2:
+            return []
+
+        facts: list[MacroFact] = []
+        for previous_date, current_date in zip(trade_dates, trade_dates[1:], strict=False):
+            previous_size = self._fetch_tushare_etf_total_size(pro, previous_date)
+            current_size = self._fetch_tushare_etf_total_size(pro, current_date)
+            if previous_size is None or current_size is None:
+                continue
+            facts.append(
+                MacroFact(
+                    indicator_code="CN_A_ETF_SIZE_FLOW",
+                    reporting_period=current_date,
+                    value=(current_size - previous_size) * 10_000.0,
+                    unit="元",
+                    source=self.provider_source(),
+                    published_at=current_date,
+                    quality=DataQualityStatus.VALID,
+                    extra=self._provider_extra(
+                        {
+                            "proxy": "tushare_etf_share_size_delta",
+                            "flow_method": "etf_size_delta",
+                            "original_unit": "万元",
+                            "previous_trade_date": previous_date.isoformat(),
+                            "current_total_size_wan": current_size,
+                            "previous_total_size_wan": previous_size,
+                        }
+                    ),
+                )
+            )
+        return facts
+
+    def _fetch_tushare_open_dates(self, pro: Any, start_date: date, end_date: date) -> list[date]:
+        lookback_start = start_date - timedelta(days=10)
+        df = pro.trade_cal(
+            exchange="SSE",
+            start_date=lookback_start.strftime("%Y%m%d"),
+            end_date=end_date.strftime("%Y%m%d"),
+        )
+        if df is None or df.empty:
+            return []
+        dates: list[date] = []
+        for row in df.to_dict("records"):
+            is_open = str(_first_present(row, "is_open") or "").strip()
+            if is_open not in {"1", "1.0", "True", "true"}:
+                continue
+            trade_date = _safe_date(_first_present(row, "cal_date", "trade_date"))
+            if trade_date is not None and trade_date <= end_date:
+                dates.append(trade_date)
+        return sorted(set(dates))
+
+    def _fetch_tushare_etf_total_size(self, pro: Any, trade_date: date) -> float | None:
+        total_size = 0.0
+        seen_rows = 0
+        for exchange in ("SSE", "SZSE"):
+            df = pro.etf_share_size(
+                trade_date=trade_date.strftime("%Y%m%d"),
+                exchange=exchange,
+            )
+            if df is None or df.empty:
+                continue
+            for row in df.to_dict("records"):
+                value = _safe_float(_first_present(row, "total_size"))
+                if value is None:
+                    continue
+                total_size += value
+                seen_rows += 1
+        return total_size if seen_rows else None
 
     def fetch_price_history(
         self,
@@ -659,8 +743,10 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             return self._fetch_market_turnover(start_date, end_date)
         if indicator_code == "CN_A_MARGIN_BALANCE":
             return self._fetch_margin_balance(start_date, end_date)
-        if indicator_code == "CN_A_ETF_NET_FLOW":
-            return self._fetch_etf_net_flow(start_date, end_date)
+        if indicator_code in {"CN_A_ETF_NET_FLOW", "CN_A_ETF_NET_FLOW_MAIN"}:
+            return self._fetch_etf_net_flow(start_date, end_date, indicator_code=indicator_code)
+        if indicator_code == "CN_A_ETF_SIZE_FLOW":
+            return []
         if indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS":
             return self._fetch_new_investor_accounts(start_date, end_date)
 
@@ -777,6 +863,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         self,
         start_date: date,
         end_date: date,
+        *,
+        indicator_code: str = "CN_A_ETF_NET_FLOW",
     ) -> list[MacroFact]:
         """Fetch market-wide ETF net flow from the latest ETF spot snapshot."""
 
@@ -785,21 +873,32 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
-        ak = get_akshare_module()
-        with _eastmoney_direct_network():
-            df = ak.fund_etf_spot_em()
-        if df is None or df.empty:
+        records: list[dict[str, Any]] = []
+        proxy_name = "fund_etf_spot_em"
+        try:
+            ak = get_akshare_module()
+            with _eastmoney_direct_network():
+                df = ak.fund_etf_spot_em()
+            if df is not None and not df.empty:
+                records = df.to_dict("records")
+        except (ConnectionError, OSError, RuntimeError, TimeoutError, TypeError, ValueError) as exc:
+            logger.warning("AKShare ETF spot fetch failed, trying EastMoney direct: %s", exc)
+
+        if not records:
+            records = self._fetch_etf_spot_records_direct()
+            proxy_name = "eastmoney_clist_get"
+
+        if not records:
             return []
 
-        records = df.to_dict("records")
         observed_at: date | None = None
         total_flow = 0.0
         for row in records:
-            current_date = _safe_date(_first_present(row, "数据日期"))
+            current_date = _safe_date(_first_present(row, "数据日期", "f297"))
             if current_date is None:
                 continue
             observed_at = current_date if observed_at is None else max(observed_at, current_date)
-            flow = _safe_float(_first_present(row, "主力净流入-净额"))
+            flow = _safe_float(_first_present(row, "主力净流入-净额", "f62"))
             if flow is not None:
                 total_flow += flow
 
@@ -808,15 +907,106 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         return [
             MacroFact(
-                indicator_code="CN_A_ETF_NET_FLOW",
+                indicator_code=indicator_code,
                 reporting_period=observed_at,
                 value=total_flow,
                 unit="元",
                 source=self.provider_source(),
                 quality=DataQualityStatus.VALID,
-                extra=self._provider_extra({"proxy": "fund_etf_spot_em"}),
+                extra=self._provider_extra({"proxy": proxy_name}),
             )
         ]
+
+    def _fetch_etf_spot_records_direct(self) -> list[dict[str, Any]]:
+        """Fetch ETF spot rows directly from EastMoney when AKShare is unavailable."""
+
+        urls = (
+            "https://88.push2.eastmoney.com/api/qt/clist/get",
+            "https://82.push2.eastmoney.com/api/qt/clist/get",
+            "https://push2.eastmoney.com/api/qt/clist/get",
+        )
+        base_params = {
+            "po": "1",
+            "np": "1",
+            "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+            "fltt": "2",
+            "invt": "2",
+            "wbp2u": "|0|0|0|web",
+            "fid": "f12",
+            "fs": "b:MK0021,b:MK0022,b:MK0023,b:MK0024,b:MK0827",
+            "fields": "f12,f14,f62,f297,f124",
+            "pz": "500",
+        }
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+            ),
+            "Referer": "https://quote.eastmoney.com/center/gridlist.html",
+            "Accept": "application/json,text/plain,*/*",
+        }
+
+        def _fetch_pages(url: str) -> list[dict[str, Any]]:
+            page = 1
+            records: list[dict[str, Any]] = []
+            total: int | None = None
+            while total is None or len(records) < total:
+                params = {**base_params, "pn": str(page)}
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                payload = response.json()
+                data = payload.get("data") or {}
+                diff = data.get("diff") or []
+                if not isinstance(diff, list) or not diff:
+                    break
+                if total is None:
+                    try:
+                        total = int(data.get("total") or len(diff))
+                    except (TypeError, ValueError):
+                        total = len(diff)
+                records.extend([row for row in diff if isinstance(row, dict)])
+                page += 1
+            return records
+
+        def _fetch_with_retries() -> list[dict[str, Any]]:
+            last_error: requests.RequestException | None = None
+            for attempt in range(1, 4):
+                for url in urls:
+                    try:
+                        records = _fetch_pages(url)
+                        if records:
+                            return records
+                    except requests.RequestException as exc:
+                        last_error = exc
+                        logger.warning(
+                            "EastMoney ETF direct fetch failed: url=%s attempt=%d error=%s",
+                            url,
+                            attempt,
+                            exc,
+                        )
+                if attempt < 3:
+                    sleep(1.5 * attempt)
+            if last_error is not None:
+                raise last_error
+            return []
+
+        try:
+            return _fetch_with_retries()
+        except requests.RequestException as exc:
+            logger.warning(
+                "EastMoney ETF direct fetch exhausted default network, retrying without proxy: %s",
+                exc,
+            )
+
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _eastmoney_direct_network,
+        )
+
+        try:
+            with _eastmoney_direct_network():
+                return _fetch_with_retries()
+        except requests.RequestException as exc:
+            raise ConnectionError(str(exc)) from exc
 
     def _fetch_new_investor_accounts(
         self,

@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pandas as pd
+import requests
 
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure.provider_adapters import (
@@ -106,6 +107,52 @@ def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
     assert facts[0].extra["source_type"] == "tushare"
 
 
+def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(monkeypatch):
+    class _FakePro:
+        def trade_cal(self, exchange, start_date, end_date):
+            assert exchange == "SSE"
+            assert start_date == "20260522"
+            assert end_date == "20260601"
+            return pd.DataFrame(
+                [
+                    {"cal_date": "20260529", "is_open": 1},
+                    {"cal_date": "20260530", "is_open": 0},
+                    {"cal_date": "20260601", "is_open": 1},
+                ]
+            )
+
+        def etf_share_size(self, trade_date, exchange):
+            values = {
+                ("20260529", "SSE"): [100.0, 200.0],
+                ("20260529", "SZSE"): [50.0],
+                ("20260601", "SSE"): [110.0, 220.0],
+                ("20260601", "SZSE"): [70.0],
+            }
+            return pd.DataFrame(
+                [{"total_size": value} for value in values.get((trade_date, exchange), [])]
+            )
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda token=None, http_url=None: _FakePro(),
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Proxy"))
+    facts = adapter.fetch_macro_series(
+        "CN_A_ETF_SIZE_FLOW",
+        date(2026, 6, 1),
+        date(2026, 6, 1),
+    )
+
+    assert len(facts) == 1
+    assert facts[0].indicator_code == "CN_A_ETF_SIZE_FLOW"
+    assert facts[0].reporting_period == date(2026, 6, 1)
+    assert facts[0].value == 500_000.0
+    assert facts[0].unit == "元"
+    assert facts[0].extra["proxy"] == "tushare_etf_share_size_delta"
+    assert facts[0].extra["flow_method"] == "etf_size_delta"
+
+
 def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
     class _FakeGateway:
         def get_capital_flows(self, asset_code, period="5d"):
@@ -137,6 +184,101 @@ def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
     assert facts[0].source == "akshare"
     assert facts[0].extra["provider_name"] == "akshare-main"
     assert facts[0].extra["source_type"] == "akshare"
+
+
+def test_akshare_etf_net_flow_falls_back_to_eastmoney_direct(monkeypatch):
+    class _BrokenAkshare:
+        def fund_etf_spot_em(self):
+            raise ConnectionError("remote closed")
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": {
+                    "total": 2,
+                    "diff": [
+                        {"f12": "510300", "f14": "沪深300ETF", "f62": 1200.5, "f297": 20260605},
+                        {"f12": "159915", "f14": "创业板ETF", "f62": -200.0, "f297": 20260605},
+                    ],
+                }
+            }
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _BrokenAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        lambda *args, **kwargs: _Response(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series(
+        "CN_A_ETF_NET_FLOW",
+        date(2026, 6, 1),
+        date(2026, 6, 8),
+    )
+
+    assert len(facts) == 1
+    assert facts[0].indicator_code == "CN_A_ETF_NET_FLOW"
+    assert facts[0].reporting_period == date(2026, 6, 5)
+    assert facts[0].value == 1000.5
+    assert facts[0].unit == "元"
+    assert facts[0].source == "akshare"
+    assert facts[0].extra["proxy"] == "eastmoney_clist_get"
+
+
+def test_akshare_etf_net_flow_retries_eastmoney_direct(monkeypatch):
+    class _BrokenAkshare:
+        def fund_etf_spot_em(self):
+            raise ConnectionError("remote closed")
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": {
+                    "total": 1,
+                    "diff": [
+                        {"f12": "510300", "f14": "沪深300ETF", "f62": 1200.5, "f297": 20260605},
+                    ],
+                }
+            }
+
+    calls = {"count": 0}
+
+    def _flaky_get(*args, **kwargs):
+        del args, kwargs
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise requests.ConnectionError("remote closed")
+        return _Response()
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _BrokenAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        _flaky_get,
+    )
+    monkeypatch.setattr("apps.data_center.infrastructure.provider_adapters.sleep", lambda delay: None)
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series(
+        "CN_A_ETF_NET_FLOW",
+        date(2026, 6, 1),
+        date(2026, 6, 8),
+    )
+
+    assert calls["count"] == 3
+    assert len(facts) == 1
+    assert facts[0].value == 1200.5
 
 
 def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
