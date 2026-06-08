@@ -20,7 +20,7 @@ PULSE_MACRO_SYNC_INDICATORS = (
     "CN_CPI_NATIONAL_YOY",
     "CN_SHIBOR",
     "CN_LPR",
-    "CN_M2",
+    "CN_M2_YOY",
 )
 
 

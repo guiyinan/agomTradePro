@@ -3,7 +3,11 @@ from datetime import date
 import pytest
 
 from apps.data_center.infrastructure.models import MacroFactModel, PriceBarModel
-from apps.pulse.infrastructure.data_provider import DjangoPulseDataProvider
+from apps.pulse.infrastructure.data_provider import (
+    DEFAULT_PULSE_INDICATORS,
+    DjangoPulseDataProvider,
+    PulseIndicatorDef,
+)
 from apps.pulse.infrastructure.models import PulseIndicatorConfigModel
 
 
@@ -106,3 +110,41 @@ def test_pulse_data_provider_reads_asset_code_from_data_center_price_bars():
     assert len(readings) == 1
     assert readings[0].code == "000300.SH"
     assert readings[0].value == 3925.5
+
+
+def test_default_pulse_indicators_use_m2_yoy_not_balance_level():
+    codes = {indicator.code for indicator in DEFAULT_PULSE_INDICATORS}
+
+    assert "CN_M2_YOY" in codes
+    assert "CN_M2" not in codes
+
+    m2_yoy = next(
+        indicator for indicator in DEFAULT_PULSE_INDICATORS if indicator.code == "CN_M2_YOY"
+    )
+    assert m2_yoy.signal_type == "level"
+    assert m2_yoy.bullish_threshold == 8.0
+    assert m2_yoy.bearish_threshold == 6.0
+
+    new_credit = next(
+        indicator for indicator in DEFAULT_PULSE_INDICATORS if indicator.code == "CN_NEW_CREDIT"
+    )
+    assert new_credit.bullish_threshold == 3.0e12
+    assert new_credit.bearish_threshold == 1.0e12
+
+
+def test_level_signal_is_consistent_at_bullish_boundary():
+    provider = DjangoPulseDataProvider()
+    indicator = PulseIndicatorDef(
+        code="CN_PMI",
+        name="制造业PMI",
+        dimension="growth",
+        frequency="monthly",
+        signal_type="level",
+        bullish_threshold=50.0,
+        bearish_threshold=49.0,
+    )
+
+    signal, score = provider._signal_by_level(indicator, 50.0)
+
+    assert signal == "bullish"
+    assert score == 1.0
