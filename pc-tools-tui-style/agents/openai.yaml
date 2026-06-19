@@ -1,0 +1,4 @@
+interface:
+  display_name: "PC Tools TUI Style"
+  short_description: "生成复古 DOS 风格监管档案 TUI 单页页面模板"
+  default_prompt: "Use $pc-tools-tui-style to turn structured regulatory notes into a DOS-style interactive HTML archive."

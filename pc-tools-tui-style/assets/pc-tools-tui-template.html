@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Tools TUI Archive Template</title>
+    <style>
+        :root {
+            --dos-blue: #001a8d;
+            --dos-blue-deep: #000b55;
+            --dos-cyan: #00ffff;
+            --dos-yellow: #ffff00;
+            --dos-white: #ffffff;
+            --dos-gray: #c0c0c0;
+            --dos-gray-dark: #505050;
+            --dos-black: #000000;
+            --dos-red: #ff4040;
+            --dos-green: #00ff80;
+            --screen-gutter: 12px;
+            --menubar-height: 44px;
+            --footer-height: 42px;
+        }
+
+        * { box-sizing: border-box; }
+        html { min-height: 100%; background: var(--dos-blue); }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 3px), var(--dos-blue);
+            color: var(--dos-white);
+            font-family: Consolas, "Lucida Console", "Courier New", monospace;
+            font-size: 18px;
+            line-height: 1.5;
+            letter-spacing: 0;
+            overflow: hidden;
+        }
+        button, input, select { font: inherit; letter-spacing: 0; }
+        .tui-menubar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            height: var(--menubar-height);
+            display: grid;
+            grid-template-columns: minmax(300px, 1fr) auto minmax(300px, 1fr);
+            align-items: center;
+            gap: 12px;
+            padding: 7px var(--screen-gutter);
+            color: var(--dos-black);
+            background: var(--dos-gray);
+            border-bottom: 2px solid var(--dos-black);
+            box-shadow: inset 0 1px var(--dos-white), inset 0 -1px var(--dos-gray-dark);
+        }
+        .menu-left, .menu-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .menu-right { justify-content: flex-end; }
+        .menu-title { color: var(--dos-blue-deep); font-weight: 700; white-space: nowrap; }
+        .result-counter { color: var(--dos-yellow); background: var(--dos-blue); padding: 1px 6px; box-shadow: 1px 1px 0 var(--dos-black); white-space: nowrap; }
+        .tui-shell {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            gap: 12px;
+            padding: var(--screen-gutter);
+            height: calc(100vh - var(--menubar-height) - var(--footer-height));
+            overflow: hidden;
+            max-width: 1560px;
+            margin: 0 auto;
+        }
+        .tui-panel {
+            position: relative;
+            background: var(--dos-blue-deep);
+            border: 2px double var(--dos-cyan);
+            box-shadow: 2px 2px 0 var(--dos-black), inset 1px 1px 0 rgba(255,255,255,0.2);
+        }
+        .tui-panel-title {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--dos-yellow);
+            background: var(--dos-blue-deep);
+            border-bottom: 1px solid var(--dos-cyan);
+            padding: 7px 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .tui-sidebar { align-self: stretch; min-height: 0; overflow: auto; }
+        .filter-group { padding: 10px; border-bottom: 1px dotted var(--dos-cyan); }
+        .filter-group:last-child { border-bottom: 0; }
+        .filter-label { color: var(--dos-yellow); margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .filter-grid { display: grid; gap: 4px; }
+        .filter-grid.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .tui-choice, .reset-btn, .empty-reset {
+            width: 100%;
+            color: var(--dos-white);
+            background: var(--dos-blue);
+            border: 0;
+            border-left: 1px solid var(--dos-cyan);
+            border-top: 1px solid var(--dos-cyan);
+            border-right: 1px solid var(--dos-black);
+            border-bottom: 1px solid var(--dos-black);
+            padding: 5px 8px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .tui-choice:hover, .reset-btn:hover, .empty-reset:hover, .tui-choice.active { color: var(--dos-black); background: var(--dos-yellow); }
+        .tui-choice::before { content: "[ ] "; color: var(--dos-cyan); }
+        .tui-choice.active::before { content: "[X] "; color: var(--dos-red); }
+        .type-choice[data-value="all"]::before, .type-choice.active[data-value="all"]::before { content: "(*) "; color: var(--dos-red); }
+        .search-input { width: 100%; color: var(--dos-yellow); background: var(--dos-black); border: 1px solid var(--dos-cyan); padding: 7px 9px; outline: none; }
+        .search-input:focus { box-shadow: 0 0 0 1px var(--dos-yellow); }
+        .tui-select {
+            width: 100%;
+            color: var(--dos-yellow);
+            background: var(--dos-black);
+            border: 1px solid var(--dos-cyan);
+            padding: 7px 9px;
+            outline: none;
+            box-shadow: inset 1px 1px 0 rgba(255,255,255,0.18), 1px 1px 0 var(--dos-black);
+            cursor: pointer;
+        }
+        .tui-select:focus { box-shadow: 0 0 0 1px var(--dos-yellow), inset 1px 1px 0 rgba(255,255,255,0.18); }
+        .tui-select option { color: var(--dos-yellow); background: var(--dos-black); }
+        .legend { display: grid; gap: 4px; color: var(--dos-gray); }
+        .legend-row { display: flex; justify-content: space-between; gap: 8px; }
+        .legend-value { color: var(--dos-white); }
+        .tui-main { min-width: 0; min-height: 0; overflow: auto; }
+        .entry-list-body { padding: 10px; }
+        .year-header, .month-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--dos-black);
+            background: var(--dos-gray);
+            padding: 4px 9px;
+            margin: 10px 0 8px;
+            box-shadow: inset 1px 1px 0 var(--dos-white), inset -1px -1px 0 var(--dos-gray-dark);
+            font-weight: 700;
+        }
+        .year-header { color: var(--dos-yellow); background: #0040a8; border: 1px solid var(--dos-cyan); box-shadow: none; }
+        .month-header { margin-left: 14px; }
+        .tui-entry { margin: 0 0 10px 30px; border: 1px solid var(--dos-cyan); background: #002070; }
+        .tui-entry.type-group-a { border-color: var(--dos-red); }
+        .tui-entry.type-group-b { border-color: var(--dos-cyan); }
+        .entry-toggle {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 24px 122px 96px minmax(0, 1fr) 112px;
+            gap: 10px;
+            align-items: start;
+            border: 0;
+            color: var(--dos-white);
+            background: transparent;
+            padding: 7px 9px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .entry-toggle:hover { color: var(--dos-black); background: var(--dos-cyan); }
+        .entry-date { color: var(--dos-yellow); white-space: nowrap; }
+        .entry-type { color: var(--dos-green); white-space: nowrap; }
+        .entry-title { min-width: 0; }
+        .entry-count { color: var(--dos-cyan); text-align: right; white-space: nowrap; }
+        .entry-toggle:hover .entry-date, .entry-toggle:hover .entry-type, .entry-toggle:hover .entry-count { color: var(--dos-black); }
+        .entry-body { border-top: 1px dotted var(--dos-cyan); padding: 8px 10px 10px; }
+        .tui-entry.collapsed .entry-body { display: none; }
+        .tui-entry.collapsed .entry-cursor { transform: rotate(0deg); display: inline-block; }
+        .tui-entry:not(.collapsed) .entry-cursor { transform: rotate(90deg); display: inline-block; }
+        .entry-meta-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.65fr); gap: 12px; color: var(--dos-gray); margin-bottom: 7px; }
+        .item-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+        .item-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) minmax(220px, 0.34fr); gap: 12px; padding: 5px 0; border-top: 1px dotted rgba(0, 255, 255, 0.35); }
+        body.hide-entry-tags .entry-meta-row { grid-template-columns: 1fr; }
+        body.hide-item-tags .item-row { grid-template-columns: 42px minmax(0, 1fr); }
+        .item-no { color: var(--dos-yellow); }
+        .item-text { color: var(--dos-white); }
+        .item-tags { color: var(--dos-cyan); }
+        .empty-state { display: none; margin: 22px; padding: 18px; color: var(--dos-yellow); background: var(--dos-blue-deep); border: 2px double var(--dos-yellow); text-align: center; }
+        .empty-state.visible { display: block; }
+        .empty-reset { width: auto; margin-top: 10px; }
+        .tui-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 60;
+            display: flex;
+            flex-wrap: nowrap;
+            min-height: var(--footer-height);
+            max-height: var(--footer-height);
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: var(--dos-gray);
+            color: var(--dos-black);
+            border-top: 2px solid var(--dos-white);
+            box-shadow: 0 -2px 0 var(--dos-black);
+        }
+        .footer-key { padding: 6px 12px; border-right: 1px solid var(--dos-gray-dark); white-space: nowrap; }
+        .footer-key strong { color: var(--dos-blue); }
+        [hidden] { display: none !important; }
+        @media (max-width: 980px) {
+            body { font-size: 16px; overflow: auto; padding-bottom: 86px; }
+            .tui-menubar { grid-template-columns: 1fr; gap: 4px; position: static; height: auto; }
+            .menu-left, .menu-right { flex-wrap: wrap; justify-content: flex-start; }
+            .tui-shell { grid-template-columns: 1fr; height: auto; overflow: visible; }
+            .tui-sidebar { position: static; max-height: none; }
+            .tui-main, .tui-sidebar { overflow: visible; }
+            .tui-panel-title { position: static; }
+            .entry-toggle { grid-template-columns: 22px 112px 86px minmax(0, 1fr); }
+            .entry-count { grid-column: 2 / -1; text-align: left; }
+            .entry-meta-row, .item-row { grid-template-columns: 1fr; }
+            .tui-entry { margin-left: 0; }
+            .month-header { margin-left: 0; }
+        }
+        @media (max-width: 560px) {
+            body { font-size: 15px; padding-bottom: 86px; }
+            .filter-grid.compact { grid-template-columns: 1fr; }
+            .entry-toggle { grid-template-columns: 16px 1fr; }
+            .entry-date, .entry-type, .entry-title, .entry-count { grid-column: 2 / -1; }
+            .tui-footer { max-height: 78px; overflow: auto; }
+        }
+    </style>
+</head>
+<body>
+    <header class="tui-menubar">
+        <div class="menu-left">
+            <span class="menu-title" id="pageTitle">TUI 信息索引模板</span>
+        </div>
+        <div class="result-counter" id="resultCounter">0 files / 0 items</div>
+        <div class="menu-right" id="systemStatus"></div>
+    </header>
+
+    <div class="tui-shell">
+        <aside class="tui-sidebar tui-panel" aria-label="过滤面板">
+            <div class="tui-panel-title"><span id="sidebarTitle">FILTER INDEX</span><span>ALT-F</span></div>
+            <div class="filter-group">
+                <div class="filter-label"><span>TYPE</span><span>F2</span></div>
+                <div class="filter-grid" id="typeFilters"></div>
+            </div>
+            <div class="filter-group">
+                <div class="filter-label"><span>YEAR</span><span>F3</span></div>
+                <div class="filter-grid compact" id="yearFilters"></div>
+            </div>
+            <div class="filter-group">
+                <div class="filter-label"><span>MONTH</span><span>JUMP</span></div>
+                <select class="tui-select" id="monthSelect" aria-label="月份跳转"></select>
+                <div class="filter-grid compact" id="monthFilters"></div>
+            </div>
+            <div class="filter-group" id="tagFilterGroup">
+                <div class="filter-label"><span>TAGS</span><span>F4</span></div>
+                <div class="filter-grid" id="tagFilters"></div>
+            </div>
+            <div class="filter-group">
+                <div class="filter-label"><span>QUERY STRING</span><span>F5 / /</span></div>
+                <input class="search-input" id="searchInput" type="search" autocomplete="off" placeholder="输入关键词">
+            </div>
+            <div class="filter-group">
+                <button class="reset-btn" type="button" id="resetFilters">F9 RESET FILTERS</button>
+            </div>
+            <div class="filter-group legend" id="legendBlock"></div>
+        </aside>
+
+        <main class="tui-main tui-panel" aria-label="条目列表">
+            <div class="tui-panel-title"><span id="mainTitle">GROUPED ITEM SET</span><span id="activeSummary">ALL ENTRIES</span></div>
+            <div class="entry-list-body" id="entryListBody"></div>
+        </main>
+    </div>
+
+    <footer class="tui-footer" id="footerBar"></footer>
+
+    <script>
+        const reportData = {
+            "config": {
+                "title": "TUI 信息索引模板",
+                "sidebarTitle": "FILTER INDEX",
+                "mainTitle": "GROUPED ITEM SET",
+                "status": ["NODE: TEMPLATE", "STORE: JSON_DATA", "STATUS: DEMO"],
+                "footer": ["F1 帮助", "F2 类型", "F3 年份", "F4 标签", "F5 搜索", "F9 重置", "/ 搜索", "ESC 清空", "R 重置", "IDX READY"],
+                "searchPlaceholder": "输入关键词",
+                "emptyTitle": "NO MATCHING ENTRIES FOUND",
+                "emptySubtitle": "未找到匹配条目"
+            },
+            "filters": {
+                "typeOrder": ["group-a", "group-b"],
+                "tagOrder": []
+            },
+            "records": [
+                {
+                    "id": "entry-template-1",
+                    "date": "2026-01-08",
+                    "type": "group-a",
+                    "typeLabel": "分组A",
+                    "title": "示例条目一",
+                    "source": "元信息占位",
+                    "tags": ["标签A", "标签B", "标签C"],
+                    "raw": {
+                        "原始分类": "示例分类",
+                        "原始标签": ["标签A", "标签B", "标签C"],
+                        "备注": "raw 可保留原始结构化字段，全文搜索会覆盖这些字段。"
+                    },
+                    "items": [
+                        { "text": "示例子项文本一，用于展示列表样式", "tags": ["标签A", "标签B"], "raw": { "字段": "原始值一" } },
+                        { "text": "示例子项文本二，用于展示筛选效果", "tags": ["标签C"], "raw": { "字段": "原始值二" } }
+                    ]
+                },
+                {
+                    "id": "entry-template-2",
+                    "date": "2025-12-18",
+                    "type": "group-b",
+                    "typeLabel": "分组B",
+                    "title": "示例条目二",
+                    "source": "元信息占位",
+                    "tags": ["标签D", "标签E", "标签F"],
+                    "raw": {
+                        "原始分类": "示例分类",
+                        "原始标签": ["标签D", "标签E", "标签F"]
+                    },
+                    "items": [
+                        { "text": "示例子项文本三，用于展示内容层级", "tags": ["标签D", "标签E"] },
+                        { "text": "示例子项文本四，用于展示标签组合", "tags": ["标签F"] }
+                    ]
+                }
+            ]
+        };
+
+        const pageConfig = Object.assign({
+            title: "TUI 信息索引模板",
+            sidebarTitle: "FILTER INDEX",
+            mainTitle: "GROUPED ITEM SET",
+            status: ["NODE: TEMPLATE", "STORE: JSON_DATA", "STATUS: DEMO"],
+            footer: ["F1 帮助", "F2 类型", "F3 年份", "F4 标签", "F5 搜索", "F9 重置", "/ 搜索", "ESC 清空", "R 重置", "IDX READY"],
+            searchPlaceholder: "输入关键词",
+            emptyTitle: "NO MATCHING ENTRIES FOUND",
+            emptySubtitle: "未找到匹配条目",
+            showTagFilters: true,
+            showEntryTags: true,
+            showItemTags: true,
+            monthFilterMode: "buttons"
+        }, reportData.config || {});
+        const filterConfig = Object.assign({ typeOrder: [], tagOrder: [] }, reportData.filters || {});
+        const entries = Array.isArray(reportData.records) ? reportData.records : [];
+
+        const state = { type: "all", years: new Set(), months: new Set(), tags: new Set(), keyword: "" };
+        const typeLabels = { all: "全部" };
+        const resultCounter = document.getElementById("resultCounter");
+        const activeSummary = document.getElementById("activeSummary");
+        const searchInput = document.getElementById("searchInput");
+        const monthSelect = document.getElementById("monthSelect");
+        const resetFilters = document.getElementById("resetFilters");
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+        }
+        function yearOf(date) { return date.slice(0, 4); }
+        function monthOf(date) { return date.slice(0, 7); }
+        function monthLabel(month) {
+            const value = Number(month.slice(5, 7));
+            return Number.isFinite(value) ? String(value) + "月" : "月份";
+        }
+        function twoDigit(index) { return String(index + 1).padStart(2, "0"); }
+        function unique(values) { return Array.from(new Set(values)).filter(Boolean); }
+        function sortedDesc(values) { return unique(values).sort((a, b) => b.localeCompare(a)); }
+        function orderedValues(values, preferredOrder) {
+            const available = unique(values);
+            const preferred = (preferredOrder || []).filter(value => available.includes(value));
+            return preferred.concat(available.filter(value => !preferred.includes(value)));
+        }
+        function searchableJson(value) {
+            const parts = [];
+            const visit = item => {
+                if (item === null || item === undefined) return;
+                if (Array.isArray(item)) {
+                    item.forEach(visit);
+                    return;
+                }
+                if (typeof item === "object") {
+                    Object.values(item).forEach(visit);
+                    return;
+                }
+                parts.push(String(item));
+            };
+            visit(value);
+            return parts.join(" ").toLowerCase();
+        }
+        function tagList(value) {
+            if (value === null || value === undefined) return [];
+            if (Array.isArray(value)) return value.flatMap(tagList);
+            return String(value).split(/[；;|、,，]+/).map(tag => tag.trim()).filter(Boolean);
+        }
+        function cssToken(value) {
+            return String(value || "entry").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "entry";
+        }
+        function createButton(className, kind, value, label) {
+            return `<button class="tui-choice ${className}" type="button" data-filter-kind="${kind}" data-value="${escapeHtml(value)}">${escapeHtml(label)}</button>`;
+        }
+        function renderChrome() {
+            document.title = pageConfig.title + " - PC Tools TUI";
+            document.getElementById("pageTitle").textContent = pageConfig.title;
+            document.getElementById("sidebarTitle").textContent = pageConfig.sidebarTitle;
+            document.getElementById("mainTitle").textContent = pageConfig.mainTitle;
+            document.getElementById("searchInput").setAttribute("placeholder", pageConfig.searchPlaceholder || "输入关键词");
+            document.body.classList.toggle("hide-entry-tags", pageConfig.showEntryTags === false);
+            document.body.classList.toggle("hide-item-tags", pageConfig.showItemTags === false);
+            document.body.classList.toggle("month-select-mode", pageConfig.monthFilterMode === "select");
+            document.getElementById("systemStatus").innerHTML = pageConfig.status.map(item => `<span>${escapeHtml(item)}</span>`).join("");
+            document.getElementById("tagFilterGroup").hidden = pageConfig.showTagFilters === false;
+            document.getElementById("footerBar").innerHTML = pageConfig.footer.map(item => {
+                const parts = item.split(" ");
+                const key = parts.shift();
+                return `<span class="footer-key"><strong>${escapeHtml(key)}</strong> ${escapeHtml(parts.join(" "))}</span>`;
+            }).join("");
+        }
+        function renderFilters() {
+            const types = orderedValues(entries.map(entry => entry.type), filterConfig.typeOrder);
+            types.forEach(type => {
+                const found = entries.find(entry => entry.type === type);
+                typeLabels[type] = found ? found.typeLabel : type;
+            });
+            const years = sortedDesc(entries.map(entry => yearOf(entry.date)));
+            const months = sortedDesc(entries.map(entry => monthOf(entry.date)));
+            const recordTags = entries.flatMap(entry => [
+                ...tagList(entry.tags),
+                ...tagList(entry.raw && entry.raw.tags),
+                ...tagList(entry.raw && entry.raw["标签"]),
+                ...tagList(entry.raw && entry.raw["原始标签"])
+            ]);
+            const tags = filterConfig.tagOrder && filterConfig.tagOrder.length
+                ? orderedValues(recordTags, filterConfig.tagOrder)
+                : unique(recordTags).sort((a, b) => a.localeCompare(b, "zh-CN"));
+            document.getElementById("typeFilters").innerHTML = createButton("type-choice active", "type", "all", typeLabels.all) + types.map(type => createButton("type-choice", "type", type, typeLabels[type])).join("");
+            document.getElementById("yearFilters").innerHTML = years.map(year => createButton("year-choice", "year", year, year)).join("");
+            document.getElementById("monthFilters").hidden = pageConfig.monthFilterMode === "select";
+            monthSelect.hidden = pageConfig.monthFilterMode !== "select";
+            document.getElementById("monthFilters").innerHTML = pageConfig.monthFilterMode === "select" ? "" : months.map(month => createButton("month-choice", "month", month, month.replace("-", "."))).join("");
+            monthSelect.innerHTML = `<option value="">ALL MONTHS</option>` + months.map(month => `<option value="${escapeHtml(month)}">${escapeHtml(month.replace("-", "."))}</option>`).join("");
+            document.getElementById("tagFilters").innerHTML = pageConfig.showTagFilters === false ? "" : tags.map(tag => createButton("tag-choice", "tag", tag, tag)).join("");
+            const itemCount = entries.reduce((sum, entry) => sum + entry.items.length, 0);
+            document.getElementById("legendBlock").innerHTML = [
+                ["ENTRIES", entries.length],
+                ["ITEMS", itemCount],
+                ["MODE", "COMBINED AND"]
+            ].map(row => `<div class="legend-row"><span>${row[0]}</span><span class="legend-value">${row[1]}</span></div>`).join("");
+        }
+        function renderEntryList() {
+            const sortedEntries = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+            const years = sortedDesc(sortedEntries.map(entry => yearOf(entry.date)));
+            let html = "";
+            years.forEach(year => {
+                const yearEntries = sortedEntries.filter(entry => yearOf(entry.date) === year);
+                html += `<section class="tui-year" data-year-section="${year}"><div class="year-header"><span>${year}</span><span>YEAR DIRECTORY</span></div>`;
+                sortedDesc(yearEntries.map(entry => monthOf(entry.date))).forEach(month => {
+                    const monthEntries = yearEntries.filter(entry => monthOf(entry.date) === month);
+                    html += `<section class="tui-month" data-month-section="${month}"><div class="month-header"><span>${monthLabel(month)}</span><span>${month}</span></div>`;
+                    monthEntries.forEach(entry => {
+                        const recordIndex = entries.indexOf(entry);
+                        const items = Array.isArray(entry.items) ? entry.items : [];
+                        const entryTags = unique([...(entry.tags || []), ...items.flatMap(item => item.tags || [])]);
+                        const entryId = entry.id || `entry-${entry.date}-${cssToken(entry.title)}`;
+                        html += `<article class="tui-entry type-${cssToken(entry.type)}" data-record-index="${recordIndex}" data-entry-id="${escapeHtml(entryId)}" data-type="${escapeHtml(entry.type || "")}" data-year="${year}" data-month="${month}" data-date="${escapeHtml(entry.date || "")}" data-entry-tags="${escapeHtml(entryTags.join(","))}">
+                            <button class="entry-toggle" type="button" aria-expanded="true" aria-controls="${escapeHtml(entryId)}-body">
+                                <span class="entry-cursor">▸</span>
+                                <span class="entry-date">${escapeHtml(entry.date || "")}</span>
+                                <span class="entry-type">${escapeHtml(entry.typeLabel || entry.type || "")}</span>
+                                <span class="entry-title">${escapeHtml(entry.title || "")}</span>
+                                <span class="entry-count">${items.length}个子项</span>
+                            </button>
+                            <div class="entry-body" id="${escapeHtml(entryId)}-body">
+                                <div class="entry-meta-row">
+                                    <span>META: ${escapeHtml(entry.source || "")}</span>
+                                    <span ${pageConfig.showEntryTags === false ? "hidden" : ""}>TAGS: ${escapeHtml(entryTags.join(" / "))}</span>
+                                </div>
+                                <ol class="item-list">
+                                    ${items.map((item, index) => `<li class="item-row" data-item-index="${index}">
+                                        <span class="item-no">${twoDigit(index)}</span>
+                                        <span class="item-text">${escapeHtml(item.text || "")}</span>
+                                        <span class="item-tags" ${pageConfig.showItemTags === false ? "hidden" : ""}>${escapeHtml((item.tags || []).join(" | "))}</span>
+                                    </li>`).join("")}
+                                </ol>
+                            </div>
+                        </article>`;
+                    });
+                    html += "</section>";
+                });
+                html += "</section>";
+            });
+            html += `<div class="empty-state" id="emptyState"><div>${escapeHtml(pageConfig.emptyTitle || "NO MATCHING ENTRIES FOUND")}</div><div>${escapeHtml(pageConfig.emptySubtitle || "未找到匹配条目")}</div><button class="empty-reset" type="button" data-empty-reset>RESET</button></div>`;
+            document.getElementById("entryListBody").innerHTML = html;
+        }
+        function hydrateEntries() {
+            return Array.from(document.querySelectorAll(".tui-entry")).map(entry => {
+                const sourceRecord = entries[Number(entry.dataset.recordIndex)] || {};
+                const rows = Array.from(entry.querySelectorAll(".item-row")).map(row => {
+                    const sourceItem = ((sourceRecord.items || [])[Number(row.dataset.itemIndex)] || {});
+                    const tags = row.querySelector(".item-tags").textContent.split("|").map(tag => tag.trim()).filter(Boolean);
+                    return { el: row, tags, searchText: [row.textContent, searchableJson(sourceItem)].join(" ").toLowerCase() };
+                });
+                const entryTags = entry.dataset.entryTags ? entry.dataset.entryTags.split(",").map(tag => tag.trim()).filter(Boolean) : [];
+                const uniqueTags = unique(entryTags.concat(rows.flatMap(row => row.tags)));
+                const entryFieldsText = [
+                    entry.dataset.date,
+                    entry.dataset.year,
+                    entry.dataset.month,
+                    entry.dataset.type,
+                    entry.querySelector(".entry-toggle").textContent,
+                    entry.querySelector(".entry-meta-row").textContent,
+                    uniqueTags.join(" "),
+                    searchableJson(sourceRecord)
+                ].join(" ").toLowerCase();
+                entry.dataset.tags = uniqueTags.join(",");
+                return { el: entry, tags: uniqueTags, rows, entryFieldsText, searchText: [entryFieldsText, ...rows.map(row => row.searchText)].join(" ") };
+            });
+        }
+        let renderedEntries = [];
+        function matchesEntry(entry) {
+            const el = entry.el;
+            if (state.type !== "all" && el.dataset.type !== state.type) return false;
+            if (state.months.size && !state.months.has(el.dataset.month)) return false;
+            if (!state.months.size && state.years.size && !state.years.has(el.dataset.year)) return false;
+            if (state.tags.size && !entry.tags.some(tag => state.tags.has(tag))) return false;
+            if (state.keyword && !entry.searchText.includes(state.keyword.toLowerCase())) return false;
+            return true;
+        }
+        function matchesItem(row, entryFieldsKeywordMatch) {
+            const keyword = state.keyword.toLowerCase();
+            const tagOk = !state.tags.size || row.tags.some(tag => state.tags.has(tag));
+            const keywordOk = !keyword || entryFieldsKeywordMatch || row.searchText.includes(keyword);
+            return tagOk && keywordOk;
+        }
+        function updateButtonStates() {
+            document.querySelectorAll(".type-choice").forEach(button => button.classList.toggle("active", button.dataset.value === state.type));
+            document.querySelectorAll(".year-choice").forEach(button => button.classList.toggle("active", state.years.has(button.dataset.value)));
+            document.querySelectorAll(".month-choice").forEach(button => button.classList.toggle("active", state.months.has(button.dataset.value)));
+            document.querySelectorAll(".tag-choice").forEach(button => button.classList.toggle("active", state.tags.has(button.dataset.value)));
+            if (monthSelect) monthSelect.value = state.months.size === 1 ? Array.from(state.months)[0] : "";
+        }
+        function updateTimelineContainers() {
+            document.querySelectorAll(".tui-month").forEach(month => { month.hidden = month.querySelectorAll(".tui-entry:not([hidden])").length === 0; });
+            document.querySelectorAll(".tui-year").forEach(year => { year.hidden = year.querySelectorAll(".tui-month:not([hidden])").length === 0; });
+        }
+        function summarizeFilters() {
+            const pieces = [];
+            if (state.type !== "all") pieces.push(typeLabels[state.type] || state.type);
+            if (state.months.size) pieces.push(Array.from(state.months).join(","));
+            else if (state.years.size) pieces.push(Array.from(state.years).join(","));
+            if (state.tags.size) pieces.push(Array.from(state.tags).join(","));
+            if (state.keyword) pieces.push("SEARCH=" + state.keyword);
+            return pieces.length ? pieces.join(" + ") : "ALL ENTRIES";
+        }
+        function applyFilters() {
+            let visibleFiles = 0;
+            let visibleItems = 0;
+            renderedEntries.forEach(entry => {
+                const entryMatches = matchesEntry(entry);
+                const hasItemFilter = state.tags.size || state.keyword;
+                const entryFieldsKeywordMatch = Boolean(state.keyword && entry.entryFieldsText.includes(state.keyword.toLowerCase()));
+                let visibleRows = 0;
+                entry.rows.forEach(row => {
+                    const rowVisible = entryMatches && (!hasItemFilter || matchesItem(row, entryFieldsKeywordMatch));
+                    row.el.hidden = !rowVisible;
+                    if (rowVisible) visibleRows += 1;
+                });
+                const isVisible = entryMatches && visibleRows > 0;
+                entry.el.hidden = !isVisible;
+                if (isVisible) {
+                    visibleFiles += 1;
+                    visibleItems += visibleRows;
+                }
+            });
+            updateTimelineContainers();
+            updateButtonStates();
+            resultCounter.textContent = visibleFiles + " entries / " + visibleItems + " items";
+            activeSummary.textContent = summarizeFilters();
+            document.getElementById("emptyState").classList.toggle("visible", visibleFiles === 0);
+        }
+        function resetAllFilters() {
+            state.type = "all";
+            state.years.clear();
+            state.months.clear();
+            state.tags.clear();
+            state.keyword = "";
+            searchInput.value = "";
+            if (monthSelect) monthSelect.value = "";
+            applyFilters();
+        }
+        function toggleSet(set, value) { if (set.has(value)) set.delete(value); else set.add(value); }
+        function bindEvents() {
+            document.querySelectorAll("[data-filter-kind]").forEach(button => {
+                button.addEventListener("click", () => {
+                    const kind = button.dataset.filterKind;
+                    const value = button.dataset.value;
+                    if (kind === "type") state.type = value;
+                    if (kind === "year") { toggleSet(state.years, value); if (state.years.size) state.months.clear(); }
+                    if (kind === "month") { toggleSet(state.months, value); if (state.months.size) state.years.clear(); }
+                    if (kind === "tag") toggleSet(state.tags, value);
+                    applyFilters();
+                    if (kind === "month" && state.months.has(value)) {
+                        const target = document.querySelector('[data-month-section="' + value + '"]');
+                        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                });
+            });
+            searchInput.addEventListener("input", event => { state.keyword = event.target.value.trim(); applyFilters(); });
+            monthSelect.addEventListener("change", event => {
+                state.months.clear();
+                if (event.target.value) {
+                    state.months.add(event.target.value);
+                    state.years.clear();
+                }
+                applyFilters();
+                if (event.target.value) {
+                    const target = document.querySelector('[data-month-section="' + event.target.value + '"]');
+                    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            });
+            resetFilters.addEventListener("click", resetAllFilters);
+            document.querySelector("[data-empty-reset]").addEventListener("click", resetAllFilters);
+            document.querySelectorAll(".entry-toggle").forEach(button => {
+                button.addEventListener("click", () => {
+                    const entry = button.closest(".tui-entry");
+                    const collapsed = entry.classList.toggle("collapsed");
+                    button.setAttribute("aria-expanded", String(!collapsed));
+                });
+            });
+            document.addEventListener("keydown", event => {
+                const activeTag = document.activeElement ? document.activeElement.tagName : "";
+                const isTyping = activeTag === "INPUT" || activeTag === "TEXTAREA";
+                if (event.key === "/" && !isTyping) { event.preventDefault(); searchInput.focus(); searchInput.select(); }
+                if (event.key === "Escape") {
+                    if (state.keyword) { state.keyword = ""; searchInput.value = ""; applyFilters(); }
+                    else if (document.activeElement) document.activeElement.blur();
+                }
+                if ((event.key === "r" || event.key === "R") && !isTyping) resetAllFilters();
+            });
+        }
+        renderChrome();
+        renderFilters();
+        renderEntryList();
+        renderedEntries = hydrateEntries();
+        bindEvents();
+        applyFilters();
+    </script>
+</body>
+</html>
