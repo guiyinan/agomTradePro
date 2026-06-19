@@ -154,6 +154,7 @@ def get_stock_scores(request: Request) -> Response:
         trade_date = params.validated_data.get("trade_date", date.today())
         top_n = params.validated_data.get("top_n", 30)
         provider_filter = params.validated_data.get("provider", "")
+        ai_filter = params.validated_data.get("ai_filter", False)
         requested_user = request.user
         requested_user_id = params.validated_data.get("user_id")
 
@@ -193,6 +194,7 @@ def get_stock_scores(request: Request) -> Response:
             top_n,
             user=requested_user,
             provider_filter=provider_filter if provider_filter else None,
+            ai_filter=ai_filter,
         )
 
         # 序列化响应

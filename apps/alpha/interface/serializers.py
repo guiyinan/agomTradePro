@@ -92,6 +92,11 @@ class GetStockScoresRequestSerializer(serializers.Serializer):
         default="",
         help_text="强制使用指定 Provider（qlib/cache/simple/etf），留空则自动降级",
     )
+    ai_filter = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="是否启用 AI 二次筛选（ai_filter=1）",
+    )
 
 
 class ProviderStatusSerializer(serializers.Serializer):

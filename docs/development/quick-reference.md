@@ -374,6 +374,14 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/alpha/scores/` | GET | 获取股票评分 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 |
 
+可选启用 AI 二次筛选：
+
+```bash
+GET /api/alpha/scores/?top_n=10&ai_filter=1
+```
+
+`ai_filter=1` 会在 Alpha 排名候选上追加 AI 二筛；默认不启用。AI 调用失败时接口仍返回原始 Alpha Top N，并在 `metadata.ai_filter.status` 标记为 `failed`。
+
 ### Data Center API
 
 | 端点 | 方法 | 说明 |

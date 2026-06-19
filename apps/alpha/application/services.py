@@ -23,6 +23,7 @@ from core.integration.runtime_settings import (
 
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
+from .ai_filter import AlphaAISecondPassFilterService, get_ai_filter_candidate_limit
 from .pool_resolver import PortfolioAlphaPoolResolver
 from .repository_provider import (
     CacheAlphaProvider,
@@ -955,6 +956,7 @@ class AlphaService:
         user=None,
         provider_filter: str | None = None,
         pool_scope: AlphaPoolScope | None = None,
+        ai_filter: bool = False,
     ) -> AlphaResult:
         """
         获取股票评分（带自动降级）
@@ -986,10 +988,12 @@ class AlphaService:
 
         effective_universe_id = pool_scope.universe_id if pool_scope is not None else universe_id
 
+        provider_top_n = get_ai_filter_candidate_limit(top_n) if ai_filter else top_n
+
         result = self._registry.get_scores_with_fallback(
             effective_universe_id,
             intended_trade_date,
-            top_n,
+            provider_top_n,
             user=user,
             provider_filter=provider_filter,
             pool_scope=pool_scope,
@@ -1007,7 +1011,15 @@ class AlphaService:
             f"status={result.status}, count={len(result.scores)}"
         )
 
-        return _enrich_result_metadata(result, intended_trade_date)
+        enriched = _enrich_result_metadata(result, intended_trade_date)
+        if ai_filter:
+            return AlphaAISecondPassFilterService().apply(
+                enriched,
+                top_n=top_n,
+                user=user,
+                trade_date=intended_trade_date,
+            )
+        return enriched
 
     def resolve_portfolio_pool_scope(
         self,
