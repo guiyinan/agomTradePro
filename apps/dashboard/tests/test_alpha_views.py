@@ -1484,7 +1484,7 @@ def test_alpha_history_detail_api_returns_snapshot_detail(monkeypatch):
 
 
 @pytest.mark.django_db
-def test_dashboard_view_skips_homepage_alpha_payload_and_keeps_workflow_candidates(monkeypatch):
+def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidates(monkeypatch):
     captured: dict[str, int] = {
         "metrics_calls": 0,
         "homepage_calls": 0,
@@ -1643,14 +1643,15 @@ def test_dashboard_view_skips_homepage_alpha_payload_and_keeps_workflow_candidat
     views.dashboard_view(request)
 
     assert captured["metrics_calls"] == 1
-    assert captured["homepage_calls"] == 0
+    assert captured["homepage_calls"] == 1
     assert captured["decision_calls"] == 1
-    assert rendered["context"]["alpha_stock_scores"] == []
-    assert rendered["context"]["alpha_decision_chain_overview"]["top10_actionable_count"] == 0
+    assert len(rendered["context"]["alpha_stock_scores"]) == 1
+    assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_decision_chain_overview"]["top10_actionable_count"] == 1
     assert (
         rendered["context"]["actionable_candidates"][0]["origin_stage_label"] == "当前 Top 10 第 #1"
     )
-    assert rendered["context"]["alpha_actionable_candidates"] == []
+    assert len(rendered["context"]["alpha_actionable_candidates"]) == 1
     assert rendered["context"]["quota_remaining"] == 8
 
 
@@ -1775,9 +1776,13 @@ def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypa
 
     views.dashboard_view(request)
 
-    assert rendered["context"]["alpha_stock_scores"] == []
-    assert rendered["context"]["alpha_research_rankings"] == []
-    assert rendered["context"]["alpha_pool"]["portfolio_id"] is None
+    assert len(rendered["context"]["alpha_stock_scores"]) == 1
+    assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_stock_scores"][0]["decision_workspace_primary_url"].endswith(
+        "security_code=000001.SZ&step=4"
+    )
+    assert rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
+    assert rendered["context"]["alpha_pool"]["portfolio_id"] == 21
 
 
 @pytest.mark.django_db
@@ -1907,8 +1912,10 @@ def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkey
 
     views.dashboard_view(request)
 
-    assert rendered["context"]["alpha_stock_scores"] == []
-    assert rendered["context"]["alpha_research_rankings"] == []
+    assert len(rendered["context"]["alpha_stock_scores"]) == 1
+    assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
+    assert rendered["context"]["alpha_stock_scores_meta"]["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
+    assert rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
     assert rendered["context"]["alpha_pool"]["portfolio_id"] == 21
 
 
@@ -1954,7 +1961,12 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     monkeypatch.setattr(
         views,
         "_build_dashboard_page_context",
-        lambda **kwargs: {"ok": True, "alpha_stock_scores": []},
+        lambda **kwargs: {
+            "ok": True,
+            "alpha_stock_scores": [{"code": "000001.SZ"}],
+            "alpha_actionable_candidates": [{"code": "000001.SZ"}],
+            "alpha_pending_requests": [{"code": "000002.SZ"}],
+        },
     )
     monkeypatch.setattr(views, "render", lambda request, template_name, context: HttpResponse("ok"))
 
@@ -1974,9 +1986,9 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
     assert record.exit_account_id == 9
     assert record.position_count == 1
     assert record.investment_account_count == 2
-    assert record.alpha_candidate_count == 0
-    assert record.alpha_actionable_count == 0
-    assert record.alpha_pending_count == 0
+    assert record.alpha_candidate_count == 1
+    assert record.alpha_actionable_count == 1
+    assert record.alpha_pending_count == 1
     assert record.workflow_actionable_count == 1
     assert record.workflow_pending_count == 1
     assert record.duration_ms >= 0
@@ -2089,8 +2101,9 @@ def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_ca
     )
 
     assert "Alpha 推荐资产" in content
-    assert "研究排名请进入完整排名页核对" in content
+    assert "当前展示首页可追踪的 Alpha 排名结果" in content
     assert "查看完整排名" in content
+    assert "立即推理刷新" in content
     assert "000001.SZ" in content
     assert "平安银行" in content
     assert 'href="/equity/detail/000001.SZ/"' in content

@@ -246,6 +246,19 @@ font-weight: 600;  /* Semibold - 标题 */
 └──────────┴──────────────────────────────────────────┘
 ```
 
+### PC Tools TUI 模式
+
+TUI 不再作为 `base.html` 的 CSS 覆盖模式存在。`/tui/` 是独立的 API-native workbench：它不继承旧导航、旧侧栏或单功能 Django 页面布局，旧页面只保留通往 TUI 的入口链接。
+
+通用契约组件：
+
+- `GET /api/tui/registry/`: 返回模块分组、默认模块和交互原则。
+- `GET /api/tui/modules/<module_key>/snapshot/`: 返回模块的布局区域、状态块、API contracts 和 action schemas。
+- `actions[].fields`: 后端声明参数字段，前端据此生成输入控件；GET action 生成 query string，POST action 生成 JSON body。
+- `actions[].risk`: 标记 read/ai/write 等风险级别，后续用于权限、确认和审计。
+
+TUI 的改造重点是把后端能力归拢成单入口交互模型：每个模块先暴露 API contract，再由 workbench 生成控件和响应面板。不得把旧 Django 页面直接包进 TUI 壳层，也不要继续通过 `tui-theme.css` 给旧页面换皮。
+
 ### Header
 
 ```css

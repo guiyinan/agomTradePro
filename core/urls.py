@@ -30,7 +30,14 @@ from apps.ai_capability.interface.views import (
 )
 
 # 终端视图（从terminal模块导入）
-from apps.terminal.interface.views import terminal_config_view, terminal_view
+from apps.terminal.interface.views import terminal_config_view, terminal_view, tui_workbench_view
+from apps.terminal.interface.api_views import (
+    TuiWorkbenchActionRunView,
+    TuiWorkbenchCatalogView,
+    TuiWorkbenchModuleSnapshotView,
+    TuiWorkbenchRegistryView,
+    TuiWorkbenchScreenView,
+)
 from core.admin_log_views import (
     automation_server_logs_export,
     automation_server_logs_stream,
@@ -101,6 +108,7 @@ def api_root_view(request):
                 "data-center": "/api/data-center/",
                 "system-config-center": "/api/system/config-center/",
                 "terminal": "/api/terminal/",
+                "tui": "/api/tui/",
                 "docs": "/api/docs/",
                 "documentation-portal": "/docs/",
                 "mcp-tools-settings": "/settings/mcp-tools/",
@@ -164,6 +172,24 @@ core_patterns = [
     path("chat-example/", chat_example_view, name="chat-example"),
     path("terminal/", terminal_view, name="terminal"),
     path("terminal/config/", terminal_config_view, name="terminal-config"),
+    path("tui/", tui_workbench_view, name="tui-workbench"),
+    path("api/tui/catalog/", TuiWorkbenchCatalogView.as_view(), name="api-tui-catalog"),
+    path(
+        "api/tui/screens/<str:screen_key>/",
+        TuiWorkbenchScreenView.as_view(),
+        name="api-tui-screen",
+    ),
+    path(
+        "api/tui/actions/<str:action_key>/run/",
+        TuiWorkbenchActionRunView.as_view(),
+        name="api-tui-action-run",
+    ),
+    path("api/tui/registry/", TuiWorkbenchRegistryView.as_view(), name="api-tui-registry"),
+    path(
+        "api/tui/modules/<str:module_key>/snapshot/",
+        TuiWorkbenchModuleSnapshotView.as_view(),
+        name="api-tui-module-snapshot",
+    ),
     path("asset-analysis/screen/", asset_screen_view, name="asset-screen"),
     path(
         "asset-analysis/pool-summary/",

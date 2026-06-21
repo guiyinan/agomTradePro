@@ -4,7 +4,7 @@ Terminal Domain Interfaces - Repository Protocols.
 定义仓储接口协议，供基础设施层实现。
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from .entities import TerminalAuditEntry, TerminalCommand
 
@@ -60,4 +60,36 @@ class TerminalAuditRepository(Protocol):
         result_status: str | None = None,
     ) -> list[TerminalAuditEntry]:
         """获取最近的审计条目"""
+        ...
+
+
+class TuiApiCatalogProvider(Protocol):
+    """Read-only API capability source for the TUI workbench."""
+
+    def collect(self) -> list[dict[str, Any]]:
+        """Return normalized API capability records."""
+        ...
+
+
+class TuiMetadataRepository(Protocol):
+    """Published metadata source for the TUI workbench runtime."""
+
+    def load_published(self, registry_key: str = "default") -> dict[str, Any]:
+        """Return a validated published TUI metadata payload."""
+        ...
+
+
+class TuiActionExecutor(Protocol):
+    """Execute an internal API action for the TUI workbench."""
+
+    def execute(
+        self,
+        *,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any],
+        body: dict[str, Any],
+        user: Any,
+    ) -> dict[str, Any]:
+        """Execute an internal API and return a serializable payload."""
         ...

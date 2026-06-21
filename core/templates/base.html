@@ -46,13 +46,11 @@
 
     <!-- Floating Widget CSS -->
     <link rel="stylesheet" href="{% static 'css/floating-widget.css' %}">
-    <link rel="stylesheet" href="{% static 'css/tui-theme.css' %}">
 </head>
 <body
     hx-ext="sse,remove-me,morph-swap"
     hx-indicator="#global-loader"
     data-market-color-convention="{{ market_visuals.convention|default:'cn_a_share' }}"
-    data-ui-mode="{{ ui_mode|default:'classic' }}"
 >
     <!-- 全局加载指示器 -->
     <div id="global-loader" class="global-loader" style="display: none;">
@@ -214,6 +212,9 @@
                         <a href="{% url 'terminal' %}" class="dropdown-item" target="_blank">
                             <i class="bi bi-terminal"></i> AI Terminal
                         </a>
+                        <a href="{% url 'tui-workbench' %}" class="dropdown-item" target="_blank">
+                            <i class="bi bi-window"></i> TUI Workbench
+                        </a>
                         <a href="{% url 'account:mcp_guide' %}" class="dropdown-item">MCP 接入说明</a>
                         <a href="{% url 'settings-mcp-tools' %}" class="dropdown-item">MCP 工具</a>
                         <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
@@ -264,44 +265,11 @@
             </nav>
 
             <div class="header-actions">
-                <div class="ui-mode-control" data-ui-mode-control>
-                    <button
-                        type="button"
-                        class="ui-mode-toggle"
-                        data-ui-mode-toggle
-                        aria-pressed="{% if is_tui_mode %}true{% else %}false{% endif %}"
-                        title="切换 Classic / TUI 界面"
-                    >
-                        <span class="ui-mode-toggle__label">UI</span>
-                        <span class="ui-mode-toggle__value" data-ui-mode-toggle-label>{% if is_tui_mode %}TUI{% else %}Classic{% endif %}</span>
-                    </button>
-                    <button
-                        type="button"
-                        class="ui-mode-control__menu"
-                        data-ui-mode-panel-toggle
-                        aria-expanded="false"
-                        aria-controls="uiModePanel"
-                        title="打开 UI 控制面板"
-                    >
-                        <span aria-hidden="true">▾</span>
-                    </button>
-                    <div class="ui-mode-panel" id="uiModePanel" data-ui-mode-panel hidden>
-                        <div class="ui-mode-panel__title">UI CONTROL</div>
-                        <div class="ui-mode-panel__group" role="group" aria-label="界面模式">
-                            <button type="button" class="ui-mode-panel__choice" data-ui-mode-exit aria-pressed="{% if is_tui_mode %}false{% else %}true{% endif %}">退出 TUI</button>
-                            <button type="button" class="ui-mode-panel__choice" data-ui-mode-choice="tui" aria-pressed="{% if is_tui_mode %}true{% else %}false{% endif %}">TUI</button>
-                        </div>
-                        <label class="ui-mode-panel__switch">
-                            <input type="checkbox" data-tui-scan-toggle checked>
-                            <span>CRT 扫描刷新</span>
-                        </label>
-                        <div class="ui-mode-panel__actions">
-                            <button type="button" data-tui-manual-scan>扫描刷新</button>
-                            <button type="button" data-ui-mode-reset>重置扫描</button>
-                        </div>
-                        <div class="ui-mode-panel__status" data-ui-mode-panel-status>Ctrl+U 进入 / 打开控制面板</div>
-                    </div>
-                </div>
+                {% if user.is_authenticated %}
+                <a href="{% url 'tui-workbench' %}" target="_blank" class="terminal-entry-btn" title="API Native Workbench">
+                    <span class="terminal-entry-icon">TUI</span>
+                </a>
+                {% endif %}
                 {% if user.is_staff %}
                 <a href="{% url 'terminal' %}" target="_blank" class="terminal-entry-btn" title="AI Terminal">
                     <span class="terminal-entry-icon">>&lowbar;Cli</span>
@@ -332,13 +300,6 @@
         </div>
     </header>
 
-    <div class="tui-status-strip" aria-hidden="true">
-        <span>NODE: AGOMTRADEPRO</span>
-        <span>UI: PC-TOOLS</span>
-        <span>DB: ONLINE</span>
-        <span>MODE: INTERACTIVE</span>
-    </div>
-
     <!-- 全局 Toast 通知 -->
     <div id="toast-container" class="toast-container"></div>
 
@@ -358,21 +319,9 @@
     {% endif %}
 
     <!-- 主内容区域 -->
-    <main class="main-content-full tui-scan-target" id="mainContent">
+    <main class="main-content-full" id="mainContent">
         {% block content %}{% endblock %}
     </main>
-
-
-
-    <div class="tui-function-bar" aria-hidden="true">
-        <span class="tui-function-key"><strong>F1</strong> 帮助</span>
-        <span class="tui-function-key"><strong>F2</strong> 模块</span>
-        <span class="tui-function-key"><strong>F5</strong> 刷新</span>
-        <span class="tui-function-key"><strong>F9</strong> 重置</span>
-        <span class="tui-function-key"><strong>ESC</strong> 返回</span>
-        <span class="tui-function-key"><strong>CTRL+U</strong> UI MODE</span>
-        <span class="tui-function-key"><strong>STATUS</strong> READY</span>
-    </div>
 
     <!-- 页脚 -->
     <footer class="footer-full">
@@ -752,7 +701,6 @@
     </script>
     <script src="{% static 'js/utils.js' %}"></script>
     <script src="{% static 'js/htmx-config.js' %}"></script>
-    <script src="{% static 'js/tui-mode.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 

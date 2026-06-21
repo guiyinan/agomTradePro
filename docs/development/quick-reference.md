@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
-> **文档版本**: V1.9
-> **更新日期**: 2026-05-04
+> **文档版本**: V2.0
+> **更新日期**: 2026-06-20
 > **目标读者**: 开发人员
 
 ---
@@ -13,8 +13,8 @@
 | 版本 | 0.7.0 |
 | 状态 | 生产就绪 |
 | 完成度 | 99% |
-| 业务模块 | 34个 |
-| 测试规模 | 1,700+ 项 |
+| 业务模块 | 35个 |
+| 测试规模 | 5,212 个已收集测试项 |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
@@ -34,6 +34,15 @@ install.bat --dev
 # 启动开发服务器
 agomtradepro/Scripts/python manage.py runserver
 
+# 启动本地预览服务（后台常驻，适合直接打开页面看）
+powershell -ExecutionPolicy Bypass -File scripts/start-local-preview.ps1
+
+# 启动本地预览服务前，先刷新市场温度计链路
+powershell -ExecutionPolicy Bypass -File scripts/start-local-preview.ps1 -RefreshMarketThermometer
+
+# 停止本地预览服务
+powershell -ExecutionPolicy Bypass -File scripts/stop-local-preview.ps1
+
 # 启动开发菜单
 start.bat
 
@@ -52,6 +61,9 @@ agomtradepro/Scripts/python manage.py bootstrap_local_env
 
 # 创建超级用户
 agomtradepro/Scripts/python manage.py createsuperuser
+
+# 本地刷新市场温度计输入 + 重算快照
+powershell -ExecutionPolicy Bypass -File scripts/refresh-local-market-thermometer.ps1
 
 # 同步宏观数据
 agomtradepro/Scripts/python manage.py sync_macro_data
@@ -77,6 +89,9 @@ agomtradepro/Scripts/python manage.py list_models
 
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，菜单窗口会立即返回。
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，原菜单窗口会自动退出，避免重复启动。
+- `scripts/start-local-preview.ps1` 会用 `scripts/local_preview_server.py` 在后台拉起一个轻量本地预览实例，默认地址固定为 `http://127.0.0.1:8000/`，并把 PID 写到 `tmp/local-preview-8000.pid`，日志写到 `logs/local-preview-8000.stdout.log` 和 `logs/local-preview-8000.stderr.log`。
+- 若本地库中的默认预览账号仍可用，`scripts/start-local-preview.ps1` 会额外输出 `Preview credentials`，当前开发库默认可用为 `admin / Aa123456`。
+- 若当前工作环境外网受限，可用 `scripts/refresh-local-market-thermometer.ps1` 单独刷新温度计链路，或在启动预览时加 `-RefreshMarketThermometer` 先刷新再起服务。
 - Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
 - `install.bat` 默认只安装本地最小运行依赖（`requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
 - `scripts/dev.bat` 现在会先执行 `manage.py bootstrap_local_env`，自动创建 `.env` 并补齐 `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`，避免首次启动出现密钥缺失 warning。
@@ -105,6 +120,47 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 
 - `/dashboard/`：新入口（启用开关后跳转 Streamlit）
 - `/dashboard/__internal/legacy/`：Django 旧版内部调试入口（仅开发环境）
+
+### TUI Workbench
+
+- `/tui/`：DOS/PCTools 风格经典 UI 平替入口，面向用户任务组织，不按 API endpoint 组织。
+- 运行时只读取已发布 metadata：优先 `terminal_tui_metadata_registry` 的 `published` 记录，缺省回退到 `config/tui/published/tui_operation_graph.published.json`。
+- TUI metadata 是 schema-first 发布物：字段、类型、widget、风险、panel kind 和来源前缀由 `config/tui/schema/tui_metadata.schema.v3.json` 与 `validate_tui_metadata()` 固定；AI/人工不得临时发明结构。
+- 字段 metadata 必须来自 Django model、DRF serializer/OpenAPI、DDD 聚合根、SDK 签名或 MCP typed contract；业务描述只能影响文案和分组。
+- 运行时 graph 使用 compact 存储；validator 会恢复默认字段。生成证据单独写入 `config/tui/generated/tui_operation_evidence.generated.json`，不再内联到 graph。
+- 编译期可以用 API、SDK、MCP、classic 模板作为证据；运行时不得扫描源码、模板、SDK、MCP 或 URL resolver。
+- 普通 UI 不展示 endpoint、method、裸 JSON；原始响应只允许放在 Raw Response 调试抽屉。
+- 主题系统固定为三套运行时模式：`A` 冷色科研终端、`B` 中性金融专业终端（默认）、`C` 风控控制台；`Alt+T` 循环切换，切换时不得刷新页面或丢失当前 TUI 状态。
+- 所有颜色必须走统一 theme token：`background / panelBackground / primaryText / secondaryText / border / highlight / accent / success / warning / error / grid`；不得在组件内新增写死颜色。
+- 经典页面平替 screen 应提供 `default_action_key`，避免进入页面后只是空任务选择器。
+- 首页/总览用 `dashboard_panels` 组合已审核 action，不在 JavaScript 里硬编码业务行。
+- 当前发布基线：34+ 个 screen、319 个 published action；其中 203 个可直接打开、109 个需要输入字段，276+ 个 action 已提升到决策、账户、策略、风控、研究、事件监控、分享、AI 和数据中心业务 screen。
+
+```powershell
+# 生成候选图，并将证据快照写到单独 evidence 文件
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999
+
+# 生成运行时发布图，不携带原始证据数组
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999 --publish-ready --output config\tui\published\tui_operation_graph.published.json
+
+# 执行发布图并剪枝失败的自动候选；这一步允许发现并写出剪枝结果
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\smoke_tui_actions.py --metadata-path config\tui\published\tui_operation_graph.published.json --json-output tmp_tui_smoke.json --prune-output config\tui\published\tui_operation_graph.published.json
+
+# 将通过 smoke 的高价值工具提升到用户任务 screen
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\promote_tui_business_screens.py config\tui\published\tui_operation_graph.published.json
+
+# 推广后严格验证，必须 error=0
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\smoke_tui_actions.py --metadata-path config\tui\published\tui_operation_graph.published.json --json-output tmp_tui_smoke.json --fail-on-error
+
+# 校验已发布 TUI metadata
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\validate_tui_metadata.py config\tui\published\tui_operation_graph.published.json
+
+# 发布已审核 metadata 到本地 DB registry
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metadata.py config\tui\published\tui_operation_graph.published.json --approve --generation-source mixed --backend-version "local-dev" --source-evidence-path config\tui\generated\tui_operation_evidence.generated.json --review-note "Reviewed TUI metadata"
+
+# TUI 契约与渲染核心回归
+agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests\unit\test_tui_ui_mode.py tests\unit\test_tui_metadata_compiler.py -q -p no:cacheprovider
+```
 
 ### 后台入口模型
 
@@ -275,6 +331,16 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/regime/history/` | GET | 获取历史记录 (需认证) |
 | `/api/regime/distribution/` | GET | 获取分布统计 (需认证) |
 | `/regime/dashboard/` | GET | Regime 仪表盘页面 |
+
+### TUI Workbench API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/tui/catalog/` | GET | 返回已发布模块、screen 与普通用户可见 action 菜单 |
+| `/api/tui/screens/<screen_key>/` | GET | 返回单个 PC tools 屏幕布局 spec、默认 action 与可用操作 |
+| `/api/tui/actions/<action_key>/run/` | POST | 统一执行 action，返回业务 view model 而不是裸 JSON |
+| `/api/tui/registry/` | GET | 兼容旧 registry 入口，内部逐步转向 catalog/screen/action 模型 |
+| `/api/tui/modules/<module_key>/snapshot/` | GET | 兼容旧模块快照入口 |
 
 ### Policy Workbench API
 
@@ -481,6 +547,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 
 | 页面 | 说明 |
 |------|------|
+| `/tui/` | DOS/PCTools 风格经典 UI 平替入口，统一承接用户任务、模块树、DataGrid、详情、状态栏、调试抽屉 |
 | `/settings/` | Settings Center（替代高频 Admin 入口） |
 | `/admin-console/` | 管理控制台（用户 / Token / 日志 / 文档 / Django Admin 统一入口） |
 | `/settings/mcp-tools/` | MCP 工具治理页（设置域下的系统级能力开关与同步入口） |
@@ -563,7 +630,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `sector` | 板块分析 | ✅ 完整 |
 | `sentiment` | 舆情情感分析 | ✅ 完整 |
 
-### AI 智能模块 (7个)
+### AI 智能模块 (8个)
 
 | 模块 | 职责 | 状态 |
 |------|------|------|
@@ -574,6 +641,7 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `factor` | 因子管理 | ✅ 完整 |
 | `rotation` | 板块轮动 | ✅ 完整 |
 | `hedge` | 对冲策略 | ✅ 完整 |
+| `ai_capability` | 系统级 AI 能力目录与统一路由 | ✅ 完整 |
 
 ### 风控与账户模块 (5个)
 
@@ -585,7 +653,19 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `realtime` | 实时价格监控 | ✅ 完整 |
 | `strategy` | 策略系统 | ✅ 完整 |
 
-### 工具模块 (5个)
+### 数据接入模块 (1个)
+
+| 模块 | 职责 | 状态 |
+|------|------|------|
+| `data_center` | 统一数据中台（Provider、标准化、同步、查询、MCP/SDK 对齐） | ✅ 完整 |
+
+### 战术指标模块 (1个)
+
+| 模块 | 职责 | 状态 |
+|------|------|------|
+| `pulse` | 战术层脉搏指标聚合与转折预警 | ✅ 完整 |
+
+### 工具模块 (8个)
 
 | 模块 | 职责 | 状态 |
 |------|------|------|
@@ -594,6 +674,16 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `dashboard` | 仪表盘 | ✅ Streamlit 集成 |
 | `backtest` | 回测引擎 | ✅ 完整 |
 | `events` | 事件系统 | ✅ 完整 |
+| `task_monitor` | 定时任务监控 | ✅ 完整 |
+| `share` | 分享功能 | ✅ 完整 |
+| `setup_wizard` | 系统初始化向导 | ✅ 完整 |
+
+### AI 运行时模块 (2个)
+
+| 模块 | 职责 | 状态 |
+|------|------|------|
+| `terminal` | 终端 CLI 与 TUI Workbench 所属模块 | ✅ 完整 |
+| `agent_runtime` | Terminal AI 后端，支持任务编排和 Facade 模式 | ✅ 完整 |
 
 ---
 
@@ -728,4 +818,6 @@ pip install -r requirements.txt
 | `project_structure.md` | 项目结构详解 |
 | `module-dependency-graph.md` | 模块依赖关系图 |
 | `AgomTradePro_V3.4.md` | 业务需求文档 |
+| `development/tui-workbench.md` | TUI Workbench 经典 UI 平替契约与迁移规则 |
+| `development/tui-metadata-promotion-guide.md` | TUI metadata 证据审核、批准与发布指南 |
 | `CLAUDE.md` | 项目开发规则 |

@@ -169,6 +169,23 @@ def _safe_month_end_date(value: Any) -> date | None:
     )
 
 
+def _request_error_is_permission_denied(exc: requests.RequestException) -> bool:
+    """Return whether the request failed because outbound sockets are locally blocked."""
+
+    markers = ("WinError 10013", "PermissionError", "访问权限不允许")
+    current: BaseException | None = exc
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if isinstance(current, PermissionError):
+            return True
+        message = str(current)
+        if any(marker in message for marker in markers):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 _MARKET_NEWS_POSITIVE_KEYWORDS = (
     "上涨",
     "回升",
@@ -318,6 +335,135 @@ class BaseUnifiedProviderAdapter(UnifiedDataProviderProtocol):
     ) -> list[CapitalFlowFact]:
         return []
 
+    def _fetch_market_turnover_from_tencent(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroFact]:
+        """Fallback broad A-share turnover to Tencent historical index amounts."""
+
+        from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+        gateway = TencentGateway(timeout=10.0)
+        rows_by_date: dict[date, float] = {}
+        for asset_code in ("000001.SH", "399001.SZ"):
+            bars = gateway.get_historical_prices(
+                asset_code,
+                start_date.strftime("%Y%m%d"),
+                end_date.strftime("%Y%m%d"),
+            )
+            for bar in bars:
+                if bar.amount is None:
+                    continue
+                if bar.trade_date < start_date or bar.trade_date > end_date:
+                    continue
+                rows_by_date[bar.trade_date] = rows_by_date.get(bar.trade_date, 0.0) + float(
+                    bar.amount
+                )
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_TOTAL_TURNOVER",
+                reporting_period=observed_at,
+                value=value,
+                unit="元",
+                source=self.provider_source(),
+                published_at=observed_at,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "proxy": "tencent_index_history_sh000001_plus_sz399001",
+                        "fallback_provider": "tencent",
+                    }
+                ),
+            )
+            for observed_at, value in sorted(rows_by_date.items())
+        ]
+
+    def _fetch_market_turnover_from_eastmoney_quote(
+        self,
+        target_date: date,
+    ) -> list[MacroFact]:
+        """Fallback broad A-share turnover to EastMoney direct index quote amounts."""
+
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            _EASTMONEY_QUOTE_URL,
+            _QUOTE_FIELDS,
+            _eastmoney_direct_network,
+            _to_secid,
+        )
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+            ),
+            "Referer": "https://quote.eastmoney.com/",
+            "Accept": "application/json,text/plain,*/*",
+        }
+        total_amount = 0.0
+        success_count = 0
+        expected_index_count = 2
+        with _eastmoney_direct_network():
+            with requests.Session() as session:
+                session.headers.update(headers)
+                for asset_code in ("000001.SH", "399001.SZ"):
+                    params = {
+                        "secid": _to_secid(asset_code),
+                        "fields": _QUOTE_FIELDS,
+                        "invt": "2",
+                        "fltt": "1",
+                    }
+                    amount = None
+                    for attempt in range(1, 4):
+                        try:
+                            response = session.get(_EASTMONEY_QUOTE_URL, params=params, timeout=10)
+                            response.raise_for_status()
+                            data = (response.json() or {}).get("data") or {}
+                            amount = _safe_float(data.get("f48"))
+                            break
+                        except requests.RequestException as exc:
+                            if _request_error_is_permission_denied(exc):
+                                logger.warning(
+                                    "EastMoney direct turnover quote blocked by local socket policy: asset=%s",
+                                    asset_code,
+                                )
+                                raise ConnectionError(str(exc)) from exc
+                            if attempt == 3:
+                                logger.warning(
+                                    "EastMoney direct turnover quote failed: asset=%s error=%s",
+                                    asset_code,
+                                    exc,
+                                )
+                            else:
+                                sleep(0.6 * attempt)
+                    if amount is None:
+                        continue
+                    total_amount += amount
+                    success_count += 1
+
+        if success_count < expected_index_count:
+            return []
+
+        return [
+            MacroFact(
+                indicator_code="CN_A_TOTAL_TURNOVER",
+                reporting_period=target_date,
+                value=total_amount,
+                unit="元",
+                source=self.provider_source(),
+                published_at=target_date,
+                quality=DataQualityStatus.VALID,
+                extra=self._provider_extra(
+                    {
+                        "proxy": "eastmoney_quote_sh000001_plus_sz399001",
+                        "fallback_provider": "eastmoney_direct_quote",
+                        "successful_index_count": success_count,
+                    }
+                ),
+            )
+        ]
+
 
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized Tushare provider wrapper."""
@@ -379,24 +525,55 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         from shared.infrastructure.tushare_client import create_tushare_pro_client
 
-        pro = create_tushare_pro_client(token=self._config.api_key, http_url=self._config.http_url)
         rows_by_date: dict[date, float] = {}
-        for ts_code in ("000001.SH", "399001.SZ"):
-            df = pro.index_daily(
-                ts_code=ts_code,
-                start_date=start_date.strftime("%Y%m%d"),
-                end_date=end_date.strftime("%Y%m%d"),
+        try:
+            pro = create_tushare_pro_client(
+                token=self._config.api_key, http_url=self._config.http_url
             )
-            if df is None or df.empty:
-                continue
-            for row in df.to_dict("records"):
-                observed_at = _safe_date(_first_present(row, "trade_date", "date"))
-                if observed_at is None:
+            for ts_code in ("000001.SH", "399001.SZ"):
+                df = pro.index_daily(
+                    ts_code=ts_code,
+                    start_date=start_date.strftime("%Y%m%d"),
+                    end_date=end_date.strftime("%Y%m%d"),
+                )
+                if df is None or df.empty:
                     continue
-                amount = _safe_float(_first_present(row, "amount"))
-                if amount is None:
-                    continue
-                rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount * 1000.0
+                for row in df.to_dict("records"):
+                    observed_at = _safe_date(_first_present(row, "trade_date", "date"))
+                    if observed_at is None:
+                        continue
+                    amount = _safe_float(_first_present(row, "amount"))
+                    if amount is None:
+                        continue
+                    rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount * 1000.0
+        except Exception as exc:
+            logger.warning("Tushare turnover fetch failed, trying direct quote fallback: %s", exc)
+            try:
+                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
+            except ConnectionError as blocked_exc:
+                logger.warning(
+                    "Tushare turnover fast-failed because fallback quotes were blocked locally: %s",
+                    blocked_exc,
+                )
+                return []
+            if fallback:
+                return fallback
+            return self._fetch_market_turnover_from_tencent(start_date, end_date)
+
+        if not rows_by_date:
+            try:
+                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
+            except ConnectionError as blocked_exc:
+                logger.warning(
+                    "Tushare turnover fast-failed because fallback quotes were blocked locally: %s",
+                    blocked_exc,
+                )
+                return []
+            if fallback:
+                return fallback
+            fallback = self._fetch_market_turnover_from_tencent(start_date, end_date)
+            if fallback:
+                return fallback
 
         return [
             MacroFact(
@@ -789,23 +966,52 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         )
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
-        ak = get_akshare_module()
-        index_symbols = ("sh000001", "sz399001")
         rows_by_date: dict[date, float] = {}
+        try:
+            ak = get_akshare_module()
+            index_symbols = ("sh000001", "sz399001")
 
-        for symbol in index_symbols:
-            with _eastmoney_direct_network():
-                df = ak.stock_zh_index_daily_em(symbol=symbol)
-            if df is None or df.empty:
-                continue
-            for row in df.to_dict("records"):
-                observed_at = _safe_date(_first_present(row, "date", "日期"))
-                if observed_at is None or observed_at < start_date or observed_at > end_date:
+            for symbol in index_symbols:
+                with _eastmoney_direct_network():
+                    df = ak.stock_zh_index_daily_em(symbol=symbol)
+                if df is None or df.empty:
                     continue
-                amount = _safe_float(_first_present(row, "amount", "成交额"))
-                if amount is None:
-                    continue
-                rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount
+                for row in df.to_dict("records"):
+                    observed_at = _safe_date(_first_present(row, "date", "日期"))
+                    if observed_at is None or observed_at < start_date or observed_at > end_date:
+                        continue
+                    amount = _safe_float(_first_present(row, "amount", "成交额"))
+                    if amount is None:
+                        continue
+                    rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount
+        except Exception as exc:
+            logger.warning("AKShare turnover fetch failed, trying direct quote fallback: %s", exc)
+            try:
+                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
+            except ConnectionError as blocked_exc:
+                logger.warning(
+                    "AKShare turnover fast-failed because fallback quotes were blocked locally: %s",
+                    blocked_exc,
+                )
+                return []
+            if fallback:
+                return fallback
+            return self._fetch_market_turnover_from_tencent(start_date, end_date)
+
+        if not rows_by_date:
+            try:
+                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
+            except ConnectionError as blocked_exc:
+                logger.warning(
+                    "AKShare turnover fast-failed because fallback quotes were blocked locally: %s",
+                    blocked_exc,
+                )
+                return []
+            if fallback:
+                return fallback
+            fallback = self._fetch_market_turnover_from_tencent(start_date, end_date)
+            if fallback:
+                return fallback
 
         return [
             MacroFact(
@@ -984,6 +1190,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                             attempt,
                             exc,
                         )
+                        if _request_error_is_permission_denied(exc):
+                            raise
                 if attempt < 3:
                     sleep(1.5 * attempt)
             if last_error is not None:
@@ -993,6 +1201,8 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         try:
             return _fetch_with_retries()
         except requests.RequestException as exc:
+            if _request_error_is_permission_denied(exc):
+                raise ConnectionError(str(exc)) from exc
             logger.warning(
                 "EastMoney ETF direct fetch exhausted default network, retrying without proxy: %s",
                 exc,

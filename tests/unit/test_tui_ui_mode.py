@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from django.contrib.auth.models import AnonymousUser
 from django.template.loader import render_to_string
 from django.test import RequestFactory
@@ -31,52 +29,37 @@ def test_get_ui_mode_rejects_invalid_cookie():
     assert get_ui_mode(request) == {"ui_mode": "classic", "is_tui_mode": False}
 
 
-def test_base_template_outputs_classic_ui_mode():
+def test_base_template_does_not_load_tui_overlay():
     request = _anonymous_request("/account/login/")
 
     html = render_to_string("base.html", request=request)
 
-    assert 'data-ui-mode="classic"' in html
-    assert "data-ui-mode-toggle" in html
-    assert "data-ui-mode-panel" in html
-    assert 'data-ui-mode-choice="tui"' in html
-    assert "data-ui-mode-exit" in html
-    assert "data-tui-scan-toggle" in html
-    assert "data-tui-manual-scan" in html
-    assert "css/tui-theme.css" in html
-    assert "js/tui-mode.js" in html
-    assert "tui-scan-target" in html
+    assert "data-ui-mode-toggle" not in html
+    assert "data-ui-mode-panel" not in html
+    assert "css/tui-theme.css" not in html
+    assert "js/tui-mode.js" not in html
+    assert "tui-workbench-shell" not in html
+    assert "tui-module-rail" not in html
+    assert "tui-workspace-panel" not in html
 
 
-def test_base_template_outputs_tui_ui_mode_from_cookie():
+def test_base_template_ignores_legacy_tui_cookie():
     request = _anonymous_request("/account/login/", "agom_ui_mode=tui")
 
     html = render_to_string("base.html", request=request)
 
-    assert 'data-ui-mode="tui"' in html
-    assert 'aria-pressed="true"' in html
+    assert 'data-ui-mode="tui"' not in html
+    assert "data-ui-mode-toggle" not in html
 
 
-def test_auth_template_outputs_tui_controls():
+def test_auth_template_does_not_load_tui_overlay():
     request = _anonymous_request("/account/login/", "agom_ui_mode=tui")
 
     html = render_to_string("base_auth.html", request=request)
 
-    assert 'data-ui-mode="tui"' in html
-    assert "ui-mode-toggle--auth" in html
-    assert "data-ui-mode-panel-toggle" in html
-    assert "data-ui-mode-reset" in html
-    assert "data-ui-mode-exit" in html
-    assert "tui-function-bar" in html
-    assert "tui-scan-target" in html
-
-
-def test_tui_mode_script_exposes_control_interface_hooks():
-    script = Path("static/js/tui-mode.js").read_text(encoding="utf-8")
-
-    assert "agom:tui-scan-enabled" in script
-    assert "data-ui-mode-panel-toggle" in script
-    assert "data-ui-mode-exit" in script
-    assert "data-tui-manual-scan" in script
-    assert "exitTuiMode" in script
-    assert "setScanEnabled" in script
+    assert "css/tui-theme.css" not in html
+    assert "js/tui-mode.js" not in html
+    assert "ui-mode-toggle--auth" not in html
+    assert "data-ui-mode-panel-toggle" not in html
+    assert "tui-function-bar" not in html
+    assert "tui-scan-target" not in html

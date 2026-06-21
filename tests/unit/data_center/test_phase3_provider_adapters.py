@@ -267,7 +267,9 @@ def test_akshare_etf_net_flow_retries_eastmoney_direct(monkeypatch):
         "apps.data_center.infrastructure.provider_adapters.requests.get",
         _flaky_get,
     )
-    monkeypatch.setattr("apps.data_center.infrastructure.provider_adapters.sleep", lambda delay: None)
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.sleep", lambda delay: None
+    )
 
     adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
     facts = adapter.fetch_macro_series(
@@ -279,6 +281,48 @@ def test_akshare_etf_net_flow_retries_eastmoney_direct(monkeypatch):
     assert calls["count"] == 3
     assert len(facts) == 1
     assert facts[0].value == 1200.5
+
+
+def test_akshare_etf_net_flow_permission_denied_fast_fails(monkeypatch):
+    class _BrokenAkshare:
+        def fund_etf_spot_em(self):
+            raise ConnectionError("remote closed")
+
+    calls = {"count": 0, "sleep_count": 0}
+
+    def _blocked_get(*args, **kwargs):
+        del args, kwargs
+        calls["count"] += 1
+        raise requests.ConnectionError("[WinError 10013] socket access forbidden")
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _BrokenAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        _blocked_get,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.sleep",
+        lambda delay: calls.__setitem__("sleep_count", calls["sleep_count"] + 1),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+
+    try:
+        adapter.fetch_macro_series(
+            "CN_A_ETF_NET_FLOW",
+            date(2026, 6, 1),
+            date(2026, 6, 8),
+        )
+    except ConnectionError as exc:
+        assert "10013" in str(exc)
+    else:
+        raise AssertionError("permission-denied ETF fetch should raise ConnectionError")
+
+    assert calls["count"] == 1
+    assert calls["sleep_count"] == 0
 
 
 def test_akshare_price_history_preserves_requested_index_suffix(monkeypatch):
@@ -423,6 +467,177 @@ def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     assert facts[0].extra["proxy"] == "sh_index_plus_sz_index"
 
 
+def test_akshare_unified_provider_adapter_falls_back_to_tencent_for_market_turnover(
+    monkeypatch,
+):
+    class _FakeAkshare:
+        def stock_zh_index_daily_em(self, symbol):
+            del symbol
+            raise requests.RequestException("eastmoney blocked")
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+    monkeypatch.setattr(
+        AkshareUnifiedProviderAdapter,
+        "_fetch_market_turnover_from_eastmoney_quote",
+        lambda self, target_date: [],
+    )
+
+    class _FakeTencentGateway:
+        def __init__(self, timeout=15.0):
+            self.timeout = timeout
+
+        def get_historical_prices(self, asset_code, start_date, end_date):
+            assert start_date == "20260519"
+            assert end_date == "20260519"
+            if asset_code == "000001.SH":
+                return [
+                    SimpleNamespace(
+                        trade_date=date(2026, 5, 19),
+                        amount=1000.0,
+                    )
+                ]
+            return [
+                SimpleNamespace(
+                    trade_date=date(2026, 5, 19),
+                    amount=2000.0,
+                )
+            ]
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway",
+        _FakeTencentGateway,
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert len(facts) == 1
+    assert facts[0].value == 3000.0
+    assert facts[0].extra["proxy"] == "tencent_index_history_sh000001_plus_sz399001"
+    assert facts[0].extra["fallback_provider"] == "tencent"
+
+
+def test_akshare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_market_turnover(
+    monkeypatch,
+):
+    class _FakeAkshare:
+        def stock_zh_index_daily_em(self, symbol):
+            del symbol
+            raise requests.RequestException("eastmoney blocked")
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+
+    class _FakeResponse:
+        def __init__(self, amount):
+            self._amount = amount
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": {"f48": self._amount}}
+
+    class _FakeSession:
+        def __init__(self):
+            self.headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, params=None, timeout=10):
+            del url, timeout
+            if params["secid"] == "1.000001":
+                return _FakeResponse(1000.0)
+            return _FakeResponse(2000.0)
+
+    class _NoOpContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
+        lambda: _NoOpContext(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        _FakeSession,
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert len(facts) == 1
+    assert facts[0].value == 3000.0
+    assert facts[0].reporting_period == date(2026, 5, 19)
+    assert facts[0].extra["proxy"] == "eastmoney_quote_sh000001_plus_sz399001"
+    assert facts[0].extra["fallback_provider"] == "eastmoney_direct_quote"
+    assert facts[0].extra["successful_index_count"] == 2
+
+
+def test_akshare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocked(
+    monkeypatch,
+):
+    class _FakeAkshare:
+        def stock_zh_index_daily_em(self, symbol):
+            del symbol
+            raise requests.RequestException("eastmoney blocked")
+
+    class _BlockedSession:
+        def __init__(self):
+            self.headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, params=None, timeout=10):
+            del url, params, timeout
+            raise requests.ConnectionError("[WinError 10013] socket access forbidden")
+
+    class _NoOpContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
+        lambda: _NoOpContext(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        _BlockedSession,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway",
+        lambda timeout=15.0: (_ for _ in ()).throw(AssertionError("tencent should be skipped")),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert facts == []
+
+
 def test_akshare_unified_provider_adapter_fetches_new_investor_accounts(monkeypatch):
     class _FakeAkshare:
         def stock_account_statistics_em(self):
@@ -479,6 +694,160 @@ def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     assert facts[0].unit == "元"
     assert facts[0].extra["proxy"] == "tushare_index_daily_sh000001_plus_sz399001"
     assert facts[0].extra["original_unit"] == "千元"
+
+
+def test_tushare_unified_provider_adapter_falls_back_to_tencent_for_market_turnover(
+    monkeypatch,
+):
+    class _FakeTencentGateway:
+        def __init__(self, timeout=15.0):
+            self.timeout = timeout
+
+        def get_historical_prices(self, asset_code, start_date, end_date):
+            assert start_date == "20260519"
+            assert end_date == "20260519"
+            if asset_code == "000001.SH":
+                return [
+                    SimpleNamespace(
+                        trade_date=date(2026, 5, 19),
+                        amount=1500.0,
+                    )
+                ]
+            return [
+                SimpleNamespace(
+                    trade_date=date(2026, 5, 19),
+                    amount=2500.0,
+                )
+            ]
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+    )
+    monkeypatch.setattr(
+        TushareUnifiedProviderAdapter,
+        "_fetch_market_turnover_from_eastmoney_quote",
+        lambda self, target_date: [],
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway",
+        _FakeTencentGateway,
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert len(facts) == 1
+    assert facts[0].value == 4000.0
+    assert facts[0].extra["proxy"] == "tencent_index_history_sh000001_plus_sz399001"
+    assert facts[0].extra["fallback_provider"] == "tencent"
+
+
+def test_tushare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_market_turnover(
+    monkeypatch,
+):
+    class _FakeResponse:
+        def __init__(self, amount):
+            self._amount = amount
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"data": {"f48": self._amount}}
+
+    class _FakeSession:
+        def __init__(self):
+            self.headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, params=None, timeout=10):
+            del url, timeout
+            if params["secid"] == "1.000001":
+                return _FakeResponse(1500.0)
+            return _FakeResponse(2500.0)
+
+    class _NoOpContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
+        lambda: _NoOpContext(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        _FakeSession,
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert len(facts) == 1
+    assert facts[0].value == 4000.0
+    assert facts[0].reporting_period == date(2026, 5, 19)
+    assert facts[0].extra["proxy"] == "eastmoney_quote_sh000001_plus_sz399001"
+    assert facts[0].extra["fallback_provider"] == "eastmoney_direct_quote"
+    assert facts[0].extra["successful_index_count"] == 2
+
+
+def test_tushare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocked(
+    monkeypatch,
+):
+    class _BlockedSession:
+        def __init__(self):
+            self.headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def get(self, url, params=None, timeout=10):
+            del url, params, timeout
+            raise requests.ConnectionError("[WinError 10013] socket access forbidden")
+
+    class _NoOpContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda token=None, http_url=None: (_ for _ in ()).throw(TimeoutError("tushare timeout")),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
+        lambda: _NoOpContext(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        _BlockedSession,
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway",
+        lambda timeout=15.0: (_ for _ in ()).throw(AssertionError("tencent should be skipped")),
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
+    facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
+
+    assert facts == []
 
 
 def test_tushare_unified_provider_adapter_fetches_margin_balance(monkeypatch):

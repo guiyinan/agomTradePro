@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+import time
 
+from apps.data_center.application import market_thermometer as market_thermometer_module
 from apps.data_center.application.market_thermometer import (
     CalculateMarketThermometerUseCase,
     ImportInvestorAccountsUseCase,
@@ -20,6 +22,7 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
+from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 
 
 @dataclass
@@ -122,6 +125,10 @@ class _NoDataProvider:
         del indicator_code, start, end
         return []
 
+    def fetch_news(self, query: str, limit: int = 200):
+        del query, limit
+        return []
+
 
 class _RealDataProvider:
     def __init__(self, value: float = 123.0, name: str = "Tushare Pro") -> None:
@@ -168,9 +175,18 @@ class _OriginalRealDataProvider:
     def provider_name(self) -> str:
         return "Tushare Pro"
 
+
+class _UnavailableProvider:
+    def provider_name(self) -> str:
+        return "Unavailable Provider"
+
     def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
-        del start, end
-        return [_macro_fact(indicator_code, date(2026, 5, 19), 123.0, "元")]
+        del indicator_code, start, end
+        raise DataSourceUnavailableError("provider unavailable")
+
+    def fetch_news(self, query: str, limit: int = 200):
+        del query, limit
+        raise DataSourceUnavailableError("provider unavailable")
 
 
 class _WindowAwareProvider:
@@ -188,6 +204,31 @@ class _WindowAwareProvider:
                 _macro_fact(indicator_code, date(2026, 4, 30), 150_000, "户"),
             ]
         return [_macro_fact(indicator_code, end, 123.0, "元")]
+
+
+class _SlowProvider:
+    def provider_name(self) -> str:
+        return "Slow Provider"
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del indicator_code, start, end
+        time.sleep(0.05)
+        return [_macro_fact("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), 321.0, "元")]
+
+    def fetch_news(self, query: str, limit: int = 200):
+        del query, limit
+        time.sleep(0.05)
+        return []
+
+
+class _SlowEtfProvider:
+    def provider_name(self) -> str:
+        return "Slow ETF Provider"
+
+    def fetch_macro_series(self, indicator_code: str, start: date, end: date) -> list[MacroFact]:
+        del start, end
+        time.sleep(0.03)
+        return [_macro_fact(indicator_code, date(2026, 6, 8), 456.0, "元")]
 
 
 def _macro_fact(indicator_code: str, reporting_period: date, value: float, unit: str) -> MacroFact:
@@ -252,6 +293,139 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
     } == {"tushare"}
 
 
+def test_sync_market_thermometer_inputs_continues_after_provider_unavailable():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "tushare", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _UnavailableProvider(),
+                2: _RealDataProvider(name="Tushare Pro"),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    turnover_results = [item for item in payload["results"] if item["component"] == "turnover"]
+    assert turnover_results[0]["status"] == "error"
+    assert turnover_results[1]["status"] == "success"
+    assert turnover_results[1]["provider"] == "Tushare Pro"
+    assert any(fact.indicator_code == "CN_A_TOTAL_TURNOVER" for fact in macro_repo.stored)
+
+
+def test_sync_market_thermometer_inputs_times_out_slow_provider_and_continues(monkeypatch):
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES",
+        {},
+    )
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(
+            providers=[
+                _provider_config(1, "akshare", 1),
+                _provider_config(2, "tushare", 1),
+            ]
+        ),
+        provider_factory=_FakeProviderFactory(
+            providers={
+                1: _SlowProvider(),
+                2: _RealDataProvider(name="Tushare Pro"),
+            }
+        ),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    turnover_results = [item for item in payload["results"] if item["component"] == "turnover"]
+    assert turnover_results[0]["status"] == "error"
+    assert "timed out" in turnover_results[0]["error"]
+    assert turnover_results[1]["status"] == "success"
+    assert turnover_results[1]["provider"] == "Tushare Pro"
+
+
+def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch):
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES",
+        {"etf_net_flow": 0.05},
+    )
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_factory=_FakeProviderFactory(providers={1: _SlowEtfProvider()}),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 6, 8))
+
+    consensus_rows = [
+        item
+        for item in payload["results"]
+        if item["component"] == "etf_net_flow"
+        and item["provider"] == "data_center_consensus"
+        and item["status"] == "success"
+    ]
+    assert consensus_rows == [
+        {
+            "component": "etf_net_flow",
+            "provider": "data_center_consensus",
+            "stored_count": 1,
+            "status": "success",
+            "verification_status": "single_source",
+        }
+    ]
+
+
+def test_sync_market_thermometer_inputs_marks_market_news_no_data_when_nothing_is_stored():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_factory=_FakeProviderFactory(providers={1: _NoDataProvider()}),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 5, 19))
+
+    market_news_results = [
+        item for item in payload["results"] if item["component"] == "market_news"
+    ]
+    assert market_news_results == [
+        {
+            "component": "market_news",
+            "provider": "AKShare Public",
+            "stored_count": 0,
+            "status": "no_data",
+        }
+    ]
+
+
 def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_window():
     macro_repo = _FakeMacroRepo(series_map={})
     provider = _WindowAwareProvider()
@@ -282,6 +456,30 @@ def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_w
     ] == [date(2026, 3, 31), date(2026, 4, 30)]
 
 
+def test_sync_market_thermometer_inputs_fetches_turnover_and_margin_with_recent_window():
+    macro_repo = _FakeMacroRepo(series_map={})
+    provider = _WindowAwareProvider()
+    use_case = SyncMarketThermometerInputsUseCase(
+        provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
+        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        macro_repo=macro_repo,
+        news_repo=_FakeNewsRepo(),
+        raw_audit_repo=_FakeRawAuditRepo(),
+    )
+
+    payload = use_case.execute(as_of_date=date(2026, 6, 20))
+
+    success_by_component = {
+        item["component"]: item for item in payload["results"] if item["status"] == "success"
+    }
+    assert success_by_component["turnover"]["stored_count"] == 1
+    assert success_by_component["margin_balance"]["stored_count"] == 1
+    turnover_request = [item for item in provider.requests if item[0] == "CN_A_TOTAL_TURNOVER"]
+    margin_request = [item for item in provider.requests if item[0] == "CN_A_MARGIN_BALANCE"]
+    assert turnover_request == [("CN_A_TOTAL_TURNOVER", date(2026, 6, 13), date(2026, 6, 20))]
+    assert margin_request == [("CN_A_MARGIN_BALANCE", date(2026, 6, 13), date(2026, 6, 20))]
+
+
 def test_sync_market_thermometer_inputs_fetches_etf_net_flow_with_recent_window():
     macro_repo = _FakeMacroRepo(series_map={})
     provider = _WindowAwareProvider()
@@ -300,9 +498,7 @@ def test_sync_market_thermometer_inputs_fetches_etf_net_flow_with_recent_window(
         for item in provider.requests
         if item[0] in {"CN_A_ETF_NET_FLOW_MAIN", "CN_A_ETF_SIZE_FLOW"}
     ]
-    assert etf_requests == [
-        ("CN_A_ETF_NET_FLOW_MAIN", date(2026, 6, 1), date(2026, 6, 8))
-    ]
+    assert etf_requests == [("CN_A_ETF_NET_FLOW_MAIN", date(2026, 6, 1), date(2026, 6, 8))]
 
 
 def test_sync_etf_net_flow_stores_consensus_when_sources_match():
@@ -455,9 +651,7 @@ def test_sync_etf_net_flow_falls_back_to_size_flow_proxy():
     assert stored[0].value == 88.0
     assert stored[0].extra["verification_status"] == "fallback_proxy"
     assert stored[0].extra["proxy_indicator"] == "CN_A_ETF_SIZE_FLOW"
-    proxy_rows = [
-        fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_SIZE_FLOW"
-    ]
+    proxy_rows = [fact for fact in macro_repo.stored if fact.indicator_code == "CN_A_ETF_SIZE_FLOW"]
     assert len(proxy_rows) == 1
     assert proxy_rows[0].source == "tushare"
     assert proxy_rows[0].value == 88.0
@@ -635,6 +829,150 @@ def test_build_current_payload_marks_score_unavailable_when_all_components_missi
     payload = use_case.build_current_payload(auto_calculate=False)
 
     assert payload["score_available"] is False
+
+
+def test_build_current_payload_falls_back_to_latest_score_snapshot_when_current_is_empty():
+    snapshot_repo = _FakeSnapshotRepo(
+        snapshots=[
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 6, 20),
+                score=0.0,
+                band="cold",
+                change_5d=None,
+                change_20d=None,
+                valid_component_count=0,
+                data_source="degraded",
+                must_not_use_for_decision=True,
+                blocked_reason="有效组件数不足，当前仅 0 个，低于要求 4 个。",
+            ),
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 6, 5),
+                score=51.95,
+                band="warm",
+                change_5d=1.0,
+                change_20d=3.0,
+                valid_component_count=4,
+                data_source="calculated",
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            ),
+        ]
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=_FakeMacroRepo(series_map={}),
+    )
+
+    payload = use_case.build_current_payload(auto_calculate=False)
+
+    assert payload["observed_at"] == "2026-06-05"
+    assert payload["score"] == 51.95
+    assert payload["score_available"] is True
+    assert payload["fallback_used"] is True
+    assert payload["latest_snapshot_observed_at"] == "2026-06-20"
+    assert payload["must_not_use_for_decision"] is True
+    assert "已回退展示最近有效快照 2026-06-05" in payload["blocked_reason"]
+
+
+def test_build_current_payload_prefers_history_when_current_snapshot_is_more_degraded():
+    snapshot_repo = _FakeSnapshotRepo(
+        snapshots=[
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 6, 20),
+                score=50.0,
+                band="warm",
+                change_5d=-1.95,
+                change_20d=-6.0,
+                valid_component_count=1,
+                data_source="degraded",
+                must_not_use_for_decision=True,
+                blocked_reason="有效组件数不足，当前仅 1 个，低于要求 4 个。",
+            ),
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 6, 5),
+                score=51.95,
+                band="warm",
+                change_5d=1.0,
+                change_20d=3.0,
+                valid_component_count=3,
+                data_source="degraded",
+                must_not_use_for_decision=True,
+                blocked_reason="有效组件数不足，当前仅 3 个，低于要求 4 个。",
+            ),
+        ]
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=_FakeMacroRepo(series_map={}),
+    )
+
+    payload = use_case.build_current_payload(auto_calculate=False)
+
+    assert payload["observed_at"] == "2026-06-05"
+    assert payload["score"] == 51.95
+    assert payload["fallback_used"] is True
+    assert payload["latest_snapshot_observed_at"] == "2026-06-20"
+    assert "当前仅 1 个" in payload["blocked_reason"]
+
+
+def test_build_current_payload_recalculates_when_latest_snapshot_is_stale(monkeypatch):
+    snapshot_repo = _FakeSnapshotRepo(
+        snapshots=[
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 6, 5),
+                score=51.95,
+                band="warm",
+                change_5d=1.0,
+                change_20d=3.0,
+                valid_component_count=3,
+                data_source="degraded",
+                must_not_use_for_decision=True,
+                blocked_reason="有效组件数不足，当前仅 3 个，低于要求 4 个。",
+            )
+        ]
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=_FakeMacroRepo(series_map={}),
+    )
+    captured: dict[str, object] = {}
+    fresh_snapshot = MarketThermometerSnapshot(
+        observed_at=date(2026, 6, 20),
+        score=63.2,
+        band="hot",
+        change_5d=4.1,
+        change_20d=8.3,
+        valid_component_count=4,
+        data_source="calculated",
+        must_not_use_for_decision=False,
+        blocked_reason="",
+    )
+
+    class _FakeToday(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 6, 20)
+
+    def _fake_execute(*, as_of_date=None):
+        captured["as_of_date"] = as_of_date
+        snapshot_repo.save(fresh_snapshot)
+        return fresh_snapshot
+
+    monkeypatch.setattr(market_thermometer_module, "date", _FakeToday)
+    monkeypatch.setattr(use_case, "execute", _fake_execute)
+
+    payload = use_case.build_current_payload(auto_calculate=True)
+
+    assert captured["as_of_date"] == date(2026, 6, 20)
+    assert payload["observed_at"] == "2026-06-20"
+    assert payload["score"] == 63.2
+    assert payload["must_not_use_for_decision"] is False
 
 
 def test_import_investor_accounts_use_case_parses_csv_rows():

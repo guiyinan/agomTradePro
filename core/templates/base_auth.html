@@ -6,7 +6,6 @@
     <title>{% block title %}AgomTradePro{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/design-tokens.css' %}">
-    <link rel="stylesheet" href="{% static 'css/tui-theme.css' %}">
     {% block extra_css %}{% endblock %}
     <style>
         body {
@@ -93,7 +92,7 @@
         }
     </style>
 </head>
-<body data-ui-mode="{{ ui_mode|default:'classic' }}">
+<body>
     <div class="auth-shell">
         <header class="auth-header">
             <a href="/" class="auth-brand">AgomTradePro</a>
@@ -101,71 +100,18 @@
                 <a href="/docs/">文档</a>
                 <a href="/account/login/">登录</a>
                 <a href="/account/register/">注册</a>
-                <div class="ui-mode-control" data-ui-mode-control>
-                    <button
-                        type="button"
-                        class="ui-mode-toggle ui-mode-toggle--auth"
-                        data-ui-mode-toggle
-                        aria-pressed="{% if is_tui_mode %}true{% else %}false{% endif %}"
-                        title="切换 Classic / TUI 界面"
-                    >
-                        <span class="ui-mode-toggle__label">UI</span>
-                        <span class="ui-mode-toggle__value" data-ui-mode-toggle-label>{% if is_tui_mode %}TUI{% else %}Classic{% endif %}</span>
-                    </button>
-                    <button
-                        type="button"
-                        class="ui-mode-control__menu"
-                        data-ui-mode-panel-toggle
-                        aria-expanded="false"
-                        aria-controls="uiModePanel"
-                        title="打开 UI 控制面板"
-                    >
-                        <span aria-hidden="true">▾</span>
-                    </button>
-                    <div class="ui-mode-panel" id="uiModePanel" data-ui-mode-panel hidden>
-                        <div class="ui-mode-panel__title">UI CONTROL</div>
-                        <div class="ui-mode-panel__group" role="group" aria-label="界面模式">
-                            <button type="button" class="ui-mode-panel__choice" data-ui-mode-exit aria-pressed="{% if is_tui_mode %}false{% else %}true{% endif %}">退出 TUI</button>
-                            <button type="button" class="ui-mode-panel__choice" data-ui-mode-choice="tui" aria-pressed="{% if is_tui_mode %}true{% else %}false{% endif %}">TUI</button>
-                        </div>
-                        <label class="ui-mode-panel__switch">
-                            <input type="checkbox" data-tui-scan-toggle checked>
-                            <span>CRT 扫描刷新</span>
-                        </label>
-                        <div class="ui-mode-panel__actions">
-                            <button type="button" data-tui-manual-scan>扫描刷新</button>
-                            <button type="button" data-ui-mode-reset>重置扫描</button>
-                        </div>
-                        <div class="ui-mode-panel__status" data-ui-mode-panel-status>Ctrl+U 进入 / 打开控制面板</div>
-                    </div>
-                </div>
             </nav>
         </header>
 
-        <div class="tui-status-strip" aria-hidden="true">
-            <span>NODE: AUTH</span>
-            <span>UI: PC-TOOLS</span>
-            <span>ACCESS: PUBLIC</span>
-            <span>STATUS: READY</span>
-        </div>
-
-        <main class="auth-main tui-scan-target" id="mainContent">
+        <main class="auth-main" id="mainContent">
             {% block content %}{% endblock %}
         </main>
-
-        <div class="tui-function-bar" aria-hidden="true">
-            <span class="tui-function-key"><strong>F1</strong> 帮助</span>
-            <span class="tui-function-key"><strong>F5</strong> 刷新</span>
-            <span class="tui-function-key"><strong>CTRL+U</strong> UI MODE</span>
-            <span class="tui-function-key"><strong>STATUS</strong> READY</span>
-        </div>
 
         <footer class="auth-footer">
             <p>AgomTradePro 研究平台。系统信息仅用于研究，不构成投资建议。</p>
         </footer>
     </div>
 
-    <script src="{% static 'js/tui-mode.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

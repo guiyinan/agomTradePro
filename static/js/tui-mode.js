@@ -1,3 +1,9 @@
+/*
+ * LEGACY / 遗产: browser-local TUI overlay switcher.
+ *
+ * Kept for rollback/reference only. It is not loaded by base.html or
+ * base_auth.html. New TUI interactions belong in /tui/ and tui-workbench.js.
+ */
 (function () {
     "use strict";
 

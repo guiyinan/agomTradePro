@@ -20,8 +20,11 @@ from core.integration.capability_routing import route_terminal_message
 from ..application.repository_provider import (
     get_terminal_audit_repository,
     get_terminal_command_repository,
+    get_tui_action_executor,
+    get_tui_metadata_repository,
 )
 from ..application.services import AnswerChainSettingsService, CommandExecutionService
+from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
 from ..application.use_cases import (
     CreateCommandRequest,
     CreateCommandUseCase,
@@ -569,3 +572,86 @@ class TerminalAuditView(APIView):
             'count': len(entries),
             'entries': serializer.data,
         })
+
+
+class TuiWorkbenchRegistryView(APIView):
+    """Expose TUI workbench module registry."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return all modules that the standalone TUI shell can render."""
+
+        return Response(
+            TuiWorkbenchRegistry(
+                metadata_repository=get_tui_metadata_repository(),
+            ).list_modules()
+        )
+
+
+class TuiWorkbenchModuleSnapshotView(APIView):
+    """Expose one API-driven module UI specification."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, module_key: str):
+        """Return the renderable spec for one TUI module."""
+
+        return Response(
+            TuiWorkbenchRegistry(
+                metadata_repository=get_tui_metadata_repository(),
+            ).get_module_snapshot(module_key)
+        )
+
+
+class TuiWorkbenchCatalogView(APIView):
+    """Expose the V2 API-native TUI catalog."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return grouped modules, screens, and safe actions."""
+
+        service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
+        return Response(service.get_catalog())
+
+
+class TuiWorkbenchScreenView(APIView):
+    """Expose one renderable PC tools screen contract."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, screen_key: str):
+        """Return a screen spec with actions and layout policy."""
+
+        service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
+        return Response(service.get_screen(screen_key))
+
+
+class TuiWorkbenchActionRunView(APIView):
+    """Execute one TUI action and return a business view model."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, action_key: str):
+        """Run a published safe action for the current user."""
+
+        service = TuiWorkbenchService(
+            metadata_repository=get_tui_metadata_repository(),
+            action_executor=get_tui_action_executor(),
+        )
+        try:
+            payload = service.run_action(
+                action_key=action_key,
+                params=request.data.get("params", {}) if isinstance(request.data, dict) else {},
+                user=request.user,
+                confirmed=bool(request.data.get("confirmed", False)) if isinstance(request.data, dict) else False,
+            )
+        except KeyError:
+            return Response({"error": "Unknown TUI action"}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except Exception as exc:
+            logger.exception("TUI action failed: %s", exc)
+            return Response({"error": "TUI action failed"}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(payload)

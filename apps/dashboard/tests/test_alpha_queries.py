@@ -461,6 +461,11 @@ def test_alpha_homepage_auto_trigger_uses_scope_payload(monkeypatch):
     )
     monkeypatch.setattr("django.core.cache.cache", FakeCache)
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+    query._get_async_refresh_celery_health = lambda: {
+        "available": True,
+        "active_workers": ["worker@local"],
+        "reason": "healthy",
+    }
 
     status = query._trigger_async_inference_if_needed(
         user=SimpleNamespace(id=7, is_authenticated=True),
@@ -507,6 +512,11 @@ def test_alpha_homepage_auto_trigger_records_pending_task_immediately(monkeypatc
     )
     monkeypatch.setattr("django.core.cache.cache", FakeCache)
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
+    query._get_async_refresh_celery_health = lambda: {
+        "available": True,
+        "active_workers": ["worker@local"],
+        "reason": "healthy",
+    }
 
     status = query._trigger_async_inference_if_needed(
         user=SimpleNamespace(id=7, is_authenticated=True),
@@ -523,6 +533,92 @@ def test_alpha_homepage_auto_trigger_records_pending_task_immediately(monkeypatc
     assert record.task_name == "apps.alpha.application.tasks.qlib_predict_scores"
     assert record.args == ("portfolio-7-deadbeef", "2026-04-18", 10)
     assert record.kwargs["scope_payload"]["scope_hash"] == "deadbeef"
+
+
+def test_alpha_homepage_auto_trigger_skips_when_no_celery_worker(monkeypatch):
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FailCache:
+        @staticmethod
+        def add(key, value, timeout=None):
+            raise AssertionError("cache.add should not run when Celery is unavailable")
+
+    scope = SimpleNamespace(
+        universe_id="portfolio-7-deadbeef",
+        scope_hash="deadbeef",
+        to_dict=lambda: {
+            "universe_id": "portfolio-7-deadbeef",
+            "scope_hash": "deadbeef",
+            "instrument_codes": ["000001.SZ"],
+        },
+    )
+    monkeypatch.setattr("django.core.cache.cache", FailCache)
+    query._get_async_refresh_celery_health = lambda: {
+        "available": False,
+        "active_workers": [],
+        "reason": "no_active_workers",
+    }
+
+    status = query._trigger_async_inference_if_needed(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=scope,
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert status["refresh_triggered"] is False
+    assert status["refresh_status"] == "skipped"
+    assert status["auto_refresh_error"] == "no_active_workers"
+    assert "不自动触发后台推理" in status["message"]
+
+
+def test_alpha_homepage_auto_trigger_releases_lock_when_queue_fails(monkeypatch):
+    captured: dict[str, object] = {}
+    query = object.__new__(AlphaHomepageQuery)
+
+    class FakeCache:
+        @staticmethod
+        def add(key, value, timeout=None):
+            captured["add_key"] = key
+            return True
+
+        @staticmethod
+        def delete(key):
+            captured["deleted_key"] = key
+
+    class FailDelayWrapper:
+        @staticmethod
+        def delay(universe_id, intended_trade_date, top_n, scope_payload=None):
+            raise RuntimeError("broker down")
+
+    scope = SimpleNamespace(
+        universe_id="portfolio-7-deadbeef",
+        scope_hash="deadbeef",
+        to_dict=lambda: {
+            "universe_id": "portfolio-7-deadbeef",
+            "scope_hash": "deadbeef",
+            "instrument_codes": ["000001.SZ"],
+        },
+    )
+    monkeypatch.setattr("django.core.cache.cache", FakeCache)
+    monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FailDelayWrapper)
+    query._get_async_refresh_celery_health = lambda: {
+        "available": True,
+        "active_workers": ["worker@local"],
+        "reason": "healthy",
+    }
+
+    status = query._trigger_async_inference_if_needed(
+        user=SimpleNamespace(id=7, is_authenticated=True),
+        scope=scope,
+        trade_date=date(2026, 4, 18),
+        top_n=10,
+    )
+
+    assert status["refresh_triggered"] is False
+    assert status["refresh_status"] == "failed"
+    assert status["auto_refresh_error"] == "broker down"
+    assert captured["deleted_key"] == captured["add_key"]
 
 
 def test_alpha_homepage_query_triggers_scoped_refresh_when_using_broader_cache():

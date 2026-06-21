@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agomtradepro.local/schema/tui_metadata.schema.v3.json",
+  "title": "AgomTradePro TUI Metadata Schema",
+  "type": "object",
+  "required": ["version", "default_screen", "groups", "modules", "screens", "actions"],
+  "properties": {
+    "schema_version": { "const": "tui-metadata.v3" },
+    "version": { "type": "string", "minLength": 1 },
+    "registry_key": { "type": "string" },
+    "default_screen": { "type": "string", "minLength": 1 },
+    "interaction_model": { "type": "string" },
+    "principles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/group" }
+    },
+    "modules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/module" }
+    },
+    "screens": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/screen" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    }
+  },
+  "$defs": {
+    "group": {
+      "type": "object",
+      "required": ["key", "label"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "module": {
+      "type": "object",
+      "required": ["key", "label", "group", "summary"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "group": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "status": { "enum": ["online", "planned", "hidden", "disabled"] }
+      },
+      "additionalProperties": true
+    },
+    "screen": {
+      "type": "object",
+      "required": ["key", "label", "module_key", "group", "summary", "view_type"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "module_key": { "type": "string", "minLength": 1 },
+        "group": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string" },
+        "view_type": { "$ref": "#/$defs/viewType" },
+        "status": { "enum": ["online", "planned", "hidden", "disabled"] },
+        "default_action_key": { "type": "string" },
+        "dashboard_panels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dashboardPanel" }
+        },
+        "workflow": { "type": "object" },
+        "business_context": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "action": {
+      "type": "object",
+      "required": ["key", "label", "endpoint", "intent", "screen_key", "view_type"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+        "endpoint": { "type": "string", "pattern": "^/api/" },
+        "intent": { "type": "string", "minLength": 1 },
+        "screen_key": { "type": "string", "minLength": 1 },
+        "module_key": { "type": "string" },
+        "view_type": { "$ref": "#/$defs/viewType" },
+        "risk": { "enum": ["read", "ai", "write", "unsafe", "admin"] },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "view_model": { "$ref": "#/$defs/viewModel" },
+        "description": { "type": "string" },
+        "source": { "type": "string" },
+        "raw_debug": { "type": "boolean" },
+        "task_group": { "type": "string" },
+        "task_tier": { "enum": ["", "primary", "support", "advanced", "operation"] },
+        "sequence": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "field": {
+      "type": "object",
+      "required": ["key", "label"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "input_type": { "enum": ["text", "textarea", "number", "date", "checkbox", "select", "hidden"] },
+        "value_type": { "enum": ["string", "integer", "float", "decimal", "boolean", "date", "datetime", "list", "object"] },
+        "required": { "type": "boolean" },
+        "default": {},
+        "placeholder": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["value", "label"],
+                "properties": {
+                  "value": { "type": ["string", "number", "boolean"] },
+                  "label": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "binding": { "enum": ["path", "query", "body"] },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "unit": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "viewModel": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["auto", "datagrid", "detail", "message"] },
+        "rows_path": { "type": "string" },
+        "total_path": { "type": "string" },
+        "page_path": { "type": "string" },
+        "page_size_path": { "type": "string" },
+        "title_path": { "type": "string" },
+        "status_path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "dashboardPanel": {
+      "type": "object",
+      "required": ["key", "title", "kind"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["datagrid", "detail", "placeholder", "regime_quadrant", "status"] },
+        "action_key": { "type": "string" },
+        "status": { "type": "string" },
+        "note": { "type": "string" },
+        "max_rows": { "type": "integer" },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "layout_area": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "viewType": {
+      "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench"]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,8 +1,8 @@
 /*
- * AgomTradePro PC Tools TUI mode.
+ * LEGACY / 遗产: AgomTradePro PC Tools TUI presentation overlay.
  *
- * This file is intentionally a presentation overlay. Classic UI stays the
- * default, and every rule is scoped to body[data-ui-mode="tui"].
+ * Keep this file for rollback/reference only. It is not loaded by base.html
+ * or base_auth.html. New TUI work belongs in /tui/ and static/css/tui-workbench.css.
  */
 
 :root {
