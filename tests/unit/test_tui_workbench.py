@@ -94,10 +94,14 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "TUI Workbench - AgomTradePro" in html
     assert "tui-workbench.css" in html
     assert "tui-workbench.js" in html
-    assert "user-task-43" in html
+    assert "user-task-44" in html
     assert "data-module-tree" in html
     assert "data-workflow-strip" in html
+    assert 'id="tui-location-input"' in html
     assert "data-current-location" in html
+    assert 'type="text"' in html
+    assert 'value="screen:boot"' in html
+    assert 'aria-label="输入 TUI screen 地址后跳转"' in html
     assert "screen:boot" in html
     assert "用户: tui_user" in html
     assert "data-theme-status" in html
@@ -225,6 +229,12 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "function resetCurrentScreenProgress" in script
     assert "function setCurrentLocation" in script
     assert "[data-current-location]" in script
+    assert "function screenKeyFromLocationInput" in script
+    assert "function resetLocationInput" in script
+    assert "function submitLocationInput" in script
+    assert "els.currentLocation.value" in script
+    assert "els.currentLocation.dataset.currentAddress" in script
+    assert 'rawValue.match(/^screen:([^\\s]+)(?:\\s+action:.+)?$/i)' in script
     assert "screen:${screenKey} action:${action.key}" in script
     assert "function loadStoredProgress" in script
     assert "function persistProgress" in script
@@ -351,6 +361,9 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert ".tui-action-filter" in css
     assert ".tui-action-toggle" in css
     assert ".tui-action-group-operation" in css
+    assert ".tui-system-location input" in css
+    assert ".tui-system-location input:focus" in css
+    assert "margin: 6px 8px 0 32px" in css
     assert ".tui-empty-guidance" in css
     assert ".tui-inspector-actions" in css
     assert "data-inspector-action" not in css
@@ -1455,6 +1468,68 @@ def test_tui_service_datagrid_uses_operator_field_labels(tui_user):
         {"key": "is_active", "label": "是否启用"},
     ]
     assert payload["view_model"]["rows"][0]["is_active"] == "是"
+
+
+def test_tui_service_datagrid_pairs_stock_codes_with_names(monkeypatch, tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "results": [
+                        {
+                            "rank": 1,
+                            "code": "000001.SZ",
+                            "score": 0.91,
+                        },
+                        {
+                            "rank": 2,
+                            "code": "600519.SH",
+                            "name": "贵州茅台",
+                            "score": 0.88,
+                        },
+                    ],
+                    "count": 2,
+                },
+            }
+
+    captured_codes = []
+
+    def fake_resolve_asset_names(codes):
+        captured_codes.extend(codes)
+        return {"000001.SZ": "平安银行"}
+
+    monkeypatch.setattr(
+        "apps.terminal.application.tui_workbench.resolve_asset_names",
+        fake_resolve_asset_names,
+    )
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "alpha.ranking",
+                        "label": "Alpha 排名",
+                        "method": "GET",
+                        "endpoint": "/api/alpha/inference/cache/",
+                        "intent": "read_alpha_ranking",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="alpha.ranking", params={}, user=tui_user)
+
+    assert "000001.SZ" in captured_codes
+    assert payload["view_model"]["rows"][0]["code"] == "000001.SZ 平安银行"
+    assert payload["view_model"]["rows"][1]["code"] == "600519.SH 贵州茅台"
 
 
 def test_tui_service_ai_capability_grid_hides_unsafe_api_rows(tui_user):

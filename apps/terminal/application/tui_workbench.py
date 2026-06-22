@@ -10,11 +10,18 @@ from math import ceil
 from typing import Any
 from urllib.parse import urlparse
 
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.terminal.domain.interfaces import TuiActionExecutor, TuiMetadataRepository
 
 VISIBLE_RUNTIME_RISKS = {"read", "ai", "write"}
 HTML_TAG_PATTERN = re.compile(r"</?\s*[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^<>]*)?>")
 ESCAPED_HTML_TAG_PATTERN = re.compile(r"&lt;/?\s*[a-zA-Z][a-zA-Z0-9:-]*")
+ASSET_CODE_PATTERN = re.compile(
+    r"^(?:\d{6}(?:\.(?:SH|SZ|BJ|OF))?|(?:SH|SZ|BJ)\d{6})$",
+    re.IGNORECASE,
+)
+ASSET_CODE_FIELDS = {"asset_code", "stock_code", "code", "symbol", "fund_code"}
+ASSET_NAME_FIELDS = ("asset_name", "stock_name", "name")
 
 FIELD_LABELS = {
     "account": "账户",
@@ -969,6 +976,7 @@ class TuiWorkbenchService:
         normalized_rows = [row if isinstance(row, dict) else {"value": row} for row in rows]
         normalized_rows = self._filter_rows_for_action(action, normalized_rows)
         columns = self._columns_for_rows(normalized_rows)
+        asset_name_map = self._asset_name_map_for_rows(normalized_rows)
         page_size = self._int_from_path(action, envelope, "page_size_path", default=20)
         if str(action.get("intent")) == "list_ai_capabilities":
             total = len(normalized_rows)
@@ -984,7 +992,14 @@ class TuiWorkbenchService:
             "status": self._status_label(status_code),
             "columns": columns,
             "rows": [
-                {column["key"]: self._display_value(row.get(column["key"])) for column in columns}
+                {
+                    column["key"]: self._display_row_value(
+                        row,
+                        column["key"],
+                        asset_name_map,
+                    )
+                    for column in columns
+                }
                 for row in normalized_rows[:page_size]
             ],
             "empty_message": self._empty_datagrid_message(action, total),
@@ -1259,7 +1274,7 @@ class TuiWorkbenchService:
                 {
                     "key": field_key,
                     "label": self._humanize(field_key),
-                    "value": self._display_value(value),
+                    "value": self._display_value_for_key(field_key, value, payload),
                 }
             )
         return fields[:limit]
@@ -1271,6 +1286,86 @@ class TuiWorkbenchService:
         if isinstance(value, str) and self._is_internal_api_path(value):
             return True
         return False
+
+    def _asset_name_map_for_rows(self, rows: list[dict[str, Any]]) -> dict[str, str]:
+        codes: set[str] = set()
+        for row in rows[:200]:
+            for key, value in row.items():
+                if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
+                    codes.update(self._asset_lookup_keys(value))
+        return resolve_asset_names(sorted(codes)) if codes else {}
+
+    def _display_row_value(
+        self,
+        row: dict[str, Any],
+        key: str,
+        asset_name_map: dict[str, str],
+    ) -> str:
+        value = row.get(key)
+        if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
+            name = self._asset_name_from_row(row) or self._resolved_asset_name(value, asset_name_map)
+            return self._display_asset_code(value, name)
+        return self._display_value(value)
+
+    def _display_value_for_key(
+        self, key: str, value: Any, payload: dict[str, Any] | None = None
+    ) -> str:
+        if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
+            name = self._asset_name_from_row(payload or {})
+            if not name:
+                lookup_keys = self._asset_lookup_keys(value)
+                name = self._resolved_asset_name(
+                    value,
+                    resolve_asset_names(lookup_keys) if lookup_keys else {},
+                )
+            return self._display_asset_code(value, name)
+        return self._display_value(value)
+
+    def _is_asset_code_field(self, key: str) -> bool:
+        last_part = str(key or "").strip().lower().replace("-", "_").split(".")[-1]
+        return last_part in ASSET_CODE_FIELDS
+
+    def _looks_like_asset_code(self, value: Any) -> bool:
+        if value is None or isinstance(value, bool):
+            return False
+        text = str(value).strip().upper()
+        return bool(ASSET_CODE_PATTERN.match(text))
+
+    def _asset_lookup_keys(self, value: Any) -> list[str]:
+        text = str(value or "").strip().upper()
+        if not text or not self._looks_like_asset_code(text):
+            return []
+        keys = [text]
+        prefixed = re.match(r"^(SH|SZ|BJ)(\d{6})$", text)
+        if prefixed:
+            keys.append(f"{prefixed.group(2)}.{prefixed.group(1)}")
+            keys.append(prefixed.group(2))
+        elif "." in text:
+            keys.append(text.split(".", 1)[0])
+        return list(dict.fromkeys(keys))
+
+    def _asset_name_from_row(self, row: dict[str, Any]) -> str:
+        for key in ASSET_NAME_FIELDS:
+            value = str(row.get(key) or "").strip()
+            if value:
+                return value
+        return ""
+
+    def _resolved_asset_name(self, value: Any, asset_name_map: dict[str, str]) -> str:
+        for key in self._asset_lookup_keys(value):
+            name = str(asset_name_map.get(key) or "").strip()
+            if name:
+                return name
+        return ""
+
+    def _display_asset_code(self, value: Any, name: str) -> str:
+        code = self._display_value(value)
+        clean_name = str(name or "").strip()
+        if not clean_name or clean_name.upper() == str(value or "").strip().upper():
+            return code
+        if clean_name in code:
+            return code
+        return f"{code} {clean_name}"
 
     def _columns_for_rows(self, rows: list[dict[str, Any]]) -> list[dict[str, str]]:
         keys: list[str] = []

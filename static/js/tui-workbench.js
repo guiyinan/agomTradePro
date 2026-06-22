@@ -319,8 +319,47 @@
             screen.label,
             action?.label,
         ].filter(Boolean).join(" / ");
-        els.currentLocation.textContent = address;
+        if (els.currentLocation.value !== address) {
+            els.currentLocation.value = address;
+        }
+        els.currentLocation.dataset.currentAddress = address;
         els.currentLocation.title = labelPath ? `${labelPath} | ${address}` : address;
+    }
+
+    function screenKeyFromLocationInput(value) {
+        const rawValue = String(value || "").trim();
+        if (!rawValue) {
+            return "";
+        }
+        const screenMatch = rawValue.match(/^screen:([^\s]+)(?:\s+action:.+)?$/i);
+        if (screenMatch) {
+            return screenMatch[1];
+        }
+        if (/^[a-z0-9][a-z0-9._-]*$/i.test(rawValue)) {
+            return rawValue;
+        }
+        return "";
+    }
+
+    function resetLocationInput() {
+        if (!els.currentLocation) {
+            return;
+        }
+        els.currentLocation.value = els.currentLocation.dataset.currentAddress || `screen:${state.screen?.screen?.key || "boot"}`;
+    }
+
+    function submitLocationInput() {
+        if (!els.currentLocation) {
+            return;
+        }
+        const screenKey = screenKeyFromLocationInput(els.currentLocation.value);
+        if (!screenKey) {
+            resetLocationInput();
+            setStatus("位置格式无效");
+            return;
+        }
+        els.currentLocation.blur();
+        loadScreen(screenKey);
     }
 
     function loadStoredProgress() {
@@ -1331,6 +1370,7 @@
             const screenSpec = await fetchJson(`/api/tui/screens/${encodeURIComponent(screenKey)}/`);
             renderScreen(screenSpec);
         } catch (error) {
+            resetLocationInput();
             renderError(error.message);
         }
     }
@@ -2434,6 +2474,19 @@
     }
 
     function bindControls() {
+        els.currentLocation?.addEventListener("focus", () => {
+            els.currentLocation.select();
+        });
+        els.currentLocation?.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                submitLocationInput();
+            } else if (event.key === "Escape") {
+                event.preventDefault();
+                resetLocationInput();
+                els.currentLocation.blur();
+            }
+        });
         els.rawToggle.addEventListener("click", () => toggleRawDrawer());
         els.rawClose.addEventListener("click", () => toggleRawDrawer(false));
         els.modalClose.addEventListener("click", closeModal);

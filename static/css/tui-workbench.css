@@ -335,7 +335,7 @@ a {
 }
 
 .tui-system-primary span,
-.tui-system-location span,
+.tui-system-location label,
 .tui-system-source {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -353,13 +353,29 @@ a {
     flex: 0 0 auto;
 }
 
-.tui-system-location code {
+.tui-system-location label {
+    flex: 0 0 auto;
+}
+
+.tui-system-location input {
     display: block;
+    flex: 1 1 auto;
+    width: 100%;
     min-width: 0;
     overflow: hidden;
+    border: 1px solid var(--tui-border-dim);
+    border-radius: 0;
+    background: var(--tui-bg-deep);
     color: var(--tui-green);
     font: inherit;
     text-overflow: ellipsis;
+    padding: 1px 6px;
+}
+
+.tui-system-location input:focus {
+    outline: 1px solid var(--tui-accent);
+    outline-offset: -2px;
+    color: var(--tui-accent);
 }
 
 .tui-green {
@@ -814,7 +830,7 @@ a {
 .tui-field {
     display: grid;
     gap: 4px;
-    margin: 6px 0 0 32px;
+    margin: 6px 8px 0 32px;
     color: var(--tui-muted);
     font-family: var(--tui-mono);
     font-size: 11px;
