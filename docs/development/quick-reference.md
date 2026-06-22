@@ -129,6 +129,9 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 - 字段 metadata 必须来自 Django model、DRF serializer/OpenAPI、DDD 聚合根、SDK 签名或 MCP typed contract；业务描述只能影响文案和分组。
 - 运行时 graph 使用 compact 存储；validator 会恢复默认字段。生成证据单独写入 `config/tui/generated/tui_operation_evidence.generated.json`，不再内联到 graph。
 - 编译期可以用 API、SDK、MCP、classic 模板作为证据；运行时不得扫描源码、模板、SDK、MCP 或 URL resolver。
+- Django 宿主导出 compile-time 证据时，优先使用：
+  - `agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json`
+  - `agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json`
 - 普通 UI 不展示 endpoint、method、裸 JSON；原始响应只允许放在 Raw Response 调试抽屉。
 - 主题系统固定为三套运行时模式：`A` 冷色科研终端、`B` 中性金融专业终端（默认）、`C` 风控控制台；`Alt+T` 循环切换，切换时不得刷新页面或丢失当前 TUI 状态。
 - 所有颜色必须走统一 theme token：`background / panelBackground / primaryText / secondaryText / border / highlight / accent / success / warning / error / grid`；不得在组件内新增写死颜色。
@@ -137,6 +140,12 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 - 当前发布基线：34+ 个 screen、319 个 published action；其中 203 个可直接打开、109 个需要输入字段，276+ 个 action 已提升到决策、账户、策略、风控、研究、事件监控、分享、AI 和数据中心业务 screen。
 
 ```powershell
+# 导出 Django model / domain dataclass compile-time contracts
+agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
+
+# 导出 OpenAPI compile-time contracts
+agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
+
 # 生成候选图，并将证据快照写到单独 evidence 文件
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999
 

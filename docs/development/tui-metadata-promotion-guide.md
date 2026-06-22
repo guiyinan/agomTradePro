@@ -26,6 +26,15 @@ Fixed enums include action risk, HTTP method, view type, dashboard panel kind, f
 
 Field metadata must be derived from code-owned contracts: Django models, DRF serializers/OpenAPI schema, DDD aggregate roots, SDK method signatures, or MCP typed inputs. Product descriptions and AI interpretation may improve operator copy and screen grouping only; they are not authoritative for fields, units, types, risk, or confirmation behavior.
 
+For Django hosts, compile-time evidence should now be exported explicitly instead of being reconstructed from prose:
+
+```powershell
+agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
+agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
+```
+
+`export_tui_django_contracts` emits ORM model contracts plus selected domain dataclass contracts. `spectacular` emits the OpenAPI side of the same compile-time evidence bundle. These two artifacts are the preferred handoff into AgomTUI compiler `skill-request`.
+
 ## Evidence Snapshot
 
 The current full compile-time scan collects:
@@ -204,6 +213,8 @@ Panel `action_key` values must point to already-approved actions. Do not create 
 Run these checks after changing metadata or the TUI renderer:
 
 ```powershell
+agomtradepro\Scripts\python.exe manage.py export_tui_django_contracts --output tmp\tui_django_contracts.json
+agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.json
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\validate_tui_metadata.py config\tui\published\tui_operation_graph.published.json
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\generate_tui_metadata.py --include-safe-api-actions 9999 --include-parameterized-api-actions 9999 --publish-ready --output config\tui\published\tui_operation_graph.published.json
