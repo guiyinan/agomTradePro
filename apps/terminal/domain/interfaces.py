@@ -63,14 +63,6 @@ class TerminalAuditRepository(Protocol):
         ...
 
 
-class TuiApiCatalogProvider(Protocol):
-    """Read-only API capability source for the TUI workbench."""
-
-    def collect(self) -> list[dict[str, Any]]:
-        """Return normalized API capability records."""
-        ...
-
-
 class TuiMetadataRepository(Protocol):
     """Published metadata source for the TUI workbench runtime."""
 

@@ -511,10 +511,40 @@ def _limit_items(items: list[dict[str, Any]], limit: int) -> list[dict[str, Any]
     return items[:limit]
 
 
-def collect_api_evidence(limit: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    from apps.terminal.infrastructure.tui_adapters import TuiApiCapabilityProvider
+def collect_api_capability_records() -> list[dict[str, Any]]:
+    """Return normalized API capability records from compile-time catalog evidence."""
 
-    records = TuiApiCapabilityProvider().collect()
+    from apps.ai_capability.infrastructure.collectors.api_collector import ApiCapabilityCollector
+
+    records: list[dict[str, Any]] = []
+    for capability in ApiCapabilityCollector().collect():
+        target = dict(capability.execution_target or {})
+        endpoint = str(target.get("path") or "").strip()
+        method = str(target.get("method") or "").upper()
+        if not endpoint or not method:
+            continue
+        endpoint = "/" + endpoint.lstrip("/")
+        records.append(
+            {
+                "key": capability.capability_key,
+                "name": capability.name,
+                "summary": capability.summary,
+                "category": capability.category,
+                "method": method,
+                "endpoint": endpoint,
+                "route_group": getattr(capability.route_group, "value", str(capability.route_group)),
+                "risk_level": getattr(capability.risk_level, "value", str(capability.risk_level)),
+                "visibility": getattr(capability.visibility, "value", str(capability.visibility)),
+                "requires_confirmation": capability.requires_confirmation,
+                "input_schema": dict(capability.input_schema or {}),
+                "auto_collected": capability.auto_collected,
+            }
+        )
+    return records
+
+
+def collect_api_evidence(limit: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    records = collect_api_capability_records()
     safe = [record for record in records if _is_safe_api(record)]
     evidence = [
         {

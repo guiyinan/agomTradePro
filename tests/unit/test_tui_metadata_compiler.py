@@ -1,7 +1,6 @@
 import importlib.util
 import json
 import tempfile
-import types
 from pathlib import Path
 
 import pytest
@@ -89,17 +88,7 @@ def test_api_evidence_default_collects_all_safe_records(generator_module, monkey
         },
     ]
 
-    class FakeProvider:
-        def collect(self):
-            return records
-
-    fake_module = types.ModuleType("apps.terminal.infrastructure.tui_adapters")
-    fake_module.TuiApiCapabilityProvider = FakeProvider
-    monkeypatch.setitem(
-        __import__("sys").modules,
-        "apps.terminal.infrastructure.tui_adapters",
-        fake_module,
-    )
+    monkeypatch.setattr(generator_module, "collect_api_capability_records", lambda: records)
 
     safe_records, evidence = generator_module.collect_api_evidence(limit=0)
     _, limited = generator_module.collect_api_evidence(limit=3)
