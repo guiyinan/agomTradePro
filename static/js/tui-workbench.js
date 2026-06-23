@@ -12,9 +12,12 @@
         currentColumns: [],
         currentRows: [],
         visibleRows: [],
+        selectedRowContext: null,
         filterText: "",
         selectedRowIndex: 0,
         activeMenu: null,
+        lastFormTriggerRef: "",
+        lastFormTriggerAt: 0,
         showSupportTasks: false,
         showAdvancedQueries: false,
         actionFilterText: "",
@@ -411,6 +414,9 @@
         if (risk === "write") {
             return "提交变更";
         }
+        if (risk === "admin") {
+            return action.method === "GET" ? "打开管理视图" : "提交管理变更";
+        }
         if (risk === "ai") {
             return "发起问答";
         }
@@ -438,6 +444,9 @@
             }
             if (risk === "write") {
                 return "可执行操作";
+            }
+            if (risk === "admin") {
+                return "管理操作";
             }
             return "操作";
         }
@@ -530,6 +539,9 @@
             }
         });
         Object.keys(row).forEach((key) => {
+            if (key.startsWith("__")) {
+                return;
+            }
             if (!orderedKeys.includes(key)) {
                 orderedKeys.push(key);
             }
@@ -548,6 +560,21 @@
 
     function actionRefFromForm(form) {
         return form?.dataset?.actionUiKey || form?.dataset?.actionKey || "";
+    }
+
+    function triggerActionForm(form) {
+        const actionRef = actionRefFromForm(form);
+        if (!actionRef) {
+            setStatus("任务未找到");
+            return;
+        }
+        const now = Date.now();
+        if (state.lastFormTriggerRef === actionRef && now - state.lastFormTriggerAt < 250) {
+            return;
+        }
+        state.lastFormTriggerRef = actionRef;
+        state.lastFormTriggerAt = now;
+        runAction(actionRef, form);
     }
 
     async function fetchJson(url, options) {
@@ -684,7 +711,7 @@
             }
             return text.split(",").map((item) => item.trim()).filter(Boolean);
         }
-        if (valueType === "json") {
+        if (valueType === "json" || valueType === "object") {
             try {
                 return JSON.parse(text);
             } catch (error) {
@@ -694,17 +721,33 @@
         return text;
     }
 
-    function resetGridState() {
+    function resetGridState(options = {}) {
+        const preserveRowContext = Boolean(options.preserveRowContext);
         state.currentViewModel = null;
         state.currentColumns = [];
         state.currentRows = [];
         state.visibleRows = [];
         state.selectedRowIndex = 0;
+        if (!preserveRowContext) {
+            state.selectedRowContext = null;
+        }
         state.filterText = "";
         if (els.filterInput) {
             els.filterInput.value = "";
         }
         hideFilterBar();
+    }
+
+    function setWorkspaceViewKind(kind) {
+        const grid = els.main.closest(".tui-workspace-grid");
+        if (!grid) {
+            return;
+        }
+        if (!kind) {
+            delete grid.dataset.viewKind;
+            return;
+        }
+        grid.dataset.viewKind = String(kind);
     }
 
     function renderScreen(screenSpec) {
@@ -722,6 +765,7 @@
         els.actions.closest(".tui-panel").hidden = screen.key === "command-center.overview";
         els.inspector.closest(".tui-panel").hidden = screen.key === "command-center.overview";
         els.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard", screen.key === "command-center.overview");
+        setWorkspaceViewKind(screen.key === "command-center.overview" ? "dashboard" : "idle");
         if (screen.key === "command-center.overview") {
             renderDashboardHome(screenSpec);
             updatePager(null);
@@ -847,6 +891,7 @@
         const panels = screen.dashboard_panels && screen.dashboard_panels.length
             ? screen.dashboard_panels
             : defaultDashboardPanels(screenSpec.actions || []);
+        setWorkspaceViewKind("dashboard");
         els.mainTitle.textContent = "系统首页";
         els.main.innerHTML = `
             <div class="tui-dashboard-grid">
@@ -1194,14 +1239,29 @@
             renderActions(actions, screen);
             setStatus(state.showAdvancedQueries ? "高级查询已显示" : "高级查询已隐藏");
         });
+        bindRenderedActionForms();
+        refreshRowFillButtons();
+    }
+
+    function bindRenderedActionForms() {
         els.actions.querySelectorAll("[data-action-ui-key]").forEach((form) => {
             form.addEventListener("submit", (event) => {
                 event.preventDefault();
-                runAction(actionRefFromForm(form), form);
+                event.stopPropagation();
+                triggerActionForm(form);
             });
-        });
-        els.actions.querySelectorAll("[data-fill-from-row]").forEach((button) => {
-            button.addEventListener("click", () => fillActionFromSelectedRow(button.closest("[data-action-ui-key]")));
+            const actionButton = form.querySelector(".tui-action-button");
+            actionButton?.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                triggerActionForm(form);
+            });
+            const fillButton = form.querySelector("[data-fill-from-row]");
+            fillButton?.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                fillActionFromSelectedRow(form);
+            });
         });
     }
 
@@ -1252,8 +1312,8 @@
         const completed = isActionCompleted(action.key);
         const description = operatorText(action.description || "");
         return `
-            <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}">
-                <button class="tui-action-button" type="submit">
+            <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}" novalidate>
+                <button class="tui-action-button" type="button">
                     <span>
                         ${escapeHtml(action.label)}
                         <span class="tui-action-meta">${escapeHtml(actionMetaLabel(action, completed))}</span>
@@ -1267,6 +1327,63 @@
         `;
     }
 
+    function actionResourceBase(actionKey) {
+        let segments = String(actionKey || "")
+            .split(".")
+            .filter(Boolean);
+        const dynamicSegments = new Set(["pk", "id", "int", "str", "uuid", "slug", "path", "bool", "float", "decimal", "date", "datetime"]);
+        const collected = [];
+        if (segments[0] === "auto" || segments[0] === "param") {
+            segments = segments.slice(1);
+        }
+        if (segments[0] === "api" && segments[2] === "api") {
+            segments = segments.slice(3);
+        }
+        for (const segment of segments) {
+            if (dynamicSegments.has(segment)) {
+                break;
+            }
+            collected.push(segment);
+        }
+        return collected.join(".");
+    }
+
+    function rowContextWithSource(row) {
+        if (!row) {
+            return null;
+        }
+        const sourceAction = currentAction(state.lastAction);
+        return {
+            ...row,
+            __tui_source_action_key: sourceAction ? sourceAction.key : "",
+            __tui_source_resource_base: actionResourceBase(sourceAction ? sourceAction.key : ""),
+        };
+    }
+
+    function actionCompatibleWithRowSource(action, row, fieldKey) {
+        const key = String(fieldKey || "");
+        if (!["pk", "id"].includes(key)) {
+            return true;
+        }
+        const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : "");
+        const targetResourceBase = actionResourceBase(action && action.key);
+        if (!rowResourceBase || !targetResourceBase) {
+            return true;
+        }
+        return rowResourceBase === targetResourceBase;
+    }
+
+    function actionCanFillFromRow(action, row) {
+        if (!action || !row) {
+            return false;
+        }
+        const fields = (action.fields || []).filter((field) => field.input_type !== "hidden");
+        if (!fields.length) {
+            return false;
+        }
+        return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
+    }
+
     function collectParams(form, action) {
         const params = {};
         if (!form) {
@@ -1274,7 +1391,7 @@
         }
         const fields = (action && action.fields) || [];
         fields.forEach((field) => {
-            const element = form.elements[field.key];
+            const element = formFieldElement(form, field.key);
             if (!element) {
                 return;
             }
@@ -1286,28 +1403,48 @@
         return params;
     }
 
-    function fillActionFromSelectedRow(form) {
+    function applySelectedRowToActionForm(form, options = {}) {
+        const { onlyIfEmpty = false, silent = false, focus = false } = options;
         if (!form) {
-            setStatus("没有可填充的任务");
+            if (!silent) {
+                setStatus("没有可填充的任务");
+            }
             return false;
         }
-        const row = state.visibleRows[state.selectedRowIndex];
+        const row = selectedRowForActions();
         if (!row) {
-            setStatus("先在表格中选择一行");
+            if (!silent) {
+                setStatus("先在表格中选择一行");
+            }
             return false;
         }
         const action = currentAction(actionRefFromForm(form));
-        const fields = (action && action.fields) || [];
+        if (!action) {
+            if (!silent) {
+                setStatus("任务未找到");
+            }
+            return false;
+        }
+        const params = paramsFromRowForAction(row, action);
+        const fields = (action.fields || []);
         let filled = 0;
         fields.forEach((field) => {
             if (field.input_type === "hidden") {
                 return;
             }
-            const element = form.elements[field.key];
+            const element = formFieldElement(form, field.key);
             if (!element) {
                 return;
             }
-            const value = rowValueForField(row, field.key);
+            if (onlyIfEmpty) {
+                if (element.type === "checkbox" && element.checked) {
+                    return;
+                }
+                if (element.type !== "checkbox" && String(element.value || "").trim() !== "") {
+                    return;
+                }
+            }
+            const value = params[field.key];
             if (value === undefined || value === null || value === "") {
                 return;
             }
@@ -1319,16 +1456,33 @@
             filled += 1;
         });
         if (filled) {
-            setStatus(`已从选中行填充 ${filled} 项`);
-            form.querySelector("input:not([type='hidden']),select,textarea")?.focus();
+            if (!silent) {
+                setStatus(`已从选中行填充 ${filled} 项`);
+            }
+            if (focus) {
+                form.querySelector("input:not([type='hidden']),select,textarea")?.focus();
+            }
             return true;
         }
-        setStatus("选中行没有可匹配字段");
+        if (!silent) {
+            setStatus("选中行没有可匹配字段");
+        }
         return false;
     }
 
-    function rowValueForField(row, fieldKey) {
+    function fillActionFromSelectedRow(form) {
+        return applySelectedRowToActionForm(form, { focus: true });
+    }
+
+    function rowValueForField(row, fieldKey, action) {
+        if (!actionCompatibleWithRowSource(action, row, fieldKey)) {
+            return undefined;
+        }
         for (const key of rowFieldCandidates(fieldKey)) {
+            const rawKey = `__raw_${key}`;
+            if (Object.prototype.hasOwnProperty.call(row, rawKey) && row[rawKey] !== undefined && row[rawKey] !== null && row[rawKey] !== "") {
+                return row[rawKey];
+            }
             if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined && row[key] !== null && row[key] !== "") {
                 return row[key];
             }
@@ -1336,27 +1490,81 @@
         return undefined;
     }
 
+    function formFieldElement(form, fieldKey) {
+        if (!form || !form.elements) {
+            return null;
+        }
+        const byName = typeof form.elements.namedItem === "function"
+            ? form.elements.namedItem(fieldKey)
+            : null;
+        if (byName) {
+            if (typeof byName.length === "number" && !byName.tagName) {
+                return byName[0] || null;
+            }
+            return byName;
+        }
+        return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
+    }
+
+    function selectedRowForActions() {
+        const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);
+        if (row) {
+            return row;
+        }
+        if (state.currentViewModel && state.currentViewModel.kind === "datagrid") {
+            return null;
+        }
+        return state.selectedRowContext;
+    }
+
+    function refreshRowFillButtons() {
+        const row = selectedRowForActions();
+        els.actions.querySelectorAll("[data-action-ui-key]").forEach((form) => {
+            const button = form.querySelector("[data-fill-from-row]");
+            if (!button) {
+                return;
+            }
+            const action = currentAction(actionRefFromForm(form));
+            const enabled = actionCanFillFromRow(action, row);
+            button.disabled = !enabled;
+            button.title = enabled ? "从当前选中行填充可匹配参数" : "当前选中行没有可匹配字段";
+            if (enabled) {
+                applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });
+            }
+        });
+    }
+
     function rowFieldCandidates(fieldKey) {
         const key = String(fieldKey || "");
         const aliases = {
-            pk: ["pk", "id", "ID", "记录ID"],
+            pk: ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
             id: ["id", "pk", "ID", "记录ID"],
-            account_id: ["account_id", "account.id", "账户ID", "id", "pk"],
-            portfolio_id: ["portfolio_id", "portfolio.id", "组合ID", "id", "pk"],
+            account_id: ["account_id", "account.id", "account", "账户ID", "id", "pk"],
+            portfolio_id: ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
+            asset_class: ["asset_class", "code", "category", "name"],
             asset_code: ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
             asset_codes: ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
             fund_code: ["fund_code", "code", "symbol", "基金代码", "代码"],
             indicator_code: ["indicator_code", "code", "指标代码", "代码"],
+            capability_key: ["capability_key", "key", "id", "pk"],
             short_code: ["short_code", "code", "shortCode", "短码"],
-            snapshot_id: ["snapshot_id", "snapshot.id", "id", "pk"],
+            snapshot_id: ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
             event_id: ["event_id", "event.id", "id", "pk"],
-            report_id: ["report_id", "report.id", "id", "pk"],
-            validation_id: ["validation_id", "validation.id", "id", "pk"],
-            summary_id: ["summary_id", "summary.id", "id", "pk"],
+            decision_id: ["decision_id", "id", "pk"],
+            report_id: ["report_id", "report.id"],
+            run_id: ["run_id", "id", "pk"],
+            validation_id: ["validation_id", "validation.id"],
+            summary_id: ["summary_id", "summary.id"],
             log_id: ["log_id", "log.id", "id", "pk"],
-            request_id: ["request_id", "request.id", "id", "pk"],
+            request_id: ["request_id", "request.id"],
             task_id: ["task_id", "task.id", "id", "pk"],
             provider_id: ["provider_id", "provider.id", "id", "pk"],
+            from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
+            strategy_id: ["strategy_id", "strategy.id", "strategy", "id", "pk"],
+            sector_code: ["sector_code", "code", "symbol", "板块代码", "代码"],
+            task_name: ["task_name", "name", "title"],
+            to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"],
+            period: ["period", "period_type", "type", "name"],
         };
         return [key, ...(aliases[key] || [])].filter((value, index, array) => value && array.indexOf(value) === index);
     }
@@ -1424,18 +1632,20 @@
             return;
         }
         state.currentViewModel = viewModel;
+        setWorkspaceViewKind(viewModel.kind || "message");
         els.mainTitle.textContent = (viewModel.title || "视图").toUpperCase();
         if (viewModel.kind === "datagrid") {
             renderDataGrid(viewModel);
         } else if (viewModel.kind === "detail") {
-            resetGridState();
+            resetGridState({ preserveRowContext: true });
             renderDetail(viewModel);
         } else {
-            resetGridState();
+            resetGridState({ preserveRowContext: true });
             renderMessage(viewModel);
         }
         bindDecisionCueActions();
         updatePager(viewModel.pager || null);
+        refreshRowFillButtons();
     }
 
     function renderDataGrid(viewModel) {
@@ -1503,7 +1713,13 @@
             row.addEventListener("click", () => selectRow(Number(row.dataset.rowIndex || 0)));
             row.addEventListener("dblclick", () => openSelectedRowDetail());
         });
+        if (rows.length) {
+            state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);
+        } else {
+            state.selectedRowContext = null;
+        }
         renderSelectedRowInspector();
+        refreshRowFillButtons();
     }
 
     function renderEmptyState(message, guidance) {
@@ -1669,6 +1885,7 @@
         const sections = Array.isArray(info.sections) ? info.sections : [];
         const rows = normalizeInspectorRows(info.rows || []);
         const bodyLines = operatorText(info.body || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
+        const rowsTitle = operatorText(info.rowsTitle || "流程状态");
         els.inspector.innerHTML = `
             <section class="tui-inspector-card tui-inspector-summary">
                 <div class="tui-inspector-title">${escapeHtml(info.title || "说明")}</div>
@@ -1676,7 +1893,7 @@
             </section>
             ${rows.length ? `
                 <section class="tui-inspector-card">
-                    <div class="tui-inspector-title">当前操作</div>
+                    <div class="tui-inspector-title">${escapeHtml(rowsTitle)}</div>
                     <dl class="tui-inspector-grid">
                         ${rows.map((row) => `
                             <dt>${escapeHtml(row.label)}</dt>
@@ -1732,27 +1949,36 @@
             }));
     }
 
+    function inspectorFlowRows(result) {
+        const progress = screenProgress();
+        const nextAction = nextPrimaryAction();
+        const operationCount = ((state.screen && state.screen.actions) || [])
+            .filter((action) => actionTier(action) === "operation")
+            .length;
+        const rows = [
+            ["操作方式", actionVerbLabel(result.action)],
+            ["本屏进度", `${progress.completed}/${progress.total}`],
+        ];
+        if (nextAction && nextAction.key !== result.action.key) {
+            rows.push(["下一项", nextAction.label]);
+        }
+        if (operationCount) {
+            rows.push(["可执行操作", `${operationCount} 项`]);
+        }
+        if (result.action.confirmation_required) {
+            rows.push(["确认策略", "提交前会要求确认"]);
+        }
+        return rows;
+    }
+
     function renderResultInspector(result, viewModel) {
         const businessContext = state.screen?.screen?.business_context || {};
         const contextSections = businessContextSections(businessContext);
-        const nextAction = nextPrimaryAction();
-        const progress = screenProgress();
         const operationActions = ((state.screen && state.screen.actions) || [])
             .filter((action) => actionTier(action) === "operation")
             .slice(0, 5)
             .map((action) => `${action.label} / ${actionVerbLabel(action)}`);
-        const workflowRows = [
-            ["当前任务", result.action.label],
-            ["操作", actionVerbLabel(result.action)],
-            ["结果", viewLabel(result.action.view_type)],
-            ["本屏进度", `${progress.completed}/${progress.total}`],
-        ];
-        if (nextAction) {
-            workflowRows.push(["下一项", nextAction.label]);
-        }
-        const actionRows = [
-            ...workflowRows,
-        ];
+        const actionRows = inspectorFlowRows(result);
         const sections = [
             ...contextSections,
             ...(operationActions.length ? [{
@@ -1772,23 +1998,33 @@
         }
         if (viewModel.kind === "detail") {
             renderInspector({
-                title: "结果详情",
-                body: viewModel.title || result.action.description || "",
-                rows: [
-                    ...actionRows,
-                    ...(viewModel.fields || []).slice(0, 10).map((field) => [field.label, field.value]),
+                title: "操作说明",
+                body: result.action.description || "中间主面板显示完整业务明细，右栏只保留流程、证据与后续动作。",
+                rowsTitle: "流程状态",
+                rows: actionRows,
+                sections: [
+                    {
+                        title: "阅读提示",
+                        body: ["完整业务明细已在中间主面板显示。右栏不再重复渲染同一对象。"],
+                        rows: [],
+                    },
+                    ...sections,
                 ],
-                sections,
             });
             return;
         }
         if (viewModel.kind === "message") {
             renderInspector({
-                title: "结果摘要",
-                body: viewModel.title || result.action.description || "",
+                title: "操作说明",
+                body: result.action.description || "中间主面板显示当前结果说明，右栏保留导航与后续动作。",
+                rowsTitle: "流程状态",
                 rows: actionRows,
                 sections: [
-                    ...(viewModel.sections || []).slice(0, 3),
+                    {
+                        title: "阅读提示",
+                        body: ["结果说明已在中间主面板显示。右栏保留流程导航、业务目标与后续动作。"],
+                        rows: [],
+                    },
                     ...sections,
                 ],
             });
@@ -1830,10 +2066,12 @@
             row.classList.toggle("is-selected", Number(row.dataset.rowIndex || 0) === index);
         });
         const row = state.visibleRows[index];
+        state.selectedRowContext = rowContextWithSource(row);
         if (row) {
             setStatus(`行 ${index + 1}/${state.visibleRows.length}`);
             renderSelectedRowInspector();
         }
+        refreshRowFillButtons();
     }
 
     function renderSelectedRowInspector(prefixRows = []) {
@@ -1844,7 +2082,8 @@
         const rows = row
             ? rowDisplayRows(row, 14)
             : [["状态", state.filterText ? "没有匹配记录" : "暂无记录"]];
-        const rowActions = row ? actionsAvailableForRow(row) : [];
+        const rowContext = rowContextWithSource(row);
+        const rowActions = rowContext ? actionsAvailableForRow(rowContext) : [];
         const sections = [];
         if (rowActions.length) {
             sections.push({
@@ -1879,7 +2118,7 @@
                 if (!fields.length) {
                     return false;
                 }
-                return fields.some((field) => rowValueForField(row, field.key) !== undefined);
+                return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
             })
             .sort((left, right) => {
                 const tierRank = { operation: 0, advanced: 1, primary: 2, support: 3 };
@@ -1896,7 +2135,7 @@
             if (field.input_type === "hidden") {
                 return;
             }
-            const value = rowValueForField(row, field.key);
+            const value = rowValueForField(row, field.key, action);
             if (value !== undefined && value !== null && value !== "") {
                 params[field.key] = value;
             }
@@ -1905,7 +2144,7 @@
     }
 
     function runInspectorAction(actionRef) {
-        const row = state.visibleRows[state.selectedRowIndex];
+        const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);
         const action = currentAction(actionRef);
         if (!row || !action) {
             setStatus("没有可执行的选中行任务");
@@ -2296,7 +2535,7 @@
         if (requiredFields.length && form) {
             fillActionFromSelectedRow(form);
             const missing = requiredFields.filter((field) => {
-                const element = form.elements[field.key];
+                const element = formFieldElement(form, field.key);
                 return !element || (!element.checked && String(element.value || "").trim() === "");
             });
             if (missing.length) {
@@ -2474,6 +2713,32 @@
     }
 
     function bindControls() {
+        els.actions?.addEventListener("submit", (event) => {
+            const form = event.target?.closest?.("[data-action-ui-key]");
+            if (!form) {
+                return;
+            }
+            event.preventDefault();
+            triggerActionForm(form);
+        });
+        els.actions?.addEventListener("click", (event) => {
+            const fillButton = event.target?.closest?.("[data-fill-from-row]");
+            if (fillButton) {
+                event.preventDefault();
+                fillActionFromSelectedRow(fillButton.closest("[data-action-ui-key]"));
+                return;
+            }
+            const actionButton = event.target?.closest?.(".tui-action-button");
+            if (!actionButton) {
+                return;
+            }
+            const form = actionButton.closest("[data-action-ui-key]");
+            if (!form) {
+                return;
+            }
+            event.preventDefault();
+            triggerActionForm(form);
+        });
         els.currentLocation?.addEventListener("focus", () => {
             els.currentLocation.select();
         });

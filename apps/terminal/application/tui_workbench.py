@@ -4,16 +4,61 @@ from __future__ import annotations
 
 import re
 import hashlib
+from datetime import timedelta
 from html import unescape
 from html.parser import HTMLParser
 from math import ceil
 from typing import Any
 from urllib.parse import urlparse
 
+from django.utils import timezone
+
+from apps.ai_provider.application.query_services import has_user_personal_providers
+from apps.alpha_trigger.application.query_services import (
+    has_alpha_candidates,
+    has_alpha_triggers,
+)
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names
+from apps.beta_gate.application.query_services import (
+    has_beta_gate_configs,
+    has_beta_gate_decisions,
+    has_beta_gate_universe_snapshots,
+)
+from apps.config_center.application.query_services import has_qlib_training_runs
+from apps.dashboard.application.query_services import has_dashboard_alpha_history
+from apps.decision_rhythm.application.query_services import (
+    has_decision_quotas,
+    has_active_cooldowns,
+    has_recent_decision_requests,
+)
 from apps.terminal.domain.interfaces import TuiActionExecutor, TuiMetadataRepository
+from apps.task_monitor.application.query_services import has_recent_task_failures
 
 VISIBLE_RUNTIME_RISKS = {"read", "ai", "write"}
+ADMIN_RUNTIME_RISKS = {"admin"}
+USER_HIDDEN_SCREEN_ACTION_KEYS = {
+    "param.api.get.api.dashboard.position.str.asset_code",
+    "param.api.get.api.valuation.snapshot.str.snapshot_id",
+    "param.api.get.api.decision.workspace.plans.str.plan_id",
+    "param.api.get.api.audit.indicator-performance.str.indicator_code",
+    "param.api.get.api.system.status.str.task_id",
+}
+USER_CONDITIONAL_SCREEN_ACTIONS = {
+    "param.api.get.api.ai.me.providers.pk": lambda user: has_user_personal_providers(user),
+    "param.api.get.api.dashboard.alpha.history.int.run_id": lambda user: has_dashboard_alpha_history(user),
+    "auto.api.get.api.decision-rhythm.quotas.by-period": lambda _user: has_decision_quotas(),
+    "param.api.get.api.decision-rhythm.cooldowns.by-asset.asset_code": lambda _user: has_active_cooldowns(),
+    "auto.api.get.api.decision-rhythm.cooldowns.remaining-hours": lambda _user: has_active_cooldowns(),
+    "param.api.get.api.decision-rhythm.requests.pk": lambda _user: has_recent_decision_requests(),
+    "param.api.get.api.beta-gate.configs.pk": lambda _user: has_beta_gate_configs(),
+    "param.api.get.api.beta-gate.decisions.pk": lambda _user: has_beta_gate_decisions(),
+    "param.api.get.api.beta-gate.universe.pk": lambda _user: has_beta_gate_universe_snapshots(),
+    "param.api.get.api.alpha-triggers.triggers.by-regime.regime": lambda _user: has_alpha_triggers(),
+    "param.api.get.api.alpha-triggers.triggers.pk": lambda _user: has_alpha_triggers(),
+    "param.api.get.api.alpha-triggers.candidates.pk": lambda _user: has_alpha_candidates(),
+    "auto.api.get.api.system.statistics": lambda _user: has_recent_task_failures(),
+    "config_center.training_run_detail": lambda _user: has_qlib_training_runs(),
+}
 HTML_TAG_PATTERN = re.compile(r"</?\s*[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^<>]*)?>")
 ESCAPED_HTML_TAG_PATTERN = re.compile(r"&lt;/?\s*[a-zA-Z][a-zA-Z0-9:-]*")
 ASSET_CODE_PATTERN = re.compile(
@@ -21,15 +66,48 @@ ASSET_CODE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 ASSET_CODE_FIELDS = {"asset_code", "stock_code", "code", "symbol", "fund_code"}
-ASSET_NAME_FIELDS = ("asset_name", "stock_name", "name")
+ASSET_NAME_FIELDS = ("asset_name", "stock_name", "fund_name", "name")
+ROW_IDENTIFIER_FIELDS = {
+    "id",
+    "pk",
+    "account_id",
+    "portfolio_id",
+    "asset_code",
+    "fund_code",
+    "code",
+    "symbol",
+    "capability_key",
+    "strategy_id",
+    "strategy",
+    "event_id",
+    "summary_id",
+    "report_id",
+    "validation_id",
+    "log_id",
+    "request_id",
+    "task_id",
+    "provider_id",
+    "snapshot_id",
+    "run_id",
+    "plan_id",
+    "short_code",
+    "task_name",
+    "period",
+    "sector_code",
+}
 
 FIELD_LABELS = {
     "account": "账户",
     "account_id": "账户ID",
+    "account_name": "账户名称",
+    "account_type": "账户类型",
     "action": "动作",
     "action_required": "需要行动",
+    "actionable": "可操作",
     "ai_provider_available": "AI服务可用",
     "allocation_effect": "配置效应",
+    "annual_return": "年化收益",
+    "annualized_return": "年化收益",
     "answer_chain_visibility": "回答链可见性",
     "active": "启用",
     "aggregate_step": "聚合步骤",
@@ -44,11 +122,14 @@ FIELD_LABELS = {
     "balance": "余额",
     "band": "区间",
     "base_currency": "基准币种",
+    "benchmark_name": "基准名称",
+    "benchmark_return": "基准收益",
     "backend_reachable": "后端可达",
     "backtest_id": "回测ID",
     "blocked_reason": "阻塞原因",
     "broker_reachable": "Broker可达",
     "buy_condition_expr": "买入条件",
+    "buy_price_expr": "买入价格表达式",
     "cash": "现金",
     "cash_balance": "现金余额",
     "causation_id": "因果ID",
@@ -63,23 +144,35 @@ FIELD_LABELS = {
     "component": "组件",
     "config": "配置",
     "config_id": "配置ID",
+    "children_count": "子项数量",
+    "condition_json": "条件",
     "confirmation_required": "需要确认",
+    "current_step": "当前步骤",
+    "rbac_role": "角色",
     "correlation_id": "关联ID",
     "confidence": "置信度",
+    "created_by": "创建人",
     "count": "数量",
     "created_at": "创建时间",
     "currency": "币种",
     "current_regime": "当前环境",
     "daily_quota_limit": "每日配额上限",
+    "data_freshness": "数据时效",
     "date": "日期",
     "calculated_at": "计算时间",
+    "cache_count": "缓存数量",
     "change_20d": "20日变化",
     "change_5d": "5日变化",
     "default_model": "默认模型",
+    "decision_id": "决策ID",
     "description": "说明",
+    "detail": "详情",
     "dimension": "维度",
     "direction": "方向",
+    "display_label": "显示标签",
     "display_name": "显示名称",
+    "drawdown_pct": "回撤率",
+    "effective_date": "生效日期",
     "enabled": "启用",
     "error": "错误",
     "env": "环境",
@@ -92,8 +185,10 @@ FIELD_LABELS = {
     "extract_content": "提取正文",
     "fetch_interval_hours": "抓取间隔小时",
     "fetched_at": "抓取时间",
+    "filters_available": "可用滤波器",
     "finished_at": "完成时间",
     "from_currency": "源币种",
+    "fund_name": "基金名称",
     "full_path": "完整路径",
     "human_readable_invalidation": "证伪条件",
     "id": "ID",
@@ -105,6 +200,9 @@ FIELD_LABELS = {
     "invested_value": "已投资市值",
     "ip_address": "IP地址",
     "is_active": "是否启用",
+    "has_ai_config": "已配置 AI",
+    "has_script_config": "已配置脚本",
+    "invalidated": "已失效",
     "is_base": "是否基准",
     "is_healthy": "是否健康",
     "is_stale": "是否过期",
@@ -113,14 +211,21 @@ FIELD_LABELS = {
     "key": "键",
     "label": "标签",
     "last_check": "最近检查",
+    "last_error": "最近错误",
+    "latest_index_date": "最近指数日期",
+    "last_snapshot_at": "最近快照时间",
+    "last_used_at": "最近使用时间",
     "level": "等级",
     "logic_desc": "逻辑说明",
+    "lesson_learned": "复盘经验",
     "message": "消息",
+    "max_drawdown": "最大回撤",
     "max_pe": "最大PE",
-    "max_tokens": "最大Token",
+    "max_tokens": "最大Token数",
     "max_turnover": "最大换手",
     "name": "名称",
     "market_value": "市值",
+    "metadata": "元数据",
     "mcp_client_id": "MCP客户端ID",
     "min_commission": "最低佣金",
     "min_drawdown": "最小回撤",
@@ -131,6 +236,7 @@ FIELD_LABELS = {
     "observed_at": "观测时间",
     "occurred_at": "发生时间",
     "owner_id": "所有者ID",
+    "password": "访问密码",
     "parent": "上级",
     "path": "路径",
     "pending_tasks_count": "待处理任务",
@@ -147,7 +253,13 @@ FIELD_LABELS = {
     "profit_loss": "盈亏",
     "portfolio": "组合",
     "portfolio_id": "组合ID",
+    "portfolio_type": "组合类型",
+    "portfolio_return": "组合收益",
+    "position_size_expr": "仓位规模表达式",
+    "position_limit_pct": "持仓上限率",
     "price": "价格",
+    "performance": "绩效",
+    "provider_type": "服务商类型",
     "prompt_template": "Prompt模板",
     "pulse_contribution": "脉搏贡献",
     "published_at": "发布时间",
@@ -158,53 +270,125 @@ FIELD_LABELS = {
     "rate": "汇率",
     "rebalance_frequency": "再平衡频率",
     "ratio": "比例",
+    "records_count": "记录数量",
+    "recommended_sectors": "推荐板块",
+    "regime_accuracy": "环境准确率",
+    "regime_contribution": "环境贡献",
+    "regime_context": "环境上下文",
+    "regime_name": "环境名称",
+    "reasoning": "原因说明",
+    "report_id": "报告ID",
     "regime": "环境",
     "request_id": "请求ID",
+    "requires_password": "需要密码",
     "requires_mcp": "需要MCP",
     "requires_confirmation": "需要确认",
+    "result": "结果",
+    "return_7d": "7日收益",
+    "return_30d": "30日收益",
+    "regime_fit_score": "环境匹配评分",
     "risk_level": "风险等级",
+    "risk_score": "风险评分",
+    "risk_tolerance": "风险承受度",
+    "rule_name": "规则名称",
+    "rule_type": "规则类型",
     "runtime_seconds": "运行秒数",
+    "schema_version": "结构版本",
     "scope_label": "范围",
     "score": "评分",
+    "selection_effect": "选股效应",
+    "sell_condition_expr": "卖出条件",
+    "sell_price_expr": "卖出价格表达式",
+    "share_level": "分享等级",
+    "share_link": "分享链接",
+    "sharpe_ratio": "夏普比率",
     "service": "服务",
     "signal": "信号",
+    "slippage_rate": "滑点率",
     "sort_order": "排序",
     "source": "来源",
+    "source_range_end": "来源区间结束",
+    "source_range_start": "来源区间开始",
+    "scale_score": "规模评分",
+    "start_date": "开始日期",
     "stamp_duty_rate": "印花税率",
+    "stamp_duty_rate_qian": "千分印花税率",
     "started_at": "开始时间",
     "status": "状态",
+    "status_display": "状态文本",
+    "stop_loss_expr": "止损表达式",
+    "stop_loss_pct": "止损率",
     "success": "成功",
+    "successful_accesses": "成功访问次数",
     "short_code": "短码",
+    "snapshot": "快照",
     "subtitle": "副标题",
     "summary": "说明",
-    "symbol": "代码",
+    "symbol": "符号",
     "system_prompt": "系统提示词",
     "task": "任务",
+    "task_domain": "任务域",
+    "task_domain_display": "任务域标签",
     "temperature": "温度",
     "template_content": "模板内容",
     "theme": "主题",
     "timestamp": "时间",
     "title": "标题",
     "to_currency": "目标币种",
+    "total_accesses": "总访问次数",
+    "total_capital_inflow": "累计资金流入",
+    "total_capital_outflow": "累计资金流出",
+    "total_cost": "总成本",
+    "total_pnl": "总盈亏",
+    "total_pnl_pct": "总盈亏率",
+    "total_trades": "总交易次数",
     "top_n": "候选数量",
     "total": "合计",
     "total_assets": "总资产",
+    "total_score": "总评分",
     "total_return": "总收益",
     "total_return_pct": "总收益率",
     "transfer_fee_rate": "过户费率",
     "type": "类型",
     "underlying_index": "跟踪指数",
     "unit": "单位",
+    "unique_visitors": "独立访问者",
     "universe": "标的范围",
     "updated_at": "更新时间",
     "url": "链接",
     "user": "用户",
     "username": "用户名",
+    "auto_trading_enabled": "自动交易启用",
     "capability_key": "能力标识",
     "version": "版本",
     "fund_code": "基金代码",
+    "inception_date": "起始日期",
+    "last_trade_date": "最近交易日期",
+    "net_capital_flow": "净资金流",
+    "net_value": "净值",
+    "input_payload": "输入参数",
+    "rules_count": "规则数量",
+    "steps_count": "步骤数量",
+    "proposals_count": "提案数量",
+    "artifacts_count": "产物数量",
+    "timeline_events_count": "时间线事件数量",
+    "triggered": "已触发",
+    "watch": "观察",
+    "watch_indicators": "观察指标",
+    "candidate": "候选",
+    "by_type": "按类型",
+    "by_status": "按状态",
+    "by_direction": "按方向",
+    "investable": "可投资",
+    "performance_score": "绩效评分",
+    "prohibited": "禁投",
+    "take_profit_expr": "止盈表达式",
     "value": "值",
+    "winning_trades": "盈利交易次数",
+    "win_rate": "胜率",
     "weight": "权重",
+    "weights": "权重",
+    "visibility": "可见性",
     "worker": "执行节点",
 }
 
@@ -220,13 +404,17 @@ FIELD_TOKEN_LABELS = {
     "artifact": "产物",
     "asset": "资产",
     "assets": "资产",
+    "accuracy": "准确率",
     "audit": "审计",
     "auto": "自动",
     "base": "基准",
     "balance": "余额",
     "band": "区间",
     "backend": "后端",
+    "benchmark": "基准",
+    "benefiting": "受益",
     "blocked": "阻塞",
+    "bond": "债券",
     "broker": "Broker",
     "builtin": "内置",
     "buy": "买入",
@@ -240,10 +428,14 @@ FIELD_TOKEN_LABELS = {
     "code": "代码",
     "commission": "佣金",
     "component": "组件",
+    "composite": "综合",
     "condition": "条件",
     "config": "配置",
     "confirmation": "确认",
+    "commodity": "商品",
+    "contribution": "贡献",
     "content": "内容",
+    "context": "上下文",
     "correlation": "关联",
     "confidence": "置信度",
     "count": "数量",
@@ -255,16 +447,21 @@ FIELD_TOKEN_LABELS = {
     "date": "日期",
     "default": "默认",
     "decision": "决策",
+    "decisions": "决策",
     "description": "说明",
     "dimension": "维度",
     "direction": "方向",
+    "distribution": "分布",
     "display": "显示",
     "disabled": "停用",
     "enabled": "启用",
     "error": "错误",
     "event": "事件",
     "evidence": "证据",
+    "effective": "生效",
+    "equity": "权益",
     "execution": "执行",
+    "expr": "表达式",
     "expected": "预期",
     "extreme": "极端",
     "external": "外部",
@@ -277,14 +474,19 @@ FIELD_TOKEN_LABELS = {
     "from": "源",
     "fund": "基金",
     "full": "完整",
+    "freshness": "时效",
     "generated": "生成",
+    "gate": "闸门",
     "growth": "增长",
     "group": "组",
+    "has": "已配置",
     "health": "健康",
     "healthy": "健康",
     "human": "可读",
     "id": "ID",
+    "indicator": "指标",
     "initial": "初始",
+    "investable": "可投资",
     "invested": "已投资",
     "invalidation": "证伪",
     "inflation": "通胀",
@@ -292,28 +494,39 @@ FIELD_TOKEN_LABELS = {
     "is": "是否",
     "key": "键",
     "label": "标签",
+    "learned": "经验",
     "level": "等级",
+    "lesson": "复盘",
+    "liquidity": "流动性",
+    "limit": "上限",
     "logic": "逻辑",
     "links": "链接",
     "message": "消息",
     "market": "市场",
     "max": "最大",
     "mcp": "MCP",
+    "metadata": "元数据",
     "min": "最小",
     "model": "模型",
     "module": "模块",
     "momentum": "动量",
+    "movement": "变化",
     "name": "名称",
     "observed": "观测",
     "occurred": "发生",
+    "operator": "运算符",
     "order": "顺序",
     "owner": "所有者",
+    "outside": "外部",
+    "only": "仅",
     "parent": "上级",
     "path": "路径",
     "pending": "待处理",
+    "params": "参数",
     "portfolio": "组合",
     "position": "持仓",
     "positions": "持仓",
+    "probability": "概率",
     "pct": "率",
     "percent": "比例",
     "precision": "精度",
@@ -322,17 +535,26 @@ FIELD_TOKEN_LABELS = {
     "published": "发布",
     "price": "价格",
     "profit": "盈利",
+    "performance": "绩效",
+    "policy": "政策",
+    "prohibited": "禁投",
     "queue": "队列",
     "quotas": "配额",
     "rank": "排名",
+    "ranked": "排名",
     "rate": "率",
     "readable": "可读",
     "reachable": "可达",
     "rebalance": "再平衡",
+    "records": "记录",
     "required": "需要",
     "requires": "需要",
+    "role": "角色",
     "regime": "环境",
+    "recommended": "推荐",
+    "report": "报告",
     "request": "请求",
+    "requested": "请求",
     "requests": "请求",
     "return": "收益",
     "route": "路由",
@@ -342,28 +564,39 @@ FIELD_TOKEN_LABELS = {
     "sell": "卖出",
     "score": "评分",
     "scope": "范围",
+    "sentiment": "情绪",
     "signal": "信号",
     "sort": "排序",
     "source": "来源",
     "sources": "来源",
+    "stable": "稳定",
     "stamp": "印花",
     "status": "状态",
+    "stocks": "股票",
     "short": "短",
+    "snapshot": "快照",
     "started": "开始",
     "strategy": "策略",
+    "styles": "风格",
     "subtitle": "副标题",
     "system": "系统",
     "task": "任务",
     "tasks": "任务",
     "template": "模板",
+    "threshold": "阈值",
     "theme": "主题",
     "time": "时间",
     "timestamp": "时间",
     "title": "标题",
     "to": "目标",
     "tokens": "Token",
-    "top": "Top",
+    "top": "前列",
+    "trends": "趋势",
+    "transition": "切换",
+    "transitioning": "切换中",
     "transfer": "过户",
+    "transaction": "交易",
+    "transactions": "交易",
     "turnover": "换手",
     "total": "合计",
     "type": "类型",
@@ -376,13 +609,23 @@ FIELD_TOKEN_LABELS = {
     "username": "用户名",
     "value": "值",
     "version": "版本",
+    "domain": "域",
+    "visibility": "可见性",
     "volatility": "波动",
+    "visitor": "访问者",
+    "visitors": "访问者",
+    "warning": "预警",
+    "warnings": "预警",
+    "winning": "盈利",
     "weight": "权重",
+    "weights": "权重",
     "worker": "执行节点",
+    "workflow": "流程",
 }
 
 STATUS_LABELS = {
     "OK": "正常",
+    "EMPTY": "暂无数据",
     "REDIRECT": "跳转",
     "ERROR": "错误",
 }
@@ -391,30 +634,78 @@ VALUE_LABELS = {
     "active": "启用",
     "degraded": "降级",
     "disabled": "禁用",
+    "draft": "草稿",
     "enabled": "启用",
     "error": "错误",
+    "expired": "已过期",
     "failed": "失败",
+    "fresh": "最新",
     "healthy": "健康",
+    "high": "高",
     "inactive": "停用",
+    "low": "低",
     "market": "市场",
+    "medium": "中",
+    "moderate": "中等",
     "ok": "正常",
     "overheat": "过热",
     "pending": "待处理",
+    "password_invalid": "密码错误",
+    "password_required": "需要密码",
     "ready": "就绪",
     "recession": "衰退",
     "recovery": "复苏",
+    "regime": "环境引擎",
+    "revoked": "已撤销",
     "running": "运行中",
     "safe": "安全",
     "stagflation": "滞胀",
+    "stable": "稳定",
     "success": "成功",
     "system": "系统",
     "warning": "预警",
+    "filter api": "筛选服务",
+    "buy": "买入",
 }
 EMBEDDED_VALUE_LABELS = {
     "overheat": "过热",
     "recession": "衰退",
     "recovery": "复苏",
     "stagflation": "滞胀",
+}
+FIELD_VALUE_LABELS = {
+    "account_type": {
+        "real": "实盘",
+        "simulated": "模拟",
+    },
+    "portfolio_type": {
+        "real": "实盘",
+        "simulated": "模拟",
+    },
+    "rbac_role": {
+        "admin": "管理员",
+        "observer": "观察者",
+        "owner": "所有者",
+        "viewer": "查看者",
+    },
+    "risk_tolerance": {
+        "aggressive": "激进",
+        "conservative": "保守",
+        "moderate": "中等",
+    },
+    "share_level": {
+        "snapshot": "快照",
+    },
+    "task_domain": {
+        "research": "研究",
+    },
+    "task_domain_display": {
+        "research": "研究",
+    },
+    "visibility": {
+        "private": "私密",
+        "public": "公开",
+    },
 }
 
 
@@ -502,10 +793,10 @@ class TuiWorkbenchRegistry:
     def __init__(self, metadata_repository: TuiMetadataRepository) -> None:
         self._service = TuiWorkbenchService(metadata_repository=metadata_repository)
 
-    def list_modules(self) -> dict[str, Any]:
+    def list_modules(self, *, user: Any | None = None) -> dict[str, Any]:
         """Return the legacy registry shape using the published catalog."""
 
-        catalog = self._service.get_catalog()
+        catalog = self._service.get_catalog(user=user)
         return {
             "version": "tui-workbench.v2",
             "default_module": catalog["default_screen"].split(".")[0],
@@ -521,17 +812,21 @@ class TuiWorkbenchRegistry:
             ],
         }
 
-    def get_module_snapshot(self, module_key: str) -> dict[str, Any]:
+    def get_module_snapshot(self, module_key: str, *, user: Any | None = None) -> dict[str, Any]:
         """Return a legacy snapshot mapped from the first screen in a module."""
 
-        catalog = self._service.get_catalog()
+        catalog = self._service.get_catalog(user=user)
         screen_key = catalog["default_screen"]
         for group in catalog["groups"]:
             for module in group["modules"]:
                 if module["key"] == module_key and module.get("screens"):
                     screen_key = module["screens"][0]["key"]
                     break
-        screen = self._service.get_screen(screen_key, include_technical_actions=True)
+        screen = self._service.get_screen(
+            screen_key,
+            include_technical_actions=True,
+            user=user,
+        )
         return {
             "version": "tui-workbench.v2",
             "module": screen["module"],
@@ -555,11 +850,11 @@ class TuiWorkbenchService:
         self.action_executor = action_executor
         self.registry_key = registry_key
 
-    def get_catalog(self) -> dict[str, Any]:
+    def get_catalog(self, *, user: Any | None = None) -> dict[str, Any]:
         """Return grouped modules and screens from published metadata only."""
 
         metadata = self._metadata()
-        actions = self._visible_actions(metadata)
+        actions = self._screen_visible_actions(metadata, user=user)
         actions_by_screen = self._actions_by_screen(actions)
         screens_by_module = self._screens_by_module(metadata)
         groups: list[dict[str, Any]] = []
@@ -603,7 +898,11 @@ class TuiWorkbenchService:
         }
 
     def get_screen(
-        self, screen_key: str, *, include_technical_actions: bool = False
+        self,
+        screen_key: str,
+        *,
+        include_technical_actions: bool = False,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         """Return a renderable screen contract from published metadata."""
 
@@ -615,7 +914,11 @@ class TuiWorkbenchService:
         module = self._module_by_key(metadata)[screen["module_key"]]
         actions = [
             action
-            for action in self._visible_actions(metadata)
+            for action in self._screen_visible_actions(
+                metadata,
+                user=user,
+                include_technical=include_technical_actions,
+            )
             if action["screen_key"] == screen["key"]
         ]
         return {
@@ -661,6 +964,7 @@ class TuiWorkbenchService:
         action_key: str,
         params: dict[str, Any],
         user: Any,
+        session: Any | None = None,
         confirmed: bool = False,
     ) -> dict[str, Any]:
         """Execute one published action and return a business-first view model."""
@@ -668,21 +972,22 @@ class TuiWorkbenchService:
         if self.action_executor is None:
             raise ValueError("TUI action executor is not configured")
 
-        action = self._action_by_key(action_key)
+        action = self._action_by_key(action_key, user=user)
         if action is None:
             raise KeyError(action_key)
-        if str(action["risk"]) not in VISIBLE_RUNTIME_RISKS:
+        if str(action["risk"]) not in self._allowed_runtime_risks(user):
             raise PermissionError("Only read/AI/confirmed write actions are enabled in this TUI surface")
-        missing_fields = self._missing_required_fields(action, params or {})
+        resolved_params = self._apply_default_field_values(action, params or {})
+        missing_fields = self._missing_required_fields(action, resolved_params)
         if missing_fields:
             return self._missing_required_fields_payload(action, missing_fields)
-        if str(action["risk"]) == "write" and not confirmed:
+        if self._requires_confirmation(action) and not confirmed:
             return self._confirmation_required_payload(action)
 
         method = str(action["method"]).upper()
         endpoint, request_params = self._bind_endpoint_params(
             endpoint=str(action["endpoint"]),
-            params=dict(params or {}),
+            params=resolved_params,
         )
         result = self.action_executor.execute(
             method=method,
@@ -690,10 +995,9 @@ class TuiWorkbenchService:
             params=request_params if method == "GET" else {},
             body=request_params if method != "GET" else {},
             user=user,
+            session=session,
         )
         status_code = int(result.get("status_code", 200))
-        if status_code in {401, 403}:
-            raise PermissionError("Backend API permission check denied this TUI action")
         payload = result.get("payload")
         view_model = self._to_view_model(action=action, payload=payload, status_code=status_code)
         return {
@@ -709,6 +1013,23 @@ class TuiWorkbenchService:
                 "raw_response": payload if action.get("raw_debug", True) else None,
             },
         }
+
+    def _apply_default_field_values(
+        self,
+        action: dict[str, Any],
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        resolved = dict(params or {})
+        for field in action.get("fields") or []:
+            key = str(field.get("key") or "").strip()
+            if not key:
+                continue
+            default = self._resolved_field_default(action, field)
+            if default in (None, ""):
+                continue
+            if resolved.get(key) in (None, ""):
+                resolved[key] = default
+        return resolved
 
     def _confirmation_required_payload(self, action: dict[str, Any]) -> dict[str, Any]:
         message = f"此操作会修改系统状态：{action['label']}。确认后才会执行。"
@@ -825,18 +1146,70 @@ class TuiWorkbenchService:
     def _metadata(self) -> dict[str, Any]:
         return self.metadata_repository.load_published(self.registry_key)
 
-    def _visible_actions(self, metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    def _allowed_runtime_risks(self, user: Any | None) -> set[str]:
+        allowed = set(VISIBLE_RUNTIME_RISKS)
+        if self._is_admin_user(user):
+            allowed |= ADMIN_RUNTIME_RISKS
+        return allowed
+
+    def _is_admin_user(self, user: Any | None) -> bool:
+        if user is None:
+            return False
+        if bool(getattr(user, "is_superuser", False) or getattr(user, "is_staff", False)):
+            return True
+        role = str(getattr(user, "rbac_role", "") or "").strip().lower()
+        if role == "admin":
+            return True
+        profile = getattr(user, "account_profile", None)
+        profile_role = str(getattr(profile, "rbac_role", "") or "").strip().lower()
+        return profile_role == "admin"
+
+    def _visible_actions(self, metadata: dict[str, Any], *, user: Any | None = None) -> list[dict[str, Any]]:
         return [
             action
             for action in metadata["actions"]
-            if str(action.get("risk")) in VISIBLE_RUNTIME_RISKS
+            if str(action.get("risk")) in self._allowed_runtime_risks(user)
+            and self._action_is_available_for_user(action, user=user)
         ]
 
-    def _action_by_key(self, action_key: str) -> dict[str, Any] | None:
-        for action in self._visible_actions(self._metadata()):
+    def _screen_visible_actions(
+        self,
+        metadata: dict[str, Any],
+        *,
+        user: Any | None = None,
+        include_technical: bool = False,
+    ) -> list[dict[str, Any]]:
+        actions = self._visible_actions(metadata, user=user)
+        if include_technical:
+            return actions
+        return [
+            action
+            for action in actions
+            if str(action.get("key") or "") not in USER_HIDDEN_SCREEN_ACTION_KEYS
+        ]
+
+    def _action_is_available_for_user(
+        self,
+        action: dict[str, Any],
+        *,
+        user: Any | None = None,
+    ) -> bool:
+        action_key = str(action.get("key") or "")
+        predicate = USER_CONDITIONAL_SCREEN_ACTIONS.get(action_key)
+        if predicate is not None:
+            return bool(predicate(user))
+        return True
+
+    def _action_by_key(self, action_key: str, *, user: Any | None = None) -> dict[str, Any] | None:
+        for action in self._visible_actions(self._metadata(), user=user):
             if action["key"] == action_key:
                 return action
         return None
+
+    def _requires_confirmation(self, action: dict[str, Any]) -> bool:
+        risk = str(action.get("risk") or "").lower()
+        method = str(action.get("method") or "GET").upper()
+        return risk == "write" or (risk == "admin" and method != "GET")
 
     def _actions_by_screen(self, actions: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         grouped: dict[str, list[dict[str, Any]]] = {}
@@ -868,7 +1241,7 @@ class TuiWorkbenchService:
         if forced_kind == "message":
             return {
                 "kind": "message",
-                "title": action["label"],
+                "title": self._action_title(action),
                 "status": self._status_label(status_code),
                 "message": self._display_value(data),
                 "raw_hint": "原始响应只在调试抽屉中查看。",
@@ -878,6 +1251,8 @@ class TuiWorkbenchService:
                 return self._datagrid_model(action, data, status_code)
             if isinstance(data, dict):
                 rows_path = self._view_model_path(action, "rows_path")
+                if not rows_path and self._looks_like_detail_payload(data):
+                    return self._detail_model(action, data, status_code)
                 explicit_value = self._value_at_path(data, rows_path) if rows_path else None
                 list_value = (
                     explicit_value
@@ -894,6 +1269,8 @@ class TuiWorkbenchService:
                 return self._message_model(action, html_text, status_code)
             if str(action.get("view_type")) in {"status", "detail", "queue_workbench"}:
                 return self._detail_model(action, data, status_code)
+            if str(action.get("view_type")) == "datagrid" and self._looks_like_detail_payload(data):
+                return self._detail_model(action, data, status_code)
             rows_path = self._view_model_path(action, "rows_path")
             explicit_value = self._value_at_path(data, rows_path) if rows_path else None
             list_value = (
@@ -906,15 +1283,19 @@ class TuiWorkbenchService:
             return self._message_model(action, self._html_to_text(str(data)), status_code)
         return {
             "kind": "message",
-            "title": action["label"],
+            "title": self._action_title(action),
             "status": self._status_label(status_code),
             "message": self._display_value(data),
             "raw_hint": "原始响应只在调试抽屉中查看。",
         }
 
+    def _action_title(self, action: dict[str, Any]) -> str:
+        return self._operator_text(action.get("label") or "")
+
     def _unwrap_payload(self, payload: Any) -> Any:
-        if isinstance(payload, dict) and "data" in payload and len(payload) <= 4:
-            return payload.get("data")
+        if isinstance(payload, dict):
+            if "data" in payload and len(payload) <= 4:
+                return payload.get("data")
         return payload
 
     def _view_model_path(self, action: dict[str, Any], key: str) -> str:
@@ -973,6 +1354,9 @@ class TuiWorkbenchService:
         status_code: int,
         envelope: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        message_list = self._message_list_text(rows)
+        if message_list:
+            return self._message_model(action, message_list, status_code)
         normalized_rows = [row if isinstance(row, dict) else {"value": row} for row in rows]
         normalized_rows = self._filter_rows_for_action(action, normalized_rows)
         columns = self._columns_for_rows(normalized_rows)
@@ -988,18 +1372,11 @@ class TuiWorkbenchService:
         page = self._int_from_path(action, envelope, "page_path", default=1)
         return {
             "kind": "datagrid",
-            "title": action["label"],
+            "title": self._action_title(action),
             "status": self._status_label(status_code),
             "columns": columns,
             "rows": [
-                {
-                    column["key"]: self._display_row_value(
-                        row,
-                        column["key"],
-                        asset_name_map,
-                    )
-                    for column in columns
-                }
+                self._datagrid_row_payload(row, columns, asset_name_map)
                 for row in normalized_rows[:page_size]
             ],
             "empty_message": self._empty_datagrid_message(action, total),
@@ -1013,6 +1390,52 @@ class TuiWorkbenchService:
                 "has_previous": page > 1,
             },
         }
+
+    def _datagrid_row_payload(
+        self,
+        row: dict[str, Any],
+        columns: list[dict[str, str]],
+        asset_name_map: dict[str, str],
+    ) -> dict[str, str]:
+        payload: dict[str, Any] = {}
+        for column in columns:
+            key = column["key"]
+            display_value = self._display_row_value(row, key, asset_name_map)
+            payload[key] = display_value
+            raw_value = row.get(key)
+            if self._should_preserve_raw_row_value(key, raw_value, display_value):
+                payload[f"__raw_{key}"] = raw_value
+        for key, value in row.items():
+            normalized_key = str(key)
+            if normalized_key.startswith("__"):
+                normalized_key = normalized_key[2:]
+            if normalized_key in payload or isinstance(value, (dict, list)):
+                continue
+            if not self._should_preserve_row_identifier(normalized_key):
+                continue
+            payload[normalized_key] = self._display_row_value(row, key, asset_name_map)
+        return payload
+
+    def _should_preserve_row_identifier(self, key: str) -> bool:
+        normalized = str(key or "").strip().lower().replace("-", "_")
+        return normalized in ROW_IDENTIFIER_FIELDS or normalized.endswith("_id")
+
+    def _should_preserve_raw_row_value(
+        self,
+        key: str,
+        raw_value: Any,
+        display_value: str,
+    ) -> bool:
+        if raw_value in (None, "") or isinstance(raw_value, (dict, list)):
+            return False
+        normalized = str(key or "").strip().lower().replace("-", "_")
+        if not (
+            self._should_preserve_row_identifier(normalized)
+            or normalized == "code"
+            or normalized.endswith("_code")
+        ):
+            return False
+        return str(raw_value) != str(display_value)
 
     def _filter_rows_for_action(
         self, action: dict[str, Any], rows: list[dict[str, Any]]
@@ -1058,6 +1481,7 @@ class TuiWorkbenchService:
             },
         }.get(capability_key, {})
         return {
+            "__capability_key": capability_key,
             "name": curated.get("name") or self._clean_operator_text(row.get("name")),
             "summary": curated.get("summary") or self._clean_operator_text(row.get("summary")),
             "category": self._display_value(row.get("category")),
@@ -1094,7 +1518,46 @@ class TuiWorkbenchService:
             "Provider": "服务商",
             "Prompt": "提示词",
             "Chat": "对话",
+            "Templates": "模板",
+            "Template": "模板",
+            "Chains": "链路",
+            "Chain": "链路",
+            "Logs": "日志",
+            "Log": "日志",
+            "Assignments": "绑定",
+            "Assignment": "绑定",
+            "Execution": "执行",
+            "Strategy": "策略",
             "Runtime": "运行时",
+            "Workflow": "流程",
+            "funnel": "漏斗",
+            "Conflict": "冲突",
+            "Context": "上下文",
+            "Params": "参数",
+            "Reasoning": "原因说明",
+            "Freshness": "时效",
+            "Benchmark": "基准",
+            "Excess": "超额",
+            "Accuracy": "准确率",
+            "Records": "记录",
+            "Composite": "综合",
+            "Liquidity": "流动性",
+            "Actionable": "可操作",
+            "Aggregated": "汇总",
+            "TopStocks": "前列股票",
+            "IcTrends": "IC趋势",
+            "Top10": "前10",
+            "TopRanked": "前列排名",
+            "RequestedTrade": "请求交易",
+            "PendingRequests": "待处理请求",
+            "LessonLearned": "复盘经验",
+            "SelectionEffect": "选股效应",
+            "RecommendedSectors": "推荐板块",
+            "BenefitingStyles": "受益风格",
+            "TransitionTarget": "切换目标",
+            "TransitionProbability": "切换概率",
+            "RiskBudget": "风险预算",
+            "PerTrade": "单笔交易",
             "Source": "来源",
             "Keyword": "关键词",
             "Config": "配置",
@@ -1102,6 +1565,17 @@ class TuiWorkbenchService:
         }
         for source, target in replacements.items():
             text = text.replace(source, target)
+        text = re.sub(r"\bTop-down\b", "自上而下", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bBottom-up\b", "自下而上", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bBUY\b", "买入", text)
+        text = re.sub(r"\bSELL\b", "卖出", text)
+        text = re.sub(r"\bmoderate\b", "中等", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bhigh\b", "高", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bmedium\b", "中", text, flags=re.IGNORECASE)
+        text = re.sub(r"\blow\b", "低", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bdelta\b", "调仓差额", text, flags=re.IGNORECASE)
+        text = text.replace("绑定s", "绑定")
+        text = re.sub(r"\bBy\b", "按", text)
         text = re.sub(r"(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])", "", text)
         return text.strip()
 
@@ -1109,6 +1583,14 @@ class TuiWorkbenchService:
         self, action: dict[str, Any], payload: dict[str, Any], status_code: int
     ) -> dict[str, Any]:
         fields = self._detail_fields(payload)
+        if self._looks_like_password_challenge(status_code, payload):
+            fields.append(
+                {
+                    "key": "operator_hint",
+                    "label": "操作提示",
+                    "value": "请在当前屏使用“公开分享 / 验证访问”动作输入密码后重试。",
+                }
+            )
         nested = [
             {"key": key, "label": self._humanize(key), "count": len(value)}
             for key, value in payload.items()
@@ -1116,8 +1598,8 @@ class TuiWorkbenchService:
         ]
         return {
             "kind": "detail",
-            "title": action["label"],
-            "status": self._status_label(status_code),
+            "title": self._action_title(action),
+            "status": self._status_label(status_code, payload),
             "fields": fields,
             "nested": nested,
         }
@@ -1125,14 +1607,33 @@ class TuiWorkbenchService:
     def _message_model(
         self, action: dict[str, Any], message: str, status_code: int
     ) -> dict[str, Any]:
+        normalized_message = self._operator_text(message)
         return {
             "kind": "message",
-            "title": action["label"],
-            "status": self._status_label(status_code),
-            "message": message,
-            "sections": self._message_sections(message),
+            "title": self._action_title(action),
+            "status": self._status_label(status_code, {"detail": normalized_message}),
+            "message": normalized_message,
+            "sections": self._message_sections(normalized_message),
             "raw_hint": "原始响应只在调试抽屉中查看。",
         }
+
+    def _message_list_text(self, rows: list[Any]) -> str:
+        if not rows or len(rows) > 12:
+            return ""
+        if any(isinstance(row, (dict, list, tuple, set)) for row in rows):
+            return ""
+        messages = [str(row).strip() for row in rows if str(row).strip()]
+        if len(messages) != len(rows):
+            return ""
+        if not any(self._looks_like_message_line(message) for message in messages):
+            return ""
+        return "\n".join(messages)
+
+    def _looks_like_message_line(self, value: str) -> bool:
+        text = str(value or "").strip()
+        if len(text) >= 12:
+            return True
+        return any(marker in text for marker in ("，", "。", "：", ":", "；", " ", "无法", "跳过"))
 
     def _message_sections(self, message: str) -> list[dict[str, Any]]:
         lines = [line.strip() for line in str(message or "").splitlines() if line.strip()]
@@ -1140,6 +1641,18 @@ class TuiWorkbenchService:
         current: dict[str, Any] | None = None
 
         for line in lines:
+            inline_heading = self._split_inline_heading(line)
+            if inline_heading is not None:
+                heading, remainder = inline_heading
+                current = {"title": heading, "rows": [], "body": []}
+                sections.append(current)
+                if remainder:
+                    label, value = self._split_message_row(remainder)
+                    if label:
+                        current["rows"].append({"label": label, "value": value})
+                    else:
+                        current["body"].append(remainder)
+                continue
             if self._is_section_heading(line):
                 current = {"title": line, "rows": [], "body": []}
                 sections.append(current)
@@ -1153,6 +1666,24 @@ class TuiWorkbenchService:
             else:
                 current["body"].append(line)
         return sections[:12]
+
+    def _split_inline_heading(self, line: str) -> tuple[str, str] | None:
+        text = line.strip()
+        prefix_match = re.match(r"^(阶段\s*\d+\s*[：:])", text)
+        if not prefix_match:
+            return None
+        remainder_text = text[prefix_match.end() :]
+        split_match = re.search(
+            r"(当前|本阶段|只回答|系统级|若要|工作台|统一|该列表|计划|当前账户|配置建议|轮动信号|推荐偏好)",
+            remainder_text,
+        )
+        if not split_match:
+            return None
+        heading = f"{prefix_match.group(1)}{remainder_text[: split_match.start()]}".strip()
+        remainder = remainder_text[split_match.start() :].strip()
+        if not remainder:
+            return None
+        return heading, remainder
 
     def _is_section_heading(self, line: str) -> bool:
         stripped = line.strip()
@@ -1174,19 +1705,28 @@ class TuiWorkbenchService:
 
     def _is_endpoint_directory(self, payload: dict[str, Any]) -> bool:
         endpoints = payload.get("endpoints")
-        if not isinstance(endpoints, dict) or not endpoints:
-            return False
-        values = [value for value in endpoints.values() if isinstance(value, str)]
+        if isinstance(endpoints, dict):
+            values = [value for value in endpoints.values() if isinstance(value, str)]
+            return bool(values) and all(self._is_internal_api_path(value) for value in values)
+        if not isinstance(endpoints, list) or not endpoints:
+            return self._looks_like_internal_path_directory(payload)
+        values = [value for value in endpoints if isinstance(value, str)]
         return bool(values) and all(self._is_internal_api_path(value) for value in values)
 
     def _endpoint_directory_model(
         self, action: dict[str, Any], payload: dict[str, Any], status_code: int
     ) -> dict[str, Any]:
-        endpoints = payload.get("endpoints") if isinstance(payload.get("endpoints"), dict) else {}
+        raw_endpoints = payload.get("endpoints")
+        if isinstance(raw_endpoints, dict):
+            endpoint_count = len(raw_endpoints)
+        elif isinstance(raw_endpoints, list):
+            endpoint_count = len([value for value in raw_endpoints if isinstance(value, str)])
+        else:
+            endpoint_count = len(self._internal_path_directory_values(payload))
         message = str(payload.get("message") or action["label"]).strip()
         return {
             "kind": "detail",
-            "title": action["label"],
+            "title": self._action_title(action),
             "status": self._status_label(status_code),
             "fields": [
                 {
@@ -1197,7 +1737,7 @@ class TuiWorkbenchService:
                 {
                     "key": "capability_count",
                     "label": "已登记能力",
-                    "value": f"{len(endpoints)} 项",
+                    "value": f"{endpoint_count} 项",
                 },
                 {
                     "key": "operator_hint",
@@ -1207,6 +1747,23 @@ class TuiWorkbenchService:
             ],
             "nested": [],
         }
+
+    def _looks_like_internal_path_directory(self, payload: dict[str, Any]) -> bool:
+        values = self._internal_path_directory_values(payload)
+        return bool(values) and all(self._is_internal_api_path(value) for value in values)
+
+    def _internal_path_directory_values(self, payload: dict[str, Any]) -> list[str]:
+        values: list[str] = []
+        for key, value in payload.items():
+            if key == "message":
+                continue
+            if isinstance(value, str):
+                values.append(value)
+                continue
+            if value in (None, ""):
+                continue
+            return []
+        return values
 
     def _dominant_html_text(self, payload: dict[str, Any]) -> str:
         html_keys = {
@@ -1283,13 +1840,53 @@ class TuiWorkbenchService:
         normalized = str(key or "").strip().lower()
         if normalized == "endpoints" or normalized.startswith("endpoints."):
             return True
+        if normalized in {"success", "ok"} and isinstance(value, bool):
+            return True
         if isinstance(value, str) and self._is_internal_api_path(value):
             return True
         return False
 
+    def _looks_like_detail_payload(self, payload: dict[str, Any]) -> bool:
+        business_items = [
+            (str(key or "").strip().lower(), value)
+            for key, value in payload.items()
+            if str(key or "").strip().lower() not in {"success", "ok", "status", "message"}
+        ]
+        if not business_items:
+            return False
+        if len(business_items) == 1 and isinstance(business_items[0][1], dict):
+            return True
+        list_keys = [key for key, value in business_items if isinstance(value, list)]
+        scalar_count = sum(1 for _, value in business_items if not isinstance(value, (dict, list)))
+        nested_dict_count = sum(1 for _, value in business_items if isinstance(value, dict))
+        has_identifier = any(key in {"id", "pk", "name", "title", "code"} for key, _ in business_items)
+        collection_list_keys = {"results", "items", "data", "records"}
+        if len(list_keys) > 1:
+            if has_identifier and scalar_count >= 3 and not any(
+                key in collection_list_keys for key in list_keys
+            ):
+                return True
+            return False
+        if len(list_keys) == 1:
+            list_key = list_keys[0]
+            if list_key in collection_list_keys:
+                return False
+            if scalar_count >= 1 and any(
+                key in {"status", "service", "module"} for key, _ in business_items
+            ):
+                return True
+            return has_identifier and scalar_count >= 2
+        if scalar_count >= 3:
+            return True
+        if nested_dict_count >= 2:
+            return True
+        return has_identifier and (scalar_count + nested_dict_count) >= 2
+
     def _asset_name_map_for_rows(self, rows: list[dict[str, Any]]) -> dict[str, str]:
         codes: set[str] = set()
         for row in rows[:200]:
+            if self._asset_name_from_row(row):
+                continue
             for key, value in row.items():
                 if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
                     codes.update(self._asset_lookup_keys(value))
@@ -1305,6 +1902,9 @@ class TuiWorkbenchService:
         if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
             name = self._asset_name_from_row(row) or self._resolved_asset_name(value, asset_name_map)
             return self._display_asset_code(value, name)
+        contextual = self._field_value_label(key, value)
+        if contextual is not None:
+            return contextual
         return self._display_value(value)
 
     def _display_value_for_key(
@@ -1319,7 +1919,22 @@ class TuiWorkbenchService:
                     resolve_asset_names(lookup_keys) if lookup_keys else {},
                 )
             return self._display_asset_code(value, name)
+        contextual = self._field_value_label(key, value)
+        if contextual is not None:
+            return contextual
         return self._display_value(value)
+
+    def _field_value_label(self, key: str, value: Any) -> str | None:
+        if value is None or isinstance(value, (bool, dict, list)):
+            return None
+        normalized_key = str(key or "").strip().lower().replace("-", "_").split(".")[-1]
+        value_labels = FIELD_VALUE_LABELS.get(normalized_key)
+        if not value_labels:
+            return None
+        normalized_value = str(value).strip().lower()
+        if not normalized_value:
+            return None
+        return value_labels.get(normalized_value)
 
     def _is_asset_code_field(self, key: str) -> bool:
         last_part = str(key or "").strip().lower().replace("-", "_").split(".")[-1]
@@ -1371,10 +1986,12 @@ class TuiWorkbenchService:
         keys: list[str] = []
         for row in rows[:12]:
             for key, value in row.items():
+                if str(key).startswith("__"):
+                    continue
                 if key not in keys and not isinstance(value, (dict, list)):
                     keys.append(key)
         if not keys and rows:
-            keys = list(rows[0].keys())[:6]
+            keys = [key for key in rows[0].keys() if not str(key).startswith("__")][:6]
         return [{"key": key, "label": self._humanize(key)} for key in keys[:8]]
 
     def _display_value(self, value: Any) -> str:
@@ -1423,12 +2040,47 @@ class TuiWorkbenchService:
             result = re.sub(rf"\b{re.escape(source)}\b", target, result, flags=re.IGNORECASE)
         return result
 
-    def _status_label(self, status_code: int) -> str:
+    def _status_label(self, status_code: int, payload: Any | None = None) -> str:
         if 200 <= int(status_code) < 300:
             return STATUS_LABELS["OK"]
         if 300 <= int(status_code) < 400:
             return STATUS_LABELS["REDIRECT"]
+        if self._looks_like_password_challenge(status_code, payload):
+            return "需要密码"
+        if self._looks_like_empty_state(status_code, payload):
+            return STATUS_LABELS["EMPTY"]
         return STATUS_LABELS["ERROR"]
+
+    def _looks_like_password_challenge(self, status_code: int, payload: Any | None) -> bool:
+        if int(status_code) != 401 or not isinstance(payload, dict):
+            return False
+        if bool(payload.get("requires_password")):
+            return True
+        for key in ("detail", "error", "message"):
+            value = payload.get(key)
+            if isinstance(value, str) and "密码" in value:
+                return True
+        return False
+
+    def _looks_like_empty_state(self, status_code: int, payload: Any | None) -> bool:
+        if int(status_code) != 404 or not isinstance(payload, dict):
+            return False
+        detail = payload.get("detail")
+        if not isinstance(detail, str):
+            return False
+        normalized = detail.strip().lower()
+        if not normalized:
+            return False
+        empty_markers = (
+            "没有",
+            "暂无",
+            "not found",
+            "does not have",
+            "missing",
+            "不存在",
+            "未配置",
+        )
+        return any(marker in normalized for marker in empty_markers)
 
     def _catalog_stats(
         self, metadata: dict[str, Any], visible_actions: list[dict[str, Any]]
@@ -1545,7 +2197,7 @@ class TuiWorkbenchService:
         if tier in {"primary", "support", "advanced", "operation"}:
             return tier
         risk = str(action.get("risk") or "read").lower()
-        if risk in {"write", "ai"}:
+        if risk in {"write", "ai", "admin"}:
             return "operation"
         key = str(action.get("key") or "")
         group = str(action.get("task_group") or "")
@@ -1564,8 +2216,8 @@ class TuiWorkbenchService:
             "screen_key": action["screen_key"],
             "view_type": action["view_type"],
             "risk": action["risk"],
-            "confirmation_required": str(action.get("risk")) == "write",
-            "fields": [self._field_payload(field) for field in action.get("fields") or []],
+            "confirmation_required": self._requires_confirmation(action),
+            "fields": [self._field_payload(field, action=action) for field in action.get("fields") or []],
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
             "task_tier": action.get("task_tier", ""),
@@ -1605,13 +2257,16 @@ class TuiWorkbenchService:
         except (TypeError, ValueError):
             return default
 
-    def _field_payload(self, field: dict[str, Any]) -> dict[str, Any]:
+    def _field_payload(self, field: dict[str, Any], *, action: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = dict(field)
         key = str(payload.get("key") or "").strip()
         label = str(payload.get("label") or "").strip()
         canonical_label = key in FIELD_LABELS
         if canonical_label or self._is_technical_field_label(key=key, label=label):
             payload["label"] = self._humanize(key)
+        resolved_default = self._resolved_field_default(action, field) if action else payload.get("default")
+        if resolved_default not in (None, "") and payload.get("default") in (None, ""):
+            payload["default"] = resolved_default
         placeholder = str(payload.get("placeholder") or "").strip()
         if payload.get("required") and (
             not placeholder
@@ -1620,6 +2275,27 @@ class TuiWorkbenchService:
         ):
             payload["placeholder"] = f"请输入{payload['label']}"
         return payload
+
+    def _resolved_field_default(
+        self,
+        action: dict[str, Any] | None,
+        field: dict[str, Any],
+    ) -> Any:
+        default = field.get("default")
+        if default not in (None, ""):
+            return default
+        if not action or str(action.get("risk") or "") != "read":
+            return default
+        key = str(field.get("key") or "").strip().lower()
+        input_type = str(field.get("input_type") or "").strip().lower()
+        if input_type != "date":
+            return default
+        today = timezone.localdate()
+        if key in {"start_date", "start"}:
+            return (today - timedelta(days=30)).isoformat()
+        if key in {"end_date", "end", "as_of_date", "as_of", "date"}:
+            return today.isoformat()
+        return default
 
     def _is_technical_field_label(self, *, key: str, label: str) -> bool:
         if not label:
@@ -1646,7 +2322,7 @@ class TuiWorkbenchService:
     def _empty_datagrid_message(self, action: dict[str, Any], total: int) -> str:
         if total > 0:
             return "当前页没有可显示记录。"
-        return f"暂无{action['label']}数据。"
+        return f"暂无{self._action_title(action)}数据。"
 
     def _empty_datagrid_guidance(self, action: dict[str, Any], total: int) -> list[str]:
         if total > 0:

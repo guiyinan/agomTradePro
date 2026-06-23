@@ -669,6 +669,7 @@ a {
     margin: 0;
     padding: 0 0 6px;
     border-bottom: 1px dashed var(--tui-border-dim);
+    scroll-margin-top: 52px;
 }
 
 .tui-action-brief {
@@ -796,10 +797,18 @@ a {
     outline: 0;
 }
 
+.tui-row-fill-button:disabled {
+    border-color: var(--tui-border-dim);
+    background: var(--tui-panel);
+    color: var(--tui-border-dim);
+    cursor: not-allowed;
+}
+
 .tui-action-group {
     margin: 0 0 10px;
     padding: 0;
-    border: 1px solid var(--tui-border-dim);
+    border: 1px dashed var(--tui-border-dim);
+    background: var(--tui-bg-deep);
 }
 
 .tui-action-group-operation {
@@ -808,7 +817,8 @@ a {
     z-index: 3;
     background: var(--tui-panel);
     padding-bottom: 4px;
-    border-color: var(--tui-accent);
+    border: 2px solid var(--tui-accent);
+    box-shadow: inset 0 0 0 1px var(--tui-accent);
 }
 
 .tui-action-group-title {
@@ -821,6 +831,16 @@ a {
 
 .tui-action-group-operation .tui-action-group-title {
     background: var(--tui-accent);
+}
+
+.tui-action-group-operation .tui-action-button {
+    border-color: var(--tui-accent);
+    background: var(--tui-bg-deep);
+}
+
+.tui-action-group-operation .tui-action-form:focus-within .tui-action-button,
+.tui-action-group-operation .tui-action-button:hover {
+    border-color: var(--tui-text);
 }
 
 .tui-action-group .tui-action-form:last-child {
@@ -890,7 +910,7 @@ a {
 .tui-workspace-grid {
     flex: 1 1 auto;
     display: grid;
-    grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1.7fr) minmax(190px, 0.58fr);
+    grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) minmax(252px, 0.92fr);
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas:
         "actions main inspector";
@@ -908,8 +928,17 @@ a {
     overflow: hidden;
 }
 
+.tui-workspace-grid[data-view-kind="detail"],
+.tui-workspace-grid[data-view-kind="message"] {
+    grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) minmax(280px, 1.04fr);
+}
+
 .tui-actions-panel {
     grid-area: actions;
+}
+
+.tui-actions-panel .tui-panel-body {
+    scroll-padding-top: 52px;
 }
 
 .tui-main-panel {
@@ -918,10 +947,11 @@ a {
 
 .tui-inspector-panel {
     grid-area: inspector;
+    min-inline-size: 24ch;
 }
 
 .tui-app.is-inspector-collapsed .tui-workspace-grid {
-    grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1.7fr) 32px;
+    grid-template-columns: minmax(208px, 0.7fr) minmax(0, 1.38fr) 32px;
 }
 
 .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-body {
@@ -1628,9 +1658,7 @@ a {
     font-weight: 700;
 }
 
-.tui-detail-grid dd,
-.tui-inspector-grid dd,
-.tui-inspector-panel dd {
+.tui-detail-grid dd {
     overflow-wrap: anywhere;
 }
 
@@ -1657,6 +1685,9 @@ a {
     margin: 0;
     padding: 6px;
     border-top: 1px dashed var(--tui-border-dim);
+    line-height: 1.5;
+    overflow-wrap: break-word;
+    word-break: keep-all;
 }
 
 .tui-inspector-card .tui-inspector-grid {
@@ -1671,6 +1702,8 @@ a {
 
 .tui-inspector-card .tui-inspector-grid dd {
     color: var(--tui-text);
+    overflow-wrap: break-word;
+    word-break: keep-all;
 }
 
 .tui-inspector-sections {
@@ -1680,7 +1713,7 @@ a {
 }
 
 .tui-inspector-sections .tui-message-fields {
-    grid-template-columns: minmax(88px, 0.38fr) minmax(0, 1fr);
+    grid-template-columns: minmax(108px, 0.42fr) minmax(0, 1fr);
 }
 
 .tui-inspector-sections .tui-message-section p {
@@ -2141,7 +2174,12 @@ a {
     }
 
     .tui-workspace-grid {
-        grid-template-columns: minmax(210px, 0.72fr) minmax(360px, 1.5fr) minmax(190px, 0.55fr);
+        grid-template-columns: minmax(210px, 0.66fr) minmax(320px, 1.18fr) minmax(224px, 0.86fr);
+    }
+
+    .tui-workspace-grid[data-view-kind="detail"],
+    .tui-workspace-grid[data-view-kind="message"] {
+        grid-template-columns: minmax(210px, 0.62fr) minmax(280px, 1.02fr) minmax(244px, 0.98fr);
     }
 
     .tui-dashboard-grid {

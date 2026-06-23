@@ -18,6 +18,83 @@ from apps.terminal.application.tui_metadata import (
 
 from .models import TuiMetadataRegistryORM
 
+RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
+    "ai-ops.capabilities": {
+        "param.api.get.api.ai-capability.capabilities.pk",
+    },
+}
+
+RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
+    "auto.api.get.api.dashboard.alpha.history": {
+        "view_type": "datagrid",
+        "view_model": {
+            "rows_path": "data",
+        },
+    },
+    "auto.api.get.api.system.list": {
+        "view_type": "datagrid",
+        "view_model": {
+            "rows_path": "items",
+            "total_path": "total",
+        },
+    },
+    "param.api.get.api.account.accounts.int.account_id.performance": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.performance-report": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.valuation-snapshot": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.valuation-timeline": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.benchmarks": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.equity-curve": {
+        "screen_key": "execution.accounts",
+    },
+    "param.api.get.api.account.accounts.int.account_id.inspections": {
+        "screen_key": "execution.accounts",
+    },
+    "auto.api.get.api.strategy.assignments.by_portfolio": {
+        "screen_key": "execution.portfolio-performance",
+    },
+    "auto.api.get.api.strategy.execution-logs.by_portfolio": {
+        "screen_key": "execution.portfolio-performance",
+    },
+    "param.api.get.api.audit.operation-logs.str.log_id": {
+        "fields": [
+            {
+                "key": "log_id",
+                "label": "日志 ID",
+                "input_type": "text",
+                "required": True,
+                "default": "",
+                "placeholder": "输入日志 ID",
+                "binding": "path",
+                "value_type": "string",
+            },
+        ],
+    },
+    "param.api.get.api.audit.decision-traces.str.request_id": {
+        "fields": [
+            {
+                "key": "request_id",
+                "label": "请求ID",
+                "input_type": "text",
+                "required": True,
+                "default": "",
+                "placeholder": "请输入请求ID",
+                "binding": "path",
+                "value_type": "string",
+            },
+        ],
+    },
+}
+
 
 class PublishedTuiMetadataRepository:
     """Load and publish reviewed TUI operation metadata."""
@@ -46,7 +123,7 @@ class PublishedTuiMetadataRepository:
         except (OperationalError, ProgrammingError):
             model = None
         if model is not None:
-            return validate_tui_metadata(dict(model.payload or {}))
+            return self._normalize_runtime_payload(validate_tui_metadata(dict(model.payload or {})))
 
         return self._load_published_file()
 
@@ -67,7 +144,7 @@ class PublishedTuiMetadataRepository:
 
         validated = validate_tui_metadata(dict(payload))
         validated["status"] = "published"
-        compacted = compact_tui_metadata_payload(validated)
+        compacted = compact_tui_metadata_payload(self._normalize_runtime_payload(validated))
         source_hash = self.payload_hash(compacted)
         now = timezone.now()
         previous_model = (
@@ -108,7 +185,73 @@ class PublishedTuiMetadataRepository:
         if not self.published_path.exists():
             raise FileNotFoundError(f"Published TUI metadata not found: {self.published_path}")
         payload = json.loads(self.published_path.read_text(encoding="utf-8"))
-        return validate_tui_metadata(payload)
+        return self._normalize_runtime_payload(validate_tui_metadata(payload))
+
+    def _normalize_runtime_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Prune duplicated actions that are not operator-usable in runtime screens."""
+
+        redundant_map = RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS
+        patches = RUNTIME_ACTION_PATCHES
+        if not redundant_map and not patches:
+            return payload
+
+        normalized = dict(payload)
+        actions = list(payload.get("actions") or [])
+        kept: list[dict[str, Any]] = []
+        removed = 0
+        patched = 0
+        for action in actions:
+            screen_key = str(action.get("screen_key") or "")
+            action_key = str(action.get("key") or "")
+            if action_key in redundant_map.get(screen_key, set()):
+                removed += 1
+                continue
+            patch = patches.get(action_key)
+            if patch:
+                updated, changed = self._apply_runtime_patch(action, patch)
+                kept.append(updated)
+                if changed:
+                    patched += 1
+                continue
+            kept.append(action)
+        if removed == 0 and patched == 0:
+            return payload
+
+        normalized["actions"] = kept
+        coverage = dict(normalized.get("coverage_summary") or {})
+        coverage["runtime_pruned_redundant_screen_actions"] = removed + int(
+            coverage.get("runtime_pruned_redundant_screen_actions", 0) or 0
+        )
+        coverage["runtime_patched_actions"] = patched + int(
+            coverage.get("runtime_patched_actions", 0) or 0
+        )
+        normalized["coverage_summary"] = coverage
+        return validate_tui_metadata(normalized)
+
+    @staticmethod
+    def _apply_runtime_patch(
+        action: dict[str, Any],
+        patch: dict[str, Any],
+    ) -> tuple[dict[str, Any], bool]:
+        """Apply one runtime patch and report whether it changed the action."""
+
+        updated = dict(action)
+        changed = False
+        for key, value in patch.items():
+            if key == "view_model":
+                current_view_model = dict(action.get("view_model") or {})
+                merged_view_model = {
+                    **current_view_model,
+                    **dict(value or {}),
+                }
+                if merged_view_model != current_view_model:
+                    changed = True
+                updated["view_model"] = merged_view_model
+                continue
+            if updated.get(key) != value:
+                changed = True
+            updated[key] = value
+        return updated, changed
 
     @staticmethod
     def payload_hash(payload: dict[str, Any]) -> str:
