@@ -146,6 +146,21 @@
         },
     };
 
+    const runtimeConfig = window.__AGOMTUI_RUNTIME__ || {};
+    const apiBase = String(runtimeConfig.apiBase || "/api/tui").replace(/\/+$/, "");
+
+    function catalogUrl() {
+        return `${apiBase}/catalog/`;
+    }
+
+    function screenUrl(screenKey) {
+        return `${apiBase}/screens/${encodeURIComponent(screenKey)}/`;
+    }
+
+    function actionRunUrl(actionKey) {
+        return `${apiBase}/actions/${encodeURIComponent(actionKey)}/run/`;
+    }
+
     function escapeHtml(value) {
         return String(value ?? "").replace(/[&<>"']/g, (char) => ({
             "&": "&amp;",
@@ -932,11 +947,13 @@
         const key = String(panel.key || "");
         const layout = String(panel.layout_area || "");
         const mapping = {
+            "today-queue": "command-center.decision-flow",
             "regime-status": "macro-regime.overview",
             "pulse-alerts": "macro-regime.pulse",
             "account-positions": "execution.accounts",
             "alpha-ranking": "research.alpha",
             "task-monitor": "execution.tasks",
+            queue: "command-center.decision-flow",
             regime: "macro-regime.overview",
             pulse: "macro-regime.pulse",
             account: "execution.accounts",
@@ -960,6 +977,7 @@
     function dashboardPanelClass(panel, index) {
         const layout = panel.layout_area || "";
         const mapped = {
+            queue: "tui-panel-queue",
             regime: "tui-panel-regime",
             pulse: "tui-panel-pulse",
             account: "tui-panel-account",
@@ -979,7 +997,7 @@
             return;
         }
         try {
-            const result = await fetchJson(`/api/tui/actions/${encodeURIComponent(panel.action_key)}/run/`, {
+            const result = await fetchJson(actionRunUrl(panel.action_key), {
                 method: "POST",
                 body: JSON.stringify({ params: {} }),
             });
@@ -1008,7 +1026,7 @@
 
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
-        const regime = pickField(fields, ["current_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
+        const regime = pickField(fields, ["dominant_regime", "current_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
         const confidence = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]) || "-";
         const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
         const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
@@ -1557,6 +1575,9 @@
             summary_id: ["summary_id", "summary.id"],
             log_id: ["log_id", "log.id", "id", "pk"],
             request_id: ["request_id", "request.id"],
+            recommendation_id: ["recommendation_id", "source_id", "item_id", "id", "pk"],
+            plan_id: ["plan_id", "source_id", "item_id", "id", "pk"],
+            approval_request_id: ["approval_request_id", "request_id", "source_id", "item_id", "id", "pk"],
             task_id: ["task_id", "task.id", "id", "pk"],
             provider_id: ["provider_id", "provider.id", "id", "pk"],
             from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
@@ -1575,7 +1596,7 @@
             closeModal();
             els.main.innerHTML = '<div class="tui-loading">正在加载工作区...</div>';
             setStatus("加载工作区");
-            const screenSpec = await fetchJson(`/api/tui/screens/${encodeURIComponent(screenKey)}/`);
+            const screenSpec = await fetchJson(screenUrl(screenKey));
             renderScreen(screenSpec);
         } catch (error) {
             resetLocationInput();
@@ -1600,16 +1621,39 @@
             closeModal();
             els.main.innerHTML = '<div class="tui-loading">正在读取业务数据...</div>';
             setStatus("读取数据");
-            const result = await fetchJson(`/api/tui/actions/${encodeURIComponent(actualActionKey)}/run/`, {
+            const requestBody = { params, confirmed: Boolean(options.confirmed) };
+            if (options.confirmation) {
+                requestBody.confirmation = options.confirmation;
+            }
+            if (options.reauth) {
+                requestBody.reauth = options.reauth;
+            }
+            const result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
-                body: JSON.stringify({ params, confirmed: Boolean(options.confirmed) }),
+                body: JSON.stringify(requestBody),
             });
+            if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
+                state.lastRaw = null;
+                renderViewModel(result.view_model);
+                showMissingFieldsPrompt(result, actualActionKey, params, options);
+                updateRawDrawer();
+                setStatus("等待补填");
+                return;
+            }
             if (result.confirmation_required) {
                 state.lastRaw = null;
                 renderViewModel(result.view_model);
                 showActionConfirmation(result, actualActionKey, params);
                 updateRawDrawer();
                 setStatus("等待确认");
+                return;
+            }
+            if (result.password_challenge_required) {
+                state.lastRaw = null;
+                renderViewModel(result.view_model);
+                showPasswordChallenge(result, actualActionKey, params, options);
+                updateRawDrawer();
+                setStatus("等待验密");
                 return;
             }
             markActionCompleted(action);
@@ -2197,6 +2241,46 @@
         els.modalClose.focus();
     }
 
+    function showMissingFieldsPrompt(result, actionKey, params, options = {}) {
+        const fields = result.missing_fields || [];
+        showModal("补填参数", `
+            <form class="tui-confirmation" data-missing-fields-form>
+                <p>${escapeHtml(result.view_model?.message || "补齐参数后继续执行。")}</p>
+                ${fields.map((field) => `
+                    <label class="tui-field">
+                        <span>${escapeHtml(field.label || field.key)}</span>
+                        <input name="${escapeHtml(field.key)}" type="${field.input_type === "number" ? "number" : "text"}"
+                               value="${escapeHtml(params[field.key] || field.default || "")}"
+                               placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""}>
+                    </label>
+                `).join("")}
+                <div class="tui-confirmation-actions">
+                    <button class="tui-confirm-button" type="submit">继续</button>
+                    <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
+                </div>
+            </form>
+        `);
+        const form = els.modalBody.querySelector("[data-missing-fields-form]");
+        const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const completed = { ...params };
+            fields.forEach((field) => {
+                const input = form.querySelector(`[name="${CSS.escape(field.key)}"]`);
+                if (input) {
+                    completed[field.key] = input.value;
+                }
+            });
+            closeModal();
+            runAction(actionKey, null, { ...options, params: completed });
+        });
+        cancelButton.addEventListener("click", () => {
+            closeModal();
+            setStatus("已取消");
+        });
+        form.querySelector("input")?.focus();
+    }
+
     function showActionConfirmation(result, actionKey, params) {
         const confirmation = result.confirmation || {};
         showModal(confirmation.title || "确认操作", `
@@ -2212,13 +2296,60 @@
         const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
         confirmButton.addEventListener("click", () => {
             closeModal();
-            runAction(actionKey, null, { confirmed: true, params });
+            runAction(actionKey, null, {
+                confirmed: true,
+                params,
+                confirmation: {
+                    confirmed: true,
+                    confirmed_at: new Date().toISOString(),
+                    message: confirmation.message || "",
+                },
+            });
         });
         cancelButton.addEventListener("click", () => {
             closeModal();
             setStatus("已取消");
         });
         confirmButton.focus();
+    }
+
+    function showPasswordChallenge(result, actionKey, params, options = {}) {
+        const challenge = result.password_challenge || {};
+        showModal("重新验证身份", `
+            <form class="tui-confirmation" data-password-challenge-form>
+                <p>${escapeHtml(challenge.message || "该操作需要重新验证身份。")}</p>
+                <label class="tui-field">
+                    <span>密码</span>
+                    <input name="password" type="password" autocomplete="current-password" required>
+                </label>
+                <div class="tui-confirmation-actions">
+                    <button class="tui-confirm-button" type="submit">验证并继续</button>
+                    <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
+                </div>
+            </form>
+        `);
+        const form = els.modalBody.querySelector("[data-password-challenge-form]");
+        const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const password = form.querySelector("[name='password']")?.value || "";
+            closeModal();
+            runAction(actionKey, null, {
+                ...options,
+                params,
+                reauth: {
+                    method: "password",
+                    credential: password,
+                    challenge_id: challenge.challenge_id || "",
+                    submitted_at: new Date().toISOString(),
+                },
+            });
+        });
+        cancelButton.addEventListener("click", () => {
+            closeModal();
+            setStatus("已取消");
+        });
+        form.querySelector("input")?.focus();
     }
 
     function closeModal() {
@@ -2828,7 +2959,7 @@
         try {
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
-            const catalog = await fetchJson("/api/tui/catalog/");
+            const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
             await loadScreen(catalog.default_screen);
         } catch (error) {

@@ -21,6 +21,7 @@ from .recommendation_api_views import (
     UpdateModelParamView,
 )
 from .request_api_views import DecisionRequestViewSet
+from .today_queue_api_views import TodayDecisionQueueView
 from .valuation_api_views import (
     InvalidationAIDraftView,
     InvalidationTemplateView,
@@ -59,6 +60,7 @@ class DecisionApiRootView(APIView):
                 "endpoints": {
                     "workspace_recommendations": "/api/decision/workspace/recommendations/",
                     "workspace_conflicts": "/api/decision/workspace/conflicts/",
+                    "workspace_today_queue": "/api/decision/workspace/today-queue/",
                     "workspace_params": "/api/decision/workspace/params/",
                     "workspace_plans_generate": "/api/decision/workspace/plans/generate/",
                     "execute_preview": "/api/decision/execute/preview/",
@@ -110,6 +112,11 @@ urlpatterns = [
         "api/decision/workspace/aggregated/",
         AggregatedWorkspaceView.as_view(),
         name="decision-workspace-aggregated",
+    ),
+    path(
+        "api/decision/workspace/today-queue/",
+        TodayDecisionQueueView.as_view(),
+        name="decision-workspace-today-queue",
     ),
     path(
         "api/decision/workspace/plans/generate/",

@@ -1494,6 +1494,55 @@ class PortfolioTransitionPlan:
         }
 
 
+@dataclass(frozen=True)
+class TodayDecisionQueueItem:
+    """One actionable item in the daily decision queue."""
+
+    item_id: str
+    type: str
+    title: str
+    status: str
+    priority: int
+    account_id: str
+    security_code: str
+    source_id: str
+    next_action: str
+    target_screen: str
+    created_at: datetime
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return an API-safe queue item payload."""
+
+        return {
+            "item_id": self.item_id,
+            "type": self.type,
+            "title": self.title,
+            "status": self.status,
+            "priority": self.priority,
+            "account_id": self.account_id,
+            "security_code": self.security_code,
+            "source_id": self.source_id,
+            "next_action": self.next_action,
+            "target_screen": self.target_screen,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+def sort_today_decision_queue_items(
+    items: list[TodayDecisionQueueItem],
+) -> list[TodayDecisionQueueItem]:
+    """Sort daily queue items by priority, then newest first."""
+
+    return sorted(
+        items,
+        key=lambda item: (
+            item.priority,
+            -item.created_at.timestamp(),
+            item.item_id,
+        ),
+    )
+
+
 # ========== 估值定价工厂函数 ==========
 
 

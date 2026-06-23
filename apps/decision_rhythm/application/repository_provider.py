@@ -58,3 +58,13 @@ def get_valuation_snapshot_repository() -> ValuationSnapshotRepository:
 
 def get_decision_model_param_config_repository() -> DecisionModelParamConfigRepository:
     return DecisionModelParamConfigRepository()
+
+
+def check_alpha_workspace_consistency_health() -> dict:
+    """Return Alpha/workspace consistency health from the infrastructure provider."""
+
+    from apps.decision_rhythm.infrastructure.consistency_snapshots import (
+        check_alpha_workspace_consistency_health as _check_health,
+    )
+
+    return _check_health()

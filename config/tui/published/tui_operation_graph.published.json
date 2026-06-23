@@ -83,7 +83,42 @@
       "group": "workflow",
       "summary": "先看今日决策上下文和系统健康，再决定是否继续深入。",
       "view_type": "status",
+      "default_action_key": "decision.workspace.today_queue",
       "dashboard_panels": [
+        {
+          "key": "today-queue",
+          "title": "零、今日待办",
+          "kind": "datagrid",
+          "action_key": "decision.workspace.today_queue",
+          "max_rows": 8,
+          "layout_area": "queue",
+          "columns": [
+            {
+              "key": "priority",
+              "label": "优先级"
+            },
+            {
+              "key": "status",
+              "label": "状态"
+            },
+            {
+              "key": "type",
+              "label": "类型"
+            },
+            {
+              "key": "title",
+              "label": "事项"
+            },
+            {
+              "key": "next_action",
+              "label": "下一步"
+            },
+            {
+              "key": "security_code",
+              "label": "标的"
+            }
+          ]
+        },
         {
           "key": "regime-status",
           "title": "一、市场周期象限",
@@ -1044,6 +1079,35 @@
       "source": "published",
       "task_group": "01 决策状态",
       "sequence": 100,
+      "task_tier": "primary"
+    },
+    {
+      "key": "decision.workspace.today_queue",
+      "label": "今日待办",
+      "endpoint": "/api/decision/workspace/today-queue/",
+      "intent": "read_today_decision_queue",
+      "screen_key": "command-center.overview",
+      "view_type": "datagrid",
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "text",
+          "required": false,
+          "binding": "query",
+          "value_type": "string",
+          "default": "default",
+          "placeholder": "默认账户口径，可改成自定义账户ID"
+        }
+      ],
+      "view_model": {
+        "rows_path": "items",
+        "total_path": "total"
+      },
+      "description": "查看今日从推荐、冲突、调仓计划到审批的待处理事项。",
+      "source": "published",
+      "task_group": "00 今日待办",
+      "sequence": 50,
       "task_tier": "primary"
     },
     {
@@ -8151,6 +8215,286 @@
       "task_group": "02 决策工作台",
       "sequence": 200,
       "task_tier": "support"
+    },
+    {
+      "key": "decision.workspace.recommendation_action",
+      "label": "采纳或忽略推荐",
+      "method": "POST",
+      "endpoint": "/api/decision/workspace/recommendations/action/",
+      "intent": "update_recommendation_user_action",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "recommendation_id",
+          "label": "推荐 ID",
+          "input_type": "text",
+          "required": true,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "从推荐列表或今日待办行带入"
+        },
+        {
+          "key": "action",
+          "label": "处理动作",
+          "input_type": "select",
+          "required": true,
+          "binding": "body",
+          "value_type": "string",
+          "default": "adopt",
+          "placeholder": "",
+          "options": [
+            {
+              "value": "adopt",
+              "label": "采纳"
+            },
+            {
+              "value": "ignore",
+              "label": "忽略"
+            },
+            {
+              "value": "watch",
+              "label": "观察"
+            },
+            {
+              "value": "pending",
+              "label": "待定"
+            }
+          ]
+        },
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "text",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "default",
+          "placeholder": "默认账户口径，可改成自定义账户ID"
+        },
+        {
+          "key": "note",
+          "label": "备注",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "记录采纳或忽略原因"
+        }
+      ],
+      "description": "对统一推荐记录人工采纳、忽略、观察或待定动作。",
+      "source": "published",
+      "task_group": "03 推荐筛选",
+      "sequence": 300,
+      "task_tier": "operation"
+    },
+    {
+      "key": "decision.workspace.plan_generate",
+      "label": "生成账户调仓计划",
+      "method": "POST",
+      "endpoint": "/api/decision/workspace/plans/generate/",
+      "intent": "generate_portfolio_transition_plan",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "text",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "default",
+          "placeholder": "默认账户口径，可改成自定义账户ID"
+        },
+        {
+          "key": "recommendation_ids",
+          "label": "推荐 ID 列表",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "list",
+          "default": "",
+          "placeholder": "留空时使用当前账户所有已采纳且非冲突推荐"
+        }
+      ],
+      "description": "基于已采纳推荐生成账户级调仓计划。",
+      "source": "published",
+      "task_group": "04 调仓计划",
+      "sequence": 400,
+      "task_tier": "operation"
+    },
+    {
+      "key": "decision.workspace.plan_update",
+      "label": "补齐计划风控字段",
+      "method": "POST",
+      "endpoint": "/api/decision/workspace/plans/<str:plan_id>/update/",
+      "intent": "update_transition_plan_risk_contract",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "plan_id",
+          "label": "计划 ID",
+          "input_type": "text",
+          "required": true,
+          "binding": "path",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "从生成计划结果、计划列表或今日待办行带入"
+        },
+        {
+          "key": "orders",
+          "label": "订单风控字段",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "list",
+          "default": "",
+          "placeholder": "JSON 数组，补齐止损价、证伪条件和复盘日期"
+        },
+        {
+          "key": "risk_contract",
+          "label": "计划风控契约",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "object",
+          "default": "",
+          "placeholder": "JSON 对象，更新计划级风控约束"
+        }
+      ],
+      "description": "计划存在阻塞项时，补齐止损、证伪和计划级风控契约。",
+      "source": "published",
+      "task_group": "04 调仓计划",
+      "sequence": 410,
+      "task_tier": "operation"
+    },
+    {
+      "key": "decision.execute.preview",
+      "label": "创建执行审批",
+      "method": "POST",
+      "endpoint": "/api/decision/execute/preview/",
+      "intent": "create_execution_approval_from_plan",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "plan_id",
+          "label": "计划 ID",
+          "input_type": "text",
+          "required": true,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "从计划详情或今日待办行带入"
+        },
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "text",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "default",
+          "placeholder": "默认账户口径，可改成自定义账户ID"
+        },
+        {
+          "key": "create_request",
+          "label": "创建审批单",
+          "input_type": "checkbox",
+          "required": false,
+          "binding": "body",
+          "value_type": "boolean",
+          "default": true,
+          "placeholder": ""
+        }
+      ],
+      "description": "基于调仓计划创建执行审批；计划存在阻塞项时后端会拒绝。",
+      "source": "published",
+      "task_group": "05 执行审批",
+      "sequence": 500,
+      "task_tier": "operation"
+    },
+    {
+      "key": "decision.execute.approve",
+      "label": "批准执行审批",
+      "method": "POST",
+      "endpoint": "/api/decision/execute/approve/",
+      "intent": "approve_execution_request",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "approval_request_id",
+          "label": "审批单 ID",
+          "input_type": "text",
+          "required": true,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "从审批详情或今日待办行带入"
+        },
+        {
+          "key": "reviewer_comments",
+          "label": "审批意见",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "记录批准依据"
+        }
+      ],
+      "description": "批准待审批执行请求，成功后可进入审计/复盘。",
+      "source": "published",
+      "task_group": "05 执行审批",
+      "sequence": 510,
+      "task_tier": "operation"
+    },
+    {
+      "key": "decision.execute.reject",
+      "label": "拒绝执行审批",
+      "method": "POST",
+      "endpoint": "/api/decision/execute/reject/",
+      "intent": "reject_execution_request",
+      "screen_key": "command-center.decision-flow",
+      "view_type": "detail",
+      "risk": "write",
+      "fields": [
+        {
+          "key": "approval_request_id",
+          "label": "审批单 ID",
+          "input_type": "text",
+          "required": true,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "从审批详情或今日待办行带入"
+        },
+        {
+          "key": "reviewer_comments",
+          "label": "拒绝原因",
+          "input_type": "textarea",
+          "required": false,
+          "binding": "body",
+          "value_type": "string",
+          "default": "",
+          "placeholder": "记录拒绝原因"
+        }
+      ],
+      "description": "拒绝待审批执行请求，并保留复盘线索。",
+      "source": "published",
+      "task_group": "05 执行审批",
+      "sequence": 520,
+      "task_tier": "operation"
     },
     {
       "key": "auto.api.get.api.strategy.assignments.by_portfolio",

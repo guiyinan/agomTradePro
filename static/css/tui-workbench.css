@@ -1217,8 +1217,9 @@ a {
 .tui-dashboard-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 0.9fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 0.85fr) minmax(0, 0.9fr) minmax(0, 1fr);
     grid-template-areas:
+        "queue queue queue queue queue queue queue queue queue queue queue queue"
         "regime regime regime pulse pulse pulse pulse account account account account account"
         "alpha alpha alpha tasks tasks tasks tasks tasks tasks tasks tasks tasks";
     gap: var(--tui-gap);
@@ -1259,6 +1260,10 @@ a {
 
 .tui-panel-regime {
     grid-area: regime;
+}
+
+.tui-panel-queue {
+    grid-area: queue;
 }
 
 .tui-panel-pulse {
@@ -2108,12 +2113,13 @@ a {
     .tui-dashboard-grid {
         grid-template-columns: minmax(250px, 1fr);
         grid-template-areas:
+            "queue"
             "regime"
             "pulse"
             "account"
             "alpha"
             "tasks";
-        grid-template-rows: repeat(5, minmax(174px, auto));
+        grid-template-rows: repeat(6, minmax(174px, auto));
         height: auto;
         min-height: 100%;
     }
@@ -2185,9 +2191,10 @@ a {
     .tui-dashboard-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-template-areas:
+            "queue queue"
             "regime pulse"
             "account account"
             "alpha tasks";
-        grid-template-rows: repeat(3, minmax(190px, 1fr));
+        grid-template-rows: repeat(4, minmax(190px, 1fr));
     }
 }
