@@ -149,6 +149,10 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
 
     selected_indicator = request.GET.get("indicator", "")
     search_query = request.GET.get("search", "")
+    can_sync_macro_data = (
+        getattr(request.user, "is_staff", False) is True
+        or getattr(request.user, "is_superuser", False) is True
+    )
     snapshot = get_macro_data_page_snapshot(
         selected_indicator=selected_indicator,
         user_id=(
@@ -156,6 +160,7 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
             if getattr(request.user, "is_authenticated", False)
             else None
         ),
+        can_sync_macro_data=can_sync_macro_data,
     )
 
     indicator_map = snapshot["indicator_map"]
@@ -201,10 +206,17 @@ def macro_data_view(request: HttpRequest) -> HttpResponse:
         "max_date": snapshot["max_date"],
         "refresh_provider_id": snapshot["refresh_provider_id"],
         "refresh_end_date": snapshot["refresh_end_date"],
+        "can_sync_macro_data": snapshot.get("can_sync_macro_data", False),
         "sync_supported_indicator_count": snapshot["sync_supported_indicator_count"],
         "sync_unsupported_indicator_count": snapshot["sync_unsupported_indicator_count"],
         "bulk_refresh_indicator_codes": snapshot["bulk_refresh_indicator_codes"],
         "market_thermometer": snapshot["market_thermometer"],
+        "regime_summary": snapshot.get("regime_summary", {}),
+        "pulse_card": snapshot.get("pulse_card", {}),
+        "macro_risk_timeline": snapshot.get(
+            "macro_risk_timeline",
+            {"dates": [], "temperature": [], "pulse": [], "regime": [], "period": {}},
+        ),
     }
     return render(request, "macro/data.html", context)
 

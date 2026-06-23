@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.7.0** - 个人投研平台
-> **最后更新**: 2026-05-13
+> **最后更新**: 2026-06-20
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -33,6 +33,7 @@
 - 指标目录与量纲规则真源见 [development/macro-data-center-cutover.md](development/macro-data-center-cutover.md)。
 - 宏观调度频率、发布时间 lag、period override 已开始下沉到 `IndicatorCatalog.extra`，SDK/MCP/页面解释需优先读取 runtime metadata。
 - 宏观治理台已落地到 `/data-center/governance/`；这是人工审计入口，不改变 SDK/MCP canonical 契约。
+- `/tui/` 已定位为独立 DOS/PCTools 风格经典 UI 平替壳：运行时只读取已发布 TUI metadata，不实时扫描源码、模板、SDK、MCP 或 URL resolver；普通操作界面不展示 API endpoint 或裸 JSON。
 
 ## 文档目录
 
@@ -104,6 +105,8 @@
 | [api-route-consistency.md](development/api-route-consistency.md) | API 路由一致性分析 | ✅ 2026-02-20 |
 | [frontend-performance-analysis.md](development/frontend-performance-analysis.md) | 前端性能优化分析 | ✅ 2026-02-20 |
 | [frontend-development-standards.md](development/frontend-development-standards.md) | **前端开发规范（CSS/JS/模板/弹窗/HTMX）** | ✅ 2026-03-10 新增 |
+| [tui-workbench.md](development/tui-workbench.md) | **经典 UI 平替 TUI Workbench 契约与迁移规则** | ✅ 2026-06-20 更新 |
+| [tui-metadata-promotion-guide.md](development/tui-metadata-promotion-guide.md) | **TUI metadata 证据审核、批准与发布指南** | ✅ 2026-06-20 新增 |
 | [error-handling-guide.md](development/error-handling-guide.md) | 错误处理改进指南 | ✅ 2026-02-20 |
 | [api-mcp-sdk-alignment-2026-03-14.md](development/api-mcp-sdk-alignment-2026-03-14.md) | **API / MCP / SDK 契约对齐说明** | ✅ 2026-03-14 新增 |
 | [dashboard-alpha-decision-chain-2026-04-12.md](development/dashboard-alpha-decision-chain-2026-04-12.md) | **Dashboard Alpha 决策链收束说明（含通用/专属拆分、解释面板、API/SDK/MCP）** | ✅ 2026-04-22 更新 |
@@ -406,7 +409,17 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-04-24)
+## 最近更新 (2026-02-20 ~ 2026-06-20)
+
+### 2026-06-20
+- ✅ **TUI Workbench V2 经典 UI 平替**
+  - `/tui/` 改为独立 DOS/PCTools 风格操作壳，不再作为旧 Django 页面 CSS 换肤或 API 目录
+  - 运行时读取 `terminal_tui_metadata_registry` 已发布记录，缺省回退到 `config/tui/published/tui_operation_graph.published.json`
+  - TUI metadata 已拆成 compact operation graph 与单独 evidence snapshot；运行时图不再内联 API/SDK/MCP/template 证据
+  - 新增 `screen.default_action_key` 与 `screen.dashboard_panels`，支持经典页面打开即有内容、首页面板由已审核 action 组合
+  - 普通用户界面隐藏 endpoint、method 与裸 JSON；Raw Response 仅保留在调试抽屉
+  - 当前发布基线为 34 个 screen、312 个 published action；其中 203 个可直接打开、109 个需要输入字段，保留手工整理的核心工作台，并把 276 个安全动作提升为决策、账户、策略、风控、研究、事件监控、分享、AI 和数据中心业务 screen
+  - 当前编译证据为 468 条 safe GET、405 个 SDK 方法、346 个 MCP tool、127 个 classic 模板特征；259 条直接安全只读候选和 109 条参数化安全只读候选经过 smoke/needs-input 门禁后进入发布图，43 条不可用自动候选保持剪枝
 
 ### 2026-04-24
 - ✅ **人机协同决策分层文档**
@@ -546,4 +559,4 @@
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-04-24
+**最后更新**: 2026-06-20

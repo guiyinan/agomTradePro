@@ -101,7 +101,7 @@ def check_celery() -> dict[str, Any]:
             return {"status": "ok", "workers": len(result)}
         return {"status": "error", "error": "No Celery workers responded"}
     except Exception as e:
-        logger.warning(f"Celery health check failed: {e}")
+        logger.debug(f"Celery health check failed: {e}")
         return {"status": "error", "error": str(e)}
 
 

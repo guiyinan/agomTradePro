@@ -1,6 +1,8 @@
 from datetime import date
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
 
 
@@ -54,3 +56,19 @@ def test_tencent_gateway_maps_index_code_to_sh_prefix():
     assert kwargs["params"]["param"].startswith("sh000300,day,2026-04-01,2026-04-19")
     assert len(bars) == 1
     assert bars[0].asset_code == "000300.SH"
+
+
+def test_tencent_gateway_skips_follow_up_requests_after_permission_denied():
+    blocked_error = requests.ConnectionError("[WinError 10013] socket access forbidden")
+
+    with patch(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.requests.get",
+        side_effect=blocked_error,
+    ) as mocked_get:
+        gateway = TencentGateway()
+        first = gateway.get_historical_prices("000001.SZ", "20260401", "20260419")
+        second = gateway.get_historical_prices("399001.SZ", "20260401", "20260419")
+
+    assert first == []
+    assert second == []
+    mocked_get.assert_called_once()

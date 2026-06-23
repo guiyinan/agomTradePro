@@ -17,6 +17,22 @@ logger = logging.getLogger(__name__)
 _SUPPORTED = {DataCapability.HISTORICAL_PRICE}
 
 
+def _request_error_is_permission_denied(exc: requests.RequestException) -> bool:
+    """Return whether the local environment blocked outbound socket access."""
+
+    markers = ("WinError 10013", "PermissionError", "访问权限不允许")
+    current: BaseException | None = exc
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if isinstance(current, PermissionError):
+            return True
+        if any(marker in str(current) for marker in markers):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 class TencentGateway(GatewayProviderProtocol):
     """Fetch historical bars from Tencent's public qfq kline endpoint."""
 
@@ -24,6 +40,7 @@ class TencentGateway(GatewayProviderProtocol):
 
     def __init__(self, timeout: float = 15.0) -> None:
         self._timeout = timeout
+        self._socket_blocked = False
 
     def provider_name(self) -> str:
         return "tencent"
@@ -37,6 +54,9 @@ class TencentGateway(GatewayProviderProtocol):
         start_date: str,
         end_date: str,
     ) -> list[HistoricalPriceBar]:
+        if self._socket_blocked:
+            return []
+
         symbol = self._to_symbol(asset_code)
         if not symbol:
             return []
@@ -53,6 +73,13 @@ class TencentGateway(GatewayProviderProtocol):
             )
             response.raise_for_status()
             payload = response.json()
+        except requests.RequestException as exc:
+            if _request_error_is_permission_denied(exc):
+                self._socket_blocked = True
+                logger.warning("Tencent 历史 K 线外网被本机权限拦截，快速降级: %s", asset_code)
+                return []
+            logger.exception("Tencent 历史 K 线获取失败: %s", asset_code)
+            return []
         except Exception:
             logger.exception("Tencent 历史 K 线获取失败: %s", asset_code)
             return []

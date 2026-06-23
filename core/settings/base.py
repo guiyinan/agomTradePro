@@ -256,6 +256,7 @@ TEMPLATES = [
                 # Global alerts for decision platform
                 "core.context_processors.get_alerts",
                 "core.context_processors.get_market_visuals",
+                "core.context_processors.get_ui_mode",
             ],
         },
     },

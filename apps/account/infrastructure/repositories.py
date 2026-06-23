@@ -2904,7 +2904,7 @@ class AccountInterfaceRepository:
     def get_asset_metadata_queryset(self):
         """Return the asset metadata queryset for API listing/retrieval."""
 
-        return AssetMetadataModel._default_manager.all()
+        return AssetMetadataModel._default_manager.order_by("asset_code", "id")
 
     def get_user_transaction_queryset(self, user_id: int):
         """Return transactions scoped to portfolios owned by the user."""
@@ -2984,7 +2984,7 @@ class AccountInterfaceRepository:
 
         return TradingCostConfigModel._default_manager.filter(
             portfolio__user_id=user_id
-        ).select_related("portfolio")
+        ).select_related("portfolio").order_by("portfolio_id", "id")
 
     def save_api_trading_cost_config(
         self,

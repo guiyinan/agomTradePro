@@ -380,6 +380,23 @@ class TestCeleryHealthChecker:
         assert result.is_healthy is False
         assert result.broker_reachable is False
 
+    def test_check_health_short_circuits_when_endpoint_preflight_fails(self):
+        """本地端口不可达时不再进入慢速 inspect 流程。"""
+        mock_app = Mock()
+        mock_app.conf.broker_url = "redis://127.0.0.1:6379/0"
+        mock_app.conf.result_backend = "redis://127.0.0.1:6379/1"
+
+        checker = CeleryHealthChecker(mock_app)
+        checker._preflight_transport_endpoint = Mock(return_value=False)
+
+        result = checker.check_health()
+
+        assert result.is_healthy is False
+        assert result.broker_reachable is False
+        assert result.backend_reachable is False
+        mock_app.connection_for_read.assert_not_called()
+        mock_app.control.inspect.assert_not_called()
+
 
 def test_backup_database_task_uses_backup_service(monkeypatch):
     class FakeBackupService:

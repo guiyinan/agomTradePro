@@ -25,7 +25,7 @@ Audit Module Prometheus Metrics
 
 import logging
 
-from prometheus_client import REGISTRY, Counter, Histogram
+from prometheus_client import CollectorRegistry, REGISTRY, Counter, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
@@ -251,29 +251,19 @@ def export_metrics() -> str:
     Returns:
         str: Prometheus 文本格式的指标
     """
-    from prometheus_client import exposition
-
     try:
-        # 生成 Prometheus 文本格式输出
-        output = []
+        # Build a dedicated registry so the endpoint exports only audit metrics
+        # while staying compatible with the installed prometheus_client version.
+        registry = CollectorRegistry(auto_describe=True)
+        for collector in (
+            audit_write_success_total,
+            audit_write_failure_total,
+            audit_write_operations_total,
+            audit_write_latency_seconds,
+        ):
+            registry.register(collector)
 
-        # 添加成功计数指标
-        for metric in audit_write_success_total.collect():
-            output.append(exposition.metric_to_sample(metric))
-
-        # 添加失败计数指标
-        for metric in audit_write_failure_total.collect():
-            output.append(exposition.metric_to_sample(metric))
-
-        # 添加操作总数指标
-        for metric in audit_write_operations_total.collect():
-            output.append(exposition.metric_to_sample(metric))
-
-        # 添加延迟直方图指标
-        for metric in audit_write_latency_seconds.collect():
-            output.append(exposition.metric_to_sample(metric))
-
-        return "\n".join(output)
+        return generate_latest(registry).decode("utf-8")
 
     except Exception as e:
         logger.error(f"Failed to export audit metrics: {e}", exc_info=True)

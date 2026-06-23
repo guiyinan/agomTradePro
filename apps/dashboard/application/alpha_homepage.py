@@ -905,6 +905,19 @@ class AlphaHomepageQuery:
         if user is not None and not getattr(user, "is_authenticated", False):
             return {"refresh_status": "skipped", "message": "匿名用户不自动触发账户池推理。"}
 
+        celery_health = self._get_async_refresh_celery_health()
+        if not bool(celery_health.get("available", False)):
+            reason = str(celery_health.get("reason") or "unavailable")
+            return {
+                "refresh_triggered": False,
+                "refresh_status": "skipped",
+                "poll_after_ms": 5000,
+                "auto_refresh_error": reason,
+                "message": "未检测到可用 Celery worker，首页不自动触发后台推理；请手动点击“立即推理刷新”。",
+            }
+
+        lock_key = ""
+        lock_acquired = False
         try:
             from django.core.cache import cache
 
@@ -919,6 +932,7 @@ class AlphaHomepageQuery:
                     "poll_after_ms": 5000,
                     "message": "账户池 Alpha 推理已在后台排队，请稍后刷新。",
                 }
+            lock_acquired = True
 
             from apps.alpha.application.tasks import qlib_predict_scores
 
@@ -942,12 +956,42 @@ class AlphaHomepageQuery:
                 "message": "账户池暂无可信 Alpha cache，已自动触发后台 Qlib 推理。",
             }
         except Exception as exc:
+            if lock_acquired and lock_key:
+                try:
+                    cache.delete(lock_key)
+                except Exception:
+                    logger.debug(
+                        "Failed to release homepage alpha auto-refresh lock after error.",
+                        exc_info=True,
+                    )
             logger.warning("Failed to auto trigger scoped Alpha inference: %s", exc, exc_info=True)
             return {
                 "refresh_triggered": False,
                 "refresh_status": "failed",
                 "auto_refresh_error": str(exc),
                 "message": "账户池 Alpha 推理自动触发失败，请手动重试。",
+            }
+
+    @staticmethod
+    def _get_async_refresh_celery_health() -> dict[str, Any]:
+        """Return whether homepage auto-refresh currently has a live Celery worker."""
+        try:
+            from apps.task_monitor.application.repository_provider import get_celery_health_checker
+
+            health = get_celery_health_checker().check_health()
+            active_workers = list(getattr(health, "active_workers", []) or [])
+            if active_workers and bool(getattr(health, "is_healthy", False)):
+                return {"available": True, "active_workers": active_workers, "reason": "healthy"}
+            if not active_workers:
+                return {"available": False, "active_workers": [], "reason": "no_active_workers"}
+            return {"available": False, "active_workers": active_workers, "reason": "unhealthy"}
+        except Exception as exc:
+            logger.warning("Failed to inspect Celery health for homepage alpha auto refresh: %s", exc)
+            return {
+                "available": False,
+                "active_workers": [],
+                "reason": "health_check_failed",
+                "error": str(exc),
             }
 
     def _mark_no_verified_recommendation(

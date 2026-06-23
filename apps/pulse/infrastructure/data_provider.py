@@ -56,8 +56,8 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         dimension="growth",
         frequency="monthly",
         signal_type="level",
-        bullish_threshold=8.0e15,
-        bearish_threshold=3.0e15,
+        bullish_threshold=3.0e12,
+        bearish_threshold=1.0e12,
     ),
     PulseIndicatorDef(
         code="CN_CPI_NATIONAL_YOY",
@@ -89,14 +89,13 @@ DEFAULT_PULSE_INDICATORS: list[PulseIndicatorDef] = [
         signal_multiplier=-0.25,
     ),
     PulseIndicatorDef(
-        code="CN_M2",
+        code="CN_M2_YOY",
         name="M2增速",
         dimension="liquidity",
         frequency="monthly",
-        signal_type="zscore",
-        bullish_threshold=0.5,
-        bearish_threshold=-0.5,
-        signal_multiplier=0.3,
+        signal_type="level",
+        bullish_threshold=8.0,
+        bearish_threshold=6.0,
     ),
     PulseIndicatorDef(
         code="000300.SH",
@@ -367,9 +366,9 @@ class DjangoPulseDataProvider:
             return "neutral", -(value - mid) / max(range_half, 1)
 
         # 正向指标：高于 bullish 阈值 → bullish
-        if value > ind_def.bullish_threshold:
+        if value >= ind_def.bullish_threshold:
             return "bullish", 1.0
-        elif value < ind_def.bearish_threshold:
+        elif value <= ind_def.bearish_threshold:
             return "bearish", -1.0
         # 线性插值
         range_size = ind_def.bullish_threshold - ind_def.bearish_threshold

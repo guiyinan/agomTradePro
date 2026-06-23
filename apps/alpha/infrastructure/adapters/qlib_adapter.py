@@ -244,7 +244,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 return cached_after_inline
         elif trigger_status == "no_worker":
             inline_metadata = self._build_inline_skip_metadata(pool_scope)
-            logger.warning(
+            logger.info(
                 "Qlib 同步推理跳过: universe=%s, date=%s, reason=%s",
                 universe_id,
                 intended_trade_date,
@@ -357,9 +357,10 @@ class QlibAlphaProvider(BaseAlphaProvider):
             # 检查 staleness
             staleness_days = cache.get_staleness_days()
             if staleness_days > self.max_staleness_days:
-                logger.warning(
-                    f"Qlib 缓存过期: {staleness_days} 天 "
-                    f"(最大允许 {self.max_staleness_days} 天)"
+                logger.debug(
+                    "Qlib 缓存过期: %s 天 (最大允许 %s 天)",
+                    staleness_days,
+                    self.max_staleness_days,
                 )
                 # 仍然返回，但标记为 degraded
                 status = "degraded"
@@ -534,7 +535,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
             queue_name = self._resolve_live_inference_queue()
             if queue_name is None:
-                logger.warning(
+                logger.info(
                     "未检测到可用 Celery worker，准备同步执行 Qlib 推理: "
                     "universe=%s, date=%s, top_n=%s",
                     universe_id,
@@ -592,7 +593,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             if preferred_queue in queue_names:
                 return preferred_queue
             if fallback_queue in queue_names:
-                logger.warning(
+                logger.info(
                     "未检测到 qlib_infer 消费者，回退到默认 celery 队列投递 Qlib 推理任务"
                 )
                 return fallback_queue
@@ -615,7 +616,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             f"{universe_id}:{intended_trade_date.isoformat()}:{top_n}"
         )
         if not cache.add(lock_key, "1", timeout=600):
-            logger.warning(
+            logger.info(
                 "Qlib 同步推理已在执行中，跳过重复执行: universe=%s, date=%s, top_n=%s",
                 universe_id,
                 intended_trade_date,
@@ -644,7 +645,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             payload = task_result.get(propagate=False)
             failed = bool(getattr(task_result, "failed", lambda: False)())
             if failed:
-                logger.warning(
+                logger.info(
                     "Qlib 同步推理任务失败: universe=%s, date=%s, result=%s",
                     universe_id,
                     intended_trade_date,

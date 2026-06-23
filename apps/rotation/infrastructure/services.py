@@ -106,6 +106,16 @@ class RotationIntegrationService:
                     'momentum_ranking': signal.momentum_ranking,
                 }
 
+        except ValueError as e:
+            if self._is_expected_signal_generation_gap(e):
+                logger.info(
+                    "Skip fresh rotation signal for %s because no valid allocation can be derived yet: %s",
+                    config_name,
+                    e,
+                )
+            else:
+                logger.error(f"Failed to generate signal for {config_name}: {e}")
+            return None
         except Exception as e:
             logger.error(f"Failed to generate signal for {config_name}: {e}")
             return None
@@ -302,8 +312,8 @@ class RotationIntegrationService:
             return signal
 
         if latest_signal is not None:
-            logger.warning(
-                "Rotation recommendation generation failed for %s, fallback to stored signal dated %s",
+            logger.info(
+                "Rotation recommendation reuses stored signal for %s dated %s after fresh generation fallback",
                 config.name,
                 latest_signal.signal_date.isoformat(),
             )
@@ -325,6 +335,14 @@ class RotationIntegrationService:
             'error': 'Failed to generate rotation signal',
             'calc_date': date.today().isoformat(),
         }
+
+    @staticmethod
+    def _is_expected_signal_generation_gap(exc: ValueError) -> bool:
+        message = str(exc)
+        return (
+            "Target allocation weights must sum to 1.0" in message
+            and message.rstrip().endswith("got 0")
+        )
 
     @staticmethod
     def _build_recommendation_from_signal_model(signal_model) -> dict:

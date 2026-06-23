@@ -382,6 +382,22 @@ def test_account_observer_positions_forbid_owner_view(authenticated_client, auth
 
 
 @pytest.mark.django_db
+def test_account_observer_detail_rejects_invalid_uuid(authenticated_client):
+    response = authenticated_client.get("/api/account/observer-grants/not-a-uuid/")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "授权 ID 格式无效"
+
+
+@pytest.mark.django_db
+def test_account_observer_positions_reject_invalid_uuid(authenticated_client):
+    response = authenticated_client.get("/api/account/observer-grants/not-a-uuid/positions/")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "授权 ID 格式无效"
+
+
+@pytest.mark.django_db
 def test_account_transaction_create_returns_403_for_foreign_position(authenticated_client):
     other_user = get_user_model().objects.create_user(
         username="foreign_position_owner",

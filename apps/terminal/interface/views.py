@@ -53,6 +53,22 @@ class TerminalConfigView(View):
         return render(request, 'terminal/config.html', get_terminal_config_page_context())
 
 
+@method_decorator(login_required, name='dispatch')
+class TuiWorkbenchView(View):
+    """
+    Standalone TUI workbench page.
+
+    GET /tui/
+    """
+
+    def get(self, request):
+        context = {
+            'page_title': 'TUI Workbench',
+            'page_description': 'API-native PC tools interface',
+        }
+        return render(request, 'terminal/tui_workbench.html', context)
+
+
 # 函数式视图兼容
 @login_required
 def terminal_view(request):
@@ -64,3 +80,9 @@ def terminal_view(request):
 def terminal_config_view(request):
     """终端配置页面视图（函数式，仅 staff/admin）"""
     return TerminalConfigView.as_view()(request)
+
+
+@login_required
+def tui_workbench_view(request):
+    """Standalone TUI workbench page."""
+    return TuiWorkbenchView.as_view()(request)

@@ -187,14 +187,16 @@ def alpha_decision_chain_v1(request):
     return Response(
         {
             "success": True,
-            "summary": chain_data.summary,
+            "summary": chain_data.overview,
             "top_stocks": chain_data.top_stocks,
-            "alpha_provider_status": chain_data.alpha_provider_status,
-            "coverage_metrics": chain_data.coverage_metrics,
-            "ic_trends": chain_data.ic_trends,
-            "workflow": chain_data.workflow,
-            "decision_readiness": chain_data.decision_readiness,
-            "warnings": chain_data.warnings,
-            "generated_at": chain_data.generated_at,
+            "actionable_candidates": chain_data.actionable_candidates,
+            "pending_requests": chain_data.pending_requests,
+            "alpha_provider_status": chain_data.overview.get("alpha_provider_status", {}),
+            "coverage_metrics": chain_data.overview.get("coverage_metrics", {}),
+            "ic_trends": chain_data.overview.get("ic_trends", []),
+            "workflow": chain_data.overview.get("workflow", {}),
+            "decision_readiness": chain_data.overview.get("decision_readiness", {}),
+            "warnings": chain_data.overview.get("warnings", []),
+            "generated_at": chain_data.overview.get("generated_at"),
         }
     )

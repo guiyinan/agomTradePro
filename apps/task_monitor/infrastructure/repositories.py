@@ -6,10 +6,12 @@ Task Monitor Infrastructure Repositories
 
 import json
 import logging
+import socket
 from datetime import timedelta
 from enum import Enum
 from io import StringIO
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from django.core.management import call_command
@@ -37,6 +39,17 @@ from apps.task_monitor.domain.interfaces import (
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 
 logger = logging.getLogger(__name__)
+_PREFLIGHT_UNREACHABLE_CACHE: set[str] = set()
+
+
+def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
+    """Warn once per process for one unreachable transport endpoint."""
+    cache_key = f"{channel}:{endpoint or ''}"
+    if cache_key in _PREFLIGHT_UNREACHABLE_CACHE:
+        logger.debug("%s preflight still unreachable: %s", channel, endpoint or "<unset>")
+        return
+    _PREFLIGHT_UNREACHABLE_CACHE.add(cache_key)
+    logger.info("%s preflight failed: endpoint unreachable.", channel)
 
 
 def _safe_float(value: any) -> float:
@@ -254,21 +267,55 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
         scheduled_tasks_count = 0
 
         try:
-            # 检查 Broker 连接
-            try:
-                self.celery_app.connection_for_read().connect()
-                broker_reachable = True
-            except Exception as e:
-                logger.warning(f"Broker connection failed: {e}")
+            broker_preflight = self._preflight_transport_endpoint(
+                self._get_transport_url("broker_url")
+            )
+            if broker_preflight is False:
+                _log_preflight_unreachable_once(
+                    "Broker",
+                    self._get_transport_url("broker_url"),
+                )
                 is_healthy = False
 
-            # 检查 Backend 连接
-            try:
-                _ = self.celery_app.backend
-                backend_reachable = True
-            except Exception as e:
-                logger.warning(f"Backend connection failed: {e}")
+            backend_preflight = self._preflight_transport_endpoint(
+                self._get_transport_url("result_backend")
+            )
+            if backend_preflight is False:
+                _log_preflight_unreachable_once(
+                    "Backend",
+                    self._get_transport_url("result_backend"),
+                )
                 is_healthy = False
+
+            # 检查 Broker 连接
+            if broker_preflight is not False:
+                try:
+                    self.celery_app.connection_for_read().connect()
+                    broker_reachable = True
+                except Exception as e:
+                    logger.warning(f"Broker connection failed: {e}")
+                    is_healthy = False
+
+            # 检查 Backend 连接
+            if backend_preflight is not False:
+                try:
+                    _ = self.celery_app.backend
+                    backend_reachable = True
+                except Exception as e:
+                    logger.warning(f"Backend connection failed: {e}")
+                    is_healthy = False
+
+            if not broker_reachable or not backend_reachable:
+                return CeleryHealthStatus(
+                    is_healthy=False,
+                    broker_reachable=broker_reachable,
+                    backend_reachable=backend_reachable,
+                    active_workers=active_workers,
+                    active_tasks_count=active_tasks_count,
+                    pending_tasks_count=pending_tasks_count,
+                    scheduled_tasks_count=scheduled_tasks_count,
+                    last_check=timezone.now(),
+                )
 
             # 获取 Worker 信息
             try:
@@ -308,6 +355,30 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
             scheduled_tasks_count=scheduled_tasks_count,
             last_check=timezone.now(),
         )
+
+    @staticmethod
+    def _preflight_transport_endpoint(url: str | None, *, timeout: float = 0.5) -> bool | None:
+        """Quick TCP probe for transport URLs that expose an explicit host/port."""
+
+        if not url:
+            return None
+        parsed = urlparse(url)
+        if not parsed.hostname or not parsed.port:
+            return None
+        try:
+            with socket.create_connection((parsed.hostname, parsed.port), timeout=timeout):
+                return True
+        except OSError:
+            return False
+
+    def _get_transport_url(self, config_key: str) -> str | None:
+        """Read broker/backend URLs conservatively to avoid Mock leakage in tests."""
+
+        conf = getattr(self.celery_app, "conf", None)
+        if conf is None:
+            return None
+        value = getattr(conf, config_key, None)
+        return value if isinstance(value, str) else None
 
 
 class DjangoSchedulerRepository(SchedulerRepositoryProtocol):

@@ -80,6 +80,10 @@ def test_alpha_candidate_repository_does_not_depend_on_custom_manager_methods():
     assert by_asset[0].candidate_id == actionable.candidate_id
     assert by_trigger is not None
     assert by_trigger.candidate_id == actionable.candidate_id
+    stats = repo.get_statistics(days=3650)
+    assert stats["total"] >= 2
+    assert stats["actionable"] >= 1
+    assert stats["watch"] >= 1
 
 
 @pytest.mark.django_db

@@ -152,6 +152,25 @@ def _parse_positive_float_param(
     return value
 
 
+def _parse_positive_int_param(
+    raw_value: str | None,
+    *,
+    field_name: str,
+    default: int,
+) -> int:
+    if raw_value in (None, ""):
+        return default
+
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 必须是整数") from exc
+
+    if value <= 0:
+        raise ValueError(f"{field_name} 必须大于 0")
+    return value
+
+
 def _get_provider_health_metric(extra_config: dict, capability: str) -> dict:
     if capability and capability != "N/A":
         health_metrics = extra_config.get("health_metrics") or {}

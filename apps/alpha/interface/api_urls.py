@@ -15,6 +15,7 @@ urlpatterns = [
                 "module": "alpha",
                 "endpoints": [
                     "/api/alpha/scores/",
+                    "/api/alpha/scores/?ai_filter=1",
                     "/api/alpha/scores/upload/",
                     "/api/alpha/providers/status/",
                     "/api/alpha/universes/",

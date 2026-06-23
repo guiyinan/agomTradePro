@@ -162,4 +162,8 @@
 - Celery Beat 现在默认启用 `apps.data_center.application.tasks.refresh_market_thermometer_task`
 - 调度窗口: 交易日 `17:20 / 18:20 / 19:20` 自动重试，统一刷新最近收盘后的温度计快照
 - 任务流程: 先执行 `sync_market_thermometer_inputs`，再执行 `calculate_market_thermometer`
-- 当快照 `valid_component_count == 0` 且 `must_not_use_for_decision == True` 时，Dashboard 首页不再把结果展示为 `0.0`，而是明确标识为“数据缺失”
+- `sync_market_thermometer_inputs` 现在对单个 provider 调用施加超时保护；超时或临时网络错误会记录到 raw audit，并继续尝试下一个可用源，而不是整条链路卡死
+- `etf_net_flow` 的 verified sync 现在也会应用组件级超时 override，不再误用全局默认 `4s`
+- 当本地环境因 `WinError 10013` 等权限限制直接阻断外网套接字时，ETF 的 EastMoney 直连 fallback 会快速失败并降级，不再在多轮重试里卡成超时
+- 同样的本地权限拒绝语义现在也覆盖了 turnover / Tencent 历史行情 / 市场新闻链路：检测到 `WinError 10013` 时会跳过多轮重试和跨源空转，直接进入降级结果
+- 当最新快照 `valid_component_count == 0` 且 `must_not_use_for_decision == True` 时，Dashboard 首页会回退展示最近一个仍有可用分数的历史快照，同时保留“仅供参考 / 数据链断开”的提示，避免把断链结果误显示为当天 `0.0`

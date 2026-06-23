@@ -1,0 +1,4 @@
+interface:
+  display_name: "TUI Metadata Compiler"
+  short_description: "Generate, validate, review, and publish TUI operation metadata"
+  default_prompt: "Use $tui-metadata-compiler to compile AgomTradePro API, SDK, MCP, and classic template sources into reviewed TUI metadata."

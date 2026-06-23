@@ -5,8 +5,10 @@ from __future__ import annotations
 import csv
 import dataclasses
 import io
+import queue
+import threading
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 from apps.data_center.domain.entities import (
     MacroFact,
@@ -73,6 +75,11 @@ ETF_MAIN_FLOW_CODE = "CN_A_ETF_NET_FLOW_MAIN"
 ETF_SIZE_FLOW_CODE = "CN_A_ETF_SIZE_FLOW"
 DEFAULT_MARKET_DATA_SOURCE_TYPES = ("akshare", "eastmoney", "tushare")
 DEFAULT_NEWS_SOURCE_TYPES = ("akshare", "eastmoney")
+MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS = 4
+MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES = {
+    "turnover": 12.0,
+    "etf_net_flow": 10.0,
+}
 RECOVERABLE_THERMOMETER_EXCEPTIONS = (
     AttributeError,
     ConnectionError,
@@ -83,6 +90,10 @@ RECOVERABLE_THERMOMETER_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+RECOVERABLE_THERMOMETER_EXCEPTION_NAMES = {
+    "DataSourceUnavailableError",
+    "DataValidationError",
+}
 MARKET_THERMOMETER_CONSENSUS_SOURCE = "data_center_consensus"
 MARKET_THERMOMETER_SOURCE_TOLERANCE = 0.01
 
@@ -142,6 +153,53 @@ def _component_reason(
         parts.append(f"情绪分 {sentiment_score:.1f}")
     joined = " / ".join(parts) if parts else "数据可用"
     return f"{label}: {joined}"
+
+
+def _is_recoverable_thermometer_exception(exc: Exception) -> bool:
+    """Return whether one provider failure should degrade instead of aborting the chain."""
+
+    return isinstance(exc, RECOVERABLE_THERMOMETER_EXCEPTIONS) or (
+        exc.__class__.__name__ in RECOVERABLE_THERMOMETER_EXCEPTION_NAMES
+    )
+
+
+def _run_market_thermometer_provider_call(
+    fetcher: Callable[[], Any],
+    *,
+    provider_name: str,
+    capability: str,
+    timeout_seconds: float | None = None,
+) -> Any:
+    """Run one provider call with a bounded wait so sync jobs degrade quickly."""
+
+    timeout = (
+        timeout_seconds
+        if timeout_seconds is not None
+        else MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS
+    )
+    result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+
+    def _worker() -> None:
+        try:
+            result_queue.put(("ok", fetcher()))
+        except Exception as exc:
+            result_queue.put(("err", exc))
+
+    thread = threading.Thread(
+        target=_worker,
+        name=f"market-thermometer-{capability}",
+        daemon=True,
+    )
+    thread.start()
+
+    try:
+        status, payload = result_queue.get(timeout=timeout)
+    except queue.Empty as exc:
+        raise TimeoutError(f"{provider_name} {capability} timed out after {timeout:.1f}s") from exc
+
+    if status == "err":
+        raise payload
+    return payload
 
 
 class ManageMarketThermometerConfigUseCase:
@@ -331,11 +389,18 @@ class SyncMarketThermometerInputsUseCase:
                 )
                 continue
             for config, provider in market_providers:
+                provider_name = provider.provider_name()
+                timeout_seconds = MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES.get(component_key)
                 try:
-                    facts = provider.fetch_macro_series(
-                        spec["indicator_code"],
-                        start_date,
-                        end_date,
+                    facts = _run_market_thermometer_provider_call(
+                        lambda: provider.fetch_macro_series(
+                            spec["indicator_code"],
+                            start_date,
+                            end_date,
+                        ),
+                        provider_name=provider_name,
+                        capability=f"{component_key}_macro_sync",
+                        timeout_seconds=timeout_seconds,
                     )
                     normalized = [
                         dataclasses.replace(
@@ -344,7 +409,7 @@ class SyncMarketThermometerInputsUseCase:
                             extra={
                                 **dict(getattr(fact, "extra", {}) or {}),
                                 "source_type": config.source_type,
-                                "provider_name": provider.provider_name(),
+                                "provider_name": provider_name,
                             },
                         )
                         for fact in facts
@@ -352,7 +417,7 @@ class SyncMarketThermometerInputsUseCase:
                     if not normalized:
                         self._raw_audit_repo.log(
                             _build_market_audit(
-                                provider_name=provider.provider_name(),
+                                provider_name=provider_name,
                                 capability="market_thermometer_sync",
                                 request_params={
                                     "indicator_code": spec["indicator_code"],
@@ -366,7 +431,7 @@ class SyncMarketThermometerInputsUseCase:
                         results.append(
                             {
                                 "component": component_key,
-                                "provider": provider.provider_name(),
+                                "provider": provider_name,
                                 "stored_count": 0,
                                 "status": "no_data",
                             }
@@ -375,7 +440,7 @@ class SyncMarketThermometerInputsUseCase:
                     stored_count = self._macro_repo.bulk_upsert(normalized)
                     self._raw_audit_repo.log(
                         _build_market_audit(
-                            provider_name=provider.provider_name(),
+                            provider_name=provider_name,
                             capability="market_thermometer_sync",
                             request_params={
                                 "indicator_code": spec["indicator_code"],
@@ -389,16 +454,18 @@ class SyncMarketThermometerInputsUseCase:
                     results.append(
                         {
                             "component": component_key,
-                            "provider": provider.provider_name(),
+                            "provider": provider_name,
                             "stored_count": stored_count,
                             "status": "success",
                         }
                     )
                     break
-                except RECOVERABLE_THERMOMETER_EXCEPTIONS as exc:
+                except Exception as exc:
+                    if not _is_recoverable_thermometer_exception(exc):
+                        raise
                     self._raw_audit_repo.log(
                         _build_market_audit(
-                            provider_name=provider.provider_name(),
+                            provider_name=provider_name,
                             capability="market_thermometer_sync",
                             request_params={
                                 "indicator_code": spec["indicator_code"],
@@ -413,7 +480,7 @@ class SyncMarketThermometerInputsUseCase:
                     results.append(
                         {
                             "component": component_key,
-                            "provider": provider.provider_name(),
+                            "provider": provider_name,
                             "stored_count": 0,
                             "status": "error",
                             "error": str(exc),
@@ -423,8 +490,13 @@ class SyncMarketThermometerInputsUseCase:
         news_provider = self._resolve_provider(DEFAULT_NEWS_SOURCE_TYPES)
         if news_provider is not None:
             config, provider = news_provider
+            provider_name = provider.provider_name()
             try:
-                news_items = provider.fetch_news("", limit=200)
+                news_items = _run_market_thermometer_provider_call(
+                    lambda: provider.fetch_news("", limit=200),
+                    provider_name=provider_name,
+                    capability="market_news_sync",
+                )
                 normalized_news = [
                     dataclasses.replace(
                         item,
@@ -433,7 +505,7 @@ class SyncMarketThermometerInputsUseCase:
                         extra={
                             **dict(getattr(item, "extra", {}) or {}),
                             "source_type": config.source_type,
-                            "provider_name": provider.provider_name(),
+                            "provider_name": provider_name,
                         },
                     )
                     for item in news_items
@@ -456,7 +528,7 @@ class SyncMarketThermometerInputsUseCase:
                             quality=DataQualityStatus.VALID,
                             extra={
                                 "source_type": config.source_type,
-                                "provider_name": provider.provider_name(),
+                                "provider_name": provider_name,
                             },
                         )
                     )
@@ -473,7 +545,7 @@ class SyncMarketThermometerInputsUseCase:
                                 quality=DataQualityStatus.VALID,
                                 extra={
                                     "source_type": config.source_type,
-                                    "provider_name": provider.provider_name(),
+                                    "provider_name": provider_name,
                                 },
                             )
                         )
@@ -488,32 +560,36 @@ class SyncMarketThermometerInputsUseCase:
                                 quality=DataQualityStatus.VALID,
                                 extra={
                                     "source_type": config.source_type,
-                                    "provider_name": provider.provider_name(),
+                                    "provider_name": provider_name,
                                 },
                             )
                         )
                 stored_metrics = self._macro_repo.bulk_upsert(macro_facts)
+                total_stored = stored_news + stored_metrics
+                result_status = "success" if total_stored > 0 else "no_data"
                 self._raw_audit_repo.log(
                     _build_market_audit(
-                        provider_name=provider.provider_name(),
+                        provider_name=provider_name,
                         capability="market_thermometer_news_sync",
                         request_params={"date": target_date.isoformat(), "asset_code": ""},
-                        status="ok",
-                        row_count=stored_news + stored_metrics,
+                        status="ok" if total_stored > 0 else "no_data",
+                        row_count=total_stored,
                     )
                 )
                 results.append(
                     {
                         "component": "market_news",
-                        "provider": provider.provider_name(),
-                        "stored_count": stored_news + stored_metrics,
-                        "status": "success",
+                        "provider": provider_name,
+                        "stored_count": total_stored,
+                        "status": result_status,
                     }
                 )
-            except RECOVERABLE_THERMOMETER_EXCEPTIONS as exc:
+            except Exception as exc:
+                if not _is_recoverable_thermometer_exception(exc):
+                    raise
                 self._raw_audit_repo.log(
                     _build_market_audit(
-                        provider_name=provider.provider_name(),
+                        provider_name=provider_name,
                         capability="market_thermometer_news_sync",
                         request_params={"date": target_date.isoformat(), "asset_code": ""},
                         status="error",
@@ -524,7 +600,7 @@ class SyncMarketThermometerInputsUseCase:
                 results.append(
                     {
                         "component": "market_news",
-                        "provider": provider.provider_name(),
+                        "provider": provider_name,
                         "stored_count": 0,
                         "status": "error",
                         "error": str(exc),
@@ -603,13 +679,20 @@ class SyncMarketThermometerInputsUseCase:
         candidates: list[MacroFact] = []
         candidate_meta: list[dict[str, Any]] = []
         requested_indicator_code = indicator_code or str(spec["indicator_code"])
+        timeout_seconds = MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES.get(component_key)
 
         for config, provider in providers:
+            provider_name = provider.provider_name()
             try:
-                facts = provider.fetch_macro_series(
-                    requested_indicator_code,
-                    start_date,
-                    end_date,
+                facts = _run_market_thermometer_provider_call(
+                    lambda: provider.fetch_macro_series(
+                        requested_indicator_code,
+                        start_date,
+                        end_date,
+                    ),
+                    provider_name=provider_name,
+                    capability=f"{component_key}_verified_sync",
+                    timeout_seconds=timeout_seconds,
                 )
                 normalized = [
                     dataclasses.replace(
@@ -618,7 +701,7 @@ class SyncMarketThermometerInputsUseCase:
                         extra={
                             **dict(getattr(fact, "extra", {}) or {}),
                             "source_type": config.source_type,
-                            "provider_name": provider.provider_name(),
+                            "provider_name": provider_name,
                         },
                     )
                     for fact in facts
@@ -626,7 +709,7 @@ class SyncMarketThermometerInputsUseCase:
                 if not normalized:
                     self._raw_audit_repo.log(
                         _build_market_audit(
-                            provider_name=provider.provider_name(),
+                            provider_name=provider_name,
                             capability="market_thermometer_sync",
                             request_params={
                                 "indicator_code": requested_indicator_code,
@@ -641,7 +724,7 @@ class SyncMarketThermometerInputsUseCase:
                     results.append(
                         {
                             "component": component_key,
-                            "provider": provider.provider_name(),
+                            "provider": provider_name,
                             "stored_count": 0,
                             "status": "no_data",
                         }
@@ -653,7 +736,7 @@ class SyncMarketThermometerInputsUseCase:
                 candidates.append(latest)
                 candidate_meta.append(
                     {
-                        "provider": provider.provider_name(),
+                        "provider": provider_name,
                         "source_type": config.source_type,
                         "reporting_period": latest.reporting_period.isoformat(),
                         "value": float(latest.value),
@@ -662,7 +745,7 @@ class SyncMarketThermometerInputsUseCase:
                 )
                 self._raw_audit_repo.log(
                     _build_market_audit(
-                        provider_name=provider.provider_name(),
+                        provider_name=provider_name,
                         capability="market_thermometer_sync",
                         request_params={
                             "indicator_code": requested_indicator_code,
@@ -677,15 +760,17 @@ class SyncMarketThermometerInputsUseCase:
                 results.append(
                     {
                         "component": component_key,
-                        "provider": provider.provider_name(),
+                        "provider": provider_name,
                         "stored_count": atomic_stored_count,
                         "status": "candidate",
                     }
                 )
-            except RECOVERABLE_THERMOMETER_EXCEPTIONS as exc:
+            except Exception as exc:
+                if not _is_recoverable_thermometer_exception(exc):
+                    raise
                 self._raw_audit_repo.log(
                     _build_market_audit(
-                        provider_name=provider.provider_name(),
+                        provider_name=provider_name,
                         capability="market_thermometer_sync",
                         request_params={
                             "indicator_code": requested_indicator_code,
@@ -701,7 +786,7 @@ class SyncMarketThermometerInputsUseCase:
                 results.append(
                     {
                         "component": component_key,
-                        "provider": provider.provider_name(),
+                        "provider": provider_name,
                         "stored_count": 0,
                         "status": "error",
                         "error": str(exc),
@@ -826,7 +911,7 @@ class SyncMarketThermometerInputsUseCase:
         spec = MARKET_COMPONENT_SPECS[component_key]
         if spec.get("frequency") == "M":
             return target_date - timedelta(days=365 * 3), target_date
-        if component_key == "etf_net_flow":
+        if component_key in {"turnover", "margin_balance", "etf_net_flow"}:
             return target_date - timedelta(days=7), target_date
         return target_date, target_date
 
@@ -956,13 +1041,21 @@ class CalculateMarketThermometerUseCase:
 
         if as_of_date is None:
             snapshot = self._snapshot_repo.get_latest()
-            target_date = snapshot.observed_at if snapshot is not None else date.today()
-            if snapshot is None and auto_calculate:
+            target_date = date.today()
+            if self._should_refresh_snapshot(
+                snapshot=snapshot,
+                target_date=target_date,
+                auto_calculate=auto_calculate,
+            ):
                 snapshot = self.execute(as_of_date=target_date)
         else:
             target_date = as_of_date
             snapshot = self._snapshot_repo.get_by_date(target_date)
-            if snapshot is None and auto_calculate:
+            if self._should_refresh_snapshot(
+                snapshot=snapshot,
+                target_date=target_date,
+                auto_calculate=auto_calculate,
+            ):
                 snapshot = self.execute(as_of_date=target_date)
         if snapshot is None:
             latest = self._snapshot_repo.get_latest()
@@ -983,6 +1076,11 @@ class CalculateMarketThermometerUseCase:
             }
 
         config = self._config_repo.load()
+        latest_snapshot = snapshot
+        snapshot = self._resolve_display_snapshot(
+            snapshot=snapshot,
+            history_days=max(config.long_window, 180),
+        )
         threshold_source = "system"
         thresholds = config.thresholds
         if use_personal_thresholds and user_id is not None:
@@ -993,10 +1091,9 @@ class CalculateMarketThermometerUseCase:
         payload = snapshot.to_dict()
         payload["threshold_source"] = threshold_source
         payload["thresholds"] = thresholds.to_dict()
-        payload["score_available"] = not (
-            bool(payload.get("must_not_use_for_decision", False))
-            and int(payload.get("valid_component_count") or 0) <= 0
-        )
+        payload["score_available"] = self._snapshot_score_available(snapshot)
+        payload["fallback_used"] = latest_snapshot.observed_at != snapshot.observed_at
+        payload["latest_snapshot_observed_at"] = latest_snapshot.observed_at.isoformat()
         payload["effective_band"] = determine_market_thermometer_band(
             payload["score"],
             warm_threshold=thresholds.warm_threshold,
@@ -1005,6 +1102,90 @@ class CalculateMarketThermometerUseCase:
             extreme_threshold=thresholds.extreme_threshold,
         )
         return payload
+
+    @staticmethod
+    def _should_refresh_snapshot(
+        *,
+        snapshot: MarketThermometerSnapshot | None,
+        target_date: date,
+        auto_calculate: bool,
+    ) -> bool:
+        """Return whether the current request should calculate a fresh snapshot."""
+
+        if not auto_calculate:
+            return False
+        if snapshot is None:
+            return True
+        return snapshot.observed_at < target_date
+
+    def _resolve_display_snapshot(
+        self,
+        *,
+        snapshot: MarketThermometerSnapshot,
+        history_days: int,
+    ) -> MarketThermometerSnapshot:
+        """Prefer a richer historical snapshot when today's chain is materially degraded."""
+
+        fallback = self._find_latest_score_snapshot(
+            exclude_observed_at=snapshot.observed_at,
+            history_days=history_days,
+        )
+        if fallback is None:
+            return snapshot
+
+        should_fallback = not self._snapshot_score_available(snapshot) or (
+            snapshot.must_not_use_for_decision
+            and fallback.valid_component_count > snapshot.valid_component_count
+        )
+        if not should_fallback:
+            return snapshot
+
+        return dataclasses.replace(
+            fallback,
+            must_not_use_for_decision=True,
+            blocked_reason=self._build_fallback_blocked_reason(
+                latest_snapshot=snapshot,
+                fallback_snapshot=fallback,
+            ),
+        )
+
+    def _find_latest_score_snapshot(
+        self,
+        *,
+        exclude_observed_at: date,
+        history_days: int,
+    ) -> MarketThermometerSnapshot | None:
+        """Return the newest snapshot that still carries a displayable score."""
+
+        for item in self._snapshot_repo.list_history(days=history_days):
+            if item.observed_at == exclude_observed_at:
+                continue
+            if self._snapshot_score_available(item):
+                return item
+        return None
+
+    @staticmethod
+    def _snapshot_score_available(snapshot: MarketThermometerSnapshot) -> bool:
+        """Return whether one snapshot should show its numeric score in UI."""
+
+        return not (snapshot.must_not_use_for_decision and snapshot.valid_component_count <= 0)
+
+    @staticmethod
+    def _build_fallback_blocked_reason(
+        *,
+        latest_snapshot: MarketThermometerSnapshot,
+        fallback_snapshot: MarketThermometerSnapshot,
+    ) -> str:
+        """Explain why UI is showing an older score-bearing snapshot."""
+
+        parts: list[str] = []
+        if latest_snapshot.blocked_reason:
+            parts.append(latest_snapshot.blocked_reason.strip())
+        parts.append(
+            "已回退展示最近有效快照 "
+            f"{fallback_snapshot.observed_at.isoformat()}，避免将断链结果显示为 0.0。"
+        )
+        return " ".join(parts)
 
     def list_history(self, *, days: int = 90) -> list[dict[str, Any]]:
         """Return history payload ordered by observed date ascending."""

@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUI Workbench - AgomTradePro</title>
+    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=user-task-54">
+</head>
+<body>
+    <div class="tui-app" data-tui-app tabindex="-1" aria-label="AgomTradePro TUI workbench">
+        <header class="tui-menubar">
+            <div class="tui-menu-left">
+                <a class="tui-brand" href="/tui/">AgomTradePro TUI</a>
+                <button class="tui-menu-item" type="button" data-menu-command="file" aria-haspopup="menu">系统(S)</button>
+                <button class="tui-menu-item" type="button" data-menu-command="module" aria-haspopup="menu">视图(V)</button>
+                <button class="tui-menu-item" type="button" data-menu-command="action" aria-haspopup="menu">数据(D)</button>
+                <button class="tui-menu-item" type="button" data-menu-command="view" aria-haspopup="menu">工具(T)</button>
+                <button class="tui-menu-item" type="button" data-menu-command="help" aria-haspopup="menu">帮助(H)</button>
+            </div>
+            <div class="tui-menu-right">
+                <span data-tui-clock>就绪</span>
+            </div>
+        </header>
+
+        <section class="tui-system-strip" aria-label="System status">
+            <div class="tui-system-primary">
+                <span>TUI: <strong class="tui-green">PUBLISHED</strong></span>
+                <span>MODE: <strong class="tui-green">OPERATE</strong></span>
+                <span>JSON: <strong class="tui-warn-text">DEBUG ONLY</strong></span>
+                <span>用户: {{ request.user.username }}</span>
+            </div>
+            <div class="tui-system-location">
+                <label for="tui-location-input">位置:</label>
+                <input
+                    id="tui-location-input"
+                    data-current-location
+                    type="text"
+                    spellcheck="false"
+                    autocomplete="off"
+                    value="screen:boot"
+                    title="输入 screen:<screen_key> 后按 Enter 跳转"
+                    aria-label="输入 TUI screen 地址后跳转"
+                >
+            </div>
+            <div class="tui-system-source">
+                <span>元数据: 已发布工作台</span>
+                <span data-theme-status>STYLE: B</span>
+            </div>
+        </section>
+
+        <div class="tui-menu-popover" data-menu-popover hidden></div>
+
+        <main class="tui-shell">
+            <aside class="tui-rail" data-rail-panel aria-label="TUI module tree">
+                <div class="tui-titlebar">
+                    <span class="tui-titlebar-text">模块导航</span>
+                    <button class="tui-collapse-button" type="button" data-toggle-rail aria-expanded="true" aria-label="收起模块导航">◄</button>
+                </div>
+                <div class="tui-rail-body" data-module-tree>
+                    <div class="tui-loading">正在加载目录...</div>
+                </div>
+            </aside>
+
+            <section class="tui-workspace" aria-label="TUI workspace">
+                <div class="tui-titlebar">
+                    <span data-screen-title>WORKSPACE</span>
+                    <span data-screen-status>BOOT</span>
+                </div>
+                <div class="tui-workspace-grid">
+                    <section class="tui-panel tui-actions-panel">
+                        <div class="tui-panel-title">任务</div>
+                        <div class="tui-panel-body" data-actions-panel></div>
+                    </section>
+
+                    <section class="tui-panel tui-main-panel">
+                        <div class="tui-panel-title">
+                            <span data-main-title>视图</span>
+                            <button class="tui-panel-command" type="button" data-raw-toggle hidden>原始</button>
+                        </div>
+                        <div class="tui-workflow-strip" data-workflow-strip hidden></div>
+                        <div class="tui-panel-body tui-main-body" data-main-panel>
+                            <div class="tui-empty-state">请选择任务读取业务视图。</div>
+                        </div>
+                    </section>
+
+                    <section class="tui-panel tui-inspector-panel" data-inspector-panel-shell tabindex="-1">
+                        <div class="tui-panel-title">
+                            <span class="tui-titlebar-text">说明</span>
+                            <button class="tui-collapse-button" type="button" data-toggle-inspector aria-expanded="true" aria-label="收起说明栏">►</button>
+                        </div>
+                        <div class="tui-panel-body" data-inspector-panel></div>
+                    </section>
+                </div>
+            </section>
+        </main>
+
+        <aside class="tui-raw-drawer" data-raw-drawer hidden>
+            <div class="tui-titlebar">
+                <span>原始响应</span>
+                <button class="tui-panel-command" type="button" data-raw-close>关闭</button>
+            </div>
+            <pre data-raw-panel>{}</pre>
+        </aside>
+
+        <section class="tui-filter-strip" data-filter-bar hidden>
+            <label for="tui-grid-filter">F7 筛选</label>
+            <input id="tui-grid-filter" data-filter-input type="search" autocomplete="off" placeholder="输入文本，Enter 应用，Esc 关闭">
+            <button type="button" data-filter-clear>清除</button>
+        </section>
+
+        <section class="tui-modal" data-tui-modal hidden>
+            <div class="tui-modal-window" role="dialog" aria-modal="true" aria-labelledby="tui-modal-title">
+                <div class="tui-titlebar">
+                    <span id="tui-modal-title" data-modal-title>DETAIL</span>
+                    <button class="tui-panel-command" type="button" data-modal-close>关闭</button>
+                </div>
+                <div class="tui-modal-body" data-modal-body></div>
+            </div>
+        </section>
+
+        <section class="tui-status-strip">
+            <span>状态: <strong data-workbench-status>就绪</strong></span>
+            <span data-pager-status>页 -/- | 0 行</span>
+            <span>上次刷新: <strong data-last-refresh>--:--:--</strong></span>
+            <span>原始响应: <strong>调试入口</strong></span>
+        </section>
+
+        <footer class="tui-function-bar">
+            <span><strong>F1</strong> 帮助</span>
+            <span><strong>F2</strong> 模块</span>
+            <span><strong>F3</strong> 上屏</span>
+            <span><strong>F4</strong> 下屏</span>
+            <span><strong>Enter</strong> 明细</span>
+            <span><strong>F5</strong> 刷新</span>
+            <span><strong>F6</strong> 下一项</span>
+            <span><strong>F7</strong> 筛选</span>
+            <span><strong>F8</strong> 导出</span>
+            <span><strong>F9</strong> 任务</span>
+            <span><strong>F10</strong> 说明</span>
+            <span data-theme-indicator><strong>ALT+T</strong> <bdi data-theme-indicator-code>T:B</bdi></span>
+            <span><strong>PgUp/PgDn</strong> 翻页</span>
+            <span><strong>Esc</strong> 返回</span>
+        </footer>
+    </div>
+
+    <script src="{% static 'js/tui-workbench.js' %}?v=user-task-54"></script>
+</body>
+</html>

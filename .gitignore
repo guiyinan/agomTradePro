@@ -107,6 +107,8 @@ celerybeat-schedule*
 .claude/settings.local.json
 /output
 pytest-tmp/
+tmp_tui_*.txt
+tmp_tui_*.json
 docs/deployment/docker命令-远端.txt
 docs/docs.7z
 .mcp.json

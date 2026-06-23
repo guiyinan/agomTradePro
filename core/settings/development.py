@@ -84,8 +84,15 @@ DEVELOPMENT_LOG_BACKUP_COUNT = get_development_log_backup_count()
 CELERY_LOG_MAX_BYTES = get_celery_log_max_bytes()
 CELERY_LOG_BACKUP_COUNT = get_celery_log_backup_count()
 DEFAULT_HANDLERS = ['console', 'in_memory', 'file']
+DISABLE_CELERY_FILE_LOGS = (
+    os.getenv('DISABLE_CELERY_FILE_LOGS', 'false').lower() in {'1', 'true', 'yes'}
+    or os.getenv('DISABLE_CELERY_BEAT_FILE_LOG', 'false').lower() in {'1', 'true', 'yes'}
+)
 CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS + ['celery_worker_file']
 CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS + ['celery_beat_file']
+if DISABLE_CELERY_FILE_LOGS:
+    CELERY_WORKER_HANDLERS = DEFAULT_HANDLERS
+    CELERY_BEAT_HANDLERS = DEFAULT_HANDLERS
 CELERY_LOG_LEVEL = normalize_log_level(os.getenv('CELERY_LOG_LEVEL') or os.getenv('DJANGO_LOG_LEVEL'))
 
 LOGGING = {
@@ -216,6 +223,10 @@ LOGGING = {
         },
     },
 }
+
+if DISABLE_CELERY_FILE_LOGS:
+    LOGGING['handlers'].pop('celery_worker_file', None)
+    LOGGING['handlers'].pop('celery_beat_file', None)
 
 # 环境变量控制是否使用 JSON 格式日志
 USE_JSON_LOGGING = os.getenv('USE_JSON_LOGGING', 'false').lower() == 'true'

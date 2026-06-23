@@ -336,4 +336,76 @@ class TerminalRuntimeSettingsORM(models.Model):
         return settings_obj
 
 
-__all__ = ['TerminalCommandORM', 'TerminalAuditLogORM', 'TerminalRuntimeSettingsORM']
+class TuiMetadataRegistryORM(models.Model):
+    """Published TUI operation metadata registry.
+
+    Generated metadata is reviewed outside runtime. Only records with
+    ``status='published'`` are eligible for the TUI workbench.
+    """
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+        ('rejected', 'Rejected'),
+    ]
+    GENERATION_SOURCE_CHOICES = [
+        ('ai', 'AI'),
+        ('manual', 'Manual'),
+        ('mixed', 'Mixed'),
+    ]
+    REVIEW_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    registry_key = models.CharField(max_length=80, db_index=True, default='default')
+    version = models.CharField(max_length=40, default='tui-workbench.v2')
+    schema_version = models.CharField(max_length=40, default='tui-metadata.v3')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    review_status = models.CharField(max_length=20, choices=REVIEW_STATUS_CHOICES, default='pending', db_index=True)
+    generation_source = models.CharField(max_length=20, choices=GENERATION_SOURCE_CHOICES, default='mixed')
+    backend_version = models.CharField(max_length=80, blank=True)
+    payload = models.JSONField(default=dict)
+    source_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    source_evidence_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    changed_fields = models.JSONField(default=list, blank=True)
+    review_note = models.TextField(blank=True)
+    rollback_of = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='rollback_releases',
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_tui_metadata_registries',
+    )
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'terminal_tui_metadata_registry'
+        ordering = ['-published_at', '-updated_at']
+        verbose_name = "TUI 元数据发布注册表"
+        verbose_name_plural = "TUI 元数据发布注册表"
+        indexes = [
+            models.Index(fields=['registry_key', 'status', '-published_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.registry_key}:{self.status}:{self.version}"
+
+
+__all__ = [
+    'TerminalCommandORM',
+    'TerminalAuditLogORM',
+    'TerminalRuntimeSettingsORM',
+    'TuiMetadataRegistryORM',
+]

@@ -57,6 +57,22 @@ _SUPPORTED_CAPABILITIES = {
 }
 
 
+def _request_error_is_permission_denied(exc: Exception) -> bool:
+    """Return whether the local environment blocked outbound socket access."""
+
+    markers = ("WinError 10013", "PermissionError", "访问权限不允许")
+    current: BaseException | None = exc
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if isinstance(current, PermissionError):
+            return True
+        if any(marker in str(current) for marker in markers):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def _to_akshare_code(tushare_code: str) -> str:
     """将 Tushare 格式（000001.SZ）转换为 AKShare 纯数字格式（000001）"""
     if "." in tushare_code:
@@ -288,7 +304,10 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                 )
 
             return items
-        except Exception:
+        except Exception as exc:
+            if _request_error_is_permission_denied(exc):
+                logger.warning("市场级新闻外网被本机权限拦截，快速降级")
+                return []
             logger.exception("获取市场级新闻失败")
             return []
 
@@ -415,6 +434,8 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                     return fetcher()
             except Exception as exc:
                 last_error = exc
+                if _request_error_is_permission_denied(exc):
+                    raise
                 if attempt == attempts:
                     raise
                 logger.warning(

@@ -130,7 +130,6 @@ class RotationPriceDataService:
                 days_back=days_back,
             )
             if not prices:
-                logger.warning("data_center 无法获取 %s 的历史价格", asset_code)
                 return None
             return prices
 
