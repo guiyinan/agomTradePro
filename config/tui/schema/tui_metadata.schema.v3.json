@@ -95,6 +95,11 @@
         "description": { "type": "string" },
         "source": { "type": "string" },
         "raw_debug": { "type": "boolean" },
+        "confirmation_required": { "type": "boolean" },
+        "requires_password": { "type": "boolean" },
+        "audit_required": { "type": "boolean" },
+        "sensitive_level": { "enum": ["none", "low", "medium", "high", "critical"] },
+        "executor": { "type": "string" },
         "task_group": { "type": "string" },
         "task_tier": { "enum": ["", "primary", "support", "advanced", "operation"] },
         "sequence": { "type": "integer" }

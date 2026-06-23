@@ -25,6 +25,7 @@ TUI_METADATA_SCHEMA_PATH = (
 ALLOWED_TUI_RISKS = {"read", "ai", "write", "unsafe", "admin"}
 ALLOWED_TUI_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 ALLOWED_TUI_VIEW_TYPES = {"auto", "status", "detail", "datagrid", "message", "queue_workbench"}
+ALLOWED_TUI_SENSITIVE_LEVELS = {"none", "low", "medium", "high", "critical"}
 ALLOWED_TUI_FIELD_INPUT_TYPES = {
     "checkbox",
     "date",
@@ -112,6 +113,7 @@ HIGH_REVIEW_FIELD_TOKENS = (
     "value",
     "weight",
 )
+GOVERNED_TUI_RISKS = {"write", "admin"}
 
 
 class TuiMetadataValidationError(ValueError):
@@ -229,6 +231,15 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("description", "")
         action.setdefault("source", "published")
         action.setdefault("raw_debug", True)
+        action.setdefault("confirmation_required", _default_confirmation_required(action))
+        action.setdefault("requires_password", False)
+        action.setdefault("audit_required", _default_audit_required(action))
+        action.setdefault("sensitive_level", _default_sensitive_level(action))
+        action.setdefault("executor", "")
+        action.setdefault("task_group", "")
+        action.setdefault("task_tier", "")
+        action.setdefault("sequence", 999)
+        _validate_governance_contract(action)
         _validate_action_source(action)
         _validate_confirmed_operation_contract(action)
 
@@ -337,8 +348,20 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("raw_debug", None)
         if action.get("description") == "":
             action.pop("description", None)
+        if action.get("confirmation_required") == _default_confirmation_required(action):
+            action.pop("confirmation_required", None)
+        if action.get("requires_password") is False:
+            action.pop("requires_password", None)
+        if action.get("audit_required") == _default_audit_required(action):
+            action.pop("audit_required", None)
+        if action.get("sensitive_level") == _default_sensitive_level(action):
+            action.pop("sensitive_level", None)
+        if action.get("executor") == "":
+            action.pop("executor", None)
         if action.get("task_group") == "":
             action.pop("task_group", None)
+        if action.get("task_tier") == "":
+            action.pop("task_tier", None)
         if action.get("sequence") == 999:
             action.pop("sequence", None)
         if action.get("module_key") == screen_module_by_key.get(str(action.get("screen_key"))):
@@ -410,6 +433,51 @@ def _validate_action_source(action: dict[str, Any]) -> None:
         raise TuiMetadataValidationError(f"Action source is required: {action['key']}")
     if not any(source == prefix or source.startswith(prefix) for prefix in ALLOWED_TUI_SOURCE_PREFIXES):
         raise TuiMetadataValidationError(f"Action has unsupported source: {action['key']}.{source}")
+
+
+def _validate_governance_contract(action: dict[str, Any]) -> None:
+    for key in ("confirmation_required", "requires_password", "audit_required"):
+        if not isinstance(action.get(key), bool):
+            raise TuiMetadataValidationError(f"Action governance flag must be boolean: {action['key']}.{key}")
+    if str(action.get("sensitive_level") or "") not in ALLOWED_TUI_SENSITIVE_LEVELS:
+        raise TuiMetadataValidationError(f"Action has unsupported sensitive_level: {action['key']}")
+    if not isinstance(action.get("executor"), str):
+        raise TuiMetadataValidationError(f"Action executor must be a string: {action['key']}")
+    if not isinstance(action.get("task_group"), str):
+        raise TuiMetadataValidationError(f"Action task_group must be a string: {action['key']}")
+    if str(action.get("task_tier") or "") not in {"", "primary", "support", "advanced", "operation"}:
+        raise TuiMetadataValidationError(f"Action has unsupported task_tier: {action['key']}")
+    try:
+        action["sequence"] = int(action.get("sequence", 999))
+    except (TypeError, ValueError) as exc:
+        raise TuiMetadataValidationError(f"Action sequence must be an integer: {action['key']}") from exc
+    if _default_confirmation_required(action) and not action["confirmation_required"]:
+        raise TuiMetadataValidationError(f"Governed action must require confirmation: {action['key']}")
+    if _default_audit_required(action) and not action["audit_required"]:
+        raise TuiMetadataValidationError(f"Governed action must require audit: {action['key']}")
+
+
+def _default_confirmation_required(action: dict[str, Any]) -> bool:
+    risk = str(action.get("risk") or "read").strip().lower()
+    method = str(action.get("method") or "GET").strip().upper()
+    return risk == "write" or (risk == "admin" and method != "GET")
+
+
+def _default_audit_required(action: dict[str, Any]) -> bool:
+    risk = str(action.get("risk") or "read").strip().lower()
+    method = str(action.get("method") or "GET").strip().upper()
+    return risk in GOVERNED_TUI_RISKS and method != "GET"
+
+
+def _default_sensitive_level(action: dict[str, Any]) -> str:
+    risk = str(action.get("risk") or "read").strip().lower()
+    if risk == "admin":
+        return "critical"
+    if risk in {"write", "unsafe"}:
+        return "high"
+    if risk == "ai":
+        return "medium"
+    return "none"
 
 
 def _validate_confirmed_operation_contract(action: dict[str, Any]) -> None:

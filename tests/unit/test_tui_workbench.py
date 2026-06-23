@@ -21,7 +21,7 @@ from apps.terminal.application.tui_metadata import (
 )
 from apps.terminal.application.tui_workbench import TuiWorkbenchService
 from apps.terminal.infrastructure.tui_adapters import get_tui_action_executor
-from apps.terminal.infrastructure.models import TuiMetadataRegistryORM
+from apps.terminal.infrastructure.models import TerminalAuditLogORM, TuiMetadataRegistryORM
 from apps.terminal.infrastructure.tui_metadata_repository import (
     PublishedTuiMetadataRepository,
     RUNTIME_ACTION_PATCHES,
@@ -104,6 +104,24 @@ class FakeMetadataRepository:
         return self.payload
 
 
+class FakeAuditRepository:
+    def __init__(self):
+        self.entries = []
+
+    def save(self, entry):
+        self.entries.append(entry)
+        return entry
+
+    def get_recent(
+        self,
+        limit=50,
+        username=None,
+        command_name=None,
+        result_status=None,
+    ):
+        return self.entries[:limit]
+
+
 @pytest.fixture
 def tui_user(db):
     return User.objects.create_user(username="tui_user", password="test-password")
@@ -152,7 +170,7 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "T:B" in html
     assert "data-toggle-rail" in html
     assert "data-toggle-inspector" in html
-    assert "tabindex=\"-1\"" in html
+    assert 'tabindex="-1"' in html
     assert "home-layout" not in html
     assert "tui-theme.css" not in html
 
@@ -233,7 +251,7 @@ def test_tui_workbench_supports_runtime_theme_switching():
     assert "function applyTheme(themeKey" in script
     assert "document.documentElement" in script
     assert "root.style.setProperty" in script
-    assert 'root.dataset.tuiTheme = resolvedThemeKey' in script
+    assert "root.dataset.tuiTheme = resolvedThemeKey" in script
     assert "function cycleTheme()" in script
     assert "function showThemeStatus()" in script
     assert "window.localStorage?.setItem(themeStorageKey, resolvedThemeKey)" in script
@@ -242,9 +260,9 @@ def test_tui_workbench_supports_runtime_theme_switching():
     assert "function keyboardCommandForEvent(event)" in script
     assert 'event.altKey && !event.ctrlKey && !event.shiftKey && lowerKey === "t"' in script
     assert 'event.ctrlKey && !event.altKey && !event.shiftKey && lowerKey === "t"' in script
-    assert 'els.themeIndicatorCode.textContent = `T:${resolvedThemeKey}`' in script
-    assert 'els.themeStatus.textContent = `STYLE: ${resolvedThemeKey}`' in script
-    assert 'setStatus(`主题已切换: ${nextKey}`)' in script
+    assert "els.themeIndicatorCode.textContent = `T:${resolvedThemeKey}`" in script
+    assert "els.themeStatus.textContent = `STYLE: ${resolvedThemeKey}`" in script
+    assert "setStatus(`主题已切换: ${nextKey}`)" in script
     assert 'showModal("主题"' in script
     assert 'showModal("帮助"' in script
     assert "不刷新页面，不丢失当前状态" in script
@@ -283,7 +301,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "function submitLocationInput" in script
     assert "els.currentLocation.value" in script
     assert "els.currentLocation.dataset.currentAddress" in script
-    assert 'rawValue.match(/^screen:([^\\s]+)(?:\\s+action:.+)?$/i)' in script
+    assert "rawValue.match(/^screen:([^\\s]+)(?:\\s+action:.+)?$/i)" in script
     assert "screen:${screenKey} action:${action.key}" in script
     assert "function loadStoredProgress" in script
     assert "function persistProgress" in script
@@ -303,9 +321,17 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "可执行操作" in script
     assert "支撑检查" in script
     assert "条件查询" in script
-    assert "${escapeHtml(riskLabel(action.risk))} / ${escapeHtml(viewLabel(action.view_type))}" not in script
+    assert (
+        "${escapeHtml(riskLabel(action.risk))} / ${escapeHtml(viewLabel(action.view_type))}"
+        not in script
+    )
     assert "confirmation_required" in script
     assert "data-confirm-action" in script
+    assert "window.__AGOMTUI_RUNTIME__" in script
+    assert "function showMissingFieldsPrompt" in script
+    assert "function showPasswordChallenge" in script
+    assert "requestBody.confirmation" in script
+    assert "requestBody.reauth" in script
     assert "data-action-ui-key" in script
     assert "data-action-key=" not in script
     assert "function actionUiKey" in script
@@ -315,7 +341,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "function loadWorkflowStep" in script
     assert "function businessContextSections" in script
     assert "function setWorkspaceViewKind(kind)" in script
-    assert 'grid.dataset.viewKind = String(kind);' in script
+    assert "grid.dataset.viewKind = String(kind);" in script
     assert "function renderDecisionCue" in script
     assert "function bindDecisionCueActions" in script
     assert "data-decision-action" in script
@@ -334,7 +360,10 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "function actionCanFillFromRow" in script
     assert "function refreshRowFillButtons" in script
     assert "button.disabled = !enabled" in script
-    assert 'applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });' in script
+    assert (
+        "applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });"
+        in script
+    )
     assert "function triggerActionForm(form)" in script
     assert "state.lastFormTriggerRef" in script
     assert 'els.actions?.addEventListener("submit", (event) => {' in script
@@ -352,21 +381,30 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "function actionCompatibleWithRowSource" in script
     assert "__tui_source_resource_base" in script
     assert 'if (!["pk", "id"].includes(key)) {' in script
-    assert "const dynamicSegments = new Set([\"pk\", \"id\", \"int\", \"str\", \"uuid\", \"slug\", \"path\", \"bool\", \"float\", \"decimal\", \"date\", \"datetime\"]);" in script
+    assert (
+        'const dynamicSegments = new Set(["pk", "id", "int", "str", "uuid", "slug", "path", "bool", "float", "decimal", "date", "datetime"]);'
+        in script
+    )
     assert 'if (segments[0] === "auto" || segments[0] === "param") {' in script
     assert 'if (segments[0] === "api" && segments[2] === "api") {' in script
     assert "segments = segments.slice(3);" in script
     assert "return rowResourceBase === targetResourceBase;" in script
     assert "form.elements.namedItem" in script
     assert "function rowFieldCandidates" in script
-    assert 'from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"]' in script
-    assert 'to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"]' in script
+    assert (
+        'from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"]'
+        in script
+    )
+    assert (
+        'to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"]'
+        in script
+    )
     assert 'report_id: ["report_id", "report.id"]' in script
     assert 'validation_id: ["validation_id", "validation.id"]' in script
     assert 'summary_id: ["summary_id", "summary.id"]' in script
     assert 'request_id: ["request_id", "request.id"]' in script
     assert 'asset_class: ["asset_class", "code", "category", "name"]' in script
-    assert 'const rawKey = `__raw_${key}`' in script
+    assert "const rawKey = `__raw_${key}`" in script
     assert 'if (key.startsWith("__")) {' in script
     assert "function actionsAvailableForRow" in script
     assert "function paramsFromRowForAction" in script
@@ -421,12 +459,14 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
 
     assert "selectedRowContext: null" in script
     assert "function selectedRowForActions()" in script
-    assert "const byName = typeof form.elements.namedItem === \"function\"" in script
+    assert 'const byName = typeof form.elements.namedItem === "function"' in script
     assert "const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);" in script
     assert 'if (state.currentViewModel && state.currentViewModel.kind === "datagrid") {' in script
     assert "return state.selectedRowContext;" in script
     assert "resetGridState({ preserveRowContext: true });" in script
-    assert "state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);" in script
+    assert (
+        "state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);" in script
+    )
     assert "state.selectedRowContext = rowContextWithSource(row);" in script
     assert "if (rows.length) {" in script
     assert "} else {" in script
@@ -455,13 +495,21 @@ def test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source():
         .read_text(encoding="utf-8")
     )
 
-    assert "const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : \"\");" in script
+    assert (
+        'const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : "");'
+        in script
+    )
     assert "const targetResourceBase = actionResourceBase(action && action.key);" in script
     assert "return rowResourceBase === targetResourceBase;" in script
-    assert "return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);" in script
+    assert (
+        "return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);"
+        in script
+    )
     assert "const value = rowValueForField(row, field.key, action);" in script
     assert "const params = paramsFromRowForAction(row, action);" in script
-    assert 'if (element.type !== "checkbox" && String(element.value || "").trim() !== "") {' in script
+    assert (
+        'if (element.type !== "checkbox" && String(element.value || "").trim() !== "") {' in script
+    )
 
 
 def test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match():
@@ -475,7 +523,7 @@ def test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_ro
 
     assert 'if (segments[0] === "auto" || segments[0] === "param") {' in script
     assert 'if (segments[0] === "api" && segments[2] === "api") {' in script
-    assert 'segments = segments.slice(3);' in script
+    assert "segments = segments.slice(3);" in script
     assert 'return collected.join(".");' in script
 
 
@@ -489,7 +537,9 @@ def test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_
     )
 
     assert "if (rows.length) {" in script
-    assert "state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);" in script
+    assert (
+        "state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);" in script
+    )
     assert "} else {" in script
     assert "state.selectedRowContext = null;" in script
 
@@ -536,8 +586,14 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert ".tui-inspector-actions" in css
     assert '.tui-workspace-grid[data-view-kind="detail"]' in css
     assert '.tui-workspace-grid[data-view-kind="message"]' in css
-    assert "grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) minmax(252px, 0.92fr);" in css
-    assert "grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) minmax(280px, 1.04fr);" in css
+    assert (
+        "grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) minmax(252px, 0.92fr);"
+        in css
+    )
+    assert (
+        "grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) minmax(280px, 1.04fr);"
+        in css
+    )
     assert "min-inline-size: 24ch;" in css
     assert "word-break: keep-all;" in css
     assert "overflow-wrap: break-word;" in css
@@ -651,7 +707,9 @@ def test_tui_operation_fields_use_business_labels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    action = next(action for action in payload["actions"] if action["key"] == "alpha.inference.trigger_batch")
+    action = next(
+        action for action in payload["actions"] if action["key"] == "alpha.inference.trigger_batch"
+    )
     fields = {field["key"]: field for field in action["fields"]}
 
     assert fields["top_n"]["label"] == "候选数量"
@@ -721,7 +779,9 @@ def test_tui_catalog_shows_admin_only_config_center_to_admin_user(client, tui_ad
     }
 
     assert "api-library.config-center" in screens
-    assert screens["api-library.config-center"]["default_action_key"] == "config_center.qlib_runtime"
+    assert (
+        screens["api-library.config-center"]["default_action_key"] == "config_center.qlib_runtime"
+    )
 
 
 def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, tui_user):
@@ -795,9 +855,10 @@ def test_tui_actions_expose_business_task_tiers(client, tui_user):
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
     assert actions["auto.api.get.api.account.positions"]["task_tier"] == "primary"
-    assert actions[
-        "param.api.get.api.account.accounts.int.account_id.positions"
-    ]["task_tier"] == "advanced"
+    assert (
+        actions["param.api.get.api.account.accounts.int.account_id.positions"]["task_tier"]
+        == "advanced"
+    )
     assert all(action["task_group"] for action in payload["actions"])
     assert all(action["task_tier"] for action in payload["actions"])
 
@@ -853,7 +914,9 @@ def test_tui_share_screen_defaults_to_non_empty_overview(client, tui_user):
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.share"
 
 
-def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoints(client, tui_user):
+def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoints(
+    client, tui_user
+):
     client.force_login(tui_user)
 
     runtime_response = client.get("/api/tui/screens/ai-ops.agent-runtime/")
@@ -862,11 +925,17 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     alpha_response = client.get("/api/tui/screens/research.alpha-triggers/")
     alpha_payload = alpha_response.json()
-    assert alpha_payload["screen"]["default_action_key"] == "auto.api.get.api.alpha-triggers.candidates.statistics"
+    assert (
+        alpha_payload["screen"]["default_action_key"]
+        == "auto.api.get.api.alpha-triggers.candidates.statistics"
+    )
 
     providers_response = client.get("/api/tui/screens/ai-ops.providers/")
     providers_payload = providers_response.json()
-    assert providers_payload["screen"]["default_action_key"] == "auto.api.get.api.prompt.chat.providers"
+    assert (
+        providers_payload["screen"]["default_action_key"]
+        == "auto.api.get.api.prompt.chat.providers"
+    )
 
 
 def test_tui_providers_screen_hides_personal_provider_detail_without_rows(client, tui_user):
@@ -880,7 +949,9 @@ def test_tui_providers_screen_hides_personal_provider_detail_without_rows(client
     assert "param.api.get.api.ai.me.providers.pk" not in actions
 
 
-def test_tui_providers_screen_shows_personal_provider_detail_when_user_has_provider(client, tui_user):
+def test_tui_providers_screen_shows_personal_provider_detail_when_user_has_provider(
+    client, tui_user
+):
     AIProviderConfig.objects.create(
         name="tui-personal-provider",
         scope="user",
@@ -1094,6 +1165,39 @@ def test_tui_catalog_exposes_confirmation_ready_operations(client, tui_user):
     assert action["fields"][0]["input_type"] == "date"
 
 
+def test_tui_decision_flow_publishes_confirmed_daily_workflow_actions(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/command-center.decision-flow/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    actions = {action["key"]: action for action in payload["actions"]}
+    expected_write_actions = {
+        "decision.workspace.recommendation_action",
+        "decision.workspace.plan_generate",
+        "decision.workspace.plan_update",
+        "decision.execute.preview",
+        "decision.execute.approve",
+        "decision.execute.reject",
+    }
+    assert {
+        "auto.api.get.api.decision.workspace.recommendations",
+        "auto.api.get.api.decision.workspace.conflicts",
+        "param.api.get.api.decision.workspace.plans.str.plan_id",
+        *expected_write_actions,
+    } - set(actions) == {"param.api.get.api.decision.workspace.plans.str.plan_id"}
+
+    for action_key in expected_write_actions:
+        assert actions[action_key]["risk"] == "write"
+        assert actions[action_key]["confirmation_required"] is True
+        assert "endpoint" not in actions[action_key]
+        assert "method" not in actions[action_key]
+        assert "source" not in actions[action_key]
+        assert "view_model" not in actions[action_key]
+    assert actions["decision.execute.preview"]["fields"][0]["key"] == "plan_id"
+
+
 def test_tui_write_action_requires_confirmation_before_execution(client, tui_user):
     client.force_login(tui_user)
 
@@ -1108,6 +1212,14 @@ def test_tui_write_action_requires_confirmation_before_execution(client, tui_use
     assert payload["confirmation_required"] is True
     assert payload["action"]["risk"] == "write"
     assert payload["debug"]["raw_available"] is False
+    audit_log = TerminalAuditLogORM._default_manager.latest("created_at")
+    assert audit_log.username == "tui_user"
+    assert audit_log.mode == "tui-workbench"
+    assert audit_log.result_status == "blocked"
+    record = json.loads(audit_log.params_summary)
+    assert record["schema_version"] == "tui-audit.v1"
+    assert record["action_key"] == "data_center.market_thermometer_calculate"
+    assert record["outcome"] == "blocked_confirmation_required"
 
 
 def test_tui_parameterized_read_tools_are_promoted_to_user_screens(client, tui_user):
@@ -1305,7 +1417,9 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     payload = response.json()
     assert payload["screen"]["label"] == "AI 交互终端"
     assert payload["screen"]["default_action_key"] == "terminal.chat_router"
-    action = next(action for action in payload["actions"] if action["key"] == "terminal.chat_router")
+    action = next(
+        action for action in payload["actions"] if action["key"] == "terminal.chat_router"
+    )
     assert action["label"] == "询问 AI 助手"
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
@@ -1319,8 +1433,10 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["screen"]["default_action_key"] == "decision.workspace.today_queue"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["layout_area"] for panel in panels] == [
+        "queue",
         "regime",
         "pulse",
         "account",
@@ -1328,7 +1444,9 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
         "tasks",
     ]
     assert any(panel["action_key"] == "task_monitor.dashboard" for panel in panels)
+    assert panels[0]["action_key"] == "decision.workspace.today_queue"
     assert [panel["title"] for panel in panels] == [
+        "零、今日待办",
         "一、市场周期象限",
         "二、战术脉搏预警",
         "三、账户与持仓",
@@ -1516,6 +1634,11 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert "fields" not in action
     assert "view_model" not in action
     assert "raw_debug" not in action
+    assert "confirmation_required" not in action
+    assert "requires_password" not in action
+    assert "audit_required" not in action
+    assert "sensitive_level" not in action
+    assert "executor" not in action
     assert "module_key" not in action
 
     restored = validate_tui_metadata(compacted)
@@ -1525,7 +1648,47 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert restored_action["fields"] == []
     assert restored_action["view_model"] == {}
     assert restored_action["raw_debug"] is True
+    assert restored_action["confirmation_required"] is False
+    assert restored_action["requires_password"] is False
+    assert restored_action["audit_required"] is False
+    assert restored_action["sensitive_level"] == "none"
+    assert restored_action["executor"] == ""
     assert restored_action["module_key"] == "command-center"
+
+
+def test_tui_metadata_governance_defaults_for_write_action():
+    payload = _metadata_payload()
+    payload["actions"][0].update(
+        {
+            "method": "POST",
+            "risk": "write",
+            "endpoint": "/api/terminal/chat/",
+        }
+    )
+
+    action = validate_tui_metadata(payload)["actions"][0]
+
+    assert action["confirmation_required"] is True
+    assert action["audit_required"] is True
+    assert action["sensitive_level"] == "high"
+    assert action["requires_password"] is False
+    assert action["executor"] == ""
+
+
+def test_tui_metadata_governed_action_cannot_disable_confirmation_or_audit():
+    payload = _metadata_payload()
+    payload["actions"][0].update(
+        {
+            "method": "POST",
+            "risk": "write",
+            "endpoint": "/api/terminal/chat/",
+            "confirmation_required": False,
+            "audit_required": False,
+        }
+    )
+
+    with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
 
 
 def test_tui_service_reads_published_metadata_and_requires_write_confirmation():
@@ -1805,7 +1968,14 @@ def test_tui_service_marks_missing_optional_detail_as_empty_state(tui_user):
                         "module_key": "command-center",
                         "view_type": "detail",
                         "risk": "read",
-                        "fields": [{"key": "pk", "label": "记录 ID", "input_type": "number", "required": True}],
+                        "fields": [
+                            {
+                                "key": "pk",
+                                "label": "记录 ID",
+                                "input_type": "number",
+                                "required": True,
+                            }
+                        ],
                     }
                 ]
             )
@@ -1844,7 +2014,12 @@ def test_tui_service_preserves_backend_auth_challenge_payload(tui_user):
                         "view_type": "detail",
                         "risk": "read",
                         "fields": [
-                            {"key": "short_code", "label": "分享码", "input_type": "text", "required": True}
+                            {
+                                "key": "short_code",
+                                "label": "分享码",
+                                "input_type": "text",
+                                "required": True,
+                            }
                         ],
                     }
                 ]
@@ -1965,8 +2140,18 @@ def test_tui_action_api_can_access_public_share_without_password(client, tui_use
                 "view_type": "detail",
                 "risk": "read",
                 "fields": [
-                    {"key": "short_code", "label": "分享码", "input_type": "text", "required": True},
-                    {"key": "password", "label": "访问密码", "input_type": "text", "required": False},
+                    {
+                        "key": "short_code",
+                        "label": "分享码",
+                        "input_type": "text",
+                        "required": True,
+                    },
+                    {
+                        "key": "password",
+                        "label": "访问密码",
+                        "input_type": "text",
+                        "required": False,
+                    },
                 ],
                 "source": "approved:test",
             }
@@ -1988,7 +2173,9 @@ def test_tui_action_api_can_access_public_share_without_password(client, tui_use
     payload = response.json()
     assert payload["response"]["status_code"] == 200
     assert payload["view_model"]["kind"] == "detail"
-    assert payload["debug"]["raw_response"]["share_link"]["title"] == f"Share {share_link.short_code}"
+    assert (
+        payload["debug"]["raw_response"]["share_link"]["title"] == f"Share {share_link.short_code}"
+    )
     assert payload["debug"]["raw_response"]["snapshot"]["summary"]["account_name"] == (
         f"TUI Share {share_link.short_code}"
     )
@@ -2017,8 +2204,18 @@ def test_tui_action_api_reuses_session_for_password_protected_public_share(
                 "view_type": "detail",
                 "risk": "read",
                 "fields": [
-                    {"key": "short_code", "label": "分享码", "input_type": "text", "required": True},
-                    {"key": "password", "label": "访问密码", "input_type": "text", "required": False},
+                    {
+                        "key": "short_code",
+                        "label": "分享码",
+                        "input_type": "text",
+                        "required": True,
+                    },
+                    {
+                        "key": "password",
+                        "label": "访问密码",
+                        "input_type": "text",
+                        "required": False,
+                    },
                 ],
                 "source": "approved:test",
             },
@@ -2216,6 +2413,235 @@ def test_tui_service_write_action_requires_confirmation_before_execution(tui_use
 
     assert payload["confirmation_required"] is False
     assert payload["view_model"]["kind"] == "detail"
+    assert executor.calls == 1
+
+
+def test_tui_service_audits_blocked_confirmation_with_canonical_record(tui_user):
+    class FakeExecutor:
+        calls = 0
+
+        def execute(self, **kwargs):
+            self.calls += 1
+            return {"status_code": 200, "payload": {"status": "ok"}}
+
+    audit_repository = FakeAuditRepository()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.write.audit",
+                        "label": "审计写入",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "audit_write",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "write",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+        audit_repository=audit_repository,
+    )
+
+    payload = service.run_action(
+        action_key="terminal.write.audit",
+        params={},
+        user=tui_user,
+    )
+
+    assert payload["confirmation_required"] is True
+    assert len(audit_repository.entries) == 1
+    entry = audit_repository.entries[0]
+    record = json.loads(entry.params_summary)
+    assert record["schema_version"] == "tui-audit.v1"
+    assert record["actor"] == "tui_user"
+    assert record["action_key"] == "terminal.write.audit"
+    assert record["outcome"] == "blocked_confirmation_required"
+    assert record["result"]["confirmation_required"] is True
+    assert entry.mode == "tui-workbench"
+    assert entry.result_status == "blocked"
+    assert entry.confirmation_required is True
+
+
+def test_tui_service_strict_audit_sink_blocks_governed_action_without_repository(tui_user):
+    class FakeExecutor:
+        calls = 0
+
+        def execute(self, **kwargs):
+            self.calls += 1
+            return {"status_code": 200, "payload": {"status": "ok"}}
+
+    executor = FakeExecutor()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.write.audit-required",
+                        "label": "审计必需写入",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "audit_required_write",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "write",
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=executor,
+        require_audit_sink=True,
+    )
+
+    with pytest.raises(RuntimeError):
+        service.run_action(
+            action_key="terminal.write.audit-required",
+            params={},
+            user=tui_user,
+        )
+    assert executor.calls == 0
+
+
+def test_tui_service_audits_success_and_masks_sensitive_params(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": {"status": "ok"}}
+
+    audit_repository = FakeAuditRepository()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.secret.rotate",
+                        "label": "轮换密钥",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "rotate_secret",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "write",
+                        "requires_password": True,
+                        "fields": [
+                            {"key": "secret_id", "label": "Secret ID", "required": True},
+                            {"key": "new_password", "label": "New Password", "required": True},
+                        ],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+        audit_repository=audit_repository,
+    )
+
+    payload = service.run_action(
+        action_key="terminal.secret.rotate",
+        params={"secret_id": "SEC-1", "new_password": "raw-secret"},
+        user=tui_user,
+        confirmed=True,
+        confirmation={"confirmed": True, "confirmed_at": "2026-06-23T10:00:00Z"},
+        reauth={
+            "method": "password",
+            "credential": "test-password",
+            "challenge_id": "terminal.secret.rotate",
+        },
+    )
+
+    assert payload["response"]["status_code"] == 200
+    assert len(audit_repository.entries) == 1
+    record = json.loads(audit_repository.entries[0].params_summary)
+    assert record["outcome"] == "succeeded"
+    assert record["params"]["secret_id"] == "***"
+    assert record["params"]["new_password"] == "***"
+    assert record["confirmation"]["confirmed"] is True
+    assert record["reauth"]["verified"] is True
+    assert "credential" not in record["reauth"]
+    assert audit_repository.entries[0].result_status == "success"
+
+
+def test_tui_service_requires_password_before_sensitive_action(tui_user):
+    class FakeExecutor:
+        def __init__(self):
+            self.calls = 0
+
+        def execute(self, **kwargs):
+            self.calls += 1
+            return {"status_code": 200, "payload": {"status": "ok"}}
+
+    executor = FakeExecutor()
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.secret.write",
+                        "label": "敏感写入",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "secret_write",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "write",
+                        "requires_password": True,
+                        "fields": [],
+                    }
+                ]
+            )
+        ),
+        action_executor=executor,
+    )
+
+    confirmation = service.run_action(
+        action_key="terminal.secret.write",
+        params={},
+        user=tui_user,
+    )
+
+    assert confirmation["confirmation_required"] is True
+    assert executor.calls == 0
+
+    challenge = service.run_action(
+        action_key="terminal.secret.write",
+        params={},
+        user=tui_user,
+        confirmed=True,
+    )
+
+    assert challenge["password_challenge_required"] is True
+    assert challenge["response"]["status_code"] == 401
+    assert challenge["view_model"]["status"] == "需要密码"
+    assert executor.calls == 0
+
+    rejected = service.run_action(
+        action_key="terminal.secret.write",
+        params={},
+        user=tui_user,
+        confirmed=True,
+        reauth={"method": "password", "credential": "wrong-password"},
+    )
+
+    assert rejected["password_challenge_required"] is True
+    assert executor.calls == 0
+
+    payload = service.run_action(
+        action_key="terminal.secret.write",
+        params={},
+        user=tui_user,
+        confirmed=True,
+        reauth={"method": "password", "credential": "test-password"},
+    )
+
+    assert payload["confirmation_required"] is False
+    assert payload["response"]["status_code"] == 200
     assert executor.calls == 1
 
 
@@ -2636,7 +3062,14 @@ def test_tui_service_translates_share_access_status_codes(tui_user):
                         "module_key": "command-center",
                         "view_type": "detail",
                         "risk": "read",
-                        "fields": [{"key": "short_code", "label": "分享码", "input_type": "text", "required": True}],
+                        "fields": [
+                            {
+                                "key": "short_code",
+                                "label": "分享码",
+                                "input_type": "text",
+                                "required": True,
+                            }
+                        ],
                     }
                 ]
             )
@@ -2749,7 +3182,9 @@ def test_tui_service_localizes_share_snapshot_and_prompt_labels(tui_user):
         action_executor=PromptExecutor(),
     )
 
-    prompt_payload = prompt_service.run_action(action_key="prompt.templates", params={}, user=tui_user)
+    prompt_payload = prompt_service.run_action(
+        action_key="prompt.templates", params={}, user=tui_user
+    )
 
     assert prompt_payload["view_model"]["columns"] == [
         {"key": "name", "label": "名称"},
@@ -4177,10 +4612,14 @@ def test_tui_metadata_repository_db_reload_keeps_runtime_coverage_stable():
 @pytest.mark.django_db
 def test_tui_metadata_repository_patches_system_list_to_datagrid():
     loaded = PublishedTuiMetadataRepository().load_published()
-    raw_payload = json.loads(PublishedTuiMetadataRepository().published_path.read_text(encoding="utf-8"))
+    raw_payload = json.loads(
+        PublishedTuiMetadataRepository().published_path.read_text(encoding="utf-8")
+    )
     expected_patched, expected_pruned = _runtime_transform_counts(raw_payload)
 
-    action = next(action for action in loaded["actions"] if action["key"] == "auto.api.get.api.system.list")
+    action = next(
+        action for action in loaded["actions"] if action["key"] == "auto.api.get.api.system.list"
+    )
     assert action["view_type"] == "datagrid"
     assert action["view_model"]["rows_path"] == "items"
     assert action["view_model"]["total_path"] == "total"
@@ -4215,11 +4654,7 @@ def test_tui_metadata_repository_rehomes_account_performance_actions_to_account_
         "param.api.get.api.account.accounts.int.account_id.inspections",
     }
 
-    actions = {
-        action["key"]: action
-        for action in loaded["actions"]
-        if action["key"] in moved_keys
-    }
+    actions = {action["key"]: action for action in loaded["actions"] if action["key"] in moved_keys}
 
     assert set(actions) == moved_keys
     for action in actions.values():
@@ -4235,11 +4670,7 @@ def test_tui_metadata_repository_rehomes_strategy_portfolio_queries_to_portfolio
         "auto.api.get.api.strategy.execution-logs.by_portfolio",
     }
 
-    actions = {
-        action["key"]: action
-        for action in loaded["actions"]
-        if action["key"] in moved_keys
-    }
+    actions = {action["key"]: action for action in loaded["actions"] if action["key"] in moved_keys}
 
     assert set(actions) == moved_keys
     for action in actions.values():
@@ -4253,16 +4684,29 @@ def test_tui_metadata_repository_patches_audit_uuid_detail_fields_to_text():
     actions = {
         action["key"]: action
         for action in loaded["actions"]
-        if action["key"] in {
+        if action["key"]
+        in {
             "param.api.get.api.audit.operation-logs.str.log_id",
             "param.api.get.api.audit.decision-traces.str.request_id",
         }
     }
 
-    assert actions["param.api.get.api.audit.operation-logs.str.log_id"]["fields"][0]["input_type"] == "text"
-    assert actions["param.api.get.api.audit.operation-logs.str.log_id"]["fields"][0]["value_type"] == "string"
-    assert actions["param.api.get.api.audit.decision-traces.str.request_id"]["fields"][0]["input_type"] == "text"
-    assert actions["param.api.get.api.audit.decision-traces.str.request_id"]["fields"][0]["value_type"] == "string"
+    assert (
+        actions["param.api.get.api.audit.operation-logs.str.log_id"]["fields"][0]["input_type"]
+        == "text"
+    )
+    assert (
+        actions["param.api.get.api.audit.operation-logs.str.log_id"]["fields"][0]["value_type"]
+        == "string"
+    )
+    assert (
+        actions["param.api.get.api.audit.decision-traces.str.request_id"]["fields"][0]["input_type"]
+        == "text"
+    )
+    assert (
+        actions["param.api.get.api.audit.decision-traces.str.request_id"]["fields"][0]["value_type"]
+        == "string"
+    )
 
 
 def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_detail(tui_user):
@@ -4296,7 +4740,14 @@ def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_d
                         "module_key": "command-center",
                         "view_type": "datagrid",
                         "risk": "read",
-                        "fields": [{"key": "pk", "label": "记录 ID", "input_type": "number", "required": True}],
+                        "fields": [
+                            {
+                                "key": "pk",
+                                "label": "记录 ID",
+                                "input_type": "number",
+                                "required": True,
+                            }
+                        ],
                     }
                 ]
             )
@@ -4311,8 +4762,12 @@ def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_d
     )
 
     assert payload["view_model"]["kind"] == "detail"
-    assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}["ID"] == "1"
-    assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}["名称"] == "tmp_cmd_x"
+    assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}[
+        "ID"
+    ] == "1"
+    assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}[
+        "名称"
+    ] == "tmp_cmd_x"
 
 
 def test_tui_service_renders_wrapped_audit_log_detail_as_detail(tui_user):
@@ -4346,7 +4801,14 @@ def test_tui_service_renders_wrapped_audit_log_detail_as_detail(tui_user):
                         "module_key": "command-center",
                         "view_type": "datagrid",
                         "risk": "read",
-                        "fields": [{"key": "log_id", "label": "日志 ID", "input_type": "text", "required": True}],
+                        "fields": [
+                            {
+                                "key": "log_id",
+                                "label": "日志 ID",
+                                "input_type": "text",
+                                "required": True,
+                            }
+                        ],
                     }
                 ]
             )
@@ -4409,21 +4871,41 @@ def test_published_tui_performance_and_snapshot_actions_expose_required_query_fi
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     actions = {action["key"]: action for action in metadata["actions"]}
 
-    assert [field["key"] for field in actions["param.api.get.api.account.accounts.int.account_id.performance-report"]["fields"]] == [
+    assert [
+        field["key"]
+        for field in actions[
+            "param.api.get.api.account.accounts.int.account_id.performance-report"
+        ]["fields"]
+    ] == [
         "account_id",
         "start_date",
         "end_date",
     ]
-    assert [field["key"] for field in actions["param.api.get.api.account.accounts.int.account_id.valuation-snapshot"]["fields"]] == [
+    assert [
+        field["key"]
+        for field in actions[
+            "param.api.get.api.account.accounts.int.account_id.valuation-snapshot"
+        ]["fields"]
+    ] == [
         "account_id",
         "as_of_date",
     ]
-    assert [field["key"] for field in actions["param.api.get.api.simulated-trading.accounts.int.account_id.performance-report"]["fields"]] == [
+    assert [
+        field["key"]
+        for field in actions[
+            "param.api.get.api.simulated-trading.accounts.int.account_id.performance-report"
+        ]["fields"]
+    ] == [
         "account_id",
         "start_date",
         "end_date",
     ]
-    assert [field["key"] for field in actions["param.api.get.api.simulated-trading.accounts.int.account_id.valuation-snapshot"]["fields"]] == [
+    assert [
+        field["key"]
+        for field in actions[
+            "param.api.get.api.simulated-trading.accounts.int.account_id.valuation-snapshot"
+        ]["fields"]
+    ] == [
         "account_id",
         "as_of_date",
     ]

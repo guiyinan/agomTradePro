@@ -31,7 +31,17 @@ from apps.decision_rhythm.application.query_services import (
     has_active_cooldowns,
     has_recent_decision_requests,
 )
-from apps.terminal.domain.interfaces import TuiActionExecutor, TuiMetadataRepository
+from apps.terminal.application.tui_audit import (
+    TuiTerminalAuditSink,
+    action_requires_audit,
+    build_tui_audit_record,
+    verified_reauth_evidence,
+)
+from apps.terminal.domain.interfaces import (
+    TerminalAuditRepository,
+    TuiActionExecutor,
+    TuiMetadataRepository,
+)
 from apps.task_monitor.application.query_services import has_recent_task_failures
 
 VISIBLE_RUNTIME_RISKS = {"read", "ai", "write"}
@@ -45,7 +55,9 @@ USER_HIDDEN_SCREEN_ACTION_KEYS = {
 }
 USER_CONDITIONAL_SCREEN_ACTIONS = {
     "param.api.get.api.ai.me.providers.pk": lambda user: has_user_personal_providers(user),
-    "param.api.get.api.dashboard.alpha.history.int.run_id": lambda user: has_dashboard_alpha_history(user),
+    "param.api.get.api.dashboard.alpha.history.int.run_id": lambda user: has_dashboard_alpha_history(
+        user
+    ),
     "auto.api.get.api.decision-rhythm.quotas.by-period": lambda _user: has_decision_quotas(),
     "param.api.get.api.decision-rhythm.cooldowns.by-asset.asset_code": lambda _user: has_active_cooldowns(),
     "auto.api.get.api.decision-rhythm.cooldowns.remaining-hours": lambda _user: has_active_cooldowns(),
@@ -844,10 +856,16 @@ class TuiWorkbenchService:
         *,
         metadata_repository: TuiMetadataRepository,
         action_executor: TuiActionExecutor | None = None,
+        audit_repository: TerminalAuditRepository | None = None,
+        require_audit_sink: bool = False,
         registry_key: str = "default",
     ) -> None:
         self.metadata_repository = metadata_repository
         self.action_executor = action_executor
+        self.audit_sink = (
+            TuiTerminalAuditSink(audit_repository) if audit_repository is not None else None
+        )
+        self.require_audit_sink = require_audit_sink
         self.registry_key = registry_key
 
     def get_catalog(self, *, user: Any | None = None) -> dict[str, Any]:
@@ -966,6 +984,8 @@ class TuiWorkbenchService:
         user: Any,
         session: Any | None = None,
         confirmed: bool = False,
+        confirmation: dict[str, Any] | None = None,
+        reauth: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute one published action and return a business-first view model."""
 
@@ -976,43 +996,113 @@ class TuiWorkbenchService:
         if action is None:
             raise KeyError(action_key)
         if str(action["risk"]) not in self._allowed_runtime_risks(user):
-            raise PermissionError("Only read/AI/confirmed write actions are enabled in this TUI surface")
+            raise PermissionError(
+                "Only read/AI/confirmed write actions are enabled in this TUI surface"
+            )
+        self._ensure_tui_audit_sink(action)
         resolved_params = self._apply_default_field_values(action, params or {})
         missing_fields = self._missing_required_fields(action, resolved_params)
         if missing_fields:
-            return self._missing_required_fields_payload(action, missing_fields)
+            result = self._missing_required_fields_payload(action, missing_fields)
+            self._append_tui_audit(
+                action,
+                resolved_params,
+                user=user,
+                session=session,
+                outcome="rejected_missing_fields",
+                confirmation_evidence=confirmation,
+                reauth_evidence=reauth,
+                result=result,
+            )
+            return result
         if self._requires_confirmation(action) and not confirmed:
-            return self._confirmation_required_payload(action)
+            result = self._confirmation_required_payload(action)
+            self._append_tui_audit(
+                action,
+                resolved_params,
+                user=user,
+                session=session,
+                outcome="blocked_confirmation_required",
+                confirmation_evidence=confirmation,
+                reauth_evidence=reauth,
+                result=result,
+            )
+            return result
+        if self._requires_password(action) and not self._reauth_verified(user, reauth):
+            result = self._password_challenge_required_payload(action, attempted=bool(reauth))
+            self._append_tui_audit(
+                action,
+                resolved_params,
+                user=user,
+                session=session,
+                outcome="blocked_reauth_failed" if reauth else "blocked_reauth_required",
+                confirmation_evidence=confirmation,
+                reauth_evidence=reauth,
+                result=result,
+            )
+            return result
 
-        method = str(action["method"]).upper()
-        endpoint, request_params = self._bind_endpoint_params(
-            endpoint=str(action["endpoint"]),
-            params=resolved_params,
+        reauth_evidence = (
+            verified_reauth_evidence(reauth) if self._requires_password(action) else reauth
         )
-        result = self.action_executor.execute(
-            method=method,
-            endpoint=endpoint,
-            params=request_params if method == "GET" else {},
-            body=request_params if method != "GET" else {},
+        method = str(action["method"]).upper()
+        try:
+            endpoint, request_params = self._bind_endpoint_params(
+                endpoint=str(action["endpoint"]),
+                params=resolved_params,
+            )
+            result = self.action_executor.execute(
+                method=method,
+                endpoint=endpoint,
+                params=request_params if method == "GET" else {},
+                body=request_params if method != "GET" else {},
+                user=user,
+                session=session,
+            )
+            status_code = int(result.get("status_code", 200))
+            payload = result.get("payload")
+            view_model = self._to_view_model(
+                action=action, payload=payload, status_code=status_code
+            )
+            envelope = {
+                "version": "tui-workbench.v2",
+                "action": self._action_payload(action),
+                "confirmation_required": False,
+                "response": {
+                    "status_code": status_code,
+                },
+                "view_model": view_model,
+                "debug": {
+                    "raw_available": bool(action.get("raw_debug", True)),
+                    "raw_response": payload if action.get("raw_debug", True) else None,
+                },
+            }
+        except Exception as exc:
+            self._append_tui_audit(
+                action,
+                resolved_params,
+                user=user,
+                session=session,
+                outcome="failed_exception",
+                confirmation_evidence=confirmation,
+                reauth_evidence=reauth_evidence,
+                error=str(exc),
+            )
+            raise
+
+        self._append_tui_audit(
+            action,
+            resolved_params,
             user=user,
             session=session,
+            outcome=(
+                "succeeded" if 200 <= int(envelope["response"]["status_code"]) < 400 else "failed"
+            ),
+            confirmation_evidence=confirmation,
+            reauth_evidence=reauth_evidence,
+            result=envelope,
         )
-        status_code = int(result.get("status_code", 200))
-        payload = result.get("payload")
-        view_model = self._to_view_model(action=action, payload=payload, status_code=status_code)
-        return {
-            "version": "tui-workbench.v2",
-            "action": self._action_payload(action),
-            "confirmation_required": False,
-            "response": {
-                "status_code": status_code,
-            },
-            "view_model": view_model,
-            "debug": {
-                "raw_available": bool(action.get("raw_debug", True)),
-                "raw_response": payload if action.get("raw_debug", True) else None,
-            },
-        }
+        return envelope
 
     def _apply_default_field_values(
         self,
@@ -1046,6 +1136,43 @@ class TuiWorkbenchService:
                 "cancel_label": "取消",
             },
             "response": {"status_code": 409},
+            "view_model": view_model,
+            "debug": {"raw_available": False, "raw_response": None},
+        }
+
+    def _password_challenge_required_payload(
+        self, action: dict[str, Any], *, attempted: bool = False
+    ) -> dict[str, Any]:
+        message = (
+            "密码验证未通过，请重新输入当前登录用户密码。"
+            if attempted
+            else f"此操作需要重新验证身份：{action['label']}。"
+        )
+        view_model = self._message_model(action, message, 401)
+        view_model["status"] = "需要密码"
+        view_model["sections"] = [
+            {
+                "title": "身份验证",
+                "rows": [],
+                "body": [message, "验证通过前不会执行后端动作。"],
+            }
+        ]
+        return {
+            "version": "tui-workbench.v2",
+            "action": self._action_payload(action),
+            "confirmation_required": False,
+            "password_challenge_required": True,
+            "password_challenge": {
+                "challenge_id": str(action.get("key") or ""),
+                "message": message,
+                "field": {
+                    "key": "password",
+                    "label": "密码",
+                    "input_type": "password",
+                    "required": True,
+                },
+            },
+            "response": {"status_code": 401},
             "view_model": view_model,
             "debug": {"raw_available": False, "raw_response": None},
         }
@@ -1164,7 +1291,9 @@ class TuiWorkbenchService:
         profile_role = str(getattr(profile, "rbac_role", "") or "").strip().lower()
         return profile_role == "admin"
 
-    def _visible_actions(self, metadata: dict[str, Any], *, user: Any | None = None) -> list[dict[str, Any]]:
+    def _visible_actions(
+        self, metadata: dict[str, Any], *, user: Any | None = None
+    ) -> list[dict[str, Any]]:
         return [
             action
             for action in metadata["actions"]
@@ -1207,9 +1336,76 @@ class TuiWorkbenchService:
         return None
 
     def _requires_confirmation(self, action: dict[str, Any]) -> bool:
+        if bool(action.get("confirmation_required")):
+            return True
         risk = str(action.get("risk") or "").lower()
         method = str(action.get("method") or "GET").upper()
         return risk == "write" or (risk == "admin" and method != "GET")
+
+    def _requires_password(self, action: dict[str, Any]) -> bool:
+        return bool(action.get("requires_password"))
+
+    def _reauth_verified(self, user: Any | None, reauth: dict[str, Any] | None) -> bool:
+        if not isinstance(reauth, dict):
+            return False
+        if str(reauth.get("method") or "").lower() != "password":
+            return False
+        credential = str(reauth.get("credential") or "")
+        if not credential:
+            return False
+        checker = getattr(user, "check_password", None)
+        if not callable(checker):
+            return False
+        return bool(checker(credential))
+
+    def _append_tui_audit(
+        self,
+        action: dict[str, Any],
+        params: dict[str, Any],
+        *,
+        user: Any | None,
+        session: Any | None,
+        outcome: str,
+        confirmation_evidence: dict[str, Any] | None = None,
+        reauth_evidence: dict[str, Any] | None = None,
+        result: dict[str, Any] | None = None,
+        error: str = "",
+    ) -> None:
+        if not action_requires_audit(action) or self.audit_sink is None:
+            return
+        try:
+            username = str(getattr(user, "username", "") or "anonymous")
+            record = build_tui_audit_record(
+                action,
+                params,
+                actor=username,
+                outcome=outcome,
+                confirmation_evidence=confirmation_evidence,
+                reauth_evidence=reauth_evidence,
+                result=result,
+                error=error,
+            )
+            self.audit_sink.append(
+                record,
+                user_id=getattr(user, "id", None),
+                username=username,
+                session_id=self._session_id(session),
+            )
+        except Exception:
+            if self.require_audit_sink:
+                raise
+            return
+
+    def _ensure_tui_audit_sink(self, action: dict[str, Any]) -> None:
+        if self.require_audit_sink and action_requires_audit(action) and self.audit_sink is None:
+            raise RuntimeError(
+                f"Audit sink is required for audit_required action: {action.get('key')}"
+            )
+
+    def _session_id(self, session: Any | None) -> str:
+        if session is None:
+            return ""
+        return str(getattr(session, "session_key", "") or "")
 
     def _actions_by_screen(self, actions: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         grouped: dict[str, list[dict[str, Any]]] = {}
@@ -1859,11 +2055,15 @@ class TuiWorkbenchService:
         list_keys = [key for key, value in business_items if isinstance(value, list)]
         scalar_count = sum(1 for _, value in business_items if not isinstance(value, (dict, list)))
         nested_dict_count = sum(1 for _, value in business_items if isinstance(value, dict))
-        has_identifier = any(key in {"id", "pk", "name", "title", "code"} for key, _ in business_items)
+        has_identifier = any(
+            key in {"id", "pk", "name", "title", "code"} for key, _ in business_items
+        )
         collection_list_keys = {"results", "items", "data", "records"}
         if len(list_keys) > 1:
-            if has_identifier and scalar_count >= 3 and not any(
-                key in collection_list_keys for key in list_keys
+            if (
+                has_identifier
+                and scalar_count >= 3
+                and not any(key in collection_list_keys for key in list_keys)
             ):
                 return True
             return False
@@ -1900,7 +2100,9 @@ class TuiWorkbenchService:
     ) -> str:
         value = row.get(key)
         if self._is_asset_code_field(key) and self._looks_like_asset_code(value):
-            name = self._asset_name_from_row(row) or self._resolved_asset_name(value, asset_name_map)
+            name = self._asset_name_from_row(row) or self._resolved_asset_name(
+                value, asset_name_map
+            )
             return self._display_asset_code(value, name)
         contextual = self._field_value_label(key, value)
         if contextual is not None:
@@ -2152,7 +2354,11 @@ class TuiWorkbenchService:
         """Return explicit business context or derive an operator-facing fallback."""
 
         explicit = dict(screen.get("business_context") or {})
-        if explicit.get("objective") or explicit.get("decision_output") or explicit.get("checkpoints"):
+        if (
+            explicit.get("objective")
+            or explicit.get("decision_output")
+            or explicit.get("checkpoints")
+        ):
             explicit["objective"] = self._operator_text(explicit.get("objective", ""))
             explicit["decision_output"] = self._operator_text(explicit.get("decision_output", ""))
             explicit["checkpoints"] = [
@@ -2217,7 +2423,9 @@ class TuiWorkbenchService:
             "view_type": action["view_type"],
             "risk": action["risk"],
             "confirmation_required": self._requires_confirmation(action),
-            "fields": [self._field_payload(field, action=action) for field in action.get("fields") or []],
+            "fields": [
+                self._field_payload(field, action=action) for field in action.get("fields") or []
+            ],
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
             "task_tier": action.get("task_tier", ""),
@@ -2257,14 +2465,18 @@ class TuiWorkbenchService:
         except (TypeError, ValueError):
             return default
 
-    def _field_payload(self, field: dict[str, Any], *, action: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _field_payload(
+        self, field: dict[str, Any], *, action: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         payload = dict(field)
         key = str(payload.get("key") or "").strip()
         label = str(payload.get("label") or "").strip()
         canonical_label = key in FIELD_LABELS
         if canonical_label or self._is_technical_field_label(key=key, label=label):
             payload["label"] = self._humanize(key)
-        resolved_default = self._resolved_field_default(action, field) if action else payload.get("default")
+        resolved_default = (
+            self._resolved_field_default(action, field) if action else payload.get("default")
+        )
         if resolved_default not in (None, "") and payload.get("default") in (None, ""):
             payload["default"] = resolved_default
         placeholder = str(payload.get("placeholder") or "").strip()
@@ -2343,7 +2555,9 @@ class TuiWorkbenchService:
                 str(field.get("label") or field.get("key") or "") for field in visible_fields[:4]
             )
             guidance.append(f"检查筛选条件：{labels}。")
-            guidance.append("如果当前表格已有对应记录，可选中一行后按 F9 进入任务区使用“从选中行填参”。")
+            guidance.append(
+                "如果当前表格已有对应记录，可选中一行后按 F9 进入任务区使用“从选中行填参”。"
+            )
         else:
             guidance.append("如果这是初始化数据，先到相关配置或同步任务中补齐数据源。")
             guidance.append("也可以按 F9 定位任务区，搜索本屏可用的同步、检查或配置任务。")
@@ -2367,7 +2581,9 @@ class TuiWorkbenchService:
         if not tokens:
             return value
         translated = [
-            FIELD_TOKEN_LABELS.get(token.lower(), token.upper() if token.lower() == "id" else token.title())
+            FIELD_TOKEN_LABELS.get(
+                token.lower(), token.upper() if token.lower() == "id" else token.title()
+            )
             for token in tokens
         ]
         return "".join(translated)

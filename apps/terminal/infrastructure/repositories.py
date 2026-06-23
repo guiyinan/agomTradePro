@@ -45,10 +45,7 @@ class DjangoTerminalCommandRepository:
 
     def get_by_category(self, category: str) -> list[TerminalCommand]:
         """按分类获取命令"""
-        models = TerminalCommandModel._default_manager.filter(
-            category=category,
-            is_active=True
-        )
+        models = TerminalCommandModel._default_manager.filter(category=category, is_active=True)
         return [m.to_entity() for m in models]
 
     def get_all(self) -> list[TerminalCommand]:
@@ -102,7 +99,7 @@ class DjangoTerminalAuditRepository:
             command_name=entry.command_name,
             risk_level=entry.risk_level,
             mode=entry.mode,
-            params_summary=entry.params_summary[:500] if entry.params_summary else '',
+            params_summary=entry.params_summary or "",
             confirmation_required=entry.confirmation_required,
             confirmation_status=entry.confirmation_status,
             result_status=entry.result_status,
