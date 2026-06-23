@@ -40,8 +40,9 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-06-08）
+## 0.7.0 之后的开发快照（截至 2026-06-23）
 
+- `2026-06-23` TUI / Alpha 排名的股票名称解析已补齐 data_center 资产主数据兜底：当 `equity_stock_info` 缺少个股名称但 `AssetMasterModel` 已有 canonical 主数据时，`alpha.scores` 等统一资产名称解析入口会自动显示股票名称，并通过名称缓存版本升级避免旧缺失缓存继续影响展示
 - `2026-06-08` Pulse 指标口径已修正：M2 脉搏输入从余额水平 `CN_M2` 切换为同比增速 `CN_M2_YOY`，新增信贷阈值改为匹配 Data Center canonical `元` 存储量级，并修复 level 信号在阈值边界处 signal 与 score 不一致的问题
 - `2026-06-03` 模拟盘自动交易执行链路已补齐推荐执行关联：Decision Rhythm 退出建议现在会携带 `recommendation_id`，自动交易卖出成功后会通过集成桥写入 `DecisionExecutionLinkModel` 并标记统一推荐为 `ADOPTED`；策略模式自动买卖也会在存在近 5 日同账户、同证券、同方向统一推荐时自动匹配关联；执行关联新增 `transaction_source` 区分手工成交与模拟盘成交，并已通过 `/api/audit/execution-links/`、SDK `audit.list_execution_links`、MCP `list_audit_execution_links` 和 Audit/手工复盘页面“推荐执行关联”表格打通推荐 -> 执行的回溯展示闭环
 - `2026-06-03` 模拟盘自动交易新增价格触发约束：策略信号/资产候选可通过 `entry_price_low/high`、`buy_price_low/high` 或 `limit_price` 限制买入触发区间；卖出可通过 `target_price_low/high`、`sell_price_low/high` 或 `limit_price` 限制目标卖出区间，并支持 `stop_loss_price` 跌破触发。15:30 收盘后任务仍使用当日收盘价作为模拟成交价格源，但只有价格进入触发区间才会成交
