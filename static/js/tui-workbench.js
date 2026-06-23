@@ -24,6 +24,7 @@
         completedActionsByScreen: {},
         railCollapsed: false,
         inspectorCollapsed: false,
+        inspectorWidth: null,
         themeKey: "B",
     };
 
@@ -58,6 +59,7 @@
         railToggle: document.querySelector("[data-toggle-rail]"),
         inspectorShell: document.querySelector("[data-inspector-panel-shell]"),
         inspectorToggle: document.querySelector("[data-toggle-inspector]"),
+        inspectorResizeHandle: document.querySelector("[data-inspector-resize-handle]"),
         themeStatus: document.querySelector("[data-theme-status]"),
         themeIndicatorCode: document.querySelector("[data-theme-indicator-code]"),
     };
@@ -103,6 +105,9 @@
 
     const progressStorageKey = "agom-tui-primary-progress:v1";
     const themeStorageKey = "agom-tui-theme:v1";
+    const inspectorWidthStorageKey = "agom-tui-inspector-width:v1";
+    const inspectorWidthMin = 220;
+    const inspectorWidthMax = 640;
     const THEME_SEQUENCE = ["A", "B", "C"];
     const THEME_TOKENS = {
         A: {
@@ -148,6 +153,49 @@
 
     const runtimeConfig = window.__AGOMTUI_RUNTIME__ || {};
     const apiBase = String(runtimeConfig.apiBase || "/api/tui").replace(/\/+$/, "");
+    const rendererRegistry = new Map();
+    const builtInRendererNames = new Set([
+        "datagrid",
+        "detail",
+        "message",
+        "chart",
+        "line",
+        "bar",
+        "pie",
+        "kpi-trend",
+        "kpi_trend",
+        "table-chart",
+        "table_chart",
+        "host-slot",
+        "host_slot",
+    ]);
+
+    function registerRenderer(name, rendererFn) {
+        const rendererName = String(name || "").trim();
+        if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(rendererName) || typeof rendererFn !== "function") {
+            return false;
+        }
+        rendererRegistry.set(rendererName, rendererFn);
+        return true;
+    }
+
+    const previousRendererApi = window.AgomTUIRenderers || {};
+    window.AgomTUIRenderers = {
+        register: registerRenderer,
+        get(name) {
+            return rendererRegistry.get(String(name || "").trim()) || null;
+        },
+        has(name) {
+            return rendererRegistry.has(String(name || "").trim());
+        },
+    };
+    if (Array.isArray(previousRendererApi.pending)) {
+        previousRendererApi.pending.forEach((item) => {
+            if (Array.isArray(item)) {
+                registerRenderer(item[0], item[1]);
+            }
+        });
+    }
 
     function catalogUrl() {
         return `${apiBase}/catalog/`;
@@ -408,6 +456,63 @@
             window.sessionStorage?.setItem(progressStorageKey, JSON.stringify(serializable));
         } catch (error) {
             // Session progress is a UI convenience; ignore storage failures.
+        }
+    }
+
+    function inspectorGrid() {
+        return els.inspectorShell?.closest?.(".tui-workspace-grid") || null;
+    }
+
+    function inspectorWidthBounds() {
+        const grid = inspectorGrid();
+        if (!grid || window.matchMedia?.("(max-width: 980px)")?.matches) {
+            return null;
+        }
+        const gridWidth = grid.getBoundingClientRect().width || window.innerWidth;
+        const max = Math.max(inspectorWidthMin, Math.min(inspectorWidthMax, Math.round(gridWidth * 0.56)));
+        return { min: inspectorWidthMin, max };
+    }
+
+    function clampInspectorWidth(width) {
+        const bounds = inspectorWidthBounds();
+        if (!bounds) {
+            return null;
+        }
+        return Math.round(Math.min(bounds.max, Math.max(bounds.min, Number(width) || bounds.min)));
+    }
+
+    function applyInspectorWidth(width, options = {}) {
+        const grid = inspectorGrid();
+        const nextWidth = clampInspectorWidth(width);
+        if (!grid || !nextWidth) {
+            return null;
+        }
+        state.inspectorWidth = nextWidth;
+        grid.style.setProperty("--tui-inspector-user-width", `${nextWidth}px`);
+        if (els.inspectorResizeHandle) {
+            const bounds = inspectorWidthBounds();
+            els.inspectorResizeHandle.setAttribute("aria-valuemin", String(bounds?.min || inspectorWidthMin));
+            els.inspectorResizeHandle.setAttribute("aria-valuemax", String(bounds?.max || inspectorWidthMax));
+            els.inspectorResizeHandle.setAttribute("aria-valuenow", String(nextWidth));
+        }
+        if (options.persist) {
+            try {
+                window.localStorage?.setItem(inspectorWidthStorageKey, String(nextWidth));
+            } catch (error) {
+                // Width persistence is a convenience; ignore storage failures.
+            }
+        }
+        return nextWidth;
+    }
+
+    function loadStoredInspectorWidth() {
+        try {
+            const storedWidth = Number(window.localStorage?.getItem(inspectorWidthStorageKey));
+            if (Number.isFinite(storedWidth)) {
+                applyInspectorWidth(storedWidth);
+            }
+        } catch (error) {
+            state.inspectorWidth = null;
         }
     }
 
@@ -906,12 +1011,13 @@
         const panels = screen.dashboard_panels && screen.dashboard_panels.length
             ? screen.dashboard_panels
             : defaultDashboardPanels(screenSpec.actions || []);
+        const layout = dashboardLayout(panels);
         setWorkspaceViewKind("dashboard");
         els.mainTitle.textContent = "系统首页";
         els.main.innerHTML = `
-            <div class="tui-dashboard-grid">
+            <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
-                    <section class="tui-dash-panel ${escapeHtml(dashboardPanelClass(panel, index))}" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" tabindex="0" role="button">
+                    <section class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" tabindex="0" role="button">
                         <h3>${escapeHtml(panel.title)}</h3>
                         <div class="tui-loading">读取业务数据...</div>
                     </section>
@@ -974,17 +1080,70 @@
         }));
     }
 
-    function dashboardPanelClass(panel, index) {
-        const layout = panel.layout_area || "";
-        const mapped = {
-            queue: "tui-panel-queue",
-            regime: "tui-panel-regime",
-            pulse: "tui-panel-pulse",
-            account: "tui-panel-account",
-            alpha: "tui-panel-alpha",
-            tasks: "tui-panel-tasks",
-        }[layout];
-        return mapped || ["tui-panel-regime", "tui-panel-pulse", "tui-panel-account", "tui-panel-alpha", "tui-panel-tasks"][index % 5];
+    function dashboardLayout(panels) {
+        const areas = uniqueDashboardAreas(panels);
+        return {
+            areas,
+            gridStyle: [
+                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, 3)}`,
+                `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
+                `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
+                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, 3, "minmax(0, 1fr)")}`,
+                `--tui-dashboard-rows-tablet: ${dashboardRows(areas, 2, "minmax(190px, 1fr)")}`,
+                `--tui-dashboard-rows-mobile: ${dashboardRows(areas, 1, "minmax(174px, auto)")}`,
+            ].join("; "),
+        };
+    }
+
+    function uniqueDashboardAreas(panels) {
+        const counts = new Map();
+        return panels.map((panel, index) => {
+            const source = panel.layout_area || panel.key || `panel-${index + 1}`;
+            const base = sanitizeDashboardArea(source) || `panel_${index + 1}`;
+            const count = counts.get(base) || 0;
+            counts.set(base, count + 1);
+            return count ? `${base}_${count + 1}` : base;
+        });
+    }
+
+    function sanitizeDashboardArea(value) {
+        const normalized = String(value || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "_")
+            .replace(/^[-0-9]+/, "")
+            .replace(/_+/g, "_")
+            .replace(/^_+|_+$/g, "");
+        return normalized && normalized !== "none" ? normalized : "";
+    }
+
+    function dashboardAreaTemplate(areas, columns) {
+        const rows = chunkDashboardAreas(areas, columns);
+        return rows.map((row) => `"${expandDashboardRow(row).join(" ")}"`).join(" ");
+    }
+
+    function dashboardRows(areas, columns, rowSize) {
+        const rowCount = Math.max(1, chunkDashboardAreas(areas, columns).length);
+        return Array.from({ length: rowCount }, () => rowSize).join(" ");
+    }
+
+    function chunkDashboardAreas(areas, columns) {
+        const safeAreas = areas.length ? areas : ["panel_1"];
+        const rows = [];
+        for (let index = 0; index < safeAreas.length; index += columns) {
+            rows.push(safeAreas.slice(index, index + columns));
+        }
+        return rows;
+    }
+
+    function expandDashboardRow(row) {
+        const baseSpan = Math.floor(12 / row.length);
+        let remainder = 12 - baseSpan * row.length;
+        return row.flatMap((area) => {
+            const span = baseSpan + (remainder > 0 ? 1 : 0);
+            remainder -= 1;
+            return Array.from({ length: span }, () => area);
+        });
     }
 
     async function loadDashboardPanel(panel) {
@@ -1001,19 +1160,67 @@
                 method: "POST",
                 body: JSON.stringify({ params: {} }),
             });
-            container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderDashboardPanelBody(panel, result.view_model)}`;
+            if (!renderDashboardRegisteredRenderer(panel, result.view_model, container)) {
+                container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderDashboardPanelBody(panel, result.view_model)}`;
+                processHostSlot(container);
+            }
             setLastRefresh();
         } catch (error) {
             container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderPanelPlaceholder(panel, error.message)}`;
         }
     }
 
+    function renderDashboardRegisteredRenderer(panel, viewModel, container) {
+        const rendererName = String(viewModel?.renderer || "").trim();
+        if (!rendererName || builtInRendererNames.has(rendererName)) {
+            return false;
+        }
+        const renderer = rendererRegistry.get(rendererName);
+        if (!renderer) {
+            return false;
+        }
+        container.innerHTML = `
+            <h3>${escapeHtml(panel.title)}</h3>
+            <div class="tui-extension-host is-dashboard" data-renderer="${escapeHtml(rendererName)}"></div>
+        `;
+        const host = container.querySelector(".tui-extension-host");
+        try {
+            renderer({
+                viewModel,
+                container: host,
+                runtimeConfig,
+                escapeHtml,
+            });
+        } catch (error) {
+            host.innerHTML = renderEmptyState("自定义 renderer 执行失败。", [String(error.message || error)]);
+        }
+        return true;
+    }
+
     function renderDashboardPanelBody(panel, viewModel) {
         if (!viewModel) {
             return renderPanelPlaceholder(panel, "暂无可显示数据。");
         }
+        if (requiresMissingRendererFallback(viewModel)) {
+            return renderExtensionFallback(viewModel);
+        }
         if (panel.kind === "regime_quadrant") {
             return renderRegimePanel(viewModel);
+        }
+        if (viewModel.kind === "chart") {
+            return renderChartMarkup(viewModel, { compact: true });
+        }
+        if (viewModel.kind === "kpi_trend") {
+            return renderKpiTrendMarkup(viewModel, { compact: true });
+        }
+        if (viewModel.kind === "table_chart") {
+            return renderTableChartMarkup(viewModel, { compact: true });
+        }
+        if (viewModel.kind === "host_slot") {
+            return renderHostSlotMarkup(viewModel, { compact: true });
+        }
+        if (viewModel.kind === "custom") {
+            return renderExtensionFallback(viewModel);
         }
         if (viewModel.kind === "datagrid") {
             return renderPanelDataGrid(panel, viewModel);
@@ -1026,7 +1233,7 @@
 
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
-        const regime = pickField(fields, ["dominant_regime", "current_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
+        const regime = pickField(fields, ["current_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
         const confidence = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]) || "-";
         const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
         const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
@@ -1575,9 +1782,6 @@
             summary_id: ["summary_id", "summary.id"],
             log_id: ["log_id", "log.id", "id", "pk"],
             request_id: ["request_id", "request.id"],
-            recommendation_id: ["recommendation_id", "source_id", "item_id", "id", "pk"],
-            plan_id: ["plan_id", "source_id", "item_id", "id", "pk"],
-            approval_request_id: ["approval_request_id", "request_id", "source_id", "item_id", "id", "pk"],
             task_id: ["task_id", "task.id", "id", "pk"],
             provider_id: ["provider_id", "provider.id", "id", "pk"],
             from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
@@ -1678,11 +1882,31 @@
         state.currentViewModel = viewModel;
         setWorkspaceViewKind(viewModel.kind || "message");
         els.mainTitle.textContent = (viewModel.title || "视图").toUpperCase();
-        if (viewModel.kind === "datagrid") {
+        if (renderRegisteredRenderer(viewModel, els.main)) {
+            resetGridState({ preserveRowContext: true });
+        } else if (requiresMissingRendererFallback(viewModel)) {
+            resetGridState({ preserveRowContext: true });
+            renderCustomFallback(viewModel);
+        } else if (viewModel.kind === "datagrid") {
             renderDataGrid(viewModel);
         } else if (viewModel.kind === "detail") {
             resetGridState({ preserveRowContext: true });
             renderDetail(viewModel);
+        } else if (viewModel.kind === "chart") {
+            resetGridState({ preserveRowContext: true });
+            renderChart(viewModel);
+        } else if (viewModel.kind === "kpi_trend") {
+            resetGridState({ preserveRowContext: true });
+            renderKpiTrend(viewModel);
+        } else if (viewModel.kind === "table_chart") {
+            resetGridState({ preserveRowContext: true });
+            renderTableChart(viewModel);
+        } else if (viewModel.kind === "host_slot") {
+            resetGridState({ preserveRowContext: true });
+            renderHostSlot(viewModel);
+        } else if (viewModel.kind === "custom") {
+            resetGridState({ preserveRowContext: true });
+            renderCustomFallback(viewModel);
         } else {
             resetGridState({ preserveRowContext: true });
             renderMessage(viewModel);
@@ -1690,6 +1914,42 @@
         bindDecisionCueActions();
         updatePager(viewModel.pager || null);
         refreshRowFillButtons();
+    }
+
+    function renderRegisteredRenderer(viewModel, container) {
+        const rendererName = String(viewModel.renderer || "").trim();
+        if (!rendererName || builtInRendererNames.has(rendererName)) {
+            return false;
+        }
+        const renderer = rendererRegistry.get(rendererName);
+        if (!renderer) {
+            return false;
+        }
+        container.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || rendererName)}</div>
+            ${renderDecisionCue(viewModel)}
+            <div class="tui-extension-host" data-renderer="${escapeHtml(rendererName)}"></div>
+        `;
+        const host = container.querySelector(".tui-extension-host");
+        try {
+            renderer({
+                viewModel,
+                container: host,
+                runtimeConfig,
+                escapeHtml,
+            });
+        } catch (error) {
+            host.innerHTML = renderEmptyState("自定义 renderer 执行失败。", [String(error.message || error)]);
+        }
+        return true;
+    }
+
+    function requiresMissingRendererFallback(viewModel) {
+        const rendererName = String(viewModel.renderer || "").trim();
+        if (!rendererName || builtInRendererNames.has(rendererName)) {
+            return false;
+        }
+        return ["chart", "kpi_trend", "table_chart", "host_slot", "custom"].includes(viewModel.kind);
     }
 
     function renderDataGrid(viewModel) {
@@ -1778,6 +2038,246 @@
                 ` : ""}
             </div>
         `;
+    }
+
+    function renderChart(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "图表")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderChartMarkup(viewModel)}
+        `;
+    }
+
+    function renderKpiTrend(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "指标趋势")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderKpiTrendMarkup(viewModel)}
+        `;
+    }
+
+    function renderTableChart(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "表格图表")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderTableChartMarkup(viewModel)}
+        `;
+    }
+
+    function renderHostSlot(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "宿主插槽")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderHostSlotMarkup(viewModel)}
+        `;
+        processHostSlot(els.main);
+    }
+
+    function renderCustomFallback(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "自定义视图")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderExtensionFallback(viewModel)}
+        `;
+    }
+
+    function renderChartMarkup(viewModel, options = {}) {
+        const compact = Boolean(options.compact);
+        const chartType = String(viewModel.chart_type || viewModel.renderer || "line").toLowerCase();
+        const points = chartPoints(viewModel);
+        if (!points.length) {
+            return renderEmptyState(viewModel.empty_message || "暂无图表数据。", []);
+        }
+        const svg = chartType === "pie"
+            ? renderPieSvg(points)
+            : chartType === "bar"
+                ? renderBarSvg(points)
+                : renderLineSvg(points);
+        return `
+            <section class="tui-rich-view tui-chart-view ${compact ? "is-compact" : ""}">
+                <div class="tui-rich-header">
+                    <strong>${escapeHtml(viewModel.title || "Chart")}</strong>
+                    <span>${escapeHtml(chartType.toUpperCase())}</span>
+                </div>
+                ${svg}
+                <div class="tui-chart-legend">
+                    ${points.slice(0, compact ? 4 : 8).map((point) => `
+                        <span><i></i>${escapeHtml(point.label)} ${escapeHtml(formatNumber(point.value))}</span>
+                    `).join("")}
+                </div>
+            </section>
+        `;
+    }
+
+    function renderKpiTrendMarkup(viewModel, options = {}) {
+        const points = (viewModel.trend || []).map(normalizePoint).filter(Boolean);
+        const values = points.map((point) => point.value);
+        const first = values[0] || 0;
+        const last = values.length ? values[values.length - 1] : Number.parseFloat(viewModel.value) || 0;
+        const delta = last - first;
+        const directionClass = delta >= 0 ? "is-up" : "is-down";
+        return `
+            <section class="tui-rich-view tui-kpi-view ${options.compact ? "is-compact" : ""}">
+                <div class="tui-kpi-main">
+                    <span>${escapeHtml(viewModel.label || viewModel.title || "KPI")}</span>
+                    <strong>${escapeHtml(viewModel.value || formatNumber(last))}</strong>
+                    <em class="${directionClass}">${delta >= 0 ? "+" : ""}${escapeHtml(formatNumber(delta))}</em>
+                </div>
+                ${points.length ? `<div class="tui-kpi-spark">${renderLineSvg(points, { spark: true })}</div>` : ""}
+            </section>
+        `;
+    }
+
+    function renderTableChartMarkup(viewModel, options = {}) {
+        const chart = viewModel.chart || {};
+        const table = viewModel.table || {};
+        return `
+            <section class="tui-rich-view tui-table-chart-view ${options.compact ? "is-compact" : ""}">
+                ${renderChartMarkup({ ...chart, title: chart.title || viewModel.title }, { compact: options.compact })}
+                <div class="tui-table-chart-grid">
+                    ${renderPanelDataGrid({ max_rows: options.compact ? 4 : 10, columns: table.columns || [] }, table)}
+                </div>
+            </section>
+        `;
+    }
+
+    function renderHostSlotMarkup(viewModel, options = {}) {
+        const allowHostHtml = Boolean(runtimeConfig.allowHostHtmlSlots);
+        const html = String(viewModel.partial_html || "");
+        const message = viewModel.fallback_message || "宿主插槽内容由宿主应用控制。";
+        if (!allowHostHtml || !html) {
+            return `
+                <section class="tui-rich-view tui-host-slot ${options.compact ? "is-compact" : ""}">
+                    <div class="tui-rich-header">
+                        <strong>${escapeHtml(viewModel.slot_key || viewModel.title || "host-slot")}</strong>
+                        <span>HOST SLOT</span>
+                    </div>
+                    ${renderEmptyState(message, allowHostHtml ? [] : ["当前 runtime 未开启 allowHostHtmlSlots。"])}
+                </section>
+            `;
+        }
+        return `
+            <section class="tui-rich-view tui-host-slot ${options.compact ? "is-compact" : ""}" data-host-slot="${escapeHtml(viewModel.slot_key || "")}">
+                ${html}
+            </section>
+        `;
+    }
+
+    function processHostSlot(container) {
+        if (runtimeConfig.allowHostHtmlSlots && window.htmx && typeof window.htmx.process === "function") {
+            container.querySelectorAll(".tui-host-slot").forEach((slot) => window.htmx.process(slot));
+        }
+    }
+
+    function renderExtensionFallback(viewModel) {
+        const rendererName = String(viewModel.renderer || "").trim() || "custom";
+        return renderEmptyState(
+            viewModel.fallback_message || `没有注册 renderer: ${rendererName}`,
+            ["宿主可以通过 window.AgomTUIRenderers.register(name, rendererFn) 注册扩展。"],
+        );
+    }
+
+    function chartPoints(viewModel) {
+        const series = Array.isArray(viewModel.series) ? viewModel.series : [];
+        const firstSeries = series.find((item) => Array.isArray(item?.points));
+        const points = firstSeries ? firstSeries.points : (Array.isArray(viewModel.points) ? viewModel.points : []);
+        return points.map(normalizePoint).filter(Boolean);
+    }
+
+    function normalizePoint(point, index = 0) {
+        if (point === null || point === undefined) {
+            return null;
+        }
+        if (typeof point === "number") {
+            return { label: String(index + 1), value: point };
+        }
+        const value = Number.parseFloat(point.value ?? point.y ?? point.count ?? point.total);
+        if (!Number.isFinite(value)) {
+            return null;
+        }
+        return {
+            label: String(point.label ?? point.x ?? point.name ?? index + 1),
+            value,
+        };
+    }
+
+    function chartScale(points, width, height, padding) {
+        const values = points.map((point) => point.value);
+        const min = Math.min(0, ...values);
+        const max = Math.max(1, ...values);
+        const span = max - min || 1;
+        return {
+            x(index) {
+                if (points.length <= 1) {
+                    return width / 2;
+                }
+                return padding + (index / (points.length - 1)) * (width - padding * 2);
+            },
+            y(value) {
+                return height - padding - ((value - min) / span) * (height - padding * 2);
+            },
+        };
+    }
+
+    function renderLineSvg(points, options = {}) {
+        const width = options.spark ? 240 : 640;
+        const height = options.spark ? 72 : 220;
+        const padding = options.spark ? 8 : 28;
+        const scale = chartScale(points, width, height, padding);
+        const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${scale.x(index).toFixed(1)} ${scale.y(point.value).toFixed(1)}`).join(" ");
+        return `
+            <svg class="tui-chart-svg ${options.spark ? "is-spark" : ""}" viewBox="0 0 ${width} ${height}" role="img">
+                <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
+                <path class="tui-chart-line" d="${escapeHtml(path)}"></path>
+                ${points.map((point, index) => `<circle class="tui-chart-point" cx="${scale.x(index).toFixed(1)}" cy="${scale.y(point.value).toFixed(1)}" r="${options.spark ? 2 : 3}"></circle>`).join("")}
+            </svg>
+        `;
+    }
+
+    function renderBarSvg(points) {
+        const width = 640;
+        const height = 220;
+        const padding = 28;
+        const max = Math.max(1, ...points.map((point) => point.value));
+        const barGap = 8;
+        const barWidth = Math.max(8, (width - padding * 2 - barGap * (points.length - 1)) / points.length);
+        return `
+            <svg class="tui-chart-svg" viewBox="0 0 ${width} ${height}" role="img">
+                <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
+                ${points.map((point, index) => {
+                    const x = padding + index * (barWidth + barGap);
+                    const barHeight = Math.max(2, (point.value / max) * (height - padding * 2));
+                    const y = height - padding - barHeight;
+                    return `<rect class="tui-chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}"></rect>`;
+                }).join("")}
+            </svg>
+        `;
+    }
+
+    function renderPieSvg(points) {
+        const total = points.reduce((sum, point) => sum + Math.max(0, point.value), 0) || 1;
+        let offset = 0;
+        const slices = points.map((point, index) => {
+            const value = Math.max(0, point.value);
+            const dash = (value / total) * 100;
+            const slice = `<circle class="tui-chart-pie-slice slice-${index % 6}" r="70" cx="100" cy="100" pathLength="100" stroke-dasharray="${dash} ${100 - dash}" stroke-dashoffset="${-offset}"></circle>`;
+            offset += dash;
+            return slice;
+        }).join("");
+        return `
+            <svg class="tui-chart-svg tui-chart-pie" viewBox="0 0 200 200" role="img">
+                ${slices}
+                <circle class="tui-chart-pie-hole" r="38" cx="100" cy="100"></circle>
+            </svg>
+        `;
+    }
+
+    function formatNumber(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return String(value ?? "-");
+        }
+        return Math.abs(number) >= 100 ? number.toFixed(0) : number.toFixed(2).replace(/\.00$/, "");
     }
 
     function renderDetail(viewModel) {
@@ -1920,6 +2420,24 @@
             const fields = (viewModel.fields || []).length;
             const nested = (viewModel.nested || []).reduce((count, item) => count + Number(item.count || 0), 0);
             return nested ? `详情 ${fields} 项，关联 ${nested} 行` : `详情 ${fields} 项`;
+        }
+        if (viewModel.kind === "chart") {
+            const points = chartPoints(viewModel).length;
+            return `图表 ${points} 点`;
+        }
+        if (viewModel.kind === "kpi_trend") {
+            const points = (viewModel.trend || []).length;
+            return points ? `指标趋势 ${points} 点` : "指标趋势";
+        }
+        if (viewModel.kind === "table_chart") {
+            const rows = viewModel.table?.rows?.length || 0;
+            return `图表表格 ${rows} 行`;
+        }
+        if (viewModel.kind === "host_slot") {
+            return "宿主插槽";
+        }
+        if (viewModel.kind === "custom") {
+            return `自定义 ${viewModel.renderer || "renderer"}`;
         }
         const sections = (viewModel.sections || []).length;
         return sections ? `消息 ${sections} 段` : "消息结果";
@@ -2551,6 +3069,75 @@
         }
     }
 
+    function widthFromInspectorResizePointer(event) {
+        const grid = inspectorGrid();
+        if (!grid) {
+            return null;
+        }
+        const rect = grid.getBoundingClientRect();
+        return rect.right - event.clientX;
+    }
+
+    function beginInspectorResize(event) {
+        if (state.inspectorCollapsed || event.button !== 0 || !inspectorWidthBounds()) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        els.app?.classList.add("is-inspector-resizing");
+        els.inspectorResizeHandle?.setPointerCapture?.(event.pointerId);
+        applyInspectorWidth(widthFromInspectorResizePointer(event));
+
+        const onPointerMove = (moveEvent) => {
+            moveEvent.preventDefault();
+            applyInspectorWidth(widthFromInspectorResizePointer(moveEvent));
+        };
+        const onPointerUp = (upEvent) => {
+            upEvent.preventDefault();
+            els.app?.classList.remove("is-inspector-resizing");
+            els.inspectorResizeHandle?.releasePointerCapture?.(event.pointerId);
+            els.inspectorResizeHandle?.removeEventListener("pointermove", onPointerMove);
+            els.inspectorResizeHandle?.removeEventListener("pointerup", onPointerUp);
+            els.inspectorResizeHandle?.removeEventListener("pointercancel", onPointerUp);
+            applyInspectorWidth(state.inspectorWidth, { persist: true });
+            setStatus(`说明栏宽度 ${state.inspectorWidth}px`);
+        };
+
+        els.inspectorResizeHandle?.addEventListener("pointermove", onPointerMove);
+        els.inspectorResizeHandle?.addEventListener("pointerup", onPointerUp);
+        els.inspectorResizeHandle?.addEventListener("pointercancel", onPointerUp);
+    }
+
+    function resizeInspectorByKeyboard(event) {
+        if (state.inspectorCollapsed) {
+            return;
+        }
+        const bounds = inspectorWidthBounds();
+        if (!bounds) {
+            return;
+        }
+        const currentWidth = state.inspectorWidth || els.inspectorShell?.getBoundingClientRect().width || bounds.min;
+        let nextWidth = null;
+        if (event.key === "ArrowLeft") {
+            nextWidth = currentWidth + (event.shiftKey ? 48 : 16);
+        } else if (event.key === "ArrowRight") {
+            nextWidth = currentWidth - (event.shiftKey ? 48 : 16);
+        } else if (event.key === "Home") {
+            nextWidth = bounds.min;
+        } else if (event.key === "End") {
+            nextWidth = bounds.max;
+        }
+        if (nextWidth === null) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const appliedWidth = applyInspectorWidth(nextWidth, { persist: true });
+        if (appliedWidth) {
+            setStatus(`说明栏宽度 ${appliedWidth}px`);
+        }
+    }
+
     function focusActionFilter() {
         const input = els.actions.querySelector("[data-action-filter]");
         if (input) {
@@ -2782,7 +3369,7 @@
     }
 
     function isInteractiveTarget(target) {
-        return Boolean(target?.closest?.("button, a, input, textarea, select, summary, [role='button'], [contenteditable='true']"));
+        return Boolean(target?.closest?.("button, a, input, textarea, select, summary, [role='button'], [role='separator'], [contenteditable='true']"));
     }
 
     function closeTopLayer() {
@@ -2900,6 +3487,8 @@
         els.filterClear.addEventListener("click", clearFilter);
         els.railToggle?.addEventListener("click", toggleRail);
         els.inspectorToggle?.addEventListener("click", toggleInspector);
+        els.inspectorResizeHandle?.addEventListener("pointerdown", beginInspectorResize);
+        els.inspectorResizeHandle?.addEventListener("keydown", resizeInspectorByKeyboard);
         document.querySelectorAll("[data-menu-command]").forEach((button) => {
             button.addEventListener("click", (event) => {
                 event.stopPropagation();
@@ -2970,6 +3559,7 @@
 
     loadStoredProgress();
     applyTheme(loadStoredTheme(), { silent: true });
+    loadStoredInspectorWidth();
     bindControls();
     updateClock();
     window.setInterval(updateClock, 1000);
