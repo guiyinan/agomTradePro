@@ -170,6 +170,8 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "T:B" in html
     assert "data-toggle-rail" in html
     assert "data-toggle-inspector" in html
+    assert "data-inspector-resize-handle" in html
+    assert 'aria-label="调整说明栏宽度"' in html
     assert 'tabindex="-1"' in html
     assert "home-layout" not in html
     assert "tui-theme.css" not in html
@@ -228,10 +230,15 @@ def test_tui_workbench_uses_system_cursor_and_collapsible_sidebars():
     assert "bindBlockCursor" not in script
     assert "function toggleRail" in script
     assert "function toggleInspector" in script
+    assert "function beginInspectorResize" in script
+    assert "function resizeInspectorByKeyboard" in script
+    assert "inspectorWidthStorageKey" in script
     assert "data-toggle-rail" in script
     assert "data-toggle-inspector" in script
+    assert "data-inspector-resize-handle" in script
     assert ".tui-app.is-rail-collapsed" in css
     assert ".tui-app.is-inspector-collapsed" in css
+    assert ".tui-inspector-resize-handle" in css
     assert ".tui-row-fill-button:disabled" in css
 
 
@@ -478,6 +485,10 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert "function isAdvancedAction" in script
     assert "function actionTier" in script
     assert "function dashboardTargetScreen" in script
+    assert '"today-queue": "command-center.decision-flow"' in script
+    assert 'queue: "command-center.decision-flow"' in script
+    assert "function dashboardLayout(panels)" in script
+    assert "function dashboardAreaTemplate(areas, columns)" in script
     assert "data-toggle-support" in script
     assert "data-toggle-advanced" in script
     assert "data-dashboard-target" in script

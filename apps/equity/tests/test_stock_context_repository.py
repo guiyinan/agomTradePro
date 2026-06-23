@@ -226,6 +226,23 @@ def test_get_stock_context_rows_does_not_fallback_to_legacy_equity_fundamentals(
 
 
 @pytest.mark.django_db
+def test_resolve_stock_names_falls_back_to_data_center_asset_master():
+    AssetMasterModel.objects.create(
+        code="600025.SH",
+        name="华能水电",
+        short_name="华能水电",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+
+    result = DjangoStockRepository().resolve_stock_names(["600025.SH", "600025"])
+
+    assert result["600025.SH"] == "华能水电"
+    assert result["600025"] == "华能水电"
+
+
+@pytest.mark.django_db
 def test_list_active_stock_codes_includes_price_covered_canonical_assets():
     AssetMasterModel.objects.create(
         code="600025.SH",

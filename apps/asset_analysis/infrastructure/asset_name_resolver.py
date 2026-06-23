@@ -19,7 +19,7 @@ from core.integration.asset_analysis_market_registry import (
 
 logger = logging.getLogger(__name__)
 
-CACHE_PREFIX = "asset_names:v3"
+CACHE_PREFIX = "asset_names:v4"
 CACHE_TTL = 3600
 
 

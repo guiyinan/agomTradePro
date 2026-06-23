@@ -40,6 +40,7 @@
     --tui-status-height: 28px;
     --tui-footer-height: 30px;
     --tui-gap: 4px;
+    --tui-inspector-collapsed-width: 32px;
 }
 
 * {
@@ -908,9 +909,11 @@ a {
 }
 
 .tui-workspace-grid {
+    --tui-inspector-default-width: minmax(252px, 0.92fr);
+    --tui-inspector-width: var(--tui-inspector-user-width, var(--tui-inspector-default-width));
     flex: 1 1 auto;
     display: grid;
-    grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) minmax(252px, 0.92fr);
+    grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) var(--tui-inspector-width);
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas:
         "actions main inspector";
@@ -930,7 +933,8 @@ a {
 
 .tui-workspace-grid[data-view-kind="detail"],
 .tui-workspace-grid[data-view-kind="message"] {
-    grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) minmax(280px, 1.04fr);
+    --tui-inspector-default-width: minmax(280px, 1.04fr);
+    grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) var(--tui-inspector-width);
 }
 
 .tui-actions-panel {
@@ -947,11 +951,51 @@ a {
 
 .tui-inspector-panel {
     grid-area: inspector;
+    position: relative;
     min-inline-size: 24ch;
 }
 
+.tui-inspector-resize-handle {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -5px;
+    z-index: 2;
+    width: 9px;
+    cursor: col-resize;
+    outline: none;
+}
+
+.tui-inspector-resize-handle::after {
+    content: "";
+    position: absolute;
+    inset-block: 7px;
+    inset-inline-start: 4px;
+    width: 1px;
+    background: transparent;
+}
+
+.tui-inspector-resize-handle:hover::after,
+.tui-inspector-resize-handle:focus::after,
+.tui-app.is-inspector-resizing .tui-inspector-resize-handle::after {
+    background: var(--tui-accent);
+}
+
+.tui-app.is-inspector-resizing,
+.tui-app.is-inspector-resizing * {
+    cursor: col-resize;
+    user-select: none;
+}
+
 .tui-app.is-inspector-collapsed .tui-workspace-grid {
-    grid-template-columns: minmax(208px, 0.7fr) minmax(0, 1.38fr) 32px;
+    grid-template-columns: minmax(208px, 0.7fr) minmax(0, 1.38fr) var(--tui-inspector-collapsed-width);
+}
+
+.tui-app.is-inspector-collapsed .tui-inspector-panel {
+    min-inline-size: 0;
+}
+
+.tui-app.is-inspector-collapsed .tui-inspector-resize-handle {
+    display: none;
 }
 
 .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-body {
@@ -961,12 +1005,20 @@ a {
 .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-title {
     flex: 1 1 auto;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 8px;
     min-height: 0;
     padding: 6px 2px;
     border-bottom: 0;
     writing-mode: vertical-rl;
+}
+
+.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-titlebar-text {
+    flex: 1 1 auto;
+}
+
+.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-collapse-button {
+    flex: 0 0 auto;
 }
 
 .tui-workflow-strip {
@@ -1217,11 +1269,8 @@ a {
 .tui-dashboard-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 0.85fr) minmax(0, 0.9fr) minmax(0, 1fr);
-    grid-template-areas:
-        "queue queue queue queue queue queue queue queue queue queue queue queue"
-        "regime regime regime pulse pulse pulse pulse account account account account account"
-        "alpha alpha alpha tasks tasks tasks tasks tasks tasks tasks tasks tasks";
+    grid-template-rows: var(--tui-dashboard-rows-desktop, minmax(0, 1fr));
+    grid-template-areas: var(--tui-dashboard-areas-desktop, "panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1 panel_1");
     gap: var(--tui-gap);
     height: 100%;
     min-height: 0;
@@ -1256,30 +1305,6 @@ a {
     color: var(--tui-text);
     font: 15px/1.2 var(--tui-mono);
     letter-spacing: 0;
-}
-
-.tui-panel-regime {
-    grid-area: regime;
-}
-
-.tui-panel-queue {
-    grid-area: queue;
-}
-
-.tui-panel-pulse {
-    grid-area: pulse;
-}
-
-.tui-panel-account {
-    grid-area: account;
-}
-
-.tui-panel-alpha {
-    grid-area: alpha;
-}
-
-.tui-panel-tasks {
-    grid-area: tasks;
 }
 
 .tui-quadrant {
@@ -1629,6 +1654,153 @@ a {
     background: var(--tui-accent);
     color: var(--tui-inverse);
     outline: 1px solid var(--tui-text);
+}
+
+.tui-rich-view {
+    border: 1px solid var(--tui-border);
+    background: color-mix(in srgb, var(--tui-panel) 86%, var(--tui-bg));
+    padding: 12px;
+    min-height: 160px;
+}
+
+.tui-rich-view.is-compact {
+    min-height: 120px;
+    padding: 8px;
+}
+
+.tui-rich-header,
+.tui-chart-legend,
+.tui-kpi-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tui-rich-header {
+    margin-bottom: 8px;
+    color: var(--tui-text);
+}
+
+.tui-rich-header span {
+    color: var(--tui-muted);
+    font-size: 11px;
+}
+
+.tui-chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 140px;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--tui-border-dim) 65%, transparent) 1px, transparent 1px),
+        linear-gradient(0deg, color-mix(in srgb, var(--tui-border-dim) 65%, transparent) 1px, transparent 1px);
+    background-size: 48px 32px;
+}
+
+.tui-chart-svg.is-spark {
+    min-height: 48px;
+    background-size: 32px 24px;
+}
+
+.tui-chart-gridline {
+    fill: none;
+    stroke: var(--tui-border-dim);
+    stroke-width: 1;
+}
+
+.tui-chart-line {
+    fill: none;
+    stroke: var(--tui-accent);
+    stroke-width: 3;
+}
+
+.tui-chart-point,
+.tui-chart-bar {
+    fill: var(--tui-accent-strong);
+}
+
+.tui-chart-legend {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    color: var(--tui-muted);
+    font-size: 12px;
+}
+
+.tui-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tui-chart-legend i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--tui-accent);
+}
+
+.tui-chart-pie {
+    max-height: 220px;
+}
+
+.tui-chart-pie-slice {
+    fill: none;
+    stroke: var(--tui-accent);
+    stroke-width: 36;
+    transform: rotate(-90deg);
+    transform-origin: 100px 100px;
+}
+
+.tui-chart-pie-slice.slice-1 { stroke: var(--tui-accent-strong); }
+.tui-chart-pie-slice.slice-2 { stroke: var(--tui-green); }
+.tui-chart-pie-slice.slice-3 { stroke: var(--tui-warn); }
+.tui-chart-pie-slice.slice-4 { stroke: var(--tui-danger); }
+.tui-chart-pie-slice.slice-5 { stroke: var(--tui-muted); }
+
+.tui-chart-pie-hole {
+    fill: var(--tui-panel);
+}
+
+.tui-kpi-view {
+    min-height: 120px;
+}
+
+.tui-kpi-main strong {
+    font-size: 28px;
+    color: var(--tui-text);
+}
+
+.tui-kpi-main em {
+    font-style: normal;
+}
+
+.tui-kpi-main em.is-up {
+    color: var(--tui-green);
+}
+
+.tui-kpi-main em.is-down {
+    color: var(--tui-danger);
+}
+
+.tui-kpi-spark {
+    margin-top: 10px;
+}
+
+.tui-table-chart-view {
+    display: grid;
+    grid-template-rows: auto minmax(120px, 1fr);
+    gap: 10px;
+}
+
+.tui-table-chart-grid {
+    min-height: 0;
+}
+
+.tui-extension-host,
+.tui-host-slot {
+    min-height: 120px;
 }
 
 .tui-detail-grid,
@@ -2026,6 +2198,17 @@ a {
     white-space: nowrap;
 }
 
+.tui-function-bar .tui-framework-credit {
+    margin-left: auto;
+    min-width: 244px;
+    max-width: none;
+    justify-content: flex-end;
+    border-right: 0;
+    padding-right: 12px;
+    color: var(--tui-footer-text);
+    opacity: 0.9;
+}
+
 .tui-function-bar [data-theme-indicator] {
     flex: 0 0 108px;
 }
@@ -2112,14 +2295,8 @@ a {
 
     .tui-dashboard-grid {
         grid-template-columns: minmax(250px, 1fr);
-        grid-template-areas:
-            "queue"
-            "regime"
-            "pulse"
-            "account"
-            "alpha"
-            "tasks";
-        grid-template-rows: repeat(6, minmax(174px, auto));
+        grid-template-areas: var(--tui-dashboard-areas-mobile, "panel_1");
+        grid-template-rows: var(--tui-dashboard-rows-mobile, minmax(174px, auto));
         height: auto;
         min-height: 100%;
     }
@@ -2139,7 +2316,7 @@ a {
     }
 
     .tui-app.is-inspector-collapsed .tui-workspace-grid {
-        grid-template-rows: minmax(90px, 0.28fr) minmax(0, 1fr) 32px;
+        grid-template-rows: minmax(90px, 0.28fr) minmax(0, 1fr) var(--tui-inspector-collapsed-width);
         grid-template-columns: 1fr;
     }
 
@@ -2172,6 +2349,12 @@ a {
         flex: 0 0 88px;
         font-size: 13px;
     }
+
+    .tui-function-bar .tui-framework-credit {
+        flex: 0 0 220px;
+        justify-content: center;
+        padding-right: 8px;
+    }
 }
 
 @media (min-width: 981px) and (max-width: 1180px) {
@@ -2190,11 +2373,7 @@ a {
 
     .tui-dashboard-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-areas:
-            "queue queue"
-            "regime pulse"
-            "account account"
-            "alpha tasks";
-        grid-template-rows: repeat(4, minmax(190px, 1fr));
+        grid-template-areas: var(--tui-dashboard-areas-tablet, "panel_1 panel_1");
+        grid-template-rows: var(--tui-dashboard-rows-tablet, minmax(190px, 1fr));
     }
 }

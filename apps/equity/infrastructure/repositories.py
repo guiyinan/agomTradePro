@@ -433,7 +433,23 @@ class DjangoStockRepository:
                 if model is not None and model.name:
                     resolved[requested_code] = model.name
                     break
+            if requested_code not in resolved:
+                data_center_name = self._resolve_stock_name_from_data_center(requested_code)
+                if data_center_name:
+                    resolved[requested_code] = data_center_name
         return resolved
+
+    def _resolve_stock_name_from_data_center(self, stock_code: str) -> str:
+        """Resolve a stock display name from data_center asset master data."""
+
+        for candidate in self._build_stock_code_candidates(stock_code):
+            asset = self._dc_asset_repo.get_by_code(candidate)
+            if asset is None or not asset.is_active:
+                continue
+            name = str(asset.short_name or asset.name or "").strip()
+            if name:
+                return name
+        return ""
 
     def get_stock_context_rows(self, stock_codes: list[str]) -> dict[str, dict[str, Any]]:
         """Return stock info plus latest market and canonical fundamental context."""

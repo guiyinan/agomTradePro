@@ -26,11 +26,13 @@ class AssetNameResolverTest(TestCase):
 
     def setUp(self):
         """准备测试数据"""
+        from apps.data_center.infrastructure.models import AssetMasterModel
         from apps.equity.infrastructure.models import StockInfoModel
         from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()
+        AssetMasterModel.objects.all().delete()
         StockInfoModel.objects.all().delete()
         FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
@@ -95,11 +97,13 @@ class AssetNameResolverTest(TestCase):
 
     def tearDown(self):
         """清理测试数据"""
+        from apps.data_center.infrastructure.models import AssetMasterModel
         from apps.equity.infrastructure.models import StockInfoModel
         from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()
+        AssetMasterModel.objects.all().delete()
         StockInfoModel.objects.all().delete()
         FundHoldingModel.objects.all().delete()
         FundInfoModel.objects.all().delete()
@@ -156,6 +160,27 @@ class AssetNameResolverTest(TestCase):
         result = resolver.resolve_asset_names(["300308.SZ"])
 
         self.assertEqual(result.get("300308.SZ"), "中际旭创")
+
+    def test_resolve_stock_names_from_data_center_when_stock_info_missing(self):
+        """测试 StockInfo 缺失时从 data_center 资产主数据回填股票名称。"""
+        from apps.data_center.infrastructure.models import AssetMasterModel
+        from apps.equity.infrastructure.models import StockInfoModel
+
+        StockInfoModel.objects.filter(stock_code="600025.SH").delete()
+        AssetMasterModel.objects.create(
+            code="600025.SH",
+            name="华能水电",
+            short_name="华能水电",
+            asset_type="stock",
+            exchange="SSE",
+            is_active=True,
+        )
+        cache.clear()
+
+        resolver = AssetNameResolver()
+        result = resolver.resolve_asset_names(["600025.SH"])
+
+        self.assertEqual(result.get("600025.SH"), "华能水电")
 
     def test_resolve_single_code(self):
         """测试解析单个代码"""
