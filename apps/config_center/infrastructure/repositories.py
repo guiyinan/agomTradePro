@@ -66,6 +66,13 @@ class ConfigCenterSettingsRepository:
         elif model_root.exists() and not model_root.is_dir():
             validation_errors.append("Qlib model_root 不是目录")
 
+        active_model_updated_at = None
+        if active_model is not None:
+            active_model_updated_at = (
+                getattr(active_model, "activated_at", None)
+                or getattr(active_model, "created_at", None)
+            )
+
         return {
             "configured": bool(runtime.get("is_configured")),
             "enabled": bool(runtime.get("enabled")),
@@ -87,7 +94,11 @@ class ConfigCenterSettingsRepository:
                     "model_type": active_model.model_type,
                     "feature_set_id": active_model.feature_set_id,
                     "label_id": active_model.label_id,
-                    "updated_at": active_model.updated_at.isoformat(),
+                    "updated_at": (
+                        active_model_updated_at.isoformat()
+                        if active_model_updated_at is not None
+                        else None
+                    ),
                 }
                 if active_model is not None
                 else None

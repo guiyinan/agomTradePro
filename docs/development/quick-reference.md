@@ -137,7 +137,7 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 - 所有颜色必须走统一 theme token：`background / panelBackground / primaryText / secondaryText / border / highlight / accent / success / warning / error / grid`；不得在组件内新增写死颜色。
 - 经典页面平替 screen 应提供 `default_action_key`，避免进入页面后只是空任务选择器。
 - 首页/总览用 `dashboard_panels` 组合已审核 action，不在 JavaScript 里硬编码业务行。
-- 当前发布基线：34+ 个 screen、319 个 published action；其中 203 个可直接打开、109 个需要输入字段，276+ 个 action 已提升到决策、账户、策略、风控、研究、事件监控、分享、AI 和数据中心业务 screen。
+- 当前发布基线：37 个 screen、367 个 published action；其中 215 个可直接打开、139 个需要输入字段，319 个 action 已提升到决策、账户、策略、风控、研究、事件监控、分享、AI、数据中心与管理员配置 screen。当前 `smoke_total=354`、`smoke_error=0`、`smoke_pruned_auto_actions=0`；`audit.summary` 已改为带必填日期的只读查询，`api-library.config-center` 仅对 admin 用户可见。2026-06-22 本地重跑 smoke 时，Alpha 降级、Celery 无 worker、task monitor preflight 这类预期降级路径不再额外刷 warning；同日 live UAT 已验证 37 个 screen 默认 action、典型必填参数提示和典型确认前拦截链路，后续补测又确认账户/模拟账户 `performance-report`、`valuation-snapshot` 实参链路恢复可用，策略缺失 `ai_config` / `script_config` 时会显示 `暂无数据`。同日还修复了观察授权详情/持仓对非法 UUID 输入返回 `400` 而非 `502`，移除了误发布的 `evaluate_position_management` GET 动作和 share public `.../access/` 的误发布 GET 版本，并补回已审核的 `share.public.access` POST 访问动作；TUI 内部转发也会保留 session，使密码保护的公开分享在工作台中返回可读 `401`/密码挑战并支持同会话继续读取快照，而不是 `502`。同一轮还改进了详情页渲染：`success=true` 这类包装字段不再直接展示，单对象但带嵌套列表的响应会优先按 detail 呈现，而不是误判成 datagrid。metadata compiler 现会在重编译时回填这类已批准参数化读动作缺失的 query 字段，并清理已失效的参数化只读动作。当前单测还额外锁住了整张发布图的 143 个必填参数 action 和 13 个 `write/admin` action 契约。
 
 ```powershell
 # 导出 Django model / domain dataclass compile-time contracts

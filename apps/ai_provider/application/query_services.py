@@ -24,6 +24,15 @@ def list_active_provider_summaries() -> list[dict[str, Any]]:
     ]
 
 
+def has_user_personal_providers(user: Any | None) -> bool:
+    """Return whether the authenticated user has any personal provider rows."""
+
+    if user is None or not bool(getattr(user, "is_authenticated", False)):
+        return False
+    providers = get_ai_provider_repository().get_user_providers(user, include_inactive=True)
+    return bool(providers)
+
+
 def list_supported_models(provider_name: str | None = None) -> list[str]:
     """Return models for the requested provider name/type or all active providers."""
 

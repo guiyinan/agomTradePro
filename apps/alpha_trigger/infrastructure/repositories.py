@@ -678,9 +678,9 @@ class AlphaCandidateRepository:
         queryset = self.model.objects.filter(created_at__gte=since)
 
         total = queryset.count()
-        actionable = queryset.actionable().count()
-        watch = queryset.watch().count()
-        candidate = queryset.candidate().count()
+        actionable = queryset.filter(status=self.model.ACTIONABLE).count()
+        watch = queryset.filter(status=self.model.WATCH).count()
+        candidate = queryset.filter(status=self.model.CANDIDATE).count()
 
         # 按状态分组
         by_status = {}

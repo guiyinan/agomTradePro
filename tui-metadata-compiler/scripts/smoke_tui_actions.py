@@ -9,6 +9,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+PRUNABLE_AUTO_SOURCES = {
+    "api-collector:candidate",
+    "api-collector:parameterized-candidate",
+    "approved:smoke-promoted",
+    "approved:parameterized-promoted",
+}
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -44,6 +51,10 @@ def _user(username: str | None) -> Any:
     if user is not None:
         return user
     return user_model(username="tui-smoke")
+
+
+def _should_prune_failed_action(action: dict[str, Any]) -> bool:
+    return str(action.get("source") or "") in PRUNABLE_AUTO_SOURCES
 
 
 def main() -> int:
@@ -191,10 +202,7 @@ def main() -> int:
         pruned_actions = [
             action
             for action in metadata["actions"]
-            if not (
-                action["key"] in failed_keys
-                and str(action.get("source")) == "api-collector:candidate"
-            )
+            if not (action["key"] in failed_keys and _should_prune_failed_action(action))
         ]
         pruned["actions"] = pruned_actions
         coverage = dict(pruned.get("coverage_summary") or {})

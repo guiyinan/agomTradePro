@@ -585,7 +585,7 @@ class TuiWorkbenchRegistryView(APIView):
         return Response(
             TuiWorkbenchRegistry(
                 metadata_repository=get_tui_metadata_repository(),
-            ).list_modules()
+            ).list_modules(user=request.user)
         )
 
 
@@ -600,7 +600,7 @@ class TuiWorkbenchModuleSnapshotView(APIView):
         return Response(
             TuiWorkbenchRegistry(
                 metadata_repository=get_tui_metadata_repository(),
-            ).get_module_snapshot(module_key)
+            ).get_module_snapshot(module_key, user=request.user)
         )
 
 
@@ -613,7 +613,7 @@ class TuiWorkbenchCatalogView(APIView):
         """Return grouped modules, screens, and safe actions."""
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
-        return Response(service.get_catalog())
+        return Response(service.get_catalog(user=request.user))
 
 
 class TuiWorkbenchScreenView(APIView):
@@ -625,7 +625,7 @@ class TuiWorkbenchScreenView(APIView):
         """Return a screen spec with actions and layout policy."""
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
-        return Response(service.get_screen(screen_key))
+        return Response(service.get_screen(screen_key, user=request.user))
 
 
 class TuiWorkbenchActionRunView(APIView):
@@ -645,6 +645,7 @@ class TuiWorkbenchActionRunView(APIView):
                 action_key=action_key,
                 params=request.data.get("params", {}) if isinstance(request.data, dict) else {},
                 user=request.user,
+                session=getattr(request, "session", None),
                 confirmed=bool(request.data.get("confirmed", False)) if isinstance(request.data, dict) else False,
             )
         except KeyError:

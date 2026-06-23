@@ -4,6 +4,7 @@ Unit tests for health check endpoints.
 Tests the liveness and readiness probes for Kubernetes deployment.
 """
 
+import logging
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -107,6 +108,28 @@ class TestHealthCheckFunctions:
         result = check_redis()
         assert result['status'] == 'error'
         assert 'error' in result
+
+    @patch('core.health_checks.logger')
+    @patch('core.celery.app')
+    @patch('django.conf.settings')
+    def test_check_celery_connection_error_is_debug_only(
+        self,
+        mock_settings,
+        mock_celery_app,
+        mock_logger,
+        db,
+    ):
+        """Celery connection refusal should not spam warning logs in degraded local mode."""
+        from core.health_checks import check_celery
+
+        mock_settings.CELERY_TASK_ALWAYS_EAGER = False
+        mock_celery_app.control.ping.side_effect = ConnectionError("refused")
+
+        result = check_celery()
+
+        assert result['status'] == 'error'
+        mock_logger.debug.assert_called_once()
+        mock_logger.warning.assert_not_called()
 
     def test_run_readiness_checks(self, db):
         """Test readiness checks runs all checks"""

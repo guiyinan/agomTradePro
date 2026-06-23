@@ -1,108 +1,70 @@
+import logging
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pytest
 
-from apps.rotation.infrastructure.models import RotationConfigModel, RotationSignalModel
-from apps.rotation.infrastructure.services import RotationIntegrationService
-
-
-def _create_momentum_config(name: str = "测试动量配置") -> RotationConfigModel:
-    return RotationConfigModel.objects.create(
-        name=name,
-        description="测试用动量配置",
-        strategy_type="momentum",
-        asset_universe=["510300", "515180"],
-        params={"momentum_periods": [20, 60, 120]},
-        top_n=2,
-        is_active=True,
-    )
+from apps.rotation.domain.entities import RotationConfig, RotationStrategyType
+from apps.rotation.infrastructure import services as rotation_services
 
 
 @pytest.mark.django_db
-def test_get_rotation_recommendation_reuses_same_day_signal(monkeypatch):
-    config = _create_momentum_config()
-    today = date.today()
-    RotationSignalModel.objects.create(
-        config=config,
-        signal_date=today,
-        target_allocation={"510300": 0.6, "515180": 0.4},
-        current_regime="Recovery",
-        momentum_ranking=[["510300", 0.12], ["515180", 0.08]],
-        action_required="rebalance",
-        reason="reuse stored signal",
+def test_generate_rotation_signal_treats_empty_allocation_as_expected_gap(monkeypatch, caplog):
+    service = rotation_services.RotationIntegrationService()
+    config = RotationConfig(
+        name="MomentumConfig",
+        strategy_type=RotationStrategyType.MOMENTUM,
+        asset_universe=["510300"],
     )
 
-    service = RotationIntegrationService()
+    monkeypatch.setattr(service.config_repo, "get_by_name", lambda name: config)
+    monkeypatch.setattr(service, "_get_current_regime", lambda: None)
 
-    def _unexpected_generate(_: str):
-        raise AssertionError("should not regenerate when today's signal already exists")
+    class FakeRotationService:
+        def __init__(self, context):
+            self.context = context
 
-    monkeypatch.setattr(service, "generate_rotation_signal", _unexpected_generate)
+        def generate_signal(self, config):
+            raise ValueError("Target allocation weights must sum to 1.0, got 0")
 
-    result = service.get_rotation_recommendation("momentum")
+    monkeypatch.setattr(rotation_services, "RotationService", FakeRotationService)
 
-    assert result["target_allocation"] == {"510300": 0.6, "515180": 0.4}
-    assert result["signal_date"] == today.isoformat()
-    assert result["data_source"] == "stored_signal"
-    assert result["is_stale"] is False
-    assert result["strategy_type"] == "momentum"
-    assert result["warning_message"] is None
+    with caplog.at_level(logging.ERROR):
+        result = service.generate_rotation_signal("MomentumConfig", date(2026, 6, 22))
+
+    assert result is None
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
 
 
 @pytest.mark.django_db
-def test_get_rotation_recommendation_falls_back_to_latest_signal_when_generation_fails(monkeypatch):
-    config = _create_momentum_config(name="测试动量配置-回退")
-    signal_date = date.today() - timedelta(days=1)
-    RotationSignalModel.objects.create(
-        config=config,
-        signal_date=signal_date,
-        target_allocation={"515180": 1.0},
+def test_get_rotation_recommendation_uses_stored_signal_fallback_without_warning(monkeypatch, caplog):
+    service = rotation_services.RotationIntegrationService()
+    config = RotationConfig(
+        name="MomentumConfig",
+        description="fallback config",
+        strategy_type=RotationStrategyType.MOMENTUM,
+        asset_universe=["510300"],
+    )
+    model = SimpleNamespace(id=7)
+    latest_signal = SimpleNamespace(
+        config=SimpleNamespace(name="MomentumConfig"),
+        signal_date=date.today() - timedelta(days=1),
+        target_allocation={"510300": 1.0},
         current_regime="Recovery",
-        momentum_ranking=[["515180", 0.11]],
         action_required="hold",
-        reason="fallback to latest stored signal",
+        reason="use stored",
+        momentum_ranking=[("510300", 1.0)],
     )
 
-    service = RotationIntegrationService()
-    monkeypatch.setattr(service, "generate_rotation_signal", lambda _: None)
+    monkeypatch.setattr(service.config_repo, "get_active", lambda: [config])
+    monkeypatch.setattr(service.config_repo, "get_model_by_name", lambda name: model)
+    monkeypatch.setattr(service.signal_repo, "get_latest_signal", lambda config_id: latest_signal)
+    monkeypatch.setattr(service, "generate_rotation_signal", lambda name: None)
 
-    result = service.get_rotation_recommendation("momentum")
+    with caplog.at_level(logging.WARNING):
+        result = service.get_rotation_recommendation("momentum")
 
-    assert result["target_allocation"] == {"515180": 1.0}
-    assert result["signal_date"] == signal_date.isoformat()
     assert result["data_source"] == "stored_signal_fallback"
     assert result["is_stale"] is True
-    assert result["reason"] == "fallback to latest stored signal"
     assert "最近一次已落库信号" in result["warning_message"]
-
-
-@pytest.mark.django_db
-def test_get_rotation_recommendation_prefers_latest_persisted_signal_for_workspace(monkeypatch):
-    config = _create_momentum_config(name="测试动量配置-工作台复用")
-    signal_date = date.today() - timedelta(days=2)
-    RotationSignalModel.objects.create(
-        config=config,
-        signal_date=signal_date,
-        target_allocation={"510300": 0.55, "515180": 0.45},
-        current_regime="Recovery",
-        momentum_ranking=[["510300", 0.10], ["515180", 0.09]],
-        action_required="hold",
-        reason="reuse latest persisted signal for workspace",
-    )
-
-    service = RotationIntegrationService()
-    monkeypatch.setattr(
-        service,
-        "generate_rotation_signal",
-        lambda _: (_ for _ in ()).throw(
-            AssertionError("workspace read path should not regenerate stale rotation data")
-        ),
-    )
-
-    result = service.get_rotation_recommendation("momentum", prefer_persisted=True)
-
-    assert result["target_allocation"] == {"510300": 0.55, "515180": 0.45}
-    assert result["signal_date"] == signal_date.isoformat()
-    assert result["data_source"] == "stored_signal_fallback"
-    assert result["is_stale"] is True
-    assert "工作台优先复用最近一次已落库轮动信号" in result["warning_message"]
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]

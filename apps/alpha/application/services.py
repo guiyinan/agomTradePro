@@ -444,7 +444,7 @@ class AlphaProviderRegistry:
         if provider_filter:
             provider = self.get_provider(provider_filter)
             if provider is None:
-                logger.warning(f"指定的 Provider '{provider_filter}' 不存在或不可用")
+                logger.info("指定的 Provider '%s' 不存在或不可用", provider_filter)
                 return AlphaResult(
                     success=False,
                     scores=[],
@@ -462,7 +462,7 @@ class AlphaProviderRegistry:
                 status = AlphaProviderStatus.UNAVAILABLE
 
             if status == AlphaProviderStatus.UNAVAILABLE:
-                logger.warning(f"指定的 Provider '{provider_filter}' 当前不可用")
+                logger.info("指定的 Provider '%s' 当前不可用", provider_filter)
                 return AlphaResult(
                     success=False,
                     scores=[],
@@ -541,8 +541,10 @@ class AlphaProviderRegistry:
                 cache_hit = provider.name == "cache" and result.success
 
                 if not result.success:
-                    logger.warning(
-                        f"[AlphaProvider] Provider {provider.name} 返回失败: {result.error_message}"
+                    logger.debug(
+                        "[AlphaProvider] Provider %s 返回失败: %s",
+                        provider.name,
+                        result.error_message,
                     )
 
                     # 记录失败指标
@@ -559,9 +561,11 @@ class AlphaProviderRegistry:
 
                 # 检查 staleness
                 if result.staleness_days and result.staleness_days > provider.max_staleness_days:
-                    logger.warning(
-                        f"[AlphaProvider] Provider {provider.name} 数据过期: {result.staleness_days} 天 "
-                        f"(最大允许 {provider.max_staleness_days} 天)"
+                    logger.debug(
+                        "[AlphaProvider] Provider %s 数据过期: %s 天 (最大允许 %s 天)",
+                        provider.name,
+                        result.staleness_days,
+                        provider.max_staleness_days,
                     )
 
                     # 标记 degraded
@@ -574,8 +578,9 @@ class AlphaProviderRegistry:
 
                     # 如果这是最后一个 provider，返回 degraded 结果
                     if i == len(active_providers) - 1:
-                        logger.warning(
-                            f"[AlphaProvider] 所有 Provider 数据过期，使用 {provider.name} 的降级结果"
+                        logger.info(
+                            "[AlphaProvider] 所有 Provider 数据过期，使用 %s 的降级结果",
+                            provider.name,
                         )
 
                         # 创建告警
@@ -612,9 +617,11 @@ class AlphaProviderRegistry:
                 # 检查是否发生了降级
                 if i > 0:
                     fallback_from = attempted_providers[0]
-                    logger.warning(
-                        f"[AlphaFallback] 从 {fallback_from} 降级到 {provider.name} "
-                        f"(尝试了 {i} 个 Provider)"
+                    logger.info(
+                        "[AlphaFallback] 从 %s 降级到 %s (尝试了 %s 个 Provider)",
+                        fallback_from,
+                        provider.name,
+                        i,
                     )
 
                     # 创建降级告警
@@ -680,9 +687,11 @@ class AlphaProviderRegistry:
                 continue
 
         if best_degraded_result is not None and best_degraded_provider_name is not None:
-            logger.warning(
-                f"[AlphaFallback] 所有更新鲜 Provider 均失败，回退到 {best_degraded_provider_name} "
-                f"的过期结果 (staleness={best_degraded_result.staleness_days}天)"
+            logger.info(
+                "[AlphaFallback] 所有更新鲜 Provider 均失败，回退到 %s 的过期结果 "
+                "(staleness=%s天)",
+                best_degraded_provider_name,
+                best_degraded_result.staleness_days,
             )
             self._create_fallback_alert(
                 best_degraded_provider_name,
@@ -841,7 +850,7 @@ class AlphaProviderRegistry:
                         "attempted_providers": attempted_providers,
                     },
                 )
-                logger.warning(f"[AlphaAlert] 创建降级告警: {reason}")
+                logger.info(f"[AlphaAlert] 创建降级告警: {reason}")
 
         _run_non_blocking_alpha_side_effect(
             _write_alert,

@@ -86,23 +86,22 @@ The first approved expansion promotes 27 new read actions, bringing the publishe
 
 ## Safe-Read Coverage Batch
 
-The current broad-coverage baseline promotes direct safe-read candidates and field-backed parameterized read candidates into user-task screens after automatic filtering and same-process smoke pruning. It contains 34 screens and 319 published actions: 311 read actions, 6 confirmed write actions, and 2 AI interaction actions. Of the read coverage, 203 can open directly, and 109 parameterized read actions require field input before execution.
+The current broad-coverage baseline promotes direct safe-read candidates and field-backed parameterized read candidates into user-task screens after automatic filtering and same-process smoke checks. It now contains 37 screens and 367 published actions. The current coverage summary tracks 354 smoke-covered `read`/`ai` actions: 215 open directly, 139 require field input, and 0 currently fail the local smoke gate. The graph also includes 15 reviewed operation/admin actions with explicit confirmation and permission UX. Known HTMX-only fragments, operation-like calculate/check routes, unstable collection routes, and other non-user-facing reads are filtered before publication, so the current published graph no longer carries smoke-pruned auto failures. As of the 2026-06-22 local rerun, the same-process smoke pass also stays console-clean for expected degraded Alpha/Celery/task-monitor paths, excludes the stale POST-only `evaluate_position_management` GET variant, replaces the stale share public `.../access/` GET publication with a reviewed `share.public.access` POST action, and preserves session-backed public-share challenges as user-visible `401` password prompts instead of internal `502` crashes.
 
 | Coverage bucket | Count |
 | --- | ---: |
 | Safe GET evidence | 468 |
-| Direct safe-read candidates | 259 |
-| Parameterized safe-read candidates | 109 |
-| Published direct safe-read actions | 203 |
-| Published parameterized safe-read actions | 109 |
-| Smoke-pruned auto actions | 43 |
-| Smoke-passing or field-backed actions promoted to business screens | 276 |
-| Published actions total | 319 |
-| Confirmed write actions | 6 |
-| AI interaction actions | 2 |
-| Direct smoke-passing actions | 203 |
-| Published actions needing input | 109 |
-| Deferred path-parameter records | 65 |
+| Direct safe-read candidates | 228 |
+| Parameterized safe-read candidates | 137 |
+| Smoke-covered read/ai actions | 355 |
+| Direct smoke-passing actions | 215 |
+| Published actions needing input | 140 |
+| Smoke errors retained for follow-up | 0 |
+| Smoke-pruned auto actions | 0 |
+| Smoke-passing or field-backed actions promoted to business screens | 319 |
+| Published actions total | 368 |
+| Reviewed operation/admin actions | 14 |
+| Deferred path-parameter records | 37 |
 | Deferred write-like or heavy records | 30 |
 | Deferred internal/debug/docs records | 8 |
 
@@ -112,6 +111,7 @@ System toolbox screens are now fallback buckets rather than the primary organiza
 | --- | --- |
 | `api-library.runtime` | Health/readiness, Celery, setup, and system runtime status |
 | `api-library.data-center` | Data center state, news, market thermometer history, and user thresholds |
+| `api-library.config-center` | Admin-only Qlib runtime config, training profiles, and training run controls |
 
 High-value smoke-passing tools are promoted into ordinary business screens:
 
@@ -131,9 +131,9 @@ High-value smoke-passing tools are promoted into ordinary business screens:
 
 Parameterized read tools now follow the same user-screen promotion rules. For example, account/portfolio detail queries stay in `execution.accounts`, strategy detail queries stay in `macro-regime.strategy`, prompt detail queries stay in `ai-ops.prompt-workbench`, and share/public snapshot queries stay in `execution.share`. The user sees required fields such as account ID, portfolio ID, fund code, or capability key, not the underlying endpoint.
 
-Automatic promotion still rejects path placeholders without generated field controls, debug/docs/TUI internals, and names that imply mutation, recomputation, export, sync, train, test, trigger, bind, unbind, enable, disable, revoke, resolve, apply-template, check-effectiveness, or other heavy operations. The smoke gate then executes direct actions through `TuiWorkbenchService`; required-field actions are counted as `needs_input`, and failed auto candidates are removed from the ordinary published graph until field controls, defaults, permission UX, or backend fixes make them usable.
+Automatic promotion still rejects path placeholders without generated field controls, debug/docs/TUI internals, HTMX-only fragments without a JSON contract, unstable collection routes, and names that imply mutation, recomputation, export, sync, train, test, trigger, bind, unbind, enable, disable, revoke, resolve, apply-template, check-effectiveness, or other heavy operations. The smoke gate then executes direct actions through `TuiWorkbenchService`; required-field actions are counted as `needs_input`, and remaining failures must be remodeled before they can enter the ordinary published graph.
 
-Reviewed operation actions are added manually after that broad safe-read pass. Current confirmed operations include decision readiness repair, market thermometer recalculation/input sync, quote sync, Alpha batch inference, Qlib runtime data refresh, and terminal session/AI interaction flows. These are not inferred from endpoint names at runtime; they are published metadata with explicit fields, risk, grouping, and confirmation behavior.
+Reviewed operation actions are added manually after that broad safe-read pass. Current confirmed operations include decision readiness repair, market thermometer recalculation/input sync, quote sync, Alpha batch inference, Qlib runtime data refresh, terminal session/AI interaction flows, and admin-only config-center actions for Qlib runtime settings, training profiles, and training run triggers. These are not inferred from endpoint names at runtime; they are published metadata with explicit fields, risk, grouping, and confirmation behavior.
 
 ## Deferred Buckets
 

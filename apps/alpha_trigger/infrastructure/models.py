@@ -766,6 +766,7 @@ AlphaTriggerManager = models.Manager.from_queryset(AlphaTriggerQuerySet)
 AlphaCandidateManager = models.Manager.from_queryset(AlphaCandidateQuerySet)
 
 
-# 为模型添加自定义 Manager (使用 contribute_to_class 正确初始化)
-AlphaTriggerManager().contribute_to_class(AlphaTriggerModel, 'objects')
-AlphaCandidateManager().contribute_to_class(AlphaCandidateModel, 'objects')
+# 保留自定义 Manager 定义供显式复用；
+# 仓储层不要假设默认 objects 查询集一定暴露这些扩展方法。
+AlphaTriggerModel.add_to_class("objects", AlphaTriggerManager())
+AlphaCandidateModel.add_to_class("objects", AlphaCandidateManager())

@@ -229,7 +229,8 @@ class FailoverHedgeAdapter(HedgeDataSource):
                 logger.warning(f"Source {i+1} failed for {asset_code}: {e}")
                 continue
 
-        logger.error(f"All data sources failed for {asset_code}, last error: {last_error}")
+        if last_error is not None:
+            logger.warning(f"All data sources failed for {asset_code}, last error: {last_error}")
         return None
 
 

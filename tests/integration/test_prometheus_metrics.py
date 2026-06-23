@@ -189,6 +189,35 @@ class TestAuditMetrics:
 
         assert found, "Audit metric not found"
 
+    def test_audit_metrics_export_returns_prometheus_text(self):
+        """测试审计指标导出兼容当前 prometheus_client 版本。"""
+        from apps.audit.infrastructure.metrics import export_metrics, record_audit_write_success
+
+        record_audit_write_success(
+            module='audit_test',
+            action='export',
+            source='test',
+            latency_seconds=0.05,
+        )
+
+        content = export_metrics()
+
+        assert '# HELP audit_write_success_total' in content
+        assert 'audit_write_success_total' in content
+        assert 'audit_write_latency_seconds' in content
+        assert '# Error exporting metrics:' not in content
+
+    def test_audit_metrics_endpoint_returns_prometheus_text(self):
+        """测试审计指标 API 不返回导出错误占位文本。"""
+        client = Client()
+
+        response = client.get('/api/audit/metrics/')
+
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+        assert '# HELP audit_write_success_total' in content
+        assert '# Error exporting metrics:' not in content
+
 
 @pytest.mark.django_db
 class TestMetricsSummary:

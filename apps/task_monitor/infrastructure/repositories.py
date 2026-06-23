@@ -39,6 +39,17 @@ from apps.task_monitor.domain.interfaces import (
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 
 logger = logging.getLogger(__name__)
+_PREFLIGHT_UNREACHABLE_CACHE: set[str] = set()
+
+
+def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
+    """Warn once per process for one unreachable transport endpoint."""
+    cache_key = f"{channel}:{endpoint or ''}"
+    if cache_key in _PREFLIGHT_UNREACHABLE_CACHE:
+        logger.debug("%s preflight still unreachable: %s", channel, endpoint or "<unset>")
+        return
+    _PREFLIGHT_UNREACHABLE_CACHE.add(cache_key)
+    logger.info("%s preflight failed: endpoint unreachable.", channel)
 
 
 def _safe_float(value: any) -> float:
@@ -260,14 +271,20 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
                 self._get_transport_url("broker_url")
             )
             if broker_preflight is False:
-                logger.warning("Broker preflight failed: endpoint unreachable.")
+                _log_preflight_unreachable_once(
+                    "Broker",
+                    self._get_transport_url("broker_url"),
+                )
                 is_healthy = False
 
             backend_preflight = self._preflight_transport_endpoint(
                 self._get_transport_url("result_backend")
             )
             if backend_preflight is False:
-                logger.warning("Backend preflight failed: endpoint unreachable.")
+                _log_preflight_unreachable_once(
+                    "Backend",
+                    self._get_transport_url("result_backend"),
+                )
                 is_healthy = False
 
             # 检查 Broker 连接

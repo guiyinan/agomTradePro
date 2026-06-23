@@ -93,6 +93,7 @@ LABEL_REPLACEMENTS = (
     ("Simulated Trading", "模拟交易"),
     ("Strategy", "策略"),
     ("Strategies", "策略"),
+    ("Assignments", "绑定"),
     ("Position Rules", "仓位规则"),
     ("Rules", "规则"),
     ("Execution Logs", "执行日志"),
@@ -122,6 +123,8 @@ LABEL_REPLACEMENTS = (
     ("Metrics", "指标"),
     ("By Class", "按类别"),
     ("By Asset", "按资产"),
+    ("By Portfolio", "按组合"),
+    ("By Strategy", "按策略"),
     ("From Code", "源币种"),
     ("To Code", "目标币种"),
     ("Asset Code", "资产代码"),
@@ -141,6 +144,7 @@ ROUTE_SEGMENT_LABELS = {
     "ai_config": "AI 配置",
     "allocation": "配置",
     "alpha": "Alpha",
+    "assignments": "绑定",
     "asset": "资产",
     "asset-analysis": "资产分析",
     "asset-classes": "资产类别",
@@ -154,6 +158,10 @@ ROUTE_SEGMENT_LABELS = {
     "by-asset": "按资产",
     "by-account": "按账户",
     "by-class": "按类别",
+    "by-portfolio": "按组合",
+    "by-strategy": "按策略",
+    "by_portfolio": "按组合",
+    "by_strategy": "按策略",
     "capital-flows": "资金流水",
     "categories": "分类",
     "chains": "链路",
@@ -277,49 +285,711 @@ def _has_unresolved_path_parameter(endpoint: str) -> bool:
     return bool(re.search(r"(<[^>]+>|\{[^}]+\}|:[a-zA-Z_][a-zA-Z0-9_]*)", endpoint))
 
 
+WRITE_LIKE_SEGMENTS = {
+    "approve",
+    "apply-template",
+    "bind",
+    "bind-strategy",
+    "cancel",
+    "check-effectiveness",
+    "check-eligibility",
+    "clear",
+    "clear-cache",
+    "close",
+    "collect",
+    "compare",
+    "convert",
+    "correlation",
+    "correlation-matrix",
+    "create-portfolio",
+    "explain-stock",
+    "deactivate",
+    "delete",
+    "disable",
+    "enable",
+    "evaluate",
+    "execute",
+    "export",
+    "fetch",
+    "fetch-all",
+    "generate",
+    "generate-candidate",
+    "generate-signal",
+    "get-correlation-matrix",
+    "get-data",
+    "handoff",
+    "import",
+    "import-defaults",
+    "invalidate",
+    "monitor",
+    "rebuild",
+    "refresh",
+    "refresh-candidates",
+    "reject",
+    "repair",
+    "rerun",
+    "resolve",
+    "resume",
+    "revoke",
+    "run",
+    "submit-approval",
+    "sync",
+    "test-script",
+    "top-stocks",
+    "train",
+    "trigger",
+    "trigger-fetch",
+    "unbind",
+    "unbind-strategy",
+    "update",
+    "update-all",
+    "update-status",
+}
+WRITE_LIKE_TOKENS = {
+    "approve",
+    "apply",
+    "bind",
+    "cancel",
+    "clear",
+    "close",
+    "deactivate",
+    "delete",
+    "disable",
+    "enable",
+    "evaluate",
+    "execute",
+    "export",
+    "fetch",
+    "generate",
+    "handoff",
+    "import",
+    "invalidate",
+    "rebuild",
+    "refresh",
+    "reject",
+    "repair",
+    "rerun",
+    "resolve",
+    "resume",
+    "revoke",
+    "run",
+    "submit",
+    "sync",
+    "test",
+    "train",
+    "trigger",
+    "unbind",
+    "update",
+}
+
+
+def _normalized_static_path_segments(endpoint: str) -> list[str]:
+    segments: list[str] = []
+    for raw_segment in str(endpoint or "").strip("/").split("/"):
+        segment = raw_segment.strip().lower()
+        if not segment or segment == "api" or _has_unresolved_path_parameter(segment):
+            continue
+        segments.append(segment.replace("_", "-"))
+    return segments
+
+
+def _operation_tokens(value: str) -> list[str]:
+    return [token for token in re.split(r"[^a-z0-9]+", str(value or "").lower()) if token]
+
+
 def _is_write_like_candidate(record: dict[str, Any]) -> bool:
-    text = f"{record.get('endpoint', '')} {record.get('key', '')} {record.get('name', '')}".lower()
-    write_terms = {
-        "approve",
-        "bind",
-        "cancel",
-        "clear",
-        "clear-cache",
-        "close",
-        "deactivate",
-        "delete",
-        "disable",
-        "enable",
-        "evaluate",
-        "execute",
-        "export",
-        "fetch",
-        "generate",
-        "import",
-        "invalidate",
-        "rebuild",
-        "refresh",
-        "reject",
-        "repair",
-        "rerun",
-        "resolve",
-        "revoke",
-        "run",
-        "sync",
-        "test-script",
-        "train",
-        "trigger",
-        "unbind",
-        "update",
-    }
-    if "apply-template" in text or "check_effectiveness" in text:
-        return True
-    return any(term in text for term in write_terms)
+    for segment in _normalized_static_path_segments(str(record.get("endpoint", ""))):
+        if segment in WRITE_LIKE_SEGMENTS:
+            return True
+        tokens = _operation_tokens(segment)
+        if tokens and tokens[0] in WRITE_LIKE_TOKENS:
+            return True
+
+    return False
+
+
+QUERY_FIELD_RULES: dict[str, list[dict[str, Any]]] = {
+    "/api/account/accounts/<int:account_id>/performance-report/": [
+        {
+            "key": "start_date",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/account/accounts/<int:account_id>/valuation-snapshot/": [
+        {
+            "key": "as_of_date",
+            "label": "日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        }
+    ],
+    "/api/account/portfolios/<int:portfolio_id>/performance-report/": [
+        {
+            "key": "start_date",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/account/portfolios/<int:portfolio_id>/valuation-snapshot/": [
+        {
+            "key": "as_of_date",
+            "label": "日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        }
+    ],
+    "/api/audit/summary/": [
+        {
+            "key": "start_date",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/decision-rhythm/quotas/by-period/": [
+        {
+            "key": "period",
+            "label": "配额周期",
+            "input_type": "select",
+            "required": True,
+            "binding": "query",
+            "options": [
+                {"value": "daily", "label": "日"},
+                {"value": "weekly", "label": "周"},
+                {"value": "monthly", "label": "月"},
+            ],
+        },
+        {
+            "key": "account_id",
+            "label": "账户 ID",
+            "input_type": "text",
+            "required": False,
+            "binding": "query",
+            "default": "default",
+        },
+    ],
+    "/api/decision-rhythm/cooldowns/remaining-hours/": [
+        {
+            "key": "asset_code",
+            "label": "资产代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "direction",
+            "label": "方向",
+            "input_type": "select",
+            "required": False,
+            "binding": "query",
+            "options": [
+                {"value": "LONG", "label": "做多"},
+                {"value": "SHORT", "label": "做空"},
+                {"value": "NEUTRAL", "label": "中性"},
+            ],
+        },
+    ],
+    "/api/strategy/assignments/by_portfolio/": [
+        {
+            "key": "portfolio_id",
+            "label": "组合 ID",
+            "input_type": "number",
+            "required": True,
+            "binding": "query",
+            "value_type": "integer",
+        }
+    ],
+    "/api/strategy/execution-logs/by_portfolio/": [
+        {
+            "key": "portfolio_id",
+            "label": "组合 ID",
+            "input_type": "number",
+            "required": True,
+            "binding": "query",
+            "value_type": "integer",
+        }
+    ],
+    "/api/strategy/execution-logs/by_strategy/": [
+        {
+            "key": "strategy_id",
+            "label": "策略 ID",
+            "input_type": "number",
+            "required": True,
+            "binding": "query",
+            "value_type": "integer",
+        }
+    ],
+    "/api/policy/events/": [
+        {
+            "key": "start_date",
+            "label": "起始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "level",
+            "label": "政策档位",
+            "input_type": "select",
+            "required": False,
+            "binding": "query",
+            "options": [
+                {"value": "P0", "label": "P0"},
+                {"value": "P1", "label": "P1"},
+                {"value": "P2", "label": "P2"},
+                {"value": "P3", "label": "P3"},
+            ],
+        },
+    ],
+    "/api/signal/unified/by_asset/": [
+        {
+            "key": "asset_code",
+            "label": "资产代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "days",
+            "label": "回看天数",
+            "input_type": "number",
+            "required": False,
+            "binding": "query",
+            "default": 30,
+            "value_type": "integer",
+        },
+        {
+            "key": "source",
+            "label": "信号来源",
+            "input_type": "text",
+            "required": False,
+            "binding": "query",
+        },
+    ],
+    "/api/sentiment/index/range/": [
+        {
+            "key": "start_date",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/system/statistics/": [
+        {
+            "key": "task_name",
+            "label": "任务名",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "days",
+            "label": "统计天数",
+            "input_type": "number",
+            "required": False,
+            "binding": "query",
+            "default": 7,
+            "value_type": "integer",
+        },
+    ],
+    "/api/data-center/funds/nav/": [
+        {
+            "key": "fund_code",
+            "label": "基金代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "start",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/data-center/financials/": [
+        {
+            "key": "asset_code",
+            "label": "资产代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "period_type",
+            "label": "财报周期",
+            "input_type": "text",
+            "required": False,
+            "binding": "query",
+        },
+        {
+            "key": "limit",
+            "label": "条数上限",
+            "input_type": "number",
+            "required": False,
+            "binding": "query",
+            "default": 20,
+            "value_type": "integer",
+        },
+    ],
+    "/api/data-center/valuations/": [
+        {
+            "key": "asset_code",
+            "label": "资产代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "start",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/data-center/sectors/constituents/": [
+        {
+            "key": "sector_code",
+            "label": "板块代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "as_of",
+            "label": "截止日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/data-center/capital-flows/": [
+        {
+            "key": "asset_code",
+            "label": "资产代码",
+            "input_type": "text",
+            "required": True,
+            "binding": "query",
+        },
+        {
+            "key": "start",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": False,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/simulated-trading/accounts/<int:account_id>/performance-report/": [
+        {
+            "key": "start_date",
+            "label": "开始日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+        {
+            "key": "end_date",
+            "label": "结束日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        },
+    ],
+    "/api/simulated-trading/accounts/<int:account_id>/valuation-snapshot/": [
+        {
+            "key": "as_of_date",
+            "label": "日期",
+            "input_type": "date",
+            "required": True,
+            "binding": "query",
+            "value_type": "date",
+        }
+    ],
+}
+
+PATH_FIELD_RULES: dict[str, dict[str, dict[str, Any]]] = {
+    "/api/account/observer-grants/<pk>/": {
+        "pk": {
+            "key": "pk",
+            "label": "授权 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入授权 ID（UUID）",
+            "binding": "path",
+            "value_type": "string",
+        }
+    },
+    "/api/account/observer-grants/<pk>/positions/": {
+        "pk": {
+            "key": "pk",
+            "label": "授权 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入授权 ID（UUID）",
+            "binding": "path",
+            "value_type": "string",
+        }
+    },
+}
+
+
+AUTO_PROMOTION_EXCLUDED_ENDPOINTS = {
+    "/api/agent-runtime/proposals/",
+    "/api/dashboard/alpha/exit-panel/",
+    "/api/dashboard/alpha/factor-panel/",
+    "/api/dashboard/alpha/stocks/",
+    "/api/dashboard/positions/",
+    "/api/hedge/actions/calculate_correlation/",
+    "/api/hedge/actions/check_hedge_ratio/",
+    "/api/hedge/correlations/calculate/",
+    "/api/policy/sentiment-gate/state/",
+    "/api/sentiment/index/",
+    "/api/share/public/<str:short_code>/access/",
+    "/api/signal/unified/",
+}
+
+
+def _query_field_type(name: str) -> tuple[str, str]:
+    normalized = str(name or "").strip().lower()
+    if normalized in {"strict_freshness", "include_ignored"}:
+        return "checkbox", "boolean"
+    if normalized in {"page", "page_size", "days", "limit"} or normalized.endswith("_id"):
+        return "number", "integer"
+    if normalized in {"max_age_hours"}:
+        return "number", "float"
+    if normalized in {"start", "end", "date", "start_date", "end_date", "as_of"}:
+        return "date", "date"
+    return "text", "string"
+
+
+def _query_field_from_spec(field: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(field)
+    key = str(payload.get("key") or "").strip()
+    if not key:
+        return {}
+    label = str(payload.get("label") or FIELD_LABELS.get(key, _humanize(key))).strip()
+    input_type, value_type = _query_field_type(key)
+    payload.setdefault("label", label)
+    payload.setdefault("input_type", input_type)
+    payload.setdefault("required", False)
+    payload.setdefault("binding", "query")
+    payload.setdefault("value_type", value_type)
+    payload.setdefault("default", "")
+    payload.setdefault("placeholder", f"输入{label}" if input_type != "checkbox" else "")
+    return payload
+
+
+def _query_fields_from_summary(summary: str) -> list[dict[str, Any]]:
+    if "query params" not in str(summary or "").lower():
+        return []
+    fields: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    in_query_block = False
+    for raw_line in str(summary or "").splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped:
+            if in_query_block:
+                break
+            continue
+        if "query params" in stripped.lower():
+            in_query_block = True
+            continue
+        if not in_query_block:
+            continue
+        match = re.match(
+            r"^\s*(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\s*(?::|—|-)\s*(?P<desc>.+?)\s*$",
+            line,
+        )
+        if not match:
+            if fields:
+                break
+            continue
+        name = match.group("name")
+        if name in seen:
+            continue
+        desc = match.group("desc")
+        input_type, value_type = _query_field_type(name)
+        required = "required" in desc.lower() or "必填" in desc
+        if "optional" in desc.lower() or "可选" in desc:
+            required = False
+        field = {
+            "key": name,
+            "label": FIELD_LABELS.get(name, _humanize(name)),
+            "input_type": input_type,
+            "required": required,
+            "binding": "query",
+            "value_type": value_type,
+            "default": "",
+            "placeholder": f"输入{FIELD_LABELS.get(name, _humanize(name))}"
+            if input_type != "checkbox"
+            else "",
+        }
+        if name == "period":
+            field["input_type"] = "select"
+            field["options"] = [
+                {"value": "daily", "label": "日"},
+                {"value": "weekly", "label": "周"},
+                {"value": "monthly", "label": "月"},
+            ]
+        fields.append(field)
+        seen.add(name)
+    return fields
+
+
+def _query_fields_from_input_schema(record: dict[str, Any]) -> list[dict[str, Any]]:
+    schema = dict(record.get("input_schema") or {})
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return []
+    required_fields = set(schema.get("required") or [])
+    fields: list[dict[str, Any]] = []
+    for key, value in properties.items():
+        if not isinstance(value, dict):
+            value = {}
+        field = _query_field_from_spec(
+            {
+                "key": key,
+                "label": value.get("title") or FIELD_LABELS.get(key, _humanize(key)),
+                "required": key in required_fields,
+                "default": value.get("default", ""),
+            }
+        )
+        if not field:
+            continue
+        value_type = str(value.get("type") or "").lower()
+        if value_type == "boolean":
+            field["input_type"] = "checkbox"
+            field["value_type"] = "boolean"
+        elif value_type in {"integer", "number"}:
+            field["input_type"] = "number"
+            field["value_type"] = "integer" if value_type == "integer" else "float"
+        elif value_type == "array":
+            field["input_type"] = "text"
+            field["value_type"] = "list"
+        fields.append(field)
+    return fields
+
+
+def _infer_query_fields(record: dict[str, Any]) -> list[dict[str, Any]]:
+    endpoint = str(record.get("endpoint") or "")
+    fields: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for source_fields in (
+        QUERY_FIELD_RULES.get(endpoint, []),
+        _query_fields_from_input_schema(record),
+        _query_fields_from_summary(str(record.get("summary") or "")),
+    ):
+        for spec in source_fields:
+            field = _query_field_from_spec(spec)
+            key = str(field.get("key") or "")
+            if not key or key in seen:
+                continue
+            fields.append(field)
+            seen.add(key)
+    return fields
+
+
+def _is_excluded_auto_candidate(record: dict[str, Any]) -> bool:
+    endpoint = str(record.get("endpoint", "")).lower()
+    return endpoint in AUTO_PROMOTION_EXCLUDED_ENDPOINTS
 
 
 def _is_direct_safe_read_candidate(record: dict[str, Any]) -> bool:
     endpoint = str(record.get("endpoint", "")).lower()
     if not _is_safe_api(record):
+        return False
+    if _is_excluded_auto_candidate(record):
         return False
     if _has_unresolved_path_parameter(endpoint):
         return False
@@ -477,6 +1147,8 @@ def _path_parameters(endpoint: str) -> list[dict[str, str]]:
 def _is_parameterized_safe_read_candidate(record: dict[str, Any]) -> bool:
     endpoint = str(record.get("endpoint", "")).lower()
     if not _is_safe_api(record):
+        return False
+    if _is_excluded_auto_candidate(record):
         return False
     if not _has_unresolved_path_parameter(endpoint):
         return False
@@ -664,6 +1336,7 @@ def add_safe_api_actions(
         key = "auto." + _action_key(str(record["key"]))
         if key in existing_keys:
             continue
+        query_fields = _infer_query_fields(record)
         payload["actions"].append(
             {
                 "key": key,
@@ -675,8 +1348,12 @@ def add_safe_api_actions(
                 "module_key": "api-library",
                 "view_type": "auto",
                 "risk": "read",
-                "fields": [],
-                "description": str(record.get("summary") or f"只读查看：{label}。"),
+                "fields": query_fields,
+                "description": (
+                    f"输入必要条件后只读查看：{label}。"
+                    if any(field.get("required") for field in query_fields)
+                    else str(record.get("summary") or f"只读查看：{label}。")
+                ),
                 "source": "api-collector:candidate",
                 "raw_debug": True,
             }
@@ -687,7 +1364,10 @@ def add_safe_api_actions(
     return added
 
 
-def _field_for_path_parameter(param: dict[str, str]) -> dict[str, Any]:
+def _field_for_path_parameter(param: dict[str, str], endpoint: str = "") -> dict[str, Any]:
+    path_rules = PATH_FIELD_RULES.get(str(endpoint or ""), {})
+    if param["name"] in path_rules:
+        return dict(path_rules[param["name"]])
     name = param["name"]
     converter = param.get("converter") or "str"
     input_type = (
@@ -718,6 +1398,33 @@ def remove_generated_parameterized_actions(payload: dict[str, Any]) -> int:
     return len(actions) - len(kept)
 
 
+def remove_stale_parameterized_safe_actions(
+    payload: dict[str, Any], safe_records: list[dict[str, Any]]
+) -> int:
+    valid_endpoints = {
+        str(record.get("endpoint") or "")
+        for record in safe_records
+        if _is_parameterized_safe_read_candidate(record)
+    }
+    actions = list(payload.get("actions") or [])
+    kept: list[dict[str, Any]] = []
+    removed = 0
+    for action in actions:
+        source = str(action.get("source") or "")
+        if source not in {"api-collector:parameterized-candidate", "approved:parameterized-promoted"}:
+            kept.append(action)
+            continue
+        if str(action.get("intent") or "") != "parameterized_safe_read":
+            kept.append(action)
+            continue
+        if str(action.get("endpoint") or "") in valid_endpoints:
+            kept.append(action)
+            continue
+        removed += 1
+    payload["actions"] = kept
+    return removed
+
+
 def add_parameterized_safe_api_actions(
     payload: dict[str, Any],
     safe_records: list[dict[str, Any]],
@@ -727,6 +1434,7 @@ def add_parameterized_safe_api_actions(
         return 0
     _ensure_auto_library_screens(payload)
     remove_generated_parameterized_actions(payload)
+    remove_stale_parameterized_safe_actions(payload, safe_records)
     existing_keys = {action["key"] for action in payload["actions"]}
     existing_endpoints = {action["endpoint"] for action in payload["actions"]}
     added = 0
@@ -745,6 +1453,14 @@ def add_parameterized_safe_api_actions(
         if not params:
             continue
         label = _parameterized_label(record, endpoint)
+        fields = [_field_for_path_parameter(param, endpoint) for param in params]
+        existing_field_keys = {str(field.get("key") or "") for field in fields}
+        for field in _infer_query_fields(record):
+            field_key = str(field.get("key") or "")
+            if not field_key or field_key in existing_field_keys:
+                continue
+            fields.append(field)
+            existing_field_keys.add(field_key)
         payload["actions"].append(
             {
                 "key": key,
@@ -756,7 +1472,7 @@ def add_parameterized_safe_api_actions(
                 "module_key": "api-library",
                 "view_type": "auto",
                 "risk": "read",
-                "fields": [_field_for_path_parameter(param) for param in params],
+                "fields": fields,
                 "description": f"输入必要条件后只读查看：{label}。",
                 "source": "api-collector:parameterized-candidate",
                 "raw_debug": True,
@@ -768,6 +1484,39 @@ def add_parameterized_safe_api_actions(
         existing_endpoints.add(endpoint)
         added += 1
     return added
+
+
+def merge_inferred_query_fields_into_existing_actions(
+    payload: dict[str, Any], safe_records: list[dict[str, Any]]
+) -> int:
+    records_by_endpoint = {
+        str(record.get("endpoint") or ""): record
+        for record in safe_records
+        if str(record.get("method") or "").upper() == "GET"
+    }
+    updated = 0
+    for action in payload.get("actions") or []:
+        endpoint = str(action.get("endpoint") or "")
+        record = records_by_endpoint.get(endpoint)
+        if not record:
+            continue
+        inferred_fields = _infer_query_fields(record)
+        if not inferred_fields:
+            continue
+        fields = list(action.get("fields") or [])
+        existing_field_keys = {str(field.get("key") or "") for field in fields}
+        appended = False
+        for field in inferred_fields:
+            field_key = str(field.get("key") or "")
+            if not field_key or field_key in existing_field_keys:
+                continue
+            fields.append(field)
+            existing_field_keys.add(field_key)
+            appended = True
+        if appended:
+            action["fields"] = fields
+            updated += 1
+    return updated
 
 
 def build_coverage_summary(
@@ -783,13 +1532,21 @@ def build_coverage_summary(
     parameterized_candidates = [
         record for record in safe_records if _is_parameterized_safe_read_candidate(record)
     ]
+    query_field_candidates = [
+        record
+        for record in direct_candidates
+        if any(field.get("required") for field in _infer_query_fields(record))
+    ]
     parameterized_candidate_endpoints = {
         str(record.get("endpoint", "")) for record in parameterized_candidates
+    }
+    query_candidate_endpoints = {
+        str(record.get("endpoint", "")) for record in query_field_candidates
     }
     covered_parameterized_actions = {
         str(action.get("endpoint", ""))
         for action in payload.get("actions", [])
-        if str(action.get("endpoint", "")) in parameterized_candidate_endpoints
+        if str(action.get("endpoint", "")) in parameterized_candidate_endpoints | query_candidate_endpoints
         and action.get("fields")
         and str(action.get("risk", "read")) == "read"
     }
@@ -819,8 +1576,9 @@ def build_coverage_summary(
     ]
     return {
         "safe_read_evidence": len(safe_records),
-        "direct_safe_read_candidates": len(direct_candidates),
-        "parameterized_safe_read_candidates": len(parameterized_candidates),
+        "direct_safe_read_candidates": max(0, len(direct_candidates) - len(query_field_candidates)),
+        "parameterized_safe_read_candidates": len(parameterized_candidates)
+        + len(query_field_candidates),
         "added_safe_api_actions": added_actions,
         "added_parameterized_api_actions": covered_parameterized_count,
         "published_actions": len(payload.get("actions", [])),
@@ -906,6 +1664,7 @@ def main() -> int:
         safe_records,
         args.include_parameterized_api_actions,
     )
+    merge_inferred_query_fields_into_existing_actions(payload, safe_records)
     sdk_evidence = collect_sdk_evidence(root, args.sdk_evidence_limit)
     mcp_evidence = collect_mcp_evidence(root, args.mcp_evidence_limit)
     template_evidence = collect_template_evidence(root, args.template_evidence_limit)

@@ -1069,7 +1069,10 @@ class StrategyInterfaceRepository:
         return RuleConditionModel._default_manager.select_related("strategy").all()
 
     def get_script_config_queryset(self):
-        return ScriptConfigModel._default_manager.select_related("strategy").all()
+        return ScriptConfigModel._default_manager.select_related("strategy").order_by(
+            "strategy_id",
+            "id",
+        )
 
     def get_ai_strategy_config_queryset(self):
         return AIStrategyConfigModel._default_manager.select_related(
@@ -1077,7 +1080,7 @@ class StrategyInterfaceRepository:
             "prompt_template",
             "chain_config",
             "ai_provider",
-        ).all()
+        ).order_by("strategy_id", "id")
 
     def get_assignment_queryset(self):
         return PortfolioStrategyAssignmentModel._default_manager.select_related(

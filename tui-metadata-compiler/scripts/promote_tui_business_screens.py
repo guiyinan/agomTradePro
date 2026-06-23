@@ -46,7 +46,7 @@ SCREEN_SPECS = {
         "summary": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.account.positions",
+        "default_action_key": "execution.trading-ledger.account-selector",
     },
     "execution.portfolio-performance": {
         "key": "execution.portfolio-performance",
@@ -66,7 +66,7 @@ SCREEN_SPECS = {
         "summary": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.account.trading-cost-configs",
+        "default_action_key": "auto.api.get.api.account.categories",
     },
     "macro-regime.strategy": {
         "key": "macro-regime.strategy",
@@ -86,7 +86,7 @@ SCREEN_SPECS = {
         "summary": "查看轮动资产、信号、模板、账户配置和最新配置建议。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.rotation.recommendation",
+        "default_action_key": "auto.api.get.api.rotation.assets",
     },
     "macro-regime.risk-controls": {
         "key": "macro-regime.risk-controls",
@@ -116,7 +116,7 @@ SCREEN_SPECS = {
         "summary": "查看对冲组合、相关性、快照、有效性和当前预警，判断是否需要降风险或对冲。",
         "view_type": "status",
         "status": "online",
-        "default_action_key": "auto.api.get.api.hedge.alerts.active",
+        "default_action_key": "auto.api.get.api.hedge.snapshots",
     },
     "research.asset-lab": {
         "key": "research.asset-lab",
@@ -127,6 +127,16 @@ SCREEN_SPECS = {
         "view_type": "datagrid",
         "status": "online",
         "default_action_key": "auto.api.get.api.asset-analysis.pool-summary",
+    },
+    "research.alpha-triggers": {
+        "key": "research.alpha-triggers",
+        "label": "Alpha 触发器",
+        "module_key": "research",
+        "group": "research",
+        "summary": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。",
+        "view_type": "datagrid",
+        "status": "online",
+        "default_action_key": "auto.api.get.api.alpha-triggers.candidates.statistics",
     },
     "research.fund-sector": {
         "key": "research.fund-sector",
@@ -166,7 +176,7 @@ SCREEN_SPECS = {
         "summary": "查看我的 AI 服务商、模型、调用日志和配额状态，确认 AI 助手是否可用。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.ai.me.providers",
+        "default_action_key": "auto.api.get.api.prompt.chat.providers",
     },
     "ai-ops.terminal": {
         "key": "ai-ops.terminal",
@@ -187,6 +197,16 @@ SCREEN_SPECS = {
         "view_type": "status",
         "status": "online",
         "default_action_key": "auto.api.get.api.health",
+    },
+    "api-library.config-center": {
+        "key": "api-library.config-center",
+        "label": "Qlib 训练配置",
+        "module_key": "api-library",
+        "group": "system",
+        "summary": "查看和维护 Qlib 运行配置、训练模板和训练运行记录。",
+        "view_type": "datagrid",
+        "status": "online",
+        "default_action_key": "config_center.qlib_runtime",
     },
     "api-library.data-center": {
         "key": "api-library.data-center",
@@ -226,7 +246,7 @@ SCREEN_SPECS = {
         "summary": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.share.links",
+        "default_action_key": "auto.api.get.api.share",
     },
 }
 
@@ -266,6 +286,7 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.regime", "macro-regime.navigator"),
     ("auto.api.get.api.pulse", "macro-regime.pulse"),
     ("auto.api.get.api.policy", "policy.workbench"),
+    ("auto.api.get.api.alpha-triggers", "research.alpha-triggers"),
     ("auto.api.get.api.alpha.", "research.alpha"),
     ("auto.api.get.api.alpha", "research.alpha"),
     ("auto.api.get.api.signal", "research.signals"),
@@ -285,6 +306,7 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.prompt.chat", "ai-ops.providers"),
     ("auto.api.get.api.prompt", "ai-ops.prompt-workbench"),
     ("auto.api.get.api.terminal", "ai-ops.terminal"),
+    ("auto.api.get.api.agent-runtime", "ai-ops.agent-runtime"),
     ("auto.api.get.api.ai-capability", "ai-ops.capabilities"),
     ("auto.api.get.api.ai", "ai-ops.capabilities"),
     ("auto.api.get.api.health", "api-library.runtime"),
@@ -323,6 +345,7 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("param.api.get.api.simulated-trading", "execution.trading-ledger"),
     ("param.api.get.api.strategy", "macro-regime.strategy"),
     ("param.api.get.api.policy", "policy.workbench"),
+    ("param.api.get.api.alpha-triggers", "research.alpha-triggers"),
     ("param.api.get.api.signal", "research.signals"),
     ("param.api.get.api.filter", "research.screening-sentiment"),
     ("param.api.get.api.backtest", "research.backtests"),
@@ -337,11 +360,115 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("param.api.get.api.ai.me", "ai-ops.providers"),
     ("param.api.get.api.prompt", "ai-ops.prompt-workbench"),
     ("param.api.get.api.terminal", "ai-ops.terminal"),
+    ("param.api.get.api.agent-runtime", "ai-ops.agent-runtime"),
     ("param.api.get.api.ai-capability", "ai-ops.capabilities"),
 )
 
 EXACT_SCREEN_RULES = {
     "terminal.chat_router": "ai-ops.terminal",
+    "param.api.get.api.account.portfolios.pk": "execution.portfolio-performance",
+    "param.api.get.api.account.portfolios.pk.statistics": "execution.portfolio-performance",
+    "param.api.get.api.account.portfolios.pk.positions": "execution.portfolio-performance",
+    "param.api.get.api.valuation.snapshot.str.snapshot_id": "command-center.decision-flow",
+}
+
+EXACT_VIEW_TYPE_RULES = {
+    "auto.api.get.api.decision.workspace.aggregated": "datagrid",
+    "auto.api.get.api.decision.workspace.recommendations": "datagrid",
+    "auto.api.get.api.decision.workspace.conflicts": "datagrid",
+    "auto.api.get.api.decision-rhythm.quotas": "datagrid",
+    "auto.api.get.api.decision-rhythm.cooldowns": "datagrid",
+    "auto.api.get.api.decision-rhythm.requests": "datagrid",
+    "auto.api.get.api.beta-gate.configs": "datagrid",
+    "auto.api.get.api.beta-gate.decisions": "datagrid",
+    "auto.api.get.api.beta-gate.universe": "datagrid",
+    "auto.api.get.api.beta-gate.version.compare": "datagrid",
+    "auto.api.get.api.hedge.pairs": "datagrid",
+    "auto.api.get.api.hedge.pairs.all_effectiveness": "datagrid",
+    "auto.api.get.api.hedge.correlations": "datagrid",
+    "auto.api.get.api.hedge.snapshots": "datagrid",
+    "auto.api.get.api.hedge.snapshots.latest": "datagrid",
+    "auto.api.get.api.hedge.alerts": "datagrid",
+    "auto.api.get.api.hedge.alerts.active": "datagrid",
+}
+
+EXACT_VIEW_MODEL_RULES = {
+    "auto.api.get.api.decision.workspace.recommendations": {
+        "rows_path": "recommendations",
+        "total_path": "total_count",
+        "page_path": "page",
+        "page_size_path": "page_size",
+    },
+    "auto.api.get.api.decision.workspace.conflicts": {
+        "rows_path": "conflicts",
+        "total_path": "total_count",
+    },
+    "auto.api.get.api.beta-gate.configs": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.beta-gate.decisions": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.beta-gate.universe": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.beta-gate.version.compare": {
+        "rows_path": "results",
+    },
+    "auto.api.get.api.hedge.pairs": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.hedge.correlations": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.hedge.snapshots": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.hedge.snapshots.latest": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.hedge.alerts": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+    "auto.api.get.api.hedge.alerts.active": {
+        "rows_path": "results",
+        "total_path": "count",
+    },
+}
+
+EXACT_FIELD_OVERRIDES = {
+    "auto.api.get.api.decision.workspace.recommendations": {
+        "account_id": {
+            "input_type": "text",
+            "value_type": "string",
+            "default": "default",
+            "placeholder": "默认账户口径，可改成自定义账户ID",
+        },
+    },
+    "auto.api.get.api.decision.workspace.conflicts": {
+        "account_id": {
+            "input_type": "text",
+            "value_type": "string",
+            "default": "default",
+            "placeholder": "默认账户口径，可改成自定义账户ID",
+        },
+    },
+    "auto.api.get.api.decision-rhythm.quotas.by-period": {
+        "account_id": {
+            "input_type": "text",
+            "value_type": "string",
+            "default": "default",
+            "placeholder": "默认账户口径，可改成自定义账户ID",
+        },
+    },
 }
 
 APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
@@ -359,6 +486,40 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "source": "approved:operation",
         "task_group": "00 可执行操作",
         "sequence": 10,
+    },
+    {
+        "key": "share.public.access",
+        "label": "公开分享 / 验证访问",
+        "method": "POST",
+        "endpoint": "/api/share/public/<str:short_code>/access/",
+        "intent": "access_public_share",
+        "screen_key": "execution.share",
+        "view_type": "detail",
+        "risk": "read",
+        "fields": [
+            {
+                "key": "short_code",
+                "label": "分享码",
+                "input_type": "text",
+                "required": True,
+                "placeholder": "输入分享码",
+                "binding": "path",
+                "value_type": "string",
+            },
+            {
+                "key": "password",
+                "label": "访问密码",
+                "input_type": "text",
+                "required": False,
+                "placeholder": "如分享受密码保护则输入访问密码",
+                "binding": "body",
+                "value_type": "string",
+            },
+        ],
+        "description": "输入分享码和可选访问密码，建立当前会话的公开分享访问权限。",
+        "source": "approved:operation",
+        "task_group": "00 可执行操作",
+        "sequence": 20,
     },
     {
         "key": "data_center.decision_reliability_repair",
@@ -456,6 +617,66 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "sequence": 10,
     },
     {
+        "key": "execution.trading-ledger.account-selector",
+        "label": "账户选择",
+        "method": "GET",
+        "endpoint": "/api/account/accounts/",
+        "intent": "read_account_selector_for_trading_ledger",
+        "screen_key": "execution.trading-ledger",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+        "description": "先选账户，再继续查看该账户的持仓、交易和资金流水。",
+        "source": "approved:manual-read",
+        "task_group": "02 账户选择",
+        "sequence": 200,
+    },
+    {
+        "key": "auto.api.get.api.data-center.indicators",
+        "label": "指标目录",
+        "method": "GET",
+        "endpoint": "/api/data-center/indicators/",
+        "intent": "read_data_center_indicators",
+        "screen_key": "api-library.data-center",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+        "description": "查看可查询的指标目录，供宏观序列等条件任务直接选取指标。",
+        "source": "approved:manual-read",
+        "task_group": "02 指标目录",
+        "sequence": 200,
+    },
+    {
+        "key": "auto.api.get.api.data-center.providers",
+        "label": "服务商列表",
+        "method": "GET",
+        "endpoint": "/api/data-center/providers/",
+        "intent": "read_data_center_providers",
+        "screen_key": "api-library.data-center",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+        "description": "查看数据服务商状态和编号，供同步与排障任务直接选取服务商。",
+        "source": "approved:manual-read",
+        "task_group": "04 服务商",
+        "sequence": 400,
+    },
+    {
+        "key": "auto.api.get.api.data-center.publishers",
+        "label": "发布机构目录",
+        "method": "GET",
+        "endpoint": "/api/data-center/publishers/",
+        "intent": "read_data_center_publishers",
+        "screen_key": "api-library.data-center",
+        "view_type": "datagrid",
+        "risk": "read",
+        "fields": [],
+        "description": "查看宏观与市场数据的发布机构目录和口径来源。",
+        "source": "approved:manual-read",
+        "task_group": "05 发布机构",
+        "sequence": 500,
+    },
+    {
         "key": "alpha.inference.trigger_batch",
         "label": "触发 Alpha 批量推理",
         "method": "POST",
@@ -516,6 +737,160 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "task_group": "00 可执行操作",
         "sequence": 20,
     },
+    {
+        "key": "config_center.qlib_runtime",
+        "label": "Qlib 运行配置",
+        "method": "GET",
+        "endpoint": "/api/system/config-center/qlib/runtime/",
+        "intent": "read_qlib_runtime_config",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [],
+        "description": "查看当前 Qlib 运行配置、活跃模型和训练占用状态。",
+        "source": "approved:admin",
+        "task_group": "01 运行配置",
+        "sequence": 10,
+    },
+    {
+        "key": "config_center.qlib_runtime_update",
+        "label": "更新 Qlib 运行配置",
+        "method": "POST",
+        "endpoint": "/api/system/config-center/qlib/runtime/",
+        "intent": "update_qlib_runtime_config",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [
+            {"key": "enabled", "label": "启用", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+            {"key": "provider_uri", "label": "Provider URI", "input_type": "text", "required": False},
+            {"key": "region", "label": "区域", "input_type": "text", "required": False},
+            {"key": "model_root", "label": "模型目录", "input_type": "text", "required": False},
+            {"key": "default_universe", "label": "默认标的池", "input_type": "text", "required": False},
+            {"key": "default_feature_set_id", "label": "默认特征集", "input_type": "text", "required": False},
+            {"key": "default_label_id", "label": "默认标签集", "input_type": "text", "required": False},
+            {"key": "train_queue_name", "label": "训练队列", "input_type": "text", "required": False},
+            {"key": "infer_queue_name", "label": "推理队列", "input_type": "text", "required": False},
+            {"key": "allow_auto_activate", "label": "允许自动激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+            {"key": "alpha_fixed_provider", "label": "固定 Provider", "input_type": "text", "required": False},
+            {"key": "alpha_pool_mode", "label": "资产池模式", "input_type": "text", "required": False},
+        ],
+        "description": "更新 Qlib 运行时配置。",
+        "source": "approved:admin",
+        "task_group": "00 管理操作",
+        "sequence": 10,
+    },
+    {
+        "key": "config_center.training_profiles",
+        "label": "训练模板",
+        "method": "GET",
+        "endpoint": "/api/system/config-center/qlib/training-profiles/",
+        "intent": "list_qlib_training_profiles",
+        "screen_key": "api-library.config-center",
+        "view_type": "datagrid",
+        "risk": "admin",
+        "fields": [],
+        "view_model": {"kind": "datagrid", "rows_path": "data"},
+        "description": "查看已登记的 Qlib 训练模板。",
+        "source": "approved:admin",
+        "task_group": "02 训练模板",
+        "sequence": 20,
+    },
+    {
+        "key": "config_center.training_profile_save",
+        "label": "保存训练模板",
+        "method": "POST",
+        "endpoint": "/api/system/config-center/qlib/training-profiles/",
+        "intent": "save_qlib_training_profile",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [
+            {"key": "id", "label": "模板 ID", "input_type": "number", "required": False, "value_type": "integer"},
+            {"key": "profile_key", "label": "模板键", "input_type": "text", "required": True},
+            {"key": "name", "label": "模板名称", "input_type": "text", "required": True},
+            {"key": "model_name", "label": "模型名称", "input_type": "text", "required": True},
+            {"key": "model_type", "label": "模型类型", "input_type": "text", "required": True},
+            {"key": "universe", "label": "标的池", "input_type": "text", "required": False},
+            {"key": "start_date", "label": "开始日期", "input_type": "date", "required": False, "value_type": "date"},
+            {"key": "end_date", "label": "结束日期", "input_type": "date", "required": False, "value_type": "date"},
+            {"key": "feature_set_id", "label": "特征集", "input_type": "text", "required": False},
+            {"key": "label_id", "label": "标签集", "input_type": "text", "required": False},
+            {"key": "learning_rate", "label": "学习率", "input_type": "number", "required": False, "value_type": "float"},
+            {"key": "epochs", "label": "轮数", "input_type": "number", "required": False, "value_type": "integer"},
+            {"key": "model_params", "label": "模型参数", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
+            {"key": "extra_train_config", "label": "额外训练配置", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
+            {"key": "activate_after_train", "label": "训练后激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+            {"key": "is_active", "label": "启用模板", "input_type": "checkbox", "required": False, "default": True, "value_type": "boolean"},
+            {"key": "notes", "label": "备注", "input_type": "textarea", "required": False},
+        ],
+        "description": "创建或更新一个 Qlib 训练模板。",
+        "source": "approved:admin",
+        "task_group": "00 管理操作",
+        "sequence": 20,
+    },
+    {
+        "key": "config_center.training_runs",
+        "label": "训练运行记录",
+        "method": "GET",
+        "endpoint": "/api/system/config-center/qlib/training-runs/",
+        "intent": "list_qlib_training_runs",
+        "screen_key": "api-library.config-center",
+        "view_type": "datagrid",
+        "risk": "admin",
+        "fields": [],
+        "view_model": {"kind": "datagrid", "rows_path": "data"},
+        "description": "查看最近的 Qlib 训练运行记录。",
+        "source": "approved:admin",
+        "task_group": "03 训练运行",
+        "sequence": 30,
+    },
+    {
+        "key": "config_center.training_run_detail",
+        "label": "训练运行详情",
+        "method": "GET",
+        "endpoint": "/api/system/config-center/qlib/training-runs/<str:run_id>/",
+        "intent": "read_qlib_training_run_detail",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [
+            {"key": "run_id", "label": "运行 ID", "input_type": "text", "required": True, "binding": "path"},
+        ],
+        "description": "按运行 ID 查看一条训练运行详情。",
+        "source": "approved:admin",
+        "task_group": "03 训练运行",
+        "sequence": 40,
+    },
+    {
+        "key": "config_center.training_run_trigger",
+        "label": "触发训练任务",
+        "method": "POST",
+        "endpoint": "/api/system/config-center/qlib/training-runs/trigger/",
+        "intent": "trigger_qlib_training_run",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [
+            {"key": "profile_key", "label": "模板键", "input_type": "text", "required": False},
+            {"key": "model_name", "label": "模型名称", "input_type": "text", "required": False},
+            {"key": "model_type", "label": "模型类型", "input_type": "text", "required": False},
+            {"key": "universe", "label": "标的池", "input_type": "text", "required": False},
+            {"key": "start_date", "label": "开始日期", "input_type": "date", "required": False, "value_type": "date"},
+            {"key": "end_date", "label": "结束日期", "input_type": "date", "required": False, "value_type": "date"},
+            {"key": "feature_set_id", "label": "特征集", "input_type": "text", "required": False},
+            {"key": "label_id", "label": "标签集", "input_type": "text", "required": False},
+            {"key": "learning_rate", "label": "学习率", "input_type": "number", "required": False, "value_type": "float"},
+            {"key": "epochs", "label": "轮数", "input_type": "number", "required": False, "value_type": "integer"},
+            {"key": "model_params", "label": "模型参数", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
+            {"key": "extra_train_config", "label": "额外训练配置", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
+            {"key": "activate", "label": "训练后激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+        ],
+        "description": "提交一个新的 Qlib 训练任务。",
+        "source": "approved:admin",
+        "task_group": "00 管理操作",
+        "sequence": 30,
+    },
 )
 
 
@@ -569,7 +944,10 @@ EXACT_LABELS = {
     "auto.api.get.api.strategy.rules": "策略规则",
     "auto.api.get.api.strategy.script-configs": "策略脚本配置",
     "auto.api.get.api.strategy.assignments": "策略绑定",
+    "auto.api.get.api.strategy.assignments.by_portfolio": "策略绑定（按组合）",
     "auto.api.get.api.strategy.execution-logs": "策略执行记录",
+    "auto.api.get.api.strategy.execution-logs.by_portfolio": "策略执行记录（按组合）",
+    "auto.api.get.api.strategy.execution-logs.by_strategy": "策略执行记录（按策略）",
     "auto.api.get.api.strategy.strategies.my_strategies": "我的策略",
     "auto.api.get.api.decision-rhythm.quotas": "决策节奏配额",
     "auto.api.get.api.decision-rhythm.cooldowns": "冷却期",
@@ -577,6 +955,22 @@ EXACT_LABELS = {
     "auto.api.get.api.decision-rhythm.requests.statistics": "节奏统计",
     "auto.api.get.api.decision-rhythm.summary": "决策节奏概览",
     "auto.api.get.api.decision-rhythm.trend-data": "节奏趋势",
+    "auto.api.get.api.alpha-triggers": "Alpha 触发器入口",
+    "auto.api.get.api.alpha-triggers.triggers": "触发器列表",
+    "auto.api.get.api.alpha-triggers.triggers.active": "活跃触发器",
+    "auto.api.get.api.alpha-triggers.triggers.statistics": "触发器统计",
+    "auto.api.get.api.alpha-triggers.candidates": "候选列表",
+    "auto.api.get.api.alpha-triggers.candidates.actionable": "可操作候选",
+    "auto.api.get.api.alpha-triggers.candidates.watch-list": "观察列表",
+    "auto.api.get.api.alpha-triggers.candidates.statistics": "候选统计",
+    "auto.api.get.api.alpha-triggers.performance": "触发器绩效",
+    "auto.api.get.api.agent-runtime": "AI 任务入口",
+    "auto.api.get.api.agent-runtime.health": "运行时健康",
+    "auto.api.get.api.agent-runtime.tasks": "任务队列",
+    "auto.api.get.api.agent-runtime.tasks.needs_attention": "待处理任务",
+    "auto.api.get.api.agent-runtime.proposals": "提案列表",
+    "auto.api.get.api.agent-runtime.tasks.pk.artifacts": "任务产物",
+    "auto.api.get.api.agent-runtime.tasks.pk.timeline": "任务时间线",
     "auto.api.get.api.rotation.recommendation": "轮动配置建议",
     "auto.api.get.api.rotation.assets": "轮动资产",
     "auto.api.get.api.rotation.assets.with_prices": "带价格轮动资产",
@@ -612,6 +1006,7 @@ EXACT_LABELS = {
     "auto.api.get.api.asset-analysis.current-weight": "当前资产权重",
     "auto.api.get.api.fund.rank": "基金排行",
     "auto.api.get.api.sentiment.index.recent": "近期情绪指数",
+    "auto.api.get.api.sentiment.index.range": "情绪指数区间",
     "auto.api.get.api.sentiment.health": "情绪健康",
     "auto.api.get.api.ai.me.logs": "我的 AI 日志",
     "auto.api.get.api.prompt": "Prompt 总览",
@@ -678,7 +1073,14 @@ EXACT_LABELS = {
     "param.api.get.api.audit.decision-traces.str.request_id": "决策链路详情",
     "param.api.get.api.rotation.assets.code.detail": "轮动资产详情",
     "param.api.get.api.share.links.pk.stats": "分享统计详情",
-    "param.api.get.api.ai.me.providers.pk": "AI Provider 详情",
+    "param.api.get.api.ai.me.providers.pk": "AI 服务商详情",
+    "param.api.get.api.alpha-triggers.triggers.by-regime.regime": "Alpha 触发器 / 按环境 / 详情",
+    "param.api.get.api.alpha-triggers.triggers.pk": "Alpha 触发器 / 详情",
+    "param.api.get.api.alpha-triggers.candidates.pk": "Alpha 候选 / 详情",
+    "param.api.get.api.agent-runtime.tasks.pk": "任务详情",
+    "param.api.get.api.agent-runtime.tasks.pk.artifacts": "任务产物",
+    "param.api.get.api.agent-runtime.tasks.pk.timeline": "任务时间线",
+    "param.api.get.api.agent-runtime.proposals.pk": "提案详情",
     "param.api.get.api.dashboard.position.str.asset_code": "标的持仓详情",
     "param.api.get.api.ai-capability.capabilities.str.capability_key": "AI 能力详情",
     "param.api.get.api.ai-capability.capabilities.pk": "AI 能力详情",
@@ -1082,6 +1484,11 @@ TASK_GROUP_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.policy", "02 政策状态"),
     ("auto.api.get.api.regime", "01 环境状态"),
     ("auto.api.get.api.pulse", "02 战术脉搏"),
+    ("auto.api.get.api.alpha-triggers.candidates.actionable", "01 候选池"),
+    ("auto.api.get.api.alpha-triggers.candidates.watch-list", "02 观察列表"),
+    ("auto.api.get.api.alpha-triggers.candidates", "01 候选池"),
+    ("auto.api.get.api.alpha-triggers.triggers", "03 触发器"),
+    ("auto.api.get.api.alpha-triggers.performance", "04 绩效"),
     ("auto.api.get.api.alpha.ops", "05 Alpha 运维"),
     ("auto.api.get.api.alpha", "02 Alpha 候选"),
     ("auto.api.get.api.signal", "01 信号检查"),
@@ -1135,6 +1542,11 @@ TASK_GROUP_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.prompt.logs", "04 日志"),
     ("auto.api.get.api.prompt.chat", "05 模型"),
     ("auto.api.get.api.prompt", "02 模板"),
+    ("auto.api.get.api.agent-runtime.health", "01 运行状态"),
+    ("auto.api.get.api.agent-runtime.tasks.needs_attention", "02 待处理任务"),
+    ("auto.api.get.api.agent-runtime.tasks", "03 任务队列"),
+    ("auto.api.get.api.agent-runtime.proposals", "04 提案"),
+    ("auto.api.get.api.agent-runtime", "01 运行状态"),
     ("auto.api.get.api.health", "01 健康检查"),
     ("auto.api.get.api.ready", "01 健康检查"),
     ("auto.api.get.api.system", "02 系统状态"),
@@ -1181,6 +1593,9 @@ PRIMARY_ACTION_KEYS = {
     "signal.unified_summary",
     "alpha.scores",
     "alpha.providers_status",
+    "auto.api.get.api.alpha-triggers.candidates.actionable",
+    "auto.api.get.api.alpha-triggers.triggers.active",
+    "auto.api.get.api.alpha-triggers.performance",
     "factor.definitions",
     "backtest.statistics",
     "backtest.backtests",
@@ -1240,6 +1655,8 @@ PRIMARY_ACTION_KEYS = {
     "auto.api.get.api.prompt.templates",
     "auto.api.get.api.prompt.chat.providers",
     "auto.api.get.api.prompt.chat.models",
+    "auto.api.get.api.agent-runtime.health",
+    "auto.api.get.api.agent-runtime.tasks.needs_attention",
     "auto.api.get.api.terminal.commands",
     "auto.api.get.api.health",
     "auto.api.get.api.ready",
@@ -1247,6 +1664,12 @@ PRIMARY_ACTION_KEYS = {
     "auto.api.get.api.data-center",
     "auto.api.get.api.data-center.market-thermometer.history",
     "auto.api.get.api.data-center.market-thermometer.me",
+}
+
+REDUNDANT_SCREEN_ACTION_KEYS = {
+    "ai-ops.capabilities": {
+        "param.api.get.api.ai-capability.capabilities.pk",
+    },
 }
 
 EXACT_TASK_GROUPS = {
@@ -1285,6 +1708,14 @@ EXACT_TASK_GROUPS = {
     "terminal.commands_by_category": "03 指令分类",
     "agent_runtime.health": "01 运行状态",
     "agent_runtime.needs_attention": "02 待处理任务",
+    "auto.api.get.api.alpha-triggers.candidates.actionable": "01 候选池",
+    "auto.api.get.api.alpha-triggers.candidates.watch-list": "02 观察列表",
+    "auto.api.get.api.alpha-triggers.triggers": "03 触发器",
+    "auto.api.get.api.alpha-triggers.performance": "04 绩效",
+    "auto.api.get.api.agent-runtime.health": "01 运行状态",
+    "auto.api.get.api.agent-runtime.tasks.needs_attention": "02 待处理任务",
+    "auto.api.get.api.agent-runtime.tasks": "03 任务队列",
+    "auto.api.get.api.agent-runtime.proposals": "04 提案",
 }
 
 
@@ -1339,7 +1770,9 @@ def _task_tier(action: dict[str, Any]) -> str:
     key = str(action.get("key") or "")
     group = str(action.get("task_group") or "")
     risk = str(action.get("risk") or "read")
-    if risk in {"write", "ai"}:
+    if str(action.get("source") or "") == "approved:operation":
+        return "operation"
+    if risk in {"write", "ai", "admin"}:
         return "operation"
     if key.startswith("param.") or "条件查询" in group:
         return "advanced"
@@ -1368,6 +1801,21 @@ def _merge_approved_operation_actions(payload: dict[str, Any]) -> int:
 
 
 def _normalize_special_action(action: dict[str, Any]) -> None:
+    exact_view_type = EXACT_VIEW_TYPE_RULES.get(str(action.get("key") or ""))
+    if exact_view_type:
+        action["view_type"] = exact_view_type
+    exact_view_model = EXACT_VIEW_MODEL_RULES.get(str(action.get("key") or ""))
+    if exact_view_model:
+        action["view_model"] = {
+            **dict(action.get("view_model") or {}),
+            **exact_view_model,
+        }
+    field_overrides = EXACT_FIELD_OVERRIDES.get(str(action.get("key") or ""))
+    if field_overrides:
+        for field in action.get("fields") or []:
+            override = field_overrides.get(str(field.get("key") or ""))
+            if override:
+                field.update(override)
     if action.get("key") != "terminal.chat_router":
         return
     fields = action.get("fields") or []
@@ -1489,6 +1937,26 @@ def _prune_empty_screens(payload: dict[str, Any]) -> int:
     return removed
 
 
+def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
+    """Drop duplicated screen actions when a row-backed business-key route exists."""
+
+    if not REDUNDANT_SCREEN_ACTION_KEYS:
+        return 0
+
+    kept: list[dict[str, Any]] = []
+    removed = 0
+    for action in payload.get("actions", []):
+        screen_key = str(action.get("screen_key") or "")
+        action_key = str(action.get("key") or "")
+        redundant_keys = REDUNDANT_SCREEN_ACTION_KEYS.get(screen_key, set())
+        if action_key in redundant_keys:
+            removed += 1
+            continue
+        kept.append(action)
+    payload["actions"] = kept
+    return removed
+
+
 def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     for module in payload.get("modules", []):
         if module.get("key") == "api-library":
@@ -1554,12 +2022,14 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
         if "sequence" not in action:
             action["sequence"] = _sequence(action_key)
         action["task_tier"] = _task_tier(action)
+    pruned_redundant_actions = _prune_redundant_screen_actions(payload)
     _apply_default_business_context_metadata(payload)
     pruned_empty_screens = _prune_empty_screens(payload)
 
     coverage = dict(payload.get("coverage_summary") or {})
     coverage["business_promoted_actions"] = promoted
     coverage["approved_operation_actions"] = approved_operation_actions
+    coverage["pruned_redundant_screen_actions"] = pruned_redundant_actions
     coverage["pruned_empty_screens"] = pruned_empty_screens
     payload["coverage_summary"] = coverage
     return payload, promoted

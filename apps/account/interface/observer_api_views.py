@@ -3,9 +3,11 @@
 from importlib import import_module
 from typing import Any
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -50,7 +52,10 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
         if self.action in ['destroy', 'update', 'partial_update', 'retrieve', 'positions']:
             lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
             lookup_value = self.kwargs.get(lookup_url_kwarg)
-            grant = interface_services.get_observer_grant_by_id(lookup_value)
+            try:
+                grant = interface_services.get_observer_grant_by_id(lookup_value)
+            except DjangoValidationError as exc:
+                raise DRFValidationError({'detail': '授权 ID 格式无效'}) from exc
             if grant is None:
                 raise Http404
             if self.action in ['retrieve', 'positions']:

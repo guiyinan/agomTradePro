@@ -23,6 +23,7 @@ class TuiInternalActionExecutor:
         params: dict[str, Any],
         body: dict[str, Any],
         user: Any,
+        session: Any | None = None,
     ) -> dict[str, Any]:
         """Execute an internal API endpoint and normalize its response."""
 
@@ -34,6 +35,8 @@ class TuiInternalActionExecutor:
         else:
             request = request_method(endpoint, data=body, format="json")
         request.user = user
+        if session is not None:
+            request.session = session
 
         match = resolve(endpoint)
         request.resolver_match = match

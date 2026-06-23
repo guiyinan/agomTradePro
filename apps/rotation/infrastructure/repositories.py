@@ -105,7 +105,7 @@ class RotationInterfaceRepository:
         """Return account-level rotation configs visible to a user."""
         return PortfolioRotationConfigModel._default_manager.filter(
             account__user=user
-        ).select_related('account', 'base_config')
+        ).select_related('account', 'base_config').order_by('account_id', 'id')
 
     def get_portfolio_config_for_account(self, account_id: int | str, user):
         """Return one account-level rotation config visible to a user."""

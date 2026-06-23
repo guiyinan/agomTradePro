@@ -34,3 +34,22 @@ def get_candidate_generation_context(*, limit: int = 50) -> dict[str, Any]:
         "existing_trigger_ids": existing_trigger_ids,
         "actionable_count": actionable_count,
     }
+
+
+def has_alpha_triggers() -> bool:
+    """Return whether the default trigger lists can surface selectable rows."""
+
+    trigger_repo = get_alpha_trigger_repository()
+    return bool(trigger_repo.get_active())
+
+
+def has_alpha_candidates() -> bool:
+    """Return whether same-screen candidate selectors can surface rows."""
+
+    candidate_repo = get_alpha_candidate_repository()
+    return bool(
+        candidate_repo.list_models_by_statuses(
+            ["ACTIONABLE", "WATCH"],
+            limit=1,
+        )
+    )
