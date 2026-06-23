@@ -34,3 +34,13 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
 
     assert "CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train" in compose
     assert "healthcheck:\n      disable: true" in compose
+
+
+def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
+
+    assert "AGOMTRADEPRO_BOOTSTRAP_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" in compose
+    assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" in compose
+    assert '${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}' in entrypoint
+    assert '${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}' not in entrypoint

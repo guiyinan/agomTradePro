@@ -33,6 +33,8 @@ python manage.py collectstatic --noinput
 docker compose -f docker/docker-compose.vps.yml up -d
 ```
 
+The production web entrypoint runs lightweight cold-start configuration by default, but does not run Alpha/Qlib bootstrap unless `AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=1` is explicitly set. Keep the default disabled on memory-constrained VPS hosts; run Alpha bootstrap as a separate maintenance task when needed.
+
 ### Post-Deployment Verification
 
 ```bash
