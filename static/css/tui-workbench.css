@@ -543,7 +543,8 @@ a {
     display: none;
 }
 
-.tui-app.is-rail-collapsed .tui-rail .tui-titlebar {
+.tui-app.is-rail-collapsed .tui-rail .tui-titlebar,
+.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-title {
     flex: 1 1 auto;
     align-items: center;
     justify-content: flex-start;
@@ -554,7 +555,10 @@ a {
     writing-mode: vertical-rl;
 }
 
-.tui-app.is-rail-collapsed .tui-rail .tui-collapse-button {
+.tui-app.is-rail-collapsed .tui-rail .tui-collapse-button,
+.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-collapse-button {
+    order: -1;
+    flex: 0 0 auto;
     transform: rotate(0deg);
 }
 
@@ -1000,25 +1004,6 @@ a {
 
 .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-body {
     display: none;
-}
-
-.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-title {
-    flex: 1 1 auto;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    min-height: 0;
-    padding: 6px 2px;
-    border-bottom: 0;
-    writing-mode: vertical-rl;
-}
-
-.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-titlebar-text {
-    flex: 1 1 auto;
-}
-
-.tui-app.is-inspector-collapsed .tui-inspector-panel .tui-collapse-button {
-    flex: 0 0 auto;
 }
 
 .tui-workflow-strip {
@@ -2318,6 +2303,15 @@ a {
     .tui-app.is-inspector-collapsed .tui-workspace-grid {
         grid-template-rows: minmax(90px, 0.28fr) minmax(0, 1fr) var(--tui-inspector-collapsed-width);
         grid-template-columns: 1fr;
+    }
+
+    .tui-app.is-rail-collapsed .tui-rail .tui-titlebar,
+    .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-title {
+        flex-direction: row;
+        justify-content: flex-start;
+        min-height: 24px;
+        padding: 2px 7px;
+        writing-mode: horizontal-tb;
     }
 
     .tui-workspace-grid.is-dashboard .tui-main-panel,
