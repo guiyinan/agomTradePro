@@ -597,12 +597,15 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert ".tui-inspector-actions" in css
     assert '.tui-workspace-grid[data-view-kind="detail"]' in css
     assert '.tui-workspace-grid[data-view-kind="message"]' in css
+    assert "--tui-inspector-width: var(--tui-inspector-user-width, var(--tui-inspector-default-width));" in css
+    assert "--tui-inspector-default-width: minmax(252px, 0.92fr);" in css
+    assert "--tui-inspector-default-width: minmax(280px, 1.04fr);" in css
     assert (
-        "grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) minmax(252px, 0.92fr);"
+        "grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) var(--tui-inspector-width);"
         in css
     )
     assert (
-        "grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) minmax(280px, 1.04fr);"
+        "grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) var(--tui-inspector-width);"
         in css
     )
     assert "min-inline-size: 24ch;" in css
