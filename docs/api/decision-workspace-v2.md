@@ -25,6 +25,7 @@
 5. 交易计划生成与更新
 6. 审批执行预览
 7. 模型参数查询与更新
+8. 账户级自动投顾建议单
 
 ### 1.1 前端账户绑定约定
 
@@ -77,7 +78,81 @@ python manage.py setup_workspace_snapshot_refresh
 - 时区: `Asia/Shanghai`
 - 默认时间: `22:45`
 
-## 2. 统一推荐列表
+## 2. 账户级自动投顾建议单
+
+`GET /api/decision/advisor/sheet/?account_id=<id>`
+
+用途: 按一个账户生成当天自动投顾建议单。该接口只返回建议订单/订单意图，不接券商、不真实下单、不修改持仓。
+
+约束:
+
+- `account_id` 必填。
+- 后端必须校验账户归属，禁止跨用户读取。
+- 建议单必须先读取账户现有持仓，再生成订单意图。
+- UI 可以展示账户类型、账户名称、账户状态、持仓和订单建议，但不要求用户理解底层持仓来自模拟盘表还是手工组合表。
+
+响应字段:
+
+```json
+{
+  "success": true,
+  "data": {
+    "account": {
+      "account_id": "1",
+      "account_name": "Growth Account",
+      "account_type": "simulated",
+      "account_type_label": "模拟盘账户",
+      "account_status": "active",
+      "total_asset": 100000.0,
+      "available_cash": 20000.0,
+      "holding_count": 3,
+      "baseline": "existing_positions"
+    },
+    "today_conclusion": "ACT",
+    "holdings": [],
+    "allocation": [],
+    "order_summary": {
+      "total": 2,
+      "actionable": 2,
+      "blocked": 0,
+      "buy": 1,
+      "add": 0,
+      "reduce": 1,
+      "exit": 0,
+      "hold": 0,
+      "watch": 0
+    },
+    "order_intents": [],
+    "blockers": [],
+    "next_actions": []
+  }
+}
+```
+
+`order_intents` 单项固定字段:
+
+- `order_intent_id`
+- `account_id`
+- `asset_code`
+- `asset_name`
+- `side`: `BUY / ADD / REDUCE / EXIT / HOLD / WATCH`
+- `current_quantity`
+- `target_quantity`
+- `delta_quantity`
+- `estimated_price`
+- `estimated_amount`
+- `current_weight`
+- `target_weight`
+- `priority`
+- `price_band`
+- `reason`
+- `risk_notes`
+- `invalidation_rule`
+- `execution_hint`
+- `source_recommendation_id`
+- `blocking_status`
+
+## 3. 统一推荐列表
 
 - 方法: `GET`
 - 路径: `/api/decision/workspace/recommendations/`

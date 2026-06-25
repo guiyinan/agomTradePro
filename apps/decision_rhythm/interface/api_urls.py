@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
+from .advisor_api_views import AdvisorDecisionSheetView
 from .command_api_views import (
     GetRhythmSummaryView,
     SubmitBatchRequestView,
@@ -61,6 +62,7 @@ class DecisionApiRootView(APIView):
                     "workspace_recommendations": "/api/decision/workspace/recommendations/",
                     "workspace_conflicts": "/api/decision/workspace/conflicts/",
                     "workspace_today_queue": "/api/decision/workspace/today-queue/",
+                    "advisor_sheet": "/api/decision/advisor/sheet/",
                     "workspace_params": "/api/decision/workspace/params/",
                     "workspace_plans_generate": "/api/decision/workspace/plans/generate/",
                     "execute_preview": "/api/decision/execute/preview/",
@@ -74,6 +76,11 @@ class DecisionApiRootView(APIView):
 
 urlpatterns = [
     path("api/decision/", DecisionApiRootView.as_view(), name="decision-api-root"),
+    path(
+        "api/decision/advisor/sheet/",
+        AdvisorDecisionSheetView.as_view(),
+        name="decision-advisor-sheet",
+    ),
     path("api/decision-rhythm/", include(router.urls)),
     path("api/decision-rhythm/submit/", SubmitDecisionRequestView.as_view(), name="submit-request"),
     path(

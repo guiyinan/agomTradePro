@@ -24,6 +24,60 @@ RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
     },
 }
 
+RUNTIME_ADVISOR_SCREEN: dict[str, Any] = {
+    "key": "command-center.auto-advisor",
+    "label": "自动投顾",
+    "module_key": "command-center",
+    "group": "workflow",
+    "summary": "按账户读取持仓驱动的今日建议单和建议订单清单。",
+    "view_type": "datagrid",
+    "default_action_key": "advisor.today_sheet",
+    "business_context": {
+        "objective": "确认一个账户今天是否行动、下多少单、每单怎么下。",
+        "decision_output": "账户级结论、持仓摘要、建议订单清单和阻断项。",
+        "checkpoints": [
+            "先输入账户 ID 读取该账户持仓。",
+            "优先检查减仓、清仓和阻断项。",
+            "新增买入只在现金、价格和风控允许时展示。",
+        ],
+    },
+}
+
+RUNTIME_ADVISOR_ACTION: dict[str, Any] = {
+    "key": "advisor.today_sheet",
+    "label": "今日自动投顾建议单",
+    "endpoint": "/api/decision/advisor/sheet/",
+    "method": "GET",
+    "intent": "auto_safe_read_candidate",
+    "risk_level": "read",
+    "screen_key": "command-center.auto-advisor",
+    "view_type": "datagrid",
+    "description": "按 account_id 读取账户级持仓、配置偏离和建议订单清单。",
+    "source": "approved:runtime-advisor",
+    "task_group": "01 自动投顾",
+    "sequence": 100,
+    "task_tier": "primary",
+    "fields": [
+        {
+            "key": "account_id",
+            "label": "账户 ID",
+            "input_type": "text",
+            "required": True,
+            "default": "",
+            "placeholder": "输入账户 ID",
+            "binding": "query",
+            "value_type": "string",
+        }
+    ],
+    "view_model": {
+        "kind": "datagrid",
+        "rows_path": "data.order_intents",
+        "total_path": "data.order_summary.total",
+        "status_path": "data.today_conclusion",
+        "title_path": "data.account.account_name",
+    },
+}
+
 RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
     "auto.api.get.api.dashboard.alpha.history": {
         "view_type": "datagrid",
@@ -192,11 +246,18 @@ class PublishedTuiMetadataRepository:
 
         redundant_map = RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS
         patches = RUNTIME_ACTION_PATCHES
-        if not redundant_map and not patches:
-            return payload
 
         normalized = dict(payload)
-        actions = list(payload.get("actions") or [])
+        screens = list(payload.get("screens") or [])
+        actions = list(normalized.get("actions") or [])
+        injected = self._inject_advisor_metadata(screens=screens, actions=actions)
+        normalized["screens"] = screens
+        normalized["actions"] = actions
+
+        if not redundant_map and not patches and injected == 0:
+            return payload
+
+        actions = list(normalized.get("actions") or [])
         kept: list[dict[str, Any]] = []
         removed = 0
         patched = 0
@@ -215,7 +276,14 @@ class PublishedTuiMetadataRepository:
                 continue
             kept.append(action)
         if removed == 0 and patched == 0:
-            return payload
+            if injected == 0:
+                return payload
+            coverage = dict(normalized.get("coverage_summary") or {})
+            coverage["runtime_injected_advisor_metadata"] = injected + int(
+                coverage.get("runtime_injected_advisor_metadata", 0) or 0
+            )
+            normalized["coverage_summary"] = coverage
+            return validate_tui_metadata(normalized)
 
         normalized["actions"] = kept
         coverage = dict(normalized.get("coverage_summary") or {})
@@ -225,8 +293,28 @@ class PublishedTuiMetadataRepository:
         coverage["runtime_patched_actions"] = patched + int(
             coverage.get("runtime_patched_actions", 0) or 0
         )
+        coverage["runtime_injected_advisor_metadata"] = injected + int(
+            coverage.get("runtime_injected_advisor_metadata", 0) or 0
+        )
         normalized["coverage_summary"] = coverage
         return validate_tui_metadata(normalized)
+
+    @staticmethod
+    def _inject_advisor_metadata(
+        *,
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+    ) -> int:
+        """Inject the account auto-advisor screen/action when absent."""
+
+        injected = 0
+        if not any(screen.get("key") == RUNTIME_ADVISOR_SCREEN["key"] for screen in screens):
+            screens.append(dict(RUNTIME_ADVISOR_SCREEN))
+            injected += 1
+        if not any(action.get("key") == RUNTIME_ADVISOR_ACTION["key"] for action in actions):
+            actions.append(dict(RUNTIME_ADVISOR_ACTION))
+            injected += 1
+        return injected
 
     @staticmethod
     def _apply_runtime_patch(

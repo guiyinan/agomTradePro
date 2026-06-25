@@ -255,6 +255,12 @@ class CommandExecutionService:
             and not bool((params or {}).get("verbose", False))
         ):
             return self._format_market_temperature_output(output)
+        if (
+            command.name == "advisor_today"
+            and isinstance(output, dict)
+            and not bool((params or {}).get("verbose", False))
+        ):
+            return self._format_advisor_today_output(output)
 
         if isinstance(output, (dict, list)):
             return json.dumps(output, indent=2, ensure_ascii=False)
@@ -287,6 +293,64 @@ class CommandExecutionService:
             lines.append(
                 f"数据完整性提示: 数据不完整，当前仅供参考。{payload.get('blocked_reason', '')}".strip()
             )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_advisor_today_output(payload: dict[str, Any]) -> str:
+        """Render a compact textual summary for the account advisor command."""
+
+        data = payload.get("data") if payload.get("success") is True else payload
+        if not isinstance(data, dict):
+            return json.dumps(payload, indent=2, ensure_ascii=False)
+
+        account = data.get("account") or {}
+        summary = data.get("order_summary") or {}
+        orders = list(data.get("order_intents") or [])[:5]
+        blockers = list(data.get("blockers") or [])[:5]
+        next_actions = list(data.get("next_actions") or [])[:5]
+        account_name = account.get("account_name") or account.get("account_id") or "-"
+        account_type = account.get("account_type_label") or account.get("account_type") or "账户"
+        lines = [
+            f"账户: {account_name} ({account_type})",
+            f"总资产: {account.get('total_asset')}  可用资金: {account.get('available_cash')}",
+            f"当前持仓数: {account.get('holding_count')}  基线: {data.get('baseline')}",
+            f"今日结论: {data.get('today_conclusion')}",
+            (
+                "建议订单: "
+                f"共 {summary.get('total', 0)} 单，"
+                f"买入 {summary.get('buy', 0)}，"
+                f"加仓 {summary.get('add', 0)}，"
+                f"减仓 {summary.get('reduce', 0)}，"
+                f"清仓 {summary.get('exit', 0)}，"
+                f"阻断 {summary.get('blocked', 0)}"
+            ),
+        ]
+        if orders:
+            lines.append("前 5 条订单意图:")
+            for order in orders:
+                price_band = order.get("price_band") or {}
+                lines.append(
+                    "- "
+                    f"{order.get('side')} {order.get('asset_code')} "
+                    f"{order.get('asset_name')} "
+                    f"delta={order.get('delta_quantity')} "
+                    f"amount={order.get('estimated_amount')} "
+                    f"price={price_band.get('label') or order.get('estimated_price')} "
+                    f"status={order.get('blocking_status')}"
+                )
+        else:
+            lines.append("前 5 条订单意图: 暂无")
+
+        if blockers:
+            lines.append("阻断项:")
+            for blocker in blockers:
+                lines.append(
+                    f"- {blocker.get('asset_code') or '-'} {blocker.get('type')}: {blocker.get('message')}"
+                )
+        if next_actions:
+            lines.append("下一步命令:")
+            for action in next_actions:
+                lines.append(f"- {action.get('label')}: {action.get('hint')}")
         return "\n".join(lines)
 
     def _apply_jq_filter(self, data: Any, filter_expr: str) -> Any:

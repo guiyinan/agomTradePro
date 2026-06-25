@@ -113,6 +113,115 @@
     color: var(--color-text-secondary);
 }
 
+.advisor-panel {
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-card-bg, #ffffff);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    margin-bottom: 18px;
+}
+
+.advisor-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.advisor-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-text-primary);
+}
+
+.advisor-subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.advisor-verdict {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #eef2ff;
+    color: #3730a3;
+}
+
+.advisor-verdict-ACT {
+    background: #e8f7ee;
+    color: #217346;
+}
+
+.advisor-verdict-REVIEW {
+    background: #fff3dd;
+    color: #9a6220;
+}
+
+.advisor-verdict-BLOCKED {
+    background: #fdecec;
+    color: #b42318;
+}
+
+.advisor-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.advisor-order-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.advisor-order-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) 90px 110px minmax(0, 1.2fr);
+    gap: 12px;
+    align-items: start;
+    border: 1px solid #dde6f0;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fbfcfe;
+}
+
+.advisor-order-main {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.advisor-order-meta {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.advisor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+    .advisor-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .advisor-order-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .workspace-freshness-panel {
     margin-top: 16px;
     display: flex;
@@ -593,6 +702,43 @@
         </aside>
 
         <div class="workspace-main">
+            <section class="advisor-panel" id="advisor-today-panel">
+                <div class="advisor-panel-head">
+                    <div>
+                        <div class="advisor-title">今日自动投顾</div>
+                        <div class="advisor-subtitle" id="advisor-account-line">请选择账户读取持仓驱动建议单。</div>
+                    </div>
+                    <span id="advisor-verdict" class="advisor-verdict">未加载</span>
+                </div>
+                <div class="advisor-kpis">
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">建议订单</span>
+                        <span class="workspace-kpi-value" id="advisor-total-orders">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">买入/加仓</span>
+                        <span class="workspace-kpi-value" id="advisor-buy-orders">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">减仓/清仓</span>
+                        <span class="workspace-kpi-value" id="advisor-sell-orders">-</span>
+                    </div>
+                    <div class="workspace-kpi">
+                        <span class="workspace-kpi-label">阻断项</span>
+                        <span class="workspace-kpi-value" id="advisor-blocked-orders">-</span>
+                    </div>
+                </div>
+                <div id="advisor-order-list" class="advisor-order-list">
+                    <div class="workspace-sidebar-subtitle">等待账户加载。</div>
+                </div>
+                <div class="advisor-actions">
+                    <button class="btn btn-primary btn-sm" type="button" onclick="generateTransitionPlan()">生成 Workspace 计划</button>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="copyAdvisorManualList()">复制手工执行清单</button>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="refreshAdvisorSheet()">刷新推荐</button>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="loadConflicts()">查看冲突/阻断</button>
+                </div>
+            </section>
+
             <!-- Stepper Navigation -->
             <div class="funnel-stepper">
                 <template x-for="step in steps" :key="step.n">
@@ -998,6 +1144,7 @@ let currentTransitionPlanId = workspaceParams.get('plan_id') || '';
 let currentPlanApprovalRequestId = '';
 let currentTransitionPlanCanEnterApproval = false;
 let currentTransitionPlanActiveOrdersCount = 0;
+let currentAdvisorSheet = null;
 let userAccounts = [];
 let workspaceInitialized = false;
 const selectedRecommendationIds = new Set();
@@ -1553,6 +1700,162 @@ async function loadWorkspaceAccountSnapshot() {
     }
 }
 
+function renderAdvisorEmpty(message) {
+    currentAdvisorSheet = null;
+    const verdict = document.getElementById('advisor-verdict');
+    const accountLine = document.getElementById('advisor-account-line');
+    const list = document.getElementById('advisor-order-list');
+    if (verdict) {
+        verdict.className = 'advisor-verdict';
+        verdict.textContent = '未加载';
+    }
+    if (accountLine) {
+        accountLine.textContent = message;
+    }
+    setWorkspaceSnapshotValue('advisor-total-orders', '-');
+    setWorkspaceSnapshotValue('advisor-buy-orders', '-');
+    setWorkspaceSnapshotValue('advisor-sell-orders', '-');
+    setWorkspaceSnapshotValue('advisor-blocked-orders', '-');
+    if (list) {
+        list.innerHTML = `<div class="workspace-sidebar-subtitle">${escapeHtml(message)}</div>`;
+    }
+}
+
+function renderAdvisorSheet(sheet) {
+    currentAdvisorSheet = sheet;
+    const account = sheet.account || {};
+    const summary = sheet.order_summary || {};
+    const verdictText = sheet.today_conclusion || 'WAIT';
+    const verdict = document.getElementById('advisor-verdict');
+    const accountLine = document.getElementById('advisor-account-line');
+    const list = document.getElementById('advisor-order-list');
+
+    if (verdict) {
+        verdict.className = `advisor-verdict advisor-verdict-${verdictText}`;
+        verdict.textContent = {
+            ACT: '今日建议：行动',
+            REVIEW: '今日建议：复核',
+            WAIT: '今日建议：等待',
+            BLOCKED: '今日建议：阻断',
+        }[verdictText] || `今日建议：${verdictText}`;
+    }
+    if (accountLine) {
+        accountLine.textContent = `${account.account_name || '-'} · ${account.account_type_label || account.account_type || '账户'} · ${account.account_status || '-'} · 持仓 ${account.holding_count || 0} 个 · 可用资金 ${formatWorkspaceCurrency(account.available_cash)}`;
+    }
+
+    setWorkspaceSnapshotValue('advisor-total-orders', String(summary.total ?? 0));
+    setWorkspaceSnapshotValue('advisor-buy-orders', `${summary.buy ?? 0}/${summary.add ?? 0}`);
+    setWorkspaceSnapshotValue('advisor-sell-orders', `${summary.reduce ?? 0}/${summary.exit ?? 0}`);
+    setWorkspaceSnapshotValue('advisor-blocked-orders', String(summary.blocked ?? 0));
+
+    const orders = sheet.order_intents || [];
+    if (!list) {
+        return;
+    }
+    if (orders.length === 0) {
+        list.innerHTML = '<div class="workspace-sidebar-subtitle">当前账户暂无建议订单。可刷新推荐或继续等待。</div>';
+        return;
+    }
+
+    list.innerHTML = orders.slice(0, 6).map(order => {
+        const band = order.price_band || {};
+        const riskText = Array.isArray(order.risk_notes) && order.risk_notes.length
+            ? order.risk_notes.join('；')
+            : '风险提示按账户风控和推荐失效规则执行';
+        return `
+            <div class="advisor-order-row">
+                <div>
+                    <div class="advisor-order-main">${escapeHtml(order.asset_code || '-')} ${escapeHtml(order.asset_name || '')}</div>
+                    <div class="advisor-order-meta">${escapeHtml(order.reason || '-')}</div>
+                </div>
+                <div>
+                    <span class="rec-side rec-side-${String(order.side || '').toLowerCase()}">${escapeHtml(order.side || '-')}</span>
+                    <div class="advisor-order-meta">优先级 ${order.priority ?? '-'}</div>
+                </div>
+                <div>
+                    <div class="advisor-order-main">${order.delta_quantity ?? 0}</div>
+                    <div class="advisor-order-meta">${formatWorkspaceCurrency(order.estimated_amount)} · ${escapeHtml(band.label || '-')}</div>
+                </div>
+                <div>
+                    <div class="advisor-order-meta">${escapeHtml(riskText)}</div>
+                    <div class="advisor-order-meta">执行：${escapeHtml(order.execution_hint || '-')}</div>
+                    <div class="advisor-order-meta">状态：${escapeHtml(order.blocking_status || 'OK')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadAdvisorSheet() {
+    const accountId = getSelectedWorkspaceAccountId();
+    if (!accountId || accountId === 'default') {
+        renderAdvisorEmpty('请选择一个具体账户，自动投顾会按该账户持仓和现金生成建议单。');
+        return;
+    }
+    const list = document.getElementById('advisor-order-list');
+    if (list) {
+        list.innerHTML = '<div class="workspace-sidebar-subtitle">正在生成账户级建议单...</div>';
+    }
+    try {
+        const payload = await window.fetchJsonOrThrow(`/api/decision/advisor/sheet/?account_id=${encodeURIComponent(accountId)}`, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        if (!payload.success) {
+            throw new Error(payload.error || '建议单生成失败');
+        }
+        renderAdvisorSheet(payload.data);
+    } catch (error) {
+        console.error('加载自动投顾建议单失败:', error);
+        renderAdvisorEmpty(`自动投顾建议单加载失败: ${error.message}`);
+    }
+}
+
+async function refreshAdvisorSheet() {
+    const accountId = getSelectedWorkspaceAccountId();
+    if (accountId && accountId !== 'default') {
+        try {
+            await window.fetchJsonOrThrow('/api/decision/workspace/recommendations/refresh/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken
+                },
+                body: JSON.stringify({
+                    account_id: accountId,
+                    force: true,
+                })
+            });
+        } catch (error) {
+            console.error('刷新推荐失败:', error);
+        }
+    }
+    await loadRecommendations();
+    await loadAdvisorSheet();
+}
+
+async function copyAdvisorManualList() {
+    if (!currentAdvisorSheet || !Array.isArray(currentAdvisorSheet.order_intents)) {
+        return;
+    }
+    const actionable = currentAdvisorSheet.order_intents.filter(order =>
+        ['BUY', 'ADD', 'REDUCE', 'EXIT'].includes(order.side)
+    );
+    const lines = actionable.map(order => {
+        const band = order.price_band || {};
+        return [
+            order.side,
+            order.asset_code,
+            order.asset_name,
+            `delta=${order.delta_quantity}`,
+            `amount=${order.estimated_amount}`,
+            `price=${band.label || order.estimated_price || '-'}`,
+            `status=${order.blocking_status}`,
+            `reason=${order.reason}`,
+        ].join(' | ');
+    });
+    await navigator.clipboard.writeText(lines.join('\n'));
+}
+
 function refreshCurrentDecisionStep() {
     const currentStep = Number(window.decisionFunnelState?.currentStep || 1);
     if (currentStep >= 1 && currentStep <= 6) {
@@ -1605,6 +1908,7 @@ function handleWorkspaceAccountChange() {
     applyTransitionPlanState(null);
     window.history.replaceState({}, '', url.toString());
     loadWorkspaceAccountSnapshot();
+    loadAdvisorSheet();
     refreshCurrentDecisionStep();
     refreshWorkspaceDecisionLists();
     syncDecisionFunnelGuardrails();
@@ -1744,9 +2048,11 @@ async function loadUserAccounts() {
             }
         }
         await loadWorkspaceAccountSnapshot();
+        await loadAdvisorSheet();
         refreshCurrentDecisionStep();
     } catch (error) {
         console.error('加载账户失败:', error);
+        renderAdvisorEmpty('账户列表加载失败，无法生成自动投顾建议单。');
     }
 }
 
@@ -2752,6 +3058,7 @@ async function refreshRecommendations() {
         if (data.success) {
             window.showToast('推荐已刷新', 'success');
             refreshWorkspaceDecisionLists();
+            loadAdvisorSheet();
         } else {
             window.showToast('刷新失败: ' + (data.error || '未知错误'), 'error');
         }
@@ -3061,6 +3368,9 @@ Object.assign(window, {
     submitTransitionPlanForApproval,
     loadExecutionPlanPanel,
     loadConflicts,
+    loadAdvisorSheet,
+    refreshAdvisorSheet,
+    copyAdvisorManualList,
 });
 </script>
 
