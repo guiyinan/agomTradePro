@@ -91,21 +91,27 @@ RSSHub 内建了一组过滤参数（支持正则），例如：
 
 ## 6) 证监会（CSRC）路由怎么调用（示例）
 
-在当前 RSSHub 代码里，证监会新闻路由是：
+当前系统默认使用已验证的证监会要闻路由：
 
-* `/csrc/news/:suffix?` ([GitHub][3])
+* `/gov/csrc/news/c100028/common_xq_list.shtml`
 
-调用示例（把 `suffix` 换成你要的栏目标识/后缀）：
+调用示例：
 
 ```text
 # RSS 2.0（默认）
-http://127.0.0.1:1200/csrc/news/<suffix>?key=<ACCESS_KEY>
+http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=<ACCESS_KEY>
 
 # Atom
-http://127.0.0.1:1200/csrc/news/<suffix>?format=atom&key=<ACCESS_KEY>
+http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?format=atom&key=<ACCESS_KEY>
 
 # JSON Feed
-http://127.0.0.1:1200/csrc/news/<suffix>?format=json&key=<ACCESS_KEY>
+http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?format=json&key=<ACCESS_KEY>
+```
+
+生产环境建议直接执行系统初始化命令，而不是手工逐条添加：
+
+```bash
+python manage.py init_authoritative_rss_sources --base-url http://rsshub:1200
 ```
 
 ---
@@ -117,9 +123,9 @@ http://127.0.0.1:1200/csrc/news/<suffix>?format=json&key=<ACCESS_KEY>
 
 ---
 
-如果你把你“想订阅的证监会具体栏目页面 URL / 栏目名”贴出来（比如“新闻发布会/行政处罚/政策文件”那种栏目），我可以按 `suffix` 的规则把你最终应当订阅的完整 URL（含 key、format）直接给你列好。
+如果要新增其他证监会栏目，优先从 RSSHub government 文档确认完整路由，再用 `RSS 源配置` 写入 `rsshub_route_path`。
 
 [1]: https://rsshub.netlify.app/parameter "Parameters | RSSHub"
 [2]: https://rsshub-doc.pages.dev/en/install/ "Deployment | RSSHub"
-[3]: https://github.com/DIYgod/RSSHub/blob/master/lib/routes/gov/csrc/news.ts?utm_source=chatgpt.com "RSSHub/lib/routes/gov/csrc/news.ts at master"
+[3]: https://rsshub-doc.pages.dev/government "Government | RSSHub"
 [4]: https://github.com/DIYgod/RSSHub/issues/20520?utm_source=chatgpt.com "Use build/routes.json instead of scraping many docs pages ..."

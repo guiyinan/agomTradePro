@@ -206,8 +206,8 @@ GET /api/policy/rss/sources/
 # 创建RSS源
 POST /api/policy/rss/sources/
 {
-    "name": "政府文件库",
-    "url": "https://rsshub.app/gov/zhengce/zhengceku/bmwj",
+    "name": "证监会-要闻",
+    "url": "https://rsshub.app/gov/csrc/news/c100028/common_xq_list.shtml",
     "category": "gov_docs",
     "is_active": true,
     "fetch_interval_hours": 12
@@ -429,6 +429,20 @@ CREATE TABLE rsshub_global_config (
 
 #### 1. 配置全局 RSSHub
 
+推荐使用初始化命令一次性写入全局配置和权威源：
+
+```bash
+python manage.py init_authoritative_rss_sources --base-url http://rsshub:1200
+```
+
+本地开发未启动 Docker RSSHub 时可使用：
+
+```bash
+python manage.py init_authoritative_rss_sources --base-url http://127.0.0.1:1200
+```
+
+也可以在 Django Admin 手工配置：
+
 1. 登录 Django Admin：`http://127.0.0.1:8000/admin/`
 2. 进入 `Policy › RSSHub 全局配置`
 3. 填写配置：
@@ -442,28 +456,39 @@ CREATE TABLE rsshub_global_config (
 在 `RSS 源配置` 中添加新源：
 
 **基本信息：**
-- 名称：`证监会新闻`
+- 名称：`证监会-要闻`
 - 分类：`证监会`
 - 启用：勾选
 
 **RSSHub 配置：**
 - **使用 RSSHub**：勾选
-- **路由路径**：`/csrc/news/bwj`
+- **路由路径**：`/gov/csrc/news/c100028/common_xq_list.shtml`
 - **使用全局 RSSHub 配置**：勾选（或取消勾选后填写自定义配置）
 
 **完整 URL 自动构建为：**
 ```
-http://127.0.0.1:1200/csrc/news/bwj?key=YOUR_KEY&format=rss
+http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=YOUR_KEY&format=rss
 ```
 
-#### 3. 常用 RSSHub 路由
+#### 3. 权威 RSSHub 路由
 
 | 源名称 | 分类 | 路由路径 | 说明 |
 |--------|------|----------|------|
-| 证监会新闻 | csrc | `/csrc/news/bwj` | 部门文件 |
-| 央行公告 | central_bank | `/pbc/cnych/notice` | 新闻公告 |
-| 财政部文件 | mof | `/mof/zhengcefabu` | 政策发布 |
-| 国务院文件 | gov_docs | `/gov/zhengce/zhengceku/bmwj` | 部门文件 |
+| 国家统计局-数据发布 | gov_docs | `/gov/stats/sj/zxfb` | 宏观数据发布，作为政策与宏观事实补充 |
+| 国家统计局-数据解读 | gov_docs | `/gov/stats/sj/sjjd` | 数据解读，辅助判断宏观数据含义 |
+| 发改委-新闻发布 | gov_docs | `/gov/ndrc/xwdt/xwfb` | 宏观政策、产业政策和项目动态 |
+| 发改委-通知公告 | gov_docs | `/gov/ndrc/xwdt/tzgg` | 政策执行口径、项目和通知公告 |
+| 证监会-要闻 | csrc | `/gov/csrc/news/c100028/common_xq_list.shtml` | 资本市场监管政策与要闻 |
+| 上交所-科创板审核 | csrc | `/sse/inquire` | 科创板审核动态，辅助判断融资环境 |
+| 深交所-问询函件 | csrc | `/szse/inquire` | 上市公司问询和监管风险事件 |
+| 财联社-热门文章 | media | `/cls/hot` | 市场热点和关注度 |
+| 财联社-头条深度 | media | `/cls/depth/1000` | 宏观、产业和市场专题 |
+| 格隆汇-市场快讯 | media | `/gelonghui/live` | 7x24 市场快讯 |
+
+不建议作为默认投研/政策源：
+
+- `IT之家`、`V2EX`、`少数派`：技术社区或消费科技内容为主，不适合作为投顾决策新闻真源。
+- `金十数据-快讯`：当前 RSSHub XML 条目缺少可用链接，现有 `feedparser` 管线会解析出 0 条可入库事件，初始化命令会默认禁用。
 
 ### URL 构建规则
 
@@ -475,7 +500,7 @@ effective_url = base_url + route_path + "?" + urlencode({
 })
 
 # 示例
-# http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss
+# http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=xxxx&format=rss
 ```
 
 ### 向后兼容
@@ -501,9 +526,9 @@ print(f"Has Key: {bool(config.access_key)}")
 ```python
 from apps.policy.infrastructure.models import RSSSourceConfigModel
 
-source = RSSSourceConfigModel.objects.get(name='证监会新闻')
+source = RSSSourceConfigModel.objects.get(name='证监会-要闻')
 url = source.get_effective_url()
-# RSSHub 模式：http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss
+# RSSHub 模式：http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=xxxx&format=rss
 # 普通模式：直接返回 url 字段
 ```
 

@@ -16,6 +16,10 @@ def test_init_all_includes_scheduler_defaults_step():
         step["command"] == "init_scheduler_defaults"
         for step in command.init_steps
     )
+    assert any(
+        step["command"] == "init_authoritative_rss_sources"
+        for step in command.init_steps
+    )
 
 
 def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
@@ -69,3 +73,56 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
     command = BootstrapColdStartCommand()
 
     assert command._scheduler_defaults_ready() is True
+
+
+def test_bootstrap_cold_start_detects_authoritative_rss_sources_ready(monkeypatch):
+    from apps.policy.management.commands.init_authoritative_rss_sources import (
+        AUTHORITATIVE_RSS_SOURCES,
+    )
+
+    expected_routes = {source.route_path for source in AUTHORITATIVE_RSS_SOURCES}
+
+    class _Config:
+        enabled = True
+
+    class _ConfigQuery:
+        @staticmethod
+        def first():
+            return _Config()
+
+    class _ConfigManager:
+        @staticmethod
+        def filter(*args, **kwargs):
+            return _ConfigQuery()
+
+    class _SourceQuery:
+        @staticmethod
+        def values_list(*args, **kwargs):
+            return list(expected_routes)
+
+    class _SourceManager:
+        @staticmethod
+        def filter(*args, **kwargs):
+            return _SourceQuery()
+
+    class _RSSHubConfigModel:
+        _default_manager = _ConfigManager()
+
+    class _RSSSourceModel:
+        _default_manager = _SourceManager()
+
+    def _fake_get_model(app_label, model_name):
+        if model_name == "RSSHubGlobalConfig":
+            return _RSSHubConfigModel
+        if model_name == "RSSSourceConfigModel":
+            return _RSSSourceModel
+        raise AssertionError(f"Unexpected model lookup: {app_label}.{model_name}")
+
+    monkeypatch.setattr(
+        "apps.account.management.commands.bootstrap_cold_start.django_apps.get_model",
+        _fake_get_model,
+    )
+
+    command = BootstrapColdStartCommand()
+
+    assert command._authoritative_rss_sources_ready() is True

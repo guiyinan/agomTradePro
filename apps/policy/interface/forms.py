@@ -59,7 +59,9 @@ class RSSSourceForm(forms.Form):
     rsshub_route_path = forms.CharField(
         max_length=500,
         required=False,
-        widget=forms.TextInput(attrs={"placeholder": "/csrc/news/bwj"}),
+        widget=forms.TextInput(
+            attrs={"placeholder": "/gov/csrc/news/c100028/common_xq_list.shtml"}
+        ),
     )
     rsshub_use_global_config = forms.BooleanField(required=False, initial=True)
     rsshub_custom_base_url = forms.URLField(

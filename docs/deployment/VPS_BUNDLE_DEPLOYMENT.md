@@ -178,6 +178,17 @@ Then configure RSSHub global base URL in your app data to:
 http://rsshub:1200
 ```
 
+After deployment, initialize the verified policy and market news routes from
+inside the web container:
+
+```bash
+docker compose exec web python manage.py init_authoritative_rss_sources --base-url http://rsshub:1200
+```
+
+This command enables global RSSHub config, upserts the authoritative government,
+exchange, and market-news routes, and disables legacy non-investment/default
+sources such as IT之家, V2EX, 少数派, and the currently non-parseable 金十快讯 feed.
+
 Why this value:
 
 1. It is container-internal networking.

@@ -129,6 +129,11 @@ class Command(BaseCommand):
                 run=lambda: self._run_command("init_scheduler_defaults"),
             ),
             BootstrapStep(
+                name="authoritative_rss_sources",
+                check=self._authoritative_rss_sources_ready,
+                run=lambda: self._run_command("init_authoritative_rss_sources"),
+            ),
+            BootstrapStep(
                 name="rotation_config",
                 check=lambda: AssetClassModel._default_manager.exists()
                 and RotationConfigModel._default_manager.exists()
@@ -283,6 +288,27 @@ class Command(BaseCommand):
             "decision-workspace-nightly-snapshot-refresh",
         }
         return expected_names.issubset(existing_names)
+
+    def _authoritative_rss_sources_ready(self) -> bool:
+        from apps.policy.management.commands.init_authoritative_rss_sources import (
+            AUTHORITATIVE_RSS_SOURCES,
+        )
+
+        rsshub_config_model = django_apps.get_model("policy", "RSSHubGlobalConfig")
+        rss_source_model = django_apps.get_model("policy", "RSSSourceConfigModel")
+        config = rsshub_config_model._default_manager.filter(singleton_id=1).first()
+        if config is None or not config.enabled:
+            return False
+
+        expected_routes = {source.route_path for source in AUTHORITATIVE_RSS_SOURCES}
+        active_routes = set(
+            rss_source_model._default_manager.filter(
+                is_active=True,
+                rsshub_enabled=True,
+                rsshub_route_path__in=expected_routes,
+            ).values_list("rsshub_route_path", flat=True)
+        )
+        return expected_routes.issubset(active_routes)
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()

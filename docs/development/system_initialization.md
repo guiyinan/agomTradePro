@@ -90,7 +90,12 @@ python manage.py init_all --step classification
 5. 股票评分权重 (`init_scoring_weights`)
 6. Prompt 模板 (`init_prompt_templates`)
 7. 默认计划任务 (`init_scheduler_defaults`)
-8. 宏观数据 (`sync_macro_data`, 可选)
+8. 权威 RSS 源 (`init_authoritative_rss_sources`)
+9. 宏观数据 (`sync_macro_data`, 可选)
+
+`init_authoritative_rss_sources` 会启用 RSSHub 全局配置，并初始化政策/监管/财经新闻源：
+国家统计局、发改委、证监会、上交所、深交所、财联社、格隆汇。该命令会停用
+IT之家、V2EX、少数派等非投研/政策新闻源，但不会删除历史 RSS 抓取日志或政策事件。
 
 ---
 
@@ -136,6 +141,32 @@ python manage.py init_enhanced_rules
 | `risk_alert` | 风险提示 | 高亏损/高盈利警告 |
 
 **Admin 路径**: `/admin/account/investmentrulemodel/`
+
+---
+
+#### RSS 源初始化 - `init_authoritative_rss_sources`
+
+**位置**: `apps/policy/management/commands/init_authoritative_rss_sources.py`
+
+```bash
+# 本地开发，RSSHub 在宿主机 1200 端口
+python manage.py init_authoritative_rss_sources --base-url http://127.0.0.1:1200
+
+# Docker/VPS，RSSHub 作为 compose 服务运行
+python manage.py init_authoritative_rss_sources --base-url http://rsshub:1200
+
+# 只查看将要写入的配置
+python manage.py init_authoritative_rss_sources --dry-run
+```
+
+**初始化内容**:
+
+| 类型 | 数据 | 说明 |
+|------|------|------|
+| RSSHub 全局配置 | `base_url`, `enabled=True`, `default_format=rss` | 用于统一拼接 RSSHub 路由 |
+| 政府/监管源 | 国家统计局、发改委、证监会、上交所、深交所 | 用于政策闸门和监管事件 |
+| 财经媒体源 | 财联社、格隆汇 | 用于市场热点和情绪补充 |
+| 旧源清理 | IT之家、V2EX、少数派、金十数据 | 默认停用，不删除历史数据 |
 
 ---
 

@@ -66,6 +66,12 @@ class Command(BaseCommand):
                 'module': 'apps.task_monitor'
             },
             {
+                'name': 'Authoritative RSS Sources',
+                'command': 'init_authoritative_rss_sources',
+                'description': 'Initialize policy and market news RSSHub sources',
+                'module': 'apps.policy'
+            },
+            {
                 'name': 'Macro Economic Data',
                 'command': 'sync_macro_data',
                 'description': 'Sync macro data (PMI, CPI, PPI) from AKShare',

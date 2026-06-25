@@ -497,7 +497,7 @@ class RSSSourceConfigAdmin(admin.ModelAdmin):
                 '<p><strong> RSSHub 模式说明：</strong></p>'
                 '<ul>'
                 '<li>启用后将忽略「URL」字段，使用「路由路径」构建完整 URL</li>'
-                '<li>路由路径示例：/csrc/news/bwj（证监会部门文件）</li>'
+                '<li>路由路径示例：/gov/csrc/news/c100028/common_xq_list.shtml（证监会要闻）</li>'
                 '<li>完整 URL = 基址 + 路由路径 + ?key=密钥&format=格式</li>'
                 '<li>可选择使用全局配置或自定义配置</li>'
                 '</ul>'
