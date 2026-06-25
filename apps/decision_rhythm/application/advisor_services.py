@@ -827,7 +827,7 @@ def _execution_hint(side: str) -> str:
 
 def _stable_order_intent_id(account_id: str, asset_code: str, side: str, source_id: str) -> str:
     raw = f"{account_id}|{asset_code}|{side}|{source_id}".encode()
-    return f"oi_{hashlib.sha1(raw).hexdigest()[:16]}"
+    return f"oi_{hashlib.sha256(raw).hexdigest()[:16]}"
 
 
 def _account_type_label(account_type: str) -> str:
