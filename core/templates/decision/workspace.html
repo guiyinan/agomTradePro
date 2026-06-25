@@ -176,6 +176,12 @@
     margin-top: 16px;
 }
 
+.advisor-kpi {
+    background: var(--color-bg-secondary, #f8fafc);
+    border-radius: 12px;
+    padding: 12px;
+}
+
 .advisor-order-list {
     display: grid;
     gap: 10px;
@@ -711,19 +717,19 @@
                     <span id="advisor-verdict" class="advisor-verdict">未加载</span>
                 </div>
                 <div class="advisor-kpis">
-                    <div class="workspace-kpi">
+                    <div class="advisor-kpi">
                         <span class="workspace-kpi-label">建议订单</span>
                         <span class="workspace-kpi-value" id="advisor-total-orders">-</span>
                     </div>
-                    <div class="workspace-kpi">
+                    <div class="advisor-kpi">
                         <span class="workspace-kpi-label">买入/加仓</span>
                         <span class="workspace-kpi-value" id="advisor-buy-orders">-</span>
                     </div>
-                    <div class="workspace-kpi">
+                    <div class="advisor-kpi">
                         <span class="workspace-kpi-label">减仓/清仓</span>
                         <span class="workspace-kpi-value" id="advisor-sell-orders">-</span>
                     </div>
-                    <div class="workspace-kpi">
+                    <div class="advisor-kpi">
                         <span class="workspace-kpi-label">阻断项</span>
                         <span class="workspace-kpi-value" id="advisor-blocked-orders">-</span>
                     </div>

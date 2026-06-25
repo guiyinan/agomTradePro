@@ -19,7 +19,7 @@ def seed_advisor_today_command(apps, schema_editor):
             "parameters": [
                 {
                     "name": "account_id",
-                    "type": "string",
+                    "type": "text",
                     "description": "账户 ID",
                     "required": True,
                     "default": "",
