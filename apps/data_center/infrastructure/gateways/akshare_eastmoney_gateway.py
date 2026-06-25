@@ -10,8 +10,8 @@ import logging
 import os
 import re
 import time
-from datetime import UTC, datetime
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 import pandas as pd
@@ -42,6 +42,11 @@ _QUOTE_FIELDS = (
     "f167,f168,f169,f170,f171,f532,f600,f601"
 )
 _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+_EASTMONEY_ULIST_QUOTE_URLS = (
+    "https://push2.eastmoney.com/api/qt/ulist.np/get",
+    "https://82.push2.eastmoney.com/api/qt/ulist.np/get",
+    "https://88.push2.eastmoney.com/api/qt/ulist.np/get",
+)
 _EASTMONEY_NO_PROXY_HOSTS = (
     "eastmoney.com",
     ".eastmoney.com",
@@ -174,12 +179,11 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
     # REALTIME_QUOTE
     # ------------------------------------------------------------------
 
-    def get_quote_snapshots(
-        self, stock_codes: list[str]
-    ) -> list[QuoteSnapshot]:
+    def get_quote_snapshots(self, stock_codes: list[str]) -> list[QuoteSnapshot]:
         """批量获取实时行情（东方财富单股接口）"""
         self._throttle()
         results: list[QuoteSnapshot] = []
+        missing_codes: list[str] = []
         with requests.Session() as session:
             session.trust_env = False
             session.headers.update(
@@ -197,7 +201,21 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                 snapshot = self._fetch_quote_snapshot(session, stock_code)
                 if snapshot is not None:
                     results.append(snapshot)
+                else:
+                    missing_codes.append(stock_code)
                 self._throttle()
+
+            if missing_codes:
+                fallback_snapshots = self._fetch_quote_snapshots_from_ulist(
+                    session,
+                    missing_codes,
+                )
+                existing_codes = {snapshot.stock_code for snapshot in results}
+                results.extend(
+                    snapshot
+                    for snapshot in fallback_snapshots
+                    if snapshot.stock_code not in existing_codes
+                )
 
         logger.info(
             "东方财富行情: 请求 %d 只, 成功 %d 只",
@@ -210,9 +228,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
     # CAPITAL_FLOW
     # ------------------------------------------------------------------
 
-    def get_capital_flows(
-        self, stock_code: str, period: str = "5d"
-    ) -> list[CapitalFlowSnapshot]:
+    def get_capital_flows(self, stock_code: str, period: str = "5d") -> list[CapitalFlowSnapshot]:
         """获取个股资金流向"""
         self._throttle()
         try:
@@ -220,9 +236,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
 
             ak_code = _to_akshare_code(stock_code)
             with _eastmoney_direct_network():
-                df = ak.stock_individual_fund_flow(
-                    stock=ak_code, market=_to_market_arg(stock_code)
-                )
+                df = ak.stock_individual_fund_flow(stock=ak_code, market=_to_market_arg(stock_code))
             if df is None or df.empty:
                 logger.warning("AKShare 资金流向返回空数据: %s", stock_code)
                 return []
@@ -238,9 +252,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                 if snapshot is not None:
                     results.append(snapshot)
 
-            logger.info(
-                "东方财富资金流向: %s 获取 %d 条", stock_code, len(results)
-            )
+            logger.info("东方财富资金流向: %s 获取 %d 条", stock_code, len(results))
             return results
 
         except Exception:
@@ -251,9 +263,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
     # STOCK_NEWS
     # ------------------------------------------------------------------
 
-    def get_stock_news(
-        self, stock_code: str, limit: int = 20
-    ) -> list[StockNewsItem]:
+    def get_stock_news(self, stock_code: str, limit: int = 20) -> list[StockNewsItem]:
         """获取个股新闻"""
         self._throttle()
         try:
@@ -327,9 +337,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
     # TECHNICAL_FACTORS
     # ------------------------------------------------------------------
 
-    def get_technical_snapshot(
-        self, stock_code: str
-    ) -> TechnicalSnapshot | None:
+    def get_technical_snapshot(self, stock_code: str) -> TechnicalSnapshot | None:
         """获取技术指标快照
 
         turnover_rate 和 volume_ratio 来自实时行情，
@@ -426,7 +434,9 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             logger.exception("东方财富历史 K 线获取失败: %s", asset_code)
             return self._fallback_historical_prices(asset_code, start_date, end_date)
 
-    def _fetch_with_retries(self, fetcher, *, asset_code: str, request_kind: str, attempts: int = 3):
+    def _fetch_with_retries(
+        self, fetcher, *, asset_code: str, request_kind: str, attempts: int = 3
+    ):
         last_error: Exception | None = None
         for attempt in range(1, attempts + 1):
             try:
@@ -497,17 +507,19 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
         bars: list[HistoricalPriceBar] = []
         for _, row in df.iterrows():
             try:
-                bars.append(HistoricalPriceBar(
-                    asset_code=asset_code,
-                    trade_date=row[date_col].date(),
-                    open=float(row.get("开盘", 0)),
-                    high=float(row.get("最高", 0)),
-                    low=float(row.get("最低", 0)),
-                    close=float(row.get("收盘", 0)),
-                    volume=_safe_int(row.get("成交量")),
-                    amount=_safe_float(row.get("成交额")),
-                    source=source,
-                ))
+                bars.append(
+                    HistoricalPriceBar(
+                        asset_code=asset_code,
+                        trade_date=row[date_col].date(),
+                        open=float(row.get("开盘", 0)),
+                        high=float(row.get("最高", 0)),
+                        low=float(row.get("最低", 0)),
+                        close=float(row.get("收盘", 0)),
+                        volume=_safe_int(row.get("成交量")),
+                        amount=_safe_float(row.get("成交额")),
+                        source=source,
+                    )
+                )
             except (ValueError, TypeError):
                 continue
         return bars
@@ -536,16 +548,18 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
         bars: list[HistoricalPriceBar] = []
         for _, row in df.iterrows():
             try:
-                bars.append(HistoricalPriceBar(
-                    asset_code=asset_code,
-                    trade_date=row[date_col].date(),
-                    open=float(row.get("open", 0)),
-                    high=float(row.get("high", 0)),
-                    low=float(row.get("low", 0)),
-                    close=float(row.get("close", 0)),
-                    volume=_safe_int(row.get("volume")),
-                    source=source,
-                ))
+                bars.append(
+                    HistoricalPriceBar(
+                        asset_code=asset_code,
+                        trade_date=row[date_col].date(),
+                        open=float(row.get("open", 0)),
+                        high=float(row.get("high", 0)),
+                        low=float(row.get("low", 0)),
+                        close=float(row.get("close", 0)),
+                        volume=_safe_int(row.get("volume")),
+                        source=source,
+                    )
+                )
             except (ValueError, TypeError):
                 continue
         return bars
@@ -582,8 +596,8 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             )
             response.raise_for_status()
             payload = response.json()
-        except Exception:
-            logger.warning("获取东方财富单股行情失败: %s", stock_code, exc_info=True)
+        except Exception as exc:
+            logger.warning("获取东方财富单股行情失败: %s error=%s", stock_code, exc)
             return None
 
         data = payload.get("data") or {}
@@ -607,6 +621,107 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             source="eastmoney",
         )
 
+    def _fetch_quote_snapshots_from_ulist(
+        self,
+        session: requests.Session,
+        stock_codes: list[str],
+    ) -> list[QuoteSnapshot]:
+        """Fallback to EastMoney ulist quotes when single-stock quote is blocked."""
+        if not stock_codes:
+            return []
+
+        requested_by_secid = {_to_secid(stock_code): stock_code for stock_code in stock_codes}
+        params = {
+            "secids": ",".join(requested_by_secid),
+            "fields": ("f2,f3,f4,f5,f6,f8,f10,f12,f13,f14,f15,f16,f17,f18"),
+            "fltt": "2",
+            "invt": "2",
+        }
+        for url in _EASTMONEY_ULIST_QUOTE_URLS:
+            try:
+                response = session.get(url, params=params, timeout=15)
+                response.raise_for_status()
+                payload = response.json()
+            except Exception as exc:
+                logger.warning(
+                    "获取东方财富批量行情兜底失败: url=%s codes=%s error=%s",
+                    url,
+                    ",".join(stock_codes),
+                    exc,
+                )
+                continue
+
+            rows = (payload.get("data") or {}).get("diff") or []
+            snapshots: list[QuoteSnapshot] = []
+            for row in rows:
+                secid = f"{row.get('f13')}.{row.get('f12')}"
+                requested_code = requested_by_secid.get(secid)
+                snapshot = self._build_quote_snapshot_from_ulist_row(
+                    row,
+                    requested_code=requested_code,
+                )
+                if snapshot is not None:
+                    snapshots.append(snapshot)
+            if snapshots:
+                logger.info(
+                    "东方财富批量行情兜底成功: 请求 %d 只, 成功 %d 只",
+                    len(stock_codes),
+                    len(snapshots),
+                )
+                return snapshots
+        if not bool(getattr(session, "trust_env", True)):
+            with requests.Session() as env_session:
+                env_session.trust_env = True
+                env_session.headers.update(dict(session.headers))
+                env_results = self._fetch_quote_snapshots_from_ulist(env_session, stock_codes)
+                if env_results:
+                    return env_results
+        return self._fallback_quote_snapshots_from_tencent(stock_codes)
+
+    @staticmethod
+    def _build_quote_snapshot_from_ulist_row(
+        row: dict,
+        *,
+        requested_code: str | None,
+    ) -> QuoteSnapshot | None:
+        price = _safe_decimal(row.get("f2"))
+        if price is None or price <= 0:
+            return None
+
+        stock_code = requested_code or _to_tushare_code_from_eastmoney_row(row)
+        return QuoteSnapshot(
+            stock_code=stock_code,
+            price=price,
+            change=_safe_decimal(row.get("f4")),
+            change_pct=_safe_float(row.get("f3")),
+            volume=_safe_int(row.get("f5")),
+            amount=_safe_decimal(row.get("f6")),
+            turnover_rate=_safe_float(row.get("f8")),
+            volume_ratio=_safe_float(row.get("f10")),
+            high=_safe_decimal(row.get("f15")),
+            low=_safe_decimal(row.get("f16")),
+            open=_safe_decimal(row.get("f17")),
+            pre_close=_safe_decimal(row.get("f18")),
+            source="eastmoney",
+        )
+
+    @staticmethod
+    def _fallback_quote_snapshots_from_tencent(stock_codes: list[str]) -> list[QuoteSnapshot]:
+        try:
+            from apps.data_center.infrastructure.gateways.tencent_gateway import TencentGateway
+
+            snapshots = TencentGateway().get_quote_snapshots(stock_codes)
+            if snapshots:
+                logger.info(
+                    "东方财富实时行情降级到腾讯成功: 请求 %d 只, 成功 %d 只",
+                    len(stock_codes),
+                    len(snapshots),
+                )
+            return snapshots
+        except Exception:
+            logger.exception("东方财富实时行情降级腾讯失败: %s", ",".join(stock_codes))
+            return []
+
     @staticmethod
     def _parse_period_days(period: str) -> int | None:
         """将 '5d', '10d' 格式解析为天数"""
@@ -617,6 +732,16 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             except ValueError:
                 return None
         return None
+
+
+def _to_tushare_code_from_eastmoney_row(row: dict) -> str:
+    code = str(row.get("f12") or "").strip()
+    market = str(row.get("f13") or "").strip()
+    if market == "1":
+        return f"{code}.SH"
+    if market == "0":
+        return f"{code}.SZ"
+    return _to_tushare_code(code)
 
 
 @contextmanager
@@ -641,8 +766,7 @@ def _eastmoney_direct_network():
         no_proxy_values = [
             value.strip()
             for value in (
-                (original_no_proxy or "").split(",")
-                + (original_no_proxy_lower or "").split(",")
+                (original_no_proxy or "").split(",") + (original_no_proxy_lower or "").split(",")
             )
             if value.strip()
         ]

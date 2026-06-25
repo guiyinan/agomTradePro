@@ -269,6 +269,191 @@ class TestCodeConversion:
 
 
 class TestAKShareEastMoneyGateway:
+    def test_quote_falls_back_to_ulist_when_single_quote_is_blocked(self):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+        from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
+
+        gw = AKShareEastMoneyGateway()
+        fallback_quote = QuoteSnapshot(
+            stock_code="510300.SH",
+            price=Decimal("5.048"),
+            source="eastmoney",
+        )
+
+        with patch.object(gw, "_fetch_quote_snapshot", return_value=None) as single_quote:
+            with patch.object(
+                gw,
+                "_fetch_quote_snapshots_from_ulist",
+                return_value=[fallback_quote],
+            ) as ulist_quote:
+                results = gw.get_quote_snapshots(["510300.SH"])
+
+        assert len(results) == 1
+        assert results[0].stock_code == "510300.SH"
+        assert results[0].price == Decimal("5.048")
+        single_quote.assert_called_once()
+        ulist_quote.assert_called_once()
+
+    def test_ulist_quote_preserves_requested_sh_index_code(self):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+
+        class _Response:
+            @staticmethod
+            def raise_for_status():
+                return None
+
+            @staticmethod
+            def json():
+                return {
+                    "data": {
+                        "diff": [
+                            {
+                                "f2": 5020.10,
+                                "f3": 1.56,
+                                "f4": 77.08,
+                                "f5": 346664289,
+                                "f6": 1110040892256.1,
+                                "f8": "-",
+                                "f10": "-",
+                                "f12": "000300",
+                                "f13": 1,
+                                "f14": "沪深300",
+                                "f15": 5028.00,
+                                "f16": 4946.20,
+                                "f17": 4955.00,
+                                "f18": 4943.02,
+                            }
+                        ]
+                    }
+                }
+
+        class _Session:
+            def get(self, *args, **kwargs):
+                return _Response()
+
+        results = AKShareEastMoneyGateway()._fetch_quote_snapshots_from_ulist(
+            _Session(),
+            ["000300.SH"],
+        )
+
+        assert len(results) == 1
+        assert results[0].stock_code == "000300.SH"
+        assert results[0].price == Decimal("5020.1")
+        assert results[0].pre_close == Decimal("4943.02")
+
+    def test_ulist_quote_retries_with_environment_network(self, mocker):
+        from apps.data_center.infrastructure.gateways import akshare_eastmoney_gateway
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+
+        class _BlockedSession:
+            trust_env = False
+            headers = {}
+
+            def get(self, *args, **kwargs):
+                raise ConnectionError("direct network blocked")
+
+        class _Response:
+            @staticmethod
+            def raise_for_status():
+                return None
+
+            @staticmethod
+            def json():
+                return {
+                    "data": {
+                        "diff": [
+                            {
+                                "f2": 5.048,
+                                "f3": 1.63,
+                                "f4": 0.081,
+                                "f5": 26406087,
+                                "f6": 13252886361.0,
+                                "f12": "510300",
+                                "f13": 1,
+                                "f15": 5.055,
+                                "f16": 4.966,
+                                "f17": 4.973,
+                                "f18": 4.967,
+                            }
+                        ]
+                    }
+                }
+
+        class _EnvSession:
+            trust_env = True
+
+            def __init__(self):
+                self.headers = {}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return None
+
+            def get(self, *args, **kwargs):
+                return _Response()
+
+        mocker.patch.object(
+            akshare_eastmoney_gateway.requests,
+            "Session",
+            return_value=_EnvSession(),
+        )
+
+        results = AKShareEastMoneyGateway()._fetch_quote_snapshots_from_ulist(
+            _BlockedSession(),
+            ["510300.SH"],
+        )
+
+        assert len(results) == 1
+        assert results[0].stock_code == "510300.SH"
+        assert results[0].price == Decimal("5.048")
+
+    def test_ulist_quote_falls_back_to_tencent_when_eastmoney_is_unavailable(
+        self,
+        mocker,
+    ):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+        from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
+
+        class _BlockedSession:
+            trust_env = True
+
+            def get(self, *args, **kwargs):
+                raise ConnectionError("eastmoney unavailable")
+
+        class _TencentGateway:
+            def get_quote_snapshots(self, asset_codes):
+                return [
+                    QuoteSnapshot(
+                        stock_code=asset_codes[0],
+                        price=Decimal("5.048"),
+                        source="tencent",
+                    )
+                ]
+
+        mocker.patch(
+            "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway",
+            _TencentGateway,
+        )
+
+        results = AKShareEastMoneyGateway()._fetch_quote_snapshots_from_ulist(
+            _BlockedSession(),
+            ["510300.SH"],
+        )
+
+        assert len(results) == 1
+        assert results[0].stock_code == "510300.SH"
+        assert results[0].source == "tencent"
+
     @patch("apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway.get_akshare_module")
     def test_market_news_uses_sentinel_market_code(self, mock_get_akshare):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
@@ -341,6 +526,4 @@ class TestAKShareEastMoneyGateway:
         assert len(bars) == 1
         assert bars[0].source == "tencent"
         mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
-
-
 
