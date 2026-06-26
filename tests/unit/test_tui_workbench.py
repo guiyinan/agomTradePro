@@ -11,23 +11,23 @@ from django.utils import timezone
 
 import apps.terminal.application.tui_workbench as tui_workbench_module
 from apps.account.infrastructure.models import SystemSettingsModel
-from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.ai_provider.infrastructure.models import AIProviderConfig
+from apps.alpha.infrastructure.models import QlibModelRegistryModel
 from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.terminal.application.tui_metadata import (
     TuiMetadataValidationError,
     compact_tui_metadata_payload,
     validate_tui_metadata,
 )
 from apps.terminal.application.tui_workbench import TuiWorkbenchService
-from apps.terminal.infrastructure.tui_adapters import get_tui_action_executor
 from apps.terminal.infrastructure.models import TerminalAuditLogORM, TuiMetadataRegistryORM
+from apps.terminal.infrastructure.tui_adapters import get_tui_action_executor
 from apps.terminal.infrastructure.tui_metadata_repository import (
-    PublishedTuiMetadataRepository,
     RUNTIME_ACTION_PATCHES,
     RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS,
+    PublishedTuiMetadataRepository,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
 def _metadata_payload(actions=None):
@@ -453,6 +453,44 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "NO GRID TO FILTER" not in script
     assert "NO PAGER" not in script
     assert "FILTER READY" not in script
+
+
+def test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe():
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "js", "tui-workbench.js")
+        .read_text(encoding="utf-8")
+    )
+
+    assert (
+        '["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]'
+        in script
+    )
+    assert "cellClass(cell, headers[cellIndex])" in script
+    assert '["标的", "代码", "名称", "股票", "资产", "证券"]' in script
+    assert (
+        'text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)'
+        in script
+    )
+    assert 'text.includes("观察") || text.includes("中")' not in script
+    assert 'text.includes("-") || text.includes("暂停")' not in script
+
+
+def test_tui_workbench_javascript_supports_limit_offset_pagination():
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "js", "tui-workbench.js")
+        .read_text(encoding="utf-8")
+    )
+
+    assert 'state.lastPager.pagination_mode === "limit_offset"' in script
+    assert "state.lastParams.offset || state.lastPager.offset || 0" in script
+    assert "delta * pageSize" in script
+    assert 'limit: String(pageSize), offset: String(nextOffset)' in script
 
 
 def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
@@ -2758,6 +2796,67 @@ def test_tui_service_action_runner_uses_metadata_view_model_paths(tui_user):
     assert payload["view_model"]["columns"][0]["key"] == "operation"
     assert payload["view_model"]["pager"]["total_rows"] == 41
     assert payload["view_model"]["pager"]["page"] == 2
+
+
+def test_tui_service_action_runner_infers_limit_offset_pager_from_request_params(tui_user):
+    captured: dict[str, object] = {}
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            captured.update(kwargs)
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "items": [
+                        {"id": 51, "title": "Event 51"},
+                        {"id": 52, "title": "Event 52"},
+                    ],
+                    "total": 75,
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "policy.workbench_items",
+                        "label": "待看事件",
+                        "method": "GET",
+                        "endpoint": "/api/policy/workbench/items/",
+                        "intent": "browse_policy_queue_items",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {
+                            "rows_path": "items",
+                            "total_path": "total",
+                        },
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(
+        action_key="policy.workbench_items",
+        params={"limit": "50", "offset": "50"},
+        user=tui_user,
+    )
+
+    pager = payload["view_model"]["pager"]
+    assert captured["params"] == {"limit": "50", "offset": "50"}
+    assert pager["pagination_mode"] == "limit_offset"
+    assert pager["page"] == 2
+    assert pager["page_size"] == 50
+    assert pager["offset"] == 50
+    assert pager["total_rows"] == 75
+    assert pager["has_previous"] is True
+    assert pager["has_next"] is False
 
 
 def test_tui_service_action_runner_applies_field_defaults_to_request_params(tui_user):

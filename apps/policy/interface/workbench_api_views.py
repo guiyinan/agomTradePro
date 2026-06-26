@@ -160,10 +160,16 @@ class WorkbenchItemsView(APIView):
             output = use_case.execute(input_dto)
 
             if output.success:
+                limit = int(query_serializer.validated_data.get("limit", 50))
+                offset = int(query_serializer.validated_data.get("offset", 0))
                 return Response({
                     'success': True,
                     'items': output.items,
-                    'total': output.total
+                    'total': output.total,
+                    'limit': limit,
+                    'offset': offset,
+                    'page': (offset // limit) + 1 if limit > 0 else 1,
+                    'page_size': limit,
                 })
             else:
                 return Response(

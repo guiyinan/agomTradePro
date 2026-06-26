@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import re
 import hashlib
+import re
 from datetime import timedelta
 from html import unescape
 from html.parser import HTMLParser
@@ -27,10 +27,11 @@ from apps.beta_gate.application.query_services import (
 from apps.config_center.application.query_services import has_qlib_training_runs
 from apps.dashboard.application.query_services import has_dashboard_alpha_history
 from apps.decision_rhythm.application.query_services import (
-    has_decision_quotas,
     has_active_cooldowns,
+    has_decision_quotas,
     has_recent_decision_requests,
 )
+from apps.task_monitor.application.query_services import has_recent_task_failures
 from apps.terminal.application.tui_audit import (
     TuiTerminalAuditSink,
     action_requires_audit,
@@ -42,7 +43,6 @@ from apps.terminal.domain.interfaces import (
     TuiActionExecutor,
     TuiMetadataRepository,
 )
-from apps.task_monitor.application.query_services import has_recent_task_failures
 
 VISIBLE_RUNTIME_RISKS = {"read", "ai", "write"}
 ADMIN_RUNTIME_RISKS = {"admin"}
@@ -1062,7 +1062,10 @@ class TuiWorkbenchService:
             status_code = int(result.get("status_code", 200))
             payload = result.get("payload")
             view_model = self._to_view_model(
-                action=action, payload=payload, status_code=status_code
+                action=action,
+                payload=payload,
+                status_code=status_code,
+                request_params=request_params,
             )
             envelope = {
                 "version": "tui-workbench.v2",
@@ -1426,7 +1429,12 @@ class TuiWorkbenchService:
         return {screen["key"]: screen for screen in metadata["screens"]}
 
     def _to_view_model(
-        self, *, action: dict[str, Any], payload: Any, status_code: int
+        self,
+        *,
+        action: dict[str, Any],
+        payload: Any,
+        status_code: int,
+        request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         data = self._unwrap_payload(payload)
         forced_kind = self._view_model_path(action, "kind")
@@ -1444,7 +1452,9 @@ class TuiWorkbenchService:
             }
         if forced_kind == "datagrid":
             if isinstance(data, list):
-                return self._datagrid_model(action, data, status_code)
+                return self._datagrid_model(
+                    action, data, status_code, request_params=request_params
+                )
             if isinstance(data, dict):
                 rows_path = self._view_model_path(action, "rows_path")
                 if not rows_path and self._looks_like_detail_payload(data):
@@ -1456,9 +1466,17 @@ class TuiWorkbenchService:
                     else self._find_list_value(data)
                 )
                 if list_value is not None:
-                    return self._datagrid_model(action, list_value, status_code, envelope=data)
+                    return self._datagrid_model(
+                        action,
+                        list_value,
+                        status_code,
+                        envelope=data,
+                        request_params=request_params,
+                    )
         if isinstance(data, list):
-            return self._datagrid_model(action, data, status_code)
+            return self._datagrid_model(
+                action, data, status_code, request_params=request_params
+            )
         if isinstance(data, dict):
             html_text = self._dominant_html_text(data)
             if html_text:
@@ -1473,7 +1491,13 @@ class TuiWorkbenchService:
                 explicit_value if isinstance(explicit_value, list) else self._find_list_value(data)
             )
             if list_value is not None:
-                return self._datagrid_model(action, list_value, status_code, envelope=data)
+                return self._datagrid_model(
+                    action,
+                    list_value,
+                    status_code,
+                    envelope=data,
+                    request_params=request_params,
+                )
             return self._detail_model(action, data, status_code)
         if self._looks_like_html(data):
             return self._message_model(action, self._html_to_text(str(data)), status_code)
@@ -1549,6 +1573,7 @@ class TuiWorkbenchService:
         rows: list[Any],
         status_code: int,
         envelope: dict[str, Any] | None = None,
+        request_params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         message_list = self._message_list_text(rows)
         if message_list:
@@ -1557,7 +1582,9 @@ class TuiWorkbenchService:
         normalized_rows = self._filter_rows_for_action(action, normalized_rows)
         columns = self._columns_for_rows(normalized_rows)
         asset_name_map = self._asset_name_map_for_rows(normalized_rows)
-        page_size = self._int_from_path(action, envelope, "page_size_path", default=20)
+        explicit_page_size = self._int_from_path(action, envelope, "page_size_path", default=0)
+        request_limit = self._int_from_params(request_params, "limit", default=0)
+        page_size = explicit_page_size or request_limit
         if str(action.get("intent")) == "list_ai_capabilities":
             total = len(normalized_rows)
         else:
@@ -1565,7 +1592,19 @@ class TuiWorkbenchService:
                 self._int_from_path(action, envelope, "total_path", default=0)
                 or len(normalized_rows)
             )
-        page = self._int_from_path(action, envelope, "page_path", default=1)
+        if page_size <= 0:
+            page_size = len(normalized_rows) if self._view_model_path(action, "total_path") else 20
+        page_size = max(1, page_size)
+        explicit_page = self._int_from_path(action, envelope, "page_path", default=0)
+        request_offset = self._int_from_params(request_params, "offset", default=0)
+        page = explicit_page or max(1, (request_offset // page_size) + 1)
+        pagination_mode = (
+            "page"
+            if explicit_page or self._view_model_path(action, "page_path")
+            else "limit_offset"
+            if self._view_model_path(action, "total_path")
+            else "page"
+        )
         return {
             "kind": "datagrid",
             "title": self._action_title(action),
@@ -1580,6 +1619,8 @@ class TuiWorkbenchService:
             "pager": {
                 "page": page,
                 "page_size": page_size,
+                "offset": request_offset,
+                "pagination_mode": pagination_mode,
                 "total_rows": total,
                 "total_pages": max(1, ceil(total / page_size)),
                 "has_next": page * page_size < total,
@@ -2461,6 +2502,21 @@ class TuiWorkbenchService:
         path = self._view_model_path(action, key)
         value = self._value_at_path(envelope, path) if path else None
         try:
+            return int(value) if value not in (None, "") else default
+        except (TypeError, ValueError):
+            return default
+
+    def _int_from_params(
+        self,
+        params: dict[str, Any] | None,
+        key: str,
+        *,
+        default: int,
+    ) -> int:
+        if not params:
+            return default
+        try:
+            value = params.get(key)
             return int(value) if value not in (None, "") else default
         except (TypeError, ValueError):
             return default

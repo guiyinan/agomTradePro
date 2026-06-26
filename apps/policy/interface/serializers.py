@@ -447,6 +447,10 @@ class WorkbenchItemsResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     items = WorkbenchItemSerializer(many=True)
     total = serializers.IntegerField()
+    limit = serializers.IntegerField(required=False)
+    offset = serializers.IntegerField(required=False)
+    page = serializers.IntegerField(required=False)
+    page_size = serializers.IntegerField(required=False)
     error = serializers.CharField(allow_null=True, required=False)
 
 

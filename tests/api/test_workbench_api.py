@@ -220,6 +220,10 @@ class TestWorkbenchItemsAPI:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data['items']) == 5
         assert response.data['total'] == 10
+        assert response.data['limit'] == 5
+        assert response.data['offset'] == 0
+        assert response.data['page'] == 1
+        assert response.data['page_size'] == 5
 
 
 @pytest.mark.django_db

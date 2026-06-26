@@ -1233,7 +1233,7 @@
 
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
-        const regime = pickField(fields, ["current_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
+        const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
         const confidence = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]) || "-";
         const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
         const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
@@ -1264,8 +1264,9 @@
         if (!rows.length || !columns.length) {
             return renderPanelPlaceholder(panel, "暂无表格数据。");
         }
+        const headers = columns.map((column) => column.label || column.key);
         return renderMiniTable(
-            columns.map((column) => column.label || column.key),
+            headers,
             rows.map((row) => columns.map((column) => row[column.key] ?? "-")),
         );
     }
@@ -1319,7 +1320,7 @@
                 <tbody>
                     ${rows.map((row, index) => `
                         <tr class="${index === selectedIndex ? "is-hot" : ""}">
-                            ${row.map((cell) => `<td class="${cellClass(cell)}">${escapeHtml(cell)}</td>`).join("")}
+                            ${row.map((cell, cellIndex) => `<td class="${cellClass(cell, headers[cellIndex])}">${escapeHtml(cell)}</td>`).join("")}
                         </tr>
                     `).join("")}
                 </tbody>
@@ -1327,12 +1328,16 @@
         `;
     }
 
-    function cellClass(value) {
+    function cellClass(value, header = "") {
         const text = String(value);
-        if (text.includes("-") || text.includes("暂停") || text.includes("触发")) {
+        const headerText = String(header || "");
+        if (["标的", "代码", "名称", "股票", "资产", "证券"].some((item) => headerText.includes(item))) {
+            return "";
+        }
+        if (/^-\d+(?:\.\d+)?%?$/.test(text.trim()) || text.includes("暂停") || text.includes("触发")) {
             return "is-red";
         }
-        if (text.includes("观察") || text.includes("中")) {
+        if (text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)) {
             return "is-yellow";
         }
         if (text.includes("正常") || text.includes("运行") || text.includes("成功") || text.includes("%")) {
@@ -2746,9 +2751,16 @@
             setStatus("已经是最后一页");
             return;
         }
-        const current = Number(state.lastParams.page || state.lastPager.page || 1);
-        const next = Math.max(1, current + delta);
-        state.lastParams = { ...state.lastParams, page: String(next) };
+        const pageSize = Math.max(1, Number(state.lastPager.page_size || state.lastParams.limit || 20));
+        if (state.lastPager.pagination_mode === "limit_offset") {
+            const currentOffset = Math.max(0, Number(state.lastParams.offset || state.lastPager.offset || 0));
+            const nextOffset = Math.max(0, currentOffset + delta * pageSize);
+            state.lastParams = { ...state.lastParams, limit: String(pageSize), offset: String(nextOffset) };
+        } else {
+            const current = Number(state.lastParams.page || state.lastPager.page || 1);
+            const next = Math.max(1, current + delta);
+            state.lastParams = { ...state.lastParams, page: String(next) };
+        }
         await runAction(state.lastAction, null);
     }
 

@@ -240,12 +240,41 @@ class AssetMasterBackfillService:
                 short_name=name,
                 asset_type=self._infer_asset_type_from_code(canonical_code),
                 exchange=self._infer_exchange(canonical_code),
-                extra={"name_source": "eastmoney"},
+                extra={"name_source": "remote"},
             ),
             aliases=self._build_aliases(canonical_code, {code}),
         )
 
     def _fetch_remote_name(self, code: str) -> str:
+        """Resolve a security name from remote market metadata providers."""
+
+        return self._fetch_akshare_name(code) or self._fetch_eastmoney_name(code)
+
+    def _fetch_akshare_name(self, code: str) -> str:
+        """Resolve an A-share name from AKShare's code-name table."""
+
+        base_code = str(code or "").strip().upper().split(".", 1)[0]
+        if not base_code:
+            return ""
+
+        try:
+            import akshare as ak
+
+            frame = ak.stock_info_a_code_name()
+        except Exception:
+            return ""
+
+        if frame is None or frame.empty or "code" not in frame.columns or "name" not in frame.columns:
+            return ""
+
+        matches = frame.loc[frame["code"].astype(str).str.zfill(6) == base_code, "name"]
+        if matches.empty:
+            return ""
+        return str(matches.iloc[0] or "").strip()
+
+    def _fetch_eastmoney_name(self, code: str) -> str:
+        """Resolve a security name from EastMoney's quote metadata endpoint."""
+
         params = {
             "secid": self._to_eastmoney_secid(code),
             "fields": self._EASTMONEY_METADATA_FIELDS,

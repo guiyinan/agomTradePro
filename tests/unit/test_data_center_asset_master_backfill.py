@@ -48,6 +48,24 @@ def test_asset_master_backfill_service_supports_remote_name_recovery(mocker):
 
 
 @pytest.mark.django_db
+def test_asset_master_backfill_service_prefers_akshare_name_table(mocker):
+    mocker.patch(
+        "apps.data_center.infrastructure.asset_master_backfill.AssetMasterBackfillService._fetch_akshare_name",
+        return_value="中远海能",
+    )
+    eastmoney = mocker.patch(
+        "apps.data_center.infrastructure.asset_master_backfill.AssetMasterBackfillService._fetch_eastmoney_name",
+        return_value="",
+    )
+
+    report = AssetMasterBackfillService().backfill_codes(["600026.SH"], include_remote=True)
+
+    assert report.unresolved_codes == []
+    assert AssetMasterModel.objects.filter(code="600026.SH", name="中远海能").exists()
+    eastmoney.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_asset_master_backfill_service_keeps_shanghai_etf_suffix():
     AssetClassModel.objects.create(
         code="510300",
