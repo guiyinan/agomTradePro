@@ -85,13 +85,15 @@ def _runtime_transform_counts(payload: dict[str, object]) -> tuple[int, int]:
     actions = payload.get("actions") or []
     patched = 0
     pruned = 0
+    repository = PublishedTuiMetadataRepository()
     for action in actions:
         screen_key = str(action.get("screen_key") or "")
         action_key = str(action.get("key") or "")
         if action_key in RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS.get(screen_key, set()):
             pruned += 1
             continue
-        if action_key in RUNTIME_ACTION_PATCHES:
+        patch = RUNTIME_ACTION_PATCHES.get(action_key)
+        if patch and repository._apply_runtime_patch(action, patch)[1]:
             patched += 1
     return patched, pruned
 
@@ -4797,9 +4799,10 @@ def test_tui_metadata_repository_db_reload_keeps_runtime_coverage_stable():
 
 @pytest.mark.django_db
 def test_tui_metadata_repository_patches_system_list_to_datagrid():
-    loaded = PublishedTuiMetadataRepository().load_published()
+    repository = PublishedTuiMetadataRepository()
+    loaded = repository._load_published_file()
     raw_payload = json.loads(
-        PublishedTuiMetadataRepository().published_path.read_text(encoding="utf-8")
+        repository.published_path.read_text(encoding="utf-8")
     )
     expected_patched, expected_pruned = _runtime_transform_counts(raw_payload)
 
@@ -4811,6 +4814,42 @@ def test_tui_metadata_repository_patches_system_list_to_datagrid():
     assert action["view_model"]["total_path"] == "total"
     assert loaded["coverage_summary"]["runtime_patched_actions"] == expected_patched
     assert loaded["coverage_summary"]["runtime_pruned_redundant_screen_actions"] == expected_pruned
+
+
+@pytest.mark.django_db
+def test_tui_metadata_repository_patches_policy_workbench_items_pagination():
+    payload = _metadata_payload(
+        actions=[
+            {
+                "key": "policy.workbench_items",
+                "label": "待看事件",
+                "method": "GET",
+                "endpoint": "/api/policy/workbench/items/",
+                "intent": "browse_policy_queue_items",
+                "screen_key": "command-center.overview",
+                "module_key": "command-center",
+                "view_type": "datagrid",
+                "risk": "read",
+                "fields": [],
+                "view_model": {
+                    "rows_path": "items",
+                    "total_path": "total",
+                },
+            },
+        ]
+    )
+
+    loaded = PublishedTuiMetadataRepository()._normalize_runtime_payload(
+        validate_tui_metadata(payload)
+    )
+
+    action = next(action for action in loaded["actions"] if action["key"] == "policy.workbench_items")
+    assert action["pagination"] == {
+        "mode": "offset",
+        "offset_param": "offset",
+        "limit_param": "limit",
+    }
+    assert [field["key"] for field in action["fields"]] == ["limit", "offset"]
 
 
 @pytest.mark.django_db

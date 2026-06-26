@@ -1,6 +1,7 @@
 // 状态
 let currentTab = 'all';
 let currentOffset = 0;
+const pageLimit = 50;
 let selectedIds = new Set();
 let allFetchSources = [];
 let showMediaSources = false;
@@ -113,7 +114,7 @@ async function loadEvents() {
 
     const params = new URLSearchParams({
         tab: currentTab,
-        limit: 50,
+        limit: pageLimit,
         offset: currentOffset,
         event_type: document.getElementById('filter-event-type').value,
         level: document.getElementById('filter-level').value,
@@ -127,10 +128,17 @@ async function loadEvents() {
         const response = await fetch(`/api/policy/workbench/items/?${params}`);
         const data = await response.json();
 
+        if (data.success && currentOffset > 0 && data.total > 0 && data.items.length === 0) {
+            currentOffset = Math.max(0, (Math.ceil(data.total / pageLimit) - 1) * pageLimit);
+            loadEvents();
+            return;
+        }
+
         if (data.success && data.items.length > 0) {
             renderEvents(data.items);
             renderPagination(data.total);
         } else {
+            renderPagination(data.total || 0);
             tbody.innerHTML = `
                 <tr>
                     <td colspan="8" class="empty-state">
@@ -218,25 +226,38 @@ function initEventActionHandlers() {
 // 渲染分页
 function renderPagination(total) {
     const pagination = document.getElementById('pagination');
-    const limit = 50;
-    const pages = Math.ceil(total / limit);
-    const currentPage = Math.floor(currentOffset / limit) + 1;
+    const pages = Math.ceil(total / pageLimit);
+    const currentPage = Math.floor(currentOffset / pageLimit) + 1;
 
     if (pages <= 1) {
         pagination.innerHTML = '';
         return;
     }
 
-    let html = '';
-    for (let i = 1; i <= Math.min(pages, 10); i++) {
+    const windowSize = 7;
+    let startPage = Math.max(1, currentPage - Math.floor(windowSize / 2));
+    const endPage = Math.min(pages, startPage + windowSize - 1);
+    startPage = Math.max(1, endPage - windowSize + 1);
+
+    let html = `
+        <button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>
+    `;
+    for (let i = startPage; i <= endPage; i++) {
         html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
     }
+    html += `
+        <span class="page-info">第 ${currentPage} / ${pages} 页，共 ${total} 条</span>
+        <button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage >= pages ? 'disabled' : ''}>下一页</button>
+    `;
 
     pagination.innerHTML = html;
 }
 
 function goToPage(page) {
-    currentOffset = (page - 1) * 50;
+    if (page < 1) {
+        return;
+    }
+    currentOffset = (page - 1) * pageLimit;
     loadEvents();
 }
 
@@ -424,7 +445,7 @@ async function showDetail(eventId) {
         document.getElementById('modal-body').innerHTML = detailHtml;
         document.getElementById('modal-confirm').textContent = '关闭';
         document.getElementById('modal-confirm').className = 'btn btn-primary';
-        document.getElementById('modal-confirm').onclick = closeModal;
+        document.getElementById('modal-confirm').onclick = closeReviewModal;
         document.getElementById('review-modal').classList.add('active');
 
     } catch (error) {

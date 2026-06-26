@@ -374,6 +374,8 @@
 /* 分页 */
 .pagination {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 8px;
     margin-top: 20px;
@@ -391,6 +393,18 @@
     background: #3b82f6;
     color: white;
     border-color: #3b82f6;
+}
+
+.pagination .page-btn:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.pagination .page-info {
+    color: #4b5563;
+    font-size: 13px;
+    padding: 0 4px;
 }
 
 /* 加载状态（避免与全局 .loading 冲突） */

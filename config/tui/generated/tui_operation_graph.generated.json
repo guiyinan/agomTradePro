@@ -1359,6 +1359,33 @@
       "view_type": "datagrid",
       "description": "浏览政策与热点队列中的待看事件。",
       "source": "approved:api-evidence",
+      "fields": [
+        {
+          "key": "limit",
+          "label": "每页数量",
+          "input_type": "hidden",
+          "value_type": "integer",
+          "binding": "query",
+          "default": 50,
+          "required": false,
+          "placeholder": ""
+        },
+        {
+          "key": "offset",
+          "label": "偏移量",
+          "input_type": "hidden",
+          "value_type": "integer",
+          "binding": "query",
+          "default": 0,
+          "required": false,
+          "placeholder": ""
+        }
+      ],
+      "pagination": {
+        "mode": "offset",
+        "offset_param": "offset",
+        "limit_param": "limit"
+      },
       "view_model": {
         "rows_path": "items",
         "total_path": "total"

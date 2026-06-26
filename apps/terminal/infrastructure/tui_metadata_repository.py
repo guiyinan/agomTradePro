@@ -79,6 +79,35 @@ RUNTIME_ADVISOR_ACTION: dict[str, Any] = {
 }
 
 RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
+    "policy.workbench_items": {
+        "fields": [
+            {
+                "key": "limit",
+                "label": "每页数量",
+                "input_type": "hidden",
+                "value_type": "integer",
+                "binding": "query",
+                "default": 50,
+                "required": False,
+                "placeholder": "",
+            },
+            {
+                "key": "offset",
+                "label": "偏移量",
+                "input_type": "hidden",
+                "value_type": "integer",
+                "binding": "query",
+                "default": 0,
+                "required": False,
+                "placeholder": "",
+            },
+        ],
+        "pagination": {
+            "mode": "offset",
+            "offset_param": "offset",
+            "limit_param": "limit",
+        },
+    },
     "auto.api.get.api.dashboard.alpha.history": {
         "view_type": "datagrid",
         "view_model": {
