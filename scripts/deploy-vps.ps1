@@ -37,7 +37,7 @@ $VpsHost = $env:AGOM_VPS_HOST
 $VpsUser = if ($env:AGOM_VPS_USER) { $env:AGOM_VPS_USER } else { 'root' }
 $VpsPass = $env:AGOM_VPS_PASS
 $VpsPort = if ($env:AGOM_VPS_PORT) { [int]$env:AGOM_VPS_PORT } else { 22 }
-$HttpPort = if ($env:AGOM_VPS_HTTP_PORT) { [int]$env:AGOM_VPS_HTTP_PORT } else { 8000 }
+$HttpPort = if ($env:AGOM_VPS_HTTP_PORT) { [int]$env:AGOM_VPS_HTTP_PORT } else { $null }
 $TargetDir = if ($env:AGOM_VPS_TARGET_DIR) { $env:AGOM_VPS_TARGET_DIR } else { '/opt/agomtradepro' }
 
 if (-not $VpsHost) {
@@ -70,7 +70,7 @@ Write-Info "Host:       $VpsUser@${VpsHost}:$VpsPort"
 Write-Info "Target:     $TargetDir"
 Write-Info "Action:     $Action"
 Write-Info "Branch:     $GitBranch"
-Write-Info "HTTP Port:  $HttpPort"
+Write-Info "HTTP Port:  $(if ($null -ne $HttpPort) { $HttpPort } else { 'auto' })"
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (will overwrite remote DB)' } else { 'No (preserve remote data)' })"
 Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
 Write-Info "Decision repair: $(if ($BootstrapDecisionRepair) { 'Enabled' } else { 'Disabled' })"
@@ -114,11 +114,11 @@ try {
         '--wipe-docker',
         '--git-clone',
         '--git-branch', $GitBranch,
-        '--http-port', $HttpPort,
         '--allowed-hosts', $AllowedHosts,
         '--timeout', '1800'
     )
 
+    if ($null -ne $HttpPort) { $pyArgs += @('--http-port', $HttpPort) }
     if ($IncludeSqlite) { $pyArgs += '--include-sqlite' }
     if ($UseCelery)  { $pyArgs += '--enable-celery' } else { $pyArgs += '--disable-celery' }
     if ($BootstrapDecisionRepair) { $pyArgs += '--bootstrap-decision-repair' }
@@ -144,10 +144,10 @@ try {
             '--user', $VpsUser,
             '--password-file', $passFile,
             '--port', $VpsPort,
-            '--http-port', $HttpPort,
             '--target-dir', $TargetDir,
             '--timeout', '15'
         )
+        if ($null -ne $HttpPort) { $verifyArgs += @('--http-port', $HttpPort) }
         try {
             & $PythonExe @verifyArgs
             $verifyExitCode = $LASTEXITCODE
