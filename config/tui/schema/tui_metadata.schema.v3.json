@@ -10,6 +10,13 @@
     "registry_key": { "type": "string" },
     "default_screen": { "type": "string", "minLength": 1 },
     "interaction_model": { "type": "string" },
+    "field_aliases": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
     "principles": {
       "type": "array",
       "items": { "type": "string" }
@@ -92,6 +99,7 @@
           "items": { "$ref": "#/$defs/field" }
         },
         "view_model": { "$ref": "#/$defs/viewModel" },
+        "pagination": { "$ref": "#/$defs/pagination" },
         "description": { "type": "string" },
         "source": { "type": "string" },
         "raw_debug": { "type": "boolean" },
@@ -112,11 +120,17 @@
       "properties": {
         "key": { "type": "string", "minLength": 1 },
         "label": { "type": "string", "minLength": 1 },
-        "input_type": { "enum": ["text", "textarea", "number", "date", "checkbox", "select", "hidden"] },
+        "input_type": { "enum": ["text", "textarea", "number", "date", "checkbox", "select", "hidden", "file"] },
         "value_type": { "enum": ["string", "integer", "float", "decimal", "boolean", "date", "datetime", "list", "object"] },
         "required": { "type": "boolean" },
         "default": {},
         "placeholder": { "type": "string" },
+        "accept": { "type": "string" },
+        "semantic": { "type": "string" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "options": {
           "type": "array",
           "items": {
@@ -141,10 +155,25 @@
       },
       "additionalProperties": false
     },
+    "pagination": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["page", "offset", "cursor"] },
+        "page_param": { "type": "string" },
+        "page_size_param": { "type": "string" },
+        "offset_param": { "type": "string" },
+        "limit_param": { "type": "string" },
+        "cursor_param": { "type": "string" },
+        "next_cursor_path": { "type": "string" },
+        "previous_cursor_path": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "viewModel": {
       "type": "object",
       "properties": {
-        "kind": { "enum": ["auto", "datagrid", "detail", "message"] },
+        "kind": { "enum": ["auto", "datagrid", "detail", "message", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"] },
         "rows_path": { "type": "string" },
         "total_path": { "type": "string" },
         "page_path": { "type": "string" },
@@ -160,7 +189,7 @@
       "properties": {
         "key": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
-        "kind": { "enum": ["datagrid", "detail", "placeholder", "regime_quadrant", "status"] },
+        "kind": { "enum": ["datagrid", "detail", "placeholder", "regime_quadrant", "status", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"] },
         "action_key": { "type": "string" },
         "status": { "type": "string" },
         "note": { "type": "string" },
@@ -182,7 +211,7 @@
       "additionalProperties": false
     },
     "viewType": {
-      "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench"]
+      "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"]
     }
   },
   "additionalProperties": true

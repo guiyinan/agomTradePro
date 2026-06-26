@@ -153,7 +153,7 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "TUI Workbench - AgomTradePro" in html
     assert "tui-workbench.css" in html
     assert "tui-workbench.js" in html
-    assert "user-task-54" in html
+    assert "agomtui-781f75f" in html
     assert "data-module-tree" in html
     assert "data-workflow-strip" in html
     assert 'id="tui-location-input"' in html
@@ -398,6 +398,10 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "return rowResourceBase === targetResourceBase;" in script
     assert "form.elements.namedItem" in script
     assert "function rowFieldCandidates" in script
+    assert "const builtInFieldAliases" in script
+    assert "function fieldAliasRegistry" in script
+    assert "field.semantic" in script
+    assert "field.aliases" in script
     assert (
         'from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"]'
         in script
@@ -465,15 +469,11 @@ def test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe():
     )
 
     assert (
-        '["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]'
-        in script
+        '["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]' in script
     )
     assert "cellClass(cell, headers[cellIndex])" in script
     assert '["标的", "代码", "名称", "股票", "资产", "证券"]' in script
-    assert (
-        'text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)'
-        in script
-    )
+    assert 'text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)' in script
     assert 'text.includes("观察") || text.includes("中")' not in script
     assert 'text.includes("-") || text.includes("暂停")' not in script
 
@@ -487,10 +487,43 @@ def test_tui_workbench_javascript_supports_limit_offset_pagination():
         .read_text(encoding="utf-8")
     )
 
-    assert 'state.lastPager.pagination_mode === "limit_offset"' in script
-    assert "state.lastParams.offset || state.lastPager.offset || 0" in script
-    assert "delta * pageSize" in script
-    assert 'limit: String(pageSize), offset: String(nextOffset)' in script
+    assert 'pagerMode === "limit_offset" ? "offset" : pagerMode' in script
+    assert (
+        'const mode = pagination.mode || (pagerMode === "limit_offset" ? "offset" : pagerMode) || inferPaginationMode(action);'
+        in script
+    )
+    assert "const nextOffset = Math.max(0, current + (delta * limit));" in script
+    assert (
+        "return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };"
+        in script
+    )
+
+
+def test_tui_workbench_javascript_supports_image_and_file_runtime_contracts():
+    css = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "css", "tui-workbench.css")
+        .read_text(encoding="utf-8")
+    )
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "js", "tui-workbench.js")
+        .read_text(encoding="utf-8")
+    )
+
+    assert '"image"' in script
+    assert "function renderImage(viewModel)" in script
+    assert "function renderImageMarkup(viewModel" in script
+    assert "function showImagePreview(trigger)" in script
+    assert "data-image-preview" in script
+    assert 'input_type === "file"' in script
+    assert "function readTextFile(file)" in script
+    assert ".tui-image-view" in css
+    assert ".tui-image-lightbox" in css
 
 
 def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
@@ -635,7 +668,10 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert ".tui-inspector-actions" in css
     assert '.tui-workspace-grid[data-view-kind="detail"]' in css
     assert '.tui-workspace-grid[data-view-kind="message"]' in css
-    assert "--tui-inspector-width: var(--tui-inspector-user-width, var(--tui-inspector-default-width));" in css
+    assert (
+        "--tui-inspector-width: var(--tui-inspector-user-width, var(--tui-inspector-default-width));"
+        in css
+    )
     assert "--tui-inspector-default-width: minmax(252px, 0.92fr);" in css
     assert "--tui-inspector-default-width: minmax(280px, 1.04fr);" in css
     assert (
@@ -1674,6 +1710,43 @@ def test_tui_metadata_validator_adds_schema_and_value_type_defaults():
 
     assert validated["schema_version"] == "tui-metadata.v3"
     assert field["value_type"] == "integer"
+
+
+def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
+    payload = _metadata_payload()
+    payload["field_aliases"] = {"company.keyword": ["keyword", "company_name"]}
+    payload["actions"][0].update(
+        {
+            "view_type": "image",
+            "view_model": {"kind": "image"},
+            "pagination": {
+                "mode": "offset",
+                "offset_param": "offset",
+                "limit_param": "limit",
+            },
+            "fields": [
+                {
+                    "key": "manifest",
+                    "label": "Manifest",
+                    "input_type": "file",
+                    "accept": ".json",
+                    "semantic": "company.keyword",
+                    "aliases": ["company_name"],
+                }
+            ],
+        }
+    )
+    payload["screens"][0]["view_type"] = "image"
+    payload["screens"][0]["dashboard_panels"] = [
+        {"key": "preview", "title": "Preview", "kind": "image"}
+    ]
+
+    validated = validate_tui_metadata(payload)
+    action = validated["actions"][0]
+
+    assert action["fields"][0]["value_type"] == "string"
+    assert action["pagination"]["mode"] == "offset"
+    assert action["view_model"]["kind"] == "image"
 
 
 def test_tui_metadata_compact_payload_round_trips_runtime_defaults():

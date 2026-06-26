@@ -1,6 +1,6 @@
 # TUI Workbench
 
-> Last updated: 2026-06-23
+> Last updated: 2026-06-26
 
 `/tui/` is the standalone task-oriented interaction shell for AgomTradePro. It is not a CSS presentation mode for existing Django pages, and it is not an API catalog UI.
 
@@ -21,6 +21,8 @@ The V2 catalog is read from published TUI metadata:
 - Candidate evidence: `config/tui/generated/tui_operation_evidence.generated.json`.
 - Compile-time helper skill: `tui-metadata-compiler/`.
 - Promotion guide: `docs/development/tui-metadata-promotion-guide.md`.
+
+Frontend runtime assets are synced from AgomTUI reference runtime. The current baseline is AgomTUI commit `781f75f` (`Improve responsive workbench layout`), with local AgomTradePro adaptations for dashboard panel routing, regime field aliases, table value coloring, and legacy `pagination_mode=limit_offset` compatibility.
 
 Runtime `/tui/` does not parse classic templates, SDK modules, MCP tools, or source code. Those sources are evidence for the compile-time skill only. The skill generates candidate JSON, validates it, and publishes it to the database only after explicit approval.
 
@@ -62,6 +64,7 @@ Action execution returns a business-first `view_model`:
 - `datagrid`: tabular list with pager metadata.
 - `detail`: key/value fields and nested row counts.
 - `message`: plain operation message.
+- `chart`, `image`, `kpi_trend`, `table_chart`, `host_slot`, `custom`: richer renderer contracts supported by the AgomTUI runtime and gated by `config/tui/schema/tui_metadata.schema.v3.json` plus `validate_tui_metadata()`.
 - `debug.raw_response`: raw payload for the Raw Response drawer only.
 
 The browser renders a generic decision cue above every `datagrid`, `detail`, and `message` result when the screen has `business_context`. It shows the expected decision output, the current evidence shape (for example row count, detail field count, or message section count), reviewed operations available on the screen, and the next workflow step. This cue is derived from published metadata and actual result shape; it must not invent a trading recommendation.

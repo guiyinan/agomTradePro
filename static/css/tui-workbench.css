@@ -809,6 +809,14 @@ a {
     cursor: not-allowed;
 }
 
+.tui-action-submit {
+    display: block;
+    width: calc(100% - 40px);
+    margin: 7px 8px 0 32px;
+    padding: 5px 8px;
+    text-align: center;
+}
+
 .tui-action-group {
     margin: 0 0 10px;
     padding: 0;
@@ -1641,6 +1649,50 @@ a {
     outline: 1px solid var(--tui-text);
 }
 
+.tui-datagrid-pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-height: 30px;
+    margin-top: 6px;
+    padding: 4px 6px;
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+    color: var(--tui-muted);
+    font: 700 11px/1.2 var(--tui-mono);
+}
+
+.tui-datagrid-pager button,
+.tui-action-submit {
+    border: 1px solid var(--tui-border);
+    border-radius: 0;
+    background: var(--tui-panel);
+    color: var(--tui-accent);
+    font: 700 11px/1.2 var(--tui-mono);
+}
+
+.tui-datagrid-pager button {
+    min-width: 64px;
+    padding: 3px 8px;
+}
+
+.tui-datagrid-pager button:hover,
+.tui-datagrid-pager button:focus,
+.tui-action-submit:hover,
+.tui-action-submit:focus {
+    background: var(--tui-text);
+    color: var(--tui-inverse);
+    outline: 0;
+}
+
+.tui-datagrid-pager button:disabled {
+    border-color: var(--tui-border-dim);
+    background: var(--tui-panel);
+    color: var(--tui-border-dim);
+    cursor: not-allowed;
+}
+
 .tui-rich-view {
     border: 1px solid var(--tui-border);
     background: color-mix(in srgb, var(--tui-panel) 86%, var(--tui-bg));
@@ -1746,6 +1798,63 @@ a {
 
 .tui-chart-pie-hole {
     fill: var(--tui-panel);
+}
+
+.tui-image-view {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 220px;
+}
+
+.tui-image-view.is-compact {
+    min-height: 140px;
+}
+
+.tui-image-frame {
+    display: grid;
+    place-items: center;
+    min-height: 150px;
+    width: 100%;
+    border: 1px solid var(--tui-border-dim);
+    border-radius: 0;
+    background:
+        linear-gradient(45deg, color-mix(in srgb, var(--tui-border-dim) 30%, transparent) 25%, transparent 25%),
+        linear-gradient(-45deg, color-mix(in srgb, var(--tui-border-dim) 30%, transparent) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--tui-border-dim) 30%, transparent) 75%),
+        linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--tui-border-dim) 30%, transparent) 75%);
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-size: 16px 16px;
+    cursor: zoom-in;
+}
+
+.tui-image-frame:hover,
+.tui-image-frame:focus {
+    border-color: var(--tui-accent);
+    box-shadow: inset 0 0 0 1px var(--tui-accent);
+    outline: 0;
+}
+
+.tui-image-view.is-compact .tui-image-frame {
+    min-height: 96px;
+}
+
+.tui-image-frame img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: min(62vh, 520px);
+    object-fit: contain;
+}
+
+.tui-image-view.is-compact .tui-image-frame img {
+    max-height: 160px;
+}
+
+.tui-image-view figcaption {
+    color: var(--tui-muted);
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .tui-kpi-view {
@@ -2040,7 +2149,7 @@ a {
     z-index: 28;
     display: grid;
     place-items: center;
-    padding: 28px;
+    padding: clamp(12px, 3vw, 28px);
     background: var(--tui-overlay);
 }
 
@@ -2049,41 +2158,143 @@ a {
 }
 
 .tui-modal-window {
-    width: min(760px, calc(100vw - 48px));
-    max-height: min(640px, calc(100vh - 64px));
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(640px, calc(100vh - 40px));
     min-width: 0;
-    max-width: calc(100vw - 48px);
+    max-width: calc(100vw - 32px);
     display: flex;
     flex-direction: column;
     border: 1px solid var(--tui-border);
     background: var(--tui-panel);
     color: var(--tui-text);
-    box-shadow: none;
+    box-shadow: 0 0 0 1px var(--tui-bg-deep), 0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+.tui-modal.is-image-preview {
+    background: color-mix(in srgb, var(--tui-bg) 82%, rgba(0, 0, 0, 0.82));
+}
+
+.tui-modal.is-image-preview .tui-modal-window {
+    width: min(1120px, calc(100vw - 36px));
+    max-height: min(860px, calc(100vh - 36px));
+    background: color-mix(in srgb, var(--tui-panel) 88%, var(--tui-bg-deep));
+    box-shadow: 0 0 0 1px var(--tui-border), 0 24px 64px rgba(0, 0, 0, 0.52);
 }
 
 .tui-modal-body {
     min-height: 0;
     overflow: auto;
     scrollbar-gutter: stable;
-    padding: 8px;
+    padding: 12px;
+}
+
+.tui-modal.is-image-preview .tui-modal-body {
+    padding: clamp(10px, 2vw, 18px);
+}
+
+.tui-image-lightbox {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    min-width: 0;
+}
+
+.tui-image-lightbox-frame {
+    display: grid;
+    place-items: center;
+    min-height: min(62vh, 560px);
+    border: 1px solid var(--tui-border-dim);
+    background:
+        radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--tui-panel) 78%, transparent), transparent 62%),
+        var(--tui-bg-deep);
+}
+
+.tui-image-lightbox img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: min(72vh, 680px);
+    object-fit: contain;
+}
+
+.tui-image-lightbox figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--tui-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.tui-image-lightbox figcaption span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tui-image-lightbox figcaption a {
+    flex: 0 0 auto;
+    color: var(--tui-accent);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.tui-image-lightbox figcaption a:hover,
+.tui-image-lightbox figcaption a:focus {
+    color: var(--tui-text);
+    outline: 0;
 }
 
 .tui-confirmation {
+    display: grid;
+    gap: 10px;
     color: var(--tui-text);
     font-family: var(--tui-mono);
 }
 
 .tui-confirmation p {
-    margin: 0 0 12px;
-    padding: 8px;
-    border: 1px solid var(--tui-border);
+    margin: 0;
+    padding: 7px 9px;
+    border: 1px solid var(--tui-border-dim);
+    border-left: 3px solid var(--tui-accent);
     color: var(--tui-accent);
     background: var(--tui-bg-deep);
+}
+
+.tui-confirmation .tui-field {
+    margin: 0;
+}
+
+.tui-missing-fields-list {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.tui-missing-fields .tui-field {
+    grid-template-columns: minmax(128px, 0.34fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--tui-border-dim);
+    background: var(--tui-bg-deep);
+}
+
+.tui-missing-fields .tui-field span {
+    min-width: 0;
+    color: var(--tui-muted);
+    overflow-wrap: anywhere;
+}
+
+.tui-missing-fields .tui-field input {
+    background: var(--tui-command);
 }
 
 .tui-confirmation-actions {
     display: flex;
     gap: 8px;
+    justify-content: flex-end;
+    min-width: 0;
 }
 
 .tui-confirm-button {
@@ -2099,6 +2310,26 @@ a {
 .tui-confirm-button:hover {
     background: var(--tui-accent);
     color: var(--tui-inverse);
+}
+
+@media (max-width: 640px) {
+    .tui-modal-body {
+        padding: 10px;
+    }
+
+    .tui-missing-fields .tui-field {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 5px;
+    }
+
+    .tui-confirmation-actions {
+        justify-content: stretch;
+    }
+
+    .tui-confirm-button {
+        flex: 1 1 0;
+        min-width: 0;
+    }
 }
 
 .tui-help-grid {
@@ -2214,7 +2445,7 @@ a {
 
     .tui-app {
         height: 100dvh;
-        min-height: 560px;
+        min-height: 0;
         grid-template-rows: auto auto minmax(0, 1fr) var(--tui-status-height) var(--tui-footer-height);
     }
 
@@ -2264,7 +2495,7 @@ a {
     }
 
     .tui-shell {
-        grid-template-rows: minmax(136px, 0.38fr) minmax(0, 1fr);
+        grid-template-rows: minmax(104px, clamp(112px, 22dvh, 168px)) minmax(0, 1fr);
         overflow: hidden;
     }
 
@@ -2287,7 +2518,7 @@ a {
     }
 
     .tui-workspace-grid {
-        grid-template-rows: minmax(90px, 0.28fr) minmax(0, 1fr) minmax(86px, 0.25fr);
+        grid-template-rows: minmax(72px, 0.18fr) minmax(220px, 1fr) minmax(58px, 0.16fr);
         grid-template-areas:
             "actions"
             "main"
@@ -2301,7 +2532,7 @@ a {
     }
 
     .tui-app.is-inspector-collapsed .tui-workspace-grid {
-        grid-template-rows: minmax(90px, 0.28fr) minmax(0, 1fr) var(--tui-inspector-collapsed-width);
+        grid-template-rows: minmax(72px, 0.18fr) minmax(220px, 1fr) var(--tui-inspector-collapsed-width);
         grid-template-columns: 1fr;
     }
 
@@ -2351,6 +2582,410 @@ a {
     }
 }
 
+@media (max-width: 640px) {
+    :root {
+        --tui-status-height: 26px;
+        --tui-footer-height: 28px;
+        --tui-gap: 3px;
+    }
+
+    body {
+        font-size: 12px;
+    }
+
+    .tui-menubar {
+        flex-wrap: nowrap;
+        gap: 4px;
+        min-height: 26px;
+        padding: 2px 4px;
+        font-size: 12px;
+    }
+
+    .tui-menu-left {
+        flex: 1 1 auto;
+        gap: 3px;
+        scrollbar-gutter: auto;
+    }
+
+    .tui-menu-right {
+        display: none;
+    }
+
+    .tui-brand {
+        min-width: 86px;
+    }
+
+    .tui-menu-item,
+    .tui-menu-link {
+        padding: 2px 4px;
+        font-size: 12px;
+    }
+
+    .tui-system-strip {
+        grid-template-rows: repeat(2, minmax(24px, auto));
+        gap: 3px;
+        padding: 2px 3px;
+        font-size: 12px;
+    }
+
+    .tui-system-strip div {
+        justify-content: flex-start;
+        gap: 6px;
+        min-height: 24px;
+        padding: 2px 6px;
+    }
+
+    .tui-shell {
+        grid-template-rows: minmax(86px, clamp(96px, 17dvh, 132px)) minmax(0, 1fr);
+        gap: 3px;
+        padding: 3px;
+    }
+
+    .tui-workspace-grid {
+        grid-template-rows: minmax(66px, 0.16fr) minmax(260px, 1fr) minmax(48px, 0.12fr);
+        gap: 3px;
+        padding: 3px;
+    }
+
+    .tui-actions-panel .tui-panel-body,
+    .tui-inspector-panel .tui-panel-body,
+    .tui-main-body {
+        padding: 3px;
+    }
+
+    .tui-action-brief {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .tui-action-brief span,
+    .tui-action-filter {
+        grid-column: 1 / -1;
+    }
+
+    .tui-action-toggle {
+        min-width: 52px;
+        padding-inline: 4px;
+    }
+
+    .tui-field,
+    .tui-action-confirm,
+    .tui-row-fill-button {
+        margin-left: 18px;
+    }
+
+    .tui-action-submit {
+        width: calc(100% - 22px);
+        margin-left: 18px;
+    }
+
+    .tui-workflow-strip {
+        grid-template-columns: minmax(0, 1fr) auto;
+        font-size: 11px;
+    }
+
+    .tui-workflow-role {
+        display: none;
+    }
+
+    .tui-workflow-nav {
+        justify-content: flex-start;
+    }
+
+    .tui-datagrid th,
+    .tui-datagrid td {
+        max-width: 168px;
+        padding: 4px 6px;
+    }
+
+    .tui-datagrid-pager {
+        justify-content: flex-start;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-gutter: auto;
+    }
+
+    .tui-datagrid-pager button {
+        min-width: 56px;
+        padding-inline: 6px;
+    }
+
+    .tui-detail-grid,
+    .tui-inspector-grid,
+    .tui-inspector-panel dl,
+    .tui-message-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tui-status-strip {
+        gap: 12px;
+        padding: 0 8px;
+        font-size: 12px;
+        scrollbar-gutter: auto;
+    }
+
+    .tui-status-strip span {
+        max-width: 72vw;
+    }
+
+    .tui-function-bar {
+        min-height: var(--tui-footer-height);
+    }
+
+    .tui-function-bar span {
+        flex-basis: 72px;
+        min-width: 72px;
+        padding-inline: 6px;
+    }
+
+    .tui-function-bar .tui-framework-credit {
+        flex-basis: 188px;
+        min-width: 188px;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 980px) and (max-height: 760px) {
+    :root {
+        --tui-menubar-height: 24px;
+        --tui-status-height: 24px;
+        --tui-footer-height: 26px;
+        --tui-gap: 3px;
+    }
+
+    body {
+        font-size: 12px;
+    }
+
+    .tui-app {
+        grid-template-rows: auto auto minmax(0, 1fr) var(--tui-status-height) var(--tui-footer-height);
+    }
+
+    .tui-menubar {
+        flex-wrap: nowrap;
+        min-height: 24px;
+        padding: 1px 5px;
+        font-size: 12px;
+    }
+
+    .tui-menu-left {
+        flex: 1 1 auto;
+        overflow-x: auto;
+        scrollbar-gutter: auto;
+    }
+
+    .tui-menu-right {
+        display: none;
+    }
+
+    .tui-brand {
+        min-width: 104px;
+    }
+
+    .tui-system-strip {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        grid-template-rows: minmax(24px, auto);
+        gap: 3px;
+        padding: 2px 3px;
+        font-size: 12px;
+    }
+
+    .tui-system-primary {
+        grid-column: auto;
+    }
+
+    .tui-system-strip div {
+        justify-content: flex-start;
+        min-height: 24px;
+        padding: 2px 6px;
+    }
+
+    .tui-system-source {
+        display: none !important;
+    }
+
+    .tui-shell {
+        grid-template-rows: minmax(42px, clamp(48px, 10dvh, 72px)) minmax(0, 1fr);
+        gap: 3px;
+        padding: 3px;
+    }
+
+    .tui-titlebar,
+    .tui-panel-title {
+        min-height: 22px;
+        padding-block: 1px;
+    }
+
+    .tui-rail-body,
+    .tui-panel-body {
+        padding: 3px;
+    }
+
+    .tui-group + .tui-group {
+        margin-top: 5px;
+        padding-top: 4px;
+    }
+
+    .tui-group-title {
+        margin-bottom: 2px;
+        font-size: 13px;
+    }
+
+    .tui-screen-button,
+    .tui-module-button,
+    .tui-action-button {
+        min-height: 22px;
+        padding-block: 2px;
+    }
+
+    .tui-workspace-grid {
+        grid-template-rows: minmax(34px, 0.08fr) minmax(280px, 1fr);
+        grid-template-areas:
+            "actions"
+            "main";
+        gap: 3px;
+        padding: 3px;
+    }
+
+    .tui-actions-panel .tui-panel-body {
+        padding: 3px;
+    }
+
+    .tui-action-brief {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px;
+        margin-bottom: 4px;
+        padding: 4px;
+    }
+
+    .tui-action-brief span,
+    .tui-action-filter {
+        grid-column: 1 / -1;
+    }
+
+    .tui-inspector-panel {
+        display: none;
+    }
+
+    .tui-workflow-strip {
+        grid-template-columns: minmax(0, 1fr) auto;
+        font-size: 11px;
+    }
+
+    .tui-workflow-role {
+        display: none;
+    }
+
+    .tui-status-strip {
+        padding-inline: 12px;
+        font-size: 12px;
+    }
+
+    .tui-function-bar span {
+        flex-basis: 76px;
+        min-width: 76px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 420px) {
+    .tui-system-source {
+        display: none !important;
+    }
+
+    .tui-system-location {
+        grid-column: 1 / -1;
+    }
+
+    .tui-workspace-grid {
+        grid-template-rows: minmax(58px, 0.14fr) minmax(280px, 1fr) minmax(42px, 0.1fr);
+    }
+
+    .tui-panel-title,
+    .tui-titlebar {
+        min-height: 22px;
+        padding-block: 1px;
+    }
+
+    .tui-inspector-panel {
+        min-inline-size: 0;
+    }
+}
+
+@media (min-width: 981px) and (max-height: 680px) {
+    :root {
+        --tui-menubar-height: 24px;
+        --tui-system-height: 28px;
+        --tui-status-height: 24px;
+        --tui-footer-height: 26px;
+        --tui-gap: 3px;
+    }
+
+    body {
+        font-size: 12px;
+    }
+
+    .tui-menubar {
+        padding-block: 1px;
+        font-size: 13px;
+    }
+
+    .tui-system-strip {
+        padding-block: 2px;
+        font-size: 12px;
+    }
+
+    .tui-shell {
+        grid-template-columns: minmax(220px, 0.3fr) minmax(0, 1fr);
+        padding: 3px;
+    }
+
+    .tui-workspace-grid {
+        --tui-inspector-default-width: var(--tui-inspector-collapsed-width);
+        grid-template-columns: minmax(184px, 0.42fr) minmax(360px, 1fr) var(--tui-inspector-collapsed-width);
+        padding: 3px;
+    }
+
+    .tui-workspace-grid[data-view-kind="detail"],
+    .tui-workspace-grid[data-view-kind="message"] {
+        --tui-inspector-default-width: var(--tui-inspector-collapsed-width);
+        grid-template-columns: minmax(184px, 0.42fr) minmax(360px, 1fr) var(--tui-inspector-collapsed-width);
+    }
+
+    .tui-inspector-panel {
+        min-inline-size: 0;
+    }
+
+    .tui-inspector-resize-handle,
+    .tui-inspector-panel .tui-panel-body {
+        display: none;
+    }
+
+    .tui-inspector-panel .tui-panel-title {
+        flex: 1 1 auto;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        min-height: 0;
+        padding: 6px 2px;
+        border-bottom: 0;
+        writing-mode: vertical-rl;
+    }
+
+    .tui-workflow-strip {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .tui-workflow-role {
+        display: none;
+    }
+
+    .tui-function-bar span {
+        min-width: 68px;
+        font-size: 12px;
+    }
+}
+
 @media (min-width: 981px) and (max-width: 1180px) {
     .tui-shell {
         grid-template-columns: 248px minmax(0, 1fr);
@@ -2369,5 +3004,18 @@ a {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-template-areas: var(--tui-dashboard-areas-tablet, "panel_1 panel_1");
         grid-template-rows: var(--tui-dashboard-rows-tablet, minmax(190px, 1fr));
+    }
+}
+
+@media (min-width: 981px) and (max-width: 1180px) and (max-height: 680px) {
+    .tui-shell {
+        grid-template-columns: minmax(220px, 0.3fr) minmax(0, 1fr);
+    }
+
+    .tui-workspace-grid,
+    .tui-workspace-grid[data-view-kind="detail"],
+    .tui-workspace-grid[data-view-kind="message"] {
+        --tui-inspector-default-width: var(--tui-inspector-collapsed-width);
+        grid-template-columns: minmax(184px, 0.42fr) minmax(360px, 1fr) var(--tui-inspector-collapsed-width);
     }
 }

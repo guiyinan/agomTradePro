@@ -153,12 +153,14 @@
 
     const runtimeConfig = window.__AGOMTUI_RUNTIME__ || {};
     const apiBase = String(runtimeConfig.apiBase || "/api/tui").replace(/\/+$/, "");
+    const allowSvgDataImages = runtimeConfig.allowSvgDataImages !== false;
     const rendererRegistry = new Map();
     const builtInRendererNames = new Set([
         "datagrid",
         "detail",
         "message",
         "chart",
+        "image",
         "line",
         "bar",
         "pie",
@@ -169,6 +171,43 @@
         "host-slot",
         "host_slot",
     ]);
+    const builtInFieldAliases = {
+        "company.keyword": ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code", "统一社会信用代码"],
+        "company.id": ["id", "cid", "companyId", "company_id"],
+        "company.credit_code": ["creditCode", "credit_code", "统一社会信用代码"],
+        pk: ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
+        id: ["id", "pk", "ID", "记录ID", "cid", "companyId", "company_id"],
+        keyword: ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code"],
+        company_id: ["company_id", "companyId", "cid", "id", "pk"],
+        company_name: ["company_name", "companyName", "name", "keyword"],
+        credit_code: ["credit_code", "creditCode", "统一社会信用代码"],
+        account_id: ["account_id", "account.id", "account", "账户ID", "id", "pk"],
+        portfolio_id: ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
+        asset_class: ["asset_class", "code", "category", "name"],
+        asset_code: ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
+        asset_codes: ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
+        fund_code: ["fund_code", "code", "symbol", "基金代码", "代码"],
+        indicator_code: ["indicator_code", "code", "指标代码", "代码"],
+        capability_key: ["capability_key", "key", "id", "pk"],
+        short_code: ["short_code", "code", "shortCode", "短码"],
+        snapshot_id: ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
+        event_id: ["event_id", "event.id", "id", "pk"],
+        decision_id: ["decision_id", "id", "pk"],
+        report_id: ["report_id", "report.id"],
+        run_id: ["run_id", "id", "pk"],
+        validation_id: ["validation_id", "validation.id"],
+        summary_id: ["summary_id", "summary.id"],
+        log_id: ["log_id", "log.id", "id", "pk"],
+        request_id: ["request_id", "request.id"],
+        task_id: ["task_id", "task.id", "id", "pk"],
+        provider_id: ["provider_id", "provider.id", "id", "pk"],
+        from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
+        strategy_id: ["strategy_id", "strategy.id", "strategy", "id", "pk"],
+        sector_code: ["sector_code", "code", "symbol", "板块代码", "代码"],
+        task_name: ["task_name", "name", "title"],
+        to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"],
+        period: ["period", "period_type", "type", "name"],
+    };
 
     function registerRenderer(name, rendererFn) {
         const rendererName = String(name || "").trim();
@@ -795,6 +834,14 @@
                 </label>
             `;
         }
+        if (field.input_type === "file") {
+            return `
+                <label class="tui-field tui-field-file" for="${escapeHtml(id)}">
+                    <span>${escapeHtml(field.label)}</span>
+                    <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="file" ${required} accept="${escapeHtml(field.accept || "")}">
+                </label>
+            `;
+        }
         return `
             <label class="tui-field" for="${escapeHtml(id)}">
                 <span>${escapeHtml(field.label)}</span>
@@ -1210,6 +1257,9 @@
         if (viewModel.kind === "chart") {
             return renderChartMarkup(viewModel, { compact: true });
         }
+        if (viewModel.kind === "image") {
+            return renderImageMarkup(viewModel, { compact: true });
+        }
         if (viewModel.kind === "kpi_trend") {
             return renderKpiTrendMarkup(viewModel, { compact: true });
         }
@@ -1541,6 +1591,7 @@
         const hasVisibleFields = (action.fields || []).some((field) => field.input_type !== "hidden");
         const completed = isActionCompleted(action.key);
         const description = operatorText(action.description || "");
+        const submitLabel = actionSubmitLabel(action);
         return `
             <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}" novalidate>
                 <button class="tui-action-button" type="button">
@@ -1553,8 +1604,23 @@
                 ${action.confirmation_required ? '<div class="tui-action-confirm">提交前会要求确认</div>' : ""}
                 ${description ? `<div class="tui-action-desc">${escapeHtml(description)}</div>` : ""}
                 ${(action.fields || []).map((field) => renderField(action, field)).join("")}
+                <button class="tui-action-submit" type="submit">${escapeHtml(submitLabel)}</button>
             </form>
         `;
+    }
+
+    function actionSubmitLabel(action) {
+        const text = `${action.label || ""} ${action.intent || ""} ${action.key || ""}`.toLowerCase();
+        if (action.risk === "write" || action.risk === "admin" || /save|submit|update|create|delete|保存|提交|变更|更新|创建|删除/.test(text)) {
+            return "提交变更";
+        }
+        if (/check|validate|verify|inspect|检查|校验|验证|诊断/.test(text)) {
+            return "运行检查";
+        }
+        if (/query|search|list|find|lookup|查询|搜索|检索|列表/.test(text)) {
+            return "按条件查询";
+        }
+        return "执行";
     }
 
     function actionResourceBase(actionKey) {
@@ -1614,23 +1680,38 @@
         return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
     }
 
-    function collectParams(form, action) {
+    async function collectParams(form, action) {
         const params = {};
         if (!form) {
             return params;
         }
         const fields = (action && action.fields) || [];
-        fields.forEach((field) => {
+        for (const field of fields) {
             const element = formFieldElement(form, field.key);
             if (!element) {
-                return;
+                continue;
+            }
+            if (field.input_type === "file") {
+                if (element.files && element.files.length) {
+                    params[field.key] = await readTextFile(element.files[0]);
+                }
+                continue;
             }
             const value = coerceFieldValue(field, element.value, element.checked);
             if (field.input_type === "checkbox" || value !== "") {
                 params[field.key] = value;
             }
-        });
+        }
         return params;
+    }
+
+    function readTextFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.addEventListener("load", () => resolve(String(reader.result || "")));
+            reader.addEventListener("error", () => reject(reader.error || new Error("文件读取失败")));
+            reader.readAsText(file, "utf-8");
+        });
     }
 
     function applySelectedRowToActionForm(form, options = {}) {
@@ -1704,11 +1785,12 @@
         return applySelectedRowToActionForm(form, { focus: true });
     }
 
-    function rowValueForField(row, fieldKey, action) {
+    function rowValueForField(row, fieldOrKey, action) {
+        const fieldKey = typeof fieldOrKey === "object" && fieldOrKey ? fieldOrKey.key : fieldOrKey;
         if (!actionCompatibleWithRowSource(action, row, fieldKey)) {
             return undefined;
         }
-        for (const key of rowFieldCandidates(fieldKey)) {
+        for (const key of rowFieldCandidates(fieldOrKey, action)) {
             const rawKey = `__raw_${key}`;
             if (Object.prototype.hasOwnProperty.call(row, rawKey) && row[rawKey] !== undefined && row[rawKey] !== null && row[rawKey] !== "") {
                 return row[rawKey];
@@ -1764,39 +1846,47 @@
         });
     }
 
-    function rowFieldCandidates(fieldKey) {
-        const key = String(fieldKey || "");
-        const aliases = {
-            pk: ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
-            id: ["id", "pk", "ID", "记录ID"],
-            account_id: ["account_id", "account.id", "account", "账户ID", "id", "pk"],
-            portfolio_id: ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
-            asset_class: ["asset_class", "code", "category", "name"],
-            asset_code: ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
-            asset_codes: ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
-            fund_code: ["fund_code", "code", "symbol", "基金代码", "代码"],
-            indicator_code: ["indicator_code", "code", "指标代码", "代码"],
-            capability_key: ["capability_key", "key", "id", "pk"],
-            short_code: ["short_code", "code", "shortCode", "短码"],
-            snapshot_id: ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
-            event_id: ["event_id", "event.id", "id", "pk"],
-            decision_id: ["decision_id", "id", "pk"],
-            report_id: ["report_id", "report.id"],
-            run_id: ["run_id", "id", "pk"],
-            validation_id: ["validation_id", "validation.id"],
-            summary_id: ["summary_id", "summary.id"],
-            log_id: ["log_id", "log.id", "id", "pk"],
-            request_id: ["request_id", "request.id"],
-            task_id: ["task_id", "task.id", "id", "pk"],
-            provider_id: ["provider_id", "provider.id", "id", "pk"],
-            from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
-            strategy_id: ["strategy_id", "strategy.id", "strategy", "id", "pk"],
-            sector_code: ["sector_code", "code", "symbol", "板块代码", "代码"],
-            task_name: ["task_name", "name", "title"],
-            to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"],
-            period: ["period", "period_type", "type", "name"],
+    function rowFieldCandidates(fieldOrKey, action) {
+        const field = typeof fieldOrKey === "object" && fieldOrKey
+            ? fieldOrKey
+            : ((action && action.fields) || []).find((candidate) => candidate.key === fieldOrKey) || { key: fieldOrKey };
+        const key = String(field.key || "");
+        const semantic = String(field.semantic || "").trim();
+        const candidates = [];
+        candidates.push(key);
+        if (semantic) {
+            candidates.push(semantic);
+            candidates.push(...aliasesForSemantic(semantic));
+        }
+        if (Array.isArray(field.aliases)) {
+            candidates.push(...field.aliases);
+        }
+        candidates.push(...aliasesForSemantic(key));
+        return uniqueNonEmpty(candidates);
+    }
+
+    function aliasesForSemantic(name) {
+        const key = String(name || "");
+        const registry = {
+            ...builtInFieldAliases,
+            ...fieldAliasRegistry(),
         };
-        return [key, ...(aliases[key] || [])].filter((value, index, array) => value && array.indexOf(value) === index);
+        return Array.isArray(registry[key]) ? registry[key] : [];
+    }
+
+    function fieldAliasRegistry() {
+        return {
+            ...(runtimeConfig.field_aliases || runtimeConfig.fieldAliases || {}),
+            ...((state.catalog && state.catalog.field_aliases) || {}),
+            ...((state.screen && state.screen.field_aliases) || {}),
+        };
+    }
+
+    function uniqueNonEmpty(values) {
+        return values.filter((value, index, array) => {
+            const text = String(value || "").trim();
+            return text && array.indexOf(value) === index;
+        });
     }
 
     async function loadScreen(screenKey) {
@@ -1820,12 +1910,12 @@
             return;
         }
         const actualActionKey = action.key;
-        const params = options.params ? { ...options.params } : (form ? collectParams(form, action) : { ...state.lastParams });
-        state.lastAction = actualActionKey;
-        state.lastParams = params;
-        state.selectedRowIndex = 0;
-        setCurrentLocation(action);
         try {
+            const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : { ...state.lastParams });
+            state.lastAction = actualActionKey;
+            state.lastParams = params;
+            state.selectedRowIndex = 0;
+            setCurrentLocation(action);
             closeMenu();
             closeModal();
             els.main.innerHTML = '<div class="tui-loading">正在读取业务数据...</div>';
@@ -1900,6 +1990,9 @@
         } else if (viewModel.kind === "chart") {
             resetGridState({ preserveRowContext: true });
             renderChart(viewModel);
+        } else if (viewModel.kind === "image") {
+            resetGridState({ preserveRowContext: true });
+            renderImage(viewModel);
         } else if (viewModel.kind === "kpi_trend") {
             resetGridState({ preserveRowContext: true });
             renderKpiTrend(viewModel);
@@ -2017,10 +2110,14 @@
             <div class="tui-datagrid" role="grid" tabindex="0" aria-label="${escapeHtml(viewModel.title)}">
                 ${gridBody}
             </div>
+            ${renderDataGridPager(viewModel.pager)}
         `;
         els.main.querySelectorAll("[data-row-index]").forEach((row) => {
             row.addEventListener("click", () => selectRow(Number(row.dataset.rowIndex || 0)));
             row.addEventListener("dblclick", () => openSelectedRowDetail());
+        });
+        els.main.querySelectorAll("[data-page-delta]").forEach((button) => {
+            button.addEventListener("click", () => pageDelta(Number(button.dataset.pageDelta || 0)));
         });
         if (rows.length) {
             state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);
@@ -2029,6 +2126,23 @@
         }
         renderSelectedRowInspector();
         refreshRowFillButtons();
+    }
+
+    function renderDataGridPager(pager) {
+        if (!pager) {
+            return "";
+        }
+        const page = pager.page ?? "-";
+        const totalPages = pager.total_pages ?? "-";
+        const totalRows = pager.total_rows ?? 0;
+        return `
+            <div class="tui-datagrid-pager" aria-label="分页">
+                <button type="button" data-page-delta="-1" ${pager.has_previous ? "" : "disabled"}>上一页</button>
+                <span>第 ${escapeHtml(page)} / ${escapeHtml(totalPages)} 页</span>
+                <span>共 ${escapeHtml(totalRows)} 行</span>
+                <button type="button" data-page-delta="1" ${pager.has_next ? "" : "disabled"}>下一页</button>
+            </div>
+        `;
     }
 
     function renderEmptyState(message, guidance) {
@@ -2050,6 +2164,14 @@
             <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "图表")}</div>
             ${renderDecisionCue(viewModel)}
             ${renderChartMarkup(viewModel)}
+        `;
+    }
+
+    function renderImage(viewModel) {
+        els.main.innerHTML = `
+            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "图片")}</div>
+            ${renderDecisionCue(viewModel)}
+            ${renderImageMarkup(viewModel)}
         `;
     }
 
@@ -2112,6 +2234,72 @@
                 </div>
             </section>
         `;
+    }
+
+    function renderImageMarkup(viewModel, options = {}) {
+        const source = imageSourceFromViewModel(viewModel);
+        if (!source) {
+            return renderEmptyState(viewModel.empty_message || "暂无图片链接。", []);
+        }
+        const alt = String(viewModel.alt || viewModel.caption || viewModel.title || "Image");
+        const caption = String(viewModel.caption || "");
+        const title = String(viewModel.title || "Image");
+        return `
+            <figure class="tui-rich-view tui-image-view ${options.compact ? "is-compact" : ""}">
+                <div class="tui-rich-header">
+                    <strong>${escapeHtml(title)}</strong>
+                    <span>IMAGE</span>
+                </div>
+                <button class="tui-image-frame" type="button"
+                        data-image-preview
+                        data-image-src="${escapeHtml(source)}"
+                        data-image-alt="${escapeHtml(alt)}"
+                        data-image-caption="${escapeHtml(caption)}"
+                        data-image-title="${escapeHtml(title)}">
+                    <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">
+                </button>
+                ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
+            </figure>
+        `;
+    }
+
+    function imageSourceFromViewModel(viewModel) {
+        const candidates = [
+            viewModel.url,
+            viewModel.src,
+            viewModel.image_url,
+            viewModel.imageUrl,
+            viewModel.href,
+        ];
+        for (const candidate of candidates) {
+            const source = normalizeImageSource(candidate);
+            if (source) {
+                return source;
+            }
+        }
+        return "";
+    }
+
+    function normalizeImageSource(value) {
+        const raw = String(value || "").trim();
+        if (!raw) {
+            return "";
+        }
+        try {
+            const url = new URL(raw, window.location.href);
+            if (url.protocol === "http:" || url.protocol === "https:") {
+                return raw;
+            }
+            if (url.protocol === "data:" && /^data:image\/(?:apng|avif|gif|jpe?g|png|webp);/i.test(raw)) {
+                return raw;
+            }
+            if (url.protocol === "data:" && allowSvgDataImages && /^data:image\/svg\+xml(?:[;,]|$)/i.test(raw)) {
+                return raw;
+            }
+        } catch (_error) {
+            return "";
+        }
+        return "";
     }
 
     function renderKpiTrendMarkup(viewModel, options = {}) {
@@ -2743,6 +2931,11 @@
             setStatus("当前视图不可翻页");
             return;
         }
+        const action = currentAction(state.lastAction);
+        if (!action) {
+            setStatus("任务未找到");
+            return;
+        }
         if (delta < 0 && !state.lastPager.has_previous) {
             setStatus("已经是第一页");
             return;
@@ -2751,39 +2944,129 @@
             setStatus("已经是最后一页");
             return;
         }
-        const pageSize = Math.max(1, Number(state.lastPager.page_size || state.lastParams.limit || 20));
-        if (state.lastPager.pagination_mode === "limit_offset") {
-            const currentOffset = Math.max(0, Number(state.lastParams.offset || state.lastPager.offset || 0));
-            const nextOffset = Math.max(0, currentOffset + delta * pageSize);
-            state.lastParams = { ...state.lastParams, limit: String(pageSize), offset: String(nextOffset) };
-        } else {
-            const current = Number(state.lastParams.page || state.lastPager.page || 1);
-            const next = Math.max(1, current + delta);
-            state.lastParams = { ...state.lastParams, page: String(next) };
+        const patch = paginationParamPatch(action, state.lastPager, state.lastParams, delta);
+        if (!patch) {
+            setStatus("当前分页参数不可推断");
+            return;
         }
+        state.lastParams = { ...state.lastParams, ...patch };
         await runAction(state.lastAction, null);
     }
 
-    function showModal(title, bodyHtml) {
+    function paginationParamPatch(action, pager, params, delta) {
+        const pagination = action.pagination || {};
+        const pagerMode = String(pager.pagination_mode || pager.mode || "");
+        const mode = pagination.mode || (pagerMode === "limit_offset" ? "offset" : pagerMode) || inferPaginationMode(action);
+        if (mode === "cursor") {
+            const cursorParam = pagination.cursor_param || firstFieldKey(action, ["cursor", "nextCursor", "next_cursor"]);
+            const cursor = delta > 0
+                ? valueAtPath(pager, pagination.next_cursor_path || "next_cursor")
+                : valueAtPath(pager, pagination.previous_cursor_path || "previous_cursor");
+            return cursorParam && cursor ? { [cursorParam]: cursor } : null;
+        }
+        if (mode === "offset") {
+            const offsetParam = pagination.offset_param || firstFieldKey(action, ["offset", "start"]);
+            const limitParam = pagination.limit_param || firstFieldKey(action, ["limit", "pageSize", "page_size"]);
+            const limit = Number(params[limitParam] || pager.page_size || pager.limit || 10);
+            const current = Number(params[offsetParam] || pager.offset || 0);
+            if (!offsetParam || !Number.isFinite(limit) || !Number.isFinite(current)) {
+                return null;
+            }
+            const nextOffset = Math.max(0, current + (delta * limit));
+            return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };
+        }
+        const pageParam = pagination.page_param || firstFieldKey(action, ["page", "pageNum", "page_num", "pageNo", "page_no"]);
+        const pageSizeParam = pagination.page_size_param || firstFieldKey(action, ["page_size", "pageSize", "page_size", "limit", "size"]);
+        const current = Number(params[pageParam] || pager.page || 1);
+        if (!pageParam || !Number.isFinite(current)) {
+            return null;
+        }
+        const next = Math.max(1, current + delta);
+        const patch = { [pageParam]: next };
+        const pageSize = Number(params[pageSizeParam] || pager.page_size || pager.pageSize || 0);
+        if (pageSizeParam && Number.isFinite(pageSize) && pageSize > 0) {
+            patch[pageSizeParam] = pageSize;
+        }
+        return patch;
+    }
+
+    function inferPaginationMode(action) {
+        const fields = (action.fields || []).map((field) => String(field.key || ""));
+        if (fields.some((key) => ["cursor", "nextCursor", "next_cursor"].includes(key))) {
+            return "cursor";
+        }
+        if (fields.some((key) => ["offset", "start"].includes(key))) {
+            return "offset";
+        }
+        return "page";
+    }
+
+    function firstFieldKey(action, candidates) {
+        const fields = (action.fields || []).map((field) => String(field.key || ""));
+        return candidates.find((candidate) => fields.includes(candidate)) || candidates[0] || "";
+    }
+
+    function valueAtPath(value, path) {
+        if (!path) {
+            return undefined;
+        }
+        return String(path).split(".").reduce((current, key) => {
+            if (current && Object.prototype.hasOwnProperty.call(current, key)) {
+                return current[key];
+            }
+            return undefined;
+        }, value);
+    }
+
+    function showModal(title, bodyHtml, options = {}) {
         els.modalTitle.textContent = title;
         els.modalBody.innerHTML = bodyHtml;
+        els.modal.classList.remove("is-image-preview");
+        if (options.className) {
+            els.modal.classList.add(options.className);
+        }
         els.modal.hidden = false;
         els.modalClose.focus();
+    }
+
+    function showImagePreview(trigger) {
+        const source = normalizeImageSource(trigger.dataset.imageSrc || "");
+        if (!source) {
+            setStatus("图片链接不可用");
+            return;
+        }
+        const title = trigger.dataset.imageTitle || "图片预览";
+        const alt = trigger.dataset.imageAlt || title;
+        const caption = trigger.dataset.imageCaption || "";
+        showModal(title, `
+            <figure class="tui-image-lightbox">
+                <div class="tui-image-lightbox-frame">
+                    <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="eager" decoding="async">
+                </div>
+                <figcaption>
+                    ${caption ? `<span>${escapeHtml(caption)}</span>` : ""}
+                    <a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">打开原图</a>
+                </figcaption>
+            </figure>
+        `, { className: "is-image-preview" });
+        setStatus("图片预览");
     }
 
     function showMissingFieldsPrompt(result, actionKey, params, options = {}) {
         const fields = result.missing_fields || [];
         showModal("补填参数", `
-            <form class="tui-confirmation" data-missing-fields-form>
+            <form class="tui-confirmation tui-missing-fields" data-missing-fields-form>
                 <p>${escapeHtml(result.view_model?.message || "补齐参数后继续执行。")}</p>
-                ${fields.map((field) => `
-                    <label class="tui-field">
-                        <span>${escapeHtml(field.label || field.key)}</span>
-                        <input name="${escapeHtml(field.key)}" type="${field.input_type === "number" ? "number" : "text"}"
-                               value="${escapeHtml(params[field.key] || field.default || "")}"
-                               placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""}>
-                    </label>
-                `).join("")}
+                <div class="tui-missing-fields-list">
+                    ${fields.map((field) => `
+                        <label class="tui-field">
+                            <span>${escapeHtml(field.label || field.key)}</span>
+                            <input name="${escapeHtml(field.key)}" type="${field.input_type === "number" ? "number" : "text"}"
+                                   value="${escapeHtml(params[field.key] || field.default || "")}"
+                                   placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""}>
+                        </label>
+                    `).join("")}
+                </div>
                 <div class="tui-confirmation-actions">
                     <button class="tui-confirm-button" type="submit">继续</button>
                     <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
@@ -2885,6 +3168,7 @@
     function closeModal() {
         if (els.modal) {
             els.modal.hidden = true;
+            els.modal.classList.remove("is-image-preview");
         }
     }
 
@@ -3468,6 +3752,14 @@
             }
             event.preventDefault();
             triggerActionForm(form);
+        });
+        els.main?.addEventListener("click", (event) => {
+            const imagePreview = event.target?.closest?.("[data-image-preview]");
+            if (!imagePreview) {
+                return;
+            }
+            event.preventDefault();
+            showImagePreview(imagePreview);
         });
         els.currentLocation?.addEventListener("focus", () => {
             els.currentLocation.select();

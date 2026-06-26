@@ -24,11 +24,37 @@ TUI_METADATA_SCHEMA_PATH = (
 )
 ALLOWED_TUI_RISKS = {"read", "ai", "write", "unsafe", "admin"}
 ALLOWED_TUI_METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
-ALLOWED_TUI_VIEW_TYPES = {"auto", "status", "detail", "datagrid", "message", "queue_workbench"}
+ALLOWED_TUI_VIEW_TYPES = {
+    "auto",
+    "status",
+    "detail",
+    "datagrid",
+    "message",
+    "queue_workbench",
+    "chart",
+    "image",
+    "kpi_trend",
+    "table_chart",
+    "host_slot",
+    "custom",
+}
+ALLOWED_TUI_VIEW_MODEL_KINDS = {
+    "auto",
+    "datagrid",
+    "detail",
+    "message",
+    "chart",
+    "image",
+    "kpi_trend",
+    "table_chart",
+    "host_slot",
+    "custom",
+}
 ALLOWED_TUI_SENSITIVE_LEVELS = {"none", "low", "medium", "high", "critical"}
 ALLOWED_TUI_FIELD_INPUT_TYPES = {
     "checkbox",
     "date",
+    "file",
     "hidden",
     "number",
     "select",
@@ -48,6 +74,8 @@ ALLOWED_TUI_FIELD_VALUE_TYPES = {
 }
 ALLOWED_TUI_FIELD_BINDINGS = {"body", "path", "query"}
 ALLOWED_TUI_FIELD_KEYS = {
+    "accept",
+    "aliases",
     "binding",
     "default",
     "input_type",
@@ -58,8 +86,20 @@ ALLOWED_TUI_FIELD_KEYS = {
     "options",
     "placeholder",
     "required",
+    "semantic",
     "unit",
     "value_type",
+}
+ALLOWED_TUI_PAGINATION_MODES = {"page", "offset", "cursor"}
+ALLOWED_TUI_PAGINATION_KEYS = {
+    "mode",
+    "page_param",
+    "page_size_param",
+    "offset_param",
+    "limit_param",
+    "cursor_param",
+    "next_cursor_path",
+    "previous_cursor_path",
 }
 ALLOWED_TUI_VIEW_MODEL_KEYS = {
     "kind",
@@ -76,6 +116,12 @@ ALLOWED_TUI_DASHBOARD_PANEL_KINDS = {
     "placeholder",
     "regime_quadrant",
     "status",
+    "chart",
+    "image",
+    "kpi_trend",
+    "table_chart",
+    "host_slot",
+    "custom",
 }
 ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "key",
@@ -153,6 +199,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     default_screen = str(payload["default_screen"])
     if default_screen not in screen_keys:
         raise TuiMetadataValidationError(f"default_screen does not exist: {default_screen}")
+    _validate_field_alias_registry(payload.get("field_aliases"))
 
     for module in modules:
         _require_fields(module, "module", ("key", "label", "group", "summary"))
@@ -161,7 +208,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         module.setdefault("status", "online")
 
     for screen in screens:
-        _require_fields(screen, "screen", ("key", "label", "module_key", "group", "summary", "view_type"))
+        _require_fields(
+            screen, "screen", ("key", "label", "module_key", "group", "summary", "view_type")
+        )
         if str(screen["module_key"]) not in module_keys:
             raise TuiMetadataValidationError(f"Screen references unknown module: {screen['key']}")
         if str(screen["group"]) not in group_keys:
@@ -172,7 +221,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         screen.setdefault("default_action_key", "")
         dashboard_panels = screen.setdefault("dashboard_panels", [])
         if not isinstance(dashboard_panels, list):
-            raise TuiMetadataValidationError(f"Screen dashboard_panels must be a list: {screen['key']}")
+            raise TuiMetadataValidationError(
+                f"Screen dashboard_panels must be a list: {screen['key']}"
+            )
 
     screen_module_by_key = {str(screen["key"]): str(screen["module_key"]) for screen in screens}
 
@@ -193,7 +244,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             raise TuiMetadataValidationError(f"Action has unsupported method: {action['key']}")
         endpoint = str(action["endpoint"])
         if not endpoint.startswith("/api/"):
-            raise TuiMetadataValidationError(f"Action endpoint must stay under /api/: {action['key']}")
+            raise TuiMetadataValidationError(
+                f"Action endpoint must stay under /api/: {action['key']}"
+            )
         if str(action["screen_key"]) not in screen_keys:
             raise TuiMetadataValidationError(f"Action references unknown screen: {action['key']}")
         if str(action["module_key"]) not in module_keys:
@@ -220,14 +273,22 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             _validate_field(action, field)
         view_model = action.setdefault("view_model", {})
         if not isinstance(view_model, dict):
-            raise TuiMetadataValidationError(f"Action view_model must be an object: {action['key']}")
+            raise TuiMetadataValidationError(
+                f"Action view_model must be an object: {action['key']}"
+            )
         for key, value in view_model.items():
             if key not in ALLOWED_TUI_VIEW_MODEL_KEYS:
-                raise TuiMetadataValidationError(f"Action view_model has unsupported key: {action['key']}.{key}")
+                raise TuiMetadataValidationError(
+                    f"Action view_model has unsupported key: {action['key']}.{key}"
+                )
             if not isinstance(value, str):
-                raise TuiMetadataValidationError(f"Action view_model path must be a string: {action['key']}.{key}")
-            if key == "kind" and value not in {"auto", "datagrid", "detail", "message"}:
-                raise TuiMetadataValidationError(f"Action view_model has unsupported kind: {action['key']}.{value}")
+                raise TuiMetadataValidationError(
+                    f"Action view_model path must be a string: {action['key']}.{key}"
+                )
+            if key == "kind" and value not in ALLOWED_TUI_VIEW_MODEL_KINDS:
+                raise TuiMetadataValidationError(
+                    f"Action view_model has unsupported kind: {action['key']}.{value}"
+                )
         action.setdefault("description", "")
         action.setdefault("source", "published")
         action.setdefault("raw_debug", True)
@@ -239,6 +300,8 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("task_group", "")
         action.setdefault("task_tier", "")
         action.setdefault("sequence", 999)
+        if "pagination" in action:
+            _validate_action_pagination(action)
         _validate_governance_contract(action)
         _validate_action_source(action)
         _validate_confirmed_operation_contract(action)
@@ -246,31 +309,47 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     for screen in screens:
         default_action_key = str(screen.get("default_action_key") or "").strip()
         if default_action_key and default_action_key not in action_keys:
-            raise TuiMetadataValidationError(f"Screen references unknown default action: {screen['key']}")
+            raise TuiMetadataValidationError(
+                f"Screen references unknown default action: {screen['key']}"
+            )
         for panel in screen.get("dashboard_panels", []):
             if not isinstance(panel, dict):
-                raise TuiMetadataValidationError(f"Dashboard panel must be an object: {screen['key']}")
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel must be an object: {screen['key']}"
+                )
             _require_fields(panel, "dashboard panel", ("key", "title", "kind"))
             unknown_keys = set(panel) - ALLOWED_TUI_DASHBOARD_PANEL_KEYS
             if unknown_keys:
                 names = ", ".join(sorted(unknown_keys))
-                raise TuiMetadataValidationError(f"Dashboard panel has unsupported keys: {screen['key']}.{names}")
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel has unsupported keys: {screen['key']}.{names}"
+                )
             if str(panel["kind"]) not in ALLOWED_TUI_DASHBOARD_PANEL_KINDS:
-                raise TuiMetadataValidationError(f"Dashboard panel has unsupported kind: {screen['key']}.{panel['key']}")
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel has unsupported kind: {screen['key']}.{panel['key']}"
+                )
             action_key = str(panel.get("action_key") or "").strip()
             if action_key and action_key not in action_keys:
-                raise TuiMetadataValidationError(f"Dashboard panel references unknown action: {screen['key']}.{panel['key']}")
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel references unknown action: {screen['key']}.{panel['key']}"
+                )
             columns = panel.setdefault("columns", [])
             if not isinstance(columns, list):
-                raise TuiMetadataValidationError(f"Dashboard panel columns must be a list: {screen['key']}.{panel['key']}")
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel columns must be a list: {screen['key']}.{panel['key']}"
+                )
             for column in columns:
                 if not isinstance(column, dict):
-                    raise TuiMetadataValidationError(f"Dashboard panel column must be an object: {screen['key']}.{panel['key']}")
+                    raise TuiMetadataValidationError(
+                        f"Dashboard panel column must be an object: {screen['key']}.{panel['key']}"
+                    )
                 _require_fields(column, "dashboard panel column", ("key", "label"))
             try:
                 panel["max_rows"] = int(panel.get("max_rows", 8))
             except (TypeError, ValueError) as exc:
-                raise TuiMetadataValidationError(f"Dashboard panel max_rows must be an integer: {screen['key']}.{panel['key']}") from exc
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel max_rows must be an integer: {screen['key']}.{panel['key']}"
+                ) from exc
             panel.setdefault("action_key", "")
             panel.setdefault("status", "")
             panel.setdefault("note", "")
@@ -344,6 +423,8 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("fields", None)
         if action.get("view_model") == {}:
             action.pop("view_model", None)
+        if action.get("pagination") == {}:
+            action.pop("pagination", None)
         if action.get("raw_debug") is True:
             action.pop("raw_debug", None)
         if action.get("description") == "":
@@ -407,10 +488,14 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
         )
 
     if input_type == "number" and not field.get("value_type"):
-        field["value_type"] = "integer" if field_key.endswith("_id") or field_key == "pk" else "float"
+        field["value_type"] = (
+            "integer" if field_key.endswith("_id") or field_key == "pk" else "float"
+        )
     if input_type == "checkbox" and not field.get("value_type"):
         field["value_type"] = "boolean"
-    if input_type in {"text", "textarea", "hidden", "select"} and not field.get("value_type"):
+    if input_type in {"text", "textarea", "hidden", "select", "file"} and not field.get(
+        "value_type"
+    ):
         field["value_type"] = "string"
 
     value_type = field.get("value_type")
@@ -424,35 +509,103 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
             f"Action field has unsupported binding: {action['key']}.{field_key}.{binding}"
         )
     if input_type == "select" and not isinstance(field.get("options"), list):
-        raise TuiMetadataValidationError(f"Select field must define options: {action['key']}.{field_key}")
+        raise TuiMetadataValidationError(
+            f"Select field must define options: {action['key']}.{field_key}"
+        )
+    if field.get("aliases") is not None and not _is_string_list(field.get("aliases")):
+        raise TuiMetadataValidationError(
+            f"Action field aliases must be a string list: {action['key']}.{field_key}"
+        )
+    if field.get("semantic") is not None and not isinstance(field.get("semantic"), str):
+        raise TuiMetadataValidationError(
+            f"Action field semantic must be a string: {action['key']}.{field_key}"
+        )
+    if field.get("accept") is not None and not isinstance(field.get("accept"), str):
+        raise TuiMetadataValidationError(
+            f"Action file field accept must be a string: {action['key']}.{field_key}"
+        )
+
+
+def _validate_field_alias_registry(registry: Any) -> None:
+    if registry is None:
+        return
+    if not isinstance(registry, dict):
+        raise TuiMetadataValidationError("field_aliases must be an object")
+    for key, values in registry.items():
+        if not isinstance(key, str) or not key.strip():
+            raise TuiMetadataValidationError("field_aliases keys must be non-empty strings")
+        if not _is_string_list(values):
+            raise TuiMetadataValidationError(f"field_aliases entry must be a string list: {key}")
+
+
+def _validate_action_pagination(action: dict[str, Any]) -> None:
+    pagination = action.get("pagination")
+    if not isinstance(pagination, dict):
+        raise TuiMetadataValidationError(f"Action pagination must be an object: {action['key']}")
+    unknown_keys = set(pagination) - ALLOWED_TUI_PAGINATION_KEYS
+    if unknown_keys:
+        names = ", ".join(sorted(unknown_keys))
+        raise TuiMetadataValidationError(
+            f"Action pagination has unsupported keys: {action['key']}.{names}"
+        )
+    mode = str(pagination.get("mode") or "")
+    if mode not in ALLOWED_TUI_PAGINATION_MODES:
+        raise TuiMetadataValidationError(
+            f"Action pagination has unsupported mode: {action['key']}.{mode}"
+        )
+    for key, value in pagination.items():
+        if key == "mode":
+            continue
+        if not isinstance(value, str):
+            raise TuiMetadataValidationError(
+                f"Action pagination value must be a string: {action['key']}.{key}"
+            )
+
+
+def _is_string_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
 def _validate_action_source(action: dict[str, Any]) -> None:
     source = str(action.get("source") or "").strip()
     if not source:
         raise TuiMetadataValidationError(f"Action source is required: {action['key']}")
-    if not any(source == prefix or source.startswith(prefix) for prefix in ALLOWED_TUI_SOURCE_PREFIXES):
+    if not any(
+        source == prefix or source.startswith(prefix) for prefix in ALLOWED_TUI_SOURCE_PREFIXES
+    ):
         raise TuiMetadataValidationError(f"Action has unsupported source: {action['key']}.{source}")
 
 
 def _validate_governance_contract(action: dict[str, Any]) -> None:
     for key in ("confirmation_required", "requires_password", "audit_required"):
         if not isinstance(action.get(key), bool):
-            raise TuiMetadataValidationError(f"Action governance flag must be boolean: {action['key']}.{key}")
+            raise TuiMetadataValidationError(
+                f"Action governance flag must be boolean: {action['key']}.{key}"
+            )
     if str(action.get("sensitive_level") or "") not in ALLOWED_TUI_SENSITIVE_LEVELS:
         raise TuiMetadataValidationError(f"Action has unsupported sensitive_level: {action['key']}")
     if not isinstance(action.get("executor"), str):
         raise TuiMetadataValidationError(f"Action executor must be a string: {action['key']}")
     if not isinstance(action.get("task_group"), str):
         raise TuiMetadataValidationError(f"Action task_group must be a string: {action['key']}")
-    if str(action.get("task_tier") or "") not in {"", "primary", "support", "advanced", "operation"}:
+    if str(action.get("task_tier") or "") not in {
+        "",
+        "primary",
+        "support",
+        "advanced",
+        "operation",
+    }:
         raise TuiMetadataValidationError(f"Action has unsupported task_tier: {action['key']}")
     try:
         action["sequence"] = int(action.get("sequence", 999))
     except (TypeError, ValueError) as exc:
-        raise TuiMetadataValidationError(f"Action sequence must be an integer: {action['key']}") from exc
+        raise TuiMetadataValidationError(
+            f"Action sequence must be an integer: {action['key']}"
+        ) from exc
     if _default_confirmation_required(action) and not action["confirmation_required"]:
-        raise TuiMetadataValidationError(f"Governed action must require confirmation: {action['key']}")
+        raise TuiMetadataValidationError(
+            f"Governed action must require confirmation: {action['key']}"
+        )
     if _default_audit_required(action) and not action["audit_required"]:
         raise TuiMetadataValidationError(f"Governed action must require audit: {action['key']}")
 
