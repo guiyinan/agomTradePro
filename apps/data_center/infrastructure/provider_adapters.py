@@ -34,6 +34,7 @@ from apps.data_center.domain.enums import (
 )
 from apps.data_center.domain.protocols import UnifiedDataProviderProtocol
 from apps.data_center.domain.rules import normalize_asset_code
+from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 from core.integration.data_center_business_sources import (
     build_akshare_fund_adapter,
     build_akshare_macro_adapter,
@@ -45,6 +46,15 @@ from core.integration.data_center_business_sources import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _fetch_macro_points(adapter, indicator_code: str, start_date: date, end_date: date):
+    """Fetch macro points and expose source failures as recoverable connection errors."""
+
+    try:
+        return adapter.fetch(indicator_code, start_date, end_date)
+    except DataSourceUnavailableError as exc:
+        raise ConnectionError(str(exc)) from exc
 
 _SOURCE_CAPABILITIES: dict[str, set[DataCapability]] = {
     "tushare": {
@@ -490,7 +500,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             http_url=self._config.http_url,
         )
         fetch_code = "SHIBOR" if indicator_code == "CN_SHIBOR" else indicator_code
-        points = adapter.fetch(fetch_code, start_date, end_date)
+        points = _fetch_macro_points(adapter, fetch_code, start_date, end_date)
         results: list[MacroFact] = []
         for point in points:
             observed_at = getattr(point, "observed_at", None)
@@ -928,7 +938,7 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             return self._fetch_new_investor_accounts(start_date, end_date)
 
         adapter = build_akshare_macro_adapter()
-        points = adapter.fetch(indicator_code, start_date, end_date)
+        points = _fetch_macro_points(adapter, indicator_code, start_date, end_date)
         results: list[MacroFact] = []
         for point in points:
             observed_at = getattr(point, "observed_at", None)

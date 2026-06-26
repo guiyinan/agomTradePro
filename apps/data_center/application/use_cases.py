@@ -114,6 +114,17 @@ DEFAULT_DECISION_MACRO_INDICATORS = (
 )
 DEFAULT_DECISION_ASSET_CODES = ("510300.SH", "000300.SH")
 AKSHARE_MACRO_INDICATORS = frozenset(DEFAULT_DECISION_MACRO_INDICATORS)
+TUSHARE_CPI_INDICATORS = frozenset(
+    {
+        "CN_CPI",
+        "CN_CPI_NATIONAL_YOY",
+        "CN_CPI_NATIONAL_MOM",
+        "CN_CPI_URBAN_YOY",
+        "CN_CPI_URBAN_MOM",
+        "CN_CPI_RURAL_YOY",
+        "CN_CPI_RURAL_MOM",
+    }
+)
 _SOURCE_TYPE_CAPABILITIES: dict[str, tuple[str, ...]] = {
     "tushare": (
         DataCapability.MACRO.value,
@@ -1159,10 +1170,22 @@ class RepairDecisionDataReliabilityUseCase:
         )
 
         provider_bootstrap = self._ensure_default_akshare_provider()
-        macro_status = self._repair_macro_inputs(request, target_date, macro_codes)
-        quote_status = self._repair_quote_inputs(request, target_date, asset_codes)
-        pulse_status = self._repair_pulse(request, target_date)
-        alpha_status = self._repair_alpha(request, target_date)
+        macro_status = self._run_repair_section(
+            "macro",
+            lambda: self._repair_macro_inputs(request, target_date, macro_codes),
+        )
+        quote_status = self._run_repair_section(
+            "quote",
+            lambda: self._repair_quote_inputs(request, target_date, asset_codes),
+        )
+        pulse_status = self._run_repair_section(
+            "pulse",
+            lambda: self._repair_pulse(request, target_date),
+        )
+        alpha_status = self._run_repair_section(
+            "alpha",
+            lambda: self._repair_alpha(request, target_date),
+        )
 
         return DecisionReliabilityRepairReport(
             target_date=target_date,
@@ -1173,6 +1196,27 @@ class RepairDecisionDataReliabilityUseCase:
             alpha_status=alpha_status,
             provider_bootstrap=provider_bootstrap,
         )
+
+    def _run_repair_section(
+        self,
+        section_name: str,
+        callback: Callable[[], DecisionReliabilitySection],
+    ) -> DecisionReliabilitySection:
+        """Run one repair section without letting it abort later sections."""
+
+        try:
+            return callback()
+        except Exception as exc:
+            logger.exception("Decision reliability %s repair failed", section_name)
+            return DecisionReliabilitySection(
+                status="failed",
+                must_not_use_for_decision=True,
+                blocked_reasons=[f"{section_name} 修复异常: {exc}"],
+                details={
+                    "error_type": exc.__class__.__name__,
+                    "error_message": str(exc),
+                },
+            )
 
     def _ensure_default_akshare_provider(self) -> dict[str, Any]:
         existing = [
@@ -1580,6 +1624,13 @@ class RepairDecisionDataReliabilityUseCase:
         )
 
     def _select_macro_provider(self, indicator_code: str) -> ProviderConfig | None:
+        if indicator_code in TUSHARE_CPI_INDICATORS:
+            provider = self._select_provider_by_types(
+                ("tushare",),
+                DataCapability.MACRO.value,
+            )
+            if provider is not None and str(provider.api_key or "").strip():
+                return provider
         if indicator_code in AKSHARE_MACRO_INDICATORS:
             provider = self._select_provider_by_types(
                 ("akshare",),

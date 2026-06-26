@@ -15,6 +15,7 @@ from apps.data_center.infrastructure.provider_adapters import (
     TushareUnifiedProviderAdapter,
     build_unified_provider_adapter,
 )
+from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 
 
 def _config(source_type: str, name: str | None = None) -> ProviderConfig:
@@ -71,6 +72,26 @@ def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
     assert facts[0].source == "fred"
     assert facts[0].extra["provider_name"] == "fred"
     assert facts[0].extra["source_type"] == "fred"
+
+
+def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatch):
+    class _BrokenMacroAdapter:
+        def fetch(self, indicator_code, start_date, end_date):
+            raise DataSourceUnavailableError("Response ended prematurely")
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.provider_adapters.build_akshare_macro_adapter",
+        lambda: _BrokenMacroAdapter(),
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare"))
+
+    try:
+        adapter.fetch_macro_series("CN_CPI_NATIONAL_YOY", date(2026, 5, 1), date(2026, 6, 1))
+    except ConnectionError as exc:
+        assert "Response ended prematurely" in str(exc)
+    else:
+        raise AssertionError("Expected ConnectionError")
 
 
 def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):

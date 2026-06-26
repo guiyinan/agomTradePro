@@ -5,6 +5,7 @@ Infrastructure layer - fetches data from Tushare Pro API.
 """
 
 import logging
+from calendar import monthrange
 from datetime import date, timedelta
 
 import pandas as pd
@@ -21,6 +22,16 @@ from .base import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CPI_FIELD_MAP: dict[str, tuple[str, str]] = {
+    "CN_CPI": ("nt_val", "指数"),
+    "CN_CPI_NATIONAL_YOY": ("nt_yoy", "%"),
+    "CN_CPI_NATIONAL_MOM": ("nt_mom", "%"),
+    "CN_CPI_URBAN_YOY": ("town_yoy", "%"),
+    "CN_CPI_URBAN_MOM": ("town_mom", "%"),
+    "CN_CPI_RURAL_YOY": ("cnt_yoy", "%"),
+    "CN_CPI_RURAL_MOM": ("cnt_mom", "%"),
+}
 
 
 def _resolve_shibor_tenor_column(df: pd.DataFrame) -> str:
@@ -79,7 +90,7 @@ class TushareAdapter(BaseMacroAdapter):
 
     def _get_supported_indicators(self) -> set[str]:
         """从数据库配置读取支持的指数指标。"""
-        supported = {"SHIBOR"}
+        supported = {"SHIBOR", *_CPI_FIELD_MAP.keys()}
         try:
             supported.update(get_runtime_macro_index_codes())
         except Exception:
@@ -112,6 +123,8 @@ class TushareAdapter(BaseMacroAdapter):
         try:
             if indicator_code == "SHIBOR":
                 return self._fetch_shibor(start_date, end_date)
+            if indicator_code in _CPI_FIELD_MAP:
+                return self._fetch_cpi(indicator_code, start_date, end_date)
             else:
                 return self._fetch_index_daily(indicator_code, start_date, end_date)
 
@@ -171,6 +184,54 @@ class TushareAdapter(BaseMacroAdapter):
 
             except (ValueError, DataValidationError) as e:
                 logger.warning(f"跳过无效数据点: {row}, 错误: {e}")
+                continue
+
+        return self._sort_and_deduplicate(data_points)
+
+    def _fetch_cpi(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[MacroDataPoint]:
+        """Fetch monthly CPI data from Tushare Pro cn_cpi."""
+
+        value_column, unit = _CPI_FIELD_MAP[indicator_code]
+        df = self.pro.cn_cpi(
+            start_m=start_date.strftime("%Y%m"),
+            end_m=end_date.strftime("%Y%m"),
+        )
+        if df is None or df.empty:
+            logger.warning(f"CPI 数据为空: {start_date} - {end_date}")
+            return []
+
+        data_points = []
+        for row in df.to_dict("records"):
+            try:
+                raw_month = str(row.get("month") or "").strip()
+                if len(raw_month) < 6:
+                    continue
+                year = int(raw_month[:4])
+                month = int(raw_month[4:6])
+                observed_at = date(year, month, monthrange(year, month)[1])
+                if observed_at < start_date or observed_at > end_date:
+                    continue
+                raw_value = row.get(value_column)
+                if raw_value in (None, ""):
+                    continue
+                point = MacroDataPoint(
+                    code=indicator_code,
+                    value=float(raw_value),
+                    observed_at=observed_at,
+                    published_at=observed_at,
+                    source=self.source_name,
+                    unit=unit,
+                    original_unit=unit,
+                )
+                self._validate_data_point(point)
+                data_points.append(point)
+            except (ValueError, DataValidationError) as e:
+                logger.warning(f"跳过无效 CPI 数据点: {row}, 错误: {e}")
                 continue
 
         return self._sort_and_deduplicate(data_points)

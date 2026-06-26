@@ -266,14 +266,22 @@ class _ProviderFactory:
 
 
 class _DecisionRepairProvider:
-    def __init__(self, target_date: date, price_date: date | None = None) -> None:
+    def __init__(
+        self,
+        target_date: date,
+        price_date: date | None = None,
+        macro_error: Exception | None = None,
+    ) -> None:
         self.target_date = target_date
         self.price_date = price_date or target_date
+        self.macro_error = macro_error
 
     def provider_name(self) -> str:
         return "AKShare Public"
 
     def fetch_macro_series(self, indicator_code: str, start_date: date, end_date: date):
+        if self.macro_error is not None:
+            raise self.macro_error
         return [
             MacroFact(
                 indicator_code=indicator_code,
@@ -913,11 +921,16 @@ class TestRepairDecisionDataReliabilityUseCase:
         provider_repo: _InMemoryRepo | None = None,
         target_date: date = date(2026, 4, 21),
         price_date: date | None = None,
+        macro_error: Exception | None = None,
         alpha_refresher=None,
         alpha_status_reader=None,
     ) -> RepairDecisionDataReliabilityUseCase:
         repo = provider_repo or _InMemoryRepo()
-        provider = _DecisionRepairProvider(target_date, price_date=price_date)
+        provider = _DecisionRepairProvider(
+            target_date,
+            price_date=price_date,
+            macro_error=macro_error,
+        )
         return RepairDecisionDataReliabilityUseCase(
             provider_repo=repo,
             provider_factory=_ProviderFactory(provider),
@@ -974,6 +987,33 @@ class TestRepairDecisionDataReliabilityUseCase:
         assert payload["quote_status"]["status"] == "ready"
         assert payload["must_not_use_for_decision"] is False
 
+    def test_macro_repair_exception_does_not_abort_quote_repair(self):
+        target_date = date(2026, 4, 21)
+        use_case = self._make_use_case(
+            target_date=target_date,
+            macro_error=Exception("akshare cpi response ended prematurely"),
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_CPI_NATIONAL_YOY"],
+                repair_pulse=False,
+                repair_alpha=False,
+            )
+        )
+
+        payload = report.to_dict()
+        assert payload["macro_status"]["status"] == "failed"
+        assert payload["macro_status"]["must_not_use_for_decision"] is True
+        assert "akshare cpi response ended prematurely" in (
+            payload["macro_status"]["blocked_reasons"][0]
+        )
+        assert payload["quote_status"]["status"] == "ready"
+        assert payload["quote_status"]["must_not_use_for_decision"] is False
+        assert payload["quote_status"]["details"]["quote_sync"]["stored_count"] == 1
+
     def test_accepts_latest_completed_price_session_with_fresh_quote(self):
         target_date = date(2026, 4, 24)
         use_case = self._make_use_case(
@@ -1029,6 +1069,84 @@ class TestRepairDecisionDataReliabilityUseCase:
 
         assert report.provider_bootstrap["status"] == "inactive_exists"
         assert len([p for p in repo.list_all() if p.source_type == "akshare"]) == 1
+
+    def test_cpi_repair_prefers_active_tushare_with_api_key(self):
+        repo = _InMemoryRepo()
+        repo.save(
+            ProviderConfig(
+                id=None,
+                name="Tushare Pro",
+                source_type="tushare",
+                is_active=True,
+                priority=1,
+                api_key="token",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            )
+        )
+        repo.save(
+            ProviderConfig(
+                id=None,
+                name="AKShare Public",
+                source_type="akshare",
+                is_active=True,
+                priority=10,
+                api_key="",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            )
+        )
+        use_case = self._make_use_case(provider_repo=repo)
+
+        provider = use_case._select_macro_provider("CN_CPI_NATIONAL_YOY")
+
+        assert provider is not None
+        assert provider.source_type == "tushare"
+
+    def test_cpi_repair_falls_back_to_akshare_when_tushare_has_no_api_key(self):
+        repo = _InMemoryRepo()
+        repo.save(
+            ProviderConfig(
+                id=None,
+                name="Tushare Empty",
+                source_type="tushare",
+                is_active=True,
+                priority=1,
+                api_key="",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            )
+        )
+        repo.save(
+            ProviderConfig(
+                id=None,
+                name="AKShare Public",
+                source_type="akshare",
+                is_active=True,
+                priority=10,
+                api_key="",
+                api_secret="",
+                http_url="",
+                api_endpoint="",
+                extra_config={},
+                description="",
+            )
+        )
+        use_case = self._make_use_case(provider_repo=repo)
+
+        provider = use_case._select_macro_provider("CN_CPI_NATIONAL_YOY")
+
+        assert provider is not None
+        assert provider.source_type == "akshare"
 
     def test_alpha_queue_failure_blocks_decision_even_when_old_readiness_exists(self):
         target_date = date(2026, 4, 21)

@@ -337,3 +337,20 @@
 - `ruff check`（本轮涉及 Python 文件）：通过。
 - 目标测试：`82 passed`，覆盖 decision repair、health checks、scheduler、data_center use cases、share views、advisor sheet。
 - P2 回归测试：`110 passed`，覆盖 backtest 权重、events 异步派发、sentiment 日任务、Alpha 归档清理。
+
+## 10. 生产跟进修复（2026-06-26）
+
+VPS 部署后发现 `repair_decision_data_reliability` 在宏观 CPI 上游中断时会提前退出，导致后续 quote repair 没有执行。整改如下：
+
+- Repair 编排改为分段容错：macro、quote、pulse、alpha 独立执行，单段异常会返回 `failed` section，不再阻断后续分段。
+- Data Center provider adapter 将 macro adapter 的 `DataSourceUnavailableError` 转为可恢复 `ConnectionError`，避免外部源异常穿透顶层命令。
+- Tushare Pro 已确认远端有 CPI 数据：`cn_cpi` 可返回 `month/nt_yoy/nt_mom/...` 字段。
+- Tushare macro adapter 新增 CPI 映射，`CN_CPI_NATIONAL_YOY` 使用 `cn_cpi.nt_yoy`，单位 `%`，观察日期落到月末。
+- 决策修复中的 CPI 指标优先使用已配置 token 的 Tushare；无可用 Tushare token 时回退 AKShare。
+
+验证结果：
+
+- `pytest tests/unit/macro/test_tushare_adapter.py tests/unit/data_center/test_use_cases.py::TestRepairDecisionDataReliabilityUseCase tests/unit/data_center/test_phase3_provider_adapters.py -q`：`35 passed`。
+- `python scripts/check_architecture_delta.py`：通过，0 boundary violations。
+- `python manage.py makemigrations --check --dry-run`：通过，No changes detected。
+- `python manage.py check --deploy`：通过，0 issues。
