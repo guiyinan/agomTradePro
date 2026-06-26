@@ -327,16 +327,20 @@ def cleanup_old_metrics(days: int = 30):
     try:
         cutoff_date = timezone.now().date() - timedelta(days=days)
 
-        # 删除旧的缓存记录
+        # 先归档旧缓存监控摘要，再删除旧记录
+        archive_result = _cache_repository.archive_before(cutoff_date)
         deleted_count = _cache_repository.cleanup_before(cutoff_date)
 
-        logger.info(f"清理了 {deleted_count} 条过期缓存记录")
-
-        # TODO: 归档指标数据到长期存储
+        logger.info(
+            "归档 %s 条 Alpha 监控摘要，清理了 %s 条过期缓存记录",
+            archive_result.get("archived_count", 0),
+            deleted_count,
+        )
 
         return {
             "status": "success",
             "deleted_count": deleted_count,
+            "archive": archive_result,
             "cutoff_date": cutoff_date.isoformat(),
         }
 

@@ -7,6 +7,7 @@ Provides health check functions for Kubernetes liveness and readiness probes.
 import logging
 from typing import Any
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import DatabaseError, connections
 
@@ -166,6 +167,29 @@ def check_alpha_workspace_consistency() -> dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
+def check_decision_data_readiness() -> dict[str, Any]:
+    """Check decision-grade quote and market thermometer readiness."""
+
+    try:
+        from apps.data_center.application.interface_services import (
+            get_decision_data_readiness_payload,
+        )
+
+        payload = get_decision_data_readiness_payload(
+            asset_codes=list(getattr(settings, "DECISION_READINESS_ASSET_CODES", [])),
+            quote_max_age_hours=float(
+                getattr(settings, "DECISION_QUOTE_MAX_AGE_HOURS", 4.0)
+            ),
+        )
+        readiness_status = payload.get("status")
+        if payload.get("must_not_use_for_decision"):
+            return {**payload, "status": "warning", "readiness_status": readiness_status}
+        return {**payload, "status": "ok", "readiness_status": readiness_status}
+    except Exception as e:
+        logger.warning(f"Decision data readiness check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
 def run_readiness_checks() -> dict[str, dict[str, Any]]:
     """
     Run all readiness checks.
@@ -184,6 +208,7 @@ def run_readiness_checks() -> dict[str, dict[str, Any]]:
         "redis": check_redis(),
         "celery": check_celery(),
         "critical_data": check_critical_data(),
+        "decision_data": check_decision_data_readiness(),
         "alpha_workspace_consistency": check_alpha_workspace_consistency(),
     }
     return checks
@@ -199,9 +224,13 @@ def is_healthy(checks: dict[str, dict[str, Any]]) -> bool:
     Returns:
         True if all checks are "ok" or "skipped", False otherwise
     """
-    for _check_name, result in checks.items():
+    strict_readiness = bool(getattr(settings, "PRODUCTION_STRICT_READINESS", False))
+    strict_warning_checks = {"critical_data", "decision_data"}
+    for check_name, result in checks.items():
         status = result.get("status")
         # "skipped" and "warning" are acceptable (e.g., Redis not configured, empty tables)
+        if strict_readiness and check_name in strict_warning_checks and status == "warning":
+            return False
         if status not in ("ok", "skipped", "warning"):
             return False
     return True

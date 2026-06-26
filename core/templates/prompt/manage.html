@@ -1135,14 +1135,147 @@ function closeChainModal() {
 }
 
 async function loadChains() {
-    // 简化实现
-    document.getElementById('chainsGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-text-muted);">暂无链配置</div>';
+    try {
+        const data = await window.fetchJsonOrThrow('/api/prompt/chains/');
+        const chains = data.results || data;
+        const grid = document.getElementById('chainsGrid');
+        if (chains && chains.length > 0) {
+            grid.innerHTML = chains.map(chain => `
+                <div class="chain-card">
+                    <div class="template-card-header">
+                        <div>
+                            <div class="template-title">${escapeHtml(chain.name)}</div>
+                            <span class="template-category-badge category-${chain.category}">${getCategoryLabel(chain.category)}</span>
+                        </div>
+                        <span class="chain-mode-badge">${escapeHtml(chain.execution_mode)}</span>
+                    </div>
+                    <div class="template-meta">
+                        <span>${chain.is_active ? '✓ 激活' : '✗ 未激活'}</span>
+                        <span>${(chain.steps || []).length} 步</span>
+                    </div>
+                    <div class="chain-steps-preview">
+                        ${(chain.steps || []).slice(0, 4).map(step => `
+                            <div class="chain-step-item">
+                                <span class="chain-step-num">${step.order}</span>
+                                <span>${escapeHtml(step.step_name || step.step_id || '')}</span>
+                            </div>
+                        `).join('') || '<span style="color: var(--color-text-muted);">暂无步骤</span>'}
+                    </div>
+                    <div class="template-actions">
+                        <button class="btn btn-secondary" onclick="editChain(${chain.id})">编辑</button>
+                        <button class="btn btn-secondary" onclick="deleteChain(${chain.id})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-text-muted);">暂无链配置</div>';
+        }
+    } catch (error) {
+        console.error('加载链配置失败:', error);
+        document.getElementById('chainsGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-error);">加载失败</div>';
+    }
 }
 
 async function saveChain(event) {
     event.preventDefault();
-    alert('链配置保存功能待实现');
-    closeChainModal();
+    try {
+        const templates = await loadTemplateLookup();
+        const steps = JSON.parse(document.getElementById('chainSteps').value || '[]');
+        const aggregateRaw = document.getElementById('chainAggregateStep').value.trim();
+        const aggregateStep = aggregateRaw ? JSON.parse(aggregateRaw) : null;
+        const payload = {
+            name: document.getElementById('chainName').value,
+            category: document.getElementById('chainCategory').value,
+            execution_mode: document.getElementById('chainExecutionMode').value,
+            description: document.getElementById('chainDescription').value,
+            steps: steps.map(step => normalizeChainStep(step, templates)),
+            aggregate_step: aggregateStep ? normalizeChainStep(aggregateStep, templates, true) : null,
+            is_active: document.getElementById('chainActive').checked
+        };
+        const id = document.getElementById('chainId').value;
+        const url = id ? `/api/prompt/chains/${id}/` : '/api/prompt/chains/';
+        const method = id ? 'PUT' : 'POST';
+        await window.fetchJsonOrThrow(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(payload)
+        });
+        closeChainModal();
+        loadChains();
+        alert('保存成功');
+    } catch (error) {
+        console.error('保存链配置失败:', error);
+        alert('保存失败: ' + error.message);
+    }
+}
+
+async function loadTemplateLookup() {
+    const data = await window.fetchJsonOrThrow('/api/prompt/templates/');
+    const templates = data.results || data || [];
+    const byName = {};
+    const byId = {};
+    templates.forEach(template => {
+        byName[String(template.name || '').trim()] = template;
+        byId[String(template.id)] = template;
+    });
+    return { byName, byId };
+}
+
+function normalizeChainStep(step, templates, isAggregate = false) {
+    const templateId = step.template_id || templates.byName[String(step.template_name || '').trim()]?.id;
+    if (!templateId) {
+        throw new Error(`链步骤 ${step.step_id || step.template_name || ''} 缺少有效 template_id/template_name`);
+    }
+    const template = templates.byId[String(templateId)] || templates.byName[String(step.template_name || '').trim()] || {};
+    return {
+        step_id: step.step_id || (isAggregate ? 'aggregate' : `step_${templateId}`),
+        template_id: Number(templateId),
+        step_name: step.step_name || step.template_name || template.name || `step_${templateId}`,
+        order: Number(step.order || (isAggregate ? 999 : 1)),
+        input_mapping: step.input_mapping || step.placeholder_values || {},
+        output_parser: step.output_parser || '',
+        parallel_group: step.parallel_group || '',
+        enable_tool_calling: Boolean(step.enable_tool_calling || false),
+        available_tools: step.available_tools || null
+    };
+}
+
+async function editChain(id) {
+    try {
+        const chain = await window.fetchJsonOrThrow(`/api/prompt/chains/${id}/`);
+        document.getElementById('chainModalTitle').textContent = '编辑链配置';
+        document.getElementById('chainId').value = chain.id;
+        document.getElementById('chainName').value = chain.name;
+        document.getElementById('chainCategory').value = chain.category;
+        document.getElementById('chainExecutionMode').value = chain.execution_mode;
+        document.getElementById('chainDescription').value = chain.description || '';
+        document.getElementById('chainSteps').value = JSON.stringify(chain.steps || [], null, 2);
+        document.getElementById('chainAggregateStep').value = chain.aggregate_step ? JSON.stringify(chain.aggregate_step, null, 2) : '';
+        document.getElementById('chainActive').checked = chain.is_active;
+        document.getElementById('chainModal').classList.add('active');
+    } catch (error) {
+        console.error('加载链配置详情失败:', error);
+        alert('加载链配置详情失败: ' + error.message);
+    }
+}
+
+async function deleteChain(id) {
+    if (!await window.uiConfirm('确定删除此链配置吗？', { title: '删除链配置', icon: 'warning' })) return;
+    try {
+        const response = await fetch(`/api/prompt/chains/${id}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        });
+        await window.assertOkResponse(response);
+        loadChains();
+        alert('删除成功');
+    } catch (error) {
+        console.error('删除链配置失败:', error);
+        alert('删除失败: ' + error.message);
+    }
 }
 
 // ==================== 执行日志 ====================
@@ -1184,8 +1317,31 @@ function formatDateTime(dateStr) {
     return date.toLocaleString('zh-CN');
 }
 
-function viewLog(id) {
-    alert('查看日志详情功能待实现');
+async function viewLog(id) {
+    try {
+        const log = await window.fetchJsonOrThrow(`/api/prompt/logs/${id}/`);
+        showDetailModal('执行日志详情', `
+            <div class="detail-grid">
+                <div><strong>执行ID</strong><div>${escapeHtml(log.execution_id || '')}</div></div>
+                <div><strong>对象</strong><div>${escapeHtml(log.template_name || log.chain_name || '-')}</div></div>
+                <div><strong>状态</strong><div>${escapeHtml(getStatusLabel(log.status))}</div></div>
+                <div><strong>耗时</strong><div>${log.response_time_ms || 0}ms</div></div>
+                <div><strong>Provider</strong><div>${escapeHtml(log.provider_used || '-')}</div></div>
+                <div><strong>Model</strong><div>${escapeHtml(log.model_used || '-')}</div></div>
+            </div>
+            <h4>占位符</h4>
+            <pre>${escapeHtml(JSON.stringify(log.placeholder_values || {}, null, 2))}</pre>
+            <h4>Prompt</h4>
+            <pre>${escapeHtml(log.rendered_prompt || '')}</pre>
+            <h4>AI 响应</h4>
+            <pre>${escapeHtml(log.ai_response || '')}</pre>
+            ${log.parsed_output ? `<h4>解析输出</h4><pre>${escapeHtml(JSON.stringify(log.parsed_output, null, 2))}</pre>` : ''}
+            ${log.error_message ? `<h4>错误</h4><pre>${escapeHtml(log.error_message)}</pre>` : ''}
+        `);
+    } catch (error) {
+        console.error('加载日志详情失败:', error);
+        alert('加载日志详情失败: ' + error.message);
+    }
 }
 
 // ==================== 测试执行 ====================
@@ -1339,6 +1495,28 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function showDetailModal(title, html) {
+    let modal = document.getElementById('detailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailModal';
+        modal.className = 'modal active';
+        modal.innerHTML = `
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3 id="detailModalTitle"></h3>
+                    <button class="modal-close" onclick="document.getElementById('detailModal').classList.remove('active')">&times;</button>
+                </div>
+                <div class="modal-body" id="detailModalBody"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('detailModalTitle').textContent = title;
+    document.getElementById('detailModalBody').innerHTML = html;
+    modal.classList.add('active');
 }
 
 // ==================== 初始化 ====================

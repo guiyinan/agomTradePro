@@ -483,16 +483,8 @@ window.onclick = function(event) {
     }
 }
 
-// 宏观指标列表（示例数据）
-const macroIndicators = [
-    { code: 'CN_PMI_MANUFACTURING', name: '中国制造业PMI', unit: '指数' },
-    { code: 'CN_PMI_NON_MANUFACTURING', name: '中国非制造业PMI', unit: '指数' },
-    { code: 'CN_CPI_YOY', name: 'CPI同比', unit: '%' },
-    { code: 'CN_PPI_YOY', name: 'PPI同比', unit: '%' },
-    { code: 'CN_M2_YOY', name: 'M2同比', unit: '%' },
-    { code: 'US_FED_FUNDS_RATE', name: '美联储利率', unit: '%' },
-    { code: 'US_CPI_YOY', name: '美国CPI同比', unit: '%' },
-];
+let macroIndicators = [];
+let macroIndicatorsLoaded = false;
 
 // Regime 列表
 const regimes = ['Recovery', 'Overheat', 'Stagflation', 'Deflation'];
@@ -613,7 +605,7 @@ function renderMacroRuleBody(rule) {
             <div class="form-group">
                 <label class="form-label">宏观指标</label>
                 <select class="form-select" onchange="updateCondition(${rule.id}, 'indicator', this.value)">
-                    <option value="">选择指标</option>
+                    <option value="">${macroIndicatorsLoaded ? '选择指标' : '正在加载指标'}</option>
                     ${macroIndicators.map(ind => `
                         <option value="${ind.code}" ${condition.indicator === ind.code ? 'selected' : ''}>
                             ${ind.name} (${ind.unit})
@@ -902,6 +894,31 @@ function updateRulesData() {
     }
 }
 
+async function loadMacroIndicators() {
+    try {
+        const data = await fetch('/api/data-center/indicators/?active_only=true', {
+            headers: { 'Accept': 'application/json' }
+        }).then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        });
+        const rows = data.results || data || [];
+        macroIndicators = rows.map(item => ({
+            code: item.code,
+            name: item.name || item.code,
+            unit: item.default_unit || item.unit || ''
+        })).filter(item => item.code);
+        macroIndicatorsLoaded = true;
+        renderRules();
+    } catch (error) {
+        console.error('加载宏观指标失败:', error);
+        macroIndicators = [];
+        macroIndicatorsLoaded = true;
+        renderRules();
+    }
+}
+
 // 初始化
 renderRules();
+loadMacroIndicators();
 </script>

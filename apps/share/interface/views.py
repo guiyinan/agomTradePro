@@ -1,5 +1,7 @@
 """Share API and page views."""
 
+from datetime import date as date_cls
+from datetime import timedelta
 from typing import Any
 
 from django.contrib import messages
@@ -203,6 +205,7 @@ class ShareVisibilityMixin:
         disclaimer_lines = get_share_disclaimer_lines(summary.get("portfolio_type"))
 
         return {
+            "share_short_code": share_link.short_code,
             "portfolio_name": share_link.title,
             "portfolio_description": share_link.subtitle,
             "share_theme": share_link.theme,
@@ -261,6 +264,65 @@ class ShareVisibilityMixin:
             "disclaimer_modal_title": disclaimer_config.modal_title,
             "disclaimer_modal_confirm_text": disclaimer_config.modal_confirm_text,
             "disclaimer_lines": disclaimer_lines,
+        }
+
+    def _build_performance_chart_payload(self, snapshot: dict, period: str) -> dict:
+        performance = dict(snapshot.get("performance", {}) or {})
+        dates = list(
+            performance.get("chart_dates")
+            or performance.get("dates")
+            or []
+        )
+        portfolio_values = list(
+            performance.get("portfolio_values")
+            or performance.get("returns")
+            or performance.get("series")
+            or []
+        )
+        benchmark_values = list(
+            performance.get("benchmark_values")
+            or performance.get("benchmark_series")
+            or []
+        )
+        max_len = min(len(dates), len(portfolio_values))
+        if benchmark_values:
+            max_len = min(max_len, len(benchmark_values))
+        dates = dates[:max_len]
+        portfolio_values = portfolio_values[:max_len]
+        benchmark_values = benchmark_values[:max_len] if benchmark_values else []
+
+        period_days = {
+            "1m": 31,
+            "3m": 93,
+            "6m": 186,
+            "1y": 366,
+        }.get((period or "1m").lower())
+        if period_days and dates:
+            cutoff = timezone.localdate() - timedelta(days=period_days)
+            filtered_indexes = []
+            for index, raw_date in enumerate(dates):
+                try:
+                    parsed_date = date_cls.fromisoformat(str(raw_date)[:10])
+                except ValueError:
+                    filtered_indexes.append(index)
+                    continue
+                if parsed_date >= cutoff:
+                    filtered_indexes.append(index)
+            dates = [dates[index] for index in filtered_indexes]
+            portfolio_values = [portfolio_values[index] for index in filtered_indexes]
+            benchmark_values = (
+                [benchmark_values[index] for index in filtered_indexes]
+                if benchmark_values
+                else []
+            )
+
+        return {
+            "period": period or "1m",
+            "benchmark_name": performance.get("benchmark_name") or "沪深300",
+            "chart_dates": dates,
+            "portfolio_values": portfolio_values,
+            "benchmark_values": benchmark_values,
+            "is_empty": not bool(dates and portfolio_values),
         }
 
 
@@ -496,6 +558,29 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
         increment_share_link_access_count(share_link_id=model.id)
         return Response(self._filter_snapshot_by_visibility(snapshot, model))
+
+    @action(detail=False, methods=["get"], url_path="(?P<short_code>[^/.]+)/performance")
+    def performance(self, request, short_code=None):
+        entity = ShareLinkUseCases().get_share_link_by_code(short_code)
+        model = get_public_share_link_model(short_code)
+        if not entity or model is None:
+            return Response({"error": "分享链接不存在"}, status=status.HTTP_404_NOT_FOUND)
+
+        is_accessible, result_status = entity.is_accessible(timezone.now())
+        if not is_accessible:
+            return Response({"error": result_status.value}, status=status.HTTP_403_FORBIDDEN)
+
+        if entity.requires_password() and not self._is_password_verified(request, model):
+            self._log_access(model.id, request, "password_required", is_verified=False)
+            return Response({"error": "需要密码验证"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        snapshot = get_live_share_snapshot(share_link_id=model.id)
+        if not snapshot:
+            return Response({"error": "快照不存在"}, status=status.HTTP_404_NOT_FOUND)
+
+        filtered_snapshot = self._filter_snapshot_by_visibility(snapshot, model)
+        period = request.query_params.get("period", "1m")
+        return Response(self._build_performance_chart_payload(filtered_snapshot, period))
 
 
 class PublicSharePageView(ShareVisibilityMixin, View):

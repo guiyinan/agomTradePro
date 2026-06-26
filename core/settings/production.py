@@ -333,5 +333,6 @@ if _sentry_dsn:
 
 # Celery Beat settings (use database scheduler)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+PRODUCTION_STRICT_READINESS = env.bool("PRODUCTION_STRICT_READINESS", default=True)
 
 # 注意: 定时任务配置通过 Django Admin 或 setup_celery_beat.py 脚本配置

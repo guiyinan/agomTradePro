@@ -458,10 +458,18 @@ class ExecutionLogSerializer(serializers.Serializer):
     execution_id = serializers.CharField(read_only=True)
     template_id = serializers.IntegerField(read_only=True, allow_null=True)
     chain_id = serializers.IntegerField(read_only=True, allow_null=True)
+    template_name = serializers.SerializerMethodField()
+    chain_name = serializers.SerializerMethodField()
     step_id = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
+    placeholder_values = serializers.JSONField(read_only=True)
+    rendered_prompt = serializers.CharField(read_only=True, allow_blank=True)
+    ai_response = serializers.CharField(read_only=True, allow_blank=True)
+    parsed_output = serializers.JSONField(read_only=True, allow_null=True)
     status = serializers.CharField(read_only=True)
     provider_used = serializers.CharField(read_only=True, allow_blank=True)
     model_used = serializers.CharField(read_only=True, allow_blank=True)
+    prompt_tokens = serializers.IntegerField(read_only=True)
+    completion_tokens = serializers.IntegerField(read_only=True)
     total_tokens = serializers.IntegerField(read_only=True)
     estimated_cost = serializers.DecimalField(
         max_digits=10,
@@ -471,6 +479,14 @@ class ExecutionLogSerializer(serializers.Serializer):
     response_time_ms = serializers.IntegerField(read_only=True)
     error_message = serializers.CharField(read_only=True, allow_blank=True)
     created_at = serializers.DateTimeField(read_only=True)
+
+    def get_template_name(self, obj) -> str | None:
+        template = getattr(obj, "template", None)
+        return getattr(template, "name", None)
+
+    def get_chain_name(self, obj) -> str | None:
+        chain = getattr(obj, "chain", None)
+        return getattr(chain, "name", None)
 
 
 class ChatSessionSerializer(serializers.Serializer):

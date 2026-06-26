@@ -56,6 +56,32 @@ class Command(BaseCommand):
             help="Also bootstrap Alpha caches using real Qlib assets when available.",
         )
         parser.add_argument(
+            "--with-decision-repair",
+            action="store_true",
+            help="Also repair decision-grade macro/quote/pulse/alpha readiness after bootstrap.",
+        )
+        parser.add_argument(
+            "--decision-asset-codes",
+            default="",
+            help="Comma-separated asset codes for decision reliability repair.",
+        )
+        parser.add_argument(
+            "--decision-quote-max-age-hours",
+            type=float,
+            default=4.0,
+            help="Max quote age accepted by decision reliability repair.",
+        )
+        parser.add_argument(
+            "--skip-pulse",
+            action="store_true",
+            help="Skip Pulse refresh when --with-decision-repair is used.",
+        )
+        parser.add_argument(
+            "--skip-alpha",
+            action="store_true",
+            help="Skip Alpha refresh when --with-decision-repair is used.",
+        )
+        parser.add_argument(
             "--alpha-universes",
             default="csi300",
             help="Comma-separated universes for alpha bootstrap (default: csi300).",
@@ -197,6 +223,21 @@ class Command(BaseCommand):
                 top_n=options["alpha_top_n"],
             )
 
+        if options.get("with_decision_repair"):
+            self.stdout.write("[apply] decision_repair")
+            repair_kwargs = {
+                "quote_max_age_hours": float(
+                    options.get("decision_quote_max_age_hours") or 4.0
+                ),
+                "skip_pulse": bool(options.get("skip_pulse")),
+                "skip_alpha": bool(options.get("skip_alpha")),
+            }
+            raw_asset_codes = str(options.get("decision_asset_codes") or "").strip()
+            if raw_asset_codes:
+                repair_kwargs["asset_codes"] = raw_asset_codes
+            self._run_command("repair_decision_data_reliability", **repair_kwargs)
+            applied += 1
+
         self.stdout.write(self.style.SUCCESS(f"Cold-start bootstrap complete: applied={applied}, skipped={skipped}"))
 
     def _resolve_decision_env(self, raw_env: str) -> str:
@@ -285,6 +326,9 @@ class Command(BaseCommand):
             "equity-valuation-daily-sync",
             "equity-valuation-quality-validate",
             "equity-valuation-freshness-check",
+            "decision-quote-intraday-refresh",
+            "decision-quote-post-close-refresh",
+            "decision-quote-freshness-check",
             "decision-workspace-nightly-snapshot-refresh",
         }
         return expected_names.issubset(existing_names)

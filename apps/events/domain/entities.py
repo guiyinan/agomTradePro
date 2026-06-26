@@ -415,6 +415,7 @@ class EventBusConfig:
         async_processing: 是否异步处理事件
         retry_failed_events: 是否重试失败的事件
         max_retry_attempts: 最大重试次数
+        async_max_workers: 异步处理线程数
         event_ttl: 事件生存时间（秒）
         enable_metrics: 是否启用指标收集
     """
@@ -424,6 +425,7 @@ class EventBusConfig:
     async_processing: bool = False
     retry_failed_events: bool = True
     max_retry_attempts: int = 3
+    async_max_workers: int = 4
     event_ttl: int = 86400  # 24 hours
     enable_metrics: bool = True
 

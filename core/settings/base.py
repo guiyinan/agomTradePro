@@ -77,6 +77,13 @@ REQUIRE_CONFIRMATION_FOR_WATCH = env.bool(
 DECISION_SIGNAL_THRESHOLD = env.float("DECISION_SIGNAL_THRESHOLD", default=0.6)
 DECISION_CONFIDENCE_THRESHOLD = env.float("DECISION_CONFIDENCE_THRESHOLD", default=0.7)
 DECISION_REGIME_ALIGNMENT_REQUIRED = env.bool("DECISION_REGIME_ALIGNMENT_REQUIRED", default=True)
+DECISION_READINESS_ASSET_CODES = [
+    code.strip().upper()
+    for code in env.list("DECISION_READINESS_ASSET_CODES", default=["510300.SH", "000300.SH"])
+    if code.strip()
+]
+DECISION_QUOTE_MAX_AGE_HOURS = env.float("DECISION_QUOTE_MAX_AGE_HOURS", default=4.0)
+PRODUCTION_STRICT_READINESS = env.bool("PRODUCTION_STRICT_READINESS", default=False)
 # 仓位引擎配置
 SIZING_DEFAULT_METHOD = env("SIZING_DEFAULT_METHOD", default="fixed_fraction")
 SIZING_RISK_PER_TRADE_PCT = env.float("SIZING_RISK_PER_TRADE_PCT", default=1.0)
@@ -408,17 +415,21 @@ SPECTACULAR_SETTINGS = {
             ("SHORT", "SHORT"),
             ("NEUTRAL", "NEUTRAL"),
         ],
+        "TerminalCommandTypeEnum": [
+            ("prompt", "prompt"),
+            ("api", "api"),
+        ],
         "TerminalCommandRiskLevelEnum": [
-            ("read", "只读"),
-            ("write_low", "低风险写入"),
-            ("write_high", "高风险写入"),
-            ("admin", "管理员"),
+            ("read", "read"),
+            ("write_low", "write_low"),
+            ("write_high", "write_high"),
+            ("admin", "admin"),
         ],
         "PromptCategoryEnum": [
-            ("report", "Report Analysis"),
-            ("signal", "Signal Generation"),
-            ("analysis", "Data Analysis"),
-            ("chat", "Chat"),
+            ("report", "report"),
+            ("signal", "signal"),
+            ("analysis", "analysis"),
+            ("chat", "chat"),
         ],
         "PolicySourceCategoryEnum": [
             ("gov_docs", "政府文件库"),

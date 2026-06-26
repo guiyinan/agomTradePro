@@ -1052,9 +1052,22 @@ until compose run --rm --no-deps web python manage.py migrate --noinput; do
 done
 
 BOOTSTRAP_ALPHA="${AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA:-0}"
+BOOTSTRAP_DECISION_REPAIR="${AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR:-0}"
 BOOTSTRAP_CMD="python manage.py bootstrap_cold_start"
 if [ "$BOOTSTRAP_ALPHA" = "1" ]; then
   BOOTSTRAP_CMD="$BOOTSTRAP_CMD --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
+fi
+if [ "$BOOTSTRAP_DECISION_REPAIR" = "1" ]; then
+  BOOTSTRAP_CMD="$BOOTSTRAP_CMD --with-decision-repair --decision-quote-max-age-hours ${AGOMTRADEPRO_DECISION_QUOTE_MAX_AGE_HOURS:-4}"
+  if [ -n "${AGOMTRADEPRO_DECISION_ASSET_CODES:-}" ]; then
+    BOOTSTRAP_CMD="$BOOTSTRAP_CMD --decision-asset-codes ${AGOMTRADEPRO_DECISION_ASSET_CODES}"
+  fi
+  if [ "${AGOMTRADEPRO_DECISION_REPAIR_SKIP_PULSE:-0}" = "1" ]; then
+    BOOTSTRAP_CMD="$BOOTSTRAP_CMD --skip-pulse"
+  fi
+  if [ "${AGOMTRADEPRO_DECISION_REPAIR_SKIP_ALPHA:-0}" = "1" ]; then
+    BOOTSTRAP_CMD="$BOOTSTRAP_CMD --skip-alpha"
+  fi
 fi
 
 if ! compose run --rm --no-deps web sh -lc "$BOOTSTRAP_CMD"; then
@@ -1148,6 +1161,11 @@ def main() -> int:
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)
     ap.add_argument("--disable-celery", action="store_true", default=False)
+    ap.add_argument("--bootstrap-decision-repair", action="store_true", default=False)
+    ap.add_argument("--decision-asset-codes", default="")
+    ap.add_argument("--decision-quote-max-age-hours", default="4")
+    ap.add_argument("--decision-repair-skip-pulse", action="store_true", default=False)
+    ap.add_argument("--decision-repair-skip-alpha", action="store_true", default=False)
     ap.add_argument("--encryption-key", default="", help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
     ap.add_argument("--git-clone", action="store_true", default=False, help="Clone from GitHub on VPS instead of uploading local source (much faster)")
     ap.add_argument("--git-repo", default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"), help="Git repo URL for --git-clone mode")
@@ -1389,6 +1407,11 @@ def main() -> int:
                 "INCLUDE_SQLITE": _bool_env(include_sqlite),
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
+                "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(args.bootstrap_decision_repair),
+                "AGOMTRADEPRO_DECISION_ASSET_CODES": args.decision_asset_codes,
+                "AGOMTRADEPRO_DECISION_QUOTE_MAX_AGE_HOURS": args.decision_quote_max_age_hours,
+                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_PULSE": _bool_env(args.decision_repair_skip_pulse),
+                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_ALPHA": _bool_env(args.decision_repair_skip_alpha),
                 "PRESET_ENCRYPTION_KEY": encryption_key,
             }
             deploy_exports = " ".join(

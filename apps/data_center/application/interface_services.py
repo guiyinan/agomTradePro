@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.data_center.application.dtos import SyncQuoteRequest
+from apps.data_center.application.dtos import LatestQuoteRequest, SyncQuoteRequest
 from apps.data_center.application.on_demand import OnDemandDataCenterService
 from apps.data_center.domain.entities import DataProviderSettings
 from apps.task_monitor.application.tracking import record_pending_task
@@ -17,6 +17,14 @@ from core.integration.alpha_runtime import (
 from core.integration.pulse_refresh import refresh_pulse_snapshot
 from core.integration.realtime_prices import fetch_latest_prices
 
+from .market_thermometer import (
+    CalculateMarketThermometerUseCase,
+    ImportInvestorAccountsUseCase,
+    ManageMarketThermometerConfigUseCase,
+    ManageMarketThermometerUserOverrideUseCase,
+    SyncMarketThermometerInputsUseCase,
+    build_market_thermometer_override_payload,
+)
 from .repository_provider import (
     AssetRepository,
     CapitalFlowRepository,
@@ -42,15 +50,8 @@ from .repository_provider import (
     build_unified_provider_factory_for_repo,
     run_data_center_connection_test,
 )
-from .market_thermometer import (
-    CalculateMarketThermometerUseCase,
-    ImportInvestorAccountsUseCase,
-    ManageMarketThermometerConfigUseCase,
-    ManageMarketThermometerUserOverrideUseCase,
-    SyncMarketThermometerInputsUseCase,
-    build_market_thermometer_override_payload,
-)
 from .use_cases import (
+    DEFAULT_DECISION_ASSET_CODES,
     ManageIndicatorCatalogUseCase,
     ManageIndicatorUnitRuleUseCase,
     ManageProviderConfigUseCase,
@@ -444,7 +445,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
         return {"status": "skipped", "message": "No scoped instruments to sync."}
 
     provider_repo = _make_provider_repo()
-    source_priority = {"akshare": 0, "eastmoney": 1, "tushare": 2}
+    source_priority = {"akshare": 0, "eastmoney": 1, "tencent": 2, "tushare": 3}
     providers = [
         item
         for item in provider_repo.list_all()
@@ -470,6 +471,126 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
     except Exception as exc:
         return {"status": "failed", "error_message": str(exc)}
     return result.to_dict()
+
+
+def refresh_decision_quote_snapshots(
+    *,
+    asset_codes: list[str] | None = None,
+    quote_max_age_hours: float | None = None,
+) -> dict[str, Any]:
+    """Sync decision-grade quote snapshots and return a readiness payload."""
+
+    max_age_hours = float(
+        quote_max_age_hours if quote_max_age_hours is not None else 4.0
+    )
+    requested_codes = asset_codes or list(DEFAULT_DECISION_ASSET_CODES)
+    normalized_codes = []
+    seen_codes = set()
+    for code in requested_codes:
+        normalized = str(code or "").strip().upper()
+        if normalized and normalized not in seen_codes:
+            normalized_codes.append(normalized)
+            seen_codes.add(normalized)
+
+    sync_payload = _sync_scope_quotes(normalized_codes)
+    readiness = get_decision_data_readiness_payload(
+        asset_codes=normalized_codes,
+        quote_max_age_hours=max_age_hours,
+    )
+    failed_codes = [
+        code
+        for code, detail in readiness.get("quotes", {}).items()
+        if detail.get("must_not_use_for_decision") or detail.get("status") == "blocked"
+    ]
+    return {
+        "status": (
+            "blocked"
+            if readiness.get("must_not_use_for_decision")
+            else sync_payload.get("status", "success")
+        ),
+        "asset_codes": normalized_codes,
+        "synced_count": int(sync_payload.get("stored_count") or 0),
+        "failed_codes": failed_codes,
+        "must_not_use_for_decision": bool(readiness.get("must_not_use_for_decision")),
+        "blocked_reasons": list(readiness.get("blocked_reasons") or []),
+        "sync": sync_payload,
+        "readiness": readiness,
+    }
+
+
+def get_decision_data_readiness_payload(
+    *,
+    asset_codes: list[str] | None = None,
+    quote_max_age_hours: float | None = None,
+) -> dict[str, Any]:
+    """Return quote and market thermometer readiness for decision use."""
+
+    max_age_hours = float(
+        quote_max_age_hours if quote_max_age_hours is not None else 4.0
+    )
+    requested_codes = asset_codes or list(DEFAULT_DECISION_ASSET_CODES)
+    normalized_codes = []
+    seen_codes = set()
+    for code in requested_codes:
+        normalized = str(code or "").strip().upper()
+        if normalized and normalized not in seen_codes:
+            normalized_codes.append(normalized)
+            seen_codes.add(normalized)
+
+    quote_query = QueryLatestQuoteUseCase(QuoteSnapshotRepository())
+    quotes: dict[str, Any] = {}
+    blocked_reasons: list[str] = []
+    for asset_code in normalized_codes:
+        quote = quote_query.execute(
+            LatestQuoteRequest(asset_code=asset_code, max_age_hours=max_age_hours)
+        )
+        if quote is None:
+            reason = f"{asset_code}: 无可用最新行情。"
+            quotes[asset_code] = {
+                "status": "blocked",
+                "asset_code": asset_code,
+                "must_not_use_for_decision": True,
+                "blocked_reason": reason,
+                "max_age_hours": max_age_hours,
+            }
+            blocked_reasons.append(reason)
+            continue
+
+        quote_payload = quote.to_dict()
+        quote_payload["status"] = "blocked" if quote.must_not_use_for_decision else "ok"
+        quotes[asset_code] = quote_payload
+        if quote.must_not_use_for_decision:
+            blocked_reasons.append(
+                f"{asset_code}: {quote.blocked_reason or quote.freshness_status}"
+            )
+
+    thermometer_snapshot = MarketThermometerSnapshotRepository().get_latest()
+    thermometer_payload: dict[str, Any]
+    if thermometer_snapshot is None:
+        reason = "无可用市场温度计快照。"
+        thermometer_payload = {
+            "status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reason": reason,
+        }
+        blocked_reasons.append(reason)
+    else:
+        thermometer_payload = thermometer_snapshot.to_dict()
+        thermometer_payload["status"] = (
+            "blocked" if thermometer_snapshot.must_not_use_for_decision else "ok"
+        )
+        if thermometer_snapshot.must_not_use_for_decision:
+            blocked_reasons.append("市场温度计标记为 must_not_use_for_decision。")
+
+    return {
+        "status": "blocked" if blocked_reasons else "ok",
+        "asset_codes": normalized_codes,
+        "quote_max_age_hours": max_age_hours,
+        "quotes": quotes,
+        "market_thermometer": thermometer_payload,
+        "must_not_use_for_decision": bool(blocked_reasons),
+        "blocked_reasons": blocked_reasons,
+    }
 
 
 def _build_alpha_status_reader(user):

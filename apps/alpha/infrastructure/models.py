@@ -331,6 +331,37 @@ class AlphaScoreCacheModel(models.Model):
         return (current_date - self.asof_date).days
 
 
+class AlphaMonitoringArchiveModel(models.Model):
+    """Long-term archive for Alpha monitoring cleanup summaries."""
+
+    ARCHIVE_SCORE_CACHE_CLEANUP = "score_cache_cleanup"
+
+    archive_key = models.CharField(max_length=120, unique=True, db_index=True)
+    archive_type = models.CharField(
+        max_length=50,
+        default=ARCHIVE_SCORE_CACHE_CLEANUP,
+        db_index=True,
+    )
+    cutoff_date = models.DateField(db_index=True)
+    row_count = models.PositiveIntegerField(default=0)
+    payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "alpha"
+        db_table = "alpha_monitoring_archive"
+        verbose_name = "Alpha 监控归档"
+        verbose_name_plural = "Alpha 监控归档"
+        ordering = ["-cutoff_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["archive_type", "cutoff_date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.archive_type}@{self.cutoff_date} ({self.row_count})"
+
+
 class QlibModelRegistryModel(models.Model):
     """
     Qlib 模型注册表 ORM 模型

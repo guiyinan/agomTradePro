@@ -330,6 +330,88 @@ class AlphaScoreCacheRepository:
             intended_trade_date__lt=cutoff_date
         ).delete()[0]
 
+    def archive_before(self, cutoff_date: date) -> dict[str, Any]:
+        """Archive lightweight monitoring summaries before old cache cleanup."""
+
+        from .models import AlphaMonitoringArchiveModel, AlphaScoreCacheModel
+
+        queryset = AlphaScoreCacheModel._default_manager.filter(
+            intended_trade_date__lt=cutoff_date
+        ).order_by("intended_trade_date", "id")
+        rows = list(
+            queryset.values(
+                "id",
+                "universe_id",
+                "scope_hash",
+                "scope_label",
+                "intended_trade_date",
+                "provider_source",
+                "asof_date",
+                "model_id",
+                "model_artifact_hash",
+                "status",
+                "scores",
+                "metrics_snapshot",
+                "created_at",
+                "updated_at",
+            )
+        )
+        if not rows:
+            return {
+                "archive_key": "",
+                "archive_id": None,
+                "archived_count": 0,
+            }
+
+        provider_counts: dict[str, int] = {}
+        status_counts: dict[str, int] = {}
+        archived_rows: list[dict[str, Any]] = []
+        for row in rows:
+            provider = str(row.get("provider_source") or "")
+            status = str(row.get("status") or "")
+            provider_counts[provider] = provider_counts.get(provider, 0) + 1
+            status_counts[status] = status_counts.get(status, 0) + 1
+            scores = row.get("scores") or []
+            archived_rows.append(
+                {
+                    "id": row.get("id"),
+                    "universe_id": row.get("universe_id"),
+                    "scope_hash": row.get("scope_hash"),
+                    "scope_label": row.get("scope_label"),
+                    "intended_trade_date": row["intended_trade_date"].isoformat(),
+                    "provider_source": provider,
+                    "asof_date": row["asof_date"].isoformat() if row.get("asof_date") else None,
+                    "model_id": row.get("model_id"),
+                    "model_artifact_hash": row.get("model_artifact_hash"),
+                    "status": status,
+                    "scores_count": len(scores) if isinstance(scores, list) else 0,
+                    "metrics_snapshot": row.get("metrics_snapshot") or {},
+                    "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+                    "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+                }
+            )
+
+        archive_key = f"alpha-score-cache-before-{cutoff_date.isoformat()}"
+        archive, _ = AlphaMonitoringArchiveModel._default_manager.update_or_create(
+            archive_key=archive_key,
+            defaults={
+                "archive_type": AlphaMonitoringArchiveModel.ARCHIVE_SCORE_CACHE_CLEANUP,
+                "cutoff_date": cutoff_date,
+                "row_count": len(archived_rows),
+                "payload": {
+                    "cutoff_date": cutoff_date.isoformat(),
+                    "provider_counts": provider_counts,
+                    "status_counts": status_counts,
+                    "rows": archived_rows,
+                },
+            },
+        )
+        return {
+            "archive_key": archive.archive_key,
+            "archive_id": archive.id,
+            "archived_count": archive.row_count,
+        }
+
     def upsert_qlib_cache(
         self,
         *,

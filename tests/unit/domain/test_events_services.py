@@ -6,6 +6,9 @@ Uses factory helpers from tests.factories.domain_factories.
 """
 
 
+import threading
+import time
+
 import pytest
 
 from apps.events.domain.entities import (
@@ -59,6 +62,18 @@ class _FailingHandler(EventHandler):
 
     def get_handler_id(self) -> str:
         return "failing_handler"
+
+
+class _BlockingRecordingHandler(_RecordingHandler):
+    """Handler that blocks until released, used to prove async dispatch."""
+
+    def __init__(self, release_event: threading.Event) -> None:
+        super().__init__("blocking_handler")
+        self.release_event = release_event
+
+    def handle(self, event: DomainEvent) -> None:
+        self.release_event.wait(timeout=2)
+        super().handle(event)
 
 
 def _make_subscription(
@@ -229,6 +244,27 @@ class TestPublish:
         # Matching event
         bus.publish(make_domain_event(event_id="e2", payload={"source": "official"}))
         assert len(handler.received) == 1
+
+    def test_publish_async_dispatches_without_blocking_caller(self) -> None:
+        """Async publish should return before the handler finishes."""
+        release_event = threading.Event()
+        handler = _BlockingRecordingHandler(release_event)
+        bus = InMemoryEventBus(EventBusConfig(async_max_workers=1))
+        bus.subscribe(_make_subscription(handler=handler))
+
+        started_at = time.monotonic()
+        bus.publish_async(make_domain_event(event_id="async-1"))
+        elapsed = time.monotonic() - started_at
+
+        assert elapsed < 0.2
+        assert bus.get_metrics().total_published == 1
+        assert handler.received == []
+
+        release_event.set()
+        assert bus.wait_for_async(timeout=2) is True
+        assert [event.event_id for event in handler.received] == ["async-1"]
+        assert bus.get_metrics().total_processed == 1
+        bus.stop()
 
 
 # ============================================================

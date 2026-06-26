@@ -116,7 +116,8 @@ class StockSelectionBacktestEngine:
         get_regime_func: Callable[[date], str | None],
         get_stock_data_func: Callable[[date], list[tuple[StockInfo, FinancialData, ValuationMetrics]]],
         get_price_func: Callable[[str, date], Decimal | None],
-        get_benchmark_price_func: Callable[[date], float | None]
+        get_benchmark_price_func: Callable[[date], float | None],
+        get_market_cap_func: Callable[[str, date], Decimal | float | int | None] | None = None,
     ):
         """
         初始化回测引擎
@@ -127,12 +128,14 @@ class StockSelectionBacktestEngine:
             get_stock_data_func: 获取股票数据的函数 (date) -> [(StockInfo, FinancialData, ValuationMetrics), ...]
             get_price_func: 获取股票价格的函数 (stock_code, date) -> price
             get_benchmark_price_func: 获取基准价格的函数 (date) -> price
+            get_market_cap_func: 获取标准化市值的函数 (stock_code, date) -> market_cap
         """
         self.config = config
         self.get_regime_func = get_regime_func
         self.get_stock_data_func = get_stock_data_func
         self.get_price_func = get_price_func
         self.get_benchmark_price_func = get_benchmark_price_func
+        self.get_market_cap_func = get_market_cap_func
 
     def run(
         self,
@@ -370,9 +373,40 @@ class StockSelectionBacktestEngine:
         if self.config.position_method == "equal_weight":
             # 等权重
             return dict.fromkeys(stock_codes, 1.0 / n)
-        else:
-            # 市值加权（TODO: 实现）
-            return dict.fromkeys(stock_codes, 1.0 / n)
+        if self.config.position_method in {"market_cap_weight", "market_cap_weighted"}:
+            market_caps = self._load_market_caps(stock_codes, rebalance_date)
+            total_market_cap = sum(market_caps.values())
+            if total_market_cap <= 0:
+                return dict.fromkeys(stock_codes, 1.0 / n)
+            return {
+                stock_code: float(market_caps.get(stock_code, Decimal("0")) / total_market_cap)
+                for stock_code in stock_codes
+            }
+
+        return dict.fromkeys(stock_codes, 1.0 / n)
+
+    def _load_market_caps(
+        self,
+        stock_codes: list[str],
+        rebalance_date: date,
+    ) -> dict[str, Decimal]:
+        """Load standardized market caps from the injected reader."""
+
+        if self.get_market_cap_func is None:
+            return {}
+
+        market_caps: dict[str, Decimal] = {}
+        for stock_code in stock_codes:
+            raw_value = self.get_market_cap_func(stock_code, rebalance_date)
+            if raw_value is None:
+                continue
+            try:
+                market_cap = Decimal(str(raw_value))
+            except Exception:
+                continue
+            if market_cap > 0:
+                market_caps[stock_code] = market_cap
+        return market_caps
 
     def _calculate_risk_metrics(
         self,

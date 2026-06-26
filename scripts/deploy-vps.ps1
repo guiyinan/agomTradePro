@@ -17,6 +17,11 @@ param(
     [switch]$EnableCelery,
     [switch]$DisableCelery,
     [switch]$Upgrade,
+    [switch]$BootstrapDecisionRepair,
+    [string]$DecisionAssetCodes,
+    [double]$DecisionQuoteMaxAgeHours = 4.0,
+    [switch]$DecisionRepairSkipPulse,
+    [switch]$DecisionRepairSkipAlpha,
     [string]$GitBranch
 )
 
@@ -68,6 +73,7 @@ Write-Info "Branch:     $GitBranch"
 Write-Info "HTTP Port:  $HttpPort"
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (will overwrite remote DB)' } else { 'No (preserve remote data)' })"
 Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
+Write-Info "Decision repair: $(if ($BootstrapDecisionRepair) { 'Enabled' } else { 'Disabled' })"
 Write-Info "================================"
 
 $uncommitted = git status --porcelain 2>$null
@@ -115,6 +121,11 @@ try {
 
     if ($IncludeSqlite) { $pyArgs += '--include-sqlite' }
     if ($UseCelery)  { $pyArgs += '--enable-celery' } else { $pyArgs += '--disable-celery' }
+    if ($BootstrapDecisionRepair) { $pyArgs += '--bootstrap-decision-repair' }
+    if ($DecisionAssetCodes) { $pyArgs += @('--decision-asset-codes', $DecisionAssetCodes) }
+    if ($DecisionQuoteMaxAgeHours) { $pyArgs += @('--decision-quote-max-age-hours', "$DecisionQuoteMaxAgeHours") }
+    if ($DecisionRepairSkipPulse) { $pyArgs += '--decision-repair-skip-pulse' }
+    if ($DecisionRepairSkipAlpha) { $pyArgs += '--decision-repair-skip-alpha' }
 
     $ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
     $PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }

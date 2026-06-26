@@ -129,6 +129,7 @@
 | [ai-native/README.md](plans/ai-native/README.md) | **AI Native 子项目索引** | 进行中 |
 | [ai-native/execution-backlog.md](plans/ai-native/execution-backlog.md) | **AI Native 执行积压** | 进行中 |
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
+| [production-code-remediation-plan-2026-06-26.md](plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成 P0/P1/P2 |
 | [auto-advisor-prd-2026-06-25.md](plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ 2026-06-25 新增 |
 | [auto-advisor-implementation-2026-06-25.md](plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ 2026-06-25 新增 |
 | [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |

@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand
 SCHEDULER_COMMANDS = (
     "setup_macro_daily_sync",
     "setup_equity_valuation_sync",
+    "setup_decision_quote_refresh",
     "setup_workspace_snapshot_refresh",
 )
 

@@ -21,6 +21,8 @@ public_patterns = [
     path("public/<str:short_code>/access/", PublicShareViewSet.as_view({"post": "access"}), name="public_access"),
     # 获取快照
     path("public/<str:short_code>/snapshot/", PublicShareViewSet.as_view({"get": "snapshot"}), name="public_snapshot"),
+    # 获取收益曲线
+    path("public/<str:short_code>/performance/", PublicShareViewSet.as_view({"get": "performance"}), name="public_performance"),
 ]
 
 urlpatterns = [

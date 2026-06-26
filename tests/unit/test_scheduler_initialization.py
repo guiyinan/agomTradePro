@@ -43,6 +43,7 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
     assert called == [
         "setup_macro_daily_sync",
         "setup_equity_valuation_sync",
+        "setup_decision_quote_refresh",
         "setup_workspace_snapshot_refresh",
     ]
 
@@ -59,6 +60,9 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
                 "equity-valuation-daily-sync",
                 "equity-valuation-quality-validate",
                 "equity-valuation-freshness-check",
+                "decision-quote-intraday-refresh",
+                "decision-quote-post-close-refresh",
+                "decision-quote-freshness-check",
                 "decision-workspace-nightly-snapshot-refresh",
             ]
 

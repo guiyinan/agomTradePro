@@ -5,7 +5,7 @@ Integration Tests for Alpha Monitoring (Phase 4)
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -14,6 +14,7 @@ from django.utils import timezone
 from apps.alpha.application.monitoring_tasks import (
     calculate_ic_drift,
     check_queue_lag,
+    cleanup_old_metrics,
     evaluate_alerts,
     generate_daily_report,
     update_provider_metrics,
@@ -25,7 +26,11 @@ from apps.alpha.infrastructure.alerts import (
     AlphaAlertConfig,
     AlphaAlertManager,
 )
-from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
+from apps.alpha.infrastructure.models import (
+    AlphaMonitoringArchiveModel,
+    AlphaScoreCacheModel,
+    QlibModelRegistryModel,
+)
 from shared.infrastructure.metrics import (
     AlphaMetrics,
     MetricsRegistry,
@@ -352,6 +357,35 @@ class TestMonitoringTasks:
         assert "date" in result
         assert "cache_records" in result
         assert "provider_stats" in result
+
+    def test_cleanup_old_metrics_archives_before_delete(self):
+        """Old Alpha cache rows are archived before cleanup deletes them."""
+        today = timezone.now().date()
+        old_trade_date = today - timedelta(days=60)
+
+        cache = AlphaScoreCacheModel.objects.create(
+            universe_id="csi300",
+            intended_trade_date=old_trade_date,
+            provider_source="qlib",
+            asof_date=old_trade_date,
+            scores=[{"code": "000001.SZ", "score": 0.8}],
+            status="available",
+            metrics_snapshot={"ic": 0.05},
+        )
+
+        result = cleanup_old_metrics(days=30)
+
+        assert result["status"] == "success"
+        assert result["deleted_count"] >= 1
+        assert result["archive"]["archived_count"] >= 1
+        assert not AlphaScoreCacheModel.objects.filter(pk=cache.pk).exists()
+
+        archive = AlphaMonitoringArchiveModel.objects.get(
+            archive_key=result["archive"]["archive_key"]
+        )
+        assert archive.row_count >= 1
+        assert archive.payload["provider_counts"]["qlib"] >= 1
+        assert archive.payload["rows"][0]["scores_count"] == 1
 
 
 @pytest.mark.django_db

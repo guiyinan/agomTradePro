@@ -355,7 +355,7 @@ class RSSHubGlobalConfig(models.Model):
         构建完整的 RSSHub URL
 
         Args:
-            route_path: 路由路径，如 /csrc/news/bwj
+            route_path: 路由路径，如 /gov/csrc/news/c100028/common_xq_list.shtml
             format: 输出格式，默认使用 default_format
 
         Returns:
@@ -363,8 +363,8 @@ class RSSHubGlobalConfig(models.Model):
 
         Examples:
             >>> config = RSSHubGlobalConfig.get_config()
-            >>> config.get_full_url('/csrc/news/bwj')
-            'http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss'
+            >>> config.get_full_url('/gov/csrc/news/c100028/common_xq_list.shtml')
+            'http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=xxxx&format=rss'
         """
         from urllib.parse import urlencode
 
@@ -460,7 +460,10 @@ class RSSSourceConfigModel(models.Model):
         max_length=500,
         blank=True,
         verbose_name="RSSHub 路由路径",
-        help_text="如 /csrc/news/bwj，完整 URL 将自动构建为: 基址 + 路由 + key"
+        help_text=(
+            "如 /gov/csrc/news/c100028/common_xq_list.shtml，"
+            "完整 URL 将自动构建为: 基址 + 路由 + key"
+        )
     )
     rsshub_use_global_config = models.BooleanField(
         default=True,
@@ -522,7 +525,7 @@ class RSSSourceConfigModel(models.Model):
         Examples:
             >>> source = RSSSourceConfigModel._default_manager.get(name='证监会新闻')
             >>> source.get_effective_url()
-            'http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss'
+            'http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=xxxx&format=rss'
         """
         if not self.rsshub_enabled:
             # 普通模式，直接返回 URL

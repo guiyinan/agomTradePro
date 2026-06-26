@@ -5,6 +5,7 @@ Unit tests for Backtest Domain Services.
 """
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -17,6 +18,10 @@ from apps.backtest.domain.entities import (
 from apps.backtest.domain.services import (
     BacktestEngine,
     PITDataProcessor,
+)
+from apps.backtest.domain.stock_selection_backtest import (
+    StockSelectionBacktestConfig,
+    StockSelectionBacktestEngine,
 )
 
 
@@ -131,6 +136,48 @@ class TestPITDataProcessor:
             indicator_code="SHIBOR",
             as_of_date=date(2024, 1, 1)
         )
+
+
+class TestStockSelectionBacktestWeights:
+    """Tests for stock selection position weighting."""
+
+    def _make_engine(self, *, position_method: str, market_caps: dict[str, Decimal]):
+        return StockSelectionBacktestEngine(
+            config=StockSelectionBacktestConfig(
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 2, 1),
+                position_method=position_method,
+            ),
+            get_regime_func=lambda _: "Recovery",
+            get_stock_data_func=lambda _: [],
+            get_price_func=lambda _code, _as_of: Decimal("10"),
+            get_benchmark_price_func=lambda _as_of: 100.0,
+            get_market_cap_func=lambda code, _as_of: market_caps.get(code),
+        )
+
+    def test_market_cap_weight_uses_injected_standardized_market_caps(self):
+        engine = self._make_engine(
+            position_method="market_cap_weight",
+            market_caps={
+                "AAA": Decimal("600"),
+                "BBB": Decimal("300"),
+                "CCC": Decimal("100"),
+            },
+        )
+
+        weights = engine._calculate_weights(["AAA", "BBB", "CCC"], date(2024, 1, 1))
+
+        assert weights == pytest.approx({"AAA": 0.6, "BBB": 0.3, "CCC": 0.1})
+
+    def test_market_cap_weight_falls_back_to_equal_weight_when_caps_missing(self):
+        engine = self._make_engine(
+            position_method="market_cap_weighted",
+            market_caps={},
+        )
+
+        weights = engine._calculate_weights(["AAA", "BBB"], date(2024, 1, 1))
+
+        assert weights == pytest.approx({"AAA": 0.5, "BBB": 0.5})
 
 
 class TestBacktestEngine:

@@ -13,6 +13,23 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+def _normalize_news_sentiment_score(raw_score: float) -> float:
+    """Normalize data-center news score into the sentiment [-3, 3] scale."""
+
+    score = float(raw_score)
+    if -1.0 <= score <= 1.0:
+        score *= 3.0
+    return max(-3.0, min(3.0, score))
+
+
+def _build_news_text(news_item) -> str:
+    """Build analyzable text from a market news fact."""
+
+    title = str(getattr(news_item, "title", "") or "")
+    summary = str(getattr(news_item, "summary", "") or "")
+    return f"{title}\n{summary}".strip()
+
+
 @shared_task(
     name="sentiment.calculate_daily_sentiment_index",
     bind=True,
@@ -35,7 +52,10 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
     """
     from apps.ai_provider.application.client_provider import get_ai_provider_repository
     from apps.policy.application.repository_provider import get_current_policy_repository
-    from apps.sentiment.application.repository_provider import get_sentiment_index_repository
+    from apps.sentiment.application.repository_provider import (
+        get_market_news_for_sentiment,
+        get_sentiment_index_repository,
+    )
     from apps.sentiment.application.services import SentimentAnalyzer, SentimentIndexCalculator
 
     try:
@@ -69,9 +89,30 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
                 logger.error(f"分析政策事件 {event.id} 失败: {e}")
                 continue
 
-        # 4. TODO: 获取当日新闻并分析（未来扩展）
-        # 目前新闻部分为空，使用默认权重
+        # 4. 获取当日市场新闻并分析
+        news_items = get_market_news_for_sentiment(target_date_obj, limit=50)
+        logger.info(f"找到 {len(news_items)} 条市场新闻")
         news_scores = []
+        for news_item in news_items:
+            try:
+                if getattr(news_item, "sentiment_score", None) is not None:
+                    news_scores.append(
+                        _normalize_news_sentiment_score(news_item.sentiment_score)
+                    )
+                    continue
+
+                text = _build_news_text(news_item)
+                if not text:
+                    continue
+                result = analyzer.analyze_text(text)
+                news_scores.append(result.sentiment_score)
+            except Exception as e:
+                logger.error(
+                    "分析新闻 %s 失败: %s",
+                    getattr(news_item, "external_id", None) or getattr(news_item, "url", ""),
+                    e,
+                )
+                continue
 
         # 5. 计算综合指数（权重从配置读取）
         calculator = SentimentIndexCalculator()

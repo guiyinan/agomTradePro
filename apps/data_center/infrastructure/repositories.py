@@ -1507,6 +1507,19 @@ class NewsRepository:
                 return [self._from_model(m) for m in rows]
         return []
 
+    def list_market_news_for_date(
+        self,
+        target_date: date,
+        limit: int = 50,
+    ) -> list[NewsFact]:
+        """Return market-wide news published on one date."""
+
+        rows = (
+            NewsFactModel.objects.filter(asset_code="", published_at__date=target_date)
+            .order_by("-published_at", "-id")[:limit]
+        )
+        return [self._from_model(m) for m in rows]
+
     def bulk_insert(self, articles: list[NewsFact]) -> int:
         count = 0
         for a in articles:

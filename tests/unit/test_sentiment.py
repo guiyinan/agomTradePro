@@ -3,11 +3,16 @@ Sentiment 模块单元测试
 """
 
 from datetime import date, datetime
+from types import SimpleNamespace
 
 import pytest
 
 from apps.sentiment.application.services import (
     SentimentIndexCalculator,
+)
+from apps.sentiment.application.tasks import (
+    _normalize_news_sentiment_score,
+    calculate_daily_sentiment_index,
 )
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
@@ -270,6 +275,79 @@ class TestSentimentIndexCalculator:
         # 计算: (1*1 + 2*2 + 3*3) / (1 + 2 + 3) = 14/6 ≈ 2.33
         expected = (1*1 + 2*2 + 3*3) / 6
         assert abs(result - expected) < 0.01
+
+
+class TestSentimentDailyTask:
+    """Tests for the daily sentiment calculation task."""
+
+    def test_normalize_news_sentiment_score_scales_data_center_range(self):
+        assert _normalize_news_sentiment_score(0.5) == 1.5
+        assert _normalize_news_sentiment_score(-2.0) == -2.0
+        assert _normalize_news_sentiment_score(9.0) == 3.0
+
+    def test_calculate_daily_sentiment_index_uses_market_news_scores(self, monkeypatch):
+        saved = {}
+
+        class _PolicyRepo:
+            @staticmethod
+            def get_events_in_range(_start, _end):
+                return []
+
+        class _IndexRepo:
+            @staticmethod
+            def save(index):
+                saved["index"] = index
+
+        class _Analyzer:
+            def __init__(self, _repo):
+                pass
+
+            def analyze_text(self, _text):
+                raise AssertionError("stored news sentiment should avoid AI calls")
+
+        monkeypatch.setattr(
+            "apps.policy.application.repository_provider.get_current_policy_repository",
+            lambda: _PolicyRepo(),
+        )
+        monkeypatch.setattr(
+            "apps.ai_provider.application.client_provider.get_ai_provider_repository",
+            lambda: object(),
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.repository_provider.get_market_news_for_sentiment",
+            lambda _target_date, limit=50: [
+                SimpleNamespace(
+                    title="利好新闻",
+                    summary="",
+                    sentiment_score=0.5,
+                    external_id="n1",
+                    url="",
+                ),
+                SimpleNamespace(
+                    title="偏负面新闻",
+                    summary="",
+                    sentiment_score=-0.25,
+                    external_id="n2",
+                    url="",
+                ),
+            ],
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.repository_provider.get_sentiment_index_repository",
+            lambda: _IndexRepo(),
+        )
+        monkeypatch.setattr(
+            "apps.sentiment.application.services.SentimentAnalyzer",
+            _Analyzer,
+        )
+
+        result = calculate_daily_sentiment_index.run(target_date="2026-06-26")
+
+        assert result["status"] == "success"
+        assert result["news_count"] == 2
+        assert result["policy_events"] == 0
+        assert saved["index"].news_count == 2
+        assert saved["index"].data_sufficient is True
 
 
 class TestSentimentCacheRepository:

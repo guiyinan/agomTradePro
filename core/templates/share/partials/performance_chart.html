@@ -12,7 +12,7 @@
             </div>
         </div>
 
-        <div class="chart-container">
+        <div class="chart-container" data-share-short-code="{{ share_short_code|default:'' }}">
             <div id="performanceChart" class="performance-chart" style="width: 100%; height: 400px;"></div>
         </div>
 
@@ -49,7 +49,10 @@
         areaEnd: pageStyles.getPropertyValue('--chart-portfolio-area-end').trim() || 'rgba(245, 158, 11, 0.02)'
     };
 
-    // 图表配置（后续通过 API 获取实际数据）
+    const initialDates = {{ chart_dates|default:"[]"|safe }};
+    const initialPortfolioValues = {{ portfolio_values|default:"[]"|safe }};
+    const initialBenchmarkValues = {{ benchmark_values|default:"[]"|safe }};
+
     const option = {
         backgroundColor: 'transparent',
         grid: {
@@ -91,7 +94,7 @@
         xAxis: {
             type: 'category',
             boundaryGap: false,
-            data: {{ chart_dates|default:"[]"|safe }},
+            data: initialDates,
             axisLine: {
                 lineStyle: {
                     color: chartPalette.axis
@@ -125,7 +128,7 @@
                 name: '组合净值',
                 type: 'line',
                 smooth: true,
-                data: {{ portfolio_values|default:"[]"|safe }},
+                data: initialPortfolioValues,
                 lineStyle: {
                     width: 2,
                     color: chartPalette.accent
@@ -148,7 +151,7 @@
                 name: '基准',
                 type: 'line',
                 smooth: true,
-                data: {{ benchmark_values|default:"[]"|safe }},
+                data: initialBenchmarkValues,
                 lineStyle: {
                     width: 2,
                     color: chartPalette.benchmark,
@@ -173,14 +176,58 @@
             this.classList.add('active');
 
             const period = this.dataset.period;
-            // TODO: 根据 period 加载对应数据
             loadPerformanceData(period);
         });
     });
 
-    function loadPerformanceData(period) {
-        // 后续实现
-        console.log('Loading data for period:', period);
+    async function loadPerformanceData(period) {
+        const shortCode = document.querySelector('.chart-container')?.dataset.shareShortCode || '';
+        if (!shortCode) return;
+        try {
+            const response = await fetch(`/api/share/public/${shortCode}/performance/?period=${encodeURIComponent(period)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            applyPerformanceData(payload);
+        } catch (error) {
+            applyPerformanceData({
+                chart_dates: [],
+                portfolio_values: [],
+                benchmark_values: [],
+                is_empty: true
+            });
+        }
     }
+
+    function applyPerformanceData(payload) {
+        const dates = payload.chart_dates || [];
+        const portfolioValues = payload.portfolio_values || [];
+        const benchmarkValues = payload.benchmark_values || [];
+        myChart.setOption({
+            xAxis: { data: dates },
+            series: [
+                { name: '组合净值', data: portfolioValues },
+                { name: '基准', data: benchmarkValues }
+            ],
+            graphic: (payload.is_empty || !dates.length) ? [{
+                type: 'text',
+                left: 'center',
+                top: 'middle',
+                style: {
+                    text: '暂无收益曲线数据',
+                    fill: chartPalette.label,
+                    fontSize: 14
+                }
+            }] : []
+        });
+    }
+
+    applyPerformanceData({
+        chart_dates: initialDates,
+        portfolio_values: initialPortfolioValues,
+        benchmark_values: initialBenchmarkValues,
+        is_empty: !initialDates.length
+    });
 })();
 </script>

@@ -1841,11 +1841,16 @@ async function refreshAdvisorSheet() {
 
 async function copyAdvisorManualList() {
     if (!currentAdvisorSheet || !Array.isArray(currentAdvisorSheet.order_intents)) {
+        window.showToast('请先加载账户级自动投顾建议单', 'warning');
         return;
     }
     const actionable = currentAdvisorSheet.order_intents.filter(order =>
         ['BUY', 'ADD', 'REDUCE', 'EXIT'].includes(order.side)
     );
+    if (actionable.length === 0) {
+        window.showToast('当前建议单没有可复制的买入、加仓、减仓或清仓订单', 'warning');
+        return;
+    }
     const lines = actionable.map(order => {
         const band = order.price_band || {};
         return [
@@ -1859,7 +1864,12 @@ async function copyAdvisorManualList() {
             `reason=${order.reason}`,
         ].join(' | ');
     });
-    await navigator.clipboard.writeText(lines.join('\n'));
+    try {
+        await navigator.clipboard.writeText(lines.join('\n'));
+        window.showToast(`已复制 ${lines.length} 条手工执行清单`, 'success');
+    } catch (error) {
+        window.showToast(`复制失败: ${error.message}`, 'error');
+    }
 }
 
 function refreshCurrentDecisionStep() {

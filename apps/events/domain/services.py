@@ -11,6 +11,7 @@ import logging
 import threading
 from collections import defaultdict, deque
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
@@ -134,6 +135,12 @@ class InMemoryEventBus(EventBus):
         self._metrics = EventMetrics()
         self._subscription_ids: set[str] = set()
         self._stopped = False
+        self._executor = ThreadPoolExecutor(
+            max_workers=max(1, int(config.async_max_workers)),
+            thread_name_prefix="event-bus",
+        )
+        self._executor_shutdown = False
+        self._pending_futures: set[Future] = set()
 
     def subscribe(self, subscription: EventSubscription) -> None:
         """
@@ -246,13 +253,42 @@ class InMemoryEventBus(EventBus):
         """
         异步发布事件
 
-        当前实现为简化版，实际应使用线程池或异步框架。
-
         Args:
             event: 领域事件
         """
-        # TODO: 实现真正的异步处理
-        self.publish(event)
+        if self._stopped:
+            logger.warning("Event bus is stopped, ignoring event")
+            return
+
+        with self._lock:
+            self._event_queue.append(event)
+            self._metrics.total_published += 1
+            self._metrics.last_event_at = event.occurred_at
+
+        future = self._executor.submit(self._process_event, event)
+        with self._lock:
+            self._pending_futures.add(future)
+        future.add_done_callback(self._handle_async_done)
+
+    def _handle_async_done(self, future: Future) -> None:
+        """Remove completed async work and log unexpected failures."""
+
+        with self._lock:
+            self._pending_futures.discard(future)
+        try:
+            future.result()
+        except Exception as exc:
+            logger.error("Async event processing failed: %s", exc, exc_info=True)
+
+    def wait_for_async(self, timeout: float | None = None) -> bool:
+        """Wait until queued async work completes."""
+
+        with self._lock:
+            futures = list(self._pending_futures)
+        if not futures:
+            return True
+        done, not_done = wait(futures, timeout=timeout)
+        return len(done) == len(futures) and not not_done
 
     def publish_batch(self, events: list[DomainEvent]) -> None:
         """
@@ -421,11 +457,24 @@ class InMemoryEventBus(EventBus):
         """停止事件总线"""
         with self._lock:
             self._stopped = True
+            futures = list(self._pending_futures)
+        if futures:
+            wait(futures, timeout=5)
+        self._executor.shutdown(wait=True, cancel_futures=False)
+        with self._lock:
+            self._pending_futures.clear()
+            self._executor_shutdown = True
             logger.info("Event bus stopped")
 
     def start(self) -> None:
         """启动事件总线"""
         with self._lock:
+            if self._executor_shutdown:
+                self._executor = ThreadPoolExecutor(
+                    max_workers=max(1, int(self.config.async_max_workers)),
+                    thread_name_prefix="event-bus",
+                )
+                self._executor_shutdown = False
             self._stopped = False
             logger.debug("Event bus started")
 
