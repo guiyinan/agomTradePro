@@ -790,6 +790,22 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     assert "Agent Runtime" not in str(runtime_payload)
 
 
+def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/risk-center.overview/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    action_by_key = {action["key"]: action for action in payload["actions"]}
+    assert payload["module"]["key"] == "risk-center"
+    assert payload["screen"]["label"] == "集中风控中心"
+    assert action_by_key["risk-center.effective-policy"]["risk"] == "read"
+    assert action_by_key["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
+    assert action_by_key["risk-center.update-floor"]["confirmation_required"] is True
+    assert action_by_key["risk-center.create-exception"]["risk"] == "write"
+
+
 def test_tui_operation_fields_use_business_labels(client, tui_user):
     client.force_login(tui_user)
 

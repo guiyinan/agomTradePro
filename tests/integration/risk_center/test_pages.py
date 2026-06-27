@@ -29,5 +29,12 @@ def test_risk_center_console_renders_for_staff():
     response = client.get("/risk-center/")
 
     assert response.status_code == 200
-    assert "集中风控中心" in response.content.decode("utf-8")
-    assert "全局底线" in response.content.decode("utf-8")
+    html = response.content.decode("utf-8")
+    assert "集中风控中心" in html
+    assert "全局底线" in html
+    assert "保存全局底线" in html
+    assert "保存账户策略" in html
+    assert "预览有效策略" in html
+    assert "创建例外" in html
+    assert "/api/risk-center/" in html
+    assert "/tui/#/risk-center.overview" in html

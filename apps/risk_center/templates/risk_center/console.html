@@ -3,96 +3,477 @@
 {% block title %}集中风控中心 - AgomTradePro{% endblock %}
 
 {% block content %}
-<div style="max-width: 1360px; margin: 0 auto; padding: 24px;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
+<style>
+    .risk-center-shell {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    .risk-center-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+    }
+    .risk-center-header h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+    }
+    .risk-center-muted {
+        color: #64748b;
+    }
+    .risk-center-kpis,
+    .risk-center-grid {
+        display: grid;
+        gap: 14px;
+    }
+    .risk-center-kpis {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin-bottom: 18px;
+    }
+    .risk-center-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+    }
+    .risk-center-panel {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+    }
+    .risk-center-panel h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+    }
+    .risk-center-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 12px;
+    }
+    .risk-center-form label,
+    .risk-center-full {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 13px;
+        color: #334155;
+    }
+    .risk-center-full {
+        grid-column: 1 / -1;
+    }
+    .risk-center-form input,
+    .risk-center-form select,
+    .risk-center-form textarea {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 8px 10px;
+        color: #0f172a;
+        background: #fff;
+    }
+    .risk-center-form textarea {
+        min-height: 72px;
+        resize: vertical;
+    }
+    .risk-center-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .risk-center-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    .risk-center-table th,
+    .risk-center-table td {
+        padding: 8px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        vertical-align: top;
+    }
+    .risk-center-output {
+        margin-top: 12px;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        min-height: 82px;
+        white-space: pre-wrap;
+        overflow: auto;
+        font-size: 12px;
+    }
+    .risk-center-status {
+        min-height: 20px;
+        color: #475569;
+        font-size: 13px;
+    }
+    @media (max-width: 900px) {
+        .risk-center-grid,
+        .risk-center-form {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="risk-center-shell" data-risk-center-api="{{ api_base_url }}">
+    <div class="risk-center-header">
         <div>
-            <h1 style="margin:0 0 8px;">{{ page_title }}</h1>
-            <p style="margin:0; color:#64748b;">{{ page_subtitle }}</p>
+            <h1>{{ page_title }}</h1>
+            <p class="risk-center-muted" style="margin:0;">{{ page_subtitle }}</p>
         </div>
-        <a href="{{ api_base_url }}" class="btn btn-secondary" style="text-decoration:none;">API</a>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{{ api_base_url }}" class="btn btn-secondary" style="text-decoration:none;">API</a>
+            <a href="/tui/#/risk-center.overview" class="btn btn-secondary" style="text-decoration:none;">TUI</a>
+        </div>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:20px;">
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">全局底线</div>
+    <div class="risk-center-kpis">
+        <section class="risk-center-panel">
+            <div class="risk-center-muted" style="font-size:12px;">全局底线</div>
             <div style="font-size:22px; font-weight:700; margin-top:6px;">{% if floor.is_active %}启用{% else %}停用{% endif %}</div>
-            <div style="font-size:13px; color:#64748b; margin-top:8px;">总仓位上限 {{ floor.max_total_position_pct|floatformat:2 }}</div>
+            <div class="risk-center-muted" style="font-size:13px; margin-top:8px;">总仓位上限 {{ floor.max_total_position_pct|floatformat:2 }}</div>
         </section>
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">风险模板</div>
+        <section class="risk-center-panel">
+            <div class="risk-center-muted" style="font-size:12px;">风险模板</div>
             <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ templates|length }}</div>
-            <div style="font-size:13px; color:#64748b; margin-top:8px;">conservative / moderate / aggressive / custom</div>
+            <div class="risk-center-muted" style="font-size:13px; margin-top:8px;">conservative / moderate / aggressive / custom</div>
         </section>
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">账户策略</div>
+        <section class="risk-center-panel">
+            <div class="risk-center-muted" style="font-size:12px;">账户策略</div>
             <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ policies|length }}</div>
-            <div style="font-size:13px; color:#64748b; margin-top:8px;">按 canonical account_id 独立配置</div>
+            <div class="risk-center-muted" style="font-size:13px; margin-top:8px;">按 canonical account_id 独立配置</div>
         </section>
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-            <div style="font-size:12px; color:#64748b;">例外/审计</div>
+        <section class="risk-center-panel">
+            <div class="risk-center-muted" style="font-size:12px;">例外/审计</div>
             <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ exceptions|length }} / {{ audits|length }}</div>
-            <div style="font-size:13px; color:#64748b; margin-top:8px;">例外必须带原因和过期时间</div>
+            <div class="risk-center-muted" style="font-size:13px; margin-top:8px;">例外必须带原因和过期时间</div>
         </section>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start;">
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-            <h2 style="font-size:18px; margin:0 0 12px;">全局底线</h2>
-            <table style="width:100%; border-collapse:collapse;">
-                <tbody>
-                    <tr><td style="padding:8px; color:#64748b;">单标的上限</td><td style="padding:8px;">{{ floor.max_single_position_pct|floatformat:3 }}</td></tr>
-                    <tr><td style="padding:8px; color:#64748b;">最大日亏损</td><td style="padding:8px;">{{ floor.max_daily_loss_pct|floatformat:3 }}</td></tr>
-                    <tr><td style="padding:8px; color:#64748b;">最大回撤</td><td style="padding:8px;">{{ floor.max_drawdown_pct|floatformat:3 }}</td></tr>
-                    <tr><td style="padding:8px; color:#64748b;">最大止损比例</td><td style="padding:8px;">{{ floor.max_stop_loss_pct|floatformat:3 }}</td></tr>
-                    <tr><td style="padding:8px; color:#64748b;">强制止损</td><td style="padding:8px;">{{ floor.force_stop_loss }}</td></tr>
-                </tbody>
-            </table>
-        </section>
-
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-            <h2 style="font-size:18px; margin:0 0 12px;">风险模板</h2>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                {% for template in templates %}
-                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-                    <div style="display:flex; justify-content:space-between; gap:12px;">
-                        <strong>{{ template.name }}</strong>
-                        <span style="color:#64748b;">{{ template.risk_profile }}</span>
-                    </div>
-                    <div style="font-size:13px; color:#64748b; margin-top:6px;">总仓位 {{ template.max_total_position_pct|floatformat:2 }}，单标的 {{ template.max_single_position_pct|floatformat:2 }}，现金底线 {{ template.min_cash_pct|floatformat:2 }}</div>
+    <div class="risk-center-grid">
+        <section class="risk-center-panel">
+            <h2>全局底线</h2>
+            <form class="risk-center-form" data-risk-form="floor">
+                <label>总仓位上限
+                    <input name="max_total_position_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.max_total_position_pct }}">
+                </label>
+                <label>单标的上限
+                    <input name="max_single_position_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.max_single_position_pct }}">
+                </label>
+                <label>最大日亏损
+                    <input name="max_daily_loss_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.max_daily_loss_pct }}">
+                </label>
+                <label>最大回撤
+                    <input name="max_drawdown_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.max_drawdown_pct }}">
+                </label>
+                <label>最大止损比例
+                    <input name="max_stop_loss_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.max_stop_loss_pct }}">
+                </label>
+                <label>最低现金比例
+                    <input name="min_cash_pct" type="number" min="0" max="1" step="0.001" value="{{ floor.min_cash_pct }}">
+                </label>
+                <label>强制止损
+                    <select name="force_stop_loss">
+                        <option value="true" {% if floor.force_stop_loss %}selected{% endif %}>true</option>
+                        <option value="false" {% if not floor.force_stop_loss %}selected{% endif %}>false</option>
+                    </select>
+                </label>
+                <label>启用
+                    <select name="is_active">
+                        <option value="true" {% if floor.is_active %}selected{% endif %}>true</option>
+                        <option value="false" {% if not floor.is_active %}selected{% endif %}>false</option>
+                    </select>
+                </label>
+                <label class="risk-center-full">硬排除列表
+                    <input name="hard_exclusions" value="{{ floor.hard_exclusions|join:',' }}" placeholder="000001.SZ,000002.SZ">
+                </label>
+                <label class="risk-center-full">变更理由
+                    <input name="reason" value="risk center console update">
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-primary">保存全局底线</button>
+                    <span class="risk-center-status" data-risk-status="floor"></span>
                 </div>
-                {% endfor %}
-            </div>
+            </form>
         </section>
 
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-            <h2 style="font-size:18px; margin:0 0 12px;">账户策略</h2>
-            <table style="width:100%; border-collapse:collapse;">
+        <section class="risk-center-panel">
+            <h2>风险模板</h2>
+            <table class="risk-center-table">
                 <thead>
-                    <tr style="text-align:left; color:#64748b;"><th style="padding:8px;">账户</th><th style="padding:8px;">模板</th><th style="padding:8px;">启用</th></tr>
+                    <tr><th>模板</th><th>偏好</th><th>总仓位</th><th>单标的</th><th>现金</th></tr>
                 </thead>
                 <tbody>
-                    {% for policy in policies %}
-                    <tr><td style="padding:8px;">{{ policy.account_id }}</td><td style="padding:8px;">{{ policy.template.key|default:"-" }}</td><td style="padding:8px;">{{ policy.is_active }}</td></tr>
+                    {% for template in templates %}
+                    <tr>
+                        <td>{{ template.name }}</td>
+                        <td>{{ template.risk_profile }}</td>
+                        <td>{{ template.max_total_position_pct|floatformat:2 }}</td>
+                        <td>{{ template.max_single_position_pct|floatformat:2 }}</td>
+                        <td>{{ template.min_cash_pct|floatformat:2 }}</td>
+                    </tr>
                     {% empty %}
-                    <tr><td colspan="3" style="padding:8px; color:#64748b;">暂无账户策略</td></tr>
+                    <tr><td colspan="5" class="risk-center-muted">暂无风险模板</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </section>
 
-        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
-            <h2 style="font-size:18px; margin:0 0 12px;">例外审批/审计</h2>
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                {% for exception in exceptions|slice:":6" %}
-                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
-                    <strong>{{ exception.field_name }}</strong>
-                    <div style="font-size:13px; color:#64748b; margin-top:6px;">account={{ exception.account_id|default:"*" }} expires={{ exception.expires_at }}</div>
+        <section class="risk-center-panel">
+            <h2>账户策略</h2>
+            <form class="risk-center-form" data-risk-form="policy">
+                <label>账户 ID
+                    <input name="account_id" type="number" min="1" step="1" required>
+                </label>
+                <label>风险偏好
+                    <select name="risk_profile">
+                        <option value="">继承账户/默认</option>
+                        <option value="conservative">conservative</option>
+                        <option value="moderate">moderate</option>
+                        <option value="aggressive">aggressive</option>
+                        <option value="custom">custom</option>
+                    </select>
+                </label>
+                <label>模板 ID
+                    <input name="template_id" type="number" min="1" step="1" placeholder="可选">
+                </label>
+                <label>总仓位上限
+                    <input name="max_total_position_pct" type="number" min="0" max="1" step="0.001">
+                </label>
+                <label>单标的上限
+                    <input name="max_single_position_pct" type="number" min="0" max="1" step="0.001">
+                </label>
+                <label>最低现金比例
+                    <input name="min_cash_pct" type="number" min="0" max="1" step="0.001">
+                </label>
+                <label class="risk-center-full">变更理由
+                    <input name="reason" value="account policy console update">
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-primary">保存账户策略</button>
+                    <button type="button" class="btn btn-secondary" data-risk-preview-policy>预览有效策略</button>
+                    <span class="risk-center-status" data-risk-status="policy"></span>
                 </div>
-                {% empty %}
-                <div style="color:#64748b;">暂无管理员例外</div>
-                {% endfor %}
+            </form>
+            <div class="risk-center-output" data-risk-output="policy">等待账户策略操作...</div>
+        </section>
+
+        <section class="risk-center-panel">
+            <h2>例外审批</h2>
+            <form class="risk-center-form" data-risk-form="exception">
+                <label>账户 ID
+                    <input name="account_id" type="number" min="1" step="1" placeholder="空值表示全局">
+                </label>
+                <label>字段
+                    <select name="field_name" required>
+                        <option value="max_total_position_pct">max_total_position_pct</option>
+                        <option value="max_single_position_pct">max_single_position_pct</option>
+                        <option value="min_cash_pct">min_cash_pct</option>
+                        <option value="max_stop_loss_pct">max_stop_loss_pct</option>
+                        <option value="hard_exclusions">hard_exclusions</option>
+                    </select>
+                </label>
+                <label>允许值
+                    <input name="allowed_value" required placeholder="0.9 或 JSON">
+                </label>
+                <label>过期时间
+                    <input name="expires_at" type="datetime-local" required>
+                </label>
+                <label class="risk-center-full">理由
+                    <textarea name="reason" required placeholder="说明临时突破底线的业务原因"></textarea>
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-primary">创建例外</button>
+                    <span class="risk-center-status" data-risk-status="exception"></span>
+                </div>
+            </form>
+            <table class="risk-center-table" style="margin-top:12px;">
+                <thead>
+                    <tr><th>账户</th><th>字段</th><th>过期</th><th>理由</th></tr>
+                </thead>
+                <tbody>
+                    {% for exception in exceptions|slice:":6" %}
+                    <tr>
+                        <td>{{ exception.account_id|default:"全局" }}</td>
+                        <td>{{ exception.field_name }}</td>
+                        <td>{{ exception.expires_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ exception.reason }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="risk-center-muted">暂无例外</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="risk-center-panel risk-center-full">
+            <h2>账户策略列表 / 最近审计</h2>
+            <div class="risk-center-grid">
+                <table class="risk-center-table">
+                    <thead>
+                        <tr><th>账户</th><th>模板</th><th>总仓位</th><th>启用</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for policy in policies %}
+                        <tr>
+                            <td>{{ policy.account_id }}</td>
+                            <td>{{ policy.template.key|default:"-" }}</td>
+                            <td>{{ policy.max_total_position_pct|default:"-" }}</td>
+                            <td>{{ policy.is_active }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="risk-center-muted">暂无账户策略</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <table class="risk-center-table">
+                    <thead>
+                        <tr><th>对象</th><th>动作</th><th>用户</th><th>时间</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for audit in audits|slice:":8" %}
+                        <tr>
+                            <td>{{ audit.target_type }} #{{ audit.target_id }}</td>
+                            <td>{{ audit.action }}</td>
+                            <td>{{ audit.actor_username }}</td>
+                            <td>{{ audit.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="risk-center-muted">暂无审计记录</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </section>
     </div>
 </div>
+
+<script>
+(() => {
+    const shell = document.querySelector("[data-risk-center-api]");
+    if (!shell) return;
+    const apiBase = shell.dataset.riskCenterApi || "/api/risk-center/";
+    const csrf = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken="))
+        ?.split("=")[1] || "";
+    const status = (key, message) => {
+        const node = document.querySelector(`[data-risk-status="${key}"]`);
+        if (node) node.textContent = message;
+    };
+    const output = (key, payload) => {
+        const node = document.querySelector(`[data-risk-output="${key}"]`);
+        if (node) node.textContent = JSON.stringify(payload, null, 2);
+    };
+    const parseValue = (value) => {
+        const trimmed = String(value || "").trim();
+        if (trimmed === "") return null;
+        if (trimmed === "true") return true;
+        if (trimmed === "false") return false;
+        if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed);
+        try {
+            return JSON.parse(trimmed);
+        } catch {
+            return trimmed;
+        }
+    };
+    const formPayload = (form) => {
+        const payload = {};
+        new FormData(form).forEach((value, key) => {
+            if (key === "hard_exclusions") {
+                payload[key] = String(value || "")
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+                return;
+            }
+            const parsed = parseValue(value);
+            if (parsed !== null) payload[key] = parsed;
+        });
+        return payload;
+    };
+    const request = async (endpoint, options = {}) => {
+        const response = await fetch(`${apiBase}${endpoint}`, {
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrf,
+                ...(options.headers || {}),
+            },
+            ...options,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.detail || payload.error || response.statusText);
+        return payload;
+    };
+    document.querySelector('[data-risk-form="floor"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("floor", "保存中...");
+        try {
+            const payload = await request("floor/", {
+                method: "PUT",
+                body: JSON.stringify(formPayload(event.currentTarget)),
+            });
+            status("floor", "已保存");
+            output("policy", payload);
+        } catch (error) {
+            status("floor", error.message);
+        }
+    });
+    document.querySelector('[data-risk-form="policy"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("policy", "保存中...");
+        try {
+            const payload = await request("account-policies/", {
+                method: "POST",
+                body: JSON.stringify(formPayload(event.currentTarget)),
+            });
+            status("policy", "已保存");
+            output("policy", payload);
+        } catch (error) {
+            status("policy", error.message);
+        }
+    });
+    document.querySelector("[data-risk-preview-policy]")?.addEventListener("click", async () => {
+        const form = document.querySelector('[data-risk-form="policy"]');
+        const accountId = form?.querySelector('[name="account_id"]')?.value;
+        if (!accountId) {
+            status("policy", "请输入账户 ID");
+            return;
+        }
+        status("policy", "读取中...");
+        try {
+            const payload = await request(`effective-policy/?account_id=${encodeURIComponent(accountId)}`);
+            status("policy", "已读取");
+            output("policy", payload);
+        } catch (error) {
+            status("policy", error.message);
+        }
+    });
+    document.querySelector('[data-risk-form="exception"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("exception", "创建中...");
+        const payload = formPayload(event.currentTarget);
+        if (payload.expires_at && !String(payload.expires_at).endsWith("Z")) {
+            payload.expires_at = new Date(payload.expires_at).toISOString();
+        }
+        try {
+            const response = await request("exceptions/", {
+                method: "POST",
+                body: JSON.stringify(payload),
+            });
+            status("exception", "已创建");
+            output("policy", response);
+        } catch (error) {
+            status("exception", error.message);
+        }
+    });
+})();
+</script>
 {% endblock %}

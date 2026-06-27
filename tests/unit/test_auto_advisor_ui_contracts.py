@@ -31,6 +31,23 @@ def test_tui_metadata_injects_auto_advisor_screen_and_action(settings):
     assert actions["advisor.today_sheet"]["fields"][0]["key"] == "account_id"
 
 
+@pytest.mark.django_db
+def test_tui_metadata_injects_risk_center_screen_and_actions(settings):
+    payload = PublishedTuiMetadataRepository().load_published()
+
+    modules = {module["key"]: module for module in payload["modules"]}
+    screens = {screen["key"]: screen for screen in payload["screens"]}
+    actions = {action["key"]: action for action in payload["actions"]}
+
+    assert modules["risk-center"]["label"] == "风控中心"
+    assert screens["risk-center.overview"]["default_action_key"] == "risk-center.effective-policy"
+    assert actions["risk-center.floor"]["endpoint"] == "/api/risk-center/floor/"
+    assert actions["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
+    assert actions["risk-center.update-floor"]["risk"] == "write"
+    assert actions["risk-center.update-floor"]["confirmation_required"] is True
+    assert actions["risk-center.upsert-policy"]["method"] == "POST"
+
+
 def test_advisor_today_terminal_formatter_outputs_account_order_summary():
     output = CommandExecutionService._format_advisor_today_output(
         {

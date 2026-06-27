@@ -137,6 +137,340 @@ RUNTIME_ADVISOR_ACTION: dict[str, Any] = {
     },
 }
 
+RUNTIME_RISK_CENTER_MODULE: dict[str, Any] = {
+    "key": "risk-center",
+    "label": "风控中心",
+    "group": "workflow",
+    "summary": "集中查看全局底线、账户策略、有效策略和管理员例外。",
+}
+
+RUNTIME_RISK_CENTER_SCREEN: dict[str, Any] = {
+    "key": "risk-center.overview",
+    "label": "集中风控中心",
+    "module_key": "risk-center",
+    "group": "workflow",
+    "summary": "按账户读取最终生效风控策略，并执行经过确认的风控配置变更。",
+    "view_type": "datagrid",
+    "default_action_key": "risk-center.effective-policy",
+    "business_context": {
+        "objective": "确认账户/组合在交易前实际受到哪些集中风控规则约束。",
+        "decision_output": "有效策略、继承来源、全局底线压制和管理员例外说明。",
+        "checkpoints": [
+            "先读取全局底线和模板。",
+            "输入账户 ID 查看最终生效策略。",
+            "写入账户策略或例外前确认理由和影响范围。",
+        ],
+    },
+}
+
+RUNTIME_RISK_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "risk-center.floor",
+        "label": "全局底线",
+        "endpoint": "/api/risk-center/floor/",
+        "method": "GET",
+        "intent": "read_global_risk_floor",
+        "risk": "read",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "detail",
+        "description": "读取当前启用的全局风控底线。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "01 风控查看",
+        "sequence": 100,
+        "task_tier": "primary",
+        "view_model": {"kind": "detail", "title_path": "data.name", "status_path": "success"},
+    },
+    {
+        "key": "risk-center.templates",
+        "label": "风险模板",
+        "endpoint": "/api/risk-center/templates/",
+        "method": "GET",
+        "intent": "list_risk_templates",
+        "risk": "read",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "datagrid",
+        "description": "列出全局风险模板。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "01 风控查看",
+        "sequence": 110,
+        "task_tier": "support",
+        "view_model": {"kind": "datagrid", "rows_path": "data"},
+    },
+    {
+        "key": "risk-center.account-policies",
+        "label": "账户策略",
+        "endpoint": "/api/risk-center/account-policies/",
+        "method": "GET",
+        "intent": "list_account_risk_policies",
+        "risk": "read",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "datagrid",
+        "description": "列出当前用户可访问的账户级风控策略。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "01 风控查看",
+        "sequence": 120,
+        "task_tier": "primary",
+        "view_model": {"kind": "datagrid", "rows_path": "data"},
+    },
+    {
+        "key": "risk-center.effective-policy",
+        "label": "账户有效策略",
+        "endpoint": "/api/risk-center/effective-policy/",
+        "method": "GET",
+        "intent": "resolve_effective_risk_policy",
+        "risk": "read",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "detail",
+        "description": "按账户 ID 解析最终生效策略、继承来源、底线和例外说明。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "01 风控查看",
+        "sequence": 130,
+        "task_tier": "primary",
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户 ID",
+                "input_type": "number",
+                "required": True,
+                "default": "",
+                "placeholder": "输入账户 ID",
+                "binding": "query",
+                "value_type": "integer",
+            }
+        ],
+        "view_model": {"kind": "detail", "title_path": "data.account_id", "status_path": "success"},
+    },
+    {
+        "key": "risk-center.exceptions",
+        "label": "风控例外",
+        "endpoint": "/api/risk-center/exceptions/",
+        "method": "GET",
+        "intent": "list_risk_exceptions",
+        "risk": "read",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "datagrid",
+        "description": "列出管理员风控例外，可按账户过滤。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "01 风控查看",
+        "sequence": 140,
+        "task_tier": "support",
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户 ID",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "可选",
+                "binding": "query",
+                "value_type": "integer",
+            }
+        ],
+        "view_model": {"kind": "datagrid", "rows_path": "data"},
+    },
+    {
+        "key": "risk-center.update-floor",
+        "label": "更新全局底线",
+        "endpoint": "/api/risk-center/floor/",
+        "method": "PUT",
+        "intent": "update_global_risk_floor",
+        "risk": "write",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "detail",
+        "description": "经过确认后更新全局风控底线。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "02 风控写入",
+        "sequence": 200,
+        "task_tier": "advanced",
+        "fields": [
+            {
+                "key": "max_total_position_pct",
+                "label": "总仓位上限",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "0.8",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "max_single_position_pct",
+                "label": "单标的上限",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "0.18",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "min_cash_pct",
+                "label": "最低现金比例",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "0.15",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "reason",
+                "label": "变更理由",
+                "input_type": "text",
+                "required": True,
+                "default": "",
+                "placeholder": "说明本次全局底线调整原因",
+                "binding": "body",
+                "value_type": "string",
+            },
+        ],
+    },
+    {
+        "key": "risk-center.upsert-policy",
+        "label": "保存账户策略",
+        "endpoint": "/api/risk-center/account-policies/",
+        "method": "POST",
+        "intent": "upsert_account_risk_policy",
+        "risk": "write",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "detail",
+        "description": "经过确认后创建或更新账户级风控策略。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "02 风控写入",
+        "sequence": 210,
+        "task_tier": "primary",
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户 ID",
+                "input_type": "number",
+                "required": True,
+                "default": "",
+                "placeholder": "输入账户 ID",
+                "binding": "body",
+                "value_type": "integer",
+            },
+            {
+                "key": "risk_profile",
+                "label": "风险偏好",
+                "input_type": "select",
+                "required": False,
+                "default": "moderate",
+                "placeholder": "",
+                "binding": "body",
+                "value_type": "string",
+                "options": ["conservative", "moderate", "aggressive", "custom"],
+            },
+            {
+                "key": "max_total_position_pct",
+                "label": "总仓位上限",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "0.75",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "max_single_position_pct",
+                "label": "单标的上限",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "0.18",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "reason",
+                "label": "变更理由",
+                "input_type": "text",
+                "required": False,
+                "default": "TUI account risk policy update",
+                "placeholder": "说明本次账户策略调整原因",
+                "binding": "body",
+                "value_type": "string",
+            },
+        ],
+    },
+    {
+        "key": "risk-center.create-exception",
+        "label": "创建风控例外",
+        "endpoint": "/api/risk-center/exceptions/",
+        "method": "POST",
+        "intent": "create_risk_exception",
+        "risk": "write",
+        "screen_key": "risk-center.overview",
+        "module_key": "risk-center",
+        "view_type": "detail",
+        "description": "经过确认后创建有理由和过期时间的管理员风控例外。",
+        "source": "approved:runtime-risk-center",
+        "task_group": "02 风控写入",
+        "sequence": 220,
+        "task_tier": "advanced",
+        "fields": [
+            {
+                "key": "account_id",
+                "label": "账户 ID",
+                "input_type": "number",
+                "required": False,
+                "default": "",
+                "placeholder": "可选",
+                "binding": "body",
+                "value_type": "integer",
+            },
+            {
+                "key": "field_name",
+                "label": "突破字段",
+                "input_type": "select",
+                "required": True,
+                "default": "max_total_position_pct",
+                "placeholder": "",
+                "binding": "body",
+                "value_type": "string",
+                "options": ["max_total_position_pct", "max_single_position_pct", "min_cash_pct"],
+            },
+            {
+                "key": "allowed_value",
+                "label": "允许值",
+                "input_type": "number",
+                "required": True,
+                "default": "",
+                "placeholder": "0.9",
+                "binding": "body",
+                "value_type": "float",
+            },
+            {
+                "key": "expires_at",
+                "label": "过期时间",
+                "input_type": "text",
+                "required": True,
+                "default": "",
+                "placeholder": "2026-06-28T00:00:00Z",
+                "binding": "body",
+                "value_type": "datetime",
+            },
+            {
+                "key": "reason",
+                "label": "例外理由",
+                "input_type": "textarea",
+                "required": True,
+                "default": "",
+                "placeholder": "说明临时突破底线的业务原因",
+                "binding": "body",
+                "value_type": "string",
+            },
+        ],
+    },
+)
+
 RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
     "policy.workbench_items": {
         "fields": [
@@ -347,7 +681,12 @@ class PublishedTuiMetadataRepository:
             actions=actions,
         )
         injected_advisor = self._inject_advisor_metadata(screens=screens, actions=actions)
-        injected = injected_cli + injected_advisor
+        injected_risk_center = self._inject_risk_center_metadata(
+            modules=modules,
+            screens=screens,
+            actions=actions,
+        )
+        injected = injected_cli + injected_advisor + injected_risk_center
         normalized["groups"] = groups
         normalized["modules"] = modules
         normalized["screens"] = screens
@@ -381,6 +720,10 @@ class PublishedTuiMetadataRepository:
             coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
                 coverage.get("runtime_injected_advisor_metadata", 0) or 0
             )
+            if injected_risk_center:
+                coverage["runtime_injected_risk_center_metadata"] = injected_risk_center + int(
+                    coverage.get("runtime_injected_risk_center_metadata", 0) or 0
+                )
             if injected_cli:
                 coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                     coverage.get("runtime_injected_cli_metadata", 0) or 0
@@ -399,6 +742,10 @@ class PublishedTuiMetadataRepository:
         coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
             coverage.get("runtime_injected_advisor_metadata", 0) or 0
         )
+        if injected_risk_center:
+            coverage["runtime_injected_risk_center_metadata"] = injected_risk_center + int(
+                coverage.get("runtime_injected_risk_center_metadata", 0) or 0
+            )
         if injected_cli:
             coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                 coverage.get("runtime_injected_cli_metadata", 0) or 0
@@ -445,6 +792,30 @@ class PublishedTuiMetadataRepository:
             injected += 1
         if not any(action.get("key") == RUNTIME_ADVISOR_ACTION["key"] for action in actions):
             actions.append(dict(RUNTIME_ADVISOR_ACTION))
+            injected += 1
+        return injected
+
+    @staticmethod
+    def _inject_risk_center_metadata(
+        *,
+        modules: list[dict[str, Any]],
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+    ) -> int:
+        """Inject the centralized risk-center TUI screen/actions when absent."""
+
+        injected = 0
+        if not any(module.get("key") == RUNTIME_RISK_CENTER_MODULE["key"] for module in modules):
+            modules.append(dict(RUNTIME_RISK_CENTER_MODULE))
+            injected += 1
+        if not any(screen.get("key") == RUNTIME_RISK_CENTER_SCREEN["key"] for screen in screens):
+            screens.append(dict(RUNTIME_RISK_CENTER_SCREEN))
+            injected += 1
+        existing_actions = {str(action.get("key") or "") for action in actions}
+        for action in RUNTIME_RISK_CENTER_ACTIONS:
+            if action["key"] in existing_actions:
+                continue
+            actions.append(dict(action))
             injected += 1
         return injected
 
