@@ -24,6 +24,65 @@ RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
     },
 }
 
+RUNTIME_CLI_GROUP: dict[str, Any] = {
+    "key": "ops",
+    "label": "AI 助手",
+}
+
+RUNTIME_CLI_MODULE: dict[str, Any] = {
+    "key": "cli",
+    "label": "CLI",
+    "group": "ops",
+    "summary": "从 TUI 直接进入命令行式 AI 交互、会话和授权指令入口。",
+}
+
+RUNTIME_CLI_SCREEN: dict[str, Any] = {
+    "key": "cli.terminal",
+    "label": "CLI 终端",
+    "module_key": "cli",
+    "group": "ops",
+    "summary": "用命令行式输入询问系统状态、触发授权指令或创建终端会话。",
+    "view_type": "detail",
+    "default_action_key": "cli.chat_router",
+    "business_context": {
+        "objective": "在 TUI 内打开 CLI 交互入口，执行已授权的终端任务。",
+        "decision_output": "CLI 问答结果、路由建议和需要确认的后续动作。",
+        "checkpoints": [
+            "先输入自然语言问题或任务。",
+            "涉及写入或高风险动作时按确认流程执行。",
+            "需要查看指令权限时切换到 AI 能力或终端权限任务。",
+        ],
+    },
+}
+
+RUNTIME_CLI_CHAT_ACTION: dict[str, Any] = {
+    "key": "cli.chat_router",
+    "label": "打开 CLI 交互",
+    "method": "POST",
+    "endpoint": "/api/terminal/chat/",
+    "intent": "route_cli_natural_language_task",
+    "screen_key": "cli.terminal",
+    "module_key": "cli",
+    "view_type": "detail",
+    "risk": "ai",
+    "fields": [
+        {
+            "key": "message",
+            "label": "消息",
+            "input_type": "textarea",
+            "required": True,
+            "default": "总结当前系统状态，并列出我可以执行的 CLI 指令。",
+            "placeholder": "输入 CLI 问题或任务",
+            "value_type": "string",
+        }
+    ],
+    "description": "在 TUI 内打开 CLI 风格 AI 交互入口。",
+    "source": "approved:runtime-cli-entry",
+    "task_group": "01 CLI 交互",
+    "sequence": 100,
+    "task_tier": "operation",
+}
+
 RUNTIME_ADVISOR_SCREEN: dict[str, Any] = {
     "key": "command-center.auto-advisor",
     "label": "自动投顾",
@@ -277,9 +336,20 @@ class PublishedTuiMetadataRepository:
         patches = RUNTIME_ACTION_PATCHES
 
         normalized = dict(payload)
+        groups = list(payload.get("groups") or [])
+        modules = list(payload.get("modules") or [])
         screens = list(payload.get("screens") or [])
         actions = list(normalized.get("actions") or [])
-        injected = self._inject_advisor_metadata(screens=screens, actions=actions)
+        injected_cli = self._inject_cli_metadata(
+            groups=groups,
+            modules=modules,
+            screens=screens,
+            actions=actions,
+        )
+        injected_advisor = self._inject_advisor_metadata(screens=screens, actions=actions)
+        injected = injected_cli + injected_advisor
+        normalized["groups"] = groups
+        normalized["modules"] = modules
         normalized["screens"] = screens
         normalized["actions"] = actions
 
@@ -308,9 +378,13 @@ class PublishedTuiMetadataRepository:
             if injected == 0:
                 return payload
             coverage = dict(normalized.get("coverage_summary") or {})
-            coverage["runtime_injected_advisor_metadata"] = injected + int(
+            coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
                 coverage.get("runtime_injected_advisor_metadata", 0) or 0
             )
+            if injected_cli:
+                coverage["runtime_injected_cli_metadata"] = injected_cli + int(
+                    coverage.get("runtime_injected_cli_metadata", 0) or 0
+                )
             normalized["coverage_summary"] = coverage
             return validate_tui_metadata(normalized)
 
@@ -322,11 +396,40 @@ class PublishedTuiMetadataRepository:
         coverage["runtime_patched_actions"] = patched + int(
             coverage.get("runtime_patched_actions", 0) or 0
         )
-        coverage["runtime_injected_advisor_metadata"] = injected + int(
+        coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
             coverage.get("runtime_injected_advisor_metadata", 0) or 0
         )
+        if injected_cli:
+            coverage["runtime_injected_cli_metadata"] = injected_cli + int(
+                coverage.get("runtime_injected_cli_metadata", 0) or 0
+            )
         normalized["coverage_summary"] = coverage
         return validate_tui_metadata(normalized)
+
+    @staticmethod
+    def _inject_cli_metadata(
+        *,
+        groups: list[dict[str, Any]],
+        modules: list[dict[str, Any]],
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+    ) -> int:
+        """Inject the standalone CLI module entry when absent."""
+
+        injected = 0
+        if not any(group.get("key") == RUNTIME_CLI_GROUP["key"] for group in groups):
+            groups.append(dict(RUNTIME_CLI_GROUP))
+            injected += 1
+        if not any(module.get("key") == RUNTIME_CLI_MODULE["key"] for module in modules):
+            modules.append(dict(RUNTIME_CLI_MODULE))
+            injected += 1
+        if not any(screen.get("key") == RUNTIME_CLI_SCREEN["key"] for screen in screens):
+            screens.append(dict(RUNTIME_CLI_SCREEN))
+            injected += 1
+        if not any(action.get("key") == RUNTIME_CLI_CHAT_ACTION["key"] for action in actions):
+            actions.append(dict(RUNTIME_CLI_CHAT_ACTION))
+            injected += 1
+        return injected
 
     @staticmethod
     def _inject_advisor_metadata(

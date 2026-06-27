@@ -1516,6 +1516,41 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     assert action["fields"][0]["label"] == "消息"
 
 
+def test_tui_catalog_registers_cli_module_entry(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    modules = {
+        module["key"]: module
+        for group in payload["groups"]
+        for module in group["modules"]
+    }
+    assert modules["cli"]["label"] == "CLI"
+    assert modules["cli"]["group"] == "ops"
+    assert [screen["key"] for screen in modules["cli"]["screens"]] == ["cli.terminal"]
+    assert modules["cli"]["screens"][0]["default_action_key"] == "cli.chat_router"
+
+
+def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/cli.terminal/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["module"]["key"] == "cli"
+    assert payload["screen"]["label"] == "CLI 终端"
+    assert payload["screen"]["default_action_key"] == "cli.chat_router"
+    action = next(action for action in payload["actions"] if action["key"] == "cli.chat_router")
+    assert action["label"] == "打开 CLI 交互"
+    assert action["risk"] == "ai"
+    assert action["fields"][0]["key"] == "message"
+    assert action["fields"][0]["label"] == "消息"
+
+
 def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     client.force_login(tui_user)
 
