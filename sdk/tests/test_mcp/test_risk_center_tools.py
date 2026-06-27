@@ -20,6 +20,7 @@ class _FakeClient:
             list_exceptions=lambda account_id=None: [{"account_id": account_id}],
             create_exception=lambda payload: {"exception": payload},
             check_pre_trade=lambda payload: {"passed": True, "payload": payload},
+            check_post_investment=lambda payload: {"status": "ok", "payload": payload},
         )
 
 
@@ -56,6 +57,21 @@ class _FakeClient:
                 "account_equity": 100000.0,
                 "total_position_value": 50000.0,
                 "cash_balance": 50000.0,
+            },
+        ),
+        (
+            "check_post_investment_risk",
+            {
+                "account_id": 1,
+                "account_equity": 100000.0,
+                "cash_balance": 20000.0,
+                "positions": [
+                    {
+                        "symbol": "000001.SZ",
+                        "market_value": 30000.0,
+                        "unrealized_pnl_pct": -0.05,
+                    }
+                ],
             },
         ),
     ],

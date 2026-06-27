@@ -9,7 +9,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.risk_center.application.trade_guard import EvaluatePreTradeRiskUseCase
+from apps.risk_center.application.trade_guard import (
+    EvaluatePostInvestmentRiskUseCase,
+    EvaluatePreTradeRiskUseCase,
+)
 from apps.risk_center.application.use_cases import (
     ApplyRiskTemplateToPolicyUseCase,
     CreateRiskExceptionUseCase,
@@ -31,6 +34,7 @@ from apps.risk_center.interface.serializers import (
     AccountRiskPolicySerializer,
     AccountRiskPolicyUpdateSerializer,
     ApplyTemplateSerializer,
+    PostInvestmentRiskCheckSerializer,
     PreTradeRiskCheckSerializer,
     RiskExceptionSerializer,
     RiskFloorSerializer,
@@ -84,6 +88,7 @@ class RiskCenterApiHomeView(APIView):
                     "exceptions": "/api/risk-center/exceptions/",
                     "effective_policy": "/api/risk-center/effective-policy/?account_id=1",
                     "pre_trade_check": "/api/risk-center/pre-trade-check/",
+                    "post_investment_check": "/api/risk-center/post-investment-check/",
                 },
             }
         )
@@ -351,6 +356,62 @@ class PreTradeRiskCheckView(APIView):
                     "passed": result.passed,
                     "violations": result.violations,
                     "warnings": result.warnings,
+                    "metrics": result.metrics,
+                    "effective_policy": result.effective_policy,
+                },
+            }
+        )
+
+
+class PostInvestmentRiskCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        serializer = PostInvestmentRiskCheckSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = dict(serializer.validated_data)
+        account_id = int(payload["account_id"])
+        try:
+            GetEffectiveRiskPolicyUseCase().execute(
+                actor=request.user,
+                account_id=account_id,
+            )
+            result = EvaluatePostInvestmentRiskUseCase().execute(
+                account_id=account_id,
+                account_equity=float(payload["account_equity"]),
+                cash_balance=(
+                    float(payload["cash_balance"])
+                    if payload.get("cash_balance") is not None
+                    else None
+                ),
+                total_position_value=(
+                    float(payload["total_position_value"])
+                    if payload.get("total_position_value") is not None
+                    else None
+                ),
+                daily_pnl_pct=(
+                    float(payload["daily_pnl_pct"])
+                    if payload.get("daily_pnl_pct") is not None
+                    else None
+                ),
+                drawdown_pct=(
+                    float(payload["drawdown_pct"])
+                    if payload.get("drawdown_pct") is not None
+                    else None
+                ),
+                positions=list(payload.get("positions") or []),
+            )
+        except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
+            return _error_response(exc)
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "status": result.status,
+                    "passed": result.passed,
+                    "violations": result.violations,
+                    "warnings": result.warnings,
+                    "position_alerts": result.position_alerts,
                     "metrics": result.metrics,
                     "effective_policy": result.effective_policy,
                 },

@@ -83,3 +83,27 @@ def register_risk_center_tools(server: FastMCP) -> None:
                 "current_symbol_position_value": current_symbol_position_value,
             }
         )
+
+    @server.tool()
+    def check_post_investment_risk(
+        account_id: int,
+        account_equity: float,
+        positions: list[dict[str, Any]] | None = None,
+        cash_balance: float | None = None,
+        total_position_value: float | None = None,
+        daily_pnl_pct: float | None = None,
+        drawdown_pct: float | None = None,
+    ) -> dict[str, Any]:
+        """投后巡检一个账户当前持仓是否触碰集中风控约束。"""
+        client = AgomTradeProClient()
+        return client.risk_center.check_post_investment(
+            {
+                "account_id": account_id,
+                "account_equity": account_equity,
+                "cash_balance": cash_balance,
+                "total_position_value": total_position_value,
+                "daily_pnl_pct": daily_pnl_pct,
+                "drawdown_pct": drawdown_pct,
+                "positions": positions or [],
+            }
+        )

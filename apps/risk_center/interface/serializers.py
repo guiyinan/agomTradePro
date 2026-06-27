@@ -108,3 +108,25 @@ class PreTradeRiskCheckSerializer(serializers.Serializer):
         default=0.0,
         min_value=0,
     )
+
+
+class PostInvestmentPositionSerializer(serializers.Serializer):
+    symbol = serializers.CharField(max_length=64)
+    market_value = serializers.FloatField(min_value=0)
+    unrealized_pnl_pct = serializers.FloatField(required=False, allow_null=True)
+    current_price = serializers.FloatField(required=False, allow_null=True, min_value=0)
+    avg_cost = serializers.FloatField(required=False, allow_null=True, min_value=0)
+
+
+class PostInvestmentRiskCheckSerializer(serializers.Serializer):
+    account_id = serializers.IntegerField(min_value=1)
+    account_equity = serializers.FloatField(min_value=0)
+    cash_balance = serializers.FloatField(required=False, allow_null=True, min_value=0)
+    total_position_value = serializers.FloatField(required=False, allow_null=True, min_value=0)
+    daily_pnl_pct = serializers.FloatField(required=False, allow_null=True)
+    drawdown_pct = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=1)
+    positions = serializers.ListField(
+        child=PostInvestmentPositionSerializer(),
+        required=False,
+        allow_empty=True,
+    )

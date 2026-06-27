@@ -45,6 +45,11 @@ def test_tui_metadata_injects_risk_center_screen_and_actions(settings):
     assert actions["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert actions["risk-center.pre-trade-check"]["endpoint"] == "/api/risk-center/pre-trade-check/"
     assert actions["risk-center.pre-trade-check"]["fields"][1]["key"] == "symbol"
+    assert (
+        actions["risk-center.post-investment-check"]["endpoint"]
+        == "/api/risk-center/post-investment-check/"
+    )
+    assert actions["risk-center.post-investment-check"]["fields"][0]["key"] == "account_id"
     assert actions["risk-center.update-floor"]["risk"] == "write"
     assert actions["risk-center.update-floor"]["confirmation_required"] is True
     assert actions["risk-center.upsert-policy"]["method"] == "POST"

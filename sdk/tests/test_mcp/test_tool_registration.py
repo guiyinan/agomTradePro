@@ -98,6 +98,7 @@ def test_extended_mcp_tools_registered():
         "list_risk_exceptions",
         "create_risk_exception",
         "check_pre_trade_risk",
+        "check_post_investment_risk",
     }
 
     missing = expected - names

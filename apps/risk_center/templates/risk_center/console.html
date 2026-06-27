@@ -391,6 +391,38 @@
             <div class="risk-center-output" data-risk-output="pretrade">输入一笔拟交易，查看是否会被集中风控拒绝。</div>
         </section>
 
+        <section class="risk-center-panel">
+            <h2>投后风控巡检</h2>
+            <form class="risk-center-form" data-risk-form="postinvestment">
+                <label>账户 ID
+                    <input name="account_id" type="number" min="1" step="1" required>
+                </label>
+                <label>账户权益
+                    <input name="account_equity" type="number" min="0" step="0.01" required>
+                </label>
+                <label>现金余额
+                    <input name="cash_balance" type="number" min="0" step="0.01">
+                </label>
+                <label>持仓总市值
+                    <input name="total_position_value" type="number" min="0" step="0.01">
+                </label>
+                <label>当日盈亏比例
+                    <input name="daily_pnl_pct" type="number" step="0.0001" placeholder="-0.03">
+                </label>
+                <label>当前回撤比例
+                    <input name="drawdown_pct" type="number" min="0" max="1" step="0.0001" placeholder="0.08">
+                </label>
+                <label class="risk-center-full">持仓快照 JSON
+                    <textarea name="positions" placeholder='[{"symbol":"000001.SZ","market_value":30000,"unrealized_pnl_pct":-0.08}]'></textarea>
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-primary">巡检当前持仓</button>
+                    <span class="risk-center-status" data-risk-status="postinvestment"></span>
+                </div>
+            </form>
+            <div class="risk-center-output" data-risk-output="postinvestment">输入当前账户快照，查看投后是否触碰集中风控。</div>
+        </section>
+
         <section class="risk-center-panel risk-center-full">
             <h2>账户策略列表 / 最近审计</h2>
             <div class="risk-center-grid">
@@ -509,6 +541,33 @@
             <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
         `;
     };
+    const renderPostInvestment = (payload) => {
+        const data = payload.data || payload;
+        const metrics = data.metrics || {};
+        const node = document.querySelector('[data-risk-output="postinvestment"]');
+        if (!node) return;
+        const violations = (data.violations || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const warnings = (data.warnings || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const alerts = (data.position_alerts || [])
+            .slice(0, 10)
+            .map((item) => `<li><strong>${escapeHtml(item.symbol || "-")}</strong> ${escapeHtml(item.type || "")}: ${escapeHtml(item.message || "")}</li>`)
+            .join("");
+        const badgeClass = data.status === "breach" ? "is-stop" : "is-pass";
+        const label = data.status === "breach" ? "已触碰风控" : data.status === "watch" ? "需要观察" : "健康";
+        node.innerHTML = `
+            <span class="risk-center-badge ${badgeClass}">${label}</span>
+            <div class="risk-center-summary-list">
+                <div><strong>账户权益</strong><br>${money(metrics.account_equity)}</div>
+                <div><strong>总仓位</strong><br>${pct(metrics.total_position_pct)}</div>
+                <div><strong>现金比例</strong><br>${pct(metrics.cash_pct)}</div>
+                <div><strong>持仓数量</strong><br>${money(metrics.position_count)}</div>
+            </div>
+            ${violations ? `<p style="margin:10px 0 4px;"><strong>违规项</strong></p><ul>${violations}</ul>` : ""}
+            ${warnings ? `<p style="margin:10px 0 4px;"><strong>提示</strong></p><ul>${warnings}</ul>` : ""}
+            ${alerts ? `<p style="margin:10px 0 4px;"><strong>持仓警报</strong></p><ul>${alerts}</ul>` : ""}
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        `;
+    };
     const parseValue = (value) => {
         const trimmed = String(value || "").trim();
         if (trimmed === "") return null;
@@ -606,6 +665,20 @@
             renderPreTrade(payload);
         } catch (error) {
             status("pretrade", error.message);
+        }
+    });
+    document.querySelector('[data-risk-form="postinvestment"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("postinvestment", "巡检中...");
+        try {
+            const payload = await request("post-investment-check/", {
+                method: "POST",
+                body: JSON.stringify(formPayload(event.currentTarget)),
+            });
+            status("postinvestment", payload.data?.status || "完成");
+            renderPostInvestment(payload);
+        } catch (error) {
+            status("postinvestment", error.message);
         }
     });
     document.querySelector('[data-risk-form="exception"]')?.addEventListener("submit", async (event) => {

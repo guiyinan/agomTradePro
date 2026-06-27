@@ -24,3 +24,28 @@ def test_risk_center_pre_trade_check_endpoint_contract():
     assert args[0] == "POST"
     assert args[1] == "/api/risk-center/pre-trade-check/"
     assert kwargs == {"data": None, "json": payload}
+
+
+def test_risk_center_post_investment_check_endpoint_contract():
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+    payload = {
+        "account_id": 1,
+        "account_equity": 100000.0,
+        "cash_balance": 20000.0,
+        "positions": [
+            {
+                "symbol": "000001.SZ",
+                "market_value": 30000.0,
+                "unrealized_pnl_pct": -0.05,
+            }
+        ],
+    }
+
+    with patch.object(client, "_request", return_value={"data": {"status": "ok"}}) as mock_request:
+        result = client.risk_center.check_post_investment(payload)
+
+    args, kwargs = mock_request.call_args
+    assert result == {"status": "ok"}
+    assert args[0] == "POST"
+    assert args[1] == "/api/risk-center/post-investment-check/"
+    assert kwargs == {"data": None, "json": payload}

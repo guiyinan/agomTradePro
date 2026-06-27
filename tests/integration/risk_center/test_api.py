@@ -194,6 +194,76 @@ def test_pre_trade_check_respects_account_permissions():
 
 
 @pytest.mark.django_db
+def test_post_investment_check_returns_portfolio_tracking_result():
+    staff = _user("risk_post_investment_staff", is_staff=True)
+    account = _account(staff)
+    client = _client(staff)
+    client.put(
+        "/api/risk-center/floor/",
+        {
+            "max_total_position_pct": 0.75,
+            "max_single_position_pct": 0.2,
+            "max_daily_loss_pct": 0.03,
+            "max_drawdown_pct": 0.1,
+            "max_stop_loss_pct": 0.08,
+            "take_profit_pct": 0.2,
+            "min_cash_pct": 0.1,
+            "force_stop_loss": True,
+            "hard_exclusions": ["000999.SZ"],
+        },
+        format="json",
+    )
+
+    response = client.post(
+        "/api/risk-center/post-investment-check/",
+        {
+            "account_id": account.id,
+            "account_equity": 100000,
+            "cash_balance": 5000,
+            "total_position_value": 95000,
+            "daily_pnl_pct": -0.04,
+            "drawdown_pct": 0.12,
+            "positions": [
+                {"symbol": "000001.SZ", "market_value": 30000, "unrealized_pnl_pct": -0.09},
+                {"symbol": "000999.SZ", "market_value": 10000, "unrealized_pnl_pct": 0.25},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    data = response.data["data"]
+    assert data["status"] == "breach"
+    assert data["passed"] is False
+    assert data["metrics"]["total_position_pct"] == 0.95
+    assert any("max_total_position_pct" in item for item in data["violations"])
+    assert any("max_daily_loss_pct" in item for item in data["violations"])
+    assert any(alert["type"] == "stop_loss" for alert in data["position_alerts"])
+    assert any(alert["type"] == "hard_exclusion" for alert in data["position_alerts"])
+    assert any(alert["type"] == "take_profit" for alert in data["position_alerts"])
+
+
+@pytest.mark.django_db
+def test_post_investment_check_respects_account_permissions():
+    owner = _user("risk_post_owner")
+    other = _user("risk_post_other")
+    account = _account(owner)
+    client = _client(other)
+
+    response = client.post(
+        "/api/risk-center/post-investment-check/",
+        {
+            "account_id": account.id,
+            "account_equity": 100000,
+            "positions": [],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_effective_policy_returns_sources_floor_and_exception_notes():
     staff = _user("risk_effective_staff", is_staff=True)
     account = _account(staff)

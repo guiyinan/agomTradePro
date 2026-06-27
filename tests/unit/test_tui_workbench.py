@@ -810,6 +810,12 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
         "price",
         "account_equity",
     }
+    assert action_by_key["risk-center.post-investment-check"]["risk"] == "read"
+    assert {field["key"] for field in action_by_key["risk-center.post-investment-check"]["fields"]} >= {
+        "account_id",
+        "account_equity",
+        "positions",
+    }
     assert action_by_key["risk-center.update-floor"]["confirmation_required"] is True
     assert action_by_key["risk-center.create-exception"]["risk"] == "write"
 

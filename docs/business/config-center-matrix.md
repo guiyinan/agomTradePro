@@ -16,7 +16,7 @@
 | `data_center_providers` | 数据中台 Provider 配置 | `/data-center/providers/` | `/api/data-center/providers/` | `client.data_center` + MCP config-center 工具 | `staff` | 保存后立即生效；刷新 data_center registry | Tushare Token / HTTP URL、AKShare、EastMoney、QMT、FRED 等统一在这里维护 |
 | `data_center_runtime` | 数据中台运行状态 | `/data-center/monitor/` | `/api/data-center/providers/status/` | `client.data_center` + MCP data-center 工具 | `staff` | 状态实时读取 | 查看 Provider 健康状态、熔断和能力覆盖，不再保留旧 market_data 入口 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
-| `risk_center` | 集中风控中心 | `/risk-center/`、TUI `risk-center.overview` | `/api/risk-center/` | `client.risk_center` + MCP `risk_center_tools` | `staff` 管理全局配置；账户 owner 读写本账户策略 | 保存后立即可被解析 API 读取；账户止盈止损、模拟盘自动买入、策略执行编排会读取有效策略 | 全局底线、模板、账户策略、管理员例外和审计统一在此维护 |
+| `risk_center` | 集中风控中心 | `/risk-center/`、TUI `risk-center.overview` | `/api/risk-center/` | `client.risk_center` + MCP `risk_center_tools` | `staff` 管理全局配置；账户 owner 读写本账户策略 | 保存后立即可被解析 API 读取；账户止盈止损、模拟盘自动买入、策略执行编排和投后巡检会读取有效策略 | 全局底线、模板、账户策略、管理员例外和审计统一在此维护 |
 | `valuation_repair` | 估值修复配置 | `/equity/valuation-repair/config/` | `/api/equity/config/valuation-repair/active/` | `client.equity` + `equity_tools` | `staff` | DB/Settings 配置，运行时读取 | 已支持版本与回滚 |
 | `ai_provider` | AI Provider 配置 | `/ai/` | `/api/ai/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
 | `trading_cost` | 交易费率配置 | `/account/settings/` | `/api/account/trading-cost-configs/` | `client.account` + `account_tools` | 登录用户/相关账户 | 保存后立即生效 | 账户级配置 |
@@ -40,6 +40,7 @@
 - `GET /api/risk-center/account-policies/`
 - `GET /api/risk-center/effective-policy/?account_id=<id>`
 - `POST /api/risk-center/pre-trade-check/`
+- `POST /api/risk-center/post-investment-check/`
 - `GET /risk-center/`
 
 ## MCP Tools
@@ -67,6 +68,7 @@
 - `list_risk_exceptions`
 - `create_risk_exception`
 - `check_pre_trade_risk`
+- `check_post_investment_risk`
 
 ## Notes
 
