@@ -5,10 +5,11 @@ import pytest
 
 from apps.account.application.stop_loss_use_cases import (
     AutoStopLossUseCase,
+    AutoTakeProfitUseCase,
     CreateStopLossConfigUseCase,
     CreateTakeProfitConfigUseCase,
 )
-from apps.account.domain.services import StopLossCheckResult
+from apps.account.domain.services import StopLossCheckResult, TakeProfitCheckResult
 
 
 class _FakePositionRepository:
@@ -37,7 +38,9 @@ class _FakePositionRepository:
 
 
 class _FakeStopLossRepository:
-    def __init__(self, active_configs: list[dict] | None = None, existing_config: dict | None = None):
+    def __init__(
+        self, active_configs: list[dict] | None = None, existing_config: dict | None = None
+    ):
         self.active_configs = active_configs or []
         self.existing_config = existing_config
         self.created_configs: list[dict] = []
@@ -65,9 +68,16 @@ class _FakeStopLossRepository:
 
 
 class _FakeTakeProfitRepository:
-    def __init__(self, existing_config: dict | None = None):
+    def __init__(
+        self, existing_config: dict | None = None, active_configs: list[dict] | None = None
+    ):
         self.existing_config = existing_config
+        self.active_configs = active_configs or []
         self.created_configs: list[dict] = []
+        self.updated_configs: list[dict] = []
+
+    def get_active_take_profit_configs(self, user_id: int | None = None) -> list[dict]:
+        return self.active_configs
 
     def get_take_profit_config_by_position(self, position_id: int) -> dict | None:
         return self.existing_config
@@ -77,10 +87,17 @@ class _FakeTakeProfitRepository:
         self.created_configs.append(payload)
         return payload
 
+    def update_take_profit_config(self, config_id: int, is_active: bool | None = None) -> bool:
+        self.updated_configs.append({"config_id": config_id, "is_active": is_active})
+        return True
+
 
 class _FakeMarketDataService:
+    def __init__(self, price: str = "90"):
+        self.price = Decimal(price)
+
     def get_current_price(self, asset_code: str) -> Decimal | None:
-        return Decimal("90")
+        return self.price
 
 
 class _FakeNotificationService:
@@ -90,6 +107,14 @@ class _FakeNotificationService:
     def notify_stop_loss_triggered(self, notification_data) -> bool:
         self.notifications.append(notification_data)
         return True
+
+
+class _FakeRiskPolicyProvider:
+    def __init__(self, parameters: dict):
+        self.parameters = parameters
+
+    def get_effective_parameters(self, account_id: int) -> dict:
+        return self.parameters
 
     def notify_take_profit_triggered(self, notification_data) -> bool:
         self.notifications.append(notification_data)
@@ -197,3 +222,108 @@ def test_auto_stop_loss_use_case_executes_via_repositories(monkeypatch):
     assert stop_loss_repo.updated_configs[0]["status"] == "triggered"
     assert stop_loss_repo.created_triggers[0]["position_id"] == 3
     assert notification_service.notifications[0].asset_code == "510300.SH"
+
+
+def test_auto_stop_loss_uses_risk_center_max_stop_loss_pct(monkeypatch):
+    captured: dict = {}
+    stop_loss_repo = _FakeStopLossRepository(
+        active_configs=[
+            {
+                "id": 7,
+                "position_id": 3,
+                "stop_loss_type": "fixed",
+                "stop_loss_pct": 0.2,
+                "trailing_stop_pct": None,
+                "max_holding_days": None,
+                "highest_price": Decimal("100"),
+                "highest_price_updated_at": datetime(2026, 4, 1, tzinfo=UTC),
+                "status": "active",
+                "position": {
+                    "id": 3,
+                    "asset_code": "510300.SH",
+                    "shares": 200.0,
+                    "avg_cost": Decimal("100"),
+                    "current_price": Decimal("100"),
+                    "opened_at": datetime(2026, 1, 1, tzinfo=UTC),
+                    "portfolio_id": 2,
+                    "user_id": 9,
+                    "user_email": "user@example.com",
+                },
+            }
+        ]
+    )
+
+    def fake_check_stop_loss(**kwargs):
+        captured.update(kwargs)
+        return StopLossCheckResult(
+            should_trigger=False,
+            trigger_reason="",
+            stop_price=92.0,
+            current_price=95.0,
+            unrealized_pnl_pct=-0.05,
+            highest_price=100.0,
+        )
+
+    monkeypatch.setattr(
+        "apps.account.application.stop_loss_use_cases.StopLossService.check_stop_loss",
+        fake_check_stop_loss,
+    )
+
+    AutoStopLossUseCase(
+        market_data_service=_FakeMarketDataService(price="95"),
+        stop_loss_repo=stop_loss_repo,
+        position_repo=_FakePositionRepository(),
+        risk_policy_provider=_FakeRiskPolicyProvider({"max_stop_loss_pct": 0.08}),
+    ).check_and_execute_stop_loss(user_id=9)
+
+    assert captured["stop_loss_pct"] == 0.08
+
+
+def test_auto_take_profit_uses_risk_center_take_profit_pct(monkeypatch):
+    captured: dict = {}
+    take_profit_repo = _FakeTakeProfitRepository(
+        active_configs=[
+            {
+                "id": 17,
+                "position_id": 3,
+                "take_profit_pct": 0.4,
+                "partial_profit_levels": None,
+                "is_active": True,
+                "position": {
+                    "id": 3,
+                    "asset_code": "510300.SH",
+                    "shares": 200.0,
+                    "avg_cost": Decimal("100"),
+                    "current_price": Decimal("100"),
+                    "opened_at": datetime(2026, 1, 1, tzinfo=UTC),
+                    "portfolio_id": 2,
+                    "user_id": 9,
+                    "user_email": "user@example.com",
+                },
+            }
+        ]
+    )
+
+    def fake_check_take_profit(**kwargs):
+        captured.update(kwargs)
+        return TakeProfitCheckResult(
+            should_trigger=False,
+            trigger_reason="",
+            take_profit_price=125.0,
+            current_price=120.0,
+            unrealized_pnl_pct=0.2,
+        )
+
+    monkeypatch.setattr(
+        "apps.account.application.stop_loss_use_cases.TakeProfitService.check_take_profit",
+        fake_check_take_profit,
+    )
+
+    AutoTakeProfitUseCase(
+        market_data_service=_FakeMarketDataService(price="120"),
+        take_profit_repo=take_profit_repo,
+        position_repo=_FakePositionRepository(),
+        risk_policy_provider=_FakeRiskPolicyProvider({"take_profit_pct": 0.25}),
+    ).check_and_execute_take_profit(user_id=9)
+
+    assert captured["take_profit_pct"] == 0.25

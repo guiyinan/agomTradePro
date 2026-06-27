@@ -28,9 +28,6 @@ from apps.ai_capability.interface.views import (
     sync_mcp_tools_view,
     toggle_mcp_tool_flag_view,
 )
-
-# 终端视图（从terminal模块导入）
-from apps.terminal.interface.views import terminal_config_view, terminal_view, tui_workbench_view
 from apps.terminal.interface.api_views import (
     TuiWorkbenchActionRunView,
     TuiWorkbenchCatalogView,
@@ -38,6 +35,9 @@ from apps.terminal.interface.api_views import (
     TuiWorkbenchRegistryView,
     TuiWorkbenchScreenView,
 )
+
+# 终端视图（从terminal模块导入）
+from apps.terminal.interface.views import terminal_config_view, terminal_view, tui_workbench_view
 from core.admin_log_views import (
     automation_server_logs_export,
     automation_server_logs_stream,
@@ -97,6 +97,7 @@ def api_root_view(request):
                 "pulse": "/api/pulse/",
                 "realtime": "/api/realtime/",
                 "regime": "/api/regime/",
+                "risk-center": "/api/risk-center/",
                 "rotation": "/api/rotation/",
                 "sector": "/api/sector/",
                 "sentiment": "/api/sentiment/",
@@ -155,7 +156,9 @@ core_patterns = [
     ),
     path(
         "api/system/config-center/",
-        include(("apps.config_center.interface.api_urls", "config_center"), namespace="config_center"),
+        include(
+            ("apps.config_center.interface.api_urls", "config_center"), namespace="config_center"
+        ),
     ),
     path(
         "settings/config-center/",
@@ -302,6 +305,10 @@ module_patterns = [
     # Decision workflow modules.
     path("", include("apps.decision_rhythm.interface.urls")),
     path("", include("apps.beta_gate.interface.urls")),
+    path(
+        "risk-center/",
+        include(("apps.risk_center.interface.urls", "risk_center"), namespace="risk_center"),
+    ),
     path("", include("apps.alpha_trigger.interface.urls")),
     # Factor / Rotation / Hedge.
     path("factor/", include(("apps.factor.interface.urls", "factor"), namespace="factor")),
@@ -411,6 +418,12 @@ module_patterns = [
     path(
         "api/beta-gate/",
         include(("apps.beta_gate.interface.api_urls", "api_beta_gate"), namespace="api_beta_gate"),
+    ),
+    path(
+        "api/risk-center/",
+        include(
+            ("apps.risk_center.interface.api_urls", "api_risk_center"), namespace="api_risk_center"
+        ),
     ),
     path(
         "api/hedge/", include(("apps.hedge.interface.api_urls", "api_hedge"), namespace="api_hedge")

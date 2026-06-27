@@ -16,6 +16,7 @@
 | `data_center_providers` | 数据中台 Provider 配置 | `/data-center/providers/` | `/api/data-center/providers/` | `client.data_center` + MCP config-center 工具 | `staff` | 保存后立即生效；刷新 data_center registry | Tushare Token / HTTP URL、AKShare、EastMoney、QMT、FRED 等统一在这里维护 |
 | `data_center_runtime` | 数据中台运行状态 | `/data-center/monitor/` | `/api/data-center/providers/status/` | `client.data_center` + MCP data-center 工具 | `staff` | 状态实时读取 | 查看 Provider 健康状态、熔断和能力覆盖，不再保留旧 market_data 入口 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
+| `risk_center` | 集中风控中心 | `/risk-center/` | `/api/risk-center/` | MCP 占位工具：`get_risk_floor` / `update_risk_floor` / `list_risk_templates` / `upsert_account_risk_policy` / `get_effective_risk_policy` / `create_risk_exception` | `staff` 管理全局配置；账户 owner 读写本账户策略 | 保存后立即可被解析 API 读取；账户止盈止损任务会读取有效策略收紧阈值 | 全局底线、模板、账户策略、管理员例外和审计统一在此维护 |
 | `valuation_repair` | 估值修复配置 | `/equity/valuation-repair/config/` | `/api/equity/config/valuation-repair/active/` | `client.equity` + `equity_tools` | `staff` | DB/Settings 配置，运行时读取 | 已支持版本与回滚 |
 | `ai_provider` | AI Provider 配置 | `/ai/` | `/api/ai/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
 | `trading_cost` | 交易费率配置 | `/account/settings/` | `/api/account/trading-cost-configs/` | `client.account` + `account_tools` | 登录用户/相关账户 | 保存后立即生效 | 账户级配置 |
@@ -32,6 +33,13 @@
 - `GET /api/system/config-center/qlib/training-runs/<run_id>/`
 - `POST /api/system/config-center/qlib/training-runs/trigger/`
 - `GET /settings/config-center/qlib/`
+- `GET /api/risk-center/floor/`
+- `PUT /api/risk-center/floor/`
+- `GET /api/risk-center/templates/`
+- `POST /api/risk-center/templates/`
+- `GET /api/risk-center/account-policies/`
+- `GET /api/risk-center/effective-policy/?account_id=<id>`
+- `GET /risk-center/`
 
 ## MCP Tools
 
@@ -49,6 +57,12 @@
 - `update_data_center_provider`
 - `test_data_center_provider_connection`
 - `get_data_center_provider_status`
+- `get_risk_floor`
+- `update_risk_floor`
+- `list_risk_templates`
+- `upsert_account_risk_policy`
+- `get_effective_risk_policy`
+- `create_risk_exception`
 
 ## Notes
 

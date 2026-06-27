@@ -40,8 +40,11 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-06-26）
+## 0.7.0 之后的开发快照（截至 2026-06-27）
 
+- `2026-06-27` 新增独立 `risk_center` 集中风控中心 V1：提供全局风控底线、风险模板、账户级策略、管理员例外、审计记录和有效策略解析 API，并在 Config Center 暴露 `get_risk_floor`、`update_risk_floor`、`list_risk_templates`、`upsert_account_risk_policy`、`get_effective_risk_policy`、`create_risk_exception` MCP 能力占位
+- `2026-06-27` 账户层止盈止损定时任务已开始读取 `risk_center` 的有效策略作为运行时阈值来源：`max_stop_loss_pct` 会收紧持仓止损配置，`take_profit_pct` 会收紧持仓止盈目标；风控中心解析失败时自动沿用原持仓配置，避免影响既有执行链路
+- `2026-06-27` 账户层止盈止损链路补齐真实执行能力：`PositionRepository.close_position()` 已支持止损/止盈触发价和原因写入交易流水，账户层 combined 检查任务已注册到 `CELERY_BEAT_SCHEDULE` 并接入 `init_scheduler_defaults` 数据库调度初始化，盘中可定时执行，同时修正止损百分比配置提示为正数语义
 - `2026-06-26` Data Center 资产主数据补档增强了 Alpha 历史缓存的股票名称恢复链路：`backfill_asset_master --include-remote` 现在会先使用 AKShare A 股代码名称表补齐缺失股票，再兜底 EastMoney 单票接口；本地已对历史 Qlib `csi300` cache 中 18 个缺失主数据代码完成补档，`alpha.scores` 历史日期查询不再裸显这些股票代码
 - `2026-06-26` TUI 今日总览已修复市场周期象限字段映射与 Alpha 排名误染色：Regime 面板会识别 `/api/regime/current/` 的 `dominant_regime`，Alpha 迷你表的颜色判定也改为跳过标的/代码/名称列，避免股票名中的“中”或日期横杠被误当作状态信号
 - `2026-06-26` TUI 表格翻页已补齐 `limit/offset` 型接口支持：待看事件等只返回 `items/total` 的列表会按实际返回行数生成 pager，PgUp/PgDn 会改写 `offset` 而不是只发送无效 `page` 参数；Policy Workbench items API 也同步返回 `limit/offset/page/page_size` 分页元数据

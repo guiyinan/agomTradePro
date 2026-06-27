@@ -15,6 +15,7 @@ def test_list_config_capabilities_contains_core_items():
     assert "system_settings" in keys
     assert "valuation_repair" in keys
     assert "beta_gate" in keys
+    assert "risk_center" in keys
     assert "ai_provider" in keys
     assert "trading_cost" in keys
     assert "data_center_providers" in keys
@@ -41,6 +42,7 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
                 "summary": {"message": "ok"},
             },
             "beta_gate": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "risk_center": lambda user: {"status": "configured", "summary": {"message": "ok"}},
             "valuation_repair": lambda user: {"status": "configured", "summary": {"message": "ok"}},
             "ai_provider": lambda user: {"status": "configured", "summary": {"message": "ok"}},
             "trading_cost": lambda user: {"status": "configured", "summary": {"message": "ok"}},
@@ -52,6 +54,7 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
 
     assert "trading_cost" in item_keys
     assert "agent_runtime_operator" not in item_keys
+    assert "risk_center" not in item_keys
     assert "valuation_repair" not in item_keys
     assert "system_settings" not in item_keys
     assert "data_center_providers" not in item_keys

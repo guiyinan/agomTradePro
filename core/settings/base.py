@@ -159,6 +159,7 @@ INSTALLED_APPS = [
     "apps.decision_rhythm",  # 决策频率约束模块（新增）
     "apps.events",  # 事件总线模块（新增）
     "apps.beta_gate",  # Beta 闸门模块（新增）
+    "apps.risk_center",  # 集中风控中心（新增）
     "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.alpha",  # Alpha AI 选股模块（新增）
     # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
@@ -606,6 +607,13 @@ CELERY_BEAT_SCHEDULE = {
     "simulated-daily-summary": {
         "task": "apps.simulated_trading.application.tasks.send_performance_summary_task",
         "schedule": crontab(hour=17, minute=0, day_of_week="mon-fri"),  # 每个交易日 17:00
+    },
+    "account-check-stop-loss-take-profit-intraday": {
+        "task": "apps.account.application.tasks.check_stop_loss_and_take_profit_task",
+        "schedule": crontab(hour="10-15", minute="*/30", day_of_week="mon-fri"),
+        "options": {
+            "expires": 1800,
+        },
     },
     "simulated-daily-inspection": {
         "task": "simulated.daily_portfolio_inspection",

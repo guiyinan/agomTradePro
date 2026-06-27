@@ -330,6 +330,7 @@ class Command(BaseCommand):
             "decision-quote-post-close-refresh",
             "decision-quote-freshness-check",
             "decision-workspace-nightly-snapshot-refresh",
+            "account-check-stop-loss-take-profit-intraday",
         }
         return expected_names.issubset(existing_names)
 

@@ -19,6 +19,7 @@ from apps.account.infrastructure.models import (
     PositionModel,
     TransactionModel,
 )
+from apps.account.infrastructure.repositories import PositionRepository
 
 # ── fixtures ──────────────────────────────────────────────────────────────
 
@@ -177,6 +178,25 @@ class TestPositionCloseWritesTransaction:
         client.force_authenticate(user=owner)
         resp = client.post(f"/api/account/positions/{position.id}/close/")
         assert resp.status_code == 400
+
+    def test_repository_close_uses_execution_price_and_reason(self, position):
+        result = PositionRepository().close_position(
+            position_id=position.id,
+            price=Decimal("9.50"),
+            reason="止损触发: 跌破止损线",
+        )
+
+        assert result is not None
+        txns = TransactionModel.objects.filter(position_id=position.id, action="sell")
+        assert txns.count() == 1
+        txn = txns.first()
+        assert txn.shares == 1000
+        assert txn.price == Decimal("9.5000")
+        assert txn.notes == "止损触发: 跌破止损线"
+
+        position.refresh_from_db()
+        assert position.is_closed is True
+        assert position.current_price == Decimal("9.5000")
 
 
 # ── observer permission tests ─────────────────────────────────────────────

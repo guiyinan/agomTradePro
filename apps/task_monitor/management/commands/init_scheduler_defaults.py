@@ -10,6 +10,7 @@ SCHEDULER_COMMANDS = (
     "setup_equity_valuation_sync",
     "setup_decision_quote_refresh",
     "setup_workspace_snapshot_refresh",
+    "setup_account_risk_tasks",
 )
 
 

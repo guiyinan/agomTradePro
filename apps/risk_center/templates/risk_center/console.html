@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}集中风控中心 - AgomTradePro{% endblock %}
+
+{% block content %}
+<div style="max-width: 1360px; margin: 0 auto; padding: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
+        <div>
+            <h1 style="margin:0 0 8px;">{{ page_title }}</h1>
+            <p style="margin:0; color:#64748b;">{{ page_subtitle }}</p>
+        </div>
+        <a href="{{ api_base_url }}" class="btn btn-secondary" style="text-decoration:none;">API</a>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:20px;">
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:#64748b;">全局底线</div>
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">{% if floor.is_active %}启用{% else %}停用{% endif %}</div>
+            <div style="font-size:13px; color:#64748b; margin-top:8px;">总仓位上限 {{ floor.max_total_position_pct|floatformat:2 }}</div>
+        </section>
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:#64748b;">风险模板</div>
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ templates|length }}</div>
+            <div style="font-size:13px; color:#64748b; margin-top:8px;">conservative / moderate / aggressive / custom</div>
+        </section>
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:#64748b;">账户策略</div>
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ policies|length }}</div>
+            <div style="font-size:13px; color:#64748b; margin-top:8px;">按 canonical account_id 独立配置</div>
+        </section>
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:#64748b;">例外/审计</div>
+            <div style="font-size:22px; font-weight:700; margin-top:6px;">{{ exceptions|length }} / {{ audits|length }}</div>
+            <div style="font-size:13px; color:#64748b; margin-top:8px;">例外必须带原因和过期时间</div>
+        </section>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start;">
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
+            <h2 style="font-size:18px; margin:0 0 12px;">全局底线</h2>
+            <table style="width:100%; border-collapse:collapse;">
+                <tbody>
+                    <tr><td style="padding:8px; color:#64748b;">单标的上限</td><td style="padding:8px;">{{ floor.max_single_position_pct|floatformat:3 }}</td></tr>
+                    <tr><td style="padding:8px; color:#64748b;">最大日亏损</td><td style="padding:8px;">{{ floor.max_daily_loss_pct|floatformat:3 }}</td></tr>
+                    <tr><td style="padding:8px; color:#64748b;">最大回撤</td><td style="padding:8px;">{{ floor.max_drawdown_pct|floatformat:3 }}</td></tr>
+                    <tr><td style="padding:8px; color:#64748b;">最大止损比例</td><td style="padding:8px;">{{ floor.max_stop_loss_pct|floatformat:3 }}</td></tr>
+                    <tr><td style="padding:8px; color:#64748b;">强制止损</td><td style="padding:8px;">{{ floor.force_stop_loss }}</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
+            <h2 style="font-size:18px; margin:0 0 12px;">风险模板</h2>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                {% for template in templates %}
+                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+                    <div style="display:flex; justify-content:space-between; gap:12px;">
+                        <strong>{{ template.name }}</strong>
+                        <span style="color:#64748b;">{{ template.risk_profile }}</span>
+                    </div>
+                    <div style="font-size:13px; color:#64748b; margin-top:6px;">总仓位 {{ template.max_total_position_pct|floatformat:2 }}，单标的 {{ template.max_single_position_pct|floatformat:2 }}，现金底线 {{ template.min_cash_pct|floatformat:2 }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
+            <h2 style="font-size:18px; margin:0 0 12px;">账户策略</h2>
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="text-align:left; color:#64748b;"><th style="padding:8px;">账户</th><th style="padding:8px;">模板</th><th style="padding:8px;">启用</th></tr>
+                </thead>
+                <tbody>
+                    {% for policy in policies %}
+                    <tr><td style="padding:8px;">{{ policy.account_id }}</td><td style="padding:8px;">{{ policy.template.key|default:"-" }}</td><td style="padding:8px;">{{ policy.is_active }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="3" style="padding:8px; color:#64748b;">暂无账户策略</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:18px;">
+            <h2 style="font-size:18px; margin:0 0 12px;">例外审批/审计</h2>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                {% for exception in exceptions|slice:":6" %}
+                <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+                    <strong>{{ exception.field_name }}</strong>
+                    <div style="font-size:13px; color:#64748b; margin-top:6px;">account={{ exception.account_id|default:"*" }} expires={{ exception.expires_at }}</div>
+                </div>
+                {% empty %}
+                <div style="color:#64748b;">暂无管理员例外</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

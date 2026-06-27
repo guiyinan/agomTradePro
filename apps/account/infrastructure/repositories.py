@@ -789,50 +789,63 @@ class PositionRepository:
             source_id=source_id,
         )
 
-    def close_position(self, position_id: int, shares: float | None = None) -> Position | None:
+    def close_position(
+        self,
+        position_id: int,
+        shares: float | None = None,
+        price: Decimal | None = None,
+        reason: str | None = None,
+    ) -> Position | None:
         """平仓（全部或部分）"""
         try:
-            model = PositionModel._default_manager.get(id=position_id)
+            model = PositionModel._default_manager.select_related("portfolio").get(id=position_id)
         except PositionModel.DoesNotExist:
             return None
 
-        if shares is None:
-            shares = model.shares  # 默认全部平仓
+        if model.is_closed:
+            return PortfolioRepository()._convert_to_position_entities([model])[0]
 
-        # 创建交易记录
-        TransactionModel._default_manager.create(
-            portfolio_id=model.portfolio_id,
-            position_id=model.id,
-            action="sell",
-            asset_code=model.asset_code,
-            shares=shares,
-            price=model.current_price or model.avg_cost,
-            notional=Decimal(str(shares * float(model.current_price or model.avg_cost))),
-            traded_at=timezone.now(),
-            notes="平仓",
-        )
+        close_shares = model.shares if shares is None else min(float(shares), model.shares)
+        if close_shares <= 0:
+            return PortfolioRepository()._convert_to_position_entities([model])[0]
 
-        # 更新持仓
-        if shares >= model.shares:
-            model.is_closed = True
-            model.closed_at = timezone.now()
-        else:
-            model.shares -= shares
+        execution_price = price or model.current_price or model.avg_cost
+        execution_price = Decimal(str(execution_price))
+        notes = reason or "平仓"
+        now = timezone.now()
 
-        # Recalculate derived fields
-        from shared.domain.position_calculations import recalculate_derived_fields
+        with transaction.atomic():
+            TransactionModel._default_manager.create(
+                portfolio_id=model.portfolio_id,
+                position_id=model.id,
+                action="sell",
+                asset_code=model.asset_code,
+                shares=close_shares,
+                price=execution_price,
+                notional=Decimal(str(close_shares)) * execution_price,
+                traded_at=now,
+                notes=notes,
+            )
 
-        price = float(model.current_price or model.avg_cost)
-        mv, pnl, pnl_pct = recalculate_derived_fields(
-            shares=model.shares if not model.is_closed else 0,
-            avg_cost=float(model.avg_cost),
-            current_price=price,
-        )
-        model.market_value = mv
-        model.unrealized_pnl = pnl
-        model.unrealized_pnl_pct = pnl_pct
+            model.current_price = execution_price
+            if close_shares >= model.shares:
+                model.is_closed = True
+                model.closed_at = now
+            else:
+                model.shares -= close_shares
 
-        model.save()
+            # Recalculate derived fields
+            from shared.domain.position_calculations import recalculate_derived_fields
+
+            mv, pnl, pnl_pct = recalculate_derived_fields(
+                shares=model.shares if not model.is_closed else 0,
+                avg_cost=float(model.avg_cost),
+                current_price=float(execution_price),
+            )
+            model.market_value = mv
+            model.unrealized_pnl = pnl
+            model.unrealized_pnl_pct = pnl_pct
+            model.save()
 
         return PortfolioRepository()._convert_to_position_entities([model])[0]
 
@@ -1907,7 +1920,10 @@ class StopLossRepository:
         Returns:
             List of stop loss config dicts with position relationship
         """
-        queryset = StopLossConfigModel._default_manager.filter(status="active")
+        queryset = StopLossConfigModel._default_manager.filter(
+            status="active",
+            position__is_closed=False,
+        )
 
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)
@@ -2056,7 +2072,10 @@ class TakeProfitRepository:
         Returns:
             List of take profit config dicts with position relationship
         """
-        queryset = TakeProfitConfigModel._default_manager.filter(is_active=True)
+        queryset = TakeProfitConfigModel._default_manager.filter(
+            is_active=True,
+            position__is_closed=False,
+        )
 
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)

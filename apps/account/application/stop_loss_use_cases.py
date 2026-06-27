@@ -33,6 +33,18 @@ from apps.account.domain.services import (
 logger = logging.getLogger(__name__)
 
 
+class _RiskCenterPolicyProvider:
+    """Read effective risk parameters without coupling account to risk-center ORM."""
+
+    def get_effective_parameters(self, account_id: int) -> dict[str, Any]:
+        from apps.risk_center.application.use_cases import (
+            ResolveEffectiveRiskPolicyForAccountUseCase,
+        )
+
+        payload = ResolveEffectiveRiskPolicyForAccountUseCase().execute(account_id=account_id)
+        return payload.get("parameters", {})
+
+
 def MarketPriceService():
     """Backward-compatible market price service factory for legacy tests/callers."""
 
@@ -42,6 +54,7 @@ def MarketPriceService():
 @dataclass
 class StopLossCheckOutput:
     """止损检查输出"""
+
     position_id: int
     asset_code: str
     should_close: bool
@@ -54,6 +67,7 @@ class StopLossCheckOutput:
 @dataclass
 class TakeProfitCheckOutput:
     """止盈检查输出"""
+
     position_id: int
     asset_code: str
     should_close: bool
@@ -77,6 +91,7 @@ class AutoStopLossUseCase:
         notification_service: StopLossNotificationPort | None = None,
         stop_loss_repo: StopLossRepository | None = None,
         position_repo: PositionRepository | None = None,
+        risk_policy_provider: Any | None = None,
     ):
         """
         初始化自动止损用例
@@ -91,6 +106,7 @@ class AutoStopLossUseCase:
         )
         self.stop_loss_repo = stop_loss_repo or StopLossRepository()
         self.position_repo = position_repo or PositionRepository()
+        self.risk_policy_provider = risk_policy_provider or _RiskCenterPolicyProvider()
 
     def check_and_execute_stop_loss(self, user_id: int | None = None) -> list[StopLossCheckOutput]:
         """
@@ -138,20 +154,21 @@ class AutoStopLossUseCase:
 
         entry_price = float(position["avg_cost"])
         highest_price = float(config["highest_price"] or entry_price)
+        stop_loss_pct = self._resolve_stop_loss_pct(config)
 
         # 检查价格止损
-        if config["stop_loss_type"] in ['fixed', 'trailing']:
+        if config["stop_loss_type"] in ["fixed", "trailing"]:
             check_result = StopLossService.check_stop_loss(
                 entry_price=entry_price,
                 current_price=current_price,
                 highest_price=highest_price,
-                stop_loss_pct=config["stop_loss_pct"],
+                stop_loss_pct=stop_loss_pct,
                 stop_loss_type=config["stop_loss_type"],
                 trailing_stop_pct=config["trailing_stop_pct"],
             )
 
         # 检查时间止损
-        elif config["stop_loss_type"] == 'time_based' and config["max_holding_days"]:
+        elif config["stop_loss_type"] == "time_based" and config["max_holding_days"]:
             check_result = StopLossService.check_time_stop_loss(
                 opened_at=position["opened_at"],
                 current_time=datetime.now(UTC),
@@ -161,7 +178,7 @@ class AutoStopLossUseCase:
             return None
 
         # 更新移动止损的最高价
-        if config["stop_loss_type"] == 'trailing':
+        if config["stop_loss_type"] == "trailing":
             new_highest, new_time = StopLossService.update_trailing_stop_highest(
                 current_highest=highest_price,
                 current_price=current_price,
@@ -192,6 +209,21 @@ class AutoStopLossUseCase:
             unrealized_pnl=unrealized_pnl,
             unrealized_pnl_pct=check_result.unrealized_pnl_pct,
         )
+
+    def _resolve_stop_loss_pct(self, config: dict[str, Any]) -> float:
+        configured_pct = float(config["stop_loss_pct"])
+        account_id = config["position"].get("portfolio_id")
+        if not account_id:
+            return configured_pct
+        try:
+            parameters = self.risk_policy_provider.get_effective_parameters(int(account_id))
+        except Exception as exc:
+            logger.warning("无法读取风控中心有效策略，沿用持仓止损配置: %s", exc)
+            return configured_pct
+        max_stop_loss_pct = parameters.get("max_stop_loss_pct")
+        if max_stop_loss_pct is None:
+            return configured_pct
+        return min(configured_pct, float(max_stop_loss_pct))
 
     def _get_current_price(self, asset_code: str) -> float | None:
         """
@@ -294,7 +326,9 @@ class AutoStopLossUseCase:
             if success:
                 logger.info(f"止损通知已发送: 用户 {position['user_id']}, 持仓 {position['id']}")
             else:
-                logger.warning(f"止损通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}")
+                logger.warning(
+                    f"止损通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}"
+                )
 
         except Exception as e:
             # 通知失败不应影响止损执行
@@ -314,6 +348,7 @@ class AutoTakeProfitUseCase:
         notification_service: StopLossNotificationPort | None = None,
         take_profit_repo: TakeProfitRepository | None = None,
         position_repo: PositionRepository | None = None,
+        risk_policy_provider: Any | None = None,
     ):
         """
         初始化自动止盈用例
@@ -328,8 +363,11 @@ class AutoTakeProfitUseCase:
         )
         self.take_profit_repo = take_profit_repo or TakeProfitRepository()
         self.position_repo = position_repo or PositionRepository()
+        self.risk_policy_provider = risk_policy_provider or _RiskCenterPolicyProvider()
 
-    def check_and_execute_take_profit(self, user_id: int | None = None) -> list[TakeProfitCheckOutput]:
+    def check_and_execute_take_profit(
+        self, user_id: int | None = None
+    ) -> list[TakeProfitCheckOutput]:
         """
         检查并执行止盈
 
@@ -372,12 +410,13 @@ class AutoTakeProfitUseCase:
             return None
 
         entry_price = float(position["avg_cost"])
+        take_profit_pct = self._resolve_take_profit_pct(config)
 
         # 检查止盈
         check_result = TakeProfitService.check_take_profit(
             entry_price=entry_price,
             current_price=current_price,
-            take_profit_pct=config["take_profit_pct"],
+            take_profit_pct=take_profit_pct,
             partial_levels=config["partial_profit_levels"],
         )
 
@@ -396,6 +435,21 @@ class AutoTakeProfitUseCase:
             unrealized_pnl_pct=check_result.unrealized_pnl_pct,
             partial_level=check_result.partial_level,
         )
+
+    def _resolve_take_profit_pct(self, config: dict[str, Any]) -> float:
+        configured_pct = float(config["take_profit_pct"])
+        account_id = config["position"].get("portfolio_id")
+        if not account_id:
+            return configured_pct
+        try:
+            parameters = self.risk_policy_provider.get_effective_parameters(int(account_id))
+        except Exception as exc:
+            logger.warning("无法读取风控中心有效策略，沿用持仓止盈配置: %s", exc)
+            return configured_pct
+        take_profit_pct = parameters.get("take_profit_pct")
+        if take_profit_pct is None:
+            return configured_pct
+        return min(configured_pct, float(take_profit_pct))
 
     def _get_current_price(self, asset_code: str) -> float | None:
         """
@@ -495,7 +549,9 @@ class AutoTakeProfitUseCase:
             if success:
                 logger.info(f"止盈通知已发送: 用户 {position['user_id']}, 持仓 {position['id']}")
             else:
-                logger.warning(f"止盈通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}")
+                logger.warning(
+                    f"止盈通知发送失败: 用户 {position['user_id']}, 持仓 {position['id']}"
+                )
 
         except Exception as e:
             # 通知失败不应影响止盈执行
@@ -610,6 +666,7 @@ class CreateTakeProfitConfigUseCase:
 # =============================================================================
 # Internal Adapter - 将 MarketPriceService 适配为 MarketDataPort
 # =============================================================================
+
 
 class _MarketDataAdapter(MarketDataPort):
     """

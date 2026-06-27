@@ -33,6 +33,12 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
         settings_module.CELERY_BEAT_SCHEDULE["high-frequency-recalculate-regime"]["task"]
         == "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
     )
+    assert (
+        settings_module.CELERY_BEAT_SCHEDULE[
+            "account-check-stop-loss-take-profit-intraday"
+        ]["task"]
+        == "apps.account.application.tasks.check_stop_loss_and_take_profit_task"
+    )
 
 
 @pytest.mark.django_db

@@ -176,6 +176,27 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         docs_ref="docs/business/config-center-matrix.md#beta_gate",
     ),
     ConfigCapability(
+        key="risk_center",
+        name="集中风控中心",
+        module="risk_center",
+        section="风控与策略",
+        description="统一管理全局底线、风险模板、账户级策略、管理员例外与有效策略解析。",
+        permission="staff",
+        frontend_url="/risk-center/",
+        api_url="/api/risk-center/",
+        sdk_module=None,
+        mcp_tools=(
+            "get_risk_floor",
+            "update_risk_floor",
+            "list_risk_templates",
+            "upsert_account_risk_policy",
+            "get_effective_risk_policy",
+            "create_risk_exception",
+        ),
+        supports_edit=True,
+        docs_ref="docs/business/config-center-matrix.md#risk_center",
+    ),
+    ConfigCapability(
         key="valuation_repair",
         name="估值修复配置",
         module="equity",
@@ -284,10 +305,7 @@ def get_qlib_training_summary(user: Any = None) -> dict[str, Any]:
         "summary": {
             "latest_run_status": getattr(latest_run, "status", None),
             "recent_run_count": len(runs),
-            "training_task_running": any(
-                run.status in {"PENDING", "RUNNING"}
-                for run in runs
-            ),
+            "training_task_running": any(run.status in {"PENDING", "RUNNING"} for run in runs),
         },
     }
 
@@ -346,6 +364,14 @@ def get_beta_gate_summary(user: Any) -> dict[str, Any]:
     return get_beta_gate_config_summary_service().get_beta_gate_summary(user)
 
 
+def get_risk_center_summary(user: Any) -> dict[str, Any]:
+    from apps.risk_center.application.config_summary_service import (
+        get_risk_center_summary as build_risk_center_summary,
+    )
+
+    return build_risk_center_summary(user)
+
+
 def get_valuation_repair_summary(user: Any) -> dict[str, Any]:
     from apps.equity.application.config import get_valuation_repair_config_summary
 
@@ -380,7 +406,9 @@ _SUMMARY_BUILDERS = {
     ),
     "system_settings": lambda user: _safe_summary(get_system_settings_summary, "系统设置", user),
     "qlib_runtime": lambda user: _safe_summary(get_qlib_runtime_summary, "Qlib Runtime 配置", user),
-    "qlib_training": lambda user: _safe_summary(get_qlib_training_summary, "Qlib 在线训练中心", user),
+    "qlib_training": lambda user: _safe_summary(
+        get_qlib_training_summary, "Qlib 在线训练中心", user
+    ),
     "data_center_providers": lambda user: _safe_summary(
         get_data_center_provider_summary, "数据中台 Provider 配置", user
     ),
@@ -388,6 +416,7 @@ _SUMMARY_BUILDERS = {
         get_data_center_runtime_summary, "数据中台运行状态", user
     ),
     "beta_gate": lambda user: _safe_summary(get_beta_gate_summary, "Beta Gate 配置", user),
+    "risk_center": lambda user: _safe_summary(get_risk_center_summary, "集中风控中心", user),
     "valuation_repair": lambda user: _safe_summary(
         get_valuation_repair_summary, "估值修复配置", user
     ),

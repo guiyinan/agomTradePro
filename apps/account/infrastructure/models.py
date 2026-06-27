@@ -1094,10 +1094,10 @@ class StopLossConfigModel(models.Model):
         max_length=20, choices=STOP_LOSS_TYPE_CHOICES, default="fixed", verbose_name="止损类型"
     )
 
-    stop_loss_pct = models.FloatField(verbose_name="止损百分比", help_text="如 -0.10 表示 -10%")
+    stop_loss_pct = models.FloatField(verbose_name="止损百分比", help_text="如 0.10 表示 10% 止损")
 
     trailing_stop_pct = models.FloatField(
-        null=True, blank=True, verbose_name="移动止损百分比", help_text="移动止损时使用，如 -0.10"
+        null=True, blank=True, verbose_name="移动止损百分比", help_text="移动止损时使用，如 0.10"
     )
 
     max_holding_days = models.IntegerField(

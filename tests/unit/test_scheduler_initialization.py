@@ -45,6 +45,7 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
         "setup_equity_valuation_sync",
         "setup_decision_quote_refresh",
         "setup_workspace_snapshot_refresh",
+        "setup_account_risk_tasks",
     ]
 
 
@@ -64,6 +65,7 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
                 "decision-quote-post-close-refresh",
                 "decision-quote-freshness-check",
                 "decision-workspace-nightly-snapshot-refresh",
+                "account-check-stop-loss-take-profit-intraday",
             ]
 
     class _PeriodicTaskModel:
