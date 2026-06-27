@@ -11,6 +11,10 @@ import logging
 from datetime import date
 from typing import TYPE_CHECKING, Optional, Protocol
 
+from apps.risk_center.application.trade_guard import (
+    EvaluatePreTradeRiskUseCase,
+    PreTradeRiskCheckResult,
+)
 from apps.simulated_trading.application.ports import (
     ExecutionLinkRecorderProtocol,
     PositionExitAdvice,
@@ -67,6 +71,26 @@ class RegimeServiceProtocol(Protocol):
         ...
 
 
+class PreTradeRiskGuardProtocol(Protocol):
+    """Centralized pre-trade risk guard interface."""
+
+    def execute(
+        self,
+        *,
+        account_id: int,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        account_equity: float,
+        total_position_value: float,
+        cash_balance: float | None = None,
+        current_symbol_position_value: float = 0.0,
+    ) -> PreTradeRiskCheckResult:
+        """Evaluate whether a proposed order can be submitted."""
+        ...
+
+
 class AutoTradingEngine:
     """
     自动交易引擎
@@ -99,6 +123,7 @@ class AutoTradingEngine:
         exit_advisor: PositionExitAdvisorProtocol | None = None,
         execution_link_recorder: ExecutionLinkRecorderProtocol | None = None,
         strategy_executor: Optional["StrategyExecutor"] = None,
+        pre_trade_risk_guard: PreTradeRiskGuardProtocol | None = None,
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
@@ -113,6 +138,7 @@ class AutoTradingEngine:
         self.exit_advisor = exit_advisor
         self.execution_link_recorder = execution_link_recorder
         self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
+        self.pre_trade_risk_guard = pre_trade_risk_guard or EvaluatePreTradeRiskUseCase()
 
     def run_daily_trading(self, trade_date: date, account_ids: list[int] | None = None) -> dict:
         """
@@ -331,6 +357,14 @@ class AutoTradingEngine:
 
                         if quantity == 0:
                             logger.info(f"    跳过 {signal.asset_code}: 计算买入数量为0")
+                            continue
+
+                        if not self._passes_pre_trade_buy_risk(
+                            account=account,
+                            asset_code=signal.asset_code,
+                            quantity=quantity,
+                            price=price,
+                        ):
                             continue
 
                         trade = self.buy_use_case.execute(
@@ -712,6 +746,15 @@ class AutoTradingEngine:
             logger.info(f"    跳过 {asset_code}: 计算买入数量为0")
             return False
 
+        if not self._passes_pre_trade_buy_risk(
+            account=account,
+            asset_code=asset_code,
+            quantity=quantity,
+            price=price,
+            positions=positions,
+        ):
+            return False
+
         # 4. 执行买入
         self.buy_use_case.execute(
             account_id=account.account_id,
@@ -725,6 +768,47 @@ class AutoTradingEngine:
         )
 
         logger.info(f"    ✓ 买入: {asset_name} x{quantity} @ {price:.2f}")
+        return True
+
+    def _passes_pre_trade_buy_risk(
+        self,
+        *,
+        account: SimulatedAccount,
+        asset_code: str,
+        quantity: float,
+        price: float,
+        positions: list[Position] | None = None,
+    ) -> bool:
+        """Check centralized risk-center limits before a buy order is submitted."""
+        positions = positions if positions is not None else self.position_repo.get_by_account(account.account_id)
+        current_symbol_position_value = sum(
+            float(getattr(position, "market_value", 0.0) or 0.0)
+            for position in positions
+            if getattr(position, "asset_code", "") == asset_code
+        )
+
+        try:
+            result = self.pre_trade_risk_guard.execute(
+                account_id=account.account_id,
+                symbol=asset_code,
+                side="buy",
+                quantity=float(quantity),
+                price=float(price),
+                account_equity=float(account.total_value),
+                total_position_value=float(account.current_market_value),
+                cash_balance=float(account.current_cash),
+                current_symbol_position_value=current_symbol_position_value,
+            )
+        except Exception as exc:
+            logger.error("    风控中心前置检查异常, 跳过 %s: %s", asset_code, exc)
+            return False
+
+        if not result.passed:
+            logger.warning("    风控中心拒绝买入 %s: %s", asset_code, "; ".join(result.violations))
+            return False
+
+        for warning in result.warnings:
+            logger.info("    风控中心提示 %s: %s", asset_code, warning)
         return True
 
     def _get_current_price(self, asset_code: str, trade_date: date) -> float | None:

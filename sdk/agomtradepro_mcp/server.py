@@ -37,6 +37,7 @@ from agomtradepro_mcp.tools.prompt_tools import register_prompt_tools
 from agomtradepro_mcp.tools.pulse_tools import register_pulse_tools
 from agomtradepro_mcp.tools.realtime_tools import register_realtime_tools
 from agomtradepro_mcp.tools.regime_tools import register_regime_tools
+from agomtradepro_mcp.tools.risk_center_tools import register_risk_center_tools
 from agomtradepro_mcp.tools.rotation_tools import register_rotation_tools
 from agomtradepro_mcp.tools.sector_tools import register_sector_tools
 from agomtradepro_mcp.tools.sentiment_tools import register_sentiment_tools
@@ -128,6 +129,7 @@ def register_all_tools() -> None:
     register_alpha_trigger_tools(server)
     register_dashboard_tools(server)
     register_config_center_tools(server)
+    register_risk_center_tools(server)
     register_asset_analysis_tools(server)
     register_sentiment_tools(server)
     register_task_monitor_tools(server)

@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 
 from apps.account.infrastructure.models import AccountProfileModel
+from apps.risk_center.application.trade_guard import PreTradeRiskCheckResult
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.strategy.application.execution_orchestrator import (
     ExecutionConfig,
@@ -34,6 +35,19 @@ class DummyPaperAdapter:
 
     def is_live(self) -> bool:
         return False
+
+
+class RejectingRiskGuard:
+    def execute(self, **kwargs):
+        return PreTradeRiskCheckResult(
+            passed=False,
+            violations=["risk_center max_total_position_pct exceeded"],
+        )
+
+
+class AllowingRiskGuard:
+    def execute(self, **kwargs):
+        return PreTradeRiskCheckResult(passed=True)
 
 
 def _create_base_objects():
@@ -76,6 +90,7 @@ def test_idempotency_key_replay_submits_only_once():
         paper_adapter=paper,
         broker_adapter=None,
         config=ExecutionConfig(mode=ExecutionMode.PAPER),
+        pre_trade_risk_guard=AllowingRiskGuard(),
     )
 
     idem_key = f"idem-{uuid.uuid4()}"
@@ -131,6 +146,7 @@ def test_watch_requires_confirmation_persists_pending_approval():
         paper_adapter=paper,
         broker_adapter=None,
         config=ExecutionConfig(mode=ExecutionMode.PAPER, require_confirmation_for_watch=True),
+        pre_trade_risk_guard=AllowingRiskGuard(),
     )
 
     result = orchestrator.execute(
@@ -157,3 +173,43 @@ def test_watch_requires_confirmation_persists_pending_approval():
     assert result.status == "pending_approval"
     assert persisted.status == OrderStatus.PENDING_APPROVAL.value
     assert paper.submit_count == 0
+
+
+@pytest.mark.django_db
+def test_risk_center_rejection_does_not_persist_or_submit_order():
+    strategy, portfolio = _create_base_objects()
+    repo = DjangoOrderIntentRepository()
+    paper = DummyPaperAdapter()
+    orchestrator = ExecutionOrchestrator(
+        intent_repository=repo,
+        paper_adapter=paper,
+        broker_adapter=None,
+        config=ExecutionConfig(mode=ExecutionMode.PAPER),
+        pre_trade_risk_guard=RejectingRiskGuard(),
+    )
+    idem_key = f"idem-risk-center-{uuid.uuid4()}"
+
+    result = orchestrator.execute(
+        strategy_id=strategy.id,
+        portfolio_id=portfolio.id,
+        symbol="000001.SH",
+        side="buy",
+        signal_strength=0.8,
+        signal_confidence=0.9,
+        current_price=100.0,
+        account_equity=100000.0,
+        current_position_value=0.0,
+        daily_trade_count=0,
+        daily_pnl_pct=0.0,
+        regime="HG",
+        regime_confidence=0.9,
+        avg_volume=1000000,
+        idempotency_key=idem_key,
+    )
+
+    assert result.success is False
+    assert result.status == "rejected"
+    assert result.risk_check_passed is False
+    assert result.risk_violations == ["risk_center max_total_position_pct exceeded"]
+    assert paper.submit_count == 0
+    assert OrderIntentModel.objects.filter(idempotency_key=idem_key).count() == 0

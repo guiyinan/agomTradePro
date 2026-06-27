@@ -89,6 +89,14 @@ def test_extended_mcp_tools_registered():
         "get_fund_holdings",
         "get_fund_performance",
         "get_fund_recommendations",
+        "get_risk_floor",
+        "update_risk_floor",
+        "list_risk_templates",
+        "upsert_account_risk_policy",
+        "get_account_risk_policy",
+        "get_effective_risk_policy",
+        "list_risk_exceptions",
+        "create_risk_exception",
     }
 
     missing = expected - names

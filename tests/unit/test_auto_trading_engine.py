@@ -4,6 +4,7 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from apps.risk_center.application.trade_guard import PreTradeRiskCheckResult
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.ports import PositionExitAdvice
 
@@ -34,7 +35,10 @@ def _build_account():
         account_name="test",
         current_cash=100000.0,
         current_market_value=10000.0,
+        total_value=110000.0,
         stop_loss_pct=10.0,
+        available_cash_for_buy=lambda: 100000.0,
+        max_position_value=lambda: 22000.0,
     )
 
 
@@ -219,3 +223,36 @@ def test_price_trigger_sell_uses_target_band_and_limit_price():
         price=11.5,
         payload={"limit_price": 12.0},
     )
+
+
+def test_execute_buy_skips_when_risk_center_rejects(monkeypatch):
+    risk_guard = Mock(
+        execute=Mock(
+            return_value=PreTradeRiskCheckResult(
+                passed=False,
+                violations=["max_single_position_pct exceeded"],
+            )
+        )
+    )
+    engine = _build_engine(positions=[])
+    engine.pre_trade_risk_guard = risk_guard
+    engine.position_repo.get_position.return_value = None
+    monkeypatch.setattr(
+        "apps.simulated_trading.application.auto_trading_engine.PositionSizingRule.calculate_buy_quantity",
+        lambda **kwargs: 100,
+    )
+
+    bought = engine._execute_buy(
+        account=_build_account(),
+        candidate={
+            "asset_code": "000001.SZ",
+            "asset_name": "平安银行",
+            "asset_type": "equity",
+            "score": 90.0,
+        },
+        trade_date=date(2026, 4, 30),
+    )
+
+    assert bought is False
+    risk_guard.execute.assert_called_once()
+    engine.buy_use_case.execute.assert_not_called()

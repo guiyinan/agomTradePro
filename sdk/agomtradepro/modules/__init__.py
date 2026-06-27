@@ -31,6 +31,7 @@ from .prompt import PromptModule
 from .pulse import PulseModule
 from .realtime import RealtimeModule
 from .regime import RegimeModule
+from .risk_center import RiskCenterModule
 from .rotation import RotationModule
 from .sector import SectorModule
 from .sentiment import SentimentModule
@@ -66,6 +67,7 @@ __all__ = [
     "DataCenterModule",
     "DecisionRhythmModule",
     "DecisionWorkflowModule",
+    "RiskCenterModule",
     "BetaGateModule",
     "AlphaTriggerModule",
     "DashboardModule",

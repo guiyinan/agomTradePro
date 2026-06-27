@@ -47,6 +47,7 @@ from .modules.prompt import PromptModule
 from .modules.pulse import PulseModule
 from .modules.realtime import RealtimeModule
 from .modules.regime import RegimeModule
+from .modules.risk_center import RiskCenterModule
 from .modules.rotation import RotationModule
 from .modules.sector import SectorModule
 from .modules.sentiment import SentimentModule
@@ -96,6 +97,7 @@ class AgomTradeProClient:
     _alpha_trigger: AlphaTriggerModule | None = None
     _dashboard: DashboardModule | None = None
     _config_center: ConfigCenterModule | None = None
+    _risk_center: RiskCenterModule | None = None
     _asset_analysis: AssetAnalysisModule | None = None
     _sentiment: SentimentModule | None = None
     _task_monitor: TaskMonitorModule | None = None
@@ -604,6 +606,13 @@ class AgomTradeProClient:
         if self._config_center is None:
             self._config_center = ConfigCenterModule(self)
         return self._config_center
+
+    @property
+    def risk_center(self) -> RiskCenterModule:
+        """集中风控中心模块"""
+        if self._risk_center is None:
+            self._risk_center = RiskCenterModule(self)
+        return self._risk_center
 
     @property
     def asset_analysis(self) -> AssetAnalysisModule:

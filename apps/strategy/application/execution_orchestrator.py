@@ -21,8 +21,12 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol
 
+from apps.risk_center.application.trade_guard import (
+    EvaluatePreTradeRiskUseCase,
+    PreTradeRiskCheckResult,
+)
 from apps.strategy.domain.entities import (
     DecisionAction,
     DecisionResult,
@@ -43,6 +47,26 @@ from apps.strategy.domain.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PreTradeRiskGuardProtocol(Protocol):
+    """Centralized pre-trade risk guard interface."""
+
+    def execute(
+        self,
+        *,
+        account_id: int,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        account_equity: float,
+        total_position_value: float,
+        cash_balance: float | None = None,
+        current_symbol_position_value: float = 0.0,
+    ) -> PreTradeRiskCheckResult:
+        """Evaluate whether a proposed order can be submitted."""
+        ...
 
 
 # ========================================================================
@@ -128,6 +152,7 @@ class ExecutionOrchestrator:
         broker_adapter: ExecutionAdapterProtocol | None,
         config: ExecutionConfig,
         audit_logger: Any | None = None,
+        pre_trade_risk_guard: PreTradeRiskGuardProtocol | None = None,
     ):
         """
         初始化执行编排器
@@ -138,12 +163,14 @@ class ExecutionOrchestrator:
             broker_adapter: 券商执行适配器（可选）
             config: 执行配置
             audit_logger: 审计日志记录器（可选）
+            pre_trade_risk_guard: 集中风控中心前置交易检查（可选）
         """
         self.intent_repository = intent_repository
         self.paper_adapter = paper_adapter
         self.broker_adapter = broker_adapter
         self.config = config
         self.audit_logger = audit_logger
+        self.pre_trade_risk_guard = pre_trade_risk_guard or EvaluatePreTradeRiskUseCase()
 
         # 初始化引擎
         self.decision_engine = DecisionPolicyEngine(
@@ -306,6 +333,29 @@ class ExecutionOrchestrator:
                     error_message="; ".join(violations),
                 )
 
+            risk_center_result = self._check_risk_center_pre_trade(
+                portfolio_id=portfolio_id,
+                symbol=symbol,
+                side=side,
+                qty=qty,
+                current_price=current_price,
+                account_equity=account_equity,
+                current_position_value=current_position_value,
+            )
+            warnings = warnings + risk_center_result.warnings
+            if not risk_center_result.passed:
+                return ExecutionResult(
+                    success=False,
+                    intent_id=intent_id,
+                    status="rejected",
+                    decision_result=decision_result,
+                    sizing_result=sizing_result,
+                    risk_check_passed=False,
+                    risk_violations=risk_center_result.violations,
+                    risk_warnings=warnings,
+                    error_message="; ".join(risk_center_result.violations),
+                )
+
             # 5. 构建风险快照
             risk_snapshot = RiskSnapshot(
                 total_equity=account_equity,
@@ -451,6 +501,37 @@ class ExecutionOrchestrator:
         else:
             logger.warning(f"Unknown execution mode: {mode}, falling back to paper adapter")
             return self.paper_adapter
+
+    def _check_risk_center_pre_trade(
+        self,
+        *,
+        portfolio_id: int,
+        symbol: str,
+        side: str,
+        qty: float,
+        current_price: float,
+        account_equity: float,
+        current_position_value: float,
+    ) -> PreTradeRiskCheckResult:
+        """Run centralized risk-center checks for a candidate order."""
+        try:
+            return self.pre_trade_risk_guard.execute(
+                account_id=portfolio_id,
+                symbol=symbol,
+                side=side,
+                quantity=qty,
+                price=current_price,
+                account_equity=account_equity,
+                total_position_value=current_position_value,
+                cash_balance=account_equity - current_position_value,
+                current_symbol_position_value=current_position_value,
+            )
+        except Exception as exc:
+            logger.error("Risk center pre-trade check failed: %s", exc)
+            return PreTradeRiskCheckResult(
+                passed=False,
+                violations=[f"risk_center_unavailable: {exc}"],
+            )
 
     def _log_execution(
         self,
