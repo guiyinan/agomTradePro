@@ -35,6 +35,8 @@ def test_risk_center_console_renders_for_staff():
     assert "保存全局底线" in html
     assert "保存账户策略" in html
     assert "预览有效策略" in html
+    assert "交易前风控预览" in html
+    assert "检查拟交易" in html
     assert "创建例外" in html
     assert "/api/risk-center/" in html
     assert "/tui/#/risk-center.overview" in html

@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.risk_center.application.trade_guard import EvaluatePreTradeRiskUseCase
 from apps.risk_center.application.use_cases import (
     ApplyRiskTemplateToPolicyUseCase,
     CreateRiskExceptionUseCase,
@@ -30,6 +31,7 @@ from apps.risk_center.interface.serializers import (
     AccountRiskPolicySerializer,
     AccountRiskPolicyUpdateSerializer,
     ApplyTemplateSerializer,
+    PreTradeRiskCheckSerializer,
     RiskExceptionSerializer,
     RiskFloorSerializer,
     RiskTemplateSerializer,
@@ -81,6 +83,7 @@ class RiskCenterApiHomeView(APIView):
                     "account_policies": "/api/risk-center/account-policies/",
                     "exceptions": "/api/risk-center/exceptions/",
                     "effective_policy": "/api/risk-center/effective-policy/?account_id=1",
+                    "pre_trade_check": "/api/risk-center/pre-trade-check/",
                 },
             }
         )
@@ -307,3 +310,49 @@ class EffectiveRiskPolicyView(APIView):
         except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
             return _error_response(exc)
         return Response({"success": True, "data": payload})
+
+
+class PreTradeRiskCheckView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        serializer = PreTradeRiskCheckSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = dict(serializer.validated_data)
+        account_id = int(payload["account_id"])
+        try:
+            GetEffectiveRiskPolicyUseCase().execute(
+                actor=request.user,
+                account_id=account_id,
+            )
+            result = EvaluatePreTradeRiskUseCase().execute(
+                account_id=account_id,
+                symbol=str(payload["symbol"]),
+                side=str(payload["side"]),
+                quantity=float(payload["quantity"]),
+                price=float(payload["price"]),
+                account_equity=float(payload["account_equity"]),
+                total_position_value=float(payload["total_position_value"]),
+                cash_balance=(
+                    float(payload["cash_balance"])
+                    if payload.get("cash_balance") is not None
+                    else None
+                ),
+                current_symbol_position_value=float(
+                    payload.get("current_symbol_position_value") or 0.0
+                ),
+            )
+        except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
+            return _error_response(exc)
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "passed": result.passed,
+                    "violations": result.violations,
+                    "warnings": result.warnings,
+                    "metrics": result.metrics,
+                    "effective_policy": result.effective_policy,
+                },
+            }
+        )

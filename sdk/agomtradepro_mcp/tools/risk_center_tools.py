@@ -55,3 +55,31 @@ def register_risk_center_tools(server: FastMCP) -> None:
         """创建有理由和过期时间的管理员风控例外。"""
         client = AgomTradeProClient()
         return client.risk_center.create_exception(payload)
+
+    @server.tool()
+    def check_pre_trade_risk(
+        account_id: int,
+        symbol: str,
+        side: str,
+        quantity: float,
+        price: float,
+        account_equity: float,
+        total_position_value: float,
+        cash_balance: float | None = None,
+        current_symbol_position_value: float = 0.0,
+    ) -> dict[str, Any]:
+        """预览一笔拟交易是否会被集中风控中心拒绝。"""
+        client = AgomTradeProClient()
+        return client.risk_center.check_pre_trade(
+            {
+                "account_id": account_id,
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "price": price,
+                "account_equity": account_equity,
+                "total_position_value": total_position_value,
+                "cash_balance": cash_balance,
+                "current_symbol_position_value": current_symbol_position_value,
+            }
+        )

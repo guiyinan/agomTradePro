@@ -135,6 +135,65 @@ def test_user_cannot_read_or_set_another_users_policy():
 
 
 @pytest.mark.django_db
+def test_pre_trade_check_returns_human_actionable_risk_result():
+    staff = _user("risk_pretrade_staff", is_staff=True)
+    account = _account(staff)
+    client = _client(staff)
+    client.put(
+        "/api/risk-center/floor/",
+        {"max_total_position_pct": 0.75, "max_single_position_pct": 0.2, "min_cash_pct": 0.1},
+        format="json",
+    )
+
+    response = client.post(
+        "/api/risk-center/pre-trade-check/",
+        {
+            "account_id": account.id,
+            "symbol": "000001.SZ",
+            "side": "buy",
+            "quantity": 1000,
+            "price": 10,
+            "account_equity": 100000,
+            "total_position_value": 70000,
+            "cash_balance": 30000,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    data = response.data["data"]
+    assert data["passed"] is False
+    assert any("max_total_position_pct" in item for item in data["violations"])
+    assert data["metrics"]["order_value"] == 10000
+    assert data["effective_policy"]["account_id"] == account.id
+
+
+@pytest.mark.django_db
+def test_pre_trade_check_respects_account_permissions():
+    owner = _user("risk_pretrade_owner")
+    other = _user("risk_pretrade_other")
+    account = _account(owner)
+    client = _client(other)
+
+    response = client.post(
+        "/api/risk-center/pre-trade-check/",
+        {
+            "account_id": account.id,
+            "symbol": "000001.SZ",
+            "side": "buy",
+            "quantity": 100,
+            "price": 10,
+            "account_equity": 100000,
+            "total_position_value": 0,
+            "cash_balance": 100000,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_effective_policy_returns_sources_floor_and_exception_notes():
     staff = _user("risk_effective_staff", is_staff=True)
     account = _account(staff)

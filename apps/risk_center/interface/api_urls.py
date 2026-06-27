@@ -8,6 +8,7 @@ from apps.risk_center.interface.api_views import (
     AccountRiskPolicyListCreateView,
     ApplyTemplateToPolicyView,
     EffectiveRiskPolicyView,
+    PreTradeRiskCheckView,
     RiskCenterApiHomeView,
     RiskExceptionListCreateView,
     RiskFloorView,
@@ -40,4 +41,5 @@ urlpatterns = [
     ),
     path("exceptions/", RiskExceptionListCreateView.as_view(), name="exceptions"),
     path("effective-policy/", EffectiveRiskPolicyView.as_view(), name="effective-policy"),
+    path("pre-trade-check/", PreTradeRiskCheckView.as_view(), name="pre-trade-check"),
 ]

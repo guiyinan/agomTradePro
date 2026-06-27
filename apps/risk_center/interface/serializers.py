@@ -92,3 +92,19 @@ class RiskExceptionSerializer(serializers.Serializer):
     reason = serializers.CharField()
     expires_at = serializers.DateTimeField()
     is_active = serializers.BooleanField(required=False, default=True)
+
+
+class PreTradeRiskCheckSerializer(serializers.Serializer):
+    account_id = serializers.IntegerField(min_value=1)
+    symbol = serializers.CharField(max_length=64)
+    side = serializers.ChoiceField(choices=("buy", "sell"))
+    quantity = serializers.FloatField(min_value=0)
+    price = serializers.FloatField(min_value=0)
+    account_equity = serializers.FloatField(min_value=0)
+    total_position_value = serializers.FloatField(min_value=0)
+    cash_balance = serializers.FloatField(required=False, allow_null=True, min_value=0)
+    current_symbol_position_value = serializers.FloatField(
+        required=False,
+        default=0.0,
+        min_value=0,
+    )

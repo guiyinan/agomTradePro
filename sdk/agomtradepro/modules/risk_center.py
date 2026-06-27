@@ -80,3 +80,7 @@ class RiskCenterModule(BaseModule):
     def get_effective_policy(self, account_id: int) -> dict[str, Any]:
         response = self._get("effective-policy/", params={"account_id": account_id})
         return response.get("data", response)
+
+    def check_pre_trade(self, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self._post("pre-trade-check/", json=payload)
+        return response.get("data", response)

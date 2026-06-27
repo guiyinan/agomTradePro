@@ -39,6 +39,7 @@
 - `POST /api/risk-center/templates/`
 - `GET /api/risk-center/account-policies/`
 - `GET /api/risk-center/effective-policy/?account_id=<id>`
+- `POST /api/risk-center/pre-trade-check/`
 - `GET /risk-center/`
 
 ## MCP Tools
@@ -65,6 +66,7 @@
 - `get_effective_risk_policy`
 - `list_risk_exceptions`
 - `create_risk_exception`
+- `check_pre_trade_risk`
 
 ## Notes
 

@@ -802,6 +802,14 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
     assert payload["screen"]["label"] == "集中风控中心"
     assert action_by_key["risk-center.effective-policy"]["risk"] == "read"
     assert action_by_key["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
+    assert action_by_key["risk-center.pre-trade-check"]["risk"] == "read"
+    assert {field["key"] for field in action_by_key["risk-center.pre-trade-check"]["fields"]} >= {
+        "account_id",
+        "symbol",
+        "quantity",
+        "price",
+        "account_equity",
+    }
     assert action_by_key["risk-center.update-floor"]["confirmation_required"] is True
     assert action_by_key["risk-center.create-exception"]["risk"] == "write"
 

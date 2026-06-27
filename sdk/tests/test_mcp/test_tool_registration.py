@@ -97,6 +97,7 @@ def test_extended_mcp_tools_registered():
         "get_effective_risk_policy",
         "list_risk_exceptions",
         "create_risk_exception",
+        "check_pre_trade_risk",
     }
 
     missing = expected - names

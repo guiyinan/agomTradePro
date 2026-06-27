@@ -99,14 +99,52 @@
     }
     .risk-center-output {
         margin-top: 12px;
-        background: #0f172a;
-        color: #e2e8f0;
+        background: #f8fafc;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 12px;
         min-height: 82px;
         white-space: pre-wrap;
         overflow: auto;
         font-size: 12px;
+    }
+    .risk-center-output pre {
+        margin: 8px 0 0;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 6px;
+        padding: 10px;
+        overflow: auto;
+    }
+    .risk-center-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .risk-center-badge.is-pass {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .risk-center-badge.is-stop {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .risk-center-summary-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .risk-center-summary-list div {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 8px;
+        background: #fff;
     }
     .risk-center-status {
         min-height: 20px;
@@ -312,6 +350,47 @@
             </table>
         </section>
 
+        <section class="risk-center-panel">
+            <h2>交易前风控预览</h2>
+            <form class="risk-center-form" data-risk-form="pretrade">
+                <label>账户 ID
+                    <input name="account_id" type="number" min="1" step="1" required>
+                </label>
+                <label>证券代码
+                    <input name="symbol" placeholder="000001.SZ" required>
+                </label>
+                <label>方向
+                    <select name="side">
+                        <option value="buy">buy</option>
+                        <option value="sell">sell</option>
+                    </select>
+                </label>
+                <label>数量
+                    <input name="quantity" type="number" min="0" step="0.0001" required>
+                </label>
+                <label>价格
+                    <input name="price" type="number" min="0" step="0.0001" required>
+                </label>
+                <label>账户权益
+                    <input name="account_equity" type="number" min="0" step="0.01" required>
+                </label>
+                <label>当前总持仓
+                    <input name="total_position_value" type="number" min="0" step="0.01" required>
+                </label>
+                <label>现金余额
+                    <input name="cash_balance" type="number" min="0" step="0.01">
+                </label>
+                <label class="risk-center-full">当前单标的市值
+                    <input name="current_symbol_position_value" type="number" min="0" step="0.01" value="0">
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-primary">检查拟交易</button>
+                    <span class="risk-center-status" data-risk-status="pretrade"></span>
+                </div>
+            </form>
+            <div class="risk-center-output" data-risk-output="pretrade">输入一笔拟交易，查看是否会被集中风控拒绝。</div>
+        </section>
+
         <section class="risk-center-panel risk-center-full">
             <h2>账户策略列表 / 最近审计</h2>
             <div class="risk-center-grid">
@@ -367,9 +446,68 @@
         const node = document.querySelector(`[data-risk-status="${key}"]`);
         if (node) node.textContent = message;
     };
+    const escapeHtml = (value) => String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     const output = (key, payload) => {
         const node = document.querySelector(`[data-risk-output="${key}"]`);
-        if (node) node.textContent = JSON.stringify(payload, null, 2);
+        if (node) node.innerHTML = `<pre>${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`;
+    };
+    const pct = (value) => {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+        return `${(Number(value) * 100).toFixed(2)}%`;
+    };
+    const money = (value) => {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+        return Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+    };
+    const renderEffectivePolicy = (payload) => {
+        const data = payload.data || payload;
+        const params = data.parameters || {};
+        const sources = data.sources || {};
+        const floorApplied = data.floor_applied || [];
+        const exceptions = data.exceptions_applied || [];
+        const node = document.querySelector('[data-risk-output="policy"]');
+        if (!node) return;
+        const sourceRows = Object.entries(sources)
+            .slice(0, 8)
+            .map(([key, value]) => `<div><strong>${escapeHtml(key)}</strong><br>${escapeHtml(value)}</div>`)
+            .join("");
+        node.innerHTML = `
+            <span class="risk-center-badge is-pass">账户 ${escapeHtml(data.account_id)} 已解析</span>
+            <div class="risk-center-summary-list">
+                <div><strong>总仓位</strong><br>${pct(params.max_total_position_pct)}</div>
+                <div><strong>单标的</strong><br>${pct(params.max_single_position_pct)}</div>
+                <div><strong>现金底线</strong><br>${pct(params.min_cash_pct)}</div>
+                <div><strong>止损上限</strong><br>${pct(params.max_stop_loss_pct)}</div>
+            </div>
+            <p style="margin:10px 0 0;">底线压制 ${floorApplied.length} 项，例外生效 ${exceptions.length} 项。</p>
+            <div class="risk-center-summary-list">${sourceRows || "<div>暂无来源明细</div>"}</div>
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        `;
+    };
+    const renderPreTrade = (payload) => {
+        const data = payload.data || payload;
+        const metrics = data.metrics || {};
+        const node = document.querySelector('[data-risk-output="pretrade"]');
+        if (!node) return;
+        const violations = (data.violations || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const warnings = (data.warnings || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        node.innerHTML = `
+            <span class="risk-center-badge ${data.passed ? "is-pass" : "is-stop"}">${data.passed ? "允许提交" : "风控拒绝"}</span>
+            <div class="risk-center-summary-list">
+                <div><strong>订单金额</strong><br>${money(metrics.order_value)}</div>
+                <div><strong>预计总仓位</strong><br>${pct(metrics.projected_total_position_pct)}</div>
+                <div><strong>预计单标的</strong><br>${pct(metrics.projected_single_position_pct)}</div>
+                <div><strong>预计现金</strong><br>${pct(metrics.projected_cash_pct)}</div>
+            </div>
+            ${violations ? `<p style="margin:10px 0 4px;"><strong>违规项</strong></p><ul>${violations}</ul>` : ""}
+            ${warnings ? `<p style="margin:10px 0 4px;"><strong>提示</strong></p><ul>${warnings}</ul>` : ""}
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        `;
     };
     const parseValue = (value) => {
         const trimmed = String(value || "").trim();
@@ -451,9 +589,23 @@
         try {
             const payload = await request(`effective-policy/?account_id=${encodeURIComponent(accountId)}`);
             status("policy", "已读取");
-            output("policy", payload);
+            renderEffectivePolicy(payload);
         } catch (error) {
             status("policy", error.message);
+        }
+    });
+    document.querySelector('[data-risk-form="pretrade"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("pretrade", "检查中...");
+        try {
+            const payload = await request("pre-trade-check/", {
+                method: "POST",
+                body: JSON.stringify(formPayload(event.currentTarget)),
+            });
+            status("pretrade", payload.data?.passed ? "允许" : "拒绝");
+            renderPreTrade(payload);
+        } catch (error) {
+            status("pretrade", error.message);
         }
     });
     document.querySelector('[data-risk-form="exception"]')?.addEventListener("submit", async (event) => {
