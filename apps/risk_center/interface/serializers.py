@@ -130,3 +130,7 @@ class PostInvestmentRiskCheckSerializer(serializers.Serializer):
         required=False,
         allow_empty=True,
     )
+
+
+class RiskCenterDailyReportSerializer(PostInvestmentRiskCheckSerializer):
+    report_date = serializers.DateField(required=False)

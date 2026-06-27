@@ -107,3 +107,29 @@ def register_risk_center_tools(server: FastMCP) -> None:
                 "positions": positions or [],
             }
         )
+
+    @server.tool()
+    def generate_risk_center_daily_report(
+        account_id: int,
+        account_equity: float,
+        report_date: str | None = None,
+        positions: list[dict[str, Any]] | None = None,
+        cash_balance: float | None = None,
+        total_position_value: float | None = None,
+        daily_pnl_pct: float | None = None,
+        drawdown_pct: float | None = None,
+    ) -> dict[str, Any]:
+        """生成风控日报和持仓日报。"""
+        client = AgomTradeProClient()
+        return client.risk_center.generate_daily_report(
+            {
+                "account_id": account_id,
+                "report_date": report_date,
+                "account_equity": account_equity,
+                "cash_balance": cash_balance,
+                "total_position_value": total_position_value,
+                "daily_pnl_pct": daily_pnl_pct,
+                "drawdown_pct": drawdown_pct,
+                "positions": positions or [],
+            }
+        )

@@ -32,6 +32,17 @@ class PostInvestmentRiskCheckResult:
     metrics: dict[str, float] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class RiskCenterDailyReportResult:
+    """Daily risk and position report generated from one account snapshot."""
+
+    account_id: int
+    report_date: str
+    risk_daily_report: dict[str, Any]
+    position_daily_report: dict[str, Any]
+    post_investment_check: dict[str, Any]
+
+
 class EvaluatePreTradeRiskUseCase:
     """Evaluate a proposed order using the resolved risk-center policy for an account."""
 
@@ -413,6 +424,191 @@ class EvaluatePostInvestmentRiskUseCase:
         numeric_limit = EvaluatePostInvestmentRiskUseCase._optional_float(limit)
         if numeric_limit is not None and loss_pct > numeric_limit:
             violations.append(f"{label} exceeded: loss={loss_pct:.4f}, limit={numeric_limit:.4f}")
+
+    @staticmethod
+    def _float_or_zero(value: Any) -> float:
+        try:
+            return max(float(value), 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _optional_float(value: Any) -> float | None:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+
+class GenerateRiskCenterDailyReportUseCase:
+    """Generate risk and position daily reports from an account snapshot."""
+
+    def __init__(
+        self,
+        post_investment_checker: EvaluatePostInvestmentRiskUseCase | None = None,
+    ) -> None:
+        self.post_investment_checker = post_investment_checker or EvaluatePostInvestmentRiskUseCase()
+
+    def execute(
+        self,
+        *,
+        account_id: int,
+        report_date: str,
+        account_equity: float,
+        cash_balance: float | None = None,
+        total_position_value: float | None = None,
+        daily_pnl_pct: float | None = None,
+        drawdown_pct: float | None = None,
+        positions: list[dict[str, Any]] | None = None,
+    ) -> RiskCenterDailyReportResult:
+        check = self.post_investment_checker.execute(
+            account_id=account_id,
+            account_equity=account_equity,
+            cash_balance=cash_balance,
+            total_position_value=total_position_value,
+            daily_pnl_pct=daily_pnl_pct,
+            drawdown_pct=drawdown_pct,
+            positions=positions,
+        )
+        check_payload = {
+            "status": check.status,
+            "passed": check.passed,
+            "violations": check.violations,
+            "warnings": check.warnings,
+            "position_alerts": check.position_alerts,
+            "metrics": check.metrics,
+            "effective_policy": check.effective_policy,
+        }
+        position_rows = self._build_position_rows(
+            positions=positions or [],
+            account_equity=float(account_equity),
+            alerts=check.position_alerts,
+        )
+        risk_report = self._build_risk_report(
+            report_date=report_date,
+            check_payload=check_payload,
+        )
+        position_report = self._build_position_report(
+            report_date=report_date,
+            metrics=check.metrics,
+            position_rows=position_rows,
+        )
+        return RiskCenterDailyReportResult(
+            account_id=account_id,
+            report_date=report_date,
+            risk_daily_report=risk_report,
+            position_daily_report=position_report,
+            post_investment_check=check_payload,
+        )
+
+    def _build_risk_report(
+        self,
+        *,
+        report_date: str,
+        check_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        metrics = check_payload.get("metrics") or {}
+        violations = list(check_payload.get("violations") or [])
+        warnings = list(check_payload.get("warnings") or [])
+        alerts = list(check_payload.get("position_alerts") or [])
+        status = str(check_payload.get("status") or "ok")
+        return {
+            "report_date": report_date,
+            "status": status,
+            "headline": self._headline(status),
+            "breach_count": len(violations),
+            "warning_count": len(warnings),
+            "position_alert_count": len(alerts),
+            "metrics": {
+                "account_equity": metrics.get("account_equity", 0.0),
+                "total_position_pct": metrics.get("total_position_pct", 0.0),
+                "cash_pct": metrics.get("cash_pct", 0.0),
+                "daily_pnl_pct": metrics.get("daily_pnl_pct"),
+                "drawdown_pct": metrics.get("drawdown_pct"),
+            },
+            "violations": violations,
+            "warnings": warnings,
+            "action_items": self._action_items(status=status, violations=violations, warnings=warnings),
+        }
+
+    def _build_position_report(
+        self,
+        *,
+        report_date: str,
+        metrics: dict[str, Any],
+        position_rows: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        sorted_rows = sorted(
+            position_rows,
+            key=lambda item: float(item.get("market_value") or 0.0),
+            reverse=True,
+        )
+        return {
+            "report_date": report_date,
+            "position_count": int(metrics.get("position_count") or len(position_rows)),
+            "total_position_value": metrics.get("total_position_value", 0.0),
+            "total_position_pct": metrics.get("total_position_pct", 0.0),
+            "cash_balance": metrics.get("cash_balance", 0.0),
+            "cash_pct": metrics.get("cash_pct", 0.0),
+            "top_positions": sorted_rows[:10],
+            "watch_positions": [
+                item
+                for item in sorted_rows
+                if item.get("alert_count", 0) > 0 or item.get("unrealized_pnl_pct") is not None
+            ][:20],
+        }
+
+    def _build_position_rows(
+        self,
+        *,
+        positions: list[dict[str, Any]],
+        account_equity: float,
+        alerts: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        alerts_by_symbol: dict[str, list[dict[str, Any]]] = {}
+        for alert in alerts:
+            symbol = str(alert.get("symbol") or "").upper()
+            if symbol:
+                alerts_by_symbol.setdefault(symbol, []).append(alert)
+
+        rows: list[dict[str, Any]] = []
+        for position in positions:
+            symbol = str(position.get("symbol") or position.get("asset_code") or "").upper()
+            market_value = self._float_or_zero(position.get("market_value"))
+            row_alerts = alerts_by_symbol.get(symbol, [])
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "market_value": market_value,
+                    "weight": market_value / account_equity if account_equity > 0 else 0.0,
+                    "current_price": self._optional_float(position.get("current_price")),
+                    "avg_cost": self._optional_float(position.get("avg_cost")),
+                    "unrealized_pnl_pct": self._optional_float(
+                        position.get("unrealized_pnl_pct")
+                    ),
+                    "alert_count": len(row_alerts),
+                    "alerts": row_alerts,
+                }
+            )
+        return rows
+
+    @staticmethod
+    def _headline(status: str) -> str:
+        if status == "breach":
+            return "账户已触碰风控，需要处理违规项。"
+        if status == "watch":
+            return "账户未触碰硬风控，但存在观察项。"
+        return "账户风控状态正常。"
+
+    @staticmethod
+    def _action_items(*, status: str, violations: list[str], warnings: list[str]) -> list[str]:
+        if status == "breach":
+            return ["暂停新增买入", "优先处理违规持仓或现金缺口", *violations[:5]]
+        if warnings:
+            return ["复核观察项", *warnings[:5]]
+        return ["保持当前风控配置，次日继续巡检"]
 
     @staticmethod
     def _float_or_zero(value: Any) -> float:

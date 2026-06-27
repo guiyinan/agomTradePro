@@ -417,10 +417,13 @@
                 </label>
                 <div class="risk-center-actions">
                     <button type="submit" class="btn btn-primary">巡检当前持仓</button>
+                    <button type="button" class="btn btn-secondary" data-risk-daily-report>生成风控/持仓日报</button>
                     <span class="risk-center-status" data-risk-status="postinvestment"></span>
+                    <span class="risk-center-status" data-risk-status="dailyreport"></span>
                 </div>
             </form>
             <div class="risk-center-output" data-risk-output="postinvestment">输入当前账户快照，查看投后是否触碰集中风控。</div>
+            <div class="risk-center-output" data-risk-output="dailyreport">日报会包含风控日报和持仓日报两部分。</div>
         </section>
 
         <section class="risk-center-panel risk-center-full">
@@ -568,6 +571,33 @@
             <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
         `;
     };
+    const renderDailyReport = (payload) => {
+        const data = payload.data || payload;
+        const risk = data.risk_daily_report || {};
+        const position = data.position_daily_report || {};
+        const node = document.querySelector('[data-risk-output="dailyreport"]');
+        if (!node) return;
+        const violations = (risk.violations || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const actions = (risk.action_items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+        const positions = (position.top_positions || [])
+            .slice(0, 8)
+            .map((item) => `<li><strong>${escapeHtml(item.symbol || "-")}</strong> ${pct(item.weight)} / ${money(item.market_value)}</li>`)
+            .join("");
+        const badgeClass = risk.status === "breach" ? "is-stop" : "is-pass";
+        node.innerHTML = `
+            <span class="risk-center-badge ${badgeClass}">风控日报：${escapeHtml(risk.headline || risk.status || "-")}</span>
+            <div class="risk-center-summary-list">
+                <div><strong>报告日期</strong><br>${escapeHtml(data.report_date || "-")}</div>
+                <div><strong>违规数</strong><br>${money(risk.breach_count)}</div>
+                <div><strong>持仓数</strong><br>${money(position.position_count)}</div>
+                <div><strong>总仓位</strong><br>${pct(position.total_position_pct)}</div>
+            </div>
+            ${violations ? `<p style="margin:10px 0 4px;"><strong>风控违规</strong></p><ul>${violations}</ul>` : ""}
+            ${actions ? `<p style="margin:10px 0 4px;"><strong>处理事项</strong></p><ul>${actions}</ul>` : ""}
+            ${positions ? `<p style="margin:10px 0 4px;"><strong>持仓日报 Top</strong></p><ul>${positions}</ul>` : ""}
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        `;
+    };
     const parseValue = (value) => {
         const trimmed = String(value || "").trim();
         if (trimmed === "") return null;
@@ -679,6 +709,20 @@
             renderPostInvestment(payload);
         } catch (error) {
             status("postinvestment", error.message);
+        }
+    });
+    document.querySelector("[data-risk-daily-report]")?.addEventListener("click", async () => {
+        const form = document.querySelector('[data-risk-form="postinvestment"]');
+        status("dailyreport", "生成中...");
+        try {
+            const payload = await request("daily-report/", {
+                method: "POST",
+                body: JSON.stringify(formPayload(form)),
+            });
+            status("dailyreport", payload.data?.risk_daily_report?.status || "完成");
+            renderDailyReport(payload);
+        } catch (error) {
+            status("dailyreport", error.message);
         }
     });
     document.querySelector('[data-risk-form="exception"]')?.addEventListener("submit", async (event) => {

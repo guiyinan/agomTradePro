@@ -264,6 +264,72 @@ def test_post_investment_check_respects_account_permissions():
 
 
 @pytest.mark.django_db
+def test_daily_report_returns_risk_and_position_sections():
+    staff = _user("risk_daily_report_staff", is_staff=True)
+    account = _account(staff)
+    client = _client(staff)
+
+    response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "report_date": "2026-06-28",
+            "account_equity": 100000,
+            "cash_balance": 5000,
+            "total_position_value": 95000,
+            "daily_pnl_pct": -0.04,
+            "positions": [
+                {"symbol": "000001.SZ", "market_value": 30000, "unrealized_pnl_pct": -0.09},
+                {"symbol": "000002.SZ", "market_value": 15000, "unrealized_pnl_pct": 0.22},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    data = response.data["data"]
+    assert data["report_date"] == "2026-06-28"
+    assert data["risk_daily_report"]["status"] == "breach"
+    assert data["risk_daily_report"]["breach_count"] >= 1
+    assert data["position_daily_report"]["position_count"] == 2
+    assert data["position_daily_report"]["top_positions"][0]["symbol"] == "000001.SZ"
+    assert data["post_investment_check"]["effective_policy"]["account_id"] == account.id
+
+    default_date_response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "account_equity": 100000,
+            "positions": [],
+        },
+        format="json",
+    )
+
+    assert default_date_response.status_code == 200
+    assert default_date_response.data["data"]["report_date"] == timezone.localdate().isoformat()
+
+
+@pytest.mark.django_db
+def test_daily_report_respects_account_permissions():
+    owner = _user("risk_daily_owner")
+    other = _user("risk_daily_other")
+    account = _account(owner)
+    client = _client(other)
+
+    response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "account_equity": 100000,
+            "positions": [],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_effective_policy_returns_sources_floor_and_exception_notes():
     staff = _user("risk_effective_staff", is_staff=True)
     account = _account(staff)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 from apps.risk_center.application.trade_guard import (
     EvaluatePostInvestmentRiskUseCase,
     EvaluatePreTradeRiskUseCase,
+    GenerateRiskCenterDailyReportUseCase,
 )
 from apps.risk_center.application.use_cases import (
     ApplyRiskTemplateToPolicyUseCase,
@@ -36,6 +38,7 @@ from apps.risk_center.interface.serializers import (
     ApplyTemplateSerializer,
     PostInvestmentRiskCheckSerializer,
     PreTradeRiskCheckSerializer,
+    RiskCenterDailyReportSerializer,
     RiskExceptionSerializer,
     RiskFloorSerializer,
     RiskTemplateSerializer,
@@ -89,6 +92,7 @@ class RiskCenterApiHomeView(APIView):
                     "effective_policy": "/api/risk-center/effective-policy/?account_id=1",
                     "pre_trade_check": "/api/risk-center/pre-trade-check/",
                     "post_investment_check": "/api/risk-center/post-investment-check/",
+                    "daily_report": "/api/risk-center/daily-report/",
                 },
             }
         )
@@ -414,6 +418,65 @@ class PostInvestmentRiskCheckView(APIView):
                     "position_alerts": result.position_alerts,
                     "metrics": result.metrics,
                     "effective_policy": result.effective_policy,
+                },
+            }
+        )
+
+
+class RiskCenterDailyReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request) -> Response:
+        serializer = RiskCenterDailyReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = dict(serializer.validated_data)
+        account_id = int(payload["account_id"])
+        try:
+            GetEffectiveRiskPolicyUseCase().execute(
+                actor=request.user,
+                account_id=account_id,
+            )
+            result = GenerateRiskCenterDailyReportUseCase().execute(
+                account_id=account_id,
+                report_date=(
+                    payload["report_date"].isoformat()
+                    if payload.get("report_date") is not None
+                    else timezone.localdate().isoformat()
+                ),
+                account_equity=float(payload["account_equity"]),
+                cash_balance=(
+                    float(payload["cash_balance"])
+                    if payload.get("cash_balance") is not None
+                    else None
+                ),
+                total_position_value=(
+                    float(payload["total_position_value"])
+                    if payload.get("total_position_value") is not None
+                    else None
+                ),
+                daily_pnl_pct=(
+                    float(payload["daily_pnl_pct"])
+                    if payload.get("daily_pnl_pct") is not None
+                    else None
+                ),
+                drawdown_pct=(
+                    float(payload["drawdown_pct"])
+                    if payload.get("drawdown_pct") is not None
+                    else None
+                ),
+                positions=list(payload.get("positions") or []),
+            )
+        except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
+            return _error_response(exc)
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "account_id": result.account_id,
+                    "report_date": result.report_date,
+                    "risk_daily_report": result.risk_daily_report,
+                    "position_daily_report": result.position_daily_report,
+                    "post_investment_check": result.post_investment_check,
                 },
             }
         )

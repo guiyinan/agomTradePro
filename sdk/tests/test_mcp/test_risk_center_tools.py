@@ -21,6 +21,7 @@ class _FakeClient:
             create_exception=lambda payload: {"exception": payload},
             check_pre_trade=lambda payload: {"passed": True, "payload": payload},
             check_post_investment=lambda payload: {"status": "ok", "payload": payload},
+            generate_daily_report=lambda payload: {"risk_daily_report": {"status": "ok"}, "payload": payload},
         )
 
 
@@ -72,6 +73,15 @@ class _FakeClient:
                         "unrealized_pnl_pct": -0.05,
                     }
                 ],
+            },
+        ),
+        (
+            "generate_risk_center_daily_report",
+            {
+                "account_id": 1,
+                "report_date": "2026-06-28",
+                "account_equity": 100000.0,
+                "positions": [],
             },
         ),
     ],

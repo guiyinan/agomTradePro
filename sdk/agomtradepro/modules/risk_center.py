@@ -88,3 +88,7 @@ class RiskCenterModule(BaseModule):
     def check_post_investment(self, payload: dict[str, Any]) -> dict[str, Any]:
         response = self._post("post-investment-check/", json=payload)
         return response.get("data", response)
+
+    def generate_daily_report(self, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self._post("daily-report/", json=payload)
+        return response.get("data", response)

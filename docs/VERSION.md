@@ -42,6 +42,7 @@ Build: 2026-03-23
 
 ## 0.7.0 之后的开发快照（截至 2026-06-27）
 
+- `2026-06-28` 集中风控中心新增风控日报和持仓日报：`POST /api/risk-center/daily-report/`、SDK `client.risk_center.generate_daily_report()`、MCP `generate_risk_center_daily_report`、TUI `risk-center.daily-report` 和 `/risk-center/` Web 按钮可基于账户日终快照输出 `risk_daily_report`、`position_daily_report` 与底层投后巡检结果
 - `2026-06-28` 集中风控中心新增投后风控巡检：`POST /api/risk-center/post-investment-check/`、SDK `client.risk_center.check_post_investment()`、MCP `check_post_investment_risk`、TUI `risk-center.post-investment-check` 和 `/risk-center/` Web 面板可对账户权益、现金、日亏损/回撤和持仓快照做健康检查，输出总仓位、单标的、现金底线、硬排除、强制止损和止盈观察结果
 - `2026-06-27` 新增独立 `risk_center` 集中风控中心 V1：提供全局风控底线、风险模板、账户级策略、管理员例外、审计记录和有效策略解析 API，并补齐 SDK `client.risk_center` 与真实 MCP 工具 `get_risk_floor`、`update_risk_floor`、`list_risk_templates`、`upsert_account_risk_policy`、`get_account_risk_policy`、`get_effective_risk_policy`、`list_risk_exceptions`、`create_risk_exception`
 - `2026-06-27` 集中风控中心已接入交易前置风控：模拟盘自动交易的策略买入和传统候选买入会在下单前检查硬排除、总仓位、单标的、现金底线；策略执行编排会在保存 `OrderIntent` 前调用风控中心，拒单时不落库、不提交 adapter，风控中心异常按失败关闭处理

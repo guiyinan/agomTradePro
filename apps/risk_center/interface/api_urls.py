@@ -11,6 +11,7 @@ from apps.risk_center.interface.api_views import (
     PostInvestmentRiskCheckView,
     PreTradeRiskCheckView,
     RiskCenterApiHomeView,
+    RiskCenterDailyReportView,
     RiskExceptionListCreateView,
     RiskFloorView,
     RiskTemplateDetailView,
@@ -48,4 +49,5 @@ urlpatterns = [
         PostInvestmentRiskCheckView.as_view(),
         name="post-investment-check",
     ),
+    path("daily-report/", RiskCenterDailyReportView.as_view(), name="daily-report"),
 ]
