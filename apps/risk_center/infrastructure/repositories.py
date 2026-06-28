@@ -19,6 +19,7 @@ from apps.risk_center.domain.services import fallback_template_for_profile
 from apps.risk_center.infrastructure.models import (
     AccountRiskPolicyModel,
     GlobalRiskFloorModel,
+    RiskDailyReportModel,
     RiskExceptionModel,
     RiskPolicyAuditModel,
     RiskTemplateModel,
@@ -366,6 +367,49 @@ class DjangoRiskAuditRepository:
                 :limit
             ]
         )
+
+
+class DjangoRiskDailyReportRepository:
+    def upsert_report(
+        self, payload: dict[str, Any], *, actor: Any | None = None
+    ) -> RiskDailyReportModel:
+        values = dict(payload)
+        account_id = int(values.pop("account_id"))
+        report_date = values.pop("report_date")
+        values["generated_by"] = actor if getattr(actor, "is_authenticated", False) else None
+        report, _ = RiskDailyReportModel._default_manager.update_or_create(
+            account_id=account_id,
+            report_date=report_date,
+            defaults=values,
+        )
+        return report
+
+    def get_report(self, *, account_id: int, report_date: Any) -> RiskDailyReportModel | None:
+        return (
+            RiskDailyReportModel._default_manager.select_related("generated_by")
+            .filter(account_id=account_id, report_date=report_date)
+            .first()
+        )
+
+    def list_reports(
+        self,
+        *,
+        account_id: int | None = None,
+        account_ids: list[int] | None = None,
+        start_date: Any | None = None,
+        end_date: Any | None = None,
+        limit: int = 90,
+    ) -> list[RiskDailyReportModel]:
+        qs = RiskDailyReportModel._default_manager.select_related("generated_by").all()
+        if account_id is not None:
+            qs = qs.filter(account_id=account_id)
+        elif account_ids is not None:
+            qs = qs.filter(account_id__in=account_ids)
+        if start_date is not None:
+            qs = qs.filter(report_date__gte=start_date)
+        if end_date is not None:
+            qs = qs.filter(report_date__lte=end_date)
+        return list(qs.order_by("-report_date", "-updated_at")[: max(int(limit), 0)])
 
 
 class DjangoRiskAccountRepository:

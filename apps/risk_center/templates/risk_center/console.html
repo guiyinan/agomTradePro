@@ -397,6 +397,9 @@
                 <label>账户 ID
                     <input name="account_id" type="number" min="1" step="1" required>
                 </label>
+                <label>报告日期
+                    <input name="report_date" type="date">
+                </label>
                 <label>账户权益
                     <input name="account_equity" type="number" min="0" step="0.01" required>
                 </label>
@@ -424,6 +427,28 @@
             </form>
             <div class="risk-center-output" data-risk-output="postinvestment">输入当前账户快照，查看投后是否触碰集中风控。</div>
             <div class="risk-center-output" data-risk-output="dailyreport">日报会包含风控日报和持仓日报两部分。</div>
+            <form class="risk-center-form" data-risk-form="dailyhistory" style="margin-top:14px;">
+                <label>账户 ID
+                    <input name="account_id" type="number" min="1" step="1">
+                </label>
+                <label>报告日期
+                    <input name="report_date" type="date">
+                </label>
+                <label>开始日期
+                    <input name="start_date" type="date">
+                </label>
+                <label>结束日期
+                    <input name="end_date" type="date">
+                </label>
+                <label>返回数量
+                    <input name="limit" type="number" min="1" max="365" step="1" value="30">
+                </label>
+                <div class="risk-center-actions">
+                    <button type="submit" class="btn btn-secondary">查询历史日报</button>
+                    <span class="risk-center-status" data-risk-status="dailyhistory"></span>
+                </div>
+            </form>
+            <div class="risk-center-output" data-risk-output="dailyhistory">可按账户和日期查询已归档的风控日报、持仓日报。</div>
         </section>
 
         <section class="risk-center-panel risk-center-full">
@@ -598,6 +623,35 @@
             <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
         `;
     };
+    const renderDailyReportHistory = (payload) => {
+        const data = payload.data || payload;
+        const rows = Array.isArray(data) ? data : [data];
+        const node = document.querySelector('[data-risk-output="dailyhistory"]');
+        if (!node) return;
+        const items = rows
+            .map((item) => {
+                const risk = item.risk_daily_report || {};
+                const position = item.position_daily_report || {};
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.report_date || "-")}</td>
+                        <td>${escapeHtml(item.account_id || "-")}</td>
+                        <td>${escapeHtml(risk.status || item.status || "-")}</td>
+                        <td>${money(risk.breach_count)}</td>
+                        <td>${money(position.position_count)}</td>
+                        <td>${pct(position.total_position_pct)}</td>
+                    </tr>
+                `;
+            })
+            .join("");
+        node.innerHTML = `
+            <table class="risk-center-table">
+                <thead><tr><th>日期</th><th>账户</th><th>状态</th><th>违规</th><th>持仓</th><th>总仓位</th></tr></thead>
+                <tbody>${items || '<tr><td colspan="6" class="risk-center-muted">暂无日报记录</td></tr>'}</tbody>
+            </table>
+            <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+        `;
+    };
     const parseValue = (value) => {
         const trimmed = String(value || "").trim();
         if (trimmed === "") return null;
@@ -701,9 +755,11 @@
         event.preventDefault();
         status("postinvestment", "巡检中...");
         try {
+            const body = formPayload(event.currentTarget);
+            delete body.report_date;
             const payload = await request("post-investment-check/", {
                 method: "POST",
-                body: JSON.stringify(formPayload(event.currentTarget)),
+                body: JSON.stringify(body),
             });
             status("postinvestment", payload.data?.status || "完成");
             renderPostInvestment(payload);
@@ -723,6 +779,23 @@
             renderDailyReport(payload);
         } catch (error) {
             status("dailyreport", error.message);
+        }
+    });
+    document.querySelector('[data-risk-form="dailyhistory"]')?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        status("dailyhistory", "查询中...");
+        const payload = formPayload(event.currentTarget);
+        const query = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && value !== "") query.set(key, String(value));
+        });
+        try {
+            const response = await request(`daily-report/?${query.toString()}`, { method: "GET" });
+            const data = response.data || [];
+            status("dailyhistory", Array.isArray(data) ? `已返回 ${data.length} 条` : "已返回 1 条");
+            renderDailyReportHistory(response);
+        } catch (error) {
+            status("dailyhistory", error.message);
         }
     });
     document.querySelector('[data-risk-form="exception"]')?.addEventListener("submit", async (event) => {

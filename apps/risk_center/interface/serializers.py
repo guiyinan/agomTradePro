@@ -134,3 +134,18 @@ class PostInvestmentRiskCheckSerializer(serializers.Serializer):
 
 class RiskCenterDailyReportSerializer(PostInvestmentRiskCheckSerializer):
     report_date = serializers.DateField(required=False)
+
+
+class RiskCenterDailyReportQuerySerializer(serializers.Serializer):
+    account_id = serializers.IntegerField(required=False, min_value=1)
+    report_date = serializers.DateField(required=False)
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=365, default=90)
+
+    def validate(self, attrs):
+        if attrs.get("report_date") and (attrs.get("start_date") or attrs.get("end_date")):
+            raise serializers.ValidationError(
+                "report_date cannot be combined with start_date or end_date."
+            )
+        return attrs

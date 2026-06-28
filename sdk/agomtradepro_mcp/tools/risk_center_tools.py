@@ -133,3 +133,27 @@ def register_risk_center_tools(server: FastMCP) -> None:
                 "positions": positions or [],
             }
         )
+
+    @server.tool()
+    def get_risk_center_daily_report(account_id: int, report_date: str) -> dict[str, Any]:
+        """按账户和日期读取已归档的风控日报和持仓日报。"""
+        client = AgomTradeProClient()
+        return client.risk_center.get_daily_report(account_id, report_date)
+
+    @server.tool()
+    def list_risk_center_daily_reports(
+        account_id: int | None = None,
+        report_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """查询已归档的风控日报历史；支持按账户、单日或日期区间过滤。"""
+        client = AgomTradeProClient()
+        return client.risk_center.list_daily_reports(
+            account_id=account_id,
+            report_date=report_date,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )

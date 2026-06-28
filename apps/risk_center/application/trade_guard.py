@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from apps.risk_center.application.repository_provider import (
+    RiskDailyReportRepository,
+    get_risk_daily_report_repository,
+)
 from apps.risk_center.application.use_cases import ResolveEffectiveRiskPolicyForAccountUseCase
 
 
@@ -41,6 +45,7 @@ class RiskCenterDailyReportResult:
     risk_daily_report: dict[str, Any]
     position_daily_report: dict[str, Any]
     post_investment_check: dict[str, Any]
+    report_id: int | None = None
 
 
 class EvaluatePreTradeRiskUseCase:
@@ -448,8 +453,10 @@ class GenerateRiskCenterDailyReportUseCase:
     def __init__(
         self,
         post_investment_checker: EvaluatePostInvestmentRiskUseCase | None = None,
+        daily_report_repository: RiskDailyReportRepository | None = None,
     ) -> None:
         self.post_investment_checker = post_investment_checker or EvaluatePostInvestmentRiskUseCase()
+        self.daily_report_repository = daily_report_repository
 
     def execute(
         self,
@@ -462,6 +469,8 @@ class GenerateRiskCenterDailyReportUseCase:
         daily_pnl_pct: float | None = None,
         drawdown_pct: float | None = None,
         positions: list[dict[str, Any]] | None = None,
+        actor: Any | None = None,
+        persist: bool = True,
     ) -> RiskCenterDailyReportResult:
         check = self.post_investment_checker.execute(
             account_id=account_id,
@@ -495,12 +504,38 @@ class GenerateRiskCenterDailyReportUseCase:
             metrics=check.metrics,
             position_rows=position_rows,
         )
+        report_id = None
+        if persist:
+            repository = self.daily_report_repository or get_risk_daily_report_repository()
+            stored = repository.upsert_report(
+                {
+                    "account_id": account_id,
+                    "report_date": report_date,
+                    "status": str(risk_report.get("status") or "ok"),
+                    "risk_daily_report": risk_report,
+                    "position_daily_report": position_report,
+                    "post_investment_check": check_payload,
+                    "input_snapshot": {
+                        "account_id": account_id,
+                        "report_date": report_date,
+                        "account_equity": account_equity,
+                        "cash_balance": cash_balance,
+                        "total_position_value": total_position_value,
+                        "daily_pnl_pct": daily_pnl_pct,
+                        "drawdown_pct": drawdown_pct,
+                        "positions": positions or [],
+                    },
+                },
+                actor=actor,
+            )
+            report_id = int(getattr(stored, "id", 0) or 0) or None
         return RiskCenterDailyReportResult(
             account_id=account_id,
             report_date=report_date,
             risk_daily_report=risk_report,
             position_daily_report=position_report,
             post_investment_check=check_payload,
+            report_id=report_id,
         )
 
     def _build_risk_report(

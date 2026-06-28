@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.risk_center.infrastructure.models import AccountRiskPolicyModel
+from apps.risk_center.infrastructure.models import AccountRiskPolicyModel, RiskDailyReportModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
@@ -310,6 +310,77 @@ def test_daily_report_returns_risk_and_position_sections():
 
 
 @pytest.mark.django_db
+def test_daily_report_can_query_archived_history_by_day_and_range():
+    staff = _user("risk_daily_history_staff", is_staff=True)
+    account = _account(staff)
+    client = _client(staff)
+
+    first_response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "report_date": "2026-06-27",
+            "account_equity": 100000,
+            "cash_balance": 20000,
+            "positions": [
+                {"symbol": "000001.SZ", "market_value": 30000, "unrealized_pnl_pct": 0.02},
+            ],
+        },
+        format="json",
+    )
+    second_response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "report_date": "2026-06-28",
+            "account_equity": 100000,
+            "cash_balance": 5000,
+            "total_position_value": 95000,
+            "positions": [
+                {"symbol": "000002.SZ", "market_value": 95000, "unrealized_pnl_pct": -0.01},
+            ],
+        },
+        format="json",
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert RiskDailyReportModel._default_manager.filter(account_id=account.id).count() == 2
+
+    exact_response = client.get(
+        f"/api/risk-center/daily-report/?account_id={account.id}&report_date=2026-06-28"
+    )
+    assert exact_response.status_code == 200
+    exact_data = exact_response.data["data"]
+    assert exact_data["report_date"] == "2026-06-28"
+    assert exact_data["position_daily_report"]["top_positions"][0]["symbol"] == "000002.SZ"
+
+    range_response = client.get(
+        f"/api/risk-center/daily-report/?account_id={account.id}"
+        "&start_date=2026-06-27&end_date=2026-06-28&limit=10"
+    )
+    assert range_response.status_code == 200
+    range_data = range_response.data["data"]
+    assert [item["report_date"] for item in range_data] == ["2026-06-28", "2026-06-27"]
+
+    overwrite_response = client.post(
+        "/api/risk-center/daily-report/",
+        {
+            "account_id": account.id,
+            "report_date": "2026-06-28",
+            "account_equity": 100000,
+            "cash_balance": 90000,
+            "positions": [],
+        },
+        format="json",
+    )
+
+    assert overwrite_response.status_code == 200
+    assert RiskDailyReportModel._default_manager.filter(account_id=account.id).count() == 2
+    assert overwrite_response.data["data"]["position_daily_report"]["position_count"] == 0
+
+
+@pytest.mark.django_db
 def test_daily_report_respects_account_permissions():
     owner = _user("risk_daily_owner")
     other = _user("risk_daily_other")
@@ -327,6 +398,19 @@ def test_daily_report_respects_account_permissions():
     )
 
     assert response.status_code == 403
+
+    RiskDailyReportModel._default_manager.create(
+        account_id=account.id,
+        report_date="2026-06-28",
+        status="ok",
+        risk_daily_report={"status": "ok"},
+        position_daily_report={},
+        post_investment_check={},
+    )
+    history_response = client.get(
+        f"/api/risk-center/daily-report/?account_id={account.id}&report_date=2026-06-28"
+    )
+    assert history_response.status_code == 403
 
 
 @pytest.mark.django_db

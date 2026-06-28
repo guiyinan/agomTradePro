@@ -48,6 +48,20 @@ class RiskAuditRepository(Protocol):
     def list_recent(self, *, limit: int = 50) -> list[Any]: ...
 
 
+class RiskDailyReportRepository(Protocol):
+    def upsert_report(self, payload: dict[str, Any], *, actor: Any | None = None) -> Any: ...
+    def get_report(self, *, account_id: int, report_date: Any) -> Any | None: ...
+    def list_reports(
+        self,
+        *,
+        account_id: int | None = None,
+        account_ids: list[int] | None = None,
+        start_date: Any | None = None,
+        end_date: Any | None = None,
+        limit: int = 90,
+    ) -> list[Any]: ...
+
+
 class RiskAccountRepository(Protocol):
     def can_access_account(self, *, user: Any, account_id: int) -> bool: ...
     def list_accessible_account_ids(self, *, user: Any) -> list[int] | None: ...
@@ -59,6 +73,7 @@ _template_repository: RiskTemplateRepository | None = None
 _policy_repository: RiskPolicyRepository | None = None
 _exception_repository: RiskExceptionRepository | None = None
 _audit_repository: RiskAuditRepository | None = None
+_daily_report_repository: RiskDailyReportRepository | None = None
 _account_repository: RiskAccountRepository | None = None
 
 
@@ -69,6 +84,7 @@ def configure_risk_center_repositories(
     policy_repository: RiskPolicyRepository,
     exception_repository: RiskExceptionRepository,
     audit_repository: RiskAuditRepository,
+    daily_report_repository: RiskDailyReportRepository,
     account_repository: RiskAccountRepository,
 ) -> None:
     global _floor_repository
@@ -76,12 +92,14 @@ def configure_risk_center_repositories(
     global _policy_repository
     global _exception_repository
     global _audit_repository
+    global _daily_report_repository
     global _account_repository
     _floor_repository = floor_repository
     _template_repository = template_repository
     _policy_repository = policy_repository
     _exception_repository = exception_repository
     _audit_repository = audit_repository
+    _daily_report_repository = daily_report_repository
     _account_repository = account_repository
 
 
@@ -113,6 +131,12 @@ def get_risk_audit_repository() -> RiskAuditRepository:
     if _audit_repository is None:
         raise RuntimeError("Risk audit repository is not configured")
     return _audit_repository
+
+
+def get_risk_daily_report_repository() -> RiskDailyReportRepository:
+    if _daily_report_repository is None:
+        raise RuntimeError("Risk daily report repository is not configured")
+    return _daily_report_repository
 
 
 def get_risk_account_repository() -> RiskAccountRepository:

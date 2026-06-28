@@ -92,3 +92,35 @@ class RiskCenterModule(BaseModule):
     def generate_daily_report(self, payload: dict[str, Any]) -> dict[str, Any]:
         response = self._post("daily-report/", json=payload)
         return response.get("data", response)
+
+    def list_daily_reports(
+        self,
+        *,
+        account_id: int | None = None,
+        report_date: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "account_id": account_id,
+                "report_date": report_date,
+                "start_date": start_date,
+                "end_date": end_date,
+                "limit": limit,
+            }.items()
+            if value is not None
+        }
+        response = self._get("daily-report/", params=params or None)
+        if isinstance(response, list):
+            return response
+        return response.get("data", response)
+
+    def get_daily_report(self, account_id: int, report_date: str) -> dict[str, Any]:
+        response = self._get(
+            "daily-report/",
+            params={"account_id": account_id, "report_date": report_date},
+        )
+        return response.get("data", response)

@@ -7,6 +7,7 @@ from typing import Any
 from apps.risk_center.application.repository_provider import (
     get_risk_account_repository,
     get_risk_audit_repository,
+    get_risk_daily_report_repository,
     get_risk_exception_repository,
     get_risk_floor_repository,
     get_risk_policy_repository,
@@ -153,6 +154,46 @@ class ResolveEffectiveRiskPolicyForAccountUseCase:
 
     def execute(self, *, account_id: int) -> dict[str, Any]:
         return _resolve_effective_policy(account_id)
+
+
+class GetRiskCenterDailyReportUseCase:
+    def execute(self, *, actor: Any, account_id: int, report_date: Any) -> Any:
+        _require_account_access(actor, account_id)
+        report = get_risk_daily_report_repository().get_report(
+            account_id=account_id,
+            report_date=report_date,
+        )
+        if report is None:
+            raise RiskCenterNotFoundError("Risk daily report not found.")
+        return report
+
+
+class ListRiskCenterDailyReportsUseCase:
+    def execute(
+        self,
+        *,
+        actor: Any,
+        account_id: int | None = None,
+        start_date: Any | None = None,
+        end_date: Any | None = None,
+        limit: int = 90,
+    ) -> list[Any]:
+        if not getattr(actor, "is_authenticated", False):
+            raise RiskCenterAccessDeniedError("Authentication required.")
+        account_ids = None
+        if account_id is not None:
+            _require_account_access(actor, account_id)
+        elif not getattr(actor, "is_staff", False):
+            account_ids = get_risk_account_repository().list_accessible_account_ids(user=actor)
+            if not account_ids:
+                return []
+        return get_risk_daily_report_repository().list_reports(
+            account_id=account_id,
+            account_ids=account_ids,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
 
 
 def _resolve_effective_policy(account_id: int) -> dict[str, Any]:

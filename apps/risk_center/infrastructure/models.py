@@ -196,3 +196,42 @@ class RiskPolicyAuditModel(models.Model):
 
     def __str__(self) -> str:
         return f"RiskPolicyAudit({self.target_type}:{self.target_id}:{self.action})"
+
+
+class RiskDailyReportModel(models.Model):
+    account_id = models.PositiveIntegerField(db_index=True)
+    report_date = models.DateField(db_index=True)
+    status = models.CharField(max_length=32, db_index=True)
+    risk_daily_report = models.JSONField(default=dict, blank=True)
+    position_daily_report = models.JSONField(default=dict, blank=True)
+    post_investment_check = models.JSONField(default=dict, blank=True)
+    input_snapshot = models.JSONField(default=dict, blank=True)
+    generated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="risk_daily_reports_generated",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        app_label = "risk_center"
+        db_table = "risk_center_daily_report"
+        verbose_name = "Risk Daily Report"
+        verbose_name_plural = "Risk Daily Reports"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account_id", "report_date"],
+                name="uniq_risk_daily_report_account_date",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["account_id", "-report_date"]),
+            models.Index(fields=["status", "-report_date"]),
+        ]
+        ordering = ["-report_date", "-updated_at"]
+
+    def __str__(self) -> str:
+        return f"RiskDailyReport(account_id={self.account_id}, date={self.report_date})"

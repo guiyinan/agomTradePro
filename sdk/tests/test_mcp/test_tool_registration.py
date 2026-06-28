@@ -100,6 +100,8 @@ def test_extended_mcp_tools_registered():
         "check_pre_trade_risk",
         "check_post_investment_risk",
         "generate_risk_center_daily_report",
+        "get_risk_center_daily_report",
+        "list_risk_center_daily_reports",
     }
 
     missing = expected - names

@@ -8,6 +8,7 @@ RiskTemplateModel = django_apps.get_model("risk_center", "RiskTemplateModel")
 AccountRiskPolicyModel = django_apps.get_model("risk_center", "AccountRiskPolicyModel")
 RiskExceptionModel = django_apps.get_model("risk_center", "RiskExceptionModel")
 RiskPolicyAuditModel = django_apps.get_model("risk_center", "RiskPolicyAuditModel")
+RiskDailyReportModel = django_apps.get_model("risk_center", "RiskDailyReportModel")
 
 
 @admin.register(GlobalRiskFloorModel)
@@ -57,4 +58,23 @@ class RiskPolicyAuditAdmin(admin.ModelAdmin):
         "after",
         "reason",
         "created_at",
+    )
+
+
+@admin.register(RiskDailyReportModel)
+class RiskDailyReportAdmin(admin.ModelAdmin):
+    list_display = ("account_id", "report_date", "status", "generated_by", "updated_at")
+    list_filter = ("status", "report_date")
+    search_fields = ("account_id",)
+    readonly_fields = (
+        "account_id",
+        "report_date",
+        "status",
+        "risk_daily_report",
+        "position_daily_report",
+        "post_investment_check",
+        "input_snapshot",
+        "generated_by",
+        "created_at",
+        "updated_at",
     )

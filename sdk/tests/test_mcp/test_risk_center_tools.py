@@ -22,6 +22,11 @@ class _FakeClient:
             check_pre_trade=lambda payload: {"passed": True, "payload": payload},
             check_post_investment=lambda payload: {"status": "ok", "payload": payload},
             generate_daily_report=lambda payload: {"risk_daily_report": {"status": "ok"}, "payload": payload},
+            get_daily_report=lambda account_id, report_date: {
+                "account_id": account_id,
+                "report_date": report_date,
+            },
+            list_daily_reports=lambda **kwargs: [{"query": kwargs}],
         )
 
 
@@ -82,6 +87,16 @@ class _FakeClient:
                 "report_date": "2026-06-28",
                 "account_equity": 100000.0,
                 "positions": [],
+            },
+        ),
+        ("get_risk_center_daily_report", {"account_id": 1, "report_date": "2026-06-28"}),
+        (
+            "list_risk_center_daily_reports",
+            {
+                "account_id": 1,
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-28",
+                "limit": 30,
             },
         ),
     ],

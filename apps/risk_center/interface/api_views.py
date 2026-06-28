@@ -21,8 +21,10 @@ from apps.risk_center.application.use_cases import (
     CreateRiskTemplateUseCase,
     GetAccountRiskPolicyUseCase,
     GetEffectiveRiskPolicyUseCase,
+    GetRiskCenterDailyReportUseCase,
     GetRiskFloorUseCase,
     ListAccountRiskPoliciesUseCase,
+    ListRiskCenterDailyReportsUseCase,
     ListRiskExceptionsUseCase,
     ListRiskTemplatesUseCase,
     RiskCenterAccessDeniedError,
@@ -38,6 +40,7 @@ from apps.risk_center.interface.serializers import (
     ApplyTemplateSerializer,
     PostInvestmentRiskCheckSerializer,
     PreTradeRiskCheckSerializer,
+    RiskCenterDailyReportQuerySerializer,
     RiskCenterDailyReportSerializer,
     RiskExceptionSerializer,
     RiskFloorSerializer,
@@ -67,6 +70,22 @@ def _serialize_model(model: Any) -> dict[str, Any]:
     return payload
 
 
+def _serialize_daily_report(model: Any) -> dict[str, Any]:
+    return {
+        "id": model.id,
+        "account_id": model.account_id,
+        "report_date": _iso(model.report_date),
+        "status": model.status,
+        "risk_daily_report": model.risk_daily_report or {},
+        "position_daily_report": model.position_daily_report or {},
+        "post_investment_check": model.post_investment_check or {},
+        "input_snapshot": model.input_snapshot or {},
+        "generated_by": getattr(model.generated_by, "username", None),
+        "created_at": _iso(model.created_at),
+        "updated_at": _iso(model.updated_at),
+    }
+
+
 def _error_response(exc: Exception) -> Response:
     if isinstance(exc, RiskCenterAccessDeniedError):
         return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
@@ -93,6 +112,7 @@ class RiskCenterApiHomeView(APIView):
                     "pre_trade_check": "/api/risk-center/pre-trade-check/",
                     "post_investment_check": "/api/risk-center/post-investment-check/",
                     "daily_report": "/api/risk-center/daily-report/",
+                    "daily_report_history": "/api/risk-center/daily-report/?account_id=1",
                 },
             }
         )
@@ -426,6 +446,30 @@ class PostInvestmentRiskCheckView(APIView):
 class RiskCenterDailyReportView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request) -> Response:
+        serializer = RiskCenterDailyReportQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+        account_id = int(payload["account_id"]) if payload.get("account_id") is not None else None
+        try:
+            if account_id is not None and payload.get("report_date") is not None:
+                report = GetRiskCenterDailyReportUseCase().execute(
+                    actor=request.user,
+                    account_id=account_id,
+                    report_date=payload["report_date"],
+                )
+                return Response({"success": True, "data": _serialize_daily_report(report)})
+            reports = ListRiskCenterDailyReportsUseCase().execute(
+                actor=request.user,
+                account_id=account_id,
+                start_date=payload.get("report_date") or payload.get("start_date"),
+                end_date=payload.get("report_date") or payload.get("end_date"),
+                limit=int(payload.get("limit") or 90),
+            )
+        except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
+            return _error_response(exc)
+        return Response({"success": True, "data": [_serialize_daily_report(item) for item in reports]})
+
     def post(self, request) -> Response:
         serializer = RiskCenterDailyReportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -465,6 +509,7 @@ class RiskCenterDailyReportView(APIView):
                     else None
                 ),
                 positions=list(payload.get("positions") or []),
+                actor=request.user,
             )
         except (RiskCenterAccessDeniedError, RiskCenterNotFoundError) as exc:
             return _error_response(exc)
@@ -472,6 +517,7 @@ class RiskCenterDailyReportView(APIView):
             {
                 "success": True,
                 "data": {
+                    "report_id": result.report_id,
                     "account_id": result.account_id,
                     "report_date": result.report_date,
                     "risk_daily_report": result.risk_daily_report,

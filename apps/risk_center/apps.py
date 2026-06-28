@@ -13,6 +13,7 @@ class RiskCenterConfig(AppConfig):
         from apps.risk_center.infrastructure.repositories import (
             DjangoRiskAccountRepository,
             DjangoRiskAuditRepository,
+            DjangoRiskDailyReportRepository,
             DjangoRiskExceptionRepository,
             DjangoRiskFloorRepository,
             DjangoRiskPolicyRepository,
@@ -25,5 +26,6 @@ class RiskCenterConfig(AppConfig):
             policy_repository=DjangoRiskPolicyRepository(),
             exception_repository=DjangoRiskExceptionRepository(),
             audit_repository=DjangoRiskAuditRepository(),
+            daily_report_repository=DjangoRiskDailyReportRepository(),
             account_repository=DjangoRiskAccountRepository(),
         )

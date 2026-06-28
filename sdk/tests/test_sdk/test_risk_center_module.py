@@ -72,3 +72,45 @@ def test_risk_center_daily_report_endpoint_contract():
     assert args[0] == "POST"
     assert args[1] == "/api/risk-center/daily-report/"
     assert kwargs == {"data": None, "json": payload}
+
+
+def test_risk_center_daily_report_history_endpoint_contract():
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+    with patch.object(
+        client,
+        "_request",
+        return_value={"data": [{"report_date": "2026-06-28"}]},
+    ) as mock_request:
+        result = client.risk_center.list_daily_reports(
+            account_id=1,
+            start_date="2026-06-01",
+            end_date="2026-06-28",
+            limit=30,
+        )
+
+    args, kwargs = mock_request.call_args
+    assert result == [{"report_date": "2026-06-28"}]
+    assert args[0] == "GET"
+    assert args[1] == "/api/risk-center/daily-report/"
+    assert kwargs == {
+        "params": {
+            "account_id": 1,
+            "start_date": "2026-06-01",
+            "end_date": "2026-06-28",
+            "limit": 30,
+        }
+    }
+
+    with patch.object(
+        client,
+        "_request",
+        return_value={"data": {"report_date": "2026-06-28"}},
+    ) as mock_request:
+        exact = client.risk_center.get_daily_report(1, "2026-06-28")
+
+    args, kwargs = mock_request.call_args
+    assert exact == {"report_date": "2026-06-28"}
+    assert args[0] == "GET"
+    assert args[1] == "/api/risk-center/daily-report/"
+    assert kwargs == {"params": {"account_id": 1, "report_date": "2026-06-28"}}

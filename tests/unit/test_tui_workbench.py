@@ -822,6 +822,13 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
         "report_date",
         "positions",
     }
+    assert action_by_key["risk-center.daily-report-history"]["risk"] == "read"
+    assert {field["key"] for field in action_by_key["risk-center.daily-report-history"]["fields"]} >= {
+        "account_id",
+        "report_date",
+        "start_date",
+        "end_date",
+    }
     assert action_by_key["risk-center.update-floor"]["confirmation_required"] is True
     assert action_by_key["risk-center.create-exception"]["risk"] == "write"
 
