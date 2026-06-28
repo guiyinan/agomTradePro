@@ -479,11 +479,11 @@ http://127.0.0.1:1200/gov/csrc/news/c100028/common_xq_list.shtml?key=YOUR_KEY&fo
 | 发改委-新闻发布 | gov_docs | `/gov/ndrc/xwdt/xwfb` | 宏观政策、产业政策和项目动态 |
 | 发改委-通知公告 | gov_docs | `/gov/ndrc/xwdt/tzgg` | 政策执行口径、项目和通知公告 |
 | 证监会-要闻 | csrc | `/gov/csrc/news/c100028/common_xq_list.shtml` | 资本市场监管政策与要闻 |
-| 上交所-科创板审核 | csrc | `/sse/inquire` | 科创板审核动态，辅助判断融资环境 |
-| 深交所-问询函件 | csrc | `/szse/inquire` | 上市公司问询和监管风险事件 |
-| 财联社-热门文章 | media | `/cls/hot` | 市场热点和关注度 |
+| 上交所-科创板审核 | csrc | `sse/inquire` | RSSHub 外部路由，科创板审核动态，辅助判断融资环境 |
+| 深交所-问询函件 | csrc | `szse/inquire` | RSSHub 外部路由，上市公司问询和监管风险事件 |
+| 财联社-热门文章 | media | `cls/hot` | RSSHub 外部路由，市场热点和关注度 |
 | 财联社-头条深度 | media | `/cls/depth/1000` | 宏观、产业和市场专题 |
-| 格隆汇-市场快讯 | media | `/gelonghui/live` | 7x24 市场快讯 |
+| 格隆汇-市场快讯 | media | `gelonghui/live` | RSSHub 外部路由，7x24 市场快讯 |
 
 不建议作为默认投研/政策源：
 

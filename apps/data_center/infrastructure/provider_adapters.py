@@ -34,7 +34,6 @@ from apps.data_center.domain.enums import (
 )
 from apps.data_center.domain.protocols import UnifiedDataProviderProtocol
 from apps.data_center.domain.rules import normalize_asset_code
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 from core.integration.data_center_business_sources import (
     build_akshare_fund_adapter,
     build_akshare_macro_adapter,
@@ -53,8 +52,10 @@ def _fetch_macro_points(adapter, indicator_code: str, start_date: date, end_date
 
     try:
         return adapter.fetch(indicator_code, start_date, end_date)
-    except DataSourceUnavailableError as exc:
-        raise ConnectionError(str(exc)) from exc
+    except Exception as exc:
+        if exc.__class__.__name__ == "DataSourceUnavailableError":
+            raise ConnectionError(str(exc)) from exc
+        raise
 
 _SOURCE_CAPABILITIES: dict[str, set[DataCapability]] = {
     "tushare": {

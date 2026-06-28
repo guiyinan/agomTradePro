@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-08.v1",
-  "mcp_tool_count": 345,
+  "version": "2026-06-28.v1",
+  "mcp_tool_count": 358,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -28,6 +28,7 @@
     "pulse": 11,
     "realtime": 11,
     "regime": 9,
+    "risk_center": 9,
     "rotation": 10,
     "sector": 9,
     "sentiment": 11,
