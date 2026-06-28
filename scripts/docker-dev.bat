@@ -161,7 +161,7 @@ if %START_CELERY%==1 (
     echo [5/5] Starting Celery Worker...
     REM Listen to the default queue plus dedicated Qlib queues; otherwise
     REM qlib_predict_scores stays stuck in qlib_infer and homepage Alpha never refreshes.
-    start "Celery Worker" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo -Q celery,qlib_infer,qlib_train"
+    start "Celery Worker" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && set ""DJANGO_SETTINGS_MODULE=core.settings.development"" && .\%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo --concurrency=1 -Q celery,qlib_infer,qlib_train"
     timeout /t 2 >nul
     echo [OK] Celery Worker started
 )
@@ -170,7 +170,7 @@ REM ========== 6. Start Celery Beat ==========
 if %START_BEAT%==1 (
     call :kill_existing_celery_beat
     echo [INFO] Starting Celery Beat...
-    start "Celery Beat" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && .\%PYTHON_EXEC% -m celery -A core beat -l info"
+    start "Celery Beat" cmd /k "set ""PYTHONUNBUFFERED=1"" && set ""DJANGO_LOG_LEVEL=INFO"" && set ""DJANGO_SETTINGS_MODULE=core.settings.development"" && .\%PYTHON_EXEC% -m celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     timeout /t 2 >nul
     echo [OK] Celery Beat started
 )

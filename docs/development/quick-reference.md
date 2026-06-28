@@ -198,6 +198,15 @@ celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1
 celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
 ```
 
+- Windows 本地开发优先使用虚拟环境解释器启动 Celery，避免 `celery.exe` 包装器静默退出：
+
+```powershell
+$env:DJANGO_SETTINGS_MODULE = "core.settings.development"
+agomtradepro\Scripts\python.exe -m celery -A core worker --pool=solo --concurrency=1 -Q celery,qlib_infer,qlib_train -l info
+```
+
+- `/api/ready/` 的 Redis 检查会优先检查 Django Redis cache；开发环境默认 `USE_REDIS_CACHE=false` 时，会改用 `REDIS_URL` / `CELERY_BROKER_URL` 做 Redis `PING`。因此本地 cache 仍可保持 LocMem，但 Redis/Celery readiness 仍能反映真实 broker 状态。
+- `/api/ready/` 的 Celery 检查要求至少一个 worker 正在响应；只启动 Redis 容器但不启动 worker 时，Celery 会显示 `No Celery workers responded`。
 - 从 2026-04-07 起，Celery 独立日志会落盘到项目本地 `logs/` 目录：
   - Worker: `logs/celery-worker.log`
   - Beat: `logs/celery-beat.log`

@@ -189,6 +189,45 @@ def _emit_command_result(label: str, exit_code: int, stdout: str, stderr: str) -
     return True
 
 
+def build_compose_command(target_dir: str, *args: str) -> str:
+    """Build a remote docker compose command for the deployed release."""
+
+    quoted_args = " ".join(shlex.quote(arg) for arg in args)
+    return (
+        f"cd {shlex.quote(target_dir)}/current && "
+        "docker compose -p agomtradepro -f docker/docker-compose.vps.yml "
+        f"--env-file deploy/.env {quoted_args}"
+    )
+
+
+def build_container_running_command(target_dir: str, service: str) -> str:
+    """Build a command that prints whether a compose service container is running."""
+
+    compose_ps = build_compose_command(target_dir, "ps", "-q", service)
+    return (
+        f"cid=$({compose_ps}) && "
+        "[ -n \"$cid\" ] && "
+        "docker inspect -f '{{.State.Running}}' \"$cid\""
+    )
+
+
+def build_celery_ping_command(target_dir: str) -> str:
+    """Build a remote command that verifies Celery workers respond through Redis."""
+
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "celery",
+        "-A",
+        "core",
+        "inspect",
+        "ping",
+        "--timeout=8",
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify AgomTradePro VPS deployment.")
     parser.add_argument("--host", required=True)
@@ -198,6 +237,7 @@ def main() -> int:
     parser.add_argument("--http-port", type=int, default=8000)
     parser.add_argument("--target-dir", default="/opt/agomtradepro")
     parser.add_argument("--health-path", default="/api/health/")
+    parser.add_argument("--expect-celery", action="store_true", default=False)
     parser.add_argument("--timeout", type=int, default=15)
     args = parser.parse_args()
 
@@ -252,6 +292,30 @@ def main() -> int:
         ok = _emit_command_result(
             "Containers", containers_code, containers_out, containers_err
         ) and ok
+
+        if args.expect_celery:
+            for service in ("celery_worker", "celery_beat"):
+                service_code, service_out, service_err = _run(
+                    ssh,
+                    build_container_running_command(args.target_dir, service),
+                    timeout=args.timeout,
+                )
+                running_ok = service_code == 0 and service_out.strip() == "true"
+                if running_ok:
+                    print(f"[OK] {service}: running")
+                else:
+                    detail = _summarize(service_err or service_out or "not running")
+                    print(f"[FAIL] {service}: {detail}")
+                    ok = False
+
+            celery_code, celery_out, celery_err = _run(
+                ssh,
+                build_celery_ping_command(args.target_dir),
+                timeout=max(args.timeout, 30),
+            )
+            ok = _emit_command_result(
+                "Celery ping", celery_code, celery_out, celery_err
+            ) and ok
     finally:
         ssh.close()
 

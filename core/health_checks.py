@@ -5,6 +5,7 @@ Provides health check functions for Kubernetes liveness and readiness probes.
 """
 
 import logging
+import os
 from typing import Any
 
 from django.conf import settings
@@ -54,29 +55,55 @@ def check_redis() -> dict[str, Any]:
         - {"status": "skipped"} if Redis not configured
         - {"status": "error", "error": "..."} if unhealthy
     """
-    from django.conf import settings
-
-    # Check if Redis cache is configured
+    # Check if Redis cache is configured.
     cache_backend = settings.CACHES.get("default", {}).get("BACKEND", "")
 
-    # If using LocMemCache or no cache configured, skip Redis check
-    if "locmem" in cache_backend.lower() or "dummy" in cache_backend.lower() or not cache_backend:
+    if "redis" in cache_backend.lower():
+        try:
+            test_key = "_health_check_test"
+            cache.set(test_key, "test", timeout=10)
+            result = cache.get(test_key)
+            cache.delete(test_key)
+
+            if result == "test":
+                return {"status": "ok", "source": "cache"}
+            return {"status": "error", "error": "Cache read/write failed"}
+        except Exception as e:
+            logger.warning(f"Redis health check failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    redis_url = _get_configured_redis_url()
+    if not redis_url:
         return {"status": "skipped", "reason": "Redis not configured"}
 
     try:
-        # Try to set and get a value from cache
-        test_key = "_health_check_test"
-        cache.set(test_key, "test", timeout=10)
-        result = cache.get(test_key)
-        cache.delete(test_key)
+        import redis
 
-        if result == "test":
-            return {"status": "ok"}
-        else:
-            return {"status": "error", "error": "Cache read/write failed"}
+        client = redis.Redis.from_url(
+            redis_url,
+            socket_connect_timeout=1.0,
+            socket_timeout=1.0,
+        )
+        if client.ping():
+            return {"status": "ok", "source": "redis_url"}
+        return {"status": "error", "error": "Redis ping failed"}
     except Exception as e:
         logger.warning(f"Redis health check failed: {e}")
         return {"status": "error", "error": str(e)}
+
+
+def _get_configured_redis_url() -> str | None:
+    """Return a Redis URL configured for broker/backend health checks."""
+
+    candidates = [
+        os.environ.get("REDIS_URL"),
+        getattr(settings, "CELERY_BROKER_URL", None),
+        getattr(settings, "CELERY_RESULT_BACKEND", None),
+    ]
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.startswith(("redis://", "rediss://")):
+            return candidate
+    return None
 
 
 def check_celery() -> dict[str, Any]:

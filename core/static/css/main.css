@@ -469,12 +469,19 @@ a {
     }
 
     .dropdown-menu {
+        display: none;
         position: absolute;
         left: 0;
         right: auto;
         min-width: 220px;
         max-width: calc(100vw - 32px);
         transform: translateY(-4px);
+    }
+
+    .dropdown:hover .dropdown-menu,
+    .dropdown:focus-within .dropdown-menu,
+    .dropdown.open .dropdown-menu {
+        display: block;
     }
 
     .data-nav {

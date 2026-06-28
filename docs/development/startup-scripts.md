@@ -22,7 +22,7 @@ start.bat
 | `scripts/dev.bat` | 快速开发启动 | SQLite 模式，最简单 |
 | `scripts/docker-dev.bat` | Docker 完整环境 | PostgreSQL + Redis + Celery |
 | `scripts/stop-dev.bat` | 停止所有服务 | 停止 Docker 容器和后台进程 |
-| `scripts/start-dev.ps1` | PowerShell 版本 | 功能同 docker-dev.bat |
+| `scripts/start-dev.ps1` | PowerShell 版本 | 使用虚拟环境 Python 启动 Django/Celery |
 | `scripts/stop-dev.ps1` | PowerShell 版本 | 功能同 stop-dev.bat |
 | `scripts/package-portable-project.ps1` | 便携打包 | 打包到上层目录，默认排除缓存、数据库、VPS/bundle 文件 |
 | `venv.bat` | 激活虚拟环境 | 仅激活 venv，不启动服务 |
@@ -69,7 +69,33 @@ scripts\dev.bat 8001
 
 ---
 
-### 模式 2: Docker 完整环境
+### 模式 2: SQLite + Redis + Celery
+
+**适用场景：** 本地完整异步任务测试，同时继续使用本地 SQLite。
+
+**启动方式：**
+```batch
+# 方式1：通过菜单
+start.bat
+# 选择 [2]
+
+# 方式2：直接运行
+scripts\docker-dev.bat --sqlite
+```
+
+**特点：**
+- SQLite 数据库
+- Docker Redis
+- Celery Worker（监听 `celery,qlib_infer,qlib_train`）
+- Celery Beat（使用 django-celery-beat 数据库调度器）
+
+**注意：**
+- Windows 下 Celery 统一通过 `agomtradepro\Scripts\python.exe -m celery` 启动，避免 `celery.exe` 包装器静默退出。
+- `/api/ready/` 只有在 Redis 和至少一个 Celery worker 都可用时，才会同时显示 Redis/Celery 为 `ok`。
+
+---
+
+### 模式 3: Docker 完整环境
 
 **适用场景：** 完整功能测试、生产环境模拟
 
@@ -77,7 +103,7 @@ scripts\dev.bat 8001
 ```batch
 # 方式1：通过菜单
 start.bat
-# 选择 [2]
+# 选择 [3]
 
 # 方式2：直接运行
 scripts\docker-dev.bat
@@ -100,7 +126,24 @@ scripts\docker-dev.bat --no-celery --no-beat
 
 ---
 
-### 模式 3: 激活虚拟环境
+### PowerShell 启动
+
+```powershell
+# SQLite 快速启动
+powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1 -Mode sqlite
+
+# Docker/PostgreSQL/Redis + Celery
+powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1 -Mode docker
+
+# 跳过后台任务
+powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1 -Mode docker -SkipCelery -SkipBeat
+```
+
+`scripts/start-dev.ps1 -Mode docker` 会直接用虚拟环境 Python 启动 Celery，不再在仓库根目录生成 `start_celery_worker.bat` 或 `start_celery_beat.bat` 临时文件。
+
+---
+
+### 模式 4: 激活虚拟环境
 
 **适用场景：** 手动执行管理命令
 
@@ -108,7 +151,7 @@ scripts\docker-dev.bat --no-celery --no-beat
 ```batch
 # 方式1：通过菜单
 start.bat
-# 选择 [4]
+# 选择 [5]
 
 # 方式2：直接运行
 venv.bat
@@ -145,7 +188,7 @@ scripts\stop-dev.bat
 
 这将：
 1. 停止 PostgreSQL 和 Redis 容器
-2. 停止 Celery Worker 和 Beat 进程
+2. 通过 PowerShell `Get-CimInstance` 停止 Celery Worker 和 Beat 进程
 3. 清理临时文件
 
 **注意：** Django 服务器需要在主窗口按 Ctrl+C 停止。

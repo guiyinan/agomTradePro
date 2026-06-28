@@ -36,6 +36,23 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
     assert "healthcheck:\n      disable: true" in compose
 
 
+def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+
+    assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
+    assert "celery_worker celery_beat" in script
+    assert "celery -A core inspect ping --timeout=8" in script
+
+
+def test_windows_start_dev_uses_python_module_celery_and_all_queues() -> None:
+    script = (REPO_ROOT / "scripts" / "start-dev.ps1").read_text(encoding="utf-8")
+
+    assert "-m celery -A core worker" in script
+    assert "-Q celery,qlib_infer,qlib_train" in script
+    assert "start_celery_worker.bat" not in script
+    assert "start_celery_beat.bat" not in script
+
+
 def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
     entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")

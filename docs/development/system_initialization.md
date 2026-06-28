@@ -1,6 +1,6 @@
 # AgomTradePro 系统初始化指南
 
-> **最后更新**: 2026-03-23
+> **最后更新**: 2026-06-28
 > **版本**: 0.7.0
 > **版本管理**: [VERSION.md](../VERSION.md)
 
@@ -40,8 +40,8 @@ agomtradepro\Scripts\activate
 # 2. 数据库迁移
 python manage.py migrate
 
-# 3. 一键初始化所有系统数据
-python manage.py init_all
+# 3. 一键初始化冷启动配置
+python manage.py bootstrap_cold_start
 
 # 4. 创建管理员
 python manage.py createsuperuser
@@ -56,11 +56,52 @@ python manage.py runserver
 
 ## 初始化命令详解
 
-### `init_all` - 一键初始化（推荐）
+### `bootstrap_cold_start` - 冷启动初始化（推荐）
+
+**位置**: `apps/account/management/commands/bootstrap_cold_start.py`
+
+**功能**: 幂等初始化新环境所需的基础配置、文档、Prompt、调度任务、RSS 权威源、策略参数和 MCP/SDK 冷启动默认值。
+
+```bash
+# 默认：只初始化本地配置，不主动做网络同步
+python manage.py bootstrap_cold_start
+
+# 同步宏观数据（需要网络和数据源可用）
+python manage.py bootstrap_cold_start --with-macro-sync
+
+# 修复决策级 quote / Pulse / Alpha readiness（需要数据源、Qlib 或对应降级链路可用）
+python manage.py bootstrap_cold_start --with-decision-repair
+
+# Alpha 冷启动
+python manage.py bootstrap_cold_start --with-alpha
+```
+
+**初始化顺序**:
+1. 资产分类和币种 (`init_classification`)
+2. 投资规则 (`init_enhanced_rules`)
+3. 系统文档 (`init_docs`)
+4. Regime 阈值 (`init_regime_thresholds`)
+5. Audit 指标阈值与置信度配置
+6. Equity 权重与筛选配置
+7. Prompt 模板与 Chain
+8. 默认计划任务 (`init_scheduler_defaults`)
+9. 权威 RSS 源 (`init_authoritative_rss_sources`)
+10. Rotation / Hedge / Factor 默认配置
+11. MCP 冷启动默认值
+12. Decision Model Params
+13. 仓位管理规则
+
+`init_authoritative_rss_sources` 会启用 RSSHub 全局配置，并初始化政策/监管/财经新闻源：
+国家统计局、发改委、证监会、上交所、深交所、财联社、格隆汇。该命令会停用
+IT之家、V2EX、少数派等非投研/政策新闻源，但不会删除历史 RSS 抓取日志或政策事件。
+
+---
+
+### `init_all` - 旧版轻量初始化（保留）
 
 **位置**: `apps/account/management/commands/init_all.py`
 
-**功能**: 按正确顺序执行所有初始化命令
+**功能**: 按旧版顺序初始化一部分基础数据。覆盖范围比 `bootstrap_cold_start` 小，主要用于兼容历史脚本；全新环境优先使用 `bootstrap_cold_start`。
 
 ```bash
 # 默认：初始化所有数据
@@ -82,7 +123,7 @@ python manage.py init_all --force
 python manage.py init_all --step classification
 ```
 
-**初始化顺序**:
+**旧版初始化顺序**:
 1. 资产分类和币种 (`init_classification`)
 2. 投资规则 (`init_enhanced_rules`)
 3. 系统文档 (`init_docs`)
@@ -92,12 +133,6 @@ python manage.py init_all --step classification
 7. 默认计划任务 (`init_scheduler_defaults`)
 8. 权威 RSS 源 (`init_authoritative_rss_sources`)
 9. 宏观数据 (`sync_macro_data`, 可选)
-
-`init_authoritative_rss_sources` 会启用 RSSHub 全局配置，并初始化政策/监管/财经新闻源：
-国家统计局、发改委、证监会、上交所、深交所、财联社、格隆汇。该命令会停用
-IT之家、V2EX、少数派等非投研/政策新闻源，但不会删除历史 RSS 抓取日志或政策事件。
-
----
 
 ### 单独初始化命令
 

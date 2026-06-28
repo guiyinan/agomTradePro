@@ -295,14 +295,16 @@ python manage.py runserver
 
 ### 初始化系统数据（可选）
 
-如果你想一键初始化一些内置配置/模板数据（如分类、规则、文档、Prompt 模板等），可运行：
+如果你想一键初始化内置配置、模板、调度默认值、RSS 源、策略参数等冷启动数据，优先运行：
 
 ```bash
-python manage.py init_all -y
-python manage.py init_all --skip-macro -y
+python manage.py bootstrap_cold_start
+
+# 如果需要同时做网络依赖的数据修复/同步，再显式开启：
+python manage.py bootstrap_cold_start --with-macro-sync --with-decision-repair
 ```
 
-> `-y/--yes` 用于跳过交互确认，便于脚本化/CI。
+`init_all` 仍保留为旧版轻量初始化入口，但覆盖范围比 `bootstrap_cold_start` 小；新环境和部署脚本应优先使用 `bootstrap_cold_start`。
 
 部署到 Docker / PostgreSQL / Redis 的场景不属于首次启动主路径，单独参考 `deploy/` 和 `docs/deployment/`。
 

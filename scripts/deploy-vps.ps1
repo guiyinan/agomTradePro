@@ -148,6 +148,7 @@ try {
             '--timeout', '15'
         )
         if ($null -ne $HttpPort) { $verifyArgs += @('--http-port', $HttpPort) }
+        if ($UseCelery) { $verifyArgs += '--expect-celery' }
         try {
             & $PythonExe @verifyArgs
             $verifyExitCode = $LASTEXITCODE

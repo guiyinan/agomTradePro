@@ -92,8 +92,32 @@ class TestHealthCheckFunctions:
         # Either skipped (if no Redis) or ok (if cache is working)
         assert result['status'] in ('skipped', 'ok')
 
-    @patch('django.core.cache.cache.get', side_effect=Exception("Redis connection failed"))
-    @patch('django.conf.settings')
+    @patch('redis.Redis.from_url')
+    @patch('core.health_checks.settings')
+    def test_check_redis_uses_celery_redis_url_when_cache_is_locmem(
+        self,
+        mock_settings,
+        mock_from_url,
+    ):
+        """Redis readiness should check Celery's Redis broker when cache is local."""
+        from core.health_checks import check_redis
+
+        mock_settings.CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
+            }
+        }
+        mock_settings.CELERY_BROKER_URL = 'redis://localhost:6379/0'
+        mock_settings.CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+        mock_from_url.return_value.ping.return_value = True
+
+        result = check_redis()
+
+        assert result == {'status': 'ok', 'source': 'redis_url'}
+        mock_from_url.assert_called_once()
+
+    @patch('core.health_checks.cache.get', side_effect=Exception("Redis connection failed"))
+    @patch('core.health_checks.settings')
     def test_check_redis_error(self, mock_settings, mock_get):
         """Test Redis check returns error when cache operations fail"""
         from core.health_checks import check_redis

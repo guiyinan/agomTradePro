@@ -202,7 +202,7 @@ Why this value:
 Recommended `deploy/.env` values:
 
 ```env
-ENABLE_CELERY=false
+ENABLE_CELERY=true
 ENABLE_RSSHUB=true
 GUNICORN_WORKERS=2
 REDIS_MAXMEMORY=256mb
@@ -210,10 +210,12 @@ REDIS_MAXMEMORY=256mb
 
 Operational advice:
 
-1. Keep Celery disabled unless you actively need async tasks.
-2. Enable Celery temporarily for scheduled jobs:
-   - set `ENABLE_CELERY=true`
+1. Keep Celery enabled for normal operation so `/api/ready/` can verify worker
+   availability and scheduled jobs continue to run.
+2. Disable Celery only for an explicit low-memory maintenance window:
+   - set `ENABLE_CELERY=false`
    - rerun deployment action `upgrade`
+   - expect `/api/ready/` to report Celery as unavailable while workers are off.
 3. Add swap (for example 2G) to reduce OOM risk during spikes.
 
 ---

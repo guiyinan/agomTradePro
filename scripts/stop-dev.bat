@@ -25,13 +25,7 @@ echo.
 REM ========== 2. Stop Celery Processes ==========
 echo [2/3] Stopping Celery processes...
 
-REM Use wmic to find processes with celery in command line
-for /f "tokens=2" %%i in ('wmic process get ProcessId,CommandLine /format:csv ^| findstr /i "celery"') do (
-    if not "%%i"=="ProcessId" (
-        echo Stopping Celery process PID: %%i
-        taskkill /PID %%i /F >nul 2>&1
-    )
-)
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'celery' -and $_.Name -match 'python|celery|cmd' } | ForEach-Object { Write-Host ('Stopping Celery process PID: ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
 echo [OK] Celery processes stopped
 echo.
 

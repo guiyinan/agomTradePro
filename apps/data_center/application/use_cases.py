@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from apps.data_center.application.dtos import (
@@ -85,7 +85,6 @@ from apps.data_center.domain.rules import (
     convert_currency_value,
     get_macro_age_days,
     is_macro_observation_stale,
-    is_stale,
     normalize_asset_code,
 )
 
@@ -93,6 +92,43 @@ if TYPE_CHECKING:
     from apps.data_center.domain.entities import ProviderHealthSnapshot
 
 logger = logging.getLogger(__name__)
+
+CN_MARKET_TZ = timezone(timedelta(hours=8))
+CN_MARKET_OPEN = time(9, 30)
+CN_MARKET_CLOSE = time(15, 0)
+
+
+def _previous_weekday(target_date: date) -> date:
+    """Return the latest weekday before ``target_date``."""
+
+    previous_day = target_date - timedelta(days=1)
+    while previous_day.weekday() >= 5:
+        previous_day -= timedelta(days=1)
+    return previous_day
+
+
+def _latest_completed_cn_quote_session(now: datetime) -> date | None:
+    """Return the latest completed A-share quote session for non-live periods."""
+
+    local_now = now.astimezone(CN_MARKET_TZ)
+    current_date = local_now.date()
+    if current_date.weekday() >= 5:
+        return _previous_weekday(current_date)
+    current_time = local_now.time()
+    if current_time < CN_MARKET_OPEN:
+        return _previous_weekday(current_date)
+    if current_time >= CN_MARKET_CLOSE:
+        return current_date
+    return None
+
+
+def _is_cn_listed_asset(asset_code: str) -> bool:
+    """Return True for common A-share and mainland ETF quote codes."""
+
+    normalized = asset_code.strip().upper()
+    return normalized.endswith((".SH", ".SZ", ".BJ"))
+
+
 RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     AttributeError,
     ConnectionError,
@@ -1066,6 +1102,7 @@ class QueryLatestQuoteUseCase:
         volume: float | None,
         source: str,
         max_age_hours: float | None = None,
+        now: datetime | None = None,
     ) -> QuoteResponse:
         effective_max_age_hours = (
             cls.DEFAULT_MAX_AGE_HOURS if max_age_hours is None else max_age_hours
@@ -1079,12 +1116,31 @@ class QueryLatestQuoteUseCase:
         else:
             normalized_snapshot_at = normalized_snapshot_at.astimezone(UTC)
 
+        current_now = now or datetime.now(UTC)
+        if current_now.tzinfo is None:
+            current_now = current_now.replace(tzinfo=UTC)
+        else:
+            current_now = current_now.astimezone(UTC)
+
         age_seconds = max(
             0.0,
-            (datetime.now(UTC) - normalized_snapshot_at).total_seconds(),
+            (current_now - normalized_snapshot_at).total_seconds(),
         )
         age_minutes = int(age_seconds // 60)
-        quote_is_stale = is_stale(normalized_snapshot_at, effective_max_age_hours)
+        quote_is_stale = (age_seconds / 3600) > effective_max_age_hours
+        freshness_status = "stale" if quote_is_stale else "fresh"
+
+        latest_completed_session = _latest_completed_cn_quote_session(current_now)
+        snapshot_local_date = normalized_snapshot_at.astimezone(CN_MARKET_TZ).date()
+        if (
+            quote_is_stale
+            and latest_completed_session is not None
+            and _is_cn_listed_asset(asset_code)
+            and snapshot_local_date == latest_completed_session
+        ):
+            quote_is_stale = False
+            freshness_status = "latest_completed_session"
+
         blocked_reason = ""
         if quote_is_stale:
             blocked_reason = (
@@ -1103,7 +1159,7 @@ class QueryLatestQuoteUseCase:
             source=source,
             age_minutes=age_minutes,
             is_stale=quote_is_stale,
-            freshness_status="stale" if quote_is_stale else "fresh",
+            freshness_status=freshness_status,
             must_not_use_for_decision=quote_is_stale,
             blocked_reason=blocked_reason,
             max_age_hours=effective_max_age_hours,

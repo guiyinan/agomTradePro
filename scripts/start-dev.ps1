@@ -110,14 +110,8 @@ function Start-CeleryWorker {
     if ($SkipCelery) { return }
 
     Write-Host "[INFO] Starting Celery Worker..." -ForegroundColor Yellow
-    $workerScript = "@echo off
-title Celery Worker
-call agomtradepro\Scripts\activate.bat
-python -m celery -A core worker -l info --pool=solo
-pause"
-
-    $workerScript | Out-File -FilePath "start_celery_worker.bat" -Encoding ASCII
-    Start-Process "cmd.exe" -ArgumentList "/k start_celery_worker.bat" -WindowStyle Normal
+    $workerCommand = "cd /d `"$PWD`" && set `"PYTHONUNBUFFERED=1`" && set `"DJANGO_LOG_LEVEL=INFO`" && set `"DJANGO_SETTINGS_MODULE=core.settings.development`" && `"$PythonExe`" -m celery -A core worker -l info --pool=solo --concurrency=1 -Q celery,qlib_infer,qlib_train"
+    Start-Process "cmd.exe" -ArgumentList "/k title Celery Worker && $workerCommand" -WindowStyle Normal
     Start-Sleep -Seconds 2
     Write-Host "[OK] Celery Worker started" -ForegroundColor Green
 }
@@ -127,14 +121,8 @@ function Start-CeleryBeat {
     if ($SkipBeat) { return }
 
     Write-Host "[INFO] Starting Celery Beat..." -ForegroundColor Yellow
-    $beatScript = "@echo off
-title Celery Beat
-call agomtradepro\Scripts\activate.bat
-python -m celery -A core beat -l info
-pause"
-
-    $beatScript | Out-File -FilePath "start_celery_beat.bat" -Encoding ASCII
-    Start-Process "cmd.exe" -ArgumentList "/k start_celery_beat.bat" -WindowStyle Normal
+    $beatCommand = "cd /d `"$PWD`" && set `"PYTHONUNBUFFERED=1`" && set `"DJANGO_LOG_LEVEL=INFO`" && set `"DJANGO_SETTINGS_MODULE=core.settings.development`" && `"$PythonExe`" -m celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    Start-Process "cmd.exe" -ArgumentList "/k title Celery Beat && $beatCommand" -WindowStyle Normal
     Start-Sleep -Seconds 2
     Write-Host "[OK] Celery Beat started" -ForegroundColor Green
 }

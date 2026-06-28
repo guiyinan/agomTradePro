@@ -913,6 +913,64 @@ class TestQueryLatestQuoteUseCase:
         assert "freshness 阈值" in result.blocked_reason
         assert result.max_age_hours == 1.0
 
+    def test_accepts_latest_completed_session_quote_on_weekend(self):
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=12345.0,
+            source="test",
+            max_age_hours=4.0,
+            now=datetime(2026, 6, 28, 4, 0, tzinfo=UTC),
+        )
+
+        assert result.is_stale is False
+        assert result.freshness_status == "latest_completed_session"
+        assert result.must_not_use_for_decision is False
+        assert result.blocked_reason == ""
+
+    def test_blocks_quote_older_than_latest_completed_session_on_weekend(self):
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=datetime(2026, 6, 21, 7, 2, tzinfo=UTC),
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=12345.0,
+            source="test",
+            max_age_hours=4.0,
+            now=datetime(2026, 6, 28, 4, 0, tzinfo=UTC),
+        )
+
+        assert result.is_stale is True
+        assert result.freshness_status == "stale"
+        assert result.must_not_use_for_decision is True
+
+    def test_keeps_intraday_stale_quote_blocked_during_live_session(self):
+        result = QueryLatestQuoteUseCase.build_response(
+            asset_code="510300.SH",
+            snapshot_at=datetime(2026, 6, 26, 7, 2, tzinfo=UTC),
+            current_price=3.91,
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
+            volume=12345.0,
+            source="test",
+            max_age_hours=4.0,
+            now=datetime(2026, 6, 29, 2, 30, tzinfo=UTC),
+        )
+
+        assert result.is_stale is True
+        assert result.freshness_status == "stale"
+        assert result.must_not_use_for_decision is True
+
 
 class TestRepairDecisionDataReliabilityUseCase:
     def _make_use_case(

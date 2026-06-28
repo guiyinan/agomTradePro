@@ -74,3 +74,21 @@ def test_evaluate_health_probe_result_rejects_non_2xx_status():
 
     assert ok is False
     assert summary == 'HTTP 503 {"status":"error"}'
+
+
+def test_build_compose_command_uses_vps_compose_file_and_env():
+    command = deploy_vps_verify.build_compose_command(
+        "/opt/agomtradepro", "ps", "-q", "celery_worker"
+    )
+
+    assert "cd /opt/agomtradepro/current" in command
+    assert "docker compose -p agomtradepro" in command
+    assert "-f docker/docker-compose.vps.yml" in command
+    assert "--env-file deploy/.env" in command
+    assert "ps -q celery_worker" in command
+
+
+def test_build_celery_ping_command_checks_workers_from_web_container():
+    command = deploy_vps_verify.build_celery_ping_command("/opt/agomtradepro")
+
+    assert "exec -T web celery -A core inspect ping --timeout=8" in command

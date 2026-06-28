@@ -197,5 +197,9 @@ bash scripts/vps-restore.sh --target-dir /opt/agomtradepro/current --backup-dir 
 - Package script defaults to "code upgrade bundle" (no local DB/Redis data).
 - `scripts/package-for-vps-aggressive.ps1` is the recommended packaging entrypoint on Windows.
 - `ENABLE_RSSHUB=true` enables self-hosted RSSHub service in the stack.
-- `ENABLE_CELERY=false` is recommended on 4G VPS, enable only when needed.
+- `ENABLE_CELERY=true` is the default production posture; deploy verification
+  checks worker/beat containers and `celery inspect ping` when enabled.
+- On very small VPS instances, set `ENABLE_CELERY=false` only as an explicit
+  maintenance/low-memory mode. In that mode `/api/ready/` will report Celery as
+  unavailable because no worker is expected to respond.
 - Production image installs from `requirements-prod.txt`.

@@ -1104,6 +1104,30 @@ until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomtrad
   sleep 5
 done
 
+if [ "$ENABLE_CELERY" = "1" ]; then
+  for service in celery_worker celery_beat; do
+    cid="$(compose ps -q "$service" || true)"
+    if [ -z "$cid" ]; then
+      echo "[ERROR] $service container was not created" >&2
+      compose ps >&2 || true
+      exit 1
+    fi
+    running="$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null || echo false)"
+    if [ "$running" != "true" ]; then
+      echo "[ERROR] $service is not running" >&2
+      docker logs --tail 200 "$cid" >&2 || true
+      exit 1
+    fi
+  done
+
+  if ! compose exec -T web celery -A core inspect ping --timeout=8 >/tmp/agomtradepro-celery-ping.txt 2>&1; then
+    echo "[ERROR] Celery worker did not respond to inspect ping" >&2
+    cat /tmp/agomtradepro-celery-ping.txt >&2 || true
+    compose ps >&2 || true
+    exit 1
+  fi
+fi
+
 compose ps > /tmp/agomtradepro-compose-ps.txt || true
 
 python3 - <<'PY'
