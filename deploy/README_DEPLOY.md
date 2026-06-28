@@ -155,6 +155,11 @@ Non-interactive example:
 python .\scripts\remote_build_deploy_vps.py --host your-vps-ip --port 22 --user root --include-sqlite --wipe-docker --action fresh
 ```
 
+When `--git-clone` and `--include-sqlite` are used together, the script uploads
+the local `db.sqlite3` into the cloned release as `backups/db.sqlite3` before
+deployment. If that file cannot be uploaded, deployment fails instead of
+silently preserving the old VPS database.
+
 Notes:
 
 - this path avoids transferring large image tar files from local machine

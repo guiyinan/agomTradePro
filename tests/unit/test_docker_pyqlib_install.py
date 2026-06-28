@@ -44,6 +44,23 @@ def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
     assert "celery -A core inspect ping --timeout=8" in script
 
 
+def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+
+    assert "def _upload_sqlite_to_git_clone_release" in script
+    assert "Uploading local SQLite for git-clone deploy" in script
+    assert "PRAGMA integrity_check" in script
+    assert "_upload_sqlite_to_git_clone_release(" in script
+
+
+def test_include_sqlite_fails_when_release_db_is_missing() -> None:
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+
+    assert 'if [ "$INCLUDE_SQLITE" = "1" ]; then' in script
+    assert "INCLUDE_SQLITE=1 but backups/db.sqlite3 is missing in release" in script
+    assert "exit 1" in script
+
+
 def test_windows_start_dev_uses_python_module_celery_and_all_queues() -> None:
     script = (REPO_ROOT / "scripts" / "start-dev.ps1").read_text(encoding="utf-8")
 

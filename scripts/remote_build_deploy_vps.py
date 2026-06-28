@@ -242,6 +242,66 @@ def _make_source_bundle(
             tar.add(sqlite_file, arcname=db_arcname, recursive=False)
 
 
+def _upload_sqlite_to_git_clone_release(
+    *,
+    ssh,
+    sqlite_file: Path,
+    target_dir: str,
+    release_tag: str,
+    timeout: int,
+) -> None:
+    """Upload local SQLite into the git-cloned release backup slot."""
+
+    release_dir = posixpath.join(target_dir.rstrip("/"), "releases", f"source-{release_tag}")
+    remote_backups_dir = posixpath.join(release_dir, "backups")
+    remote_db = posixpath.join(remote_backups_dir, "db.sqlite3")
+    code, _out, err = _run(
+        ssh,
+        f"mkdir -p {shlex.quote(remote_backups_dir)}",
+        timeout=timeout,
+    )
+    if code != 0:
+        _die(f"Failed to create remote sqlite backup dir. Stderr={err.strip()}")
+
+    tmp_remote = remote_db + f".uploading.{int(time.time())}"
+    _info(f"Uploading local SQLite for git-clone deploy: {remote_db}")
+    sftp = ssh.open_sftp()
+    try:
+        sftp.put(str(sqlite_file), tmp_remote)
+        try:
+            sftp.remove(remote_db)
+        except OSError:
+            pass
+        sftp.rename(tmp_remote, remote_db)
+    finally:
+        sftp.close()
+
+    validate_cmd = (
+        f"REMOTE_DB={shlex.quote(remote_db)} python3 - <<'PY'\n"
+        "import os\n"
+        "import sqlite3\n"
+        "path = os.environ['REMOTE_DB']\n"
+        "conn = sqlite3.connect(path)\n"
+        "try:\n"
+        "    integrity = conn.execute('PRAGMA integrity_check').fetchone()[0]\n"
+        "    table_count = conn.execute(\"select count(*) from sqlite_master where type='table'\").fetchone()[0]\n"
+        "finally:\n"
+        "    conn.close()\n"
+        "print(f'integrity={integrity}')\n"
+        "print(f'table_count={table_count}')\n"
+        "print(f'db_size={os.path.getsize(path)}')\n"
+        "raise SystemExit(0 if integrity == 'ok' else 3)\n"
+        "PY"
+    )
+    code, out, err = _run(ssh, validate_cmd, timeout=timeout)
+    if code != 0:
+        _die(
+            "Uploaded SQLite failed remote integrity check. "
+            f"Stdout={out.strip()} Stderr={err.strip()}"
+        )
+    _info(out.strip())
+
+
 def _render_local_env(env_example_text: str, image_tag: str) -> str:
     lines: list[str] = []
     for line in env_example_text.splitlines():
@@ -1032,7 +1092,11 @@ fi
 
 compose up -d redis
 
-if [ "$INCLUDE_SQLITE" = "1" ] && [ -f backups/db.sqlite3 ]; then
+if [ "$INCLUDE_SQLITE" = "1" ]; then
+  if [ ! -f backups/db.sqlite3 ]; then
+    echo "[ERROR] INCLUDE_SQLITE=1 but backups/db.sqlite3 is missing in release" >&2
+    exit 1
+  fi
   docker volume create agomtradepro_sqlite_data >/dev/null
   docker run --rm \
     -v agomtradepro_sqlite_data:/dest \
@@ -1342,6 +1406,16 @@ def main() -> int:
             if code != 0:
                 _warn(out.strip())
                 _die(f"Remote git-clone build failed. Exit={code}. Stderr={err.strip()}")
+            if include_sqlite:
+                if sqlite_file is None:
+                    _die("--include-sqlite was requested but local db.sqlite3 was not resolved")
+                _upload_sqlite_to_git_clone_release(
+                    ssh=ssh,
+                    sqlite_file=sqlite_file,
+                    target_dir=args.target_dir,
+                    release_tag=tag,
+                    timeout=args.timeout,
+                )
         else:
             remote_bundle = posixpath.join(remote_dir, bundle_name)
             _info(f"Ensuring remote upload dir: {remote_dir}")
