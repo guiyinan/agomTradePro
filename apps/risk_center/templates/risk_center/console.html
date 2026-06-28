@@ -151,6 +151,52 @@
         color: #475569;
         font-size: 13px;
     }
+    .risk-center-tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 0 16px;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 10px;
+    }
+    .risk-center-tab {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #334155;
+        min-height: 34px;
+        border-radius: 6px;
+        padding: 7px 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .risk-center-tab.is-active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+    .risk-center-panel.is-hidden {
+        display: none;
+    }
+    .risk-center-history-button {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        color: #334155;
+        font-size: 12px;
+    }
+    .risk-center-history-button:hover {
+        border-color: #2563eb;
+        color: #1d4ed8;
+    }
+    .risk-center-detail-box {
+        margin-top: 12px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        border-radius: 8px;
+        padding: 12px;
+    }
     @media (max-width: 900px) {
         .risk-center-grid,
         .risk-center-form {
@@ -194,8 +240,17 @@
         </section>
     </div>
 
+    <nav class="risk-center-tabs" aria-label="风控中心视图">
+        <button type="button" class="risk-center-tab is-active" data-risk-tab="all">全部</button>
+        <button type="button" class="risk-center-tab" data-risk-tab="baseline">底线/模板</button>
+        <button type="button" class="risk-center-tab" data-risk-tab="policy">账户策略</button>
+        <button type="button" class="risk-center-tab" data-risk-tab="guard">交易检查</button>
+        <button type="button" class="risk-center-tab" data-risk-tab="reports">投后/日报</button>
+        <button type="button" class="risk-center-tab" data-risk-tab="audit">例外/审计</button>
+    </nav>
+
     <div class="risk-center-grid">
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="baseline">
             <h2>全局底线</h2>
             <form class="risk-center-form" data-risk-form="floor">
                 <label>总仓位上限
@@ -241,7 +296,7 @@
             </form>
         </section>
 
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="baseline">
             <h2>风险模板</h2>
             <table class="risk-center-table">
                 <thead>
@@ -263,7 +318,7 @@
             </table>
         </section>
 
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="policy">
             <h2>账户策略</h2>
             <form class="risk-center-form" data-risk-form="policy">
                 <label>账户 ID
@@ -302,7 +357,7 @@
             <div class="risk-center-output" data-risk-output="policy">等待账户策略操作...</div>
         </section>
 
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="audit">
             <h2>例外审批</h2>
             <form class="risk-center-form" data-risk-form="exception">
                 <label>账户 ID
@@ -350,7 +405,7 @@
             </table>
         </section>
 
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="guard">
             <h2>交易前风控预览</h2>
             <form class="risk-center-form" data-risk-form="pretrade">
                 <label>账户 ID
@@ -391,7 +446,7 @@
             <div class="risk-center-output" data-risk-output="pretrade">输入一笔拟交易，查看是否会被集中风控拒绝。</div>
         </section>
 
-        <section class="risk-center-panel">
+        <section class="risk-center-panel" data-risk-section="reports">
             <h2>投后风控巡检</h2>
             <form class="risk-center-form" data-risk-form="postinvestment">
                 <label>账户 ID
@@ -451,7 +506,7 @@
             <div class="risk-center-output" data-risk-output="dailyhistory">可按账户和日期查询已归档的风控日报、持仓日报。</div>
         </section>
 
-        <section class="risk-center-panel risk-center-full">
+        <section class="risk-center-panel risk-center-full" data-risk-section="audit">
             <h2>账户策略列表 / 最近审计</h2>
             <div class="risk-center-grid">
                 <table class="risk-center-table">
@@ -523,6 +578,35 @@
     const money = (value) => {
         if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
         return Number(value).toLocaleString("zh-CN", { maximumFractionDigits: 2 });
+    };
+    let latestDailyHistoryRows = [];
+    const renderDailyReportDetail = (item) => {
+        const risk = item?.risk_daily_report || {};
+        const position = item?.position_daily_report || {};
+        const check = item?.post_investment_check || {};
+        const actions = (risk.action_items || []).map((value) => `<li>${escapeHtml(value)}</li>`).join("");
+        const alerts = (check.position_alerts || [])
+            .slice(0, 8)
+            .map((value) => `<li><strong>${escapeHtml(value.symbol || "-")}</strong> ${escapeHtml(value.message || "")}</li>`)
+            .join("");
+        const topPositions = (position.top_positions || [])
+            .slice(0, 8)
+            .map((value) => `<li><strong>${escapeHtml(value.symbol || "-")}</strong> ${pct(value.weight)} / ${money(value.market_value)}</li>`)
+            .join("");
+        return `
+            <div class="risk-center-detail-box">
+                <span class="risk-center-badge ${risk.status === "breach" ? "is-stop" : "is-pass"}">${escapeHtml(risk.headline || risk.status || "-")}</span>
+                <div class="risk-center-summary-list">
+                    <div><strong>报告日期</strong><br>${escapeHtml(item?.report_date || "-")}</div>
+                    <div><strong>账户</strong><br>${escapeHtml(item?.account_id || "-")}</div>
+                    <div><strong>违规/提示</strong><br>${money(risk.breach_count)} / ${money(risk.warning_count)}</div>
+                    <div><strong>持仓/仓位</strong><br>${money(position.position_count)} / ${pct(position.total_position_pct)}</div>
+                </div>
+                ${actions ? `<p style="margin:10px 0 4px;"><strong>处理事项</strong></p><ul>${actions}</ul>` : ""}
+                ${alerts ? `<p style="margin:10px 0 4px;"><strong>持仓警报</strong></p><ul>${alerts}</ul>` : ""}
+                ${topPositions ? `<p style="margin:10px 0 4px;"><strong>持仓日报 Top</strong></p><ul>${topPositions}</ul>` : ""}
+            </div>
+        `;
     };
     const renderEffectivePolicy = (payload) => {
         const data = payload.data || payload;
@@ -626,29 +710,33 @@
     const renderDailyReportHistory = (payload) => {
         const data = payload.data || payload;
         const rows = Array.isArray(data) ? data : [data];
+        latestDailyHistoryRows = rows;
         const node = document.querySelector('[data-risk-output="dailyhistory"]');
         if (!node) return;
         const items = rows
-            .map((item) => {
+            .map((item, index) => {
                 const risk = item.risk_daily_report || {};
                 const position = item.position_daily_report || {};
+                const statusClass = (risk.status || item.status) === "breach" ? "is-stop" : "is-pass";
                 return `
                     <tr>
                         <td>${escapeHtml(item.report_date || "-")}</td>
                         <td>${escapeHtml(item.account_id || "-")}</td>
-                        <td>${escapeHtml(risk.status || item.status || "-")}</td>
+                        <td><span class="risk-center-badge ${statusClass}">${escapeHtml(risk.status || item.status || "-")}</span></td>
                         <td>${money(risk.breach_count)}</td>
                         <td>${money(position.position_count)}</td>
                         <td>${pct(position.total_position_pct)}</td>
+                        <td><button type="button" class="risk-center-history-button" data-risk-history-index="${index}">详情</button></td>
                     </tr>
                 `;
             })
             .join("");
         node.innerHTML = `
             <table class="risk-center-table">
-                <thead><tr><th>日期</th><th>账户</th><th>状态</th><th>违规</th><th>持仓</th><th>总仓位</th></tr></thead>
-                <tbody>${items || '<tr><td colspan="6" class="risk-center-muted">暂无日报记录</td></tr>'}</tbody>
+                <thead><tr><th>日期</th><th>账户</th><th>状态</th><th>违规</th><th>持仓</th><th>总仓位</th><th></th></tr></thead>
+                <tbody>${items || '<tr><td colspan="7" class="risk-center-muted">暂无日报记录</td></tr>'}</tbody>
             </table>
+            <div data-risk-history-detail>${rows[0] ? renderDailyReportDetail(rows[0]) : ""}</div>
             <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
         `;
     };
@@ -693,6 +781,27 @@
         if (!response.ok) throw new Error(payload.detail || payload.error || response.statusText);
         return payload;
     };
+    document.querySelectorAll("[data-risk-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const target = button.dataset.riskTab || "all";
+            document.querySelectorAll("[data-risk-tab]").forEach((item) => {
+                item.classList.toggle("is-active", item === button);
+            });
+            document.querySelectorAll("[data-risk-section]").forEach((section) => {
+                const sectionKey = section.dataset.riskSection;
+                section.classList.toggle("is-hidden", target !== "all" && sectionKey !== target);
+            });
+        });
+    });
+    document.querySelector('[data-risk-output="dailyhistory"]')?.addEventListener("click", (event) => {
+        const target = event.target;
+        const button = target?.closest ? target.closest("[data-risk-history-index]") : null;
+        if (!button) return;
+        const index = Number(button.dataset.riskHistoryIndex);
+        const item = latestDailyHistoryRows[index];
+        const detail = document.querySelector("[data-risk-history-detail]");
+        if (detail && item) detail.innerHTML = renderDailyReportDetail(item);
+    });
     document.querySelector('[data-risk-form="floor"]')?.addEventListener("submit", async (event) => {
         event.preventDefault();
         status("floor", "保存中...");

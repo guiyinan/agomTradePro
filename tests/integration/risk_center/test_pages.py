@@ -31,6 +31,8 @@ def test_risk_center_console_renders_for_staff():
     assert response.status_code == 200
     html = response.content.decode("utf-8")
     assert "集中风控中心" in html
+    assert 'data-risk-tab="reports"' in html
+    assert 'data-risk-section="reports"' in html
     assert "全局底线" in html
     assert "保存全局底线" in html
     assert "保存账户策略" in html
@@ -43,6 +45,8 @@ def test_risk_center_console_renders_for_staff():
     assert "日报会包含风控日报和持仓日报两部分" in html
     assert "查询历史日报" in html
     assert "可按账户和日期查询已归档的风控日报、持仓日报" in html
+    assert "data-risk-history-detail" in html
+    assert "data-risk-history-index" in html
     assert "创建例外" in html
     assert "/api/risk-center/" in html
     assert "/tui/#/risk-center.overview" in html
