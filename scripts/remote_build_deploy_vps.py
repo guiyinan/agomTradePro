@@ -1184,8 +1184,23 @@ if [ "$ENABLE_CELERY" = "1" ]; then
     fi
   done
 
-  if ! compose exec -T web celery -A core inspect ping --timeout=8 >/tmp/agomtradepro-celery-ping.txt 2>&1; then
-    echo "[ERROR] Celery worker did not respond to inspect ping" >&2
+  CELERY_PING_OK=0
+  for attempt in $(seq 1 12); do
+    if compose exec -T web celery -A core inspect ping --timeout=8 >/tmp/agomtradepro-celery-ping.txt 2>&1; then
+      CELERY_PING_OK=1
+      break
+    fi
+    worker_cid="$(compose ps -q celery_worker || true)"
+    worker_running="$(docker inspect -f '{{.State.Running}}' "$worker_cid" 2>/dev/null || echo false)"
+    if [ "$worker_running" != "true" ]; then
+      echo "[ERROR] celery_worker exited before inspect ping succeeded" >&2
+      docker logs --tail 200 "$worker_cid" >&2 || true
+      exit 1
+    fi
+    sleep 5
+  done
+  if [ "$CELERY_PING_OK" != "1" ]; then
+    echo "[ERROR] Celery worker did not respond to inspect ping after retries" >&2
     cat /tmp/agomtradepro-celery-ping.txt >&2 || true
     compose ps >&2 || true
     exit 1

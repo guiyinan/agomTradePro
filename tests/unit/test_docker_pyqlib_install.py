@@ -42,6 +42,8 @@ def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
     assert "celery_worker celery_beat" in script
     assert "celery -A core inspect ping --timeout=8" in script
+    assert "for attempt in $(seq 1 12)" in script
+    assert "Celery worker did not respond to inspect ping after retries" in script
 
 
 def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:
