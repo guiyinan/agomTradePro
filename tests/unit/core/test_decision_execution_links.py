@@ -1,6 +1,9 @@
 from datetime import UTC, datetime
 
-from core.integration.decision_execution_links import DecisionExecutionLinkRecorder
+from core.integration.decision_execution_links import (
+    DecisionExecutionLinkRecorder,
+    DecisionManualTradeExecutionMatcher,
+)
 
 
 class FakeRecommendationRepo:
@@ -63,3 +66,44 @@ def test_recorder_matches_recent_recommendation_when_requested():
     assert repo.match_args["side"] == "BUY"
     assert repo.match_args["traded_at"] == executed_at
     assert repo.links[0]["match_confidence"] == 0.85
+
+
+def test_manual_trade_matcher_records_manual_only_when_no_recommendation():
+    repo = FakeRecommendationRepo()
+    matcher = DecisionManualTradeExecutionMatcher(recommendation_repo=repo)
+    traded_at = datetime.now(UTC)
+
+    result = matcher.record_imported_execution(
+        account_id="3",
+        transaction_id=12,
+        security_code="000003.SZ",
+        actual_action="buy",
+        traded_at=traded_at,
+    )
+
+    assert result["recommendation_id"] == ""
+    assert result["match_method"] == "manual_only"
+    assert result["match_confidence"] == 0.0
+    assert repo.match_args["side"] == "BUY"
+    assert repo.actions == []
+
+
+def test_manual_trade_matcher_marks_matched_recommendation_adopted():
+    repo = FakeRecommendationRepo()
+    repo.match = {"recommendation_id": "urec_manual", "match_confidence": 0.9}
+    matcher = DecisionManualTradeExecutionMatcher(recommendation_repo=repo)
+    traded_at = datetime.now(UTC)
+
+    result = matcher.record_imported_execution(
+        account_id="4",
+        transaction_id=13,
+        security_code="600004.SH",
+        actual_action="sell",
+        traded_at=traded_at,
+    )
+
+    assert result["recommendation_id"] == "urec_manual"
+    assert result["match_method"] == "auto"
+    assert result["match_confidence"] == 0.9
+    assert repo.match_args["side"] == "SELL"
+    assert repo.actions[0]["user_action"] == "ADOPTED"

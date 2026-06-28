@@ -90,10 +90,83 @@ class DecisionExecutionLinkRecorder(ExecutionLinkRecorderProtocol):
             return None
 
 
+class DecisionManualTradeExecutionMatcher:
+    """Match imported manual trades to decision-rhythm recommendations."""
+
+    def __init__(self, recommendation_repo: Any | None = None) -> None:
+        self._recommendation_repo = recommendation_repo
+
+    @property
+    def recommendation_repo(self) -> Any:
+        if self._recommendation_repo is None:
+            from apps.decision_rhythm.application.repository_provider import (
+                get_unified_recommendation_repository,
+            )
+
+            self._recommendation_repo = get_unified_recommendation_repository()
+        return self._recommendation_repo
+
+    def record_imported_execution(
+        self,
+        *,
+        account_id: str,
+        transaction_id: int,
+        security_code: str,
+        actual_action: str,
+        traded_at,
+    ) -> dict[str, Any]:
+        normalized_action = str(actual_action or "").strip().lower()
+        side = {"buy": "BUY", "sell": "SELL"}.get(normalized_action)
+        if side is None:
+            raise ValueError("actual_action must be buy or sell")
+
+        match = self.recommendation_repo.find_execution_match(
+            account_id=account_id,
+            security_code=security_code,
+            side=side,
+            traded_at=traded_at,
+        )
+        if match is None:
+            return self.recommendation_repo.record_execution_link(
+                recommendation_id="",
+                transaction_id=transaction_id,
+                account_id=account_id,
+                security_code=security_code,
+                actual_action=normalized_action,
+                match_method="manual_only",
+                match_confidence=0.0,
+                notes="No matching system recommendation",
+            )
+
+        recommendation_id = str(match["recommendation_id"])
+        self.recommendation_repo.update_user_action(
+            recommendation_id=recommendation_id,
+            user_action="ADOPTED",
+            note=f"Matched imported transaction {transaction_id}",
+            account_id=account_id,
+        )
+        return self.recommendation_repo.record_execution_link(
+            recommendation_id=recommendation_id,
+            transaction_id=transaction_id,
+            account_id=account_id,
+            security_code=security_code,
+            actual_action=normalized_action,
+            match_method="auto",
+            match_confidence=float(match.get("match_confidence", 0.85) or 0.85),
+            notes="Matched by account/security/side/time window",
+        )
+
+
 def build_decision_execution_link_recorder() -> ExecutionLinkRecorderProtocol:
     """Build the default decision execution link recorder."""
 
     return DecisionExecutionLinkRecorder()
+
+
+def build_manual_trade_execution_matcher() -> DecisionManualTradeExecutionMatcher:
+    """Build the default manual-trade execution matcher."""
+
+    return DecisionManualTradeExecutionMatcher()
 
 
 def list_decision_execution_links(

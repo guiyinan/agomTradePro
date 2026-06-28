@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Protocol
 
 from django.utils import timezone
 
@@ -15,11 +15,8 @@ from apps.account.application.repository_provider import (
     get_manual_trade_sync_repository,
     get_portfolio_api_repository,
 )
-from apps.decision_rhythm.application.repository_provider import (
-    get_unified_recommendation_repository,
-)
-from apps.decision_rhythm.domain.entities import UserDecisionAction
 from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
+from core.integration.decision_execution_links import build_manual_trade_execution_matcher
 
 REQUIRED_COLUMNS = {"traded_at", "action", "asset_code", "shares", "price"}
 OPTIONAL_COLUMNS = {"commission", "stamp_duty", "transfer_fee", "external_trade_id", "notes"}
@@ -73,6 +70,73 @@ class BrokerTradeImportResult:
     batch_id: int | None = None
 
 
+class ManualTradeExecutionMatcherProtocol(Protocol):
+    """Record one imported manual execution against recommendations when possible."""
+
+    def record_imported_execution(
+        self,
+        *,
+        account_id: str,
+        transaction_id: int,
+        security_code: str,
+        actual_action: str,
+        traded_at: datetime,
+    ) -> dict[str, Any]:
+        """Return the execution-link payload."""
+
+
+class RepositoryBackedManualTradeExecutionMatcher:
+    """Adapt the historical recommendation repository injection to the new port."""
+
+    def __init__(self, recommendation_repo: Any) -> None:
+        self.recommendation_repo = recommendation_repo
+
+    def record_imported_execution(
+        self,
+        *,
+        account_id: str,
+        transaction_id: int,
+        security_code: str,
+        actual_action: str,
+        traded_at: datetime,
+    ) -> dict[str, Any]:
+        side = ACTION_TO_SIDE[actual_action]
+        match = self.recommendation_repo.find_execution_match(
+            account_id=account_id,
+            security_code=security_code,
+            side=side,
+            traded_at=traded_at,
+        )
+        if match is None:
+            return self.recommendation_repo.record_execution_link(
+                recommendation_id="",
+                transaction_id=transaction_id,
+                account_id=account_id,
+                security_code=security_code,
+                actual_action=actual_action,
+                match_method="manual_only",
+                match_confidence=0.0,
+                notes="No matching system recommendation",
+            )
+
+        self.recommendation_repo.update_user_action(
+            recommendation_id=match["recommendation_id"],
+            user_action="ADOPTED",
+            note=f"Matched imported transaction {transaction_id}",
+            account_id=account_id,
+        )
+        return self.recommendation_repo.record_execution_link(
+            recommendation_id=match["recommendation_id"],
+            transaction_id=transaction_id,
+            account_id=account_id,
+            security_code=security_code,
+            actual_action=actual_action,
+            match_method="auto",
+            match_confidence=match["match_confidence"],
+            notes="Matched by account/security/side/time window",
+        )
+
+
 class ManualTradeImportUseCase:
     """Preview and confirm manual broker trade imports."""
 
@@ -84,10 +148,19 @@ class ManualTradeImportUseCase:
         recommendation_repo=None,
         parser=None,
         position_service=None,
+        execution_matcher: ManualTradeExecutionMatcherProtocol | None = None,
     ) -> None:
         self.sync_repo = sync_repo or get_manual_trade_sync_repository()
         self.portfolio_repo = portfolio_repo or get_portfolio_api_repository()
-        self.recommendation_repo = recommendation_repo or get_unified_recommendation_repository()
+        self.execution_matcher = (
+            execution_matcher
+            or (
+                RepositoryBackedManualTradeExecutionMatcher(recommendation_repo)
+                if recommendation_repo is not None
+                else None
+            )
+            or build_manual_trade_execution_matcher()
+        )
         self.parser = parser or build_broker_trade_file_parser()
         self.position_service = position_service or UnifiedPositionService.default()
 
@@ -291,40 +364,12 @@ class ManualTradeImportUseCase:
         transaction_id: int,
         row: NormalizedTradeRow,
     ) -> dict[str, Any]:
-        side = ACTION_TO_SIDE[row.action]
-        match = self.recommendation_repo.find_execution_match(
+        return self.execution_matcher.record_imported_execution(
             account_id=account_id,
-            security_code=row.asset_code,
-            side=side,
-            traded_at=row.traded_at,
-        )
-        if match is None:
-            return self.recommendation_repo.record_execution_link(
-                recommendation_id="",
-                transaction_id=transaction_id,
-                account_id=account_id,
-                security_code=row.asset_code,
-                actual_action=row.action,
-                match_method="manual_only",
-                match_confidence=0.0,
-                notes="No matching system recommendation",
-            )
-
-        self.recommendation_repo.update_user_action(
-            recommendation_id=match["recommendation_id"],
-            user_action=UserDecisionAction.ADOPTED,
-            note=f"Matched imported transaction {transaction_id}",
-            account_id=account_id,
-        )
-        return self.recommendation_repo.record_execution_link(
-            recommendation_id=match["recommendation_id"],
             transaction_id=transaction_id,
-            account_id=account_id,
             security_code=row.asset_code,
             actual_action=row.action,
-            match_method="auto",
-            match_confidence=match["match_confidence"],
-            notes="Matched by account/security/side/time window",
+            traded_at=row.traded_at,
         )
 
     def _normalize_rows(
