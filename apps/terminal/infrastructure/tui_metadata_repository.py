@@ -24,6 +24,117 @@ RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
     },
 }
 
+RUNTIME_SCREEN_PATCHES: dict[str, dict[str, Any]] = {
+    "command-center.overview": {
+        "dashboard_panels": [
+            {
+                "key": "today-queue",
+                "title": "零、今日待办",
+                "kind": "datagrid",
+                "action_key": "decision.workspace.today_queue",
+                "max_rows": 8,
+                "layout_area": "queue",
+                "target_screen": "command-center.decision-flow",
+                "columns": [
+                    {"key": "priority", "label": "优先级"},
+                    {"key": "status", "label": "状态"},
+                    {"key": "type", "label": "类型"},
+                    {"key": "title", "label": "事项"},
+                    {"key": "next_action", "label": "下一步"},
+                    {"key": "security_code", "label": "标的"},
+                ],
+            },
+            {
+                "key": "regime-status",
+                "title": "一、市场周期象限",
+                "kind": "regime_quadrant",
+                "action_key": "regime.current",
+                "max_rows": 6,
+                "layout_area": "regime",
+                "target_screen": "macro-regime.overview",
+            },
+            {
+                "key": "pulse-alerts",
+                "title": "二、战术脉搏预警",
+                "kind": "detail",
+                "action_key": "pulse.current",
+                "layout_area": "pulse",
+                "target_screen": "macro-regime.pulse",
+            },
+            {
+                "key": "account-list",
+                "title": "三、账户清单",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.account.accounts",
+                "max_rows": 6,
+                "layout_area": "account_list",
+                "target_screen": "execution.accounts",
+                "columns": [
+                    {"key": "account_name", "label": "账户名称"},
+                    {"key": "account_type", "label": "类型"},
+                    {"key": "total_value", "label": "总资产"},
+                    {"key": "current_cash", "label": "现金"},
+                    {"key": "total_return", "label": "收益率"},
+                ],
+            },
+            {
+                "key": "account-positions",
+                "title": "四、当前持仓",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.account.positions",
+                "max_rows": 8,
+                "layout_area": "positions",
+                "target_screen": "execution.accounts",
+                "columns": [
+                    {"key": "portfolio_name", "label": "组合"},
+                    {"key": "asset_code", "label": "代码"},
+                    {"key": "asset_name", "label": "名称"},
+                    {"key": "shares", "label": "数量"},
+                    {"key": "market_value", "label": "市值"},
+                    {"key": "unrealized_pnl_pct", "label": "盈亏率"},
+                ],
+            },
+            {
+                "key": "alpha-ranking",
+                "title": "五、Alpha 排行",
+                "kind": "datagrid",
+                "action_key": "alpha.scores",
+                "max_rows": 10,
+                "layout_area": "alpha",
+                "target_screen": "research.alpha",
+                "columns": [
+                    {"key": "code", "label": "标的"},
+                    {"key": "score", "label": "Alpha"},
+                    {"key": "rank", "label": "排名"},
+                    {"key": "source", "label": "来源"},
+                    {"key": "confidence", "label": "置信度"},
+                ],
+            },
+            {
+                "key": "task-monitor",
+                "title": "六、任务监控",
+                "kind": "detail",
+                "action_key": "task_monitor.dashboard",
+                "layout_area": "tasks",
+                "target_screen": "execution.tasks",
+            },
+        ],
+    },
+    "execution.accounts": {
+        "label": "账户清单与当前持仓",
+        "summary": "集中查看当前账户清单、组合、持仓和账户级绩效检查。",
+        "business_context": {
+            "objective": "在执行前确认当前账户、现金、组合和持仓都支持今天的动作。",
+            "decision_output": "账户与持仓检查结论：可执行、资金不足、持仓冲突或需调整账户。",
+            "checkpoints": [
+                "先看账户清单，确认账户名称、类型、现金和总资产。",
+                "再看当前持仓，确认资产代码、名称、数量、市值和浮动盈亏。",
+                "需要单账户明细时，用账户下拉选择后查看账户持仓和绩效。",
+            ],
+        },
+    },
+}
+
 RUNTIME_CLI_GROUP: dict[str, Any] = {
     "key": "ops",
     "label": "AI 助手",
@@ -938,6 +1049,27 @@ RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
             "rows_path": "data",
         },
     },
+    "auto.api.get.api.account.accounts": {
+        "task_group": "01 账户清单",
+        "sequence": 100,
+        "task_tier": "primary",
+        "view_model": {
+            "rows_path": "accounts",
+            "total_path": "count",
+        },
+    },
+    "auto.api.get.api.account.positions": {
+        "screen_key": "execution.accounts",
+        "task_group": "02 当前持仓",
+        "sequence": 110,
+        "task_tier": "primary",
+    },
+    "param.api.get.api.account.accounts.int.account_id.positions": {
+        "screen_key": "execution.accounts",
+        "task_group": "03 单账户持仓",
+        "sequence": 120,
+        "task_tier": "primary",
+    },
     "auto.api.get.api.system.list": {
         "view_type": "datagrid",
         "view_model": {
@@ -1099,6 +1231,7 @@ class PublishedTuiMetadataRepository:
 
         redundant_map = RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS
         patches = RUNTIME_ACTION_PATCHES
+        screen_patches = RUNTIME_SCREEN_PATCHES
 
         normalized = dict(payload)
         groups = list(payload.get("groups") or [])
@@ -1122,8 +1255,15 @@ class PublishedTuiMetadataRepository:
         normalized["modules"] = modules
         normalized["screens"] = screens
         normalized["actions"] = actions
+        patched_screens = self._apply_screen_patches(
+            screens,
+            screen_patches,
+            action_keys={str(action.get("key") or "") for action in actions},
+        )
+        if patched_screens:
+            normalized["screens"] = screens
 
-        if not redundant_map and not patches and injected == 0:
+        if not redundant_map and not patches and patched_screens == 0 and injected == 0:
             return payload
 
         actions = list(normalized.get("actions") or [])
@@ -1146,6 +1286,13 @@ class PublishedTuiMetadataRepository:
             kept.append(action)
         if removed == 0 and patched == 0:
             if injected == 0:
+                if patched_screens:
+                    coverage = dict(normalized.get("coverage_summary") or {})
+                    coverage["runtime_patched_screens"] = patched_screens + int(
+                        coverage.get("runtime_patched_screens", 0) or 0
+                    )
+                    normalized["coverage_summary"] = coverage
+                    return validate_tui_metadata(normalized)
                 return payload
             coverage = dict(normalized.get("coverage_summary") or {})
             coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
@@ -1159,6 +1306,10 @@ class PublishedTuiMetadataRepository:
                 coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                     coverage.get("runtime_injected_cli_metadata", 0) or 0
                 )
+            if patched_screens:
+                coverage["runtime_patched_screens"] = patched_screens + int(
+                    coverage.get("runtime_patched_screens", 0) or 0
+                )
             normalized["coverage_summary"] = coverage
             return validate_tui_metadata(normalized)
 
@@ -1170,6 +1321,10 @@ class PublishedTuiMetadataRepository:
         coverage["runtime_patched_actions"] = patched + int(
             coverage.get("runtime_patched_actions", 0) or 0
         )
+        if patched_screens:
+            coverage["runtime_patched_screens"] = patched_screens + int(
+                coverage.get("runtime_patched_screens", 0) or 0
+            )
         coverage["runtime_injected_advisor_metadata"] = injected_advisor + int(
             coverage.get("runtime_injected_advisor_metadata", 0) or 0
         )
@@ -1183,6 +1338,50 @@ class PublishedTuiMetadataRepository:
             )
         normalized["coverage_summary"] = coverage
         return validate_tui_metadata(normalized)
+
+    @staticmethod
+    def _apply_screen_patches(
+        screens: list[dict[str, Any]],
+        patches: dict[str, dict[str, Any]],
+        *,
+        action_keys: set[str],
+    ) -> int:
+        """Apply runtime screen patches and return the changed screen count."""
+
+        changed = 0
+        for index, screen in enumerate(screens):
+            patch = patches.get(str(screen.get("key") or ""))
+            if not patch:
+                continue
+            if not PublishedTuiMetadataRepository._screen_patch_actions_available(
+                patch,
+                action_keys=action_keys,
+            ):
+                continue
+            updated = dict(screen)
+            for key, value in patch.items():
+                updated[key] = value
+            if updated != screen:
+                screens[index] = updated
+                changed += 1
+        return changed
+
+    @staticmethod
+    def _screen_patch_actions_available(
+        patch: dict[str, Any],
+        *,
+        action_keys: set[str],
+    ) -> bool:
+        panels = patch.get("dashboard_panels")
+        if not isinstance(panels, list):
+            return True
+        for panel in panels:
+            if not isinstance(panel, dict):
+                continue
+            action_key = str(panel.get("action_key") or "").strip()
+            if action_key and action_key not in action_keys:
+                return False
+        return True
 
     @staticmethod
     def _inject_cli_metadata(

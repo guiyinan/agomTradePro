@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 from django.utils import timezone
 
+from apps.account.application.interface_services import list_investment_account_options
 from apps.ai_provider.application.query_services import has_user_personal_providers
 from apps.alpha_trigger.application.query_services import (
     has_alpha_candidates,
@@ -867,6 +868,7 @@ class TuiWorkbenchService:
         )
         self.require_audit_sink = require_audit_sink
         self.registry_key = registry_key
+        self._account_options_cache: dict[int, list[dict[str, Any]]] = {}
 
     def get_catalog(self, *, user: Any | None = None) -> dict[str, Any]:
         """Return grouped modules and screens from published metadata only."""
@@ -962,6 +964,7 @@ class TuiWorkbenchService:
                         self._action_payload(
                             action,
                             include_technical=include_technical_actions,
+                            user=user,
                         )
                         for action in actions
                     ],
@@ -971,6 +974,7 @@ class TuiWorkbenchService:
                 self._action_payload(
                     action,
                     include_technical=include_technical_actions,
+                    user=user,
                 )
                 for action in actions
             ],
@@ -1001,9 +1005,9 @@ class TuiWorkbenchService:
             )
         self._ensure_tui_audit_sink(action)
         resolved_params = self._apply_default_field_values(action, params or {})
-        missing_fields = self._missing_required_fields(action, resolved_params)
+        missing_fields = self._missing_required_fields(action, resolved_params, user=user)
         if missing_fields:
-            result = self._missing_required_fields_payload(action, missing_fields)
+            result = self._missing_required_fields_payload(action, missing_fields, user=user)
             self._append_tui_audit(
                 action,
                 resolved_params,
@@ -1016,7 +1020,7 @@ class TuiWorkbenchService:
             )
             return result
         if self._requires_confirmation(action) and not confirmed:
-            result = self._confirmation_required_payload(action)
+            result = self._confirmation_required_payload(action, user=user)
             self._append_tui_audit(
                 action,
                 resolved_params,
@@ -1029,7 +1033,9 @@ class TuiWorkbenchService:
             )
             return result
         if self._requires_password(action) and not self._reauth_verified(user, reauth):
-            result = self._password_challenge_required_payload(action, attempted=bool(reauth))
+            result = self._password_challenge_required_payload(
+                action, attempted=bool(reauth), user=user
+            )
             self._append_tui_audit(
                 action,
                 resolved_params,
@@ -1069,7 +1075,7 @@ class TuiWorkbenchService:
             )
             envelope = {
                 "version": "tui-workbench.v2",
-                "action": self._action_payload(action),
+                "action": self._action_payload(action, user=user),
                 "confirmation_required": False,
                 "response": {
                     "status_code": status_code,
@@ -1124,13 +1130,15 @@ class TuiWorkbenchService:
                 resolved[key] = default
         return resolved
 
-    def _confirmation_required_payload(self, action: dict[str, Any]) -> dict[str, Any]:
+    def _confirmation_required_payload(
+        self, action: dict[str, Any], *, user: Any | None = None
+    ) -> dict[str, Any]:
         message = f"此操作会修改系统状态：{action['label']}。确认后才会执行。"
         view_model = self._message_model(action, message, 409)
         view_model["status"] = "待确认"
         return {
             "version": "tui-workbench.v2",
-            "action": self._action_payload(action),
+            "action": self._action_payload(action, user=user),
             "confirmation_required": True,
             "confirmation": {
                 "title": "确认操作",
@@ -1144,7 +1152,11 @@ class TuiWorkbenchService:
         }
 
     def _password_challenge_required_payload(
-        self, action: dict[str, Any], *, attempted: bool = False
+        self,
+        action: dict[str, Any],
+        *,
+        attempted: bool = False,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         message = (
             "密码验证未通过，请重新输入当前登录用户密码。"
@@ -1162,7 +1174,7 @@ class TuiWorkbenchService:
         ]
         return {
             "version": "tui-workbench.v2",
-            "action": self._action_payload(action),
+            "action": self._action_payload(action, user=user),
             "confirmation_required": False,
             "password_challenge_required": True,
             "password_challenge": {
@@ -1181,7 +1193,11 @@ class TuiWorkbenchService:
         }
 
     def _missing_required_fields(
-        self, action: dict[str, Any], params: dict[str, Any]
+        self,
+        action: dict[str, Any],
+        params: dict[str, Any],
+        *,
+        user: Any | None = None,
     ) -> list[dict[str, Any]]:
         missing: list[dict[str, Any]] = []
         for field in action.get("fields") or []:
@@ -1194,11 +1210,15 @@ class TuiWorkbenchService:
                 continue
             value = params.get(key)
             if value in (None, "") or (isinstance(value, list) and not value):
-                missing.append(self._field_payload(field))
+                missing.append(self._field_payload(field, action=action, user=user))
         return missing
 
     def _missing_required_fields_payload(
-        self, action: dict[str, Any], missing_fields: list[dict[str, Any]]
+        self,
+        action: dict[str, Any],
+        missing_fields: list[dict[str, Any]],
+        *,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         labels = [str(field.get("label") or field.get("key") or "") for field in missing_fields]
         message = f"执行“{action['label']}”前需要补充参数：{', '.join(labels)}。"
@@ -1225,7 +1245,7 @@ class TuiWorkbenchService:
         ]
         return {
             "version": "tui-workbench.v2",
-            "action": self._action_payload(action),
+            "action": self._action_payload(action, user=user),
             "confirmation_required": False,
             "response": {"status_code": 400},
             "view_model": view_model,
@@ -2453,7 +2473,11 @@ class TuiWorkbenchService:
         return "primary"
 
     def _action_payload(
-        self, action: dict[str, Any], *, include_technical: bool = False
+        self,
+        action: dict[str, Any],
+        *,
+        include_technical: bool = False,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         payload = {
             "key": action["key"],
@@ -2465,7 +2489,8 @@ class TuiWorkbenchService:
             "risk": action["risk"],
             "confirmation_required": self._requires_confirmation(action),
             "fields": [
-                self._field_payload(field, action=action) for field in action.get("fields") or []
+                self._field_payload(field, action=action, user=user)
+                for field in action.get("fields") or []
             ],
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
@@ -2522,7 +2547,11 @@ class TuiWorkbenchService:
             return default
 
     def _field_payload(
-        self, field: dict[str, Any], *, action: dict[str, Any] | None = None
+        self,
+        field: dict[str, Any],
+        *,
+        action: dict[str, Any] | None = None,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         payload = dict(field)
         key = str(payload.get("key") or "").strip()
@@ -2542,7 +2571,47 @@ class TuiWorkbenchService:
             or self._is_technical_placeholder(key=key, placeholder=placeholder)
         ):
             payload["placeholder"] = f"请输入{payload['label']}"
+        self._decorate_dynamic_field_options(payload, action=action, user=user)
         return payload
+
+    def _decorate_dynamic_field_options(
+        self,
+        payload: dict[str, Any],
+        *,
+        action: dict[str, Any] | None,
+        user: Any | None,
+    ) -> None:
+        key = str(payload.get("key") or "").strip().lower()
+        if key != "account_id":
+            return
+        account_options = self._account_options_for_user(user)
+        if not account_options:
+            return
+        payload["input_type"] = "select"
+        payload["value_type"] = "integer"
+        payload["placeholder"] = "请选择账户"
+        empty_label = "请选择账户" if payload.get("required") else "不指定账户"
+        if (
+            action
+            and str(action.get("method") or "").upper() == "GET"
+            and not payload.get("required")
+        ):
+            empty_label = "全部账户"
+        payload["options"] = [{"value": "", "label": empty_label}, *account_options]
+
+    def _account_options_for_user(self, user: Any | None) -> list[dict[str, Any]]:
+        user_id = getattr(user, "id", None)
+        if user_id in (None, ""):
+            return []
+        try:
+            normalized_user_id = int(user_id)
+        except (TypeError, ValueError):
+            return []
+        if normalized_user_id not in self._account_options_cache:
+            self._account_options_cache[normalized_user_id] = list_investment_account_options(
+                normalized_user_id
+            )
+        return self._account_options_cache[normalized_user_id]
 
     def _resolved_field_default(
         self,

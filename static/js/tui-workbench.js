@@ -1097,23 +1097,7 @@
     }
 
     function dashboardTargetScreen(panel) {
-        const key = String(panel.key || "");
-        const layout = String(panel.layout_area || "");
-        const mapping = {
-            "today-queue": "command-center.decision-flow",
-            "regime-status": "macro-regime.overview",
-            "pulse-alerts": "macro-regime.pulse",
-            "account-positions": "execution.accounts",
-            "alpha-ranking": "research.alpha",
-            "task-monitor": "execution.tasks",
-            queue: "command-center.decision-flow",
-            regime: "macro-regime.overview",
-            pulse: "macro-regime.pulse",
-            account: "execution.accounts",
-            alpha: "research.alpha",
-            tasks: "execution.tasks",
-        };
-        return mapping[key] || mapping[layout] || "";
+        return String(panel.target_screen || panel.screen_key || "");
     }
 
     function defaultDashboardPanels(actions) {
@@ -3054,18 +3038,15 @@
 
     function showMissingFieldsPrompt(result, actionKey, params, options = {}) {
         const fields = result.missing_fields || [];
+        const promptAction = result.action || currentAction(actionKey) || { key: actionKey || "missing-fields" };
         showModal("补填参数", `
             <form class="tui-confirmation tui-missing-fields" data-missing-fields-form>
                 <p>${escapeHtml(result.view_model?.message || "补齐参数后继续执行。")}</p>
                 <div class="tui-missing-fields-list">
-                    ${fields.map((field) => `
-                        <label class="tui-field">
-                            <span>${escapeHtml(field.label || field.key)}</span>
-                            <input name="${escapeHtml(field.key)}" type="${field.input_type === "number" ? "number" : "text"}"
-                                   value="${escapeHtml(params[field.key] || field.default || "")}"
-                                   placeholder="${escapeHtml(field.placeholder || "")}" ${field.required ? "required" : ""}>
-                        </label>
-                    `).join("")}
+                    ${fields.map((field) => renderField(promptAction, {
+                        ...field,
+                        default: params[field.key] ?? field.default ?? "",
+                    })).join("")}
                 </div>
                 <div class="tui-confirmation-actions">
                     <button class="tui-confirm-button" type="submit">继续</button>
@@ -3081,7 +3062,7 @@
             fields.forEach((field) => {
                 const input = form.querySelector(`[name="${CSS.escape(field.key)}"]`);
                 if (input) {
-                    completed[field.key] = input.value;
+                    completed[field.key] = coerceFieldValue(field, input.value, input.checked);
                 }
             });
             closeModal();
@@ -3091,7 +3072,7 @@
             closeModal();
             setStatus("已取消");
         });
-        form.querySelector("input")?.focus();
+        form.querySelector("select, input, textarea")?.focus();
     }
 
     function showActionConfirmation(result, actionKey, params) {

@@ -153,7 +153,7 @@ Use this checklist before calling a `/tui/` screen a replacement for a classic D
 
 Current promotion keeps the navigation business-first instead of toolbox-first. Broad classic areas are split into focused replacement screens:
 
-- Account classic pages: `execution.accounts` for account/portfolio overview, `execution.trading-ledger` for positions and trades, `execution.portfolio-performance` for performance and valuation, and `execution.account-settings` for execution parameters and permissions.
+- Account classic pages: `execution.accounts` for the current account list, current positions, account-level position queries, and account health/performance checks; `execution.trading-ledger` for trades, capital flows, and simulated-trading ledger checks; `execution.portfolio-performance` for portfolio performance and valuation; and `execution.account-settings` for execution parameters and permissions.
 - `execution.account-settings` should default to a row-backed selector such as account categories, not an empty cost-config table, so operators can enter the screen and continue with selected-row workflows immediately.
 - `execution.trading-ledger` should default to an account selector when direct position/trade tables are empty in local environments; that keeps `account_id`-based follow-up tasks operable from selected rows.
 - Research classic pages: `research.asset-lab` for asset/equity research, `research.fund-sector` for fund and sector comparison, and `research.screening-sentiment` for filters and sentiment checks.
@@ -232,7 +232,7 @@ The same runtime normalization layer may also patch view metadata when the publi
 
 Another runtime patch converts `auto.api.get.api.dashboard.alpha.history` into a `datagrid` backed by `data`, so the dashboard screen exposes real Alpha history rows and the follow-up `run_id` detail action can work through selected-row flow instead of acting like a blind ID form.
 
-The runtime layer may also re-home published actions to a different user screen when the original screen has the wrong row source. Current example: account-level performance and valuation actions are moved from `execution.portfolio-performance` to `execution.accounts`, because the default performance screen rows are portfolios and should not prefill `account_id` queries with portfolio IDs.
+The runtime layer may also re-home published actions to a different user screen when the original screen has the wrong row source. Current example: account-level performance, valuation, and position actions are moved to `execution.accounts`, because account and position checks should share the account row source and account selector instead of being split across portfolio or ledger screens.
 
 The same rule also applies in the opposite direction: portfolio-scoped strategy actions such as `策略绑定（按组合）` and `策略执行记录（按组合）` should live on `execution.portfolio-performance`, not on `macro-regime.strategy`, because a default strategy row must not prefill `portfolio_id` with a strategy primary key.
 

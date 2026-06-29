@@ -206,7 +206,8 @@
             "additionalProperties": false
           }
         },
-        "layout_area": { "type": "string" }
+        "layout_area": { "type": "string" },
+        "target_screen": { "type": "string" }
       },
       "additionalProperties": false
     },

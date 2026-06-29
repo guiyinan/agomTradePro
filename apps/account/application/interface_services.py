@@ -89,6 +89,30 @@ def get_active_access_token(key: str):
     return _interface_repo().get_active_access_token(key)
 
 
+def list_investment_account_options(user_id: int) -> list[dict[str, Any]]:
+    """Return selectable investment accounts for operator-facing forms."""
+
+    options: list[dict[str, Any]] = []
+    for account in AccountRepository().list_investment_accounts(user_id):
+        account_id = account.get("id")
+        if account_id in (None, ""):
+            continue
+        account_name = str(account.get("account_name") or f"账户 {account_id}").strip()
+        account_type = str(account.get("account_type") or "").strip()
+        label_parts = [account_name]
+        if account_type:
+            label_parts.append(account_type)
+        label_parts.append(f"#{account_id}")
+        options.append(
+            {
+                "value": account_id,
+                "label": " · ".join(label_parts),
+                "account_name": account_name,
+            }
+        )
+    return options
+
+
 def touch_access_token(token) -> None:
     """Persist last-used metadata for one access token."""
 

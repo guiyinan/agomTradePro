@@ -133,6 +133,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "max_rows",
     "columns",
     "layout_area",
+    "target_screen",
 }
 ALLOWED_TUI_SOURCE_PREFIXES = (
     "approved:",
@@ -333,11 +334,18 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Dashboard panel references unknown action: {screen['key']}.{panel['key']}"
                 )
+            target_screen = str(panel.get("target_screen") or "").strip()
+            if target_screen and target_screen not in screen_keys:
+                raise TuiMetadataValidationError(
+                    f"Dashboard panel references unknown target screen: "
+                    f"{screen['key']}.{panel['key']}"
+                )
             columns = panel.setdefault("columns", [])
             if not isinstance(columns, list):
                 raise TuiMetadataValidationError(
                     f"Dashboard panel columns must be a list: {screen['key']}.{panel['key']}"
                 )
+            panel.setdefault("target_screen", "")
             for column in columns:
                 if not isinstance(column, dict):
                     raise TuiMetadataValidationError(
@@ -405,6 +413,7 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
                 ("status", ""),
                 ("note", ""),
                 ("layout_area", ""),
+                ("target_screen", ""),
                 ("columns", []),
             ):
                 if panel.get(key) == default:

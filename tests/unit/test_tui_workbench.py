@@ -338,6 +338,10 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "data-confirm-action" in script
     assert "window.__AGOMTUI_RUNTIME__" in script
     assert "function showMissingFieldsPrompt" in script
+    assert "const promptAction = result.action || currentAction(actionKey)" in script
+    assert "renderField(promptAction" in script
+    assert "coerceFieldValue(field, input.value, input.checked)" in script
+    assert 'form.querySelector("select, input, textarea")?.focus()' in script
     assert "function showPasswordChallenge" in script
     assert "requestBody.confirmation" in script
     assert "requestBody.reauth" in script
@@ -558,8 +562,10 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert "function isAdvancedAction" in script
     assert "function actionTier" in script
     assert "function dashboardTargetScreen" in script
-    assert '"today-queue": "command-center.decision-flow"' in script
-    assert 'queue: "command-center.decision-flow"' in script
+    assert 'return String(panel.target_screen || panel.screen_key || "");' in script
+    assert '"account-list": "execution.accounts"' not in script
+    assert '"account-positions": "execution.accounts"' not in script
+    assert 'positions: "execution.accounts"' not in script
     assert "function dashboardLayout(panels)" in script
     assert "function dashboardAreaTemplate(areas, columns)" in script
     assert "data-toggle-support" in script
@@ -999,9 +1005,14 @@ def test_tui_business_screen_actions_are_grouped_by_user_task(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["screen"]["label"] == "账户清单与当前持仓"
     actions = payload["actions"]
+    action_by_key = {action["key"]: action for action in actions}
     groups = {action["task_group"] for action in actions}
-    assert {"01 账户状态", "02 账户组合"} <= groups
+    assert {"01 账户清单", "02 当前持仓", "03 单账户持仓"} <= groups
+    assert "auto.api.get.api.account.accounts" in action_by_key
+    assert "auto.api.get.api.account.positions" in action_by_key
+    assert "param.api.get.api.account.accounts.int.account_id.positions" in action_by_key
     assert all(isinstance(action["sequence"], int) for action in actions)
     assert all(not action["label"].startswith("Get ") for action in actions)
     assert all("endpoint" not in action for action in actions)
@@ -1014,7 +1025,7 @@ def test_tui_business_screen_actions_are_grouped_by_user_task(client, tui_user):
 def test_tui_actions_expose_business_task_tiers(client, tui_user):
     client.force_login(tui_user)
 
-    response = client.get("/api/tui/screens/execution.trading-ledger/")
+    response = client.get("/api/tui/screens/execution.accounts/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1022,7 +1033,7 @@ def test_tui_actions_expose_business_task_tiers(client, tui_user):
     assert actions["auto.api.get.api.account.positions"]["task_tier"] == "primary"
     assert (
         actions["param.api.get.api.account.accounts.int.account_id.positions"]["task_tier"]
-        == "advanced"
+        == "primary"
     )
     assert all(action["task_group"] for action in payload["actions"])
     assert all(action["task_tier"] for action in payload["actions"])
@@ -1390,7 +1401,7 @@ def test_tui_write_action_requires_confirmation_before_execution(client, tui_use
 def test_tui_parameterized_read_tools_are_promoted_to_user_screens(client, tui_user):
     client.force_login(tui_user)
 
-    response = client.get("/api/tui/screens/execution.trading-ledger/")
+    response = client.get("/api/tui/screens/execution.accounts/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -1399,12 +1410,12 @@ def test_tui_parameterized_read_tools_are_promoted_to_user_screens(client, tui_u
         for action in payload["actions"]
         if action["key"] == "param.api.get.api.account.accounts.int.account_id.positions"
     )
-    assert action["task_group"] == "07 条件查询"
+    assert action["task_group"] == "03 单账户持仓"
     assert action["fields"][0]["key"] == "account_id"
     assert action["fields"][0]["label"] == "账户ID"
-    assert action["fields"][0]["placeholder"] == "请输入账户ID"
+    assert action["fields"][0]["placeholder"] in {"请输入账户ID", "请选择账户"}
     assert action["fields"][0]["required"] is True
-    assert action["screen_key"] == "execution.trading-ledger"
+    assert action["screen_key"] == "execution.accounts"
 
 
 def test_tui_pagination_fields_are_user_facing(client, tui_user):
@@ -1639,19 +1650,34 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
         "queue",
         "regime",
         "pulse",
-        "account",
+        "account_list",
+        "positions",
         "alpha",
         "tasks",
     ]
+    assert [panel["target_screen"] for panel in panels] == [
+        "command-center.decision-flow",
+        "macro-regime.overview",
+        "macro-regime.pulse",
+        "execution.accounts",
+        "execution.accounts",
+        "research.alpha",
+        "execution.tasks",
+    ]
     assert any(panel["action_key"] == "task_monitor.dashboard" for panel in panels)
     assert panels[0]["action_key"] == "decision.workspace.today_queue"
+    assert panels[3]["action_key"] == "auto.api.get.api.account.accounts"
+    assert panels[3]["kind"] == "datagrid"
+    assert panels[4]["action_key"] == "auto.api.get.api.account.positions"
+    assert panels[4]["kind"] == "datagrid"
     assert [panel["title"] for panel in panels] == [
         "零、今日待办",
         "一、市场周期象限",
         "二、战术脉搏预警",
-        "三、账户与持仓",
-        "四、Alpha 排行",
-        "五、任务监控",
+        "三、账户清单",
+        "四、当前持仓",
+        "五、Alpha 排行",
+        "六、任务监控",
     ]
 
 
@@ -1850,7 +1876,12 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     )
     payload["screens"][0]["view_type"] = "image"
     payload["screens"][0]["dashboard_panels"] = [
-        {"key": "preview", "title": "Preview", "kind": "image"}
+        {
+            "key": "preview",
+            "title": "Preview",
+            "kind": "image",
+            "target_screen": "command-center.overview",
+        }
     ]
 
     validated = validate_tui_metadata(payload)
@@ -1859,6 +1890,25 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     assert action["fields"][0]["value_type"] == "string"
     assert action["pagination"]["mode"] == "offset"
     assert action["view_model"]["kind"] == "image"
+    assert (
+        validated["screens"][0]["dashboard_panels"][0]["target_screen"]
+        == "command-center.overview"
+    )
+
+
+def test_tui_metadata_validator_rejects_unknown_dashboard_target_screen():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "preview",
+            "title": "Preview",
+            "kind": "detail",
+            "target_screen": "missing.screen",
+        }
+    ]
+
+    with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
 
 
 def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
@@ -2923,6 +2973,116 @@ def test_tui_service_validates_required_fields_before_write_confirmation(tui_use
     assert "F9" in " ".join(payload["view_model"]["sections"][0]["body"])
     assert [field["key"] for field in payload["missing_fields"]] == ["provider_id", "asset_codes"]
     assert payload["missing_fields"][0]["label"] == "数据源ID"
+
+
+def test_tui_service_turns_account_id_fields_into_named_select(tui_user):
+    account = SimulatedAccountModel.objects.create(
+        user=tui_user,
+        account_name="稳健一号",
+        account_type="simulated",
+        initial_capital=100000,
+        current_cash=60000,
+        current_market_value=40000,
+        total_value=100000,
+    )
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "advisor.today",
+                        "label": "今日自动投顾建议单",
+                        "method": "GET",
+                        "endpoint": "/api/decision/advisor/sheet/",
+                        "intent": "advisor_today",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [
+                            {
+                                "key": "account_id",
+                                "label": "账户 ID",
+                                "input_type": "number",
+                                "required": True,
+                                "default": "",
+                                "binding": "query",
+                                "value_type": "integer",
+                            }
+                        ],
+                    }
+                ]
+            )
+        )
+    )
+
+    payload = service.get_screen("command-center.overview", user=tui_user)
+    field = payload["actions"][0]["fields"][0]
+
+    assert field["input_type"] == "select"
+    assert field["value_type"] == "integer"
+    assert field["options"][0] == {"value": "", "label": "请选择账户"}
+    account_option = next(option for option in field["options"] if option["value"] == account.id)
+    assert "稳健一号" in account_option["label"]
+    assert f"#{account.id}" in account_option["label"]
+
+
+def test_tui_service_missing_account_field_returns_named_select_options(tui_user):
+    account = SimulatedAccountModel.objects.create(
+        user=tui_user,
+        account_name="进取二号",
+        account_type="real",
+        initial_capital=200000,
+        current_cash=120000,
+        current_market_value=80000,
+        total_value=200000,
+    )
+
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            raise AssertionError("Executor should not run when account_id is missing")
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "risk.effective-policy",
+                        "label": "查询账户风控策略",
+                        "method": "GET",
+                        "endpoint": "/api/risk-center/effective-policy/",
+                        "intent": "risk_policy",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [
+                            {
+                                "key": "account_id",
+                                "label": "账户 ID",
+                                "input_type": "number",
+                                "required": True,
+                                "default": "",
+                                "binding": "query",
+                                "value_type": "integer",
+                            }
+                        ],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="risk.effective-policy", params={}, user=tui_user)
+    field = payload["missing_fields"][0]
+
+    assert payload["response"]["status_code"] == 400
+    assert field["key"] == "account_id"
+    assert field["input_type"] == "select"
+    account_option = next(option for option in field["options"] if option["value"] == account.id)
+    assert "进取二号" in account_option["label"]
+    assert payload["action"]["fields"][0]["input_type"] == "select"
 
 
 def test_tui_service_action_runner_uses_metadata_view_model_paths(tui_user):
@@ -4987,10 +5147,12 @@ def test_tui_metadata_repository_patches_dashboard_alpha_history_to_datagrid():
 
 
 @pytest.mark.django_db
-def test_tui_metadata_repository_rehomes_account_performance_actions_to_account_screen():
+def test_tui_metadata_repository_rehomes_account_actions_to_account_screen():
     loaded = PublishedTuiMetadataRepository().load_published()
 
     moved_keys = {
+        "auto.api.get.api.account.positions",
+        "param.api.get.api.account.accounts.int.account_id.positions",
         "param.api.get.api.account.accounts.int.account_id.performance",
         "param.api.get.api.account.accounts.int.account_id.performance-report",
         "param.api.get.api.account.accounts.int.account_id.valuation-snapshot",
