@@ -848,6 +848,38 @@ def test_tui_operation_fields_use_business_labels(client, tui_user):
     assert fields["top_n"]["label"] == "候选数量"
 
 
+def test_tui_alpha_scores_exposes_date_control_and_pagination(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.alpha/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    action = next(action for action in payload["actions"] if action["key"] == "alpha.scores")
+    fields = {field["key"]: field for field in action["fields"]}
+
+    assert fields["trade_date"]["input_type"] == "date"
+    assert fields["trade_date"]["value_type"] == "date"
+    assert fields["trade_date"]["default"] == timezone.localdate().isoformat()
+    assert fields["limit"]["input_type"] == "hidden"
+    assert fields["offset"]["input_type"] == "hidden"
+
+
+@pytest.mark.django_db
+def test_tui_metadata_repository_patches_alpha_scores_for_tui_pagination():
+    loaded = PublishedTuiMetadataRepository().load_published()
+
+    action = next(action for action in loaded["actions"] if action["key"] == "alpha.scores")
+
+    assert action["pagination"] == {
+        "mode": "offset",
+        "offset_param": "offset",
+        "limit_param": "limit",
+    }
+    assert action["view_model"]["rows_path"] == "stocks"
+    assert action["view_model"]["total_path"] == "total"
+
+
 def test_tui_catalog_api_returns_modules_and_screens(client, tui_user):
     client.force_login(tui_user)
 
@@ -3137,6 +3169,15 @@ def test_tui_service_action_runner_applies_dynamic_read_date_defaults(tui_user):
                                 "value_type": "date",
                                 "default": "",
                             },
+                            {
+                                "key": "trade_date",
+                                "label": "交易日期",
+                                "input_type": "date",
+                                "required": False,
+                                "binding": "query",
+                                "value_type": "date",
+                                "default": "",
+                            },
                         ],
                     }
                 ]
@@ -3155,10 +3196,12 @@ def test_tui_service_action_runner_applies_dynamic_read_date_defaults(tui_user):
     assert captured["params"] == {
         "start_date": (today - timedelta(days=30)).isoformat(),
         "end_date": today.isoformat(),
+        "trade_date": today.isoformat(),
     }
     fields = payload["action"]["fields"]
     assert fields[1]["default"] == (today - timedelta(days=30)).isoformat()
     assert fields[2]["default"] == today.isoformat()
+    assert fields[3]["default"] == today.isoformat()
 
 
 def test_tui_service_action_runner_can_detect_generic_nested_lists(tui_user):

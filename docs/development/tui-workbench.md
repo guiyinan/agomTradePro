@@ -1,6 +1,6 @@
 # TUI Workbench
 
-> Last updated: 2026-06-26
+> Last updated: 2026-06-29
 
 `/tui/` is the standalone task-oriented interaction shell for AgomTradePro. It is not a CSS presentation mode for existing Django pages, and it is not an API catalog UI.
 
@@ -74,6 +74,8 @@ The view model layer translates common field keys and enum-like values into oper
 Parameterized action fields go through the same vocabulary layer. A path/query field such as `account_id` should render as `账户ID` with `请输入账户ID`, not `PK`, `Account Id`, or a raw placeholder copied from the endpoint. The same operator vocabulary also applies to action result titles and empty-state copy, so running an action must not fall back to raw compiler labels. Empty DataGrid responses should return a user-facing `empty_message` such as `暂无持仓明细数据。`; the browser distinguishes this from a local filter miss (`没有匹配的记录。`).
 
 Published field defaults are execution defaults, not display-only hints. If a reviewed action ships with `default: "default"` or another non-empty default value, the TUI runner must inject that value into the actual request when the operator leaves the field blank. Otherwise the screen can pass local required-field validation but still fail the backend call with a missing query/path parameter.
+
+Date fields in TUI actions must be published as `input_type: "date"` with `value_type: "date"` so the workbench renders the native date control. Read actions with keys such as `date`, `as_of_date`, `start_date`, `end_date`, and `trade_date` receive runtime date defaults from the action runner. Ranking/list actions that page over a bounded result set, such as `alpha.scores`, should expose hidden `limit`/`offset` query fields and an explicit offset pagination contract; the backend response must include `total`, `limit`, `offset`, `page`, and `page_size` when those pagination params are used so `PgUp/PgDn` and the visible Previous/Next buttons are enabled from pager metadata instead of local row counts.
 
 Empty and blocked states must tell the operator what to do next. DataGrid view models include `empty_guidance` lines such as refresh, adjust parameters, press `F9` to enter the task area, or use the selected-row fill/action buttons. Missing required fields return a `message` view with a `需要补充参数` section listing each field and explaining how to fill it from the left task form or selected-row workflow. If a nominal `datagrid` response is really a short list of plain-language warning or summary lines, the renderer should promote it to a `message` result instead of showing a single `值` column. Avoid dead-end states that only say "暂无数据" or "需要参数".
 

@@ -153,10 +153,13 @@ def get_stock_scores(request: Request) -> Response:
         universe = params.validated_data.get("universe", "csi300")
         trade_date = params.validated_data.get("trade_date", date.today())
         top_n = params.validated_data.get("top_n", 30)
+        limit = params.validated_data.get("limit")
+        offset = params.validated_data.get("offset", 0)
         provider_filter = params.validated_data.get("provider", "")
         ai_filter = params.validated_data.get("ai_filter", False)
         requested_user = request.user
         requested_user_id = params.validated_data.get("user_id")
+        service_top_n = max(top_n, offset + limit) if limit is not None else top_n
 
         if requested_user_id is not None:
             if not request.user.is_staff:
@@ -191,7 +194,7 @@ def get_stock_scores(request: Request) -> Response:
         result = service.get_stock_scores(
             universe,
             trade_date,
-            top_n,
+            service_top_n,
             user=requested_user,
             provider_filter=provider_filter if provider_filter else None,
             ai_filter=ai_filter,
@@ -199,7 +202,17 @@ def get_stock_scores(request: Request) -> Response:
 
         # 序列化响应
         serializer = AlphaResultSerializer(result)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = dict(serializer.data)
+        all_stocks = list(data.get("stocks") or [])
+        total = len(all_stocks)
+        if limit is not None:
+            data["stocks"] = all_stocks[offset : offset + limit]
+            data["limit"] = limit
+            data["offset"] = offset
+            data["page"] = (offset // limit) + 1
+            data["page_size"] = limit
+        data["total"] = total
+        return Response(data, status=status.HTTP_200_OK)
 
     except ValidationError as e:
         return Response(

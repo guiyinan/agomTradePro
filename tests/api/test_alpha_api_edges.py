@@ -1,8 +1,11 @@
+from datetime import date
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+
+from apps.alpha.domain.entities import AlphaResult, StockScore
 
 
 @pytest.fixture
@@ -56,6 +59,59 @@ def test_alpha_scores_reject_invalid_top_n(authenticated_client):
     assert payload["success"] is False
     assert payload["status"] == "invalid_request"
     assert "top_n" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_alpha_scores_support_limit_offset_pagination(authenticated_client):
+    scores = [
+        StockScore(
+            code=f"00000{index}.SZ",
+            score=1.0 - (index / 100),
+            rank=index,
+            factors={"momentum": 0.5},
+            source="test",
+            confidence=0.9,
+            asof_date=date(2026, 4, 2),
+            intended_trade_date=date(2026, 4, 3),
+            universe_id="csi300",
+        )
+        for index in range(1, 6)
+    ]
+    result = AlphaResult(
+        success=True,
+        scores=scores,
+        source="test",
+        timestamp="2026-04-03T09:30:00+08:00",
+    )
+
+    with patch(
+        "apps.alpha.interface.views.AlphaService.get_stock_scores",
+        return_value=result,
+    ) as get_scores:
+        response = authenticated_client.get(
+            "/api/alpha/scores/?top_n=5&limit=2&offset=2"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [stock["rank"] for stock in payload["stocks"]] == [3, 4]
+    assert payload["total"] == 5
+    assert payload["limit"] == 2
+    assert payload["offset"] == 2
+    assert payload["page"] == 2
+    assert payload["page_size"] == 2
+    get_scores.assert_called_once()
+    assert get_scores.call_args.args[:3] == ("csi300", date.today(), 5)
+
+
+@pytest.mark.django_db
+def test_alpha_scores_rejects_pagination_window_above_top_limit(authenticated_client):
+    response = authenticated_client.get("/api/alpha/scores/?limit=2&offset=499")
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["success"] is False
+    assert "limit" in payload["error"]
 
 
 @pytest.mark.django_db

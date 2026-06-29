@@ -2561,7 +2561,7 @@ class TuiWorkbenchService:
         today = timezone.localdate()
         if key in {"start_date", "start"}:
             return (today - timedelta(days=30)).isoformat()
-        if key in {"end_date", "end", "as_of_date", "as_of", "date"}:
+        if key in {"end_date", "end", "as_of_date", "as_of", "date", "trade_date"}:
             return today.isoformat()
         return default
 

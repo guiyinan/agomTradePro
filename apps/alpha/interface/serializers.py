@@ -97,6 +97,26 @@ class GetStockScoresRequestSerializer(serializers.Serializer):
         default=False,
         help_text="是否启用 AI 二次筛选（ai_filter=1）",
     )
+    limit = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=500,
+        help_text="分页返回数量（TUI 使用）",
+    )
+    offset = serializers.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=499,
+        help_text="分页偏移量（TUI 使用）",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Validate optional pagination parameters."""
+        limit = attrs.get("limit")
+        offset = attrs.get("offset", 0)
+        if limit is not None and offset + limit > 500:
+            raise serializers.ValidationError({"limit": "offset + limit 不能超过 500"})
+        return attrs
 
 
 class ProviderStatusSerializer(serializers.Serializer):

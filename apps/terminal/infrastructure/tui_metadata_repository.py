@@ -839,6 +839,70 @@ RUNTIME_RISK_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
 )
 
 RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
+    "alpha.scores": {
+        "fields": [
+            {
+                "key": "universe",
+                "label": "股票池",
+                "input_type": "text",
+                "value_type": "string",
+                "binding": "query",
+                "default": "csi300",
+                "required": False,
+                "placeholder": "csi300",
+            },
+            {
+                "key": "trade_date",
+                "label": "刷新日期",
+                "input_type": "date",
+                "value_type": "date",
+                "binding": "query",
+                "default": "",
+                "required": False,
+                "placeholder": "",
+            },
+            {
+                "key": "top_n",
+                "label": "候选数量",
+                "input_type": "hidden",
+                "value_type": "integer",
+                "binding": "query",
+                "default": 500,
+                "required": False,
+                "placeholder": "",
+            },
+            {
+                "key": "limit",
+                "label": "每页数量",
+                "input_type": "hidden",
+                "value_type": "integer",
+                "binding": "query",
+                "default": 30,
+                "required": False,
+                "placeholder": "",
+            },
+            {
+                "key": "offset",
+                "label": "偏移量",
+                "input_type": "hidden",
+                "value_type": "integer",
+                "binding": "query",
+                "default": 0,
+                "required": False,
+                "placeholder": "",
+            },
+        ],
+        "pagination": {
+            "mode": "offset",
+            "offset_param": "offset",
+            "limit_param": "limit",
+        },
+        "view_model": {
+            "rows_path": "stocks",
+            "total_path": "total",
+            "page_size_path": "page_size",
+        },
+    },
     "policy.workbench_items": {
         "fields": [
             {
