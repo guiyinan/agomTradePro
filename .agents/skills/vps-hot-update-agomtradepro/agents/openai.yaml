@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgomTradePro VPS Hot Update"
+  short_description: "Hot patch selected AgomTradePro files on VPS"
+  default_prompt: "Use $vps-hot-update-agomtradepro to hot update selected AgomTradePro files on the VPS."

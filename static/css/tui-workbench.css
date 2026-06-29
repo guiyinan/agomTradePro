@@ -2399,7 +2399,8 @@ a {
     overflow-y: hidden;
 }
 
-.tui-function-bar span {
+.tui-function-bar span,
+.tui-function-link {
     flex: 0 0 auto;
     align-self: stretch;
     display: flex;
@@ -2412,6 +2413,28 @@ a {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.tui-function-link {
+    color: var(--tui-footer-hotkey);
+    background: var(--tui-footer-bg);
+    font-weight: 700;
+}
+
+.tui-function-link:hover,
+.tui-function-link:focus-visible {
+    color: var(--tui-footer-bg);
+    background: var(--tui-footer-hotkey);
+    outline: none;
+}
+
+.tui-function-link:hover strong,
+.tui-function-link:focus-visible strong {
+    color: var(--tui-footer-bg);
+}
+
+.tui-function-link--cli {
+    min-width: 86px;
 }
 
 .tui-function-bar .tui-framework-credit {
@@ -2429,7 +2452,8 @@ a {
     flex: 0 0 108px;
 }
 
-.tui-function-bar strong {
+.tui-function-bar strong,
+.tui-function-link strong {
     color: var(--tui-footer-hotkey);
     margin-right: 8px;
 }
@@ -2570,7 +2594,8 @@ a {
         padding: 0;
     }
 
-    .tui-function-bar span {
+    .tui-function-bar span,
+    .tui-function-link {
         flex: 0 0 88px;
         font-size: 13px;
     }
@@ -2733,7 +2758,8 @@ a {
         min-height: var(--tui-footer-height);
     }
 
-    .tui-function-bar span {
+    .tui-function-bar span,
+    .tui-function-link {
         flex-basis: 72px;
         min-width: 72px;
         padding-inline: 6px;
@@ -2881,7 +2907,8 @@ a {
         font-size: 12px;
     }
 
-    .tui-function-bar span {
+    .tui-function-bar span,
+    .tui-function-link {
         flex-basis: 76px;
         min-width: 76px;
         font-size: 12px;
@@ -2980,7 +3007,8 @@ a {
         display: none;
     }
 
-    .tui-function-bar span {
+    .tui-function-bar span,
+    .tui-function-link {
         min-width: 68px;
         font-size: 12px;
     }
