@@ -442,6 +442,27 @@ class DjangoStockRepository:
     def _resolve_stock_name_from_data_center(self, stock_code: str) -> str:
         """Resolve a stock display name from data_center asset master data."""
 
+        name = self._read_stock_name_from_data_center(stock_code)
+        if name:
+            return name
+
+        try:
+            from apps.data_center.infrastructure.asset_master_backfill import (
+                AssetMasterBackfillService,
+            )
+
+            AssetMasterBackfillService().backfill_codes(
+                self._build_stock_code_candidates(stock_code),
+                include_remote=True,
+            )
+        except Exception as exc:
+            logger.debug("Asset master read-through backfill failed for %s: %s", stock_code, exc)
+
+        return self._read_stock_name_from_data_center(stock_code)
+
+    def _read_stock_name_from_data_center(self, stock_code: str) -> str:
+        """Read a stock display name from existing data_center asset master rows."""
+
         for candidate in self._build_stock_code_candidates(stock_code):
             asset = self._dc_asset_repo.get_by_code(candidate)
             if asset is None or not asset.is_active:
@@ -499,6 +520,10 @@ class DjangoStockRepository:
                     }
                 if not latest_daily and candidate.upper() in daily_map:
                     latest_daily = daily_map[candidate.upper()]
+            if not row["name"]:
+                data_center_name = self._resolve_stock_name_from_data_center(requested_code)
+                if data_center_name:
+                    row["name"] = data_center_name
 
             # Dashboard / equity-screen fundamental metrics must come from the
             # canonical data-center fact tables instead of legacy equity mirrors.
@@ -1861,9 +1886,17 @@ class DjangoStockRepository:
             return []
 
         candidates = [normalized]
+        exchange_prefix = normalized[:2]
+        prefix_code = normalized[2:]
+        if exchange_prefix in {"SH", "SZ", "BJ"} and len(prefix_code) == 6 and prefix_code.isdigit():
+            candidates.append(f"{prefix_code}.{exchange_prefix}")
+            candidates.append(prefix_code)
         base_code = normalized.split(".", 1)[0]
         if base_code != normalized:
             candidates.append(base_code)
+            market = normalized.split(".", 1)[1]
+            if market in {"SH", "SZ", "BJ"}:
+                candidates.append(f"{market}{base_code}")
         else:
             market = self._infer_market_from_stock_code(normalized)
             if market:

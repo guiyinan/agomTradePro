@@ -231,6 +231,25 @@ def test_alpha_scores_api_default_does_not_enable_ai_filter(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_alpha_scores_api_enriches_stock_names(monkeypatch):
+    class FakeAlphaService:
+        def get_stock_scores(self, *args, **kwargs):
+            return _alpha_result([_score("000001.SZ", 1)])
+
+    monkeypatch.setattr("apps.alpha.interface.views.AlphaService", lambda: FakeAlphaService())
+    monkeypatch.setattr(
+        "apps.equity.application.query_services.get_stock_context_map",
+        lambda codes: {"000001.SZ": {"name": "平安银行"}},
+    )
+
+    response = _authenticated_client().get("/api/alpha/scores/?top_n=1")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["stocks"][0]["name"] == "平安银行"
+
+
+@pytest.mark.django_db
 def test_alpha_scores_api_passes_ai_filter_parameter(monkeypatch):
     calls: list[dict] = []
 

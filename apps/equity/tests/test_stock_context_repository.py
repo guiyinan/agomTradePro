@@ -243,6 +243,66 @@ def test_resolve_stock_names_falls_back_to_data_center_asset_master():
 
 
 @pytest.mark.django_db
+def test_get_stock_context_rows_falls_back_to_data_center_asset_master_name():
+    AssetMasterModel.objects.create(
+        code="600025.SH",
+        name="华能水电股份有限公司",
+        short_name="华能水电",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+
+    context = DjangoStockRepository().get_stock_context_rows(["600025.SH"])
+
+    assert context["600025.SH"]["name"] == "华能水电"
+
+
+@pytest.mark.django_db
+def test_stock_context_and_name_resolution_supports_exchange_prefix_codes():
+    AssetMasterModel.objects.create(
+        code="600025.SH",
+        name="华能水电股份有限公司",
+        short_name="华能水电",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+
+    repo = DjangoStockRepository()
+
+    assert repo.resolve_stock_names(["SH600025"])["SH600025"] == "华能水电"
+    assert repo.get_stock_context_rows(["SH600025"])["SH600025"]["name"] == "华能水电"
+
+
+@pytest.mark.django_db
+def test_get_stock_context_rows_backfills_missing_asset_master_name(monkeypatch):
+    calls: list[dict] = []
+
+    class FakeAssetMasterBackfillService:
+        def backfill_codes(self, codes, include_remote=False):
+            calls.append({"codes": list(codes), "include_remote": include_remote})
+            AssetMasterModel.objects.create(
+                code="600026.SH",
+                name="中远海能股份有限公司",
+                short_name="中远海能",
+                asset_type="stock",
+                exchange="SSE",
+                is_active=True,
+            )
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.asset_master_backfill.AssetMasterBackfillService",
+        FakeAssetMasterBackfillService,
+    )
+
+    context = DjangoStockRepository().get_stock_context_rows(["600026.SH"])
+
+    assert context["600026.SH"]["name"] == "中远海能"
+    assert calls == [{"codes": ["600026.SH", "600026", "SH600026"], "include_remote": True}]
+
+
+@pytest.mark.django_db
 def test_list_active_stock_codes_includes_price_covered_canonical_assets():
     AssetMasterModel.objects.create(
         code="600025.SH",

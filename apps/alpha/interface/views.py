@@ -6,6 +6,7 @@ Django REST Framework 视图定义。
 
 import logging
 from datetime import date
+from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
@@ -44,6 +45,29 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _enrich_stock_score_names(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Attach display names to serialized stock score rows when master data is available."""
+
+    codes = [str(stock.get("code") or "").strip() for stock in stocks if stock.get("code")]
+    if not codes:
+        return stocks
+
+    try:
+        from apps.equity.application.query_services import get_stock_context_map
+
+        stock_context = get_stock_context_map(codes)
+    except Exception as exc:
+        logger.warning("Failed to enrich alpha stock score names: %s", exc)
+        stock_context = {}
+
+    for stock in stocks:
+        code = str(stock.get("code") or "").strip()
+        context = stock_context.get(code) or stock_context.get(code.upper()) or {}
+        name = str(context.get("name") or "").strip()
+        stock["name"] = name or code
+    return stocks
 
 
 def _ensure_staff_page_access(request: HttpRequest) -> HttpResponse | None:
@@ -206,11 +230,13 @@ def get_stock_scores(request: Request) -> Response:
         all_stocks = list(data.get("stocks") or [])
         total = len(all_stocks)
         if limit is not None:
-            data["stocks"] = all_stocks[offset : offset + limit]
+            data["stocks"] = _enrich_stock_score_names(all_stocks[offset : offset + limit])
             data["limit"] = limit
             data["offset"] = offset
             data["page"] = (offset // limit) + 1
             data["page_size"] = limit
+        else:
+            data["stocks"] = _enrich_stock_score_names(all_stocks)
         data["total"] = total
         return Response(data, status=status.HTTP_200_OK)
 
