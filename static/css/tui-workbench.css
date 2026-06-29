@@ -2439,26 +2439,27 @@ a {
     z-index: 2;
     min-width: 104px;
     margin-left: auto;
-    border-left: 2px solid var(--tui-bg-deep);
+    border-left: 2px solid var(--tui-footer-divider);
     border-right: 0;
-    color: var(--tui-bg-deep);
-    background: var(--tui-accent-strong);
-    box-shadow: -8px 0 0 var(--tui-footer-bg);
+    color: var(--tui-green);
+    background: var(--tui-footer-bg);
 }
 
 .tui-function-link--cli strong {
-    color: var(--tui-bg-deep);
+    color: var(--tui-green);
 }
 
 .tui-function-link--cli:hover,
 .tui-function-link--cli:focus-visible {
-    color: var(--tui-bg-deep);
-    background: var(--tui-green);
+    color: var(--tui-green);
+    background: var(--tui-footer-bg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .tui-function-link--cli:hover strong,
 .tui-function-link--cli:focus-visible strong {
-    color: var(--tui-bg-deep);
+    color: var(--tui-green);
 }
 
 .tui-function-bar .tui-framework-credit {
