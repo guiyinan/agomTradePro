@@ -2434,7 +2434,31 @@ a {
 }
 
 .tui-function-link--cli {
-    min-width: 86px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    min-width: 104px;
+    margin-left: auto;
+    border-left: 2px solid var(--tui-bg-deep);
+    border-right: 0;
+    color: var(--tui-bg-deep);
+    background: var(--tui-accent-strong);
+    box-shadow: -8px 0 0 var(--tui-footer-bg);
+}
+
+.tui-function-link--cli strong {
+    color: var(--tui-bg-deep);
+}
+
+.tui-function-link--cli:hover,
+.tui-function-link--cli:focus-visible {
+    color: var(--tui-bg-deep);
+    background: var(--tui-green);
+}
+
+.tui-function-link--cli:hover strong,
+.tui-function-link--cli:focus-visible strong {
+    color: var(--tui-bg-deep);
 }
 
 .tui-function-bar .tui-framework-credit {
@@ -3046,4 +3070,9 @@ a {
         --tui-inspector-default-width: var(--tui-inspector-collapsed-width);
         grid-template-columns: minmax(184px, 0.42fr) minmax(360px, 1fr) var(--tui-inspector-collapsed-width);
     }
+}
+
+.tui-function-link--cli {
+    flex-basis: 104px;
+    min-width: 104px;
 }
