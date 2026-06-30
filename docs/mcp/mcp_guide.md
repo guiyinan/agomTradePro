@@ -197,7 +197,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-06-28`: `358` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-06-30`: `364` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
@@ -205,6 +205,14 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 ## Recent MCP-Facing Changes
 
+- Personal Auto Advisor is exposed as native MCP tools via the SDK MCP server:
+  - `get_auto_advisor_decision_sheet(account_id)` reads `/api/decision/advisor/sheet/`.
+  - `get_auto_advisor_console(account_id)` reads the Dashboard auto-advisor console payload.
+  - `ask_auto_advisor(account_id, question)` uses the deterministic natural-language query endpoint.
+  - `get_auto_advisor_weekly_report(account_id, as_of=None)` reads/generates the weekly advisor report.
+  - `list_auto_advisor_weekly_report_history(account_id=None, limit=20)` lists persisted weekly reports and investment diary payloads.
+  - `list_auto_advisor_notifications(account_id=None, limit=20)` lists persisted notification/output records.
+  These tools are read-only MCP entrypoints; they do not execute trades and still rely on backend auth and role checks.
 - Data Center 宏观治理台已落地到 `/data-center/governance/`。这是一套 staff 运维页面，不是 MCP tool；Agent 侧仍应通过 `data_center_list_indicators`、`data_center_get_macro_series`、`data_center_sync_macro` 等 canonical tool 访问治理后的事实表。
 - 宏观运行配置已开始下沉到 `IndicatorCatalog.extra`，MCP/Agent 对宏观指标的解释与调度判断应优先读取运行时元数据，而不是在 Agent 侧硬编码：
   - `series_semantics`

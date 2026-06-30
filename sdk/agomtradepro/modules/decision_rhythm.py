@@ -30,6 +30,13 @@ class DecisionRhythmModule(BaseModule):
     def summary(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._get("summary/", params=payload)
 
+    def advisor_sheet(self, account_id: int | str) -> dict[str, Any]:
+        """Return the account-level auto-advisor decision sheet."""
+        return self._client.get(
+            "/api/decision/advisor/sheet/",
+            params={"account_id": str(account_id)},
+        )
+
     def reset_quota(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("reset-quota/", json=payload)
 

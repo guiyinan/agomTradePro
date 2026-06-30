@@ -27,6 +27,7 @@
 - 已接入事后 Regime/Policy 标签对比：deep attribution 会比较推荐时上下文和成熟表现窗口对应日期的 Regime/Policy，输出 `REGIME_JUDGMENT_ERROR`、`POLICY_MISJUDGMENT` 等分类。
 - 已接入个人周报每周自动生成：Celery 任务 `dashboard.generate_auto_advisor_weekly_reports` 默认由 `setup_auto_advisor_weekly_report` 创建每周五 17:30 beat 记录，并纳入 `init_scheduler_defaults`。
 - 已接入 CLI 自然语言查询：Terminal 命令 `advisor_query account_id=<id> question=<问题>` 复用 Dashboard auto-advisor query API，输出紧凑答案和关键证据。
+- 已接入 MCP SDK 原生工具：`get_auto_advisor_decision_sheet`、`get_auto_advisor_console`、`ask_auto_advisor`、`get_auto_advisor_weekly_report`、`list_auto_advisor_weekly_report_history`、`list_auto_advisor_notifications` 已注册到 SDK MCP server。
 
 ## 1. 目标定位
 

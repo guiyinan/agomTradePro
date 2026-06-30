@@ -368,6 +368,23 @@ Terminal CLI:
 - `advisor_today account_id=<id>`: 查看今日自动投顾建议单
 - `advisor_query account_id=<id> question=<问题>`: 对账户执行自动投顾自然语言查询
 
+MCP / SDK 原生入口:
+
+- SDK `client.decision_rhythm.advisor_sheet(account_id)`
+- SDK `client.dashboard.auto_advisor_console(account_id)`
+- SDK `client.dashboard.auto_advisor_query(account_id, question)`
+- SDK `client.dashboard.auto_advisor_weekly_report(account_id, as_of=None)`
+- SDK `client.dashboard.auto_advisor_weekly_report_history(account_id=None, limit=20)`
+- SDK `client.dashboard.auto_advisor_notifications(account_id=None, limit=20)`
+- MCP `get_auto_advisor_decision_sheet(account_id)`
+- MCP `get_auto_advisor_console(account_id)`
+- MCP `ask_auto_advisor(account_id, question)`
+- MCP `get_auto_advisor_weekly_report(account_id, as_of=None)`
+- MCP `list_auto_advisor_weekly_report_history(account_id=None, limit=20)`
+- MCP `list_auto_advisor_notifications(account_id=None, limit=20)`
+
+这些 MCP 工具是只读输出/查询入口，不提供真实交易执行能力。
+
 ## 3. 统一推荐列表
 
 - 方法: `GET`

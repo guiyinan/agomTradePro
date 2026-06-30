@@ -33,6 +33,56 @@ class DashboardModule(BaseModule):
     def signal_status_v1(self) -> dict[str, Any]:
         return self._get("v1/signal-status/")
 
+    def auto_advisor_console(self, account_id: int | str) -> dict[str, Any]:
+        """Read the homepage auto-advisor console for one account."""
+        return self._get(
+            "auto-advisor-console/",
+            params={"account_id": str(account_id)},
+        )
+
+    def auto_advisor_query(self, account_id: int | str, question: str) -> dict[str, Any]:
+        """Ask the deterministic auto-advisor Q&A endpoint."""
+        return self._get(
+            "auto-advisor-query/",
+            params={
+                "account_id": str(account_id),
+                "question": question,
+            },
+        )
+
+    def auto_advisor_weekly_report(
+        self,
+        account_id: int | str,
+        as_of: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate/read the personal weekly auto-advisor report payload."""
+        params: dict[str, Any] = {"account_id": str(account_id)}
+        if as_of:
+            params["as_of"] = as_of
+        return self._get("auto-advisor-weekly-report/", params=params)
+
+    def auto_advisor_weekly_report_history(
+        self,
+        account_id: int | str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """List persisted personal weekly auto-advisor reports."""
+        params: dict[str, Any] = {"limit": limit}
+        if account_id is not None:
+            params["account_id"] = str(account_id)
+        return self._get("auto-advisor-weekly-report-history/", params=params)
+
+    def auto_advisor_notifications(
+        self,
+        account_id: int | str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """List persisted auto-advisor notification/output items."""
+        params: dict[str, Any] = {"limit": limit}
+        if account_id is not None:
+            params["account_id"] = str(account_id)
+        return self._get("auto-advisor-notifications/", params=params)
+
     def alpha_decision_chain_v1(
         self,
         top_n: int = 10,

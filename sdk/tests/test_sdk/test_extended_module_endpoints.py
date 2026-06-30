@@ -174,6 +174,12 @@ def client():
             {"params": {"days": 7}},
         ),
         (
+            lambda c: c.decision_rhythm.advisor_sheet(135),
+            "GET",
+            "/api/decision/advisor/sheet/",
+            {"params": {"account_id": "135"}},
+        ),
+        (
             lambda c: c.decision_rhythm.reset_quota({"user_id": "u1"}),
             "POST",
             "/api/decision-rhythm/reset-quota/",
@@ -422,6 +428,36 @@ def client():
         (lambda c: c.dashboard.regime_quadrant_v1(), "GET", "/api/dashboard/v1/regime-quadrant/"),
         (lambda c: c.dashboard.equity_curve_v1(), "GET", "/api/dashboard/v1/equity-curve/"),
         (lambda c: c.dashboard.signal_status_v1(), "GET", "/api/dashboard/v1/signal-status/"),
+        (
+            lambda c: c.dashboard.auto_advisor_console(135),
+            "GET",
+            "/api/dashboard/auto-advisor-console/",
+            {"params": {"account_id": "135"}},
+        ),
+        (
+            lambda c: c.dashboard.auto_advisor_query(135, "最大风险是什么"),
+            "GET",
+            "/api/dashboard/auto-advisor-query/",
+            {"params": {"account_id": "135", "question": "最大风险是什么"}},
+        ),
+        (
+            lambda c: c.dashboard.auto_advisor_weekly_report(135, as_of="2026-06-30"),
+            "GET",
+            "/api/dashboard/auto-advisor-weekly-report/",
+            {"params": {"account_id": "135", "as_of": "2026-06-30"}},
+        ),
+        (
+            lambda c: c.dashboard.auto_advisor_weekly_report_history(135, limit=5),
+            "GET",
+            "/api/dashboard/auto-advisor-weekly-report-history/",
+            {"params": {"account_id": "135", "limit": 5}},
+        ),
+        (
+            lambda c: c.dashboard.auto_advisor_notifications(limit=3),
+            "GET",
+            "/api/dashboard/auto-advisor-notifications/",
+            {"params": {"limit": 3}},
+        ),
         (lambda c: c.dashboard.alpha_stocks(), "GET", "/api/dashboard/alpha/stocks/"),
         (
             lambda c: c.dashboard.alpha_refresh(top_n=10, portfolio_id=135),

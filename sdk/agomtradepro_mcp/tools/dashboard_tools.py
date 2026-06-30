@@ -29,6 +29,82 @@ def register_dashboard_tools(server: FastMCP) -> None:
         return client.dashboard.signal_status_v1()
 
     @server.tool()
+    def get_auto_advisor_decision_sheet(account_id: int | str) -> dict[str, Any]:
+        """
+        获取账户级自动投顾建议单。
+
+        返回今日结论、订单建议、阻断项、风险提示和执行提示。该工具只读，
+        不会执行任何交易；真实落地仍必须经过人工确认和现有执行流程。
+        """
+        client = AgomTradeProClient()
+        return client.decision_rhythm.advisor_sheet(account_id=account_id)
+
+    @server.tool()
+    def get_auto_advisor_console(account_id: int | str) -> dict[str, Any]:
+        """
+        获取首页自动投顾 console 聚合数据。
+
+        用于 MCP 客户端直接读取与 Dashboard 首页一致的账户快照、建议摘要、
+        风控闸门和 freshness 摘要。
+        """
+        client = AgomTradeProClient()
+        return client.dashboard.auto_advisor_console(account_id=account_id)
+
+    @server.tool()
+    def ask_auto_advisor(account_id: int | str, question: str) -> dict[str, Any]:
+        """
+        使用自然语言查询个人自动投顾上下文。
+
+        复用 Dashboard auto-advisor query API，适合询问“最大风险是什么”、
+        “为什么减仓”、“哪些持仓已触发证伪”等 CLI/TUI/MCP 共享问题。
+        """
+        client = AgomTradeProClient()
+        return client.dashboard.auto_advisor_query(
+            account_id=account_id,
+            question=question,
+        )
+
+    @server.tool()
+    def get_auto_advisor_weekly_report(
+        account_id: int | str,
+        as_of: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        获取个人自动投顾周报。
+
+        `as_of` 可传 `YYYY-MM-DD`；不传则由后端按当前日期生成。
+        """
+        client = AgomTradeProClient()
+        return client.dashboard.auto_advisor_weekly_report(
+            account_id=account_id,
+            as_of=as_of,
+        )
+
+    @server.tool()
+    def list_auto_advisor_weekly_report_history(
+        account_id: int | str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """列出已持久化的个人自动投顾周报历史。"""
+        client = AgomTradeProClient()
+        return client.dashboard.auto_advisor_weekly_report_history(
+            account_id=account_id,
+            limit=limit,
+        )
+
+    @server.tool()
+    def list_auto_advisor_notifications(
+        account_id: int | str | None = None,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """列出已持久化的自动投顾通知/输出渠道记录。"""
+        client = AgomTradeProClient()
+        return client.dashboard.auto_advisor_notifications(
+            account_id=account_id,
+            limit=limit,
+        )
+
+    @server.tool()
     def get_dashboard_alpha_decision_chain_v1(
         top_n: int = 10,
         max_candidates: int = 5,
