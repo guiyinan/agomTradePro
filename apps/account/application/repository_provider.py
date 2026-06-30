@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
+    AccountDiagnosticRepository,
     AccountInterfaceRepository,
     AccountRepository,
     AssetMetadataRepository,
@@ -19,6 +20,12 @@ from apps.account.infrastructure.providers import (
     TransactionCostConfigRepository,
     TransactionRepository,
 )
+
+
+def get_account_diagnostic_repository() -> AccountDiagnosticRepository:
+    """Return the account diagnostic query repository."""
+
+    return AccountDiagnosticRepository()
 
 
 def get_account_interface_repository() -> AccountInterfaceRepository:
@@ -131,6 +138,7 @@ def get_backup_email_connection(config):
 
 __all__ = [
     "AccountClassificationRepository",
+    "AccountDiagnosticRepository",
     "AccountInterfaceRepository",
     "AccountRepository",
     "AssetMetadataRepository",
@@ -152,6 +160,7 @@ __all__ = [
     "describe_backup_package",
     "generate_backup_archive",
     "generate_download_token",
+    "get_account_diagnostic_repository",
     "get_account_interface_repository",
     "get_account_position_repository",
     "get_account_repository",

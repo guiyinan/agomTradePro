@@ -9,11 +9,13 @@ from apps.data_center.infrastructure.provider_factory import UnifiedProviderFact
 from apps.data_center.infrastructure.providers import (
     AssetRepository,
     CapitalFlowRepository,
+    DataCenterDiagnosticRepository,
     DataProviderSettingsRepository,
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
+    MacroFactCacheWarmupRepository,
     MacroFactRepository,
     MacroGovernanceRepository,  # noqa: F401
     MarketThermometerConfigRepository,
@@ -35,6 +37,18 @@ def get_macro_fact_repository() -> MacroFactRepository:
     """Return the default macro fact repository."""
 
     return MacroFactRepository()
+
+
+def get_macro_fact_cache_warmup_repository() -> MacroFactCacheWarmupRepository:
+    """Return the macro fact cache-warmup query repository."""
+
+    return MacroFactCacheWarmupRepository()
+
+
+def get_data_center_diagnostic_repository() -> DataCenterDiagnosticRepository:
+    """Return the data-center diagnostic query repository."""
+
+    return DataCenterDiagnosticRepository()
 
 
 def get_data_provider_settings_repository() -> DataProviderSettingsRepository:

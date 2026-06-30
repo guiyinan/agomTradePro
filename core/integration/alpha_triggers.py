@@ -1,7 +1,7 @@
 """Alpha trigger bridge."""
 
-from apps.alpha_trigger.infrastructure.repositories import (
-    AlphaTriggerRepository,
+from apps.alpha_trigger.application.repository_provider import (
+    get_alpha_trigger_repository as _get_alpha_trigger_repository,
 )
 
 
@@ -9,7 +9,7 @@ class AlphaTriggerRepositoryWrapper:
     """Bridge read access onto the alpha trigger repository."""
 
     def __init__(self) -> None:
-        self._actual_repo = AlphaTriggerRepository()
+        self._actual_repo = _get_alpha_trigger_repository()
 
     def get_active(self, asset_code: str | None = None):
         """Return active alpha triggers."""

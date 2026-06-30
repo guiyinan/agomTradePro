@@ -21,7 +21,7 @@ class _FakeDecisionRequestRepository:
 def test_get_decision_request_repository_uses_decision_rhythm_repository(monkeypatch):
     fake_repo = _FakeDecisionRequestRepository()
     monkeypatch.setattr(
-        "core.integration.decision_requests.DecisionRequestRepository",
+        "core.integration.decision_requests._get_decision_request_repository",
         lambda: fake_repo,
     )
 

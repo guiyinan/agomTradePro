@@ -5,7 +5,7 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from apps.asset_analysis.domain.interfaces import (
     AssetRepositoryProtocol,
@@ -356,6 +356,40 @@ class DjangoAssetPoolQueryRepository:
             for row in rows
             if row.get("asset_code") and row.get("asset_name")
         }
+
+    def list_active_watchlist_asset_codes(self) -> list[str]:
+        """Return distinct active asset codes from the watch pool."""
+
+        codes = (
+            AssetPoolEntry._default_manager.filter(
+                pool_type=PoolType.WATCH.value,
+                is_active=True,
+            )
+            .values_list("asset_code", flat=True)
+            .distinct()
+        )
+        return list(codes)
+
+    def list_asset_master_candidate_codes(self) -> list[str]:
+        """Return asset-pool codes that can seed data-center asset master rows."""
+
+        return list(
+            AssetPoolEntry._default_manager.exclude(asset_code__isnull=True).values_list(
+                "asset_code",
+                flat=True,
+            )
+        )
+
+    def list_asset_master_pool_rows(self, lookup_codes: list[str]) -> list[dict[str, Any]]:
+        """Return asset-pool rows used by the data-center asset master backfill."""
+
+        if not lookup_codes:
+            return []
+        return list(
+            AssetPoolEntry._default_manager.filter(asset_code__in=lookup_codes)
+            .order_by("asset_code", "-entry_date")
+            .values("asset_code", "asset_name", "asset_category")
+        )
 
     def summarize_pool_counts(self, asset_type: str | None = None) -> dict[str, int]:
         queryset = AssetPoolEntry._default_manager.filter(is_active=True)

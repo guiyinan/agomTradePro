@@ -644,6 +644,18 @@ class DjangoPositionRepository:
             )
         )
 
+    def list_held_asset_codes(self) -> list[str]:
+        """Return distinct asset codes for currently held positions."""
+
+        codes = (
+            PositionModel._default_manager.filter(
+                quantity__gt=0,
+            )
+            .values_list("asset_code", flat=True)
+            .distinct()
+        )
+        return list(codes)
+
     def get_position(self, account_id: int, asset_code: str) -> Position | None:
         """获取特定持仓"""
         try:

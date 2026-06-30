@@ -25,6 +25,16 @@ def get_strategy_gateway_repository() -> DjangoStrategyGatewayRepository:
     return DjangoStrategyGatewayRepository()
 
 
+def build_prompt_strategy_providers():
+    """Return strategy-owned providers used by prompt agent runtime."""
+
+    return (
+        DjangoPortfolioDataProvider(),
+        DjangoSignalProvider(),
+        DjangoAssetPoolProvider(),
+    )
+
+
 def build_strategy_executor():
     """Build a StrategyExecutor wired with infrastructure dependencies."""
 

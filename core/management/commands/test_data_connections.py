@@ -7,40 +7,10 @@ AgomTradePro 综合数据连接测试脚本
     python manage.py test_data_connections
 """
 import json
-from datetime import date, datetime, timedelta
-from decimal import Decimal
+from datetime import datetime, timedelta
 
-from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.db.models import Count, Sum
 from django.utils import timezone as django_timezone
-
-from apps.account.infrastructure.models import (
-    AccountProfileModel,
-    AssetCategoryModel,
-    CurrencyModel,
-    PortfolioModel,
-    PositionModel,
-)
-
-# Import models and repositories
-from apps.data_center.infrastructure.models import (
-    MacroFactModel,
-)
-from apps.data_center.infrastructure.models import (
-    ProviderConfigModel as DataSourceConfig,
-)
-from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.policy.infrastructure.models import PolicyLog
-from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
-from apps.regime.infrastructure.models import RegimeLog
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.models import InvestmentSignalModel
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
-
-User = get_user_model()
 
 
 class DataConnectionTester:
@@ -73,24 +43,37 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
+            from apps.account.application.query_services import (
+                get_account_diagnostic_user_count,
+            )
+            from apps.data_center.application.query_services import (
+                get_data_center_diagnostic_summary,
+            )
+            from apps.policy.application.query_services import get_policy_event_count
+            from apps.signal.application.query_services import get_signal_diagnostic_count
+
             # Test basic query
-            user_count = User.objects.count()
+            user_count = get_account_diagnostic_user_count()
             self.log_result("Database", "用户表连接", "success", f"找到 {user_count} 个用户")
 
+            data_center_summary = get_data_center_diagnostic_summary()
+
             # Test macro data table
-            macro_count = MacroFactModel.objects.count()
+            macro_count = data_center_summary["macro_fact_count"]
             self.log_result("Database", "宏观数据表", "success", f"找到 {macro_count} 条记录")
 
             # Test regime table
-            regime_count = RegimeLog.objects.count()
+            from apps.regime.application.query_services import get_regime_diagnostic_count
+
+            regime_count = get_regime_diagnostic_count()
             self.log_result("Database", "Regime表", "success", f"找到 {regime_count} 条记录")
 
             # Test policy table
-            policy_count = PolicyLog.objects.count()
+            policy_count = get_policy_event_count()
             self.log_result("Database", "政策表", "success", f"找到 {policy_count} 条记录")
 
             # Test signal table
-            signal_count = InvestmentSignalModel.objects.count()
+            signal_count = get_signal_diagnostic_count()
             self.log_result("Database", "信号表", "success", f"找到 {signal_count} 条记录")
 
             return True
@@ -105,39 +88,41 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
+            from apps.account.application.query_services import (
+                get_account_diagnostic_summary,
+            )
+
+            summary = get_account_diagnostic_summary()
+
             # Check currencies
-            currency_count = CurrencyModel.objects.count()
-            active_currencies = CurrencyModel.objects.filter(is_active=True).count()
+            currency_count = summary["currency_count"]
+            active_currencies = summary["active_currency_count"]
             self.log_result("Account", "币种配置", "success",
                           f"共 {currency_count} 种，{active_currencies} 种激活")
 
             # Check asset categories
-            category_count = AssetCategoryModel.objects.count()
+            category_count = summary["asset_category_count"]
             self.log_result("Account", "资产分类", "success", f"共 {category_count} 个分类")
 
             # Check user profiles
-            profile_count = AccountProfileModel.objects.count()
-            pending_users = AccountProfileModel.objects.filter(approval_status='pending').count()
-            approved_users = AccountProfileModel.objects.filter(approval_status='approved').count()
+            profile_count = summary["profile_count"]
+            pending_users = summary["pending_profile_count"]
+            approved_users = summary["approved_profile_count"]
             self.log_result("Account", "用户账户", "success",
                           f"共 {profile_count} 个，{approved_users} 已批准，{pending_users} 待审批")
 
             # Check portfolios
-            portfolio_count = PortfolioModel.objects.count()
-            active_portfolios = PortfolioModel.objects.filter(is_active=True).count()
+            portfolio_count = summary["portfolio_count"]
+            active_portfolios = summary["active_portfolio_count"]
             self.log_result("Account", "投资组合", "success",
                           f"共 {portfolio_count} 个，{active_portfolios} 个激活")
 
             # Check positions
-            position_count = PositionModel.objects.count()
-            open_positions = PositionModel.objects.filter(is_closed=False).count()
+            position_count = summary["position_count"]
+            open_positions = summary["open_position_count"]
             if position_count > 0:
-                total_value = PositionModel.objects.filter(is_closed=False).aggregate(
-                    total=Sum('market_value')
-                )['total'] or Decimal('0')
-                total_pnl = PositionModel.objects.filter(is_closed=False).aggregate(
-                    total=Sum('unrealized_pnl')
-                )['total'] or Decimal('0')
+                total_value = summary["open_position_market_value"]
+                total_pnl = summary["open_position_unrealized_pnl"]
                 self.log_result("Account", "持仓数据", "success",
                               f"共 {position_count} 条，{open_positions} 个未平仓，"
                               f"总市值 ¥{total_value:.0f}，盈亏 ¥{total_pnl:.0f}")
@@ -156,12 +141,14 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            repo = DjangoMacroRepository()
+            from apps.macro.application.query_services import (
+                get_latest_macro_indicator_date,
+                sync_macro_indicators,
+            )
 
             # Check latest data dates
-            latest_pmi = repo.get_latest_indicator_data('PMI')
-            if latest_pmi:
-                latest_date = latest_pmi[0].indicator_date
+            latest_date = get_latest_macro_indicator_date("PMI")
+            if latest_date:
                 days_ago = (django_timezone.now().date() - latest_date).days
                 if days_ago <= 7:
                     self.log_result("Macro", "PMI数据新鲜度", "success",
@@ -173,35 +160,38 @@ class DataConnectionTester:
                 self.log_result("Macro", "PMI数据", "warning", "暂无PMI数据")
 
             # Check CPI
-            latest_cpi = repo.get_latest_indicator_data('CPI')
-            if latest_cpi:
-                latest_date = latest_cpi[0].indicator_date
-                self.log_result("Macro", "CPI数据", "success", f"最新数据: {latest_date}")
+            latest_cpi_date = get_latest_macro_indicator_date("CPI")
+            if latest_cpi_date:
+                self.log_result("Macro", "CPI数据", "success", f"最新数据: {latest_cpi_date}")
             else:
                 self.log_result("Macro", "CPI数据", "warning", "暂无CPI数据")
 
             # Check data sources
-            source_count = DataSourceConfig.objects.count()
-            active_sources = DataSourceConfig.objects.filter(is_active=True).count()
+            from apps.data_center.application.query_services import (
+                get_data_center_diagnostic_summary,
+            )
+
+            data_center_summary = get_data_center_diagnostic_summary()
+            source_count = data_center_summary["provider_config_count"]
+            active_sources = data_center_summary["active_provider_config_count"]
             self.log_result("Macro", "数据源配置", "success",
                           f"共 {source_count} 个源，{active_sources} 个激活")
 
             # Try to fetch new data
             self.stdout.write("\n   🔄 尝试获取最新PMI数据...")
             try:
-                use_case = SyncMacroDataUseCase(repository=repo)
-                request = SyncMacroDataRequest(
+                result = sync_macro_indicators(
                     start_date=(django_timezone.now() - timedelta(days=5)).date(),
                     end_date=django_timezone.now().date(),
-                    indicators=['PMI'],
+                    indicators=["PMI"],
                 )
-                result = use_case.execute(request)
-                if result.success:
+                if result["success"]:
                     self.log_result("Macro", "PMI数据更新", "success",
-                                  f"同步成功，新增 {result.synced_count} 条，跳过 {result.skipped_count} 条")
+                                  f"同步成功，新增 {result['synced_count']} 条，"
+                                  f"跳过 {result['skipped_count']} 条")
                 else:
                     self.log_result("Macro", "PMI数据更新", "warning",
-                                  f"同步失败: {', '.join(result.errors) if result.errors else '未知错误'}")
+                                  f"同步失败: {', '.join(result['errors']) if result['errors'] else '未知错误'}")
             except Exception as e:
                 self.log_result("Macro", "PMI数据更新", "error", str(e))
 
@@ -217,46 +207,44 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            repo = DjangoRegimeRepository()
+            from apps.regime.application.query_services import (
+                calculate_regime_diagnostic_payload,
+                get_latest_regime_diagnostic_payload,
+                get_regime_distribution_payload,
+            )
 
             # Get latest regime
-            latest = repo.get_latest_snapshot()
+            latest = get_latest_regime_diagnostic_payload()
             if latest:
                 self.log_result("Regime", "最新Regime状态", "success",
-                              f"日期: {latest.observed_at}, "
-                              f"象限: {latest.dominant_regime}, "
-                              f"置信度: {latest.confidence:.2%}")
+                              f"日期: {latest['observed_at']}, "
+                              f"象限: {latest['dominant_regime']}, "
+                              f"置信度: {latest['confidence']:.2%}")
             else:
                 self.log_result("Regime", "最新Regime状态", "warning", "暂无Regime数据")
 
             # Check regime distribution
-            all_regimes = repo.get_snapshots_in_range(
-                start_date=date(2000, 1, 1),
+            regime_distribution = get_regime_distribution_payload(
+                start_date=datetime(2000, 1, 1).date(),
                 end_date=django_timezone.now().date(),
             )
-            if all_regimes:
-                distribution = {}
-                for r in all_regimes:
-                    distribution[r.dominant_regime] = distribution.get(r.dominant_regime, 0) + 1
+            if regime_distribution["count"]:
                 self.log_result("Regime", "Regime历史数据", "success",
-                              f"共 {len(all_regimes)} 条记录，分布: {distribution}")
+                              f"共 {regime_distribution['count']} 条记录，"
+                              f"分布: {regime_distribution['distribution']}")
 
             # Try to calculate new regime
             self.stdout.write("\n   🔄 尝试计算最新Regime...")
             try:
-                use_case = CalculateRegimeUseCase(
-                    repository=DjangoMacroRepository(),
-                    regime_repository=repo,
+                result = calculate_regime_diagnostic_payload(
+                    as_of_date=django_timezone.now().date()
                 )
-                result = use_case.execute(
-                    request=CalculateRegimeRequest(as_of_date=django_timezone.now().date())
-                )
-                if result.success:
+                if result["success"]:
                     self.log_result("Regime", "Regime计算", "success",
-                                  f"计算成功 - {result.snapshot.dominant_regime if result.snapshot else 'N/A'}")
+                                  f"计算成功 - {result['dominant_regime'] or 'N/A'}")
                 else:
                     self.log_result("Regime", "Regime计算", "error",
-                                  f"计算失败: {result.error or '未知错误'}")
+                                  f"计算失败: {result['error'] or '未知错误'}")
             except Exception as e:
                 self.log_result("Regime", "Regime计算", "error", str(e))
 
@@ -272,37 +260,37 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            repo = DjangoPolicyRepository()
+            from apps.policy.application.query_services import (
+                get_policy_rss_source_summary,
+                get_policy_status_payload,
+                get_recent_policy_event_summary,
+            )
 
-            # Get current policy status
-            from apps.policy.application.use_cases import GetPolicyStatusUseCase
-            use_case = GetPolicyStatusUseCase(event_store=repo)
-            status = use_case.execute()
+            status = get_policy_status_payload()
 
             self.log_result("Policy", "当前政策档位", "success",
-                          f"档位: {status.current_level.value}, "
-                          f"名称: {status.level_name}, "
-                          f"干预激活: {status.is_intervention_active}")
+                          f"档位: {status['current_level']}, "
+                          f"名称: {status['level_name']}, "
+                          f"干预激活: {status['is_intervention_active']}")
 
             # Check policy events
-            recent_events = PolicyLog.objects.order_by('-event_date')[:10]
-            if recent_events:
-                level_counts = recent_events.values('level').annotate(count=Count('id'))
-                level_summary = {e['level']: e['count'] for e in level_counts}
+            event_summary = get_recent_policy_event_summary(limit=10)
+            latest_event = event_summary["latest"]
+            if latest_event:
                 self.log_result("Policy", "近期政策事件", "success",
-                              f"最近10条: {level_summary}")
+                              f"最近10条: {event_summary['level_summary']}")
 
                 # Show latest event
-                latest = recent_events.first()
                 self.log_result("Policy", "最新政策", "success",
-                              f"{latest.event_date} - {latest.level} - {latest.title[:30]}...")
+                              f"{latest_event['event_date']} - "
+                              f"{latest_event['level']} - {latest_event['title'][:30]}...")
             else:
                 self.log_result("Policy", "政策事件", "warning", "暂无政策事件")
 
             # Check RSS sources
-            from apps.policy.infrastructure.models import RSSSourceConfigModel
-            rss_count = RSSSourceConfigModel.objects.count()
-            active_rss = RSSSourceConfigModel.objects.filter(is_active=True).count()
+            rss_summary = get_policy_rss_source_summary()
+            rss_count = rss_summary["rss_count"]
+            active_rss = rss_summary["active_rss_count"]
             self.log_result("Policy", "RSS源配置", "success",
                           f"共 {rss_count} 个源，{active_rss} 个激活")
 
@@ -318,33 +306,31 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            # Import Signal model directly
-            from apps.signal.infrastructure.models import InvestmentSignal
+            from apps.signal.application.query_services import get_signal_diagnostic_summary
 
-            # Check signals by status
-            all_signals = InvestmentSignal.objects.all()
-            active_count = all_signals.filter(status='active').count()
-            invalidated_count = all_signals.filter(status='invalidated').count()
-            closed_count = all_signals.filter(status='closed').count()
+            summary = get_signal_diagnostic_summary()
+            active_count = summary["active_count"]
+            invalidated_count = summary["invalidated_count"]
+            closed_count = summary["closed_count"]
 
             self.log_result("Signal", "信号统计", "success",
-                          f"共 {all_signals.count()} 条，"
+                          f"共 {summary['total_count']} 条，"
                           f"活跃: {active_count}, "
                           f"失效: {invalidated_count}, "
                           f"已平仓: {closed_count}")
 
             # Check recent signals
-            recent_signals = InvestmentSignal.objects.order_by('-created_at')[:5]
+            recent_signals = summary["recent_signals"]
             if recent_signals:
                 self.stdout.write("\n   📋 最近5条信号:")
                 for sig in recent_signals:
                     self.stdout.write(
-                        f"      - {sig.asset_code} | {sig.direction} | "
-                        f"{sig.status} | {sig.created_at.strftime('%Y-%m-%d')}"
+                        f"      - {sig['asset_code']} | {sig['direction']} | "
+                        f"{sig['status']} | {sig['created_at'].strftime('%Y-%m-%d')}"
                     )
 
             # Check signals by regime match
-            regime_matched = all_signals.filter(regime_match_score__gte=0.7).count()
+            regime_matched = summary["regime_matched_count"]
             if regime_matched > 0:
                 self.log_result("Signal", "Regime匹配", "success",
                               f"{regime_matched} 条信号与当前Regime高度匹配")
@@ -364,32 +350,22 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
-            from apps.account.infrastructure.repositories import (
-                AccountRepository,
-                PortfolioRepository,
-                PositionRepository,
-            )
+            from apps.account.application.query_services import get_first_account_user_payload
             from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 
             # Get first user for testing
-            user = User.objects.first()
+            user = get_first_account_user_payload()
             if not user:
                 self.log_result("Dashboard", "用户数据", "error", "系统中没有用户")
                 return False
 
             # Get dashboard data
-            use_case = GetDashboardDataUseCase(
-                account_repo=AccountRepository(),
-                portfolio_repo=PortfolioRepository(),
-                position_repo=PositionRepository(),
-                regime_repo=DjangoRegimeRepository(),
-                signal_repo=DjangoSignalRepository(),
-            )
+            use_case = GetDashboardDataUseCase()
 
-            data = use_case.execute(user.id)
+            data = use_case.execute(user["id"])
 
             self.log_result("Dashboard", "用户基本信息", "success",
-                          f"用户: {data.username or user.username}, "
+                          f"用户: {data.username or user['username']}, "
                           f"显示名: {data.display_name}")
 
             self.log_result("Dashboard", "资产总览", "success",
@@ -418,25 +394,27 @@ class DataConnectionTester:
         self.stdout.write("="*60)
 
         try:
+            from apps.account.application.query_services import count_orphan_account_positions
+
             # Check if positions have valid portfolios
-            orphan_positions = PositionModel.objects.filter(
-                portfolio__isnull=True
-            ).count()
+            orphan_positions = count_orphan_account_positions()
             if orphan_positions > 0:
                 self.log_result("Consistency", "孤立持仓", "error",
                               f"发现 {orphan_positions} 条没有投资组合的持仓")
             else:
                 self.log_result("Consistency", "持仓-组合关联", "success", "正常")
 
+            from apps.account.application.query_services import (
+                count_missing_asset_metadata,
+            )
+            from apps.signal.application.query_services import (
+                list_signal_diagnostic_asset_codes,
+            )
+
             # Check if signals have asset metadata
-            from apps.account.infrastructure.models import AssetMetadataModel
-            from apps.signal.infrastructure.models import InvestmentSignal
-            signal_assets = InvestmentSignal.objects.values_list(
-                'asset_code', flat=True).distinct()
-            missing_metadata = 0
-            for asset in signal_assets:
-                if not AssetMetadataModel.objects.filter(asset_code=asset).exists():
-                    missing_metadata += 1
+            missing_metadata = count_missing_asset_metadata(
+                list_signal_diagnostic_asset_codes()
+            )
 
             if missing_metadata > 0:
                 self.log_result("Consistency", "信号资产元数据", "warning",
@@ -445,11 +423,14 @@ class DataConnectionTester:
                 self.log_result("Consistency", "信号资产元数据", "success", "正常")
 
             # Check if regime states have macro data
-            latest_regime = RegimeLog.objects.order_by('-observed_at').first()
-            if latest_regime:
-                macro_exists = MacroFactModel.objects.filter(
-                    reporting_period__lte=latest_regime.observed_at
-                ).exists()
+            from apps.data_center.application.query_services import (
+                macro_fact_exists_on_or_before,
+            )
+            from apps.regime.application.query_services import get_latest_regime_observed_at
+
+            latest_regime_observed_at = get_latest_regime_observed_at()
+            if latest_regime_observed_at:
+                macro_exists = macro_fact_exists_on_or_before(latest_regime_observed_at)
                 if macro_exists:
                     self.log_result("Consistency", "Regime-宏观数据", "success", "正常")
                 else:

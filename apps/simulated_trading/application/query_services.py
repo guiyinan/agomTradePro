@@ -16,6 +16,12 @@ def get_position_snapshots(account_id: int | str) -> list[dict]:
     return get_simulated_position_repository().get_position_snapshots(account_id=account_id)
 
 
+def list_held_asset_codes() -> list[str]:
+    """Return distinct asset codes held in simulated-trading positions."""
+
+    return get_simulated_position_repository().list_held_asset_codes()
+
+
 def list_active_account_models_for_user(user_id: int) -> list:
     """Return active account rows for UI contexts that rely on model display helpers."""
     return get_simulated_account_repository().get_active_account_models_for_user(user_id)

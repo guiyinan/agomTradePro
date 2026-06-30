@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from apps.rotation.infrastructure.providers import RotationInterfaceRepository
+from apps.rotation.infrastructure.providers import AssetClassRepository, RotationInterfaceRepository
 from apps.rotation.infrastructure.services import RotationIntegrationService
+
+
+def get_rotation_asset_class_repository() -> AssetClassRepository:
+    """Return the default rotation asset class repository."""
+
+    return AssetClassRepository()
 
 
 def get_rotation_interface_repository() -> RotationInterfaceRepository:

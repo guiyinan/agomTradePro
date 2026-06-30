@@ -134,6 +134,7 @@
 | [production-code-remediation-plan-2026-06-26.md](plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成 P0/P1/P2 |
 | [auto-advisor-prd-2026-06-25.md](plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ 2026-06-25 新增 |
 | [auto-advisor-implementation-2026-06-25.md](plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ 2026-06-25 新增 |
+| [personal-auto-advisor-roadmap-2026-06-30.md](plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | 规划 |
 | [macro-sizing-multiplier-outsourcing-2026-03-31.md](plans/macro-sizing-multiplier-outsourcing-2026-03-31.md) | **宏观感知仓位系数模块外包任务书（Regime+Pulse+回撤三因子）** | 待开发 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [architecture-cycle-remediation-2026-04-26.md](plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债全量整改方案（CI + AGENTS + 模块归属）** | ✅ 已完成 |
@@ -275,13 +276,13 @@
 
 **系统版本**: AgomTradePro 0.7.0
 
-**业务模块**: 35个
+**业务模块**: 37个
 
 **MCP 工具**: 358个（本地注册快照）
 
 **REST API 路径**: 515个（OpenAPI 快照）
 
-**测试规模**: 5,212 个已收集测试项（`pytest --collect-only` 快照）
+**测试规模**: 5,898 个静态测试函数（AST 轻量治理基线）
 
 **文档文件**: 286个（`docs/` 目录）
 
@@ -305,7 +306,7 @@
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
 - 页面与 API 边界：页面导航不得直连业务 API（`/api/*`），仅 `/api/docs/` 例外
 
-### 完整四层架构模块 (35个)
+### 完整四层架构模块 (37个)
 
 #### 核心引擎模块 (5个)
 - `macro` - 宏观数据采集
@@ -391,7 +392,7 @@
   - `apps/*` 目录结构扫描（业务模块数，排除 `__pycache__`）
   - `python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`（MCP 工具注册数）
   - `docs/testing/api/openapi.json` 的 `paths` 键计数（REST API 路径）
-  - `pytest --collect-only -q`（全仓库已收集测试项）
+  - `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`（静态测试函数数、模块数、MCP 工具数和文档口径）
   - `docs/` 目录文件计数（文档文件）
 - 口径说明：
   - "业务模块数"按 `apps/`（排除 `shared` 与 `__pycache__`）统计
@@ -399,7 +400,7 @@
   - "REST API 路径"按 OpenAPI `paths` 键数量统计
   - "文档文件"按 `docs/` 目录中的文件数量统计
   - "完成度"使用里程碑状态，不再维护固定百分比
-  - "测试规模"以最新 CI/本地 collect / 执行结果为准
+  - "测试规模"当前治理口径为静态 `test_` 函数数；完整 pytest collect / 执行结果仍以 CI 报告为准
 
 ---
 

@@ -10,6 +10,7 @@
 import math
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from django.db.models import Max
 
@@ -189,6 +190,49 @@ class DjangoFundRepository:
             for code, fund_code in code_to_fund_code.items()
             if fund_code in name_map
         }
+
+    def list_asset_master_candidate_codes(self) -> list[str]:
+        """Return fund and holding stock codes that can seed asset master rows."""
+
+        codes: list[str] = []
+        codes.extend(
+            FundInfoModel._default_manager.exclude(fund_code__isnull=True).values_list(
+                "fund_code",
+                flat=True,
+            )
+        )
+        codes.extend(
+            FundHoldingModel._default_manager.exclude(stock_code__isnull=True).values_list(
+                "stock_code",
+                flat=True,
+            )
+        )
+        return codes
+
+    def list_asset_master_fund_rows(self, base_codes: list[str]) -> list[dict[str, Any]]:
+        """Return fund rows used by the data-center asset master backfill."""
+
+        if not base_codes:
+            return []
+        return list(
+            FundInfoModel._default_manager.filter(fund_code__in=base_codes).values(
+                "fund_code",
+                "fund_name",
+                "fund_type",
+                "investment_style",
+            )
+        )
+
+    def list_asset_master_holding_rows(self, lookup_codes: list[str]) -> list[dict[str, Any]]:
+        """Return fund holding rows used to infer stock names."""
+
+        if not lookup_codes:
+            return []
+        return list(
+            FundHoldingModel._default_manager.filter(stock_code__in=lookup_codes)
+            .order_by("stock_code", "-report_date")
+            .values("stock_code", "stock_name")
+        )
 
     def get_all_funds(self, fund_type: str | None = None) -> list[FundInfo]:
         """获取所有基金信息

@@ -16,22 +16,10 @@ def test_get_simulated_position_price_updater_uses_repository_provider(monkeypat
     assert get_simulated_position_price_updater() is repo
 
 
-def test_list_held_simulated_asset_codes_reads_position_model(monkeypatch):
-    class _FakeQuerySet:
-        def values_list(self, *args, **kwargs):
-            return self
-
-        def distinct(self):
-            return ["510300.SH", "159915.SZ"]
-
-    class _FakeManager:
-        def filter(self, **kwargs):
-            assert kwargs == {"quantity__gt": 0}
-            return _FakeQuerySet()
-
+def test_list_held_simulated_asset_codes_uses_query_service(monkeypatch):
     monkeypatch.setattr(
-        "core.integration.simulated_positions.PositionModel",
-        SimpleNamespace(_default_manager=_FakeManager()),
+        "core.integration.simulated_positions._list_held_asset_codes",
+        lambda: ["510300.SH", "159915.SZ"],
     )
 
     assert list_held_simulated_asset_codes() == ["510300.SH", "159915.SZ"]

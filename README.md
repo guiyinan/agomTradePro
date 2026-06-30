@@ -10,8 +10,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-5%2C655-brightgreen.svg)](#测试)
-[![Modules](https://img.shields.io/badge/业务模块-36-purple.svg)](#架构)
+[![Tests](https://img.shields.io/badge/tests-5%2C898-brightgreen.svg)](#测试)
+[![Modules](https://img.shields.io/badge/业务模块-37-purple.svg)](#架构)
 [![MCP Tools](https://img.shields.io/badge/MCP_工具-358-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -112,7 +112,7 @@
 
 ### 2026-04-24
 
-- 全仓治理检查已落地：新增 `governance/governance_baseline.json`、`scripts/check_governance_consistency.py` 和 CI 挂钩，用 baseline 锁住历史债务，阻止模块形态、MCP 计数、文档链接、AppConfig 位置和 Application 层 pandas/numpy 导入继续倒退
+- 全仓治理检查已落地：新增 `governance/governance_baseline.json`、`scripts/check_governance_consistency.py` 和 CI 挂钩，用 baseline 锁住历史债务，阻止治理基线自身、治理说明文档、模块形态、MCP 计数、文档链接、架构规则集、依赖预算基线、CI 门禁挂载、`core/integration` 历史桥接债务、AppConfig 位置和 Application 层 pandas/numpy 导入继续倒退
 - 架构债治理主线已合入 `main`：多个 Interface / Application 热路径从直接触碰 ORM 或 Infrastructure，收口到 application interface service、repository provider 和 infrastructure repository 边界
 - Alpha 推荐、Decision readiness、Data Center 同步与 Share 快照 JSON 序列化链路的合同漂移已修复，相关 guardrails 与 integration 回归重新对齐当前实现
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 和 Nightly（unit / API / integration / app-local / guardrail / architecture report / Playwright smoke）均为绿色
@@ -176,7 +176,7 @@
 - 金融数据源运行时统一到新的 registry/factory 路径，补入 QMT 行情接入与配置中心可见配置
 - `strategy` 绑定链路改经 facade 收口，减少页面层与底层存储的耦合
 - 多模块写一致性继续加固：`strategy` / `beta_gate` / `regime` / `prompt` 的关键写路径补充事务与唯一激活约束
-- 文档基线已同步到当前事实：系统对外口径更新为 35 个业务模块、个人投研平台
+- 文档基线在当时同步到 35 个业务模块、个人投研平台口径
 
 ### 2026-03-27
 
@@ -430,7 +430,7 @@ AgomTradePro 只相信一个原则：
 
 - **它不是 demo 站，而是一套可运行的投资系统骨架**：登录、配置、分析、决策、审批、执行、审计已经串起来了
 - **它不是 AI wrapper，而是 AI-native**：原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog 都在系统内部，不靠外面硬接
-- **它不是单点脚本，而是可扩展架构**：36 个业务模块、DDD 四层、明确边界，适合继续长功能
+- **它不是单点脚本，而是可扩展架构**：37 个业务模块、DDD 四层、明确边界，适合继续长功能
 - **它不是“只能作者自己维护”的代码**：模块拆分清楚，文档量够大，适合二开、Fork、做私有策略内核
 - **它有明显的产品感**：Setup Wizard、Dashboard、CLI、MCP 管理台都已经能展示“这是个系统”，而不是一堆脚本拼盘
 
@@ -615,8 +615,9 @@ AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投
 架构约束不是只写在文档里。当前仓库同时使用两类检查：
 
 - **增量门禁**：`Architecture Layer Guard` 扫描本次变更，新增 Domain / Application / Interface 越层依赖会直接失败
-- **全仓治理检查**：`scripts/check_governance_consistency.py` 对 MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
-- **循环依赖门禁**：`scripts/check_module_cycles.py` 现在以全仓 `0` 个 app 级循环组件为硬基线，新增双向依赖或完整 cycle 会直接失败
+- **全仓治理检查**：`scripts/check_governance_consistency.py` 对治理基线健康度、治理说明文档、MCP 工具数、关键文档计数、`docs/INDEX.md` 链接、模块 11 项形态、架构规则集健康度、依赖预算基线健康度、CI 门禁挂载、`core/integration` 历史桥接债务、错位 `AppConfig`、单数 `dto.py` 和 Application 层 pandas/numpy 导入做全量扫描
+- **Domain 纯净性**：`scripts/verify_architecture.py` 拦截 Domain 层 import Django、Pandas、NumPy、Requests 和数据源客户端
+- **依赖图门禁**：`scripts/check_module_cycles.py` 现在以全仓 `0` 个 app 级循环组件为硬基线，同时锁定跨 app import edge、全局单模块最大出边/入边和逐 app 出边/入边预算
 - **Application 装配规则**：application 层统一经 `infrastructure/providers.py` 或 `core/integration/*` 取 concrete 实现，不再直接 import `infrastructure.repositories`
 - **shared 边界**：`shared/` 只保留技术组件、算法、密钥和兼容解析，不再定义业务 Django Model
 - **历史债务 baseline**：`governance/governance_baseline.json` 记录当前可接受状态；清债前不让历史问题阻断所有开发，但任何新增或倒退都会被 CI 拦住
@@ -743,17 +744,17 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 | **可视化** | Streamlit、Plotly |
 | **前端** | Django Templates + HTMX |
 | **AI 集成** | MCP Server、Python SDK |
-| **测试** | Pytest（当前 collect 5,212 项）、Playwright（E2E） |
+| **测试** | Pytest（静态测试函数 5,898 个）、Playwright（E2E） |
 
 ---
 
 ## 项目规模
 
 ```
-36    业务模块（apps/，排除 __pycache__）
+37    业务模块（apps/，排除 __pycache__）
 358   MCP 工具（当前本地注册快照）
 525   REST API 路径（OpenAPI 快照）
-5,655 自动化测试项（pytest --collect-only 快照）
+5,898 静态测试函数（AST 轻量统计基线）
 302   文档文件（docs/ 目录）
 ```
 

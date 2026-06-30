@@ -8,6 +8,7 @@ from apps.equity.infrastructure.adapters import (
     StockPoolRepositoryAdapter,
     TushareStockAdapter,
 )
+from apps.equity.infrastructure.asset_master_queries import EquityAssetMasterQueryRepository
 from apps.equity.infrastructure.config_loader import get_stock_screening_rule  # noqa: F401
 from apps.equity.infrastructure.providers import (
     DjangoEquityAssetRepository,
@@ -30,6 +31,12 @@ def get_equity_stock_repository() -> DjangoStockRepository:
     """Return the default equity stock repository."""
 
     return DjangoStockRepository()
+
+
+def get_equity_asset_master_query_repository() -> EquityAssetMasterQueryRepository:
+    """Return the equity asset-master query repository."""
+
+    return EquityAssetMasterQueryRepository()
 
 
 def resolve_equity_names(codes: list[str]) -> dict[str, str]:
@@ -78,6 +85,14 @@ def get_tushare_stock_adapter() -> TushareStockAdapter:
     """Return the default Tushare stock adapter."""
 
     return TushareStockAdapter()
+
+
+def build_tushare_financial_gateway(*, token: str, http_url: str | None = None):
+    """Build the Tushare financial gateway."""
+
+    from apps.equity.infrastructure.financial_source_gateway import TushareFinancialGateway
+
+    return TushareFinancialGateway(token=token, http_url=http_url)
 
 
 def get_equity_asset_repository() -> DjangoEquityAssetRepository:

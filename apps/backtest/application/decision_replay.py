@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 
 from apps.backtest.application.repository_provider import (
     get_backtest_repository,
     get_close_price_series_reader,
 )
 from apps.backtest.domain.entities import BacktestConfig
-from apps.decision_rhythm.application.repository_provider import (
-    get_unified_recommendation_repository,
-)
+from core.integration.decision_recommendations import build_decision_recommendation_plan_reader
 from core.integration.manual_trade_sync import get_manual_trade_sync_repository
 
 
@@ -50,7 +49,9 @@ class DecisionReplayBacktestUseCase:
     ) -> None:
         self.trade_repo = trade_repo or get_manual_trade_sync_repository()
         self.backtest_repo = backtest_repo or get_backtest_repository()
-        self.recommendation_repo = recommendation_repo or get_unified_recommendation_repository()
+        self.recommendation_repo = (
+            recommendation_repo or build_decision_recommendation_plan_reader()
+        )
         self.price_series_reader = price_series_reader or get_close_price_series_reader()
 
     def execute(self, request: DecisionReplayBacktestRequest) -> DecisionReplayBacktestResponse:

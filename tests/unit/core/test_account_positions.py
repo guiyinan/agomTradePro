@@ -11,7 +11,7 @@ class _FakePositionRepository:
 
 def test_update_or_create_account_position_uses_account_repository(monkeypatch):
     monkeypatch.setattr(
-        "core.integration.account_positions.PositionRepository",
+        "core.integration.account_positions.get_account_position_repository",
         lambda: _FakePositionRepository(),
     )
 

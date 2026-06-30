@@ -7,21 +7,27 @@ from typing import Any
 
 
 def build_tushare_macro_adapter(*, token: str, http_url: str | None = None):
-    from apps.macro.infrastructure.adapters.tushare_adapter import TushareAdapter
+    from apps.macro.application.repository_provider import (
+        build_tushare_macro_adapter as _build_tushare_macro_adapter,
+    )
 
-    return TushareAdapter(token=token, http_url=http_url)
+    return _build_tushare_macro_adapter(token=token, http_url=http_url)
 
 
 def build_akshare_macro_adapter():
-    from apps.macro.infrastructure.adapters import AKShareAdapter
+    from apps.macro.application.repository_provider import (
+        build_akshare_macro_adapter as _build_akshare_macro_adapter,
+    )
 
-    return AKShareAdapter()
+    return _build_akshare_macro_adapter()
 
 
 def get_legacy_macro_series(*, code: str, start_date: date | None, end_date: date | None, source: str | None):
-    from apps.macro.infrastructure.repositories import DjangoMacroRepository
+    from apps.macro.application.query_services import (
+        get_legacy_macro_series as _get_legacy_macro_series,
+    )
 
-    return DjangoMacroRepository().get_series(
+    return _get_legacy_macro_series(
         code=code,
         start_date=start_date,
         end_date=end_date,
@@ -30,132 +36,88 @@ def get_legacy_macro_series(*, code: str, start_date: date | None, end_date: dat
 
 
 def build_tushare_fund_adapter(*, token: str, http_url: str | None = None):
-    from apps.fund.infrastructure.adapters.tushare_fund_adapter import TushareFundAdapter
+    from apps.fund.application.repository_provider import (
+        build_tushare_fund_adapter as _build_tushare_fund_adapter,
+    )
 
-    return TushareFundAdapter(token=token, http_url=http_url)
+    return _build_tushare_fund_adapter(token=token, http_url=http_url)
 
 
 def build_akshare_fund_adapter():
-    from apps.fund.infrastructure.adapters.akshare_fund_adapter import AkShareFundAdapter
+    from apps.fund.application.repository_provider import (
+        build_akshare_fund_adapter as _build_akshare_fund_adapter,
+    )
 
-    return AkShareFundAdapter()
+    return _build_akshare_fund_adapter()
 
 
 def build_hybrid_fund_adapter():
-    from apps.fund.infrastructure.adapters.hybrid_fund_adapter import HybridFundAdapter
+    from apps.fund.application.repository_provider import (
+        build_hybrid_fund_adapter as _build_hybrid_fund_adapter,
+    )
 
-    return HybridFundAdapter()
+    return _build_hybrid_fund_adapter()
 
 
 def build_tushare_financial_gateway(*, token: str, http_url: str | None = None):
-    from apps.equity.infrastructure.financial_source_gateway import TushareFinancialGateway
+    from apps.equity.application.repository_provider import (
+        build_tushare_financial_gateway as _build_tushare_financial_gateway,
+    )
 
-    return TushareFinancialGateway(token=token, http_url=http_url)
+    return _build_tushare_financial_gateway(token=token, http_url=http_url)
 
 
 def build_tushare_valuation_gateway(*, token: str, http_url: str | None = None):
-    from apps.equity.infrastructure.valuation_source_gateways import (
-        TushareValuationGateway,
+    from apps.equity.application.repository_provider import (
+        build_tushare_valuation_gateway as _build_tushare_valuation_gateway,
     )
 
-    return TushareValuationGateway(token=token, http_url=http_url)
+    return _build_tushare_valuation_gateway(token=token, http_url=http_url)
 
 
 def build_tushare_stock_adapter():
-    from apps.equity.infrastructure.adapters import TushareStockAdapter
+    from apps.equity.application.repository_provider import get_tushare_stock_adapter
 
-    return TushareStockAdapter()
+    return get_tushare_stock_adapter()
 
 
 def build_akshare_sector_adapter():
-    from apps.sector.infrastructure.adapters.akshare_sector_adapter import (
-        AKShareSectorAdapter,
-    )
+    from apps.sector.application.repository_provider import get_sector_adapter
 
-    return AKShareSectorAdapter()
+    return get_sector_adapter()
 
 
 def collect_asset_master_candidate_codes() -> list[str]:
-    from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-    from apps.equity.infrastructure.models import StockInfoModel
-    from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
-    from apps.rotation.infrastructure.models import AssetClassModel
+    from apps.asset_analysis.application.query_services import (
+        list_asset_master_pool_candidate_codes,
+    )
+    from apps.equity.application.query_services import list_asset_master_stock_candidate_codes
+    from apps.fund.application.query_services import list_asset_master_fund_candidate_codes
+    from apps.rotation.application.query_services import (
+        list_asset_master_rotation_candidate_codes,
+    )
 
     codes: list[str] = []
-    codes.extend(
-        StockInfoModel._default_manager.exclude(stock_code__isnull=True).values_list(
-            "stock_code",
-            flat=True,
-        )
-    )
-    codes.extend(
-        FundInfoModel._default_manager.exclude(fund_code__isnull=True).values_list(
-            "fund_code",
-            flat=True,
-        )
-    )
-    codes.extend(
-        FundHoldingModel._default_manager.exclude(stock_code__isnull=True).values_list(
-            "stock_code",
-            flat=True,
-        )
-    )
-    codes.extend(
-        AssetClassModel._default_manager.filter(is_active=True).exclude(
-            code__isnull=True
-        ).values_list("code", flat=True)
-    )
-    codes.extend(
-        AssetPoolEntry._default_manager.exclude(asset_code__isnull=True).values_list(
-            "asset_code",
-            flat=True,
-        )
-    )
+    codes.extend(list_asset_master_stock_candidate_codes())
+    codes.extend(list_asset_master_fund_candidate_codes())
+    codes.extend(list_asset_master_rotation_candidate_codes())
+    codes.extend(list_asset_master_pool_candidate_codes())
     return list(codes)
 
 
 def load_asset_master_local_rows(*, lookup_codes: list[str], base_codes: list[str]) -> dict[str, list[dict[str, Any]]]:
-    from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-    from apps.equity.infrastructure.models import StockInfoModel
-    from apps.fund.infrastructure.models import FundHoldingModel, FundInfoModel
-    from apps.rotation.infrastructure.models import AssetClassModel
+    from apps.asset_analysis.application.query_services import list_asset_master_pool_rows
+    from apps.equity.application.query_services import list_asset_master_stock_rows
+    from apps.fund.application.query_services import (
+        list_asset_master_fund_rows,
+        list_asset_master_holding_rows,
+    )
+    from apps.rotation.application.query_services import list_asset_master_rotation_rows
 
     return {
-        "stock_rows": list(
-            StockInfoModel._default_manager.filter(stock_code__in=lookup_codes).values(
-                "stock_code",
-                "name",
-                "sector",
-                "market",
-            )
-        ),
-        "fund_rows": list(
-            FundInfoModel._default_manager.filter(fund_code__in=base_codes).values(
-                "fund_code",
-                "fund_name",
-                "fund_type",
-                "investment_style",
-            )
-        ),
-        "holding_rows": list(
-            FundHoldingModel._default_manager.filter(stock_code__in=lookup_codes)
-            .order_by("stock_code", "-report_date")
-            .values("stock_code", "stock_name")
-        ),
-        "rotation_rows": list(
-            AssetClassModel._default_manager.filter(
-                code__in=base_codes,
-                is_active=True,
-            ).values(
-                "code",
-                "name",
-                "category",
-                "currency",
-            )
-        ),
-        "pool_rows": list(
-            AssetPoolEntry._default_manager.filter(asset_code__in=lookup_codes)
-            .order_by("asset_code", "-entry_date")
-            .values("asset_code", "asset_name", "asset_category")
-        ),
+        "stock_rows": list_asset_master_stock_rows(lookup_codes),
+        "fund_rows": list_asset_master_fund_rows(base_codes),
+        "holding_rows": list_asset_master_holding_rows(lookup_codes),
+        "rotation_rows": list_asset_master_rotation_rows(base_codes),
+        "pool_rows": list_asset_master_pool_rows(lookup_codes),
     }

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from apps.data_center.infrastructure.repositories import PriceBarRepository
+from apps.data_center.application.query_services import (
+    fetch_close_price_series as _fetch_close_price_series,
+)
+from apps.data_center.application.query_services import (
+    fetch_close_prices as _fetch_close_prices,
+)
 
 
 def fetch_close_price_series_from_data_center(
@@ -14,9 +19,12 @@ def fetch_close_price_series_from_data_center(
 ) -> list[tuple[date, float]]:
     """Return close-price history from data_center facts, oldest to newest."""
 
-    repo = PriceBarRepository()
-    bars = repo.get_bars(asset_code, start=start_date, end=end_date, limit=5000)
-    return [(bar.bar_date, float(bar.close)) for bar in reversed(bars)]
+    return _fetch_close_price_series(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+        limit=5000,
+    )
 
 
 def fetch_close_prices_from_data_center(
@@ -26,10 +34,12 @@ def fetch_close_prices_from_data_center(
 ) -> list[float] | None:
     """Return close-price history from data_center facts, oldest to newest."""
 
-    repo = PriceBarRepository()
     start_date = end_date - timedelta(days=days_back + 30)
-    bars = repo.get_bars(asset_code, start=start_date, end=end_date)
-    if not bars:
+    prices = _fetch_close_prices(
+        asset_code=asset_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not prices:
         return None
-    prices = [float(bar.close) for bar in bars]
     return prices[-days_back:] if len(prices) > days_back else prices

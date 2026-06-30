@@ -3,6 +3,7 @@
 - 日期: 2026-06-25
 - 状态: Implemented v1
 - 范围: 持仓驱动的只读建议单，不接券商，不自动改持仓
+- 后续增强: [personal-auto-advisor-roadmap-2026-06-30.md](personal-auto-advisor-roadmap-2026-06-30.md)
 
 ## 目标
 

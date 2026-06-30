@@ -25,7 +25,7 @@ class _FakeAlphaCandidateRepository:
 def test_get_alpha_candidate_repository_uses_alpha_trigger_repository(monkeypatch):
     fake_repo = _FakeAlphaCandidateRepository()
     monkeypatch.setattr(
-        "core.integration.alpha_candidates.AlphaCandidateRepository",
+        "core.integration.alpha_candidates._get_alpha_candidate_repository",
         lambda: fake_repo,
     )
 

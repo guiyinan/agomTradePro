@@ -5,8 +5,10 @@ from __future__ import annotations
 from apps.simulated_trading.application.query_services import (
     get_position_snapshots as _get_position_snapshots,
 )
+from apps.simulated_trading.application.query_services import (
+    list_held_asset_codes as _list_held_asset_codes,
+)
 from apps.simulated_trading.application.repository_provider import get_simulated_position_repository
-from apps.simulated_trading.infrastructure.models import PositionModel
 
 
 def get_simulated_position_price_updater():
@@ -18,10 +20,7 @@ def get_simulated_position_price_updater():
 def list_held_simulated_asset_codes() -> list[str]:
     """Return distinct asset codes held in simulated-trading positions."""
 
-    positions = PositionModel._default_manager.filter(
-        quantity__gt=0,
-    ).values_list("asset_code", flat=True).distinct()
-    return list(positions)
+    return _list_held_asset_codes()
 
 
 def get_position_snapshots(account_id: int | str) -> list[dict]:

@@ -1,5 +1,6 @@
 """Repository provider re-exports for application composition roots."""
 
+from .diagnostic_queries import SignalDiagnosticRepository
 from .repositories import (
     DjangoSignalRepository as _DjangoSignalRepository,
 )
@@ -13,6 +14,12 @@ from .repositories import (
 DjangoSignalRepository = _DjangoSignalRepository
 DjangoUserRepository = _DjangoUserRepository
 UnifiedSignalRepository = _UnifiedSignalRepository
+
+
+def build_signal_diagnostic_repository():
+    """Build the default signal diagnostic repository."""
+
+    return SignalDiagnosticRepository()
 
 
 def build_signal_repository():

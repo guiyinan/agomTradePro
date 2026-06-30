@@ -35,9 +35,11 @@ def build_akshare_macro_adapter():
     return AKShareAdapter()
 
 
-def build_tushare_macro_adapter():
+def build_tushare_macro_adapter(*, token: str | None = None, http_url: str | None = None):
     """Build the Tushare macro adapter."""
 
     from apps.macro.infrastructure.adapters import TushareAdapter
 
-    return TushareAdapter()
+    if token is None and http_url is None:
+        return TushareAdapter()
+    return TushareAdapter(token=token, http_url=http_url)

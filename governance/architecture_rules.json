@@ -1,5 +1,5 @@
 {
-  "version": "2026-05-02.v7",
+  "version": "2026-06-30.v8",
   "source_roots": [
     "apps",
     "core",
@@ -403,6 +403,23 @@
         "__import__\\([\"']apps\\.[^\"']*\\.(application|infrastructure)\\.[^\"']+[\"']\\)"
       ],
       "rationale": "Domain code must stay pure and depend only on domain abstractions and standard-library constructs."
+    },
+    {
+      "id": "apps_domain_no_external_runtime_imports",
+      "description": "Domain layers must not import Django, dataframe libraries, HTTP clients, or other runtime frameworks.",
+      "source_roots": [
+        "apps"
+      ],
+      "source_layers": [
+        "domain"
+      ],
+      "forbidden_import_patterns": [
+        "^(django|pandas|numpy|requests|akshare|tushare)(?:\\.|$)"
+      ],
+      "forbidden_line_patterns": [
+        "importlib\\.import_module\\([\"'](?:django|pandas|numpy|requests|akshare|tushare)(?:\\.|[\"'])"
+      ],
+      "rationale": "Domain layers must stay pure Python; framework, data-frame, HTTP, and data-source clients belong in infrastructure."
     }
   ],
   "module_metadata": {

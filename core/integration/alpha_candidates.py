@@ -1,7 +1,7 @@
 """Alpha candidate bridge."""
 
-from apps.alpha_trigger.infrastructure.repositories import (
-    AlphaCandidateRepository,
+from apps.alpha_trigger.application.repository_provider import (
+    get_alpha_candidate_repository as _get_alpha_candidate_repository,
 )
 
 
@@ -9,7 +9,7 @@ class AlphaCandidateRepositoryWrapper:
     """Bridge events-side writes onto the alpha candidate repository."""
 
     def __init__(self) -> None:
-        self._actual_repo = AlphaCandidateRepository()
+        self._actual_repo = _get_alpha_candidate_repository()
 
     def update_last_decision_request_id(
         self,

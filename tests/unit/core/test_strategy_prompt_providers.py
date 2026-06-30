@@ -3,36 +3,11 @@ from core.integration.strategy_prompt_providers import (
 )
 
 
-class _FakePortfolioProvider:
-    pass
-
-
-class _FakeSignalProvider:
-    pass
-
-
-class _FakeAssetPoolProvider:
-    pass
-
-
-def test_build_prompt_strategy_providers_uses_strategy_module(monkeypatch):
+def test_build_prompt_strategy_providers_uses_strategy_application_provider(monkeypatch):
+    expected = (object(), object(), object())
     monkeypatch.setattr(
-        "apps.strategy.infrastructure.providers.DjangoPortfolioDataProvider",
-        _FakePortfolioProvider,
-    )
-    monkeypatch.setattr(
-        "apps.strategy.infrastructure.providers.DjangoSignalProvider",
-        _FakeSignalProvider,
-    )
-    monkeypatch.setattr(
-        "apps.strategy.infrastructure.providers.DjangoAssetPoolProvider",
-        _FakeAssetPoolProvider,
+        "apps.strategy.application.repository_provider.build_prompt_strategy_providers",
+        lambda: expected,
     )
 
-    portfolio_provider, signal_provider, asset_pool_provider = (
-        build_prompt_strategy_providers()
-    )
-
-    assert isinstance(portfolio_provider, _FakePortfolioProvider)
-    assert isinstance(signal_provider, _FakeSignalProvider)
-    assert isinstance(asset_pool_provider, _FakeAssetPoolProvider)
+    assert build_prompt_strategy_providers() == expected

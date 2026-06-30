@@ -5,7 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
-from apps.account.infrastructure.repositories import PositionRepository
+from apps.account.application.repository_provider import get_account_position_repository
 
 
 def update_or_create_account_position(
@@ -19,7 +19,7 @@ def update_or_create_account_position(
 ) -> Any:
     """Persist one legacy account position through the account repository."""
 
-    position_repo = PositionRepository()
+    position_repo = get_account_position_repository()
     return position_repo.update_or_create_position(
         portfolio_id=portfolio_id,
         asset_code=asset_code,
@@ -33,5 +33,5 @@ def update_or_create_account_position(
 def list_portfolio_position_weights(portfolio_id: int) -> list[dict[str, Any]]:
     """Return portfolio position weights through the legacy account repository."""
 
-    position_repo = PositionRepository()
+    position_repo = get_account_position_repository()
     return position_repo.list_portfolio_position_weights(portfolio_id)

@@ -59,6 +59,15 @@ def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
     return {"success": True, "error": None, "report": report}
 
 
+def generate_attribution_report_for_backtest(backtest_id: int, backtest_repository):
+    """Generate an attribution report using the provided backtest repository."""
+
+    return GenerateAttributionReportUseCase(
+        audit_repository=get_audit_repository(),
+        backtest_repository=backtest_repository,
+    ).execute(GenerateAttributionReportRequest(backtest_id=backtest_id))
+
+
 def get_attribution_chart_data_payload(report_id: int) -> dict[str, Any] | None:
     """Return chart-ready data for a single attribution report."""
     audit_repo = get_audit_repository()

@@ -3,6 +3,7 @@
 from apps.regime.domain.protocols import MacroSourceConfigGatewayProtocol
 from apps.regime.infrastructure.providers import (
     DjangoNavigatorRepository,
+    RegimeDiagnosticRepository,
 )
 from apps.regime.infrastructure.providers import (
     get_navigator_repository as _get_navigator_repository,
@@ -51,6 +52,12 @@ def get_regime_repository():
     """返回 Regime snapshot/history repository。"""
 
     return _get_regime_repository()
+
+
+def get_regime_diagnostic_repository() -> RegimeDiagnosticRepository:
+    """Return the regime diagnostic query repository."""
+
+    return RegimeDiagnosticRepository()
 
 
 def get_navigator_repository() -> DjangoNavigatorRepository:

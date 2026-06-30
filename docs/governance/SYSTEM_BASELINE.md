@@ -25,9 +25,9 @@
 | **系统版本** | 0.7.0 | `core/version.py` |
 | **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
 | **最后更新** | 2026-04-21 | Git log |
-| **业务模块** | 35个 | `apps/` 目录扫描 |
+| **业务模块** | 37个 | `apps/` 目录扫描 |
 | **MCP 工具** | 358个 | `sdk/agomtradepro_mcp.server` 本地注册 |
-| **测试规模** | 5,212项 | `pytest --collect-only -q` |
+| **测试规模** | 5,898 个静态测试函数 | AST 轻量治理统计 |
 | **代码行数** | 50,000+ | 代码统计 |
 | **API 路径** | 515个 | `docs/testing/api/openapi.json` |
 | **数据库表** | 80+ | Migration 文件 |
@@ -114,9 +114,9 @@ package-for-vps.ps1  scp    deploy-on-vps.sh  /api/health/
 | 指标 | 数值 | 来源 |
 |------|------|------|
 | **测试文件数** | 238 | `find tests/ -name "test_*.py" | wc -l` |
-| **测试用例数** | 1,500+ | pytest 执行统计 |
+| **静态测试函数数** | 5,898 | AST 轻量治理统计 |
 | **Domain 层覆盖率** | ≥ 90% | coverage 报告 |
-| **模块覆盖率** | 100% (35/35) | 扫描结果 |
+| **模块覆盖率** | 100% (37/37) | 扫描结果 |
 
 ### 5.3 质量门禁
 
@@ -124,6 +124,9 @@ package-for-vps.ps1  scp    deploy-on-vps.sh  /api/health/
 - **Nightly Gate**: 30-60 分钟，全量单元/集成测试
 - **RC Gate**: 发布前，关键旅程 ≥ 90%, P0 缺陷 = 0
 - **Post-Deploy Gate**: 上线后 30 分钟，健康检查 + 核心流程
+- **Governance Gate**: `check_governance_consistency.py` 锁定治理基线健康度、治理说明文档、版本号、MCP 计数、业务模块数、静态测试函数数、模块形态、文档链接、架构规则集健康度、依赖预算基线健康度、CI 门禁挂载、`core/integration` 历史桥接债务、Application 第三方库导入和生产 Python 巨型文件增长基线
+- **Domain Purity Gate**: `verify_architecture.py` 拦截 Domain 层对 Django、Pandas、NumPy、Requests 和数据源客户端的运行时依赖
+- **Dependency Gate**: `check_module_cycles.py` 锁定 app 级循环为 0，并限制跨 app import edge、全局单模块最大出边/入边和逐 app 出边/入边预算不超过当前基线
 
 ---
 

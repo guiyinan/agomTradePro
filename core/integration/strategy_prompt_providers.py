@@ -3,14 +3,8 @@
 
 def build_prompt_strategy_providers():
     """Return strategy-owned providers used by prompt agent runtime."""
-    from apps.strategy.infrastructure.providers import (
-        DjangoAssetPoolProvider,
-        DjangoPortfolioDataProvider,
-        DjangoSignalProvider,
+    from apps.strategy.application.repository_provider import (
+        build_prompt_strategy_providers as _build_prompt_strategy_providers,
     )
 
-    return (
-        DjangoPortfolioDataProvider(),
-        DjangoSignalProvider(),
-        DjangoAssetPoolProvider(),
-    )
+    return _build_prompt_strategy_providers()

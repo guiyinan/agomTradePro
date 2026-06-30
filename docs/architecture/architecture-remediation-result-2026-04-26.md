@@ -103,13 +103,33 @@
 1. app 级循环依赖必须为 `0`
 2. application 层不得直接 import `infrastructure.repositories`
 3. `shared/` 不得定义业务 Django Model
-4. application 层不得直接 import `pandas/numpy`
+4. domain 层不得 import `django/pandas/numpy/requests/akshare/tushare` 等运行时框架或数据源客户端
+5. application 层不得直接 import `pandas/numpy`
+6. 生产 Python 文件不得新增超过 `1200` 非空行的巨型文件；历史超限文件不得继续增长
+7. `core/version.py`、`pyproject.toml` 和关键当前文档中的系统版本号必须一致
+8. app 静态导入图不得超过当前依赖密度基线：`181` 条跨 app import edge，单 app 出边不超过 `19`，单 app 入边不超过 `23`
+9. 每个 app 都必须在 `max_outbound_modules_by_app` 和 `max_inbound_modules_by_app` 中声明依赖预算，避免低耦合模块在全局预算内隐性变密
+
+`scripts/check_module_cycles.py --fail-on-cycles` 必须同时拦截:
+
+1. 双向 app import pair，例如 `alpha <-> beta_gate`
+2. 三段及以上强连通 cycle component，例如 `account -> backtest -> decision_rhythm -> account`
+3. app 依赖图密度回退，例如新增跨 app import edge、单模块出边或入边超过基线
+4. 逐模块依赖预算回退，例如某 app 出边/入边超过自身预算、预算缺失或预算已经可以收紧
+
+`governance/module_cycle_allowlist.json` 同时声明 `allowed_bidirectional_pairs` 和
+`allowed_cycle_components`，并记录 `max_app_import_edges` /
+`max_outbound_modules_per_app` / `max_inbound_modules_per_app` /
+`max_outbound_modules_by_app` / `max_inbound_modules_by_app`。
+当前硬基线保持循环白名单为空，新增任何 app 级循环或依赖密度增长都应失败。
+如果后续整改让循环白名单、跨 app edge 数、单模块出边数或单模块入边数下降，检查也会以 stale baseline 失败，要求同步下调基线。
 
 对应校验:
 
 ```bash
 python scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --fail-on-cycles --format text
 python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text --include-audit
+python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text
 python manage.py check
 ```
 

@@ -5,6 +5,7 @@ Data access layer for rotation module.
 """
 
 from datetime import date, timedelta
+from typing import Any
 
 from apps.rotation.domain.entities import (
     AssetClass,
@@ -62,6 +63,32 @@ class AssetClassRepository:
             is_active=True
         )
         return [m.to_domain() for m in models]
+
+    def list_asset_master_candidate_codes(self) -> list[str]:
+        """Return active rotation asset codes that can seed asset master rows."""
+
+        return list(
+            AssetClassModel._default_manager.filter(is_active=True)
+            .exclude(code__isnull=True)
+            .values_list("code", flat=True)
+        )
+
+    def list_asset_master_rows(self, base_codes: list[str]) -> list[dict[str, Any]]:
+        """Return active rotation asset rows for data-center asset master backfill."""
+
+        if not base_codes:
+            return []
+        return list(
+            AssetClassModel._default_manager.filter(
+                code__in=base_codes,
+                is_active=True,
+            ).values(
+                "code",
+                "name",
+                "category",
+                "currency",
+            )
+        )
 
 
 class RotationInterfaceRepository:

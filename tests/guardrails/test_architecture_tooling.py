@@ -226,6 +226,63 @@ def test_verify_architecture_domain_rule_blocks_application_and_infrastructure_i
     assert len(violations) == 2
     assert violations[0]["rule_id"] == "apps_domain_no_application_or_infrastructure_imports"
 
+    external_rule = {
+        "id": "apps_domain_no_external_runtime_imports",
+        "description": "Domain layers must not import runtime frameworks.",
+        "source_roots": ["apps"],
+        "source_layers": ["domain"],
+        "forbidden_import_patterns": [
+            r"^(django|pandas|numpy|requests|akshare|tushare)(?:\.|$)"
+        ],
+        "forbidden_line_patterns": [
+            r"importlib\.import_module\([\"'](?:django|pandas|numpy|requests|akshare|tushare)(?:\.|[\"'])"
+        ],
+    }
+    external_records = [
+        module.ImportRecord(
+            source_path="apps/regime/domain/services.py",
+            source_root="apps",
+            source_module="regime",
+            source_layer="domain",
+            import_path="django.utils.timezone",
+            target_module=None,
+            lineno=3,
+        ),
+        module.ImportRecord(
+            source_path="apps/regime/domain/services.py",
+            source_root="apps",
+            source_module="regime",
+            source_layer="domain",
+            import_path="pandas",
+            target_module=None,
+            lineno=4,
+        ),
+    ]
+    external_lines = [
+        module.LineRecord(
+            source_path="apps/regime/domain/services.py",
+            source_root="apps",
+            source_module="regime",
+            source_layer="domain",
+            lineno=5,
+            line_text='        importlib.import_module("requests")',
+        )
+    ]
+
+    external_import_violations = module.find_import_violations(
+        external_records, [external_rule]
+    )
+    external_line_violations = module.find_line_violations(
+        external_lines, [external_rule]
+    )
+
+    assert len(external_import_violations) == 2
+    assert len(external_line_violations) == 1
+    assert all(
+        violation["rule_id"] == "apps_domain_no_external_runtime_imports"
+        for violation in [*external_import_violations, *external_line_violations]
+    )
+
 
 def test_verify_architecture_application_line_rule_blocks_transaction_and_get_model():
     module = _load_script_module(
@@ -352,6 +409,233 @@ def test_verify_architecture_app_root_model_shim_rule_exempts_admin_only():
     assert len(violations) == 1
     assert violations[0]["source_path"] == "apps/alpha/interface/views.py"
     assert violations[0]["rule_id"] == "apps_no_app_root_model_shim_imports_outside_admin"
+
+
+def test_check_module_cycles_reports_unexpected_strong_components():
+    module = _load_script_module(
+        "check_module_cycles.py",
+        "test_check_module_cycles_components",
+    )
+    graph = {
+        "account": {"backtest"},
+        "backtest": {"decision_rhythm"},
+        "decision_rhythm": {"account"},
+    }
+
+    cycle_components = module.find_cycle_components(graph, list(graph))
+    report = module.build_report(
+        graph=graph,
+        modules=list(graph),
+        import_records=[],
+        bidirectional_pairs=[],
+        cycle_components=cycle_components,
+        allowed_pairs=set(),
+        allowed_components=set(),
+        allowlist_path=REPO_ROOT / "governance" / "module_cycle_allowlist.json",
+        allowlist_payload={"version": "test"},
+    )
+
+    assert cycle_components == [["account", "backtest", "decision_rhythm"]]
+    assert report["unexpected_pairs"] == []
+    assert report["unexpected_cycle_components"] == [
+        ["account", "backtest", "decision_rhythm"]
+    ]
+
+
+def test_check_module_cycles_honors_allowed_strong_components():
+    module = _load_script_module(
+        "check_module_cycles.py",
+        "test_check_module_cycles_allowed_components",
+    )
+    graph = {
+        "alpha": {"beta_gate"},
+        "beta_gate": {"alpha"},
+    }
+    cycle_components = module.find_cycle_components(graph, list(graph))
+
+    report = module.build_report(
+        graph=graph,
+        modules=list(graph),
+        import_records=[],
+        bidirectional_pairs=[("alpha", "beta_gate")],
+        cycle_components=cycle_components,
+        allowed_pairs={("alpha", "beta_gate")},
+        allowed_components={("alpha", "beta_gate")},
+        allowlist_path=REPO_ROOT / "governance" / "module_cycle_allowlist.json",
+        allowlist_payload={"version": "test"},
+    )
+
+    assert report["unexpected_pairs"] == []
+    assert report["unexpected_cycle_components"] == []
+    assert report["allowed_cycle_components_found"] == [["alpha", "beta_gate"]]
+
+
+def test_check_module_cycles_reports_dependency_budget_regressions():
+    module = _load_script_module(
+        "check_module_cycles.py",
+        "test_check_module_cycles_dependency_budget",
+    )
+    graph = {
+        "dashboard": {"account", "alpha", "data_center"},
+        "account": {"data_center"},
+        "alpha": set(),
+        "data_center": set(),
+    }
+
+    report = module.build_report(
+        graph=graph,
+        modules=list(graph),
+        import_records=[],
+        bidirectional_pairs=[],
+        cycle_components=[],
+        allowed_pairs=set(),
+        allowed_components=set(),
+        allowlist_path=REPO_ROOT / "governance" / "module_cycle_allowlist.json",
+        allowlist_payload={
+            "version": "test",
+            "max_app_import_edges": 3,
+            "max_outbound_modules_per_app": 2,
+            "max_inbound_modules_per_app": 1,
+            "max_outbound_modules_by_app": {
+                "dashboard": 2,
+                "account": 1,
+                "alpha": 0,
+            },
+            "max_inbound_modules_by_app": {
+                "dashboard": 0,
+                "account": 1,
+                "data_center": 1,
+            },
+        },
+    )
+
+    assert report["edge_count"] == 4
+    assert report["edge_budget_exceeded"] is True
+    assert report["outbound_budget_exceeded"] == [
+        {
+            "module": "dashboard",
+            "outbound_count": 3,
+            "targets": ["account", "alpha", "data_center"],
+        }
+    ]
+    assert report["outbound_app_budget_exceeded"] == [
+        {
+            "module": "dashboard",
+            "outbound_count": 3,
+            "budget": 2,
+            "targets": ["account", "alpha", "data_center"],
+        }
+    ]
+    assert report["outbound_app_budget_missing"] == [
+        {
+            "module": "data_center",
+            "outbound_count": 0,
+            "targets": [],
+        }
+    ]
+    assert report["inbound_budget_exceeded"] == [
+        {
+            "module": "data_center",
+            "inbound_count": 2,
+            "sources": ["account", "dashboard"],
+        }
+    ]
+    assert report["inbound_app_budget_exceeded"] == [
+        {
+            "module": "data_center",
+            "inbound_count": 2,
+            "budget": 1,
+            "sources": ["account", "dashboard"],
+        }
+    ]
+    assert report["inbound_app_budget_missing"] == [
+        {
+            "module": "alpha",
+            "inbound_count": 1,
+            "sources": ["dashboard"],
+        }
+    ]
+
+
+def test_check_module_cycles_reports_stale_dependency_budgets_and_allowlists():
+    module = _load_script_module(
+        "check_module_cycles.py",
+        "test_check_module_cycles_stale_budget",
+    )
+    graph = {
+        "dashboard": {"account", "alpha"},
+        "account": set(),
+        "alpha": set(),
+        "resolved": set(),
+    }
+
+    report = module.build_report(
+        graph=graph,
+        modules=list(graph),
+        import_records=[],
+        bidirectional_pairs=[],
+        cycle_components=[],
+        allowed_pairs={("account", "resolved")},
+        allowed_components={("account", "alpha", "resolved")},
+        allowlist_path=REPO_ROOT / "governance" / "module_cycle_allowlist.json",
+        allowlist_payload={
+            "version": "test",
+            "max_app_import_edges": 3,
+            "max_outbound_modules_per_app": 3,
+            "max_inbound_modules_per_app": 2,
+            "max_outbound_modules_by_app": {
+                "dashboard": 3,
+                "account": 0,
+                "alpha": 0,
+                "removed": 2,
+                "resolved": 0,
+            },
+            "max_inbound_modules_by_app": {
+                "dashboard": 0,
+                "account": 2,
+                "alpha": 1,
+                "removed": 1,
+                "resolved": 0,
+            },
+        },
+    )
+
+    assert report["edge_count"] == 2
+    assert report["edge_budget_stale"] is True
+    assert report["observed_max_outbound_modules"] == 2
+    assert report["outbound_budget_stale"] is True
+    assert report["outbound_app_budget_stale"] == [
+        {
+            "module": "dashboard",
+            "outbound_count": 2,
+            "budget": 3,
+            "targets": ["account", "alpha"],
+        },
+        {
+            "module": "removed",
+            "outbound_count": 0,
+            "budget": 2,
+            "targets": [],
+        },
+    ]
+    assert report["observed_max_inbound_modules"] == 1
+    assert report["inbound_budget_stale"] is True
+    assert report["inbound_app_budget_stale"] == [
+        {
+            "module": "account",
+            "inbound_count": 1,
+            "budget": 2,
+            "sources": ["dashboard"],
+        },
+        {
+            "module": "removed",
+            "inbound_count": 0,
+            "budget": 1,
+            "sources": [],
+        },
+    ]
+    assert report["stale_allowlist_pairs"] == [["account", "resolved"]]
+    assert report["stale_allowed_cycle_components"] == [["account", "alpha", "resolved"]]
 
 
 def test_scaffold_application_providers_renders_grouped_imports():

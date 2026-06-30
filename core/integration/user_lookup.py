@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from django.contrib.auth import get_user_model
+from apps.account.application.interface_services import find_user_by_id as find_account_user_by_id
 
 
 def find_user_by_id(user_id: int):
     """Return one user by id when it exists."""
 
-    user_model = get_user_model()
-    return user_model._default_manager.filter(id=user_id).first()
+    return find_account_user_by_id(user_id)

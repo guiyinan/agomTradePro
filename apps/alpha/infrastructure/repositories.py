@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import date, timedelta
 from typing import Any
 
@@ -255,6 +256,13 @@ class QlibModelRegistryRepository:
 class AlphaScoreCacheRepository:
     """ORM-backed access to Alpha score cache rows."""
 
+    def normalize_cached_code(self, raw_code: object) -> str:
+        """Normalize one raw code stored in alpha cache payloads."""
+
+        from .cache_code_parser import normalize_cached_stock_code
+
+        return normalize_cached_stock_code(raw_code)
+
     def list_recent_provider_caches(self, *, provider: str, since) -> list[Any]:
         """Return recent cache rows for one provider."""
 
@@ -319,6 +327,62 @@ class AlphaScoreCacheRepository:
                 provider_source=AlphaScoreCacheModel.PROVIDER_QLIB
             )
             .order_by("-created_at")[:limit]
+        )
+
+    def list_recent_caches(self, *, limit: int = 100) -> list[Any]:
+        """Return recent alpha score cache rows for cache warmup."""
+
+        if limit <= 0:
+            return []
+
+        from .models import AlphaScoreCacheModel
+
+        return list(AlphaScoreCacheModel._default_manager.order_by("-created_at")[:limit])
+
+    def collect_cache_codes(
+        self,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        extra_codes: Iterable[str] = (),
+    ) -> list[str]:
+        """Collect canonical asset codes from alpha score cache payloads."""
+
+        from .cache_code_parser import collect_cached_score_codes, normalize_cached_stock_code
+        from .models import AlphaScoreCacheModel
+
+        queryset = AlphaScoreCacheModel._default_manager.order_by("intended_trade_date", "id")
+        if start_date is not None:
+            queryset = queryset.filter(intended_trade_date__gte=start_date)
+        if end_date is not None:
+            queryset = queryset.filter(intended_trade_date__lte=end_date)
+
+        normalized_codes: list[str] = []
+        seen: set[str] = set()
+        for cache in queryset:
+            for code in collect_cached_score_codes(cache.scores or []):
+                if code in seen:
+                    continue
+                seen.add(code)
+                normalized_codes.append(code)
+
+        for raw_code in extra_codes:
+            normalized = normalize_cached_stock_code(raw_code)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_codes.append(normalized)
+        return normalized_codes
+
+    def get_earliest_trade_date(self):
+        """Return the earliest intended trade date present in alpha score cache."""
+
+        from .models import AlphaScoreCacheModel
+
+        return (
+            AlphaScoreCacheModel._default_manager.order_by("intended_trade_date")
+            .values_list("intended_trade_date", flat=True)
+            .first()
         )
 
     def cleanup_before(self, cutoff_date: date) -> int:

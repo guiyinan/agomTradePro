@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from apps.decision_rhythm.infrastructure.repositories import (
-    DecisionRequestRepository,
+from apps.decision_rhythm.application.repository_provider import (
+    get_decision_request_repository as _get_decision_request_repository,
 )
 
 
@@ -11,7 +11,7 @@ class DecisionRequestRepositoryWrapper:
     """Bridge events-side status writes onto the decision rhythm repository."""
 
     def __init__(self) -> None:
-        self._actual_repo = DecisionRequestRepository()
+        self._actual_repo = _get_decision_request_repository()
 
     def update_execution_status_to_executed(
         self,

@@ -17,6 +17,7 @@ from apps.policy.infrastructure.notification_service import NotificationServiceF
 from apps.policy.infrastructure.providers import (
     DjangoPolicyRepository,
     HedgePositionRepository,
+    PolicyDiagnosticRepository,
     RSSRepository,
     WorkbenchRepository,
     get_policy_repository,
@@ -27,6 +28,12 @@ def get_current_policy_repository():
     """Return the configured policy repository."""
 
     return get_policy_repository()
+
+
+def get_policy_diagnostic_repository() -> PolicyDiagnosticRepository:
+    """Return the policy diagnostic query repository."""
+
+    return PolicyDiagnosticRepository()
 
 
 def get_rss_repository() -> RSSRepository:
@@ -49,6 +56,7 @@ __all__ = [
     "NotificationServiceFactory",
     "PolicyAdminInterfaceRepository",
     "PolicyAdminInterfaceService",  # noqa: F822
+    "PolicyDiagnosticRepository",
     "PolicyWorkbenchInterfaceRepository",
     "PolicyWorkbenchInterfaceService",  # noqa: F822
     "PolicyRssApiInterfaceRepository",
@@ -58,6 +66,7 @@ __all__ = [
     "create_ai_policy_classifier",
     "create_content_extractor",
     "get_current_policy_repository",
+    "get_policy_diagnostic_repository",
     "get_policy_page_interface_service",
     "get_policy_rss_api_interface_service",
     "get_policy_workbench_interface_service",

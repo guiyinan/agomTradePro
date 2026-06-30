@@ -9,6 +9,7 @@ from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import (
     DjangoSignalRepository,
     UnifiedSignalRepository,
+    get_signal_diagnostic_repository,
 )
 from apps.signal.domain.rules import check_eligibility, get_eligibility_matrix
 from core.integration.asset_names import resolve_asset_names_for_signals
@@ -238,6 +239,24 @@ def get_signal_stats_payload() -> dict[str, int]:
     """Return aggregate signal stats for the API."""
 
     return DjangoSignalRepository().get_signal_management_metadata()["stats"]
+
+
+def get_signal_diagnostic_count() -> int:
+    """Return investment signal count for operational diagnostics."""
+
+    return get_signal_diagnostic_repository().get_signal_count()
+
+
+def get_signal_diagnostic_summary() -> dict[str, Any]:
+    """Return signal summary for operational diagnostics."""
+
+    return get_signal_diagnostic_repository().get_signal_summary()
+
+
+def list_signal_diagnostic_asset_codes() -> list[str]:
+    """Return distinct signal asset codes for operational diagnostics."""
+
+    return get_signal_diagnostic_repository().list_distinct_asset_codes()
 
 
 def get_signal_health_payload() -> dict[str, Any]:

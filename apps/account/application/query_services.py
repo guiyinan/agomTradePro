@@ -5,10 +5,41 @@ from __future__ import annotations
 from typing import Any
 
 from apps.account.application.repository_provider import (
+    get_account_diagnostic_repository,
     get_account_interface_repository,
     get_account_position_repository,
     get_portfolio_snapshot_repository,
 )
+
+
+def get_account_diagnostic_user_count() -> int:
+    """Return the auth user count through the account diagnostic boundary."""
+
+    return get_account_diagnostic_repository().get_user_count()
+
+
+def get_first_account_user_payload() -> dict[str, Any] | None:
+    """Return first auth user payload for operational diagnostics."""
+
+    return get_account_diagnostic_repository().get_first_user_payload()
+
+
+def get_account_diagnostic_summary() -> dict[str, Any]:
+    """Return account summary metrics for operational diagnostics."""
+
+    return get_account_diagnostic_repository().get_account_summary()
+
+
+def count_orphan_account_positions() -> int:
+    """Return positions without a portfolio through the account boundary."""
+
+    return get_account_diagnostic_repository().count_orphan_positions()
+
+
+def count_missing_asset_metadata(asset_codes: list[str]) -> int:
+    """Return how many asset codes do not have account metadata."""
+
+    return get_account_diagnostic_repository().count_missing_asset_metadata(asset_codes)
 
 
 def list_global_investment_rule_payloads() -> list[dict[str, Any]]:

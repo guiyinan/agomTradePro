@@ -51,21 +51,13 @@ class Command(BaseCommand):
         self.stdout.flush()
         start = time.monotonic()
         try:
-            from apps.regime.infrastructure.models import RegimeLog
+            from apps.regime.application.query_services import get_latest_regime_cache_payload
 
-            latest = RegimeLog.objects.order_by("-observed_at").first()
-            if latest:
-                cache.set(
-                    "regime:current",
-                    {
-                        "regime": latest.dominant_regime,
-                        "observed_at": str(latest.observed_at),
-                        "confidence": latest.confidence,
-                    },
-                    timeout=3600,
-                )
+            latest = get_latest_regime_cache_payload()
+            if latest is not None:
+                cache.set("regime:current", latest, timeout=3600)
                 elapsed = time.monotonic() - start
-                self.stdout.write(self.style.SUCCESS(f"OK ({elapsed:.1f}s) - {latest.dominant_regime}"))
+                self.stdout.write(self.style.SUCCESS(f"OK ({elapsed:.1f}s) - {latest['regime']}"))
             else:
                 self.stdout.write(self.style.WARNING("SKIP - no regime data"))
         except Exception as e:
@@ -79,31 +71,18 @@ class Command(BaseCommand):
         self.stdout.flush()
         start = time.monotonic()
         try:
-            # Cache latest value per indicator code
-            from django.db.models import Max
-
-            from apps.data_center.infrastructure.models import MacroFactModel
-
-            latest_dates = (
-                MacroFactModel.objects
-                .values("indicator_code")
-                .annotate(latest=Max("reporting_period"))
+            from apps.data_center.application.query_services import (
+                list_latest_macro_indicator_payloads,
             )
+
             count = 0
-            for entry in latest_dates[:50]:  # Top 50 indicators
-                code = entry["indicator_code"]
-                record = (
-                    MacroFactModel.objects
-                    .filter(indicator_code=code, reporting_period=entry["latest"])
-                    .first()
+            for entry in list_latest_macro_indicator_payloads(limit=50):
+                cache.set(
+                    f"macro:latest:{entry['indicator_code']}",
+                    {"value": entry["value"], "date": entry["reporting_period"]},
+                    timeout=3600,
                 )
-                if record:
-                    cache.set(
-                        f"macro:latest:{code}",
-                        {"value": float(record.value), "date": str(record.reporting_period)},
-                        timeout=3600,
-                    )
-                    count += 1
+                count += 1
 
             elapsed = time.monotonic() - start
             self.stdout.write(self.style.SUCCESS(f"OK ({elapsed:.1f}s) - {count} indicators"))
@@ -118,17 +97,18 @@ class Command(BaseCommand):
         self.stdout.flush()
         start = time.monotonic()
         try:
-            from apps.alpha.infrastructure.models import AlphaScoreCacheModel
+            from apps.alpha.application.query_services import (
+                list_recent_alpha_score_cache_payloads,
+            )
 
-            latest_scores = AlphaScoreCacheModel.objects.order_by("-created_at")[:100]
             count = 0
-            for score in latest_scores:
+            for score in list_recent_alpha_score_cache_payloads(limit=100):
                 cache.set(
-                    f"alpha:score:{score.universe_id}",
+                    f"alpha:score:{score['universe_id']}",
                     {
-                        "provider": score.provider_source,
-                        "asof_date": str(score.asof_date),
-                        "status": score.status,
+                        "provider": score["provider"],
+                        "asof_date": score["asof_date"],
+                        "status": score["status"],
                     },
                     timeout=3600,
                 )

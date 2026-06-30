@@ -40,8 +40,22 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-06-27）
+## 0.7.0 之后的开发快照（截至 2026-06-30）
 
+- `2026-06-30` 治理一致性检查新增治理说明文档自检：`check_governance_consistency.py` 现在验证 `docs/governance/ARCHITECTURE_GUARDRAILS.md` 包含当前治理命令和 report section token，防止文档落后于实际 CI 门禁
+- `2026-06-30` 治理一致性检查新增 `core/integration` 历史桥接债务 ratchet：`governance_baseline.json` 锁定当前 app infrastructure import 数和 ORM access 行数，新增会失败，减少会以 stale baseline 要求同步收紧
+- `2026-06-30` 治理一致性检查新增 governance baseline 自检：`check_governance_consistency.py` 现在验证 `governance_baseline.json` 版本格式、必需字段、计数字段、模块形态 baseline 覆盖、Application 第三方库导入 baseline 和巨型文件 baseline 类型
+- `2026-06-30` 治理一致性检查新增 CI 门禁挂载检查：`check_governance_consistency.py` 现在验证 architecture-layer-guard workflow 仍执行增量架构扫描、全仓架构审计和模块依赖 baseline，consistency-check workflow 仍执行治理一致性检查并写出报告
+- `2026-06-30` 治理一致性检查新增依赖预算基线健康检查：`check_governance_consistency.py` 现在验证 `module_cycle_allowlist.json` 版本格式、description、逐 app 出边/入边预算覆盖、全局最大出边/入边预算一致性和循环白名单模块引用
+- `2026-06-30` 治理一致性检查新增架构规则集健康检查：`check_governance_consistency.py` 现在验证 `architecture_rules.json` 版本格式、规则 ID 唯一性、description/rationale 元数据、source selector 和 forbidden matcher，防止治理规则自身漂移
+- `2026-06-30` Domain 纯净性纳入架构审计：`architecture_rules.json` 升级到 `2026-06-30.v8`，新增 `apps_domain_no_external_runtime_imports`，禁止 Domain 层 import `django/pandas/numpy/requests/akshare/tushare` 等运行时框架或数据源客户端
+- `2026-06-30` 模块依赖图门禁新增入站依赖预算：`module_cycle_allowlist.json` 锁定当前单 app 最多 `23` 个入边，并为 `37` 个业务模块逐一记录 `max_inbound_modules_by_app`，防止核心模块被更多业务模块隐性耦合
+- `2026-06-29` 架构治理继续加严：`check_module_cycles.py --fail-on-cycles` 现在同时拦截双向 app import pair 和三段以上强连通 cycle component，并补齐 guardrail 测试；Backtest 的 Decision Rhythm 默认执行计划读取改走 `core/integration/decision_recommendations.py` 延迟桥接，当前 app 级 cycle component 恢复为 `0`
+- `2026-06-29` 模块依赖图新增密度预算：`module_cycle_allowlist.json` 锁定当前 `181` 条跨 app import edge 和单 app 最多 `19` 个出边，`check_module_cycles.py --fail-on-cycles` 会阻止依赖图重新变密
+- `2026-06-29` 模块依赖图新增逐 app 出边预算：`module_cycle_allowlist.json` 为当前 `37` 个业务模块逐一记录 `max_outbound_modules_by_app`，防止低耦合模块在全局预算内隐性增加跨 app 依赖
+- `2026-06-29` 模块依赖图门禁新增 ratchet 行为：当循环白名单、跨 app edge 数或单模块出边数下降时，`check_module_cycles.py` 会以 stale baseline 失败，要求同步收紧 `module_cycle_allowlist.json`
+- `2026-06-29` 测试规模口径纳入治理一致性检查：`governance_baseline.json` 锁定当前 `5,898` 个静态 `test_` 函数，关键文档统一改为 AST 轻量治理基线，完整 pytest collect / 执行结果仍以 CI 报告为准
+- `2026-06-29` 治理一致性检查新增生产 Python 巨型文件增长门禁：`governance_baseline.json` 记录当前 25 个超过 1200 非空行的历史文件，`check_governance_consistency.py` 会阻止新增超限文件或历史超限文件继续变大
 - `2026-06-28` 集中风控中心日报升级为可归档查询：生成风控/持仓日报时按 `account_id + report_date` 保存快照，`GET /api/risk-center/daily-report/?account_id=<id>&report_date=<YYYY-MM-DD>` 可查询任意单日，SDK 新增 `get_daily_report()` / `list_daily_reports()`，MCP 新增 `get_risk_center_daily_report` / `list_risk_center_daily_reports`，Web 和 TUI 均提供历史日报查询入口
 - `2026-06-28` 集中风控中心新增风控日报和持仓日报：`POST /api/risk-center/daily-report/`、SDK `client.risk_center.generate_daily_report()`、MCP `generate_risk_center_daily_report`、TUI `risk-center.daily-report` 和 `/risk-center/` Web 按钮可基于账户日终快照输出 `risk_daily_report`、`position_daily_report` 与底层投后巡检结果
 - `2026-06-28` 集中风控中心新增投后风控巡检：`POST /api/risk-center/post-investment-check/`、SDK `client.risk_center.check_post_investment()`、MCP `check_post_investment_risk`、TUI `risk-center.post-investment-check` 和 `/risk-center/` Web 面板可对账户权益、现金、日亏损/回撤和持仓快照做健康检查，输出总仓位、单标的、现金底线、硬排除、强制止损和止盈观察结果
@@ -166,7 +180,7 @@ Build: 2026-03-23
 - 密码强度实时检查
 - 已初始化系统需密码验证才能修改配置
 
-**模块数量**: 36 个业务模块
+**模块数量**: 37 个业务模块
 
 ---
 
@@ -280,6 +294,7 @@ git push origin v0.7.0
 |-----|------|
 | `docs/VERSION.md` | 版本号管理规范（本文档）|
 | `core/version.py` | 版本号常量定义 |
+| `pyproject.toml` | Python 包版本（必须与 `core/version.py` 对齐） |
 | `AGENTS.md` | AI Agent 指引（引用版本号）|
 | `README.md` | 项目说明（引用版本号）|
 | `docs/INDEX.md` | 文档索引（引用版本号）|
@@ -291,6 +306,7 @@ git push origin v0.7.0
 发布新版本时，需更新以下文件：
 
 - [ ] `core/version.py` - 版本号常量
+- [ ] `pyproject.toml` - Python 包版本
 - [ ] `AGENTS.md` - 项目概述中的版本号
 - [ ] `README.md` - 项目说明中的版本号
 - [ ] `docs/INDEX.md` - 文档索引中的版本号

@@ -1,6 +1,8 @@
 {
-  "version": "2026-06-28.v1",
+  "version": "2026-06-29.v1",
   "mcp_tool_count": 358,
+  "business_module_count": 37,
+  "static_test_function_count": 5898,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -45,5 +47,37 @@
       "numpy": 1,
       "pandas": 4
     }
+  },
+  "core_integration_app_infrastructure_import_count": 0,
+  "core_integration_orm_access_count": 0,
+  "core_management_command_app_infrastructure_import_count": 0,
+  "core_management_command_orm_access_count": 0,
+  "python_file_non_empty_line_limit": 1200,
+  "allowed_large_python_files": {
+    "apps/account/infrastructure/models.py": 1389,
+    "apps/account/infrastructure/repositories.py": 3252,
+    "apps/ai_capability/application/use_cases.py": 1223,
+    "apps/alpha/application/tasks.py": 1827,
+    "apps/audit/application/use_cases.py": 1382,
+    "apps/audit/domain/services.py": 1299,
+    "apps/audit/infrastructure/repositories.py": 1357,
+    "apps/dashboard/application/alpha_homepage.py": 1764,
+    "apps/dashboard/interface/views.py": 1417,
+    "apps/data_center/application/market_thermometer.py": 1342,
+    "apps/data_center/application/use_cases.py": 2434,
+    "apps/data_center/infrastructure/provider_adapters.py": 1564,
+    "apps/data_center/infrastructure/repositories.py": 1513,
+    "apps/decision_rhythm/application/use_cases.py": 2591,
+    "apps/decision_rhythm/domain/entities.py": 2253,
+    "apps/decision_rhythm/domain/services.py": 1563,
+    "apps/decision_rhythm/infrastructure/models.py": 2146,
+    "apps/decision_rhythm/infrastructure/repositories.py": 1790,
+    "apps/equity/infrastructure/repositories.py": 2327,
+    "apps/equity/interface/views.py": 1309,
+    "apps/policy/application/use_cases.py": 1567,
+    "apps/policy/infrastructure/repositories.py": 1275,
+    "apps/strategy/interface/views.py": 1294,
+    "apps/terminal/application/tui_workbench.py": 2571,
+    "apps/terminal/infrastructure/tui_metadata_repository.py": 1468
   }
 }
