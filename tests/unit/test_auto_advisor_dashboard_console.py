@@ -216,6 +216,12 @@ def test_auto_advisor_weekly_report_covers_required_sections():
     assert payload["system_vs_actual"]["decision_count"] == 1
     assert payload["unexecuted_recommendations"]["items"][0]["asset_code"] == "AAA"
     assert payload["invalidated_recommendations"]["items"][0]["asset_code"] == "CCC"
+    assert payload["investment_diary"]["status"] == "DERIVED_FROM_ADVISOR_SHEET"
+    diary_entry = payload["investment_diary"]["entries"][0]
+    assert diary_entry["entry_type"] == "WEEKLY_REVIEW"
+    assert diary_entry["today_conclusion"] == "REVIEW"
+    assert "execution_gap" in diary_entry["reflection_tags"]
+    assert diary_entry["manual_note_prompts"]
     assert payload["next_week_watchlist"]
 
 

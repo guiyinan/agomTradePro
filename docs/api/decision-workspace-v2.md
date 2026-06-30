@@ -341,10 +341,11 @@ Query:
 - `system_vs_actual`: 系统建议数量、动作分布、复盘状态分布和执行确认状态
 - `unexecuted_recommendations`: 未执行或待复核建议及其表现窗口
 - `invalidated_recommendations`: 来源信号已证伪或证伪检查失败的建议
+- `investment_diary`: 从 advisor sheet 派生的投资日记首版，包含周复盘 entry、反思标签、经验教训、人工备注提示和原始证据
 - `next_week_watchlist`: 下周重点观察清单，包含数据健康、阻断订单和需复核决策卡片
 - `evidence`: advisor sheet 摘要证据
 
-周报首版复用 advisor sheet，不新增持久化表。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。
+周报和投资日记首版复用 advisor sheet，不新增持久化表。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。`investment_diary.status=DERIVED_FROM_ADVISOR_SHEET` 表示该日记为报告时派生快照，不代表已写入独立日记表。
 
 自动生成:
 

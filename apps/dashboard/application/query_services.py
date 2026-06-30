@@ -227,6 +227,13 @@ def build_auto_advisor_weekly_report_payload(
             "summary": invalidated["answer"],
             "items": invalidated["highlights"],
         },
+        "investment_diary": _weekly_investment_diary_section(
+            sheet=sheet,
+            report_date=report_date,
+            largest_risk=largest_risk,
+            unexecuted=unexecuted,
+            invalidated=invalidated,
+        ),
         "next_week_watchlist": _weekly_next_watchlist_section(sheet),
         "evidence": {
             "today_conclusion": sheet.get("today_conclusion"),
@@ -700,6 +707,153 @@ def _weekly_next_watchlist_section(sheet: dict[str, Any]) -> list[dict[str, Any]
                 }
             )
     return watchlist[:10]
+
+
+def _weekly_investment_diary_section(
+    *,
+    sheet: dict[str, Any],
+    report_date: date,
+    largest_risk: dict[str, Any],
+    unexecuted: dict[str, Any],
+    invalidated: dict[str, Any],
+) -> dict[str, Any]:
+    account = dict(sheet.get("account") or {})
+    execution = dict(sheet.get("execution_plan") or {})
+    data_health = dict(sheet.get("data_health") or {})
+    items = _advisor_query_items(sheet)
+    action_counts: dict[str, int] = {}
+    for item in items:
+        action = _item_action(item) or "UNKNOWN"
+        action_counts[action] = action_counts.get(action, 0) + 1
+
+    blockers = list(sheet.get("blockers") or [])
+    reflection_tags = _weekly_diary_reflection_tags(
+        sheet=sheet,
+        largest_risk=largest_risk,
+        unexecuted=unexecuted,
+        invalidated=invalidated,
+    )
+    entry = {
+        "entry_date": report_date.isoformat(),
+        "entry_type": "WEEKLY_REVIEW",
+        "account_id": account.get("account_id") or account.get("id"),
+        "account_name": account.get("account_name") or account.get("name"),
+        "today_conclusion": sheet.get("today_conclusion"),
+        "decision_count": len(items),
+        "action_counts": action_counts,
+        "largest_risk_summary": largest_risk.get("answer"),
+        "unexecuted_summary": unexecuted.get("answer"),
+        "invalidated_summary": invalidated.get("answer"),
+        "confirmation_status": execution.get("confirmation_status"),
+        "requires_human_confirmation": bool(execution.get("requires_human_confirmation")),
+        "data_health_status": data_health.get("status"),
+        "blocked_order_count": len(blockers),
+        "reflection_tags": reflection_tags,
+        "lessons": _weekly_diary_lessons(
+            largest_risk=largest_risk,
+            unexecuted=unexecuted,
+            invalidated=invalidated,
+            blockers=blockers,
+            execution=execution,
+            data_health=data_health,
+        ),
+        "manual_note_prompts": [
+            "本周我是否按系统建议执行，原因是什么？",
+            "哪些风险是我主观忽略或高估的？",
+            "下周若同类信号再次出现，我会如何调整仓位？",
+        ],
+        "evidence": {
+            "order_summary": sheet.get("order_summary") or {},
+            "execution_plan": execution,
+            "data_health": data_health,
+        },
+    }
+    return {
+        "status": "DERIVED_FROM_ADVISOR_SHEET",
+        "persistence": "not_persisted",
+        "summary": (
+            f"{report_date.isoformat()} 生成 1 条投资日记，"
+            f"结论 {sheet.get('today_conclusion') or '-'}，"
+            f"待人工确认 {bool(execution.get('requires_human_confirmation'))}。"
+        ),
+        "entries": [entry],
+    }
+
+
+def _weekly_diary_reflection_tags(
+    *,
+    sheet: dict[str, Any],
+    largest_risk: dict[str, Any],
+    unexecuted: dict[str, Any],
+    invalidated: dict[str, Any],
+) -> list[str]:
+    tags: list[str] = []
+    if largest_risk.get("highlights"):
+        tags.append("risk_review")
+    if unexecuted.get("highlights"):
+        tags.append("execution_gap")
+    if invalidated.get("highlights"):
+        tags.append("invalidation_review")
+    if list(sheet.get("blockers") or []):
+        tags.append("blocked_decision")
+    if dict(sheet.get("execution_plan") or {}).get("requires_human_confirmation"):
+        tags.append("manual_confirmation")
+    return tags or ["routine_review"]
+
+
+def _weekly_diary_lessons(
+    *,
+    largest_risk: dict[str, Any],
+    unexecuted: dict[str, Any],
+    invalidated: dict[str, Any],
+    blockers: list[Any],
+    execution: dict[str, Any],
+    data_health: dict[str, Any],
+) -> list[dict[str, Any]]:
+    lessons: list[dict[str, Any]] = []
+    if largest_risk.get("highlights"):
+        lessons.append(
+            {
+                "code": "largest_risk_review",
+                "message": largest_risk.get("answer"),
+            }
+        )
+    if unexecuted.get("highlights"):
+        lessons.append(
+            {
+                "code": "unexecuted_recommendation_review",
+                "message": unexecuted.get("answer"),
+            }
+        )
+    if invalidated.get("highlights"):
+        lessons.append(
+            {
+                "code": "invalidated_signal_review",
+                "message": invalidated.get("answer"),
+            }
+        )
+    if blockers:
+        lessons.append(
+            {
+                "code": "blocked_order_review",
+                "message": f"存在 {len(blockers)} 条阻断项，下次执行前先处理阻断原因。",
+            }
+        )
+    if execution.get("requires_human_confirmation"):
+        lessons.append(
+            {
+                "code": "confirmation_review",
+                "message": "本周建议仍需人工确认，实际交易前必须记录确认原因。",
+            }
+        )
+    if data_health.get("status") not in {None, "", "ok"}:
+        lessons.append(
+            {
+                "code": "data_health_review",
+                "message": "数据 freshness 非正常，复盘时优先确认数据是否影响判断。",
+            }
+        )
+    return lessons[:8]
 
 
 def _advisor_query_items(sheet: dict[str, Any]) -> list[dict[str, Any]]:

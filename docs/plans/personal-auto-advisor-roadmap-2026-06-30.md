@@ -23,6 +23,7 @@
 - 已接入自然语言查询首版：`/api/dashboard/auto-advisor-query/` 基于 advisor sheet 确定性回答最大风险、减仓原因、证伪持仓、下跌冲击损失和未执行建议表现，不依赖 LLM。
 - 已接入深层归因证据：`tracking.performance.error_attribution.deep_attribution` 输出 Regime 上下文、Policy 上下文和人工 override 结果分类。
 - 已接入个人周报首版：`/api/dashboard/auto-advisor-weekly-report/` 输出组合快照、最大风险暴露、系统建议与实际操作差异、未执行建议表现、已证伪建议和下周观察清单。
+- 已接入投资日记首版：weekly report 返回 `investment_diary`，从 advisor sheet 派生周复盘 entry、反思标签、经验教训、人工备注提示和原始证据，不新增持久化表。
 - 已接入事后 Regime/Policy 标签对比：deep attribution 会比较推荐时上下文和成熟表现窗口对应日期的 Regime/Policy，输出 `REGIME_JUDGMENT_ERROR`、`POLICY_MISJUDGMENT` 等分类。
 - 已接入个人周报每周自动生成：Celery 任务 `dashboard.generate_auto_advisor_weekly_reports` 默认由 `setup_auto_advisor_weekly_report` 创建每周五 17:30 beat 记录，并纳入 `init_scheduler_defaults`。
 
@@ -282,7 +283,7 @@
 - 已证伪建议。
 - 下周重点观察。
 
-首版已落地为只读 weekly report API 和每周自动生成任务，复用 advisor sheet，不新增持久化表。`portfolio_change` 优先读取模拟账户日净值历史输出 `HISTORICAL` 周变化；历史不足时降级为当前快照并标记 `CURRENT_SNAPSHOT_ONLY`。默认调度任务为 `dashboard-auto-advisor-weekly-report`，执行 `dashboard.generate_auto_advisor_weekly_reports`，每周五 17:30 生成全部活跃账户周报；也可用 `setup_auto_advisor_weekly_report --user-id <id> --account-ids <ids>` 缩小范围。
+首版已落地为只读 weekly report API、投资日记派生区块和每周自动生成任务，复用 advisor sheet，不新增持久化表。`portfolio_change` 优先读取模拟账户日净值历史输出 `HISTORICAL` 周变化；历史不足时降级为当前快照并标记 `CURRENT_SNAPSHOT_ONLY`。`investment_diary` 输出周复盘 entry、反思标签、经验教训、人工备注提示和原始证据。默认调度任务为 `dashboard-auto-advisor-weekly-report`，执行 `dashboard.generate_auto_advisor_weekly_reports`，每周五 17:30 生成全部活跃账户周报；也可用 `setup_auto_advisor_weekly_report --user-id <id> --account-ids <ids>` 缩小范围。
 
 ## 7. P4: 体验效率
 
@@ -331,7 +332,7 @@
 
 第四阶段:
 
-10. 投资日记/周报。
+10. 投资日记/周报。（首版已完成，日记为 weekly report 派生快照，不新增独立持久化表）
 11. 自然语言查询。（首版已完成，后续可接入 agent_runtime 做多轮追问）
 
 ## 9. 非目标

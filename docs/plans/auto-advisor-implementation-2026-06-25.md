@@ -79,6 +79,7 @@
 - Dashboard 首页已嵌入“今日自动投顾主控台”面板，支持账户切换后异步刷新主控台摘要。
 - `/api/dashboard/auto-advisor-query/` 返回个人自动投顾问答结果，首版使用 deterministic intent matching，不依赖 LLM。
 - `/api/dashboard/auto-advisor-weekly-report/` 返回个人周报首版，组合变化区块优先读取模拟账户日净值历史输出 `HISTORICAL` 周变化；历史不足时降级为当前快照并标记 `CURRENT_SNAPSHOT_ONLY`。
+- Weekly report 返回 `investment_diary` 投资日记派生区块，记录周复盘 entry、反思标签、经验教训、人工备注提示和 advisor sheet 证据，不新增持久化表。
 - Celery 任务 `dashboard.generate_auto_advisor_weekly_reports` 每周生成个人自动投顾周报；默认 beat 记录由 `setup_auto_advisor_weekly_report` 创建，`init_scheduler_defaults` 会统一初始化。
 
 ## UI 集成
