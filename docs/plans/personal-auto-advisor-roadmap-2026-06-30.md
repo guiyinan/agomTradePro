@@ -1,9 +1,30 @@
 # 个人自动投顾路线图
 
 - 日期: 2026-06-30
-- 状态: Planning
+- 状态: Implemented v1
 - 范围: 仅个人自用, 不对公众开放, 不收费, 不接券商自动下单
 - 定位: 个人自动化投研 + 风控决策助手 + 半自动执行系统
+
+## 0. 当前落地进度
+
+- 2026-06-30: 第一阶段已开始落地到 `decision_rhythm` advisor sheet。
+- 已输出 `risk_policy.version`，用于说明命中的个人风险配置版本。
+- 已接入 `data_center` 决策数据健康 payload，数据不可用于决策时建议单降级为 `REVIEW`。
+- 已为每条 `order_intent` 增加 `risk_gate_status`、`risk_gate`、`data_asof` 和统一 `decision_card`。
+- 已在 Terminal 和 Classic Decision Workspace 展示风控闸门与数据 freshness 摘要。
+- 已在 advisor sheet 增加组合级裁决和同标的冲突消解：同一 `asset_code` 最多输出一个最终建议，重复同向建议合并来源，方向冲突输出 `recommendation_conflicts` 并降级为 `REVIEW`。
+- 已接入 Decision Rhythm execution guard：价格校验、Beta Gate、配额、冷却期和来源信号证伪失败都会阻断可执行订单。
+- 已接入行业/细分行业/策略 bucket 暴露检查：新增买入/加仓导致 projected exposure 超过风险配置上限时阻断为 `BLOCKED_EXPOSURE_LIMIT`，减仓/清仓不受该阻断影响。
+- 已接入建议执行链接追踪：`order_intent.tracking` 和 `decision_card.tracking` 可展示来源推荐是否已采纳、是否已有手工/模拟成交链接。
+- 已接入建议 7/20/60 日表现追踪：按推荐锚点价与 `data_center` 收盘价历史输出 raw return 和 directional return。
+- 已接入表现型错误归因初版：当成熟窗口 directional return 为负时输出 `MODEL_MISJUDGMENT`、`EXECUTION_TOO_EARLY` 等机器可读归因。
+- 已接入半自动确认流：`confirmation` 和 `execution_plan` 标记二次确认原因，真实账户固定只生成计划、确认和记录，不自动下单。
+- 已接入首页自动投顾主控台：`/api/dashboard/auto-advisor-console/` 聚合今日是否可交易、宏观象限、组合风险、今日建议、必须处理的预警、数据 freshness 和执行确认状态，并已嵌入 Dashboard 首页。
+- 已接入自然语言查询首版：`/api/dashboard/auto-advisor-query/` 基于 advisor sheet 确定性回答最大风险、减仓原因、证伪持仓、下跌冲击损失和未执行建议表现，不依赖 LLM。
+- 已接入深层归因证据：`tracking.performance.error_attribution.deep_attribution` 输出 Regime 上下文、Policy 上下文和人工 override 结果分类。
+- 已接入个人周报首版：`/api/dashboard/auto-advisor-weekly-report/` 输出组合快照、最大风险暴露、系统建议与实际操作差异、未执行建议表现、已证伪建议和下周观察清单。
+- 已接入事后 Regime/Policy 标签对比：deep attribution 会比较推荐时上下文和成熟表现窗口对应日期的 Regime/Policy，输出 `REGIME_JUDGMENT_ERROR`、`POLICY_MISJUDGMENT` 等分类。
+- 已接入个人周报每周自动生成：Celery 任务 `dashboard.generate_auto_advisor_weekly_reports` 默认由 `setup_auto_advisor_weekly_report` 创建每周五 17:30 beat 记录，并纳入 `init_scheduler_defaults`。
 
 ## 1. 目标定位
 
@@ -244,6 +265,12 @@
 - 仓位过重。
 - 人工 override 错误。
 
+首版已在 advisor sheet tracking 中输出 `deep_attribution`:
+
+- `regime`: 推荐时 Regime、置信度、事后 Regime 标签和上下文缺失/偏弱/判断错误分类。
+- `policy`: 推荐时 Policy 档位、事后 Policy 标签和上下文缺失/误判分类。
+- `manual_override`: 根据 `user_action` 与成熟表现窗口判断未采纳建议是否构成人工 override 错误或保护本金。
+
 ### 6.3 个人投资周报
 
 每周自动输出:
@@ -254,6 +281,8 @@
 - 未执行建议的后续表现。
 - 已证伪建议。
 - 下周重点观察。
+
+首版已落地为只读 weekly report API 和每周自动生成任务，复用 advisor sheet，不新增持久化表。`portfolio_change` 优先读取模拟账户日净值历史输出 `HISTORICAL` 周变化；历史不足时降级为当前快照并标记 `CURRENT_SNAPSHOT_ONLY`。默认调度任务为 `dashboard-auto-advisor-weekly-report`，执行 `dashboard.generate_auto_advisor_weekly_reports`，每周五 17:30 生成全部活跃账户周报；也可用 `setup_auto_advisor_weekly_report --user-id <id> --account-ids <ids>` 缩小范围。
 
 ## 7. P4: 体验效率
 
@@ -278,6 +307,8 @@
 - 如果明天跌 3%, 组合损失多少。
 - 哪些建议我上次没执行, 结果如何。
 
+首版已落地为确定性 query service 和 Dashboard API，不调用 LLM，直接复用 advisor sheet 的 `risk_summary`、`decision_cards`、`order_intents`、`tracking`、`data_health` 和账户市值字段。
+
 ## 8. 推荐实施顺序
 
 第一阶段:
@@ -301,7 +332,7 @@
 第四阶段:
 
 10. 投资日记/周报。
-11. 自然语言查询。
+11. 自然语言查询。（首版已完成，后续可接入 agent_runtime 做多轮追问）
 
 ## 9. 非目标
 

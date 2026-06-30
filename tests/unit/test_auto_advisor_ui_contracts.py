@@ -74,6 +74,13 @@ def test_advisor_today_terminal_formatter_outputs_account_order_summary():
                 },
                 "baseline": "existing_positions",
                 "today_conclusion": "ACT",
+                "risk_policy": {"version": "riskcfg_test"},
+                "data_health": {"status": "ok"},
+                "execution_plan": {
+                    "execution_mode": "real_confirm_only",
+                    "confirmation_status": "PENDING",
+                    "broker_execution_enabled": False,
+                },
                 "order_summary": {
                     "total": 2,
                     "buy": 1,
@@ -91,6 +98,9 @@ def test_advisor_today_terminal_formatter_outputs_account_order_summary():
                         "estimated_amount": 1000,
                         "price_band": {"label": "9.90 - 10.10"},
                         "blocking_status": "OK",
+                        "risk_gate_status": "OK",
+                        "data_asof": {"quote_freshness_status": "fresh"},
+                        "confirmation": {"status": "PENDING"},
                     }
                 ],
                 "blockers": [],
@@ -101,5 +111,10 @@ def test_advisor_today_terminal_formatter_outputs_account_order_summary():
 
     assert "账户: A" in output
     assert "今日结论: ACT" in output
+    assert "风险配置: riskcfg_test" in output
+    assert "执行计划: real_confirm_only 确认=PENDING 自动下单=否" in output
+    assert "risk_gate=OK" in output
+    assert "asof=fresh" in output
+    assert "confirm=PENDING" in output
     assert "建议订单: 共 2 单" in output
     assert "BUY AAA Alpha" in output

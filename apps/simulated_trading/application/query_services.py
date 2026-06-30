@@ -27,6 +27,12 @@ def list_active_account_models_for_user(user_id: int) -> list:
     return get_simulated_account_repository().get_active_account_models_for_user(user_id)
 
 
+def list_active_account_targets() -> list[dict]:
+    """Return active account/user id pairs for scheduled application jobs."""
+
+    return get_simulated_account_repository().list_active_account_targets()
+
+
 def get_user_account_totals(user_id: int) -> dict[str, float] | None:
     """Return aggregated totals across one user's simulated accounts."""
 

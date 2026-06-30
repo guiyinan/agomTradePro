@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_FLOOR, Decimal, InvalidOperation
 from typing import Any, Protocol
 
@@ -18,11 +19,19 @@ from apps.simulated_trading.application.interface_services import get_account_ac
 from core.integration.manual_trade_sync import get_manual_trade_portfolio_id_for_account
 from core.integration.simulated_positions import get_position_snapshots
 
-from .workspace_services import list_workspace_recommendations
+from .workspace_services import (
+    build_recommendation_risk_checks,
+    get_signal_payloads,
+    list_workspace_recommendations,
+)
 
 ACTIONABLE_SIDES = {"BUY", "ADD", "REDUCE", "EXIT"}
 BUY_SIDES = {"BUY", "ADD"}
 SELL_SIDES = {"SELL", "REDUCE", "EXIT"}
+RISK_GATE_BLOCKING_STATUS = "BLOCKED_RISK_GATE"
+RISK_POLICY_UNAVAILABLE_STATUS = "BLOCKED_RISK_POLICY_UNAVAILABLE"
+EXECUTION_GUARD_BLOCKING_STATUS = "BLOCKED_EXECUTION_GUARD"
+EXPOSURE_LIMIT_BLOCKING_STATUS = "BLOCKED_EXPOSURE_LIMIT"
 
 
 class AdvisorAccessError(PermissionError):
@@ -103,11 +112,19 @@ class AdvisorOrderIntent:
     execution_hint: str
     source_recommendation_id: str
     blocking_status: str
+    source_recommendation_ids: list[str] = field(default_factory=list)
+    conflict_resolution: dict[str, Any] = field(default_factory=dict)
+    risk_gate_status: str = "NOT_CHECKED"
+    risk_gate: dict[str, Any] = field(default_factory=dict)
+    data_asof: dict[str, Any] = field(default_factory=dict)
+    decision_card: dict[str, Any] = field(default_factory=dict)
+    tracking: dict[str, Any] = field(default_factory=dict)
+    confirmation: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Return API-safe order intent payload."""
 
-        return {
+        payload = {
             "order_intent_id": self.order_intent_id,
             "account_id": self.account_id,
             "asset_code": self.asset_code,
@@ -128,7 +145,17 @@ class AdvisorOrderIntent:
             "execution_hint": self.execution_hint,
             "source_recommendation_id": self.source_recommendation_id,
             "blocking_status": self.blocking_status,
+            "source_recommendation_ids": self.source_recommendation_ids
+            or ([self.source_recommendation_id] if self.source_recommendation_id else []),
+            "conflict_resolution": self.conflict_resolution,
+            "risk_gate_status": self.risk_gate_status,
+            "risk_gate": self.risk_gate,
+            "data_asof": self.data_asof,
+            "tracking": self.tracking,
+            "confirmation": self.confirmation,
         }
+        payload["decision_card"] = self.decision_card or _build_decision_card_payload(payload)
+        return payload
 
 
 class HoldingSnapshotProviderProtocol(Protocol):
@@ -143,6 +170,88 @@ class RecommendationProviderProtocol(Protocol):
 
     def list_recommendations(self, *, account_id: str) -> list[Any]:
         """Return candidate recommendation DTOs."""
+
+
+class RiskGateProviderProtocol(Protocol):
+    """Read risk policy context and evaluate proposed advisor orders."""
+
+    def get_policy_context(self, *, account_id: str) -> dict[str, Any]:
+        """Return the effective personal risk policy for the account."""
+
+    def evaluate_order(
+        self,
+        *,
+        account: dict[str, Any],
+        intent: AdvisorOrderIntent,
+        holdings: list[AdvisorHoldingSnapshot],
+        policy_context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return risk gate status for one order intent."""
+
+
+class DataHealthProviderProtocol(Protocol):
+    """Read decision data health for the advisor sheet."""
+
+    def get_health(self, *, asset_codes: list[str]) -> dict[str, Any]:
+        """Return a unified decision data health payload."""
+
+
+class ExecutionGuardProviderProtocol(Protocol):
+    """Evaluate decision-rhythm execution checks before an advisor order is shown."""
+
+    def evaluate(
+        self,
+        *,
+        recommendation: Any | None,
+        intent: AdvisorOrderIntent,
+        resolution: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Return Beta Gate, quota, cooldown, and invalidation checks for one intent."""
+
+
+class ExposureProviderProtocol(Protocol):
+    """Resolve asset sector, industry, and strategy exposure metadata."""
+
+    def get_asset_exposures(self, *, asset_codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Return exposure metadata keyed by normalized asset code."""
+
+
+class RecommendationTrackingProviderProtocol(Protocol):
+    """Read execution links and review evidence for advisor recommendations."""
+
+    def get_execution_links(
+        self,
+        *,
+        account_id: str,
+        recommendation_ids: list[str],
+        user: Any,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Return execution links keyed by recommendation id."""
+
+
+class RecommendationPerformanceProviderProtocol(Protocol):
+    """Read historical prices used for recommendation performance windows."""
+
+    def get_close_price_series(
+        self,
+        *,
+        asset_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, float]]:
+        """Return close prices oldest to newest."""
+
+
+class AttributionContextProviderProtocol(Protocol):
+    """Read Regime and Policy context for post-recommendation attribution."""
+
+    def get_context(
+        self,
+        *,
+        recommendation_date: date | None,
+        outcome_date: date | None,
+    ) -> dict[str, Any]:
+        """Return recommendation-time and outcome-time Regime/Policy context."""
 
 
 class WorkspaceRecommendationProvider:
@@ -162,6 +271,292 @@ class WorkspaceRecommendationProvider:
             page_size=50,
         )
         return recommendations
+
+
+class RiskCenterAdvisorGateProvider:
+    """Advisor risk gate backed by risk_center application use cases."""
+
+    def get_policy_context(self, *, account_id: str) -> dict[str, Any]:
+        """Return effective policy plus a stable version fingerprint."""
+
+        from apps.risk_center.application.use_cases import (
+            ResolveEffectiveRiskPolicyForAccountUseCase,
+        )
+
+        policy = ResolveEffectiveRiskPolicyForAccountUseCase().execute(
+            account_id=int(account_id)
+        )
+        return _normalize_risk_policy_context(policy, unavailable=False)
+
+    def evaluate_order(
+        self,
+        *,
+        account: dict[str, Any],
+        intent: AdvisorOrderIntent,
+        holdings: list[AdvisorHoldingSnapshot],
+        policy_context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Evaluate one advisor order against the effective risk policy."""
+
+        version = str(policy_context.get("version") or "risk_policy_unknown")
+        if policy_context.get("unavailable"):
+            status = "BLOCKED" if intent.side in BUY_SIDES else "REVIEW"
+            return {
+                "status": status,
+                "code": "risk_policy_unavailable",
+                "messages": ["个人风险配置不可用，新增买入默认阻断。"],
+                "policy_version": version,
+                "metrics": {},
+            }
+        if intent.side not in ACTIONABLE_SIDES or intent.blocking_status != "OK":
+            return {
+                "status": "SKIPPED",
+                "code": "not_actionable",
+                "messages": [],
+                "policy_version": version,
+                "metrics": {},
+            }
+
+        from apps.risk_center.application.trade_guard import EvaluatePreTradeRiskUseCase
+
+        total_asset = float(_to_decimal(account.get("total_asset")))
+        cash = float(_to_decimal(account.get("available_cash")))
+        market_value = float(_to_decimal(account.get("market_value")))
+        symbol_position_value = float(
+            sum(
+                holding.market_value
+                for holding in holdings
+                if holding.asset_code == intent.asset_code
+            )
+        )
+        normalized_side = "buy" if intent.side in BUY_SIDES else "sell"
+        result = EvaluatePreTradeRiskUseCase().execute(
+            account_id=int(intent.account_id),
+            symbol=intent.asset_code,
+            side=normalized_side,
+            quantity=float(abs(intent.delta_quantity)),
+            price=float(intent.estimated_price or Decimal("0")),
+            account_equity=total_asset,
+            total_position_value=market_value,
+            cash_balance=cash,
+            current_symbol_position_value=symbol_position_value,
+        )
+        messages = [*result.violations, *result.warnings]
+        return {
+            "status": "OK" if result.passed and not result.warnings else "REVIEW" if result.passed else "BLOCKED",
+            "code": "risk_gate_passed" if result.passed else "risk_gate_failed",
+            "messages": messages,
+            "policy_version": version,
+            "metrics": result.metrics,
+        }
+
+
+class DecisionDataHealthProvider:
+    """Advisor data-health provider backed by data_center readiness payload."""
+
+    def get_health(self, *, asset_codes: list[str]) -> dict[str, Any]:
+        """Return decision-grade data readiness for the requested assets."""
+
+        from apps.data_center.application.interface_services import (
+            get_decision_data_readiness_payload,
+        )
+
+        return get_decision_data_readiness_payload(asset_codes=asset_codes)
+
+
+class DecisionRhythmExecutionGuardProvider:
+    """Execution guard backed by decision-rhythm and signal application services."""
+
+    def evaluate(
+        self,
+        *,
+        recommendation: Any | None,
+        intent: AdvisorOrderIntent,
+        resolution: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Return execution checks that must pass before an order is actionable."""
+
+        if recommendation is None or intent.side not in ACTIONABLE_SIDES:
+            return {
+                "status": "SKIPPED",
+                "code": "no_actionable_recommendation",
+                "checks": {},
+                "messages": [],
+            }
+
+        checks = build_recommendation_risk_checks(
+            recommendation,
+            _to_decimal_or_none(intent.estimated_price),
+        )
+        signal_ids = list((resolution or {}).get("source_signal_ids") or [])
+        if not signal_ids:
+            signal_ids = _recommendation_source_signal_ids(recommendation)
+        signal_payloads = get_signal_payloads(signal_ids)
+        if signal_payloads:
+            checks["signal_invalidation"] = _build_signal_invalidation_check(signal_payloads)
+
+        failed = _failed_execution_checks(checks)
+        return {
+            "status": "BLOCKED" if failed else "OK",
+            "code": "execution_guard_failed" if failed else "execution_guard_passed",
+            "checks": checks,
+            "messages": [
+                item["reason"]
+                for item in failed
+                if item.get("reason")
+            ],
+        }
+
+
+class DataCenterAssetExposureProvider:
+    """Asset exposure provider backed by data_center application services."""
+
+    def get_asset_exposures(self, *, asset_codes: list[str]) -> dict[str, dict[str, Any]]:
+        """Resolve sector and industry without importing data_center infrastructure."""
+
+        from apps.data_center.application.dtos import ResolveAssetRequest
+        from apps.data_center.application.interface_services import (
+            make_resolve_asset_use_case,
+        )
+
+        use_case = make_resolve_asset_use_case()
+        exposures: dict[str, dict[str, Any]] = {}
+        for asset_code in _unique_asset_codes(asset_codes):
+            response = use_case.execute(ResolveAssetRequest(code=asset_code))
+            if response is None:
+                exposures[asset_code] = {}
+                continue
+            exposures[asset_code] = {
+                "sector": response.sector,
+                "industry": response.industry,
+                "asset_type": response.asset_type,
+            }
+        return exposures
+
+
+class DecisionExecutionTrackingProvider:
+    """Recommendation tracking provider backed by existing execution links."""
+
+    def get_execution_links(
+        self,
+        *,
+        account_id: str,
+        recommendation_ids: list[str],
+        user: Any,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Return recommendation-to-execution links for the current account."""
+
+        if not recommendation_ids:
+            return {}
+
+        from core.integration.decision_execution_links import list_decision_execution_links
+
+        links = list_decision_execution_links(
+            current_user_id=getattr(user, "id", None),
+            is_admin=bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)),
+            account_id=account_id,
+            recommendation_id=None,
+            transaction_source=None,
+            limit=200,
+        )
+        wanted = set(recommendation_ids)
+        grouped: dict[str, list[dict[str, Any]]] = {item: [] for item in recommendation_ids}
+        for link in links:
+            recommendation_id = str(link.get("recommendation_id") or "")
+            if recommendation_id in wanted:
+                grouped.setdefault(recommendation_id, []).append(dict(link))
+        return grouped
+
+
+class DataCenterRecommendationPerformanceProvider:
+    """Recommendation performance provider backed by data_center price facts."""
+
+    def get_close_price_series(
+        self,
+        *,
+        asset_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[date, float]]:
+        """Return historical close prices for one asset."""
+
+        from core.integration.price_history import (
+            fetch_close_price_series_from_data_center,
+        )
+
+        return fetch_close_price_series_from_data_center(
+            asset_code=asset_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+
+class RegimePolicyAttributionContextProvider:
+    """Attribution context provider backed by Regime/Policy application services."""
+
+    def __init__(self) -> None:
+        self._cache: dict[date, dict[str, Any]] = {}
+
+    def get_context(
+        self,
+        *,
+        recommendation_date: date | None,
+        outcome_date: date | None,
+    ) -> dict[str, Any]:
+        """Return Regime and Policy context for recommendation and outcome dates."""
+
+        return {
+            "recommendation": self._context_for_date(recommendation_date),
+            "outcome": self._context_for_date(outcome_date),
+        }
+
+    def _context_for_date(self, target_date: date | None) -> dict[str, Any]:
+        if target_date is None:
+            return {
+                "status": "DATE_UNAVAILABLE",
+                "date": None,
+                "regime": None,
+                "regime_confidence": None,
+                "policy_level": None,
+                "errors": [],
+            }
+        if target_date in self._cache:
+            return dict(self._cache[target_date])
+
+        errors: list[str] = []
+        regime: str | None = None
+        regime_confidence: float | None = None
+        policy_level: str | None = None
+        try:
+            from apps.regime.application.interface_services import get_regime_current_payload
+
+            regime_payload = get_regime_current_payload(as_of_date=target_date)
+            regime_data = dict(regime_payload.get("data") or {})
+            regime = str(regime_data.get("dominant_regime") or "") or None
+            regime_confidence = _decimal_to_number(
+                _optional_decimal(regime_data.get("confidence"))
+            )
+        except Exception as exc:
+            errors.append(f"regime:{exc}")
+
+        try:
+            from apps.policy.application.query_services import get_policy_status_payload
+
+            policy_payload = get_policy_status_payload(as_of_date=target_date)
+            policy_level = str(policy_payload.get("current_level") or "") or None
+        except Exception as exc:
+            errors.append(f"policy:{exc}")
+
+        payload = {
+            "status": "OK" if not errors else "PARTIAL",
+            "date": target_date.isoformat(),
+            "regime": regime,
+            "regime_confidence": regime_confidence,
+            "policy_level": policy_level,
+            "errors": errors,
+        }
+        self._cache[target_date] = payload
+        return dict(payload)
 
 
 class AccountHoldingSnapshotProvider:
@@ -247,9 +642,29 @@ class GenerateAdvisorDecisionSheetUseCase:
         *,
         holding_provider: HoldingSnapshotProviderProtocol | None = None,
         recommendation_provider: RecommendationProviderProtocol | None = None,
+        risk_gate_provider: RiskGateProviderProtocol | None = None,
+        data_health_provider: DataHealthProviderProtocol | None = None,
+        execution_guard_provider: ExecutionGuardProviderProtocol | None = None,
+        exposure_provider: ExposureProviderProtocol | None = None,
+        tracking_provider: RecommendationTrackingProviderProtocol | None = None,
+        performance_provider: RecommendationPerformanceProviderProtocol | None = None,
+        attribution_context_provider: AttributionContextProviderProtocol | None = None,
     ) -> None:
         self.holding_provider = holding_provider or AccountHoldingSnapshotProvider()
         self.recommendation_provider = recommendation_provider or WorkspaceRecommendationProvider()
+        self.risk_gate_provider = risk_gate_provider or RiskCenterAdvisorGateProvider()
+        self.data_health_provider = data_health_provider or DecisionDataHealthProvider()
+        self.execution_guard_provider = (
+            execution_guard_provider or DecisionRhythmExecutionGuardProvider()
+        )
+        self.exposure_provider = exposure_provider or DataCenterAssetExposureProvider()
+        self.tracking_provider = tracking_provider or DecisionExecutionTrackingProvider()
+        self.performance_provider = (
+            performance_provider or DataCenterRecommendationPerformanceProvider()
+        )
+        self.attribution_context_provider = (
+            attribution_context_provider or RegimePolicyAttributionContextProvider()
+        )
 
     def execute(self, *, account_id: str, user: Any) -> dict[str, Any]:
         """Generate holdings, allocation drift, order intents, blockers, and actions."""
@@ -261,14 +676,30 @@ class GenerateAdvisorDecisionSheetUseCase:
         holdings = sorted(snapshot.holdings, key=lambda item: item.current_weight, reverse=True)
         holdings_by_code = {item.asset_code: item for item in holdings}
 
-        recommendations = self.recommendation_provider.list_recommendations(
+        raw_recommendations = self.recommendation_provider.list_recommendations(
             account_id=str(account["account_id"])
         )
-        security_names = _resolve_missing_names(holdings, recommendations)
+        recommendation_resolution = _consolidate_recommendations(
+            raw_recommendations,
+            held_asset_codes=set(holdings_by_code),
+        )
+        recommendations = recommendation_resolution["selected_recommendations"]
+        resolutions_by_asset = recommendation_resolution["resolutions_by_asset"]
+        recommendation_conflicts = recommendation_resolution["conflicts"]
+        security_names = _resolve_missing_names(holdings, raw_recommendations)
+        candidate_codes = _unique_asset_codes(
+            [
+                *(holding.asset_code for holding in holdings),
+                *(_recommendation_asset_code(item) for item in raw_recommendations),
+            ]
+        )
 
         blockers: list[dict[str, Any]] = []
         warnings = list(snapshot.warnings)
         order_intents: list[AdvisorOrderIntent] = []
+        risk_policy = self._get_risk_policy_context(account_id=str(account["account_id"]))
+        data_health = self._get_data_health(asset_codes=candidate_codes)
+        exposure_map = self._get_exposure_map(asset_codes=candidate_codes)
 
         for holding in holdings:
             rec = _find_recommendation_for_asset(recommendations, holding.asset_code)
@@ -279,7 +710,23 @@ class GenerateAdvisorDecisionSheetUseCase:
                 recommendation=rec,
             )
             if intent is not None:
-                order_intents.append(intent)
+                intent = _attach_recommendation_resolution(
+                    intent,
+                    resolutions_by_asset.get(holding.asset_code),
+                )
+                intent = self._apply_execution_guard(
+                    intent=intent,
+                    recommendation=rec,
+                    resolution=resolutions_by_asset.get(holding.asset_code),
+                )
+                order_intents.append(
+                    self._apply_risk_gate(
+                        account=account,
+                        holdings=holdings,
+                        order_intents=[intent],
+                        policy_context=risk_policy,
+                    )[0]
+                )
 
         remaining_cash = cash
         for recommendation in recommendations:
@@ -309,10 +756,57 @@ class GenerateAdvisorDecisionSheetUseCase:
             )
             if intent is None:
                 continue
-            order_intents.append(intent)
-            if intent.blocking_status == "OK":
-                remaining_cash -= intent.estimated_amount
+            intent = _attach_recommendation_resolution(
+                intent,
+                resolutions_by_asset.get(asset_code),
+            )
+            intent = self._apply_execution_guard(
+                intent=intent,
+                recommendation=recommendation,
+                resolution=resolutions_by_asset.get(asset_code),
+            )
+            gated_intent = self._apply_risk_gate(
+                account=account,
+                holdings=holdings,
+                order_intents=[intent],
+                policy_context=risk_policy,
+            )[0]
+            order_intents.append(gated_intent)
+            if gated_intent.blocking_status == "OK":
+                remaining_cash -= gated_intent.estimated_amount
 
+        exposure_summary = _build_exposure_summary(
+            holdings=holdings,
+            order_intents=order_intents,
+            exposure_map=exposure_map,
+            recommendations=raw_recommendations,
+            total_asset=total_asset,
+            policy_context=risk_policy,
+        )
+        order_intents = self._apply_exposure_guard(
+            order_intents=order_intents,
+            exposure_summary=exposure_summary,
+        )
+        tracking_map = self._get_recommendation_tracking(
+            account_id=str(account["account_id"]),
+            order_intents=order_intents,
+            recommendations=raw_recommendations,
+            user=user,
+        )
+        order_intents = self._attach_tracking_context(
+            order_intents=order_intents,
+            tracking_map=tracking_map,
+        )
+        order_intents = self._attach_confirmation_context(
+            account=account,
+            order_intents=order_intents,
+            data_health=data_health,
+            policy_context=risk_policy,
+        )
+        order_intents = self._attach_decision_card_context(
+            order_intents=order_intents,
+            data_health=data_health,
+        )
         order_intents = sorted(order_intents, key=lambda item: (item.priority, item.asset_code))
         for intent in order_intents:
             if intent.blocking_status != "OK":
@@ -325,23 +819,360 @@ class GenerateAdvisorDecisionSheetUseCase:
                 )
 
         allocation = _build_allocation_payload(holdings, total_asset=total_asset)
-        verdict = _resolve_verdict(order_intents=order_intents, blockers=blockers, warnings=warnings)
+        if data_health.get("must_not_use_for_decision"):
+            warnings.extend(_data_health_warnings(data_health))
+        if recommendation_conflicts:
+            warnings.extend(
+                f"recommendation_conflict:{item['asset_code']}:{item['conflict_reason']}"
+                for item in recommendation_conflicts
+            )
+        verdict = _resolve_verdict(
+            order_intents=order_intents,
+            blockers=blockers,
+            warnings=warnings,
+            data_health_blocked=bool(data_health.get("must_not_use_for_decision")),
+            has_recommendation_conflicts=bool(recommendation_conflicts),
+        )
         next_actions = _build_next_actions(verdict=verdict, has_orders=bool(order_intents))
+        order_payloads = [intent.to_dict() for intent in order_intents]
+        execution_plan = _build_advisor_execution_plan(
+            account=account,
+            order_payloads=order_payloads,
+            verdict=verdict,
+            data_health=data_health,
+        )
 
         return {
             "account": account,
             "baseline": snapshot.baseline,
             "generated_at": _now_iso(),
             "today_conclusion": verdict,
-            "risk_summary": _build_risk_summary(holdings, blockers, warnings),
+            "risk_policy": risk_policy,
+            "data_health": data_health,
+            "exposure_summary": exposure_summary,
+            "risk_summary": _build_risk_summary(
+                holdings,
+                blockers,
+                warnings,
+                exposure_summary=exposure_summary,
+            ),
             "holdings": [holding.to_dict() for holding in holdings],
             "allocation": allocation,
             "order_summary": _build_order_summary(order_intents),
-            "order_intents": [intent.to_dict() for intent in order_intents],
+            "order_intents": order_payloads,
+            "decision_cards": [item["decision_card"] for item in order_payloads],
+            "execution_plan": execution_plan,
+            "recommendation_conflicts": recommendation_conflicts,
             "blockers": blockers,
             "warnings": warnings,
             "next_actions": next_actions,
         }
+
+    def _get_risk_policy_context(self, *, account_id: str) -> dict[str, Any]:
+        try:
+            return self.risk_gate_provider.get_policy_context(account_id=account_id)
+        except Exception as exc:
+            return _normalize_risk_policy_context(
+                {
+                    "account_id": account_id,
+                    "warnings": [f"risk_policy_unavailable:{exc}"],
+                },
+                unavailable=True,
+            )
+
+    def _get_data_health(self, *, asset_codes: list[str]) -> dict[str, Any]:
+        try:
+            return _normalize_data_health_payload(
+                self.data_health_provider.get_health(asset_codes=asset_codes)
+            )
+        except Exception as exc:
+            return _normalize_data_health_payload(
+                {
+                    "status": "blocked",
+                    "asset_codes": asset_codes,
+                    "must_not_use_for_decision": True,
+                    "blocked_reasons": [f"decision_data_health_unavailable:{exc}"],
+                }
+            )
+
+    def _get_exposure_map(self, *, asset_codes: list[str]) -> dict[str, dict[str, Any]]:
+        try:
+            return _normalize_exposure_map(
+                self.exposure_provider.get_asset_exposures(asset_codes=asset_codes)
+            )
+        except Exception as exc:
+            return {
+                asset_code: {"lookup_error": str(exc)}
+                for asset_code in _unique_asset_codes(asset_codes)
+            }
+
+    def _get_recommendation_tracking(
+        self,
+        *,
+        account_id: str,
+        order_intents: list[AdvisorOrderIntent],
+        recommendations: list[Any],
+        user: Any,
+    ) -> dict[str, dict[str, Any]]:
+        recommendation_ids = _dedupe_preserve_order(
+            [
+                recommendation_id
+                for intent in order_intents
+                for recommendation_id in intent.source_recommendation_ids
+            ]
+        )
+        recommendation_by_id = {
+            _recommendation_id(recommendation): recommendation
+            for recommendation in recommendations
+            if _recommendation_id(recommendation)
+        }
+        try:
+            links_by_id = self.tracking_provider.get_execution_links(
+                account_id=account_id,
+                recommendation_ids=recommendation_ids,
+                user=user,
+            )
+        except Exception as exc:
+            return {
+                recommendation_id: self._recommendation_tracking_payload_with_context(
+                    recommendation_id=recommendation_id,
+                    recommendation=recommendation_by_id.get(recommendation_id),
+                    execution_links=[],
+                    lookup_error=str(exc),
+                )
+                for recommendation_id in recommendation_ids
+            }
+        return {
+            recommendation_id: self._recommendation_tracking_payload_with_context(
+                recommendation_id=recommendation_id,
+                recommendation=recommendation_by_id.get(recommendation_id),
+                execution_links=links_by_id.get(recommendation_id, []),
+                lookup_error="",
+            )
+            for recommendation_id in recommendation_ids
+        }
+
+    def _recommendation_tracking_payload_with_context(
+        self,
+        *,
+        recommendation_id: str,
+        recommendation: Any | None,
+        execution_links: list[dict[str, Any]],
+        lookup_error: str,
+    ) -> dict[str, Any]:
+        performance = _recommendation_performance_payload(
+            recommendation=recommendation,
+            performance_provider=self.performance_provider,
+        )
+        attribution_context = self._get_attribution_context(performance=performance)
+        return _recommendation_tracking_payload(
+            recommendation_id=recommendation_id,
+            recommendation=recommendation,
+            execution_links=execution_links,
+            performance=performance,
+            lookup_error=lookup_error,
+            attribution_context=attribution_context,
+        )
+
+    def _get_attribution_context(self, *, performance: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self.attribution_context_provider.get_context(
+                recommendation_date=_date_from_any(performance.get("anchor_date")),
+                outcome_date=_performance_outcome_date(performance),
+            )
+        except Exception as exc:
+            return {
+                "recommendation": {
+                    "status": "LOOKUP_FAILED",
+                    "date": performance.get("anchor_date"),
+                    "errors": [str(exc)],
+                },
+                "outcome": {
+                    "status": "LOOKUP_FAILED",
+                    "date": None,
+                    "errors": [str(exc)],
+                },
+            }
+
+    def _apply_risk_gate(
+        self,
+        *,
+        account: dict[str, Any],
+        holdings: list[AdvisorHoldingSnapshot],
+        order_intents: list[AdvisorOrderIntent],
+        policy_context: dict[str, Any],
+    ) -> list[AdvisorOrderIntent]:
+        gated: list[AdvisorOrderIntent] = []
+        for intent in order_intents:
+            gate = self.risk_gate_provider.evaluate_order(
+                account=account,
+                intent=intent,
+                holdings=holdings,
+                policy_context=policy_context,
+            )
+            risk_gate_status = str(gate.get("status") or "NOT_CHECKED")
+            if risk_gate_status == "SKIPPED" and intent.risk_gate_status != "NOT_CHECKED":
+                risk_gate_status = intent.risk_gate_status
+            blocking_status = intent.blocking_status
+            risk_notes = list(intent.risk_notes)
+            if risk_gate_status == "REVIEW":
+                risk_notes.extend(str(item) for item in gate.get("messages") or [])
+            if risk_gate_status == "BLOCKED" and blocking_status == "OK":
+                blocking_status = (
+                    RISK_POLICY_UNAVAILABLE_STATUS
+                    if gate.get("code") == "risk_policy_unavailable"
+                    else RISK_GATE_BLOCKING_STATUS
+                )
+                risk_notes.extend(str(item) for item in gate.get("messages") or [])
+            gated.append(
+                _replace_intent(
+                    intent,
+                    blocking_status=blocking_status,
+                    risk_notes=_dedupe_preserve_order(risk_notes),
+                    risk_gate_status=risk_gate_status,
+                    risk_gate={
+                        **dict(intent.risk_gate),
+                        "risk_center": gate,
+                    },
+                )
+            )
+        return gated
+
+    def _apply_execution_guard(
+        self,
+        *,
+        intent: AdvisorOrderIntent,
+        recommendation: Any | None,
+        resolution: dict[str, Any] | None,
+    ) -> AdvisorOrderIntent:
+        if intent.blocking_status != "OK":
+            return intent
+        guard = self.execution_guard_provider.evaluate(
+            recommendation=recommendation,
+            intent=intent,
+            resolution=resolution,
+        )
+        if guard.get("status") != "BLOCKED":
+            return _replace_intent(
+                intent,
+                risk_gate={
+                    **dict(intent.risk_gate),
+                    "execution_guard": guard,
+                },
+            )
+        return _replace_intent(
+            intent,
+            blocking_status=EXECUTION_GUARD_BLOCKING_STATUS,
+            risk_gate_status="BLOCKED",
+            risk_gate={
+                **dict(intent.risk_gate),
+                "execution_guard": guard,
+            },
+            risk_notes=_dedupe_preserve_order(
+                [
+                    *intent.risk_notes,
+                    *(str(item) for item in guard.get("messages") or []),
+                ]
+            ),
+        )
+
+    def _apply_exposure_guard(
+        self,
+        *,
+        order_intents: list[AdvisorOrderIntent],
+        exposure_summary: dict[str, Any],
+    ) -> list[AdvisorOrderIntent]:
+        alerts_by_asset: dict[str, list[dict[str, Any]]] = {}
+        for alert in exposure_summary.get("alerts") or []:
+            asset_code = str(alert.get("asset_code") or "").strip().upper()
+            if asset_code:
+                alerts_by_asset.setdefault(asset_code, []).append(dict(alert))
+
+        guarded: list[AdvisorOrderIntent] = []
+        for intent in order_intents:
+            guard = _exposure_guard_for_intent(
+                intent,
+                alerts_by_asset.get(intent.asset_code, []),
+            )
+            if guard["status"] != "BLOCKED":
+                guarded.append(
+                    _replace_intent(
+                        intent,
+                        risk_gate={
+                            **dict(intent.risk_gate),
+                            "exposure_guard": guard,
+                        },
+                    )
+                )
+                continue
+            guarded.append(
+                _replace_intent(
+                    intent,
+                    blocking_status=EXPOSURE_LIMIT_BLOCKING_STATUS,
+                    risk_gate_status="BLOCKED",
+                    risk_gate={
+                        **dict(intent.risk_gate),
+                        "exposure_guard": guard,
+                    },
+                    risk_notes=_dedupe_preserve_order(
+                        [
+                            *intent.risk_notes,
+                            *(str(item) for item in guard.get("messages") or []),
+                        ]
+                    ),
+                )
+            )
+        return guarded
+
+    def _attach_decision_card_context(
+        self,
+        *,
+        order_intents: list[AdvisorOrderIntent],
+        data_health: dict[str, Any],
+    ) -> list[AdvisorOrderIntent]:
+        return [
+            _replace_intent(
+                intent,
+                data_asof=_data_asof_for_asset(data_health, intent.asset_code),
+            )
+            for intent in order_intents
+        ]
+
+    def _attach_tracking_context(
+        self,
+        *,
+        order_intents: list[AdvisorOrderIntent],
+        tracking_map: dict[str, dict[str, Any]],
+    ) -> list[AdvisorOrderIntent]:
+        return [
+            _replace_intent(
+                intent,
+                tracking=_order_tracking_payload(intent, tracking_map),
+            )
+            for intent in order_intents
+        ]
+
+    def _attach_confirmation_context(
+        self,
+        *,
+        account: dict[str, Any],
+        order_intents: list[AdvisorOrderIntent],
+        data_health: dict[str, Any],
+        policy_context: dict[str, Any],
+    ) -> list[AdvisorOrderIntent]:
+        return [
+            _replace_intent(
+                intent,
+                confirmation=_confirmation_payload_for_intent(
+                    intent=intent,
+                    account=account,
+                    order_intents=order_intents,
+                    data_health=data_health,
+                    policy_context=policy_context,
+                ),
+            )
+            for intent in order_intents
+        ]
 
     def _build_existing_holding_intent(
         self,
@@ -410,6 +1241,13 @@ class GenerateAdvisorDecisionSheetUseCase:
         if holding.current_price is None or holding.current_price <= 0:
             blocking_status = "BLOCKED_PRICE_MISSING"
             risk_notes.append("缺少有效现价，不能计算真实订单金额。")
+        target_quantity = holding.quantity
+        if blocking_status == "OK":
+            target_quantity = _target_quantity(
+                total_asset=total_asset,
+                target_weight=target_weight,
+                price=holding.current_price,
+            )
 
         return self._intent_from_values(
             account_id=account_id,
@@ -417,11 +1255,7 @@ class GenerateAdvisorDecisionSheetUseCase:
             asset_name=holding.asset_name,
             side=side,
             current_quantity=holding.quantity,
-            target_quantity=_target_quantity(
-                total_asset=total_asset,
-                target_weight=target_weight,
-                price=holding.current_price,
-            ),
+            target_quantity=target_quantity,
             current_weight=holding.current_weight,
             target_weight=target_weight,
             estimated_price=holding.current_price,
@@ -535,6 +1369,9 @@ class GenerateAdvisorDecisionSheetUseCase:
             execution_hint=execution_hint,
             source_recommendation_id=source_recommendation_id,
             blocking_status=blocking_status,
+            source_recommendation_ids=(
+                [source_recommendation_id] if source_recommendation_id else []
+            ),
         )
 
 
@@ -640,6 +1477,283 @@ def _build_allocation_payload(
     return payload
 
 
+def _build_exposure_summary(
+    *,
+    holdings: list[AdvisorHoldingSnapshot],
+    order_intents: list[AdvisorOrderIntent],
+    exposure_map: dict[str, dict[str, Any]],
+    recommendations: list[Any],
+    total_asset: Decimal,
+    policy_context: dict[str, Any],
+) -> dict[str, Any]:
+    limits = _policy_exposure_limits(policy_context)
+    strategy_by_asset = _strategy_by_asset(holdings=holdings, recommendations=recommendations)
+    rows: dict[str, dict[str, dict[str, Any]]] = {
+        "sector": {},
+        "industry": {},
+        "strategy": {},
+    }
+    missing_assets: list[str] = []
+
+    def add_amount(
+        *,
+        dimension: str,
+        name: str,
+        asset_code: str,
+        current_delta: Decimal,
+        projected_delta: Decimal,
+    ) -> None:
+        bucket = rows[dimension].setdefault(
+            name,
+            {
+                "name": name,
+                "current_amount": Decimal("0"),
+                "projected_amount": Decimal("0"),
+                "asset_codes": [],
+            },
+        )
+        bucket["current_amount"] += current_delta
+        bucket["projected_amount"] += projected_delta
+        bucket["asset_codes"] = _dedupe_preserve_order(
+            [*bucket["asset_codes"], asset_code]
+        )
+
+    for holding in holdings:
+        labels = _exposure_labels_for_asset(
+            holding.asset_code,
+            exposure_map=exposure_map,
+            strategy_by_asset=strategy_by_asset,
+            fallback_strategy=holding.asset_class,
+        )
+        if labels["missing"]:
+            missing_assets.append(holding.asset_code)
+        for dimension in ("sector", "industry", "strategy"):
+            add_amount(
+                dimension=dimension,
+                name=labels[dimension],
+                asset_code=holding.asset_code,
+                current_delta=holding.market_value,
+                projected_delta=holding.market_value,
+            )
+
+    for intent in order_intents:
+        if intent.blocking_status != "OK" or intent.side not in ACTIONABLE_SIDES:
+            continue
+        direction = Decimal("1") if intent.side in BUY_SIDES else Decimal("-1")
+        delta = direction * intent.estimated_amount
+        labels = _exposure_labels_for_asset(
+            intent.asset_code,
+            exposure_map=exposure_map,
+            strategy_by_asset=strategy_by_asset,
+            fallback_strategy="unknown",
+        )
+        if labels["missing"]:
+            missing_assets.append(intent.asset_code)
+        for dimension in ("sector", "industry", "strategy"):
+            add_amount(
+                dimension=dimension,
+                name=labels[dimension],
+                asset_code=intent.asset_code,
+                current_delta=Decimal("0"),
+                projected_delta=delta,
+            )
+
+    payload: dict[str, Any] = {
+        "total_asset": _decimal_to_number(total_asset),
+        "limits": {
+            dimension: _decimal_to_number(limit)
+            for dimension, limit in limits.items()
+            if limit is not None
+        },
+        "by_sector": [],
+        "by_industry": [],
+        "by_strategy": [],
+        "alerts": [],
+        "missing_exposure_assets": _dedupe_preserve_order(missing_assets),
+    }
+
+    for dimension, groups in rows.items():
+        limit = limits[dimension]
+        output_key = f"by_{dimension}"
+        for name, item in sorted(groups.items()):
+            current_amount = max(item["current_amount"], Decimal("0"))
+            projected_amount = max(item["projected_amount"], Decimal("0"))
+            current_weight = current_amount / total_asset if total_asset > 0 else Decimal("0")
+            projected_weight = projected_amount / total_asset if total_asset > 0 else Decimal("0")
+            status = "UNCONFIGURED"
+            if limit is not None:
+                status = "BREACH" if projected_weight > limit else "OK"
+            row = {
+                "name": name,
+                "current_amount": _decimal_to_number(current_amount),
+                "current_weight": _decimal_to_number(current_weight),
+                "projected_amount": _decimal_to_number(projected_amount),
+                "projected_weight": _decimal_to_number(projected_weight),
+                "limit": _decimal_to_number(limit),
+                "status": status,
+                "asset_codes": list(item["asset_codes"]),
+            }
+            payload[output_key].append(row)
+            if status == "BREACH":
+                payload["alerts"].extend(
+                    _exposure_alerts_for_group(
+                        dimension=dimension,
+                        group=row,
+                        order_intents=order_intents,
+                    )
+                )
+    return payload
+
+
+def _exposure_alerts_for_group(
+    *,
+    dimension: str,
+    group: dict[str, Any],
+    order_intents: list[AdvisorOrderIntent],
+) -> list[dict[str, Any]]:
+    alerts: list[dict[str, Any]] = []
+    buy_codes = {
+        intent.asset_code
+        for intent in order_intents
+        if intent.side in BUY_SIDES and intent.blocking_status == "OK"
+    }
+    for asset_code in group["asset_codes"]:
+        if asset_code not in buy_codes:
+            continue
+        message = (
+            f"{dimension} 暴露 {group['name']} 预计权重 "
+            f"{group['projected_weight']:.2%} 超过上限 {group['limit']:.2%}。"
+        )
+        alerts.append(
+            {
+                "asset_code": asset_code,
+                "dimension": dimension,
+                "name": group["name"],
+                "projected_weight": group["projected_weight"],
+                "limit": group["limit"],
+                "message": message,
+            }
+        )
+    return alerts
+
+
+def _exposure_guard_for_intent(
+    intent: AdvisorOrderIntent,
+    alerts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if intent.blocking_status != "OK" or intent.side not in BUY_SIDES:
+        return {"status": "SKIPPED", "code": "not_buy_or_already_blocked", "messages": []}
+    if not alerts:
+        return {"status": "OK", "code": "exposure_guard_passed", "messages": []}
+    return {
+        "status": "BLOCKED",
+        "code": "exposure_limit_exceeded",
+        "messages": [str(item.get("message") or "") for item in alerts if item.get("message")],
+        "alerts": alerts,
+    }
+
+
+def _policy_exposure_limits(policy_context: dict[str, Any]) -> dict[str, Decimal | None]:
+    parameters = dict(policy_context.get("parameters") or {})
+    return {
+        "sector": _policy_limit_weight(parameters.get("max_sector_position_pct")),
+        "industry": _policy_limit_weight(parameters.get("max_industry_position_pct")),
+        "strategy": _policy_limit_weight(parameters.get("max_strategy_position_pct")),
+    }
+
+
+def _policy_limit_weight(value: Any) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    limit = _to_decimal(value)
+    if limit <= 0:
+        return None
+    if limit > Decimal("1"):
+        limit = limit / Decimal("100")
+    return limit
+
+
+def _normalize_exposure_map(raw: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    normalized: dict[str, dict[str, Any]] = {}
+    for asset_code, payload in (raw or {}).items():
+        code = str(asset_code or "").strip().upper()
+        if not code:
+            continue
+        item = dict(payload or {})
+        normalized[code] = {
+            "sector": str(item.get("sector") or "").strip(),
+            "industry": str(item.get("industry") or "").strip(),
+            "asset_type": str(item.get("asset_type") or "").strip(),
+            "strategy": str(
+                item.get("strategy")
+                or item.get("strategy_bucket")
+                or item.get("strategy_key")
+                or ""
+            ).strip(),
+            "lookup_error": str(item.get("lookup_error") or "").strip(),
+        }
+    return normalized
+
+
+def _strategy_by_asset(
+    *,
+    holdings: list[AdvisorHoldingSnapshot],
+    recommendations: list[Any],
+) -> dict[str, str]:
+    strategies = {
+        holding.asset_code: holding.asset_class
+        for holding in holdings
+        if holding.asset_code and holding.asset_class
+    }
+    for recommendation in recommendations:
+        asset_code = _recommendation_asset_code(recommendation)
+        strategy = _recommendation_strategy(recommendation)
+        if asset_code and strategy:
+            strategies[asset_code] = strategy
+    return strategies
+
+
+def _recommendation_strategy(recommendation: Any | None) -> str:
+    if recommendation is None:
+        return ""
+    for attr in (
+        "strategy_bucket",
+        "strategy_key",
+        "strategy",
+        "source_strategy",
+        "source_type",
+        "source_module",
+    ):
+        value = str(getattr(recommendation, attr, "") or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _exposure_labels_for_asset(
+    asset_code: str,
+    *,
+    exposure_map: dict[str, dict[str, Any]],
+    strategy_by_asset: dict[str, str],
+    fallback_strategy: str,
+) -> dict[str, Any]:
+    exposure = exposure_map.get(asset_code) or {}
+    sector = str(exposure.get("sector") or "").strip() or "unknown"
+    industry = str(exposure.get("industry") or "").strip() or "unknown"
+    strategy = (
+        str(exposure.get("strategy") or "").strip()
+        or str(strategy_by_asset.get(asset_code) or "").strip()
+        or fallback_strategy
+        or "unknown"
+    )
+    return {
+        "sector": sector,
+        "industry": industry,
+        "strategy": strategy,
+        "missing": sector == "unknown" or industry == "unknown",
+    }
+
+
 def _build_order_summary(order_intents: list[AdvisorOrderIntent]) -> dict[str, Any]:
     counts = dict.fromkeys(["BUY", "ADD", "REDUCE", "EXIT", "HOLD", "WATCH"], 0)
     actionable_count = 0
@@ -663,10 +1777,236 @@ def _build_order_summary(order_intents: list[AdvisorOrderIntent]) -> dict[str, A
     }
 
 
+def _build_advisor_execution_plan(
+    *,
+    account: dict[str, Any],
+    order_payloads: list[dict[str, Any]],
+    verdict: str,
+    data_health: dict[str, Any],
+) -> dict[str, Any]:
+    executable_orders = [
+        order
+        for order in order_payloads
+        if order.get("side") in ACTIONABLE_SIDES and order.get("blocking_status") == "OK"
+    ]
+    confirmation_required = any(
+        bool((order.get("confirmation") or {}).get("required"))
+        for order in executable_orders
+    )
+    account_type = str(account.get("account_type") or "").lower()
+    execution_mode = "real_confirm_only" if account_type == "real" else "semi_auto_plan"
+    if not executable_orders:
+        execution_mode = "no_executable_orders"
+    return {
+        "status": "READY_FOR_CONFIRMATION" if executable_orders else "NO_EXECUTABLE_ORDERS",
+        "execution_mode": execution_mode,
+        "broker_execution_enabled": False,
+        "requires_human_confirmation": confirmation_required,
+        "confirmation_status": (
+            "PENDING" if confirmation_required else "NOT_REQUIRED"
+        ),
+        "real_account_guard": {
+            "account_type": account_type or "unknown",
+            "real_broker_order_allowed": False,
+            "message": "真实账户只生成交易计划、确认和记录，不自动下单。",
+        },
+        "data_health_status": data_health.get("status"),
+        "orders_count": len(executable_orders),
+        "orders": [
+            {
+                "order_intent_id": order.get("order_intent_id"),
+                "asset_code": order.get("asset_code"),
+                "asset_name": order.get("asset_name"),
+                "side": order.get("side"),
+                "suggested_quantity": abs(_to_decimal(order.get("delta_quantity"))),
+                "suggested_amount": order.get("estimated_amount"),
+                "price_band": order.get("price_band") or {},
+                "priority": order.get("priority"),
+                "pre_trade_checks": {
+                    "risk_gate_status": order.get("risk_gate_status"),
+                    "blocking_status": order.get("blocking_status"),
+                    "risk_gate": order.get("risk_gate") or {},
+                    "data_asof": order.get("data_asof") or {},
+                },
+                "valid_until": (order.get("decision_card") or {}).get("valid_until"),
+                "confirmation": order.get("confirmation") or {},
+            }
+            for order in executable_orders
+        ],
+    }
+
+
+def _confirmation_payload_for_intent(
+    *,
+    intent: AdvisorOrderIntent,
+    account: dict[str, Any],
+    order_intents: list[AdvisorOrderIntent],
+    data_health: dict[str, Any],
+    policy_context: dict[str, Any],
+) -> dict[str, Any]:
+    if intent.side not in ACTIONABLE_SIDES or intent.blocking_status != "OK":
+        return {
+            "required": False,
+            "status": "NOT_APPLICABLE",
+            "reasons": [],
+            "confirmable": False,
+            "confirmation_token": None,
+        }
+
+    parameters = dict(policy_context.get("parameters") or {})
+    threshold = _confirmation_amount_threshold(parameters)
+    reasons: list[dict[str, Any]] = []
+    if threshold is not None and intent.estimated_amount > threshold:
+        reasons.append(
+            {
+                "code": "large_order_amount",
+                "message": "单笔金额超过人工确认阈值。",
+                "threshold": _decimal_to_number(threshold),
+                "actual": _decimal_to_number(intent.estimated_amount),
+            }
+        )
+    if intent.side in {"REDUCE", "EXIT"}:
+        sell_reason = _sell_confirmation_reason(intent)
+        if sell_reason:
+            reasons.append(sell_reason)
+    if intent.side == "ADD":
+        reasons.append(
+            {
+                "code": "consecutive_add",
+                "message": "连续加仓或对已持仓资产加仓，需要人工确认。",
+            }
+        )
+    if _actionable_orders_count(order_intents) > _daily_trade_confirmation_threshold(parameters):
+        reasons.append(
+            {
+                "code": "multiple_daily_trades",
+                "message": "当天建议执行单数较多，需要人工确认。",
+                "actual": _actionable_orders_count(order_intents),
+            }
+        )
+    if _data_health_requires_confirmation(data_health):
+        reasons.append(
+            {
+                "code": "data_health_warning",
+                "message": "存在数据健康 warning/blocking 信息，执行前需要人工确认。",
+                "status": data_health.get("status"),
+            }
+        )
+    if _is_high_volatility_asset(intent, parameters):
+        reasons.append(
+            {
+                "code": "high_volatility_asset",
+                "message": "高波动资产买入或加仓需要人工确认。",
+            }
+        )
+    if str(account.get("account_type") or "").lower() == "real":
+        reasons.append(
+            {
+                "code": "real_account_manual_confirm",
+                "message": "真实账户只允许建议、确认和记录，不允许自动下单。",
+            }
+        )
+
+    reasons = _dedupe_confirmation_reasons(reasons)
+    return {
+        "required": bool(reasons),
+        "status": "PENDING" if reasons else "NOT_REQUIRED",
+        "reasons": reasons,
+        "confirmable": True,
+        "confirmation_token": None,
+        "approval_entry": {
+            "kind": "advisor_order_intent",
+            "order_intent_id": intent.order_intent_id,
+            "source_recommendation_ids": list(intent.source_recommendation_ids),
+        },
+    }
+
+
+def _confirmation_amount_threshold(parameters: dict[str, Any]) -> Decimal | None:
+    for key in ("advisor_confirmation_amount_threshold", "confirmation_amount_threshold", "large_order_amount_threshold"):
+        value = parameters.get(key)
+        if value not in (None, ""):
+            threshold = _to_decimal(value)
+            return threshold if threshold > 0 else None
+    return Decimal("50000")
+
+
+def _daily_trade_confirmation_threshold(parameters: dict[str, Any]) -> int:
+    value = _to_decimal(parameters.get("daily_trade_confirmation_threshold", 3))
+    return max(1, int(value))
+
+
+def _actionable_orders_count(order_intents: list[AdvisorOrderIntent]) -> int:
+    return len(
+        [
+            intent
+            for intent in order_intents
+            if intent.side in ACTIONABLE_SIDES and intent.blocking_status == "OK"
+        ]
+    )
+
+
+def _sell_confirmation_reason(intent: AdvisorOrderIntent) -> dict[str, Any] | None:
+    if "浮亏超过 10%" in intent.reason:
+        return {
+            "code": "large_loss_exit",
+            "message": "卖出亏损持仓，需要人工确认。",
+        }
+    if intent.side == "EXIT" and intent.current_weight >= Decimal("0.10"):
+        return {
+            "code": "large_position_exit",
+            "message": "清仓较大持仓，需要人工确认。",
+        }
+    return None
+
+
+def _data_health_requires_confirmation(data_health: dict[str, Any]) -> bool:
+    if data_health.get("status") not in {None, "", "ok"}:
+        return True
+    if data_health.get("blocked_reasons"):
+        return True
+    quotes = data_health.get("quotes") or {}
+    for quote in quotes.values():
+        if not isinstance(quote, dict):
+            continue
+        freshness = str(quote.get("freshness_status") or quote.get("status") or "").lower()
+        if freshness and freshness not in {"ok", "fresh"}:
+            return True
+    return False
+
+
+def _is_high_volatility_asset(intent: AdvisorOrderIntent, parameters: dict[str, Any]) -> bool:
+    raw_assets = parameters.get("high_volatility_assets", []) or []
+    if isinstance(raw_assets, str):
+        raw_assets = [item.strip() for item in raw_assets.split(",")]
+    configured = {
+        str(item).strip().upper()
+        for item in raw_assets
+    }
+    if intent.asset_code in configured:
+        return True
+    risk_notes = " ".join(intent.risk_notes).lower()
+    return "高波动" in risk_notes or "volatility" in risk_notes
+
+
+def _dedupe_confirmation_reasons(reasons: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    result: list[dict[str, Any]] = []
+    for reason in reasons:
+        code = str(reason.get("code") or "")
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        result.append(reason)
+    return result
+
+
 def _build_risk_summary(
     holdings: list[AdvisorHoldingSnapshot],
     blockers: list[dict[str, Any]],
     warnings: list[str],
+    *,
+    exposure_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     top_weight = max((holding.current_weight for holding in holdings), default=Decimal("0"))
     over_weight = [holding.asset_code for holding in holdings if holding.current_weight > Decimal("0.25")]
@@ -675,6 +2015,7 @@ def _build_risk_summary(
         "overweight_positions": over_weight,
         "blocker_count": len(blockers),
         "warning_count": len(warnings),
+        "exposure_alerts": list((exposure_summary or {}).get("alerts") or []),
     }
 
 
@@ -699,11 +2040,19 @@ def _resolve_verdict(
     order_intents: list[AdvisorOrderIntent],
     blockers: list[dict[str, Any]],
     warnings: list[str],
+    data_health_blocked: bool = False,
+    has_recommendation_conflicts: bool = False,
 ) -> str:
     actionable = [item for item in order_intents if item.side in ACTIONABLE_SIDES]
     executable = [item for item in actionable if item.blocking_status == "OK"]
     if actionable and not executable:
         return "BLOCKED"
+    if data_health_blocked and executable:
+        return "REVIEW"
+    if has_recommendation_conflicts and executable:
+        return "REVIEW"
+    if any(item.risk_gate_status == "REVIEW" for item in executable):
+        return "REVIEW"
     if executable:
         return "ACT"
     if blockers or warnings:
@@ -729,6 +2078,717 @@ def _find_recommendation_for_asset(recommendations: list[Any], asset_code: str) 
     return None
 
 
+def _consolidate_recommendations(
+    recommendations: list[Any],
+    *,
+    held_asset_codes: set[str],
+) -> dict[str, Any]:
+    """Resolve duplicate/conflicting recommendations into one final input per asset."""
+
+    grouped: dict[str, list[Any]] = {}
+    for recommendation in recommendations:
+        asset_code = _recommendation_asset_code(recommendation)
+        if asset_code:
+            grouped.setdefault(asset_code, []).append(recommendation)
+
+    selected: list[Any] = []
+    resolutions_by_asset: dict[str, dict[str, Any]] = {}
+    conflicts: list[dict[str, Any]] = []
+    for asset_code, candidates in grouped.items():
+        has_holding = asset_code in held_asset_codes
+        ranked = sorted(
+            candidates,
+            key=lambda item: _recommendation_sort_key(item, has_holding=has_holding),
+        )
+        accepted = ranked[0]
+        rejected = ranked[1:]
+        accepted_side = _normalize_recommendation_side(accepted) or "UNKNOWN"
+        sides = _dedupe_preserve_order(
+            [_normalize_recommendation_side(item) or "UNKNOWN" for item in candidates]
+        )
+        has_conflict = len({side for side in sides if side != "UNKNOWN"}) > 1
+        conflict_reason = ""
+        if has_conflict:
+            rejected_labels = ", ".join(
+                f"{_recommendation_id(item)}:{_normalize_recommendation_side(item) or 'UNKNOWN'}"
+                for item in rejected
+            )
+            conflict_reason = (
+                f"同一标的出现方向冲突 {', '.join(sides)}；"
+                f"最终采纳 {accepted_side}，拒绝 {rejected_labels or '-'}。"
+            )
+            conflicts.append(
+                {
+                    "asset_code": asset_code,
+                    "accepted_recommendation_id": _recommendation_id(accepted),
+                    "accepted_side": accepted_side,
+                    "rejected_recommendations": [
+                        _recommendation_trace(item) for item in rejected
+                    ],
+                    "conflict_reason": conflict_reason,
+                }
+            )
+        elif rejected:
+            conflict_reason = (
+                "同一标的出现重复建议；保留评分/优先级最高的一条，"
+                "其余作为来源信号附加。"
+            )
+
+        selected.append(accepted)
+        resolutions_by_asset[asset_code] = {
+            "asset_code": asset_code,
+            "status": "CONFLICT" if has_conflict else "MERGED" if rejected else "SINGLE",
+            "accepted_recommendation_id": _recommendation_id(accepted),
+            "accepted_side": accepted_side,
+            "source_recommendation_ids": _dedupe_preserve_order(
+                [_recommendation_id(item) for item in candidates if _recommendation_id(item)]
+            ),
+            "source_signal_ids": _dedupe_preserve_order(
+                [
+                    str(signal_id)
+                    for item in candidates
+                    for signal_id in _recommendation_source_signal_ids(item)
+                ]
+            ),
+            "source_candidate_ids": _dedupe_preserve_order(
+                [
+                    str(candidate_id)
+                    for item in candidates
+                    for candidate_id in _recommendation_source_candidate_ids(item)
+                ]
+            ),
+            "rejected_recommendations": [
+                _recommendation_trace(item) for item in rejected
+            ],
+            "conflict_reason": conflict_reason,
+        }
+
+    return {
+        "selected_recommendations": selected,
+        "resolutions_by_asset": resolutions_by_asset,
+        "conflicts": conflicts,
+    }
+
+
+def _recommendation_sort_key(
+    recommendation: Any,
+    *,
+    has_holding: bool,
+) -> tuple[int, Decimal, Decimal, str]:
+    side = _normalize_recommendation_side(recommendation)
+    if has_holding:
+        side_rank = {"EXIT": 0, "REDUCE": 1, "BUY": 2, "ADD": 2, "HOLD": 3}.get(side, 4)
+    else:
+        side_rank = {"BUY": 0, "ADD": 0, "HOLD": 2, "REDUCE": 3, "EXIT": 3}.get(side, 4)
+    confidence = _to_decimal(getattr(recommendation, "confidence", 0))
+    composite_score = _to_decimal(getattr(recommendation, "composite_score", 0))
+    return (side_rank, -confidence, -composite_score, _recommendation_id(recommendation))
+
+
+def _attach_recommendation_resolution(
+    intent: AdvisorOrderIntent,
+    resolution: dict[str, Any] | None,
+) -> AdvisorOrderIntent:
+    if not resolution:
+        return intent
+    risk_notes = list(intent.risk_notes)
+    conflict_reason = str(resolution.get("conflict_reason") or "")
+    if resolution.get("status") == "CONFLICT" and conflict_reason:
+        risk_notes.append(conflict_reason)
+    return _replace_intent(
+        intent,
+        source_recommendation_ids=list(resolution.get("source_recommendation_ids") or []),
+        conflict_resolution=resolution,
+        risk_notes=_dedupe_preserve_order(risk_notes),
+    )
+
+
+def _recommendation_trace(recommendation: Any) -> dict[str, Any]:
+    return {
+        "recommendation_id": _recommendation_id(recommendation),
+        "side": _normalize_recommendation_side(recommendation) or "UNKNOWN",
+        "confidence": _decimal_to_number(_to_decimal(getattr(recommendation, "confidence", 0))),
+        "composite_score": _decimal_to_number(
+            _to_decimal(getattr(recommendation, "composite_score", 0))
+        ),
+        "reason": _recommendation_reason(recommendation),
+    }
+
+
+def _recommendation_tracking_payload(
+    *,
+    recommendation_id: str,
+    recommendation: Any | None,
+    execution_links: list[dict[str, Any]],
+    performance: dict[str, Any],
+    lookup_error: str,
+    attribution_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    user_action = str(getattr(recommendation, "user_action", "") or "UNKNOWN")
+    if hasattr(getattr(recommendation, "user_action", None), "value"):
+        user_action = str(recommendation.user_action.value)
+    enriched_performance = _performance_with_deep_attribution(
+        performance=performance,
+        recommendation=recommendation,
+        user_action=user_action,
+        attribution_context=attribution_context or {},
+    )
+    return {
+        "recommendation_id": recommendation_id,
+        "user_action": user_action,
+        "user_action_note": str(getattr(recommendation, "user_action_note", "") or ""),
+        "user_action_at": _serialize_time(getattr(recommendation, "user_action_at", "")),
+        "execution_links": execution_links,
+        "execution_count": len(execution_links),
+        "is_executed": bool(execution_links),
+        "performance": enriched_performance,
+        "lookup_error": lookup_error,
+    }
+
+
+def _order_tracking_payload(
+    intent: AdvisorOrderIntent,
+    tracking_map: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    source_ids = list(intent.source_recommendation_ids or [])
+    recommendation_rows = [
+        tracking_map.get(source_id)
+        or _recommendation_tracking_payload(
+            recommendation_id=source_id,
+            recommendation=None,
+            execution_links=[],
+            performance=_empty_recommendation_performance_payload(
+                status="NO_RECOMMENDATION",
+                reason="source recommendation is not available",
+            ),
+            lookup_error="",
+            attribution_context={},
+        )
+        for source_id in source_ids
+    ]
+    execution_links = [
+        link
+        for row in recommendation_rows
+        for link in row.get("execution_links", [])
+    ]
+    if not source_ids:
+        review_status = "NO_SOURCE_RECOMMENDATION"
+    elif execution_links:
+        review_status = "EXECUTED"
+    elif any(row.get("user_action") == "ADOPTED" for row in recommendation_rows):
+        review_status = "ADOPTED_PENDING_EXECUTION"
+    else:
+        review_status = "PENDING_REVIEW"
+    return {
+        "review_status": review_status,
+        "source_recommendation_ids": source_ids,
+        "recommendations": recommendation_rows,
+        "execution_links": execution_links,
+        "execution_count": len(execution_links),
+        "is_executed": bool(execution_links),
+        "performance": _combined_order_performance(recommendation_rows),
+    }
+
+
+def _recommendation_performance_payload(
+    *,
+    recommendation: Any | None,
+    performance_provider: RecommendationPerformanceProviderProtocol,
+) -> dict[str, Any]:
+    if recommendation is None:
+        return _empty_recommendation_performance_payload(
+            status="NO_RECOMMENDATION",
+            reason="source recommendation is not available",
+        )
+
+    anchor_date = _recommendation_anchor_date(recommendation)
+    if anchor_date is None:
+        return _empty_recommendation_performance_payload(
+            status="MISSING_ANCHOR_DATE",
+            reason="recommendation created_at/user_action_at is unavailable",
+        )
+
+    asset_code = _recommendation_asset_code(recommendation)
+    if not asset_code:
+        return _empty_recommendation_performance_payload(
+            status="MISSING_ASSET_CODE",
+            reason="recommendation asset code is unavailable",
+        )
+
+    try:
+        series = performance_provider.get_close_price_series(
+            asset_code=asset_code,
+            start_date=anchor_date,
+            end_date=anchor_date + timedelta(days=70),
+        )
+    except Exception as exc:
+        return _empty_recommendation_performance_payload(
+            status="PRICE_LOOKUP_FAILED",
+            reason=str(exc),
+            anchor_date=anchor_date,
+        )
+
+    normalized_series = _normalize_price_series(series)
+    anchor_price = _recommendation_price(recommendation)
+    anchor_price_date: date | None = anchor_date if anchor_price else None
+    if anchor_price is None or anchor_price <= 0:
+        anchor_bar = _first_price_on_or_after(normalized_series, anchor_date)
+        if anchor_bar is not None:
+            anchor_price_date, anchor_price = anchor_bar
+    if anchor_price is None or anchor_price <= 0:
+        return _empty_recommendation_performance_payload(
+            status="ANCHOR_PRICE_UNAVAILABLE",
+            reason="anchor close price is unavailable",
+            anchor_date=anchor_date,
+        )
+
+    side = _normalize_recommendation_side(recommendation)
+    direction = Decimal("-1") if side in {"EXIT", "REDUCE"} else Decimal("1")
+    windows = {
+        f"{days}d": _performance_window_payload(
+            series=normalized_series,
+            anchor_date=anchor_date,
+            anchor_price=anchor_price,
+            days=days,
+            direction=direction,
+        )
+        for days in (7, 20, 60)
+    }
+    available_count = sum(1 for item in windows.values() if item["status"] == "AVAILABLE")
+    return {
+        "status": "AVAILABLE" if available_count else "PENDING",
+        "asset_code": asset_code,
+        "side": side or "UNKNOWN",
+        "anchor_date": anchor_date.isoformat(),
+        "anchor_price": _decimal_to_number(anchor_price),
+        "anchor_price_date": anchor_price_date.isoformat() if anchor_price_date else None,
+        "windows": windows,
+        "error_attribution": _performance_error_attribution(windows),
+    }
+
+
+def _empty_recommendation_performance_payload(
+    *,
+    status: str,
+    reason: str,
+    anchor_date: date | None = None,
+) -> dict[str, Any]:
+    return {
+        "status": status,
+        "reason": reason,
+        "anchor_date": anchor_date.isoformat() if anchor_date else None,
+        "anchor_price": None,
+        "anchor_price_date": None,
+        "windows": {
+            f"{days}d": {
+                "status": status,
+                "target_date": (
+                    (anchor_date + timedelta(days=days)).isoformat()
+                    if anchor_date
+                    else None
+                ),
+                "price_date": None,
+                "close_price": None,
+                "raw_return": None,
+                "directional_return": None,
+            }
+            for days in (7, 20, 60)
+        },
+        "error_attribution": {
+            "status": "PENDING",
+            "primary_category": None,
+            "reason": reason,
+            "evidence": [],
+        },
+    }
+
+
+def _performance_window_payload(
+    *,
+    series: list[tuple[date, Decimal]],
+    anchor_date: date,
+    anchor_price: Decimal,
+    days: int,
+    direction: Decimal,
+) -> dict[str, Any]:
+    target_date = anchor_date + timedelta(days=days)
+    price_bar = _first_price_on_or_after(series, target_date)
+    if price_bar is None:
+        status = "NOT_DUE" if target_date > datetime.now(UTC).date() else "PRICE_UNAVAILABLE"
+        return {
+            "status": status,
+            "target_date": target_date.isoformat(),
+            "price_date": None,
+            "close_price": None,
+            "raw_return": None,
+            "directional_return": None,
+        }
+
+    price_date, close_price = price_bar
+    raw_return = (close_price / anchor_price) - Decimal("1")
+    return {
+        "status": "AVAILABLE",
+        "target_date": target_date.isoformat(),
+        "price_date": price_date.isoformat(),
+        "close_price": _decimal_to_number(close_price),
+        "raw_return": _decimal_to_number(raw_return),
+        "directional_return": _decimal_to_number(raw_return * direction),
+    }
+
+
+def _combined_order_performance(recommendation_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    windows: dict[str, dict[str, Any]] = {}
+    for days in (7, 20, 60):
+        key = f"{days}d"
+        values = [
+            _optional_decimal((row.get("performance") or {}).get("windows", {}).get(key, {}).get("directional_return"))
+            for row in recommendation_rows
+        ]
+        available = [value for value in values if value is not None]
+        windows[key] = {
+            "status": "AVAILABLE" if available else "PENDING",
+            "available_count": len(available),
+            "recommendation_count": len(recommendation_rows),
+            "directional_return_avg": (
+                _decimal_to_number(sum(available, Decimal("0")) / Decimal(len(available)))
+                if available
+                else None
+            ),
+        }
+    return {
+        "recommendation_count": len(recommendation_rows),
+        "windows": windows,
+        "error_attribution": _combined_error_attribution(recommendation_rows),
+    }
+
+
+def _performance_error_attribution(windows: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    available = [
+        (key, _optional_decimal(payload.get("directional_return")))
+        for key, payload in windows.items()
+        if payload.get("status") == "AVAILABLE"
+    ]
+    available = [(key, value) for key, value in available if value is not None]
+    if not available:
+        return {
+            "status": "PENDING",
+            "primary_category": None,
+            "reason": "No matured performance window is available.",
+            "evidence": [],
+        }
+
+    latest_key, latest_return = available[-1]
+    evidence = [
+        {"window": key, "directional_return": _decimal_to_number(value)}
+        for key, value in available
+    ]
+    if latest_return >= 0:
+        return {
+            "status": "NO_ERROR",
+            "primary_category": None,
+            "reason": f"Latest available {latest_key} directional return is non-negative.",
+            "evidence": evidence,
+        }
+
+    first_key, first_return = available[0]
+    if first_return is not None and first_return < 0 and any(value > 0 for _, value in available[1:]):
+        category = "EXECUTION_TOO_EARLY"
+        reason = "Early window was negative but a later window recovered."
+    elif len(available) >= 2 and all(value < 0 for _, value in available):
+        category = "MODEL_MISJUDGMENT"
+        reason = "All matured windows are negative."
+    else:
+        category = "MODEL_MISJUDGMENT"
+        reason = f"Latest available {latest_key} directional return is negative."
+
+    return {
+        "status": "ATTRIBUTED",
+        "primary_category": category,
+        "reason": reason,
+        "evidence": evidence,
+        "first_negative_window": first_key if first_return is not None and first_return < 0 else latest_key,
+    }
+
+
+def _combined_error_attribution(recommendation_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    attributions = [
+        (row.get("performance") or {}).get("error_attribution") or {}
+        for row in recommendation_rows
+    ]
+    attributed = [item for item in attributions if item.get("status") == "ATTRIBUTED"]
+    if not attributed:
+        return {
+            "status": "PENDING_OR_NO_ERROR",
+            "primary_categories": [],
+            "attribution_count": 0,
+        }
+    categories = _dedupe_preserve_order(
+        [str(item.get("primary_category") or "") for item in attributed]
+    )
+    deep_categories = _dedupe_preserve_order(
+        str(category)
+        for item in attributions
+        for category in (
+            (item.get("deep_attribution") or {}).get("secondary_categories") or []
+        )
+        if category
+    )
+    return {
+        "status": "ATTRIBUTED",
+        "primary_categories": categories,
+        "deep_categories": deep_categories,
+        "attribution_count": len(attributed),
+    }
+
+
+def _performance_with_deep_attribution(
+    *,
+    performance: dict[str, Any],
+    recommendation: Any | None,
+    user_action: str,
+    attribution_context: dict[str, Any],
+) -> dict[str, Any]:
+    payload = dict(performance or {})
+    attribution = dict(payload.get("error_attribution") or {})
+    attribution["deep_attribution"] = _deep_error_attribution_payload(
+        performance=payload,
+        recommendation=recommendation,
+        user_action=user_action,
+        attribution_context=attribution_context,
+    )
+    payload["error_attribution"] = attribution
+    return payload
+
+
+def _deep_error_attribution_payload(
+    *,
+    performance: dict[str, Any],
+    recommendation: Any | None,
+    user_action: str,
+    attribution_context: dict[str, Any],
+) -> dict[str, Any]:
+    latest_window = _latest_available_performance_window(performance)
+    regime = str(getattr(recommendation, "regime", "") or "").strip()
+    policy_level = str(getattr(recommendation, "policy_level", "") or "").strip()
+    regime_confidence = _optional_decimal(getattr(recommendation, "regime_confidence", None))
+    recommendation_context = dict(attribution_context.get("recommendation") or {})
+    outcome_context = dict(attribution_context.get("outcome") or {})
+    actual_regime = str(outcome_context.get("regime") or "").strip()
+    actual_policy_level = str(outcome_context.get("policy_level") or "").strip()
+    secondary_categories: list[str] = []
+
+    regime_payload = {
+        "status": "EVIDENCE_AVAILABLE" if regime else "EVIDENCE_MISSING",
+        "category": None,
+        "regime": regime or None,
+        "regime_confidence": _decimal_to_number(regime_confidence),
+        "recommendation_context": recommendation_context,
+        "outcome_context": outcome_context,
+        "actual_regime": actual_regime or None,
+    }
+    if not regime or regime.upper() == "UNKNOWN":
+        regime_payload["category"] = "REGIME_CONTEXT_MISSING"
+        secondary_categories.append("REGIME_CONTEXT_MISSING")
+    elif regime_confidence is not None and regime_confidence < Decimal("0.5"):
+        regime_payload["category"] = "REGIME_CONTEXT_WEAK"
+        secondary_categories.append("REGIME_CONTEXT_WEAK")
+    elif actual_regime and _normalize_context_value(actual_regime) != _normalize_context_value(regime):
+        regime_payload["category"] = "REGIME_JUDGMENT_ERROR"
+        secondary_categories.append("REGIME_JUDGMENT_ERROR")
+
+    policy_payload = {
+        "status": "EVIDENCE_AVAILABLE" if policy_level else "EVIDENCE_MISSING",
+        "category": None,
+        "policy_level": policy_level or None,
+        "recommendation_context": recommendation_context,
+        "outcome_context": outcome_context,
+        "actual_policy_level": actual_policy_level or None,
+    }
+    if not policy_level or policy_level.upper() == "UNKNOWN":
+        policy_payload["category"] = "POLICY_CONTEXT_MISSING"
+        secondary_categories.append("POLICY_CONTEXT_MISSING")
+    elif actual_policy_level and _normalize_context_value(actual_policy_level) != _normalize_context_value(policy_level):
+        policy_payload["category"] = "POLICY_MISJUDGMENT"
+        secondary_categories.append("POLICY_MISJUDGMENT")
+
+    manual_override_payload = _manual_override_attribution_payload(
+        latest_window=latest_window,
+        user_action=user_action,
+    )
+    if manual_override_payload.get("category"):
+        secondary_categories.append(str(manual_override_payload["category"]))
+
+    return {
+        "status": "ATTRIBUTED" if secondary_categories else "EVIDENCE_ONLY",
+        "secondary_categories": _dedupe_preserve_order(secondary_categories),
+        "regime": regime_payload,
+        "policy": policy_payload,
+        "manual_override": manual_override_payload,
+    }
+
+
+def _manual_override_attribution_payload(
+    *,
+    latest_window: dict[str, Any] | None,
+    user_action: str,
+) -> dict[str, Any]:
+    normalized_action = str(user_action or "UNKNOWN").upper()
+    directional_return = (
+        _optional_decimal(latest_window.get("directional_return"))
+        if latest_window
+        else None
+    )
+    payload = {
+        "status": "PENDING",
+        "category": None,
+        "user_action": normalized_action,
+        "latest_window": latest_window or {},
+    }
+    if directional_return is None:
+        return payload
+
+    not_adopted = normalized_action in {"PENDING", "WATCHING", "IGNORED", "UNKNOWN"}
+    if not_adopted and directional_return > 0:
+        payload.update(
+            {
+                "status": "ATTRIBUTED",
+                "category": "MANUAL_OVERRIDE_ERROR",
+                "reason": "未采纳建议后的方向性表现为正。",
+            }
+        )
+    elif not_adopted and directional_return < 0:
+        payload.update(
+            {
+                "status": "NO_ERROR",
+                "category": "MANUAL_OVERRIDE_PROTECTED_CAPITAL",
+                "reason": "未采纳建议后的方向性表现为负。",
+            }
+        )
+    else:
+        payload.update(
+            {
+                "status": "EVIDENCE_ONLY",
+                "reason": "建议已采纳或已有执行证据，不判定人工 override 错误。",
+            }
+        )
+    return payload
+
+
+def _latest_available_performance_window(performance: dict[str, Any]) -> dict[str, Any] | None:
+    windows = dict(performance.get("windows") or {})
+    for key in ("60d", "20d", "7d"):
+        window = dict(windows.get(key) or {})
+        if window.get("status") == "AVAILABLE":
+            return {"window": key, **window}
+    return None
+
+
+def _performance_outcome_date(performance: dict[str, Any]) -> date | None:
+    latest_window = _latest_available_performance_window(performance)
+    if latest_window is None:
+        return None
+    return _date_from_any(latest_window.get("price_date") or latest_window.get("target_date"))
+
+
+def _normalize_context_value(value: Any) -> str:
+    return str(value or "").strip().upper().replace("-", "_")
+
+
+def _recommendation_anchor_date(recommendation: Any) -> date | None:
+    for attr in ("created_at", "generated_at", "user_action_at", "updated_at"):
+        parsed = _date_from_any(getattr(recommendation, attr, None))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _date_from_any(value: Any) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+        except ValueError:
+            try:
+                return date.fromisoformat(value[:10])
+            except ValueError:
+                return None
+    return None
+
+
+def _normalize_price_series(series: list[tuple[date, float]]) -> list[tuple[date, Decimal]]:
+    normalized: list[tuple[date, Decimal]] = []
+    for raw_date, raw_price in series or []:
+        price_date = _date_from_any(raw_date)
+        price = _optional_decimal(raw_price)
+        if price_date is not None and price is not None and price > 0:
+            normalized.append((price_date, price))
+    return sorted(normalized, key=lambda item: item[0])
+
+
+def _first_price_on_or_after(
+    series: list[tuple[date, Decimal]],
+    target_date: date,
+) -> tuple[date, Decimal] | None:
+    for price_date, close_price in series:
+        if price_date >= target_date:
+            return price_date, close_price
+    return None
+
+
+def _failed_execution_checks(checks: dict[str, Any]) -> list[dict[str, str]]:
+    failed: list[dict[str, str]] = []
+    for key, payload in checks.items():
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("passed", True) is False:
+            failed.append(
+                {
+                    "key": key,
+                    "reason": str(payload.get("reason") or payload.get("blocked_reason") or key),
+                }
+            )
+    return failed
+
+
+def _build_signal_invalidation_check(payloads: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    invalidated: list[dict[str, Any]] = []
+    missing_rules: list[str] = []
+    for signal_id, payload in payloads.items():
+        status = str(payload.get("status") or "").lower()
+        invalidated_at = payload.get("invalidated_at")
+        if status == "invalidated" or invalidated_at:
+            invalidated.append(
+                {
+                    "signal_id": signal_id,
+                    "status": status or "invalidated",
+                    "invalidated_at": invalidated_at,
+                }
+            )
+        if not (
+            payload.get("invalidation_rule_json")
+            or payload.get("invalidation_description")
+            or payload.get("invalidation_logic")
+        ):
+            missing_rules.append(signal_id)
+
+    passed = not invalidated
+    reason = ""
+    if invalidated:
+        reason = "来源信号已被证伪: " + ", ".join(
+            str(item["signal_id"]) for item in invalidated
+        )
+    return {
+        "passed": passed,
+        "reason": reason,
+        "invalidated": invalidated,
+        "missing_invalidation_rules": missing_rules,
+        "checked_signal_ids": list(payloads),
+    }
+
+
 def _recommendation_asset_code(recommendation: Any | None) -> str:
     if recommendation is None:
         return ""
@@ -752,6 +2812,18 @@ def _recommendation_id(recommendation: Any | None) -> str:
     if recommendation is None:
         return ""
     return str(getattr(recommendation, "recommendation_id", "") or "")
+
+
+def _recommendation_source_signal_ids(recommendation: Any | None) -> list[str]:
+    if recommendation is None:
+        return []
+    return [str(item) for item in (getattr(recommendation, "source_signal_ids", []) or [])]
+
+
+def _recommendation_source_candidate_ids(recommendation: Any | None) -> list[str]:
+    if recommendation is None:
+        return []
+    return [str(item) for item in (getattr(recommendation, "source_candidate_ids", []) or [])]
 
 
 def _recommendation_reason(recommendation: Any | None) -> str:
@@ -830,6 +2902,169 @@ def _stable_order_intent_id(account_id: str, asset_code: str, side: str, source_
     return f"oi_{hashlib.sha256(raw).hexdigest()[:16]}"
 
 
+def _normalize_risk_policy_context(policy: dict[str, Any], *, unavailable: bool) -> dict[str, Any]:
+    payload = dict(policy or {})
+    parameters = dict(payload.get("parameters") or {})
+    warnings = list(payload.get("warnings") or [])
+    version_source = {
+        "account_id": str(payload.get("account_id") or ""),
+        "risk_profile": payload.get("risk_profile"),
+        "template_key": payload.get("template_key"),
+        "parameters": parameters,
+        "sources": payload.get("sources") or {},
+        "floor_applied": payload.get("floor_applied") or [],
+        "exceptions_applied": payload.get("exceptions_applied") or [],
+        "unavailable": unavailable,
+    }
+    version = "riskcfg_" + hashlib.sha256(
+        json.dumps(version_source, sort_keys=True, default=str).encode()
+    ).hexdigest()[:12]
+    return {
+        "version": version,
+        "account_id": str(payload.get("account_id") or ""),
+        "risk_profile": payload.get("risk_profile") or "unknown",
+        "template_key": payload.get("template_key"),
+        "parameters": parameters,
+        "sources": payload.get("sources") or {},
+        "floor_applied": payload.get("floor_applied") or [],
+        "exceptions_applied": payload.get("exceptions_applied") or [],
+        "warnings": warnings,
+        "unavailable": unavailable,
+    }
+
+
+def _normalize_data_health_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload or {})
+    normalized.setdefault("status", "blocked")
+    normalized.setdefault("asset_codes", [])
+    normalized.setdefault("quotes", {})
+    normalized.setdefault("market_thermometer", {})
+    normalized.setdefault("blocked_reasons", [])
+    normalized["must_not_use_for_decision"] = bool(
+        normalized.get("must_not_use_for_decision")
+        or normalized.get("status") in {"blocked", "failed"}
+    )
+    return normalized
+
+
+def _data_health_warnings(data_health: dict[str, Any]) -> list[str]:
+    return [
+        f"data_health:{reason}"
+        for reason in data_health.get("blocked_reasons") or []
+    ]
+
+
+def _data_asof_for_asset(data_health: dict[str, Any], asset_code: str) -> dict[str, Any]:
+    quote = dict((data_health.get("quotes") or {}).get(asset_code) or {})
+    thermometer = dict(data_health.get("market_thermometer") or {})
+    return {
+        "asset_code": asset_code,
+        "quote_snapshot_at": quote.get("snapshot_at"),
+        "quote_freshness_status": quote.get("freshness_status") or quote.get("status"),
+        "quote_source": quote.get("source"),
+        "quote_must_not_use_for_decision": bool(quote.get("must_not_use_for_decision", False)),
+        "market_thermometer_asof": thermometer.get("as_of_date") or thermometer.get("snapshot_date"),
+        "market_thermometer_status": thermometer.get("status"),
+    }
+
+
+def _build_decision_card_payload(order: dict[str, Any]) -> dict[str, Any]:
+    current_weight = _to_decimal(order.get("current_weight"))
+    target_weight = _to_decimal(order.get("target_weight"))
+    return {
+        "order_intent_id": order.get("order_intent_id"),
+        "asset_code": order.get("asset_code"),
+        "asset_name": order.get("asset_name"),
+        "action": order.get("side"),
+        "confidence": _decision_confidence(order),
+        "current_weight": order.get("current_weight"),
+        "target_weight": order.get("target_weight"),
+        "delta_weight": _decimal_to_number(target_weight - current_weight),
+        "estimated_amount": order.get("estimated_amount"),
+        "primary_reasons": [order.get("reason") or "账户规则生成。"],
+        "counter_reasons": list(order.get("risk_notes") or []),
+        "invalidation_logic": order.get("invalidation_rule"),
+        "valid_until": None,
+        "data_asof": order.get("data_asof") or {},
+        "risk_notes": list(order.get("risk_notes") or []),
+        "risk_gate_status": order.get("risk_gate_status"),
+        "blocking_status": order.get("blocking_status"),
+        "source_recommendation_ids": list(order.get("source_recommendation_ids") or []),
+        "conflict_resolution": order.get("conflict_resolution") or {},
+        "tracking": order.get("tracking") or {},
+        "confirmation": order.get("confirmation") or {},
+        "expected_loss_if_wrong": _expected_loss_if_wrong(order),
+    }
+
+
+def _decision_confidence(order: dict[str, Any]) -> float:
+    if order.get("blocking_status") != "OK":
+        return 0.0
+    if order.get("risk_gate_status") == "REVIEW":
+        return 0.45
+    if order.get("side") == "HOLD":
+        return 0.5
+    return 0.65
+
+
+def _expected_loss_if_wrong(order: dict[str, Any]) -> float | None:
+    amount = _to_decimal(order.get("estimated_amount"))
+    if amount <= 0:
+        return 0.0
+    return _decimal_to_number(amount * Decimal("0.05"))
+
+
+def _replace_intent(intent: AdvisorOrderIntent, **changes: Any) -> AdvisorOrderIntent:
+    data = {
+        "order_intent_id": intent.order_intent_id,
+        "account_id": intent.account_id,
+        "asset_code": intent.asset_code,
+        "asset_name": intent.asset_name,
+        "side": intent.side,
+        "current_quantity": intent.current_quantity,
+        "target_quantity": intent.target_quantity,
+        "delta_quantity": intent.delta_quantity,
+        "estimated_price": intent.estimated_price,
+        "estimated_amount": intent.estimated_amount,
+        "current_weight": intent.current_weight,
+        "target_weight": intent.target_weight,
+        "priority": intent.priority,
+        "price_band": intent.price_band,
+        "reason": intent.reason,
+        "risk_notes": list(intent.risk_notes),
+        "invalidation_rule": intent.invalidation_rule,
+        "execution_hint": intent.execution_hint,
+        "source_recommendation_id": intent.source_recommendation_id,
+        "blocking_status": intent.blocking_status,
+        "source_recommendation_ids": list(intent.source_recommendation_ids),
+        "conflict_resolution": dict(intent.conflict_resolution),
+        "risk_gate_status": intent.risk_gate_status,
+        "risk_gate": dict(intent.risk_gate),
+        "data_asof": dict(intent.data_asof),
+        "decision_card": dict(intent.decision_card),
+        "tracking": dict(intent.tracking),
+        "confirmation": dict(intent.confirmation),
+    }
+    data.update(changes)
+    return AdvisorOrderIntent(**data)
+
+
+def _unique_asset_codes(values: list[str]) -> list[str]:
+    return _dedupe_preserve_order([str(value or "").strip().upper() for value in values if value])
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        item = str(value or "").strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
+
+
 def _account_type_label(account_type: str) -> str:
     return {
         "real": "实盘账户",
@@ -862,6 +3097,12 @@ def _optional_decimal(value: Any) -> Decimal | None:
         return None
     decimal_value = _to_decimal(value)
     return decimal_value
+
+
+def _to_decimal_or_none(value: Any) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    return _to_decimal(value)
 
 
 def _decimal_to_number(value: Decimal | None) -> float | None:

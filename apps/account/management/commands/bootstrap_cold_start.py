@@ -331,6 +331,7 @@ class Command(BaseCommand):
             "decision-quote-freshness-check",
             "decision-workspace-nightly-snapshot-refresh",
             "account-check-stop-loss-take-profit-intraday",
+            "dashboard-auto-advisor-weekly-report",
         }
         return expected_names.issubset(existing_names)
 

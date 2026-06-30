@@ -10,6 +10,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.dashboard.application.query_services import (
+    build_auto_advisor_console_payload,
+    build_auto_advisor_query_payload,
+    build_auto_advisor_weekly_report_payload,
+)
 from core.cache_utils import CACHE_TTL, cached_api
 
 
@@ -55,6 +60,99 @@ def dashboard_summary_v1(request):
             },
         }
     )
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def auto_advisor_console(request):
+    """Homepage auto-advisor console payload."""
+
+    account_id = str(request.GET.get("account_id") or "").strip()
+    if not account_id:
+        return Response(
+            {"success": False, "error": "account_id is required"},
+            status=400,
+        )
+    try:
+        payload = build_auto_advisor_console_payload(
+            account_id=account_id,
+            user=request.user,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
+    return Response({"success": True, "data": payload})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def auto_advisor_query(request):
+    """Deterministic personal auto-advisor Q&A payload."""
+
+    account_id = str(request.GET.get("account_id") or "").strip()
+    question = str(
+        request.GET.get("question") or request.GET.get("q") or request.GET.get("query") or ""
+    ).strip()
+    if not account_id:
+        return Response(
+            {"success": False, "error": "account_id is required"},
+            status=400,
+        )
+    if not question:
+        return Response(
+            {"success": False, "error": "question is required"},
+            status=400,
+        )
+    try:
+        payload = build_auto_advisor_query_payload(
+            account_id=account_id,
+            user=request.user,
+            question=question,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
+    return Response({"success": True, "data": payload})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def auto_advisor_weekly_report(request):
+    """Personal weekly auto-advisor report payload."""
+
+    account_id = str(request.GET.get("account_id") or "").strip()
+    if not account_id:
+        return Response(
+            {"success": False, "error": "account_id is required"},
+            status=400,
+        )
+    as_of_raw = str(request.GET.get("as_of") or "").strip()
+    try:
+        as_of = date.fromisoformat(as_of_raw) if as_of_raw else None
+    except ValueError:
+        return Response(
+            {"success": False, "error": "as_of must be YYYY-MM-DD"},
+            status=400,
+        )
+    try:
+        payload = build_auto_advisor_weekly_report_payload(
+            account_id=account_id,
+            user=request.user,
+            as_of=as_of,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
+    return Response({"success": True, "data": payload})
 
 
 @api_view(["GET"])

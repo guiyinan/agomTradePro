@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from apps.policy.application.repository_provider import (
@@ -17,16 +18,17 @@ def get_policy_event_count() -> int:
     return get_policy_diagnostic_repository().get_policy_event_count()
 
 
-def get_policy_status_payload() -> dict[str, Any]:
+def get_policy_status_payload(*, as_of_date: date | None = None) -> dict[str, Any]:
     """Return current policy status in command-friendly shape."""
 
     status = GetPolicyStatusUseCase(
         event_store=get_current_policy_repository()
-    ).execute()
+    ).execute(as_of_date)
     return {
         "current_level": status.current_level.value,
         "level_name": status.level_name,
         "is_intervention_active": status.is_intervention_active,
+        "as_of_date": status.as_of_date.isoformat(),
     }
 
 

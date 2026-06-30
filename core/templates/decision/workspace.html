@@ -1765,6 +1765,9 @@ function renderAdvisorSheet(sheet) {
 
     list.innerHTML = orders.slice(0, 6).map(order => {
         const band = order.price_band || {};
+        const dataAsOf = order.data_asof || {};
+        const riskGateStatus = order.risk_gate_status || '-';
+        const quoteFreshness = dataAsOf.quote_freshness_status || '-';
         const riskText = Array.isArray(order.risk_notes) && order.risk_notes.length
             ? order.risk_notes.join('；')
             : '风险提示按账户风控和推荐失效规则执行';
@@ -1785,7 +1788,7 @@ function renderAdvisorSheet(sheet) {
                 <div>
                     <div class="advisor-order-meta">${escapeHtml(riskText)}</div>
                     <div class="advisor-order-meta">执行：${escapeHtml(order.execution_hint || '-')}</div>
-                    <div class="advisor-order-meta">状态：${escapeHtml(order.blocking_status || 'OK')}</div>
+                    <div class="advisor-order-meta">状态：${escapeHtml(order.blocking_status || 'OK')} · 风控：${escapeHtml(riskGateStatus)} · 数据：${escapeHtml(quoteFreshness)}</div>
                 </div>
             </div>
         `;

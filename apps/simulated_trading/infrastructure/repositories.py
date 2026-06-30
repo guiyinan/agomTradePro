@@ -365,6 +365,24 @@ class DjangoSimulatedAccountRepository:
         models = SimulatedAccountModel._default_manager.all()
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
+    def list_active_account_targets(self) -> list[dict[str, Any]]:
+        """Return active account/user ids for cross-app scheduled jobs."""
+
+        rows = (
+            SimulatedAccountModel._default_manager.filter(is_active=True)
+            .only("id", "user_id", "account_name", "account_type")
+            .order_by("user_id", "id")
+        )
+        return [
+            {
+                "account_id": int(row.id),
+                "user_id": int(row.user_id),
+                "account_name": row.account_name,
+                "account_type": row.account_type,
+            }
+            for row in rows
+        ]
+
     def count_active_account_models(self) -> int:
         """Return the number of active account ORM rows."""
 

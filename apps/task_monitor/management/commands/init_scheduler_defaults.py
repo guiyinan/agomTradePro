@@ -11,6 +11,7 @@ SCHEDULER_COMMANDS = (
     "setup_decision_quote_refresh",
     "setup_workspace_snapshot_refresh",
     "setup_account_risk_tasks",
+    "setup_auto_advisor_weekly_report",
 )
 
 

@@ -46,6 +46,7 @@ def test_init_scheduler_defaults_runs_expected_commands(monkeypatch):
         "setup_decision_quote_refresh",
         "setup_workspace_snapshot_refresh",
         "setup_account_risk_tasks",
+        "setup_auto_advisor_weekly_report",
     ]
 
 
@@ -66,6 +67,7 @@ def test_bootstrap_cold_start_detects_scheduler_defaults_ready(monkeypatch):
                 "decision-quote-freshness-check",
                 "decision-workspace-nightly-snapshot-refresh",
                 "account-check-stop-loss-take-profit-intraday",
+                "dashboard-auto-advisor-weekly-report",
             ]
 
     class _PeriodicTaskModel:

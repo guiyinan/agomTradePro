@@ -109,6 +109,27 @@ python manage.py setup_workspace_snapshot_refresh
       "baseline": "existing_positions"
     },
     "today_conclusion": "ACT",
+    "risk_policy": {
+      "version": "riskcfg_xxx",
+      "risk_profile": "moderate",
+      "parameters": {}
+    },
+    "data_health": {
+      "status": "ok",
+      "must_not_use_for_decision": false,
+      "blocked_reasons": []
+    },
+    "exposure_summary": {
+      "limits": {
+        "sector": 0.25,
+        "strategy": 0.3
+      },
+      "by_sector": [],
+      "by_industry": [],
+      "by_strategy": [],
+      "alerts": [],
+      "missing_exposure_assets": []
+    },
     "holdings": [],
     "allocation": [],
     "order_summary": {
@@ -123,6 +144,17 @@ python manage.py setup_workspace_snapshot_refresh
       "watch": 0
     },
     "order_intents": [],
+    "decision_cards": [],
+    "execution_plan": {
+      "status": "READY_FOR_CONFIRMATION",
+      "execution_mode": "real_confirm_only",
+      "broker_execution_enabled": false,
+      "requires_human_confirmation": true,
+      "confirmation_status": "PENDING",
+      "orders_count": 2,
+      "orders": []
+    },
+    "recommendation_conflicts": [],
     "blockers": [],
     "next_actions": []
   }
@@ -151,6 +183,177 @@ python manage.py setup_workspace_snapshot_refresh
 - `execution_hint`
 - `source_recommendation_id`
 - `blocking_status`
+- `risk_gate_status`
+- `risk_gate`
+- `data_asof`
+- `tracking`
+- `confirmation`
+- `decision_card`
+- `source_recommendation_ids`
+- `conflict_resolution`
+
+`recommendation_conflicts` 记录同一标的多模块方向冲突的归并结果:
+
+- `asset_code`
+- `accepted_recommendation_id`
+- `accepted_side`
+- `rejected_recommendations`
+- `conflict_reason`
+
+`risk_gate` 由两部分组成:
+
+- `execution_guard`: Decision Rhythm 执行前检查，包括 `price_validation`、`beta_gate`、`quota`、`cooldown`、`signal_invalidation`
+- `risk_center`: 集中风控中心检查，包括个人风险配置版本、投前风控结果和预测指标
+- `exposure_guard`: 组合暴露检查，包括行业、细分行业和策略 bucket 的 projected weight
+
+若 `execution_guard` 失败，`blocking_status` 为 `BLOCKED_EXECUTION_GUARD`。
+若新增买入/加仓导致行业、细分行业或策略暴露超过风险配置上限，`blocking_status` 为 `BLOCKED_EXPOSURE_LIMIT`。减仓和清仓不会被暴露超限阻断。
+
+`exposure_summary` 记录当前组合和拟执行订单后的预测暴露:
+
+- `limits`: 命中的 `max_sector_position_pct`、`max_industry_position_pct`、`max_strategy_position_pct`
+- `by_sector`
+- `by_industry`
+- `by_strategy`
+- `alerts`: projected weight 超过上限的机器可读告警
+- `missing_exposure_assets`: 缺少行业或细分行业元数据的资产
+
+`tracking` 记录来源推荐的复盘入口:
+
+- `review_status`: `PENDING_REVIEW / ADOPTED_PENDING_EXECUTION / EXECUTED / NO_SOURCE_RECOMMENDATION`
+- `source_recommendation_ids`
+- `recommendations`: 来源推荐的 `user_action`、备注、动作时间和执行链接
+- `execution_links`: 已匹配的手工成交或模拟成交链接
+- `execution_count`
+- `is_executed`
+- `performance`: 来源推荐按锚点价计算的 `7d / 20d / 60d` 表现窗口，包含 `error_attribution` 初版归因
+
+`performance.error_attribution.deep_attribution` 记录深层归因证据:
+
+- `regime`: 推荐时 Regime、置信度、成熟表现窗口对应日期的事后 Regime 标签，以及上下文缺失/偏弱/判断错误分类
+- `policy`: 推荐时 Policy 档位、成熟表现窗口对应日期的事后 Policy 标签，以及上下文缺失/误判分类
+- `manual_override`: 结合 `user_action` 和成熟表现窗口判断未采纳建议后的结果
+- `secondary_categories`: `REGIME_CONTEXT_MISSING / REGIME_CONTEXT_WEAK / REGIME_JUDGMENT_ERROR / POLICY_CONTEXT_MISSING / POLICY_MISJUDGMENT / MANUAL_OVERRIDE_ERROR / MANUAL_OVERRIDE_PROTECTED_CAPITAL`
+
+`confirmation` 记录半自动执行前的二次确认要求:
+
+- `required`
+- `status`: `PENDING / NOT_REQUIRED / NOT_APPLICABLE`
+- `reasons`: 机器可读确认原因，例如 `large_order_amount`、`real_account_manual_confirm`、`data_health_warning`
+- `confirmable`
+- `approval_entry`: 后续进入 approval/request 流程所需的来源信息
+
+`execution_plan` 是只读交易计划，不会触发券商真实下单:
+
+- `execution_mode`: `real_confirm_only / semi_auto_plan / no_executable_orders`
+- `broker_execution_enabled`: 固定为 false
+- `requires_human_confirmation`
+- `confirmation_status`
+- `real_account_guard`
+- `orders`: 可执行订单及其确认状态、执行前检查、价格区间和失效时间
+
+`decision_cards` 单项用于 Dashboard、Terminal 和 API 统一展示建议卡片，包含:
+
+- `action`
+- `confidence`
+- `current_weight`
+- `target_weight`
+- `delta_weight`
+- `estimated_amount`
+- `primary_reasons`
+- `counter_reasons`
+- `invalidation_logic`
+- `valid_until`
+- `data_asof`
+- `risk_notes`
+- `risk_gate_status`
+- `blocking_status`
+- `tracking`
+- `confirmation`
+- `expected_loss_if_wrong`
+
+## 2.1 Dashboard 自动投顾主控台
+
+- 方法: `GET`
+- 路径: `/api/dashboard/auto-advisor-console/?account_id=<id>`
+- 用途: 首页聚合今日自动投顾状态，不触发下单。
+
+响应 `data` 主要字段:
+
+- `today_tradeability`: 今日结论、是否可交易、是否需要复核、阻断订单数
+- `macro_regime`: 当前宏观象限、置信度和分布
+- `portfolio_risk`: 最大持仓权重、超配持仓、暴露告警、阻断和 warning 数量
+- `today_advice`: 订单摘要、前 5 条决策卡片、前 5 条订单意图
+- `must_handle_alerts`: 必须处理的阻断、确认、暴露和数据告警
+- `data_freshness`: 数据健康状态、阻断原因、quote 数量
+- `execution`: 执行模式、确认状态、是否需要人工确认、是否允许自动下单
+- `next_actions`: 建议下一步动作
+
+该接口复用 advisor sheet，只返回主控台摘要；真实账户仍固定 `broker_execution_enabled=false`。
+
+Dashboard 首页已嵌入“今日自动投顾主控台”面板，默认读取第一个投资账户，并支持账户切换后刷新该接口。
+
+## 2.2 Dashboard 自动投顾自然语言查询
+
+- 方法: `GET`
+- 路径: `/api/dashboard/auto-advisor-query/?account_id=<id>&q=<question>`
+- 用途: 针对个人自动投顾建议单做确定性问答，不触发下单，不依赖 LLM。
+
+Query:
+
+- `account_id`（必填）
+- `q` / `question` / `query`（必填，三者任选其一）
+
+首版支持的 intent:
+
+- `largest_risk`: “我现在最大风险是什么”
+- `reduce_reason`: “今天为什么建议减仓”
+- `invalidated_positions`: “哪些持仓已经证伪”
+- `market_shock_loss`: “如果明天跌 3%, 组合损失多少”
+- `unexecuted_recommendations`: “哪些建议我上次没执行, 结果如何”
+- `overview`: 未命中特定 intent 时返回建议单概览
+
+响应 `data` 主要字段:
+
+- `query`: 原始问题、识别出的 intent、支持的 intent 列表
+- `answer`: 面向人的简短回答
+- `highlights`: 结构化重点项，例如风险项、减仓标的、证伪信号、冲击损失估算或未执行建议表现
+- `evidence`: 用于审计和前端展开的原始摘要证据
+
+该接口复用 advisor sheet 的 `risk_summary`、`decision_cards`、`order_intents`、`tracking`、`data_health` 和账户市值字段。下跌冲击损失为线性估算，不包含 beta、对冲、流动性和隔夜跳空影响。
+
+## 2.3 Dashboard 自动投顾个人周报
+
+- 方法: `GET`
+- 路径: `/api/dashboard/auto-advisor-weekly-report/?account_id=<id>&as_of=YYYY-MM-DD`
+- 用途: 输出个人自动投顾周报首版，不触发下单。
+
+Query:
+
+- `account_id`（必填）
+- `as_of`（可选，默认当天，用于计算周一到周日的报告区间）
+
+响应 `data` 主要字段:
+
+- `week`: 周报起止日期和 as-of 日期
+- `portfolio_change`: 组合周变化；优先返回 `HISTORICAL`，历史不足时返回 `CURRENT_SNAPSHOT_ONLY`
+- `largest_risk_exposure`: 最大风险暴露摘要和结构化风险项
+- `system_vs_actual`: 系统建议数量、动作分布、复盘状态分布和执行确认状态
+- `unexecuted_recommendations`: 未执行或待复核建议及其表现窗口
+- `invalidated_recommendations`: 来源信号已证伪或证伪检查失败的建议
+- `next_week_watchlist`: 下周重点观察清单，包含数据健康、阻断订单和需复核决策卡片
+- `evidence`: advisor sheet 摘要证据
+
+周报首版复用 advisor sheet，不新增持久化表。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。
+
+自动生成:
+
+- Celery 任务: `dashboard.generate_auto_advisor_weekly_reports`
+- 默认 beat 名称: `dashboard-auto-advisor-weekly-report`
+- 默认初始化: `python manage.py setup_auto_advisor_weekly_report`
+- 统一初始化: `python manage.py init_scheduler_defaults`
+- 默认频率: 每周五 17:30，生成全部活跃账户周报
+- 可选范围: `--user-id <id> --account-ids <id1,id2>`
 
 ## 3. 统一推荐列表
 

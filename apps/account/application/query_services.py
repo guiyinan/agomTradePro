@@ -48,6 +48,12 @@ def list_global_investment_rule_payloads() -> list[dict[str, Any]]:
     return get_account_interface_repository().list_global_investment_rule_payloads()
 
 
+def get_application_user_by_id(user_id: int) -> Any | None:
+    """Return one auth user object for application-level service orchestration."""
+
+    return get_account_interface_repository().find_user_by_id(user_id)
+
+
 def get_portfolio_snapshot_performance_data(portfolio_id: int) -> list[dict[str, Any]]:
     """Return chart-ready historical portfolio snapshots."""
 

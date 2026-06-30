@@ -305,6 +305,9 @@ class CommandExecutionService:
 
         account = data.get("account") or {}
         summary = data.get("order_summary") or {}
+        risk_policy = data.get("risk_policy") or {}
+        data_health = data.get("data_health") or {}
+        execution_plan = data.get("execution_plan") or {}
         orders = list(data.get("order_intents") or [])[:5]
         blockers = list(data.get("blockers") or [])[:5]
         next_actions = list(data.get("next_actions") or [])[:5]
@@ -315,6 +318,13 @@ class CommandExecutionService:
             f"总资产: {account.get('total_asset')}  可用资金: {account.get('available_cash')}",
             f"当前持仓数: {account.get('holding_count')}  基线: {data.get('baseline')}",
             f"今日结论: {data.get('today_conclusion')}",
+            f"风险配置: {risk_policy.get('version') or '-'}  数据健康: {data_health.get('status') or '-'}",
+            (
+                "执行计划: "
+                f"{execution_plan.get('execution_mode') or '-'} "
+                f"确认={execution_plan.get('confirmation_status') or '-'} "
+                f"自动下单={'是' if execution_plan.get('broker_execution_enabled') else '否'}"
+            ),
             (
                 "建议订单: "
                 f"共 {summary.get('total', 0)} 单，"
@@ -329,6 +339,8 @@ class CommandExecutionService:
             lines.append("前 5 条订单意图:")
             for order in orders:
                 price_band = order.get("price_band") or {}
+                data_asof = order.get("data_asof") or {}
+                confirmation = order.get("confirmation") or {}
                 lines.append(
                     "- "
                     f"{order.get('side')} {order.get('asset_code')} "
@@ -336,7 +348,10 @@ class CommandExecutionService:
                     f"delta={order.get('delta_quantity')} "
                     f"amount={order.get('estimated_amount')} "
                     f"price={price_band.get('label') or order.get('estimated_price')} "
-                    f"status={order.get('blocking_status')}"
+                    f"status={order.get('blocking_status')} "
+                    f"risk_gate={order.get('risk_gate_status') or '-'} "
+                    f"asof={data_asof.get('quote_freshness_status') or '-'} "
+                    f"confirm={confirmation.get('status') or '-'}"
                 )
         else:
             lines.append("前 5 条订单意图: 暂无")

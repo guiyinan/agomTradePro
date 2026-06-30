@@ -218,6 +218,39 @@
             {% endif %}
         </section>
 
+        <section class="auto-advisor-console-section" id="autoAdvisorConsole"
+                 data-endpoint="{% url 'api_dashboard:auto_advisor_console' %}">
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">今日自动投顾主控台</h2>
+                    <p class="section-subtitle">账户级行动、风险、数据和执行确认状态</p>
+                </div>
+                <div class="section-actions">
+                    {% if investment_accounts %}
+                    <select id="autoAdvisorAccountSelect" class="sort-select">
+                        {% for account in investment_accounts %}
+                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                    <a href="{% url 'decision-workspace' %}" class="section-link">工作台 →</a>
+                </div>
+            </div>
+            <div class="auto-advisor-console-body" id="autoAdvisorConsoleBody">
+                {% if investment_accounts %}
+                <div class="app-loading-state app-loading-state--compact">
+                    <div class="app-spinner" aria-hidden="true"></div>
+                    <p class="app-loading-text">正在读取今日建议...</p>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📂</div>
+                    <p>暂无可读取的投资账户</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
         <!-- 主流程面板：上移到首屏顶部 -->
         {% include "dashboard/main_workflow_panel.html" %}
 
@@ -807,6 +840,7 @@ const API_URLS = {
     aiProviderManage: "{% url 'ai_provider:manage' %}",
     alphaStocks: "{% url 'api_dashboard:alpha_stocks' %}",
     alphaRefresh: "{% url 'api_dashboard:alpha_refresh' %}",
+    autoAdvisorConsole: "{% url 'api_dashboard:auto_advisor_console' %}",
     decisionRequestCancelBase: "/api/decision-rhythm/requests/"
 };
 const DASHBOARD_ALPHA_DEFAULTS = {
@@ -814,6 +848,125 @@ const DASHBOARD_ALPHA_DEFAULTS = {
     portfolioId: "{{ selected_portfolio_id|default:''|escapejs }}",
     poolMode: "{{ selected_alpha_pool_mode|default:alpha_pool.pool_mode|default:''|escapejs }}"
 };
+
+function escapeDashboardText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
+function formatAdvisorPercent(value) {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return '-';
+    return `${(numberValue * 100).toFixed(1)}%`;
+}
+
+function renderAutoAdvisorConsole(data) {
+    const body = document.getElementById('autoAdvisorConsoleBody');
+    if (!body) return;
+
+    const tradeability = data.today_tradeability || {};
+    const regime = data.macro_regime || {};
+    const risk = data.portfolio_risk || {};
+    const advice = data.today_advice || {};
+    const freshness = data.data_freshness || {};
+    const execution = data.execution || {};
+    const alerts = Array.isArray(data.must_handle_alerts) ? data.must_handle_alerts.slice(0, 6) : [];
+    const cards = Array.isArray(advice.top_decision_cards) ? advice.top_decision_cards.slice(0, 5) : [];
+    const summary = advice.order_summary || {};
+
+    const alertHtml = alerts.length
+        ? alerts.map((alert) => `
+            <div class="auto-advisor-item auto-advisor-alert ${escapeDashboardText(alert.level || '')}">
+                <strong>${escapeDashboardText(alert.code || '-')}</strong>
+                <span>${escapeDashboardText(alert.message || alert.asset_code || '-')}</span>
+            </div>
+        `).join('')
+        : '<div class="auto-advisor-item"><span>暂无必须处理的预警</span></div>';
+    const cardHtml = cards.length
+        ? cards.map((card) => `
+            <div class="auto-advisor-item">
+                <strong>${escapeDashboardText(card.action || '-')} ${escapeDashboardText(card.asset_code || '')}</strong>
+                <span>${escapeDashboardText((card.primary_reasons || [])[0] || card.blocking_status || '-')}</span>
+            </div>
+        `).join('')
+        : '<div class="auto-advisor-item"><span>暂无今日建议卡片</span></div>';
+
+    body.innerHTML = `
+        <div class="auto-advisor-grid">
+            <div class="auto-advisor-metric">
+                <div class="auto-advisor-label">今日状态</div>
+                <div class="auto-advisor-value">${escapeDashboardText(tradeability.conclusion || '-')}</div>
+                <div class="auto-advisor-sub">可执行 ${escapeDashboardText(tradeability.actionable_order_count ?? 0)} 单，阻断 ${escapeDashboardText(tradeability.blocked_order_count ?? 0)} 单</div>
+            </div>
+            <div class="auto-advisor-metric">
+                <div class="auto-advisor-label">宏观象限</div>
+                <div class="auto-advisor-value">${escapeDashboardText(regime.current || '-')}</div>
+                <div class="auto-advisor-sub">置信度 ${escapeDashboardText(regime.confidence ?? '-')}</div>
+            </div>
+            <div class="auto-advisor-metric">
+                <div class="auto-advisor-label">组合风险</div>
+                <div class="auto-advisor-value">${formatAdvisorPercent(risk.top_position_weight)}</div>
+                <div class="auto-advisor-sub">超配 ${escapeDashboardText((risk.overweight_positions || []).length || 0)} 项，暴露预警 ${escapeDashboardText((risk.exposure_alerts || []).length || 0)} 项</div>
+            </div>
+            <div class="auto-advisor-metric">
+                <div class="auto-advisor-label">执行确认</div>
+                <div class="auto-advisor-value">${escapeDashboardText(execution.confirmation_status || '-')}</div>
+                <div class="auto-advisor-sub">${execution.broker_execution_enabled ? '允许自动下单' : '不自动下单'} · ${escapeDashboardText(execution.execution_mode || '-')}</div>
+            </div>
+        </div>
+        <div class="auto-advisor-row">
+            <div class="auto-advisor-list">
+                <h3>今日建议</h3>
+                <div class="auto-advisor-items">
+                    <div class="auto-advisor-item">
+                        <strong>订单摘要</strong>
+                        <span>买入 ${escapeDashboardText(summary.buy ?? 0)} / 加仓 ${escapeDashboardText(summary.add ?? 0)} / 减仓 ${escapeDashboardText(summary.reduce ?? 0)} / 清仓 ${escapeDashboardText(summary.exit ?? 0)}</span>
+                    </div>
+                    ${cardHtml}
+                </div>
+            </div>
+            <div class="auto-advisor-list">
+                <h3>必须处理</h3>
+                <div class="auto-advisor-items">
+                    <div class="auto-advisor-item">
+                        <strong>数据</strong>
+                        <span>${escapeDashboardText(freshness.status || '-')} · quote ${escapeDashboardText(freshness.quote_count ?? 0)}</span>
+                    </div>
+                    ${alertHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadAutoAdvisorConsole(accountId) {
+    const body = document.getElementById('autoAdvisorConsoleBody');
+    if (!body || !accountId) return;
+    body.innerHTML = '<div class="app-loading-state app-loading-state--compact"><div class="app-spinner" aria-hidden="true"></div><p class="app-loading-text">正在读取今日建议...</p></div>';
+    const url = `${API_URLS.autoAdvisorConsole}?account_id=${encodeURIComponent(accountId)}`;
+    try {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const payload = await response.json();
+        if (!response.ok || payload.success === false) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        renderAutoAdvisorConsole(payload.data || {});
+    } catch (error) {
+        body.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><p>自动投顾主控台加载失败: ${escapeDashboardText(error.message)}</p></div>`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('autoAdvisorAccountSelect');
+    if (!select || !select.value) return;
+    loadAutoAdvisorConsole(select.value);
+    select.addEventListener('change', () => loadAutoAdvisorConsole(select.value));
+});
 
 // 初始化共享渲染器
 const chatRenderer = new AgomSharedChatRenderer({
@@ -1978,10 +2131,116 @@ chatSendBtn.onclick = async function() {
     font-weight: 600;
 }
 
+.auto-advisor-console-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: var(--gap);
+}
+
+.auto-advisor-console-body {
+    min-height: 128px;
+}
+
+.auto-advisor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.auto-advisor-metric {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    min-height: 88px;
+    padding: 12px;
+}
+
+.auto-advisor-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.auto-advisor-value {
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.auto-advisor-sub {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+.auto-advisor-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 12px;
+}
+
+.auto-advisor-list {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.auto-advisor-list h3 {
+    color: var(--text-primary);
+    font-size: 14px;
+    margin: 0 0 10px;
+}
+
+.auto-advisor-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.auto-advisor-item {
+    color: var(--text-secondary);
+    display: flex;
+    font-size: 13px;
+    gap: 12px;
+    justify-content: space-between;
+    line-height: 1.35;
+}
+
+.auto-advisor-item strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.auto-advisor-alert {
+    border-left: 3px solid #D97706;
+    padding-left: 8px;
+}
+
+.auto-advisor-alert.blocker {
+    border-left-color: #DC2626;
+}
+
+.auto-advisor-alert.review {
+    border-left-color: #2563EB;
+}
+
 /* 响应式调整 */
 @media (max-width: 1200px) {
     .content-row {
         flex-direction: column;
+    }
+
+    .auto-advisor-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .auto-advisor-row {
+        grid-template-columns: 1fr;
     }
 
     .content-card.half {
@@ -2015,6 +2274,10 @@ chatSendBtn.onclick = async function() {
     }
 
     .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .auto-advisor-grid {
         grid-template-columns: 1fr;
     }
 }
