@@ -345,7 +345,14 @@ Query:
 - `next_week_watchlist`: 下周重点观察清单，包含数据健康、阻断订单和需复核决策卡片
 - `evidence`: advisor sheet 摘要证据
 
-周报和投资日记首版复用 advisor sheet，不新增持久化表。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。`investment_diary.status=DERIVED_FROM_ADVISOR_SHEET` 表示该日记为报告时派生快照，不代表已写入独立日记表。
+周报和投资日记复用 advisor sheet。Celery 周报任务会把 weekly report payload、`investment_diary`、dashboard 通知和 audit operation log 写入数据库；直接调用只读 API 时仍只生成实时 payload。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。`investment_diary.status=DERIVED_FROM_ADVISOR_SHEET` 表示日记内容由 advisor sheet 派生。
+
+持久化读取:
+
+- 周报历史: `/api/dashboard/auto-advisor-weekly-report-history/?account_id=<id>&limit=20`
+- 通知输出: `/api/dashboard/auto-advisor-notifications/?account_id=<id>&limit=20`
+- 存储表: `dashboard_auto_advisor_weekly_report`、`dashboard_auto_advisor_notification`
+- 审计: 每次 Celery 持久化会写入 `audit_operation_log`
 
 自动生成:
 
@@ -355,6 +362,11 @@ Query:
 - 统一初始化: `python manage.py init_scheduler_defaults`
 - 默认频率: 每周五 17:30，生成全部活跃账户周报
 - 可选范围: `--user-id <id> --account-ids <id1,id2>`
+
+Terminal CLI:
+
+- `advisor_today account_id=<id>`: 查看今日自动投顾建议单
+- `advisor_query account_id=<id> question=<问题>`: 对账户执行自动投顾自然语言查询
 
 ## 3. 统一推荐列表
 

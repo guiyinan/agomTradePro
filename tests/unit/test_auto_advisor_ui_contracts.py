@@ -118,3 +118,31 @@ def test_advisor_today_terminal_formatter_outputs_account_order_summary():
     assert "confirm=PENDING" in output
     assert "建议订单: 共 2 单" in output
     assert "BUY AAA Alpha" in output
+
+
+def test_advisor_query_terminal_formatter_outputs_compact_answer():
+    output = CommandExecutionService._format_advisor_query_output(
+        {
+            "success": True,
+            "data": {
+                "account": {"account_id": "1", "account_name": "Growth"},
+                "query": {
+                    "question": "我现在最大风险是什么",
+                    "intent": "largest_risk",
+                },
+                "answer": "最大风险是单票 AAA 权重 32%。",
+                "highlights": [
+                    {
+                        "code": "top_position_weight",
+                        "message": "AAA 权重 32%",
+                    }
+                ],
+                "evidence": {"risk_summary": {"top_position_weight": 0.32}},
+            },
+        }
+    )
+
+    assert "账户: Growth" in output
+    assert "识别意图: largest_risk" in output
+    assert "最大风险是单票 AAA 权重 32%。" in output
+    assert "top_position_weight" in output

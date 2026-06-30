@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from typing import Any, Protocol
 
 from apps.dashboard.application.queries import get_alpha_homepage_query
+from apps.dashboard.application.repository_provider import get_auto_advisor_report_repository
 
 
 class AutoAdvisorSheetProviderProtocol(Protocol):
@@ -241,6 +242,56 @@ def build_auto_advisor_weekly_report_payload(
             "data_health": sheet.get("data_health") or {},
             "execution_plan": sheet.get("execution_plan") or {},
         },
+    }
+
+
+def build_auto_advisor_weekly_report_history_payload(
+    *,
+    user: Any,
+    account_id: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """Return persisted auto-advisor weekly reports for dashboard/CLI output."""
+
+    user_id = int(getattr(user, "id", 0) or 0)
+    if user_id <= 0:
+        raise ValueError("authenticated user is required")
+    normalized_account_id = int(account_id) if account_id not in {None, ""} else None
+    bounded_limit = max(1, min(int(limit or 20), 100))
+    reports = get_auto_advisor_report_repository().list_recent_reports(
+        user_id=user_id,
+        account_id=normalized_account_id,
+        limit=bounded_limit,
+    )
+    return {
+        "status": "ok",
+        "count": len(reports),
+        "reports": reports,
+    }
+
+
+def build_auto_advisor_notifications_payload(
+    *,
+    user: Any,
+    account_id: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """Return stored auto-advisor notification/output items."""
+
+    user_id = int(getattr(user, "id", 0) or 0)
+    if user_id <= 0:
+        raise ValueError("authenticated user is required")
+    normalized_account_id = int(account_id) if account_id not in {None, ""} else None
+    bounded_limit = max(1, min(int(limit or 20), 100))
+    notifications = get_auto_advisor_report_repository().list_recent_notifications(
+        user_id=user_id,
+        account_id=normalized_account_id,
+        limit=bounded_limit,
+    )
+    return {
+        "status": "ok",
+        "count": len(notifications),
+        "notifications": notifications,
     }
 
 

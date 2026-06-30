@@ -475,6 +475,88 @@ class DashboardSnapshotModel(models.Model):
         return f"DashboardSnapshot({self.user.username}, {self.captured_at})"
 
 
+class AutoAdvisorWeeklyReportModel(models.Model):
+    """Persisted weekly auto-advisor report and derived investment diary."""
+
+    STATUS_READY = "ready"
+    STATUS_PARTIAL = "partial"
+    STATUS_FAILED = "failed"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="auto_advisor_weekly_reports",
+    )
+    account_id = models.IntegerField(db_index=True)
+    account_name = models.CharField(max_length=120, blank=True)
+    report_date = models.DateField(db_index=True)
+    week_start = models.DateField(db_index=True)
+    week_end = models.DateField(db_index=True)
+    status = models.CharField(max_length=20, default=STATUS_READY, db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+    investment_diary = models.JSONField(default=dict, blank=True)
+    audit_log_id = models.CharField(max_length=64, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "dashboard_auto_advisor_weekly_report"
+        verbose_name = "自动投顾周报"
+        verbose_name_plural = "自动投顾周报"
+        ordering = ["-report_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["user", "account_id", "report_date"]),
+            models.Index(fields=["status", "report_date"]),
+        ]
+        unique_together = [["user", "account_id", "report_date"]]
+
+    def __str__(self):
+        return f"AutoAdvisorWeeklyReport(user={self.user_id}, account={self.account_id}, date={self.report_date})"
+
+
+class AutoAdvisorNotificationModel(models.Model):
+    """Stored notification/output item for auto-advisor reports."""
+
+    CHANNEL_DASHBOARD = "dashboard"
+    STATUS_PENDING = "pending"
+    STATUS_DELIVERED = "delivered"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="auto_advisor_notifications",
+    )
+    report = models.ForeignKey(
+        AutoAdvisorWeeklyReportModel,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    account_id = models.IntegerField(db_index=True)
+    channel = models.CharField(max_length=32, default=CHANNEL_DASHBOARD, db_index=True)
+    title = models.CharField(max_length=200)
+    message = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    delivery_status = models.CharField(max_length=20, default=STATUS_PENDING, db_index=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "dashboard_auto_advisor_notification"
+        verbose_name = "自动投顾通知"
+        verbose_name_plural = "自动投顾通知"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "delivery_status", "created_at"]),
+            models.Index(fields=["channel", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"AutoAdvisorNotification(user={self.user_id}, account={self.account_id}, status={self.delivery_status})"
+
+
 class AlphaRecommendationRunModel(models.Model):
     """首页 Alpha 候选评估运行快照。"""
 

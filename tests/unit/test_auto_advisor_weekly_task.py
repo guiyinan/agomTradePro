@@ -39,6 +39,11 @@ def test_generate_auto_advisor_weekly_reports_for_active_targets(monkeypatch):
         "build_auto_advisor_weekly_report_payload",
         _fake_report,
     )
+    monkeypatch.setattr(
+        dashboard_tasks,
+        "persist_auto_advisor_weekly_report_outputs",
+        lambda *, user, report_payload: {"report": {"id": 1}},
+    )
 
     payload = generate_auto_advisor_weekly_reports_task.run(as_of="2026-06-26")
 
@@ -49,6 +54,7 @@ def test_generate_auto_advisor_weekly_reports_for_active_targets(monkeypatch):
     assert payload["failed_count"] == 0
     assert payload["reports"][0]["account_id"] == 101
     assert payload["reports"][0]["report"]["week"]["as_of"] == "2026-06-26"
+    assert payload["reports"][0]["persisted"]["report"]["id"] == 1
 
 
 def test_generate_auto_advisor_weekly_reports_filters_user_accounts(monkeypatch):
@@ -76,6 +82,11 @@ def test_generate_auto_advisor_weekly_reports_filters_user_accounts(monkeypatch)
             "account": {"id": int(account_id)},
             "week": {"as_of": as_of.isoformat()},
         },
+    )
+    monkeypatch.setattr(
+        dashboard_tasks,
+        "persist_auto_advisor_weekly_report_outputs",
+        lambda *, user, report_payload: {"report": {"id": int(report_payload["account"]["id"])}},
     )
 
     payload = generate_auto_advisor_weekly_reports_task.run(

@@ -12,7 +12,9 @@ from rest_framework.response import Response
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.query_services import (
     build_auto_advisor_console_payload,
+    build_auto_advisor_notifications_payload,
     build_auto_advisor_query_payload,
+    build_auto_advisor_weekly_report_history_payload,
     build_auto_advisor_weekly_report_payload,
 )
 from core.cache_utils import CACHE_TTL, cached_api
@@ -146,6 +148,50 @@ def auto_advisor_weekly_report(request):
             account_id=account_id,
             user=request.user,
             as_of=as_of,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
+    return Response({"success": True, "data": payload})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def auto_advisor_weekly_report_history(request):
+    """Persisted personal weekly auto-advisor report history."""
+
+    account_id = str(request.GET.get("account_id") or "").strip() or None
+    try:
+        limit = int(request.GET.get("limit") or 20)
+        payload = build_auto_advisor_weekly_report_history_payload(
+            account_id=account_id,
+            user=request.user,
+            limit=limit,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
+    return Response({"success": True, "data": payload})
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def auto_advisor_notifications(request):
+    """Stored auto-advisor notification/output items."""
+
+    account_id = str(request.GET.get("account_id") or "").strip() or None
+    try:
+        limit = int(request.GET.get("limit") or 20)
+        payload = build_auto_advisor_notifications_payload(
+            account_id=account_id,
+            user=request.user,
+            limit=limit,
         )
     except Exception as exc:
         return Response(

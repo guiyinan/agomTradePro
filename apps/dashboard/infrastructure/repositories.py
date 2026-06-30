@@ -10,6 +10,7 @@ from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.db import DatabaseError
+from django.utils import timezone
 
 from apps.dashboard.domain.entities import (
     AlertSeverity,
@@ -22,6 +23,8 @@ from apps.fund.infrastructure.models import FundHoldingModel
 from .models import (
     AlphaRecommendationRunModel,
     AlphaRecommendationSnapshotModel,
+    AutoAdvisorNotificationModel,
+    AutoAdvisorWeeklyReportModel,
     DashboardAlertModel,
     DashboardCardModel,
     DashboardConfigModel,
@@ -32,6 +35,152 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
+
+class AutoAdvisorReportRepository:
+    """Persist weekly auto-advisor reports, diary snapshots, and notifications."""
+
+    def upsert_weekly_report(
+        self,
+        *,
+        user_id: int,
+        account_id: int,
+        account_name: str,
+        report_date: date,
+        week_start: date,
+        week_end: date,
+        payload: dict[str, Any],
+        investment_diary: dict[str, Any],
+        status: str = AutoAdvisorWeeklyReportModel.STATUS_READY,
+        audit_log_id: str = "",
+    ) -> dict[str, Any]:
+        """Create or update one weekly report snapshot."""
+
+        report, _ = AutoAdvisorWeeklyReportModel._default_manager.update_or_create(
+            user_id=user_id,
+            account_id=account_id,
+            report_date=report_date,
+            defaults={
+                "account_name": account_name,
+                "week_start": week_start,
+                "week_end": week_end,
+                "status": status,
+                "payload": payload,
+                "investment_diary": investment_diary,
+                "audit_log_id": audit_log_id,
+            },
+        )
+        return self._serialize_report(report)
+
+    def update_report_audit_log(self, *, report_id: int, audit_log_id: str) -> dict[str, Any] | None:
+        """Attach an audit operation log id to a persisted report."""
+
+        updated = AutoAdvisorWeeklyReportModel._default_manager.filter(id=report_id).update(
+            audit_log_id=audit_log_id
+        )
+        if not updated:
+            return None
+        report = AutoAdvisorWeeklyReportModel._default_manager.get(id=report_id)
+        return self._serialize_report(report)
+
+    def create_notification(
+        self,
+        *,
+        user_id: int,
+        account_id: int,
+        report_id: int,
+        title: str,
+        message: str,
+        payload: dict[str, Any],
+        channel: str = AutoAdvisorNotificationModel.CHANNEL_DASHBOARD,
+        delivery_status: str = AutoAdvisorNotificationModel.STATUS_DELIVERED,
+    ) -> dict[str, Any]:
+        """Create one stored dashboard notification/output item."""
+
+        delivered_at = timezone.now() if delivery_status == AutoAdvisorNotificationModel.STATUS_DELIVERED else None
+        notification = AutoAdvisorNotificationModel._default_manager.create(
+            user_id=user_id,
+            account_id=account_id,
+            report_id=report_id,
+            channel=channel,
+            title=title,
+            message=message,
+            payload=payload,
+            delivery_status=delivery_status,
+            delivered_at=delivered_at,
+        )
+        return self._serialize_notification(notification)
+
+    def list_recent_reports(
+        self,
+        *,
+        user_id: int,
+        account_id: int | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Return recent persisted weekly reports."""
+
+        queryset = AutoAdvisorWeeklyReportModel._default_manager.filter(user_id=user_id)
+        if account_id is not None:
+            queryset = queryset.filter(account_id=account_id)
+        return [
+            self._serialize_report(report)
+            for report in queryset.order_by("-report_date", "-created_at")[: max(limit, 0)]
+        ]
+
+    def list_recent_notifications(
+        self,
+        *,
+        user_id: int,
+        account_id: int | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Return recent auto-advisor notification/output items."""
+
+        queryset = AutoAdvisorNotificationModel._default_manager.filter(user_id=user_id)
+        if account_id is not None:
+            queryset = queryset.filter(account_id=account_id)
+        return [
+            self._serialize_notification(notification)
+            for notification in queryset.order_by("-created_at")[: max(limit, 0)]
+        ]
+
+    @staticmethod
+    def _serialize_report(report: AutoAdvisorWeeklyReportModel) -> dict[str, Any]:
+        return {
+            "id": report.id,
+            "user_id": report.user_id,
+            "account_id": report.account_id,
+            "account_name": report.account_name,
+            "report_date": report.report_date.isoformat(),
+            "week_start": report.week_start.isoformat(),
+            "week_end": report.week_end.isoformat(),
+            "status": report.status,
+            "payload": report.payload,
+            "investment_diary": report.investment_diary,
+            "audit_log_id": report.audit_log_id,
+            "created_at": report.created_at.isoformat() if report.created_at else None,
+            "updated_at": report.updated_at.isoformat() if report.updated_at else None,
+        }
+
+    @staticmethod
+    def _serialize_notification(notification: AutoAdvisorNotificationModel) -> dict[str, Any]:
+        return {
+            "id": notification.id,
+            "user_id": notification.user_id,
+            "account_id": notification.account_id,
+            "report_id": notification.report_id,
+            "channel": notification.channel,
+            "title": notification.title,
+            "message": notification.message,
+            "payload": notification.payload,
+            "delivery_status": notification.delivery_status,
+            "delivered_at": notification.delivered_at.isoformat()
+            if notification.delivered_at
+            else None,
+            "read_at": notification.read_at.isoformat() if notification.read_at else None,
+            "created_at": notification.created_at.isoformat() if notification.created_at else None,
+        }
 
 
 class DashboardAlphaContextRepository:

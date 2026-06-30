@@ -261,6 +261,12 @@ class CommandExecutionService:
             and not bool((params or {}).get("verbose", False))
         ):
             return self._format_advisor_today_output(output)
+        if (
+            command.name == "advisor_query"
+            and isinstance(output, dict)
+            and not bool((params or {}).get("verbose", False))
+        ):
+            return self._format_advisor_query_output(output)
 
         if isinstance(output, (dict, list)):
             return json.dumps(output, indent=2, ensure_ascii=False)
@@ -366,6 +372,40 @@ class CommandExecutionService:
             lines.append("下一步命令:")
             for action in next_actions:
                 lines.append(f"- {action.get('label')}: {action.get('hint')}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_advisor_query_output(payload: dict[str, Any]) -> str:
+        """Render a compact textual answer for the auto-advisor query command."""
+
+        data = payload.get("data") if payload.get("success") is True else payload
+        if not isinstance(data, dict):
+            return json.dumps(payload, indent=2, ensure_ascii=False)
+
+        account = data.get("account") or {}
+        query = data.get("query") or {}
+        answer = str(data.get("answer") or "")
+        highlights = list(data.get("highlights") or [])[:5]
+        evidence = data.get("evidence") or {}
+        account_name = account.get("account_name") or account.get("account_id") or "-"
+        lines = [
+            f"账户: {account_name}",
+            f"问题: {query.get('question') or '-'}",
+            f"识别意图: {query.get('intent') or '-'}",
+            f"回答: {answer or '-'}",
+        ]
+        if highlights:
+            lines.append("关键证据:")
+            for item in highlights:
+                if isinstance(item, dict):
+                    asset = item.get("asset_code") or item.get("code") or item.get("type") or "-"
+                    message = item.get("message") or item.get("reason") or item.get("summary") or ""
+                    lines.append(f"- {asset}: {message}")
+                else:
+                    lines.append(f"- {item}")
+        if evidence:
+            fields = ", ".join(sorted(str(key) for key in evidence.keys())[:8])
+            lines.append(f"证据字段: {fields}")
         return "\n".join(lines)
 
     def _apply_jq_filter(self, data: Any, filter_expr: str) -> Any:

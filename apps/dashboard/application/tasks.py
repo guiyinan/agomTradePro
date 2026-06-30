@@ -13,6 +13,7 @@ from apps.simulated_trading.application.query_services import (
     list_dashboard_account_payloads,
 )
 
+from .auto_advisor_outputs import persist_auto_advisor_weekly_report_outputs
 from .query_services import build_auto_advisor_weekly_report_payload
 
 
@@ -50,6 +51,10 @@ def generate_auto_advisor_weekly_reports_task(
                 user=user,
                 as_of=report_date,
             )
+            persisted = persist_auto_advisor_weekly_report_outputs(
+                user=user,
+                report_payload=report,
+            )
         except Exception as exc:  # pragma: no cover - defensive task boundary
             errors.append(
                 {
@@ -65,6 +70,7 @@ def generate_auto_advisor_weekly_reports_task(
                 "account_id": target_account_id,
                 "user_id": target_user_id,
                 "report": report,
+                "persisted": persisted,
             }
         )
 

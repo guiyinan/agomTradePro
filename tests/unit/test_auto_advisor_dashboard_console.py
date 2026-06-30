@@ -230,6 +230,10 @@ def test_dashboard_api_root_exposes_auto_advisor_weekly_report_endpoint():
 
     assert "auto_advisor_weekly_report" in api_urls
     assert "/api/dashboard/auto-advisor-weekly-report/" in api_urls
+    assert "auto_advisor_weekly_report_history" in api_urls
+    assert "/api/dashboard/auto-advisor-weekly-report-history/" in api_urls
+    assert "auto_advisor_notifications" in api_urls
+    assert "/api/dashboard/auto-advisor-notifications/" in api_urls
 
 
 def _query_sheet():

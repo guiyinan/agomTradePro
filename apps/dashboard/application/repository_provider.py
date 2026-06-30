@@ -10,6 +10,7 @@ from apps.dashboard.application.integration_gateways import (
 )
 from apps.dashboard.infrastructure.providers import (
     AlphaRecommendationHistoryRepository,
+    AutoAdvisorReportRepository,
     DashboardAIInsightClient,
     DashboardAlphaContextRepository,
     DashboardOverviewRepository,
@@ -45,6 +46,12 @@ def get_alpha_recommendation_history_repository() -> AlphaRecommendationHistoryR
     """Return the Alpha recommendation history repository."""
 
     return AlphaRecommendationHistoryRepository()
+
+
+def get_auto_advisor_report_repository() -> AutoAdvisorReportRepository:
+    """Return the auto-advisor report persistence repository."""
+
+    return AutoAdvisorReportRepository()
 
 
 def get_dashboard_ai_insight_client() -> DashboardAIInsightClient:
