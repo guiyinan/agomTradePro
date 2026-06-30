@@ -20,6 +20,7 @@ def test_register_dashboard_alpha_tools() -> None:
     assert "get_auto_advisor_console" in tool_names
     assert "ask_auto_advisor" in tool_names
     assert "get_auto_advisor_weekly_report" in tool_names
+    assert "create_auto_advisor_weekly_report" in tool_names
     assert "list_auto_advisor_weekly_report_history" in tool_names
     assert "list_auto_advisor_notifications" in tool_names
 
@@ -43,6 +44,10 @@ def test_auto_advisor_mcp_tools_call_sdk(mock_client_cls) -> None:
         "account_id": "135",
         "investment_diary": {},
     }
+    mock_client.dashboard.create_auto_advisor_weekly_report.return_value = {
+        "account_id": "135",
+        "persisted": {"report": {"id": 9}},
+    }
     mock_client.dashboard.auto_advisor_weekly_report_history.return_value = {
         "items": [{"id": 1}],
     }
@@ -58,6 +63,7 @@ def test_auto_advisor_mcp_tools_call_sdk(mock_client_cls) -> None:
     console_fn = server._tool_manager._tools["get_auto_advisor_console"].fn
     query_fn = server._tool_manager._tools["ask_auto_advisor"].fn
     report_fn = server._tool_manager._tools["get_auto_advisor_weekly_report"].fn
+    create_report_fn = server._tool_manager._tools["create_auto_advisor_weekly_report"].fn
     history_fn = server._tool_manager._tools["list_auto_advisor_weekly_report_history"].fn
     notification_fn = server._tool_manager._tools["list_auto_advisor_notifications"].fn
 
@@ -65,6 +71,7 @@ def test_auto_advisor_mcp_tools_call_sdk(mock_client_cls) -> None:
     console = console_fn(account_id=135)
     answer = query_fn(account_id=135, question="最大风险是什么")
     report = report_fn(account_id=135, as_of="2026-06-30")
+    created_report = create_report_fn(account_id=135, as_of="2026-06-30")
     history = history_fn(account_id=135, limit=5)
     notifications = notification_fn(limit=3)
 
@@ -75,6 +82,10 @@ def test_auto_advisor_mcp_tools_call_sdk(mock_client_cls) -> None:
         question="最大风险是什么",
     )
     mock_client.dashboard.auto_advisor_weekly_report.assert_called_once_with(
+        account_id=135,
+        as_of="2026-06-30",
+    )
+    mock_client.dashboard.create_auto_advisor_weekly_report.assert_called_once_with(
         account_id=135,
         as_of="2026-06-30",
     )
@@ -90,6 +101,7 @@ def test_auto_advisor_mcp_tools_call_sdk(mock_client_cls) -> None:
     assert console["risk_gate"]["status"] == "pass"
     assert answer["answer"] == "最大风险是集中度。"
     assert report["account_id"] == "135"
+    assert created_report["persisted"]["report"]["id"] == 9
     assert history["items"][0]["id"] == 1
     assert notifications["items"][0]["id"] == 2
 

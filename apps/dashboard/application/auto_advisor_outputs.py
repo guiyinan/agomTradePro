@@ -14,6 +14,10 @@ def persist_auto_advisor_weekly_report_outputs(
     *,
     user: Any,
     report_payload: dict[str, Any],
+    audit_source: str = "API",
+    audit_tool_name: str = "dashboard.generate_auto_advisor_weekly_reports",
+    audit_request_method: str = "CELERY",
+    audit_request_path: str = "dashboard.generate_auto_advisor_weekly_reports",
 ) -> dict[str, Any]:
     """Persist report, investment diary, dashboard notification, and audit trail."""
 
@@ -61,6 +65,10 @@ def persist_auto_advisor_weekly_report_outputs(
         account_id=account_id,
         report_id=int(report["id"]),
         report_payload=report_payload,
+        audit_source=audit_source,
+        audit_tool_name=audit_tool_name,
+        audit_request_method=audit_request_method,
+        audit_request_path=audit_request_path,
     )
     if audit.get("success") and audit.get("log_id"):
         updated_report = repo.update_report_audit_log(
@@ -92,16 +100,20 @@ def _write_auto_advisor_report_audit_log(
     account_id: int,
     report_id: int,
     report_payload: dict[str, Any],
+    audit_source: str,
+    audit_tool_name: str,
+    audit_request_method: str,
+    audit_request_path: str,
 ) -> dict[str, Any]:
     return log_operation_payload(
         request_id=f"auto-advisor-weekly-report-{report_id}",
         user_id=int(getattr(user, "id", 0) or 0),
         username=str(getattr(user, "username", "") or getattr(user, "email", "") or "system"),
-        source="API",
+        source=audit_source,
         operation_type="DATA_MODIFY",
         module="dashboard",
         action="CREATE",
-        mcp_tool_name="dashboard.generate_auto_advisor_weekly_reports",
+        mcp_tool_name=audit_tool_name,
         request_params={
             "account_id": account_id,
             "report_id": report_id,
@@ -115,6 +127,6 @@ def _write_auto_advisor_report_audit_log(
         response_message="auto advisor weekly report persisted",
         resource_type="auto_advisor_weekly_report",
         resource_id=str(report_id),
-        request_method="CELERY",
-        request_path="dashboard.generate_auto_advisor_weekly_reports",
+        request_method=audit_request_method,
+        request_path=audit_request_path,
     )

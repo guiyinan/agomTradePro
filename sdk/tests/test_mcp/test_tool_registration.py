@@ -58,6 +58,7 @@ def test_extended_mcp_tools_registered():
         "get_auto_advisor_console",
         "ask_auto_advisor",
         "get_auto_advisor_weekly_report",
+        "create_auto_advisor_weekly_report",
         "list_auto_advisor_weekly_report_history",
         "list_auto_advisor_notifications",
         "get_dashboard_alpha_candidates",

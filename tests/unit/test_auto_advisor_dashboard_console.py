@@ -4,12 +4,16 @@ from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+from rest_framework.test import APIRequestFactory, force_authenticate
+
 from apps.dashboard.application import query_services
 from apps.dashboard.application.query_services import (
     build_auto_advisor_console_payload,
     build_auto_advisor_query_payload,
     build_auto_advisor_weekly_report_payload,
 )
+from apps.dashboard.interface import api_v1_views
 
 
 class FakeSheetProvider:
@@ -234,6 +238,67 @@ def test_dashboard_api_root_exposes_auto_advisor_weekly_report_endpoint():
     assert "/api/dashboard/auto-advisor-weekly-report-history/" in api_urls
     assert "auto_advisor_notifications" in api_urls
     assert "/api/dashboard/auto-advisor-notifications/" in api_urls
+
+
+@pytest.mark.django_db
+def test_auto_advisor_weekly_report_post_persists_payload(monkeypatch, django_user_model):
+    user = django_user_model.objects.create_user(username="weekly-api-user")
+    report_payload = {
+        "status": "ok",
+        "account": {"account_id": 101, "account_name": "Growth"},
+        "week": {"start": "2026-06-29", "end": "2026-07-05", "as_of": "2026-06-30"},
+        "investment_diary": {"status": "DERIVED_FROM_ADVISOR_SHEET"},
+    }
+    persisted_payload = {
+        "report": {"id": 9, "account_id": 101},
+        "notification": {"id": 10},
+        "audit": {"success": True, "log_id": "audit-9"},
+    }
+    captured = {}
+
+    def _fake_build(*, account_id, user, as_of):
+        captured["build"] = {
+            "account_id": account_id,
+            "user_id": user.id,
+            "as_of": as_of.isoformat(),
+        }
+        return report_payload
+
+    def _fake_persist(**kwargs):
+        captured["persist"] = kwargs
+        return persisted_payload
+
+    monkeypatch.setattr(
+        api_v1_views,
+        "build_auto_advisor_weekly_report_payload",
+        _fake_build,
+    )
+    monkeypatch.setattr(
+        api_v1_views,
+        "persist_auto_advisor_weekly_report_outputs",
+        _fake_persist,
+    )
+
+    request = APIRequestFactory().post(
+        "/api/dashboard/auto-advisor-weekly-report/",
+        {"account_id": "101", "as_of": "2026-06-30"},
+        format="json",
+    )
+    force_authenticate(request, user=user)
+
+    response = api_v1_views.auto_advisor_weekly_report(request)
+
+    assert response.status_code == 200
+    assert captured["build"] == {
+        "account_id": "101",
+        "user_id": user.id,
+        "as_of": "2026-06-30",
+    }
+    assert captured["persist"]["user"] == user
+    assert captured["persist"]["report_payload"] == report_payload
+    assert captured["persist"]["audit_request_method"] == "POST"
+    assert response.data["persisted"] == persisted_payload
+    assert response.data["data"]["persisted"] == persisted_payload
 
 
 def _query_sheet():

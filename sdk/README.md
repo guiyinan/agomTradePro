@@ -189,7 +189,7 @@ Three methods (priority order):
 
 ## MCP Tools
 
-Current local MCP registration snapshot on `2026-06-30`: `364` tools.
+Current local MCP registration snapshot on `2026-06-30`: `365` tools.
 
 Canonical API routing for SDK/MCP is documented in:
 
@@ -202,7 +202,7 @@ Canonical API routing for SDK/MCP is documented in:
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`, `run_decision_replay_backtest`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
 - **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
-- **Auto Advisor**: `get_auto_advisor_decision_sheet`, `get_auto_advisor_console`, `ask_auto_advisor`, `get_auto_advisor_weekly_report`, `list_auto_advisor_weekly_report_history`, `list_auto_advisor_notifications`
+- **Auto Advisor**: `get_auto_advisor_decision_sheet`, `get_auto_advisor_console`, `ask_auto_advisor`, `get_auto_advisor_weekly_report`, `create_auto_advisor_weekly_report`, `list_auto_advisor_weekly_report_history`, `list_auto_advisor_notifications`
 
 ### Auto Advisor SDK/MCP
 
@@ -212,10 +212,11 @@ Personal auto-advisor is exposed through both Python SDK methods and native MCP 
 - `client.dashboard.auto_advisor_console(account_id)` -> `/api/dashboard/auto-advisor-console/`
 - `client.dashboard.auto_advisor_query(account_id, question)` -> `/api/dashboard/auto-advisor-query/`
 - `client.dashboard.auto_advisor_weekly_report(account_id, as_of=None)` -> `/api/dashboard/auto-advisor-weekly-report/`
+- `client.dashboard.create_auto_advisor_weekly_report(account_id, as_of=None)` -> generates and persists the weekly report
 - `client.dashboard.auto_advisor_weekly_report_history(account_id=None, limit=20)` -> persisted weekly reports
 - `client.dashboard.auto_advisor_notifications(account_id=None, limit=20)` -> persisted notification/output records
 
-The matching MCP tools are read-only. They expose advisor sheet, dashboard console, natural-language Q&A, weekly report, persisted diary history, and notification output without adding any real trade execution path.
+The matching MCP tools expose advisor sheet, dashboard console, natural-language Q&A, weekly report creation, persisted diary history, and notification output without adding any real trade execution path.
 
 ### Macro Governance Contract
 
@@ -453,7 +454,7 @@ agomtradepro-mcp
 - **Version**: 1.2.0
 - **App Modules**: 35 business modules
 - **SDK Modules**: 36 service modules
-- **MCP Tools**: 364 tools
+- **MCP Tools**: 365 tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
 - **Last Updated**: 2026-05-04

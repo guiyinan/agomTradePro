@@ -22,12 +22,12 @@
 - 已接入首页自动投顾主控台：`/api/dashboard/auto-advisor-console/` 聚合今日是否可交易、宏观象限、组合风险、今日建议、必须处理的预警、数据 freshness 和执行确认状态，并已嵌入 Dashboard 首页。
 - 已接入自然语言查询首版：`/api/dashboard/auto-advisor-query/` 基于 advisor sheet 确定性回答最大风险、减仓原因、证伪持仓、下跌冲击损失和未执行建议表现，不依赖 LLM。
 - 已接入深层归因证据：`tracking.performance.error_attribution.deep_attribution` 输出 Regime 上下文、Policy 上下文和人工 override 结果分类。
-- 已接入个人周报首版：`/api/dashboard/auto-advisor-weekly-report/` 输出组合快照、最大风险暴露、系统建议与实际操作差异、未执行建议表现、已证伪建议和下周观察清单。
+- 已接入个人周报首版：`GET /api/dashboard/auto-advisor-weekly-report/` 输出组合快照、最大风险暴露、系统建议与实际操作差异、未执行建议表现、已证伪建议和下周观察清单；`POST /api/dashboard/auto-advisor-weekly-report/` 可手动生成并持久化周报。
 - 已接入投资日记持久化：weekly report 返回 `investment_diary`，Celery 周报任务会持久化 weekly report、投资日记快照、dashboard 通知和 audit operation log。
 - 已接入事后 Regime/Policy 标签对比：deep attribution 会比较推荐时上下文和成熟表现窗口对应日期的 Regime/Policy，输出 `REGIME_JUDGMENT_ERROR`、`POLICY_MISJUDGMENT` 等分类。
 - 已接入个人周报每周自动生成：Celery 任务 `dashboard.generate_auto_advisor_weekly_reports` 默认由 `setup_auto_advisor_weekly_report` 创建每周五 17:30 beat 记录，并纳入 `init_scheduler_defaults`。
 - 已接入 CLI 自然语言查询：Terminal 命令 `advisor_query account_id=<id> question=<问题>` 复用 Dashboard auto-advisor query API，输出紧凑答案和关键证据。
-- 已接入 MCP SDK 原生工具：`get_auto_advisor_decision_sheet`、`get_auto_advisor_console`、`ask_auto_advisor`、`get_auto_advisor_weekly_report`、`list_auto_advisor_weekly_report_history`、`list_auto_advisor_notifications` 已注册到 SDK MCP server。
+- 已接入 MCP SDK 原生工具：`get_auto_advisor_decision_sheet`、`get_auto_advisor_console`、`ask_auto_advisor`、`get_auto_advisor_weekly_report`、`create_auto_advisor_weekly_report`、`list_auto_advisor_weekly_report_history`、`list_auto_advisor_notifications` 已注册到 SDK MCP server。
 
 ## 1. 目标定位
 

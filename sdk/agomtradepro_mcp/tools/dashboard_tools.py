@@ -81,6 +81,23 @@ def register_dashboard_tools(server: FastMCP) -> None:
         )
 
     @server.tool()
+    def create_auto_advisor_weekly_report(
+        account_id: int | str,
+        as_of: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        生成并持久化个人自动投顾周报。
+
+        会写入周报快照、投资日记、Dashboard 通知和审计日志；不会执行交易。
+        `as_of` 可传 `YYYY-MM-DD`。
+        """
+        client = AgomTradeProClient()
+        return client.dashboard.create_auto_advisor_weekly_report(
+            account_id=account_id,
+            as_of=as_of,
+        )
+
+    @server.tool()
     def list_auto_advisor_weekly_report_history(
         account_id: int | str | None = None,
         limit: int = 20,

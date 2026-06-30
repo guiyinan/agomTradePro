@@ -10,6 +10,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.dashboard.application.auto_advisor_outputs import (
+    persist_auto_advisor_weekly_report_outputs,
+)
 from apps.dashboard.application.query_services import (
     build_auto_advisor_console_payload,
     build_auto_advisor_notifications_payload,
@@ -123,19 +126,29 @@ def auto_advisor_query(request):
     return Response({"success": True, "data": payload})
 
 
-@api_view(["GET"])
+def _request_param(request, key: str) -> object:
+    if request.method == "POST":
+        return request.data.get(key)
+    return request.GET.get(key)
+
+
+@api_view(["GET", "POST"])
 @authentication_classes([SessionAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_weekly_report(request):
-    """Personal weekly auto-advisor report payload."""
+    """Personal weekly auto-advisor report payload.
 
-    account_id = str(request.GET.get("account_id") or "").strip()
+    GET is read-only and returns a generated report payload.
+    POST generates the report and persists it with diary, notification, and audit outputs.
+    """
+
+    account_id = str(_request_param(request, "account_id") or "").strip()
     if not account_id:
         return Response(
             {"success": False, "error": "account_id is required"},
             status=400,
         )
-    as_of_raw = str(request.GET.get("as_of") or "").strip()
+    as_of_raw = str(_request_param(request, "as_of") or "").strip()
     try:
         as_of = date.fromisoformat(as_of_raw) if as_of_raw else None
     except ValueError:
@@ -149,12 +162,27 @@ def auto_advisor_weekly_report(request):
             user=request.user,
             as_of=as_of,
         )
+        persisted = None
+        if request.method == "POST":
+            persisted = persist_auto_advisor_weekly_report_outputs(
+                user=request.user,
+                report_payload=payload,
+                audit_source="API",
+                audit_tool_name="auto_advisor_weekly_report",
+                audit_request_method="POST",
+                audit_request_path="/api/dashboard/auto-advisor-weekly-report/",
+            )
     except Exception as exc:
         return Response(
             {"success": False, "error": str(exc)},
             status=400,
         )
-    return Response({"success": True, "data": payload})
+    response_data = dict(payload)
+    response_payload = {"success": True, "data": response_data}
+    if persisted is not None:
+        response_data["persisted"] = persisted
+        response_payload["persisted"] = persisted
+    return Response(response_payload)
 
 
 @api_view(["GET"])

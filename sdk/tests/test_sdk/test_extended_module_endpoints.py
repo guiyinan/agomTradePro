@@ -447,6 +447,15 @@ def client():
             {"params": {"account_id": "135", "as_of": "2026-06-30"}},
         ),
         (
+            lambda c: c.dashboard.create_auto_advisor_weekly_report(
+                135,
+                as_of="2026-06-30",
+            ),
+            "POST",
+            "/api/dashboard/auto-advisor-weekly-report/",
+            {"json": {"account_id": "135", "as_of": "2026-06-30"}},
+        ),
+        (
             lambda c: c.dashboard.auto_advisor_weekly_report_history(135, limit=5),
             "GET",
             "/api/dashboard/auto-advisor-weekly-report-history/",

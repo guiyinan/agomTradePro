@@ -61,6 +61,17 @@ class DashboardModule(BaseModule):
             params["as_of"] = as_of
         return self._get("auto-advisor-weekly-report/", params=params)
 
+    def create_auto_advisor_weekly_report(
+        self,
+        account_id: int | str,
+        as_of: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate and persist a personal weekly auto-advisor report."""
+        payload: dict[str, Any] = {"account_id": str(account_id)}
+        if as_of:
+            payload["as_of"] = as_of
+        return self._post("auto-advisor-weekly-report/", json=payload)
+
     def auto_advisor_weekly_report_history(
         self,
         account_id: int | str | None = None,

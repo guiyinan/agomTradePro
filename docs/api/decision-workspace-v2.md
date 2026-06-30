@@ -326,7 +326,11 @@ Query:
 
 - 方法: `GET`
 - 路径: `/api/dashboard/auto-advisor-weekly-report/?account_id=<id>&as_of=YYYY-MM-DD`
-- 用途: 输出个人自动投顾周报首版，不触发下单。
+- 用途: 输出个人自动投顾周报首版，不触发下单，不落库。
+- 方法: `POST`
+- 路径: `/api/dashboard/auto-advisor-weekly-report/`
+- Body: `{"account_id": "<id>", "as_of": "YYYY-MM-DD"}`
+- 用途: 生成并持久化个人自动投顾周报，同时写入投资日记、Dashboard 通知和审计日志。
 
 Query:
 
@@ -345,14 +349,14 @@ Query:
 - `next_week_watchlist`: 下周重点观察清单，包含数据健康、阻断订单和需复核决策卡片
 - `evidence`: advisor sheet 摘要证据
 
-周报和投资日记复用 advisor sheet。Celery 周报任务会把 weekly report payload、`investment_diary`、dashboard 通知和 audit operation log 写入数据库；直接调用只读 API 时仍只生成实时 payload。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。`investment_diary.status=DERIVED_FROM_ADVISOR_SHEET` 表示日记内容由 advisor sheet 派生。
+周报和投资日记复用 advisor sheet。Celery 周报任务和 `POST /api/dashboard/auto-advisor-weekly-report/` 会把 weekly report payload、`investment_diary`、dashboard 通知和 audit operation log 写入数据库；直接调用 GET 只读 API 时仍只生成实时 payload。组合变化优先读取模拟账户日净值历史，历史不足时降级为当前快照。`investment_diary.status=DERIVED_FROM_ADVISOR_SHEET` 表示日记内容由 advisor sheet 派生。
 
 持久化读取:
 
 - 周报历史: `/api/dashboard/auto-advisor-weekly-report-history/?account_id=<id>&limit=20`
 - 通知输出: `/api/dashboard/auto-advisor-notifications/?account_id=<id>&limit=20`
 - 存储表: `dashboard_auto_advisor_weekly_report`、`dashboard_auto_advisor_notification`
-- 审计: 每次 Celery 持久化会写入 `audit_operation_log`
+- 审计: 每次 Celery 或 POST 持久化会写入 `audit_operation_log`
 
 自动生成:
 
@@ -374,16 +378,18 @@ MCP / SDK 原生入口:
 - SDK `client.dashboard.auto_advisor_console(account_id)`
 - SDK `client.dashboard.auto_advisor_query(account_id, question)`
 - SDK `client.dashboard.auto_advisor_weekly_report(account_id, as_of=None)`
+- SDK `client.dashboard.create_auto_advisor_weekly_report(account_id, as_of=None)`
 - SDK `client.dashboard.auto_advisor_weekly_report_history(account_id=None, limit=20)`
 - SDK `client.dashboard.auto_advisor_notifications(account_id=None, limit=20)`
 - MCP `get_auto_advisor_decision_sheet(account_id)`
 - MCP `get_auto_advisor_console(account_id)`
 - MCP `ask_auto_advisor(account_id, question)`
 - MCP `get_auto_advisor_weekly_report(account_id, as_of=None)`
+- MCP `create_auto_advisor_weekly_report(account_id, as_of=None)`
 - MCP `list_auto_advisor_weekly_report_history(account_id=None, limit=20)`
 - MCP `list_auto_advisor_notifications(account_id=None, limit=20)`
 
-这些 MCP 工具是只读输出/查询入口，不提供真实交易执行能力。
+`create_auto_advisor_weekly_report` 会写入报表、投资日记、通知和审计日志；所有 MCP 自动投顾工具都不提供真实交易执行能力。
 
 ## 3. 统一推荐列表
 
