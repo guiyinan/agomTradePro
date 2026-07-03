@@ -25,6 +25,61 @@ def summarize_evidence_qlib_readiness(payload: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def summarize_evidence_accounts(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Return compact account-level proof from readiness evidence."""
+
+    accounts = [_as_dict(item) for item in payload.get("accounts") or []]
+    if not accounts:
+        return None
+
+    summaries = [_summarize_evidence_account(account) for account in accounts]
+    ok_count = sum(1 for account in summaries if account.get("status") == "ok")
+    return {
+        "account_count": len(summaries),
+        "ok_account_count": ok_count,
+        "accounts": summaries,
+    }
+
+
+def _summarize_evidence_account(account: dict[str, Any]) -> dict[str, Any]:
+    account_info = _as_dict(account.get("account"))
+    risk = _as_dict(account.get("risk_center_daily_report"))
+    advisor = _as_dict(account.get("auto_advisor"))
+    console = _as_dict(advisor.get("console"))
+    weekly_report = _as_dict(advisor.get("weekly_report"))
+    weekly_persistence = _as_dict(advisor.get("weekly_report_persistence"))
+    pre_trade = _as_dict(risk.get("pre_trade_check"))
+    post_investment = _as_dict(risk.get("post_investment_check"))
+    execution = _as_dict(console.get("execution"))
+    tradeability = _as_dict(console.get("today_tradeability"))
+    matched_report = _as_dict(weekly_persistence.get("matched_report"))
+
+    return {
+        "user_id": account.get("user_id"),
+        "account_id": account.get("account_id") or account_info.get("id"),
+        "account_name": account_info.get("name"),
+        "account_type": account_info.get("type_code"),
+        "status": account.get("status"),
+        "risk_status": risk.get("status"),
+        "risk_report_id": risk.get("report_id"),
+        "risk_persisted": risk.get("persisted"),
+        "pre_trade_status": pre_trade.get("status"),
+        "pre_trade_passed": pre_trade.get("passed"),
+        "post_investment_status": post_investment.get("status"),
+        "post_investment_passed": post_investment.get("passed"),
+        "advisor_status": advisor.get("status"),
+        "console_status": console.get("status"),
+        "tradeability_conclusion": tradeability.get("conclusion"),
+        "execution_mode": execution.get("execution_mode"),
+        "orders_count": execution.get("orders_count"),
+        "weekly_report_status": weekly_report.get("status"),
+        "weekly_persistence_status": weekly_persistence.get("status"),
+        "weekly_persistence_reason": weekly_persistence.get("reason"),
+        "matched_weekly_report_id": matched_report.get("id"),
+        "delivered_notification_count": weekly_persistence.get("delivered_notification_count"),
+    }
+
+
 def summarize_evidence_decision_data(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return a compact decision-data summary from one readiness evidence payload."""
 

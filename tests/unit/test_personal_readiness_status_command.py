@@ -283,6 +283,76 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                         }
                     }
                 },
+                "accounts": [
+                    {
+                        "status": "ok",
+                        "user_id": 182,
+                        "account_id": 613,
+                        "account": {
+                            "id": 613,
+                            "name": "admin readiness account",
+                            "type_code": "simulated",
+                        },
+                        "risk_center_daily_report": {
+                            "status": "ok",
+                            "persisted": True,
+                            "report_id": 5,
+                            "pre_trade_check": {"status": "ok", "passed": True},
+                            "post_investment_check": {"status": "ok", "passed": True},
+                        },
+                        "auto_advisor": {
+                            "status": "ok",
+                            "console": {
+                                "status": "ok",
+                                "today_tradeability": {"conclusion": "WAIT"},
+                                "execution": {
+                                    "execution_mode": "no_executable_orders",
+                                    "orders_count": 0,
+                                },
+                            },
+                            "weekly_report": {"status": "ok"},
+                            "weekly_report_persistence": {
+                                "status": "ok",
+                                "matched_report": {"id": 8},
+                                "delivered_notification_count": 1,
+                            },
+                        },
+                    },
+                    {
+                        "status": "warning",
+                        "user_id": 222,
+                        "account_id": 614,
+                        "account": {
+                            "id": 614,
+                            "name": "codex readiness account",
+                            "type_code": "simulated",
+                        },
+                        "risk_center_daily_report": {
+                            "status": "ok",
+                            "persisted": True,
+                            "report_id": 6,
+                            "pre_trade_check": {"status": "ok", "passed": True},
+                            "post_investment_check": {"status": "ok", "passed": True},
+                        },
+                        "auto_advisor": {
+                            "status": "warning",
+                            "console": {
+                                "status": "ok",
+                                "today_tradeability": {"conclusion": "WAIT"},
+                                "execution": {
+                                    "execution_mode": "no_executable_orders",
+                                    "orders_count": 0,
+                                },
+                            },
+                            "weekly_report": {"status": "ok"},
+                            "weekly_report_persistence": {
+                                "status": "warning",
+                                "reason": "weekly report not persisted yet",
+                                "delivered_notification_count": 0,
+                            },
+                        },
+                    },
+                ],
             }
         ),
         encoding="utf-8",
@@ -452,6 +522,60 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
         "command": "build_qlib_data --check-only",
         "latest_trade_date": "2026-06-29",
         "error": None,
+    }
+    assert payload["latest_evidence"]["summary"]["account_evidence"] == {
+        "account_count": 2,
+        "ok_account_count": 1,
+        "accounts": [
+            {
+                "user_id": 182,
+                "account_id": 613,
+                "account_name": "admin readiness account",
+                "account_type": "simulated",
+                "status": "ok",
+                "risk_status": "ok",
+                "risk_report_id": 5,
+                "risk_persisted": True,
+                "pre_trade_status": "ok",
+                "pre_trade_passed": True,
+                "post_investment_status": "ok",
+                "post_investment_passed": True,
+                "advisor_status": "ok",
+                "console_status": "ok",
+                "tradeability_conclusion": "WAIT",
+                "execution_mode": "no_executable_orders",
+                "orders_count": 0,
+                "weekly_report_status": "ok",
+                "weekly_persistence_status": "ok",
+                "weekly_persistence_reason": None,
+                "matched_weekly_report_id": 8,
+                "delivered_notification_count": 1,
+            },
+            {
+                "user_id": 222,
+                "account_id": 614,
+                "account_name": "codex readiness account",
+                "account_type": "simulated",
+                "status": "warning",
+                "risk_status": "ok",
+                "risk_report_id": 6,
+                "risk_persisted": True,
+                "pre_trade_status": "ok",
+                "pre_trade_passed": True,
+                "post_investment_status": "ok",
+                "post_investment_passed": True,
+                "advisor_status": "warning",
+                "console_status": "ok",
+                "tradeability_conclusion": "WAIT",
+                "execution_mode": "no_executable_orders",
+                "orders_count": 0,
+                "weekly_report_status": "ok",
+                "weekly_persistence_status": "warning",
+                "weekly_persistence_reason": "weekly report not persisted yet",
+                "matched_weekly_report_id": None,
+                "delivered_notification_count": 0,
+            },
+        ],
     }
     assert payload["latest_evidence"]["summary"]["alpha_workspace_consistency"] == {
         "status": "ok",

@@ -124,6 +124,7 @@ function Write-MonitorSummary {
     $marketThermometer = $decisionData.market_thermometer
     $skippedLatestThermometer = $decisionData.skipped_latest_market_thermometer
     $qlibReadiness = $latestFormal.summary.qlib_readiness
+    $accountEvidence = $latestFormal.summary.account_evidence
     $macroContext = $Payload.current_macro_context
     $macroContextSource = "live"
     if (-not $macroContext) {
@@ -438,6 +439,12 @@ function Write-MonitorSummary {
     }
     if ($accountReadiness) {
         Write-Host ("Account readiness:      status=" + $accountReadiness.status + " targets=" + $accountReadiness.target_count + " decision_ready=" + $accountReadiness.decision_ready_account_count + " zero_equity=" + $accountReadiness.zero_equity_account_count + " placeholders=" + $accountReadiness.non_blocking_placeholder_count + " blocking_zero=" + $accountReadiness.blocking_no_positive_equity_count)
+    }
+    if ($accountEvidence) {
+        $accountEvidenceDetails = @($accountEvidence.accounts) | ForEach-Object {
+            [string]$_.account_id + ":" + [string]$_.status + "/risk=" + [string]$_.risk_status + "/report=" + [string]$_.risk_report_id + "/pre=" + [string]$_.pre_trade_status + "/post=" + [string]$_.post_investment_status + "/advisor=" + [string]$_.advisor_status + "/weekly=" + [string]$_.weekly_report_status + "/persist=" + [string]$_.weekly_persistence_status
+        }
+        Write-Host ("Account evidence:       accounts=" + $accountEvidence.account_count + " ok=" + $accountEvidence.ok_account_count + " details=" + ($accountEvidenceDetails -join ";"))
     }
     if ($weeklyProof) {
         Write-Host ("Weekly advisor proof:   status=" + $weeklyProof.status + " source=" + $weeklyProof.source + " expected=" + $weeklyProof.expected_record_count + " ok_records=" + $weeklyProof.ok_record_count + " missing=" + $weeklyProof.missing_record_count + " warnings=" + $weeklyProof.warning_record_count)

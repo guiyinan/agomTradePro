@@ -1929,6 +1929,7 @@ def _summarize_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "qlib_readiness": status_services.summarize_evidence_qlib_readiness(payload),
             "workspace_status": summary.get("workspace_status"),
             "target_count": summary.get("target_count"),
+            "account_evidence": status_services.summarize_evidence_accounts(payload),
             "decision_data": status_services.summarize_evidence_decision_data(payload),
             "macro_context": status_services.summarize_evidence_macro_context(payload),
             "alpha_workspace_consistency": status_services.summarize_evidence_alpha_workspace(
