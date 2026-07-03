@@ -220,6 +220,28 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                 "workspace": {
                     "result": {
                         "components": {
+                            "macro_sync": {
+                                "status": "success",
+                                "source": "akshare",
+                                "synced_count": 4,
+                                "skipped_count": 52,
+                                "errors": ["no data"],
+                            },
+                            "regime_snapshot": {
+                                "status": "success",
+                                "observed_at": "2026-06-30",
+                                "dominant_regime": "Recovery",
+                            },
+                            "pulse_snapshot": {
+                                "status": "success",
+                                "observed_at": "2026-06-30",
+                                "is_reliable": True,
+                            },
+                            "action_recommendation": {
+                                "status": "success",
+                                "observed_at": "2026-06-30",
+                                "source": "live_action_fallback",
+                            },
                             "rotation_signals": {
                                 "status": "success",
                                 "signal_date": "2026-06-30",
@@ -363,6 +385,28 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     assert payload["latest_evidence"]["acceptance_candidate"] is True
     assert payload["latest_evidence"]["evidence_mode"] == "legacy_without_operation_context"
     assert payload["latest_evidence"]["summary"]["workspace_components"] == {
+        "macro_sync": {
+            "status": "success",
+            "source": "akshare",
+            "synced_count": 4,
+            "skipped_count": 52,
+            "error_count": 1,
+        },
+        "regime_snapshot": {
+            "status": "success",
+            "observed_at": "2026-06-30",
+            "dominant_regime": "Recovery",
+        },
+        "pulse_snapshot": {
+            "status": "success",
+            "observed_at": "2026-06-30",
+            "is_reliable": True,
+        },
+        "action_recommendation": {
+            "status": "success",
+            "observed_at": "2026-06-30",
+            "source": "live_action_fallback",
+        },
         "rotation_signals": {
             "status": "success",
             "signal_date": "2026-06-30",

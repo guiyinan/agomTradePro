@@ -130,6 +130,10 @@ function Write-MonitorSummary {
         $macroContextSource = "evidence"
     }
     $workspaceComponents = $latestFormal.summary.workspace_components
+    $macroSync = $workspaceComponents.macro_sync
+    $regimeSnapshot = $workspaceComponents.regime_snapshot
+    $pulseSnapshot = $workspaceComponents.pulse_snapshot
+    $actionRecommendation = $workspaceComponents.action_recommendation
     $rotationSignals = $workspaceComponents.rotation_signals
     $regimeContext = $macroContext.regime
     $pulseContext = $macroContext.pulse
@@ -322,6 +326,9 @@ function Write-MonitorSummary {
     }
     if ($alphaProof) {
         Write-Host ("Alpha workspace proof:  status=" + $alphaProof.status + " records=" + $alphaProof.alpha_workspace_record_count + " ok=" + $alphaProof.ok_record_count + " missing=" + $alphaProof.missing_record_count)
+    }
+    if ($workspaceComponents) {
+        Write-Host ("Workspace components:   macro=" + $macroSync.status + " synced=" + $macroSync.synced_count + " skipped=" + $macroSync.skipped_count + " errors=" + $macroSync.error_count + " regime=" + $regimeSnapshot.status + " pulse=" + $pulseSnapshot.status + " action=" + $actionRecommendation.status)
     }
     if ($rotationSignals) {
         Write-Host ("Rotation proof:         status=" + $rotationSignals.status + " date=" + $rotationSignals.signal_date + " configs=" + $rotationSignals.total_configs + " successful=" + $rotationSignals.successful + " skipped=" + $rotationSignals.skipped + " failed=" + $rotationSignals.failed)

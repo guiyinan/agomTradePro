@@ -157,11 +157,42 @@ def summarize_evidence_workspace_components(payload: dict[str, Any]) -> dict[str
     workspace = _as_dict(payload.get("workspace"))
     result = _as_dict(workspace.get("result"))
     components = _as_dict(result.get("components"))
+    macro_sync = _as_dict(components.get("macro_sync"))
+    regime = _as_dict(components.get("regime_snapshot"))
+    pulse = _as_dict(components.get("pulse_snapshot"))
+    action = _as_dict(components.get("action_recommendation"))
     rotation = _as_dict(components.get("rotation_signals"))
-    if not rotation:
+    if not any([macro_sync, regime, pulse, action, rotation]):
         return None
-    return {
-        "rotation_signals": {
+    summary: dict[str, Any] = {}
+    if macro_sync:
+        summary["macro_sync"] = {
+            "status": macro_sync.get("status"),
+            "source": macro_sync.get("source"),
+            "synced_count": macro_sync.get("synced_count"),
+            "skipped_count": macro_sync.get("skipped_count"),
+            "error_count": len(macro_sync.get("errors") or []),
+        }
+    if regime:
+        summary["regime_snapshot"] = {
+            "status": regime.get("status"),
+            "observed_at": regime.get("observed_at"),
+            "dominant_regime": regime.get("dominant_regime"),
+        }
+    if pulse:
+        summary["pulse_snapshot"] = {
+            "status": pulse.get("status"),
+            "observed_at": pulse.get("observed_at"),
+            "is_reliable": pulse.get("is_reliable"),
+        }
+    if action:
+        summary["action_recommendation"] = {
+            "status": action.get("status"),
+            "observed_at": action.get("observed_at"),
+            "source": action.get("source"),
+        }
+    if rotation:
+        summary["rotation_signals"] = {
             "status": rotation.get("status"),
             "signal_date": rotation.get("signal_date"),
             "total_configs": rotation.get("total_configs"),
@@ -169,7 +200,7 @@ def summarize_evidence_workspace_components(payload: dict[str, Any]) -> dict[str
             "skipped": rotation.get("skipped"),
             "failed": rotation.get("failed"),
         }
-    }
+    return summary
 
 
 def summarize_evidence_macro_context(payload: dict[str, Any]) -> dict[str, Any] | None:
