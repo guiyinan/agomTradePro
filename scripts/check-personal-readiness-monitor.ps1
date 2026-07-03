@@ -113,6 +113,7 @@ function Write-MonitorSummary {
     $runtime = $Payload.scheduler_runtime
     $schedule = $Payload.schedule_expectation
     $nextAction = $Payload.next_action
+    $operatorActions = @($Payload.acceptance_gate.operator_actions)
     $latestFormal = $Payload.latest_formal_evidence
     $decisionData = $Payload.current_decision_data
     $decisionDataSource = "live"
@@ -266,6 +267,19 @@ function Write-MonitorSummary {
     Write-Host ("Accepted window:        " + $acceptance.accepted_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.remaining_days)
     Write-Host ("Scheduler-clean window: " + $acceptance.scheduler_clean_suffix_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.scheduler_clean_remaining_days)
     Write-Host ("Failed final gates:     " + ((@($acceptance.failed_requirements) | ForEach-Object { [string]$_.name }) -join ","))
+    if ($operatorActions.Count -gt 0) {
+        $operatorActionSummary = @($operatorActions | ForEach-Object {
+            $parts = @([string]$_.requirement, [string]$_.action)
+            if ($_.target_date) {
+                $parts += ("target=" + [string]$_.target_date)
+            }
+            if ($_.next_check_after) {
+                $parts += ("next=" + [string]$_.next_check_after)
+            }
+            $parts -join " "
+        }) -join "; "
+        Write-Host ("Failed gate actions:    " + $operatorActionSummary)
+    }
     Write-Host ("Latest formal evidence: " + $latestFormal.target_date + " source=" + $latestFormal.trigger_source + " task=" + $latestFormal.trigger_task_name)
     Write-Host ("Scheduler runs:         count=" + $runMetadata.total_run_count + " last_run_at=" + $runMetadata.last_run_at)
     if ($schedulerActivity) {
