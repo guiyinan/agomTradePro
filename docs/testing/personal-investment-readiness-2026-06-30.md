@@ -33,7 +33,7 @@ python manage.py validate_personal_readiness_window --json
 
 The final collected status is `ok`: system readiness, Qlib, Regime, Pulse, action recommendation, risk-center daily reports, and auto-advisor payloads are all `ok`. Rotation now records three successful configs and three explicit `skipped` configs with `no_valid_allocation`, which remains visible but no longer counts as a failed workspace refresh.
 
-The continuous window validator currently reports `accepted_days=1`, `remaining_days=19`, `status=in_progress`.
+Current continuous-run status after the `2026-07-03` scheduler evidence is `accepted_days=4`, `remaining_days=16`, `scheduler_clean_suffix_days=3`, `scheduler_clean_remaining_days=17`, and `status=in_progress`. The next required trading-day evidence is `2026-07-06`; projected evidence-window completion remains `2026-07-27`, while the scheduler-clean final gate projects `2026-07-28`.
 
 Update `2026-06-30 23:45 Asia/Shanghai`: added a single daily pipeline command for scheduled continuous-run evidence:
 
