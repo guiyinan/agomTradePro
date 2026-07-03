@@ -170,6 +170,21 @@ function Write-MonitorSummary {
     $postRisk = $postPersistence.risk_center_daily_report
     $postWeekly = $postPersistence.auto_advisor_weekly_report
     $accountReadiness = $Payload.account_readiness
+    $calendarWait = $null
+    try {
+        $statusDateValue = [datetime]::Parse([string]$Payload.status_date).Date
+        $latestClosedDateValue = [datetime]::Parse([string]$Payload.latest_closed_date).Date
+        $nextRequiredDateValue = [datetime]::Parse([string]$acceptance.next_required_date).Date
+        if (
+            $gate.state -eq "wait_for_post_close" -and
+            $statusDateValue -gt $latestClosedDateValue -and
+            $nextRequiredDateValue -gt $statusDateValue
+        ) {
+            $calendarWait = "non_trading_day_or_pre_next_close"
+        }
+    } catch {
+        $calendarWait = $null
+    }
     $operatorCheckAfter = $gate.next_check_after
     $operatorCheckReason = "daily_readiness"
     if ($ReferenceTime) {
@@ -282,6 +297,9 @@ function Write-MonitorSummary {
     Write-Host "=======================================" -ForegroundColor Cyan
     Write-Host ("Status:                 " + $Payload.status)
     Write-Host ("Status date:            " + $Payload.status_date + " latest_closed=" + $Payload.latest_closed_date + " expected_latest=" + $Payload.expected_latest_date)
+    if ($calendarWait) {
+        Write-Host ("Calendar wait:          " + $calendarWait + " next_required=" + $acceptance.next_required_date)
+    }
     Write-Host ("Monitor gate:           ok=" + $gate.ok + " state=" + $gate.state)
     Write-Host ("Accepted window:        " + $acceptance.accepted_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.remaining_days)
     Write-Host ("Scheduler-clean window: " + $acceptance.scheduler_clean_suffix_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.scheduler_clean_remaining_days)
