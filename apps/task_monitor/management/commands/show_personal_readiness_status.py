@@ -248,6 +248,7 @@ def build_personal_readiness_status(
     post_evidence_persistence = readiness_persistence_status.collect_post_evidence_persistence(
         output_dir=output_dir,
     )
+    account_readiness = status_services.build_account_readiness_summary()
     next_action = _resolve_next_action(
         validation=validation,
         scheduler=scheduler,
@@ -304,6 +305,7 @@ def build_personal_readiness_status(
         "latest_formal_evidence": latest_formal_evidence,
         "current_macro_context": status_services.build_current_macro_context(target_date=latest_closed_date) if include_current_macro_context else None,
         "current_decision_data": status_services.build_current_decision_data_from_settings() if include_current_decision_data else None,
+        "account_readiness": account_readiness,
         "post_evidence_persistence": post_evidence_persistence,
         "acceptance_gate": _build_acceptance_gate(
             validation=validation,

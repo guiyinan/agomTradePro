@@ -163,6 +163,7 @@ function Write-MonitorSummary {
     $postPersistence = $Payload.post_evidence_persistence
     $postRisk = $postPersistence.risk_center_daily_report
     $postWeekly = $postPersistence.auto_advisor_weekly_report
+    $accountReadiness = $Payload.account_readiness
     $operatorCheckAfter = $gate.next_check_after
     $operatorCheckReason = "daily_readiness"
     if ($ReferenceTime) {
@@ -394,6 +395,9 @@ function Write-MonitorSummary {
     }
     if ($riskProof) {
         Write-Host ("Risk proof:             status=" + $riskProof.status + " accounts=" + $riskProof.account_count + " risk_ok=" + $riskProof.risk_ok_account_count + " persisted=" + $riskProof.persisted_report_account_count + " pre_trade_ok=" + $riskProof.pre_trade_ok_account_count + " post_ok=" + $riskProof.post_investment_ok_account_count)
+    }
+    if ($accountReadiness) {
+        Write-Host ("Account readiness:      status=" + $accountReadiness.status + " targets=" + $accountReadiness.target_count + " decision_ready=" + $accountReadiness.decision_ready_account_count + " zero_equity=" + $accountReadiness.zero_equity_account_count + " placeholders=" + $accountReadiness.non_blocking_placeholder_count + " blocking_zero=" + $accountReadiness.blocking_no_positive_equity_count)
     }
     if ($weeklyProof) {
         Write-Host ("Weekly advisor proof:   status=" + $weeklyProof.status + " source=" + $weeklyProof.source + " expected=" + $weeklyProof.expected_record_count + " ok_records=" + $weeklyProof.ok_record_count + " missing=" + $weeklyProof.missing_record_count + " warnings=" + $weeklyProof.warning_record_count)

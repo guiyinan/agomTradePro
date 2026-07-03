@@ -106,6 +106,51 @@ def build_current_decision_data_from_settings() -> dict[str, Any] | None:
     )
 
 
+def build_account_readiness_summary() -> dict[str, Any]:
+    """Return read-only account readiness for operator-facing status output."""
+
+    from apps.simulated_trading.application.readiness_services import (
+        AccountReadinessRepairRequest,
+        repair_personal_account_readiness,
+    )
+
+    payload = repair_personal_account_readiness(AccountReadinessRepairRequest(dry_run=True))
+    results = list(payload.get("results") or [])
+    decision_ready_account_ids = [
+        int(account_id)
+        for result in results
+        for account_id in result.get("decision_ready_account_ids") or []
+    ]
+    zero_equity_account_ids = [
+        int(account_id)
+        for result in results
+        for account_id in result.get("zero_equity_account_ids") or []
+    ]
+    blocking_results = [
+        result
+        for result in results
+        if result.get("zero_equity_status") == "blocking_no_positive_equity"
+    ]
+    placeholder_results = [
+        result
+        for result in results
+        if result.get("zero_equity_status") == "non_blocking_placeholder"
+    ]
+    return {
+        "status": payload.get("status"),
+        "dry_run": payload.get("dry_run"),
+        "target_count": payload.get("target_count"),
+        "status_counts": dict(payload.get("status_counts") or {}),
+        "decision_ready_account_count": len(decision_ready_account_ids),
+        "decision_ready_account_ids": sorted(set(decision_ready_account_ids)),
+        "zero_equity_account_count": len(zero_equity_account_ids),
+        "zero_equity_account_ids": sorted(set(zero_equity_account_ids)),
+        "non_blocking_placeholder_count": len(placeholder_results),
+        "blocking_no_positive_equity_count": len(blocking_results),
+        "results": results,
+    }
+
+
 def summarize_evidence_macro_context(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return compact Regime/Pulse context from one readiness evidence payload."""
 

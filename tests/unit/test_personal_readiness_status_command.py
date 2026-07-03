@@ -78,6 +78,46 @@ def _default_quote_pre_readiness_scheduler(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def _default_account_readiness(monkeypatch):
+    monkeypatch.setattr(
+        command_module.status_services,
+        "build_account_readiness_summary",
+        lambda: {
+            "status": "ok",
+            "dry_run": True,
+            "target_count": 2,
+            "status_counts": {"ok": 2},
+            "decision_ready_account_count": 2,
+            "decision_ready_account_ids": [613, 614],
+            "zero_equity_account_count": 2,
+            "zero_equity_account_ids": [365, 519],
+            "non_blocking_placeholder_count": 2,
+            "blocking_no_positive_equity_count": 0,
+            "results": [
+                {
+                    "user_id": 182,
+                    "status": "ok",
+                    "decision_ready_account_ids": [613],
+                    "zero_equity_account_ids": [365],
+                    "zero_equity_status": "non_blocking_placeholder",
+                    "created_account_id": None,
+                    "message": "decision_ready_account_exists",
+                },
+                {
+                    "user_id": 222,
+                    "status": "ok",
+                    "decision_ready_account_ids": [614],
+                    "zero_equity_account_ids": [519],
+                    "zero_equity_status": "non_blocking_placeholder",
+                    "created_account_id": None,
+                    "message": "decision_ready_account_exists",
+                },
+            ],
+        },
+    )
+
+
 def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_path):
     evidence_path = tmp_path / "2026-06-30-personal-readiness.json"
     evidence_path.write_text(
@@ -337,6 +377,10 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     )
     assert payload["current_macro_context"] is None
     assert payload["current_decision_data"] is None
+    assert payload["account_readiness"]["status"] == "ok"
+    assert payload["account_readiness"]["decision_ready_account_count"] == 2
+    assert payload["account_readiness"]["zero_equity_account_count"] == 2
+    assert payload["account_readiness"]["blocking_no_positive_equity_count"] == 0
     assert macro_context_calls == []
     assert current_decision_calls == []
 
@@ -5348,5 +5392,4 @@ def test_personal_readiness_status_warns_when_scheduler_delivery_controls_are_cu
     assert "unexpected_scheduler_headers" in issue_codes
     assert command_module._parse_scheduler_headers("[]")["error"] == "headers_json_must_be_object"
     assert command_module._parse_scheduler_headers("not-json")["error"].startswith("invalid_json")
-
 
