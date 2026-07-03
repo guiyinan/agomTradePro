@@ -68,3 +68,9 @@ def test_simulate_personal_readiness_checkpoints_uses_injected_times(monkeypatch
         "reason": "weekly_report_schedule_due",
         "scheduled_for": "2026-07-03T17:30:00+08:00",
     }
+    assert command_module._default_simulated_times(date(2026, 7, 6)) == (
+        "2026-07-06T15:50:00+08:00",
+        "2026-07-06T16:20:00+08:00",
+        "2026-07-06T17:20:00+08:00",
+        "2026-07-06T17:45:00+08:00",
+    )

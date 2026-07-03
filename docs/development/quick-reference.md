@@ -228,8 +228,8 @@ powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monito
 # 只模拟 monitor 摘要的“下一操作检查点”rollover；不改系统时间，不生成 evidence
 powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly -ReferenceTime "2026-07-03T16:20:00+08:00"
 
-# 假设某个交易日的下午时间点做只读模拟；不改系统时间，不生成 evidence，不推进验收计数
-agomtradepro/Scripts/python manage.py simulate_personal_readiness_checkpoints --target-date 2026-07-03
+# 假设某个交易日的下午时间点做只读模拟；默认时间点会跟随 target-date，不改系统时间，不生成 evidence，不推进验收计数
+agomtradepro/Scripts/python manage.py simulate_personal_readiness_checkpoints --target-date 2026-07-06
 
 # 最终验收必须同时要求本地 Celery beat/worker 运行态
 powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -StrictAcceptance

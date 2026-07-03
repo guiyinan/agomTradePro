@@ -9,11 +9,11 @@ from django.core.management.base import BaseCommand
 from apps.task_monitor.management import auto_advisor_weekly_scheduler_status as weekly_status
 from apps.task_monitor.management.commands import show_personal_readiness_status as status_command
 
-DEFAULT_SIMULATED_TIMES = (
-    "2026-07-03T15:50:00+08:00",
-    "2026-07-03T16:20:00+08:00",
-    "2026-07-03T17:20:00+08:00",
-    "2026-07-03T17:45:00+08:00",
+DEFAULT_SIMULATED_CLOCKS = (
+    "15:50:00",
+    "16:20:00",
+    "17:20:00",
+    "17:45:00",
 )
 
 
@@ -32,13 +32,13 @@ class Command(BaseCommand):
             dest="times",
             help=(
                 "Simulated ISO datetime. Can be repeated. "
-                "Defaults cover 15:50, 16:20, 17:20, and 17:45 on 2026-07-03."
+                "Defaults cover 15:50, 16:20, 17:20, and 17:45 on the target date."
             ),
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
         target_date = date.fromisoformat(str(options["target_date"]))
-        times = tuple(options.get("times") or DEFAULT_SIMULATED_TIMES)
+        times = tuple(options.get("times") or _default_simulated_times(target_date))
         payload = simulate_checkpoints(target_date=target_date, times=times)
         self.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -82,3 +82,10 @@ def simulate_checkpoints(*, target_date: date, times: tuple[str, ...]) -> dict[s
         "generates_evidence": False,
         "checkpoints": checkpoints,
     }
+
+
+def _default_simulated_times(target_date: date) -> tuple[str, ...]:
+    return tuple(
+        f"{target_date.isoformat()}T{clock}+08:00"
+        for clock in DEFAULT_SIMULATED_CLOCKS
+    )
