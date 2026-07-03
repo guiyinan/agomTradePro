@@ -70,6 +70,33 @@ function Convert-MonitorPayload {
     }
 }
 
+function Format-DurationMinutes {
+    param([Nullable[int]]$Minutes)
+
+    if ($null -eq $Minutes) {
+        return $null
+    }
+    if ($Minutes -lt 60) {
+        return ([string]$Minutes + "m")
+    }
+
+    $days = [math]::Floor($Minutes / 1440)
+    $remaining = $Minutes % 1440
+    $hours = [math]::Floor($remaining / 60)
+    $mins = $remaining % 60
+    $parts = @()
+    if ($days -gt 0) {
+        $parts += ([string]$days + "d")
+    }
+    if ($hours -gt 0) {
+        $parts += ([string]$hours + "h")
+    }
+    if ($mins -gt 0 -or $parts.Count -eq 0) {
+        $parts += ([string]$mins + "m")
+    }
+    return ($parts -join " ")
+}
+
 function Write-MonitorSummary {
     param(
         $Payload,
@@ -335,7 +362,7 @@ function Write-MonitorSummary {
     }
     Write-Host ("Next operator check:    " + $operatorCheckDisplay + " reason=" + $operatorCheckReason)
     if ($null -ne $operatorCheckEtaMinutes) {
-        Write-Host ("Operator check in:      " + $operatorCheckEtaMinutes + " min")
+        Write-Host ("Operator check in:      " + $operatorCheckEtaMinutes + " min (" + (Format-DurationMinutes -Minutes $operatorCheckEtaMinutes) + ")")
     }
     Write-Host ("Scheduled for:          " + $schedule.scheduled_for + " due_status=" + $schedule.due_status)
     Write-Host ("Runtime:                " + $runtime.status + " beat=" + $runtime.beat_process_count + " workers=" + $runtime.worker_process_count + " queues=" + (($runtime.covered_queues | Sort-Object) -join ","))
