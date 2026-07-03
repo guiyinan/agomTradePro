@@ -122,11 +122,11 @@ function Write-MonitorSummary {
     }
     $marketThermometer = $decisionData.market_thermometer
     $skippedLatestThermometer = $decisionData.skipped_latest_market_thermometer
-    $macroContext = $latestFormal.summary.macro_context
-    $macroContextSource = "evidence"
+    $macroContext = $Payload.current_macro_context
+    $macroContextSource = "live"
     if (-not $macroContext) {
-        $macroContext = $Payload.current_macro_context
-        $macroContextSource = "live"
+        $macroContext = $latestFormal.summary.macro_context
+        $macroContextSource = "evidence"
     }
     $regimeContext = $macroContext.regime
     $pulseContext = $macroContext.pulse

@@ -992,6 +992,7 @@ Continuous window detail:
 | Qlib freshness status follow-up | A read-only `build_qlib_data --check-only --target-date 2026-07-03` now reports `latest_trade_date=2026-07-03` and "Qlib 数据新鲜度满足要求，无需自建更新." The earlier Tushare rate-limit warnings remain historical build context, while current formal proof and check-only diagnostics both show Qlib freshness is not blocking assisted personal research use. |
 | Operator-check duration display follow-up | The one-screen monitor now keeps the raw minute countdown and adds a compact duration, e.g. `Operator check in: 3935 min (2d 17h 35m)`, so weekend or multi-day waits are easier to interpret without manual conversion. This is a display-only change and does not affect scheduler or evidence generation. |
 | Market thermometer proxy audit visibility follow-up | The one-screen monitor now prints a dedicated `MT proxy audit` line with proxy component count plus `fallback_proxy` and `unmarked_proxy` counts. The live read-only summary remains green and currently reports `count=4`, `fallback=1`, and `unmarked=3`, making proxy-source usage visible without opening the full JSON evidence. |
+| Live macro context monitor follow-up | The one-screen monitor now prefers `current_macro_context` for the macro summary and falls back to evidence only when live context is unavailable. The live read-only summary remains green and now reports `Macro context: source=live`, with Regime and Pulse both observed on `2026-07-03`, avoiding a stale-looking Pulse date from the latest evidence snapshot. |
 
 ## Yellow Items
 
