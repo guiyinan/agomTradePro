@@ -999,7 +999,7 @@ These do not currently block assisted personal research use, but they should rem
 2. Macro sync skipped counts remain visible as historical workspace observations, but the current decision-grade macro chain for `2026-07-02` is recovered: all six readiness macro inputs are `decision_safe` and no longer emit a repair follow-up.
 3. Rotation is recovered in the latest formal scheduler evidence: `2026-07-03` reports all 6 active configs generated successfully with `skipped=0`. The `2026-07-02` skipped-count record remains historical context only.
 4. Qlib rate-limit warnings are historical build context only. Current check-only diagnostics for `2026-07-03` report `latest_trade_date=2026-07-03` and no self-build update required, while the formal Qlib proof shows `records=3`, `ok=3`, `missing=0`, `blocked=0`.
-5. This is a single-day readiness check. The goal still requires repeated trading-day evidence before claiming stable production use.
+5. This is a 4-trading-day accepted readiness chain (`2026-06-30` through `2026-07-03`), not final acceptance. The goal still requires 20 accepted trading days and a scheduler-clean suffix before claiming stable production use.
 6. The zero-equity real accounts (`365`, `519`) remain as real-account placeholders. Daily readiness now targets the positive-equity simulated accounts (`613`, `614`) unless a specific zero-equity account is requested; `repair_personal_account_readiness --dry-run --json` marks these placeholders as `non_blocking_placeholder` when a positive-equity account already exists.
 
 ## Next Acceptance Window
