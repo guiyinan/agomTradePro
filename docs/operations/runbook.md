@@ -79,6 +79,10 @@ powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monito
 # Final acceptance gate, still expected to fail until the 20-trading-day window is complete
 powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -StrictAcceptance
 
+# Read-only acceptance window details and evidence diagnosis
+python manage.py validate_personal_readiness_window --json
+python manage.py inspect_personal_readiness_evidence --target-date <latest_closed_trade_date> --json
+
 # Check data freshness
 python manage.py shell -c "
 from apps.macro.infrastructure.models import MacroDataModel
