@@ -1926,6 +1926,7 @@ def _summarize_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "summary": {
             "system_status": summary.get("system_status"),
             "qlib_status": summary.get("qlib_status"),
+            "qlib_readiness": status_services.summarize_evidence_qlib_readiness(payload),
             "workspace_status": summary.get("workspace_status"),
             "target_count": summary.get("target_count"),
             "decision_data": status_services.summarize_evidence_decision_data(payload),

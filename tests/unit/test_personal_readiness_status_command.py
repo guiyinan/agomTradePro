@@ -131,6 +131,17 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                     "workspace_status": "ok",
                     "target_count": 2,
                 },
+                "qlib": {
+                    "status": "ok",
+                    "check_only": True,
+                    "command": "build_qlib_data --check-only",
+                    "output": (
+                        "Qlib self-build diagnostics\n"
+                        "  target_date: 2026-06-30\n"
+                        "  latest_trade_date: 2026-06-29\n"
+                        "Qlib data freshness is satisfied."
+                    ),
+                },
                 "system": {
                     "checks": {
                         "decision_data": {
@@ -434,6 +445,13 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
             "skipped": 0,
             "failed": 0,
         }
+    }
+    assert payload["latest_evidence"]["summary"]["qlib_readiness"] == {
+        "status": "ok",
+        "check_only": True,
+        "command": "build_qlib_data --check-only",
+        "latest_trade_date": "2026-06-29",
+        "error": None,
     }
     assert payload["latest_evidence"]["summary"]["alpha_workspace_consistency"] == {
         "status": "ok",

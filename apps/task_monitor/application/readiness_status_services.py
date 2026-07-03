@@ -8,6 +8,23 @@ from typing import Any
 MAX_SCHEDULED_QLIB_STALENESS_DAYS = 5
 
 
+def summarize_evidence_qlib_readiness(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Return compact Qlib check-only proof from readiness evidence."""
+
+    qlib = _as_dict(payload.get("qlib"))
+    if not qlib:
+        return None
+
+    return {
+        "status": qlib.get("status"),
+        "check_only": qlib.get("check_only"),
+        "command": qlib.get("command"),
+        "latest_trade_date": qlib.get("latest_trade_date")
+        or _parse_qlib_latest_trade_date(qlib.get("output")),
+        "error": qlib.get("error"),
+    }
+
+
 def summarize_evidence_decision_data(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return a compact decision-data summary from one readiness evidence payload."""
 
@@ -43,9 +60,7 @@ def summarize_decision_data(decision_data: dict[str, Any]) -> dict[str, Any] | N
             "stale_components": list(thermometer.get("stale_components") or []),
             "missing_components": list(thermometer.get("missing_components") or []),
             "proxy_components": list(thermometer.get("proxy_components") or []),
-            "component_data_provenance": list(
-                thermometer.get("component_data_provenance") or []
-            ),
+            "component_data_provenance": list(thermometer.get("component_data_provenance") or []),
             "component_details": component_details,
             "stale_component_details": [
                 item for item in component_details if item.get("is_stale") is True
@@ -104,6 +119,17 @@ def build_current_decision_data_from_settings() -> dict[str, Any] | None:
         asset_codes=list(getattr(settings, "DECISION_READINESS_ASSET_CODES", [])),
         quote_max_age_hours=float(getattr(settings, "DECISION_QUOTE_MAX_AGE_HOURS", 4.0)),
     )
+
+
+def _parse_qlib_latest_trade_date(output: Any) -> str | None:
+    if not isinstance(output, str):
+        return None
+    for line in output.splitlines():
+        key, separator, value = line.strip().partition(":")
+        if separator and key.strip() == "latest_trade_date":
+            parsed = value.strip()
+            return parsed or None
+    return None
 
 
 def build_account_readiness_summary() -> dict[str, Any]:
@@ -213,31 +239,35 @@ def summarize_evidence_macro_context(payload: dict[str, Any]) -> dict[str, Any] 
     if not regime and not pulse:
         return None
     return {
-        "regime": {
-            "status": regime.get("status"),
-            "observed_at": regime.get("observed_at"),
-            "dominant_regime": regime.get("dominant_regime"),
-            "confidence": regime.get("confidence"),
-            "source": regime.get("source"),
-            "is_fallback": regime.get("is_fallback"),
-            "records_count": regime.get("records_count"),
-            "warnings": list(regime.get("warnings") or []),
-        }
-        if regime
-        else None,
-        "pulse": {
-            "status": pulse.get("status"),
-            "observed_at": pulse.get("observed_at"),
-            "regime_context": pulse.get("regime_context"),
-            "composite_score": pulse.get("composite_score"),
-            "regime_strength": pulse.get("regime_strength"),
-            "transition_warning": pulse.get("transition_warning"),
-            "transition_direction": pulse.get("transition_direction"),
-            "stale_indicator_count": pulse.get("stale_indicator_count"),
-            "data_source": pulse.get("data_source"),
-        }
-        if pulse
-        else None,
+        "regime": (
+            {
+                "status": regime.get("status"),
+                "observed_at": regime.get("observed_at"),
+                "dominant_regime": regime.get("dominant_regime"),
+                "confidence": regime.get("confidence"),
+                "source": regime.get("source"),
+                "is_fallback": regime.get("is_fallback"),
+                "records_count": regime.get("records_count"),
+                "warnings": list(regime.get("warnings") or []),
+            }
+            if regime
+            else None
+        ),
+        "pulse": (
+            {
+                "status": pulse.get("status"),
+                "observed_at": pulse.get("observed_at"),
+                "regime_context": pulse.get("regime_context"),
+                "composite_score": pulse.get("composite_score"),
+                "regime_strength": pulse.get("regime_strength"),
+                "transition_warning": pulse.get("transition_warning"),
+                "transition_direction": pulse.get("transition_direction"),
+                "stale_indicator_count": pulse.get("stale_indicator_count"),
+                "data_source": pulse.get("data_source"),
+            }
+            if pulse
+            else None
+        ),
     }
 
 
@@ -262,11 +292,7 @@ def summarize_alpha_workspace_consistency(
 
     alpha = _as_dict(consistency.get("alpha"))
     workspace = _as_dict(consistency.get("workspace"))
-    issues = [
-        _as_dict(item)
-        for item in consistency.get("issues") or []
-        if isinstance(item, dict)
-    ]
+    issues = [_as_dict(item) for item in consistency.get("issues") or [] if isinstance(item, dict)]
     return {
         "status": consistency.get("status"),
         "checked_account_id": consistency.get("checked_account_id"),

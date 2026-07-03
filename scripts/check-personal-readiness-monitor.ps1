@@ -123,6 +123,7 @@ function Write-MonitorSummary {
     }
     $marketThermometer = $decisionData.market_thermometer
     $skippedLatestThermometer = $decisionData.skipped_latest_market_thermometer
+    $qlibReadiness = $latestFormal.summary.qlib_readiness
     $macroContext = $Payload.current_macro_context
     $macroContextSource = "live"
     if (-not $macroContext) {
@@ -341,6 +342,9 @@ function Write-MonitorSummary {
     }
     if ($qlibProof) {
         Write-Host ("Qlib proof:             status=" + $qlibProof.status + " records=" + $qlibProof.qlib_record_count + " ok=" + $qlibProof.ok_record_count + " missing=" + $qlibProof.missing_record_count + " blocked=" + $qlibProof.blocked_record_count)
+    }
+    if ($qlibReadiness) {
+        Write-Host ("Qlib check:             status=" + $qlibReadiness.status + " check_only=" + $qlibReadiness.check_only + " latest_trade_date=" + $qlibReadiness.latest_trade_date + " command=" + $qlibReadiness.command + " error=" + $qlibReadiness.error)
     }
     if ($workspaceProof) {
         Write-Host ("Workspace proof:        status=" + $workspaceProof.status + " records=" + $workspaceProof.workspace_core_record_count + " ok=" + $workspaceProof.ok_record_count + " missing=" + $workspaceProof.missing_record_count)
