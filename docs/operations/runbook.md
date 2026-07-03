@@ -73,6 +73,12 @@ celery -A core inspect ping
 ### Manual Verification
 
 ```bash
+# Personal readiness monitor, read-only; does not generate evidence
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly
+
+# Final acceptance gate, still expected to fail until the 20-trading-day window is complete
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -StrictAcceptance
+
 # Check data freshness
 python manage.py shell -c "
 from apps.macro.infrastructure.models import MacroDataModel
@@ -99,6 +105,7 @@ print(snapshot.composite_score if snapshot else 'pulse refresh failed')
 "
 ```
 
+- During the scheduler-clean trial, let Celery beat create `personal-readiness-daily-evidence`; manual `run_personal_readiness_daily` is for diagnosis or explicit backfill and does not advance the scheduler-clean suffix.
 - 如果当前 Regime 链路只能返回 `Unknown`，Pulse 重建会直接失败并保留最近有效快照，避免用未知象限覆盖现有战术上下文。
 
 ---
