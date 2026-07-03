@@ -2,7 +2,7 @@
   "version": "2026-06-30.v1",
   "mcp_tool_count": 365,
   "business_module_count": 37,
-  "static_test_function_count": 6123,
+  "static_test_function_count": 6124,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,

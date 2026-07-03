@@ -128,6 +128,14 @@ def inspect_personal_readiness_evidence(
     blockers = findings["blockers"]
     observations = findings["observations"]
     target_date_text = str(evidence.get("target_date") or "")
+    post_evidence_persistence = _load_current_post_evidence_persistence_if_target_matches(
+        output_dir=output_dir,
+        target_date=target_date_text,
+    )
+    observations = _apply_current_weekly_persistence_resolution(
+        observations=observations,
+        post_evidence_persistence=post_evidence_persistence,
+    )
     return {
         "status": "accepted" if accepted else "blocked",
         "path": str(evidence_path),
@@ -758,7 +766,7 @@ def _build_follow_up_actions(
             observation.get("account_id")
             for observation in observations
             if observation.get("component") == "auto_advisor_weekly_persistence"
-            and observation.get("status") != "not_due"
+            and observation.get("status") not in {"not_due", "resolved_after_evidence"}
             and observation.get("account_id") not in (None, "")
         },
         key=str,
@@ -838,6 +846,75 @@ def _build_follow_up_actions(
             }
         )
     return actions
+
+
+def _load_current_post_evidence_persistence_if_target_matches(
+    *,
+    output_dir: Path,
+    target_date: str,
+) -> dict[str, Any] | None:
+    try:
+        from apps.task_monitor.management import readiness_persistence_status
+
+        proof = readiness_persistence_status.collect_post_evidence_persistence(
+            output_dir=output_dir,
+        )
+    except Exception:
+        return None
+    if str(proof.get("target_date") or "") != target_date:
+        return None
+    return proof
+
+
+def _apply_current_weekly_persistence_resolution(
+    *,
+    observations: list[dict[str, Any]],
+    post_evidence_persistence: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    weekly = dict(
+        dict(post_evidence_persistence or {}).get("auto_advisor_weekly_report") or {}
+    )
+    if weekly.get("status") != "ok":
+        return observations
+    ok_records = {
+        str(record.get("account_id")): record
+        for record in weekly.get("records") or []
+        if isinstance(record, dict)
+        and record.get("account_id") not in (None, "")
+        and record.get("ok") is True
+    }
+    if not ok_records:
+        return observations
+
+    resolved: list[dict[str, Any]] = []
+    for observation in observations:
+        if (
+            observation.get("component") != "auto_advisor_weekly_persistence"
+            or observation.get("status") in {"not_due", "resolved_after_evidence"}
+        ):
+            resolved.append(observation)
+            continue
+        record = ok_records.get(str(observation.get("account_id")))
+        if record is None:
+            resolved.append(observation)
+            continue
+        updated = dict(observation)
+        updated.update(
+            {
+                "status": "resolved_after_evidence",
+                "historical_status": observation.get("status"),
+                "historical_reason": observation.get("reason"),
+                "reason": "post_evidence_weekly_report_persisted",
+                "current_database_status": "ok",
+                "report_id": record.get("report_id"),
+                "matched_notification_count": record.get("matched_notification_count"),
+                "delivered_notification_count": record.get(
+                    "delivered_notification_count"
+                ),
+            }
+        )
+        resolved.append(updated)
+    return resolved
 
 
 def _has_unresolved_component(

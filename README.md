@@ -744,7 +744,7 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 | **可视化** | Streamlit、Plotly |
 | **前端** | Django Templates + HTMX |
 | **AI 集成** | MCP Server、Python SDK |
-| **测试** | Pytest（静态测试函数 6,123 个）、Playwright（E2E） |
+| **测试** | Pytest（静态测试函数 6,124 个）、Playwright（E2E） |
 
 ---
 
@@ -754,7 +754,7 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 37    业务模块（apps/，排除 __pycache__）
 365   MCP 工具（当前本地注册快照）
 525   REST API 路径（OpenAPI 快照）
-6,123 静态测试函数（AST 轻量统计基线）
+6,124 静态测试函数（AST 轻量统计基线）
 302   文档文件（docs/ 目录）
 ```
 

@@ -328,6 +328,122 @@ def test_inspect_personal_readiness_evidence_reports_weekly_persistence_observat
     ]
 
 
+def test_inspect_personal_readiness_evidence_resolves_weekly_warning_with_current_db_proof(
+    monkeypatch,
+    tmp_path,
+):
+    evidence_path = tmp_path / "2026-07-01-personal-readiness.json"
+    evidence_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "test",
+                "status": "ok",
+                "target_date": "2026-07-01",
+                "generated_at": "2026-07-01T16:10:00+08:00",
+                "operation_context": {
+                    "mode": "formal",
+                    "target_date_closed": True,
+                    "allow_unclosed_target_date": False,
+                },
+                "summary": {
+                    "system_status": "ok",
+                    "qlib_status": "ok",
+                    "workspace_status": "ok",
+                    "target_count": 1,
+                },
+                "qlib": _qlib_ok_evidence(),
+                "system": {
+                    "status": "ok",
+                    "checks": {
+                        "decision_data": {
+                            "status": "ok",
+                            "readiness_status": "ok",
+                            "must_not_use_for_decision": False,
+                            "quotes": _fresh_decision_quotes(),
+                        },
+                        "alpha_workspace_consistency": {"status": "ok"},
+                    },
+                },
+                "workspace": {
+                    "status": "ok",
+                    "result": {
+                        "components": {
+                            "regime_snapshot": {"status": "success"},
+                            "pulse_snapshot": {"status": "success", "is_reliable": True},
+                            "action_recommendation": {"status": "success"},
+                        }
+                    },
+                },
+                "accounts": [
+                    {
+                        "user_id": 7,
+                        "status": "ok",
+                        "account_id": 101,
+                        "risk_center_daily_report": {
+                            "status": "ok",
+                            "report_id": "risk-2026-07-01-101",
+                            "pre_trade_check": {"status": "ok"},
+                            "post_investment_check": {"passed": True},
+                        },
+                        "auto_advisor": {
+                            "status": "ok",
+                            "weekly_report": {
+                                "status": "ok",
+                                "week": {"as_of": "2026-07-01"},
+                            },
+                            "weekly_report_persistence": {
+                                "status": "warning",
+                                "reason": "no persisted weekly report found for 2026-07-01",
+                            },
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        weekly_module,
+        "EXPECTED_AUTO_ADVISOR_WEEKLY_DAY_OF_WEEK",
+        "wed",
+    )
+    monkeypatch.setattr(
+        command_module,
+        "_load_current_post_evidence_persistence_if_target_matches",
+        lambda *, output_dir, target_date: {
+            "status": "ok",
+            "target_date": target_date,
+            "auto_advisor_weekly_report": {
+                "status": "ok",
+                "records": [
+                    {
+                        "user_id": 7,
+                        "account_id": 101,
+                        "report_id": 88,
+                        "matched_notification_count": 1,
+                        "delivered_notification_count": 1,
+                        "ok": True,
+                    }
+                ],
+            },
+        },
+    )
+
+    payload = command_module.inspect_personal_readiness_evidence(
+        output_dir=tmp_path,
+        target_date=date(2026, 7, 1),
+    )
+
+    observations = {item["component"]: item for item in payload["observations"]}
+    weekly_observation = observations["auto_advisor_weekly_persistence"]
+    assert weekly_observation["status"] == "resolved_after_evidence"
+    assert weekly_observation["historical_status"] == "warning"
+    assert weekly_observation["reason"] == "post_evidence_weekly_report_persisted"
+    assert weekly_observation["report_id"] == 88
+    assert weekly_observation["delivered_notification_count"] == 1
+    assert payload["follow_up_actions"] == []
+
+
 def test_inspect_personal_readiness_evidence_explains_qlib_blocker(tmp_path):
     evidence_path = tmp_path / "2026-07-01-personal-readiness.json"
     evidence_path.write_text(
