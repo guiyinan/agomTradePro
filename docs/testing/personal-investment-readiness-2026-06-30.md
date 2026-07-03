@@ -1001,6 +1001,7 @@ Continuous window detail:
 | Market thermometer proxy audit visibility follow-up | The one-screen monitor now prints a dedicated `MT proxy audit` line with proxy component count plus `fallback_proxy` and `unmarked_proxy` counts. The live read-only summary remains green and currently reports `count=4`, `fallback=1`, and `unmarked=3`, making proxy-source usage visible without opening the full JSON evidence. |
 | Live macro context monitor follow-up | The one-screen monitor now prefers `current_macro_context` for the macro summary and falls back to evidence only when live context is unavailable. The live read-only summary remains green and now reports `Macro context: source=live`, with Regime and Pulse both observed on `2026-07-03`, avoiding a stale-looking Pulse date from the latest evidence snapshot. |
 | Monitor status-date visibility follow-up | The one-screen monitor now prints `Status date`, `latest_closed`, and `expected_latest` near the top of the summary. The live read-only summary remains green and reports all three as `2026-07-03`, making it clear which closed trading day anchors the current wait state. |
+| Evidence manifest monitor visibility follow-up | The one-screen monitor now prints the accepted evidence manifest record count, SHA-256, and counted target dates. The live read-only summary remains green and reports `records=4`, manifest SHA-256 `2417bd2d161d682937c4f5602ae7053e812d401f90de1c2159fd12033e5ca161`, and dates `2026-06-30` through `2026-07-03`. |
 
 ## Yellow Items
 
