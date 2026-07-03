@@ -217,6 +217,20 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                         },
                     }
                 },
+                "workspace": {
+                    "result": {
+                        "components": {
+                            "rotation_signals": {
+                                "status": "success",
+                                "signal_date": "2026-06-30",
+                                "total_configs": 6,
+                                "successful": 6,
+                                "skipped": 0,
+                                "failed": 0,
+                            }
+                        }
+                    }
+                },
             }
         ),
         encoding="utf-8",
@@ -348,6 +362,16 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     assert payload["latest_evidence"]["formal_evidence"] is None
     assert payload["latest_evidence"]["acceptance_candidate"] is True
     assert payload["latest_evidence"]["evidence_mode"] == "legacy_without_operation_context"
+    assert payload["latest_evidence"]["summary"]["workspace_components"] == {
+        "rotation_signals": {
+            "status": "success",
+            "signal_date": "2026-06-30",
+            "total_configs": 6,
+            "successful": 6,
+            "skipped": 0,
+            "failed": 0,
+        }
+    }
     assert payload["latest_formal_evidence"]["target_date"] == "2026-06-30"
     assert payload["acceptance_gate"]["status"] == "in_progress"
     assert payload["acceptance_gate"]["accepted"] is False
@@ -5392,4 +5416,3 @@ def test_personal_readiness_status_warns_when_scheduler_delivery_controls_are_cu
     assert "unexpected_scheduler_headers" in issue_codes
     assert command_module._parse_scheduler_headers("[]")["error"] == "headers_json_must_be_object"
     assert command_module._parse_scheduler_headers("not-json")["error"].startswith("invalid_json")
-

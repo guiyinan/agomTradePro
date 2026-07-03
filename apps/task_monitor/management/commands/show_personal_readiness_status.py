@@ -1930,6 +1930,9 @@ def _summarize_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "target_count": summary.get("target_count"),
             "decision_data": status_services.summarize_evidence_decision_data(payload),
             "macro_context": status_services.summarize_evidence_macro_context(payload),
+            "workspace_components": status_services.summarize_evidence_workspace_components(
+                payload
+            ),
         },
     }
 

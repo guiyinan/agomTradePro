@@ -129,6 +129,8 @@ function Write-MonitorSummary {
         $macroContext = $latestFormal.summary.macro_context
         $macroContextSource = "evidence"
     }
+    $workspaceComponents = $latestFormal.summary.workspace_components
+    $rotationSignals = $workspaceComponents.rotation_signals
     $regimeContext = $macroContext.regime
     $pulseContext = $macroContext.pulse
     $scheduler = $Payload.scheduler
@@ -320,6 +322,9 @@ function Write-MonitorSummary {
     }
     if ($alphaProof) {
         Write-Host ("Alpha workspace proof:  status=" + $alphaProof.status + " records=" + $alphaProof.alpha_workspace_record_count + " ok=" + $alphaProof.ok_record_count + " missing=" + $alphaProof.missing_record_count)
+    }
+    if ($rotationSignals) {
+        Write-Host ("Rotation proof:         status=" + $rotationSignals.status + " date=" + $rotationSignals.signal_date + " configs=" + $rotationSignals.total_configs + " successful=" + $rotationSignals.successful + " skipped=" + $rotationSignals.skipped + " failed=" + $rotationSignals.failed)
     }
     if ($decisionDataProof) {
         Write-Host ("Decision data proof:    status=" + $decisionDataProof.status + " records=" + $decisionDataProof.decision_data_record_count + " ok=" + $decisionDataProof.ok_record_count + " missing=" + $decisionDataProof.missing_record_count + " blocked=" + $decisionDataProof.blocked_record_count)

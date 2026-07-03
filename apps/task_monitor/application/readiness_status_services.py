@@ -151,6 +151,27 @@ def build_account_readiness_summary() -> dict[str, Any]:
     }
 
 
+def summarize_evidence_workspace_components(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Return compact workspace component proof from readiness evidence."""
+
+    workspace = _as_dict(payload.get("workspace"))
+    result = _as_dict(workspace.get("result"))
+    components = _as_dict(result.get("components"))
+    rotation = _as_dict(components.get("rotation_signals"))
+    if not rotation:
+        return None
+    return {
+        "rotation_signals": {
+            "status": rotation.get("status"),
+            "signal_date": rotation.get("signal_date"),
+            "total_configs": rotation.get("total_configs"),
+            "successful": rotation.get("successful"),
+            "skipped": rotation.get("skipped"),
+            "failed": rotation.get("failed"),
+        }
+    }
+
+
 def summarize_evidence_macro_context(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Return compact Regime/Pulse context from one readiness evidence payload."""
 
