@@ -148,6 +148,18 @@ function Write-MonitorSummary {
     $weeklyProof = $acceptance.requirements.auto_advisor_weekly_persistence
     $schedulerActivity = $acceptance.requirements.scheduler_activity
     $acceptedManifest = $acceptance.accepted_evidence_manifest
+    $acceptedEvidenceRecords = @($Payload.validation.accepted_evidence)
+    if ($acceptedEvidenceRecords.Count -eq 0 -and $acceptedManifest.records) {
+        $acceptedEvidenceRecords = @($acceptedManifest.records)
+    }
+    $latestFormalEvidenceFile = $null
+    if ($latestFormal -and $latestFormal.target_date) {
+        $latestFormalEvidenceFile = @(
+            $acceptedEvidenceRecords | Where-Object {
+                [string]$_.target_date -eq [string]$latestFormal.target_date
+            }
+        ) | Select-Object -First 1
+    }
     $postPersistence = $Payload.post_evidence_persistence
     $postRisk = $postPersistence.risk_center_daily_report
     $postWeekly = $postPersistence.auto_advisor_weekly_report
@@ -281,6 +293,9 @@ function Write-MonitorSummary {
         Write-Host ("Failed gate actions:    " + $operatorActionSummary)
     }
     Write-Host ("Latest formal evidence: " + $latestFormal.target_date + " source=" + $latestFormal.trigger_source + " task=" + $latestFormal.trigger_task_name)
+    if ($latestFormalEvidenceFile) {
+        Write-Host ("Latest evidence file:   sha256=" + $latestFormalEvidenceFile.sha256 + " path=" + $latestFormalEvidenceFile.path)
+    }
     Write-Host ("Scheduler runs:         count=" + $runMetadata.total_run_count + " last_run_at=" + $runMetadata.last_run_at)
     if ($schedulerActivity) {
         Write-Host ("Evidence provenance:    scheduler=" + $schedulerActivity.scheduler_trigger_record_count + " manual=" + $schedulerActivity.manual_trigger_record_count + " legacy=" + $schedulerActivity.legacy_record_count + " task_proof=" + $schedulerActivity.scheduler_task_provenance_record_count + " unique_task_ids=" + $schedulerActivity.unique_scheduler_task_id_count)
