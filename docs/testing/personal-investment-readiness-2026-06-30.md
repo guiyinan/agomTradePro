@@ -348,7 +348,7 @@ Scheduled execution:
 | --- | --- |
 | Celery task | `apps.task_monitor.application.tasks.run_personal_readiness_daily_task` |
 | Periodic task | `personal-readiness-daily-evidence` |
-| Default schedule | `mon-fri 19:40 Asia/Shanghai` |
+| Default schedule | `mon-fri 16:10 Asia/Shanghai` |
 | Default calendar source | `auto` (`qlib` when local calendar coverage is available) |
 | Scheduler calendar source safety | scheduled kwargs must keep `calendar_source=auto`; setup repair restores it |
 | Scheduler main-chain safety | scheduled kwargs must keep workspace refresh and weekly advisor enabled, with Qlib staleness threshold no looser than 5 days |
@@ -379,21 +379,26 @@ Continuous window detail:
 | command | `python manage.py validate_personal_readiness_window --json` |
 | status | `in_progress` |
 | required_days | 20 |
-| accepted_days | 1 |
-| remaining_days | 19 |
-| next_required_date | `2026-07-01` |
+| accepted_days | 4 |
+| remaining_days | 16 |
+| scheduler_clean_suffix_days | 3 |
+| scheduler_clean_remaining_days | 17 |
+| next_required_date | `2026-07-06` |
 | next_required_reason | `next_trading_day` |
 | projected_completion_date | `2026-07-27` |
-| projected_remaining_calendar_days | 27 |
-| projected_remaining_calendar_days_from_today | 26 |
-| accepted_evidence_quality.record_count | 1 |
+| projected_scheduler_completion_date | `2026-07-28` |
+| projected_remaining_calendar_days | 24 |
+| projected_remaining_calendar_days_from_today | 24 |
+| projected_scheduler_remaining_calendar_days | 25 |
+| projected_scheduler_remaining_calendar_days_from_today | 25 |
+| accepted_evidence_quality.record_count | 4 |
 | accepted_evidence_quality.legacy_record_count | 1 |
-| accepted_evidence_quality.formal_record_count | 0 |
+| accepted_evidence_quality.formal_record_count | 3 |
 | accepted_evidence_quality.diagnostic_record_count | 0 |
-| accepted_evidence_quality.task_provenance_record_count | 0 |
+| accepted_evidence_quality.task_provenance_record_count | 3 |
 | accepted_evidence_quality.missing_task_provenance_record_count | 1 |
-| accepted_evidence_manifest.sha256 | `70df764851b9f5f36d652cb9df36f1d7ead76282cc5e15a84cf356a60c83e14b` |
-| latest_target_date | `2026-06-30` |
+| accepted_evidence_manifest.sha256 | `2417bd2d161d682937c4f5602ae7053e812d401f90de1c2159fd12033e5ca161` |
+| latest_target_date | `2026-07-03` |
 | blocking_issues | none |
 
 `accepted_days` is a continuous accepted trading-day streak ending at `latest_target_date`. The default calendar source is `auto`, which uses the local Qlib trading calendar when available and reports the effective `calendar_source` in JSON output. Non-contiguous evidence does not accumulate toward the 20-day gate.
