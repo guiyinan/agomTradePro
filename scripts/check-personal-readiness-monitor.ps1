@@ -321,7 +321,30 @@ function Write-MonitorSummary {
             [string]$_.component_key + ":" + [string]$_.proxy
         }
         $proxyComponents = $proxyDetails -join ","
+        $proxyAudit = @($marketThermometer.proxy_components) | Where-Object {
+            $_.component_key -and $_.proxy
+        } | ForEach-Object {
+            $verification = [string]$_.verification_status
+            if (-not $verification) {
+                $verification = "unmarked_proxy"
+            }
+            [pscustomobject]@{
+                Component = [string]$_.component_key
+                Proxy = [string]$_.proxy
+                Source = [string]$_.source
+                Verification = $verification
+            }
+        }
+        $proxyAuditCount = @($proxyAudit).Count
+        $fallbackProxyCount = @($proxyAudit | Where-Object { $_.Verification -eq "fallback_proxy" }).Count
+        $unmarkedProxyCount = @($proxyAudit | Where-Object { $_.Verification -eq "unmarked_proxy" }).Count
+        $proxyAuditSummary = @($proxyAudit | ForEach-Object {
+            $_.Component + ":" + $_.Proxy + "@" + $_.Source + "/" + $_.Verification
+        }) -join ","
         Write-Host ("Decision data:          source=" + $decisionDataSource + " status=" + $decisionData.status + " readiness=" + $decisionData.readiness_status + " mt=" + $marketThermometer.status + " mt_date=" + $marketThermometer.observed_at + " mt_source=" + $marketThermometer.data_source + " stale=" + $staleComponents + " missing=" + $missingComponents + " proxy=" + $proxyComponents + " must_not_use=" + $decisionData.must_not_use_for_decision)
+        if ($proxyAuditCount -gt 0) {
+            Write-Host ("MT proxy audit:         count=" + $proxyAuditCount + " fallback=" + $fallbackProxyCount + " unmarked=" + $unmarkedProxyCount + " components=" + $proxyAuditSummary)
+        }
         $staleKeys = @($marketThermometer.stale_components)
         $missingKeys = @($marketThermometer.missing_components)
         if (($staleKeys -contains "new_investor_accounts") -or ($missingKeys -contains "new_investor_accounts")) {
