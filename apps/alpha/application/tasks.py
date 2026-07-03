@@ -29,6 +29,7 @@ from apps.alpha.application.repository_provider import (
     resolve_effective_trade_date,
 )
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
 from core.integration.runtime_settings import get_runtime_qlib_config
@@ -468,12 +469,6 @@ def qlib_predict_scores(
         intended_trade_date: 计划交易日期 (ISO 格式)
         top_n: 返回前 N 只
 
-    Returns:
-        任务结果字典
-
-    Example:
-        >>> from apps.alpha.application.tasks import qlib_predict_scores
-        >>> qlib_predict_scores.delay("csi300", "2026-02-05", 30)
     """
     try:
         from ..domain.entities import AlphaPoolScope
@@ -652,6 +647,9 @@ def qlib_predict_scores(
             f"Qlib 推理完成: {action}缓存 {universe_id}@{intended_trade_date}, "
             f"共 {len(scores_data)} 只股票"
         )
+        workspace_refresh_metadata = sync_default_workspace_after_alpha_update(
+            pool_scope.universe_id if pool_scope else universe_id, trade_date, pool_scope
+        )
 
         return {
             "status": "success",
@@ -662,6 +660,7 @@ def qlib_predict_scores(
             "stock_count": len(scores_data),
             "model_artifact_hash": active_model.artifact_hash,
             **execution_metadata,
+            **workspace_refresh_metadata,
         }
 
     except Exception as exc:
