@@ -8,6 +8,7 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
 
+from apps.alpha.application.pool_resolver import ALPHA_POOL_MODE_STRICT_VALUATION
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -45,7 +46,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--target-date", dest="target_date", default=None)
-        parser.add_argument("--portfolio-id", dest="portfolio_id", type=int, default=366)
+        parser.add_argument("--portfolio-id", dest="portfolio_id", type=int, default=None)
         parser.add_argument("--user-id", dest="user_id", type=int, default=None)
         parser.add_argument("--asset-codes", dest="asset_codes", default=None)
         parser.add_argument(
@@ -76,6 +77,9 @@ class Command(BaseCommand):
             else date.today()
         )
         user = self._resolve_user(options.get("user_id"))
+        portfolio_id = options.get("portfolio_id")
+        if portfolio_id is None:
+            portfolio_id = self._resolve_default_portfolio_id(user, target_date)
         provider_repo = ProviderConfigRepository()
         use_case = RepairDecisionDataReliabilityUseCase(
             provider_repo=provider_repo,
@@ -96,7 +100,7 @@ class Command(BaseCommand):
         report = use_case.execute(
             DecisionReliabilityRepairRequest(
                 target_date=target_date,
-                portfolio_id=options.get("portfolio_id"),
+                portfolio_id=portfolio_id,
                 asset_codes=_split_codes(
                     options.get("asset_codes"),
                     DEFAULT_DECISION_ASSET_CODES,
@@ -251,7 +255,7 @@ class Command(BaseCommand):
                 user=user,
                 top_n=10,
                 portfolio_id=portfolio_id,
-                pool_mode="price_covered",
+                pool_mode=ALPHA_POOL_MODE_STRICT_VALUATION,
             )
             meta = dict(data.meta or {})
             return {
@@ -272,3 +276,14 @@ class Command(BaseCommand):
             }
 
         return _read
+
+    @staticmethod
+    def _resolve_default_portfolio_id(user, target_date: date) -> int | None:
+        if user is None:
+            return None
+        resolved = resolve_portfolio_alpha_scope(
+            user_id=user.id,
+            portfolio_id=None,
+            trade_date=target_date,
+        )
+        return resolved.portfolio_id

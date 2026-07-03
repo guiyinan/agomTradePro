@@ -272,3 +272,6 @@ class MarketThermometerImportSerializer(serializers.Serializer):
     """Serializer for investor-account CSV import."""
 
     csv_text = serializers.CharField(required=False, allow_blank=True)
+    dry_run = serializers.BooleanField(required=False, default=False)
+    value_unit = serializers.ChoiceField(choices=("户", "万户"), required=False, default="户")
+    fail_on_warning = serializers.BooleanField(required=False, default=False)

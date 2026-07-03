@@ -73,7 +73,9 @@ class _MockTushareProClient:
             ]
         )
 
-    def trade_cal(self, exchange: str, start_date: str, end_date: str, is_open: str) -> pd.DataFrame:
+    def trade_cal(
+        self, exchange: str, start_date: str, end_date: str, is_open: str
+    ) -> pd.DataFrame:
         return pd.DataFrame(
             [
                 {"cal_date": "20260331"},
@@ -120,6 +122,11 @@ class _MockTushareProClient:
                 },
             ]
         )
+
+
+class _RateLimitedIndexWeightClient(_MockTushareProClient):
+    def index_weight(self, index_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+        raise RuntimeError("您请求速度过快")
 
 
 def test_resolve_effective_trade_date_adjusts_to_latest_available() -> None:
@@ -183,6 +190,28 @@ def test_tushare_qlib_builder_writes_recent_layout(tmp_path: Path) -> None:
     assert int(factor_raw[0]) == 0
     assert len(factor_raw) == 5
     assert len(close_raw) == 5
+
+
+def test_tushare_qlib_builder_falls_back_to_local_universe_members(tmp_path: Path) -> None:
+    provider_uri = tmp_path / "cn_data"
+    instrument_dir = provider_uri / "instruments"
+    instrument_dir.mkdir(parents=True)
+    (instrument_dir / "csi300.txt").write_text(
+        "SH600000\t2005-01-01\t2026-05-06\n",
+        encoding="utf-8",
+    )
+    builder = TushareQlibBuilder(str(provider_uri), pro_client=_RateLimitedIndexWeightClient())
+
+    summary = builder.build_recent_data(
+        target_date=date(2026, 4, 6),
+        universes=["csi300"],
+        lookback_days=30,
+    )
+
+    assert summary.stock_count == 1
+    assert summary.universe_count == 1
+    assert summary.latest_local_date_after == date(2026, 4, 3)
+    assert "SH600000" in (provider_uri / "instruments" / "csi300.txt").read_text(encoding="utf-8")
 
 
 def test_tushare_qlib_builder_writes_explicit_stock_scope(tmp_path: Path) -> None:

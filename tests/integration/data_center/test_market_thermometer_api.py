@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
 from apps.data_center.infrastructure.models import (
+    MacroFactModel,
     MarketThermometerSnapshotModel,
     MarketThermometerUserOverrideModel,
 )
@@ -43,23 +44,23 @@ def user_client(db):
 @pytest.mark.django_db
 def test_market_thermometer_current_returns_user_override_contract(user_client):
     user = User.objects.get(username="thermo-user")
-    today = date.today()
-    MarketThermometerSnapshotModel.objects.create(
-        observed_at=today,
-        score=78.0,
-        band="overheat",
-        change_5d=5.0,
-        change_20d=14.0,
-        components=[],
-        trigger_reasons=["成交额抬升"],
-        stale_components=[],
-        missing_components=[],
-        valid_component_count=5,
-        data_source="calculated",
-        must_not_use_for_decision=False,
-        blocked_reason="",
-        calculated_at=datetime.now(UTC),
-    )
+    for observed_at in (date.today(), date.today() - timedelta(days=1)):
+        MarketThermometerSnapshotModel.objects.create(
+            observed_at=observed_at,
+            score=78.0,
+            band="overheat",
+            change_5d=5.0,
+            change_20d=14.0,
+            components=[],
+            trigger_reasons=["成交额抬升"],
+            stale_components=[],
+            missing_components=[],
+            valid_component_count=5,
+            data_source="calculated",
+            must_not_use_for_decision=False,
+            blocked_reason="",
+            calculated_at=datetime.now(UTC),
+        )
     MarketThermometerUserOverrideModel.objects.create(
         user=user,
         warm_threshold=30.0,
@@ -123,3 +124,49 @@ def test_market_thermometer_me_supports_upsert_and_delete(user_client):
 
     assert delete_response.status_code == 204
     assert MarketThermometerUserOverrideModel.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_market_thermometer_import_investor_accounts_supports_dry_run_units(admin_client):
+    path = "/api/data-center/market-thermometer/import/investor-accounts/"
+    csv_text = "reporting_period,value\n2026-05-31,99.59\n"
+
+    warning_response = admin_client.post(
+        path,
+        data=json.dumps(
+            {
+                "csv_text": csv_text,
+                "dry_run": True,
+                "fail_on_warning": True,
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert warning_response.status_code == 400
+    warning_payload = warning_response.json()
+    assert warning_payload["stored_count"] == 0
+    assert warning_payload["warnings"][0]["code"] == "suspicious_low_account_count"
+
+    converted_response = admin_client.post(
+        path,
+        data=json.dumps(
+            {
+                "csv_text": csv_text,
+                "dry_run": True,
+                "fail_on_warning": True,
+                "value_unit": "万户",
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert converted_response.status_code == 200
+    converted_payload = converted_response.json()
+    assert converted_payload["dry_run"] is True
+    assert converted_payload["source_unit"] == "万户"
+    assert converted_payload["unit"] == "户"
+    assert converted_payload["warnings"] == []
+    assert MacroFactModel.objects.filter(
+        indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS"
+    ).count() == 0

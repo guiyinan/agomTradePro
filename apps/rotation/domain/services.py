@@ -25,11 +25,14 @@ from apps.rotation.domain.entities import (
 @dataclass
 class RotationContext:
     """Context for rotation strategy calculation"""
+
     calc_date: date
     asset_universe: list[str]  # List of asset codes
 
     # Data accessors (injected from Infrastructure layer)
-    get_asset_prices: Callable[[str, date, int], list[float] | None]  # (asset, end_date, days) -> [prices]
+    get_asset_prices: Callable[
+        [str, date, int], list[float] | None
+    ]  # (asset, end_date, days) -> [prices]
     get_current_regime: Callable[[], str | None]  # () -> regime_name
 
 
@@ -43,10 +46,7 @@ class MomentumRotationEngine:
     def __init__(self, context: RotationContext):
         self.context = context
 
-    def calculate_momentum_scores(
-        self,
-        periods: list[int] = None
-    ) -> list[MomentumScore]:
+    def calculate_momentum_scores(self, periods: list[int] = None) -> list[MomentumScore]:
         """
         Calculate momentum scores for all assets in universe.
 
@@ -73,18 +73,11 @@ class MomentumRotationEngine:
 
         return scores
 
-    def select_top_assets(
-        self,
-        momentum_scores: list[MomentumScore],
-        top_n: int = 3
-    ) -> list[str]:
+    def select_top_assets(self, momentum_scores: list[MomentumScore], top_n: int = 3) -> list[str]:
         """Select top N assets by momentum score"""
         return [s.asset_code for s in momentum_scores[:top_n]]
 
-    def generate_signal(
-        self,
-        config: RotationConfig
-    ) -> RotationSignal:
+    def generate_signal(self, config: RotationConfig) -> RotationSignal:
         """
         Generate rotation signal based on momentum strategy.
 
@@ -95,7 +88,7 @@ class MomentumRotationEngine:
             RotationSignal with target allocation
         """
         # Calculate momentum scores
-        periods = config.params.get("momentum_periods", [20, 60, 120])
+        periods = config.params.get("momentum_periods") or config.momentum_periods
         scores = self.calculate_momentum_scores(periods)
 
         # Select top N assets
@@ -121,39 +114,51 @@ class MomentumRotationEngine:
         return signal
 
     def _calculate_asset_momentum(
-        self,
-        asset_code: str,
-        periods: list[int]
+        self, asset_code: str, periods: list[int]
     ) -> MomentumScore | None:
         """Calculate momentum score for a single asset"""
         # Get historical prices (need max period + buffer for calculations)
         max_period = max(periods) if periods else 120
         prices = self.context.get_asset_prices(asset_code, self.context.calc_date, max_period + 60)
 
-        if not prices or len(prices) < max_period + 1:
+        if not prices:
             return None
 
         # Calculate momentum for each period
         momentum_values = {}
+        available_periods = []
         for period in periods:
             if len(prices) > period:
                 current_price = prices[-1]
                 past_price = prices[-(period + 1)]
                 momentum = (current_price - past_price) / past_price if past_price > 0 else 0
-                momentum_values[f"momentum_{period}m"] = momentum
+                momentum_values[period] = momentum
+                available_periods.append(period)
+
+        if not available_periods:
+            return None
 
         # Extract period values
-        momentum_1m = momentum_values.get("momentum_20", 0.0)
-        momentum_3m = momentum_values.get("momentum_60", 0.0)
-        momentum_6m = momentum_values.get("momentum_120", 0.0)
-        momentum_12m = momentum_values.get("momentum_252", momentum_6m)  # Use 6m if 12m not available
+        momentum_1m = momentum_values.get(20, 0.0)
+        momentum_3m = momentum_values.get(60, 0.0)
+        momentum_6m = momentum_values.get(120, 0.0)
+        momentum_12m = momentum_values.get(252, momentum_6m)
 
-        # Calculate composite score (weighted average)
+        period_weights = {
+            20: 0.2,
+            60: 0.3,
+            120: 0.3,
+            252: 0.2,
+        }
+        weighted_terms = [
+            (momentum_values[period], period_weights.get(period, 1.0))
+            for period in available_periods
+        ]
+        total_weight = sum(weight for _, weight in weighted_terms)
         composite_score = (
-            momentum_1m * 0.2 +
-            momentum_3m * 0.3 +
-            momentum_6m * 0.3 +
-            momentum_12m * 0.2
+            sum(momentum * weight for momentum, weight in weighted_terms) / total_weight
+            if total_weight > 0
+            else 0.0
         )
 
         # Calculate Sharpe ratios (simplified)
@@ -286,10 +291,7 @@ class RegimeBasedRotationEngine:
     def __init__(self, context: RotationContext):
         self.context = context
 
-    def generate_signal(
-        self,
-        config: RotationConfig
-    ) -> RotationSignal:
+    def generate_signal(self, config: RotationConfig) -> RotationSignal:
         """
         Generate rotation signal based on current regime.
 
@@ -309,7 +311,9 @@ class RegimeBasedRotationEngine:
         else:
             # Get allocation for current regime
             regime_allocations = config.regime_allocations.get(current_regime, {})
-            target_allocation = self._filter_allocation_to_universe(regime_allocations, config.asset_universe)
+            target_allocation = self._filter_allocation_to_universe(
+                regime_allocations, config.asset_universe
+            )
             reason = f"Current regime: {current_regime}"
 
         # Build momentum ranking for context
@@ -334,9 +338,7 @@ class RegimeBasedRotationEngine:
         return dict.fromkeys(universe, weight)
 
     def _filter_allocation_to_universe(
-        self,
-        allocation: dict[str, float],
-        universe: list[str]
+        self, allocation: dict[str, float], universe: list[str]
     ) -> dict[str, float]:
         """Filter allocation to only include assets in universe"""
         filtered = {k: v for k, v in allocation.items() if k in universe}
@@ -359,10 +361,7 @@ class RiskParityRotationEngine:
     def __init__(self, context: RotationContext):
         self.context = context
 
-    def generate_signal(
-        self,
-        config: RotationConfig
-    ) -> RotationSignal:
+    def generate_signal(self, config: RotationConfig) -> RotationSignal:
         """
         Generate rotation signal based on risk parity.
 
@@ -375,7 +374,9 @@ class RiskParityRotationEngine:
         # Calculate volatility for each asset
         volatilities = {}
         for asset_code in config.asset_universe:
-            prices = self.context.get_asset_prices(asset_code, self.context.calc_date, config.lookback_period)
+            prices = self.context.get_asset_prices(
+                asset_code, self.context.calc_date, config.lookback_period
+            )
             if prices:
                 vol = self._calculate_volatility(prices)
                 volatilities[asset_code] = vol
@@ -495,8 +496,6 @@ class RotationService:
                     "trend_strength": round(score.trend_strength, 2),
                 }
             else:
-                comparison[asset_code] = {
-                    "error": "No data available"
-                }
+                comparison[asset_code] = {"error": "No data available"}
 
         return comparison

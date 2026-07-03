@@ -193,6 +193,30 @@
     margin-top: 16px;
 }
 
+.scheduler-console__form {
+    display: grid;
+    gap: 14px;
+}
+
+.scheduler-console__field {
+    display: grid;
+    gap: 6px;
+}
+
+.scheduler-console__field label {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.scheduler-console__field input {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
 @media (max-width: 1180px) {
     .scheduler-console__grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -343,6 +367,66 @@
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div class="scheduler-console__panel">
+                <h2>收市后 Readiness 时间</h2>
+                <form method="post" class="scheduler-console__form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="configure_readiness_schedule">
+                    <div class="scheduler-console__field">
+                        <label for="quote_pre_refresh_time">行情预刷新</label>
+                        <input
+                            id="quote_pre_refresh_time"
+                            name="quote_pre_refresh_time"
+                            type="time"
+                            min="15:01"
+                            max="23:59"
+                            value="{{ readiness_schedule.quote_pre_refresh_time }}"
+                            required
+                        >
+                        <div class="scheduler-console__subtle">
+                            {{ readiness_schedule.quote_pre_refresh_day_of_week }}
+                            {% if readiness_schedule.quote_pre_refresh_enabled %}enabled{% else %}disabled{% endif %}
+                            {% if not readiness_schedule.quote_pre_refresh_task_exists %} | 尚未初始化{% endif %}
+                        </div>
+                    </div>
+                    <div class="scheduler-console__field">
+                        <label for="daily_evidence_time">每日 readiness 证据</label>
+                        <input
+                            id="daily_evidence_time"
+                            name="daily_evidence_time"
+                            type="time"
+                            min="16:00"
+                            max="23:59"
+                            value="{{ readiness_schedule.daily_evidence_time }}"
+                            required
+                        >
+                        <div class="scheduler-console__subtle">
+                            {{ readiness_schedule.daily_evidence_day_of_week }}
+                            {% if readiness_schedule.daily_evidence_enabled %}enabled{% else %}disabled{% endif %}
+                            {% if not readiness_schedule.daily_evidence_task_exists %} | 尚未初始化{% endif %}
+                        </div>
+                    </div>
+                    <div class="scheduler-console__field">
+                        <label for="weekly_auto_advisor_time">周报自动顾问</label>
+                        <input
+                            id="weekly_auto_advisor_time"
+                            name="weekly_auto_advisor_time"
+                            type="time"
+                            min="16:01"
+                            max="23:59"
+                            value="{{ readiness_schedule.weekly_auto_advisor_time }}"
+                            required
+                        >
+                        <div class="scheduler-console__subtle">
+                            {{ readiness_schedule.weekly_auto_advisor_day_of_week }}
+                            {% if readiness_schedule.weekly_auto_advisor_enabled %}enabled{% else %}disabled{% endif %}
+                            {% if not readiness_schedule.weekly_auto_advisor_task_exists %} | 尚未初始化{% endif %}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存时间</button>
+                </form>
+            </div>
+
             <div class="scheduler-console__panel">
                 <h2>Celery 运行态</h2>
                 <div class="scheduler-console__health">

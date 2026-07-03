@@ -3,7 +3,8 @@
 from io import StringIO
 
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 SCHEDULER_COMMANDS = (
     "setup_macro_daily_sync",
@@ -12,6 +13,7 @@ SCHEDULER_COMMANDS = (
     "setup_workspace_snapshot_refresh",
     "setup_account_risk_tasks",
     "setup_auto_advisor_weekly_report",
+    "setup_personal_readiness_daily",
 )
 
 
@@ -28,21 +30,32 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         disable = bool(options.get("disable"))
         executed: list[str] = []
+        outputs: list[str] = []
+        current_command = ""
 
-        for command_name in SCHEDULER_COMMANDS:
-            buffer = StringIO()
-            kwargs = {"stdout": buffer, "stderr": buffer}
-            if disable:
-                kwargs["disable"] = True
-            call_command(command_name, **kwargs)
-            executed.append(command_name)
-            output = buffer.getvalue().strip()
-            if output:
-                self.stdout.write(output)
+        try:
+            with transaction.atomic():
+                for command_name in SCHEDULER_COMMANDS:
+                    current_command = command_name
+                    buffer = StringIO()
+                    kwargs = {"stdout": buffer, "stderr": buffer}
+                    if disable:
+                        kwargs["disable"] = True
+                    call_command(command_name, **kwargs)
+                    executed.append(command_name)
+                    output = buffer.getvalue().strip()
+                    if output:
+                        outputs.append(output)
+        except Exception as exc:
+            failed_command = current_command or "unknown"
+            raise CommandError(
+                f"Scheduler defaults initialization failed at {failed_command}: {exc}"
+            ) from exc
+
+        for output in outputs:
+            self.stdout.write(output)
 
         status = "disabled" if disable else "enabled"
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Scheduler defaults initialized ({status}): {', '.join(executed)}"
-            )
+            self.style.SUCCESS(f"Scheduler defaults initialized ({status}): {', '.join(executed)}")
         )

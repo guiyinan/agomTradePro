@@ -18,7 +18,10 @@ from apps.data_center.application.use_cases import DEFAULT_DECISION_ASSET_CODES
 
 TASK_NAME_INTRADAY = "decision-quote-intraday-refresh"
 TASK_NAME_POST_CLOSE = "decision-quote-post-close-refresh"
+TASK_NAME_PRE_READINESS = "decision-quote-pre-readiness-refresh"
 TASK_NAME_FRESHNESS = "decision-quote-freshness-check"
+DEFAULT_PRE_READINESS_HOUR = 15
+DEFAULT_PRE_READINESS_MINUTE = 35
 
 
 class Command(BaseCommand):
@@ -27,10 +30,31 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--asset-codes", default="")
         parser.add_argument("--quote-max-age-hours", type=float, default=None)
+        parser.add_argument(
+            "--pre-readiness-hour",
+            type=int,
+            default=DEFAULT_PRE_READINESS_HOUR,
+            help="Run hour for the pre-readiness quote refresh (0-23).",
+        )
+        parser.add_argument(
+            "--pre-readiness-minute",
+            type=int,
+            default=DEFAULT_PRE_READINESS_MINUTE,
+            help="Run minute for the pre-readiness quote refresh (0-59).",
+        )
         parser.add_argument("--disable", action="store_true")
 
     def handle(self, *args, **options):
         enabled = not bool(options.get("disable"))
+        pre_readiness_hour = int(options["pre_readiness_hour"])
+        pre_readiness_minute = int(options["pre_readiness_minute"])
+        if pre_readiness_hour < 0 or pre_readiness_hour > 23:
+            self.stderr.write(self.style.ERROR("--pre-readiness-hour must be between 0 and 23"))
+            return
+        if pre_readiness_minute < 0 or pre_readiness_minute > 59:
+            self.stderr.write(self.style.ERROR("--pre-readiness-minute must be between 0 and 59"))
+            return
+
         configured_asset_codes = getattr(
             settings, "DECISION_READINESS_ASSET_CODES", DEFAULT_DECISION_ASSET_CODES
         )
@@ -53,6 +77,11 @@ class Command(BaseCommand):
         with transaction.atomic():
             intraday_crontab = self._get_crontab(hour=9, minute=45, day_of_week="1,2,3,4,5")
             post_close_crontab = self._get_crontab(hour=15, minute=20, day_of_week="1,2,3,4,5")
+            pre_readiness_crontab = self._get_crontab(
+                hour=pre_readiness_hour,
+                minute=pre_readiness_minute,
+                day_of_week="1,2,3,4,5",
+            )
             freshness_interval, _ = IntervalSchedule.objects.get_or_create(
                 every=6,
                 period=IntervalSchedule.HOURS,
@@ -71,6 +100,13 @@ class Command(BaseCommand):
                 kwargs=kwargs,
                 description="Post-close refresh of decision-grade quote snapshots.",
                 crontab=post_close_crontab,
+            )
+            self._upsert_task(
+                name=TASK_NAME_PRE_READINESS,
+                enabled=enabled,
+                kwargs=kwargs,
+                description="Pre-readiness refresh of decision-grade quote snapshots.",
+                crontab=pre_readiness_crontab,
             )
             PeriodicTask.objects.update_or_create(
                 name=TASK_NAME_FRESHNESS,
@@ -91,6 +127,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Decision quote refresh tasks configured"))
         self.stdout.write(f"  - {TASK_NAME_INTRADAY}: {status} @ weekdays 09:45")
         self.stdout.write(f"  - {TASK_NAME_POST_CLOSE}: {status} @ weekdays 15:20")
+        self.stdout.write(
+            f"  - {TASK_NAME_PRE_READINESS}: "
+            f"{status} @ weekdays {pre_readiness_hour:02d}:{pre_readiness_minute:02d}"
+        )
         self.stdout.write(f"  - {TASK_NAME_FRESHNESS}: {status} every 6 hours")
 
     @staticmethod

@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.task_monitor.application.interface_services import (
     bootstrap_scheduler_defaults,
+    configure_readiness_schedule,
     get_scheduler_console_context,
 )
 
@@ -38,6 +39,30 @@ def scheduler_console_view(request: HttpRequest) -> HttpResponse:
                 )
             except Exception as exc:
                 messages.error(request, f"初始化默认计划任务失败: {exc}")
+            return redirect(reverse("task_monitor_pages:scheduler_console"))
+
+        if action_name == "configure_readiness_schedule":
+            try:
+                result = configure_readiness_schedule(
+                    quote_pre_refresh_time=(
+                        request.POST.get("quote_pre_refresh_time") or ""
+                    ),
+                    daily_evidence_time=(
+                        request.POST.get("daily_evidence_time") or ""
+                    ),
+                    weekly_auto_advisor_time=(
+                        request.POST.get("weekly_auto_advisor_time") or ""
+                    ),
+                )
+                messages.success(
+                    request,
+                    "Readiness 时间已保存: "
+                    f"行情预刷新 {result['quote_pre_refresh_time']}, "
+                    f"每日证据 {result['daily_evidence_time']}, "
+                    f"周报自动顾问 {result['weekly_auto_advisor_time']}",
+                )
+            except Exception as exc:
+                messages.error(request, f"保存 readiness 时间失败: {exc}")
             return redirect(reverse("task_monitor_pages:scheduler_console"))
 
         messages.error(request, "不支持的操作。")

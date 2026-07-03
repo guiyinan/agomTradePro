@@ -124,12 +124,8 @@ def build_auto_advisor_console_payload(
         "execution": {
             "execution_mode": execution_plan.get("execution_mode"),
             "confirmation_status": execution_plan.get("confirmation_status"),
-            "requires_human_confirmation": bool(
-                execution_plan.get("requires_human_confirmation")
-            ),
-            "broker_execution_enabled": bool(
-                execution_plan.get("broker_execution_enabled")
-            ),
+            "requires_human_confirmation": bool(execution_plan.get("requires_human_confirmation")),
+            "broker_execution_enabled": bool(execution_plan.get("broker_execution_enabled")),
             "orders_count": execution_plan.get("orders_count", 0),
         },
         "next_actions": list(sheet.get("next_actions") or [])[:5],
@@ -353,9 +349,8 @@ def _detect_auto_advisor_query_intent(question: str) -> str:
         return "reduce_reason"
     if "证伪" in text:
         return "invalidated_positions"
-    if (
-        any(token in text for token in ("跌", "下跌", "回撤", "下挫"))
-        and any(token in text for token in ("损失", "亏", "影响", "亏损"))
+    if any(token in text for token in ("跌", "下跌", "回撤", "下挫")) and any(
+        token in text for token in ("损失", "亏", "影响", "亏损")
     ):
         return "market_shock_loss"
     if any(token in text for token in ("没执行", "未执行", "没有执行", "上次没", "漏执行")):
@@ -451,11 +446,7 @@ def _answer_largest_risk(sheet: dict[str, Any]) -> dict[str, Any]:
 
 
 def _answer_reduce_reason(sheet: dict[str, Any]) -> dict[str, Any]:
-    reduce_items = [
-        item
-        for item in _advisor_query_items(sheet)
-        if _item_action(item) == "REDUCE"
-    ]
+    reduce_items = [item for item in _advisor_query_items(sheet) if _item_action(item) == "REDUCE"]
     highlights = [
         {
             "asset_code": item.get("asset_code"),
@@ -708,9 +699,7 @@ def _weekly_system_vs_actual_section(sheet: dict[str, Any]) -> dict[str, Any]:
         "execution": {
             "mode": execution.get("execution_mode"),
             "confirmation_status": execution.get("confirmation_status"),
-            "requires_human_confirmation": bool(
-                execution.get("requires_human_confirmation")
-            ),
+            "requires_human_confirmation": bool(execution.get("requires_human_confirmation")),
             "broker_execution_enabled": bool(execution.get("broker_execution_enabled")),
         },
     }
@@ -989,7 +978,7 @@ def _current_regime_payload() -> dict[str, Any]:
     try:
         from apps.regime.application.current_regime import resolve_current_regime
 
-        current = resolve_current_regime(date.today())
+        current = resolve_current_regime(as_of_date=date.today())
         return {
             "status": "ok",
             "current": getattr(current, "dominant_regime", None),

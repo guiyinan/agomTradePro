@@ -147,9 +147,7 @@ def load_macro_governance_payload() -> dict[str, Any]:
     missing_sync_candidates = [
         item for item in indicator_rows if "missing_supported" in item["tags"]
     ]
-    catalog_only_gaps = [
-        item for item in indicator_rows if "catalog_only_gap" in item["tags"]
-    ]
+    catalog_only_gaps = [item for item in indicator_rows if "catalog_only_gap" in item["tags"]]
     alias_catalogs = [item for item in indicator_rows if "alias_catalog" in item["tags"]]
     paired_gaps = [item for item in indicator_rows if "paired_gap" in item["tags"]]
     return {
@@ -304,8 +302,9 @@ def make_manage_market_thermometer_config_use_case() -> ManageMarketThermometerC
     return ManageMarketThermometerConfigUseCase(MarketThermometerConfigRepository())
 
 
-def make_manage_market_thermometer_user_override_use_case(
-) -> ManageMarketThermometerUserOverrideUseCase:
+def make_manage_market_thermometer_user_override_use_case() -> (
+    ManageMarketThermometerUserOverrideUseCase
+):
     """Build the market-thermometer user override use case."""
 
     return ManageMarketThermometerUserOverrideUseCase(MarketThermometerUserOverrideRepository())
@@ -418,12 +417,12 @@ def _build_alpha_refresher(user):
                 "scope_hash": resolved.scope.scope_hash,
                 "universe_id": resolved.scope.universe_id,
                 "task_id": "",
-                    "qlib_result": {
-                        "message": "Scoped Alpha inference queue is unavailable.",
-                        "error_message": str(exc),
-                    },
-                    "quote_sync": quote_sync_result,
-                }
+                "qlib_result": {
+                    "message": "Scoped Alpha inference queue is unavailable.",
+                    "error_message": str(exc),
+                },
+                "quote_sync": quote_sync_result,
+            }
         return {
             "status": "queued",
             "scope_hash": resolved.scope.scope_hash,
@@ -480,9 +479,7 @@ def refresh_decision_quote_snapshots(
 ) -> dict[str, Any]:
     """Sync decision-grade quote snapshots and return a readiness payload."""
 
-    max_age_hours = float(
-        quote_max_age_hours if quote_max_age_hours is not None else 4.0
-    )
+    max_age_hours = float(quote_max_age_hours if quote_max_age_hours is not None else 4.0)
     requested_codes = asset_codes or list(DEFAULT_DECISION_ASSET_CODES)
     normalized_codes = []
     seen_codes = set()
@@ -525,9 +522,7 @@ def get_decision_data_readiness_payload(
 ) -> dict[str, Any]:
     """Return quote and market thermometer readiness for decision use."""
 
-    max_age_hours = float(
-        quote_max_age_hours if quote_max_age_hours is not None else 4.0
-    )
+    max_age_hours = float(quote_max_age_hours if quote_max_age_hours is not None else 4.0)
     requested_codes = asset_codes or list(DEFAULT_DECISION_ASSET_CODES)
     normalized_codes = []
     seen_codes = set()
@@ -564,9 +559,14 @@ def get_decision_data_readiness_payload(
                 f"{asset_code}: {quote.blocked_reason or quote.freshness_status}"
             )
 
-    thermometer_snapshot = MarketThermometerSnapshotRepository().get_latest()
-    thermometer_payload: dict[str, Any]
-    if thermometer_snapshot is None:
+    thermometer_payload = make_calculate_market_thermometer_use_case().build_current_payload(
+        auto_calculate=False,
+    )
+    skipped_thermometer_payload = _build_skipped_latest_market_thermometer_payload(
+        thermometer_payload=thermometer_payload,
+    )
+
+    if not thermometer_payload.get("observed_at"):
         reason = "无可用市场温度计快照。"
         thermometer_payload = {
             "status": "blocked",
@@ -575,14 +575,13 @@ def get_decision_data_readiness_payload(
         }
         blocked_reasons.append(reason)
     else:
-        thermometer_payload = thermometer_snapshot.to_dict()
         thermometer_payload["status"] = (
-            "blocked" if thermometer_snapshot.must_not_use_for_decision else "ok"
+            "blocked" if thermometer_payload.get("must_not_use_for_decision") else "ok"
         )
-        if thermometer_snapshot.must_not_use_for_decision:
+        if thermometer_payload.get("must_not_use_for_decision"):
             blocked_reasons.append("市场温度计标记为 must_not_use_for_decision。")
 
-    return {
+    payload = {
         "status": "blocked" if blocked_reasons else "ok",
         "asset_codes": normalized_codes,
         "quote_max_age_hours": max_age_hours,
@@ -591,6 +590,34 @@ def get_decision_data_readiness_payload(
         "must_not_use_for_decision": bool(blocked_reasons),
         "blocked_reasons": blocked_reasons,
     }
+    if skipped_thermometer_payload is not None:
+        payload["skipped_latest_market_thermometer"] = skipped_thermometer_payload
+    return payload
+
+
+def _build_skipped_latest_market_thermometer_payload(
+    *,
+    thermometer_payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    latest = MarketThermometerSnapshotRepository().get_latest()
+    if latest is None:
+        return None
+
+    payload_observed_at = str(thermometer_payload.get("observed_at") or "")
+    latest_observed_at = latest.observed_at.isoformat()
+    latest_is_skipped = latest_observed_at != payload_observed_at
+    latest_is_blocked = latest.must_not_use_for_decision
+    if not latest_is_skipped and not latest_is_blocked:
+        return None
+
+    skipped_payload = latest.to_dict()
+    skipped_payload["status"] = "blocked" if latest_is_blocked else "skipped"
+    if latest_is_skipped:
+        skipped_payload["skip_reason"] = "latest_snapshot_after_decision_safe_date"
+    elif latest_is_blocked:
+        skipped_payload["skip_reason"] = "latest_snapshot_must_not_use_for_decision"
+    return skipped_payload
+    return None
 
 
 def _build_alpha_status_reader(user):

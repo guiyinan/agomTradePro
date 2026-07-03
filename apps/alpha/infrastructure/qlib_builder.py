@@ -75,6 +75,18 @@ def normalize_feature_symbol(ts_code: str) -> str:
     return f"{market.lower()}{code}"
 
 
+def denormalize_qlib_symbol(symbol: str) -> str | None:
+    """Convert a qlib instrument symbol into a tushare code."""
+    normalized = str(symbol or "").strip().upper()
+    if len(normalized) < 3:
+        return None
+    market = normalized[:2]
+    code = normalized[2:]
+    if market not in {"SH", "SZ"} or not code.isdigit():
+        return None
+    return f"{code}.{market}"
+
+
 def resolve_effective_trade_date(
     requested_trade_date: date,
     latest_available_date: date | None,
@@ -127,9 +139,7 @@ class TushareQlibBuilder:
     ) -> QlibBuildSummary:
         """Build recent daily qlib data for selected universes."""
         normalized_universes = [
-            str(universe).strip().lower()
-            for universe in universes
-            if str(universe).strip()
+            str(universe).strip().lower() for universe in universes if str(universe).strip()
         ]
         if not normalized_universes:
             raise ValueError("至少需要一个 universe")
@@ -193,16 +203,20 @@ class TushareQlibBuilder:
                 effective_target_date.isoformat(),
             )
 
-        stock_daily = stock_daily.loc[stock_daily["trade_date"] <= pd.Timestamp(effective_target_date)].copy()
-        stock_adj = self._fetch_stock_adj_factor(stock_codes, requested_start_date, effective_target_date)
+        stock_daily = stock_daily.loc[
+            stock_daily["trade_date"] <= pd.Timestamp(effective_target_date)
+        ].copy()
+        stock_adj = self._fetch_stock_adj_factor(
+            stock_codes, requested_start_date, effective_target_date
+        )
         scale_reference_adj_map: dict[str, float] = {}
         if latest_before is not None and latest_before < requested_start_date:
-            scale_reference_df = self._fetch_stock_adj_factor(stock_codes, latest_before, latest_before)
+            scale_reference_df = self._fetch_stock_adj_factor(
+                stock_codes, latest_before, latest_before
+            )
             if not scale_reference_df.empty:
                 latest_reference = (
-                    scale_reference_df.sort_values("trade_date")
-                    .groupby("ts_code")
-                    .tail(1)
+                    scale_reference_df.sort_values("trade_date").groupby("ts_code").tail(1)
                 )
                 scale_reference_adj_map = {
                     row.ts_code: float(row.adj_factor)
@@ -229,7 +243,9 @@ class TushareQlibBuilder:
             feature_series_written += written
 
         for index_code in INDEX_CODES_FOR_BUILD:
-            index_frame = self._fetch_index_daily(index_code, requested_start_date, effective_target_date)
+            index_frame = self._fetch_index_daily(
+                index_code, requested_start_date, effective_target_date
+            )
             if index_frame.empty:
                 continue
             written = self._write_index_features(
@@ -310,9 +326,25 @@ class TushareQlibBuilder:
                 )
             except Exception as exc:
                 logger.warning("Failed to fetch index_weight for %s: %s", universe, exc)
+                members = self._load_local_universe_members(universe)
+                if members:
+                    logger.warning(
+                        "Using local qlib instruments fallback for %s after index_weight failure: %s members",
+                        universe,
+                        len(members),
+                    )
+                    universe_members[universe] = members
                 continue
             if df is None or df.empty:
                 logger.warning("No index_weight returned for %s", universe)
+                members = self._load_local_universe_members(universe)
+                if members:
+                    logger.warning(
+                        "Using local qlib instruments fallback for %s after empty index_weight: %s members",
+                        universe,
+                        len(members),
+                    )
+                    universe_members[universe] = members
                 continue
 
             normalized = df.copy()
@@ -329,6 +361,21 @@ class TushareQlibBuilder:
             universe_members[universe] = members
 
         return universe_members
+
+    def _load_local_universe_members(self, universe: str) -> list[str]:
+        """Load existing qlib instrument members when index_weight is rate-limited."""
+        instrument_path = self._instrument_dir / f"{universe}.txt"
+        if not instrument_path.exists():
+            return []
+
+        members: set[str] = set()
+        with instrument_path.open("r", encoding="utf-8") as fp:
+            for line in fp:
+                raw_symbol = line.strip().split("\t", 1)[0]
+                ts_code = denormalize_qlib_symbol(raw_symbol)
+                if ts_code:
+                    members.add(ts_code)
+        return sorted(members)
 
     def _fetch_stock_daily(
         self,
@@ -584,11 +631,7 @@ class TushareQlibBuilder:
         effective_target_date: date,
     ) -> int:
         written = 0
-        coverage = (
-            stock_daily.groupby("ts_code")["trade_date"]
-            .agg(["min", "max"])
-            .reset_index()
-        )
+        coverage = stock_daily.groupby("ts_code")["trade_date"].agg(["min", "max"]).reset_index()
         coverage["min"] = coverage["min"].dt.date
         coverage["max"] = coverage["max"].dt.date
         coverage_map = {
@@ -605,7 +648,9 @@ class TushareQlibBuilder:
                 start_day, end_day = coverage_map[member]
                 symbol = normalize_qlib_symbol(member)
                 ranges[symbol] = _merge_ranges(ranges.get(symbol), start_day, end_day)
-                all_instruments[symbol] = _merge_ranges(all_instruments.get(symbol), start_day, end_day)
+                all_instruments[symbol] = _merge_ranges(
+                    all_instruments.get(symbol), start_day, end_day
+                )
             self._write_instrument_ranges(universe, ranges)
             written += 1
 
@@ -686,14 +731,14 @@ class TushareQlibBuilder:
         merged = np.full(merged_end - merged_start + 1, np.nan, dtype=np.float32)
 
         old_offset = existing_start - merged_start
-        merged[old_offset: old_offset + len(existing_values)] = existing_values
+        merged[old_offset : old_offset + len(existing_values)] = existing_values
 
         new_offset = start_index - merged_start
         candidate = values.astype(np.float32, copy=False)
         overwrite_mask = ~np.isnan(candidate)
-        merged_slice = merged[new_offset: new_offset + len(candidate)]
+        merged_slice = merged[new_offset : new_offset + len(candidate)]
         merged_slice[overwrite_mask] = candidate[overwrite_mask]
-        merged[new_offset: new_offset + len(candidate)] = merged_slice
+        merged[new_offset : new_offset + len(candidate)] = merged_slice
 
         payload = np.hstack(([float(merged_start)], merged))
         payload.astype("<f").tofile(path)

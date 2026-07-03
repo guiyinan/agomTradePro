@@ -6,6 +6,7 @@ Celery 在 Windows 上不支持 prefork pool（多进程），本命令自动使
 使用方式:
     python manage.py celery_worker_windows
     python manage.py celery_worker_windows --loglevel=debug
+    python manage.py celery_worker_windows --queues=celery,qlib_infer,qlib_train
 """
 
 import sys
@@ -29,6 +30,20 @@ class Command(BaseCommand):
             default=1,
             help='Concurrency level (default: 1 for solo pool)',
         )
+        parser.add_argument(
+            '-Q',
+            '--queues',
+            type=str,
+            default=None,
+            help='Comma-separated Celery queues to consume, for example: celery,qlib_infer,qlib_train',
+        )
+        parser.add_argument(
+            '-n',
+            '--hostname',
+            type=str,
+            default=None,
+            help='Optional Celery worker hostname, for example: readiness@%%h',
+        )
 
     def handle(self, *args, **options):
         # 检测操作系统
@@ -46,25 +61,45 @@ class Command(BaseCommand):
 
         # 启动 worker
         loglevel = options['loglevel']
+        queues = options.get('queues')
+        hostname = options.get('hostname')
 
         if is_windows:
             # Windows: 使用 solo pool
-            self.stdout.write(self.style.SUCCESS(f'Starting Celery worker with solo pool (loglevel={loglevel})'))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Starting Celery worker with solo pool (loglevel={loglevel})'
+                )
+            )
 
             # 使用 solo pool 启动
-            app.worker_main([
+            argv = [
                 'worker',
                 '--loglevel=' + loglevel,
                 '--pool=solo',
                 '--concurrency=' + str(options['concurrency']),
-            ])
+            ]
         else:
             # Linux: 使用 prefork pool
-            self.stdout.write(self.style.SUCCESS(f'Starting Celery worker with prefork pool (loglevel={loglevel})'))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Starting Celery worker with prefork pool (loglevel={loglevel})'
+                )
+            )
 
-            app.worker_main([
+            argv = [
                 'worker',
                 '--loglevel=' + loglevel,
                 '--pool=prefork',
                 '--concurrency=' + str(options['concurrency']),
-            ])
+            ]
+
+        if queues:
+            self.stdout.write(self.style.WARNING(f'Queues: {queues}'))
+            argv.append('--queues=' + queues)
+
+        if hostname:
+            self.stdout.write(self.style.WARNING(f'Hostname: {hostname}'))
+            argv.append('--hostname=' + hostname)
+
+        app.worker_main(argv)

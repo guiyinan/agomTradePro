@@ -55,16 +55,16 @@ from apps.data_center.application.dtos import (
 )
 from apps.data_center.application.interface_services import (
     fetch_latest_realtime_prices,
-    load_provider_settings_payload,
     load_market_thermometer_override_payload,
     load_market_thermometer_payload,
+    load_provider_settings_payload,
     make_calculate_market_thermometer_use_case,
-    make_import_investor_accounts_use_case,
-    make_manage_market_thermometer_config_use_case,
-    make_manage_market_thermometer_user_override_use_case,
     make_decision_repair_use_case,
+    make_import_investor_accounts_use_case,
     make_manage_indicator_catalog_use_case,
     make_manage_indicator_unit_rule_use_case,
+    make_manage_market_thermometer_config_use_case,
+    make_manage_market_thermometer_user_override_use_case,
     make_manage_provider_config_use_case,
     make_manage_publisher_catalog_use_case,
     make_query_capital_flows_use_case,
@@ -1018,20 +1018,27 @@ def market_thermometer_sync_inputs(request: Request) -> Response:
 def market_thermometer_import_investor_accounts(request: Request) -> Response:
     """Import investor-account CSV text into canonical MacroFact storage."""
 
+    serializer = MarketThermometerImportSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
     csv_text = ""
     upload = request.FILES.get("file")
     if upload is not None:
         csv_text = upload.read().decode("utf-8-sig")
     else:
-        serializer = MarketThermometerImportSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
         csv_text = serializer.validated_data.get("csv_text", "")
 
     if not str(csv_text or "").strip():
         return Response({"detail": "csv_text or file is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    result = make_import_investor_accounts_use_case().execute(csv_text)
-    return Response(result, status=status.HTTP_201_CREATED)
+    result = make_import_investor_accounts_use_case().execute(
+        csv_text,
+        dry_run=bool(serializer.validated_data.get("dry_run", False)),
+        value_unit=str(serializer.validated_data.get("value_unit") or "户"),
+    )
+    if bool(serializer.validated_data.get("fail_on_warning", False)) and result.get("warnings"):
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+    status_code = status.HTTP_200_OK if result.get("dry_run") else status.HTTP_201_CREATED
+    return Response(result, status=status_code)
 
 
 @api_view(["POST"])

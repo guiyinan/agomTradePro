@@ -118,18 +118,38 @@ class TestMomentumRotationEngine:
             assert scores[i].composite_score >= scores[i + 1].composite_score
 
     def test_calculate_momentum_positive_for_uptrend(self):
-        """Uptrend asset should produce a MomentumScore (composite may be 0 due to key mismatch bug)."""
+        """Uptrend asset should produce a positive composite momentum score."""
         price_data = {"UP": _make_uptrend_prices(days=250)}
         ctx = _build_context(asset_universe=["UP"], price_data=price_data)
         engine = MomentumRotationEngine(ctx)
         scores = engine.calculate_momentum_scores()
         assert len(scores) == 1
         assert scores[0].asset_code == "UP"
-        # Note: composite_score is 0 because _calculate_asset_momentum uses
-        # f"momentum_{period}m" keys but looks up "momentum_20" etc. (key mismatch).
-        # The Sharpe ratio and MA signal still work correctly.
+        assert scores[0].composite_score > 0
         assert scores[0].ma_signal == "bullish"
         assert scores[0].sharpe_1m > 0
+
+    def test_calculate_momentum_scores_uses_available_shorter_periods(self):
+        """Assets with partial period coverage are still scored from available periods."""
+        price_data = {
+            "ENOUGH_FOR_60": _make_uptrend_prices(days=109),
+            "ENOUGH_FOR_20": _make_downtrend_prices(days=60),
+            "TOO_SHORT": _make_uptrend_prices(days=10),
+        }
+        ctx = _build_context(
+            asset_universe=["ENOUGH_FOR_60", "ENOUGH_FOR_20", "TOO_SHORT"],
+            price_data=price_data,
+        )
+        engine = MomentumRotationEngine(ctx)
+
+        scores = engine.calculate_momentum_scores(periods=[20, 60, 120])
+
+        assert [score.asset_code for score in scores] == [
+            "ENOUGH_FOR_60",
+            "ENOUGH_FOR_20",
+        ]
+        assert scores[0].composite_score > 0
+        assert scores[1].composite_score < 0
 
     def test_calculate_momentum_negative_for_downtrend(self):
         """Downtrend asset should produce a MomentumScore with bearish MA signal."""
@@ -144,6 +164,7 @@ class TestMomentumRotationEngine:
 
     def test_calculate_momentum_scores_missing_prices(self):
         """Assets with no price data are excluded from results."""
+
         def _no_prices(asset_code, calc_date, window):
             return None
 
@@ -221,6 +242,7 @@ class TestMomentumRotationEngine:
 
     def test_generate_signal_no_data_action_hold(self):
         """When no assets have data, action should be hold."""
+
         def _no_prices(asset_code, calc_date, window):
             return None
 
@@ -443,6 +465,7 @@ class TestRiskParityRotationEngine:
 
     def test_generate_signal_no_prices_fallback_equal(self):
         """When no price data is available, fall back to equal weight."""
+
         def _no_prices(asset_code, calc_date, window):
             return None
 
@@ -502,7 +525,8 @@ class TestRotationService:
         """MOMENTUM strategy type dispatches to MomentumRotationEngine."""
         ctx = _build_context()
         config = make_rotation_config(
-            strategy_type=RotationStrategyType.MOMENTUM, top_n=2,
+            strategy_type=RotationStrategyType.MOMENTUM,
+            top_n=2,
         )
         svc = RotationService(ctx)
         signal = svc.generate_signal(config)
@@ -537,7 +561,8 @@ class TestRotationService:
         """Unknown / CUSTOM strategy type falls back to momentum engine."""
         ctx = _build_context()
         config = make_rotation_config(
-            strategy_type=RotationStrategyType.CUSTOM, top_n=2,
+            strategy_type=RotationStrategyType.CUSTOM,
+            top_n=2,
         )
         svc = RotationService(ctx)
         signal = svc.generate_signal(config)
@@ -558,6 +583,7 @@ class TestRotationService:
 
     def test_compare_assets_missing_data(self):
         """Assets without price data return an error entry."""
+
         def _no_prices(asset_code, calc_date, window):
             return None
 
@@ -573,6 +599,7 @@ class TestRotationService:
 
     def test_compare_assets_mixed(self):
         """Mix of available and missing assets."""
+
         def _selective_prices(asset_code, calc_date, window):
             if asset_code == "OK":
                 return make_price_series(days=window)

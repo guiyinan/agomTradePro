@@ -60,6 +60,38 @@ def test_consistency_checker_accepts_fresh_alpha_rank_origin() -> None:
     assert result.issues == ()
 
 
+def test_consistency_checker_flags_stale_alpha_rank_origin_date() -> None:
+    """Alpha-rank source ids must not point to an older ranking date."""
+
+    result = AlphaWorkspaceConsistencyChecker(allowed_lag_days=1).evaluate(
+        alpha=AlphaRankingSnapshot(
+            latest_trade_date=date(2026, 7, 2),
+            latest_updated_at=datetime(2026, 7, 2, 9, tzinfo=UTC),
+            top_codes=("000338.SZ", "002384.SZ"),
+            provider_source="qlib",
+            status="available",
+        ),
+        workspace=WorkspaceRecommendationSnapshot(
+            account_id="default",
+            latest_updated_at=datetime(2026, 7, 2, 10, tzinfo=UTC),
+            recommendation_codes=("000338.SZ", "002384.SZ"),
+            source_candidate_ids=(
+                "alpha_rank:000338.SZ:2026-07-01",
+                "alpha_rank:002384.SZ:2026-07-01",
+            ),
+            total_count=2,
+        ),
+    )
+
+    issues = {issue.code: issue for issue in result.issues}
+    assert result.status == "warning"
+    assert issues["workspace_alpha_rank_source_stale"].details == {
+        "alpha_latest_trade_date": "2026-07-02",
+        "latest_alpha_rank_source_date": "2026-07-01",
+        "stale_source_count": 2,
+    }
+
+
 def test_consistency_checker_flags_qlib_provider_degraded() -> None:
     """Qlib runtime degradation must be visible in consistency output."""
 

@@ -34,6 +34,7 @@ from apps.data_center.domain.enums import (
 )
 from apps.data_center.domain.protocols import UnifiedDataProviderProtocol
 from apps.data_center.domain.rules import normalize_asset_code
+from apps.data_center.infrastructure.sse_investor_accounts import fetch_investor_account_facts
 from core.integration.data_center_business_sources import (
     build_akshare_fund_adapter,
     build_akshare_macro_adapter,
@@ -936,7 +937,12 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         if indicator_code == "CN_A_ETF_SIZE_FLOW":
             return []
         if indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS":
-            return self._fetch_new_investor_accounts(start_date, end_date)
+            return fetch_investor_account_facts(
+                start_date=start_date,
+                end_date=end_date,
+                provider_source=self.provider_source(),
+                provider_name=self.provider_name(),
+            )
 
         adapter = build_akshare_macro_adapter()
         points = _fetch_macro_points(adapter, indicator_code, start_date, end_date)
@@ -1228,59 +1234,6 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 return _fetch_with_retries()
         except requests.RequestException as exc:
             raise ConnectionError(str(exc)) from exc
-
-    def _fetch_new_investor_accounts(
-        self,
-        start_date: date,
-        end_date: date,
-    ) -> list[MacroFact]:
-        """Fetch monthly new investor-account statistics from EastMoney via AKShare."""
-
-        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
-            _eastmoney_direct_network,
-        )
-        from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
-
-        ak = get_akshare_module()
-        with _eastmoney_direct_network():
-            df = ak.stock_account_statistics_em()
-        if df is None or df.empty:
-            return []
-
-        facts: list[MacroFact] = []
-        for row in df.to_dict("records"):
-            observed_at = _safe_month_end_date(_first_present(row, "数据日期", "date", "month"))
-            if observed_at is None or observed_at < start_date or observed_at > end_date:
-                continue
-            value_wan = _safe_float(
-                _first_present(
-                    row,
-                    "新增投资者-数量",
-                    "新增投资者数量",
-                    "new_investors",
-                    "new_accounts",
-                )
-            )
-            if value_wan is None:
-                continue
-            facts.append(
-                MacroFact(
-                    indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS",
-                    reporting_period=observed_at,
-                    value=value_wan * 10_000.0,
-                    unit="户",
-                    source=self.provider_source(),
-                    quality=DataQualityStatus.VALID,
-                    extra=self._provider_extra(
-                        {
-                            "proxy": "stock_account_statistics_em",
-                            "original_unit": "万户",
-                            "raw_new_investor_count": value_wan,
-                        }
-                    ),
-                )
-            )
-        return sorted(facts, key=lambda item: item.reporting_period)
 
     def fetch_price_history(
         self,

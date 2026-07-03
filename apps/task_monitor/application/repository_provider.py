@@ -45,3 +45,13 @@ def get_scheduler_bootstrap_gateway():
     )
 
     return ManagementCommandSchedulerBootstrapGateway()
+
+
+def get_scheduler_configuration_gateway():
+    """Return the default scheduler configuration gateway."""
+
+    from apps.task_monitor.infrastructure.providers import (
+        ManagementCommandSchedulerConfigurationGateway,
+    )
+
+    return ManagementCommandSchedulerConfigurationGateway()

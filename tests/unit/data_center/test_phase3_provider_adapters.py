@@ -693,6 +693,84 @@ def test_akshare_unified_provider_adapter_fetches_new_investor_accounts(monkeypa
     assert facts[0].extra["original_unit"] == "万户"
 
 
+def test_akshare_unified_provider_adapter_falls_back_to_sse_account_openings(monkeypatch):
+    class _FakeAkshare:
+        def stock_account_statistics_em(self):
+            return pd.DataFrame(
+                [{"数据日期": "2023-08", "新增投资者-数量": 99.59}]
+            )
+
+    class _NoOpContext:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class _FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "result": [
+                    {
+                        "TERM": "2026.05",
+                        "TOTAL": "298.44",
+                        "A_ACCT": "276.53",
+                        "B_ACCT": "0.08",
+                        "FUND_ACCT": "21.83",
+                    }
+                ]
+            }
+
+    seen_requests = []
+
+    def _fake_get(url, params=None, headers=None, timeout=None):
+        seen_requests.append(
+            {
+                "url": url,
+                "params": dict(params or {}),
+                "headers": dict(headers or {}),
+                "timeout": timeout,
+            }
+        )
+        return _FakeResponse()
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module",
+        lambda: _FakeAkshare(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway._eastmoney_direct_network",
+        lambda: _NoOpContext(),
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.sse_investor_accounts.requests.get",
+        _fake_get,
+    )
+
+    adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
+    facts = adapter.fetch_macro_series(
+        "CN_A_NEW_INVESTOR_ACCOUNTS",
+        date(2023, 8, 1),
+        date(2026, 5, 31),
+    )
+
+    assert [fact.reporting_period for fact in facts] == [
+        date(2023, 8, 31),
+        date(2026, 5, 31),
+    ]
+    assert facts[1].value == 2_984_400.0
+    assert facts[1].unit == "户"
+    assert facts[1].source == "akshare"
+    assert facts[1].extra["proxy"] == "sse_monthly_all_account_openings"
+    assert facts[1].extra["original_unit"] == "万户"
+    assert facts[1].extra["raw_total_account_openings"] == 298.44
+    assert facts[1].extra["source_sql_id"] == "COMMON_SSE_TZZ_M_ALL_ACCT_C"
+    assert seen_requests[0]["params"]["MDATE"] == "202605"
+
+
 def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     class _FakePro:
         def index_daily(self, ts_code, start_date, end_date):

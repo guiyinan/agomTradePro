@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-06-08
+最后更新: 2026-07-01
 
 ## 概述
 
@@ -149,19 +149,46 @@
 
 - `python manage.py sync_market_thermometer_inputs`
 - `python manage.py calculate_market_thermometer`
+- `python manage.py calculate_market_thermometer --skip-sync`
+- `python manage.py calculate_market_thermometer --allow-blocked-write`
 - `python manage.py import_investor_accounts --file <csv_path>`
+- `python manage.py import_investor_accounts <csv_path>`
+- `python manage.py import_investor_accounts --print-template`
+- `python manage.py import_investor_accounts --file <csv_path> --dry-run`
+- `python manage.py import_investor_accounts --file <csv_path> --dry-run --json`
+- `python manage.py import_investor_accounts --file <csv_path> --dry-run --json --fail-on-warning`
+- `python manage.py import_investor_accounts --file <csv_path> --value-unit 万户 --dry-run --json`
+
+未传 `--as-of-date` 时，`sync_market_thermometer_inputs` 与 `calculate_market_thermometer` 会复用 Celery 任务的 as-of-date 解析规则：
+
+- 交易日 `16:00` 前默认处理上一业务日，避免盘中写入尚未闭合的当日快照。
+- 周末默认处理上一业务日。
+- 显式传入 `--as-of-date YYYY-MM-DD` 时按指定日期执行，用于补跑历史日期。
+
+`calculate_market_thermometer` 的手工命令默认先同步输入再计算。若计算结果标记为 `must_not_use_for_decision=True`，命令默认只输出计算结果并附带 `persisted=False` / `blocked_write_skipped=True`，不写入快照表。只有在确认需要保留 blocked 快照作为操作证据时，才使用 `--allow-blocked-write` 显式写入。`--skip-sync` 仅用于诊断，不建议作为常规刷新入口。
 
 ## 数据源覆盖
 
 - 开户数 `CN_A_NEW_INVESTOR_ACCOUNTS` 现在由 `SyncMarketThermometerInputsUseCase` 通过 AKShare/EastMoney-backed `stock_account_statistics_em` 自动同步。
 - AKShare 原始 `新增投资者-数量` 为“万户”口径，入库前统一转换为 canonical `户`，并在 `MacroFact.extra.original_unit` 保留 `万户` 供审计。
-- CSV 导入仍作为兜底入口，适用于远端数据源不可用或需要补历史月份的情况。
+- 当 AKShare 的投资者表未覆盖近月时，系统会自动回退到上交所月报投资者页 `https://www.sse.com.cn/aboutus/publication/monthly/investor/` 的 `COMMON_SSE_TZZ_M_ALL_ACCT_C` 账户新开户状况表。该 fallback 同样按“万户”转 canonical `户`，并在 `MacroFact.extra` 写入 `proxy=sse_monthly_all_account_openings`、`source_url`、`source_sql_id`、`sse_query_month` 和原始 `raw_total_account_openings`。
+- CSV 导入仍作为人工兜底入口，适用于远端数据源不可用、SSE fallback 不可达或需要补历史月份的情况；命令同时支持 `--file <csv_path>` 和位置参数路径，也可用 `--print-template` 输出最小模板。
+- 导入正式写库前，先运行 `python manage.py import_investor_accounts --file <csv_path> --dry-run --json`，确认 `parsed_count`、`first_period`、`last_period` 和 `unit` 符合预期后再去掉 `--dry-run`。需要脚本化核验时使用 `--dry-run --json --fail-on-warning`，保留结构化输出并在存在 warning 时返回非零。
+- 管理端 API `POST /api/data-center/market-thermometer/import/investor-accounts/` 与 CLI 使用同一套 use case，支持 `csv_text` / 文件上传、`dry_run`、`value_unit` 和 `fail_on_warning`；dry-run 有 warning 且 `fail_on_warning=true` 时返回 HTTP 400，不写入数据。
+- dry-run 结果若出现 `warnings[].code=suspicious_low_account_count`，说明数值看起来低于 canonical `户` 口径，常见原因是 CSV 使用了 `万户`；此时不要直接导入，改用 `--value-unit 万户` 让命令自动换算并在 `extra.original_unit` / `extra.raw_value` 留痕。
+- CSV 接受日期列 `reporting_period` / `date` / `month`，数值列 `value` / `accounts` / `new_accounts`；默认数值单位是 canonical `户`，若源文件是 `万户` 必须显式传 `--value-unit 万户`。
+
+```csv
+reporting_period,value
+2026-05-31,12345
+```
 
 ## 调度与故障语义
 
 - Celery Beat 现在默认启用 `apps.data_center.application.tasks.refresh_market_thermometer_task`
-- 调度窗口: 交易日 `17:20 / 18:20 / 19:20` 自动重试，统一刷新最近收盘后的温度计快照
+- 调度窗口: 交易日 `17:20 / 18:20` 自动重试，统一刷新最近收盘后的温度计快照
 - 任务流程: 先执行 `sync_market_thermometer_inputs`，再执行 `calculate_market_thermometer`
+- 正式 Celery 调度保留 `must_not_use_for_decision=True` 快照写入语义，用于审计真实调度失败；该行为不同于手工命令的默认 blocked 写入保护
 - `sync_market_thermometer_inputs` 现在对单个 provider 调用施加超时保护；超时或临时网络错误会记录到 raw audit，并继续尝试下一个可用源，而不是整条链路卡死
 - `etf_net_flow` 的 verified sync 现在也会应用组件级超时 override，不再误用全局默认 `4s`
 - 当本地环境因 `WinError 10013` 等权限限制直接阻断外网套接字时，ETF 的 EastMoney 直连 fallback 会快速失败并降级，不再在多轮重试里卡成超时

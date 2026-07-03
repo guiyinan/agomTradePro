@@ -3,7 +3,8 @@ from datetime import date
 
 import pytest
 from django.core.management import call_command
-from django_celery_beat.models import PeriodicTask
+from django.core.management.base import CommandError
+from django_celery_beat.models import CrontabSchedule, PeriodicTask
 
 from apps.dashboard.application import tasks as dashboard_tasks
 from apps.dashboard.application.tasks import generate_auto_advisor_weekly_reports_task
@@ -138,3 +139,83 @@ def test_setup_auto_advisor_weekly_report_creates_periodic_task():
     assert task.crontab.minute == "5"
     assert task.crontab.day_of_week == "fri"
     assert "Auto-advisor weekly report task configured" in out.getvalue()
+
+    call_command(
+        "setup_auto_advisor_weekly_report",
+        hour=19,
+        minute=10,
+        day_of_week="fri",
+        stdout=io.StringIO(),
+    )
+    task.refresh_from_db()
+    assert task.kwargs == '{"user_id": 7, "account_ids": [101, 102]}'
+    assert task.crontab.hour == "19"
+    assert task.crontab.minute == "10"
+
+    call_command(
+        "setup_auto_advisor_weekly_report",
+        hour=19,
+        minute=20,
+        day_of_week="fri",
+        clear_scope=True,
+        stdout=io.StringIO(),
+    )
+    task.refresh_from_db()
+    assert task.kwargs == "{}"
+    assert task.crontab.hour == "19"
+    assert task.crontab.minute == "20"
+
+
+@pytest.mark.django_db
+def test_setup_auto_advisor_weekly_report_rejects_account_ids_without_user():
+    with pytest.raises(CommandError, match="--account-ids requires --user-id"):
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=18,
+            minute=5,
+            day_of_week="fri",
+            account_ids="101,102",
+            stdout=io.StringIO(),
+        )
+
+
+@pytest.mark.django_db
+def test_setup_auto_advisor_weekly_report_rejects_invalid_account_ids():
+    with pytest.raises(CommandError, match="comma-separated integers"):
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=18,
+            minute=5,
+            day_of_week="fri",
+            user_id=7,
+            account_ids="101,not-a-number",
+            stdout=io.StringIO(),
+        )
+
+
+@pytest.mark.django_db
+def test_setup_auto_advisor_weekly_report_rejects_time_before_daily_evidence():
+    daily_crontab = CrontabSchedule.objects.create(
+        minute="0",
+        hour="18",
+        day_of_week="mon-fri",
+        day_of_month="*",
+        month_of_year="*",
+        timezone="Asia/Shanghai",
+    )
+    PeriodicTask.objects.create(
+        name="personal-readiness-daily-evidence",
+        task="apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
+        enabled=True,
+        crontab=daily_crontab,
+        kwargs="{}",
+    )
+
+    with pytest.raises(CommandError, match="18:00"):
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=17,
+            minute=45,
+            day_of_week="fri",
+            stdout=io.StringIO(),
+        )

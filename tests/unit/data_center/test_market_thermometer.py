@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-import time
 
 from apps.data_center.application import market_thermometer as market_thermometer_module
 from apps.data_center.application.market_thermometer import (
@@ -15,6 +15,7 @@ from apps.data_center.application.market_thermometer import (
 )
 from apps.data_center.domain.entities import (
     MacroFact,
+    MarketThermometerComponentScore,
     MarketThermometerConfig,
     MarketThermometerSnapshot,
     MarketThermometerThresholds,
@@ -401,6 +402,16 @@ def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch
     ]
 
 
+def test_etf_timeout_override_covers_direct_eastmoney_fallback_budget():
+    assert (
+        market_thermometer_module.MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES[
+            "etf_net_flow"
+        ]
+        == market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS
+    )
+    assert market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS >= 30.0
+
+
 def test_sync_market_thermometer_inputs_marks_market_news_no_data_when_nothing_is_stored():
     macro_repo = _FakeMacroRepo(series_map={})
     use_case = SyncMarketThermometerInputsUseCase(
@@ -672,6 +683,17 @@ def test_build_current_payload_applies_user_override_band():
                 band="overheat",
                 change_5d=6.0,
                 change_20d=15.0,
+                components=[
+                    MarketThermometerComponentScore(
+                        component_key="new_investor_accounts",
+                        label="新增开户",
+                        indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS",
+                        score=60.0,
+                        weight=0.15,
+                        current_value=2_984_400.0,
+                        unit="户",
+                    )
+                ],
             )
         ]
     )
@@ -690,7 +712,20 @@ def test_build_current_payload_applies_user_override_band():
         config_repo=_FakeConfigRepo(),
         snapshot_repo=snapshot_repo,
         override_repo=override_repo,
-        macro_repo=_FakeMacroRepo(series_map={}),
+        macro_repo=_FakeMacroRepo(
+            series_map={
+                "CN_A_NEW_INVESTOR_ACCOUNTS": [
+                    MacroFact(
+                        indicator_code="CN_A_NEW_INVESTOR_ACCOUNTS",
+                        reporting_period=date(2026, 5, 31),
+                        value=2_984_400.0,
+                        unit="户",
+                        source="akshare",
+                        extra={"proxy": "sse_monthly_all_account_openings"},
+                    )
+                ]
+            }
+        ),
     )
 
     payload = use_case.build_current_payload(
@@ -700,6 +735,17 @@ def test_build_current_payload_applies_user_override_band():
     assert payload["threshold_source"] == "user_override"
     assert payload["effective_band"] == "overheat"
     assert payload["thresholds"]["hot_threshold"] == 50.0
+    assert payload["proxy_components"] == [
+        {
+            "component_key": "new_investor_accounts",
+            "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+            "reporting_period": "2026-05-31",
+            "source": "akshare",
+            "proxy": "sse_monthly_all_account_openings",
+            "verification_status": None,
+            "source_url": None,
+        }
+    ]
 
 
 def test_market_thermometer_change_uses_previous_available_snapshot():
@@ -801,6 +847,32 @@ def test_market_thermometer_marks_degraded_when_valid_components_below_minimum()
 
     assert snapshot.must_not_use_for_decision is True
     assert "有效组件数不足" in snapshot.blocked_reason
+
+
+def test_market_thermometer_can_skip_persisting_blocked_snapshot():
+    config = MarketThermometerConfig(min_valid_components=4)
+    snapshot_repo = _FakeSnapshotRepo()
+    macro_repo = _FakeMacroRepo(
+        series_map={
+            "CN_A_TOTAL_TURNOVER": [
+                _macro_fact("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), 150.0, "元"),
+            ],
+        }
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(config=config),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=macro_repo,
+    )
+
+    snapshot = use_case.execute(
+        as_of_date=date(2026, 5, 19),
+        persist_blocked=False,
+    )
+
+    assert snapshot.must_not_use_for_decision is True
+    assert snapshot_repo.snapshots == []
 
 
 def test_build_current_payload_marks_score_unavailable_when_all_components_missing():
@@ -919,6 +991,54 @@ def test_build_current_payload_prefers_history_when_current_snapshot_is_more_deg
     assert "当前仅 1 个" in payload["blocked_reason"]
 
 
+def test_build_current_payload_ignores_snapshot_after_safe_decision_date(monkeypatch):
+    snapshot_repo = _FakeSnapshotRepo(
+        snapshots=[
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 7, 2),
+                score=99.0,
+                band="extreme",
+                change_5d=8.0,
+                change_20d=20.0,
+                valid_component_count=4,
+                data_source="calculated",
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            ),
+            MarketThermometerSnapshot(
+                observed_at=date(2026, 7, 1),
+                score=51.95,
+                band="warm",
+                change_5d=1.0,
+                change_20d=3.0,
+                valid_component_count=4,
+                data_source="calculated",
+                must_not_use_for_decision=False,
+                blocked_reason="",
+            ),
+        ]
+    )
+    use_case = CalculateMarketThermometerUseCase(
+        config_repo=_FakeConfigRepo(),
+        snapshot_repo=snapshot_repo,
+        override_repo=_FakeOverrideRepo(),
+        macro_repo=_FakeMacroRepo(series_map={}),
+    )
+
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "resolve_market_thermometer_as_of_date",
+        lambda raw_as_of_date="", **kwargs: date(2026, 7, 1),
+    )
+
+    payload = use_case.build_current_payload(auto_calculate=False)
+
+    assert payload["observed_at"] == "2026-07-01"
+    assert payload["score"] == 51.95
+    assert payload["fallback_used"] is False
+    assert payload["latest_snapshot_observed_at"] == "2026-07-01"
+
+
 def test_build_current_payload_recalculates_when_latest_snapshot_is_stale(monkeypatch):
     snapshot_repo = _FakeSnapshotRepo(
         snapshots=[
@@ -954,17 +1074,16 @@ def test_build_current_payload_recalculates_when_latest_snapshot_is_stale(monkey
         blocked_reason="",
     )
 
-    class _FakeToday(date):
-        @classmethod
-        def today(cls):
-            return cls(2026, 6, 20)
-
     def _fake_execute(*, as_of_date=None):
         captured["as_of_date"] = as_of_date
         snapshot_repo.save(fresh_snapshot)
         return fresh_snapshot
 
-    monkeypatch.setattr(market_thermometer_module, "date", _FakeToday)
+    monkeypatch.setattr(
+        market_thermometer_module,
+        "resolve_market_thermometer_as_of_date",
+        lambda raw_as_of_date="", **kwargs: date(2026, 6, 20),
+    )
     monkeypatch.setattr(use_case, "execute", _fake_execute)
 
     payload = use_case.build_current_payload(auto_calculate=True)
@@ -980,13 +1099,52 @@ def test_import_investor_accounts_use_case_parses_csv_rows():
     use_case = ImportInvestorAccountsUseCase(macro_repo)
 
     result = use_case.execute(
-        "reporting_period,value\n2026-03-31,12345\n2026-04-30,23456\n",
+        "reporting_period,value\n2026-03-31,99.59\n2026-04-30,120.5\n",
         source="manual_import",
+        value_unit="万户",
     )
 
     assert result["stored_count"] == 2
     assert macro_repo.stored[0].indicator_code == "CN_A_NEW_INVESTOR_ACCOUNTS"
-    assert macro_repo.stored[1].value == 23456.0
+    assert macro_repo.stored[0].value == 995900.0
+    assert macro_repo.stored[0].unit == "户"
+    assert macro_repo.stored[0].extra["original_unit"] == "万户"
+    assert macro_repo.stored[0].extra["raw_value"] == 99.59
+    assert macro_repo.stored[1].value == 1205000.0
+
+
+def test_import_investor_accounts_use_case_dry_run_does_not_store_rows():
+    macro_repo = _FakeMacroRepo(series_map={})
+    use_case = ImportInvestorAccountsUseCase(macro_repo)
+
+    result = use_case.execute(
+        "reporting_period,value\n2026-03-31,99.59\n2026-04-30,120.5\n",
+        source="manual_import",
+        dry_run=True,
+    )
+
+    assert result == {
+        "dry_run": True,
+        "parsed_count": 2,
+        "stored_count": 0,
+        "indicator_code": "CN_A_NEW_INVESTOR_ACCOUNTS",
+        "source_unit": "户",
+        "unit": "户",
+        "first_period": "2026-03-31",
+        "last_period": "2026-04-30",
+        "warnings": [
+            {
+                "code": "suspicious_low_account_count",
+                "message": (
+                    "Investor-account values look lower than canonical 户 counts; "
+                    "confirm the CSV is not using 万户 units."
+                ),
+                "max_value": 120.5,
+                "expected_unit": "户",
+            }
+        ],
+    }
+    assert macro_repo.stored == []
 
 
 def test_build_market_thermometer_override_payload_prefers_override():

@@ -69,9 +69,7 @@ def test_auto_advisor_console_summarizes_today_tradeability_and_alerts(monkeypat
                     "quotes": {"AAA": {"status": "fresh"}},
                 },
                 "exposure_summary": {
-                    "alerts": [
-                        {"asset_code": "BBB", "message": "Technology exposure high"}
-                    ]
+                    "alerts": [{"asset_code": "BBB", "message": "Technology exposure high"}]
                 },
                 "decision_cards": [{"asset_code": "AAA", "action": "REDUCE"}],
                 "order_intents": [{"asset_code": "AAA", "side": "REDUCE"}],
@@ -101,6 +99,34 @@ def test_auto_advisor_console_summarizes_today_tradeability_and_alerts(monkeypat
     assert "execution_confirmation_required" in codes
     assert "exposure_alert" in codes
     assert "advisor_warning" in codes
+
+
+def test_auto_advisor_current_regime_uses_keyword_as_of_date(monkeypatch):
+    captured = {}
+
+    def _fake_resolve_current_regime(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            dominant_regime="Recovery",
+            confidence=0.8,
+            distribution={"Recovery": 1.0},
+        )
+
+    monkeypatch.setattr(
+        "apps.regime.application.current_regime.resolve_current_regime",
+        _fake_resolve_current_regime,
+    )
+
+    payload = query_services._current_regime_payload()
+
+    assert payload == {
+        "status": "ok",
+        "current": "Recovery",
+        "confidence": 0.8,
+        "distribution": {"Recovery": 1.0},
+    }
+    assert set(captured) == {"as_of_date"}
+    assert isinstance(captured["as_of_date"], date)
 
 
 def test_dashboard_homepage_embeds_auto_advisor_console_panel():
@@ -317,9 +343,7 @@ def _query_sheet():
             "overweight_positions": ["AAA"],
             "blocker_count": 1,
             "warning_count": 1,
-            "exposure_alerts": [
-                {"asset_code": "BBB", "message": "Technology exposure high"}
-            ],
+            "exposure_alerts": [{"asset_code": "BBB", "message": "Technology exposure high"}],
         },
         "data_health": {
             "status": "warning",

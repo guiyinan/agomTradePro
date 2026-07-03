@@ -168,6 +168,18 @@ class ScheduledTaskRecord:
 
 
 @dataclass(frozen=True)
+class ScheduledCrontabRecord:
+    """周期任务 crontab 读模型。"""
+
+    name: str
+    exists: bool
+    enabled: bool
+    hour: str | None
+    minute: str | None
+    day_of_week: str | None
+
+
+@dataclass(frozen=True)
 class SchedulerCatalogSummary:
     """周期任务目录摘要。"""
 

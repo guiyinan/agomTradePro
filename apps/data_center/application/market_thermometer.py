@@ -7,8 +7,10 @@ import dataclasses
 import io
 import queue
 import threading
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable
+from functools import partial
+from typing import Any
 
 from apps.data_center.domain.entities import (
     MacroFact,
@@ -37,6 +39,14 @@ from apps.data_center.domain.rules import (
     market_indicator_is_stale,
     normalize_signed_value,
 )
+
+from .investor_account_import import (
+    INVESTOR_ACCOUNT_IMPORT_UNITS,
+    build_investor_account_import_warnings,
+    normalize_investor_account_import_value,
+)
+from .market_thermometer_dates import resolve_market_thermometer_as_of_date
+from .market_thermometer_provenance import append_component_provenance
 
 MARKET_COMPONENT_SPECS: dict[str, dict[str, Any]] = {
     "new_investor_accounts": {
@@ -76,9 +86,10 @@ ETF_SIZE_FLOW_CODE = "CN_A_ETF_SIZE_FLOW"
 DEFAULT_MARKET_DATA_SOURCE_TYPES = ("akshare", "eastmoney", "tushare")
 DEFAULT_NEWS_SOURCE_TYPES = ("akshare", "eastmoney")
 MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS = 4
+ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS = 35.0
 MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES = {
-    "turnover": 12.0,
-    "etf_net_flow": 10.0,
+    "new_investor_accounts": 25.0, "turnover": 12.0,
+    "etf_net_flow": ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS,
 }
 RECOVERABLE_THERMOMETER_EXCEPTIONS = (
     AttributeError,
@@ -303,13 +314,23 @@ class ImportInvestorAccountsUseCase:
     def __init__(self, macro_repo: MacroFactRepositoryProtocol) -> None:
         self._macro_repo = macro_repo
 
-    def execute(self, csv_text: str, *, source: str = "manual_import") -> dict[str, Any]:
+    def execute(
+        self,
+        csv_text: str,
+        *,
+        source: str = "manual_import",
+        dry_run: bool = False,
+        value_unit: str = "户",
+    ) -> dict[str, Any]:
         """Parse CSV text and upsert investor-account rows.
 
         Accepted columns:
         - reporting_period / date / month
         - value / accounts / new_accounts
         """
+
+        if value_unit not in INVESTOR_ACCOUNT_IMPORT_UNITS:
+            raise ValueError(f"Unsupported investor-account unit: {value_unit}")
 
         reader = csv.DictReader(io.StringIO(csv_text.strip()))
         facts: list[MacroFact] = []
@@ -324,7 +345,11 @@ class ImportInvestorAccountsUseCase:
                 continue
             normalized_period = raw_period[:10]
             reporting_period = date.fromisoformat(normalized_period)
-            value = float(raw_value.replace(",", ""))
+            raw_numeric_value = float(raw_value.replace(",", ""))
+            value = normalize_investor_account_import_value(
+                raw_numeric_value,
+                value_unit=value_unit,
+            )
             facts.append(
                 MacroFact(
                     indicator_code=MARKET_COMPONENT_SPECS["new_investor_accounts"][
@@ -335,12 +360,32 @@ class ImportInvestorAccountsUseCase:
                     unit="户",
                     source=source,
                     quality=DataQualityStatus.VALID,
-                    extra={"source_type": source, "provider_name": source},
+                    extra={
+                        "source_type": source,
+                        "provider_name": source,
+                        "original_unit": value_unit,
+                        "raw_value": raw_numeric_value,
+                    },
                 )
             )
+        warnings = build_investor_account_import_warnings(facts)
+        if dry_run:
+            periods = [fact.reporting_period for fact in facts]
+            return {
+                "dry_run": True,
+                "parsed_count": len(facts),
+                "stored_count": 0,
+                "indicator_code": MARKET_COMPONENT_SPECS["new_investor_accounts"][
+                    "indicator_code"
+                ],
+                "source_unit": value_unit,
+                "unit": "户",
+                "first_period": min(periods).isoformat() if periods else None,
+                "last_period": max(periods).isoformat() if periods else None,
+                "warnings": warnings,
+            }
         stored_count = self._macro_repo.bulk_upsert(facts)
-        return {"stored_count": stored_count}
-
+        return {"stored_count": stored_count, "parsed_count": len(facts), "warnings": warnings}
 
 class SyncMarketThermometerInputsUseCase:
     """Fetch and persist market thermometer input series."""
@@ -362,7 +407,7 @@ class SyncMarketThermometerInputsUseCase:
     def execute(self, *, as_of_date: date | None = None) -> dict[str, Any]:
         """Sync daily market-heat inputs for the requested date."""
 
-        target_date = as_of_date or date.today()
+        target_date = as_of_date or resolve_market_thermometer_as_of_date()
         results: list[dict[str, Any]] = []
 
         market_providers = self._resolve_providers(DEFAULT_MARKET_DATA_SOURCE_TYPES)
@@ -392,12 +437,11 @@ class SyncMarketThermometerInputsUseCase:
                 provider_name = provider.provider_name()
                 timeout_seconds = MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES.get(component_key)
                 try:
+                    fetch_macro_series = partial(
+                        provider.fetch_macro_series, spec["indicator_code"], start_date, end_date
+                    )
                     facts = _run_market_thermometer_provider_call(
-                        lambda: provider.fetch_macro_series(
-                            spec["indicator_code"],
-                            start_date,
-                            end_date,
-                        ),
+                        fetch_macro_series,
                         provider_name=provider_name,
                         capability=f"{component_key}_macro_sync",
                         timeout_seconds=timeout_seconds,
@@ -684,12 +728,11 @@ class SyncMarketThermometerInputsUseCase:
         for config, provider in providers:
             provider_name = provider.provider_name()
             try:
+                fetch_macro_series = partial(
+                    provider.fetch_macro_series, requested_indicator_code, start_date, end_date
+                )
                 facts = _run_market_thermometer_provider_call(
-                    lambda: provider.fetch_macro_series(
-                        requested_indicator_code,
-                        start_date,
-                        end_date,
-                    ),
+                    fetch_macro_series,
                     provider_name=provider_name,
                     capability=f"{component_key}_verified_sync",
                     timeout_seconds=timeout_seconds,
@@ -951,10 +994,16 @@ class CalculateMarketThermometerUseCase:
         self._override_repo = override_repo
         self._macro_repo = macro_repo
 
-    def execute(self, *, as_of_date: date | None = None) -> MarketThermometerSnapshot:
+    def execute(
+        self,
+        *,
+        as_of_date: date | None = None,
+        persist: bool = True,
+        persist_blocked: bool = True,
+    ) -> MarketThermometerSnapshot:
         """Calculate a fresh snapshot and persist it."""
 
-        target_date = as_of_date or date.today()
+        target_date = as_of_date or resolve_market_thermometer_as_of_date()
         config = self._config_repo.load()
         components = [
             self._score_investor_accounts(target_date, config),
@@ -1027,7 +1076,9 @@ class CalculateMarketThermometerUseCase:
             blocked_reason=blocked_reason,
             calculated_at=datetime.now(UTC),
         )
-        return self._snapshot_repo.save(snapshot)
+        if persist and (persist_blocked or not snapshot.must_not_use_for_decision):
+            return self._snapshot_repo.save(snapshot)
+        return snapshot
 
     def build_current_payload(
         self,
@@ -1039,15 +1090,21 @@ class CalculateMarketThermometerUseCase:
     ) -> dict[str, Any]:
         """Return the current payload enriched with threshold source metadata."""
 
+        config = self._config_repo.load()
         if as_of_date is None:
-            snapshot = self._snapshot_repo.get_latest()
-            target_date = date.today()
+            target_date = resolve_market_thermometer_as_of_date()
+            snapshot = self._snapshot_repo.get_by_date(target_date)
             if self._should_refresh_snapshot(
                 snapshot=snapshot,
                 target_date=target_date,
                 auto_calculate=auto_calculate,
             ):
                 snapshot = self.execute(as_of_date=target_date)
+            if snapshot is None:
+                snapshot = self._find_latest_snapshot_on_or_before(
+                    target_date=target_date,
+                    history_days=max(config.long_window, 180),
+                )
         else:
             target_date = as_of_date
             snapshot = self._snapshot_repo.get_by_date(target_date)
@@ -1058,8 +1115,10 @@ class CalculateMarketThermometerUseCase:
             ):
                 snapshot = self.execute(as_of_date=target_date)
         if snapshot is None:
-            latest = self._snapshot_repo.get_latest()
-            snapshot = latest
+            snapshot = self._find_latest_snapshot_on_or_before(
+                target_date=target_date,
+                history_days=max(config.long_window, 180),
+            )
         if snapshot is None:
             return {
                 "observed_at": None,
@@ -1075,7 +1134,6 @@ class CalculateMarketThermometerUseCase:
                 "blocked_reason": "暂无市场温度计快照。",
             }
 
-        config = self._config_repo.load()
         latest_snapshot = snapshot
         snapshot = self._resolve_display_snapshot(
             snapshot=snapshot,
@@ -1089,10 +1147,11 @@ class CalculateMarketThermometerUseCase:
                 thresholds = override.thresholds
                 threshold_source = "user_override"
         payload = snapshot.to_dict()
-        payload["threshold_source"] = threshold_source
-        payload["thresholds"] = thresholds.to_dict()
-        payload["score_available"] = self._snapshot_score_available(snapshot)
-        payload["fallback_used"] = latest_snapshot.observed_at != snapshot.observed_at
+        payload["threshold_source"], payload["thresholds"] = threshold_source, thresholds.to_dict()
+        payload["score_available"], payload["fallback_used"] = (
+            self._snapshot_score_available(snapshot),
+            latest_snapshot.observed_at != snapshot.observed_at,
+        )
         payload["latest_snapshot_observed_at"] = latest_snapshot.observed_at.isoformat()
         payload["effective_band"] = determine_market_thermometer_band(
             payload["score"],
@@ -1101,6 +1160,7 @@ class CalculateMarketThermometerUseCase:
             overheat_threshold=thresholds.overheat_threshold,
             extreme_threshold=thresholds.extreme_threshold,
         )
+        append_component_provenance(payload, macro_repo=self._macro_repo, observed_at=snapshot.observed_at)
         return payload
 
     @staticmethod
@@ -1129,6 +1189,7 @@ class CalculateMarketThermometerUseCase:
         fallback = self._find_latest_score_snapshot(
             exclude_observed_at=snapshot.observed_at,
             history_days=history_days,
+            max_observed_at=snapshot.observed_at,
         )
         if fallback is None:
             return snapshot
@@ -1154,13 +1215,29 @@ class CalculateMarketThermometerUseCase:
         *,
         exclude_observed_at: date,
         history_days: int,
+        max_observed_at: date | None = None,
     ) -> MarketThermometerSnapshot | None:
         """Return the newest snapshot that still carries a displayable score."""
 
         for item in self._snapshot_repo.list_history(days=history_days):
             if item.observed_at == exclude_observed_at:
                 continue
+            if max_observed_at is not None and item.observed_at > max_observed_at:
+                continue
             if self._snapshot_score_available(item):
+                return item
+        return None
+
+    def _find_latest_snapshot_on_or_before(
+        self,
+        *,
+        target_date: date,
+        history_days: int,
+    ) -> MarketThermometerSnapshot | None:
+        """Return the newest snapshot that is not later than the decision-safe date."""
+
+        for item in self._snapshot_repo.list_history(days=history_days):
+            if item.observed_at <= target_date:
                 return item
         return None
 
@@ -1190,6 +1267,7 @@ class CalculateMarketThermometerUseCase:
     def list_history(self, *, days: int = 90) -> list[dict[str, Any]]:
         """Return history payload ordered by observed date ascending."""
 
+        target_date = resolve_market_thermometer_as_of_date()
         return [
             {
                 "observed_at": item.observed_at.isoformat(),
@@ -1197,6 +1275,7 @@ class CalculateMarketThermometerUseCase:
                 "band": item.band,
             }
             for item in reversed(self._snapshot_repo.list_history(days=days))
+            if item.observed_at <= target_date
         ]
 
     def _score_investor_accounts(

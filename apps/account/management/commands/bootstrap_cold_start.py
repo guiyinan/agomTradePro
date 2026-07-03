@@ -106,12 +106,15 @@ class Command(BaseCommand):
         steps = [
             BootstrapStep(
                 name="account_classification",
-                check=lambda: CurrencyModel._default_manager.exists() and AssetCategoryModel._default_manager.exists(),
+                check=lambda: CurrencyModel._default_manager.exists()
+                and AssetCategoryModel._default_manager.exists(),
                 run=lambda: self._run_command("init_classification"),
             ),
             BootstrapStep(
                 name="investment_rules",
-                check=lambda: InvestmentRuleModel._default_manager.filter(user__isnull=True).exists(),
+                check=lambda: InvestmentRuleModel._default_manager.filter(
+                    user__isnull=True
+                ).exists(),
                 run=lambda: self._run_command("init_enhanced_rules"),
             ),
             BootstrapStep(
@@ -121,7 +124,9 @@ class Command(BaseCommand):
             ),
             BootstrapStep(
                 name="regime_thresholds",
-                check=lambda: RegimeThresholdConfig._default_manager.filter(is_active=True).exists(),
+                check=lambda: RegimeThresholdConfig._default_manager.filter(
+                    is_active=True
+                ).exists(),
                 run=lambda: self._run_command("init_regime_thresholds"),
             ),
             BootstrapStep(
@@ -146,7 +151,8 @@ class Command(BaseCommand):
             ),
             BootstrapStep(
                 name="prompt_templates",
-                check=lambda: PromptTemplateORM._default_manager.exists() and ChainConfigORM._default_manager.exists(),
+                check=lambda: PromptTemplateORM._default_manager.exists()
+                and ChainConfigORM._default_manager.exists(),
                 run=lambda: self._run_command("init_prompt_templates"),
             ),
             BootstrapStep(
@@ -226,9 +232,7 @@ class Command(BaseCommand):
         if options.get("with_decision_repair"):
             self.stdout.write("[apply] decision_repair")
             repair_kwargs = {
-                "quote_max_age_hours": float(
-                    options.get("decision_quote_max_age_hours") or 4.0
-                ),
+                "quote_max_age_hours": float(options.get("decision_quote_max_age_hours") or 4.0),
                 "skip_pulse": bool(options.get("skip_pulse")),
                 "skip_alpha": bool(options.get("skip_alpha")),
             }
@@ -238,7 +242,11 @@ class Command(BaseCommand):
             self._run_command("repair_decision_data_reliability", **repair_kwargs)
             applied += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Cold-start bootstrap complete: applied={applied}, skipped={skipped}"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Cold-start bootstrap complete: applied={applied}, skipped={skipped}"
+            )
+        )
 
     def _resolve_decision_env(self, raw_env: str) -> str:
         if raw_env != "auto":
@@ -298,7 +306,9 @@ class Command(BaseCommand):
             },
         ]
         for config in default_configs:
-            ScoringWeightConfigModel._default_manager.get_or_create(name=config["name"], defaults=config)
+            ScoringWeightConfigModel._default_manager.get_or_create(
+                name=config["name"], defaults=config
+            )
         self.stdout.write("Created default scoring weights when missing.")
 
     def _equity_config_exists(self) -> bool:
@@ -315,9 +325,7 @@ class Command(BaseCommand):
 
     def _scheduler_defaults_ready(self) -> bool:
         periodic_task_model = django_apps.get_model("django_celery_beat", "PeriodicTask")
-        existing_names = set(
-            periodic_task_model._default_manager.values_list("name", flat=True)
-        )
+        existing_names = set(periodic_task_model._default_manager.values_list("name", flat=True))
         expected_names = {
             "daily-sync-and-calculate",
             "check-data-freshness",
@@ -328,10 +336,12 @@ class Command(BaseCommand):
             "equity-valuation-freshness-check",
             "decision-quote-intraday-refresh",
             "decision-quote-post-close-refresh",
+            "decision-quote-pre-readiness-refresh",
             "decision-quote-freshness-check",
             "decision-workspace-nightly-snapshot-refresh",
             "account-check-stop-loss-take-profit-intraday",
             "dashboard-auto-advisor-weekly-report",
+            "personal-readiness-daily-evidence",
         }
         return expected_names.issubset(existing_names)
 
@@ -358,11 +368,15 @@ class Command(BaseCommand):
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()
-        macro_ready = self._macro_indicator_model()._default_manager.filter(
-            indicator_code="MCP_TEST_IND"
-        ).exists()
+        macro_ready = (
+            self._macro_indicator_model()
+            ._default_manager.filter(indicator_code="MCP_TEST_IND")
+            .exists()
+        )
         stock_ready = StockInfoModel._default_manager.exists()
-        factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(name="MCP冷启动动量组合").exists()
+        factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(
+            name="MCP冷启动动量组合"
+        ).exists()
         factor_ready = True
         for config in FactorPortfolioConfigModel._default_manager.all():
             weights = config.factor_weights or {}

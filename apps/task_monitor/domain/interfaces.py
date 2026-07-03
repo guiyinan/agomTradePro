@@ -8,6 +8,7 @@ from typing import Protocol
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    ScheduledCrontabRecord,
     ScheduledTaskRecord,
     SchedulerBootstrapResult,
     SchedulerCatalogSummary,
@@ -158,10 +159,31 @@ class SchedulerRepositoryProtocol(Protocol):
         """返回周期任务列表。"""
         ...
 
+    def get_crontab_task(self, task_name: str) -> ScheduledCrontabRecord:
+        """返回指定 crontab 周期任务的调度信息。"""
+        ...
+
 
 class SchedulerBootstrapGatewayProtocol(Protocol):
     """周期任务初始化网关协议。"""
 
     def initialize_default_schedules(self) -> SchedulerBootstrapResult:
         """初始化默认周期任务。"""
+        ...
+
+
+class SchedulerConfigurationGatewayProtocol(Protocol):
+    """周期任务配置网关协议。"""
+
+    def configure_readiness_schedule(
+        self,
+        *,
+        quote_pre_refresh_hour: int,
+        quote_pre_refresh_minute: int,
+        daily_evidence_hour: int,
+        daily_evidence_minute: int,
+        weekly_auto_advisor_hour: int,
+        weekly_auto_advisor_minute: int,
+    ) -> SchedulerBootstrapResult:
+        """配置收市后 readiness 相关周期任务。"""
         ...

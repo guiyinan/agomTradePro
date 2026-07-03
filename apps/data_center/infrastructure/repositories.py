@@ -73,6 +73,7 @@ from apps.data_center.infrastructure.models import (
     SectorMembershipFactModel,
     ValuationFactModel,
 )
+from apps.data_center.infrastructure.orm_retry import retry_macro_fact_upsert
 
 
 class ProviderConfigRepository:
@@ -614,9 +615,11 @@ class IndicatorUnitRuleRepository:
         if original_unit is not None:
             queryset = queryset.filter(original_unit=original_unit)
 
-        scoped = list(
-            queryset.filter(source_type=source_type).order_by("-priority", "id")[:1]
-        ) if source_type else []
+        scoped = (
+            list(queryset.filter(source_type=source_type).order_by("-priority", "id")[:1])
+            if source_type
+            else []
+        )
         if scoped:
             return self._from_model(scoped[0])
 
@@ -672,19 +675,7 @@ class MacroFactRepository:
     def bulk_upsert(self, facts: list[MacroFact]) -> int:
         count = 0
         for f in facts:
-            MacroFactModel.objects.update_or_create(
-                indicator_code=f.indicator_code,
-                reporting_period=f.reporting_period,
-                source=f.source,
-                revision_number=f.revision_number,
-                defaults={
-                    "value": f.value,
-                    "unit": f.unit,
-                    "published_at": f.published_at,
-                    "quality": f.quality.value,
-                    "extra": f.extra,
-                },
-            )
+            retry_macro_fact_upsert(MacroFactModel.objects, f)
             count += 1
         return count
 
@@ -831,7 +822,9 @@ class MacroGovernanceRepository:
             paired_code = str(extra.get("paired_indicator_code") or "")
             alias_of_code = str(extra.get("alias_of_indicator_code") or "")
             sync_source_type = str(extra.get("governance_sync_source_type") or "").strip()
-            paired_count = int(aggregates.get(paired_code, {}).get("row_count", 0)) if paired_code else 0
+            paired_count = (
+                int(aggregates.get(paired_code, {}).get("row_count", 0)) if paired_code else 0
+            )
             alias_target_count = (
                 int(aggregates.get(alias_of_code, {}).get("row_count", 0)) if alias_of_code else 0
             )
@@ -870,7 +863,9 @@ class MacroGovernanceRepository:
                     "alias_of_indicator_code": alias_of_code,
                     "sync_source_type": sync_source_type,
                     "default_unit": catalog.default_unit if catalog is not None else "",
-                    "default_period_type": catalog.default_period_type if catalog is not None else "",
+                    "default_period_type": (
+                        catalog.default_period_type if catalog is not None else ""
+                    ),
                     "row_count": row_count,
                     "latest_period": aggregate.get("latest_period"),
                     "sources": sources,
@@ -1514,10 +1509,9 @@ class NewsRepository:
     ) -> list[NewsFact]:
         """Return market-wide news published on one date."""
 
-        rows = (
-            NewsFactModel.objects.filter(asset_code="", published_at__date=target_date)
-            .order_by("-published_at", "-id")[:limit]
-        )
+        rows = NewsFactModel.objects.filter(asset_code="", published_at__date=target_date).order_by(
+            "-published_at", "-id"
+        )[:limit]
         return [self._from_model(m) for m in rows]
 
     def bulk_insert(self, articles: list[NewsFact]) -> int:

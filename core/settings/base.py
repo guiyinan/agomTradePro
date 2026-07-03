@@ -44,10 +44,7 @@ _SHOW_ENCRYPTION_KEY_WARNING = env.bool(
     "AGOMTRADEPRO_SHOW_ENCRYPTION_KEY_WARNING",
     default=True,
 )
-_IS_FIRST_INSTALL = (
-    not DATABASE_URL
-    and not (BASE_DIR / "db.sqlite3").exists()
-)
+_IS_FIRST_INSTALL = not DATABASE_URL and not (BASE_DIR / "db.sqlite3").exists()
 if not AGOMTRADEPRO_ENCRYPTION_KEY and _SHOW_ENCRYPTION_KEY_WARNING and not _IS_FIRST_INSTALL:
     import warnings
 
@@ -578,7 +575,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "market-thermometer-refresh-post-close": {
         "task": "apps.data_center.application.tasks.refresh_market_thermometer_task",
-        "schedule": crontab(hour="17-19", minute=20, day_of_week="mon-fri"),
+        "schedule": crontab(hour="17-18", minute=20, day_of_week="mon-fri"),
         "options": {
             "expires": 1800,
         },
@@ -677,7 +674,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "qlib-post-close-scoped-inference-recovery": {
         "task": "apps.alpha.application.tasks.qlib_daily_scoped_inference",
-        "schedule": crontab(hour="18-23", minute="*/10", day_of_week="mon-fri"),
+        "schedule": crontab(hour="18", minute="*/10", day_of_week="mon-fri"),
         "kwargs": {
             "top_n": 30,
             "portfolio_limit": 0,
@@ -688,6 +685,20 @@ CELERY_BEAT_SCHEDULE = {
         },
         "options": {
             "expires": 1800,  # 30 分钟超时
+        },
+    },
+    "personal-readiness-daily-evidence": {
+        "task": "apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
+        "schedule": crontab(hour=16, minute=10, day_of_week="mon-fri"),
+        "kwargs": {
+            "calendar_source": "auto",
+            "run_workspace_refresh": True,
+            "include_weekly_advisor": True,
+            "repair_accounts": False,
+            "allow_unclosed_target_date": False,
+        },
+        "options": {
+            "expires": 7200,
         },
     },
     "qlib-weekly-cache-refresh": {
@@ -832,7 +843,9 @@ CELERY_TASK_ROUTES = {
     "apps.alpha.application.tasks.qlib_evaluate_model": {"queue": "qlib_train"},
     "apps.alpha.application.tasks.qlib_refresh_cache": {"queue": "qlib_infer"},
     "apps.alpha.application.tasks.qlib_refresh_runtime_data_task": {"queue": "qlib_infer"},
-    "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task": {"queue": "qlib_infer"},
+    "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task": {
+        "queue": "qlib_infer"
+    },
 }
 
 # Qlib 任务超时配置

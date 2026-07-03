@@ -107,3 +107,40 @@ def test_persisted_consistency_check_flags_old_workspace_rows() -> None:
         "workspace_recommendations_stale",
         "workspace_missing_alpha_rank_origin",
     }
+
+
+def test_persisted_consistency_check_flags_stale_alpha_rank_source_dates() -> None:
+    """A fresh workspace row must still reveal stale Alpha-rank source dates."""
+
+    AlphaScoreCacheModel.objects.create(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 7, 2),
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=date(2026, 7, 2),
+        scores=[
+            {"code": "000338.SZ", "score": 0.8},
+            {"code": "002384.SZ", "score": 0.7},
+        ],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+    )
+    rec = UnifiedRecommendationModel.objects.create(
+        recommendation_id="urec_alpha_old_source",
+        account_id="default",
+        security_code="000338.SZ",
+        side="BUY",
+        source_candidate_ids=["alpha_rank:000338.SZ:2026-07-01"],
+    )
+    UnifiedRecommendationModel.objects.filter(pk=rec.pk).update(
+        updated_at=timezone.make_aware(datetime(2026, 7, 2, 18))
+    )
+
+    result = run_alpha_workspace_consistency_check(account_id="default")
+
+    assert result.status == "warning"
+    issues = {issue.code: issue for issue in result.issues}
+    assert "workspace_alpha_rank_source_stale" in issues
+    assert issues["workspace_alpha_rank_source_stale"].details == {
+        "alpha_latest_trade_date": "2026-07-02",
+        "latest_alpha_rank_source_date": "2026-07-01",
+        "stale_source_count": 1,
+    }

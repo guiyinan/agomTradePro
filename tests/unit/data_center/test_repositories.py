@@ -2,11 +2,15 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import OperationalError
 
 from apps.data_center.domain.entities import (
+    MacroFact,
     MarketThermometerThresholds,
     MarketThermometerUserOverride,
 )
+from apps.data_center.domain.enums import DataQualityStatus
+from apps.data_center.infrastructure import orm_retry
 from apps.data_center.infrastructure.models import (
     MacroFactModel,
     MarketThermometerSnapshotModel,
@@ -52,6 +56,71 @@ def test_macro_fact_repository_returns_latest_first_series():
         date(2026, 3, 1),
         date(2025, 6, 1),
     ]
+
+
+def test_macro_fact_repository_retries_transient_sqlite_lock(monkeypatch):
+    attempts: list[dict] = []
+    sleeps: list[float] = []
+    closed_connections: list[bool] = []
+
+    def fake_update_or_create(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) == 1:
+            raise OperationalError("database is locked")
+        return object(), True
+
+    monkeypatch.setattr(MacroFactModel.objects, "update_or_create", fake_update_or_create)
+    monkeypatch.setattr(orm_retry.time, "sleep", lambda seconds: sleeps.append(seconds))
+    monkeypatch.setattr(
+        orm_retry,
+        "close_old_connections",
+        lambda: closed_connections.append(True),
+    )
+
+    stored = MacroFactRepository().bulk_upsert(
+        [
+            MacroFact(
+                indicator_code="CN_TEST_LOCK",
+                reporting_period=date(2026, 6, 30),
+                value=1.23,
+                unit="%",
+                source="akshare",
+                quality=DataQualityStatus.VALID,
+            )
+        ]
+    )
+
+    assert stored == 1
+    assert len(attempts) == 2
+    assert sleeps == [orm_retry.SQLITE_LOCK_RETRY_DELAYS_SECONDS[0]]
+    assert closed_connections == [True]
+
+
+def test_macro_fact_repository_does_not_retry_non_lock_operational_error(monkeypatch):
+    attempts = 0
+
+    def fake_update_or_create(**kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise OperationalError("no such table: data_center_macro_fact")
+
+    monkeypatch.setattr(MacroFactModel.objects, "update_or_create", fake_update_or_create)
+
+    with pytest.raises(OperationalError, match="no such table"):
+        MacroFactRepository().bulk_upsert(
+            [
+                MacroFact(
+                    indicator_code="CN_TEST_NO_TABLE",
+                    reporting_period=date(2026, 6, 30),
+                    value=1.23,
+                    unit="%",
+                    source="akshare",
+                    quality=DataQualityStatus.VALID,
+                )
+            ]
+        )
+
+    assert attempts == 1
 
 
 @pytest.mark.django_db

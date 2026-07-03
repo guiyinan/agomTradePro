@@ -95,6 +95,35 @@ class SchedulerBootstrapResponse:
 
 
 @dataclass
+class ReadinessScheduleResponse:
+    """收市后 readiness 调度响应 DTO。"""
+
+    quote_pre_refresh_time: str
+    daily_evidence_time: str
+    weekly_auto_advisor_time: str
+    quote_pre_refresh_enabled: bool
+    daily_evidence_enabled: bool
+    weekly_auto_advisor_enabled: bool
+    quote_pre_refresh_task_exists: bool
+    daily_evidence_task_exists: bool
+    weekly_auto_advisor_task_exists: bool
+    quote_pre_refresh_day_of_week: str
+    daily_evidence_day_of_week: str
+    weekly_auto_advisor_day_of_week: str
+
+
+@dataclass
+class ReadinessScheduleUpdateResponse:
+    """收市后 readiness 调度更新响应 DTO。"""
+
+    executed_commands: list[str]
+    output_lines: list[str]
+    quote_pre_refresh_time: str
+    daily_evidence_time: str
+    weekly_auto_advisor_time: str
+
+
+@dataclass
 class SchedulerConsoleResponse:
     """统一任务后台页面 DTO。"""
 

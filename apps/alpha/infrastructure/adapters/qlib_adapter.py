@@ -446,7 +446,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 payload.setdefault("source", "qlib")
                 if default_asof_date and not payload.get("asof_date"):
                     payload["asof_date"] = default_asof_date.isoformat()
-                if default_intended_trade_date and not payload.get("intended_trade_date"):
+                if default_intended_trade_date:
                     payload["intended_trade_date"] = default_intended_trade_date.isoformat()
                 scores.append(StockScore.from_dict(payload))
             except Exception as e:

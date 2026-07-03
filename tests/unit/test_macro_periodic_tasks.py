@@ -18,8 +18,7 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
     settings_module = _reload_module("core.settings.development")
 
     assert (
-        settings_module.CELERY_BEAT_SCHEDULER
-        == "django_celery_beat.schedulers.DatabaseScheduler"
+        settings_module.CELERY_BEAT_SCHEDULER == "django_celery_beat.schedulers.DatabaseScheduler"
     )
     assert (
         settings_module.CELERY_BEAT_SCHEDULE["daily-sync-and-calculate"]["task"]
@@ -34,11 +33,17 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
         == "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
     )
     assert (
-        settings_module.CELERY_BEAT_SCHEDULE[
-            "account-check-stop-loss-take-profit-intraday"
-        ]["task"]
+        settings_module.CELERY_BEAT_SCHEDULE["account-check-stop-loss-take-profit-intraday"]["task"]
         == "apps.account.application.tasks.check_stop_loss_and_take_profit_task"
     )
+    readiness_entry = settings_module.CELERY_BEAT_SCHEDULE["personal-readiness-daily-evidence"]
+    assert (
+        readiness_entry["task"]
+        == "apps.task_monitor.application.tasks.run_personal_readiness_daily_task"
+    )
+    assert readiness_entry["kwargs"]["calendar_source"] == "auto"
+    assert readiness_entry["kwargs"]["repair_accounts"] is False
+    assert readiness_entry["kwargs"]["allow_unclosed_target_date"] is False
 
 
 @pytest.mark.django_db
@@ -71,7 +76,10 @@ def test_setup_macro_daily_sync_reconciles_periodic_tasks() -> None:
     assert daily_task.crontab is not None
     assert daily_task.crontab.hour == "8"
     assert daily_task.crontab.minute == "5"
-    assert daily_task.kwargs == '{"source": "akshare", "indicator": null, "days_back": 60, "use_pit": true}'
+    assert (
+        daily_task.kwargs
+        == '{"source": "akshare", "indicator": null, "days_back": 60, "use_pit": true}'
+    )
 
     assert freshness_task.task == "apps.macro.application.tasks.check_data_freshness"
     assert freshness_task.interval is not None
@@ -82,7 +90,10 @@ def test_setup_macro_daily_sync_reconciles_periodic_tasks() -> None:
     assert signal_task.crontab.hour == "17"
     assert signal_task.crontab.minute == "0"
 
-    assert recalc_task.task == "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
+    assert (
+        recalc_task.task
+        == "apps.regime.application.orchestration.recalculate_regime_with_daily_signal"
+    )
     assert recalc_task.crontab is not None
     assert recalc_task.crontab.hour == "17"
     assert recalc_task.crontab.minute == "5"

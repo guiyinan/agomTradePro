@@ -22,6 +22,7 @@ from django_celery_beat.models import PeriodicTask
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
+    ScheduledCrontabRecord,
     ScheduledTaskRecord,
     SchedulerBootstrapResult,
     SchedulerCatalogSummary,
@@ -33,6 +34,7 @@ from apps.task_monitor.domain.entities import (
 from apps.task_monitor.domain.interfaces import (
     CeleryHealthCheckerProtocol,
     SchedulerBootstrapGatewayProtocol,
+    SchedulerConfigurationGatewayProtocol,
     SchedulerRepositoryProtocol,
     TaskRecordRepositoryProtocol,
 )
@@ -436,6 +438,39 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
             for task in tasks
         ]
 
+    def get_crontab_task(self, task_name: str) -> ScheduledCrontabRecord:
+        task = (
+            PeriodicTask.objects.select_related("crontab")
+            .filter(name=task_name)
+            .first()
+        )
+        if task is None:
+            return ScheduledCrontabRecord(
+                name=task_name,
+                exists=False,
+                enabled=False,
+                hour=None,
+                minute=None,
+                day_of_week=None,
+            )
+        if task.crontab is None:
+            return ScheduledCrontabRecord(
+                name=task.name,
+                exists=True,
+                enabled=bool(task.enabled),
+                hour=None,
+                minute=None,
+                day_of_week=None,
+            )
+        return ScheduledCrontabRecord(
+            name=task.name,
+            exists=True,
+            enabled=bool(task.enabled),
+            hour=str(task.crontab.hour),
+            minute=str(task.crontab.minute),
+            day_of_week=str(task.crontab.day_of_week),
+        )
+
     def _latest_execution_map(self, task_paths: list[str]) -> dict[str, TaskExecutionModel]:
         if not task_paths:
             return {}
@@ -512,6 +547,56 @@ class ManagementCommandSchedulerBootstrapGateway(SchedulerBootstrapGatewayProtoc
         ]
         return SchedulerBootstrapResult(
             executed_commands=["init_scheduler_defaults"],
+            output_lines=output_lines,
+        )
+
+
+class ManagementCommandSchedulerConfigurationGateway(SchedulerConfigurationGatewayProtocol):
+    """Configure scheduler tasks through management commands."""
+
+    def configure_readiness_schedule(
+        self,
+        *,
+        quote_pre_refresh_hour: int,
+        quote_pre_refresh_minute: int,
+        daily_evidence_hour: int,
+        daily_evidence_minute: int,
+        weekly_auto_advisor_hour: int,
+        weekly_auto_advisor_minute: int,
+    ) -> SchedulerBootstrapResult:
+        buffer = StringIO()
+        call_command(
+            "setup_decision_quote_refresh",
+            pre_readiness_hour=quote_pre_refresh_hour,
+            pre_readiness_minute=quote_pre_refresh_minute,
+            stdout=buffer,
+            stderr=buffer,
+        )
+        call_command(
+            "setup_personal_readiness_daily",
+            hour=daily_evidence_hour,
+            minute=daily_evidence_minute,
+            stdout=buffer,
+            stderr=buffer,
+        )
+        call_command(
+            "setup_auto_advisor_weekly_report",
+            hour=weekly_auto_advisor_hour,
+            minute=weekly_auto_advisor_minute,
+            stdout=buffer,
+            stderr=buffer,
+        )
+        output_lines = [
+            line.strip()
+            for line in buffer.getvalue().splitlines()
+            if line.strip()
+        ]
+        return SchedulerBootstrapResult(
+            executed_commands=[
+                "setup_decision_quote_refresh",
+                "setup_personal_readiness_daily",
+                "setup_auto_advisor_weekly_report",
+            ],
             output_lines=output_lines,
         )
 

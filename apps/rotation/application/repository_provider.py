@@ -33,6 +33,7 @@ def generate_rotation_signals(signal_date) -> dict:
         "signal_date": signal_date.isoformat(),
         "total_configs": len(configs),
         "successful": 0,
+        "skipped": 0,
         "failed": 0,
         "signals": [],
     }
@@ -40,7 +41,10 @@ def generate_rotation_signals(signal_date) -> dict:
     for config in configs:
         signal = service.generate_rotation_signal(config.name, signal_date=signal_date)
         if signal:
-            results["successful"] += 1
+            if signal.get("status") == "skipped":
+                results["skipped"] += 1
+            else:
+                results["successful"] += 1
             results["signals"].append(signal)
         else:
             results["failed"] += 1

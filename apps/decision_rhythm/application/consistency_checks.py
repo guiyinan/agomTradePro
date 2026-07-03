@@ -222,6 +222,29 @@ class AlphaWorkspaceConsistencyChecker:
                 )
             )
 
+        alpha_rank_source_dates = _extract_alpha_rank_source_dates(
+            workspace.source_candidate_ids
+        )
+        if alpha.latest_trade_date and alpha_rank_source_dates:
+            latest_source_date = max(alpha_rank_source_dates)
+            if latest_source_date < alpha.latest_trade_date:
+                issues.append(
+                    ConsistencyIssue(
+                        code="workspace_alpha_rank_source_stale",
+                        severity="warning",
+                        message="工作台 Alpha 候选溯源日期落后于最新 Alpha 排名。",
+                        details={
+                            "alpha_latest_trade_date": alpha.latest_trade_date.isoformat(),
+                            "latest_alpha_rank_source_date": latest_source_date.isoformat(),
+                            "stale_source_count": sum(
+                                1
+                                for source_date in alpha_rank_source_dates
+                                if source_date < alpha.latest_trade_date
+                            ),
+                        },
+                    )
+                )
+
         status = "ok" if not issues else "warning"
         return AlphaWorkspaceConsistencyResult(
             status=status,
@@ -230,3 +253,16 @@ class AlphaWorkspaceConsistencyChecker:
             workspace=workspace,
             issues=tuple(issues),
         )
+
+
+def _extract_alpha_rank_source_dates(source_candidate_ids: tuple[str, ...]) -> tuple[date, ...]:
+    dates: list[date] = []
+    for source_id in source_candidate_ids:
+        parts = str(source_id or "").rsplit(":", 1)
+        if len(parts) != 2 or not parts[0].startswith("alpha_rank:"):
+            continue
+        try:
+            dates.append(date.fromisoformat(parts[1]))
+        except ValueError:
+            continue
+    return tuple(dates)

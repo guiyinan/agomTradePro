@@ -24,7 +24,16 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
             )
 
     monkeypatch.setattr(command_module, "RepairDecisionDataReliabilityUseCase", FakeUseCase)
-    monkeypatch.setattr(command_module.Command, "_resolve_user", lambda self, user_id: None)
+    monkeypatch.setattr(
+        command_module.Command,
+        "_resolve_user",
+        lambda self, user_id: SimpleNamespace(id=7),
+    )
+    monkeypatch.setattr(
+        command_module.Command,
+        "_resolve_default_portfolio_id",
+        staticmethod(lambda user, target_date: 135),
+    )
 
     command_module.Command().handle(
         target_date="2026-05-11",
@@ -41,17 +50,28 @@ def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
 
     assert "indicator_unit_rule_repo" in captured
     assert captured["request"].macro_indicator_codes == ["CN_NEW_CREDIT"]
+    assert captured["request"].portfolio_id == 135
 
 
 def test_alpha_refresher_skips_qlib_rebuild_when_check_passes(monkeypatch):
     calls: list[dict[str, object]] = []
+    resolver_calls: list[dict[str, object]] = []
 
     def fake_call_command(name, **kwargs):
         calls.append({"name": name, **kwargs})
 
     class FakeResolver:
         def resolve(self, *, user_id, portfolio_id, trade_date, pool_mode):
+            resolver_calls.append(
+                {
+                    "user_id": user_id,
+                    "portfolio_id": portfolio_id,
+                    "trade_date": trade_date,
+                    "pool_mode": pool_mode,
+                }
+            )
             return SimpleNamespace(
+                portfolio_id=portfolio_id,
                 scope=SimpleNamespace(
                     universe_id="portfolio-1-scope",
                     scope_hash="scope",
@@ -84,6 +104,7 @@ def test_alpha_refresher_skips_qlib_rebuild_when_check_passes(monkeypatch):
 
     assert [call["name"] for call in calls] == ["build_qlib_data"]
     assert calls[0]["check_only"] is True
+    assert resolver_calls[0]["pool_mode"] == "strict_valuation"
     assert result["status"] == "completed"
     assert result["universe_id"] == "portfolio-1-scope"
 

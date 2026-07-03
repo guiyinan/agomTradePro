@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
 > **文档版本**: V2.0
-> **更新日期**: 2026-06-20
+> **更新日期**: 2026-07-01
 > **目标读者**: 开发人员
 
 ---
@@ -13,8 +13,8 @@
 | 版本 | 0.7.0 |
 | 状态 | 生产就绪 |
 | 完成度 | 99% |
-| 业务模块 | 35个 |
-| 测试规模 | 5,212 个已收集测试项 |
+| 业务模块 | 37个 |
+| 测试规模 | 6,026 个静态测试函数 |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
@@ -65,6 +65,18 @@ agomtradepro/Scripts/python manage.py createsuperuser
 # 本地刷新市场温度计输入 + 重算快照
 powershell -ExecutionPolicy Bypass -File scripts/refresh-local-market-thermometer.ps1
 
+# 直接同步市场温度计输入（不传 as-of-date 时使用 Celery 同款结算日期解析）
+agomtradepro/Scripts/python manage.py sync_market_thermometer_inputs
+
+# 直接计算市场温度计；默认会先同步输入，blocked 结果不会落库
+agomtradepro/Scripts/python manage.py calculate_market_thermometer
+
+# 诊断当前可计算状态但不先同步输入；仅用于排查，不作为正式刷新入口
+agomtradepro/Scripts/python manage.py calculate_market_thermometer --skip-sync
+
+# 如需保留 blocked 快照用于审计，显式允许 blocked 写入
+agomtradepro/Scripts/python manage.py calculate_market_thermometer --allow-blocked-write
+
 # 同步宏观数据
 agomtradepro/Scripts/python manage.py sync_macro_data
 
@@ -91,7 +103,10 @@ agomtradepro/Scripts/python manage.py list_models
 - `start.bat` 选项 `2`（SQLite + Redis + Celery）会在独立的 Django 日志窗口中启动服务，原菜单窗口会自动退出，避免重复启动。
 - `scripts/start-local-preview.ps1` 会用 `scripts/local_preview_server.py` 在后台拉起一个轻量本地预览实例，默认地址固定为 `http://127.0.0.1:8000/`，并把 PID 写到 `tmp/local-preview-8000.pid`，日志写到 `logs/local-preview-8000.stdout.log` 和 `logs/local-preview-8000.stderr.log`。
 - 若本地库中的默认预览账号仍可用，`scripts/start-local-preview.ps1` 会额外输出 `Preview credentials`，当前开发库默认可用为 `admin / Aa123456`。
-- 若当前工作环境外网受限，可用 `scripts/refresh-local-market-thermometer.ps1` 单独刷新温度计链路，或在启动预览时加 `-RefreshMarketThermometer` 先刷新再起服务。
+- 若当前工作环境外网受限，可用 `scripts/refresh-local-market-thermometer.ps1` 单独刷新温度计链路，或在启动预览时加 `-RefreshMarketThermometer` 先刷新再起服务。未显式传入 `--as-of-date` 时，市场温度计命令使用与 Celery 任务一致的结算日期解析；交易日 16:00 前默认锚定上一可用交易日，避免盘中半截数据污染正式快照。
+- `calculate_market_thermometer` 默认会先执行输入同步；`--skip-sync` 仅作为诊断模式使用。若结果为 `blocked`，手工命令默认只输出诊断结果、不写入快照；只有显式传入 `--allow-blocked-write` 才会持久化 blocked 快照用于审计。
+- 市场温度计 `new_investor_accounts` 默认先走 AKShare，近月缺口会自动回退到上交所月报账户新开户表并写入 proxy 审计字段。若两个在线源都不可用或需要人工补历史月份，再生成模板并 dry-run：`python manage.py import_investor_accounts --print-template`，`python manage.py import_investor_accounts --file <csv_path> --dry-run --json --fail-on-warning`。若源 CSV 是“万户”口径，显式加 `--value-unit 万户`，系统会换算成 canonical `户` 并保留原始单位审计字段。
+- 管理端也可通过 `POST /api/data-center/market-thermometer/import/investor-accounts/` 补数，支持 `csv_text` / 文件上传、`dry_run`、`value_unit`、`fail_on_warning`，与 CLI 走同一 use case。
 - Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
 - `install.bat` 默认只安装本地最小运行依赖（`requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
 - `scripts/dev.bat` 现在会先执行 `manage.py bootstrap_local_env`，自动创建 `.env` 并补齐 `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`，避免首次启动出现密钥缺失 warning。
@@ -203,10 +218,46 @@ celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
 ```powershell
 $env:DJANGO_SETTINGS_MODULE = "core.settings.development"
 agomtradepro\Scripts\python.exe -m celery -A core worker --pool=solo --concurrency=1 -Q celery,qlib_infer,qlib_train -l info
+
+# 等价的 Django 管理命令形式，适合 readiness 连续运行验收
+agomtradepro\Scripts\python.exe manage.py celery_worker_windows --queues=celery,qlib_infer,qlib_train --hostname=readiness@%h
+# 也兼容 Celery 常用短参数：-Q celery,qlib_infer,qlib_train -n readiness@%h
+
+# 只读检查个人投研连续运行监控，不生成 readiness evidence
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly
+# 只模拟 monitor 摘要的“下一操作检查点”rollover；不改系统时间，不生成 evidence
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly -ReferenceTime "2026-07-03T16:20:00+08:00"
+
+# 假设某个交易日的下午时间点做只读模拟；不改系统时间，不生成 evidence，不推进验收计数
+agomtradepro/Scripts/python manage.py simulate_personal_readiness_checkpoints --target-date 2026-07-03
+
+# 最终验收必须同时要求本地 Celery beat/worker 运行态
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -StrictAcceptance
+
+# scheduler-clean 连续验收期间，默认等待 Celery beat 生成 daily evidence；
+# 手动 run_personal_readiness_daily 只用于诊断/补录，不能推进 scheduler-clean 计数。
+
+# 配置决策级行情刷新；默认包含 15:35 预 readiness 刷新，避免 16:10 证据运行时 quote 过旧
+agomtradepro/Scripts/python manage.py setup_decision_quote_refresh
+# 如需调整收市后窗口，可显式设置预 readiness 刷新时间
+agomtradepro/Scripts/python manage.py setup_decision_quote_refresh --pre-readiness-hour 15 --pre-readiness-minute 35
+
+# 配置个人投研 readiness 日终证据任务；当前默认是交易日 16:10 Asia/Shanghai
+agomtradepro/Scripts/python manage.py setup_personal_readiness_daily
+# 与上面的预刷新配套，证据任务必须晚于预刷新且不早于 16:00
+agomtradepro/Scripts/python manage.py setup_personal_readiness_daily --hour 16 --minute 10
+
+# 配置周报自动顾问任务；当前默认是周五 17:30 Asia/Shanghai，且必须晚于每日 evidence
+agomtradepro/Scripts/python manage.py setup_auto_advisor_weekly_report --hour 17 --minute 30
+# 未传 user/account scope 时会保留既有范围；如需改回全量活跃账户，显式加 --clear-scope
+agomtradepro/Scripts/python manage.py setup_auto_advisor_weekly_report --hour 17 --minute 30 --clear-scope
+# 如需限定账户，--account-ids 必须和 --user-id 一起使用
+agomtradepro/Scripts/python manage.py setup_auto_advisor_weekly_report --hour 17 --minute 30 --user-id 7 --account-ids 101,102
 ```
 
 - `/api/ready/` 的 Redis 检查会优先检查 Django Redis cache；开发环境默认 `USE_REDIS_CACHE=false` 时，会改用 `REDIS_URL` / `CELERY_BROKER_URL` 做 Redis `PING`。因此本地 cache 仍可保持 LocMem，但 Redis/Celery readiness 仍能反映真实 broker 状态。
 - `/api/ready/` 的 Celery 检查要求至少一个 worker 正在响应；只启动 Redis 容器但不启动 worker 时，Celery 会显示 `No Celery workers responded`。
+- 计划任务中心 `/ops/task-monitor/` 可查看 `PeriodicTask` 和 Celery 运行态，并可在“收市后 Readiness 时间”面板直接修改 `decision-quote-pre-readiness-refresh`、`personal-readiness-daily-evidence` 与 `dashboard-auto-advisor-weekly-report` 的执行时间。个人 readiness 默认依赖工作日 `15:35 Asia/Shanghai` 先刷新决策级行情，再由 `16:10` 的证据任务产出日终证据，并在周五 `17:30` 生成周报自动顾问；证据任务不得早于 16:00，因为系统在 16:00 前仍可能把最新已闭市交易日解析为前一交易日。
 - 从 2026-04-07 起，Celery 独立日志会落盘到项目本地 `logs/` 目录：
   - Worker: `logs/celery-worker.log`
   - Beat: `logs/celery-beat.log`

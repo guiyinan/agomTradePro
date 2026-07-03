@@ -186,6 +186,7 @@ class RotationConfigModel(models.Model):
             max_turnover=self.max_turnover,
             lookback_period=self.lookback_period,
             regime_allocations=self.regime_allocations,
+            momentum_periods=self.momentum_periods or [20, 60, 120, 252],
             is_active=self.is_active,
             top_n=self.top_n,
         )

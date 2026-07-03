@@ -6,6 +6,7 @@ Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 
 import logging
 import traceback as tb_module
+from pathlib import Path
 from typing import Any
 
 from celery import Task
@@ -27,6 +28,11 @@ from apps.task_monitor.domain.entities import (
     TaskExecutionRecord,
     TaskPriority,
     TaskStatus,
+)
+from apps.task_monitor.management.commands.run_personal_readiness_daily import (
+    _parse_date,
+    _validate_target_date_is_closed,
+    run_personal_readiness_daily,
 )
 from shared.config.secrets import get_secrets
 from shared.infrastructure.alert_service import create_default_alert_service
@@ -62,6 +68,7 @@ def get_use_case() -> RecordTaskExecutionUseCase:
 
 # ========== Celery 信号处理 ==========
 
+
 @task_prerun.connect
 def task_prerun_handler(
     sender=None,
@@ -69,7 +76,7 @@ def task_prerun_handler(
     task: Task | None = None,
     args: tuple | None = None,
     kwargs: dict | None = None,
-    **kwds
+    **kwds,
 ) -> None:
     """任务开始前记录"""
     if not task_id or not task:
@@ -110,7 +117,7 @@ def task_postrun_handler(
     kwargs: dict | None = None,
     retval: Any | None = None,
     state: str | None = None,
-    **kwds
+    **kwds,
 ) -> None:
     """任务完成后记录"""
     if not task_id or not task:
@@ -178,7 +185,7 @@ def task_failure_handler(
     exception: Exception | None = None,
     traceback: str | None = None,
     einfo: Any | None = None,
-    **kwds
+    **kwds,
 ) -> None:
     """任务失败记录"""
     if not task_id:
@@ -238,7 +245,7 @@ def task_retry_handler(
     request: Any | None = None,
     reason: str | None = None,
     einfo: Any | None = None,
-    **kwds
+    **kwds,
 ) -> None:
     """任务重试记录"""
     if not task_id:
@@ -283,7 +290,7 @@ def task_revoked_handler(
     signum: int | None = None,
     terminated: bool | None = None,
     expired: bool | None = None,
-    **kwds
+    **kwds,
 ) -> None:
     """任务撤销记录"""
     if not task_id:
@@ -364,6 +371,7 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
 
 # ========== P1-2: 数据库备份任务 ==========
 
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -408,7 +416,7 @@ def backup_database_task(
                 "output_dir": output_dir,
                 "backup_file": result.backup_file,
                 "removed_old_backups": result.removed_old_backups,
-            }
+            },
         )
 
         return {
@@ -463,6 +471,7 @@ def verify_backup_task(backup_file: str) -> dict:
     # 对于压缩文件，尝试读取验证
     if backup_file.endswith(".gz"):
         import gzip
+
         try:
             with gzip.open(backup_path, "rb") as f:
                 # 读取一小部分验证
@@ -478,7 +487,7 @@ def verify_backup_task(backup_file: str) -> dict:
         extra={
             "backup_file": backup_file,
             "file_size": file_size,
-        }
+        },
     )
 
     return {
@@ -486,3 +495,58 @@ def verify_backup_task(backup_file: str) -> dict:
         "backup_file": backup_file,
         "file_size": file_size,
     }
+
+
+@shared_task(
+    bind=True,
+    name="apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
+    time_limit=3600,
+    soft_time_limit=3300,
+)
+def run_personal_readiness_daily_task(
+    self,
+    target_date: str | None = None,
+    user_id: int | None = None,
+    account_id: int | None = None,
+    output_dir: str = "var/readiness-evidence",
+    required_days: int = 20,
+    calendar_source: str = "auto",
+    max_qlib_staleness_days: int = 5,
+    repair_accounts: bool = False,
+    run_workspace_refresh: bool = True,
+    include_weekly_advisor: bool = True,
+    persist_risk_report: bool = True,
+    strict_daily: bool = False,
+    allow_unclosed_target_date: bool = False,
+    trigger_source: str = "scheduler",
+) -> dict[str, Any]:
+    """Run the personal readiness daily command from Celery beat."""
+
+    task_request = getattr(self, "request", None)
+    trigger_task_id = getattr(task_request, "id", None)
+    resolved_target_date = _parse_date(target_date)
+    _validate_target_date_is_closed(
+        target_date=resolved_target_date,
+        allow_unclosed_target_date=allow_unclosed_target_date,
+    )
+
+    payload = run_personal_readiness_daily(
+        target_date=resolved_target_date,
+        user_id=user_id,
+        account_id=account_id,
+        output_dir=Path(output_dir),
+        required_days=required_days,
+        calendar_source=calendar_source,
+        max_qlib_staleness_days=max_qlib_staleness_days,
+        repair_accounts=repair_accounts,
+        run_workspace_refresh=run_workspace_refresh,
+        include_weekly_advisor=include_weekly_advisor,
+        persist_risk_report=persist_risk_report,
+        allow_unclosed_target_date=allow_unclosed_target_date,
+        trigger_source=trigger_source,
+        trigger_task_id=trigger_task_id,
+        trigger_task_name=getattr(self, "name", None),
+    )
+    if strict_daily and payload.get("status") != "ok":
+        raise RuntimeError(f"Personal readiness daily run is {payload.get('status')}")
+    return payload

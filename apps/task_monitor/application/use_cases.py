@@ -10,6 +10,8 @@ from django.utils import timezone
 
 from apps.task_monitor.application.dtos import (
     HealthCheckResponse,
+    ReadinessScheduleResponse,
+    ReadinessScheduleUpdateResponse,
     ScheduledTaskResponse,
     SchedulerBootstrapResponse,
     SchedulerConsoleResponse,
@@ -19,6 +21,7 @@ from apps.task_monitor.application.dtos import (
     TaskStatusResponse,
 )
 from apps.task_monitor.domain.entities import (
+    ScheduledCrontabRecord,
     ScheduledTaskRecord,
     SchedulerCatalogSummary,
     TaskExecutionRecord,
@@ -29,12 +32,22 @@ from apps.task_monitor.domain.interfaces import (
     AlertChannelProtocol,
     CeleryHealthCheckerProtocol,
     SchedulerBootstrapGatewayProtocol,
+    SchedulerConfigurationGatewayProtocol,
     SchedulerRepositoryProtocol,
     TaskRecordRepositoryProtocol,
 )
 from core.exceptions import ExternalServiceError
 
 logger = logging.getLogger(__name__)
+
+QUOTE_PRE_READINESS_TASK_NAME = "decision-quote-pre-readiness-refresh"
+PERSONAL_READINESS_DAILY_TASK_NAME = "personal-readiness-daily-evidence"
+AUTO_ADVISOR_WEEKLY_TASK_NAME = "dashboard-auto-advisor-weekly-report"
+DEFAULT_QUOTE_PRE_READINESS_TIME = "15:35"
+DEFAULT_PERSONAL_READINESS_DAILY_TIME = "16:10"
+DEFAULT_AUTO_ADVISOR_WEEKLY_TIME = "17:30"
+POST_CLOSE_MINUTES = 15 * 60 + 1
+DAILY_EVIDENCE_MINUTES = 16 * 60
 
 
 class RecordTaskExecutionUseCase:
@@ -389,6 +402,104 @@ class BootstrapDefaultSchedulesUseCase:
         )
 
 
+class GetReadinessScheduleUseCase:
+    """读取收市后 readiness 相关周期任务时间。"""
+
+    def __init__(self, scheduler_repository: SchedulerRepositoryProtocol):
+        self.scheduler_repository = scheduler_repository
+
+    def execute(self) -> ReadinessScheduleResponse:
+        quote_task = self.scheduler_repository.get_crontab_task(
+            QUOTE_PRE_READINESS_TASK_NAME
+        )
+        daily_task = self.scheduler_repository.get_crontab_task(
+            PERSONAL_READINESS_DAILY_TASK_NAME
+        )
+        weekly_task = self.scheduler_repository.get_crontab_task(
+            AUTO_ADVISOR_WEEKLY_TASK_NAME
+        )
+
+        return ReadinessScheduleResponse(
+            quote_pre_refresh_time=_format_crontab_time(
+                quote_task,
+                fallback=DEFAULT_QUOTE_PRE_READINESS_TIME,
+            ),
+            daily_evidence_time=_format_crontab_time(
+                daily_task,
+                fallback=DEFAULT_PERSONAL_READINESS_DAILY_TIME,
+            ),
+            weekly_auto_advisor_time=_format_crontab_time(
+                weekly_task,
+                fallback=DEFAULT_AUTO_ADVISOR_WEEKLY_TIME,
+            ),
+            quote_pre_refresh_enabled=quote_task.enabled,
+            daily_evidence_enabled=daily_task.enabled,
+            weekly_auto_advisor_enabled=weekly_task.enabled,
+            quote_pre_refresh_task_exists=quote_task.exists,
+            daily_evidence_task_exists=daily_task.exists,
+            weekly_auto_advisor_task_exists=weekly_task.exists,
+            quote_pre_refresh_day_of_week=quote_task.day_of_week or "1,2,3,4,5",
+            daily_evidence_day_of_week=daily_task.day_of_week or "mon-fri",
+            weekly_auto_advisor_day_of_week=weekly_task.day_of_week or "fri",
+        )
+
+
+class ConfigureReadinessScheduleUseCase:
+    """配置收市后 readiness 相关周期任务时间。"""
+
+    def __init__(self, gateway: SchedulerConfigurationGatewayProtocol):
+        self.gateway = gateway
+
+    def execute(
+        self,
+        *,
+        quote_pre_refresh_time: str,
+        daily_evidence_time: str,
+        weekly_auto_advisor_time: str,
+    ) -> ReadinessScheduleUpdateResponse:
+        quote_hour, quote_minute = _parse_clock_time(
+            quote_pre_refresh_time,
+            field_name="quote_pre_refresh_time",
+        )
+        daily_hour, daily_minute = _parse_clock_time(
+            daily_evidence_time,
+            field_name="daily_evidence_time",
+        )
+        weekly_hour, weekly_minute = _parse_clock_time(
+            weekly_auto_advisor_time,
+            field_name="weekly_auto_advisor_time",
+        )
+        quote_total_minutes = quote_hour * 60 + quote_minute
+        daily_total_minutes = daily_hour * 60 + daily_minute
+        weekly_total_minutes = weekly_hour * 60 + weekly_minute
+
+        if quote_total_minutes < POST_CLOSE_MINUTES:
+            raise ValueError("行情预刷新时间必须晚于 15:00 收市。")
+        if daily_total_minutes < DAILY_EVIDENCE_MINUTES:
+            raise ValueError("每日 readiness 证据时间必须不早于 16:00。")
+        if daily_total_minutes <= quote_total_minutes:
+            raise ValueError("每日 readiness 证据时间必须晚于行情预刷新时间。")
+        if weekly_total_minutes <= daily_total_minutes:
+            raise ValueError("周报自动顾问时间必须晚于每日 readiness 证据时间。")
+
+        result = self.gateway.configure_readiness_schedule(
+            quote_pre_refresh_hour=quote_hour,
+            quote_pre_refresh_minute=quote_minute,
+            daily_evidence_hour=daily_hour,
+            daily_evidence_minute=daily_minute,
+            weekly_auto_advisor_hour=weekly_hour,
+            weekly_auto_advisor_minute=weekly_minute,
+        )
+
+        return ReadinessScheduleUpdateResponse(
+            executed_commands=result.executed_commands,
+            output_lines=result.output_lines,
+            quote_pre_refresh_time=f"{quote_hour:02d}:{quote_minute:02d}",
+            daily_evidence_time=f"{daily_hour:02d}:{daily_minute:02d}",
+            weekly_auto_advisor_time=f"{weekly_hour:02d}:{weekly_minute:02d}",
+        )
+
+
 def _map_scheduled_task(task: ScheduledTaskRecord) -> ScheduledTaskResponse:
     return ScheduledTaskResponse(
         name=task.name,
@@ -419,3 +530,29 @@ def _map_scheduler_summary(summary: SchedulerCatalogSummary) -> SchedulerSummary
         interval_tasks=summary.interval_tasks,
         one_off_tasks=summary.one_off_tasks,
     )
+
+
+def _format_crontab_time(task: ScheduledCrontabRecord, *, fallback: str) -> str:
+    if task.hour is None or task.minute is None:
+        return fallback
+    if not task.hour.isdigit() or not task.minute.isdigit():
+        return fallback
+    hour = int(task.hour)
+    minute = int(task.minute)
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        return fallback
+    return f"{hour:02d}:{minute:02d}"
+
+
+def _parse_clock_time(value: str, *, field_name: str) -> tuple[int, int]:
+    parts = str(value or "").strip().split(":")
+    if len(parts) != 2:
+        raise ValueError(f"{field_name} 必须使用 HH:MM 格式。")
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1])
+    except ValueError as exc:
+        raise ValueError(f"{field_name} 必须使用 HH:MM 格式。") from exc
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        raise ValueError(f"{field_name} 必须是有效时间。")
+    return hour, minute
