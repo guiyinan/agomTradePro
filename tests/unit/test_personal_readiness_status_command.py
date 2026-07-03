@@ -2410,6 +2410,59 @@ def test_personal_readiness_status_uses_scheduled_weekly_persistence_for_final_g
     assert requirement["ok_account_count"] == 6
     assert payload["acceptance_gate"]["failed_requirements"] == []
 
+    resolved_requirement = command_module._build_auto_advisor_weekly_persistence_requirement(
+        validation={
+            "status": "in_progress",
+            "accepted_evidence": [{"target_date": "2026-07-03"}],
+            "accepted_evidence_quality": {
+                "scheduled_weekly_report_record_count": 1,
+                "scheduled_weekly_report_persistence_ok_record_count": 0,
+                "scheduled_weekly_report_persistence_warning_record_count": 1,
+                "scheduled_weekly_report_persistence_missing_record_count": 0,
+                "scheduled_weekly_report_account_count": 2,
+                "scheduled_weekly_report_persistence_ok_account_count": 0,
+                "scheduled_weekly_report_persistence_warning_account_count": 2,
+                "scheduled_weekly_report_persistence_missing_account_count": 0,
+            },
+        },
+        post_evidence_persistence={
+            "status": "ok",
+            "target_date": "2026-07-03",
+            "acceptance_gate_impact": "none",
+            "auto_advisor_weekly_report": {
+                "status": "ok",
+                "account_count": 2,
+                "ok_account_count": 2,
+                "missing_account_count": 0,
+                "records": [
+                    {
+                        "user_id": 182,
+                        "account_id": 613,
+                        "report_id": 8,
+                        "report_status": "ready",
+                        "matched_notification_count": 1,
+                        "delivered_notification_count": 1,
+                    },
+                    {
+                        "user_id": 222,
+                        "account_id": 614,
+                        "report_id": 10,
+                        "report_status": "ready",
+                        "matched_notification_count": 1,
+                        "delivered_notification_count": 1,
+                    },
+                ],
+            },
+        },
+    )
+    assert resolved_requirement["ok"] is True
+    assert resolved_requirement["status"] == "resolved_after_evidence"
+    assert resolved_requirement["source"] == "post_evidence_database"
+    assert resolved_requirement["historical_warning_record_count"] == 1
+    assert resolved_requirement["warning_record_count"] == 0
+    assert resolved_requirement["ok_account_count"] == 2
+    assert resolved_requirement["current_database_report_count"] == 2
+
 
 def test_personal_readiness_status_blocks_final_acceptance_without_weekly_persistence(
     monkeypatch,

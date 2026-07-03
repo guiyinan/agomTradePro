@@ -120,6 +120,128 @@ def apply_risk_advisory_persistence_status(
     return clarified
 
 
+def apply_weekly_advisory_persistence_status(
+    *,
+    requirement: dict[str, Any],
+    post_evidence_persistence: dict[str, Any] | None,
+    validation_status: Any,
+) -> dict[str, Any]:
+    """Clarify weekly persistence proof with current DB state during an active window."""
+
+    post_evidence = dict(post_evidence_persistence or {})
+    weekly = dict(post_evidence.get("auto_advisor_weekly_report") or {})
+    if validation_status == "accepted" or weekly.get("status") != "ok":
+        return requirement
+
+    records = [record for record in weekly.get("records") or [] if isinstance(record, dict)]
+    ok_account_count = _parse_optional_positive_int(weekly.get("ok_account_count")) or 0
+    account_count = _parse_optional_positive_int(weekly.get("account_count")) or len(records)
+    resolved = dict(requirement)
+    resolved.update(
+        {
+            "status": "resolved_after_evidence",
+            "source": "post_evidence_database",
+            "record_count": max(int(resolved.get("record_count") or 0), 1),
+            "ok_record_count": max(int(resolved.get("ok_record_count") or 0), 1),
+            "missing_record_count": 0,
+            "warning_record_count": 0,
+            "account_count": account_count,
+            "ok_account_count": ok_account_count,
+            "missing_account_count": int(weekly.get("missing_account_count") or 0),
+            "warning_account_count": 0,
+            "historical_source": requirement.get("source"),
+            "historical_warning_record_count": requirement.get("warning_record_count"),
+            "historical_warning_account_count": requirement.get("warning_account_count"),
+            "current_database_status": "ok",
+            "current_database_ok_account_count": ok_account_count,
+            "current_database_report_count": len(records),
+            "current_database_reports": [
+                {
+                    "user_id": record.get("user_id"),
+                    "account_id": record.get("account_id"),
+                    "report_id": record.get("report_id"),
+                    "report_status": record.get("report_status"),
+                    "matched_notification_count": record.get("matched_notification_count"),
+                    "delivered_notification_count": record.get(
+                        "delivered_notification_count"
+                    ),
+                }
+                for record in records
+            ],
+            "acceptance_gate_impact": post_evidence.get("acceptance_gate_impact")
+            or "none",
+        }
+    )
+    return resolved
+
+
+def build_weekly_advisory_persistence_requirement(
+    *,
+    validation: dict[str, Any],
+    expected_record_count: int,
+    post_evidence_persistence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build weekly report persistence status for the readiness acceptance gate."""
+
+    quality = dict(validation.get("accepted_evidence_quality") or {})
+    prefix = (
+        "scheduled_weekly_report"
+        if "scheduled_weekly_report_record_count" in quality
+        else "weekly_report"
+    )
+    ok_record_count = int(quality.get(f"{prefix}_persistence_ok_record_count") or 0)
+    missing_record_count = int(quality.get(f"{prefix}_persistence_missing_record_count") or 0)
+    warning_record_count = int(quality.get(f"{prefix}_persistence_warning_record_count") or 0)
+    record_count = int(
+        quality.get(f"{prefix}_record_count")
+        or ok_record_count + missing_record_count + warning_record_count
+    )
+    ok_account_count = int(quality.get(f"{prefix}_persistence_ok_account_count") or 0)
+    missing_account_count = int(quality.get(f"{prefix}_persistence_missing_account_count") or 0)
+    warning_account_count = int(quality.get(f"{prefix}_persistence_warning_account_count") or 0)
+    account_count = int(
+        quality.get(f"{prefix}_account_count")
+        or ok_account_count + missing_account_count + warning_account_count
+    )
+    payload = {
+        "ok": True,
+        "status": "pending_window",
+        "required_when": "evidence_window_accepted",
+        "source": "scheduled_weekly_records" if prefix.startswith("scheduled_") else "all_records",
+        "record_count": record_count,
+        "expected_record_count": expected_record_count,
+        "ok_record_count": ok_record_count,
+        "account_count": account_count,
+        "ok_account_count": ok_account_count,
+        "missing_record_count": missing_record_count,
+        "warning_record_count": warning_record_count,
+        "missing_account_count": missing_account_count,
+        "warning_account_count": warning_account_count,
+    }
+    resolved = apply_weekly_advisory_persistence_status(
+        requirement=payload,
+        post_evidence_persistence=post_evidence_persistence,
+        validation_status=validation.get("status"),
+    )
+    if resolved is not payload or validation.get("status") != "accepted":
+        return resolved
+    payload["status"] = (
+        "ok"
+        if record_count > 0
+        and record_count >= expected_record_count
+        and ok_record_count == record_count
+        and missing_record_count == 0
+        and warning_record_count == 0
+        and account_count > 0
+        and ok_account_count == account_count
+        and missing_account_count == 0
+        and warning_account_count == 0
+        else "missing"
+    )
+    payload["ok"] = payload["status"] == "ok"
+    return payload
+
+
 def build_post_evidence_monitor_gate(
     post_evidence_persistence: dict[str, Any] | None,
     due_status: str | None,

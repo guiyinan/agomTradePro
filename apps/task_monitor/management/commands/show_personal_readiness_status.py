@@ -597,6 +597,7 @@ def _build_acceptance_gate(
         quote_pre_readiness_scheduler=quote_pre_readiness_scheduler,
         scheduler_runtime=scheduler_runtime,
         scheduler_activity=scheduler_activity,
+        post_evidence_persistence=post_evidence_persistence,
     )
     failed_requirements = _build_failed_acceptance_requirements(requirements=requirements)
     operator_actions = _build_acceptance_operator_actions(
@@ -915,6 +916,7 @@ def _build_acceptance_requirements(
     quote_pre_readiness_scheduler: dict[str, Any],
     scheduler_runtime: dict[str, Any],
     scheduler_activity: dict[str, Any],
+    post_evidence_persistence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "evidence_window": {
@@ -1003,7 +1005,8 @@ def _build_acceptance_requirements(
             auto_advisor_weekly_scheduler=auto_advisor_weekly_scheduler,
         ),
         "auto_advisor_weekly_persistence": _build_auto_advisor_weekly_persistence_requirement(
-            validation=validation
+            validation=validation,
+            post_evidence_persistence=post_evidence_persistence,
         ),
     }
 
@@ -1370,64 +1373,17 @@ def _build_workspace_core_formal_evidence_requirement(
 def _build_auto_advisor_weekly_persistence_requirement(
     *,
     validation: dict[str, Any],
+    post_evidence_persistence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    quality = dict(validation.get("accepted_evidence_quality") or {})
     window_start_date, window_end_date = _resolve_accepted_window_dates(validation=validation)
-    expected_record_count = status_services.count_weekly_schedule_dates(
-        start_date=window_start_date,
-        end_date=window_end_date,
+    return readiness_persistence_status.build_weekly_advisory_persistence_requirement(
+        validation=validation,
+        expected_record_count=status_services.count_weekly_schedule_dates(
+            start_date=window_start_date,
+            end_date=window_end_date,
+        ),
+        post_evidence_persistence=post_evidence_persistence,
     )
-    prefix = (
-        "scheduled_weekly_report"
-        if "scheduled_weekly_report_record_count" in quality
-        else "weekly_report"
-    )
-    ok_record_count = int(quality.get(f"{prefix}_persistence_ok_record_count") or 0)
-    missing_record_count = int(quality.get(f"{prefix}_persistence_missing_record_count") or 0)
-    warning_record_count = int(quality.get(f"{prefix}_persistence_warning_record_count") or 0)
-    record_count = int(
-        quality.get(f"{prefix}_record_count")
-        or ok_record_count + missing_record_count + warning_record_count
-    )
-    ok_account_count = int(quality.get(f"{prefix}_persistence_ok_account_count") or 0)
-    missing_account_count = int(quality.get(f"{prefix}_persistence_missing_account_count") or 0)
-    warning_account_count = int(quality.get(f"{prefix}_persistence_warning_account_count") or 0)
-    account_count = int(
-        quality.get(f"{prefix}_account_count")
-        or ok_account_count + missing_account_count + warning_account_count
-    )
-    payload = {
-        "ok": True,
-        "status": "pending_window",
-        "required_when": "evidence_window_accepted",
-        "source": "scheduled_weekly_records" if prefix.startswith("scheduled_") else "all_records",
-        "record_count": record_count,
-        "expected_record_count": expected_record_count,
-        "ok_record_count": ok_record_count,
-        "account_count": account_count,
-        "ok_account_count": ok_account_count,
-        "missing_record_count": missing_record_count,
-        "warning_record_count": warning_record_count,
-        "missing_account_count": missing_account_count,
-        "warning_account_count": warning_account_count,
-    }
-    if validation.get("status") != "accepted":
-        return payload
-    payload["status"] = (
-        "ok"
-        if record_count > 0
-        and record_count >= expected_record_count
-        and ok_record_count == record_count
-        and missing_record_count == 0
-        and warning_record_count == 0
-        and account_count > 0
-        and ok_account_count == account_count
-        and missing_account_count == 0
-        and warning_account_count == 0
-        else "missing"
-    )
-    payload["ok"] = payload["status"] == "ok"
-    return payload
 
 
 def _parse_optional_positive_int(value: Any) -> int | None:
