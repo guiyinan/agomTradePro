@@ -27,13 +27,17 @@ def append_component_provenance(
             continue
         fact = latest[0]
         extra = dict(fact.extra or {})
+        proxy = extra.get("proxy")
+        verification_status = extra.get("verification_status")
+        if proxy and not verification_status:
+            verification_status = "proxy_source"
         item = {
             "component_key": component.get("component_key"),
             "indicator_code": indicator_code,
             "reporting_period": fact.reporting_period.isoformat(),
             "source": fact.source,
-            "proxy": extra.get("proxy"),
-            "verification_status": extra.get("verification_status"),
+            "proxy": proxy,
+            "verification_status": verification_status,
             "source_url": extra.get("source_url"),
         }
         provenance.append(item)

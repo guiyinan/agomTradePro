@@ -371,13 +371,14 @@ function Write-MonitorSummary {
         }
         $proxyAuditCount = @($proxyAudit).Count
         $fallbackProxyCount = @($proxyAudit | Where-Object { $_.Verification -eq "fallback_proxy" }).Count
+        $proxySourceCount = @($proxyAudit | Where-Object { $_.Verification -eq "proxy_source" }).Count
         $unmarkedProxyCount = @($proxyAudit | Where-Object { $_.Verification -eq "unmarked_proxy" }).Count
         $proxyAuditSummary = @($proxyAudit | ForEach-Object {
             $_.Component + ":" + $_.Proxy + "@" + $_.Source + "/" + $_.Verification
         }) -join ","
         Write-Host ("Decision data:          source=" + $decisionDataSource + " status=" + $decisionData.status + " readiness=" + $decisionData.readiness_status + " mt=" + $marketThermometer.status + " mt_date=" + $marketThermometer.observed_at + " mt_source=" + $marketThermometer.data_source + " stale=" + $staleComponents + " missing=" + $missingComponents + " proxy=" + $proxyComponents + " must_not_use=" + $decisionData.must_not_use_for_decision)
         if ($proxyAuditCount -gt 0) {
-            Write-Host ("MT proxy audit:         count=" + $proxyAuditCount + " fallback=" + $fallbackProxyCount + " unmarked=" + $unmarkedProxyCount + " components=" + $proxyAuditSummary)
+            Write-Host ("MT proxy audit:         count=" + $proxyAuditCount + " fallback=" + $fallbackProxyCount + " proxy_source=" + $proxySourceCount + " unmarked=" + $unmarkedProxyCount + " components=" + $proxyAuditSummary)
         }
         $staleKeys = @($marketThermometer.stale_components)
         $missingKeys = @($marketThermometer.missing_components)

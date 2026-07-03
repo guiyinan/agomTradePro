@@ -742,7 +742,7 @@ def test_build_current_payload_applies_user_override_band():
             "reporting_period": "2026-05-31",
             "source": "akshare",
             "proxy": "sse_monthly_all_account_openings",
-            "verification_status": None,
+            "verification_status": "proxy_source",
             "source_url": None,
         }
     ]
