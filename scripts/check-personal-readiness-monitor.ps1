@@ -317,6 +317,9 @@ function Write-MonitorSummary {
         if (-not $postWeeklyDue) {
             $postWeeklyDue = $postWeekly.next_scheduled_for
         }
+        if (-not $postWeeklyDue) {
+            $postWeeklyDue = "not_pending"
+        }
         Write-Host ("Post-evidence DB:       status=" + $postPersistence.status + " risk=" + $postRisk.status + " risk_reports=" + @($postRisk.records).Count + " weekly=" + $postWeekly.status + " weekly_reports=" + @($postWeekly.records).Count + " weekly_due=" + $postWeeklyDue + " impact=" + $postPersistence.acceptance_gate_impact)
     }
     Write-Host ("Next required date:     " + $acceptance.next_required_date)
