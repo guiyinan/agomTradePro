@@ -61,11 +61,14 @@ celery -A core inspect ping
 | Time | Task | Description |
 |------|------|-------------|
 | 08:00 | `sync_and_calculate_regime` | Daily macro data sync + regime calculation |
+| 15:35 | `decision-quote-pre-readiness-refresh` | Refresh decision-grade quotes before personal readiness evidence |
+| 16:10 | `personal-readiness-daily-evidence` | Generate scheduler-sourced personal readiness evidence |
 | 16:30 | `sync_high_frequency_bonds` | Bond market data sync |
 | 16:35 | `sync_high_frequency_commodities` | Commodity data sync |
 | 17:00 | `generate_daily_regime_signal` | Generate daily regime signal |
 | 17:05 | `recalculate_regime_with_daily_signal` | Recalculate regime |
 | 17:30 | `qlib_daily_inference` | Alpha AI inference |
+| Fri 17:30 | `dashboard-auto-advisor-weekly-report` | Persist personal auto-advisor weekly reports |
 
 ### Manual Verification
 
