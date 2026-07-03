@@ -1123,6 +1123,18 @@ def _append_degradation_observations(
             observation["current_status"] = current_resolution
         observations.append(observation)
 
+    proxy_components = list(thermometer.get("proxy_components") or [])
+    if proxy_components:
+        observations.append(
+            {
+                "component": "decision_data.market_thermometer_proxy",
+                "status": "audited_proxy",
+                "reason": _format_market_thermometer_proxy_reason(proxy_components),
+                "proxy_component_count": len(proxy_components),
+                "proxy_components": proxy_components,
+            }
+        )
+
     skipped_latest = dict(decision_data.get("skipped_latest_market_thermometer") or {})
     if skipped_latest:
         observation = {
@@ -1140,6 +1152,19 @@ def _append_degradation_observations(
         if current_resolution:
             observation["current_status"] = current_resolution
         observations.append(observation)
+
+
+def _format_market_thermometer_proxy_reason(
+    proxy_components: list[dict[str, Any]],
+) -> str:
+    parts = []
+    for component in proxy_components:
+        component_key = component.get("component_key") or component.get("indicator_code") or "-"
+        proxy = component.get("proxy") or "proxy"
+        source = component.get("source") or "-"
+        verification = component.get("verification_status") or "unmarked_proxy"
+        parts.append(f"{component_key}:{proxy}@{source}/{verification}")
+    return "market thermometer uses audited proxy component(s): " + "; ".join(parts)
 
 
 def _resolve_next_action(

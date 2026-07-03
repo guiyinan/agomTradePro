@@ -555,6 +555,16 @@ def test_inspect_personal_readiness_evidence_reports_degradation_observations(
                             "market_thermometer": {
                                 "data_source": "degraded",
                                 "stale_components": ["etf_net_flow"],
+                                "proxy_components": [
+                                    {
+                                        "component_key": "etf_net_flow",
+                                        "indicator_code": "CN_A_ETF_NET_FLOW",
+                                        "reporting_period": "2026-07-01",
+                                        "source": "data_center_consensus",
+                                        "proxy": "tushare_etf_share_size_delta",
+                                        "verification_status": "fallback_proxy",
+                                    }
+                                ],
                             },
                             "skipped_latest_market_thermometer": {
                                 "observed_at": "2026-07-01",
@@ -624,6 +634,11 @@ def test_inspect_personal_readiness_evidence_reports_degradation_observations(
     assert "skipped 3" in observations["workspace.rotation_signals"]["reason"]
     assert observations["decision_data.market_thermometer"]["status"] == "degraded"
     assert "etf_net_flow" in observations["decision_data.market_thermometer"]["reason"]
+    proxy_observation = observations["decision_data.market_thermometer_proxy"]
+    assert proxy_observation["status"] == "audited_proxy"
+    assert proxy_observation["proxy_component_count"] == 1
+    assert "etf_net_flow:tushare_etf_share_size_delta" in proxy_observation["reason"]
+    assert proxy_observation["proxy_components"][0]["verification_status"] == "fallback_proxy"
     assert observations["decision_data.skipped_latest_market_thermometer"]["status"] == "blocked"
     assert "2026-07-01" in observations["decision_data.skipped_latest_market_thermometer"]["reason"]
     assert payload["follow_up_actions"] == [
