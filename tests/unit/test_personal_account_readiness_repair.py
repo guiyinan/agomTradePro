@@ -47,6 +47,7 @@ def test_repair_personal_account_readiness_dry_run_reports_missing_simulated_acc
     assert payload["status"] == "action_required"
     assert payload["results"][0]["status"] == "would_create"
     assert payload["results"][0]["zero_equity_account_ids"] == [101]
+    assert payload["results"][0]["zero_equity_status"] == "blocking_no_positive_equity"
 
 
 def test_repair_personal_account_readiness_creates_default_simulated_account(
@@ -132,6 +133,8 @@ def test_repair_personal_account_readiness_skips_when_positive_equity_exists(
 
     assert payload["status"] == "ok"
     assert payload["results"][0]["decision_ready_account_ids"] == [102]
+    assert payload["results"][0]["zero_equity_account_ids"] == [101]
+    assert payload["results"][0]["zero_equity_status"] == "non_blocking_placeholder"
 
 
 def test_parse_capital_rejects_non_positive_values():

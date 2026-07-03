@@ -64,11 +64,15 @@ class Command(BaseCommand):
         )
         for result in payload["results"]:
             self.stdout.write(
-                "  user={user_id} status={status} ready={ready} zero={zero} created={created}".format(
+                (
+                    "  user={user_id} status={status} ready={ready} zero={zero} "
+                    "zero_status={zero_status} created={created}"
+                ).format(
                     user_id=result["user_id"],
                     status=result["status"],
                     ready=result["decision_ready_account_ids"],
                     zero=result["zero_equity_account_ids"],
+                    zero_status=result["zero_equity_status"],
                     created=result["created_account_id"],
                 )
             )

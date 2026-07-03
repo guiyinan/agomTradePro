@@ -36,6 +36,7 @@ class AccountReadinessRepairResult:
     status: str
     decision_ready_account_ids: list[int]
     zero_equity_account_ids: list[int]
+    zero_equity_status: str
     created_account_id: int | None = None
     message: str = ""
 
@@ -45,6 +46,7 @@ class AccountReadinessRepairResult:
             "status": self.status,
             "decision_ready_account_ids": self.decision_ready_account_ids,
             "zero_equity_account_ids": self.zero_equity_account_ids,
+            "zero_equity_status": self.zero_equity_status,
             "created_account_id": self.created_account_id,
             "message": self.message,
         }
@@ -113,6 +115,10 @@ def _repair_user_account_readiness(
             status="ok",
             decision_ready_account_ids=decision_ready_ids,
             zero_equity_account_ids=zero_equity_ids,
+            zero_equity_status=_zero_equity_status(
+                decision_ready_ids=decision_ready_ids,
+                zero_equity_ids=zero_equity_ids,
+            ),
             message="decision_ready_account_exists",
         )
 
@@ -123,6 +129,10 @@ def _repair_user_account_readiness(
             status="error",
             decision_ready_account_ids=[],
             zero_equity_account_ids=zero_equity_ids,
+            zero_equity_status=_zero_equity_status(
+                decision_ready_ids=[],
+                zero_equity_ids=zero_equity_ids,
+            ),
             message="user_not_found",
         )
 
@@ -132,6 +142,10 @@ def _repair_user_account_readiness(
             status="would_create",
             decision_ready_account_ids=[],
             zero_equity_account_ids=zero_equity_ids,
+            zero_equity_status=_zero_equity_status(
+                decision_ready_ids=[],
+                zero_equity_ids=zero_equity_ids,
+            ),
             message="would_create_default_simulated_account",
         )
 
@@ -146,6 +160,10 @@ def _repair_user_account_readiness(
         status="created",
         decision_ready_account_ids=[int(created.id)],
         zero_equity_account_ids=zero_equity_ids,
+        zero_equity_status=_zero_equity_status(
+            decision_ready_ids=[int(created.id)],
+            zero_equity_ids=zero_equity_ids,
+        ),
         created_account_id=int(created.id),
         message="created_default_simulated_account",
     )
@@ -164,6 +182,18 @@ def _rollup_status(statuses: list[str]) -> str:
     if statuses and all(status == "ok" for status in statuses):
         return "ok"
     return "skipped"
+
+
+def _zero_equity_status(
+    *,
+    decision_ready_ids: list[int],
+    zero_equity_ids: list[int],
+) -> str:
+    if not zero_equity_ids:
+        return "none"
+    if decision_ready_ids:
+        return "non_blocking_placeholder"
+    return "blocking_no_positive_equity"
 
 
 def _float_or_zero(value: Any) -> float:
