@@ -55,17 +55,17 @@ def test_get_runserver_log_path_creates_timestamped_file_under_project_logs(tmp_
 
 def test_get_celery_worker_log_path_uses_project_logs_directory(tmp_path: Path) -> None:
     """Celery worker logs should be written to the local logs directory."""
-    log_path = get_celery_worker_log_path(tmp_path)
+    log_path = get_celery_worker_log_path(tmp_path, pid=12345)
 
-    assert log_path == tmp_path / "logs" / "celery-worker.log"
+    assert log_path == tmp_path / "logs" / "celery-worker-12345.log"
     assert log_path.parent.is_dir()
 
 
 def test_get_celery_beat_log_path_uses_project_logs_directory(tmp_path: Path) -> None:
     """Celery beat logs should be written to the local logs directory."""
-    log_path = get_celery_beat_log_path(tmp_path)
+    log_path = get_celery_beat_log_path(tmp_path, pid=12345)
 
-    assert log_path == tmp_path / "logs" / "celery-beat.log"
+    assert log_path == tmp_path / "logs" / "celery-beat-12345.log"
     assert log_path.parent.is_dir()
 
 

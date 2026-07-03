@@ -16,8 +16,8 @@ DEFAULT_DEVELOPMENT_LOG_MAX_MB = 20
 DEFAULT_DEVELOPMENT_LOG_BACKUP_COUNT = 5
 DEFAULT_CELERY_LOG_MAX_MB = 20
 DEFAULT_CELERY_LOG_BACKUP_COUNT = 5
-CELERY_WORKER_LOG_FILE_NAME = "celery-worker.log"
-CELERY_BEAT_LOG_FILE_NAME = "celery-beat.log"
+CELERY_WORKER_LOG_FILE_PREFIX = "celery-worker"
+CELERY_BEAT_LOG_FILE_PREFIX = "celery-beat"
 
 
 def get_or_create_runserver_log_timestamp(
@@ -113,11 +113,23 @@ def get_runserver_log_path(
     return get_project_log_dir(base_dir) / f"django-dev-{timestamp}.log"
 
 
-def get_celery_worker_log_path(base_dir: str | Path) -> Path:
-    """Build the project-local Celery worker log path."""
-    return get_project_log_dir(base_dir) / CELERY_WORKER_LOG_FILE_NAME
+def _get_process_log_file_name(prefix: str, pid: int | None = None) -> str:
+    """Build a process-isolated log file name for non-shared rotating handlers."""
+    process_id = pid if pid is not None else os.getpid()
+    return f"{prefix}-{process_id}.log"
 
 
-def get_celery_beat_log_path(base_dir: str | Path) -> Path:
-    """Build the project-local Celery beat log path."""
-    return get_project_log_dir(base_dir) / CELERY_BEAT_LOG_FILE_NAME
+def get_celery_worker_log_path(base_dir: str | Path, pid: int | None = None) -> Path:
+    """Build a process-local Celery worker log path safe for Windows rotation."""
+    return get_project_log_dir(base_dir) / _get_process_log_file_name(
+        CELERY_WORKER_LOG_FILE_PREFIX,
+        pid=pid,
+    )
+
+
+def get_celery_beat_log_path(base_dir: str | Path, pid: int | None = None) -> Path:
+    """Build a process-local Celery beat log path safe for Windows rotation."""
+    return get_project_log_dir(base_dir) / _get_process_log_file_name(
+        CELERY_BEAT_LOG_FILE_PREFIX,
+        pid=pid,
+    )
