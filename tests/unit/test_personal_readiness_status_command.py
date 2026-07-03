@@ -215,6 +215,25 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                             "stale_indicator_count": 0,
                             "data_source": "calculated",
                         },
+                        "alpha_workspace_consistency": {
+                            "status": "ok",
+                            "checked_account_id": "default",
+                            "issues": [],
+                            "alpha": {
+                                "latest_trade_date": "2026-06-30",
+                                "latest_updated_at": "2026-06-30T17:30:00+08:00",
+                                "provider_source": "qlib",
+                                "status": "available",
+                                "top_codes": ["510300.SH", "159915.SZ"],
+                            },
+                            "workspace": {
+                                "account_id": "default",
+                                "latest_updated_at": "2026-06-30T17:35:00+08:00",
+                                "recommendation_codes": ["510300.SH"],
+                                "source_candidate_ids": ["a", "b", "c"],
+                                "total_count": 12,
+                            },
+                        },
                     }
                 },
                 "workspace": {
@@ -415,6 +434,25 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
             "skipped": 0,
             "failed": 0,
         }
+    }
+    assert payload["latest_evidence"]["summary"]["alpha_workspace_consistency"] == {
+        "status": "ok",
+        "checked_account_id": "default",
+        "issue_codes": [],
+        "alpha": {
+            "latest_trade_date": "2026-06-30",
+            "latest_updated_at": "2026-06-30T17:30:00+08:00",
+            "provider_source": "qlib",
+            "status": "available",
+            "top_codes": ["510300.SH", "159915.SZ"],
+        },
+        "workspace": {
+            "account_id": "default",
+            "latest_updated_at": "2026-06-30T17:35:00+08:00",
+            "recommendation_codes": ["510300.SH"],
+            "source_candidate_id_count": 3,
+            "total_count": 12,
+        },
     }
     assert payload["latest_formal_evidence"]["target_date"] == "2026-06-30"
     assert payload["acceptance_gate"]["status"] == "in_progress"

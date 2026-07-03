@@ -130,6 +130,9 @@ function Write-MonitorSummary {
         $macroContextSource = "evidence"
     }
     $workspaceComponents = $latestFormal.summary.workspace_components
+    $alphaWorkspace = $latestFormal.summary.alpha_workspace_consistency
+    $alphaLive = $alphaWorkspace.alpha
+    $workspaceLive = $alphaWorkspace.workspace
     $macroSync = $workspaceComponents.macro_sync
     $regimeSnapshot = $workspaceComponents.regime_snapshot
     $pulseSnapshot = $workspaceComponents.pulse_snapshot
@@ -344,6 +347,9 @@ function Write-MonitorSummary {
     }
     if ($alphaProof) {
         Write-Host ("Alpha workspace proof:  status=" + $alphaProof.status + " records=" + $alphaProof.alpha_workspace_record_count + " ok=" + $alphaProof.ok_record_count + " missing=" + $alphaProof.missing_record_count)
+    }
+    if ($alphaWorkspace) {
+        Write-Host ("Alpha live:             status=" + $alphaWorkspace.status + " provider=" + $alphaLive.provider_source + " alpha_trade_date=" + $alphaLive.latest_trade_date + " alpha_updated=" + $alphaLive.latest_updated_at + " workspace_updated=" + $workspaceLive.latest_updated_at + " candidates=" + $workspaceLive.source_candidate_id_count + " recommendations=" + $workspaceLive.total_count + " issues=" + ((@($alphaWorkspace.issue_codes)) -join ","))
     }
     if ($workspaceComponents) {
         Write-Host ("Workspace components:   macro=" + $macroSync.status + " synced=" + $macroSync.synced_count + " skipped=" + $macroSync.skipped_count + " errors=" + $macroSync.error_count + " regime=" + $regimeSnapshot.status + " pulse=" + $pulseSnapshot.status + " action=" + $actionRecommendation.status)
