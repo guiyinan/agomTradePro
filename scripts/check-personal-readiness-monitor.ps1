@@ -409,8 +409,8 @@ function Write-MonitorSummary {
     Write-Host ("Scheduled for:          " + $schedule.scheduled_for + " due_status=" + $schedule.due_status)
     Write-Host ("Runtime:                " + $runtime.status + " beat=" + $runtime.beat_process_count + " workers=" + $runtime.worker_process_count + " queues=" + (($runtime.covered_queues | Sort-Object) -join ","))
     Write-Host ("Task registry:          " + $runtime.registered_tasks_status + " missing=" + (($runtime.missing_registered_tasks | Sort-Object) -join ","))
-    Write-Host ("Projected evidence completion:  " + $acceptance.projected_completion_date)
-    Write-Host ("Projected scheduler completion: " + $acceptance.projected_scheduler_completion_date)
+    Write-Host ("Projected evidence completion:  " + $acceptance.projected_completion_date + " remaining_days_from_today=" + $acceptance.projected_remaining_calendar_days_from_today)
+    Write-Host ("Projected scheduler completion: " + $acceptance.projected_scheduler_completion_date + " remaining_days_from_today=" + $acceptance.projected_scheduler_remaining_calendar_days_from_today)
 
     if ($gate.command) {
         Write-Host ("Action command:         " + $gate.command) -ForegroundColor Yellow

@@ -1003,6 +1003,7 @@ Continuous window detail:
 | Monitor status-date visibility follow-up | The one-screen monitor now prints `Status date`, `latest_closed`, and `expected_latest` near the top of the summary. The live read-only summary remains green and reports all three as `2026-07-03`, making it clear which closed trading day anchors the current wait state. |
 | Evidence manifest monitor visibility follow-up | The one-screen monitor now prints the accepted evidence manifest record count, SHA-256, and counted target dates. The live read-only summary remains green and reports `records=4`, manifest SHA-256 `2417bd2d161d682937c4f5602ae7053e812d401f90de1c2159fd12033e5ca161`, and dates `2026-06-30` through `2026-07-03`. |
 | Failed-gate action monitor follow-up | The one-screen monitor now prints compressed `acceptance_gate.operator_actions` next to failed final gates. The live read-only summary remains green and reports `evidence_window wait_for_post_close target=2026-07-06 next=2026-07-06T16:10:00+08:00`, making the required operator posture explicit without opening JSON. |
+| Projected remaining-days monitor follow-up | The one-screen monitor now prints `remaining_days_from_today` beside both projected completion dates. The live read-only summary remains green and reports evidence completion `2026-07-27 remaining_days_from_today=24` and scheduler-clean completion `2026-07-28 remaining_days_from_today=25`. |
 
 ## Yellow Items
 
