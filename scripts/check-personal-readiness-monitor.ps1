@@ -111,6 +111,11 @@ function Write-MonitorSummary {
     $quotePreRunMetadata = $quotePre.run_metadata
     $quotePreExpectation = $quotePre.schedule_expectation
     $quotePreActivity = $acceptance.requirements.quote_pre_readiness_activity
+    $qlibProof = $acceptance.requirements.qlib_formal_evidence
+    $workspaceProof = $acceptance.requirements.workspace_core_formal_evidence
+    $alphaProof = $acceptance.requirements.alpha_workspace_formal_evidence
+    $decisionDataProof = $acceptance.requirements.decision_data_formal_evidence
+    $quoteFreshnessProof = $acceptance.requirements.decision_quote_freshness_formal_evidence
     $riskProof = $acceptance.requirements.risk_center_formal_evidence
     $weeklyProof = $acceptance.requirements.auto_advisor_weekly_persistence
     $schedulerActivity = $acceptance.requirements.scheduler_activity
@@ -243,6 +248,21 @@ function Write-MonitorSummary {
     }
     if ($quotePreActivity) {
         Write-Host ("Quote pre-proof:        status=" + $quotePreActivity.status + " ok_records=" + $quotePreActivity.formal_quote_pre_readiness_scheduler_ok_record_count + " missing=" + $quotePreActivity.formal_quote_pre_readiness_scheduler_missing_record_count + " blocked=" + $quotePreActivity.formal_quote_pre_readiness_scheduler_blocked_record_count)
+    }
+    if ($qlibProof) {
+        Write-Host ("Qlib proof:             status=" + $qlibProof.status + " records=" + $qlibProof.qlib_record_count + " ok=" + $qlibProof.ok_record_count + " missing=" + $qlibProof.missing_record_count + " blocked=" + $qlibProof.blocked_record_count)
+    }
+    if ($workspaceProof) {
+        Write-Host ("Workspace proof:        status=" + $workspaceProof.status + " records=" + $workspaceProof.workspace_core_record_count + " ok=" + $workspaceProof.ok_record_count + " missing=" + $workspaceProof.missing_record_count)
+    }
+    if ($alphaProof) {
+        Write-Host ("Alpha workspace proof:  status=" + $alphaProof.status + " records=" + $alphaProof.alpha_workspace_record_count + " ok=" + $alphaProof.ok_record_count + " missing=" + $alphaProof.missing_record_count)
+    }
+    if ($decisionDataProof) {
+        Write-Host ("Decision data proof:    status=" + $decisionDataProof.status + " records=" + $decisionDataProof.decision_data_record_count + " ok=" + $decisionDataProof.ok_record_count + " missing=" + $decisionDataProof.missing_record_count + " blocked=" + $decisionDataProof.blocked_record_count)
+    }
+    if ($quoteFreshnessProof) {
+        Write-Host ("Quote freshness proof:  status=" + $quoteFreshnessProof.status + " records=" + $quoteFreshnessProof.quote_freshness_record_count + " ok=" + $quoteFreshnessProof.ok_record_count + " missing=" + $quoteFreshnessProof.missing_record_count + " stale=" + $quoteFreshnessProof.stale_record_count + " blocked=" + $quoteFreshnessProof.blocked_record_count)
     }
     if ($decisionData) {
         $staleDetails = @($marketThermometer.stale_component_details) | ForEach-Object {
