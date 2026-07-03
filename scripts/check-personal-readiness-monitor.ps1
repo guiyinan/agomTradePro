@@ -260,6 +260,7 @@ function Write-MonitorSummary {
     Write-Host " Personal Readiness Monitor Summary" -ForegroundColor Cyan
     Write-Host "=======================================" -ForegroundColor Cyan
     Write-Host ("Status:                 " + $Payload.status)
+    Write-Host ("Status date:            " + $Payload.status_date + " latest_closed=" + $Payload.latest_closed_date + " expected_latest=" + $Payload.expected_latest_date)
     Write-Host ("Monitor gate:           ok=" + $gate.ok + " state=" + $gate.state)
     Write-Host ("Accepted window:        " + $acceptance.accepted_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.remaining_days)
     Write-Host ("Scheduler-clean window: " + $acceptance.scheduler_clean_suffix_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.scheduler_clean_remaining_days)
