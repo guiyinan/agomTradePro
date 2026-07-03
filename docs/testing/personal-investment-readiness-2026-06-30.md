@@ -348,7 +348,9 @@ Scheduled execution:
 | --- | --- |
 | Celery task | `apps.task_monitor.application.tasks.run_personal_readiness_daily_task` |
 | Periodic task | `personal-readiness-daily-evidence` |
-| Default schedule | `mon-fri 16:10 Asia/Shanghai` |
+| Quote pre-refresh task | `decision-quote-pre-readiness-refresh` at `mon-fri 15:35 Asia/Shanghai` |
+| Daily evidence task | `personal-readiness-daily-evidence` at `mon-fri 16:10 Asia/Shanghai` |
+| Weekly auto-advisor task | `dashboard-auto-advisor-weekly-report` at `fri 17:30 Asia/Shanghai` |
 | Default calendar source | `auto` (`qlib` when local calendar coverage is available) |
 | Scheduler calendar source safety | scheduled kwargs must keep `calendar_source=auto`; setup repair restores it |
 | Scheduler main-chain safety | scheduled kwargs must keep workspace refresh and weekly advisor enabled, with Qlib staleness threshold no looser than 5 days |
