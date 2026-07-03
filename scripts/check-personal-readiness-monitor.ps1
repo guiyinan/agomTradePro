@@ -236,6 +236,7 @@ function Write-MonitorSummary {
     Write-Host ("Monitor gate:           ok=" + $gate.ok + " state=" + $gate.state)
     Write-Host ("Accepted window:        " + $acceptance.accepted_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.remaining_days)
     Write-Host ("Scheduler-clean window: " + $acceptance.scheduler_clean_suffix_days + "/" + $acceptance.required_days + " remaining=" + $acceptance.scheduler_clean_remaining_days)
+    Write-Host ("Failed final gates:     " + ((@($acceptance.failed_requirements) | ForEach-Object { [string]$_.name }) -join ","))
     Write-Host ("Latest formal evidence: " + $latestFormal.target_date + " source=" + $latestFormal.trigger_source + " task=" + $latestFormal.trigger_task_name)
     Write-Host ("Scheduler runs:         count=" + $runMetadata.total_run_count + " last_run_at=" + $runMetadata.last_run_at)
     if ($schedulerActivity) {
@@ -339,6 +340,7 @@ function Write-MonitorSummary {
     Write-Host ("Scheduled for:          " + $schedule.scheduled_for + " due_status=" + $schedule.due_status)
     Write-Host ("Runtime:                " + $runtime.status + " beat=" + $runtime.beat_process_count + " workers=" + $runtime.worker_process_count + " queues=" + (($runtime.covered_queues | Sort-Object) -join ","))
     Write-Host ("Task registry:          " + $runtime.registered_tasks_status + " missing=" + (($runtime.missing_registered_tasks | Sort-Object) -join ","))
+    Write-Host ("Projected evidence completion:  " + $acceptance.projected_completion_date)
     Write-Host ("Projected scheduler completion: " + $acceptance.projected_scheduler_completion_date)
 
     if ($gate.command) {
