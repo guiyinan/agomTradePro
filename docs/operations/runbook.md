@@ -76,6 +76,11 @@ celery -A core inspect ping
 
 ### Manual Verification
 
+Daily browser check:
+
+- Use `/ops/task-monitor/readiness/` for the lightweight 20-trading-day readiness monitor. This page only loads the monitor payload and readiness schedule controls, so it is the preferred daily VPS entry on memory-constrained hosts.
+- Use `/ops/task-monitor/` only when you need the full PeriodicTask catalog, Celery inspect output, and recent failure list.
+
 ```bash
 # Personal readiness monitor, read-only; does not generate evidence
 powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly

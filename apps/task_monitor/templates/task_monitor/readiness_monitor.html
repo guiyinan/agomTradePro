@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}AgomTradePro - {{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+.readiness-monitor {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 0 40px;
+}
+
+.readiness-monitor__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.readiness-monitor__title h1 {
+    margin: 0 0 8px 0;
+    font-size: 28px;
+}
+
+.readiness-monitor__title p {
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+
+.readiness-monitor__actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.readiness-monitor__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr);
+    gap: 16px;
+}
+
+.readiness-monitor__panel {
+    background: var(--color-card-bg, #fff);
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
+    padding: 18px;
+}
+
+.readiness-monitor__panel h2 {
+    margin: 0 0 14px 0;
+    font-size: 18px;
+}
+
+.readiness-monitor__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.readiness-monitor__badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #eef2f7;
+    color: #4a5568;
+}
+
+.readiness-monitor__badge-ok {
+    background: #e8f7ee;
+    color: #217346;
+}
+
+.readiness-monitor__badge-warn {
+    background: #fff3dd;
+    color: #9a6220;
+}
+
+.readiness-monitor__badge-danger {
+    background: #fdecec;
+    color: #b42318;
+}
+
+.readiness-monitor__message {
+    margin: 8px 0 0;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.readiness-monitor__metric-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.readiness-monitor__metric {
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.readiness-monitor__label {
+    display: block;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.readiness-monitor__metric strong {
+    display: block;
+    font-size: 18px;
+}
+
+.readiness-monitor__progress {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.readiness-monitor__progress progress {
+    width: 100%;
+    height: 12px;
+}
+
+.readiness-monitor__subtle {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.readiness-monitor__lines {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.readiness-monitor__actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.readiness-monitor__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.readiness-monitor__form {
+    display: grid;
+    gap: 14px;
+}
+
+.readiness-monitor__field {
+    display: grid;
+    gap: 6px;
+}
+
+.readiness-monitor__field label {
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.readiness-monitor__field input {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
+@media (max-width: 860px) {
+    .readiness-monitor__header,
+    .readiness-monitor__head {
+        flex-direction: column;
+    }
+
+    .readiness-monitor__layout,
+    .readiness-monitor__metric-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="readiness-monitor">
+    <div class="readiness-monitor__header">
+        <div class="readiness-monitor__title">
+            <h1>{{ page_title }}</h1>
+            <p>20 个交易日验收窗口</p>
+        </div>
+        <div class="readiness-monitor__actions">
+            <a href="{{ scheduler_console_url }}" class="btn btn-secondary">计划任务中心</a>
+        </div>
+    </div>
+
+    {{ readiness_monitor|json_script:"readiness-monitor-initial" }}
+
+    <div class="readiness-monitor__layout">
+        <section
+            class="readiness-monitor__panel"
+            data-readiness-monitor
+            data-endpoint="{% url 'task_monitor_pages:readiness_monitor_json' %}"
+        >
+            <div class="readiness-monitor__head">
+                <div>
+                    <span id="readiness-monitor-badge" class="readiness-monitor__badge">
+                        {{ readiness_monitor.daily_state.code }}
+                    </span>
+                    <h2 id="readiness-monitor-title">{{ readiness_monitor.daily_state.title }}</h2>
+                    <p id="readiness-monitor-message" class="readiness-monitor__message">{{ readiness_monitor.daily_state.message }}</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="readiness-monitor-refresh">刷新</button>
+            </div>
+
+            <div class="readiness-monitor__metric-row">
+                <div class="readiness-monitor__metric">
+                    <span class="readiness-monitor__label">验收进度</span>
+                    <strong><span id="readiness-monitor-accepted">{{ readiness_monitor.window.accepted_days }}</span>/<span id="readiness-monitor-required">{{ readiness_monitor.window.required_days }}</span></strong>
+                </div>
+                <div class="readiness-monitor__metric">
+                    <span class="readiness-monitor__label">下一目标日</span>
+                    <strong id="readiness-monitor-next-date">{{ readiness_monitor.window.next_required_date|default:"-" }}</strong>
+                </div>
+                <div class="readiness-monitor__metric">
+                    <span class="readiness-monitor__label">最新证据</span>
+                    <strong id="readiness-monitor-latest-evidence">{{ readiness_monitor.today.latest_evidence_target_date|default:"-" }}</strong>
+                </div>
+            </div>
+
+            <div class="readiness-monitor__progress">
+                <progress
+                    id="readiness-monitor-progress"
+                    value="{{ readiness_monitor.window.accepted_days|default:0 }}"
+                    max="{{ readiness_monitor.window.required_days|default:20 }}"
+                ></progress>
+                <div class="readiness-monitor__subtle">
+                    剩余 <span id="readiness-monitor-remaining">{{ readiness_monitor.window.remaining_days }}</span> 个交易日；
+                    预计完成 <span id="readiness-monitor-projected">{{ readiness_monitor.window.projected_completion_date|default:"-" }}</span>
+                </div>
+            </div>
+
+            <div class="readiness-monitor__lines">
+                <div class="readiness-monitor__subtle">监视器: <span id="readiness-monitor-gate">{% if readiness_monitor.monitor_gate.ok %}ok{% else %}blocked{% endif %}</span> / <span id="readiness-monitor-gate-state">{{ readiness_monitor.monitor_gate.state|default:"-" }}</span></div>
+                <div class="readiness-monitor__subtle">调度: <span id="readiness-monitor-due">{{ readiness_monitor.schedule.due_status|default:"-" }}</span> / <span id="readiness-monitor-scheduled-for">{{ readiness_monitor.schedule.scheduled_for|default:"-" }}</span></div>
+                <div class="readiness-monitor__subtle">下一检查: <span id="readiness-monitor-next-check">{{ readiness_monitor.schedule.next_check_after|default:"-" }}</span></div>
+                <div class="readiness-monitor__subtle">当前决策数据: <span id="readiness-monitor-decision">{{ readiness_monitor.decision_data.status|default:"-" }}</span></div>
+            </div>
+
+            <div class="readiness-monitor__actions-row">
+                <label class="readiness-monitor__toggle" for="readiness-monitor-strict">
+                    <input id="readiness-monitor-strict" type="checkbox">
+                    严格运行态
+                </label>
+                <span class="readiness-monitor__subtle" id="readiness-monitor-updated">页面初始状态</span>
+            </div>
+        </section>
+
+        <section class="readiness-monitor__panel">
+            <h2>收市后 Readiness 时间</h2>
+            <form method="post" class="readiness-monitor__form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="configure_readiness_schedule">
+                <div class="readiness-monitor__field">
+                    <label for="quote_pre_refresh_time">行情预刷新</label>
+                    <input
+                        id="quote_pre_refresh_time"
+                        name="quote_pre_refresh_time"
+                        type="time"
+                        min="15:01"
+                        max="23:59"
+                        value="{{ readiness_schedule.quote_pre_refresh_time }}"
+                        required
+                    >
+                    <div class="readiness-monitor__subtle">
+                        {{ readiness_schedule.quote_pre_refresh_day_of_week }}
+                        {% if readiness_schedule.quote_pre_refresh_enabled %}enabled{% else %}disabled{% endif %}
+                        {% if not readiness_schedule.quote_pre_refresh_task_exists %} | 尚未初始化{% endif %}
+                    </div>
+                </div>
+                <div class="readiness-monitor__field">
+                    <label for="daily_evidence_time">每日 readiness 证据</label>
+                    <input
+                        id="daily_evidence_time"
+                        name="daily_evidence_time"
+                        type="time"
+                        min="16:00"
+                        max="23:59"
+                        value="{{ readiness_schedule.daily_evidence_time }}"
+                        required
+                    >
+                    <div class="readiness-monitor__subtle">
+                        {{ readiness_schedule.daily_evidence_day_of_week }}
+                        {% if readiness_schedule.daily_evidence_enabled %}enabled{% else %}disabled{% endif %}
+                        {% if not readiness_schedule.daily_evidence_task_exists %} | 尚未初始化{% endif %}
+                    </div>
+                </div>
+                <div class="readiness-monitor__field">
+                    <label for="weekly_auto_advisor_time">周报自动顾问</label>
+                    <input
+                        id="weekly_auto_advisor_time"
+                        name="weekly_auto_advisor_time"
+                        type="time"
+                        min="16:01"
+                        max="23:59"
+                        value="{{ readiness_schedule.weekly_auto_advisor_time }}"
+                        required
+                    >
+                    <div class="readiness-monitor__subtle">
+                        {{ readiness_schedule.weekly_auto_advisor_day_of_week }}
+                        {% if readiness_schedule.weekly_auto_advisor_enabled %}enabled{% else %}disabled{% endif %}
+                        {% if not readiness_schedule.weekly_auto_advisor_task_exists %} | 尚未初始化{% endif %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">保存时间</button>
+            </form>
+        </section>
+    </div>
+</div>
+
+<script>
+(function () {
+    const root = document.querySelector("[data-readiness-monitor]");
+    if (!root) {
+        return;
+    }
+    const endpoint = root.dataset.endpoint;
+    const initial = JSON.parse(document.getElementById("readiness-monitor-initial").textContent);
+    const severityClasses = {
+        ok: "readiness-monitor__badge-ok",
+        warn: "readiness-monitor__badge-warn",
+        danger: "readiness-monitor__badge-danger",
+        neutral: "",
+    };
+    const text = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value === null || value === undefined || value === "" ? "-" : value;
+        }
+    };
+    const render = (payload) => {
+        const daily = payload.daily_state || {};
+        const windowData = payload.window || {};
+        const today = payload.today || {};
+        const gate = payload.monitor_gate || {};
+        const schedule = payload.schedule || {};
+        const decision = payload.decision_data || {};
+        const badge = document.getElementById("readiness-monitor-badge");
+        if (badge) {
+            badge.className = "readiness-monitor__badge " + (severityClasses[daily.severity] || "");
+            badge.textContent = daily.code || "-";
+        }
+        text("readiness-monitor-title", daily.title);
+        text("readiness-monitor-message", daily.message);
+        text("readiness-monitor-accepted", windowData.accepted_days);
+        text("readiness-monitor-required", windowData.required_days);
+        text("readiness-monitor-remaining", windowData.remaining_days);
+        text("readiness-monitor-next-date", windowData.next_required_date);
+        text("readiness-monitor-latest-evidence", today.latest_evidence_target_date);
+        text("readiness-monitor-projected", windowData.projected_completion_date);
+        text("readiness-monitor-gate", gate.ok ? "ok" : "blocked");
+        text("readiness-monitor-gate-state", gate.state);
+        text("readiness-monitor-due", schedule.due_status);
+        text("readiness-monitor-scheduled-for", schedule.scheduled_for);
+        text("readiness-monitor-next-check", schedule.next_check_after);
+        text("readiness-monitor-decision", decision.status);
+        const progress = document.getElementById("readiness-monitor-progress");
+        if (progress) {
+            progress.max = Number(windowData.required_days || 20);
+            progress.value = Number(windowData.accepted_days || 0);
+        }
+    };
+    const refresh = async () => {
+        const strict = document.getElementById("readiness-monitor-strict").checked;
+        const url = endpoint + (strict ? "?strict_runtime=1" : "");
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+        const payload = await response.json();
+        render(payload);
+        text("readiness-monitor-updated", new Date().toLocaleString());
+    };
+    render(initial);
+    document.getElementById("readiness-monitor-refresh").addEventListener("click", function () {
+        this.disabled = true;
+        refresh()
+            .catch((error) => text("readiness-monitor-updated", "刷新失败: " + error.message))
+            .finally(() => { this.disabled = false; });
+    });
+    refresh().catch((error) => text("readiness-monitor-updated", "刷新失败: " + error.message));
+})();
+</script>
+{% endblock %}

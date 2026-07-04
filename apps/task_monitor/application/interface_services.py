@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from apps.task_monitor.application.readiness_monitor_service import (
+    get_personal_readiness_monitor_placeholder,
+    get_personal_readiness_monitor_summary,
+)
 from apps.task_monitor.application.repository_provider import (
     get_celery_health_checker,
     get_scheduler_bootstrap_gateway,
     get_scheduler_configuration_gateway,
     get_scheduler_repository,
     get_task_record_repository,
-)
-from apps.task_monitor.application.readiness_monitor_service import (
-    get_personal_readiness_monitor_placeholder,
-    get_personal_readiness_monitor_summary,
 )
 from apps.task_monitor.application.use_cases import (
     BootstrapDefaultSchedulesUseCase,
@@ -43,6 +43,19 @@ def get_scheduler_console_context(*, limit: int = 100) -> dict:
         "periodic_task_admin_url": "/admin/django_celery_beat/periodictask/",
         "crontab_admin_url": "/admin/django_celery_beat/crontabschedule/",
         "task_execution_admin_url": "/admin/task_monitor/taskexecutionmodel/",
+    }
+
+
+def get_readiness_monitor_page_context() -> dict:
+    """Return lightweight template context for the readiness monitor page."""
+
+    return {
+        "page_title": "验收监视器",
+        "readiness_schedule": GetReadinessScheduleUseCase(
+            scheduler_repository=get_scheduler_repository(),
+        ).execute(),
+        "readiness_monitor": get_personal_readiness_monitor_placeholder(),
+        "scheduler_console_url": "/ops/task-monitor/",
     }
 
 

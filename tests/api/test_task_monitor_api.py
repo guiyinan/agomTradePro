@@ -314,6 +314,71 @@ def test_scheduler_console_page_renders_periodic_tasks(client, staff_user):
 
 
 @pytest.mark.django_db
+def test_readiness_monitor_page_renders_lightweight_panel(client, staff_user):
+    client.force_login(staff_user)
+
+    response = client.get("/ops/task-monitor/readiness/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "验收监视器" in content
+    assert "正在读取验收状态" in content
+    assert "readiness-monitor.json" in content
+    assert "20 个交易日验收窗口" in content
+    assert "PeriodicTask 目录" not in content
+    assert "Celery 运行态" not in content
+    assert 'name="quote_pre_refresh_time"' in content
+    assert 'name="weekly_auto_advisor_time"' in content
+
+
+@pytest.mark.django_db
+def test_readiness_monitor_page_requires_staff(client, auth_user):
+    client.force_login(auth_user)
+
+    response = client.get("/ops/task-monitor/readiness/")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_readiness_monitor_page_configure_schedule_action(client, staff_user):
+    client.force_login(staff_user)
+
+    with patch(
+        "apps.task_monitor.interface.page_views.configure_readiness_schedule",
+        return_value={
+            "executed_commands": [
+                "setup_decision_quote_refresh",
+                "setup_personal_readiness_daily",
+                "setup_auto_advisor_weekly_report",
+            ],
+            "output_lines": [],
+            "quote_pre_refresh_time": "15:35",
+            "daily_evidence_time": "16:10",
+            "weekly_auto_advisor_time": "17:30",
+        },
+    ) as mock_configure:
+        response = client.post(
+            "/ops/task-monitor/readiness/",
+            data={
+                "action": "configure_readiness_schedule",
+                "quote_pre_refresh_time": "15:35",
+                "daily_evidence_time": "16:10",
+                "weekly_auto_advisor_time": "17:30",
+            },
+            follow=False,
+        )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("/ops/task-monitor/readiness/")
+    mock_configure.assert_called_once_with(
+        quote_pre_refresh_time="15:35",
+        daily_evidence_time="16:10",
+        weekly_auto_advisor_time="17:30",
+    )
+
+
+@pytest.mark.django_db
 def test_scheduler_console_bootstrap_action_calls_initializer(client, staff_user):
     client.force_login(staff_user)
 

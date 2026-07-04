@@ -11,6 +11,7 @@ from apps.task_monitor.application.interface_services import (
     bootstrap_scheduler_defaults,
     configure_readiness_schedule,
     get_readiness_monitor_context,
+    get_readiness_monitor_page_context,
     get_scheduler_console_context,
 )
 
@@ -72,6 +73,46 @@ def scheduler_console_view(request: HttpRequest) -> HttpResponse:
     limit = max(1, min(int(request.GET.get("limit", 100) or 100), 200))
     context = get_scheduler_console_context(limit=limit)
     return render(request, "task_monitor/scheduler_console.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def readiness_monitor_page_view(request: HttpRequest) -> HttpResponse:
+    _ensure_task_monitor_access(request)
+
+    if request.method == "POST":
+        action_name = (request.POST.get("action") or "").strip()
+        if action_name == "configure_readiness_schedule":
+            try:
+                result = configure_readiness_schedule(
+                    quote_pre_refresh_time=(
+                        request.POST.get("quote_pre_refresh_time") or ""
+                    ),
+                    daily_evidence_time=(
+                        request.POST.get("daily_evidence_time") or ""
+                    ),
+                    weekly_auto_advisor_time=(
+                        request.POST.get("weekly_auto_advisor_time") or ""
+                    ),
+                )
+                messages.success(
+                    request,
+                    "Readiness 时间已保存: "
+                    f"行情预刷新 {result['quote_pre_refresh_time']}, "
+                    f"每日证据 {result['daily_evidence_time']}, "
+                    f"周报自动顾问 {result['weekly_auto_advisor_time']}",
+                )
+            except Exception as exc:
+                messages.error(request, f"保存 readiness 时间失败: {exc}")
+            return redirect(reverse("task_monitor_pages:readiness_monitor_page"))
+
+        messages.error(request, "不支持的操作。")
+        return redirect(reverse("task_monitor_pages:readiness_monitor_page"))
+
+    return render(
+        request,
+        "task_monitor/readiness_monitor.html",
+        get_readiness_monitor_page_context(),
+    )
 
 
 @require_GET
