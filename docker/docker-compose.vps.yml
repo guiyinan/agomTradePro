@@ -85,6 +85,7 @@ services:
   celery_worker:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
+    pid: "service:web"
     command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
@@ -131,6 +132,7 @@ services:
   celery_beat:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
+    pid: "service:web"
     command: ["celery", "-A", "core", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production

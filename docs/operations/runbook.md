@@ -37,6 +37,8 @@ The production web entrypoint runs lightweight cold-start configuration by defau
 
 The VPS compose stack persists `/app/var` in the `var_data` Docker volume. Keep readiness evidence under `var/readiness-evidence` so web, Celery worker, and Celery beat share the same evidence window across redeploys.
 
+The production app containers share the `web` PID namespace so `show_personal_readiness_status --strict-monitor --require-local-scheduler-runtime` can verify both Celery worker and beat processes from the web container.
+
 ### Post-Deployment Verification
 
 ```bash
