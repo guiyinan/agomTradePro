@@ -140,6 +140,13 @@
     margin-top: 16px;
 }
 
+.readiness-monitor__coverage-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
 .readiness-monitor__actions-row {
     display: flex;
     align-items: center;
@@ -188,7 +195,8 @@
     }
 
     .readiness-monitor__layout,
-    .readiness-monitor__metric-row {
+    .readiness-monitor__metric-row,
+    .readiness-monitor__coverage-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -256,6 +264,48 @@
                 <div class="readiness-monitor__subtle">调度: <span id="readiness-monitor-due">{{ readiness_monitor.schedule.due_status|default:"-" }}</span> / <span id="readiness-monitor-scheduled-for">{{ readiness_monitor.schedule.scheduled_for|default:"-" }}</span></div>
                 <div class="readiness-monitor__subtle">下一检查: <span id="readiness-monitor-next-check">{{ readiness_monitor.schedule.next_check_after|default:"-" }}</span></div>
                 <div class="readiness-monitor__subtle">当前决策数据: <span id="readiness-monitor-decision">{{ readiness_monitor.decision_data.status|default:"-" }}</span></div>
+            </div>
+
+            <div class="readiness-monitor__lines">
+                <div class="readiness-monitor__subtle">生产数据覆盖: <span id="readiness-monitor-coverage-status">{{ readiness_monitor.data_coverage.status|default:"-" }}</span> / active stock <span id="readiness-monitor-coverage-assets">{{ readiness_monitor.data_coverage.asset_count|default:0 }}</span></div>
+                <div class="readiness-monitor__coverage-grid">
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">价格</span>
+                        <strong><span id="readiness-monitor-price-covered">{{ readiness_monitor.data_coverage.domains.price.covered_count|default:0 }}</span>/<span class="readiness-monitor-coverage-total">{{ readiness_monitor.data_coverage.asset_count|default:0 }}</span></strong>
+                        <div class="readiness-monitor__subtle">latest <span id="readiness-monitor-price-latest">{{ readiness_monitor.data_coverage.domains.price.latest_date|default:"-" }}</span></div>
+                    </div>
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">估值</span>
+                        <strong><span id="readiness-monitor-valuation-covered">{{ readiness_monitor.data_coverage.domains.valuation.covered_count|default:0 }}</span>/<span class="readiness-monitor-coverage-total">{{ readiness_monitor.data_coverage.asset_count|default:0 }}</span></strong>
+                        <div class="readiness-monitor__subtle">latest <span id="readiness-monitor-valuation-latest">{{ readiness_monitor.data_coverage.domains.valuation.latest_date|default:"-" }}</span></div>
+                    </div>
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">财报</span>
+                        <strong><span id="readiness-monitor-financial-covered">{{ readiness_monitor.data_coverage.domains.financial.covered_count|default:0 }}</span>/<span class="readiness-monitor-coverage-total">{{ readiness_monitor.data_coverage.asset_count|default:0 }}</span></strong>
+                        <div class="readiness-monitor__subtle">latest <span id="readiness-monitor-financial-latest">{{ readiness_monitor.data_coverage.domains.financial.latest_date|default:"-" }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="readiness-monitor__lines">
+                <div class="readiness-monitor__subtle">操作入口覆盖: <span id="readiness-monitor-surfaces-status">{{ readiness_monitor.operator_surfaces.status|default:"-" }}</span></div>
+                <div class="readiness-monitor__coverage-grid">
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">MCP 工具</span>
+                        <strong><span id="readiness-monitor-mcp-total">{{ readiness_monitor.operator_surfaces.ai_capability.mcp_tools.total|default:0 }}</span></strong>
+                        <div class="readiness-monitor__subtle">routing <span id="readiness-monitor-mcp-routing">{{ readiness_monitor.operator_surfaces.ai_capability.mcp_tools.routing_enabled|default:0 }}</span> / terminal <span id="readiness-monitor-mcp-terminal">{{ readiness_monitor.operator_surfaces.ai_capability.mcp_tools.terminal_enabled|default:0 }}</span></div>
+                    </div>
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">Terminal 命令</span>
+                        <strong><span id="readiness-monitor-terminal-enabled">{{ readiness_monitor.operator_surfaces.terminal.terminal_commands.terminal_enabled|default:0 }}</span></strong>
+                        <div class="readiness-monitor__subtle">active <span id="readiness-monitor-terminal-active">{{ readiness_monitor.operator_surfaces.terminal.terminal_commands.active|default:0 }}</span> / mcp <span id="readiness-monitor-terminal-mcp-required">{{ readiness_monitor.operator_surfaces.terminal.terminal_commands.requires_mcp|default:0 }}</span></div>
+                    </div>
+                    <div class="readiness-monitor__metric">
+                        <span class="readiness-monitor__label">TUI 元数据</span>
+                        <strong><span id="readiness-monitor-tui-screens">{{ readiness_monitor.operator_surfaces.terminal.tui_metadata.screens|default:0 }}</span> screens</strong>
+                        <div class="readiness-monitor__subtle">actions <span id="readiness-monitor-tui-actions">{{ readiness_monitor.operator_surfaces.terminal.tui_metadata.actions|default:0 }}</span> / modules <span id="readiness-monitor-tui-modules">{{ readiness_monitor.operator_surfaces.terminal.tui_metadata.modules|default:0 }}</span></div>
+                    </div>
+                </div>
             </div>
 
             <div class="readiness-monitor__actions-row">
@@ -356,6 +406,17 @@
         const gate = payload.monitor_gate || {};
         const schedule = payload.schedule || {};
         const decision = payload.decision_data || {};
+        const coverage = payload.data_coverage || {};
+        const coverageDomains = coverage.domains || {};
+        const priceCoverage = coverageDomains.price || {};
+        const valuationCoverage = coverageDomains.valuation || {};
+        const financialCoverage = coverageDomains.financial || {};
+        const surfaces = payload.operator_surfaces || {};
+        const aiCapability = surfaces.ai_capability || {};
+        const mcpTools = aiCapability.mcp_tools || {};
+        const terminalSurface = surfaces.terminal || {};
+        const terminalCommands = terminalSurface.terminal_commands || {};
+        const tuiMetadata = terminalSurface.tui_metadata || {};
         const badge = document.getElementById("readiness-monitor-badge");
         if (badge) {
             badge.className = "readiness-monitor__badge " + (severityClasses[daily.severity] || "");
@@ -375,6 +436,27 @@
         text("readiness-monitor-scheduled-for", schedule.scheduled_for);
         text("readiness-monitor-next-check", schedule.next_check_after);
         text("readiness-monitor-decision", decision.status);
+        text("readiness-monitor-coverage-status", coverage.status);
+        text("readiness-monitor-coverage-assets", coverage.asset_count);
+        document.querySelectorAll(".readiness-monitor-coverage-total").forEach((element) => {
+            element.textContent = coverage.asset_count || 0;
+        });
+        text("readiness-monitor-price-covered", priceCoverage.covered_count);
+        text("readiness-monitor-price-latest", priceCoverage.latest_date);
+        text("readiness-monitor-valuation-covered", valuationCoverage.covered_count);
+        text("readiness-monitor-valuation-latest", valuationCoverage.latest_date);
+        text("readiness-monitor-financial-covered", financialCoverage.covered_count);
+        text("readiness-monitor-financial-latest", financialCoverage.latest_date);
+        text("readiness-monitor-surfaces-status", surfaces.status);
+        text("readiness-monitor-mcp-total", mcpTools.total);
+        text("readiness-monitor-mcp-routing", mcpTools.routing_enabled);
+        text("readiness-monitor-mcp-terminal", mcpTools.terminal_enabled);
+        text("readiness-monitor-terminal-enabled", terminalCommands.terminal_enabled);
+        text("readiness-monitor-terminal-active", terminalCommands.active);
+        text("readiness-monitor-terminal-mcp-required", terminalCommands.requires_mcp);
+        text("readiness-monitor-tui-screens", tuiMetadata.screens);
+        text("readiness-monitor-tui-actions", tuiMetadata.actions);
+        text("readiness-monitor-tui-modules", tuiMetadata.modules);
         const progress = document.getElementById("readiness-monitor-progress");
         if (progress) {
             progress.max = Number(windowData.required_days || 20);

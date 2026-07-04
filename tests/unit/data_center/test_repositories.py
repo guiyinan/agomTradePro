@@ -11,11 +11,16 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure import orm_retry
+from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
 from apps.data_center.infrastructure.models import (
+    AssetMasterModel,
+    FinancialFactModel,
     MacroFactModel,
     MarketThermometerSnapshotModel,
     NewsFactModel,
+    PriceBarModel,
     PublisherCatalogModel,
+    ValuationFactModel,
 )
 from apps.data_center.infrastructure.repositories import (
     MacroFactRepository,
@@ -255,3 +260,66 @@ def test_news_repository_aggregate_market_daily_computes_ratio():
     assert len(metrics) == 1
     assert metrics[0].news_count == 2
     assert metrics[0].positive_ratio == 0.5
+
+
+@pytest.mark.django_db
+def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage():
+    AssetMasterModel.objects.create(
+        code="600000.SH",
+        name="浦发银行",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="000001.SZ",
+        name="平安银行",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="510300.SH",
+        name="沪深300ETF",
+        asset_type="etf",
+        exchange="SSE",
+        is_active=True,
+    )
+    PriceBarModel.objects.create(
+        asset_code="600000.SH",
+        bar_date=date(2026, 7, 3),
+        freq="1d",
+        adjustment="none",
+        open="1",
+        high="1",
+        low="1",
+        close="1",
+        source="test",
+    )
+    ValuationFactModel.objects.create(
+        asset_code="600000.SH",
+        val_date=date(2026, 7, 3),
+        pe_ttm="10",
+        source="test",
+    )
+    FinancialFactModel.objects.create(
+        asset_code="600000.SH",
+        period_end=date(2026, 3, 31),
+        period_type="quarterly",
+        metric_code="revenue",
+        value="100",
+        source="test",
+    )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert payload["status"] == "incomplete"
+    assert payload["asset_count"] == 2
+    assert payload["domains"]["price"] == {
+        "covered_count": 1,
+        "missing_count": 1,
+        "latest_date": "2026-07-03",
+        "status": "incomplete",
+    }
+    assert payload["domains"]["valuation"]["covered_count"] == 1
+    assert payload["domains"]["financial"]["latest_date"] == "2026-03-31"

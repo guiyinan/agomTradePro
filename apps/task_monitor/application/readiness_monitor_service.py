@@ -9,6 +9,12 @@ from typing import Any
 
 from django.core.cache import cache
 
+from apps.ai_capability.application.query_services import (
+    get_ai_capability_surface_status_payload,
+)
+from apps.data_center.application.query_services import (
+    get_active_stock_fact_coverage_payload,
+)
 from apps.task_monitor.management.commands.run_personal_readiness_daily import (
     resolve_default_readiness_target_date,
 )
@@ -18,6 +24,7 @@ from apps.task_monitor.management.commands.show_personal_readiness_status import
     DEFAULT_REQUIRED_DAYS,
     build_personal_readiness_status,
 )
+from apps.terminal.application.query_services import get_terminal_surface_status_payload
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +148,8 @@ def get_personal_readiness_monitor_placeholder() -> dict[str, Any]:
             "must_not_use_for_decision": False,
             "blocked_reasons": [],
         },
+        "data_coverage": _empty_data_coverage(),
+        "operator_surfaces": _empty_operator_surfaces(),
         "blocking_issues": [],
         "accepted_dates": [],
     }
@@ -172,7 +181,7 @@ def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, 
         next_action=next_action,
     )
 
-    return {
+    summary = {
         "status": payload.get("status"),
         "daily_state": daily_state,
         "monitor_gate": {
@@ -235,8 +244,129 @@ def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, 
             ),
             "blocked_reasons": list(current_decision_data.get("blocked_reasons") or []),
         },
+        "data_coverage": _get_data_coverage(),
+        "operator_surfaces": _get_operator_surfaces(),
         "blocking_issues": list(validation.get("blocking_issues") or []),
         "accepted_dates": list(validation.get("accepted_dates") or []),
+    }
+    return summary
+
+
+def _get_operator_surfaces() -> dict[str, Any]:
+    payload = _empty_operator_surfaces()
+    ai_capability = _get_ai_capability_surface()
+    terminal = _get_terminal_surface()
+    payload["ai_capability"] = ai_capability
+    payload["terminal"] = terminal
+    payload["status"] = "ok" if all(
+        item.get("status") == "ok" for item in [ai_capability, terminal]
+    ) else "incomplete"
+    return payload
+
+
+def _get_ai_capability_surface() -> dict[str, Any]:
+    try:
+        return get_ai_capability_surface_status_payload()
+    except Exception as exc:
+        logger.warning("Readiness monitor AI capability query failed: %s", exc)
+        return {"status": "error", "error": str(exc)}
+
+
+def _get_terminal_surface() -> dict[str, Any]:
+    try:
+        return get_terminal_surface_status_payload()
+    except Exception as exc:
+        logger.warning("Readiness monitor terminal surface query failed: %s", exc)
+        return {"status": "error", "error": str(exc)}
+
+
+def _empty_operator_surfaces() -> dict[str, Any]:
+    return {
+        "status": "loading",
+        "ai_capability": {
+            "status": "loading",
+            "catalog": {"total": 0, "enabled": 0, "disabled": 0},
+            "mcp_tools": {
+                "total": 0,
+                "routing_enabled": 0,
+                "terminal_enabled": 0,
+                "chat_enabled": 0,
+                "agent_enabled": 0,
+                "requires_confirmation": 0,
+                "latest_sync_at": None,
+                "status": "loading",
+            },
+            "terminal_capabilities": {
+                "total": 0,
+                "routing_enabled": 0,
+                "terminal_enabled": 0,
+                "chat_enabled": 0,
+                "agent_enabled": 0,
+                "requires_confirmation": 0,
+                "latest_sync_at": None,
+                "status": "loading",
+            },
+        },
+        "terminal": {
+            "status": "loading",
+            "terminal_commands": {
+                "active": 0,
+                "terminal_enabled": 0,
+                "requires_mcp": 0,
+                "api_type": 0,
+                "prompt_type": 0,
+                "status": "loading",
+            },
+            "tui_metadata": {
+                "status": "loading",
+                "version": None,
+                "schema_version": None,
+                "modules": 0,
+                "screens": 0,
+                "actions": 0,
+                "default_screen": None,
+                "coverage_summary": {},
+            },
+        },
+    }
+
+
+def _get_data_coverage() -> dict[str, Any]:
+    try:
+        return get_active_stock_fact_coverage_payload()
+    except Exception as exc:
+        logger.warning("Readiness monitor data coverage query failed: %s", exc)
+        payload = _empty_data_coverage()
+        payload["status"] = "error"
+        payload["error"] = str(exc)
+        return payload
+
+
+def _empty_data_coverage() -> dict[str, Any]:
+    return {
+        "status": "loading",
+        "universe": "active_stock",
+        "asset_count": 0,
+        "domains": {
+            "price": {
+                "covered_count": 0,
+                "missing_count": 0,
+                "latest_date": None,
+                "status": "loading",
+            },
+            "valuation": {
+                "covered_count": 0,
+                "missing_count": 0,
+                "latest_date": None,
+                "status": "loading",
+            },
+            "financial": {
+                "covered_count": 0,
+                "missing_count": 0,
+                "latest_date": None,
+                "status": "loading",
+            },
+        },
     }
 
 

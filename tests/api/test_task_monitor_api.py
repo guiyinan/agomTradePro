@@ -109,6 +109,79 @@ def _readiness_monitor_payload():
             "must_not_use_for_decision": True,
             "blocked_reasons": ["quote stale"],
         },
+        "data_coverage": {
+            "status": "ok",
+            "universe": "active_stock",
+            "asset_count": 304,
+            "domains": {
+                "price": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-07-03",
+                    "status": "ok",
+                },
+                "valuation": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-07-03",
+                    "status": "ok",
+                },
+                "financial": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-03-31",
+                    "status": "ok",
+                },
+            },
+        },
+        "operator_surfaces": {
+            "status": "ok",
+            "ai_capability": {
+                "status": "ok",
+                "catalog": {"total": 510, "enabled": 480, "disabled": 30},
+                "mcp_tools": {
+                    "total": 365,
+                    "routing_enabled": 340,
+                    "terminal_enabled": 330,
+                    "chat_enabled": 320,
+                    "agent_enabled": 340,
+                    "requires_confirmation": 45,
+                    "latest_sync_at": "2026-07-04T08:00:00+00:00",
+                    "status": "ok",
+                },
+                "terminal_capabilities": {
+                    "total": 18,
+                    "routing_enabled": 17,
+                    "terminal_enabled": 18,
+                    "chat_enabled": 18,
+                    "agent_enabled": 18,
+                    "requires_confirmation": 2,
+                    "latest_sync_at": "2026-07-04T08:00:00+00:00",
+                    "status": "ok",
+                },
+            },
+            "terminal": {
+                "status": "ok",
+                "terminal_commands": {
+                    "active": 18,
+                    "terminal_enabled": 18,
+                    "requires_mcp": 6,
+                    "api_type": 14,
+                    "prompt_type": 4,
+                    "status": "ok",
+                },
+                "tui_metadata": {
+                    "status": "ok",
+                    "version": "2026.07",
+                    "schema_version": "tui-metadata.v3",
+                    "modules": 12,
+                    "screens": 37,
+                    "actions": 180,
+                    "default_screen": "command-center.overview",
+                    "coverage_summary": {},
+                },
+            },
+        },
         "blocking_issues": [],
         "accepted_dates": [
             "2026-06-30",
@@ -325,6 +398,10 @@ def test_readiness_monitor_page_renders_lightweight_panel(client, staff_user):
     assert "正在读取验收状态" in content
     assert "readiness-monitor.json" in content
     assert "20 个交易日验收窗口" in content
+    assert "生产数据覆盖" in content
+    assert "操作入口覆盖" in content
+    assert "MCP 工具" in content
+    assert "TUI 元数据" in content
     assert "PeriodicTask 目录" not in content
     assert "Celery 运行态" not in content
     assert 'name="quote_pre_refresh_time"' in content
@@ -461,4 +538,7 @@ def test_readiness_monitor_json_returns_daily_gate(client, staff_user):
     assert payload["monitor_gate"]["ok"] is True
     assert payload["window"]["accepted_days"] == 4
     assert payload["window"]["remaining_days"] == 16
+    assert payload["data_coverage"]["domains"]["price"]["covered_count"] == 304
+    assert payload["operator_surfaces"]["ai_capability"]["mcp_tools"]["total"] == 365
+    assert payload["operator_surfaces"]["terminal"]["tui_metadata"]["screens"] == 37
     mock_context.assert_called_once_with(strict_runtime=True)

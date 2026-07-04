@@ -78,7 +78,7 @@ celery -A core inspect ping
 
 Daily browser check:
 
-- Use `/ops/task-monitor/readiness/` for the lightweight 20-trading-day readiness monitor. This page only loads the monitor payload and readiness schedule controls, so it is the preferred daily VPS entry on memory-constrained hosts.
+- Use `/ops/task-monitor/readiness/` for the lightweight 20-trading-day readiness monitor. This page loads the monitor payload, readiness schedule controls, active-stock data coverage, and MCP/TUI/Terminal operation-surface coverage, so it is the preferred daily VPS entry on memory-constrained hosts.
 - The "严格运行态" refresh performs the full local scheduler runtime probe and is cached for 60 seconds to avoid repeated heavy checks on the VPS.
 - Use `/ops/task-monitor/` only when you need the full PeriodicTask catalog, Celery inspect output, and recent failure list.
 

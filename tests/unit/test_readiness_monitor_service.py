@@ -16,7 +16,10 @@ def test_readiness_monitor_placeholder_is_lightweight_loading_state():
     assert payload["window"]["accepted_days"] == 0
 
 
-def test_readiness_monitor_summary_marks_latest_closed_day_accepted():
+def test_readiness_monitor_summary_marks_latest_closed_day_accepted(monkeypatch):
+    _stub_data_coverage(monkeypatch)
+    _stub_operator_surfaces(monkeypatch)
+
     summary = _summarize_personal_readiness_payload(
         {
             "status": "in_progress",
@@ -60,9 +63,14 @@ def test_readiness_monitor_summary_marks_latest_closed_day_accepted():
     assert summary["window"]["accepted_days"] == 4
     assert summary["window"]["remaining_days"] == 16
     assert summary["schedule"]["next_check_after"] == "2026-07-06T16:10:00+08:00"
+    assert summary["data_coverage"]["status"] == "ok"
+    assert summary["operator_surfaces"]["ai_capability"]["mcp_tools"]["total"] == 365
 
 
-def test_readiness_monitor_summary_marks_operator_attention():
+def test_readiness_monitor_summary_marks_operator_attention(monkeypatch):
+    _stub_data_coverage(monkeypatch)
+    _stub_operator_surfaces(monkeypatch)
+
     summary = _summarize_personal_readiness_payload(
         {
             "status": "blocked",
@@ -102,6 +110,8 @@ def test_readiness_monitor_summary_marks_operator_attention():
 def test_strict_readiness_monitor_summary_uses_short_cache(monkeypatch):
     fake_cache = _FakeCache()
     calls = []
+    _stub_data_coverage(monkeypatch)
+    _stub_operator_surfaces(monkeypatch)
 
     def fake_build_personal_readiness_status(**kwargs):
         calls.append(kwargs)
@@ -133,6 +143,8 @@ def test_strict_readiness_monitor_summary_uses_short_cache(monkeypatch):
 def test_non_strict_readiness_monitor_summary_does_not_use_strict_cache(monkeypatch):
     fake_cache = _FakeCache()
     calls = []
+    _stub_data_coverage(monkeypatch)
+    _stub_operator_surfaces(monkeypatch)
 
     def fake_build_personal_readiness_status(**kwargs):
         calls.append(kwargs)
@@ -162,6 +174,8 @@ def test_non_strict_readiness_monitor_summary_does_not_use_strict_cache(monkeypa
 def test_raw_strict_readiness_monitor_summary_bypasses_cache(monkeypatch):
     fake_cache = _FakeCache()
     calls = []
+    _stub_data_coverage(monkeypatch)
+    _stub_operator_surfaces(monkeypatch)
 
     def fake_build_personal_readiness_status(**kwargs):
         calls.append(kwargs)
@@ -206,6 +220,94 @@ class _FakeCache:
     def set(self, key, value, timeout=None):
         self.values[key] = value
         self.set_calls.append((key, value, timeout))
+
+
+def _stub_data_coverage(monkeypatch) -> None:
+    monkeypatch.setattr(
+        service,
+        "get_active_stock_fact_coverage_payload",
+        lambda: {
+            "status": "ok",
+            "universe": "active_stock",
+            "asset_count": 304,
+            "domains": {
+                "price": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-07-03",
+                    "status": "ok",
+                },
+                "valuation": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-07-03",
+                    "status": "ok",
+                },
+                "financial": {
+                    "covered_count": 304,
+                    "missing_count": 0,
+                    "latest_date": "2026-03-31",
+                    "status": "ok",
+                },
+            },
+        },
+    )
+
+
+def _stub_operator_surfaces(monkeypatch) -> None:
+    monkeypatch.setattr(
+        service,
+        "get_ai_capability_surface_status_payload",
+        lambda: {
+            "status": "ok",
+            "catalog": {"total": 510, "enabled": 480, "disabled": 30},
+            "mcp_tools": {
+                "total": 365,
+                "routing_enabled": 340,
+                "terminal_enabled": 330,
+                "chat_enabled": 320,
+                "agent_enabled": 340,
+                "requires_confirmation": 45,
+                "latest_sync_at": "2026-07-04T08:00:00+00:00",
+                "status": "ok",
+            },
+            "terminal_capabilities": {
+                "total": 18,
+                "routing_enabled": 17,
+                "terminal_enabled": 18,
+                "chat_enabled": 18,
+                "agent_enabled": 18,
+                "requires_confirmation": 2,
+                "latest_sync_at": "2026-07-04T08:00:00+00:00",
+                "status": "ok",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        service,
+        "get_terminal_surface_status_payload",
+        lambda: {
+            "status": "ok",
+            "terminal_commands": {
+                "active": 18,
+                "terminal_enabled": 18,
+                "requires_mcp": 6,
+                "api_type": 14,
+                "prompt_type": 4,
+                "status": "ok",
+            },
+            "tui_metadata": {
+                "status": "ok",
+                "version": "2026.07",
+                "schema_version": "tui-metadata.v3",
+                "modules": 12,
+                "screens": 37,
+                "actions": 180,
+                "default_screen": "command-center.overview",
+                "coverage_summary": {},
+            },
+        },
+    )
 
 
 def _readiness_status_payload(*, accepted_days: int) -> dict:

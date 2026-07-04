@@ -20,6 +20,12 @@ def get_data_center_diagnostic_summary() -> dict[str, int]:
     return get_data_center_diagnostic_repository().get_summary()
 
 
+def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
+    """Return active-stock price, valuation, and financial coverage."""
+
+    return get_data_center_diagnostic_repository().get_active_stock_fact_coverage_summary()
+
+
 def macro_fact_exists_on_or_before(reporting_period: date) -> bool:
     """Return whether macro data exists on or before the reporting period."""
 
