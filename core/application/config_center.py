@@ -57,6 +57,20 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         docs_ref="docs/business/config-center-matrix.md#mcp_guide",
     ),
     ConfigCapability(
+        key="capability_gateway",
+        name="能力路由接入",
+        module="ai_capability",
+        section="系统级配置",
+        description="统一 AI、Terminal、TUI、MCP 和内部 API 的能力目录、路由入口和接入引导。",
+        permission="login",
+        frontend_url="/settings/capability-gateway/",
+        api_url="/api/ai-capability/route/",
+        sdk_module="ai_capability",
+        mcp_tools=(),
+        supports_edit=False,
+        docs_ref="docs/business/config-center-matrix.md#capability_gateway",
+    ),
+    ConfigCapability(
         key="agent_runtime_operator",
         name="Agent Runtime Operator",
         module="agent_runtime",
@@ -335,6 +349,14 @@ def get_mcp_guide_summary(user: Any) -> dict[str, Any]:
     }
 
 
+def get_capability_gateway_summary(user: Any) -> dict[str, Any]:
+    from apps.ai_capability.application.query_services import (
+        get_ai_capability_surface_status_payload,
+    )
+
+    return get_ai_capability_surface_status_payload()
+
+
 def get_agent_runtime_operator_summary(user: Any) -> dict[str, Any]:
     from apps.agent_runtime.application.config_summary_service import (
         get_agent_runtime_config_summary_service,
@@ -404,6 +426,9 @@ def get_trading_cost_summary(user: Any) -> dict[str, Any]:
 _SUMMARY_BUILDERS = {
     "account_settings": lambda user: _safe_summary(get_account_settings_summary, "账户设置", user),
     "mcp_guide": lambda user: _safe_summary(get_mcp_guide_summary, "MCP 接入说明", user),
+    "capability_gateway": lambda user: _safe_summary(
+        get_capability_gateway_summary, "能力路由接入", user
+    ),
     "agent_runtime_operator": lambda user: _safe_summary(
         get_agent_runtime_operator_summary, "Agent Runtime Operator", user
     ),

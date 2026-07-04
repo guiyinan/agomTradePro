@@ -241,7 +241,7 @@
                         <td style="min-width:280px;">
                             <details>
                                 <summary style="cursor:pointer; color:#0f766e;">查看 input schema</summary>
-                                <pre class="mcp-schema">{{ tool.input_schema|pprint }}</pre>
+                                <pre class="mcp-schema">{{ tool.input_schema_json|safe }}</pre>
                             </details>
                         </td>
                         <td style="min-width:160px;">

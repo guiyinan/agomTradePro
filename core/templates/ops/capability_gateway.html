@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}能力路由接入 - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-shell.css' %}">
+<style>
+    .gateway-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .gateway-card,
+    .gateway-step,
+    .gateway-code {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .gateway-card {
+        padding: 16px;
+    }
+
+    .gateway-label {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .gateway-value {
+        margin-top: 6px;
+        font-size: 26px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .gateway-hint {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .gateway-two-col {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.7fr);
+        gap: 18px;
+    }
+
+    .gateway-steps {
+        display: grid;
+        gap: 12px;
+    }
+
+    .gateway-step {
+        padding: 16px;
+    }
+
+    .gateway-step h2,
+    .gateway-code h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+    }
+
+    .gateway-step p,
+    .gateway-code p {
+        margin: 0 0 12px;
+        color: #475569;
+        line-height: 1.65;
+    }
+
+    .gateway-code {
+        padding: 16px;
+        margin-bottom: 14px;
+    }
+
+    .gateway-code pre,
+    .gateway-inline-code {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .gateway-code pre {
+        margin: 0;
+        padding: 14px;
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .gateway-inline-code {
+        display: inline-block;
+        padding: 8px 10px;
+        word-break: break-all;
+        font-size: 13px;
+    }
+
+    .gateway-token-form {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+    }
+
+    .gateway-token-form input,
+    .gateway-token-form select {
+        min-height: 40px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 10px;
+    }
+
+    .gateway-token-form input {
+        flex: 1 1 220px;
+    }
+
+    .gateway-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .gateway-status--ready {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .gateway-status--empty {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    @media (max-width: 980px) {
+        .gateway-two-col {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-shell admin-shell--wide">
+    <div class="admin-shell__hero">
+        <div class="admin-shell__lead">
+            <h1 class="admin-shell__title">{{ page_title }}</h1>
+            <p class="admin-shell__subtitle">{{ page_subtitle }}</p>
+        </div>
+        <div class="admin-shell__actions">
+            <a href="{% url 'account:mcp_guide' %}" class="btn btn-secondary admin-shell__action-link">MCP 接入说明</a>
+            <a href="{% url 'tui-workbench' %}" class="btn btn-secondary admin-shell__action-link" target="_blank" rel="noopener noreferrer">打开 TUI</a>
+            {% if request.user.is_staff %}
+            <a href="{% url 'settings-mcp-tools' %}" class="btn btn-primary admin-shell__action-link">MCP 工具治理</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>统一入口：</strong>
+        外部 Agent 优先调用 <code>/api/ai-capability/route/</code>。
+        Capability Router 会根据目录、权限、风险等级和用户上下文选择 MCP 工具、Terminal 指令、内置能力或内部 API。
+    </div>
+
+    <div class="admin-shell__banner">
+        <strong>MCP 最佳实践：</strong>
+        可执行工具以 SDK 代码注册为真源，数据库目录只保存同步快照、路由开关、风险等级和复核状态。
+        这样可以避免数据库动态注入任意可执行能力，同时保留统一治理、审计和接入发现能力。
+    </div>
+
+    {% if new_token_payload %}
+    <div class="admin-shell__banner">
+        <strong>新 Token 已生成：</strong> {{ new_token_payload.token_name }} / {{ new_token_payload.access_level_label }}
+        <div style="margin-top: 10px;">
+            <code id="newGatewayToken" class="gateway-inline-code">{{ new_token_payload.token }}</code>
+            <button type="button" class="btn btn-secondary" data-copy-target="newGatewayToken">复制 Token</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <section class="gateway-grid">
+        <article class="gateway-card">
+            <div class="gateway-label">能力总数</div>
+            <div class="gateway-value">{{ catalog_stats.total }}</div>
+            <div class="gateway-hint">
+                启用 {{ catalog_stats.enabled }} / 风险停用 {{ catalog_stats.disabled }}
+                / 待人工复核 {{ catalog_stats.manual_governance }}
+            </div>
+        </article>
+        {% for card in source_cards %}
+        <article class="gateway-card">
+            <div class="gateway-label">{{ card.label }}</div>
+            <div class="gateway-value">{{ card.routing_enabled }}/{{ card.total }}</div>
+            <div class="gateway-hint">
+                <span class="gateway-status gateway-status--{{ card.status }}">{{ card.status }}</span>
+                需确认 {{ card.requires_confirmation }}
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="gateway-two-col">
+        <div class="gateway-steps">
+            {% for step in onboarding_steps %}
+            <article class="gateway-step">
+                <h2>{{ step.title }}</h2>
+                <p>{{ step.body }}</p>
+                <a href="{{ step.href }}" class="btn btn-secondary">{{ step.link_label }}</a>
+            </article>
+            {% endfor %}
+        </div>
+
+        <aside>
+            <article class="gateway-code">
+                <h2>当前账户</h2>
+                <p>
+                    MCP/SDK 权限：
+                    <span class="gateway-status {% if profile.mcp_enabled %}gateway-status--ready{% else %}gateway-status--empty{% endif %}">
+                        {% if profile.mcp_enabled %}已开启{% else %}已关闭{% endif %}
+                    </span>
+                </p>
+                <p>活跃 Token：{{ access_tokens|length }}</p>
+                {% if profile.mcp_enabled %}
+                <form method="post" action="{% url 'account:create_self_token' %}" class="gateway-token-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'settings-capability-gateway' %}">
+                    <input type="text" name="token_name" value="capability-router" maxlength="100" placeholder="Token 名称">
+                    <select name="access_level">
+                        {% for value, label in token_access_level_choices %}
+                            <option value="{{ value }}" {% if value == default_token_access_level %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">生成 Token</button>
+                </form>
+                {% endif %}
+            </article>
+
+            <article class="gateway-code">
+                <h2>Route API</h2>
+                <p><code class="gateway-inline-code">{{ route_endpoint }}</code></p>
+                <pre id="routePayload">{{ route_payload_json }}</pre>
+            </article>
+
+            <article class="gateway-code">
+                <h2>curl 测试</h2>
+                <button type="button" class="btn btn-secondary" data-copy-target="curlRouteExample">复制</button>
+                <pre id="curlRouteExample">{{ curl_route_example }}</pre>
+            </article>
+
+            <article class="gateway-code">
+                <h2>常用接口</h2>
+                <p>Web Chat: <code class="gateway-inline-code">{{ web_endpoint }}</code></p>
+                <p>Capabilities: <code class="gateway-inline-code">{{ capability_endpoint }}</code></p>
+            </article>
+        </aside>
+    </section>
+</div>
+
+<script>
+(() => {
+    async function copyFromElement(targetId) {
+        const element = document.getElementById(targetId);
+        if (!element) return;
+        try {
+            await navigator.clipboard.writeText(element.textContent || '');
+            if (window.showToast) window.showToast('已复制到剪贴板', 'success');
+        } catch (error) {
+            if (window.showToast) window.showToast('复制失败，请手动复制', 'warning');
+        }
+    }
+
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+        button.addEventListener('click', () => copyFromElement(button.dataset.copyTarget));
+    });
+})();
+</script>
+{% endblock %}

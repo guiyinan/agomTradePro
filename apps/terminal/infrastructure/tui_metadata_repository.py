@@ -194,6 +194,151 @@ RUNTIME_CLI_CHAT_ACTION: dict[str, Any] = {
     "task_tier": "operation",
 }
 
+RUNTIME_CAPABILITY_ROUTER_MODULE: dict[str, Any] = {
+    "key": "capability-router",
+    "label": "能力路由",
+    "group": "ops",
+    "summary": "统一接入 AI Capability Catalog、路由 API、MCP 工具和内部能力。",
+}
+
+RUNTIME_CAPABILITY_ROUTER_SCREEN: dict[str, Any] = {
+    "key": "capability-router.gateway",
+    "label": "能力路由接入",
+    "module_key": "capability-router",
+    "group": "ops",
+    "summary": "验证自然语言请求如何通过统一路由层选择能力，并检查目录覆盖状态。",
+    "view_type": "detail",
+    "default_action_key": "capability-router.route-message",
+    "business_context": {
+        "objective": "把 AI/TUI/Terminal 请求先送入统一路由层，再由后端选择 MCP、Terminal、内置能力或内部 API。",
+        "decision_output": "路由结果、候选能力、是否需要确认、缺失参数和回答链摘要。",
+        "checkpoints": [
+            "先运行目录统计，确认 MCP、Terminal、API 能力已同步。",
+            "再用路由测试输入自然语言问题，观察 selected_capability_key 和 requires_confirmation。",
+            "若能力未命中，回到 MCP 工具治理页打开 enabled_for_routing 或补充能力描述。",
+        ],
+    },
+}
+
+RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "capability-router.route-message",
+        "label": "测试统一路由",
+        "endpoint": "/api/ai-capability/route/",
+        "method": "POST",
+        "intent": "test_capability_router_entrypoint",
+        "risk": "ai",
+        "screen_key": "capability-router.gateway",
+        "module_key": "capability-router",
+        "view_type": "detail",
+        "description": "输入自然语言，由 Capability Router 返回候选能力、选中能力、确认状态和回复。",
+        "source": "approved:runtime-capability-router",
+        "task_group": "01 路由验证",
+        "sequence": 100,
+        "task_tier": "primary",
+        "fields": [
+            {
+                "key": "message",
+                "label": "消息",
+                "input_type": "textarea",
+                "required": True,
+                "default": "现在系统状态如何？",
+                "placeholder": "输入希望 AI 执行或查询的任务",
+                "binding": "body",
+                "value_type": "string",
+            },
+            {
+                "key": "entrypoint",
+                "label": "入口",
+                "input_type": "hidden",
+                "required": True,
+                "default": "tui",
+                "binding": "body",
+                "value_type": "string",
+            },
+            {
+                "key": "context",
+                "label": "上下文",
+                "input_type": "textarea",
+                "required": False,
+                "default": '{"answer_chain_enabled": true, "params": {}}',
+                "placeholder": '{"params": {}}',
+                "binding": "body",
+                "value_type": "object",
+            },
+        ],
+        "view_model": {
+            "kind": "detail",
+            "title_path": "selected_capability_key",
+            "status_path": "decision",
+        },
+    },
+    {
+        "key": "capability-router.catalog-stats",
+        "label": "能力目录统计",
+        "endpoint": "/api/ai-capability/stats/",
+        "method": "GET",
+        "intent": "inspect_capability_catalog_stats",
+        "risk": "read",
+        "screen_key": "capability-router.gateway",
+        "module_key": "capability-router",
+        "view_type": "detail",
+        "description": "查看 Capability Catalog 总量、启用量、来源分布和路由组分布。",
+        "source": "approved:runtime-capability-router",
+        "task_group": "02 目录检查",
+        "sequence": 110,
+        "task_tier": "support",
+        "view_model": {
+            "kind": "detail",
+            "title_path": "total",
+            "status_path": "enabled",
+        },
+    },
+    {
+        "key": "capability-router.list-capabilities",
+        "label": "能力列表",
+        "endpoint": "/api/ai-capability/capabilities/",
+        "method": "GET",
+        "intent": "list_routable_capabilities",
+        "risk": "read",
+        "screen_key": "capability-router.gateway",
+        "module_key": "capability-router",
+        "view_type": "datagrid",
+        "description": "按来源、分类或关键词查看当前进入能力目录的能力。",
+        "source": "approved:runtime-capability-router",
+        "task_group": "02 目录检查",
+        "sequence": 120,
+        "task_tier": "support",
+        "fields": [
+            {
+                "key": "source_type",
+                "label": "来源类型",
+                "input_type": "select",
+                "required": False,
+                "default": "",
+                "placeholder": "全部",
+                "binding": "query",
+                "value_type": "string",
+                "options": ["", "builtin", "terminal_command", "mcp_tool", "api"],
+            },
+            {
+                "key": "q",
+                "label": "关键词",
+                "input_type": "text",
+                "required": False,
+                "default": "",
+                "placeholder": "搜索能力名称或说明",
+                "binding": "query",
+                "value_type": "string",
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "",
+        },
+    },
+)
+
 RUNTIME_ADVISOR_SCREEN: dict[str, Any] = {
     "key": "command-center.auto-advisor",
     "label": "自动投顾",
@@ -576,7 +721,7 @@ RUNTIME_RISK_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 "input_type": "textarea",
                 "required": False,
                 "default": "[]",
-                "placeholder": "[{\"symbol\":\"000001.SZ\",\"market_value\":30000,\"unrealized_pnl_pct\":-0.08}]",
+                "placeholder": '[{"symbol":"000001.SZ","market_value":30000,"unrealized_pnl_pct":-0.08}]',
                 "binding": "body",
                 "value_type": "list",
             },
@@ -675,7 +820,7 @@ RUNTIME_RISK_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 "input_type": "textarea",
                 "required": False,
                 "default": "[]",
-                "placeholder": "[{\"symbol\":\"000001.SZ\",\"market_value\":30000,\"unrealized_pnl_pct\":-0.08}]",
+                "placeholder": '[{"symbol":"000001.SZ","market_value":30000,"unrealized_pnl_pct":-0.08}]',
                 "binding": "body",
                 "value_type": "list",
             },
@@ -1057,7 +1202,7 @@ RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                 "required": False,
                 "binding": "body",
                 "default": [],
-                "placeholder": "[\"000001.SZ\", \"688001.SH\"]",
+                "placeholder": '["000001.SZ", "688001.SH"]',
                 "value_type": "list",
             },
             {
@@ -1072,7 +1217,7 @@ RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
                     "boards": [],
                     "include_inactive": False,
                 },
-                "placeholder": "{\"asset_type\":\"stock\",\"exchanges\":[\"SSE\",\"SZSE\",\"BSE\"]}",
+                "placeholder": '{"asset_type":"stock","exchanges":["SSE","SZSE","BSE"]}',
                 "value_type": "object",
             },
             {
@@ -1295,7 +1440,11 @@ class PublishedTuiMetadataRepository:
 
     def __init__(self, *, published_path: Path | None = None) -> None:
         self.published_path = published_path or (
-            Path(settings.BASE_DIR) / "config" / "tui" / "published" / "tui_operation_graph.published.json"
+            Path(settings.BASE_DIR)
+            / "config"
+            / "tui"
+            / "published"
+            / "tui_operation_graph.published.json"
         )
 
     def load_published(self, registry_key: str = "default") -> dict[str, Any]:
@@ -1399,6 +1548,12 @@ class PublishedTuiMetadataRepository:
             screens=screens,
             actions=actions,
         )
+        injected_capability_router = self._inject_capability_router_metadata(
+            groups=groups,
+            modules=modules,
+            screens=screens,
+            actions=actions,
+        )
         injected_advisor = self._inject_advisor_metadata(screens=screens, actions=actions)
         injected_risk_center = self._inject_risk_center_metadata(
             modules=modules,
@@ -1406,7 +1561,13 @@ class PublishedTuiMetadataRepository:
             actions=actions,
         )
         injected_config_center = self._inject_config_center_metadata(actions=actions)
-        injected = injected_cli + injected_advisor + injected_risk_center + injected_config_center
+        injected = (
+            injected_cli
+            + injected_capability_router
+            + injected_advisor
+            + injected_risk_center
+            + injected_config_center
+        )
         normalized["groups"] = groups
         normalized["modules"] = modules
         normalized["screens"] = screens
@@ -1462,6 +1623,11 @@ class PublishedTuiMetadataRepository:
                 coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                     coverage.get("runtime_injected_cli_metadata", 0) or 0
                 )
+            if injected_capability_router:
+                coverage["runtime_injected_capability_router_metadata"] = (
+                    injected_capability_router
+                    + int(coverage.get("runtime_injected_capability_router_metadata", 0) or 0)
+                )
             if injected_config_center:
                 coverage["runtime_injected_config_center_metadata"] = injected_config_center + int(
                     coverage.get("runtime_injected_config_center_metadata", 0) or 0
@@ -1495,6 +1661,11 @@ class PublishedTuiMetadataRepository:
         if injected_cli:
             coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                 coverage.get("runtime_injected_cli_metadata", 0) or 0
+            )
+        if injected_capability_router:
+            coverage["runtime_injected_capability_router_metadata"] = (
+                injected_capability_router
+                + int(coverage.get("runtime_injected_capability_router_metadata", 0) or 0)
             )
         if injected_config_center:
             coverage["runtime_injected_config_center_metadata"] = injected_config_center + int(
@@ -1569,6 +1740,38 @@ class PublishedTuiMetadataRepository:
             injected += 1
         if not any(action.get("key") == RUNTIME_CLI_CHAT_ACTION["key"] for action in actions):
             actions.append(dict(RUNTIME_CLI_CHAT_ACTION))
+            injected += 1
+        return injected
+
+    @staticmethod
+    def _inject_capability_router_metadata(
+        *,
+        groups: list[dict[str, Any]],
+        modules: list[dict[str, Any]],
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+    ) -> int:
+        """Inject the capability router onboarding screen when absent."""
+
+        injected = 0
+        if not any(group.get("key") == RUNTIME_CLI_GROUP["key"] for group in groups):
+            groups.append(dict(RUNTIME_CLI_GROUP))
+            injected += 1
+        if not any(
+            module.get("key") == RUNTIME_CAPABILITY_ROUTER_MODULE["key"] for module in modules
+        ):
+            modules.append(dict(RUNTIME_CAPABILITY_ROUTER_MODULE))
+            injected += 1
+        if not any(
+            screen.get("key") == RUNTIME_CAPABILITY_ROUTER_SCREEN["key"] for screen in screens
+        ):
+            screens.append(dict(RUNTIME_CAPABILITY_ROUTER_SCREEN))
+            injected += 1
+        existing_actions = {str(action.get("key") or "") for action in actions}
+        for action in RUNTIME_CAPABILITY_ROUTER_ACTIONS:
+            if action["key"] in existing_actions:
+                continue
+            actions.append(dict(action))
             injected += 1
         return injected
 

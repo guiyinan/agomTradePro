@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
 > **文档版本**: V2.0
-> **更新日期**: 2026-07-01
+> **更新日期**: 2026-07-04
 > **目标读者**: 开发人员
 
 ---
@@ -184,6 +184,29 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metada
 
 # TUI 契约与渲染核心回归
 agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests\unit\test_tui_ui_mode.py tests\unit\test_tui_metadata_compiler.py -q -p no:cacheprovider
+```
+
+### 能力路由网关
+
+- `/settings/capability-gateway/`：统一接入页，面向用户和管理员展示 Token 获取、Route API、Web Chat API、TUI 验证和 MCP 工具治理入口。
+- `/api/ai-capability/route/`：外部 Agent 的统一能力入口。请求体至少包含 `message` 与 `entrypoint`，可通过 `context.params` 提供能力参数。
+- `/api/ai-capability/web/`：网页聊天入口，复用同一套 Capability Router，并返回建议动作与回答链元数据。
+- `/api/ai-capability/capabilities/`：能力目录列表，可按 `source_type`、`route_group`、`category`、`q` 过滤。
+- `/settings/mcp-tools/`：管理员 MCP 工具治理页；只有 `enabled_for_routing=True` 的 MCP capability 才会进入 AI 路由候选集。
+- `python manage.py govern_ai_capability_catalog --apply`：治理 AI Capability Catalog，清理不在当前 API/MCP 源内的历史自动采集项；安全只读能力自动放行，写入能力保留确认，高风险 MCP 保持待人工复核，unsafe API 标记拒绝。
+- MCP 可执行工具以 `sdk/agomtradepro_mcp/tools/*` 中的 `@server.tool()` 代码注册为真源；数据库中的 `ai_capability_catalog` 是同步快照和治理投影，不作为任意可执行代码入口。
+- `sync_ai_capability_catalog` 默认会在 API/MCP 同步后执行治理；如需只看原始采集结果，可加 `--skip-governance`。
+- TUI 运行时会注入 `capability-router.gateway` 屏幕，包含“测试统一路由”“能力目录统计”“能力列表”三个动作，均走 `/api/ai-capability/*`。
+
+```powershell
+# 同步 MCP 工具到 Capability Catalog
+agomtradepro\Scripts\python.exe manage.py sync_ai_capability_catalog --source mcp_tool
+
+# 测试统一路由 API（把 <TOKEN> 替换为 /account/mcp/ 生成的 Token）
+curl.exe -X POST "http://127.0.0.1:8000/api/ai-capability/route/" `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Token <TOKEN>" `
+  -d "{\"message\":\"现在系统状态如何？\",\"entrypoint\":\"agent\",\"context\":{\"answer_chain_enabled\":true}}"
 ```
 
 ### 后台入口模型

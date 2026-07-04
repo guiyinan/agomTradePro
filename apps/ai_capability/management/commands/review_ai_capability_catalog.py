@@ -41,6 +41,7 @@ class Command(BaseCommand):
         self.stdout.write(f"\nTotal capabilities: {stats['total']}")
         self.stdout.write(f"  Enabled: {stats['enabled']}")
         self.stdout.write(f"  Disabled: {stats['disabled']}")
+        self.stdout.write(f"  Pending manual governance: {stats['manual_governance']}")
 
         self.stdout.write("\nBy Source Type:")
         for source, count in stats["by_source"].items():
@@ -49,6 +50,10 @@ class Command(BaseCommand):
         self.stdout.write("\nBy Route Group:")
         for group, count in stats["by_route_group"].items():
             self.stdout.write(f"  {group}: {count}")
+
+        self.stdout.write("\nBy Review Status:")
+        for status, count in stats["by_review_status"].items():
+            self.stdout.write(f"  {status}: {count}")
 
         self.stdout.write("\n" + "=" * 60)
 

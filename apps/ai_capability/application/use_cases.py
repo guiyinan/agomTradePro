@@ -1315,7 +1315,8 @@ class SyncCapabilitiesUseCase:
 
     def _classify_mcp_tool(self, tool_name: str) -> tuple[RiskLevel, bool, bool]:
         normalized = (tool_name or "").lower()
-        is_mutating = any(keyword in normalized for keyword in _MCP_MUTATING_KEYWORDS)
+        tokens = set(re.findall(r"[a-z0-9]+", normalized))
+        is_mutating = any(keyword in tokens for keyword in _MCP_MUTATING_KEYWORDS)
         if is_mutating:
             return (RiskLevel.HIGH, True, False)
         return (RiskLevel.LOW, True, True)

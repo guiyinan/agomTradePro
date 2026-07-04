@@ -205,6 +205,9 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 ## Recent MCP-Facing Changes
 
+- MCP 工具真实注册源固定为 SDK 代码：`sdk/agomtradepro_mcp/server.py` 调用各模块 `register_*_tools(server)`，具体工具在 `sdk/agomtradepro_mcp/tools/*` 中以 `@server.tool()` 注册。数据库 `ai_capability_catalog` 中的 `mcp_tool.*` 记录只是同步快照和 AI 路由治理投影，不作为任意可执行代码入口。
+- AI Capability Catalog 现在提供统一接入页 `/settings/capability-gateway/` 和 MCP 工具治理页 `/settings/mcp-tools/`。同步 MCP/API 能力后会默认执行治理：安全只读能力可进入路由，写入/导出/预览等能力保留确认，高风险写入、交易、审批、删除、同步、回滚类 MCP 不进入自动路由。
+- `python manage.py sync_ai_capability_catalog --source mcp_tool` 默认会在同步后保留已复核的 `approved/rejected` 治理状态；如需只查看原始采集结果，可使用 `--skip-governance`。当前本地治理口径为 `manual_governance=0`。
 - Personal Auto Advisor is exposed as native MCP tools via the SDK MCP server:
   - `get_auto_advisor_decision_sheet(account_id)` reads `/api/decision/advisor/sheet/`.
   - `get_auto_advisor_console(account_id)` reads the Dashboard auto-advisor console payload.

@@ -3,7 +3,7 @@
 > **模块**: `apps/ai_capability/`  
 > **版本**: V1.0  
 > **创建日期**: 2026-03-19  
-> **最后更新**: 2026-03-22
+> **最后更新**: 2026-07-04
 > **状态**: 生产就绪
 
 ---
@@ -19,16 +19,18 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 | 能力 | 说明 |
 |------|------|
 | **能力目录管理** | 统一管理 builtin、terminal_command、mcp_tool、api 四类能力 |
-| **自动采集** | 自动采集全站 API 端点并入库 |
-| **安全分层** | 自动识别 unsafe_api，默认不参与路由 |
+| **自动采集** | 自动采集全站 API 端点、SDK MCP 工具和 Terminal 命令并入库 |
+| **安全分层** | 自动识别 unsafe_api、写入 API 和高风险 MCP，统一治理路由开关 |
 | **统一路由** | 三阶段路由：Retrieval → Decision → Dispatch |
 | **审计追踪** | 记录所有路由决策和执行结果 |
+| **接入引导** | `/settings/capability-gateway/` 提供 Token、Route API、TUI 和 MCP 工具治理入口 |
 
 ### 1.3 设计原则
 
 1. **系统级能力** - 不属于 terminal 私域，可供多入口复用
-2. **代码主导** - 数据库承载，但真实来源仍是代码
+2. **代码主导** - MCP 可执行工具以 SDK 代码注册为真源，数据库只保存同步快照和治理投影
 3. **安全优先** - 高危接口自动阻断，写操作需确认
+4. **治理不被同步覆盖** - 已复核的 `approved/rejected` 状态会在后续同步中保留，只刷新 schema、描述、执行目标等工具契约字段
 
 ---
 
@@ -42,6 +44,8 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 | `terminal_command` | Terminal 命令配置 | 来自 TerminalCommandORM |
 | `mcp_tool` | MCP 工具 | data_center_get_macro_series, get_current_regime |
 | `api` | 内部 API 端点 | GET /api/regime/, POST /api/signal/ |
+
+`mcp_tool` 的真实可执行注册源在 `sdk/agomtradepro_mcp/tools/*` 的 `@server.tool()`；`ai_capability_catalog` 中的 MCP 记录只决定该工具是否进入 AI 路由候选集、是否需要确认、风险等级和页面展示。只在数据库中新增一条 `mcp_tool.*` 记录不会创建真实可执行 MCP 工具。
 
 ### 2.2 路由分组 (Route Group)
 
@@ -287,17 +291,17 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 ```json
 {
   "sync_type": "full",
-  "total_discovered": 2259,
-  "created_count": 2213,
-  "updated_count": 46,
+  "total_discovered": 2008,
+  "created_count": 0,
+  "updated_count": 2008,
   "disabled_count": 0,
   "error_count": 0,
   "duration_seconds": 4.63,
   "summary": {
-    "builtin": {"created": 2, "updated": 0},
-    "terminal_command": {"created": 0, "updated": 0},
-    "mcp_tool": {"created": 0, "updated": 0},
-    "api": {"created": 2211, "updated": 46}
+    "builtin": {"created": 0, "updated": 2},
+    "terminal_command": {"created": 0, "updated": 1},
+    "mcp_tool": {"created": 0, "updated": 368},
+    "api": {"created": 0, "updated": 1604}
   }
 }
 ```
@@ -312,22 +316,29 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 ```json
 {
-  "total": 2213,
-  "enabled": 2023,
-  "disabled": 190,
+  "total": 1975,
+  "enabled": 1645,
+  "disabled": 330,
   "by_source": {
     "builtin": 2,
-    "terminal_command": 0,
-    "mcp_tool": 0,
-    "api": 2211
+    "terminal_command": 1,
+    "mcp_tool": 368,
+    "api": 1604
   },
   "by_route_group": {
     "builtin": 2,
-    "tool": 0,
-    "read_api": 858,
-    "write_api": 1163,
-    "unsafe_api": 190
-  }
+    "tool": 369,
+    "read_api": 735,
+    "write_api": 635,
+    "unsafe_api": 234
+  },
+  "by_review_status": {
+    "auto": 2,
+    "pending": 0,
+    "approved": 1643,
+    "rejected": 330
+  },
+  "manual_governance": 0
 }
 ```
 
@@ -349,25 +360,28 @@ python manage.py init_ai_capability_catalog
 Initializing AI capability catalog...
 
 Initialization complete in 4.63s
-  Total discovered: 2259
-  Created: 2213
-  Updated: 46
+  Total discovered: 2008
+  Created: 0
+  Updated: 2008
   Disabled: 0
   Errors: 0
 
 Details by source:
   builtin:
-    Created: 2
-    Updated: 0
+    Created: 0
+    Updated: 2
+  mcp_tool:
+    Created: 0
+    Updated: 368
   api:
-    Created: 2211
-    Updated: 46
+    Created: 0
+    Updated: 1604
 ```
 
 ### 4.2 同步命令
 
 ```bash
-python manage.py sync_ai_capability_catalog [--type incremental]
+python manage.py sync_ai_capability_catalog [--type incremental] [--source api|mcp_tool|terminal_command|builtin] [--skip-governance]
 ```
 
 **参数**:
@@ -375,8 +389,34 @@ python manage.py sync_ai_capability_catalog [--type incremental]
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `--type` | 同步类型: full, incremental | incremental |
+| `--source` | 仅同步指定来源 | 全部来源 |
+| `--skip-governance` | 跳过 API/MCP 同步后的治理应用 | false |
 
-### 4.3 审查命令
+**行为**:
+
+1. API/MCP 同步默认会在采集后执行 `CapabilityCatalogGovernanceService(apply=True)`。
+2. 同步只更新工具契约字段：名称、摘要、描述、schema、执行目标、可见性、入口启用等。
+3. 如果记录已是 `review_status=approved/rejected`，同步不会覆盖 `risk_level`、`requires_confirmation`、`enabled_for_routing`、`review_status`。
+4. 只有 `review_status=auto` 的新采集项才会使用采集器给出的默认治理字段。
+
+### 4.3 治理命令
+
+```bash
+python manage.py govern_ai_capability_catalog [--apply] [--keep-stale] [--format text|json]
+```
+
+**功能**:
+
+- 清理不在当前 API/MCP 源中的历史自动采集项
+- 安全只读 API 自动放行
+- 写入 API 放行但强制确认
+- unsafe API 标记 `rejected`
+- 已复核只读 MCP 放行但强制确认
+- 创建、更新、删除、交易、同步、审批、回滚等高风险 MCP 标记 `rejected`
+
+当前本地治理口径：`manual_governance=0`，即没有待人工复核项。
+
+### 4.4 审查命令
 
 ```bash
 python manage.py review_ai_capability_catalog [--format json]
@@ -389,29 +429,33 @@ python manage.py review_ai_capability_catalog [--format json]
 AI Capability Catalog Review
 ============================================================
 
-Total capabilities: 2213
-  Enabled: 2023
-  Disabled: 190
+Total capabilities: 1975
+  Enabled: 1645
+  Disabled: 330
+  Pending manual governance: 0
 
 By Source Type:
   builtin: 2
-  terminal_command: 0
-  mcp_tool: 0
-  api: 2211
+  terminal_command: 1
+  mcp_tool: 368
+  api: 1604
 
 By Route Group:
   builtin: 2
-  tool: 0
-  read_api: 858
-  write_api: 1163
-  unsafe_api: 190
+  tool: 369
+  read_api: 735
+  write_api: 635
+  unsafe_api: 234
+
+By Review Status:
+  auto: 2
+  pending: 0
+  approved: 1643
+  rejected: 330
 
 ============================================================
 
-Warning: 190 unsafe API(s) detected
-
-Warnings:
-  - No MCP tools found
+Warning: 234 unsafe API(s) detected
 
 ============================================================
 Review complete
@@ -561,7 +605,9 @@ print(f"Errors: {result.error_count}")
 
 1. `sync_ai_capability_catalog --source api` 现在会真正只同步指定来源
 2. 同步结束后会调用 `disable_missing(...)`，将来源中已消失的 capability 标记为 `enabled_for_routing=false`
-3. `disabled_count` 表示本次被禁用的失效记录数量
+3. API/MCP 同步默认继续执行治理命令语义，确保同步后不会重新出现待治理积压
+4. 已复核的治理字段不会被同步覆盖；数据库是治理投影，不是 MCP 可执行代码真源
+5. `disabled_count` 表示本次被禁用的失效记录数量，不等于全部“待人工治理”
 
 ---
 
@@ -587,10 +633,18 @@ print(f"Errors: {result.error_count}")
 | 路由分组 | enabled_for_routing | requires_confirmation | admin_only |
 |----------|---------------------|----------------------|------------|
 | builtin | ✅ | ❌ | ❌ |
-| tool | ✅ | ❌ | ❌ |
+| tool | 按 MCP 治理结果 | ✅ | 按 MCP RBAC |
 | read_api | ✅ | ❌ | ❌ |
 | write_api | ✅ | ✅ | ❌ |
 | unsafe_api | ❌ | ✅ | ✅ |
+
+### 7.4 MCP 工具治理口径
+
+| MCP 类型 | 默认治理 |
+|----------|----------|
+| `get_*`、`list_*`、`compare_*`、`check_*`、`recommend_*` | 低风险，可路由，需确认 |
+| `preview_*`、`export_*`、`run_backtest` 等只读/研究型动作 | 中风险，可路由，需确认 |
+| `create_*`、`update_*`、`delete_*`、`sync_*`、`execute_*`、`approve_*`、`reject_*`、`rollback_*`、`trade_*` | 高风险，不进入自动路由，标记 `rejected` |
 
 ---
 
@@ -621,6 +675,7 @@ apps/ai_capability/
 └── management/commands/         # 管理命令
     ├── init_ai_capability_catalog.py
     ├── sync_ai_capability_catalog.py
+    ├── govern_ai_capability_catalog.py
     └── review_ai_capability_catalog.py
 ```
 
@@ -687,6 +742,10 @@ API 采集器会自动识别高危模式。如需手动标记，可在 Admin 后
 2. 查看 `CapabilityRoutingLogModel` 中的记录
 3. 检查 `retrieved_candidates` 和 `confidence` 字段
 
+### Q4: MCP 工具是在数据库注册的吗？
+
+不是。真实 MCP 工具由 `sdk/agomtradepro_mcp/server.py` 调用各模块 `register_*_tools(server)`，并在 `sdk/agomtradepro_mcp/tools/*` 中通过 `@server.tool()` 注册。数据库中的 `mcp_tool` 记录来自同步，是 AI 路由目录和治理状态。删除数据库记录不会删除真实 MCP 工具；只要代码仍注册，下次同步会重新出现。
+
 ---
 
 ## 10. 相关文档
@@ -698,4 +757,4 @@ API 采集器会自动识别高危模式。如需手动标记，可在 Admin 后
 ---
 
 **维护者**: AgomTradePro Team  
-**最后更新**: 2026-03-19
+**最后更新**: 2026-07-04

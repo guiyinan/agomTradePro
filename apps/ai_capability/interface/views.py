@@ -12,11 +12,25 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.account.interface.views import is_admin_user
 
+from ..application.governance_services import CapabilityCatalogGovernanceService
 from ..application.interface_services import (
+    get_capability_gateway_page_context,
     get_mcp_tools_page_context,
     toggle_mcp_tool_flag,
 )
 from ..application.use_cases import SyncCapabilitiesUseCase
+
+
+@login_required
+@require_GET
+def capability_gateway_page(request: HttpRequest) -> HttpResponse:
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    context = get_capability_gateway_page_context(
+        user_id=request.user.id,
+        base_url=base_url,
+    )
+    context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
+    return render(request, "ops/capability_gateway.html", context)
 
 
 @login_required
@@ -40,9 +54,16 @@ def mcp_tools_page(request: HttpRequest) -> HttpResponse:
 @require_POST
 def sync_mcp_tools_view(request: HttpRequest) -> HttpResponse:
     result = SyncCapabilitiesUseCase().execute(sync_type="incremental", source="mcp_tool")
+    governance_result = CapabilityCatalogGovernanceService().execute(apply=True)
     messages.success(
         request,
-        f"MCP 工具同步完成: discovered={result.total_discovered}, created={result.created_count}, updated={result.updated_count}, disabled={result.disabled_count}",
+        (
+            "MCP 工具同步完成: "
+            f"discovered={result.total_discovered}, created={result.created_count}, "
+            f"updated={result.updated_count}, disabled={result.disabled_count}, "
+            f"governance_changes={governance_result.changed_count}, "
+            f"manual_pending={governance_result.pending_count}"
+        ),
     )
     return redirect("/settings/mcp-tools/")
 

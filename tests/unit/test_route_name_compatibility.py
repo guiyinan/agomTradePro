@@ -178,6 +178,9 @@ def test_mcp_guide_entry_is_exposed_in_dashboard_and_global_navigation():
     assert "{% url 'account:mcp_guide' %}" in dashboard_template
     assert "{% url 'account:mcp_guide' %}" in base_template
     assert "{% url 'account:mcp_guide' %}" in account_settings_template
+    assert "{% url 'settings-capability-gateway' %}" in dashboard_template
+    assert "{% url 'settings-capability-gateway' %}" in base_template
+    assert reverse("settings-capability-gateway") == "/settings/capability-gateway/"
 
 
 def test_manual_trade_review_entry_is_exposed_in_account_execution_navigation():

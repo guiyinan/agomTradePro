@@ -101,7 +101,9 @@ def test_ai_capability_root_exposes_endpoint_directory(api_client, regular_user)
 
 
 @pytest.mark.django_db
-def test_non_admin_capability_detail_hides_technical_fields(api_client, regular_user, write_capability):
+def test_non_admin_capability_detail_hides_technical_fields(
+    api_client, regular_user, write_capability
+):
     api_client.force_authenticate(user=regular_user)
 
     response = api_client.get(f"/api/ai-capability/capabilities/{write_capability.capability_key}/")
@@ -132,9 +134,12 @@ def test_sync_capabilities_disables_missing_source_entries():
         result = use_case.execute(sync_type="incremental", source="api")
 
     assert result.disabled_count == 1
-    assert CapabilityCatalogModel.objects.get(
-        capability_key="api.get.api.legacy.status"
-    ).enabled_for_routing is False
+    assert (
+        CapabilityCatalogModel.objects.get(
+            capability_key="api.get.api.legacy.status"
+        ).enabled_for_routing
+        is False
+    )
 
 
 @pytest.mark.django_db
@@ -195,12 +200,17 @@ def test_capability_list_endpoint_still_works(api_client, regular_user, write_ca
 
 
 @pytest.mark.django_db
-def test_web_chat_execute_action_runs_selected_capability(api_client, staff_user, builtin_status_capability):
+def test_web_chat_execute_action_runs_selected_capability(
+    api_client, staff_user, builtin_status_capability
+):
     api_client.force_authenticate(user=staff_user)
 
-    with patch("apps.ai_capability.application.use_cases.run_readiness_checks") as mock_checks, patch(
-        "apps.ai_capability.application.use_cases.is_healthy",
-        return_value=True,
+    with (
+        patch("apps.ai_capability.application.use_cases.run_readiness_checks") as mock_checks,
+        patch(
+            "apps.ai_capability.application.use_cases.is_healthy",
+            return_value=True,
+        ),
     ):
         mock_checks.return_value = {
             "database": {"status": "ok"},
@@ -374,6 +384,7 @@ def test_sync_mcp_tools_marks_mutating_tools_high_risk_and_non_routable():
         "apps.ai_capability.application.use_cases._list_sdk_mcp_tools",
         return_value=[
             SimpleNamespace(name="update_portfolio_config", description="update", inputSchema={}),
+            SimpleNamespace(name="get_asset_info", description="get", inputSchema={}),
             SimpleNamespace(name="get_portfolio_status", description="get", inputSchema={}),
         ],
     ):
@@ -386,6 +397,11 @@ def test_sync_mcp_tools_marks_mutating_tools_high_risk_and_non_routable():
     assert mutating.requires_confirmation is True
     assert mutating.enabled_for_routing is False
     assert mutating.visibility.value == "admin"
+
+    asset_read = by_key["mcp_tool.get_asset_info"]
+    assert asset_read.risk_level.value == "low"
+    assert asset_read.requires_confirmation is True
+    assert asset_read.enabled_for_routing is True
 
     readonly = by_key["mcp_tool.get_portfolio_status"]
     assert readonly.risk_level.value == "low"

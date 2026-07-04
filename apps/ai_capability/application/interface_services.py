@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from typing import Any
 
+from apps.account.application.interface_services import (
+    TOKEN_ACCESS_LEVEL_READ_ONLY,
+    build_mcp_guide_context,
+    get_token_access_level_choices,
+)
 from apps.ai_capability.application.repository_provider import (
     get_capability_repository,
     get_capability_sync_log_repository,
@@ -49,8 +55,8 @@ def get_mcp_tools_page_context(
 ) -> dict[str, Any]:
     """Build the template context for the MCP tools page."""
 
-    use_case = GetCapabilityListUseCase(capability_repo=get_capability_repository())
-    tools = use_case.execute(source_type="mcp_tool", enabled_only=False)
+    capability_repo = get_capability_repository()
+    tools = capability_repo.list_capabilities(source_type="mcp_tool", enabled_only=False)
 
     if search_query:
         normalized_query = search_query.lower()
@@ -75,13 +81,20 @@ def get_mcp_tools_page_context(
     elif status_filter == "terminal_off":
         tools = [item for item in tools if not item.enabled_for_terminal]
 
-    module_choices = sorted({_derive_module_name(item.name) for item in use_case.execute(source_type="mcp_tool", enabled_only=False)})
+    module_choices = sorted(
+        {
+            _derive_module_name(item.name)
+            for item in capability_repo.list_capabilities(
+                source_type="mcp_tool", enabled_only=False
+            )
+        }
+    )
     latest_sync = get_capability_sync_log_repository().get_latest("mcp_tool")
 
     return {
         "page_title": "MCP 工具管理",
         "page_subtitle": "管理已同步到 AI Capability Catalog 的 MCP 工具，支持检索、查看 Schema、切换终端/路由启用状态以及重新同步。",
-        "tools": tools[:300],
+        "tools": [_mcp_tool_page_payload(tool) for tool in tools[:300]],
         "total_count": len(tools),
         "module_choices": module_choices,
         "search_query": search_query,
@@ -91,12 +104,132 @@ def get_mcp_tools_page_context(
     }
 
 
+def _mcp_tool_page_payload(capability) -> dict[str, Any]:
+    input_schema = dict(capability.input_schema or {})
+    return {
+        "capability_key": capability.capability_key,
+        "name": capability.name,
+        "summary": capability.summary,
+        "description": capability.description,
+        "route_group": capability.route_group.value,
+        "risk_level": capability.risk_level.value,
+        "input_schema": input_schema,
+        "input_schema_json": (
+            json.dumps(input_schema, ensure_ascii=False, indent=2)
+            if input_schema
+            else "未发布 input schema"
+        ),
+        "enabled_for_routing": capability.enabled_for_routing,
+        "enabled_for_terminal": capability.enabled_for_terminal,
+    }
+
+
+def get_capability_gateway_page_context(
+    *,
+    user_id: int,
+    base_url: str,
+) -> dict[str, Any]:
+    """Build the operator page context for capability gateway onboarding."""
+
+    repository = get_capability_repository()
+    stats = repository.get_stats()
+    mcp_summary = _source_summary("mcp_tool")
+    terminal_summary = _source_summary("terminal_command")
+    api_summary = _source_summary("api")
+    builtin_summary = _source_summary("builtin")
+    mcp_context = build_mcp_guide_context(user_id=user_id, base_url=base_url)
+
+    route_endpoint = f"{base_url}/api/ai-capability/route/"
+    web_endpoint = f"{base_url}/api/ai-capability/web/"
+    capability_endpoint = f"{base_url}/api/ai-capability/capabilities/"
+    token_hint = "<your_token>"
+    route_payload = {
+        "message": "现在系统状态如何？",
+        "entrypoint": "agent",
+        "context": {
+            "answer_chain_enabled": True,
+            "params": {},
+        },
+    }
+
+    return {
+        "page_title": "能力路由接入",
+        "page_subtitle": "把 AI、Terminal、TUI 和 MCP 工具统一接入 Capability Router，避免模型直接面对大量底层接口。",
+        "base_url": base_url,
+        "profile": mcp_context["profile"],
+        "access_tokens": mcp_context.get("access_tokens", []),
+        "token_access_level_choices": get_token_access_level_choices(),
+        "default_token_access_level": TOKEN_ACCESS_LEVEL_READ_ONLY,
+        "new_token_payload": mcp_context.get("new_token_payload"),
+        "catalog_stats": stats,
+        "source_cards": [
+            {"label": "Builtin", **builtin_summary},
+            {"label": "Terminal", **terminal_summary},
+            {"label": "MCP Tools", **mcp_summary},
+            {"label": "Internal APIs", **api_summary},
+        ],
+        "route_endpoint": route_endpoint,
+        "web_endpoint": web_endpoint,
+        "capability_endpoint": capability_endpoint,
+        "curl_route_example": "\n".join(
+            [
+                "curl -X POST \\",
+                f'  "{route_endpoint}" \\',
+                '  -H "Content-Type: application/json" \\',
+                f'  -H "Authorization: Token {token_hint}" \\',
+                '  -d \'{"message":"现在系统状态如何？","entrypoint":"agent","context":{"answer_chain_enabled":true}}\'',
+            ]
+        ),
+        "route_payload_json": json.dumps(route_payload, ensure_ascii=False, indent=2),
+        "onboarding_steps": [
+            {
+                "title": "1. 获取 Token",
+                "body": "用户先在本页或 MCP 接入说明页生成只读 Token；管理员可在 Token 管理页为指定用户开通 MCP/SDK 权限。",
+                "href": "/account/mcp/",
+                "link_label": "打开 MCP 接入说明",
+            },
+            {
+                "title": "2. 接入统一路由",
+                "body": "外部 Agent 只调用 /api/ai-capability/route/，由 Capability Catalog 检索并选择 MCP、Terminal、内置能力或内部 API。",
+                "href": "/api/ai-capability/",
+                "link_label": "查看路由 API",
+            },
+            {
+                "title": "3. 治理 MCP 工具",
+                "body": "管理员在 MCP 工具页同步底层工具，打开 enabled_for_routing 后才允许进入 AI 路由候选集。",
+                "href": "/settings/mcp-tools/",
+                "link_label": "管理 MCP 工具",
+            },
+            {
+                "title": "4. 从 TUI 验证",
+                "body": "TUI 的能力路由屏幕会走同一个路由 API，可用来检查候选能力、确认提示和回答链。",
+                "href": "/tui/",
+                "link_label": "打开 TUI",
+            },
+        ],
+    }
+
+
+def _source_summary(source_type: str) -> dict[str, Any]:
+    capabilities = get_capability_repository().get_by_source_type(source_type)
+    latest_sync = get_capability_sync_log_repository().get_latest(source_type)
+    return {
+        "source_type": source_type,
+        "total": len(capabilities),
+        "routing_enabled": sum(1 for item in capabilities if item.enabled_for_routing),
+        "terminal_enabled": sum(1 for item in capabilities if item.enabled_for_terminal),
+        "requires_confirmation": sum(1 for item in capabilities if item.requires_confirmation),
+        "latest_sync_at": latest_sync.finished_at if latest_sync else None,
+        "status": "ready" if capabilities else "empty",
+    }
+
+
 def toggle_mcp_tool_flag(*, capability_key: str, flag: str):
     """Toggle one MCP tool flag and persist the updated capability."""
 
-    capability = GetCapabilityDetailUseCase(
-        capability_repo=get_capability_repository()
-    ).execute(capability_key)
+    capability = GetCapabilityDetailUseCase(capability_repo=get_capability_repository()).execute(
+        capability_key
+    )
     if capability is None or capability.source_type.value != "mcp_tool":
         return None
 

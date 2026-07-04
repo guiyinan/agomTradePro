@@ -12,7 +12,9 @@ def client():
 
 @pytest.fixture
 def admin_user(db):
-    user = User.objects.create_user(username="mcp_admin_page", password="test123", is_staff=True, is_superuser=True)
+    user = User.objects.create_user(
+        username="mcp_admin_page", password="test123", is_staff=True, is_superuser=True
+    )
     profile = user.account_profile
     profile.approval_status = "approved"
     profile.rbac_role = "admin"
@@ -41,7 +43,15 @@ def mcp_tool(db):
         summary="List signal records",
         route_group="tool",
         category="mcp",
-        input_schema={"type": "object", "properties": {}},
+        input_schema={
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum rows",
+                }
+            },
+        },
         execution_target={"type": "mcp_tool", "tool_name": "list_signals"},
         risk_level="safe",
         requires_mcp=True,
@@ -71,12 +81,32 @@ def test_mcp_tools_page_renders_for_admin(client, admin_user, mcp_tool):
     assert "list_signals" in content
     assert "返回设置中心" in content
     assert "当前页属于系统级能力治理与开关配置" in content
+    assert '"type": "object"' in content
+    assert '"limit"' in content
+    assert "已启用" in content
+
+
+@pytest.mark.django_db
+def test_capability_gateway_page_renders_for_regular_user(client, regular_user, mcp_tool):
+    client.force_login(regular_user)
+
+    response = client.get("/settings/capability-gateway/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "能力路由接入" in content
+    assert "/api/ai-capability/route/" in content
+    assert "测试统一路由" not in content
+    assert "MCP 接入说明" in content
+    assert "Capability Router" in content
 
 
 @pytest.mark.django_db
 def test_toggle_mcp_tool_flag_updates_model(client, admin_user, mcp_tool):
     client.force_login(admin_user)
-    response = client.post(f"/settings/mcp-tools/{mcp_tool.capability_key}/toggle/enabled_for_terminal/")
+    response = client.post(
+        f"/settings/mcp-tools/{mcp_tool.capability_key}/toggle/enabled_for_terminal/"
+    )
     assert response.status_code == 302
     mcp_tool.refresh_from_db()
     assert mcp_tool.enabled_for_terminal is False

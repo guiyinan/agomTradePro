@@ -28,6 +28,10 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
         {
             "account_settings": lambda user: {"status": "configured", "summary": {"message": "ok"}},
             "mcp_guide": lambda user: {"status": "configured", "summary": {"message": "ok"}},
+            "capability_gateway": lambda user: {
+                "status": "configured",
+                "summary": {"message": "ok"},
+            },
             "agent_runtime_operator": lambda user: {
                 "status": "configured",
                 "summary": {"message": "ok"},
@@ -60,6 +64,7 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
     assert "data_center_providers" not in item_keys
     assert "data_center_runtime" not in item_keys
     assert "mcp_guide" in item_keys
+    assert "capability_gateway" in item_keys
 
 
 def test_config_center_capabilities_and_summary_builders_remain_in_sync():

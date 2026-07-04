@@ -24,6 +24,7 @@ from apps.account.interface.documentation_views import (
 )
 from apps.ai_capability.interface.api_views import web_chat
 from apps.ai_capability.interface.views import (
+    capability_gateway_page,
     mcp_tools_page,
     sync_mcp_tools_view,
     toggle_mcp_tool_flag_view,
@@ -216,6 +217,11 @@ core_patterns = [
     path("api/decision/audit/", decision_audit_api_view, name="api-decision-audit"),
     path("settings/", settings_center_view, name="settings-center"),
     path("admin-console/", admin_console_view, name="admin-console"),
+    path(
+        "settings/capability-gateway/",
+        capability_gateway_page,
+        name="settings-capability-gateway",
+    ),
     path("settings/mcp-tools/", mcp_tools_page, name="settings-mcp-tools"),
     path("settings/mcp-tools/sync/", sync_mcp_tools_view, name="settings-mcp-tools-sync"),
     path(

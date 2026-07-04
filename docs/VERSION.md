@@ -40,7 +40,9 @@ Build: 2026-03-23
 
 > 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
 
-## 0.7.0 之后的开发快照（截至 2026-06-30）
+## 0.7.0 之后的开发快照（截至 2026-07-04）
+
+- `2026-07-04` AI Capability Gateway 和 MCP 工具治理完成收口：新增 `/settings/capability-gateway/` 统一接入页，TUI 注入 `capability-router.gateway` 屏幕，MCP 工具页支持查看 input schema；Capability Catalog 同步后会保留已复核治理状态并默认执行治理，MCP 可执行工具以 SDK `@server.tool()` 代码注册为真源，数据库仅作为同步快照和路由治理投影。当前本地能力目录为 `total=1975 / enabled=1645 / disabled=330 / manual_governance=0`。
 
 - `2026-06-30` 治理一致性检查新增治理说明文档自检：`check_governance_consistency.py` 现在验证 `docs/governance/ARCHITECTURE_GUARDRAILS.md` 包含当前治理命令和 report section token，防止文档落后于实际 CI 门禁
 - `2026-06-30` 治理一致性检查新增 `core/integration` 历史桥接债务 ratchet：`governance_baseline.json` 锁定当前 app infrastructure import 数和 ORM access 行数，新增会失败，减少会以 stale baseline 要求同步收紧

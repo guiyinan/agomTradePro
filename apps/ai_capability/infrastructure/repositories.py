@@ -116,6 +116,10 @@ class DjangoCapabilityRepository:
 
         with transaction.atomic():
             for cap in capabilities:
+                existing = CapabilityCatalogModel.objects.filter(
+                    capability_key=cap.capability_key,
+                ).first()
+                governance_defaults = self._build_governance_defaults(cap, existing)
                 _, created = CapabilityCatalogModel.objects.update_or_create(
                     capability_key=cap.capability_key,
                     defaults={
@@ -133,18 +137,15 @@ class DjangoCapabilityRepository:
                         "input_schema": dict(cap.input_schema),
                         "execution_kind": cap.execution_kind.value,
                         "execution_target": dict(cap.execution_target),
-                        "risk_level": cap.risk_level.value,
                         "requires_mcp": cap.requires_mcp,
-                        "requires_confirmation": cap.requires_confirmation,
-                        "enabled_for_routing": cap.enabled_for_routing,
                         "enabled_for_terminal": cap.enabled_for_terminal,
                         "enabled_for_chat": cap.enabled_for_chat,
                         "enabled_for_agent": cap.enabled_for_agent,
                         "visibility": cap.visibility.value,
                         "auto_collected": cap.auto_collected,
-                        "review_status": cap.review_status.value,
                         "priority_weight": cap.priority_weight,
                         "last_synced_at": now,
+                        **governance_defaults,
                     },
                 )
                 if created:
@@ -156,6 +157,26 @@ class DjangoCapabilityRepository:
             "created": created_count,
             "updated": updated_count,
             "total": created_count + updated_count,
+        }
+
+    def _build_governance_defaults(
+        self,
+        capability: CapabilityDefinition,
+        existing: CapabilityCatalogModel | None,
+    ) -> dict[str, Any]:
+        """Return governance fields for sync without wiping reviewed decisions."""
+        if existing is None or existing.review_status == "auto":
+            return {
+                "risk_level": capability.risk_level.value,
+                "requires_confirmation": capability.requires_confirmation,
+                "enabled_for_routing": capability.enabled_for_routing,
+                "review_status": capability.review_status.value,
+            }
+        return {
+            "risk_level": existing.risk_level,
+            "requires_confirmation": existing.requires_confirmation,
+            "enabled_for_routing": existing.enabled_for_routing,
+            "review_status": existing.review_status,
         }
 
     def disable_missing(
@@ -172,6 +193,15 @@ class DjangoCapabilityRepository:
         count = qs.count()
         qs.update(enabled_for_routing=False)
         return count
+
+    def delete_by_keys(self, capability_keys: list[str]) -> int:
+        """Delete catalog entries by capability key."""
+        if not capability_keys:
+            return 0
+        deleted_count, _ = CapabilityCatalogModel.objects.filter(
+            capability_key__in=capability_keys,
+        ).delete()
+        return deleted_count
 
     def get_stats(self) -> dict[str, Any]:
         """Get catalog statistics."""
@@ -190,12 +220,20 @@ class DjangoCapabilityRepository:
                 route_group=route_group,
             ).count()
 
+        by_review_status = {}
+        for review_status in ["auto", "pending", "approved", "rejected"]:
+            by_review_status[review_status] = CapabilityCatalogModel.objects.filter(
+                review_status=review_status,
+            ).count()
+
         return {
             "total": total,
             "enabled": enabled,
             "disabled": total - enabled,
             "by_source": by_source,
             "by_route_group": by_route_group,
+            "by_review_status": by_review_status,
+            "manual_governance": by_review_status.get("pending", 0),
         }
 
 

@@ -488,6 +488,7 @@ def settings_center_view(request):
     context = build_config_center_snapshot(request.user)
     featured_order = [
         "account_settings",
+        "capability_gateway",
         "mcp_guide",
         "trading_cost",
         "system_settings",

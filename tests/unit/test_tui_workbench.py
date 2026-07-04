@@ -817,7 +817,9 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
         "account_equity",
     }
     assert action_by_key["risk-center.post-investment-check"]["risk"] == "read"
-    assert {field["key"] for field in action_by_key["risk-center.post-investment-check"]["fields"]} >= {
+    assert {
+        field["key"] for field in action_by_key["risk-center.post-investment-check"]["fields"]
+    } >= {
         "account_id",
         "account_equity",
         "positions",
@@ -829,7 +831,9 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
         "positions",
     }
     assert action_by_key["risk-center.daily-report-history"]["risk"] == "read"
-    assert {field["key"] for field in action_by_key["risk-center.daily-report-history"]["fields"]} >= {
+    assert {
+        field["key"] for field in action_by_key["risk-center.daily-report-history"]["fields"]
+    } >= {
         "account_id",
         "report_date",
         "start_date",
@@ -1622,11 +1626,7 @@ def test_tui_catalog_registers_cli_module_entry(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    modules = {
-        module["key"]: module
-        for group in payload["groups"]
-        for module in group["modules"]
-    }
+    modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
     assert modules["cli"]["label"] == "CLI"
     assert modules["cli"]["group"] == "ops"
     assert [screen["key"] for screen in modules["cli"]["screens"]] == ["cli.terminal"]
@@ -1648,6 +1648,46 @@ def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
     assert action["fields"][0]["label"] == "消息"
+
+
+def test_tui_catalog_registers_capability_router_entry(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
+    assert modules["capability-router"]["label"] == "能力路由"
+    assert modules["capability-router"]["group"] == "ops"
+    assert [screen["key"] for screen in modules["capability-router"]["screens"]] == [
+        "capability-router.gateway"
+    ]
+    assert (
+        modules["capability-router"]["screens"][0]["default_action_key"]
+        == "capability-router.route-message"
+    )
+
+
+def test_tui_capability_router_screen_uses_unified_route_api(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/capability-router.gateway/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["module"]["key"] == "capability-router"
+    assert payload["screen"]["label"] == "能力路由接入"
+    action = next(
+        action
+        for action in payload["actions"]
+        if action["key"] == "capability-router.route-message"
+    )
+    assert action["label"] == "测试统一路由"
+    assert action["risk"] == "ai"
+    assert action["fields"][0]["key"] == "message"
+    assert action["fields"][1]["key"] == "entrypoint"
+    assert action["fields"][2]["key"] == "context"
 
 
 def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
@@ -1904,8 +1944,7 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     assert action["pagination"]["mode"] == "offset"
     assert action["view_model"]["kind"] == "image"
     assert (
-        validated["screens"][0]["dashboard_panels"][0]["target_screen"]
-        == "command-center.overview"
+        validated["screens"][0]["dashboard_panels"][0]["target_screen"] == "command-center.overview"
     )
 
 
@@ -5095,9 +5134,7 @@ def test_tui_metadata_repository_db_reload_keeps_runtime_coverage_stable():
 def test_tui_metadata_repository_patches_system_list_to_datagrid():
     repository = PublishedTuiMetadataRepository()
     loaded = repository._load_published_file()
-    raw_payload = json.loads(
-        repository.published_path.read_text(encoding="utf-8")
-    )
+    raw_payload = json.loads(repository.published_path.read_text(encoding="utf-8"))
     expected_patched, expected_pruned = _runtime_transform_counts(raw_payload)
 
     action = next(
@@ -5137,7 +5174,9 @@ def test_tui_metadata_repository_patches_policy_workbench_items_pagination():
         validate_tui_metadata(payload)
     )
 
-    action = next(action for action in loaded["actions"] if action["key"] == "policy.workbench_items")
+    action = next(
+        action for action in loaded["actions"] if action["key"] == "policy.workbench_items"
+    )
     assert action["pagination"] == {
         "mode": "offset",
         "offset_param": "offset",

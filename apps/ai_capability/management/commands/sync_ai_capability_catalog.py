@@ -7,6 +7,9 @@ import time
 
 from django.core.management.base import BaseCommand
 
+from apps.ai_capability.application.governance_services import (
+    CapabilityCatalogGovernanceService,
+)
 from apps.ai_capability.application.use_cases import SyncCapabilitiesUseCase
 
 logger = logging.getLogger(__name__)
@@ -27,6 +30,11 @@ class Command(BaseCommand):
             type=str,
             help="Sync only a specific source (builtin, terminal_command, mcp_tool, api)",
         )
+        parser.add_argument(
+            "--skip-governance",
+            action="store_true",
+            help="Skip post-sync governance for API/MCP capability routing.",
+        )
 
     def handle(self, *args, **options):
         time.time()
@@ -40,6 +48,9 @@ class Command(BaseCommand):
 
         use_case = SyncCapabilitiesUseCase()
         result = use_case.execute(sync_type=sync_type, source=source)
+        governance_result = None
+        if not options["skip_governance"] and source in (None, "api", "mcp_tool"):
+            governance_result = CapabilityCatalogGovernanceService().execute(apply=True)
 
         self.stdout.write(self.style.SUCCESS(f"\nSync complete in {result.duration_seconds:.2f}s"))
         self.stdout.write(f"  Total discovered: {result.total_discovered}")
@@ -47,6 +58,14 @@ class Command(BaseCommand):
         self.stdout.write(f"  Updated: {result.updated_count}")
         self.stdout.write(f"  Disabled: {result.disabled_count}")
         self.stdout.write(f"  Errors: {result.error_count}")
+
+        if governance_result is not None:
+            self.stdout.write("\nPost-sync governance:")
+            self.stdout.write(f"  Changed: {governance_result.changed_count}")
+            self.stdout.write(f"  Stale deleted: {governance_result.stale_deleted_count}")
+            self.stdout.write(f"  Routing enabled: {governance_result.routing_enabled_count}")
+            self.stdout.write(f"  Routing disabled: {governance_result.routing_disabled_count}")
+            self.stdout.write(f"  Pending manual review: {governance_result.pending_count}")
 
         if result.summary:
             self.stdout.write("\nDetails by source:")
