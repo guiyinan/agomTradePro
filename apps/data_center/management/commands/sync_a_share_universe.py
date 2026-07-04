@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand
 
 from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
+    JsonFileAshareCodeNameProvider,
 )
 
 
@@ -21,9 +22,19 @@ class Command(BaseCommand):
             help="Deactivate local active A-share rows missing from the provider payload.",
         )
         parser.add_argument("--json", action="store_true", dest="as_json")
+        parser.add_argument(
+            "--input-file",
+            default="",
+            help="Import A-share code-name rows from a JSON file instead of AKShare.",
+        )
 
     def handle(self, *args, **options):
-        report = AShareUniverseSyncService().sync(
+        provider = (
+            JsonFileAshareCodeNameProvider(options["input_file"])
+            if options.get("input_file")
+            else None
+        )
+        report = AShareUniverseSyncService(provider=provider).sync(
             deactivate_missing=bool(options.get("deactivate_missing"))
         )
         payload = report.to_dict()

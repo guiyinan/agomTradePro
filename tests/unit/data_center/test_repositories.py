@@ -13,6 +13,7 @@ from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure import orm_retry
 from apps.data_center.infrastructure.a_share_universe_sync import (
     AShareUniverseSyncService,
+    JsonFileAshareCodeNameProvider,
 )
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
 from apps.data_center.infrastructure.models import (
@@ -353,3 +354,21 @@ def test_a_share_universe_sync_upserts_current_market_boards():
     assert AssetMasterModel.objects.filter(code="688111.SH", exchange="SSE").exists()
     assert AssetMasterModel.objects.filter(code="920992.BJ", exchange="BSE").exists()
     assert not AssetMasterModel.objects.filter(code="000004.SZ").exists()
+
+
+@pytest.mark.django_db
+def test_a_share_universe_sync_loads_rows_from_json_file(tmp_path):
+    input_file = tmp_path / "a_share_universe.json"
+    input_file.write_text(
+        '[{"code": "688111", "name": "金山办公"}, {"code": "920992", "name": "中科美菱"}]',
+        encoding="utf-8",
+    )
+
+    report = AShareUniverseSyncService(
+        provider=JsonFileAshareCodeNameProvider(input_file)
+    ).sync()
+
+    assert report.source == "json_file:a_share_universe.json"
+    assert report.active_count == 2
+    assert AssetMasterModel.objects.filter(code="688111.SH", exchange="SSE").exists()
+    assert AssetMasterModel.objects.filter(code="920992.BJ", exchange="BSE").exists()

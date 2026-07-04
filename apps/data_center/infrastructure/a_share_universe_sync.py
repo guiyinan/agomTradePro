@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from apps.data_center.domain.entities import AssetAlias, AssetMaster
@@ -66,6 +68,31 @@ class AkshareAshareCodeNameProvider:
                 }
             )
         return rows
+
+
+class JsonFileAshareCodeNameProvider:
+    """Load A-share code-name rows from a local JSON file."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self.source_name = f"json_file:{self.path.name}"
+
+    def load_code_names(self) -> list[dict[str, str]]:
+        """Read code-name rows from a JSON file."""
+
+        with self.path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        rows = payload.get("rows") if isinstance(payload, dict) else payload
+        if not isinstance(rows, list):
+            raise ValueError("A-share universe input file must contain a row list")
+        return [
+            {
+                "code": str(row.get("code") or "").strip(),
+                "name": str(row.get("name") or "").strip(),
+            }
+            for row in rows
+            if isinstance(row, dict)
+        ]
 
 
 class AShareUniverseSyncService:
