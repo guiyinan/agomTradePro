@@ -600,12 +600,10 @@ class TestBacktestAuditIntegration:
             error="审计数据不足：缺少基准配置"
         )
 
-        # Patch at the source import location
-        with patch('apps.audit.application.use_cases.GenerateAttributionReportUseCase', MagicMock()) as MockAuditUC:
-            # 配置 mock 实例
-            mock_instance = MockAuditUC.return_value
-            mock_instance.execute.return_value = mock_audit_response
-
+        with patch(
+            "apps.backtest.application.use_cases.generate_audit_report_for_backtest",
+            MagicMock(return_value=mock_audit_response),
+        ):
             use_case = RunBacktestUseCase(
                 repository=backtest_repo,
                 get_regime_func=mock_get_regime,
@@ -662,16 +660,10 @@ class TestBacktestAuditIntegration:
 
         backtest_repo = DjangoBacktestRepository()
 
-        # Create a mock class that raises exception on execute
-        class MockAuditUseCase:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def execute(self, *args, **kwargs):
-                raise RuntimeError("数据库连接超时")
-
-        # Patch at the source import location - use a callable that returns our mock class
-        with patch('apps.audit.application.use_cases.GenerateAttributionReportUseCase', MockAuditUseCase):
+        with patch(
+            "apps.backtest.application.use_cases.generate_audit_report_for_backtest",
+            side_effect=RuntimeError("数据库连接超时"),
+        ):
             use_case = RunBacktestUseCase(
                 repository=backtest_repo,
                 get_regime_func=mock_get_regime,
