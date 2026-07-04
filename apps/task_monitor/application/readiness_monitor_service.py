@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
+
+from django.core.cache import cache
 
 from apps.task_monitor.management.commands.run_personal_readiness_daily import (
     resolve_default_readiness_target_date,
@@ -15,6 +19,11 @@ from apps.task_monitor.management.commands.show_personal_readiness_status import
     build_personal_readiness_status,
 )
 
+logger = logging.getLogger(__name__)
+
+STRICT_RUNTIME_CACHE_KEY = "task_monitor:readiness_monitor:strict:v1"
+STRICT_RUNTIME_CACHE_TTL_SECONDS = 60
+
 
 def get_personal_readiness_monitor_summary(
     *,
@@ -22,6 +31,11 @@ def get_personal_readiness_monitor_summary(
     include_raw: bool = False,
 ) -> dict[str, Any]:
     """Return the operator-facing daily readiness monitor payload."""
+
+    if strict_runtime and not include_raw:
+        cached_summary = _get_cached_strict_runtime_summary()
+        if cached_summary is not None:
+            return cached_summary
 
     payload = build_personal_readiness_status(
         output_dir=Path(DEFAULT_OUTPUT_DIR),
@@ -35,7 +49,31 @@ def get_personal_readiness_monitor_summary(
     summary = _summarize_personal_readiness_payload(payload)
     if include_raw:
         summary["raw"] = payload
+    elif strict_runtime:
+        _set_cached_strict_runtime_summary(summary)
     return summary
+
+
+def _get_cached_strict_runtime_summary() -> dict[str, Any] | None:
+    try:
+        cached = cache.get(STRICT_RUNTIME_CACHE_KEY)
+    except Exception as exc:
+        logger.warning("Readiness monitor strict cache read failed: %s", exc)
+        return None
+    if not isinstance(cached, dict):
+        return None
+    return deepcopy(cached)
+
+
+def _set_cached_strict_runtime_summary(summary: dict[str, Any]) -> None:
+    try:
+        cache.set(
+            STRICT_RUNTIME_CACHE_KEY,
+            deepcopy(summary),
+            timeout=STRICT_RUNTIME_CACHE_TTL_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("Readiness monitor strict cache write failed: %s", exc)
 
 
 def get_personal_readiness_monitor_placeholder() -> dict[str, Any]:
