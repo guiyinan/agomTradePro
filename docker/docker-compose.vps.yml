@@ -62,6 +62,7 @@ services:
       SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-True}
     volumes:
       - sqlite_data:/app/data
+      - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
@@ -109,6 +110,7 @@ services:
       SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-True}
     volumes:
       - sqlite_data:/app/data
+      - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
@@ -150,6 +152,7 @@ services:
       SECURE_HSTS_PRELOAD: ${SECURE_HSTS_PRELOAD:-True}
     volumes:
       - sqlite_data:/app/data
+      - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
@@ -209,6 +212,7 @@ services:
 
 volumes:
   sqlite_data:
+  var_data:
   redis_data:
   static_data:
   media_data:
