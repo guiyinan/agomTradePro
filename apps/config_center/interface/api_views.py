@@ -12,14 +12,18 @@ from apps.config_center.application.use_cases import (
     CreateOrUpdateQlibTrainingProfileUseCase,
     GetQlibRuntimeConfigUseCase,
     GetQlibTrainingRunDetailUseCase,
+    ListAlphaUniverseConfigsUseCase,
     ListQlibTrainingProfilesUseCase,
     ListQlibTrainingRunsUseCase,
     QlibAccessDeniedError,
+    ResolveAlphaUniverseMembersUseCase,
+    SaveAlphaUniverseConfigUseCase,
     TriggerQlibTrainingUseCase,
     UpdateQlibRuntimeConfigUseCase,
     ValidationFailureError,
 )
 from apps.config_center.interface.serializers import (
+    AlphaUniverseConfigSerializer,
     QlibRuntimeConfigSerializer,
     QlibTrainingProfileSerializer,
     QlibTrainingRunTriggerSerializer,
@@ -56,6 +60,24 @@ def _serialize_profile(model) -> dict:
         "created_at": model.created_at.isoformat(),
         "updated_at": model.updated_at.isoformat(),
     }
+
+
+def _serialize_alpha_universe(model, *, member_count: int | None = None) -> dict:
+    payload = {
+        "id": model.id,
+        "universe_id": model.universe_id,
+        "name": model.name,
+        "source_type": model.source_type,
+        "stock_codes": model.stock_codes or [],
+        "filters": model.filters or {},
+        "is_active": model.is_active,
+        "description": model.description,
+        "created_at": model.created_at.isoformat(),
+        "updated_at": model.updated_at.isoformat(),
+    }
+    if member_count is not None:
+        payload["member_count"] = member_count
+    return payload
 
 
 def _serialize_run(model) -> dict:
@@ -126,6 +148,83 @@ class QlibTrainingProfileListCreateView(StaffReadSuperuserWriteMixin, APIView):
         except QlibAccessDeniedError as exc:
             return self._permission_denied(exc)
         return Response({"success": True, "data": _serialize_profile(model)})
+
+
+class AlphaUniverseConfigListCreateView(StaffReadSuperuserWriteMixin, APIView):
+    def get(self, request):
+        include_inactive = str(request.query_params.get("include_inactive", "")).lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        try:
+            models = ListAlphaUniverseConfigsUseCase().execute(
+                actor=request.user,
+                include_inactive=include_inactive,
+            )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
+        return Response(
+            {"success": True, "data": [_serialize_alpha_universe(item) for item in models]}
+        )
+
+    def post(self, request):
+        serializer = AlphaUniverseConfigSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            model = SaveAlphaUniverseConfigUseCase().execute(
+                actor=request.user,
+                payload=serializer.validated_data,
+            )
+            members = ResolveAlphaUniverseMembersUseCase().execute(
+                actor=request.user,
+                universe_id=model.universe_id,
+            )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {
+                "success": True,
+                "data": _serialize_alpha_universe(model, member_count=len(members)),
+            }
+        )
+
+
+class AlphaUniverseMembersView(StaffReadSuperuserWriteMixin, APIView):
+    def get(self, request, universe_id: str):
+        try:
+            members = ResolveAlphaUniverseMembersUseCase().execute(
+                actor=request.user,
+                universe_id=universe_id,
+            )
+        except QlibAccessDeniedError as exc:
+            return self._permission_denied(exc)
+        if not members:
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "universe_id": universe_id,
+                        "member_count": 0,
+                        "members": [],
+                    },
+                }
+            )
+        limit = int(request.query_params.get("limit", 100) or 100)
+        limit = max(1, min(limit, 1000))
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "universe_id": universe_id,
+                    "member_count": len(members),
+                    "members": members[:limit],
+                    "limit": limit,
+                },
+            }
+        )
 
 
 class QlibTrainingRunListView(StaffReadSuperuserWriteMixin, APIView):

@@ -1281,6 +1281,19 @@ def test_tui_config_center_screen_shows_training_run_detail_with_rows(
     assert "config_center.training_run_detail" in actions
 
 
+def test_tui_config_center_screen_exposes_alpha_universe_actions(client, tui_admin_user):
+    client.force_login(tui_admin_user)
+
+    response = client.get("/api/tui/screens/api-library.config-center/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    actions = {action["key"] for action in payload["actions"]}
+    assert "config_center.alpha_universes" in actions
+    assert "config_center.alpha_universe_members" in actions
+    assert "config_center.alpha_universe_save" in actions
+
+
 def test_tui_rotation_screen_defaults_to_row_backed_assets(client, tui_user):
     client.force_login(tui_user)
 

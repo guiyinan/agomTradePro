@@ -14,10 +14,9 @@ from apps.data_center.infrastructure.models import (
     ProviderConfigModel,
     ValuationFactModel,
 )
-
-MIN_ACTIVE_A_SHARE_COUNT = 4000
-MIN_STAR_MARKET_COUNT = 200
-MIN_BSE_COUNT = 50
+from apps.data_center.infrastructure.repositories import (
+    ProductionCoverageUniverseConfigRepository,
+)
 
 
 class DataCenterDiagnosticRepository:
@@ -44,16 +43,18 @@ class DataCenterDiagnosticRepository:
     def get_active_stock_fact_coverage_summary(self) -> dict[str, object]:
         """Return production data coverage for active stock facts."""
 
-        active_codes = list(
-            AssetMasterModel.objects.filter(
-                asset_type="stock",
-                exchange__in=["SSE", "SZSE", "BSE"],
-            )
-            .filter(Q(is_active=True) | Q(is_active__isnull=True))
-            .values_list("code", flat=True)
+        config = ProductionCoverageUniverseConfigRepository().load()
+        universe_queryset = AssetMasterModel.objects.filter(
+            asset_type=config.asset_type,
+            exchange__in=config.exchanges,
         )
+        if not config.include_inactive:
+            universe_queryset = universe_queryset.filter(
+                Q(is_active=True) | Q(is_active__isnull=True)
+            )
+        active_codes = list(universe_queryset.values_list("code", flat=True))
         asset_count = len(active_codes)
-        universe_quality = self._active_stock_universe_quality(active_codes)
+        universe_quality = self._active_stock_universe_quality(active_codes, config.to_dict())
         domains = {
             "price": self._fact_domain_summary(
                 active_codes,
@@ -76,13 +77,18 @@ class DataCenterDiagnosticRepository:
         )
         return {
             "status": "ok" if facts_ready and universe_quality["status"] == "ok" else "incomplete",
-            "universe": "active_stock",
+            "universe": config.universe_id,
             "asset_count": asset_count,
+            "universe_config": config.to_dict(),
             "universe_quality": universe_quality,
             "domains": domains,
         }
 
-    def _active_stock_universe_quality(self, active_codes: list[str]) -> dict[str, object]:
+    def _active_stock_universe_quality(
+        self,
+        active_codes: list[str],
+        config: dict[str, object],
+    ) -> dict[str, object]:
         board_counts = {
             "star_market": sum(
                 code.startswith(("688", "689")) and code.endswith(".SH")
@@ -102,28 +108,36 @@ class DataCenterDiagnosticRepository:
                 for code in active_codes
             ),
         }
-        exchange_counts = {"SSE": 0, "SZSE": 0, "BSE": 0}
+        configured_exchanges = [str(value) for value in config.get("exchanges", [])]
+        exchange_counts = dict.fromkeys(configured_exchanges, 0)
         for code in active_codes:
             if code.endswith(".SH"):
-                exchange_counts["SSE"] += 1
+                exchange_counts["SSE"] = exchange_counts.get("SSE", 0) + 1
             elif code.endswith(".SZ"):
-                exchange_counts["SZSE"] += 1
+                exchange_counts["SZSE"] = exchange_counts.get("SZSE", 0) + 1
             elif code.endswith(".BJ"):
-                exchange_counts["BSE"] += 1
+                exchange_counts["BSE"] = exchange_counts.get("BSE", 0) + 1
 
         issues: list[str] = []
-        if len(active_codes) < MIN_ACTIVE_A_SHARE_COUNT:
+        min_active = int(config.get("min_active_asset_count") or 0)
+        min_star = int(config.get("min_star_market_count") or 0)
+        min_chinext = int(config.get("min_chinext_count") or 0)
+        min_bse = int(config.get("min_bse_count") or 0)
+        if len(active_codes) < min_active:
             issues.append("active_a_share_universe_too_narrow")
-        if board_counts["star_market"] < MIN_STAR_MARKET_COUNT:
+        if board_counts["star_market"] < min_star:
             issues.append("star_market_undercovered")
-        if board_counts["bse"] < MIN_BSE_COUNT:
+        if board_counts["chinext"] < min_chinext:
+            issues.append("chinext_undercovered")
+        if board_counts["bse"] < min_bse:
             issues.append("bse_undercovered")
 
         return {
             "status": "ok" if not issues else "incomplete",
-            "minimum_active_a_share_count": MIN_ACTIVE_A_SHARE_COUNT,
-            "minimum_star_market_count": MIN_STAR_MARKET_COUNT,
-            "minimum_bse_count": MIN_BSE_COUNT,
+            "minimum_active_a_share_count": min_active,
+            "minimum_star_market_count": min_star,
+            "minimum_chinext_count": min_chinext,
+            "minimum_bse_count": min_bse,
             "exchange_counts": exchange_counts,
             "board_counts": board_counts,
             "issues": issues,

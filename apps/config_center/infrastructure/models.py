@@ -160,7 +160,7 @@ class SystemSettingsModel(models.Model):
         help_text="Qlib 模型存储路径，留空使用默认路径",
     )
     qlib_default_universe = models.CharField(
-        max_length=50,
+        max_length=64,
         default="csi300",
         verbose_name="Qlib 默认股票池",
     )
@@ -601,6 +601,56 @@ class QlibTrainingProfileModel(models.Model):
         return f"{self.name} ({self.profile_key})"
 
 
+class AlphaUniverseConfigModel(models.Model):
+    """Configurable Alpha/Qlib stock universe."""
+
+    SOURCE_MANUAL = "manual"
+    SOURCE_CSV = "csv"
+    SOURCE_DATA_CENTER_FILTER = "data_center_filter"
+    SOURCE_TYPE_CHOICES = [
+        (SOURCE_MANUAL, "手工代码清单"),
+        (SOURCE_CSV, "CSV 导入代码清单"),
+        (SOURCE_DATA_CENTER_FILTER, "Data Center 条件生成"),
+    ]
+
+    universe_id = models.CharField(max_length=64, unique=True, db_index=True, verbose_name="Universe ID")
+    name = models.CharField(max_length=120, verbose_name="名称")
+    source_type = models.CharField(
+        max_length=32,
+        choices=SOURCE_TYPE_CHOICES,
+        default=SOURCE_MANUAL,
+        verbose_name="来源类型",
+    )
+    stock_codes = models.JSONField(default=list, blank=True, verbose_name="股票代码清单")
+    filters = models.JSONField(default=dict, blank=True, verbose_name="Data Center 过滤条件")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    description = models.TextField(blank=True, verbose_name="说明")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "config_center_alpha_universe_config"
+        verbose_name = "Alpha Universe 配置"
+        verbose_name_plural = "Alpha Universe 配置"
+        ordering = ["universe_id"]
+
+    def __str__(self):
+        return f"{self.universe_id} ({self.name})"
+
+    def to_domain(self):
+        from apps.config_center.domain.entities import AlphaUniverseConfig
+
+        return AlphaUniverseConfig(
+            universe_id=self.universe_id,
+            name=self.name,
+            source_type=self.source_type,
+            stock_codes=tuple(self.stock_codes or ()),
+            filters=dict(self.filters or {}),
+            is_active=self.is_active,
+            description=self.description,
+        )
+
+
 class QlibTrainingRunModel(models.Model):
     """Tracked Qlib training execution."""
 
@@ -664,4 +714,3 @@ class QlibTrainingRunModel(models.Model):
 
     def __str__(self):
         return f"{self.model_name} [{self.status}]"
-

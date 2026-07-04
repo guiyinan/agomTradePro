@@ -20,6 +20,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from core.cache_utils import cached_api
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 from ..application.interface_services import (
     resolve_requested_alpha_user,
@@ -174,7 +175,10 @@ def get_stock_scores(request: Request) -> Response:
         params = GetStockScoresRequestSerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
 
-        universe = params.validated_data.get("universe", "csi300")
+        universe = str(params.validated_data.get("universe") or "").strip()
+        if not universe:
+            runtime_qlib_config = get_runtime_qlib_config()
+            universe = str(runtime_qlib_config.get("default_universe") or "csi300").strip()
         trade_date = params.validated_data.get("trade_date", date.today())
         top_n = params.validated_data.get("top_n", 30)
         limit = params.validated_data.get("limit")
@@ -325,9 +329,19 @@ def get_available_universes(request: Request) -> Response:
     """
     try:
         service = AlphaService()
-        universes = service.get_available_universes()
+        universes = set(service.get_available_universes())
+        try:
+            from apps.config_center.application.use_cases import (
+                ListAlphaUniverseConfigsUseCase,
+                QlibAccessDeniedError,
+            )
 
-        return Response({"universes": universes}, status=status.HTTP_200_OK)
+            configs = ListAlphaUniverseConfigsUseCase().execute(actor=request.user)
+            universes.update(config.universe_id for config in configs)
+        except QlibAccessDeniedError:
+            pass
+
+        return Response({"universes": sorted(universes)}, status=status.HTTP_200_OK)
 
     except Exception as e:
         logger.error(f"获取股票池列表失败: {e}", exc_info=True)

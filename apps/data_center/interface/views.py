@@ -36,6 +36,16 @@ def monitor_page(request: HttpRequest) -> HttpResponse:
 
 
 @staff_member_required
+def universe_page(request: HttpRequest) -> HttpResponse:
+    """Production coverage universe config page at /data-center/universe/."""
+
+    return render(request, "data_center/universe.html", {
+        "page_title": "Data Center — Universe",
+        "active_nav": "data-center",
+    })
+
+
+@staff_member_required
 def publishers_page(request: HttpRequest) -> HttpResponse:
     """Publisher governance page at /data-center/publishers/."""
     return render(request, "data_center/publishers.html", {

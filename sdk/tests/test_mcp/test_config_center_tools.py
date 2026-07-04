@@ -14,6 +14,14 @@ class _FakeClient:
             update_qlib_runtime=lambda payload: {"updated": payload},
             list_qlib_training_profiles=lambda: [{"profile_key": "lgb_v1"}],
             save_qlib_training_profile=lambda payload: {"saved": payload},
+            list_alpha_universes=lambda include_inactive=False: [
+                {"universe_id": "all_a_share", "include_inactive": include_inactive}
+            ],
+            save_alpha_universe=lambda payload: {"saved_universe": payload},
+            get_alpha_universe_members=lambda universe_id, limit=100: {
+                "universe_id": universe_id,
+                "limit": limit,
+            },
             list_qlib_training_runs=lambda limit=20: [{"run_id": "run-1", "limit": limit}],
             get_qlib_training_run_detail=lambda run_id: {"run_id": run_id},
             trigger_qlib_training=lambda payload: {"queued": payload},
@@ -36,6 +44,17 @@ class _FakeClient:
                 "model_type": "LGBModel",
             },
         ),
+        ("list_alpha_universes", {"include_inactive": True}),
+        (
+            "save_alpha_universe",
+            {
+                "universe_id": "all_a_share",
+                "name": "全 A",
+                "source_type": "data_center_filter",
+                "filters": {"asset_type": "stock"},
+            },
+        ),
+        ("get_alpha_universe_members", {"universe_id": "all_a_share", "limit": 50}),
         ("list_qlib_training_profiles", {}),
         ("list_qlib_training_runs", {"limit": 5}),
         ("get_qlib_training_run_detail", {"run_id": "run-1"}),

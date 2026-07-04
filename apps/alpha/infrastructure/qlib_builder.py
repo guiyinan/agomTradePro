@@ -82,7 +82,7 @@ def denormalize_qlib_symbol(symbol: str) -> str | None:
         return None
     market = normalized[:2]
     code = normalized[2:]
-    if market not in {"SH", "SZ"} or not code.isdigit():
+    if market not in {"SH", "SZ", "BJ"} or not code.isdigit():
         return None
     return f"{code}.{market}"
 
@@ -314,6 +314,10 @@ class TushareQlibBuilder:
         for universe in universes:
             index_code = UNIVERSE_INDEX_CODE_MAP.get(universe)
             if not index_code:
+                members = self._resolve_custom_universe_members(universe)
+                if members:
+                    universe_members[universe] = members
+                    continue
                 logger.warning("Unsupported qlib universe for builder: %s", universe)
                 continue
 
@@ -361,6 +365,26 @@ class TushareQlibBuilder:
             universe_members[universe] = members
 
         return universe_members
+
+    @staticmethod
+    def _resolve_custom_universe_members(universe: str) -> list[str]:
+        """Resolve a Config Center custom Alpha/Qlib universe."""
+        try:
+            from apps.config_center.infrastructure.repositories import (
+                AlphaUniverseConfigRepository,
+            )
+
+            members = AlphaUniverseConfigRepository().resolve_member_codes(universe)
+        except Exception as exc:
+            logger.warning("Failed to resolve custom qlib universe %s: %s", universe, exc)
+            return []
+        if members:
+            logger.info(
+                "Resolved custom qlib universe %s from Config Center: %s members",
+                universe,
+                len(members),
+            )
+        return members
 
     def _load_local_universe_members(self, universe: str) -> list[str]:
         """Load existing qlib instrument members when index_weight is rate-limited."""

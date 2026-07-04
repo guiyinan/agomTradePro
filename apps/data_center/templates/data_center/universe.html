@@ -1,0 +1,270 @@
+{% extends "data_center/base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block subtitle %}生产覆盖 universe 口径与阈值{% endblock %}
+
+{% block content %}
+<section class="section">
+    <h2>生产覆盖 Universe 配置</h2>
+    <p class="lead">这里配置 readiness 和生产覆盖诊断使用的股票池口径。默认是全 A 股 active 股票，包含上交所、深交所、北交所。</p>
+    <div class="toolbar">
+        <div class="actions">
+            <button type="button" class="btn-primary" onclick="saveUniverseConfig()">保存配置</button>
+            <button type="button" class="btn-secondary" onclick="loadUniversePage()">刷新</button>
+        </div>
+        <div class="metric-strip">
+            <span class="metric-pill">配置: <span class="mono">/api/data-center/production-coverage/universe/</span></span>
+            <span class="metric-pill">摘要: <span class="mono">/api/data-center/production-coverage/summary/</span></span>
+        </div>
+    </div>
+    <div id="universe-message" class="status-line"></div>
+</section>
+
+<section class="panel-grid">
+    <div class="section">
+        <h2>Universe 口径</h2>
+        <form id="universe-form" class="field-grid" onsubmit="event.preventDefault(); saveUniverseConfig();">
+            <label class="field">
+                Universe ID
+                <input id="universe-id" type="text" value="active_a_share">
+            </label>
+            <label class="field">
+                Asset Type
+                <input id="asset-type" type="text" value="stock">
+            </label>
+            <label class="checkbox">
+                <input id="exchange-sse" type="checkbox" value="SSE" checked>
+                上交所 SSE
+            </label>
+            <label class="checkbox">
+                <input id="exchange-szse" type="checkbox" value="SZSE" checked>
+                深交所 SZSE
+            </label>
+            <label class="checkbox">
+                <input id="exchange-bse" type="checkbox" value="BSE" checked>
+                北交所 BSE
+            </label>
+            <label class="checkbox">
+                <input id="include-inactive" type="checkbox">
+                包含 inactive / 退市标的
+            </label>
+            <label class="field">
+                最小 active 股票数
+                <input id="min-active-asset-count" type="number" min="0" step="1" value="4000">
+            </label>
+            <label class="field">
+                最小科创板数量
+                <input id="min-star-market-count" type="number" min="0" step="1" value="200">
+            </label>
+            <label class="field">
+                最小创业板数量
+                <input id="min-chinext-count" type="number" min="0" step="1" value="0">
+            </label>
+            <label class="field">
+                最小北交所数量
+                <input id="min-bse-count" type="number" min="0" step="1" value="50">
+            </label>
+            <label class="field field-full">
+                说明
+                <textarea id="description"></textarea>
+            </label>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>当前验收状态</h2>
+        <div class="metric-strip">
+            <span id="summary-status" class="badge badge-neutral">loading</span>
+            <span class="metric-pill">Universe: <span id="summary-universe" class="mono">-</span></span>
+            <span class="metric-pill">标的数: <strong id="summary-asset-count">-</strong></span>
+        </div>
+        <div class="stack" style="margin-top: 16px;">
+            <div class="stat-card">
+                <div class="label">Exchange Counts</div>
+                <div id="exchange-counts" class="tag-list"></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Board Counts</div>
+                <div id="board-counts" class="tag-list"></div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Issues</div>
+                <div id="quality-issues" class="tag-list"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <h2>Fact 覆盖摘要</h2>
+    <div class="table-wrap" style="margin-top: 16px;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Domain</th>
+                    <th>Status</th>
+                    <th>Covered</th>
+                    <th>Missing</th>
+                    <th>Latest Date</th>
+                </tr>
+            </thead>
+            <tbody id="domain-summary">
+                <tr><td colspan="5" class="empty">正在加载覆盖摘要…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const configApi = "/api/data-center/production-coverage/universe/";
+const summaryApi = "/api/data-center/production-coverage/summary/";
+
+function csrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+}
+
+function setUniverseStatus(message, tone = "") {
+    const node = document.getElementById("universe-message");
+    node.textContent = message || "";
+    node.className = tone ? `status-line ${tone}` : "status-line";
+}
+
+function badgeClass(status) {
+    if (status === "ok") {
+        return "badge badge-ok";
+    }
+    if (status === "incomplete" || status === "warning") {
+        return "badge badge-warn";
+    }
+    return "badge badge-danger";
+}
+
+function numberValue(id) {
+    return Number.parseInt(document.getElementById(id).value || "0", 10);
+}
+
+function checkedExchanges() {
+    return ["exchange-sse", "exchange-szse", "exchange-bse"]
+        .map((id) => document.getElementById(id))
+        .filter((node) => node.checked)
+        .map((node) => node.value);
+}
+
+function tagHtml(label, value) {
+    return `<span class="metric-pill"><span class="mono">${label}</span> ${value}</span>`;
+}
+
+function fillForm(config) {
+    document.getElementById("universe-id").value = config.universe_id || "active_a_share";
+    document.getElementById("asset-type").value = config.asset_type || "stock";
+    const exchanges = new Set(config.exchanges || []);
+    document.getElementById("exchange-sse").checked = exchanges.has("SSE");
+    document.getElementById("exchange-szse").checked = exchanges.has("SZSE");
+    document.getElementById("exchange-bse").checked = exchanges.has("BSE");
+    document.getElementById("include-inactive").checked = Boolean(config.include_inactive);
+    document.getElementById("min-active-asset-count").value = config.min_active_asset_count ?? 4000;
+    document.getElementById("min-star-market-count").value = config.min_star_market_count ?? 200;
+    document.getElementById("min-chinext-count").value = config.min_chinext_count ?? 0;
+    document.getElementById("min-bse-count").value = config.min_bse_count ?? 50;
+    document.getElementById("description").value = config.description || "";
+}
+
+function formPayload() {
+    return {
+        universe_id: document.getElementById("universe-id").value.trim() || "active_a_share",
+        asset_type: document.getElementById("asset-type").value.trim() || "stock",
+        exchanges: checkedExchanges(),
+        include_inactive: document.getElementById("include-inactive").checked,
+        min_active_asset_count: numberValue("min-active-asset-count"),
+        min_star_market_count: numberValue("min-star-market-count"),
+        min_chinext_count: numberValue("min-chinext-count"),
+        min_bse_count: numberValue("min-bse-count"),
+        description: document.getElementById("description").value,
+    };
+}
+
+function renderSummary(payload) {
+    const status = document.getElementById("summary-status");
+    status.textContent = payload.status || "unknown";
+    status.className = badgeClass(payload.status);
+    document.getElementById("summary-universe").textContent = payload.universe || "-";
+    document.getElementById("summary-asset-count").textContent = payload.asset_count ?? "-";
+
+    const quality = payload.universe_quality || {};
+    const exchangeCounts = quality.exchange_counts || {};
+    const boardCounts = quality.board_counts || {};
+    const issues = quality.issues || [];
+    document.getElementById("exchange-counts").innerHTML = Object.entries(exchangeCounts)
+        .map(([key, value]) => tagHtml(key, value))
+        .join("") || '<span class="empty">暂无交易所统计</span>';
+    document.getElementById("board-counts").innerHTML = Object.entries(boardCounts)
+        .map(([key, value]) => tagHtml(key, value))
+        .join("") || '<span class="empty">暂无板块统计</span>';
+    document.getElementById("quality-issues").innerHTML = issues
+        .map((issue) => `<span class="badge badge-warn">${issue}</span>`)
+        .join("") || '<span class="badge badge-ok">ok</span>';
+
+    const domains = payload.domains || {};
+    const rows = Object.entries(domains).map(([name, item]) => `
+        <tr>
+            <td class="mono">${name}</td>
+            <td><span class="${badgeClass(item.status)}">${item.status}</span></td>
+            <td>${item.covered_count ?? 0}</td>
+            <td>${item.missing_count ?? 0}</td>
+            <td>${item.latest_date || "-"}</td>
+        </tr>
+    `);
+    document.getElementById("domain-summary").innerHTML = rows.join("")
+        || '<tr><td colspan="5" class="empty">暂无 fact 覆盖摘要。</td></tr>';
+}
+
+async function loadUniversePage() {
+    setUniverseStatus("正在加载配置和覆盖摘要…");
+    const [configResponse, summaryResponse] = await Promise.all([
+        fetch(configApi, { credentials: "same-origin" }),
+        fetch(summaryApi, { credentials: "same-origin" }),
+    ]);
+    if (!configResponse.ok || !summaryResponse.ok) {
+        setUniverseStatus("加载失败，请检查登录状态或 API 返回。", "error");
+        return;
+    }
+    fillForm(await configResponse.json());
+    renderSummary(await summaryResponse.json());
+    setUniverseStatus("已刷新。", "success");
+}
+
+async function saveUniverseConfig() {
+    const payload = formPayload();
+    if (!payload.exchanges.length) {
+        setUniverseStatus("至少选择一个交易所。", "error");
+        return;
+    }
+    const response = await fetch(configApi, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken(),
+        },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        setUniverseStatus(`保存失败: ${text}`, "error");
+        return;
+    }
+    fillForm(await response.json());
+    setUniverseStatus("配置已保存，正在刷新覆盖摘要…", "success");
+    const summaryResponse = await fetch(summaryApi, { credentials: "same-origin" });
+    if (summaryResponse.ok) {
+        renderSummary(await summaryResponse.json());
+    }
+}
+
+loadUniversePage().catch((error) => setUniverseStatus(`加载失败: ${error.message}`, "error"));
+</script>
+{% endblock %}

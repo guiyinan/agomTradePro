@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.data_center.domain.entities import DataProviderSettings, ProviderConfig
+from apps.data_center.domain.entities import (
+    DataProviderSettings,
+    ProviderConfig,
+)
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.providers import (
     AssetRepository,
@@ -23,6 +26,7 @@ from apps.data_center.infrastructure.providers import (
     MarketThermometerUserOverrideRepository,
     NewsRepository,
     PriceBarRepository,
+    ProductionCoverageUniverseConfigRepository,
     ProviderConfigRepository,
     PublisherCatalogRepository,
     QuoteSnapshotRepository,
@@ -55,6 +59,14 @@ def get_data_provider_settings_repository() -> DataProviderSettingsRepository:
     """Return the default data-provider settings repository."""
 
     return DataProviderSettingsRepository()
+
+
+def get_production_coverage_universe_config_repository() -> (
+    ProductionCoverageUniverseConfigRepository
+):
+    """Return the production coverage universe config repository."""
+
+    return ProductionCoverageUniverseConfigRepository()
 
 
 def get_provider_config_repository() -> ProviderConfigRepository:

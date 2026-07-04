@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+ALPHA_UNIVERSE_SOURCE_TYPES = {"manual", "csv", "data_center_filter"}
+
 
 class QlibRuntimeConfigSerializer(serializers.Serializer):
     configured = serializers.BooleanField(read_only=True)
@@ -48,6 +50,44 @@ class QlibTrainingProfileSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
+class AlphaUniverseConfigSerializer(serializers.Serializer):
+    universe_id = serializers.RegexField(
+        regex=r"^[a-z0-9][a-z0-9_\-]{1,63}$",
+        max_length=64,
+        help_text="自定义 Alpha/Qlib 股票池 ID，例如 all_a_share 或 star_market",
+    )
+    name = serializers.CharField(max_length=120)
+    source_type = serializers.ChoiceField(choices=sorted(ALPHA_UNIVERSE_SOURCE_TYPES))
+    stock_codes = serializers.JSONField(required=False, default=list)
+    filters = serializers.DictField(required=False, default=dict)
+    is_active = serializers.BooleanField(required=False, default=True)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs: dict) -> dict:
+        attrs["universe_id"] = str(attrs["universe_id"]).strip().lower()
+        source_type = attrs.get("source_type")
+        stock_codes = _parse_stock_codes(attrs.get("stock_codes") or [])
+        attrs["stock_codes"] = stock_codes
+        filters = attrs.get("filters") or {}
+        if source_type in {"manual", "csv"} and not stock_codes:
+            raise serializers.ValidationError({"stock_codes": "手工或 CSV 股票池至少需要一个代码"})
+        if source_type == "data_center_filter" and not isinstance(filters, dict):
+            raise serializers.ValidationError({"filters": "filters 必须是 JSON object"})
+        return attrs
+
+
+def _parse_stock_codes(value) -> list[str]:
+    if isinstance(value, str):
+        normalized = value.replace(",", "\n").replace("，", "\n").replace(";", "\n")
+        codes: list[str] = []
+        for line in normalized.splitlines():
+            codes.extend(part.strip() for part in line.split() if part.strip())
+        return codes
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    raise serializers.ValidationError({"stock_codes": "stock_codes 必须是数组或分隔字符串"})
+
+
 class QlibTrainingRunTriggerSerializer(serializers.Serializer):
     profile_key = serializers.CharField(required=False, allow_blank=True, default="")
     model_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
@@ -62,4 +102,3 @@ class QlibTrainingRunTriggerSerializer(serializers.Serializer):
     model_params = serializers.DictField(required=False, default=dict)
     extra_train_config = serializers.DictField(required=False, default=dict)
     activate = serializers.BooleanField(required=False)
-

@@ -9,13 +9,50 @@ from typing import Any
 
 from django.apps import apps as django_apps
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
+from apps.config_center.domain.entities import AlphaUniverseConfig
 from apps.config_center.infrastructure.models import (
+    AlphaUniverseConfigModel,
     QlibTrainingProfileModel,
     QlibTrainingRunModel,
     SystemSettingsModel,
 )
+
+
+def normalize_alpha_universe_code(raw_code: str) -> str:
+    """Normalize user supplied stock code into canonical A-share code."""
+
+    value = str(raw_code or "").strip().upper()
+    if not value:
+        return ""
+    value = value.replace("_", ".")
+    if "." in value:
+        code, suffix = value.split(".", 1)
+        suffix = suffix[:2]
+        if code.isdigit() and suffix in {"SH", "SZ", "BJ"}:
+            return f"{code.zfill(6)}.{suffix}"
+        return value
+    if not value.isdigit():
+        return value
+    code = value.zfill(6)
+    if code.startswith(("600", "601", "603", "605", "688", "689")):
+        return f"{code}.SH"
+    if code.startswith(("8", "4", "9")):
+        return f"{code}.BJ"
+    return f"{code}.SZ"
+
+
+def normalize_alpha_universe_codes(raw_codes: list[str] | tuple[str, ...] | set[str]) -> list[str]:
+    """Normalize and deduplicate a stock code sequence."""
+
+    normalized: list[str] = []
+    for raw_code in raw_codes:
+        code = normalize_alpha_universe_code(raw_code)
+        if code and code not in normalized:
+            normalized.append(code)
+    return normalized
 
 
 class ConfigCenterSettingsRepository:
@@ -169,6 +206,88 @@ class QlibTrainingProfileRepository:
         instance.full_clean()
         instance.save()
         return instance
+
+
+class AlphaUniverseConfigRepository:
+    """Alpha/Qlib universe config persistence and resolution."""
+
+    def list_configs(self, *, include_inactive: bool = False) -> list[AlphaUniverseConfigModel]:
+        queryset = AlphaUniverseConfigModel._default_manager.order_by("universe_id")
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        return list(queryset)
+
+    def get_by_universe_id(self, universe_id: str) -> AlphaUniverseConfigModel | None:
+        normalized = str(universe_id or "").strip().lower()
+        if not normalized:
+            return None
+        return AlphaUniverseConfigModel._default_manager.filter(universe_id=normalized).first()
+
+    def save_config(self, config: AlphaUniverseConfig) -> AlphaUniverseConfigModel:
+        model, _created = AlphaUniverseConfigModel._default_manager.get_or_create(
+            universe_id=config.universe_id.strip().lower(),
+            defaults={"name": config.name},
+        )
+        model.name = config.name
+        model.source_type = config.source_type
+        model.stock_codes = normalize_alpha_universe_codes(config.stock_codes)
+        model.filters = dict(config.filters or {})
+        model.is_active = bool(config.is_active)
+        model.description = config.description
+        model.full_clean()
+        model.save()
+        return model
+
+    def resolve_member_codes(self, universe_id: str) -> list[str]:
+        model = self.get_by_universe_id(universe_id)
+        if model is None or not model.is_active:
+            return []
+        if model.source_type in {
+            AlphaUniverseConfigModel.SOURCE_MANUAL,
+            AlphaUniverseConfigModel.SOURCE_CSV,
+        }:
+            return normalize_alpha_universe_codes(list(model.stock_codes or []))
+        return self._resolve_data_center_filter_codes(dict(model.filters or {}))
+
+    def _resolve_data_center_filter_codes(self, filters: dict[str, Any]) -> list[str]:
+        asset_type = str(filters.get("asset_type") or "stock").strip() or "stock"
+        exchanges = [
+            str(item).strip().upper()
+            for item in filters.get("exchanges", ["SSE", "SZSE", "BSE"])
+            if str(item).strip()
+        ]
+        include_inactive = bool(filters.get("include_inactive", False))
+        asset_master_model = django_apps.get_model("data_center", "AssetMasterModel")
+        queryset = asset_master_model._default_manager.filter(asset_type=asset_type)
+        if exchanges:
+            queryset = queryset.filter(exchange__in=exchanges)
+        if not include_inactive:
+            queryset = queryset.filter(Q(is_active=True) | Q(is_active__isnull=True))
+        codes = normalize_alpha_universe_codes(
+            list(queryset.values_list("code", flat=True).order_by("code"))
+        )
+        boards = {
+            str(item).strip().lower()
+            for item in filters.get("boards", [])
+            if str(item).strip()
+        }
+        if not boards:
+            return codes
+        return [code for code in codes if self._code_matches_any_board(code, boards)]
+
+    @staticmethod
+    def _code_matches_any_board(code: str, boards: set[str]) -> bool:
+        if "star_market" in boards and code.startswith(("688", "689")) and code.endswith(".SH"):
+            return True
+        if "chinext" in boards and code.startswith(("300", "301")) and code.endswith(".SZ"):
+            return True
+        if "bse" in boards and code.endswith(".BJ"):
+            return True
+        if "sh_main" in boards and code.startswith(("600", "601", "603", "605")):
+            return True
+        if "sz_main" in boards and code.startswith(("000", "001", "002")):
+            return True
+        return False
 
 
 class QlibTrainingRunRepository:

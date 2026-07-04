@@ -8,6 +8,7 @@ from apps.data_center.domain.entities import (
     MacroFact,
     MarketThermometerThresholds,
     MarketThermometerUserOverride,
+    ProductionCoverageUniverseConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure import orm_retry
@@ -23,6 +24,7 @@ from apps.data_center.infrastructure.models import (
     MarketThermometerSnapshotModel,
     NewsFactModel,
     PriceBarModel,
+    ProductionCoverageUniverseConfigModel,
     PublisherCatalogModel,
     ValuationFactModel,
 )
@@ -32,6 +34,7 @@ from apps.data_center.infrastructure.repositories import (
     MarketThermometerSnapshotRepository,
     MarketThermometerUserOverrideRepository,
     NewsRepository,
+    ProductionCoverageUniverseConfigRepository,
     PublisherCatalogRepository,
 )
 
@@ -329,6 +332,80 @@ def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage
     }
     assert payload["domains"]["valuation"]["covered_count"] == 1
     assert payload["domains"]["financial"]["latest_date"] == "2026-03-31"
+
+
+@pytest.mark.django_db
+def test_production_coverage_universe_config_repository_round_trips_defaults():
+    config = ProductionCoverageUniverseConfigRepository().load()
+
+    assert config.universe_id == "active_a_share"
+    assert config.asset_type == "stock"
+    assert config.exchanges == ["SSE", "SZSE", "BSE"]
+    assert config.min_active_asset_count == 4000
+    assert ProductionCoverageUniverseConfigModel.objects.count() == 1
+
+    saved = ProductionCoverageUniverseConfigRepository().save(
+        ProductionCoverageUniverseConfig(
+            universe_id="local_test",
+            asset_type="stock",
+            exchanges=["SZSE", "SZSE"],
+            include_inactive=True,
+            min_active_asset_count=1,
+            min_star_market_count=0,
+            min_chinext_count=1,
+            min_bse_count=0,
+            description="test",
+        )
+    )
+
+    assert saved.universe_id == "local_test"
+    assert saved.exchanges == ["SZSE"]
+    assert saved.include_inactive is True
+    assert ProductionCoverageUniverseConfigModel.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_data_center_diagnostic_repository_uses_configured_universe():
+    AssetMasterModel.objects.create(
+        code="600000.SH",
+        name="浦发银行",
+        asset_type="stock",
+        exchange="SSE",
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="300750.SZ",
+        name="宁德时代",
+        asset_type="stock",
+        exchange="SZSE",
+        is_active=True,
+    )
+    AssetMasterModel.objects.create(
+        code="920992.BJ",
+        name="中科美菱",
+        asset_type="stock",
+        exchange="BSE",
+        is_active=True,
+    )
+    ProductionCoverageUniverseConfigRepository().save(
+        ProductionCoverageUniverseConfig(
+            universe_id="chinext_only",
+            asset_type="stock",
+            exchanges=["SZSE"],
+            min_active_asset_count=1,
+            min_star_market_count=0,
+            min_chinext_count=1,
+            min_bse_count=0,
+        )
+    )
+
+    payload = DataCenterDiagnosticRepository().get_active_stock_fact_coverage_summary()
+
+    assert payload["universe"] == "chinext_only"
+    assert payload["asset_count"] == 1
+    assert payload["universe_config"]["exchanges"] == ["SZSE"]
+    assert payload["universe_quality"]["status"] == "ok"
+    assert payload["universe_quality"]["exchange_counts"] == {"SZSE": 1}
 
 
 @pytest.mark.django_db

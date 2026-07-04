@@ -12,6 +12,7 @@
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <a href="{{ settings_center_url }}" class="btn btn-secondary" style="text-decoration:none;">返回设置中心</a>
             <a href="{{ api_runtime_url }}" class="btn btn-secondary" style="text-decoration:none;">Runtime API</a>
+            <a href="{{ api_alpha_universes_url }}" class="btn btn-secondary" style="text-decoration:none;">Universe API</a>
             <a href="{{ api_runs_url }}" class="btn btn-secondary" style="text-decoration:none;">Runs API</a>
         </div>
     </div>
@@ -121,6 +122,67 @@
             </form>
         </section>
     </div>
+
+    <section id="alpha-universes" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px; margin-top:18px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px;">
+            <div>
+                <h2 style="margin:0; font-size:20px;">Alpha/Qlib 模型 Universe 配置</h2>
+                <div style="font-size:13px; color:#64748b; margin-top:4px;">只影响 Alpha 评分、Qlib 数据构建和训练模板；不影响生产覆盖验收口径。</div>
+            </div>
+            <a href="?universe=#alpha-universes" class="btn btn-secondary" style="text-decoration:none;">新建 Universe</a>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-bottom:16px;">
+            <div style="padding:12px 14px; border-radius:12px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; font-size:13px;">
+                <strong>Alpha/Qlib 模型 Universe</strong><br>
+                用于选股、推理、训练和 Qlib 数据构建。Runtime 默认股票池、训练模板和 TUI/MCP Alpha 操作会引用这里的 Universe ID。
+            </div>
+            <div style="padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; font-size:13px;">
+                <strong>生产覆盖 Universe</strong><br>
+                用于 readiness 验收和数据覆盖分母，入口是 <a href="/data-center/universe/" style="color:#1d4ed8;">/data-center/universe/</a>。不要用本页的模型池替代生产覆盖检查。
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:18px; align-items:start;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                {% for universe in alpha_universes %}
+                <article style="padding:14px; border-radius:14px; border:1px solid {% if selected_alpha_universe_id == universe.universe_id %}#93c5fd{% else %}#e2e8f0{% endif %}; background:{% if selected_alpha_universe_id == universe.universe_id %}#eff6ff{% else %}#f8fafc{% endif %};">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                        <div>
+                            <div style="font-weight:700;">{{ universe.name }}</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">{{ universe.universe_id }} · {{ universe.source_type }} · {{ universe.member_count }} 个标的</div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px; word-break:break-all;">{{ universe.preview|default:"暂无解析预览" }}</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                            <span style="font-size:12px; padding:4px 8px; border-radius:999px; {% if universe.is_active %}background:#dcfce7;color:#166534;{% else %}background:#e2e8f0;color:#334155;{% endif %}">{% if universe.is_active %}active{% else %}paused{% endif %}</span>
+                            <a href="?universe={{ universe.universe_id }}#alpha-universes" style="font-size:12px;">编辑</a>
+                            <a href="{{ universe.members_url }}" style="font-size:12px;">成员 API</a>
+                        </div>
+                    </div>
+                </article>
+                {% empty %}
+                <div style="padding:14px; border-radius:14px; border:1px dashed #cbd5e1; color:#64748b;">暂无自定义 Alpha Universe。</div>
+                {% endfor %}
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_alpha_universe">
+                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px;">
+                    {% for field in alpha_universe_form %}
+                    <div {% if field.name in "stock_codes_text filters_json description" %}style="grid-column:1 / -1;"{% endif %}>
+                        <label style="display:block; font-size:13px; color:#475569; margin-bottom:6px;">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<div style="font-size:12px; color:#64748b; margin-top:4px;">{{ field.help_text }}</div>{% endif %}
+                        {% for error in field.errors %}<div style="font-size:12px; color:#b91c1c; margin-top:4px;">{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for error in alpha_universe_form.non_field_errors %}<div style="font-size:12px; color:#b91c1c; margin-top:10px;">{{ error }}</div>{% endfor %}
+                <div style="margin-top:16px;">
+                    <button type="submit" class="btn btn-primary" {% if not can_write %}disabled{% endif %}>保存 Alpha Universe</button>
+                </div>
+            </form>
+        </div>
+    </section>
 
     <div style="display:grid; grid-template-columns:0.95fr 1.05fr; gap:18px; align-items:start; margin-top:18px;">
         <section id="profiles" style="background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px;">
@@ -234,9 +296,11 @@
 
 <style>
     #id_provider_uri, #id_model_root, #id_model_params, #id_extra_train_config, #id_notes,
+    #id_stock_codes_text, #id_filters_json, #id_description,
     #id_model_params, #id_extra_train_config, #id_profile_key, #id_name, #id_model_name,
     #id_model_type, #id_universe, #id_feature_set_id, #id_label_id, #id_train_queue_name,
-    #id_infer_queue_name, #id_alpha_fixed_provider, #id_profile_key, #id_region {
+    #id_infer_queue_name, #id_alpha_fixed_provider, #id_profile_key, #id_region,
+    #id_universe_id, #id_source_type {
         width: 100%;
         padding: 10px 12px;
         border: 1px solid #cbd5e1;
@@ -255,4 +319,3 @@
     }
 </style>
 {% endblock %}
-

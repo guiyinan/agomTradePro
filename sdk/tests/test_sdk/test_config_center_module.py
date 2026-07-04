@@ -64,6 +64,37 @@ def test_save_qlib_training_profile_endpoint_contract():
         assert kwargs == {"data": None, "json": payload}
 
 
+def test_list_alpha_universes_endpoint_contract():
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+    with patch.object(client, "_request", return_value={"data": []}) as mock_request:
+        client.config_center.list_alpha_universes(include_inactive=True)
+        args, kwargs = mock_request.call_args
+        assert args[0] == "GET"
+        assert args[1] == "/api/system/config-center/qlib/alpha-universes/"
+        assert kwargs == {"params": {"include_inactive": "1"}}
+
+
+def test_save_alpha_universe_endpoint_contract():
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+    payload = {"universe_id": "all_a_share", "name": "全 A"}
+    with patch.object(client, "_request", return_value={"data": payload}) as mock_request:
+        client.config_center.save_alpha_universe(payload)
+        args, kwargs = mock_request.call_args
+        assert args[0] == "POST"
+        assert args[1] == "/api/system/config-center/qlib/alpha-universes/"
+        assert kwargs == {"data": None, "json": payload}
+
+
+def test_get_alpha_universe_members_endpoint_contract():
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+    with patch.object(client, "_request", return_value={"data": {"members": []}}) as mock_request:
+        client.config_center.get_alpha_universe_members("all_a_share", limit=50)
+        args, kwargs = mock_request.call_args
+        assert args[0] == "GET"
+        assert args[1] == "/api/system/config-center/qlib/alpha-universes/all_a_share/members/"
+        assert kwargs == {"params": {"limit": 50}}
+
+
 def test_list_qlib_training_runs_endpoint_contract():
     client = AgomTradeProClient(base_url="http://test.com", api_token="token")
     with patch.object(client, "_request", return_value={"data": []}) as mock_request:

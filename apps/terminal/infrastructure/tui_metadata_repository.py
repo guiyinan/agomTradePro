@@ -949,6 +949,161 @@ RUNTIME_RISK_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
     },
 )
 
+RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "config_center.alpha_universes",
+        "label": "Alpha/Qlib 模型 Universe",
+        "endpoint": "/api/system/config-center/qlib/alpha-universes/",
+        "intent": "list_alpha_universes",
+        "screen_key": "api-library.config-center",
+        "view_type": "datagrid",
+        "risk": "admin",
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "data",
+        },
+        "description": "查看用于 Alpha 评分、Qlib 数据构建和训练的模型 Universe；不影响 Data Center 生产覆盖验收口径。",
+        "source": "approved:runtime-config-center-alpha-universe",
+        "task_group": "02 Alpha Universe",
+        "sequence": 15,
+        "task_tier": "operation",
+    },
+    {
+        "key": "config_center.alpha_universe_members",
+        "label": "Alpha/Qlib 模型 Universe 成员",
+        "endpoint": "/api/system/config-center/qlib/alpha-universes/<str:universe_id>/members/",
+        "intent": "read_alpha_universe_members",
+        "screen_key": "api-library.config-center",
+        "view_type": "datagrid",
+        "risk": "admin",
+        "fields": [
+            {
+                "key": "universe_id",
+                "label": "Universe ID",
+                "input_type": "text",
+                "required": True,
+                "binding": "path",
+                "default": "all_a_share",
+                "placeholder": "all_a_share",
+                "value_type": "string",
+            },
+            {
+                "key": "limit",
+                "label": "返回数量",
+                "input_type": "number",
+                "required": False,
+                "binding": "query",
+                "default": 100,
+                "placeholder": "100",
+                "value_type": "integer",
+            },
+        ],
+        "view_model": {
+            "kind": "datagrid",
+            "rows_path": "data.members",
+            "total_path": "data.member_count",
+        },
+        "description": "按模型 Universe ID 解析实际成分股，用于确认 Alpha/Qlib 选股范围；不用于 readiness 覆盖分母。",
+        "source": "approved:runtime-config-center-alpha-universe",
+        "task_group": "02 Alpha Universe",
+        "sequence": 16,
+        "task_tier": "operation",
+    },
+    {
+        "key": "config_center.alpha_universe_save",
+        "label": "保存 Alpha/Qlib 模型 Universe",
+        "method": "POST",
+        "endpoint": "/api/system/config-center/qlib/alpha-universes/",
+        "intent": "save_alpha_universe",
+        "screen_key": "api-library.config-center",
+        "view_type": "detail",
+        "risk": "admin",
+        "fields": [
+            {
+                "key": "universe_id",
+                "label": "Universe ID",
+                "input_type": "text",
+                "required": True,
+                "binding": "body",
+                "default": "all_a_share",
+                "placeholder": "all_a_share",
+                "value_type": "string",
+            },
+            {
+                "key": "name",
+                "label": "名称",
+                "input_type": "text",
+                "required": True,
+                "binding": "body",
+                "default": "全 A 股票池",
+                "placeholder": "全 A 股票池",
+                "value_type": "string",
+            },
+            {
+                "key": "source_type",
+                "label": "来源类型",
+                "input_type": "select",
+                "required": True,
+                "binding": "body",
+                "default": "data_center_filter",
+                "placeholder": "",
+                "value_type": "string",
+                "options": ["manual", "csv", "data_center_filter"],
+            },
+            {
+                "key": "stock_codes",
+                "label": "股票代码",
+                "input_type": "textarea",
+                "required": False,
+                "binding": "body",
+                "default": [],
+                "placeholder": "[\"000001.SZ\", \"688001.SH\"]",
+                "value_type": "list",
+            },
+            {
+                "key": "filters",
+                "label": "过滤条件",
+                "input_type": "textarea",
+                "required": False,
+                "binding": "body",
+                "default": {
+                    "asset_type": "stock",
+                    "exchanges": ["SSE", "SZSE", "BSE"],
+                    "boards": [],
+                    "include_inactive": False,
+                },
+                "placeholder": "{\"asset_type\":\"stock\",\"exchanges\":[\"SSE\",\"SZSE\",\"BSE\"]}",
+                "value_type": "object",
+            },
+            {
+                "key": "is_active",
+                "label": "启用",
+                "input_type": "checkbox",
+                "required": False,
+                "binding": "body",
+                "default": True,
+                "placeholder": "",
+                "value_type": "boolean",
+            },
+            {
+                "key": "description",
+                "label": "说明",
+                "input_type": "textarea",
+                "required": False,
+                "binding": "body",
+                "default": "",
+                "placeholder": "",
+                "value_type": "string",
+            },
+        ],
+        "description": "创建或更新一个可供 Runtime 默认值、Alpha 评分和训练任务引用的模型 Universe；生产覆盖验收请使用 Data Center Universe。",
+        "source": "approved:runtime-config-center-alpha-universe",
+        "task_group": "00 管理操作",
+        "sequence": 15,
+        "task_tier": "operation",
+    },
+)
+
 RUNTIME_ACTION_PATCHES: dict[str, dict[str, Any]] = {
     "alpha.scores": {
         "fields": [
@@ -1250,7 +1405,8 @@ class PublishedTuiMetadataRepository:
             screens=screens,
             actions=actions,
         )
-        injected = injected_cli + injected_advisor + injected_risk_center
+        injected_config_center = self._inject_config_center_metadata(actions=actions)
+        injected = injected_cli + injected_advisor + injected_risk_center + injected_config_center
         normalized["groups"] = groups
         normalized["modules"] = modules
         normalized["screens"] = screens
@@ -1306,6 +1462,10 @@ class PublishedTuiMetadataRepository:
                 coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                     coverage.get("runtime_injected_cli_metadata", 0) or 0
                 )
+            if injected_config_center:
+                coverage["runtime_injected_config_center_metadata"] = injected_config_center + int(
+                    coverage.get("runtime_injected_config_center_metadata", 0) or 0
+                )
             if patched_screens:
                 coverage["runtime_patched_screens"] = patched_screens + int(
                     coverage.get("runtime_patched_screens", 0) or 0
@@ -1335,6 +1495,10 @@ class PublishedTuiMetadataRepository:
         if injected_cli:
             coverage["runtime_injected_cli_metadata"] = injected_cli + int(
                 coverage.get("runtime_injected_cli_metadata", 0) or 0
+            )
+        if injected_config_center:
+            coverage["runtime_injected_config_center_metadata"] = injected_config_center + int(
+                coverage.get("runtime_injected_config_center_metadata", 0) or 0
             )
         normalized["coverage_summary"] = coverage
         return validate_tui_metadata(normalized)
@@ -1443,6 +1607,19 @@ class PublishedTuiMetadataRepository:
             injected += 1
         existing_actions = {str(action.get("key") or "") for action in actions}
         for action in RUNTIME_RISK_CENTER_ACTIONS:
+            if action["key"] in existing_actions:
+                continue
+            actions.append(dict(action))
+            injected += 1
+        return injected
+
+    @staticmethod
+    def _inject_config_center_metadata(*, actions: list[dict[str, Any]]) -> int:
+        """Inject Config Center actions added after the reviewed metadata snapshot."""
+
+        injected = 0
+        existing_actions = {str(action.get("key") or "") for action in actions}
+        for action in RUNTIME_CONFIG_CENTER_ACTIONS:
             if action["key"] in existing_actions:
                 continue
             actions.append(dict(action))

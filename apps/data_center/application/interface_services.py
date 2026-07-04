@@ -7,7 +7,10 @@ from typing import Any
 
 from apps.data_center.application.dtos import LatestQuoteRequest, SyncQuoteRequest
 from apps.data_center.application.on_demand import OnDemandDataCenterService
-from apps.data_center.domain.entities import DataProviderSettings
+from apps.data_center.domain.entities import (
+    DataProviderSettings,
+    ProductionCoverageUniverseConfig,
+)
 from apps.task_monitor.application.tracking import record_pending_task
 from core.integration.alpha_homepage import load_alpha_homepage_data
 from core.integration.alpha_runtime import (
@@ -40,6 +43,7 @@ from .repository_provider import (
     MarketThermometerUserOverrideRepository,
     NewsRepository,
     PriceBarRepository,
+    ProductionCoverageUniverseConfigRepository,
     ProviderConfigRepository,
     PublisherCatalogRepository,
     QuoteSnapshotRepository,
@@ -223,6 +227,40 @@ def save_provider_settings_payload(
         "enable_failover": saved.enable_failover,
         "failover_tolerance": saved.failover_tolerance,
     }
+
+
+def load_production_coverage_universe_config_payload() -> dict[str, Any]:
+    """Return production coverage universe settings as a response payload."""
+
+    return ProductionCoverageUniverseConfigRepository().load().to_dict()
+
+
+def save_production_coverage_universe_config_payload(
+    *,
+    universe_id: str,
+    asset_type: str,
+    exchanges: list[str],
+    include_inactive: bool,
+    min_active_asset_count: int,
+    min_star_market_count: int,
+    min_chinext_count: int,
+    min_bse_count: int,
+    description: str,
+) -> dict[str, Any]:
+    """Persist production coverage universe settings and return the saved payload."""
+
+    config = ProductionCoverageUniverseConfig(
+        universe_id=universe_id,
+        asset_type=asset_type,
+        exchanges=exchanges,
+        include_inactive=include_inactive,
+        min_active_asset_count=min_active_asset_count,
+        min_star_market_count=min_star_market_count,
+        min_chinext_count=min_chinext_count,
+        min_bse_count=min_bse_count,
+        description=description,
+    )
+    return ProductionCoverageUniverseConfigRepository().save(config).to_dict()
 
 
 def make_resolve_asset_use_case() -> ResolveAssetUseCase:

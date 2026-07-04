@@ -9,6 +9,7 @@ from apps.data_center.models import (
     DataProviderSettingsModel,
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
+    ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
     PublisherCatalogModel,
 )
@@ -50,6 +51,26 @@ class DataProviderSettingsAdmin(admin.ModelAdmin):
     def has_add_permission(self, request) -> bool:  # type: ignore[override]
         """Only one singleton row is allowed."""
         return can_create_provider_settings()
+
+    def has_delete_permission(self, request, obj=None) -> bool:  # type: ignore[override]
+        return False
+
+
+@admin.register(ProductionCoverageUniverseConfigModel)
+class ProductionCoverageUniverseConfigAdmin(admin.ModelAdmin):
+    list_display = (
+        "universe_id",
+        "asset_type",
+        "include_inactive",
+        "min_active_asset_count",
+        "updated_at",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    def has_add_permission(self, request) -> bool:  # type: ignore[override]
+        """Only one singleton row is allowed."""
+
+        return not ProductionCoverageUniverseConfigModel.objects.exists()
 
     def has_delete_permission(self, request, obj=None) -> bool:  # type: ignore[override]
         return False

@@ -37,6 +37,30 @@ class ConfigCenterModule(BaseModule):
         response = self._post("config-center/qlib/training-profiles/", json=payload)
         return response.get("data", response)
 
+    def list_alpha_universes(self, *, include_inactive: bool = False) -> list[dict[str, Any]]:
+        params = {"include_inactive": "1"} if include_inactive else None
+        response = self._get("config-center/qlib/alpha-universes/", params=params)
+        if isinstance(response, list):
+            return response
+        return response.get("data", response)
+
+    def save_alpha_universe(self, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self._post("config-center/qlib/alpha-universes/", json=payload)
+        return response.get("data", response)
+
+    def get_alpha_universe_members(
+        self,
+        universe_id: str,
+        *,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        params = {"limit": limit} if limit is not None else None
+        response = self._get(
+            f"config-center/qlib/alpha-universes/{universe_id}/members/",
+            params=params,
+        )
+        return response.get("data", response)
+
     def list_qlib_training_runs(self, *, limit: int | None = None) -> list[dict[str, Any]]:
         params = {"limit": limit} if limit is not None else None
         response = self._get("config-center/qlib/training-runs/", params=params)

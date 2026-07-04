@@ -79,7 +79,12 @@ class AlphaResultSerializer(serializers.Serializer):
 class GetStockScoresRequestSerializer(serializers.Serializer):
     """获取股票评分请求序列化器"""
 
-    universe = serializers.CharField(default="csi300", help_text="股票池标识")
+    universe = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="股票池标识；留空使用 Config Center Runtime 默认股票池",
+    )
     trade_date = serializers.DateField(required=False, help_text="交易日期（ISO 格式）")
     top_n = serializers.IntegerField(
         default=30, min_value=1, max_value=500, help_text="返回前 N 只股票"

@@ -6,7 +6,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from apps.config_center.infrastructure.models import QlibTrainingRunModel, SystemSettingsModel
+from apps.config_center.infrastructure.models import (
+    AlphaUniverseConfigModel,
+    QlibTrainingRunModel,
+    SystemSettingsModel,
+)
 
 
 @pytest.mark.django_db
@@ -143,3 +147,33 @@ def test_qlib_config_center_page_triggers_training_for_superuser(monkeypatch, tm
     run = QlibTrainingRunModel.objects.get(model_name="lgb_csi300")
     assert run.celery_task_id == "task-page-1"
     assert run.status == QlibTrainingRunModel.STATUS_PENDING
+
+
+@pytest.mark.django_db
+def test_qlib_config_center_page_saves_alpha_universe_for_superuser():
+    user = get_user_model().objects.create_user(
+        username="universe_superuser",
+        password="pass12345",
+        is_staff=True,
+        is_superuser=True,
+    )
+
+    client = Client()
+    client.force_login(user)
+    response = client.post(
+        "/settings/config-center/qlib/",
+        data={
+            "action": "save_alpha_universe",
+            "universe_id": "manual_universe",
+            "name": "手工池",
+            "source_type": "manual",
+            "stock_codes_text": "688001\n300750",
+            "filters_json": "{}",
+            "is_active": "on",
+            "description": "page test",
+        },
+    )
+
+    assert response.status_code == 302
+    model = AlphaUniverseConfigModel.objects.get(universe_id="manual_universe")
+    assert model.stock_codes == ["688001.SH", "300750.SZ"]

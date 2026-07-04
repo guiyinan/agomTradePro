@@ -105,6 +105,49 @@ class DataProviderSettings:
             )
 
 
+@dataclass(frozen=True)
+class ProductionCoverageUniverseConfig:
+    """Configures the stock universe used by production coverage diagnostics."""
+
+    universe_id: str = "active_a_share"
+    asset_type: str = "stock"
+    exchanges: list[str] = field(default_factory=lambda: ["SSE", "SZSE", "BSE"])
+    include_inactive: bool = False
+    min_active_asset_count: int = 4000
+    min_star_market_count: int = 200
+    min_chinext_count: int = 0
+    min_bse_count: int = 50
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.universe_id:
+            raise ValueError("ProductionCoverageUniverseConfig.universe_id cannot be empty")
+        if not self.asset_type:
+            raise ValueError("ProductionCoverageUniverseConfig.asset_type cannot be empty")
+        if not self.exchanges:
+            raise ValueError("ProductionCoverageUniverseConfig.exchanges cannot be empty")
+        if min(
+            self.min_active_asset_count,
+            self.min_star_market_count,
+            self.min_chinext_count,
+            self.min_bse_count,
+        ) < 0:
+            raise ValueError("Production coverage thresholds cannot be negative")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "universe_id": self.universe_id,
+            "asset_type": self.asset_type,
+            "exchanges": list(self.exchanges),
+            "include_inactive": self.include_inactive,
+            "min_active_asset_count": self.min_active_asset_count,
+            "min_star_market_count": self.min_star_market_count,
+            "min_chinext_count": self.min_chinext_count,
+            "min_bse_count": self.min_bse_count,
+            "description": self.description,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Connection test result value object
 # ---------------------------------------------------------------------------

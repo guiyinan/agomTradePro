@@ -365,6 +365,7 @@
                 <a href="{% url 'data_center:dc-publishers-page' %}" class="{% if request.path == '/data-center/publishers/' %}active{% endif %}">Publishers</a>
                 <a href="{% url 'data_center:dc-providers-page' %}" class="{% if request.path == '/data-center/providers/' %}active{% endif %}">Providers</a>
                 <a href="{% url 'data_center:dc-monitor-page' %}" class="{% if request.path == '/data-center/monitor/' %}active{% endif %}">Monitor</a>
+                <a href="{% url 'data_center:dc-universe-page' %}" class="{% if request.path == '/data-center/universe/' %}active{% endif %}">Universe</a>
             </nav>
         </div>
         {% block content %}{% endblock %}

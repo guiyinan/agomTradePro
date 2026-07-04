@@ -16,9 +16,12 @@ from apps.config_center.application.use_cases import (
     CreateOrUpdateQlibTrainingProfileUseCase,
     GetQlibRuntimeConfigUseCase,
     GetQlibTrainingRunDetailUseCase,
+    ListAlphaUniverseConfigsUseCase,
     ListQlibTrainingProfilesUseCase,
     ListQlibTrainingRunsUseCase,
     QlibAccessDeniedError,
+    ResolveAlphaUniverseMembersUseCase,
+    SaveAlphaUniverseConfigUseCase,
     TriggerQlibTrainingUseCase,
     UpdateQlibRuntimeConfigUseCase,
     ValidationFailureError,
@@ -82,6 +85,72 @@ class QlibTrainingProfileForm(forms.Form):
             self.cleaned_data.get("extra_train_config", ""),
             field_name="附加训练配置",
         )
+
+
+class AlphaUniverseConfigForm(forms.Form):
+    universe_id = forms.RegexField(
+        regex=r"^[a-z0-9][a-z0-9_\-]{1,63}$",
+        max_length=64,
+        label="Universe ID",
+    )
+    name = forms.CharField(max_length=120, label="名称")
+    source_type = forms.ChoiceField(
+        choices=[
+            ("manual", "手工代码清单"),
+            ("csv", "CSV 导入代码清单"),
+            ("data_center_filter", "Data Center 条件生成"),
+        ],
+        label="来源类型",
+    )
+    stock_codes_text = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 5}),
+        label="股票代码清单",
+        help_text="支持逗号、空格或换行分隔；如 000001.SZ, 688001.SH。",
+    )
+    filters_json = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 5}),
+        label="Data Center 过滤 JSON",
+        help_text='示例 {"asset_type":"stock","exchanges":["SSE","SZSE","BSE"],"boards":["star_market"]}',
+    )
+    is_active = forms.BooleanField(required=False, initial=True, label="启用")
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="说明",
+    )
+
+    def clean_universe_id(self) -> str:
+        return str(self.cleaned_data["universe_id"]).strip().lower()
+
+    def clean_stock_codes_text(self) -> list[str]:
+        raw = str(self.cleaned_data.get("stock_codes_text") or "")
+        normalized = raw.replace(",", "\n").replace("，", "\n").replace(";", "\n")
+        codes: list[str] = []
+        for item in normalized.splitlines():
+            for part in item.split():
+                value = part.strip()
+                if value:
+                    codes.append(value)
+        return codes
+
+    def clean_filters_json(self) -> dict[str, Any]:
+        return _parse_json_object(
+            self.cleaned_data.get("filters_json", ""),
+            field_name="Data Center 过滤",
+        )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean()
+        source_type = cleaned.get("source_type")
+        stock_codes = cleaned.get("stock_codes_text") or []
+        filters = cleaned.get("filters_json") or {}
+        if source_type in {"manual", "csv"} and not stock_codes:
+            self.add_error("stock_codes_text", "手工或 CSV 股票池至少需要一个代码。")
+        if source_type == "data_center_filter" and not filters:
+            self.add_error("filters_json", "Data Center 条件生成需要填写 filters JSON。")
+        return cleaned
 
 
 class QlibTrainingTriggerForm(forms.Form):
@@ -181,6 +250,33 @@ def _profile_form_initial(profile) -> dict[str, Any]:
     }
 
 
+def _alpha_universe_form_initial(config=None) -> dict[str, Any]:
+    if config is None:
+        return {
+            "universe_id": "all_a_share",
+            "name": "全 A 股票池",
+            "source_type": "data_center_filter",
+            "filters_json": _pretty_json(
+                {
+                    "asset_type": "stock",
+                    "exchanges": ["SSE", "SZSE", "BSE"],
+                    "boards": [],
+                    "include_inactive": False,
+                }
+            ),
+            "is_active": True,
+        }
+    return {
+        "universe_id": config.universe_id,
+        "name": config.name,
+        "source_type": config.source_type,
+        "stock_codes_text": "\n".join(config.stock_codes or []),
+        "filters_json": _pretty_json(config.filters or {}),
+        "is_active": config.is_active,
+        "description": config.description,
+    }
+
+
 def _trigger_form_initial(runtime_payload: dict[str, Any], profile) -> dict[str, Any]:
     initial = {
         "profile_key": "",
@@ -225,6 +321,18 @@ def _resolve_selected_profile(profiles: list[Any], request: HttpRequest):
     return None
 
 
+def _resolve_selected_alpha_universe(configs: list[Any], request: HttpRequest):
+    selected_key = str(
+        request.GET.get("universe", "") or request.POST.get("universe_id", "")
+    ).strip()
+    if not selected_key:
+        return None
+    for config in configs:
+        if config.universe_id == selected_key:
+            return config
+    return None
+
+
 def _serialize_profiles(profiles: list[Any]) -> list[dict[str, Any]]:
     serialized: list[dict[str, Any]] = []
     for profile in profiles:
@@ -241,6 +349,33 @@ def _serialize_profiles(profiles: list[Any]) -> list[dict[str, Any]]:
                 "is_active": profile.is_active,
                 "activate_after_train": profile.activate_after_train,
                 "updated_at": profile.updated_at,
+            }
+        )
+    return serialized
+
+
+def _serialize_alpha_universes(*, actor, configs: list[Any]) -> list[dict[str, Any]]:
+    serialized: list[dict[str, Any]] = []
+    resolver = ResolveAlphaUniverseMembersUseCase()
+    for config in configs:
+        try:
+            members = resolver.execute(actor=actor, universe_id=config.universe_id)
+        except Exception:
+            members = []
+        serialized.append(
+            {
+                "universe_id": config.universe_id,
+                "name": config.name,
+                "source_type": config.source_type,
+                "member_count": len(members),
+                "preview": ", ".join(members[:8]),
+                "is_active": config.is_active,
+                "description": config.description,
+                "updated_at": config.updated_at,
+                "members_url": (
+                    f"/api/system/config-center/qlib/alpha-universes/"
+                    f"{config.universe_id}/members/"
+                ),
             }
         )
     return serialized
@@ -279,14 +414,21 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
     try:
         runtime_payload = GetQlibRuntimeConfigUseCase().execute(actor=request.user)
         profiles = ListQlibTrainingProfilesUseCase().execute(actor=request.user)
-        runs = ListQlibTrainingRunsUseCase().execute(actor=request.user, limit=20)
+        alpha_universes = ListAlphaUniverseConfigsUseCase().execute(
+            actor=request.user,
+            include_inactive=True,
+        )
     except QlibAccessDeniedError as exc:
         return HttpResponseForbidden(str(exc))
 
     selected_profile = _resolve_selected_profile(profiles, request)
+    selected_alpha_universe = _resolve_selected_alpha_universe(alpha_universes, request)
 
     runtime_form = QlibRuntimeConfigForm(initial=_runtime_form_initial(runtime_payload))
     profile_form = QlibTrainingProfileForm(initial=_profile_form_initial(selected_profile))
+    alpha_universe_form = AlphaUniverseConfigForm(
+        initial=_alpha_universe_form_initial(selected_alpha_universe)
+    )
     trigger_form = QlibTrainingTriggerForm(initial=_trigger_form_initial(runtime_payload, selected_profile))
 
     if request.method == "POST":
@@ -336,6 +478,37 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
                 else:
                     messages.success(request, f"训练模板已保存：{model.name}")
                     return redirect(f"{request.path}?profile={model.profile_key}")
+        elif action == "save_alpha_universe":
+            alpha_universe_form = AlphaUniverseConfigForm(request.POST)
+            if alpha_universe_form.is_valid():
+                payload = {
+                    "universe_id": alpha_universe_form.cleaned_data["universe_id"],
+                    "name": alpha_universe_form.cleaned_data["name"],
+                    "source_type": alpha_universe_form.cleaned_data["source_type"],
+                    "stock_codes": alpha_universe_form.cleaned_data["stock_codes_text"],
+                    "filters": alpha_universe_form.cleaned_data["filters_json"],
+                    "is_active": alpha_universe_form.cleaned_data["is_active"],
+                    "description": alpha_universe_form.cleaned_data["description"],
+                }
+                try:
+                    model = SaveAlphaUniverseConfigUseCase().execute(
+                        actor=request.user,
+                        payload=payload,
+                    )
+                    members = ResolveAlphaUniverseMembersUseCase().execute(
+                        actor=request.user,
+                        universe_id=model.universe_id,
+                    )
+                except QlibAccessDeniedError as exc:
+                    messages.error(request, str(exc))
+                except ValueError as exc:
+                    alpha_universe_form.add_error(None, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f"Alpha Universe 已保存：{model.name}，当前解析 {len(members)} 个标的。",
+                    )
+                    return redirect(f"{request.path}?universe={model.universe_id}#alpha-universes")
         elif action == "trigger_training":
             trigger_form = QlibTrainingTriggerForm(request.POST)
             if trigger_form.is_valid():
@@ -375,16 +548,26 @@ def qlib_config_center_view(request: HttpRequest) -> HttpResponse:
         "runtime_payload": GetQlibRuntimeConfigUseCase().execute(actor=request.user),
         "runtime_form": runtime_form,
         "profile_form": profile_form,
+        "alpha_universe_form": alpha_universe_form,
         "trigger_form": trigger_form,
         "profiles": _serialize_profiles(ListQlibTrainingProfilesUseCase().execute(actor=request.user)),
+        "alpha_universes": _serialize_alpha_universes(
+            actor=request.user,
+            configs=ListAlphaUniverseConfigsUseCase().execute(
+                actor=request.user,
+                include_inactive=True,
+            ),
+        ),
         "runs": _serialize_runs(
             actor=request.user,
             runs=ListQlibTrainingRunsUseCase().execute(actor=request.user, limit=20),
         ),
         "selected_profile_key": getattr(selected_profile, "profile_key", ""),
+        "selected_alpha_universe_id": getattr(selected_alpha_universe, "universe_id", ""),
         "can_write": request.user.is_superuser,
         "settings_center_url": "/settings/",
         "api_runtime_url": "/api/system/config-center/qlib/runtime/",
+        "api_alpha_universes_url": "/api/system/config-center/qlib/alpha-universes/",
         "api_profiles_url": "/api/system/config-center/qlib/training-profiles/",
         "api_runs_url": "/api/system/config-center/qlib/training-runs/",
         "api_trigger_url": "/api/system/config-center/qlib/training-runs/trigger/",

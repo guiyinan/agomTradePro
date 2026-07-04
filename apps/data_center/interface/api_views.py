@@ -57,6 +57,7 @@ from apps.data_center.application.interface_services import (
     fetch_latest_realtime_prices,
     load_market_thermometer_override_payload,
     load_market_thermometer_payload,
+    load_production_coverage_universe_config_payload,
     load_provider_settings_payload,
     make_calculate_market_thermometer_use_case,
     make_decision_repair_use_case,
@@ -88,8 +89,10 @@ from apps.data_center.application.interface_services import (
     make_sync_quote_use_case,
     make_sync_sector_membership_use_case,
     make_sync_valuation_use_case,
+    save_production_coverage_universe_config_payload,
     save_provider_settings_payload,
 )
+from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.data_center.application.registry_factory import get_registry, refresh_registry
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
@@ -104,6 +107,7 @@ from apps.data_center.interface.serializers import (
     MarketThermometerConfigSerializer,
     MarketThermometerImportSerializer,
     MarketThermometerUserOverrideSerializer,
+    ProductionCoverageUniverseConfigSerializer,
     ProviderConfigListSerializer,
     ProviderConfigSerializer,
     ProviderHealthSnapshotSerializer,
@@ -617,6 +621,50 @@ def provider_settings(request: Request) -> Response:
             ),
         )
     )
+
+
+@api_view(["GET", "PUT", "PATCH"])
+@permission_classes([IsAdminUser])
+def production_coverage_universe_config(request: Request) -> Response:
+    """Return or update the production coverage diagnostics universe."""
+
+    if request.method == "GET":
+        return Response(load_production_coverage_universe_config_payload())
+
+    serializer = ProductionCoverageUniverseConfigSerializer(
+        data=request.data,
+        partial=request.method == "PATCH",
+    )
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    current = load_production_coverage_universe_config_payload()
+    return Response(
+        save_production_coverage_universe_config_payload(
+            universe_id=data.get("universe_id", current["universe_id"]),
+            asset_type=data.get("asset_type", current["asset_type"]),
+            exchanges=data.get("exchanges", current["exchanges"]),
+            include_inactive=data.get("include_inactive", current["include_inactive"]),
+            min_active_asset_count=data.get(
+                "min_active_asset_count",
+                current["min_active_asset_count"],
+            ),
+            min_star_market_count=data.get(
+                "min_star_market_count",
+                current["min_star_market_count"],
+            ),
+            min_chinext_count=data.get("min_chinext_count", current["min_chinext_count"]),
+            min_bse_count=data.get("min_bse_count", current["min_bse_count"]),
+            description=data.get("description", current["description"]),
+        )
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def production_coverage_summary(request: Request) -> Response:
+    """Return current production coverage diagnostics summary."""
+
+    return Response(get_active_stock_fact_coverage_payload())
 
 
 # ---------------------------------------------------------------------------

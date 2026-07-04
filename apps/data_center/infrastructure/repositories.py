@@ -37,6 +37,7 @@ from apps.data_center.domain.entities import (
     MarketThermometerUserOverride,
     NewsFact,
     PriceBar,
+    ProductionCoverageUniverseConfig,
     ProviderConfig,
     PublisherCatalog,
     QuoteSnapshot,
@@ -66,6 +67,7 @@ from apps.data_center.infrastructure.models import (
     MarketThermometerUserOverrideModel,
     NewsFactModel,
     PriceBarModel,
+    ProductionCoverageUniverseConfigModel,
     ProviderConfigModel,
     PublisherCatalogModel,
     QuoteSnapshotModel,
@@ -149,6 +151,30 @@ class DataProviderSettingsRepository:
         model.default_source = settings.default_source
         model.enable_failover = settings.enable_failover
         model.failover_tolerance = settings.failover_tolerance
+        model.save()
+        return model.to_domain()
+
+
+class ProductionCoverageUniverseConfigRepository:
+    """Persists and retrieves production coverage universe config."""
+
+    def load(self) -> ProductionCoverageUniverseConfig:
+        return ProductionCoverageUniverseConfigModel.load().to_domain()
+
+    def save(
+        self,
+        config: ProductionCoverageUniverseConfig,
+    ) -> ProductionCoverageUniverseConfig:
+        model = ProductionCoverageUniverseConfigModel.load()
+        model.universe_id = config.universe_id
+        model.asset_type = config.asset_type
+        model.exchanges = list(config.exchanges)
+        model.include_inactive = config.include_inactive
+        model.min_active_asset_count = config.min_active_asset_count
+        model.min_star_market_count = config.min_star_market_count
+        model.min_chinext_count = config.min_chinext_count
+        model.min_bse_count = config.min_bse_count
+        model.description = config.description
         model.save()
         return model.to_domain()
 

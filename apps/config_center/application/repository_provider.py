@@ -47,9 +47,17 @@ class QlibTrainingRunRepository(Protocol):
     def mark_failed(self, *, run_id: str, error_message: str): ...
 
 
+class AlphaUniverseConfigRepository(Protocol):
+    def list_configs(self, *, include_inactive: bool = False) -> list[Any]: ...
+    def get_by_universe_id(self, universe_id: str) -> Any: ...
+    def save_config(self, config) -> Any: ...
+    def resolve_member_codes(self, universe_id: str) -> list[str]: ...
+
+
 _settings_repository: ConfigCenterSettingsRepository | None = None
 _profile_repository: QlibTrainingProfileRepository | None = None
 _run_repository: QlibTrainingRunRepository | None = None
+_alpha_universe_repository: AlphaUniverseConfigRepository | None = None
 
 
 def configure_config_center_repositories(
@@ -57,13 +65,15 @@ def configure_config_center_repositories(
     settings_repository: ConfigCenterSettingsRepository,
     profile_repository: QlibTrainingProfileRepository,
     run_repository: QlibTrainingRunRepository,
+    alpha_universe_repository: AlphaUniverseConfigRepository | None = None,
 ) -> None:
     """Register concrete config-center repositories at the composition root."""
 
-    global _settings_repository, _profile_repository, _run_repository
+    global _settings_repository, _profile_repository, _run_repository, _alpha_universe_repository
     _settings_repository = settings_repository
     _profile_repository = profile_repository
     _run_repository = run_repository
+    _alpha_universe_repository = alpha_universe_repository
 
 
 def get_config_center_settings_repository() -> ConfigCenterSettingsRepository:
@@ -82,3 +92,9 @@ def get_qlib_training_run_repository() -> QlibTrainingRunRepository:
     if _run_repository is None:
         raise RuntimeError("Qlib training run repository is not configured")
     return _run_repository
+
+
+def get_alpha_universe_config_repository() -> AlphaUniverseConfigRepository:
+    if _alpha_universe_repository is None:
+        raise RuntimeError("Alpha universe config repository is not configured")
+    return _alpha_universe_repository

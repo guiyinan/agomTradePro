@@ -165,6 +165,102 @@ class DataProviderSettingsModel(models.Model):
         )
 
 
+class ProductionCoverageUniverseConfigModel(models.Model):
+    """Singleton configuration for production coverage diagnostics universe."""
+
+    _SINGLETON_PK = 1
+
+    universe_id = models.CharField(
+        max_length=50,
+        default="active_a_share",
+        help_text="Logical universe identifier used by readiness diagnostics",
+    )
+    asset_type = models.CharField(
+        max_length=20,
+        default="stock",
+        help_text="AssetMaster asset_type included in coverage diagnostics",
+    )
+    exchanges = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Included MarketExchange codes, e.g. SSE/SZSE/BSE",
+    )
+    include_inactive = models.BooleanField(
+        default=False,
+        help_text="Include inactive/delisted assets in the coverage denominator",
+    )
+    min_active_asset_count = models.PositiveIntegerField(default=4000)
+    min_star_market_count = models.PositiveIntegerField(default=200)
+    min_chinext_count = models.PositiveIntegerField(default=0)
+    min_bse_count = models.PositiveIntegerField(default=50)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "data_center_production_coverage_universe_config"
+        verbose_name = "Production Coverage Universe Config"
+        verbose_name_plural = "Production Coverage Universe Config"
+
+    def __str__(self) -> str:
+        return f"{self.universe_id}: {','.join(self.normalized_exchanges())}"
+
+    def save(self, *args, **kwargs) -> None:  # type: ignore[override]
+        """Persist the singleton config at primary key 1."""
+
+        self.pk = self._SINGLETON_PK
+        self.exchanges = self.normalized_exchanges()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "ProductionCoverageUniverseConfigModel":
+        """Return singleton, creating the full A-share default if absent."""
+
+        obj, _ = cls.objects.get_or_create(
+            pk=cls._SINGLETON_PK,
+            defaults={
+                "universe_id": "active_a_share",
+                "asset_type": "stock",
+                "exchanges": ["SSE", "SZSE", "BSE"],
+                "include_inactive": False,
+                "min_active_asset_count": 4000,
+                "min_star_market_count": 200,
+                "min_chinext_count": 0,
+                "min_bse_count": 50,
+                "description": "Full active A-share universe used for production coverage.",
+            },
+        )
+        return obj
+
+    def normalized_exchanges(self) -> list[str]:
+        """Return uppercase unique exchange codes with a production-safe default."""
+
+        values = self.exchanges if isinstance(self.exchanges, list) else []
+        normalized: list[str] = []
+        for raw in values:
+            exchange = str(raw or "").strip().upper()
+            if exchange and exchange not in normalized:
+                normalized.append(exchange)
+        return normalized or ["SSE", "SZSE", "BSE"]
+
+    def to_domain(self):
+        """Convert to domain ProductionCoverageUniverseConfig value object."""
+
+        from apps.data_center.domain.entities import ProductionCoverageUniverseConfig
+
+        return ProductionCoverageUniverseConfig(
+            universe_id=self.universe_id,
+            asset_type=self.asset_type,
+            exchanges=self.normalized_exchanges(),
+            include_inactive=self.include_inactive,
+            min_active_asset_count=self.min_active_asset_count,
+            min_star_market_count=self.min_star_market_count,
+            min_chinext_count=self.min_chinext_count,
+            min_bse_count=self.min_bse_count,
+            description=self.description,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Phase 2 — Master data
 # ---------------------------------------------------------------------------

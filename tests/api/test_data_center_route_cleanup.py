@@ -59,6 +59,14 @@ def test_data_center_api_root_contract(authenticated_client):
     assert payload["endpoints"]["publishers"] == "/api/data-center/publishers/"
     assert payload["endpoints"]["indicators"] == "/api/data-center/indicators/"
     assert payload["endpoints"]["price_quotes"] == "/api/data-center/prices/quotes/"
+    assert (
+        payload["endpoints"]["production_coverage_summary"]
+        == "/api/data-center/production-coverage/summary/"
+    )
+    assert (
+        payload["endpoints"]["production_coverage_universe"]
+        == "/api/data-center/production-coverage/universe/"
+    )
 
 
 @pytest.mark.django_db

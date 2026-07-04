@@ -16,10 +16,12 @@ from apps.config_center.application.access_policies import (
     ensure_can_view_qlib_center,
 )
 from apps.config_center.application.repository_provider import (
+    get_alpha_universe_config_repository,
     get_config_center_settings_repository,
     get_qlib_training_profile_repository,
     get_qlib_training_run_repository,
 )
+from apps.config_center.domain.entities import AlphaUniverseConfig
 
 
 class ConflictError(RuntimeError):
@@ -52,6 +54,35 @@ class CreateOrUpdateQlibTrainingProfileUseCase:
     def execute(self, *, actor, payload: dict[str, Any]):
         ensure_can_manage_qlib_training_profiles(actor)
         return get_qlib_training_profile_repository().save_profile(payload)
+
+
+class ListAlphaUniverseConfigsUseCase:
+    def execute(self, *, actor, include_inactive: bool = False) -> list[Any]:
+        ensure_can_view_qlib_center(actor)
+        return get_alpha_universe_config_repository().list_configs(
+            include_inactive=include_inactive
+        )
+
+
+class SaveAlphaUniverseConfigUseCase:
+    def execute(self, *, actor, payload: dict[str, Any]):
+        ensure_can_manage_qlib_training_profiles(actor)
+        config = AlphaUniverseConfig(
+            universe_id=str(payload.get("universe_id") or "").strip().lower(),
+            name=str(payload.get("name") or "").strip(),
+            source_type=str(payload.get("source_type") or "").strip(),
+            stock_codes=tuple(payload.get("stock_codes") or ()),
+            filters=dict(payload.get("filters") or {}),
+            is_active=bool(payload.get("is_active", True)),
+            description=str(payload.get("description") or ""),
+        )
+        return get_alpha_universe_config_repository().save_config(config)
+
+
+class ResolveAlphaUniverseMembersUseCase:
+    def execute(self, *, actor, universe_id: str) -> list[str]:
+        ensure_can_view_qlib_center(actor)
+        return get_alpha_universe_config_repository().resolve_member_codes(universe_id)
 
 
 class ListQlibTrainingRunsUseCase:
@@ -251,6 +282,9 @@ __all__ = [
     "UpdateQlibRuntimeConfigUseCase",
     "ListQlibTrainingProfilesUseCase",
     "CreateOrUpdateQlibTrainingProfileUseCase",
+    "ListAlphaUniverseConfigsUseCase",
+    "SaveAlphaUniverseConfigUseCase",
+    "ResolveAlphaUniverseMembersUseCase",
     "ListQlibTrainingRunsUseCase",
     "GetQlibTrainingRunDetailUseCase",
     "TriggerQlibTrainingUseCase",

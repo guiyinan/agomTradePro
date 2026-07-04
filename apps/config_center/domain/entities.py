@@ -56,3 +56,34 @@ class QlibTrainingRun:
     result_metrics: dict[str, Any]
     error_message: str
 
+
+@dataclass(frozen=True)
+class AlphaUniverseConfig:
+    """Config-center owned Alpha/Qlib universe definition."""
+
+    universe_id: str
+    name: str
+    source_type: str
+    stock_codes: tuple[str, ...] = ()
+    filters: dict[str, Any] = field(default_factory=dict)
+    is_active: bool = True
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.universe_id:
+            raise ValueError("AlphaUniverseConfig.universe_id cannot be empty")
+        if not self.name:
+            raise ValueError("AlphaUniverseConfig.name cannot be empty")
+        if self.source_type not in {"manual", "csv", "data_center_filter"}:
+            raise ValueError(f"Unsupported Alpha universe source_type: {self.source_type}")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "universe_id": self.universe_id,
+            "name": self.name,
+            "source_type": self.source_type,
+            "stock_codes": list(self.stock_codes),
+            "filters": dict(self.filters),
+            "is_active": self.is_active,
+            "description": self.description,
+        }

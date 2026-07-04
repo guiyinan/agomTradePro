@@ -12,14 +12,22 @@
 | `mcp_guide` | MCP 接入说明 | `/account/mcp/` | `/api/account/profile/` | 前端复制参数；配合 SDK / MCP 使用 | 登录用户 | 实时读取 | 汇总 Base URL、Token、默认账户、Agent 配置片段；推荐默认签发只读 Token |
 | `system_settings` | 系统设置 | `/account/admin/settings/` | 无统一只读 API | 无统一 SDK/MCP，前端查看 | `staff` | 保存后立即生效 | 审批策略、默认 MCP、协议文案、市场颜色约定 |
 | `qlib_runtime` | Qlib Runtime 配置 | `/settings/config-center/qlib/` | `/api/system/config-center/qlib/runtime/` | 前端/SDK/MCP 读取；训练中心复用 | `staff` 读 / `superuser` 写；Token 另受 `read_only/read_write` scope 控制 | 保存后立即生效 | `config_center` owning source；默认 universe / feature / label / queue 在此维护 |
+| `alpha_universe` | Alpha/Qlib 模型 Universe 配置 | `/settings/config-center/qlib/`、TUI `api-library.config-center` | `/api/system/config-center/qlib/alpha-universes/` `/api/system/config-center/qlib/alpha-universes/<universe_id>/members/` | `client.config_center` + MCP config-center 工具 | `staff` 读 / `superuser` 写；Token 另受 `read_only/read_write` scope 控制 | 保存后立即可被 Alpha scores、Qlib build/training 引用 | 支持手工/CSV 代码清单和 Data Center 条件生成，可配置全 A、科创、创业、北交所等模型范围，避免默认退回 CSI300；不影响 readiness/生产覆盖分母 |
 | `qlib_training` | Qlib 在线训练中心 | `/settings/config-center/qlib/` | `/api/system/config-center/qlib/training-profiles/` `/api/system/config-center/qlib/training-runs/` `/api/system/config-center/qlib/training-runs/trigger/` | 前端/Admin/SDK/MCP 触发；Alpha 执行内核复用 | `staff` 读 / `superuser` 写/触发；Token 另受 `read_only/read_write` scope 控制 | 异步投递后生效 | 模板、运行记录、状态追踪、并发锁 |
 | `data_center_providers` | 数据中台 Provider 配置 | `/data-center/providers/` | `/api/data-center/providers/` | `client.data_center` + MCP config-center 工具 | `staff` | 保存后立即生效；刷新 data_center registry | Tushare Token / HTTP URL、AKShare、EastMoney、QMT、FRED 等统一在这里维护 |
 | `data_center_runtime` | 数据中台运行状态 | `/data-center/monitor/` | `/api/data-center/providers/status/` | `client.data_center` + MCP data-center 工具 | `staff` | 状态实时读取 | 查看 Provider 健康状态、熔断和能力覆盖，不再保留旧 market_data 入口 |
+| `data_center_production_universe` | 生产覆盖 Universe 配置 | `/data-center/universe/` | `/api/data-center/production-coverage/universe/` `/api/data-center/production-coverage/summary/` | `client.data_center` + MCP data-center 工具 | `staff` | 保存后立即影响 readiness 覆盖口径 | 配置 active A 股覆盖检查使用的 asset_type、交易所集合、科创/创业/北交所阈值，避免 300 股票池被误判为生产全市场覆盖 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
 | `risk_center` | 集中风控中心 | `/risk-center/`、TUI `risk-center.overview` | `/api/risk-center/` | `client.risk_center` + MCP `risk_center_tools` | `staff` 管理全局配置；账户 owner 读写本账户策略和日报 | 保存后立即可被解析 API 读取；账户止盈止损、模拟盘自动买入、策略执行编排、投后巡检和日报归档会读取有效策略 | 全局底线、模板、账户策略、管理员例外、日报历史和审计统一在此维护 |
 | `valuation_repair` | 估值修复配置 | `/equity/valuation-repair/config/` | `/api/equity/config/valuation-repair/active/` | `client.equity` + `equity_tools` | `staff` | DB/Settings 配置，运行时读取 | 已支持版本与回滚 |
 | `ai_provider` | AI Provider 配置 | `/ai/` | `/api/ai/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
 | `trading_cost` | 交易费率配置 | `/account/settings/` | `/api/account/trading-cost-configs/` | `client.account` + `account_tools` | 登录用户/相关账户 | 保存后立即生效 | 账户级配置 |
+
+## Universe Naming Boundary
+
+- `data_center_production_universe` is the readiness and production-data denominator. Recommended default ID: `active_a_share`.
+- `alpha_universe` is the Alpha/Qlib model, inference, training, and data-build universe. Recommended broad default ID: `model_all_a_share`.
+- These two configs may intentionally use the same Data Center filter, but they must remain explicit separate records. Do not make Alpha training scope implicitly change readiness coverage, and do not make readiness thresholds implicitly enlarge model training scope.
 
 ## Config Center APIs
 
@@ -27,6 +35,9 @@
 - `GET /api/system/config-capabilities/`
 - `GET /api/system/config-center/qlib/runtime/`
 - `POST /api/system/config-center/qlib/runtime/`
+- `GET /api/system/config-center/qlib/alpha-universes/`
+- `POST /api/system/config-center/qlib/alpha-universes/`
+- `GET /api/system/config-center/qlib/alpha-universes/<universe_id>/members/`
 - `GET /api/system/config-center/qlib/training-profiles/`
 - `POST /api/system/config-center/qlib/training-profiles/`
 - `GET /api/system/config-center/qlib/training-runs/`

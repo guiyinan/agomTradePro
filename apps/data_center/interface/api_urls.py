@@ -31,6 +31,8 @@ from apps.data_center.interface.api_views import (
     news,
     price_history,
     price_latest_quote,
+    production_coverage_summary,
+    production_coverage_universe_config,
     provider_detail,
     provider_list_create,
     provider_settings,
@@ -79,6 +81,8 @@ class DataCenterApiRootView(APIView):
                     "market_thermometer_history": "/api/data-center/market-thermometer/history/",
                     "market_thermometer_config": "/api/data-center/market-thermometer/config/",
                     "market_thermometer_me": "/api/data-center/market-thermometer/me/",
+                    "production_coverage_summary": "/api/data-center/production-coverage/summary/",
+                    "production_coverage_universe": "/api/data-center/production-coverage/universe/",
                     "decision_reliability_repair": "/api/data-center/decision-reliability/repair/",
                 }
             }
@@ -99,6 +103,16 @@ urlpatterns = [
     path("providers/status/", provider_status, name="dc-provider-status"),
     # Global settings
     path("settings/", provider_settings, name="dc-settings"),
+    path(
+        "production-coverage/summary/",
+        production_coverage_summary,
+        name="dc-production-coverage-summary",
+    ),
+    path(
+        "production-coverage/universe/",
+        production_coverage_universe_config,
+        name="dc-production-coverage-universe",
+    ),
     # Publisher governance
     path("publishers/", publisher_list_create, name="dc-publisher-list"),
     path("publishers/<str:publisher_code>/", publisher_detail, name="dc-publisher-detail"),

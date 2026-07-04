@@ -77,6 +77,37 @@ class DataProviderSettingsSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True, default="")
 
 
+class ProductionCoverageUniverseConfigSerializer(serializers.Serializer):
+    """Serializer for production coverage universe settings."""
+
+    EXCHANGE_CHOICES = ["SSE", "SZSE", "BSE"]
+
+    universe_id = serializers.CharField(max_length=50, required=False, default="active_a_share")
+    asset_type = serializers.CharField(max_length=20, required=False, default="stock")
+    exchanges = serializers.ListField(
+        child=serializers.ChoiceField(choices=EXCHANGE_CHOICES),
+        required=False,
+        allow_empty=False,
+        default=list,
+    )
+    include_inactive = serializers.BooleanField(required=False, default=False)
+    min_active_asset_count = serializers.IntegerField(required=False, min_value=0, default=4000)
+    min_star_market_count = serializers.IntegerField(required=False, min_value=0, default=200)
+    min_chinext_count = serializers.IntegerField(required=False, min_value=0, default=0)
+    min_bse_count = serializers.IntegerField(required=False, min_value=0, default=50)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_exchanges(self, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for raw in value:
+            exchange = str(raw).strip().upper()
+            if exchange and exchange not in normalized:
+                normalized.append(exchange)
+        if not normalized:
+            raise serializers.ValidationError("At least one exchange is required.")
+        return normalized
+
+
 class ConnectionTestResultSerializer(serializers.Serializer):
     """Serializer for connection test results."""
 

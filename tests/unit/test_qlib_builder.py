@@ -12,6 +12,7 @@ from apps.alpha.infrastructure.qlib_builder import (
     inspect_latest_trade_date,
     resolve_effective_trade_date,
 )
+from apps.config_center.infrastructure.models import AlphaUniverseConfigModel
 
 
 class _MockTushareProClient:
@@ -232,3 +233,28 @@ def test_tushare_qlib_builder_writes_explicit_stock_scope(tmp_path: Path) -> Non
     scoped_txt = provider_uri / "instruments" / "scoped_portfolios.txt"
     assert scoped_txt.exists()
     assert "SH600000" in scoped_txt.read_text(encoding="utf-8")
+
+
+@pytest.mark.django_db
+def test_tushare_qlib_builder_resolves_custom_config_center_universe(tmp_path: Path) -> None:
+    AlphaUniverseConfigModel.objects.create(
+        universe_id="custom_large_cap",
+        name="自定义大盘池",
+        source_type=AlphaUniverseConfigModel.SOURCE_MANUAL,
+        stock_codes=["600000.SH"],
+        is_active=True,
+    )
+    provider_uri = tmp_path / "cn_data"
+    builder = TushareQlibBuilder(str(provider_uri), pro_client=_MockTushareProClient())
+
+    summary = builder.build_recent_data(
+        target_date=date(2026, 4, 6),
+        universes=["custom_large_cap"],
+        lookback_days=30,
+    )
+
+    assert summary.stock_count == 1
+    assert summary.universe_count == 1
+    custom_txt = provider_uri / "instruments" / "custom_large_cap.txt"
+    assert custom_txt.exists()
+    assert "SH600000" in custom_txt.read_text(encoding="utf-8")

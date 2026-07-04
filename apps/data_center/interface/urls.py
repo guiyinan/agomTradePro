@@ -11,6 +11,7 @@ from apps.data_center.interface.views import (
     monitor_page,
     providers_page,
     publishers_page,
+    universe_page,
 )
 
 urlpatterns = [
@@ -19,5 +20,6 @@ urlpatterns = [
     path("publishers/", publishers_page, name="dc-publishers-page"),
     path("providers/", providers_page, name="dc-providers-page"),
     path("monitor/", monitor_page, name="dc-monitor-page"),
+    path("universe/", universe_page, name="dc-universe-page"),
     path("market-thermometer/", market_thermometer_page, name="dc-market-thermometer-page"),
 ]

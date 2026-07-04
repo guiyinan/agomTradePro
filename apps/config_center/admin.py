@@ -8,6 +8,7 @@ from apps.config_center.application.access_policies import (
     ensure_can_view_qlib_center,
 )
 from apps.config_center.infrastructure.models import (
+    AlphaUniverseConfigModel,
     QlibTrainingProfileModel,
     QlibTrainingRunModel,
 )
@@ -61,6 +62,14 @@ class QlibTrainingProfileAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
     )
     list_filter = ("model_type", "is_active", "activate_after_train")
     search_fields = ("profile_key", "name", "model_name", "feature_set_id", "label_id")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(AlphaUniverseConfigModel)
+class AlphaUniverseConfigAdmin(QlibPermissionAdminMixin, admin.ModelAdmin):
+    list_display = ("universe_id", "name", "source_type", "is_active", "updated_at")
+    list_filter = ("source_type", "is_active")
+    search_fields = ("universe_id", "name", "description")
     readonly_fields = ("created_at", "updated_at")
 
 

@@ -114,6 +114,41 @@ def register_config_center_tools(server: FastMCP) -> None:
         return client.config_center.save_qlib_training_profile(payload)
 
     @server.tool()
+    def list_alpha_universes(include_inactive: bool = False) -> list[dict[str, Any]]:
+        """列出 Alpha/Qlib 模型 Universe 配置；不影响生产覆盖验收口径。"""
+        client = AgomTradeProClient()
+        return client.config_center.list_alpha_universes(include_inactive=include_inactive)
+
+    @server.tool()
+    def save_alpha_universe(
+        universe_id: str,
+        name: str,
+        source_type: str = "data_center_filter",
+        stock_codes: list[str] | None = None,
+        filters: dict[str, Any] | None = None,
+        is_active: bool = True,
+        description: str = "",
+    ) -> dict[str, Any]:
+        """创建或更新 Alpha/Qlib 模型 Universe。需要读写 Token，且调用账号必须是 superuser。"""
+        client = AgomTradeProClient()
+        payload = {
+            "universe_id": universe_id,
+            "name": name,
+            "source_type": source_type,
+            "stock_codes": stock_codes or [],
+            "filters": filters or {},
+            "is_active": is_active,
+            "description": description,
+        }
+        return client.config_center.save_alpha_universe(payload)
+
+    @server.tool()
+    def get_alpha_universe_members(universe_id: str, limit: int = 100) -> dict[str, Any]:
+        """按模型 Universe ID 解析 Alpha/Qlib 成分股；生产覆盖验收请用 Data Center Universe。"""
+        client = AgomTradeProClient()
+        return client.config_center.get_alpha_universe_members(universe_id, limit=limit)
+
+    @server.tool()
     def list_qlib_training_runs(limit: int = 20) -> list[dict[str, Any]]:
         """列出最近的 Qlib 训练任务。"""
         client = AgomTradeProClient()
