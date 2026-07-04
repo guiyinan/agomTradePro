@@ -695,6 +695,7 @@
             .catch((error) => text("readiness-monitor-updated", "刷新失败: " + error.message))
             .finally(() => { this.disabled = false; });
     });
+    refresh().catch((error) => text("readiness-monitor-updated", "刷新失败: " + error.message));
 })();
 </script>
 {% endblock %}

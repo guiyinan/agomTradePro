@@ -298,16 +298,12 @@ def test_scheduler_console_page_renders_periodic_tasks(client, staff_user):
         description="Nightly workspace refresh",
     )
 
-    with patch(
-        "apps.task_monitor.application.interface_services.get_personal_readiness_monitor_summary",
-        return_value=_readiness_monitor_payload(),
-    ):
-        response = client.get("/ops/task-monitor/")
+    response = client.get("/ops/task-monitor/")
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "计划任务中心" in content
-    assert "最新收盘日已验收" in content
+    assert "正在读取验收状态" in content
     assert "readiness-monitor.json" in content
     assert "decision-workspace-nightly-snapshot-refresh" in content
     assert "PeriodicTask 目录" in content

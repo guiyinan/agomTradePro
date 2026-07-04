@@ -38,6 +38,76 @@ def get_personal_readiness_monitor_summary(
     return summary
 
 
+def get_personal_readiness_monitor_placeholder() -> dict[str, Any]:
+    """Return a lightweight placeholder for initial page rendering."""
+
+    return {
+        "status": "loading",
+        "daily_state": {
+            "code": "loading",
+            "severity": "neutral",
+            "title": "正在读取验收状态",
+            "message": "页面加载后会读取最新 readiness monitor。",
+        },
+        "monitor_gate": {
+            "ok": False,
+            "state": "loading",
+            "reason": None,
+            "next_action": None,
+            "next_check_after": None,
+            "command": None,
+        },
+        "window": {
+            "accepted": False,
+            "accepted_days": 0,
+            "required_days": DEFAULT_REQUIRED_DAYS,
+            "remaining_days": DEFAULT_REQUIRED_DAYS,
+            "latest_target_date": None,
+            "next_required_date": None,
+            "next_required_reason": None,
+            "projected_completion_date": None,
+            "projected_scheduler_completion_date": None,
+        },
+        "today": {
+            "status_date": None,
+            "latest_closed_date": None,
+            "expected_latest_date": None,
+            "latest_evidence_status": None,
+            "latest_evidence_target_date": None,
+            "latest_target_date": None,
+        },
+        "schedule": {
+            "due_status": None,
+            "scheduled_for": None,
+            "grace_deadline": None,
+            "next_check_after": None,
+        },
+        "next_action": {
+            "action": None,
+            "reason": None,
+            "target_date": None,
+            "command": None,
+        },
+        "scheduler_runtime": {
+            "required": False,
+            "status": "not_checked",
+            "worker_process_count": None,
+            "beat_process_count": None,
+            "responsive_worker_count": None,
+            "missing_queues": [],
+            "missing_registered_tasks": [],
+        },
+        "decision_data": {
+            "status": None,
+            "readiness_status": None,
+            "must_not_use_for_decision": False,
+            "blocked_reasons": [],
+        },
+        "blocking_issues": [],
+        "accepted_dates": [],
+    }
+
+
 def _summarize_personal_readiness_payload(payload: dict[str, Any]) -> dict[str, Any]:
     validation = dict(payload.get("validation") or {})
     monitor_gate = dict(payload.get("monitor_gate") or {})

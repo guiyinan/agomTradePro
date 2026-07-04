@@ -1,6 +1,16 @@
 from apps.task_monitor.application.readiness_monitor_service import (
+    get_personal_readiness_monitor_placeholder,
     _summarize_personal_readiness_payload,
 )
+
+
+def test_readiness_monitor_placeholder_is_lightweight_loading_state():
+    payload = get_personal_readiness_monitor_placeholder()
+
+    assert payload["status"] == "loading"
+    assert payload["daily_state"]["code"] == "loading"
+    assert payload["scheduler_runtime"]["status"] == "not_checked"
+    assert payload["window"]["accepted_days"] == 0
 
 
 def test_readiness_monitor_summary_marks_latest_closed_day_accepted():
