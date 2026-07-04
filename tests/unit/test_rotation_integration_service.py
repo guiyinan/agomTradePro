@@ -32,7 +32,15 @@ def test_generate_rotation_signal_treats_empty_allocation_as_expected_gap(monkey
     with caplog.at_level(logging.ERROR):
         result = service.generate_rotation_signal("MomentumConfig", date(2026, 6, 22))
 
-    assert result is None
+    assert result == {
+        "config_name": "MomentumConfig",
+        "signal_date": "2026-06-22",
+        "status": "skipped",
+        "error": "no_valid_allocation",
+        "reason": "Target allocation weights must sum to 1.0, got 0",
+        "target_allocation": {},
+        "momentum_ranking": [],
+    }
     assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
 
 

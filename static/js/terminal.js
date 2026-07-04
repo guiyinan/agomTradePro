@@ -408,9 +408,16 @@ class AgomTerminal {
                 cmd = parts[0].toLowerCase();
                 args = parts.slice(1);
             } else {
-                // No / prefix - treat as chat message
-                await this.cmdChat([input]);
-                return;
+                const parts = input.trim().split(/\s+/);
+                const candidate = (parts[0] || '').toLowerCase();
+                if (candidate && (this.builtinCommands[candidate] || this.dynamicCommands[candidate])) {
+                    cmd = candidate;
+                    args = parts.slice(1);
+                } else {
+                    // No / prefix and no direct command match - treat as chat message
+                    await this.cmdChat([input]);
+                    return;
+                }
             }
         } else {
             // Direct command name (from button clicks, etc.)

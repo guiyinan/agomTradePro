@@ -159,6 +159,10 @@
     transition: all var(--duration-normal) var(--ease-in-out);
 }
 
+.create-account-btn {
+    min-width: 108px;
+}
+
 .btn-primary {
     background: var(--color-primary);
     color: white;
