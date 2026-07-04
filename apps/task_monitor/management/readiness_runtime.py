@@ -200,7 +200,11 @@ def _classify_command_line(command_line: Any) -> str | None:
         return "beat"
     if " celery_worker_windows" in normalized:
         return "worker"
-    if " celery " not in normalized and "\\celery" not in normalized:
+    if (
+        " celery " not in normalized
+        and "/celery" not in normalized
+        and "\\celery" not in normalized
+    ):
         return None
     if " beat " in normalized:
         return "beat"

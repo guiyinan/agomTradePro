@@ -1444,6 +1444,47 @@ def test_personal_readiness_local_scheduler_runtime_detects_worker_and_beat():
     assert runtime["issues"] == []
 
 
+def test_personal_readiness_local_scheduler_runtime_detects_docker_celery_paths():
+    runtime = collect_local_scheduler_runtime(
+        required=True,
+        process_commands=[
+            {
+                "pid": 76,
+                "command_line": (
+                    "/usr/local/bin/python3.11 /usr/local/bin/celery -A core "
+                    "beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+                ),
+            },
+            {
+                "pid": 81,
+                "command_line": (
+                    "/usr/local/bin/python3.11 /usr/local/bin/celery -A core "
+                    "worker -l info -Q celery,qlib_infer,qlib_train --concurrency 1"
+                ),
+            },
+        ],
+        worker_ping=[{"celery@vps": {"ok": "pong"}}],
+        worker_active_queues={
+            "celery@vps": [
+                {"name": "celery"},
+                {"name": "qlib_infer"},
+            ],
+        },
+        worker_registered_tasks={
+            "celery@vps": [
+                command_module.TASK_PATH,
+                command_module.QUOTE_PRE_READINESS_TASK_PATH,
+                command_module.AUTO_ADVISOR_WEEKLY_TASK_PATH,
+            ],
+        },
+    )
+
+    assert runtime["status"] == "ok"
+    assert runtime["worker_process_count"] == 1
+    assert runtime["beat_process_count"] == 1
+    assert runtime["issues"] == []
+
+
 def test_personal_readiness_local_scheduler_runtime_checks_registered_tasks():
     runtime = collect_local_scheduler_runtime(
         required=True,
