@@ -170,6 +170,74 @@
     color: #4a5568;
 }
 
+.scheduler-console__monitor {
+    display: grid;
+    gap: 14px;
+}
+
+.scheduler-console__monitor-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.scheduler-console__monitor-title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.25;
+}
+
+.scheduler-console__monitor-message {
+    margin: 8px 0 0;
+    color: var(--color-text-secondary);
+}
+
+.scheduler-console__metric-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.scheduler-console__metric {
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.scheduler-console__metric strong {
+    display: block;
+    font-size: 18px;
+    margin-top: 4px;
+}
+
+.scheduler-console__progress {
+    display: grid;
+    gap: 6px;
+}
+
+.scheduler-console__progress progress {
+    width: 100%;
+    height: 12px;
+}
+
+.scheduler-console__monitor-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.scheduler-console__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
 .scheduler-console__failures {
     list-style: none;
     margin: 0;
@@ -239,6 +307,10 @@
     .scheduler-console__health {
         grid-template-columns: 1fr;
     }
+
+    .scheduler-console__metric-row {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 
@@ -285,6 +357,8 @@
             <div class="scheduler-console__value">{{ summary.one_off_tasks }}</div>
         </div>
     </div>
+
+    {{ readiness_monitor|json_script:"readiness-monitor-initial" }}
 
     <div class="scheduler-console__layout">
         <div class="scheduler-console__panel">
@@ -367,6 +441,68 @@
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div
+                class="scheduler-console__panel scheduler-console__monitor"
+                data-readiness-monitor
+                data-endpoint="{% url 'task_monitor_pages:readiness_monitor_json' %}"
+            >
+                <div class="scheduler-console__monitor-head">
+                    <div>
+                        <span
+                            id="readiness-monitor-badge"
+                            class="scheduler-console__badge {% if readiness_monitor.daily_state.severity == 'ok' %}scheduler-console__badge-ok{% elif readiness_monitor.daily_state.severity == 'danger' %}scheduler-console__badge-danger{% elif readiness_monitor.daily_state.severity == 'warn' %}scheduler-console__badge-warn{% else %}scheduler-console__badge-neutral{% endif %}"
+                        >
+                            {{ readiness_monitor.daily_state.code }}
+                        </span>
+                        <h2 id="readiness-monitor-title" class="scheduler-console__monitor-title">{{ readiness_monitor.daily_state.title }}</h2>
+                        <p id="readiness-monitor-message" class="scheduler-console__monitor-message">{{ readiness_monitor.daily_state.message }}</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="readiness-monitor-refresh">刷新</button>
+                </div>
+
+                <div class="scheduler-console__metric-row">
+                    <div class="scheduler-console__metric">
+                        <span class="scheduler-console__label">验收进度</span>
+                        <strong><span id="readiness-monitor-accepted">{{ readiness_monitor.window.accepted_days }}</span>/<span id="readiness-monitor-required">{{ readiness_monitor.window.required_days }}</span></strong>
+                    </div>
+                    <div class="scheduler-console__metric">
+                        <span class="scheduler-console__label">下一目标日</span>
+                        <strong id="readiness-monitor-next-date">{{ readiness_monitor.window.next_required_date|default:"-" }}</strong>
+                    </div>
+                    <div class="scheduler-console__metric">
+                        <span class="scheduler-console__label">最新证据</span>
+                        <strong id="readiness-monitor-latest-evidence">{{ readiness_monitor.today.latest_evidence_target_date|default:"-" }}</strong>
+                    </div>
+                </div>
+
+                <div class="scheduler-console__progress">
+                    <progress
+                        id="readiness-monitor-progress"
+                        value="{{ readiness_monitor.window.accepted_days|default:0 }}"
+                        max="{{ readiness_monitor.window.required_days|default:20 }}"
+                    ></progress>
+                    <div class="scheduler-console__subtle">
+                        剩余 <span id="readiness-monitor-remaining">{{ readiness_monitor.window.remaining_days }}</span> 个交易日；
+                        预计完成 <span id="readiness-monitor-projected">{{ readiness_monitor.window.projected_completion_date|default:"-" }}</span>
+                    </div>
+                </div>
+
+                <div class="scheduler-console__links">
+                    <div class="scheduler-console__subtle">监视器: <span id="readiness-monitor-gate">{% if readiness_monitor.monitor_gate.ok %}ok{% else %}blocked{% endif %}</span> / <span id="readiness-monitor-gate-state">{{ readiness_monitor.monitor_gate.state|default:"-" }}</span></div>
+                    <div class="scheduler-console__subtle">调度: <span id="readiness-monitor-due">{{ readiness_monitor.schedule.due_status|default:"-" }}</span> / <span id="readiness-monitor-scheduled-for">{{ readiness_monitor.schedule.scheduled_for|default:"-" }}</span></div>
+                    <div class="scheduler-console__subtle">下一检查: <span id="readiness-monitor-next-check">{{ readiness_monitor.schedule.next_check_after|default:"-" }}</span></div>
+                    <div class="scheduler-console__subtle">当前决策数据: <span id="readiness-monitor-decision">{{ readiness_monitor.decision_data.status|default:"-" }}</span></div>
+                </div>
+
+                <div class="scheduler-console__monitor-actions">
+                    <label class="scheduler-console__toggle" for="readiness-monitor-strict">
+                        <input id="readiness-monitor-strict" type="checkbox">
+                        严格运行态
+                    </label>
+                    <span class="scheduler-console__subtle" id="readiness-monitor-updated">页面初始状态</span>
+                </div>
+            </div>
+
             <div class="scheduler-console__panel">
                 <h2>收市后 Readiness 时间</h2>
                 <form method="post" class="scheduler-console__form">
@@ -489,4 +625,76 @@
         </div>
     </div>
 </div>
+<script>
+(function () {
+    const root = document.querySelector("[data-readiness-monitor]");
+    if (!root) {
+        return;
+    }
+    const endpoint = root.dataset.endpoint;
+    const initial = JSON.parse(document.getElementById("readiness-monitor-initial").textContent);
+    const severityClasses = {
+        ok: "scheduler-console__badge-ok",
+        warn: "scheduler-console__badge-warn",
+        danger: "scheduler-console__badge-danger",
+        neutral: "scheduler-console__badge-neutral",
+    };
+    const text = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value === null || value === undefined || value === "" ? "-" : value;
+        }
+    };
+    const render = (payload) => {
+        const daily = payload.daily_state || {};
+        const windowData = payload.window || {};
+        const today = payload.today || {};
+        const gate = payload.monitor_gate || {};
+        const schedule = payload.schedule || {};
+        const decision = payload.decision_data || {};
+        const badge = document.getElementById("readiness-monitor-badge");
+        if (badge) {
+            badge.className = "scheduler-console__badge " + (severityClasses[daily.severity] || severityClasses.neutral);
+            badge.textContent = daily.code || "-";
+        }
+        text("readiness-monitor-title", daily.title);
+        text("readiness-monitor-message", daily.message);
+        text("readiness-monitor-accepted", windowData.accepted_days);
+        text("readiness-monitor-required", windowData.required_days);
+        text("readiness-monitor-remaining", windowData.remaining_days);
+        text("readiness-monitor-next-date", windowData.next_required_date);
+        text("readiness-monitor-latest-evidence", today.latest_evidence_target_date);
+        text("readiness-monitor-projected", windowData.projected_completion_date);
+        text("readiness-monitor-gate", gate.ok ? "ok" : "blocked");
+        text("readiness-monitor-gate-state", gate.state);
+        text("readiness-monitor-due", schedule.due_status);
+        text("readiness-monitor-scheduled-for", schedule.scheduled_for);
+        text("readiness-monitor-next-check", schedule.next_check_after);
+        text("readiness-monitor-decision", decision.status);
+        const progress = document.getElementById("readiness-monitor-progress");
+        if (progress) {
+            progress.max = Number(windowData.required_days || 20);
+            progress.value = Number(windowData.accepted_days || 0);
+        }
+    };
+    const refresh = async () => {
+        const strict = document.getElementById("readiness-monitor-strict").checked;
+        const url = endpoint + (strict ? "?strict_runtime=1" : "");
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+        const payload = await response.json();
+        render(payload);
+        text("readiness-monitor-updated", new Date().toLocaleString());
+    };
+    render(initial);
+    document.getElementById("readiness-monitor-refresh").addEventListener("click", function () {
+        this.disabled = true;
+        refresh()
+            .catch((error) => text("readiness-monitor-updated", "刷新失败: " + error.message))
+            .finally(() => { this.disabled = false; });
+    });
+})();
+</script>
 {% endblock %}

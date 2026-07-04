@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
 from apps.task_monitor.application.interface_services import (
     bootstrap_scheduler_defaults,
     configure_readiness_schedule,
+    get_readiness_monitor_context,
     get_scheduler_console_context,
 )
 
@@ -71,3 +72,17 @@ def scheduler_console_view(request: HttpRequest) -> HttpResponse:
     limit = max(1, min(int(request.GET.get("limit", 100) or 100), 200))
     context = get_scheduler_console_context(limit=limit)
     return render(request, "task_monitor/scheduler_console.html", context)
+
+
+@require_GET
+def readiness_monitor_json_view(request: HttpRequest) -> JsonResponse:
+    _ensure_task_monitor_access(request)
+    strict_runtime = (request.GET.get("strict_runtime") or "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return JsonResponse(
+        get_readiness_monitor_context(strict_runtime=strict_runtime),
+        json_dumps_params={"ensure_ascii": False},
+    )

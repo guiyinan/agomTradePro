@@ -9,6 +9,9 @@ from apps.task_monitor.application.repository_provider import (
     get_scheduler_repository,
     get_task_record_repository,
 )
+from apps.task_monitor.application.readiness_monitor_service import (
+    get_personal_readiness_monitor_summary,
+)
 from apps.task_monitor.application.use_cases import (
     BootstrapDefaultSchedulesUseCase,
     ConfigureReadinessScheduleUseCase,
@@ -35,10 +38,19 @@ def get_scheduler_console_context(*, limit: int = 100) -> dict:
         "readiness_schedule": GetReadinessScheduleUseCase(
             scheduler_repository=get_scheduler_repository(),
         ).execute(),
+        "readiness_monitor": get_personal_readiness_monitor_summary(
+            strict_runtime=False,
+        ),
         "periodic_task_admin_url": "/admin/django_celery_beat/periodictask/",
         "crontab_admin_url": "/admin/django_celery_beat/crontabschedule/",
         "task_execution_admin_url": "/admin/task_monitor/taskexecutionmodel/",
     }
+
+
+def get_readiness_monitor_context(*, strict_runtime: bool = False) -> dict:
+    """Return the daily readiness monitor payload for page JSON refreshes."""
+
+    return get_personal_readiness_monitor_summary(strict_runtime=strict_runtime)
 
 
 def bootstrap_scheduler_defaults() -> dict:

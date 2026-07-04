@@ -46,6 +46,79 @@ def authenticated_client(api_client, auth_user):
     return api_client
 
 
+def _readiness_monitor_payload():
+    return {
+        "status": "in_progress",
+        "daily_state": {
+            "code": "latest_closed_day_accepted",
+            "severity": "ok",
+            "title": "最新收盘日已验收",
+            "message": "当前最新已收盘交易日已有有效证据，等待下一交易日收盘。",
+        },
+        "monitor_gate": {
+            "ok": True,
+            "state": "wait_for_post_close",
+            "reason": "target_date_not_closed",
+            "next_action": "wait_for_post_close",
+            "next_check_after": "2026-07-06T16:10:00+08:00",
+            "command": None,
+        },
+        "window": {
+            "accepted": False,
+            "accepted_days": 4,
+            "required_days": 20,
+            "remaining_days": 16,
+            "latest_target_date": "2026-07-03",
+            "next_required_date": "2026-07-06",
+            "next_required_reason": "next_trading_day",
+            "projected_completion_date": "2026-07-27",
+            "projected_scheduler_completion_date": "2026-07-28",
+        },
+        "today": {
+            "status_date": "2026-07-04",
+            "latest_closed_date": "2026-07-03",
+            "expected_latest_date": "2026-07-03",
+            "latest_evidence_status": "ok",
+            "latest_evidence_target_date": "2026-07-03",
+            "latest_target_date": "2026-07-03",
+        },
+        "schedule": {
+            "due_status": "pending",
+            "scheduled_for": "2026-07-06T16:10:00+08:00",
+            "grace_deadline": "2026-07-06T16:40:00+08:00",
+            "next_check_after": "2026-07-06T16:10:00+08:00",
+        },
+        "next_action": {
+            "action": "wait_for_post_close",
+            "reason": "target_date_not_closed",
+            "target_date": "2026-07-06",
+            "command": None,
+        },
+        "scheduler_runtime": {
+            "required": False,
+            "status": "not_checked",
+            "worker_process_count": None,
+            "beat_process_count": None,
+            "responsive_worker_count": None,
+            "missing_queues": [],
+            "missing_registered_tasks": [],
+        },
+        "decision_data": {
+            "status": "blocked",
+            "readiness_status": "blocked",
+            "must_not_use_for_decision": True,
+            "blocked_reasons": ["quote stale"],
+        },
+        "blocking_issues": [],
+        "accepted_dates": [
+            "2026-06-30",
+            "2026-07-01",
+            "2026-07-02",
+            "2026-07-03",
+        ],
+    }
+
+
 @pytest.mark.django_db
 def test_get_task_status_returns_serialized_task(authenticated_client):
     now = timezone.now()
@@ -225,11 +298,17 @@ def test_scheduler_console_page_renders_periodic_tasks(client, staff_user):
         description="Nightly workspace refresh",
     )
 
-    response = client.get("/ops/task-monitor/")
+    with patch(
+        "apps.task_monitor.application.interface_services.get_personal_readiness_monitor_summary",
+        return_value=_readiness_monitor_payload(),
+    ):
+        response = client.get("/ops/task-monitor/")
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "计划任务中心" in content
+    assert "最新收盘日已验收" in content
+    assert "readiness-monitor.json" in content
     assert "decision-workspace-nightly-snapshot-refresh" in content
     assert "PeriodicTask 目录" in content
     assert "Celery 运行态" in content
@@ -293,3 +372,32 @@ def test_scheduler_console_configure_readiness_schedule_action(client, staff_use
         daily_evidence_time="16:10",
         weekly_auto_advisor_time="17:30",
     )
+
+
+@pytest.mark.django_db
+def test_readiness_monitor_json_requires_staff(client, auth_user):
+    client.force_login(auth_user)
+
+    response = client.get("/ops/task-monitor/readiness-monitor.json")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_readiness_monitor_json_returns_daily_gate(client, staff_user):
+    client.force_login(staff_user)
+
+    with patch(
+        "apps.task_monitor.interface.page_views.get_readiness_monitor_context",
+        return_value=_readiness_monitor_payload(),
+    ) as mock_context:
+        response = client.get("/ops/task-monitor/readiness-monitor.json?strict_runtime=1")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["daily_state"]["code"] == "latest_closed_day_accepted"
+    assert payload["monitor_gate"]["ok"] is True
+    assert payload["window"]["accepted_days"] == 4
+    assert payload["window"]["remaining_days"] == 16
+    mock_context.assert_called_once_with(strict_runtime=True)
