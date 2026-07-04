@@ -9,8 +9,8 @@
 > **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
 > **业务模块**: 37个
-> **MCP 工具**: 365个（本地注册快照）
-> **测试规模**: 6,141 个静态测试函数
+> **MCP 工具**: 368个（本地注册快照）
+> **测试规模**: 6,161 个静态测试函数
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
@@ -672,3 +672,4 @@ ak.macro_china_money_supply()
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
 - `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源
+

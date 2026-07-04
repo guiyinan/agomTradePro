@@ -1,8 +1,8 @@
 {
-  "version": "2026-06-30.v1",
-  "mcp_tool_count": 365,
+  "version": "2026-07-05.v1",
+  "mcp_tool_count": 368,
   "business_module_count": 37,
-  "static_test_function_count": 6141,
+  "static_test_function_count": 6161,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -56,7 +56,7 @@
   "allowed_large_python_files": {
     "apps/account/infrastructure/models.py": 1389,
     "apps/account/infrastructure/repositories.py": 3252,
-    "apps/ai_capability/application/use_cases.py": 1223,
+    "apps/ai_capability/application/use_cases.py": 1224,
     "apps/alpha/application/tasks.py": 1827,
     "apps/audit/application/use_cases.py": 1382,
     "apps/audit/domain/services.py": 1299,
@@ -66,7 +66,7 @@
     "apps/data_center/application/market_thermometer.py": 1434,
     "apps/data_center/application/use_cases.py": 2434,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
-    "apps/data_center/infrastructure/repositories.py": 1513,
+    "apps/data_center/infrastructure/repositories.py": 1529,
     "apps/decision_rhythm/application/advisor_services.py": 2782,
     "apps/decision_rhythm/application/use_cases.py": 2591,
     "apps/decision_rhythm/domain/entities.py": 2253,
@@ -81,6 +81,7 @@
     "apps/task_monitor/management/commands/show_personal_readiness_status.py": 1990,
     "apps/task_monitor/management/commands/validate_personal_readiness_window.py": 1305,
     "apps/terminal/application/tui_workbench.py": 2571,
-    "apps/terminal/infrastructure/tui_metadata_repository.py": 1468
+    "apps/terminal/infrastructure/tui_metadata_repository.py": 1840
   }
 }
+

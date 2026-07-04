@@ -197,7 +197,7 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-06-30`: `365` registered tools.
+You can validate tool registration locally. Current local snapshot on `2026-07-05`: `368` registered tools.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
@@ -940,3 +940,4 @@ python -m pip show mcp
 3. Check SDK is installed: `pip show agomtradepro-sdk`
 4. Check MCP SDK is installed: `pip show mcp`
 5. Confirm tools are registered: `python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`
+

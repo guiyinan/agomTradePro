@@ -12,7 +12,7 @@
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-6%2C111-brightgreen.svg)](#测试)
 [![Modules](https://img.shields.io/badge/业务模块-37-purple.svg)](#架构)
-[![MCP Tools](https://img.shields.io/badge/MCP_工具-365-orange.svg)](#ai-原生集成)
+[![MCP Tools](https://img.shields.io/badge/MCP_工具-368-orange.svg)](#ai-原生集成)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#项目状态)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -64,7 +64,7 @@
 
 - 基金研究数据工作流补了一轮扩展，宏观同步覆盖面继续扩大，`DR007` 同步链路也已恢复
 - 宏观页现在更明确地区分“未同步”和“未接入”，批量刷新入口也只针对已接入自动同步的指标执行补抓
-- MCP 文档口径已同步到当前 `365` 个本地注册工具快照
+- MCP 文档口径已同步到当前 `368` 个本地注册工具快照
 
 ### 2026-05-02
 
@@ -88,7 +88,7 @@
 ### 2026-04-29
 
 - 宏观 MCP/SDK 正式收口到 `data_center`：MCP 官方宏观工具切到 `data_center_*`，指标目录与量纲规则可直接经 MCP/HTTP 治理
-- 宏观治理与 MCP 文档已同步刷新；当日文档快照口径为 `365` 个 MCP 工具
+- 宏观治理与 MCP 文档已同步刷新；当前文档快照口径会由治理检查保持为最新 MCP 工具数
 
 ### 2026-04-28
 
@@ -480,7 +480,7 @@ PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹�
 不是后期加个 API 就叫 AI。AgomTradePro 从底层为 AI Agent 时代而设计：
 
 - **Python SDK** — 32 个模块的完整编程接口
-- **MCP Server（当前注册 365 个工具）** — 直接接入 Claude、Cursor 或任何支持 MCP 的 AI
+- **MCP Server（当前注册 368 个工具）** — 直接接入 Claude、Cursor 或任何支持 MCP 的 AI
 - **Terminal CLI** — 终端风格的 AI 交互界面
 - **Agent Runtime** — 任务编排，支持 提案 → 审批 → 执行 全生命周期
 
@@ -705,7 +705,7 @@ Claude: [调用 get_current_regime] → 滞胀（增长 ↓，通胀 ↑）
          或者考虑对冲仓位。"
 ```
 
-**365 个 MCP 工具**不是只覆盖几个查询接口，而是横跨宏观、政策、信号、回测、账户、组合、交易、AI 能力目录、终端命令、运行时编排、系统配置等多个系统面向。
+**368 个 MCP 工具**不是只覆盖几个查询接口，而是横跨宏观、政策、信号、回测、账户、组合、交易、AI 能力目录、终端命令、运行时编排、系统配置等多个系统面向。
 
 最近这轮 MCP 契约收口，建议额外记住三点：
 
@@ -744,7 +744,7 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 | **可视化** | Streamlit、Plotly |
 | **前端** | Django Templates + HTMX |
 | **AI 集成** | MCP Server、Python SDK |
-| **测试** | Pytest（静态测试函数 6,141 个）、Playwright（E2E） |
+| **测试** | Pytest（静态测试函数 6,161 个）、Playwright（E2E） |
 
 ---
 
@@ -752,9 +752,9 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 
 ```
 37    业务模块（apps/，排除 __pycache__）
-365   MCP 工具（当前本地注册快照）
+368   MCP 工具（当前本地注册快照）
 525   REST API 路径（OpenAPI 快照）
-6,141 静态测试函数（AST 轻量统计基线）
+6,161 静态测试函数（AST 轻量统计基线）
 302   文档文件（docs/ 目录）
 ```
 
@@ -811,3 +811,4 @@ Apache License 2.0 —— 详见 [LICENSE](LICENSE)。
 *源于太多次"逻辑没错、时机全错"的惨痛教训。*
 
 </div>
+

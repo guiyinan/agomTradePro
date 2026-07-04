@@ -26,8 +26,8 @@
 | **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
 | **最后更新** | 2026-04-21 | Git log |
 | **业务模块** | 37个 | `apps/` 目录扫描 |
-| **MCP 工具** | 365个 | `sdk/agomtradepro_mcp.server` 本地注册 |
-| **测试规模** | 6,141 个静态测试函数 | AST 轻量治理统计 |
+| **MCP 工具** | 368个 | `sdk/agomtradepro_mcp.server` 本地注册 |
+| **测试规模** | 6,161 个静态测试函数 | AST 轻量治理统计 |
 | **代码行数** | 50,000+ | 代码统计 |
 | **API 路径** | 515个 | `docs/testing/api/openapi.json` |
 | **数据库表** | 80+ | Migration 文件 |
@@ -114,7 +114,7 @@ package-for-vps.ps1  scp    deploy-on-vps.sh  /api/health/
 | 指标 | 数值 | 来源 |
 |------|------|------|
 | **测试文件数** | 238 | `find tests/ -name "test_*.py" | wc -l` |
-| **静态测试函数数** | 6,141 | AST 轻量治理统计 |
+| **静态测试函数数** | 6,161 | AST 轻量治理统计 |
 | **Domain 层覆盖率** | ≥ 90% | coverage 报告 |
 | **模块覆盖率** | 100% (37/37) | 扫描结果 |
 
@@ -217,3 +217,4 @@ Tushare/AKShare  data_center      regime/policy   SQLite      audit
 **维护者**: AgomTradePro Team
 **最后更新**: 2026-03-28
 **下次更新**: 下次发布后
+
