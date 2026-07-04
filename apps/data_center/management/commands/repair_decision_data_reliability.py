@@ -161,6 +161,7 @@ class Command(BaseCommand):
                 user_id=user.id,
                 portfolio_id=portfolio_id,
                 trade_date=target_date,
+                pool_mode=ALPHA_POOL_MODE_STRICT_VALUATION,
             )
             quote_sync_result = Command._sync_scope_quotes(
                 list(getattr(resolved.scope, "instrument_codes", ()) or ())

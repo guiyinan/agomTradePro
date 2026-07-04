@@ -5,7 +5,13 @@ from __future__ import annotations
 from datetime import date
 
 
-def resolve_portfolio_alpha_scope(*, user_id: int, portfolio_id: int | None, trade_date: date):
+def resolve_portfolio_alpha_scope(
+    *,
+    user_id: int,
+    portfolio_id: int | None,
+    trade_date: date,
+    pool_mode: str | None = None,
+):
     """Resolve the portfolio-scoped alpha universe through the owning alpha module."""
     from apps.alpha.application.pool_resolver import (
         ALPHA_POOL_MODE_PRICE_COVERED,
@@ -16,7 +22,7 @@ def resolve_portfolio_alpha_scope(*, user_id: int, portfolio_id: int | None, tra
         user_id=user_id,
         portfolio_id=portfolio_id,
         trade_date=trade_date,
-        pool_mode=ALPHA_POOL_MODE_PRICE_COVERED,
+        pool_mode=pool_mode or ALPHA_POOL_MODE_PRICE_COVERED,
     )
 
 
