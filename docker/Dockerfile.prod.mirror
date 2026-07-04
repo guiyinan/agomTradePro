@@ -58,7 +58,7 @@ COPY . /app
 COPY docker/entrypoint.prod.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh && \
-    mkdir -p /app/staticfiles /app/media && \
+    mkdir -p /app/staticfiles /app/media /app/var && \
     AGOMTRADEPRO_ENCRYPTION_KEY=$BUILD_AGOMTRADEPRO_ENCRYPTION_KEY python manage.py collectstatic --noinput --clear
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
