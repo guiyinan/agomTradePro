@@ -230,6 +230,21 @@ def _stub_data_coverage(monkeypatch) -> None:
             "status": "ok",
             "universe": "active_stock",
             "asset_count": 304,
+            "universe_quality": {
+                "status": "ok",
+                "minimum_active_a_share_count": 4000,
+                "minimum_star_market_count": 200,
+                "minimum_bse_count": 50,
+                "exchange_counts": {"SSE": 2200, "SZSE": 3000, "BSE": 200},
+                "board_counts": {
+                    "star_market": 580,
+                    "chinext": 1400,
+                    "bse": 200,
+                    "sh_main": 1600,
+                    "sz_main": 1700,
+                },
+                "issues": [],
+            },
             "domains": {
                 "price": {
                     "covered_count": 304,

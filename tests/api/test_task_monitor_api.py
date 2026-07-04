@@ -113,6 +113,21 @@ def _readiness_monitor_payload():
             "status": "ok",
             "universe": "active_stock",
             "asset_count": 304,
+            "universe_quality": {
+                "status": "ok",
+                "minimum_active_a_share_count": 4000,
+                "minimum_star_market_count": 200,
+                "minimum_bse_count": 50,
+                "exchange_counts": {"SSE": 2200, "SZSE": 3000, "BSE": 200},
+                "board_counts": {
+                    "star_market": 580,
+                    "chinext": 1400,
+                    "bse": 200,
+                    "sh_main": 1600,
+                    "sz_main": 1700,
+                },
+                "issues": [],
+            },
             "domains": {
                 "price": {
                     "covered_count": 304,
@@ -399,6 +414,7 @@ def test_readiness_monitor_page_renders_lightweight_panel(client, staff_user):
     assert "readiness-monitor.json" in content
     assert "20 个交易日验收窗口" in content
     assert "生产数据覆盖" in content
+    assert "全市场口径" in content
     assert "操作入口覆盖" in content
     assert "MCP 工具" in content
     assert "TUI 元数据" in content
@@ -539,6 +555,7 @@ def test_readiness_monitor_json_returns_daily_gate(client, staff_user):
     assert payload["window"]["accepted_days"] == 4
     assert payload["window"]["remaining_days"] == 16
     assert payload["data_coverage"]["domains"]["price"]["covered_count"] == 304
+    assert payload["data_coverage"]["universe_quality"]["board_counts"]["bse"] == 200
     assert payload["operator_surfaces"]["ai_capability"]["mcp_tools"]["total"] == 365
     assert payload["operator_surfaces"]["terminal"]["tui_metadata"]["screens"] == 37
     mock_context.assert_called_once_with(strict_runtime=True)

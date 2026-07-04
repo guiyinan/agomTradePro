@@ -79,10 +79,14 @@ celery -A core inspect ping
 Daily browser check:
 
 - Use `/ops/task-monitor/readiness/` for the lightweight 20-trading-day readiness monitor. This page loads the monitor payload, readiness schedule controls, active-stock data coverage, and MCP/TUI/Terminal operation-surface coverage, so it is the preferred daily VPS entry on memory-constrained hosts.
+- The production data coverage panel must be interpreted in two layers: `universe_quality` proves the active A-share master universe is broad enough, while `domains.price/valuation/financial` prove facts exist for that universe. A 300-stock universe is a narrow index pool, not production all-market coverage.
 - The "严格运行态" refresh performs the full local scheduler runtime probe and is cached for 60 seconds to avoid repeated heavy checks on the VPS.
 - Use `/ops/task-monitor/` only when you need the full PeriodicTask catalog, Celery inspect output, and recent failure list.
 
 ```bash
+# Refresh active A-share master data before judging production coverage
+python manage.py sync_a_share_universe --deactivate-missing --json
+
 # Personal readiness monitor, read-only; does not generate evidence
 powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly
 

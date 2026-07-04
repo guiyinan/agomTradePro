@@ -11,6 +11,9 @@ from apps.data_center.domain.entities import (
 )
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure import orm_retry
+from apps.data_center.infrastructure.a_share_universe_sync import (
+    AShareUniverseSyncService,
+)
 from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
 from apps.data_center.infrastructure.models import (
     AssetMasterModel,
@@ -315,6 +318,8 @@ def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage
 
     assert payload["status"] == "incomplete"
     assert payload["asset_count"] == 2
+    assert payload["universe_quality"]["status"] == "incomplete"
+    assert "active_a_share_universe_too_narrow" in payload["universe_quality"]["issues"]
     assert payload["domains"]["price"] == {
         "covered_count": 1,
         "missing_count": 1,
@@ -323,3 +328,28 @@ def test_data_center_diagnostic_repository_summarizes_active_stock_fact_coverage
     }
     assert payload["domains"]["valuation"]["covered_count"] == 1
     assert payload["domains"]["financial"]["latest_date"] == "2026-03-31"
+
+
+@pytest.mark.django_db
+def test_a_share_universe_sync_upserts_current_market_boards():
+    class FakeProvider:
+        source_name = "fake_akshare"
+
+        def load_code_names(self):
+            return [
+                {"code": "000001", "name": "平安银行"},
+                {"code": "300750", "name": "宁德时代"},
+                {"code": "688111", "name": "金山办公"},
+                {"code": "920992", "name": "中科美菱"},
+                {"code": "000004", "name": "国华退"},
+            ]
+
+    report = AShareUniverseSyncService(provider=FakeProvider()).sync()
+
+    assert report.active_count == 4
+    assert report.skipped_count == 1
+    assert AssetMasterModel.objects.filter(code="000001.SZ", exchange="SZSE").exists()
+    assert AssetMasterModel.objects.filter(code="300750.SZ", exchange="SZSE").exists()
+    assert AssetMasterModel.objects.filter(code="688111.SH", exchange="SSE").exists()
+    assert AssetMasterModel.objects.filter(code="920992.BJ", exchange="BSE").exists()
+    assert not AssetMasterModel.objects.filter(code="000004.SZ").exists()

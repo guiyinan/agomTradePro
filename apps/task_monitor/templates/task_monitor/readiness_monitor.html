@@ -268,6 +268,7 @@
 
             <div class="readiness-monitor__lines">
                 <div class="readiness-monitor__subtle">生产数据覆盖: <span id="readiness-monitor-coverage-status">{{ readiness_monitor.data_coverage.status|default:"-" }}</span> / active stock <span id="readiness-monitor-coverage-assets">{{ readiness_monitor.data_coverage.asset_count|default:0 }}</span></div>
+                <div class="readiness-monitor__subtle">全市场口径: <span id="readiness-monitor-universe-status">{{ readiness_monitor.data_coverage.universe_quality.status|default:"-" }}</span> / 科创 <span id="readiness-monitor-star-count">{{ readiness_monitor.data_coverage.universe_quality.board_counts.star_market|default:0 }}</span> / 创业 <span id="readiness-monitor-chinext-count">{{ readiness_monitor.data_coverage.universe_quality.board_counts.chinext|default:0 }}</span> / 北交 <span id="readiness-monitor-bse-count">{{ readiness_monitor.data_coverage.universe_quality.board_counts.bse|default:0 }}</span></div>
                 <div class="readiness-monitor__coverage-grid">
                     <div class="readiness-monitor__metric">
                         <span class="readiness-monitor__label">价格</span>
@@ -407,6 +408,8 @@
         const schedule = payload.schedule || {};
         const decision = payload.decision_data || {};
         const coverage = payload.data_coverage || {};
+        const universeQuality = coverage.universe_quality || {};
+        const boardCounts = universeQuality.board_counts || {};
         const coverageDomains = coverage.domains || {};
         const priceCoverage = coverageDomains.price || {};
         const valuationCoverage = coverageDomains.valuation || {};
@@ -438,6 +441,10 @@
         text("readiness-monitor-decision", decision.status);
         text("readiness-monitor-coverage-status", coverage.status);
         text("readiness-monitor-coverage-assets", coverage.asset_count);
+        text("readiness-monitor-universe-status", universeQuality.status);
+        text("readiness-monitor-star-count", boardCounts.star_market);
+        text("readiness-monitor-chinext-count", boardCounts.chinext);
+        text("readiness-monitor-bse-count", boardCounts.bse);
         document.querySelectorAll(".readiness-monitor-coverage-total").forEach((element) => {
             element.textContent = coverage.asset_count || 0;
         });

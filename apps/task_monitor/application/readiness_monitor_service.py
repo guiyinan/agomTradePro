@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from importlib import import_module
 from copy import deepcopy
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -371,6 +371,21 @@ def _empty_data_coverage() -> dict[str, Any]:
         "status": "loading",
         "universe": "active_stock",
         "asset_count": 0,
+        "universe_quality": {
+            "status": "loading",
+            "minimum_active_a_share_count": 0,
+            "minimum_star_market_count": 0,
+            "minimum_bse_count": 0,
+            "exchange_counts": {"SSE": 0, "SZSE": 0, "BSE": 0},
+            "board_counts": {
+                "star_market": 0,
+                "chinext": 0,
+                "bse": 0,
+                "sh_main": 0,
+                "sz_main": 0,
+            },
+            "issues": [],
+        },
         "domains": {
             "price": {
                 "covered_count": 0,
