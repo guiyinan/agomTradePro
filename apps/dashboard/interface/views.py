@@ -86,7 +86,7 @@ from apps.dashboard.interface import (
     workflow_views,
 )
 from apps.data_center.application import interface_services as data_center_interface_services
-from apps.task_monitor.application.tracking import record_pending_task as _record_pending_task
+from core.integration.runtime_imports import record_pending_task
 
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
@@ -96,7 +96,6 @@ acquire_dashboard_alpha_refresh_pending_lock = _acquire_dashboard_alpha_refresh_
 PortfolioAlphaPoolResolver = _PortfolioAlphaPoolResolver
 build_dashboard_alpha_refresh_metadata = _build_dashboard_alpha_refresh_metadata
 promote_dashboard_alpha_refresh_task_lock = _promote_dashboard_alpha_refresh_task_lock
-record_pending_task = _record_pending_task
 release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
 resolve_dashboard_alpha_trade_date = _resolve_dashboard_alpha_trade_date
 
@@ -141,11 +140,7 @@ def _clone_dashboard_item(item: object) -> dict[str, object]:
     except TypeError:
         return {}
 
-    return {
-        key: value
-        for key, value in item_vars.items()
-        if not key.startswith("_")
-    }
+    return {key: value for key, value in item_vars.items() if not key.startswith("_")}
 
 
 def _get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
@@ -568,8 +563,7 @@ def _build_attention_items_context(data, navigator, pulse, market_thermometer: d
                 "level": "high",
                 "title": f"{len(active_signals)} 条信号待跟进",
                 "detail": (
-                    f"优先处理 {first_signal.get('asset_code', '未知标的')}"
-                    " 的已批准信号。"
+                    f"优先处理 {first_signal.get('asset_code', '未知标的')}" " 的已批准信号。"
                 ),
                 "meta": "来源: signal",
             }
@@ -606,11 +600,7 @@ def _build_attention_items_context(data, navigator, pulse, market_thermometer: d
         )
 
     if market_thermometer:
-        band = str(
-            market_thermometer.get("effective_band")
-            or market_thermometer.get("band")
-            or ""
-        )
+        band = str(market_thermometer.get("effective_band") or market_thermometer.get("band") or "")
         if band in {"overheat", "extreme"}:
             items.append(
                 {
@@ -896,8 +886,11 @@ def _build_alpha_factor_panel(
         alpha_meta = {
             "alpha_scope": normalized_alpha_scope,
             "readiness_status": recommendation_basis.get("freshness_status") or "",
-            "scope_verification_status": recommendation_basis.get("scope_verification_status") or "",
-            "blocked_reason": recommendation_basis.get("blocked_reason") or selected.get("blocked_reason") or "",
+            "scope_verification_status": recommendation_basis.get("scope_verification_status")
+            or "",
+            "blocked_reason": recommendation_basis.get("blocked_reason")
+            or selected.get("blocked_reason")
+            or "",
             "must_not_use_for_decision": selected.get("must_not_use_for_decision", True),
         }
 
@@ -1015,11 +1008,7 @@ def _build_dashboard_exit_entry_panel_context(
 
     summary = {
         "total": len(visible_items),
-        "urgent_count": sum(
-            1
-            for item in visible_items
-            if int(item.get("priority_rank", 99)) == 0
-        ),
+        "urgent_count": sum(1 for item in visible_items if int(item.get("priority_rank", 99)) == 0),
         "sell_count": sum(1 for item in visible_items if item.get("exit_action") == "SELL"),
         "reduce_count": sum(1 for item in visible_items if item.get("exit_action") == "REDUCE"),
         "hold_count": sum(1 for item in visible_items if item.get("exit_action") == "HOLD"),
@@ -1242,7 +1231,7 @@ def dashboard_view(request):
     _track_step("build_context", step_started_at)
 
     step_started_at = perf_counter()
-    response = render(request, 'dashboard/index.html', context)
+    response = render(request, "dashboard/index.html", context)
     _track_step("render", step_started_at)
 
     total_duration_ms = int((perf_counter() - request_started_at) * 1000)
@@ -1308,9 +1297,7 @@ def _build_dashboard_page_context(
             top_n=10,
             user=request.user,
             portfolio_id=(
-                None
-                if selected_alpha_scope == ALPHA_SCOPE_GENERAL
-                else selected_portfolio_id
+                None if selected_alpha_scope == ALPHA_SCOPE_GENERAL else selected_portfolio_id
             ),
             pool_mode=selected_alpha_pool_mode,
             alpha_scope=selected_alpha_scope,
@@ -1428,8 +1415,8 @@ def _build_dashboard_page_context(
         # 资产配置建议（新增）
         "allocation_advice": data.allocation_advice,
         # 新增：图表数据
-        "allocation_data": data.allocation_data if hasattr(data, 'allocation_data') else {},
-        "performance_data": data.performance_data if hasattr(data, 'performance_data') else [],
+        "allocation_data": data.allocation_data if hasattr(data, "allocation_data") else {},
+        "performance_data": data.performance_data if hasattr(data, "performance_data") else [],
         # 决策平面数据（新增）
         "beta_gate_visible_classes": decision_plane_data.beta_gate_visible_classes,
         "alpha_watch_count": decision_plane_data.alpha_watch_count,
@@ -1454,12 +1441,16 @@ def _build_dashboard_page_context(
         "alpha_exit_entry_watch_summary": alpha_exit_entry_panel["summary"],
         "alpha_exit_entry_hidden_count": alpha_exit_entry_panel["hidden_processed_count"],
         "alpha_exit_detail_panel": alpha_exit_detail_panel,
-        "alpha_exit_selected_asset_code": alpha_exit_detail_panel.get("selected", {}).get("asset_code")
-        if alpha_exit_detail_panel.get("selected")
-        else "",
-        "alpha_exit_selected_account_id": alpha_exit_detail_panel.get("selected", {}).get("account_id")
-        if alpha_exit_detail_panel.get("selected")
-        else "",
+        "alpha_exit_selected_asset_code": (
+            alpha_exit_detail_panel.get("selected", {}).get("asset_code")
+            if alpha_exit_detail_panel.get("selected")
+            else ""
+        ),
+        "alpha_exit_selected_account_id": (
+            alpha_exit_detail_panel.get("selected", {}).get("account_id")
+            if alpha_exit_detail_panel.get("selected")
+            else ""
+        ),
         "alpha_pending_requests": alpha_pending_requests,
         "alpha_pool": alpha_pool,
         "alpha_recent_runs": alpha_recent_runs,
@@ -1478,7 +1469,9 @@ def _build_dashboard_page_context(
     context.update(_build_pulse_card_context(pulse))
     context.update(_build_market_thermometer_context(market_thermometer_payload))
     context.update(_build_action_recommendation_context(action))
-    context.update(_build_attention_items_context(data, navigator, pulse, market_thermometer_payload))
+    context.update(
+        _build_attention_items_context(data, navigator, pulse, market_thermometer_payload)
+    )
     context.update(_build_browser_notification_context(navigator, pulse))
     return context
 
@@ -1502,6 +1495,7 @@ def _empty_decision_plane_data() -> SimpleNamespace:
         actionable_candidates=[],
         pending_requests=[],
     )
+
 
 def _get_beta_gate_visible_classes() -> str:
     """

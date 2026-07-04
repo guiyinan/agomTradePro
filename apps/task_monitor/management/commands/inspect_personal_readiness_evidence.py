@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 from hashlib import sha256
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -820,15 +821,12 @@ def _build_follow_up_actions(
                 ),
             }
         )
-    if (
-        _has_unresolved_component(
-            observations=observations,
-            component="decision_data.market_thermometer",
-        )
-        or _has_unresolved_component(
-            observations=observations,
-            component="decision_data.skipped_latest_market_thermometer",
-        )
+    if _has_unresolved_component(
+        observations=observations,
+        component="decision_data.market_thermometer",
+    ) or _has_unresolved_component(
+        observations=observations,
+        component="decision_data.skipped_latest_market_thermometer",
     ):
         actions.append(
             {
@@ -871,9 +869,7 @@ def _apply_current_weekly_persistence_resolution(
     observations: list[dict[str, Any]],
     post_evidence_persistence: dict[str, Any] | None,
 ) -> list[dict[str, Any]]:
-    weekly = dict(
-        dict(post_evidence_persistence or {}).get("auto_advisor_weekly_report") or {}
-    )
+    weekly = dict(dict(post_evidence_persistence or {}).get("auto_advisor_weekly_report") or {})
     if weekly.get("status") != "ok":
         return observations
     ok_records = {
@@ -888,10 +884,9 @@ def _apply_current_weekly_persistence_resolution(
 
     resolved: list[dict[str, Any]] = []
     for observation in observations:
-        if (
-            observation.get("component") != "auto_advisor_weekly_persistence"
-            or observation.get("status") in {"not_due", "resolved_after_evidence"}
-        ):
+        if observation.get("component") != "auto_advisor_weekly_persistence" or observation.get(
+            "status"
+        ) in {"not_due", "resolved_after_evidence"}:
             resolved.append(observation)
             continue
         record = ok_records.get(str(observation.get("account_id")))
@@ -908,9 +903,7 @@ def _apply_current_weekly_persistence_resolution(
                 "current_database_status": "ok",
                 "report_id": record.get("report_id"),
                 "matched_notification_count": record.get("matched_notification_count"),
-                "delivered_notification_count": record.get(
-                    "delivered_notification_count"
-                ),
+                "delivered_notification_count": record.get("delivered_notification_count"),
             }
         )
         resolved.append(updated)
@@ -936,17 +929,16 @@ def _resolve_current_macro_sync_resolution(*, target_date: str) -> dict[str, Any
         return None
 
     try:
-        from apps.data_center.application.dtos import MacroSeriesRequest
-        from apps.data_center.application.repository_provider import (
-            IndicatorCatalogRepository,
-            IndicatorUnitRuleRepository,
-            MacroFactRepository,
-            PublisherCatalogRepository,
-        )
-        from apps.data_center.application.use_cases import (
-            DEFAULT_DECISION_MACRO_INDICATORS,
-            QueryMacroSeriesUseCase,
-        )
+        dtos = import_module("apps.data_center.application.dtos")
+        repository_provider = import_module("apps.data_center.application.repository_provider")
+        use_cases = import_module("apps.data_center.application.use_cases")
+        MacroSeriesRequest = dtos.MacroSeriesRequest
+        IndicatorCatalogRepository = repository_provider.IndicatorCatalogRepository
+        IndicatorUnitRuleRepository = repository_provider.IndicatorUnitRuleRepository
+        MacroFactRepository = repository_provider.MacroFactRepository
+        PublisherCatalogRepository = repository_provider.PublisherCatalogRepository
+        DEFAULT_DECISION_MACRO_INDICATORS = use_cases.DEFAULT_DECISION_MACRO_INDICATORS
+        QueryMacroSeriesUseCase = use_cases.QueryMacroSeriesUseCase
 
         query = QueryMacroSeriesUseCase(
             fact_repo=MacroFactRepository(),

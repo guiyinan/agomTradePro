@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, date, datetime
+from importlib import import_module
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -12,23 +13,6 @@ from django.conf import settings
 from django.core.management import CommandError, call_command
 from django.core.management.base import BaseCommand
 
-from apps.account.application.query_services import get_application_user_by_id
-from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
-from apps.dashboard.application.query_services import (
-    build_auto_advisor_console_payload,
-    build_auto_advisor_notifications_payload,
-    build_auto_advisor_weekly_report_history_payload,
-    build_auto_advisor_weekly_report_payload,
-)
-from apps.risk_center.application.trade_guard import (
-    EvaluatePreTradeRiskUseCase,
-    GenerateRiskCenterDailyReportUseCase,
-)
-from apps.simulated_trading.application.query_services import (
-    get_position_snapshots,
-    list_active_account_targets,
-    list_dashboard_account_payloads,
-)
 from apps.task_monitor.application import readiness_status_services as status_services
 from apps.task_monitor.management.quote_pre_readiness_scheduler_status import (
     collect_quote_pre_readiness_scheduler_status,
@@ -36,6 +20,61 @@ from apps.task_monitor.management.quote_pre_readiness_scheduler_status import (
 from core.health_checks import is_healthy, run_readiness_checks
 
 DEFAULT_OUTPUT_DIR = "var/readiness-evidence"
+
+
+def get_application_user_by_id(user_id: int) -> Any:
+    module = import_module("apps.account.application.query_services")
+    return module.get_application_user_by_id(user_id)
+
+
+def resolve_recent_closed_trade_date() -> date:
+    module = import_module("apps.alpha.application.trade_dates")
+    return module.resolve_recent_closed_trade_date()
+
+
+def build_auto_advisor_console_payload(**kwargs: Any) -> dict[str, Any]:
+    module = import_module("apps.dashboard.application.query_services")
+    return module.build_auto_advisor_console_payload(**kwargs)
+
+
+def build_auto_advisor_notifications_payload(**kwargs: Any) -> dict[str, Any]:
+    module = import_module("apps.dashboard.application.query_services")
+    return module.build_auto_advisor_notifications_payload(**kwargs)
+
+
+def build_auto_advisor_weekly_report_history_payload(**kwargs: Any) -> dict[str, Any]:
+    module = import_module("apps.dashboard.application.query_services")
+    return module.build_auto_advisor_weekly_report_history_payload(**kwargs)
+
+
+def build_auto_advisor_weekly_report_payload(**kwargs: Any) -> dict[str, Any]:
+    module = import_module("apps.dashboard.application.query_services")
+    return module.build_auto_advisor_weekly_report_payload(**kwargs)
+
+
+def EvaluatePreTradeRiskUseCase() -> Any:
+    module = import_module("apps.risk_center.application.trade_guard")
+    return module.EvaluatePreTradeRiskUseCase()
+
+
+def GenerateRiskCenterDailyReportUseCase() -> Any:
+    module = import_module("apps.risk_center.application.trade_guard")
+    return module.GenerateRiskCenterDailyReportUseCase()
+
+
+def get_position_snapshots(**kwargs: Any) -> list[dict[str, Any]]:
+    module = import_module("apps.simulated_trading.application.query_services")
+    return module.get_position_snapshots(**kwargs)
+
+
+def list_active_account_targets() -> list[dict[str, Any]]:
+    module = import_module("apps.simulated_trading.application.query_services")
+    return module.list_active_account_targets()
+
+
+def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
+    module = import_module("apps.simulated_trading.application.query_services")
+    return module.list_dashboard_account_payloads(user_id)
 
 
 class Command(BaseCommand):
@@ -371,8 +410,8 @@ def _collect_workspace_refresh(*, target_date: date, enabled: bool) -> dict[str,
             "reason": "run_workspace_refresh_not_requested",
         }
     try:
-        from apps.decision_rhythm.application.tasks import refresh_decision_workspace_snapshots
-
+        module = import_module("apps.decision_rhythm.application.tasks")
+        refresh_decision_workspace_snapshots = module.refresh_decision_workspace_snapshots
         result = refresh_decision_workspace_snapshots.run(
             as_of_date=target_date.isoformat(),
             source="akshare",
@@ -909,9 +948,7 @@ def _resolve_alpha_workspace_summary(
     return evidence_summary or {}
 
 
-def _append_macro_context_markdown(
-    *, lines: list[str], macro_context: dict[str, Any]
-) -> None:
+def _append_macro_context_markdown(*, lines: list[str], macro_context: dict[str, Any]) -> None:
     regime = macro_context.get("regime") or {}
     pulse = macro_context.get("pulse") or {}
     warnings = ", ".join(str(item) for item in regime.get("warnings") or [])
@@ -941,9 +978,7 @@ def _append_macro_context_markdown(
     )
 
 
-def _append_alpha_workspace_markdown(
-    *, lines: list[str], alpha_workspace: dict[str, Any]
-) -> None:
+def _append_alpha_workspace_markdown(*, lines: list[str], alpha_workspace: dict[str, Any]) -> None:
     alpha = alpha_workspace.get("alpha") or {}
     workspace = alpha_workspace.get("workspace") or {}
     issue_codes = ", ".join(str(item) for item in alpha_workspace.get("issue_codes") or [])
@@ -973,14 +1008,14 @@ def _append_alpha_workspace_markdown(
     )
 
 
-def _append_decision_data_markdown(
-    *, lines: list[str], decision_data: dict[str, Any]
-) -> None:
+def _append_decision_data_markdown(*, lines: list[str], decision_data: dict[str, Any]) -> None:
     thermometer = decision_data.get("market_thermometer") or {}
     skipped_latest = decision_data.get("skipped_latest_market_thermometer") or {}
     blocked_reasons = ", ".join(str(item) for item in decision_data.get("blocked_reasons") or [])
     stale_components = ", ".join(str(item) for item in thermometer.get("stale_components") or [])
-    missing_components = ", ".join(str(item) for item in thermometer.get("missing_components") or [])
+    missing_components = ", ".join(
+        str(item) for item in thermometer.get("missing_components") or []
+    )
     lines.extend(
         [
             "## Decision Data",

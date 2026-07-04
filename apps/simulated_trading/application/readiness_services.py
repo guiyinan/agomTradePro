@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from importlib import import_module
 from typing import Any
 
-from apps.account.application.query_services import get_application_user_by_id
 from apps.simulated_trading.application.query_services import (
     list_active_account_targets,
     list_dashboard_account_payloads,
@@ -16,6 +16,13 @@ from apps.simulated_trading.application.repository_provider import (
 )
 
 DEFAULT_READINESS_INITIAL_CAPITAL = Decimal("1000000.00")
+
+
+def get_application_user_by_id(user_id: int) -> Any:
+    """Resolve the account user query at runtime to avoid an app import cycle."""
+
+    module = import_module("apps.account.application.query_services")
+    return module.get_application_user_by_id(user_id)
 
 
 @dataclass(frozen=True)

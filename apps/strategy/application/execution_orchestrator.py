@@ -17,16 +17,14 @@ M3 核心组件：编排订单执行流程
 6. 使用 ExecutionAdapter 提交订单
 7. 记录审计日志
 """
+
 import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from importlib import import_module
 from typing import Any, Protocol
 
-from apps.risk_center.application.trade_guard import (
-    EvaluatePreTradeRiskUseCase,
-    PreTradeRiskCheckResult,
-)
 from apps.strategy.domain.entities import (
     DecisionAction,
     DecisionResult,
@@ -47,6 +45,8 @@ from apps.strategy.domain.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+PreTradeRiskCheckResult = Any
 
 
 class PreTradeRiskGuardProtocol(Protocol):
@@ -69,12 +69,19 @@ class PreTradeRiskGuardProtocol(Protocol):
         ...
 
 
+def EvaluatePreTradeRiskUseCase() -> Any:
+    trade_guard = import_module("apps.risk_center.application.trade_guard")
+    return trade_guard.EvaluatePreTradeRiskUseCase()
+
+
 # ========================================================================
 # 执行模式
 # ========================================================================
 
+
 class ExecutionMode:
     """执行模式"""
+
     PAPER = "paper"
     BROKER = "broker"
     CANARY = "canary"  # 金丝雀模式：部分实盘
@@ -84,9 +91,11 @@ class ExecutionMode:
 # 执行配置
 # ========================================================================
 
+
 @dataclass
 class ExecutionConfig:
     """执行配置"""
+
     mode: str = ExecutionMode.PAPER
     broker_canary_ratio: float = 0.0  # 金丝雀比例 (0.0 - 1.0)
     require_confirmation_for_watch: bool = True  # WATCH 状态是否需要人工确认
@@ -111,9 +120,11 @@ class ExecutionConfig:
 # 执行结果
 # ========================================================================
 
+
 @dataclass
 class ExecutionResult:
     """执行结果"""
+
     success: bool
     intent_id: str
     broker_order_id: str | None = None
@@ -129,6 +140,7 @@ class ExecutionResult:
 # ========================================================================
 # 执行编排器
 # ========================================================================
+
 
 class ExecutionOrchestrator:
     """
@@ -275,7 +287,9 @@ class ExecutionOrchestrator:
                 action=DecisionAction(decision_action),
                 reason_codes=reason_codes,
                 reason_text=reason_text,
-                valid_until=datetime.now(UTC) + timedelta(seconds=valid_until) if valid_until else None,
+                valid_until=(
+                    datetime.now(UTC) + timedelta(seconds=valid_until) if valid_until else None
+                ),
                 confidence=signal_confidence,
             )
 
@@ -290,13 +304,15 @@ class ExecutionOrchestrator:
                 )
 
             # 3. 仓位计算
-            target_notional, qty, expected_risk_pct, sizing_method, sizing_explain = self.sizing_engine.calculate(
-                method=self.config.default_sizing_method,
-                account_equity=account_equity,
-                current_price=current_price,
-                stop_loss_price=stop_loss_price,
-                atr=atr,
-                current_position_value=current_position_value,
+            target_notional, qty, expected_risk_pct, sizing_method, sizing_explain = (
+                self.sizing_engine.calculate(
+                    method=self.config.default_sizing_method,
+                    account_equity=account_equity,
+                    current_price=current_price,
+                    stop_loss_price=stop_loss_price,
+                    atr=atr,
+                    current_position_value=current_position_value,
+                )
             )
 
             sizing_result = SizingResult(
@@ -362,7 +378,9 @@ class ExecutionOrchestrator:
                 cash_balance=account_equity - current_position_value,
                 total_position_value=current_position_value,
                 daily_pnl_pct=daily_pnl_pct,
-                max_single_position_pct=(current_position_value + qty * current_price) / account_equity * 100,
+                max_single_position_pct=(current_position_value + qty * current_price)
+                / account_equity
+                * 100,
                 top3_position_pct=current_position_value / account_equity * 100,  # 简化
                 current_regime=regime,
                 regime_confidence=regime_confidence,
@@ -554,22 +572,22 @@ class ExecutionOrchestrator:
 
         try:
             log_entry = {
-                'event_type': 'ORDER_SUBMITTED',
-                'intent_id': intent.intent_id,
-                'strategy_id': intent.strategy_id,
-                'portfolio_id': intent.portfolio_id,
-                'symbol': intent.symbol,
-                'side': intent.side.value,
-                'qty': intent.qty,
-                'limit_price': intent.limit_price,
-                'broker_order_id': broker_order_id,
-                'adapter_name': adapter_name,
-                'decision_action': intent.decision.action.value,
-                'decision_reasons': intent.decision.reason_codes,
-                'sizing_method': intent.sizing.sizing_method,
-                'expected_risk_pct': intent.sizing.expected_risk_pct,
-                'duration_ms': duration_ms,
-                'timestamp': datetime.now(UTC).isoformat(),
+                "event_type": "ORDER_SUBMITTED",
+                "intent_id": intent.intent_id,
+                "strategy_id": intent.strategy_id,
+                "portfolio_id": intent.portfolio_id,
+                "symbol": intent.symbol,
+                "side": intent.side.value,
+                "qty": intent.qty,
+                "limit_price": intent.limit_price,
+                "broker_order_id": broker_order_id,
+                "adapter_name": adapter_name,
+                "decision_action": intent.decision.action.value,
+                "decision_reasons": intent.decision.reason_codes,
+                "sizing_method": intent.sizing.sizing_method,
+                "expected_risk_pct": intent.sizing.expected_risk_pct,
+                "duration_ms": duration_ms,
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             self.audit_logger.log(log_entry)

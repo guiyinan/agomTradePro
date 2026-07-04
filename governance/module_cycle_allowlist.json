@@ -1,7 +1,7 @@
 {
   "version": "2026-06-30.v1",
   "description": "Accepted app-import dependency baseline after cycle remediation reached zero.",
-  "max_app_import_edges": 181,
+  "max_app_import_edges": 178,
   "max_outbound_modules_per_app": 19,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
@@ -16,7 +16,7 @@
     "backtest": 3,
     "beta_gate": 5,
     "config_center": 1,
-    "dashboard": 17,
+    "dashboard": 16,
     "data_center": 1,
     "decision_rhythm": 19,
     "equity": 7,
@@ -39,16 +39,16 @@
     "share": 2,
     "signal": 7,
     "simulated_trading": 10,
-    "strategy": 7,
+    "strategy": 6,
     "task_monitor": 0,
-    "terminal": 12
+    "terminal": 11
   },
   "max_inbound_modules_by_app": {
     "account": 5,
     "agent_runtime": 0,
     "ai_capability": 0,
     "ai_provider": 12,
-    "alpha": 2,
+    "alpha": 1,
     "alpha_trigger": 3,
     "asset_analysis": 9,
     "audit": 2,
@@ -79,7 +79,7 @@
     "signal": 9,
     "simulated_trading": 5,
     "strategy": 3,
-    "task_monitor": 6,
+    "task_monitor": 4,
     "terminal": 1
   },
   "allowed_bidirectional_pairs": [],

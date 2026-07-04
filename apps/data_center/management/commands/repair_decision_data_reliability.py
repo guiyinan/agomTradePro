@@ -8,7 +8,6 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
 
-from apps.alpha.application.pool_resolver import ALPHA_POOL_MODE_STRICT_VALUATION
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -33,6 +32,8 @@ from core.integration.alpha_runtime import (
     run_alpha_score_prediction_now,
 )
 from core.integration.pulse_refresh import refresh_pulse_snapshot
+
+ALPHA_POOL_MODE_STRICT_VALUATION = "strict_valuation"
 
 
 def _split_codes(raw: str | None, defaults: tuple[str, ...]) -> list[str]:

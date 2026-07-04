@@ -702,7 +702,7 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 | **Visualization** | Streamlit, Plotly |
 | **Frontend** | Django Templates + HTMX |
 | **AI Integration** | MCP Server, Python SDK |
-| **Testing** | Pytest (6,126 static test functions), Playwright (E2E) |
+| **Testing** | Pytest (6,141 static test functions), Playwright (E2E) |
 
 ---
 
@@ -712,7 +712,7 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 37    business modules (apps/, excluding __pycache__)
 365   MCP tools (current local registration snapshot)
 525   REST API paths (OpenAPI snapshot)
-6,126 static test functions (lightweight AST governance baseline)
+6,141 static test functions (lightweight AST governance baseline)
 302   documentation files (docs/ directory)
 ```
 

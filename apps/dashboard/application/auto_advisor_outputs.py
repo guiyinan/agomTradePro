@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from datetime import date
+from importlib import import_module
 from typing import Any
 
-from apps.audit.application.interface_services import log_operation_payload
-
 from .repository_provider import get_auto_advisor_report_repository
+
+
+def log_operation_payload(**kwargs: Any) -> dict[str, Any]:
+    interface_services = import_module("apps.audit.application.interface_services")
+    return interface_services.log_operation_payload(**kwargs)
 
 
 def persist_auto_advisor_weekly_report_outputs(

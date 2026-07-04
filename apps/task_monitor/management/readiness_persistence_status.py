@@ -4,16 +4,25 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
 
-from apps.dashboard.application.repository_provider import get_auto_advisor_report_repository
-from apps.risk_center.application.repository_provider import get_risk_daily_report_repository
 from apps.task_monitor.management.auto_advisor_weekly_scheduler_status import (
     build_auto_advisor_weekly_due_status,
 )
+
+
+def get_risk_daily_report_repository() -> Any:
+    repository_provider = import_module("apps.risk_center.application.repository_provider")
+    return repository_provider.get_risk_daily_report_repository()
+
+
+def get_auto_advisor_report_repository() -> Any:
+    repository_provider = import_module("apps.dashboard.application.repository_provider")
+    return repository_provider.get_auto_advisor_report_repository()
 
 
 def collect_post_evidence_persistence(*, output_dir: Path) -> dict[str, Any]:
@@ -162,14 +171,11 @@ def apply_weekly_advisory_persistence_status(
                     "report_id": record.get("report_id"),
                     "report_status": record.get("report_status"),
                     "matched_notification_count": record.get("matched_notification_count"),
-                    "delivered_notification_count": record.get(
-                        "delivered_notification_count"
-                    ),
+                    "delivered_notification_count": record.get("delivered_notification_count"),
                 }
                 for record in records
             ],
-            "acceptance_gate_impact": post_evidence.get("acceptance_gate_impact")
-            or "none",
+            "acceptance_gate_impact": post_evidence.get("acceptance_gate_impact") or "none",
         }
     )
     return resolved

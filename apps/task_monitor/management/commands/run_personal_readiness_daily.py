@@ -5,16 +5,12 @@ from __future__ import annotations
 import json
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
-from apps.simulated_trading.application.readiness_services import (
-    AccountReadinessRepairRequest,
-    repair_personal_account_readiness,
-)
 from apps.task_monitor.management.commands.collect_personal_readiness_evidence import (
     DEFAULT_OUTPUT_DIR,
     collect_personal_readiness_evidence,
@@ -292,6 +288,27 @@ def resolve_default_readiness_target_date() -> date:
     """Resolve the latest closed trading day for scheduled readiness runs."""
 
     return resolve_recent_closed_trade_date()
+
+
+def resolve_recent_closed_trade_date() -> date:
+    """Resolve Alpha's closed-trade-date helper without a static app dependency."""
+
+    module = import_module("apps.alpha.application.trade_dates")
+    return module.resolve_recent_closed_trade_date()
+
+
+def AccountReadinessRepairRequest(**kwargs: Any) -> Any:
+    """Build the simulated-trading account readiness request at runtime."""
+
+    module = import_module("apps.simulated_trading.application.readiness_services")
+    return module.AccountReadinessRepairRequest(**kwargs)
+
+
+def repair_personal_account_readiness(request: Any) -> dict[str, Any]:
+    """Run simulated-trading account readiness repair without a static dependency."""
+
+    module = import_module("apps.simulated_trading.application.readiness_services")
+    return module.repair_personal_account_readiness(request)
 
 
 def _validate_target_date_is_closed(

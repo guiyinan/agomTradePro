@@ -27,17 +27,17 @@ from apps.beta_gate.application.query_services import (
 )
 from apps.config_center.application.query_services import has_qlib_training_runs
 from apps.dashboard.application.query_services import has_dashboard_alpha_history
-from apps.decision_rhythm.application.query_services import (
-    has_active_cooldowns,
-    has_decision_quotas,
-    has_recent_decision_requests,
-)
 from apps.task_monitor.application.query_services import has_recent_task_failures
 from apps.terminal.application.tui_audit import (
     TuiTerminalAuditSink,
     action_requires_audit,
     build_tui_audit_record,
     verified_reauth_evidence,
+)
+from core.integration.runtime_imports import (
+    has_active_cooldowns,
+    has_decision_quotas,
+    has_recent_decision_requests,
 )
 from apps.terminal.domain.interfaces import (
     TerminalAuditRepository,
@@ -1494,9 +1494,7 @@ class TuiWorkbenchService:
                         request_params=request_params,
                     )
         if isinstance(data, list):
-            return self._datagrid_model(
-                action, data, status_code, request_params=request_params
-            )
+            return self._datagrid_model(action, data, status_code, request_params=request_params)
         if isinstance(data, dict):
             html_text = self._dominant_html_text(data)
             if html_text:
@@ -1621,9 +1619,7 @@ class TuiWorkbenchService:
         pagination_mode = (
             "page"
             if explicit_page or self._view_model_path(action, "page_path")
-            else "limit_offset"
-            if self._view_model_path(action, "total_path")
-            else "page"
+            else "limit_offset" if self._view_model_path(action, "total_path") else "page"
         )
         return {
             "kind": "datagrid",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import logging
 from datetime import date
+from importlib import import_module
 from typing import Any
 
 from django.utils import timezone
@@ -17,10 +18,6 @@ from apps.alpha.application.repository_provider import (
     inspect_latest_trade_date,
 )
 from apps.alpha.domain.entities import normalize_stock_code
-from apps.task_monitor.application.provider import (
-    get_celery_health_checker,
-    get_task_record_repository,
-)
 from core.integration.runtime_settings import get_runtime_qlib_config
 
 logger = logging.getLogger(__name__)
@@ -37,6 +34,16 @@ QLIB_DATA_REFRESH_TASK_NAMES = (
     "apps.alpha.application.tasks.qlib_refresh_runtime_data_task",
     "apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task",
 )
+
+
+def get_celery_health_checker() -> Any:
+    provider = import_module("apps.task_monitor.application.provider")
+    return provider.get_celery_health_checker()
+
+
+def get_task_record_repository() -> Any:
+    provider = import_module("apps.task_monitor.application.provider")
+    return provider.get_task_record_repository()
 
 
 def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:
@@ -125,11 +132,7 @@ class QlibRuntimeDataRefreshService:
 
         provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
         normalized_codes = sorted(
-            {
-                normalize_stock_code(code)
-                for code in stock_codes
-                if normalize_stock_code(code)
-            }
+            {normalize_stock_code(code) for code in stock_codes if normalize_stock_code(code)}
         )
         if not normalized_codes:
             return {
@@ -215,7 +218,9 @@ class AlphaOpsOverviewQueryService:
                 "error": str(exc),
             }
 
-    def _list_recent_tasks(self, task_names: tuple[str, ...], *, limit: int) -> list[dict[str, Any]]:
+    def _list_recent_tasks(
+        self, task_names: tuple[str, ...], *, limit: int
+    ) -> list[dict[str, Any]]:
         records = []
         repository = get_task_record_repository()
         for task_name in task_names:
@@ -318,7 +323,9 @@ class QlibDataOpsOverviewQueryService:
             "latest_build_summary": latest_build_summary,
         }
 
-    def _extract_latest_build_summary(self, recent_tasks: list[dict[str, Any]]) -> dict[str, Any] | None:
+    def _extract_latest_build_summary(
+        self, recent_tasks: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         for task in recent_tasks:
             result = task.get("result")
             if not isinstance(result, dict):

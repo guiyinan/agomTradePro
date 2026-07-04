@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from typing import Any
 
 from apps.decision_rhythm.application.consistency_checks import (
@@ -26,8 +27,8 @@ def _extract_score_code(score: Any) -> str:
 def get_latest_alpha_ranking_snapshot(*, top_n: int = 30) -> AlphaRankingSnapshot:
     """Return the latest persisted Alpha ranking snapshot."""
 
-    from apps.alpha.infrastructure.models import AlphaScoreCacheModel
-
+    alpha_models = import_module("apps.alpha.infrastructure.models")
+    AlphaScoreCacheModel = alpha_models.AlphaScoreCacheModel
     runtime_provider_status = get_alpha_runtime_provider_status()
     cache = (
         AlphaScoreCacheModel._default_manager.exclude(scores=[])
@@ -61,8 +62,8 @@ def get_alpha_runtime_provider_status() -> dict[str, Any]:
     """Return AlphaService provider health without failing the consistency check."""
 
     try:
-        from apps.alpha.application.services import AlphaService
-
+        alpha_services = import_module("apps.alpha.application.services")
+        AlphaService = alpha_services.AlphaService
         return AlphaService().get_provider_status()
     except Exception as exc:
         logger.warning("Failed to get Alpha runtime provider status: %s", exc)
@@ -117,9 +118,7 @@ def get_workspace_recommendation_snapshot(
     return WorkspaceRecommendationSnapshot(
         account_id=resolved_account_id,
         latest_updated_at=(
-            (latest_row.get("updated_at") or latest_row.get("created_at"))
-            if latest_row
-            else None
+            (latest_row.get("updated_at") or latest_row.get("created_at")) if latest_row else None
         ),
         recommendation_codes=tuple(
             str(row.get("security_code") or "").strip()

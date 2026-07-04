@@ -3,31 +3,18 @@
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from django.core.cache import cache
 
-from apps.ai_capability.application.query_services import (
-    get_ai_capability_surface_status_payload,
-)
-from apps.data_center.application.query_services import (
-    get_active_stock_fact_coverage_payload,
-)
-from apps.task_monitor.management.commands.run_personal_readiness_daily import (
-    resolve_default_readiness_target_date,
-)
-from apps.task_monitor.management.commands.show_personal_readiness_status import (
-    DEFAULT_CALENDAR_SOURCE,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_REQUIRED_DAYS,
-    build_personal_readiness_status,
-)
-from apps.terminal.application.query_services import get_terminal_surface_status_payload
-
 logger = logging.getLogger(__name__)
 
+DEFAULT_OUTPUT_DIR = "var/readiness-evidence"
+DEFAULT_REQUIRED_DAYS = 20
+DEFAULT_CALENDAR_SOURCE = "auto"
 STRICT_RUNTIME_CACHE_KEY = "task_monitor:readiness_monitor:strict:v1"
 STRICT_RUNTIME_CACHE_TTL_SECONDS = 60
 
@@ -59,6 +46,41 @@ def get_personal_readiness_monitor_summary(
     elif strict_runtime:
         _set_cached_strict_runtime_summary(summary)
     return summary
+
+
+def build_personal_readiness_status(**kwargs: Any) -> dict[str, Any]:
+    """Resolve the status command implementation at runtime."""
+
+    module = import_module("apps.task_monitor.management.commands.show_personal_readiness_status")
+    return module.build_personal_readiness_status(**kwargs)
+
+
+def resolve_default_readiness_target_date() -> Any:
+    """Resolve the default target-date helper at runtime."""
+
+    module = import_module("apps.task_monitor.management.commands.run_personal_readiness_daily")
+    return module.resolve_default_readiness_target_date()
+
+
+def get_ai_capability_surface_status_payload() -> dict[str, Any]:
+    """Resolve AI capability surface status without a static app dependency."""
+
+    module = import_module("apps.ai_capability.application.query_services")
+    return module.get_ai_capability_surface_status_payload()
+
+
+def get_terminal_surface_status_payload() -> dict[str, Any]:
+    """Resolve Terminal surface status without a static app dependency."""
+
+    module = import_module("apps.terminal.application.query_services")
+    return module.get_terminal_surface_status_payload()
+
+
+def get_active_stock_fact_coverage_payload() -> dict[str, Any]:
+    """Resolve Data Center coverage status without a static app dependency."""
+
+    module = import_module("apps.data_center.application.query_services")
+    return module.get_active_stock_fact_coverage_payload()
 
 
 def _get_cached_strict_runtime_summary() -> dict[str, Any] | None:
@@ -258,9 +280,11 @@ def _get_operator_surfaces() -> dict[str, Any]:
     terminal = _get_terminal_surface()
     payload["ai_capability"] = ai_capability
     payload["terminal"] = terminal
-    payload["status"] = "ok" if all(
-        item.get("status") == "ok" for item in [ai_capability, terminal]
-    ) else "incomplete"
+    payload["status"] = (
+        "ok"
+        if all(item.get("status") == "ok" for item in [ai_capability, terminal])
+        else "incomplete"
+    )
     return payload
 
 

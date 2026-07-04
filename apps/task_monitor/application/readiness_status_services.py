@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from importlib import import_module
 from typing import Any
 
 MAX_SCHEDULED_QLIB_STALENESS_DAYS = 5
@@ -146,10 +147,8 @@ def build_current_decision_data(
     """Return current decision-data readiness for operator-facing status output."""
 
     try:
-        from apps.data_center.application.interface_services import (
-            get_decision_data_readiness_payload,
-        )
-
+        module = import_module("apps.data_center.application.interface_services")
+        get_decision_data_readiness_payload = module.get_decision_data_readiness_payload
         payload = get_decision_data_readiness_payload(
             asset_codes=asset_codes,
             quote_max_age_hours=quote_max_age_hours,
@@ -190,11 +189,9 @@ def _parse_qlib_latest_trade_date(output: Any) -> str | None:
 def build_account_readiness_summary() -> dict[str, Any]:
     """Return read-only account readiness for operator-facing status output."""
 
-    from apps.simulated_trading.application.readiness_services import (
-        AccountReadinessRepairRequest,
-        repair_personal_account_readiness,
-    )
-
+    module = import_module("apps.simulated_trading.application.readiness_services")
+    AccountReadinessRepairRequest = module.AccountReadinessRepairRequest
+    repair_personal_account_readiness = module.repair_personal_account_readiness
     payload = repair_personal_account_readiness(AccountReadinessRepairRequest(dry_run=True))
     results = list(payload.get("results") or [])
     decision_ready_account_ids = [
@@ -826,11 +823,9 @@ def _summarize_thermometer_component_details(thermometer: dict[str, Any]) -> lis
 
 def _collect_current_regime_context(*, target_date: date) -> dict[str, Any]:
     try:
-        from apps.regime.application.interface_services import (
-            get_regime_current_payload,
-            get_regime_health_payload,
-        )
-
+        module = import_module("apps.regime.application.interface_services")
+        get_regime_current_payload = module.get_regime_current_payload
+        get_regime_health_payload = module.get_regime_health_payload
         health = get_regime_health_payload()
         current = get_regime_current_payload(as_of_date=target_date)
         data = _as_dict(current.get("data"))
@@ -851,8 +846,8 @@ def _collect_current_regime_context(*, target_date: date) -> dict[str, Any]:
 
 def _collect_current_pulse_context(*, target_date: date) -> dict[str, Any]:
     try:
-        from apps.pulse.application.use_cases import GetLatestPulseUseCase
-
+        module = import_module("apps.pulse.application.use_cases")
+        GetLatestPulseUseCase = module.GetLatestPulseUseCase
         snapshot = GetLatestPulseUseCase().execute(
             as_of_date=target_date,
             require_reliable=False,

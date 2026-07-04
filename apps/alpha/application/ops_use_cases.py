@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from importlib import import_module
 from typing import Any
 
 from apps.alpha.application.ops_locks import (
@@ -30,7 +31,11 @@ from apps.alpha.application.ops_services import (
 from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 from apps.alpha.application.repository_provider import get_alpha_pool_data_repository
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
-from apps.task_monitor.application.tracking import record_pending_task
+
+
+def record_pending_task(**kwargs: Any) -> Any:
+    tracking = import_module("apps.task_monitor.application.tracking")
+    return tracking.record_pending_task(**kwargs)
 
 
 def _build_conflict_payload(
@@ -265,7 +270,9 @@ class TriggerQlibUniverseRefreshUseCase:
     ) -> dict[str, Any]:
         from apps.alpha.application.tasks import qlib_refresh_runtime_data_task
 
-        normalized_universes = [str(item).strip().lower() for item in universes if str(item).strip()]
+        normalized_universes = [
+            str(item).strip().lower() for item in universes if str(item).strip()
+        ]
         descriptor = ",".join(sorted(normalized_universes)) or "csi300"
         metadata = {
             "lock_type": "qlib_data_refresh",
@@ -336,7 +343,11 @@ class TriggerQlibScopedCodesRefreshUseCase:
         if not all_active_portfolios and not portfolio_ids:
             raise ValueError("scoped_codes 刷新必须提供 portfolio_ids 或 all_active_portfolios=1")
 
-        descriptor = "all_active" if all_active_portfolios else ",".join(str(pid) for pid in sorted(portfolio_ids))
+        descriptor = (
+            "all_active"
+            if all_active_portfolios
+            else ",".join(str(pid) for pid in sorted(portfolio_ids))
+        )
         metadata = {
             "lock_type": "qlib_data_refresh",
             "mode": "scoped_codes",

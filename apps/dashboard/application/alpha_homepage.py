@@ -38,7 +38,7 @@ from apps.decision_rhythm.application.repository_provider import (
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.query_services import list_user_position_payloads
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
-from apps.task_monitor.application.tracking import record_pending_task
+from core.integration.runtime_imports import get_celery_health_checker, record_pending_task
 
 logger = logging.getLogger(__name__)
 
@@ -976,8 +976,6 @@ class AlphaHomepageQuery:
     def _get_async_refresh_celery_health() -> dict[str, Any]:
         """Return whether homepage auto-refresh currently has a live Celery worker."""
         try:
-            from apps.task_monitor.application.repository_provider import get_celery_health_checker
-
             health = get_celery_health_checker().check_health()
             active_workers = list(getattr(health, "active_workers", []) or [])
             if active_workers and bool(getattr(health, "is_healthy", False)):

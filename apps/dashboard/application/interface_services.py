@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
+from importlib import import_module
 from time import perf_counter
 from typing import Any
 
@@ -100,8 +101,8 @@ def build_performance_chart_data(
 def get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
     """Return whether dashboard Alpha async refresh currently has a live Celery worker."""
     try:
-        from apps.task_monitor.application.repository_provider import get_celery_health_checker
-
+        repository_provider = import_module("apps.task_monitor.application.repository_provider")
+        get_celery_health_checker = repository_provider.get_celery_health_checker
         health = get_celery_health_checker().check_health()
         active_workers = list(getattr(health, "active_workers", []) or [])
         if active_workers and bool(getattr(health, "is_healthy", False)):
