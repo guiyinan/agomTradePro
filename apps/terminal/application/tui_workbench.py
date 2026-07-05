@@ -2398,6 +2398,7 @@ class TuiWorkbenchService:
             "summary": self._operator_text(screen["summary"]),
             "view_type": screen["view_type"],
             "status": screen.get("status", "online"),
+            "chrome_mode": str(screen.get("chrome_mode") or ""),
             "default_action_key": screen.get("default_action_key", ""),
             "action_count": len(actions),
             "dashboard_panels": list(screen.get("dashboard_panels") or []),

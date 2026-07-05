@@ -50,6 +50,7 @@ The screen contract returns:
 
 - `layout.regions`: PC tools shell regions (`module_tree`, `workspace`, `inspector`, `status_bar`, `raw_drawer`).
 - `screen.dashboard_panels`: optional home/dashboard panels that compose already-approved actions into an operator-first overview.
+- `screen.chrome_mode`: optional workspace chrome policy. `immersive` hides the side task/inspector chrome and leaves the dashboard grid as the primary surface.
 - `screen.default_action_key`: the primary task to run automatically when a non-home workspace opens.
 - `screen.workflow`: optional daily workflow navigation metadata (`previous`, `next`, `step`, and `role`).
 - `screen.business_context`: operator guidance with the screen objective, expected decision output, and ordered checkpoints. Explicit metadata wins; the compiler and backend derive a generic fallback when a screen is not hand-annotated.
@@ -131,6 +132,8 @@ Home/dashboard screens should use `dashboard_panels` instead of hardcoding busin
 ```
 
 Allowed panel kinds are `regime_quadrant`, `datagrid`, `detail`, `status`, and `placeholder`. `action_key` must reference an already published action, so the overview cannot bypass risk review or backend permission checks. The runtime derives desktop, tablet, and mobile dashboard grid areas from `dashboard_panels`, so adding or removing panels should be done in metadata instead of adding hardcoded CSS grid classes.
+
+Any screen with published `dashboard_panels` now renders a center-pane overview grid before users drill into individual tasks. `command-center.overview` remains the immersive home screen by publishing `chrome_mode=immersive`, while business screens such as `research.asset-lab` keep the left task panel and right Inspector visible beside the overview.
 
 Every screen intended to replace a classic Django page should define `default_action_key`. The renderer auto-runs that action when it has no unresolved required fields, so users land on useful content instead of an empty task picker. Secondary actions stay in the left task panel.
 

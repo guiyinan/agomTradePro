@@ -1700,6 +1700,7 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["screen"]["chrome_mode"] == "immersive"
     assert payload["screen"]["default_action_key"] == "decision.workspace.today_queue"
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["layout_area"] for panel in panels] == [
@@ -1734,6 +1735,39 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
         "四、当前持仓",
         "五、Alpha 排行",
         "六、任务监控",
+    ]
+
+
+def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/research.asset-lab/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["screen"]["chrome_mode"] == ""
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
+    panels = payload["screen"]["dashboard_panels"]
+    assert [panel["layout_area"] for panel in panels] == [
+        "pool_summary",
+        "current_weight",
+        "weight_configs",
+    ]
+    assert [panel["action_key"] for panel in panels] == [
+        "auto.api.get.api.asset-analysis.pool-summary",
+        "auto.api.get.api.asset-analysis.current-weight",
+        "auto.api.get.api.asset-analysis.weight-configs",
+    ]
+    assert [panel["kind"] for panel in panels] == ["detail", "detail", "detail"]
+    assert [panel["target_screen"] for panel in panels] == [
+        "research.asset-lab",
+        "research.asset-lab",
+        "research.asset-lab",
+    ]
+    assert [panel["title"] for panel in panels] == [
+        "一、资产池概览",
+        "二、当前资产权重",
+        "三、权重配置状态",
     ]
 
 
@@ -5131,6 +5165,48 @@ def test_tui_metadata_repository_db_reload_keeps_runtime_coverage_stable():
     assert model.payload["coverage_summary"]["runtime_pruned_redundant_screen_actions"] == 0
     assert loaded["coverage_summary"]["runtime_patched_actions"] == 1
     assert loaded["coverage_summary"]["runtime_pruned_redundant_screen_actions"] == 0
+
+
+def test_tui_metadata_repository_keeps_valid_dashboard_panels_when_one_action_is_missing():
+    payload = _metadata_payload(
+        actions=[
+            {
+                "key": "auto.api.get.api.asset-analysis.pool-summary",
+                "label": "资产池概览",
+                "method": "GET",
+                "endpoint": "/api/asset-analysis/pool-summary/",
+                "intent": "safe_read",
+                "screen_key": "research.asset-lab",
+                "module_key": "command-center",
+                "view_type": "detail",
+                "risk": "read",
+                "fields": [],
+            }
+        ],
+    )
+    payload["screens"] = [
+        {
+            "key": "research.asset-lab",
+            "label": "资产与市场研究",
+            "module_key": "command-center",
+            "group": "workflow",
+            "summary": "Research workspace.",
+            "view_type": "datagrid",
+            "default_action_key": "auto.api.get.api.asset-analysis.pool-summary",
+        }
+    ]
+    payload["default_screen"] = "research.asset-lab"
+    repository = PublishedTuiMetadataRepository()
+
+    loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
+    screen = next(screen for screen in loaded["screens"] if screen["key"] == "research.asset-lab")
+    panels = screen["dashboard_panels"]
+
+    assert screen["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
+    assert [panel["action_key"] for panel in panels] == [
+        "auto.api.get.api.asset-analysis.pool-summary"
+    ]
+    assert [panel["title"] for panel in panels] == ["一、资产池概览"]
 
 
 @pytest.mark.django_db

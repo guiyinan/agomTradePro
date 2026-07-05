@@ -26,6 +26,7 @@ RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
 
 RUNTIME_SCREEN_PATCHES: dict[str, dict[str, Any]] = {
     "command-center.overview": {
+        "chrome_mode": "immersive",
         "dashboard_panels": [
             {
                 "key": "today-queue",
@@ -132,6 +133,37 @@ RUNTIME_SCREEN_PATCHES: dict[str, dict[str, Any]] = {
                 "需要单账户明细时，用账户下拉选择后查看账户持仓和绩效。",
             ],
         },
+    },
+    "research.asset-lab": {
+        "dashboard_panels": [
+            {
+                "key": "asset-pool-summary",
+                "title": "一、资产池概览",
+                "kind": "detail",
+                "action_key": "auto.api.get.api.asset-analysis.pool-summary",
+                "max_rows": 6,
+                "layout_area": "pool_summary",
+                "target_screen": "research.asset-lab",
+            },
+            {
+                "key": "asset-current-weight",
+                "title": "二、当前资产权重",
+                "kind": "detail",
+                "action_key": "auto.api.get.api.asset-analysis.current-weight",
+                "max_rows": 6,
+                "layout_area": "current_weight",
+                "target_screen": "research.asset-lab",
+            },
+            {
+                "key": "asset-weight-configs",
+                "title": "三、权重配置状态",
+                "kind": "detail",
+                "action_key": "auto.api.get.api.asset-analysis.weight-configs",
+                "max_rows": 6,
+                "layout_area": "weight_configs",
+                "target_screen": "research.asset-lab",
+            },
+        ],
     },
 }
 
@@ -1688,13 +1720,12 @@ class PublishedTuiMetadataRepository:
             patch = patches.get(str(screen.get("key") or ""))
             if not patch:
                 continue
-            if not PublishedTuiMetadataRepository._screen_patch_actions_available(
+            resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(
                 patch,
                 action_keys=action_keys,
-            ):
-                continue
+            )
             updated = dict(screen)
-            for key, value in patch.items():
+            for key, value in resolved_patch.items():
                 updated[key] = value
             if updated != screen:
                 screens[index] = updated
@@ -1702,21 +1733,23 @@ class PublishedTuiMetadataRepository:
         return changed
 
     @staticmethod
-    def _screen_patch_actions_available(
+    def _resolve_screen_patch(
         patch: dict[str, Any],
         *,
         action_keys: set[str],
-    ) -> bool:
+    ) -> dict[str, Any]:
+        resolved = dict(patch)
         panels = patch.get("dashboard_panels")
         if not isinstance(panels, list):
-            return True
-        for panel in panels:
-            if not isinstance(panel, dict):
-                continue
-            action_key = str(panel.get("action_key") or "").strip()
-            if action_key and action_key not in action_keys:
-                return False
-        return True
+            return resolved
+        resolved["dashboard_panels"] = [
+            panel
+            for panel in panels
+            if not isinstance(panel, dict)
+            or str(panel.get("action_key") or "").strip() == ""
+            or str(panel.get("action_key") or "").strip() in action_keys
+        ]
+        return resolved
 
     @staticmethod
     def _inject_cli_metadata(

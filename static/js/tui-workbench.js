@@ -929,21 +929,26 @@
         setCurrentLocation(null);
         markActiveScreen(screen.key);
         renderWorkflowStrip(screen.workflow || {});
-        els.actions.closest(".tui-panel").hidden = screen.key === "command-center.overview";
-        els.inspector.closest(".tui-panel").hidden = screen.key === "command-center.overview";
-        els.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard", screen.key === "command-center.overview");
-        setWorkspaceViewKind(screen.key === "command-center.overview" ? "dashboard" : "idle");
-        if (screen.key === "command-center.overview") {
+        const dashboardScreen = hasDashboardPanels(screen);
+        const immersiveDashboard = isImmersiveDashboardScreen(screen);
+        els.actions.closest(".tui-panel").hidden = immersiveDashboard;
+        els.inspector.closest(".tui-panel").hidden = immersiveDashboard;
+        els.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard", dashboardScreen);
+        setWorkspaceViewKind(dashboardScreen ? "dashboard" : "idle");
+        state.showSupportTasks = false;
+        state.showAdvancedQueries = false;
+        state.actionFilterText = "";
+        if (dashboardScreen && !immersiveDashboard) {
+            renderActions(screenSpec.actions || [], screen);
+        }
+        if (dashboardScreen) {
             renderDashboardHome(screenSpec);
             updatePager(null);
             updateRawDrawer();
             setLastRefresh();
-            setStatus("系统首页");
+            setStatus(immersiveDashboard ? "系统首页" : "概览已加载");
             return;
         }
-        state.showSupportTasks = false;
-        state.showAdvancedQueries = false;
-        state.actionFilterText = "";
         renderActions(screenSpec.actions || [], screen);
         const actionSummary = summarizeActions(screenSpec.actions || []);
         const businessContext = screen.business_context || {};
@@ -1002,6 +1007,14 @@
         return candidate;
     }
 
+    function hasDashboardPanels(screen) {
+        return Array.isArray(screen?.dashboard_panels) && screen.dashboard_panels.length > 0;
+    }
+
+    function isImmersiveDashboardScreen(screen) {
+        return hasDashboardPanels(screen) && String(screen?.chrome_mode || "").toLowerCase() === "immersive";
+    }
+
     function businessContextSections(context) {
         if (!context || (!context.objective && !context.decision_output && !(context.checkpoints || []).length)) {
             return [];
@@ -1058,9 +1071,12 @@
         const panels = screen.dashboard_panels && screen.dashboard_panels.length
             ? screen.dashboard_panels
             : defaultDashboardPanels(screenSpec.actions || []);
+        const immersiveDashboard = isImmersiveDashboardScreen(screen);
+        const actionSummary = summarizeActions(screenSpec.actions || []);
+        const businessContext = screen.business_context || {};
         const layout = dashboardLayout(panels);
         setWorkspaceViewKind("dashboard");
-        els.mainTitle.textContent = "系统首页";
+        els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
         els.main.innerHTML = `
             <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
@@ -1076,8 +1092,22 @@
             body: screen.summary,
             rows: [
                 ["工作区", screenSpec.module.label],
-                ["布局", "系统首页总控台"],
+                ["布局", immersiveDashboard ? "系统首页总控台" : "业务概览面板"],
+                ["主流程", actionSummary.primary],
+                ["支撑检查", actionSummary.support],
                 ["任务", screen.action_count],
+            ],
+            sections: [
+                ...businessContextSections(businessContext),
+                {
+                    title: "操作提示",
+                    body: [
+                        immersiveDashboard
+                            ? "总览面板来自已审核 action；点击面板可进入对应业务屏继续处理。"
+                            : "概览面板用于先看全局摘要；左侧任务区可以继续打开明细或执行补充查询。",
+                    ],
+                    rows: [],
+                },
             ],
         });
         els.main.querySelectorAll("[data-dashboard-target]").forEach((panelElement) => {
@@ -1941,7 +1971,7 @@
             }
             markActionCompleted(action);
             state.lastRaw = result.debug?.raw_response ?? null;
-            if (state.screen?.screen?.key !== "command-center.overview") {
+            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 renderActions(state.screen.actions || [], state.screen.screen);
             }
             renderViewModel(result.view_model);
@@ -3510,7 +3540,7 @@
         }
         state.completedActionsByScreen[screenKey] = new Set();
         persistProgress();
-        if (state.screen?.screen?.key !== "command-center.overview") {
+        if (!isImmersiveDashboardScreen(state.screen?.screen)) {
             renderActions(state.screen.actions || [], state.screen.screen);
         }
         if (state.currentViewModel) {
@@ -3612,13 +3642,13 @@
             resetCurrentScreenProgress();
         } else if (command === "toggle-support") {
             state.showSupportTasks = !state.showSupportTasks;
-            if (state.screen && state.screen.screen && state.screen.screen.key !== "command-center.overview") {
+            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 renderActions(state.screen.actions || [], state.screen.screen);
             }
             setStatus(state.showSupportTasks ? "支撑检查已显示" : "支撑检查已隐藏");
         } else if (command === "toggle-advanced") {
             state.showAdvancedQueries = !state.showAdvancedQueries;
-            if (state.screen && state.screen.screen && state.screen.screen.key !== "command-center.overview") {
+            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 renderActions(state.screen.actions || [], state.screen.screen);
             }
             setStatus(state.showAdvancedQueries ? "高级查询已显示" : "高级查询已隐藏");
