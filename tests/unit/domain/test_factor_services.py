@@ -238,6 +238,18 @@ class TestCalculateFactorScores:
         for i in range(len(scores) - 1):
             assert scores[i].composite_score >= scores[i + 1].composite_score
 
+    def test_composite_percentile_ranks_are_assigned(self) -> None:
+        """Composite score percentile ranks are written back to returned scores."""
+        ctx = _make_context()
+        engine = FactorEngine(ctx)
+
+        scores = engine.calculate_factor_scores({"pe_ttm": 0.5, "roe": 0.5})
+
+        ranks = {score.percentile_rank for score in scores}
+        assert ranks != {0.0}
+        assert min(ranks) > 0.0
+        assert max(ranks) == 1.0
+
     def test_weights_must_sum_to_one(self) -> None:
         """Weights not summing to 1.0 raises ValueError."""
         ctx = _make_context()

@@ -105,6 +105,11 @@ def test_asset_pool_provider_aggregates_application_repository(monkeypatch):
             "regime_score": 82.0,
             "policy_score": 80.0,
             "asset_type": "fund",
+            "data_source": "asset_pool",
+            "is_fallback": False,
+            "actionable": True,
+            "execution_block_reason": None,
+            "data_quality": {"status": "available", "warnings": []},
         },
         {
             "asset_code": "AU9999.SGE",
@@ -113,6 +118,11 @@ def test_asset_pool_provider_aggregates_application_repository(monkeypatch):
             "regime_score": 78.0,
             "policy_score": 74.0,
             "asset_type": "commodity",
+            "data_source": "asset_pool",
+            "is_fallback": False,
+            "actionable": True,
+            "execution_block_reason": None,
+            "data_quality": {"status": "available", "warnings": []},
         },
     ]
 
@@ -180,6 +190,15 @@ def test_asset_pool_provider_falls_back_to_latest_score_cache(monkeypatch):
     provider = DjangoAssetPoolProvider()
     result = provider.get_investable_assets(min_score=60.0, limit=5)
 
+    assert result == []
+    assert calls == [
+        ("equity", 60.0, 5, "pool"),
+        ("fund", 60.0, 5, "pool"),
+    ]
+
+    calls.clear()
+    result = provider.get_investable_assets(min_score=60.0, limit=5, include_degraded=True)
+
     assert calls == [
         ("equity", 60.0, 5, "pool"),
         ("fund", 60.0, 5, "pool"),
@@ -194,6 +213,14 @@ def test_asset_pool_provider_falls_back_to_latest_score_cache(monkeypatch):
             "regime_score": 80.0,
             "policy_score": 70.0,
             "asset_type": "equity",
+            "data_source": "score_cache_fallback",
+            "is_fallback": True,
+            "actionable": False,
+            "execution_block_reason": "degraded_asset_pool_data",
+            "data_quality": {
+                "status": "degraded",
+                "warnings": ["asset_pool_empty_score_cache_fallback"],
+            },
         },
         {
             "asset_code": "510300.OF",
@@ -202,6 +229,14 @@ def test_asset_pool_provider_falls_back_to_latest_score_cache(monkeypatch):
             "regime_score": 72.0,
             "policy_score": 65.0,
             "asset_type": "fund",
+            "data_source": "score_cache_fallback",
+            "is_fallback": True,
+            "actionable": False,
+            "execution_block_reason": "degraded_asset_pool_data",
+            "data_quality": {
+                "status": "degraded",
+                "warnings": ["asset_pool_empty_score_cache_fallback"],
+            },
         },
     ]
 

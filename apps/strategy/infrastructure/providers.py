@@ -164,7 +164,10 @@ class DjangoAssetPoolProvider:
     """
 
     def get_investable_assets(
-        self, min_score: float = 60.0, limit: int = 50
+        self,
+        min_score: float = 60.0,
+        limit: int = 50,
+        include_degraded: bool = False,
     ) -> list[dict[str, Any]]:
         """
         获取可投资产列表
@@ -172,6 +175,7 @@ class DjangoAssetPoolProvider:
         Args:
             min_score: 最低评分
             limit: 返回数量限制
+            include_degraded: 是否包含评分缓存兜底资产，仅用于展示/诊断
 
         Returns:
             资产列表
@@ -194,15 +198,30 @@ class DjangoAssetPoolProvider:
                     )
                 )
 
-            if not assets:
+            fallback_blocked = False
+            if not assets and include_degraded:
                 for asset_type in list_investable_asset_categories():
-                    assets.extend(
-                        list_latest_scored_assets(
-                            asset_type,
-                            min_score=min_score,
-                            limit=limit,
-                        )
+                    fallback_assets = list_latest_scored_assets(
+                        asset_type,
+                        min_score=min_score,
+                        limit=limit,
                     )
+                    for asset in fallback_assets:
+                        asset.setdefault("data_source", "score_cache_fallback")
+                        asset.setdefault("is_fallback", True)
+                        asset.setdefault(
+                            "data_quality",
+                            {
+                                "status": "degraded",
+                                "warnings": ["asset_pool_empty_score_cache_fallback"],
+                            },
+                        )
+                    assets.extend(fallback_assets)
+            elif not assets:
+                fallback_blocked = True
+                logger.warning(
+                    "Asset pool is empty and score-cache fallback is blocked for actionable strategy assets"
+                )
 
             ranked_assets = sorted(
                 assets,
@@ -212,6 +231,8 @@ class DjangoAssetPoolProvider:
 
             result = []
             for asset in ranked_assets:
+                data_source = asset.get("data_source") or "asset_pool"
+                is_fallback = bool(asset.get("is_fallback", data_source != "asset_pool"))
                 result.append(
                     {
                         "asset_code": asset.get("asset_code"),
@@ -220,9 +241,28 @@ class DjangoAssetPoolProvider:
                         "regime_score": float(asset.get("regime_score") or 0.0),
                         "policy_score": float(asset.get("policy_score") or 0.0),
                         "asset_type": asset.get("asset_type") or "equity",
+                        "data_source": data_source,
+                        "is_fallback": is_fallback,
+                        "actionable": not is_fallback,
+                        "execution_block_reason": (
+                            "degraded_asset_pool_data" if is_fallback else None
+                        ),
+                        "data_quality": asset.get("data_quality")
+                        or {
+                            "status": "degraded" if is_fallback else "available",
+                            "warnings": (
+                                ["asset_pool_empty_score_cache_fallback"]
+                                if is_fallback
+                                else []
+                            ),
+                        },
                     }
                 )
 
+            if fallback_blocked:
+                logger.info(
+                    "Returning empty actionable asset pool; pass include_degraded=True only for display diagnostics"
+                )
             return result
 
         except Exception as e:

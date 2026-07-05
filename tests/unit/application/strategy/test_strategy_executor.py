@@ -260,6 +260,35 @@ class TestStrategyExecutor:
         # 只有第二条规则生效
         assert len(result.signals) > 0
 
+    def test_execute_blocks_degraded_asset_pool_items(
+        self, executor, mock_providers, rule_based_strategy
+    ):
+        """降级资产池数据不得驱动交易信号。"""
+
+        class DegradedAssetPoolProvider:
+            def get_investable_assets(self, min_score: float = 60.0, limit: int = 50):
+                return [
+                    {
+                        'asset_code': '000001.SH',
+                        'asset_name': '上证指数',
+                        'total_score': 90,
+                        'regime_score': 90,
+                        'policy_score': 90,
+                        'is_fallback': True,
+                        'actionable': False,
+                        'data_quality': {'status': 'degraded'},
+                    }
+                ]
+
+        mock_providers['strategy_repository']._strategy = rule_based_strategy
+        executor.asset_pool_provider = DegradedAssetPoolProvider()
+
+        result = executor.execute_strategy(strategy_id=1, portfolio_id=1)
+
+        assert result.is_success is True
+        assert result.context['asset_pool'] == []
+        assert result.signals == []
+
     def test_execute_with_no_matching_rules(self, executor, mock_providers):
         """测试没有规则匹配的策略执行"""
         # 创建不匹配的策略

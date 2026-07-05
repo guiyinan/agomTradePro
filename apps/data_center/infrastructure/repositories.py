@@ -324,9 +324,9 @@ def _coerce_bool(value: Any) -> bool:
 def _infer_market_suffixes(base_code: str) -> list[str]:
     if not base_code:
         return []
-    if base_code.startswith(("0", "3")):
+    if base_code.startswith(("0", "1", "2", "3")):
         return ["SZ"]
-    if base_code.startswith(("6", "9")):
+    if base_code.startswith(("5", "6", "9")):
         return ["SH"]
     if base_code.startswith(("4", "8")):
         return ["BJ"]

@@ -308,7 +308,8 @@ class AssetPoolProviderProtocol(Protocol):
     def get_investable_assets(
         self,
         min_score: float = 60.0,
-        limit: int = 50
+        limit: int = 50,
+        include_degraded: bool = False,
     ) -> list[dict[str, Any]]:
         """
         获取可投资产列表
@@ -316,6 +317,7 @@ class AssetPoolProviderProtocol(Protocol):
         Args:
             min_score: 最低评分
             limit: 返回数量限制
+            include_degraded: 是否包含降级/缓存兜底资产；交易执行默认必须为 False
 
         Returns:
             资产列表，每个资产包含：

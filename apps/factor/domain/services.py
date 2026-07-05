@@ -12,7 +12,7 @@ Uses only:
 import math
 from bisect import bisect_right
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from apps.factor.domain.entities import (
@@ -341,9 +341,7 @@ class FactorEngine:
 
         result = []
         for i, score in enumerate(sorted_scores):
-            # Create new immutable score with percentile rank
-            (i + 1) / n
-            result.append(score)
+            result.append(replace(score, percentile_rank=(i + 1) / n))
 
         return result
 

@@ -100,9 +100,12 @@ class RotationIntegrationService:
                     "signal_date": signal.signal_date.isoformat(),
                     "target_allocation": signal.target_allocation,
                     "current_regime": signal.current_regime,
+                    "expected_volatility": signal.expected_volatility,
+                    "expected_return": signal.expected_return,
                     "action_required": signal.action_required,
                     "reason": signal.reason,
                     "momentum_ranking": signal.momentum_ranking,
+                    "data_quality": self._build_signal_data_quality(signal, config),
                 }
 
         except ValueError as e:
@@ -343,9 +346,81 @@ class RotationIntegrationService:
             "signal_date": signal_model.signal_date.isoformat(),
             "target_allocation": signal_model.target_allocation,
             "current_regime": signal_model.current_regime,
+            "expected_volatility": float(
+                getattr(signal_model, "expected_volatility", 0.0) or 0.0
+            ),
+            "expected_return": float(getattr(signal_model, "expected_return", 0.0) or 0.0),
             "action_required": signal_model.action_required,
             "reason": signal_model.reason,
             "momentum_ranking": signal_model.momentum_ranking,
+            "data_quality": RotationIntegrationService._build_model_signal_data_quality(
+                signal_model
+            ),
+        }
+
+    @staticmethod
+    def _build_signal_data_quality(signal, config) -> dict[str, Any]:
+        """Summarize whether the generated signal is data-driven enough to trust."""
+        universe_size = len(config.asset_universe or [])
+        ranked_count = len(signal.momentum_ranking or [])
+        selected_count = len(signal.target_allocation or {})
+        coverage_ratio = ranked_count / universe_size if universe_size else 0.0
+        metrics_available = (
+            signal.expected_return != 0.0 or signal.expected_volatility != 0.0
+        )
+        status = "ok"
+        warnings = []
+        if universe_size and ranked_count < universe_size:
+            status = "degraded"
+            warnings.append("partial_price_coverage")
+        if not metrics_available:
+            status = "degraded"
+            warnings.append("risk_return_metrics_unavailable")
+        if selected_count == 0:
+            status = "invalid"
+            warnings.append("empty_target_allocation")
+
+        return {
+            "status": status,
+            "universe_size": universe_size,
+            "ranked_asset_count": ranked_count,
+            "selected_asset_count": selected_count,
+            "coverage_ratio": round(coverage_ratio, 4),
+            "metrics_available": metrics_available,
+            "warnings": warnings,
+        }
+
+    @staticmethod
+    def _build_model_signal_data_quality(signal_model) -> dict[str, Any]:
+        """Build quality metadata for a persisted signal model."""
+        config = getattr(signal_model, "config", None)
+        universe = getattr(config, "asset_universe", []) or []
+        ranked = getattr(signal_model, "momentum_ranking", []) or []
+        allocation = getattr(signal_model, "target_allocation", {}) or {}
+        coverage_ratio = len(ranked) / len(universe) if universe else 0.0
+        metrics_available = (
+            float(getattr(signal_model, "expected_return", 0.0) or 0.0) != 0.0
+            or float(getattr(signal_model, "expected_volatility", 0.0) or 0.0) != 0.0
+        )
+        warnings = []
+        status = "ok"
+        if universe and len(ranked) < len(universe):
+            status = "degraded"
+            warnings.append("partial_price_coverage")
+        if not metrics_available:
+            status = "degraded"
+            warnings.append("risk_return_metrics_unavailable")
+        if not allocation:
+            status = "invalid"
+            warnings.append("empty_target_allocation")
+        return {
+            "status": status,
+            "universe_size": len(universe),
+            "ranked_asset_count": len(ranked),
+            "selected_asset_count": len(allocation),
+            "coverage_ratio": round(coverage_ratio, 4),
+            "metrics_available": metrics_available,
+            "warnings": warnings,
         }
 
     @staticmethod
@@ -363,6 +438,20 @@ class RotationIntegrationService:
         result["strategy_type"] = strategy_type
         result["config_description"] = config_description
         result["warning_message"] = warning_message
+        quality_status = (result.get("data_quality") or {}).get("status")
+        result["actionable"] = data_source in {"fresh_generation", "stored_signal"} and (
+            not is_stale
+        ) and quality_status == "ok"
+        if result["actionable"]:
+            result["execution_block_reason"] = None
+        elif is_stale:
+            result["execution_block_reason"] = "stale_rotation_signal"
+        elif data_source.endswith("_fallback"):
+            result["execution_block_reason"] = "fallback_rotation_signal"
+        elif quality_status and quality_status != "ok":
+            result["execution_block_reason"] = f"rotation_data_quality_{quality_status}"
+        else:
+            result["execution_block_reason"] = "rotation_signal_not_actionable"
 
     def get_asset_info(self, asset_code: str) -> dict | None:
         """

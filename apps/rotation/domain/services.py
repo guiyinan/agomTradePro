@@ -100,6 +100,10 @@ class MomentumRotationEngine:
 
         # Build momentum ranking
         momentum_ranking = [(s.asset_code, s.composite_score) for s in scores]
+        expected_return, expected_volatility = self._estimate_portfolio_metrics(
+            target_allocation,
+            config.lookback_period,
+        )
 
         # Generate signal
         signal = RotationSignal(
@@ -107,6 +111,8 @@ class MomentumRotationEngine:
             signal_date=self.context.calc_date,
             target_allocation=target_allocation,
             momentum_ranking=momentum_ranking,
+            expected_return=expected_return,
+            expected_volatility=expected_volatility,
             action_required="rebalance" if top_assets else "hold",
             reason=f"Top {len(top_assets)} assets by momentum: {', '.join(top_assets)}",
         )
@@ -280,6 +286,61 @@ class MomentumRotationEngine:
 
         return scores
 
+    def _estimate_portfolio_metrics(
+        self,
+        target_allocation: dict[str, float],
+        lookback_period: int,
+    ) -> tuple[float, float]:
+        """Estimate annualized return and volatility from aligned daily closes."""
+        if not target_allocation:
+            return 0.0, 0.0
+
+        weighted_returns: dict[str, list[float]] = {}
+        for asset_code, weight in target_allocation.items():
+            prices = self.context.get_asset_prices(
+                asset_code,
+                self.context.calc_date,
+                max(lookback_period, 20) + 1,
+            )
+            returns = self._calculate_daily_returns(prices or [])
+            if returns and weight > 0:
+                weighted_returns[asset_code] = returns
+
+        if not weighted_returns:
+            return 0.0, 0.0
+
+        aligned_days = min(len(values) for values in weighted_returns.values())
+        if aligned_days <= 0:
+            return 0.0, 0.0
+
+        portfolio_returns = []
+        for index in range(-aligned_days, 0):
+            daily_return = sum(
+                target_allocation[asset_code] * returns[index]
+                for asset_code, returns in weighted_returns.items()
+            )
+            portfolio_returns.append(daily_return)
+
+        mean_daily_return = sum(portfolio_returns) / len(portfolio_returns)
+        variance = (
+            sum((item - mean_daily_return) ** 2 for item in portfolio_returns)
+            / len(portfolio_returns)
+        )
+        return mean_daily_return * 252, math.sqrt(variance) * math.sqrt(252)
+
+    @staticmethod
+    def _calculate_daily_returns(prices: list[float]) -> list[float]:
+        """Return daily close-to-close returns for a price series."""
+        if len(prices) < 2:
+            return []
+        returns = []
+        for index in range(1, len(prices)):
+            previous = prices[index - 1]
+            current = prices[index]
+            if previous > 0:
+                returns.append((current - previous) / previous)
+        return returns
+
 
 class RegimeBasedRotationEngine:
     """
@@ -321,6 +382,10 @@ class RegimeBasedRotationEngine:
         periods = config.params.get("momentum_periods", [20, 60])
         momentum_scores = momentum_engine.calculate_momentum_scores(periods)
         momentum_ranking = [(s.asset_code, s.composite_score) for s in momentum_scores[:10]]
+        expected_return, expected_volatility = momentum_engine._estimate_portfolio_metrics(
+            target_allocation,
+            config.lookback_period,
+        )
 
         return RotationSignal(
             config_name=config.name,
@@ -328,6 +393,8 @@ class RegimeBasedRotationEngine:
             target_allocation=target_allocation,
             current_regime=current_regime or "Unknown",
             momentum_ranking=momentum_ranking,
+            expected_return=expected_return,
+            expected_volatility=expected_volatility,
             action_required="rebalance",
             reason=reason,
         )
@@ -398,10 +465,18 @@ class RiskParityRotationEngine:
                 target_allocation = {}
             reason = "Risk parity allocation based on inverse volatility"
 
+        metric_engine = MomentumRotationEngine(self.context)
+        expected_return, expected_volatility = metric_engine._estimate_portfolio_metrics(
+            target_allocation,
+            config.lookback_period,
+        )
+
         return RotationSignal(
             config_name=config.name,
             signal_date=self.context.calc_date,
             target_allocation=target_allocation,
+            expected_return=expected_return,
+            expected_volatility=expected_volatility,
             action_required="rebalance",
             reason=reason,
         )

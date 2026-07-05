@@ -5,6 +5,7 @@ DRF Serializers for the rotation module API.
 """
 
 from django.apps import apps as django_apps
+from django.utils import timezone
 from rest_framework import serializers
 
 AssetClassModel = django_apps.get_model('rotation', 'AssetClassModel')
@@ -48,6 +49,11 @@ class RotationConfigSerializer(serializers.ModelSerializer):
 class RotationSignalSerializer(serializers.ModelSerializer):
     """Serializer for RotationSignal"""
     config_name = serializers.CharField(source='config.name', read_only=True)
+    data_quality = serializers.SerializerMethodField()
+    is_stale = serializers.SerializerMethodField()
+    staleness_days = serializers.SerializerMethodField()
+    actionable = serializers.SerializerMethodField()
+    execution_block_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = RotationSignalModel
@@ -55,9 +61,62 @@ class RotationSignalSerializer(serializers.ModelSerializer):
             'id', 'config', 'config_name', 'signal_date',
             'target_allocation', 'current_regime', 'momentum_ranking',
             'expected_volatility', 'expected_return',
-            'action_required', 'reason', 'created_at',
+            'action_required', 'reason', 'data_quality',
+            'is_stale', 'staleness_days', 'actionable',
+            'execution_block_reason', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+
+    def get_data_quality(self, obj) -> dict:
+        """Expose data-quality metadata for persisted signals."""
+        universe = getattr(obj.config, 'asset_universe', []) or []
+        ranking = obj.momentum_ranking or []
+        allocation = obj.target_allocation or {}
+        coverage_ratio = len(ranking) / len(universe) if universe else 0.0
+        metrics_available = (
+            float(obj.expected_return or 0.0) != 0.0
+            or float(obj.expected_volatility or 0.0) != 0.0
+        )
+        warnings = []
+        status = 'ok'
+        if universe and len(ranking) < len(universe):
+            status = 'degraded'
+            warnings.append('partial_price_coverage')
+        if not metrics_available:
+            status = 'degraded'
+            warnings.append('risk_return_metrics_unavailable')
+        if not allocation:
+            status = 'invalid'
+            warnings.append('empty_target_allocation')
+        return {
+            'status': status,
+            'universe_size': len(universe),
+            'ranked_asset_count': len(ranking),
+            'selected_asset_count': len(allocation),
+            'coverage_ratio': round(coverage_ratio, 4),
+            'metrics_available': metrics_available,
+            'warnings': warnings,
+        }
+
+    def get_is_stale(self, obj) -> bool:
+        """Whether the signal predates the local business date."""
+        return obj.signal_date < timezone.localdate()
+
+    def get_staleness_days(self, obj) -> int:
+        """Age of the signal in calendar days."""
+        return max((timezone.localdate() - obj.signal_date).days, 0)
+
+    def get_actionable(self, obj) -> bool:
+        """Only fresh, full-quality persisted signals are executable."""
+        return (not self.get_is_stale(obj)) and self.get_data_quality(obj)['status'] == 'ok'
+
+    def get_execution_block_reason(self, obj) -> str | None:
+        """Explain why this signal must not drive trading actions."""
+        if self.get_actionable(obj):
+            return None
+        if self.get_is_stale(obj):
+            return 'stale_rotation_signal'
+        return f"rotation_data_quality_{self.get_data_quality(obj)['status']}"
 
 
 class RotationPortfolioSerializer(serializers.ModelSerializer):

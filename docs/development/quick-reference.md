@@ -1,7 +1,7 @@
 ﻿# AgomTradePro 开发快速参考
 
 > **文档版本**: V2.0
-> **更新日期**: 2026-07-04
+> **更新日期**: 2026-07-05
 > **目标读者**: 开发人员
 
 ---
@@ -615,7 +615,15 @@ GET /api/alpha/scores/?top_n=10&ai_filter=1
 | `/api/rotation/` | GET | API 操作列表 |
 | `/api/rotation/assets/` | GET | 资产类别 |
 | `/api/rotation/signals/` | GET | 轮动信号 |
+| `/api/rotation/signals/latest/` | GET | 每个 active 配置的最新已落库信号；返回 `data_quality`、`is_stale`、`staleness_days`，用于区分正常信号、价格覆盖不足和过期复用 |
 | `/api/rotation/account-configs/` | GET | 账户级轮动配置 |
+
+- 轮动价格序列统一要求 oldest -> newest；`data_center` 价格仓储返回 newest-first 时，Application query service 必须反转后再交给轮动 Domain。
+- 裸 ETF 代码解析与统一价格服务保持一致：`5xxxxx -> .SH`，`1/2/3/0xxxxx -> .SZ`，`4/8xxxxx -> .BJ`。
+- `expected_return` / `expected_volatility` 是轮动 Domain 基于目标权重和历史日收益估算的年化指标；若仍为 `0.0`，调用方必须结合 `data_quality.warnings` 判断是否为价格覆盖不足或指标不可用。
+- 投资执行面必须遵守“降级数据不可交易”：`data_quality.status != ok`、`is_fallback=true`、`is_stale=true` 或 `actionable=false` 的结果只能展示/诊断，不能生成买卖/调仓动作。
+- 因子综合分的 `percentile_rank` 必须由 Domain 写回到返回实体；不得把未赋值的 `0.0` 当作真实排名返回。
+- 策略读取资产池时，正式资产池结果应标记 `data_source=asset_pool`；评分缓存兜底仅允许在显式 `include_degraded=True` 的展示/诊断场景返回，并必须返回 `data_source=score_cache_fallback`、`is_fallback=true`、`actionable=false` 和 `data_quality.status=degraded`。
 
 ### Hedge API (对冲策略)
 

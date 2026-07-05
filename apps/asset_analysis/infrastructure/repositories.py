@@ -277,6 +277,12 @@ class DjangoAssetPoolQueryRepository:
                     "entry_date": entry.entry_date,
                     "entry_reason": entry.entry_reason,
                     "risk_level": entry.risk_level,
+                    "data_source": "asset_pool",
+                    "is_fallback": False,
+                    "data_quality": {
+                        "status": "available",
+                        "warnings": [],
+                    },
                 }
             )
         return candidates
@@ -322,6 +328,12 @@ class DjangoAssetPoolQueryRepository:
                     "signal_score": row.signal_score,
                     "score_date": row.score_date,
                     "risk_level": row.risk_level,
+                    "data_source": "score_cache_fallback",
+                    "is_fallback": True,
+                    "data_quality": {
+                        "status": "degraded",
+                        "warnings": ["asset_pool_empty_score_cache_fallback"],
+                    },
                 }
             )
         return candidates

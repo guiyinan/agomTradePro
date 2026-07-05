@@ -92,4 +92,4 @@ def fetch_close_prices(
     bars = get_price_bar_repository().get_bars(asset_code, start=start_date, end=end_date)
     if not bars:
         return None
-    return [float(bar.close) for bar in bars]
+    return [float(bar.close) for bar in reversed(bars)]

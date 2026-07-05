@@ -204,7 +204,11 @@ class StrategyExecutor:
 
         # 3. 获取可投资产池
         try:
-            context['asset_pool'] = self.asset_pool_provider.get_investable_assets(min_score=60.0)
+            raw_asset_pool = self.asset_pool_provider.get_investable_assets(min_score=60.0)
+            context['asset_pool'] = [
+                asset for asset in raw_asset_pool
+                if self._is_actionable_asset_pool_item(asset)
+            ]
         except Exception as e:
             logger.warning(f"Failed to get asset pool: {e}")
             context['asset_pool'] = []
@@ -230,6 +234,18 @@ class StrategyExecutor:
             context['signals'] = []
 
         return context
+
+    @staticmethod
+    def _is_actionable_asset_pool_item(asset: dict[str, Any]) -> bool:
+        """Only formal, non-degraded asset-pool rows may drive strategy signals."""
+        if asset.get("actionable") is False:
+            return False
+        if asset.get("is_fallback") is True:
+            return False
+        data_quality = asset.get("data_quality") or {}
+        if data_quality.get("status") in {"degraded", "invalid", "unavailable"}:
+            return False
+        return True
 
     def _dispatch_execution(
         self,

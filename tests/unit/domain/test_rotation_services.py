@@ -280,6 +280,25 @@ class TestMomentumRotationEngine:
             assert isinstance(asset_code, str)
             assert isinstance(score_val, float)
 
+    def test_generate_signal_estimates_risk_return_metrics(self):
+        """Generated signals should carry non-placeholder risk/return metrics."""
+        price_data = {
+            "UP": make_price_series(days=180, daily_return_mean=0.001),
+            "VOL": _make_volatile_prices(days=180),
+        }
+        ctx = _build_context(asset_universe=["UP", "VOL"], price_data=price_data)
+        config = make_rotation_config(
+            asset_universe=["UP", "VOL"],
+            top_n=2,
+            lookback_period=120,
+        )
+        engine = MomentumRotationEngine(ctx)
+
+        signal = engine.generate_signal(config)
+
+        assert signal.expected_return != 0.0
+        assert signal.expected_volatility > 0.0
+
 
 # ===========================================================================
 # MomentumRotationEngine internal calculation tests
