@@ -364,13 +364,18 @@ class RotationIntegrationService:
         universe_size = len(config.asset_universe or [])
         ranked_count = len(signal.momentum_ranking or [])
         selected_count = len(signal.target_allocation or {})
-        coverage_ratio = ranked_count / universe_size if universe_size else 0.0
+        requires_ranking = (
+            getattr(getattr(config, "strategy_type", None), "value", None)
+            in {"momentum", "regime_based", "custom", "mean_reversion"}
+        )
+        coverage_count = ranked_count if requires_ranking else selected_count
+        coverage_ratio = coverage_count / universe_size if universe_size else 0.0
         metrics_available = (
             signal.expected_return != 0.0 or signal.expected_volatility != 0.0
         )
         status = "ok"
         warnings = []
-        if universe_size and ranked_count < universe_size:
+        if universe_size and coverage_count < universe_size:
             status = "degraded"
             warnings.append("partial_price_coverage")
         if not metrics_available:
@@ -397,14 +402,22 @@ class RotationIntegrationService:
         universe = getattr(config, "asset_universe", []) or []
         ranked = getattr(signal_model, "momentum_ranking", []) or []
         allocation = getattr(signal_model, "target_allocation", {}) or {}
-        coverage_ratio = len(ranked) / len(universe) if universe else 0.0
+        strategy_type = str(getattr(config, "strategy_type", "") or "")
+        requires_ranking = strategy_type in {
+            "momentum",
+            "regime_based",
+            "custom",
+            "mean_reversion",
+        }
+        coverage_count = len(ranked) if requires_ranking else len(allocation)
+        coverage_ratio = coverage_count / len(universe) if universe else 0.0
         metrics_available = (
             float(getattr(signal_model, "expected_return", 0.0) or 0.0) != 0.0
             or float(getattr(signal_model, "expected_volatility", 0.0) or 0.0) != 0.0
         )
         warnings = []
         status = "ok"
-        if universe and len(ranked) < len(universe):
+        if universe and coverage_count < len(universe):
             status = "degraded"
             warnings.append("partial_price_coverage")
         if not metrics_available:

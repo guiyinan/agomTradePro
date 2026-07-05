@@ -76,3 +76,26 @@ def test_get_rotation_recommendation_uses_stored_signal_fallback_without_warning
     assert result["is_stale"] is True
     assert "最近一次已落库信号" in result["warning_message"]
     assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+def test_risk_parity_quality_uses_allocation_coverage_not_momentum_ranking():
+    config = RotationConfig(
+        name="RiskParityConfig",
+        strategy_type=RotationStrategyType.RISK_PARITY,
+        asset_universe=["510300", "510500"],
+    )
+    signal = SimpleNamespace(
+        target_allocation={"510300": 0.6, "510500": 0.4},
+        momentum_ranking=[],
+        expected_return=0.08,
+        expected_volatility=0.12,
+    )
+
+    quality = rotation_services.RotationIntegrationService._build_signal_data_quality(
+        signal,
+        config,
+    )
+
+    assert quality["status"] == "ok"
+    assert quality["coverage_ratio"] == 1.0
+    assert "partial_price_coverage" not in quality["warnings"]
