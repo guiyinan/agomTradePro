@@ -1,8 +1,15 @@
 # TUI Workbench
 
-> Last updated: 2026-06-29
+> Last updated: 2026-07-05
 
 `/tui/` is the standalone task-oriented interaction shell for AgomTradePro. It is not a CSS presentation mode for existing Django pages, and it is not an API catalog UI.
+
+Default user entry now lands on TUI first:
+
+- `/` redirects to `/tui/`
+- login success defaults to `/tui/`
+- Setup Wizard completion promotes `进入 TUI` first
+- classic Dashboard remains available at `/dashboard/`
 
 ## Contract
 

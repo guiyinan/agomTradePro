@@ -35,6 +35,7 @@
 - 宏观治理台已落地到 `/data-center/governance/`；这是人工审计入口，不改变 SDK/MCP canonical 契约。
 - 集中风控中心已落地到 `/risk-center/`：配置 owner 为 `risk_center`，账户止盈止损、模拟盘自动买入和策略执行编排已开始读取有效策略；API/SDK/MCP 入口见 [business/risk-center.md](business/risk-center.md)。
 - `/tui/` 已定位为独立 DOS/PCTools 风格经典 UI 平替壳：运行时只读取已发布 TUI metadata，不实时扫描源码、模板、SDK、MCP 或 URL resolver；普通操作界面不展示 API endpoint 或裸 JSON。
+- 默认用户入口已切到 `/tui/`：根路径 `/`、登录成功后的默认跳转和 Setup Wizard 完成页都先进入 TUI；经典 Dashboard 继续保留在 `/dashboard/` 作为显式入口。
 
 ## 文档目录
 
@@ -417,6 +418,13 @@
 ---
 
 ## 最近更新 (2026-02-20 ~ 2026-06-20)
+
+### 2026-07-05
+- ✅ **TUI 成为默认登录入口**
+  - 根路径 `/` 改为默认进入 `/tui/`
+  - 登录成功后的默认跳转从经典 `/dashboard/` 切到 `/tui/`
+  - Setup Wizard 完成页同步把 `进入 TUI` 作为首选入口，并保留 `经典仪表盘`
+  - `/dashboard/` 继续保留，作为经典 UI 的显式退出与回退入口
 
 ### 2026-06-20
 - ✅ **TUI Workbench V2 经典 UI 平替**

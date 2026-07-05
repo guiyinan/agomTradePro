@@ -7,7 +7,6 @@ Account Interface Views
 import json
 import logging
 from decimal import Decimal
-from urllib.parse import urlparse
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -22,6 +21,12 @@ from django.views.decorators.http import require_http_methods
 
 from apps.account.application import interface_services
 from apps.account.application.rbac import is_system_admin
+from core.ui_modes import (
+    DEFAULT_TUI_PATH,
+    infer_ui_mode_from_path,
+    normalize_local_path,
+    set_ui_mode_cookie,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,18 +64,17 @@ def _add_flash_message(request, level: str, message: str) -> None:
 
 
 def _get_safe_next_path(request, *, default_path: str) -> str:
-    """Return a local redirect path from form data when valid."""
+    """Return a local redirect path from request params when valid."""
 
-    candidate = (request.POST.get("next") or "").strip()
-    if not candidate:
-        return default_path
+    candidate = (request.POST.get("next") or request.GET.get("next") or "").strip()
+    return normalize_local_path(candidate, default_path=default_path)
 
-    parsed = urlparse(candidate)
-    if parsed.scheme or parsed.netloc:
-        return default_path
-    if not candidate.startswith("/"):
-        return default_path
-    return candidate
+
+def _redirect_with_ui_mode(path: str):
+    """Build one redirect response and persist the inferred UI mode when possible."""
+
+    response = redirect(path)
+    return set_ui_mode_cookie(response, mode=infer_ui_mode_from_path(path))
 
 
 @require_http_methods(["GET", "POST"])
@@ -172,7 +176,7 @@ def register_view(request):
                     request,
                     f"欢迎加入 AgomTradePro，{registration.display_name}！{admin_msg}",
                 )
-                return redirect("/dashboard/")
+                return _redirect_with_ui_mode(DEFAULT_TUI_PATH)
 
         except IntegrityError:
             messages.error(request, "注册失败：用户名或账户资料已存在")
@@ -232,8 +236,8 @@ def login_view(request):
             login(request, user)
             messages.success(request, f"欢迎回来，{user.username}！")
 
-            next_page = request.GET.get("next", "/dashboard/")
-            return redirect(next_page)
+            next_page = _get_safe_next_path(request, default_path=DEFAULT_TUI_PATH)
+            return _redirect_with_ui_mode(next_page)
         else:
             messages.error(request, "用户名或密码错误")
 

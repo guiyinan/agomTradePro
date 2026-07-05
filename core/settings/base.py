@@ -214,7 +214,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Authentication URLs
 LOGIN_URL = "/account/login/"
-LOGIN_REDIRECT_URL = "/dashboard/"
+LOGIN_REDIRECT_URL = "/tui/"
 LOGOUT_REDIRECT_URL = "/"
 
 # Authentication backends

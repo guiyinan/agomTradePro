@@ -151,6 +151,7 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     response = client.get("/tui/")
 
     assert response.status_code == 200
+    assert response.cookies["agom_ui_mode"].value == "tui"
     html = response.content.decode()
     assert "TUI Workbench - AgomTradePro" in html
     assert "tui-workbench.css" in html
@@ -170,6 +171,8 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "data-theme-indicator" in html
     assert "data-theme-indicator-code" in html
     assert "T:B" in html
+    assert 'href="/dashboard/"' in html
+    assert "<strong>Classic</strong> 界面" in html
     assert "data-toggle-rail" in html
     assert "data-toggle-inspector" in html
     assert "data-inspector-resize-handle" in html

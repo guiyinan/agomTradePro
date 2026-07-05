@@ -11,6 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 
 from apps.terminal.application.interface_services import get_terminal_config_page_context
+from core.ui_modes import UI_MODE_TUI, set_ui_mode_cookie
 
 
 def _staff_required(view_func):
@@ -66,7 +67,8 @@ class TuiWorkbenchView(View):
             'page_title': 'TUI Workbench',
             'page_description': 'API-native PC tools interface',
         }
-        return render(request, 'terminal/tui_workbench.html', context)
+        response = render(request, 'terminal/tui_workbench.html', context)
+        return set_ui_mode_cookie(response, mode=UI_MODE_TUI)
 
 
 # 函数式视图兼容

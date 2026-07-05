@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import Http404, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from apps.account.application.documentation_use_cases import (
     DocumentationNotFound,
@@ -16,13 +16,14 @@ from apps.account.application.documentation_use_cases import (
 )
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import is_healthy, run_readiness_checks
+from core.ui_modes import DEFAULT_TUI_PATH, UI_MODE_TUI, set_ui_mode_cookie
 
 
 def index_view(request):
-    """首页视图 - 重定向到 Dashboard"""
-    from django.shortcuts import redirect
+    """首页视图 - 默认进入 TUI 工作台。"""
 
-    return redirect("/dashboard/")
+    response = redirect(DEFAULT_TUI_PATH)
+    return set_ui_mode_cookie(response, mode=UI_MODE_TUI)
 
 
 def health_view(request):

@@ -6,6 +6,8 @@ Core Context Processors
 
 import logging
 
+from core.ui_modes import UI_MODE_CLASSIC, UI_MODE_COOKIE, VALID_UI_MODES
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MARKET_VISUALS = {
@@ -21,20 +23,16 @@ _DEFAULT_MARKET_VISUALS = {
     "label": "A股红涨绿跌",
 }
 _AUTH_PAGE_PATH_PREFIXES = ("/account/login/", "/account/register/")
-_UI_MODE_COOKIE = "agom_ui_mode"
-_VALID_UI_MODES = {"classic", "tui"}
-
-
 def get_ui_mode(request) -> dict[str, object]:
     """Return the browser-selected UI mode for template chrome."""
 
     raw_mode = ""
     if request is not None:
-        raw_mode = str(getattr(request, "COOKIES", {}).get(_UI_MODE_COOKIE, "") or "")
-    ui_mode = raw_mode if raw_mode in _VALID_UI_MODES else "classic"
+        raw_mode = str(getattr(request, "COOKIES", {}).get(UI_MODE_COOKIE, "") or "")
+    ui_mode = raw_mode if raw_mode in VALID_UI_MODES else UI_MODE_CLASSIC
     return {
         "ui_mode": ui_mode,
-        "is_tui_mode": ui_mode == "tui",
+        "is_tui_mode": ui_mode != UI_MODE_CLASSIC,
     }
 
 
