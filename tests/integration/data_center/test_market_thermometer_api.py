@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
+from apps.data_center.application.market_thermometer_dates import (
+    resolve_market_thermometer_as_of_date,
+)
 from apps.data_center.infrastructure.models import (
     MacroFactModel,
     MarketThermometerSnapshotModel,
@@ -44,7 +47,8 @@ def user_client(db):
 @pytest.mark.django_db
 def test_market_thermometer_current_returns_user_override_contract(user_client):
     user = User.objects.get(username="thermo-user")
-    for observed_at in (date.today(), date.today() - timedelta(days=1)):
+    decision_safe_date = resolve_market_thermometer_as_of_date()
+    for observed_at in (decision_safe_date, decision_safe_date - timedelta(days=1)):
         MarketThermometerSnapshotModel.objects.create(
             observed_at=observed_at,
             score=78.0,

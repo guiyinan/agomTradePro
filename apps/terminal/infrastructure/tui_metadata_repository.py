@@ -1560,7 +1560,7 @@ class PublishedTuiMetadataRepository:
             screens=screens,
             actions=actions,
         )
-        injected_config_center = self._inject_config_center_metadata(actions=actions)
+        injected_config_center = self._inject_config_center_metadata(screens=screens, actions=actions)
         injected = (
             injected_cli
             + injected_capability_router
@@ -1757,14 +1757,10 @@ class PublishedTuiMetadataRepository:
         if not any(group.get("key") == RUNTIME_CLI_GROUP["key"] for group in groups):
             groups.append(dict(RUNTIME_CLI_GROUP))
             injected += 1
-        if not any(
-            module.get("key") == RUNTIME_CAPABILITY_ROUTER_MODULE["key"] for module in modules
-        ):
+        if not any(module.get("key") == RUNTIME_CAPABILITY_ROUTER_MODULE["key"] for module in modules):
             modules.append(dict(RUNTIME_CAPABILITY_ROUTER_MODULE))
             injected += 1
-        if not any(
-            screen.get("key") == RUNTIME_CAPABILITY_ROUTER_SCREEN["key"] for screen in screens
-        ):
+        if not any(screen.get("key") == RUNTIME_CAPABILITY_ROUTER_SCREEN["key"] for screen in screens):
             screens.append(dict(RUNTIME_CAPABILITY_ROUTER_SCREEN))
             injected += 1
         existing_actions = {str(action.get("key") or "") for action in actions}
@@ -1817,12 +1813,15 @@ class PublishedTuiMetadataRepository:
         return injected
 
     @staticmethod
-    def _inject_config_center_metadata(*, actions: list[dict[str, Any]]) -> int:
+    def _inject_config_center_metadata(*, screens: list[dict[str, Any]], actions: list[dict[str, Any]]) -> int:
         """Inject Config Center actions added after the reviewed metadata snapshot."""
 
         injected = 0
+        screen_keys = {str(screen.get("key") or "") for screen in screens}
         existing_actions = {str(action.get("key") or "") for action in actions}
         for action in RUNTIME_CONFIG_CENTER_ACTIONS:
+            if str(action.get("screen_key") or "") not in screen_keys:
+                continue
             if action["key"] in existing_actions:
                 continue
             actions.append(dict(action))
