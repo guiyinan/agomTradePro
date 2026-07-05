@@ -70,16 +70,24 @@ class RotationSignalSerializer(serializers.ModelSerializer):
     def get_data_quality(self, obj) -> dict:
         """Expose data-quality metadata for persisted signals."""
         universe = getattr(obj.config, 'asset_universe', []) or []
+        strategy_type = getattr(obj.config, 'strategy_type', '')
         ranking = obj.momentum_ranking or []
         allocation = obj.target_allocation or {}
-        coverage_ratio = len(ranking) / len(universe) if universe else 0.0
+        requires_ranking = strategy_type in {
+            'momentum',
+            'regime_based',
+            'custom',
+            'mean_reversion',
+        }
+        coverage_count = len(ranking) if requires_ranking else len(allocation)
+        coverage_ratio = coverage_count / len(universe) if universe else 0.0
         metrics_available = (
             float(obj.expected_return or 0.0) != 0.0
             or float(obj.expected_volatility or 0.0) != 0.0
         )
         warnings = []
         status = 'ok'
-        if universe and len(ranking) < len(universe):
+        if universe and coverage_count < len(universe):
             status = 'degraded'
             warnings.append('partial_price_coverage')
         if not metrics_available:

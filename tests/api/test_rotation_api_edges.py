@@ -112,3 +112,37 @@ def test_rotation_latest_signal_exposes_quality_metadata(authenticated_client):
         "stale_rotation_signal",
         "rotation_data_quality_degraded",
     }
+
+
+@pytest.mark.django_db
+def test_rotation_latest_signal_treats_risk_parity_allocation_as_quality_coverage(
+    authenticated_client,
+):
+    config = RotationConfigModel.objects.create(
+        name="风险平价质量测试",
+        strategy_type="risk_parity",
+        asset_universe=["510300", "510500"],
+        top_n=2,
+        is_active=True,
+    )
+    RotationSignalModel.objects.create(
+        config=config,
+        signal_date="2026-07-05",
+        target_allocation={"510300": 0.6, "510500": 0.4},
+        momentum_ranking=[],
+        expected_return=0.08,
+        expected_volatility=0.12,
+        action_required="rebalance",
+        reason="risk parity allocation",
+    )
+
+    response = authenticated_client.get("/api/rotation/signals/latest/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    row = next(item for item in payload if item["config_name"] == "风险平价质量测试")
+    assert row["data_quality"]["status"] == "ok"
+    assert row["data_quality"]["coverage_ratio"] == 1.0
+    assert row["data_quality"]["warnings"] == []
+    assert row["actionable"] is True
+    assert row["execution_block_reason"] is None
