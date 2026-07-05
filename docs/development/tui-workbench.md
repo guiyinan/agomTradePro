@@ -242,6 +242,12 @@ The same runtime normalization layer may also patch view metadata when the publi
 
 Another runtime patch converts `auto.api.get.api.dashboard.alpha.history` into a `datagrid` backed by `data`, so the dashboard screen exposes real Alpha history rows and the follow-up `run_id` detail action can work through selected-row flow instead of acting like a blind ID form.
 
+The same runtime-patch layer now also upgrades `macro-regime.beta-gate` into a real overview screen: it defaults to `auto.api.get.api.beta-gate.decisions` instead of the directory-style root API and exposes dedicated overview panels for recent decisions, active configs, universe snapshots, and version comparisons.
+
+The same explicit runtime patch pattern now also corrects several screens that had drifted back to weak entrypoints: `api-library.data-center` defaults to `指标目录` and exposes provider/publisher overview panels, `execution.share` defaults to `分享链接`, `execution.events` defaults to `事件查询` with metric/status panels, `research.alpha-triggers` defaults to `可操作候选` with trigger/watch-list panels, and the `macro-regime.pulse` / `macro-regime.hedge` screens now expose row-backed overview panels instead of relying on a single generic default task.
+
+The same cleanup also removes parameter-blocking defaults from workflow screens: `command-center.auto-advisor` now opens with an account-selector grid before `今日自动投顾建议单`, and `risk-center.overview` now lands on account policies plus floor/template overview instead of immediately demanding `account_id`.
+
 The runtime layer may also re-home published actions to a different user screen when the original screen has the wrong row source. Current example: account-level performance, valuation, and position actions are moved to `execution.accounts`, because account and position checks should share the account row source and account selector instead of being split across portfolio or ledger screens.
 
 The same rule also applies in the opposite direction: portfolio-scoped strategy actions such as `策略绑定（按组合）` and `策略执行记录（按组合）` should live on `execution.portfolio-performance`, not on `macro-regime.strategy`, because a default strategy row must not prefill `portfolio_id` with a strategy primary key.
@@ -283,6 +289,7 @@ Use this flow when adding or changing TUI screens:
 
    `--publish-ready` writes a compact runtime graph without source evidence arrays; evidence remains in the generated evidence file.
    The smoke step executes the published actions through the same service used by `/tui/`; actions with required fields are counted as `needs_input`, and failed auto-discovered candidates are removed from the ordinary published graph.
+   The promotion step now also applies an operator-first default-action pass: directory-like root APIs, required-input defaults without a same-screen selector, and weak non-grid defaults on grid-first screens are replaced with row-backed or selector-based entrypoints before publication.
 
 3. Edit `config/tui/generated/*.json` only when AI/human review needs better labels, grouping, descriptions, task order, or view-model paths. Do not invent fields, value types, widgets, visibility rules, editability rules, confirmation policy, or action risk in the generated graph. If the existing schema cannot express the needed UI, upgrade `config/tui/schema/tui_metadata.schema.v3.json` and `validate_tui_metadata()` first.
 4. Validate:

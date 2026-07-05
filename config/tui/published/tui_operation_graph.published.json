@@ -90,7 +90,6 @@
           "title": "零、今日待办",
           "kind": "datagrid",
           "action_key": "decision.workspace.today_queue",
-          "max_rows": 8,
           "layout_area": "queue",
           "columns": [
             {
@@ -461,7 +460,7 @@
       "group": "research",
       "summary": "查看可用因子定义，作为研究解释和筛选依据。",
       "view_type": "datagrid",
-      "default_action_key": "factor.definitions",
+      "default_action_key": "auto.api.get.api.factor.all-configs",
       "business_context": {
         "objective": "查看可用因子定义，作为研究解释和筛选依据。",
         "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
@@ -479,7 +478,7 @@
       "group": "research",
       "summary": "查看回测统计和历史回测结果。",
       "view_type": "datagrid",
-      "default_action_key": "backtest.backtests",
+      "default_action_key": "auto.api.get.api.backtest.backtests.statistics",
       "business_context": {
         "objective": "查看回测统计和历史回测结果。",
         "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
@@ -497,7 +496,7 @@
       "group": "execution",
       "summary": "查看操作日志和决策链路，支持事后复盘。",
       "view_type": "datagrid",
-      "default_action_key": "audit.operation_logs",
+      "default_action_key": "auto.api.get.api.audit.health",
       "workflow": {
         "name": "每日投研流程",
         "step": 14,
@@ -783,7 +782,7 @@
       "group": "system",
       "summary": "查看数据中心状态、新闻、市场温度和个人阈值。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.data-center",
+      "default_action_key": "auto.api.get.api.data-center.indicators",
       "business_context": {
         "objective": "查看数据中心状态、新闻、市场温度和个人阈值。",
         "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
@@ -801,7 +800,7 @@
       "group": "execution",
       "summary": "查看事件查询、事件指标、实时状态和运行状态，辅助盘中检查。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.events.status",
+      "default_action_key": "auto.api.get.api.events.query",
       "workflow": {
         "name": "每日投研流程",
         "step": 13,
@@ -834,7 +833,7 @@
       "group": "execution",
       "summary": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.share",
+      "default_action_key": "auto.api.get.api.share.links",
       "workflow": {
         "name": "每日投研流程",
         "step": 15,
@@ -918,7 +917,7 @@
       "group": "macro",
       "summary": "查看 Beta Gate 状态、配置、决策记录、标的池和版本对比，判断市场暴露是否放行。",
       "view_type": "status",
-      "default_action_key": "auto.api.get.api.beta-gate",
+      "default_action_key": "auto.api.get.api.beta-gate.decisions",
       "business_context": {
         "objective": "单独核对 Beta Gate 是否允许当前市场暴露，避免组合暴露和市场状态冲突。",
         "decision_output": "Beta Gate 结论：放行、限制、禁止或需要版本复核。",
@@ -1026,7 +1025,7 @@
       "group": "research",
       "summary": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。",
       "view_type": "datagrid",
-      "default_action_key": "auto.api.get.api.alpha-triggers.candidates.statistics",
+      "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
       "business_context": {
         "objective": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。",
         "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
@@ -1108,7 +1107,7 @@
       "source": "published",
       "task_group": "00 今日待办",
       "sequence": 50,
-      "task_tier": "primary"
+      "task_tier": "support"
     },
     {
       "key": "terminal.chat_router",
@@ -4013,38 +4012,38 @@
       "intent": "parameterized_safe_read",
       "screen_key": "execution.accounts",
       "view_type": "datagrid",
-        "fields": [
-          {
-            "key": "account_id",
-            "label": "账户 ID",
-            "input_type": "number",
-            "required": true,
-            "default": "",
-            "placeholder": "输入账户 ID",
-            "binding": "path",
-            "value_type": "integer"
-          },
-          {
-            "key": "start_date",
-            "label": "开始日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入开始日期"
-          },
-          {
-            "key": "end_date",
-            "label": "结束日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入结束日期"
-          }
-        ],
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer"
+        },
+        {
+          "key": "start_date",
+          "label": "开始日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入开始日期"
+        },
+        {
+          "key": "end_date",
+          "label": "结束日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入结束日期"
+        }
+      ],
       "description": "查看账户健康、组合、持仓、流水、资产和交易成本，作为执行前检查。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
@@ -4058,28 +4057,28 @@
       "intent": "parameterized_safe_read",
       "screen_key": "execution.trading-ledger",
       "view_type": "datagrid",
-        "fields": [
-          {
-            "key": "account_id",
-            "label": "账户 ID",
-            "input_type": "number",
-            "required": true,
-            "default": "",
-            "placeholder": "输入账户 ID",
-            "binding": "path",
-            "value_type": "integer"
-          },
-          {
-            "key": "as_of_date",
-            "label": "日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入日期"
-          }
-        ],
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer"
+        },
+        {
+          "key": "as_of_date",
+          "label": "日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入日期"
+        }
+      ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
@@ -4763,38 +4762,38 @@
       "intent": "parameterized_safe_read",
       "screen_key": "execution.account-settings",
       "view_type": "datagrid",
-        "fields": [
-          {
-            "key": "portfolio_id",
-            "label": "组合 ID",
-            "input_type": "number",
-            "required": true,
-            "default": "",
-            "placeholder": "输入组合 ID",
-            "binding": "path",
-            "value_type": "integer"
-          },
-          {
-            "key": "start_date",
-            "label": "开始日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入开始日期"
-          },
-          {
-            "key": "end_date",
-            "label": "结束日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入结束日期"
-          }
-        ],
+      "fields": [
+        {
+          "key": "portfolio_id",
+          "label": "组合 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入组合 ID",
+          "binding": "path",
+          "value_type": "integer"
+        },
+        {
+          "key": "start_date",
+          "label": "开始日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入开始日期"
+        },
+        {
+          "key": "end_date",
+          "label": "结束日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入结束日期"
+        }
+      ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
@@ -4938,38 +4937,38 @@
       "intent": "parameterized_safe_read",
       "screen_key": "execution.trading-ledger",
       "view_type": "datagrid",
-        "fields": [
-          {
-            "key": "account_id",
-            "label": "账户 ID",
-            "input_type": "number",
-            "required": true,
-            "default": "",
-            "placeholder": "输入账户 ID",
-            "binding": "path",
-            "value_type": "integer"
-          },
-          {
-            "key": "start_date",
-            "label": "开始日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入开始日期"
-          },
-          {
-            "key": "end_date",
-            "label": "结束日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入结束日期"
-          }
-        ],
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer"
+        },
+        {
+          "key": "start_date",
+          "label": "开始日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入开始日期"
+        },
+        {
+          "key": "end_date",
+          "label": "结束日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入结束日期"
+        }
+      ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
@@ -4983,28 +4982,28 @@
       "intent": "parameterized_safe_read",
       "screen_key": "execution.trading-ledger",
       "view_type": "datagrid",
-        "fields": [
-          {
-            "key": "account_id",
-            "label": "账户 ID",
-            "input_type": "number",
-            "required": true,
-            "default": "",
-            "placeholder": "输入账户 ID",
-            "binding": "path",
-            "value_type": "integer"
-          },
-          {
-            "key": "as_of_date",
-            "label": "日期",
-            "input_type": "date",
-            "required": true,
-            "binding": "query",
-            "value_type": "date",
-            "default": "",
-            "placeholder": "输入日期"
-          }
-        ],
+      "fields": [
+        {
+          "key": "account_id",
+          "label": "账户 ID",
+          "input_type": "number",
+          "required": true,
+          "default": "",
+          "placeholder": "输入账户 ID",
+          "binding": "path",
+          "value_type": "integer"
+        },
+        {
+          "key": "as_of_date",
+          "label": "日期",
+          "input_type": "date",
+          "required": true,
+          "binding": "query",
+          "value_type": "date",
+          "default": "",
+          "placeholder": "输入日期"
+        }
+      ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "07 条件查询",
@@ -6724,27 +6723,26 @@
       "intent": "access_public_share",
       "screen_key": "execution.share",
       "view_type": "detail",
-      "risk": "read",
       "fields": [
         {
           "key": "short_code",
           "label": "分享码",
           "input_type": "text",
           "required": true,
-          "default": "",
           "placeholder": "输入分享码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "default": ""
         },
         {
           "key": "password",
           "label": "访问密码",
           "input_type": "text",
           "required": false,
-          "default": "",
           "placeholder": "如分享受密码保护则输入访问密码",
           "binding": "body",
-          "value_type": "string"
+          "value_type": "string",
+          "default": ""
         }
       ],
       "description": "输入分享码和可选访问密码，建立当前会话的公开分享访问权限。",
@@ -6820,31 +6818,6 @@
           "placeholder": "输入Capability Key",
           "binding": "path",
           "value_type": "string"
-        }
-      ],
-      "description": "查看系统可用的 AI 能力和能力分布。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "06 条件查询",
-      "sequence": 600,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.ai-capability.capabilities.pk",
-      "label": "AI 能力详情",
-      "endpoint": "/api/ai-capability/capabilities/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "ai-ops.capabilities",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer"
         }
       ],
       "description": "查看系统可用的 AI 能力和能力分布。（查看）",
@@ -9154,14 +9127,16 @@
       "write_like_or_heavy": 30,
       "internal_debug_or_docs": 8
     },
-    "business_promoted_actions": 319,
-    "approved_operation_actions": 15,
-    "pruned_empty_screens": 7,
+    "business_promoted_actions": 316,
+    "approved_operation_actions": 19,
+    "pruned_empty_screens": 0,
     "smoke_total": 354,
     "smoke_ok": 215,
     "smoke_needs_input": 139,
     "smoke_error": 0,
-    "smoke_pruned_auto_actions": 0
+    "smoke_pruned_auto_actions": 0,
+    "operator_first_default_actions": 1,
+    "pruned_redundant_screen_actions": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3"

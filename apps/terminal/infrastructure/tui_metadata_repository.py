@@ -22,6 +22,22 @@ RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS: dict[str, set[str]] = {
     "ai-ops.capabilities": {
         "param.api.get.api.ai-capability.capabilities.pk",
     },
+    "api-library.data-center": {
+        "auto.api.get.api.data-center",
+    },
+    "execution.events": {
+        "auto.api.get.api.events",
+    },
+    "execution.share": {
+        "auto.api.get.api.share",
+    },
+    "macro-regime.beta-gate": {
+        "auto.api.get.api.beta-gate",
+        "auto.api.get.api.beta-gate.health",
+    },
+    "research.alpha-triggers": {
+        "auto.api.get.api.alpha-triggers",
+    },
 }
 
 RUNTIME_SCREEN_PATCHES: dict[str, dict[str, Any]] = {
@@ -162,6 +178,326 @@ RUNTIME_SCREEN_PATCHES: dict[str, dict[str, Any]] = {
                 "max_rows": 6,
                 "layout_area": "weight_configs",
                 "target_screen": "research.asset-lab",
+            },
+        ],
+    },
+    "macro-regime.beta-gate": {
+        "default_action_key": "auto.api.get.api.beta-gate.decisions",
+        "business_context": {
+            "objective": "先看最近闸门决策，再核对配置、标的池和版本差异，判断当前市场暴露是否允许放行。",
+            "decision_output": "Beta 闸门结论：放行、限制、禁止或需要版本复核。",
+            "checkpoints": [
+                "先看最近决策，确认哪些标的被放行、限制或拦截。",
+                "再看配置和标的池，确认当前约束是否符合目标风险画像。",
+                "需要核对规则变动时再进入版本对比，不直接执行。",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "beta-gate-decisions",
+                "title": "一、最近闸门决策",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.beta-gate.decisions",
+                "max_rows": 8,
+                "layout_area": "decisions",
+                "target_screen": "macro-regime.beta-gate",
+                "columns": [
+                    {"key": "asset_code", "label": "标的"},
+                    {"key": "status", "label": "结论"},
+                    {"key": "current_regime", "label": "环境"},
+                    {"key": "policy_level", "label": "政策档位"},
+                    {"key": "evaluated_at", "label": "评估时间"},
+                ],
+            },
+            {
+                "key": "beta-gate-configs",
+                "title": "二、当前配置版本",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.beta-gate.configs",
+                "max_rows": 6,
+                "layout_area": "configs",
+                "target_screen": "macro-regime.beta-gate",
+                "columns": [
+                    {"key": "config_id", "label": "配置ID"},
+                    {"key": "risk_profile", "label": "风险画像"},
+                    {"key": "version", "label": "版本"},
+                    {"key": "is_active", "label": "启用"},
+                    {"key": "effective_date", "label": "生效日期"},
+                ],
+            },
+            {
+                "key": "beta-gate-universe",
+                "title": "三、最近标的池快照",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.beta-gate.universe",
+                "max_rows": 6,
+                "layout_area": "universe",
+                "target_screen": "macro-regime.beta-gate",
+                "columns": [
+                    {"key": "snapshot_id", "label": "快照ID"},
+                    {"key": "current_regime", "label": "环境"},
+                    {"key": "policy_level", "label": "政策档位"},
+                    {"key": "risk_profile", "label": "风险画像"},
+                    {"key": "created_at", "label": "生成时间"},
+                ],
+            },
+            {
+                "key": "beta-gate-version-compare",
+                "title": "四、最近配置版本",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.beta-gate.version.compare",
+                "max_rows": 6,
+                "layout_area": "versions",
+                "target_screen": "macro-regime.beta-gate",
+                "columns": [
+                    {"key": "config_id", "label": "配置ID"},
+                    {"key": "risk_profile", "label": "风险画像"},
+                    {"key": "version", "label": "版本"},
+                    {"key": "is_active", "label": "启用"},
+                    {"key": "created_at", "label": "创建时间"},
+                ],
+            },
+        ],
+    },
+    "api-library.data-center": {
+        "default_action_key": "auto.api.get.api.data-center.indicators",
+        "business_context": {
+            "objective": "先从指标目录进入，再用同屏目录和筛选任务完成数据源检查、指标查询和同步动作。",
+            "decision_output": "数据中心结论：指标可查、服务商异常、发布机构缺失或需要补同步。",
+            "checkpoints": [
+                "先看指标目录，确认当前可用指标和代码。",
+                "再看服务商列表与发布机构目录，确认来源是否可用。",
+                "需要查宏观序列或补同步时，优先从当前目录行填参进入后续任务。",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "data-center-indicators",
+                "title": "一、指标目录",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.data-center.indicators",
+                "max_rows": 8,
+                "layout_area": "indicators",
+                "target_screen": "api-library.data-center",
+            },
+            {
+                "key": "data-center-providers",
+                "title": "二、服务商列表",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.data-center.providers",
+                "max_rows": 6,
+                "layout_area": "providers",
+                "target_screen": "api-library.data-center",
+            },
+            {
+                "key": "data-center-publishers",
+                "title": "三、发布机构目录",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.data-center.publishers",
+                "max_rows": 6,
+                "layout_area": "publishers",
+                "target_screen": "api-library.data-center",
+            },
+        ],
+    },
+    "execution.events": {
+        "default_action_key": "auto.api.get.api.events.query",
+        "business_context": {
+            "objective": "先看最近事件，再核对事件指标和运行状态，判断事件总线是否支持当前执行链路。",
+            "decision_output": "事件结论：正常、堆积、失败升高或需要排查订阅端。",
+            "checkpoints": [
+                "先看最近事件，确认是否持续产出和消费。",
+                "再看事件指标，确认失败数、成功率和处理耗时。",
+                "最后看运行状态，确认队列大小和订阅端数量。",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "events-query",
+                "title": "一、最近事件",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.events.query",
+                "max_rows": 8,
+                "layout_area": "events",
+                "target_screen": "execution.events",
+            },
+            {
+                "key": "events-metrics",
+                "title": "二、事件指标",
+                "kind": "detail",
+                "action_key": "auto.api.get.api.events.metrics",
+                "layout_area": "metrics",
+                "target_screen": "execution.events",
+            },
+            {
+                "key": "events-status",
+                "title": "三、事件状态",
+                "kind": "detail",
+                "action_key": "auto.api.get.api.events.status",
+                "layout_area": "status",
+                "target_screen": "execution.events",
+            },
+        ],
+    },
+    "execution.share": {
+        "default_action_key": "auto.api.get.api.share.links",
+        "business_context": {
+            "objective": "先看分享链接，再沿着同屏详情、日志和快照动作检查分享链路是否可用。",
+            "decision_output": "分享结论：链接正常、访问受限、快照缺失或需要重新生成公开入口。",
+            "checkpoints": [
+                "先看分享链接列表，确认短码、主题和所属账户。",
+                "再从选中行进入详情、日志、快照或统计。",
+                "公开访问需要短码和密码时，用专门的验证访问动作处理。",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "share-links",
+                "title": "一、分享链接",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.share.links",
+                "max_rows": 8,
+                "layout_area": "links",
+                "target_screen": "execution.share",
+            },
+        ],
+    },
+    "command-center.auto-advisor": {
+        "default_action_key": "advisor.account_selector",
+        "dashboard_panels": [
+            {
+                "key": "advisor-account-selector",
+                "title": "一、账户选择",
+                "kind": "datagrid",
+                "action_key": "advisor.account_selector",
+                "max_rows": 8,
+                "layout_area": "accounts",
+                "target_screen": "command-center.auto-advisor",
+            },
+        ],
+    },
+    "macro-regime.hedge": {
+        "dashboard_panels": [
+            {
+                "key": "hedge-latest-snapshots",
+                "title": "一、最新对冲快照",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.hedge.snapshots.latest",
+                "max_rows": 8,
+                "layout_area": "snapshots",
+                "target_screen": "macro-regime.hedge",
+            },
+            {
+                "key": "hedge-active-alerts",
+                "title": "二、当前对冲预警",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.hedge.alerts.active",
+                "max_rows": 6,
+                "layout_area": "alerts",
+                "target_screen": "macro-regime.hedge",
+            },
+            {
+                "key": "hedge-effectiveness",
+                "title": "三、对冲有效性",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.hedge.pairs.all_effectiveness",
+                "max_rows": 6,
+                "layout_area": "effectiveness",
+                "target_screen": "macro-regime.hedge",
+            },
+        ],
+    },
+    "macro-regime.pulse": {
+        "dashboard_panels": [
+            {
+                "key": "pulse-current",
+                "title": "一、当前脉搏指标",
+                "kind": "datagrid",
+                "action_key": "pulse.current",
+                "max_rows": 8,
+                "layout_area": "current",
+                "target_screen": "macro-regime.pulse",
+            },
+            {
+                "key": "pulse-history",
+                "title": "二、脉搏历史",
+                "kind": "datagrid",
+                "action_key": "pulse.history",
+                "max_rows": 8,
+                "layout_area": "history",
+                "target_screen": "macro-regime.pulse",
+            },
+        ],
+    },
+    "risk-center.overview": {
+        "default_action_key": "risk-center.account-policies",
+        "dashboard_panels": [
+            {
+                "key": "risk-center-floor",
+                "title": "一、全局底线",
+                "kind": "detail",
+                "action_key": "risk-center.floor",
+                "layout_area": "floor",
+                "target_screen": "risk-center.overview",
+            },
+            {
+                "key": "risk-center-account-policies",
+                "title": "二、账户策略",
+                "kind": "datagrid",
+                "action_key": "risk-center.account-policies",
+                "max_rows": 8,
+                "layout_area": "policies",
+                "target_screen": "risk-center.overview",
+            },
+            {
+                "key": "risk-center-templates",
+                "title": "三、风险模板",
+                "kind": "datagrid",
+                "action_key": "risk-center.templates",
+                "max_rows": 6,
+                "layout_area": "templates",
+                "target_screen": "risk-center.overview",
+            },
+        ],
+    },
+    "research.alpha-triggers": {
+        "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+        "business_context": {
+            "objective": "先看可操作候选，再核对活跃触发器和观察列表，判断今天应该推进哪些研究动作。",
+            "decision_output": "Alpha 触发结论：立即跟进、继续观察、等待触发或复核绩效。",
+            "checkpoints": [
+                "先看可操作候选，确认今天最值得推进的标的。",
+                "再看活跃触发器和观察列表，确认触发背景是否延续。",
+                "需要复核历史效果时再看触发器绩效。",
+            ],
+        },
+        "dashboard_panels": [
+            {
+                "key": "alpha-triggers-actionable",
+                "title": "一、可操作候选",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+                "max_rows": 8,
+                "layout_area": "actionable",
+                "target_screen": "research.alpha-triggers",
+            },
+            {
+                "key": "alpha-triggers-active",
+                "title": "二、活跃触发器",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.alpha-triggers.triggers.active",
+                "max_rows": 6,
+                "layout_area": "triggers",
+                "target_screen": "research.alpha-triggers",
+            },
+            {
+                "key": "alpha-triggers-watch-list",
+                "title": "三、观察列表",
+                "kind": "datagrid",
+                "action_key": "auto.api.get.api.alpha-triggers.candidates.watch-list",
+                "max_rows": 6,
+                "layout_area": "watch_list",
+                "target_screen": "research.alpha-triggers",
             },
         ],
     },
@@ -378,15 +714,36 @@ RUNTIME_ADVISOR_SCREEN: dict[str, Any] = {
     "group": "workflow",
     "summary": "按账户读取持仓驱动的今日建议单和建议订单清单。",
     "view_type": "datagrid",
-    "default_action_key": "advisor.today_sheet",
+    "default_action_key": "advisor.account_selector",
     "business_context": {
         "objective": "确认一个账户今天是否行动、下多少单、每单怎么下。",
         "decision_output": "账户级结论、持仓摘要、建议订单清单和阻断项。",
         "checkpoints": [
-            "先输入账户 ID 读取该账户持仓。",
+            "先选账户，再进入今日建议单。",
             "优先检查减仓、清仓和阻断项。",
             "新增买入只在现金、价格和风控允许时展示。",
         ],
+    },
+}
+
+RUNTIME_ADVISOR_SELECTOR_ACTION: dict[str, Any] = {
+    "key": "advisor.account_selector",
+    "label": "账户选择",
+    "endpoint": "/api/account/accounts/",
+    "method": "GET",
+    "intent": "read_account_selector_for_auto_advisor",
+    "risk": "read",
+    "screen_key": "command-center.auto-advisor",
+    "view_type": "datagrid",
+    "description": "先选账户，再继续查看该账户的今日自动投顾建议单。",
+    "source": "approved:runtime-advisor",
+    "task_group": "01 账户选择",
+    "sequence": 90,
+    "task_tier": "primary",
+    "fields": [],
+    "view_model": {
+        "rows_path": "accounts",
+        "total_path": "count",
     },
 }
 
@@ -439,7 +796,7 @@ RUNTIME_RISK_CENTER_SCREEN: dict[str, Any] = {
     "group": "workflow",
     "summary": "按账户读取最终生效风控策略，并执行经过确认的风控配置变更。",
     "view_type": "datagrid",
-    "default_action_key": "risk-center.effective-policy",
+    "default_action_key": "risk-center.account-policies",
     "business_context": {
         "objective": "确认账户/组合在交易前实际受到哪些集中风控规则约束。",
         "decision_output": "有效策略、继承来源、全局底线压制和管理员例外说明。",
@@ -1815,6 +2172,9 @@ class PublishedTuiMetadataRepository:
         injected = 0
         if not any(screen.get("key") == RUNTIME_ADVISOR_SCREEN["key"] for screen in screens):
             screens.append(dict(RUNTIME_ADVISOR_SCREEN))
+            injected += 1
+        if not any(action.get("key") == RUNTIME_ADVISOR_SELECTOR_ACTION["key"] for action in actions):
+            actions.append(dict(RUNTIME_ADVISOR_SELECTOR_ACTION))
             injected += 1
         if not any(action.get("key") == RUNTIME_ADVISOR_ACTION["key"] for action in actions):
             actions.append(dict(RUNTIME_ADVISOR_ACTION))

@@ -1103,3 +1103,331 @@ def test_promoter_prunes_redundant_capability_pk_detail_action(promoter_module):
     assert "param.api.get.api.ai-capability.capabilities.str.capability_key" in keys
     assert "param.api.get.api.ai-capability.capabilities.pk" not in keys
     assert "param.api.get.api.ai.me.providers.pk" in keys
+
+
+def test_promoter_prefers_operator_first_defaults_for_known_screens(promoter_module):
+    payload = {
+        "screens": [
+            {
+                "key": "macro-regime.beta-gate",
+                "view_type": "status",
+                "default_action_key": "auto.api.get.api.beta-gate",
+            },
+            {
+                "key": "api-library.data-center",
+                "view_type": "datagrid",
+                "default_action_key": "auto.api.get.api.data-center",
+            },
+            {
+                "key": "execution.events",
+                "view_type": "datagrid",
+                "default_action_key": "auto.api.get.api.events.status",
+            },
+            {
+                "key": "execution.share",
+                "view_type": "datagrid",
+                "default_action_key": "auto.api.get.api.share",
+            },
+            {
+                "key": "research.alpha-triggers",
+                "view_type": "datagrid",
+                "default_action_key": "auto.api.get.api.alpha-triggers.candidates.statistics",
+            },
+        ],
+        "actions": [
+            {
+                "key": "auto.api.get.api.beta-gate",
+                "screen_key": "macro-regime.beta-gate",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "status",
+                "endpoint": "/api/beta-gate/",
+                "fields": [],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.beta-gate.decisions",
+                "screen_key": "macro-regime.beta-gate",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/beta-gate/decisions/",
+                "fields": [],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.data-center",
+                "screen_key": "api-library.data-center",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/data-center/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.data-center.indicators",
+                "screen_key": "api-library.data-center",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/data-center/indicators/",
+                "fields": [],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.events.status",
+                "screen_key": "execution.events",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "detail",
+                "endpoint": "/api/events/status/",
+                "fields": [],
+                "sequence": 300,
+                "task_tier": "support",
+            },
+            {
+                "key": "auto.api.get.api.events.query",
+                "screen_key": "execution.events",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/events/query/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.share",
+                "screen_key": "execution.share",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/share/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "support",
+            },
+            {
+                "key": "auto.api.get.api.share.links",
+                "screen_key": "execution.share",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/share/links/",
+                "fields": [],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.alpha-triggers.candidates.statistics",
+                "screen_key": "research.alpha-triggers",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "detail",
+                "endpoint": "/api/alpha-triggers/candidates/statistics/",
+                "fields": [],
+                "sequence": 300,
+                "task_tier": "support",
+            },
+            {
+                "key": "auto.api.get.api.alpha-triggers.candidates.actionable",
+                "screen_key": "research.alpha-triggers",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/alpha-triggers/candidates/actionable/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+        ],
+    }
+
+    changed = promoter_module._apply_operator_first_default_actions(payload)
+
+    assert changed == 5
+    defaults = {screen["key"]: screen["default_action_key"] for screen in payload["screens"]}
+    assert defaults["macro-regime.beta-gate"] == "auto.api.get.api.beta-gate.decisions"
+    assert defaults["api-library.data-center"] == "auto.api.get.api.data-center.indicators"
+    assert defaults["execution.events"] == "auto.api.get.api.events.query"
+    assert defaults["execution.share"] == "auto.api.get.api.share.links"
+    assert (
+        defaults["research.alpha-triggers"]
+        == "auto.api.get.api.alpha-triggers.candidates.actionable"
+    )
+
+
+def test_promoter_keeps_explicit_non_problem_defaults(promoter_module):
+    payload = {
+        "screens": [
+            {
+                "key": "ai-ops.agent-runtime",
+                "view_type": "datagrid",
+                "default_action_key": "agent_runtime.needs_attention",
+            },
+            {
+                "key": "ai-ops.capabilities",
+                "view_type": "datagrid",
+                "default_action_key": "auto.api.get.api.ai",
+            },
+            {
+                "key": "macro-regime.navigator",
+                "view_type": "status",
+                "default_action_key": "auto.api.get.api.regime.health",
+            },
+        ],
+        "actions": [
+            {
+                "key": "auto.api.get.api.agent-runtime.tasks",
+                "screen_key": "ai-ops.agent-runtime",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/agent-runtime/tasks/",
+                "fields": [],
+                "sequence": 300,
+                "task_tier": "support",
+            },
+            {
+                "key": "agent_runtime.needs_attention",
+                "screen_key": "ai-ops.agent-runtime",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "detail",
+                "endpoint": "/api/agent-runtime/tasks/needs_attention/",
+                "fields": [],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "ai_capability.list",
+                "screen_key": "ai-ops.capabilities",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/ai-capability/capabilities/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.ai",
+                "screen_key": "ai-ops.capabilities",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/ai/",
+                "fields": [],
+                "sequence": 900,
+                "task_tier": "support",
+            },
+            {
+                "key": "regime.navigator",
+                "screen_key": "macro-regime.navigator",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "detail",
+                "endpoint": "/api/regime/navigator/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+            {
+                "key": "auto.api.get.api.regime.health",
+                "screen_key": "macro-regime.navigator",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "status",
+                "endpoint": "/api/regime/health/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+        ],
+    }
+
+    changed = promoter_module._apply_operator_first_default_actions(payload)
+
+    assert changed == 3
+    defaults = {screen["key"]: screen["default_action_key"] for screen in payload["screens"]}
+    assert defaults["ai-ops.agent-runtime"] == "auto.api.get.api.agent-runtime.tasks"
+    assert defaults["ai-ops.capabilities"] == "ai_capability.list"
+    assert defaults["macro-regime.navigator"] == "regime.navigator"
+
+
+def test_promoter_falls_back_from_required_field_default_to_selector(promoter_module):
+    payload = {
+        "screens": [
+            {
+                "key": "workflow.account-review",
+                "view_type": "datagrid",
+                "default_action_key": "review.detail",
+            }
+        ],
+        "actions": [
+            {
+                "key": "review.detail",
+                "screen_key": "workflow.account-review",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "detail",
+                "endpoint": "/api/review/detail/",
+                "fields": [
+                    {
+                        "key": "account_id",
+                        "required": True,
+                        "default": "",
+                    }
+                ],
+                "sequence": 200,
+                "task_tier": "primary",
+            },
+            {
+                "key": "review.selector",
+                "screen_key": "workflow.account-review",
+                "method": "GET",
+                "risk": "read",
+                "view_type": "datagrid",
+                "endpoint": "/api/account/accounts/",
+                "fields": [],
+                "sequence": 100,
+                "task_tier": "primary",
+            },
+        ],
+    }
+
+    changed = promoter_module._apply_operator_first_default_actions(payload)
+
+    assert changed == 1
+    assert payload["screens"][0]["default_action_key"] == "review.selector"
+
+
+def test_promoter_directory_root_detection_ignores_normal_collection_lists(promoter_module):
+    screen_actions = [
+        {
+            "key": "auto.api.get.api.account.accounts",
+            "endpoint": "/api/account/accounts/",
+        },
+        {
+            "key": "param.api.get.api.account.accounts.int.account_id",
+            "endpoint": "/api/account/accounts/<int:account_id>/",
+        },
+        {
+            "key": "auto.api.get.api.share",
+            "endpoint": "/api/share/",
+        },
+        {
+            "key": "auto.api.get.api.share.links",
+            "endpoint": "/api/share/links/",
+        },
+    ]
+
+    assert (
+        promoter_module._is_directory_root_action(screen_actions[0], screen_actions) is False
+    )
+    assert promoter_module._is_directory_root_action(screen_actions[2], screen_actions) is True

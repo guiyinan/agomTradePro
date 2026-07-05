@@ -106,7 +106,7 @@ SCREEN_SPECS = {
         "summary": "查看 Beta Gate 状态、配置、决策记录、标的池和版本对比，判断市场暴露是否放行。",
         "view_type": "status",
         "status": "online",
-        "default_action_key": "auto.api.get.api.beta-gate",
+        "default_action_key": "auto.api.get.api.beta-gate.decisions",
     },
     "macro-regime.hedge": {
         "key": "macro-regime.hedge",
@@ -136,7 +136,7 @@ SCREEN_SPECS = {
         "summary": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.alpha-triggers.candidates.statistics",
+        "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable",
     },
     "research.fund-sector": {
         "key": "research.fund-sector",
@@ -216,7 +216,7 @@ SCREEN_SPECS = {
         "summary": "查看数据中心状态、新闻、市场温度和个人阈值。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.data-center",
+        "default_action_key": "auto.api.get.api.data-center.indicators",
     },
     "api-library.market-thermometer": {
         "key": "api-library.market-thermometer",
@@ -236,7 +236,7 @@ SCREEN_SPECS = {
         "summary": "查看事件查询、事件指标、实时状态和运行状态，辅助盘中检查。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.events.status",
+        "default_action_key": "auto.api.get.api.events.query",
     },
     "execution.share": {
         "key": "execution.share",
@@ -246,8 +246,19 @@ SCREEN_SPECS = {
         "summary": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。",
         "view_type": "datagrid",
         "status": "online",
-        "default_action_key": "auto.api.get.api.share",
+        "default_action_key": "auto.api.get.api.share.links",
     },
+}
+
+EXACT_DEFAULT_ACTION_OVERRIDES = {
+    "ai-ops.agent-runtime": "auto.api.get.api.agent-runtime.tasks",
+    "ai-ops.capabilities": "ai_capability.list",
+    "macro-regime.navigator": "regime.navigator",
+    "macro-regime.beta-gate": "auto.api.get.api.beta-gate.decisions",
+    "research.alpha-triggers": "auto.api.get.api.alpha-triggers.candidates.actionable",
+    "api-library.data-center": "auto.api.get.api.data-center.indicators",
+    "execution.events": "auto.api.get.api.events.query",
+    "execution.share": "auto.api.get.api.share.links",
 }
 
 
@@ -1781,6 +1792,122 @@ def _task_tier(action: dict[str, Any]) -> str:
     return "support"
 
 
+def _required_fields_without_defaults(action: dict[str, Any]) -> list[dict[str, Any]]:
+    missing: list[dict[str, Any]] = []
+    for field in action.get("fields") or []:
+        if not field.get("required"):
+            continue
+        default = field.get("default")
+        if default not in (None, "", []):
+            continue
+        missing.append(field)
+    return missing
+
+
+def _is_directory_root_action(
+    action: dict[str, Any],
+    screen_actions: list[dict[str, Any]],
+) -> bool:
+    endpoint = str(action.get("endpoint") or "").strip()
+    parts = [part for part in endpoint.strip("/").split("/") if part]
+    if len(parts) != 2 or parts[0] != "api":
+        return False
+    return any(
+        str(candidate.get("endpoint") or "").startswith(endpoint)
+        and str(candidate.get("endpoint") or "") != endpoint
+        for candidate in screen_actions
+    )
+
+
+def _default_view_rank(screen_view_type: str, action_view_type: str) -> int:
+    if screen_view_type == "datagrid":
+        ranks = {"datagrid": 0, "detail": 1, "status": 2, "message": 3}
+        return ranks.get(action_view_type, 4)
+    if screen_view_type == "status":
+        ranks = {"status": 0, "detail": 1, "datagrid": 2, "message": 3}
+        return ranks.get(action_view_type, 4)
+    if screen_view_type == "detail":
+        ranks = {"detail": 0, "message": 1, "datagrid": 2, "status": 3}
+        return ranks.get(action_view_type, 4)
+    return 4
+
+
+def _task_tier_rank(action: dict[str, Any]) -> int:
+    ranks = {"primary": 0, "support": 1, "advanced": 2, "operation": 3}
+    return ranks.get(str(action.get("task_tier") or ""), 4)
+
+
+def _best_operator_first_default_action(
+    screen: dict[str, Any],
+    screen_actions: list[dict[str, Any]],
+) -> str:
+    override_key = EXACT_DEFAULT_ACTION_OVERRIDES.get(str(screen.get("key") or ""))
+    if override_key and any(str(action.get("key") or "") == override_key for action in screen_actions):
+        return override_key
+
+    candidates = [
+        action
+        for action in screen_actions
+        if str(action.get("method") or "GET").upper() == "GET"
+        and str(action.get("risk") or "read") == "read"
+    ]
+    if not candidates:
+        return ""
+
+    screen_view_type = str(screen.get("view_type") or "")
+    ordered = sorted(
+        candidates,
+        key=lambda action: (
+            len(_required_fields_without_defaults(action)) > 0,
+            _is_directory_root_action(action, screen_actions),
+            _default_view_rank(screen_view_type, str(action.get("view_type") or "")),
+            _task_tier_rank(action),
+            int(action.get("sequence", 999) or 999),
+            str(action.get("key") or ""),
+        ),
+    )
+    return str(ordered[0].get("key") or "")
+
+
+def _apply_operator_first_default_actions(payload: dict[str, Any]) -> int:
+    screens = payload.get("screens") or []
+    actions_by_screen: dict[str, list[dict[str, Any]]] = {}
+    for action in payload.get("actions", []):
+        screen_key = str(action.get("screen_key") or "").strip()
+        if not screen_key:
+            continue
+        actions_by_screen.setdefault(screen_key, []).append(action)
+
+    changed = 0
+    for screen in screens:
+        screen_key = str(screen.get("key") or "")
+        screen_actions = actions_by_screen.get(screen_key, [])
+        if not screen_actions:
+            continue
+        current_default = str(screen.get("default_action_key") or "")
+        current_action = next(
+            (action for action in screen_actions if str(action.get("key") or "") == current_default),
+            None,
+        )
+        best_default = _best_operator_first_default_action(screen, screen_actions)
+        if not best_default:
+            continue
+        if current_action is None:
+            if screen_key in EXACT_DEFAULT_ACTION_OVERRIDES:
+                screen["default_action_key"] = best_default
+                changed += 1
+            continue
+        should_replace = False
+        if screen_key in EXACT_DEFAULT_ACTION_OVERRIDES and current_default != best_default:
+            should_replace = True
+        elif _required_fields_without_defaults(current_action):
+            should_replace = True
+        if should_replace:
+            screen["default_action_key"] = best_default
+            changed += 1
+    return changed
+
+
 def _merge_approved_operation_actions(payload: dict[str, Any]) -> int:
     screen_by_key = {screen["key"]: screen for screen in payload["screens"]}
     action_by_key = {action["key"]: action for action in payload["actions"]}
@@ -2022,6 +2149,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
         if "sequence" not in action:
             action["sequence"] = _sequence(action_key)
         action["task_tier"] = _task_tier(action)
+    operator_first_default_actions = _apply_operator_first_default_actions(payload)
     pruned_redundant_actions = _prune_redundant_screen_actions(payload)
     _apply_default_business_context_metadata(payload)
     pruned_empty_screens = _prune_empty_screens(payload)
@@ -2029,6 +2157,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     coverage = dict(payload.get("coverage_summary") or {})
     coverage["business_promoted_actions"] = promoted
     coverage["approved_operation_actions"] = approved_operation_actions
+    coverage["operator_first_default_actions"] = operator_first_default_actions
     coverage["pruned_redundant_screen_actions"] = pruned_redundant_actions
     coverage["pruned_empty_screens"] = pruned_empty_screens
     payload["coverage_summary"] = coverage
