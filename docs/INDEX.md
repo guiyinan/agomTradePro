@@ -278,15 +278,11 @@
 
 **系统版本**: AgomTradePro 0.7.0
 
-**业务模块**: 37个
+**系统规模口径**: 见 [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md)
 
-**MCP 工具**: 368个（本地注册快照）
+**REST API 路径**: OpenAPI 快照
 
-**REST API 路径**: 515个（OpenAPI 快照）
-
-**测试规模**: 6,161 个静态测试函数（AST 轻量治理基线）
-
-**文档文件**: 286个（`docs/` 目录）
+**文档文件**: `docs/` 目录清单
 
 **版本管理**: 参见 [VERSION.md](VERSION.md)
 

@@ -73,25 +73,11 @@ REQUIRED_MODULE_FILES = (
     "interface/api_urls.py",
 )
 
-MCP_COUNT_DOCS = (
-    "README.md",
-    "README_EN.md",
-    "AGENTS.md",
-    "docs/INDEX.md",
-    "docs/governance/SYSTEM_BASELINE.md",
-    "docs/SYSTEM_SPECIFICATION.md",
-    "docs/mcp/mcp_guide.md",
-)
+AUTHORITATIVE_GOVERNANCE_DOC = "docs/governance/SYSTEM_BASELINE.md"
 
-MODULE_COUNT_DOCS = (
-    "README.md",
-    "README_EN.md",
-    "AGENTS.md",
-    "docs/INDEX.md",
-    "docs/VERSION.md",
-    "docs/governance/SYSTEM_BASELINE.md",
-    "docs/SYSTEM_SPECIFICATION.md",
-)
+MCP_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
+
+MODULE_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
 
 VERSION_DOCS = (
     "AGENTS.md",
@@ -101,14 +87,7 @@ VERSION_DOCS = (
     "docs/SYSTEM_SPECIFICATION.md",
 )
 
-TEST_COUNT_DOCS = (
-    "README.md",
-    "README_EN.md",
-    "AGENTS.md",
-    "docs/INDEX.md",
-    "docs/governance/SYSTEM_BASELINE.md",
-    "docs/SYSTEM_SPECIFICATION.md",
-)
+TEST_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
 
 GOVERNANCE_DOC_REQUIRED_TOKENS = (
     "governance_baseline",

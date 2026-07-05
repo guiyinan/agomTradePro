@@ -8,9 +8,8 @@
 > **最后更新**: 2026-04-26
 > **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
-> **业务模块**: 37个
-> **MCP 工具**: 368个（本地注册快照）
-> **测试规模**: 6,161 个静态测试函数
+> **规模口径**: 见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)
+> （业务模块 / MCP 工具 / 静态测试函数统一以该文档和 `governance/governance_baseline.json` 为准）
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
@@ -127,7 +126,7 @@ AgomTradePro/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/                     # 37个业务模块
+├── apps/                     # 业务模块目录
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理

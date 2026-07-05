@@ -10,9 +10,9 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
-[![Tests](https://img.shields.io/badge/tests-6%2C111-brightgreen.svg)](#testing)
-[![Modules](https://img.shields.io/badge/business_modules-37-purple.svg)](#architecture)
-[![MCP Tools](https://img.shields.io/badge/MCP_tools-368-orange.svg)](#ai-native-integration)
+[![Tests](https://img.shields.io/badge/tests-governed-brightgreen.svg)](#testing)
+[![Architecture](https://img.shields.io/badge/architecture-DDD-purple.svg)](#architecture)
+[![MCP Tools](https://img.shields.io/badge/MCP_tools-governed-orange.svg)](#ai-native-integration)
 [![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -271,7 +271,7 @@ If you're looking for more than "yet another stock dashboard" and want a **base 
 
 - **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
 - **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
-- **It is not a one-off script pile**: 37 business modules with explicit DDD boundaries make it suitable for long-term extension
+- **It is not a one-off script pile**: multiple business modules with explicit DDD boundaries make it suitable for long-term extension
 - **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
 - **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
 
@@ -540,7 +540,7 @@ Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
          look at hedge positions instead."
 ```
 
-**368 MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
+**The MCP tool surface** does not just expose a few query endpoints. It spans macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
 ### Decision Workflow via AI
 
@@ -702,18 +702,16 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 | **Visualization** | Streamlit, Plotly |
 | **Frontend** | Django Templates + HTMX |
 | **AI Integration** | MCP Server, Python SDK |
-| **Testing** | Pytest (6,161 static test functions), Playwright (E2E) |
+| **Testing** | Pytest (current scope is tracked in [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)), Playwright (E2E) |
 
 ---
 
 ## Project Stats
 
 ```
-37    business modules (apps/, excluding __pycache__)
-368   MCP tools (current local registration snapshot)
-525   REST API paths (OpenAPI snapshot)
-6,161 static test functions (lightweight AST governance baseline)
-302   documentation files (docs/ directory)
+Business modules / MCP tools / static test functions: see docs/governance/SYSTEM_BASELINE.md
+REST API paths: OpenAPI snapshot
+Documentation files: docs/INDEX.md
 ```
 
 ---

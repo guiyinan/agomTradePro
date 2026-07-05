@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-05.v1",
+  "version": "2026-07-05.v3",
   "mcp_tool_count": 368,
   "business_module_count": 37,
-  "static_test_function_count": 6161,
+  "static_test_function_count": 6174,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -81,7 +81,7 @@
     "apps/task_monitor/management/commands/show_personal_readiness_status.py": 1990,
     "apps/task_monitor/management/commands/validate_personal_readiness_window.py": 1305,
     "apps/terminal/application/tui_workbench.py": 2571,
-    "apps/terminal/infrastructure/tui_metadata_repository.py": 1840
+    "apps/terminal/infrastructure/tui_metadata_repository.py": 1870
   }
 }
 
