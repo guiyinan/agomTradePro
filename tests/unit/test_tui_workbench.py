@@ -156,7 +156,7 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "TUI Workbench - AgomTradePro" in html
     assert "tui-workbench.css" in html
     assert "tui-workbench.js" in html
-    assert "agomtui-781f75f" in html
+    assert 'tui-workbench.js?v=' in html
     assert "data-module-tree" in html
     assert "data-workflow-strip" in html
     assert 'id="tui-location-input"' in html
@@ -1078,7 +1078,8 @@ def test_tui_data_center_screen_exposes_selector_reads(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
-    assert actions["auto.api.get.api.data-center"]["task_tier"] == "primary"
+    assert "auto.api.get.api.data-center" not in actions
+    assert actions["auto.api.get.api.data-center.indicators"]["task_tier"] == "support"
     assert actions["auto.api.get.api.data-center.indicators"]["task_group"] == "02 指标目录"
     assert actions["auto.api.get.api.data-center.providers"]["task_group"] == "04 服务商"
     assert actions["auto.api.get.api.data-center.publishers"]["task_group"] == "05 发布机构"

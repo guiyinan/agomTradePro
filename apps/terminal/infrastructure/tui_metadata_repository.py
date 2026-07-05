@@ -2077,10 +2077,7 @@ class PublishedTuiMetadataRepository:
             patch = patches.get(str(screen.get("key") or ""))
             if not patch:
                 continue
-            resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(
-                patch,
-                action_keys=action_keys,
-            )
+            resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(patch, action_keys=action_keys)
             updated = dict(screen)
             for key, value in resolved_patch.items():
                 updated[key] = value
