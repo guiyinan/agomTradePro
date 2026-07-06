@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
+from apps.account.application.config_summary_service import (
+    get_account_config_summary_service,
+)
 from apps.equity.application.repository_provider import (
     get_equity_market_data_repository,
     get_equity_regime_repository,
@@ -36,6 +39,12 @@ RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+def get_runtime_benchmark_code(key: str, default: str = "") -> str:
+    """Return a runtime benchmark code through the account-owned config service."""
+
+    return get_account_config_summary_service().get_runtime_benchmark_code(key, default)
 
 
 def _call_repo_with_hydrate(method, *args, hydrate: bool = False, **kwargs):
@@ -982,8 +991,6 @@ class AnalyzeRegimeCorrelationUseCase:
         Returns:
             {日期: 收益率}
         """
-        from core.integration.runtime_benchmarks import get_runtime_benchmark_code
-
         try:
             market_adapter = get_equity_market_data_repository()
             benchmark_code = get_runtime_benchmark_code("equity_market_benchmark")

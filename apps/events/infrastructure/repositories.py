@@ -13,12 +13,11 @@ from typing import Any
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
-from core.integration.alpha_candidates import (
-    AlphaCandidateRepositoryWrapper,
+from apps.alpha_trigger.application.repository_provider import (
+    get_alpha_candidate_repository as _get_alpha_candidate_repository,
 )
-from core.integration.decision_requests import (
-    DecisionRequestRepositoryWrapper,
-    get_decision_request_repository,  # noqa: F401
+from apps.decision_rhythm.application.repository_provider import (
+    get_decision_request_repository as _get_decision_request_repository,
 )
 
 from .models import FailedEventModel
@@ -264,9 +263,16 @@ def get_failed_event_repository() -> FailedEventRepository:
     return FailedEventRepository()
 
 
-def get_alpha_candidate_repository() -> AlphaCandidateRepositoryWrapper:
-    """获取 Alpha 候选仓储包装器实例"""
-    return AlphaCandidateRepositoryWrapper()
+def get_alpha_candidate_repository():
+    """Return the owning alpha candidate repository."""
+
+    return _get_alpha_candidate_repository()
+
+
+def get_decision_request_repository():
+    """Return the owning decision request repository."""
+
+    return _get_decision_request_repository()
 
 
 class DecisionExecutionSyncRepository:
@@ -274,11 +280,11 @@ class DecisionExecutionSyncRepository:
 
     def __init__(
         self,
-        decision_request_repo: DecisionRequestRepositoryWrapper | None = None,
-        alpha_candidate_repo: AlphaCandidateRepositoryWrapper | None = None,
+        decision_request_repo: Any | None = None,
+        alpha_candidate_repo: Any | None = None,
     ) -> None:
-        self._decision_request_repo = decision_request_repo or DecisionRequestRepositoryWrapper()
-        self._alpha_candidate_repo = alpha_candidate_repo or AlphaCandidateRepositoryWrapper()
+        self._decision_request_repo = decision_request_repo or get_decision_request_repository()
+        self._alpha_candidate_repo = alpha_candidate_repo or get_alpha_candidate_repository()
 
     def sync_executed(
         self,

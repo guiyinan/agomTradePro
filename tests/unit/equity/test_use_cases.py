@@ -70,7 +70,7 @@ def test_market_returns_returns_empty_dict_when_market_adapter_fails(mocker) -> 
         return_value=market_repo,
     )
     mocker.patch(
-        "core.integration.runtime_benchmarks.get_runtime_benchmark_code",
+        "apps.equity.application.use_cases.get_runtime_benchmark_code",
         return_value="000300.SH",
     )
 

@@ -8,9 +8,6 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from core.integration.asset_proxy_map import get_runtime_asset_proxy_map
-
-
 class AssetPriceUnavailableError(Exception):
     """资产价格不可用异常"""
     pass
@@ -37,6 +34,16 @@ class AssetPricePoint:
             raise AssetPriceValidationError(f"价格必须是数值类型: {type(self.price)}")
         if self.price < 0:
             raise AssetPriceValidationError(f"价格不能为负数: {self.price}")
+
+
+def get_runtime_asset_proxy_map() -> dict[str, str]:
+    """Read asset proxy settings through the owning config center service."""
+
+    from apps.config_center.application.config_summary_service import (
+        get_config_center_summary_service,
+    )
+
+    return get_config_center_summary_service().get_runtime_asset_proxy_map()
 
 
 def get_asset_class_tickers() -> dict[str, str]:

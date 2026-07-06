@@ -8,10 +8,18 @@ Implements failover between data sources.
 import logging
 from datetime import date
 
+from apps.account.application.config_summary_service import (
+    get_account_config_summary_service,
+)
 from apps.data_center.infrastructure.models import FinancialFactModel, ValuationFactModel
-from core.integration.runtime_benchmarks import get_runtime_benchmark_code
 
 logger = logging.getLogger(__name__)
+
+
+def get_runtime_benchmark_code(key: str, default: str = "") -> str:
+    """Return a runtime benchmark code through the account-owned config service."""
+
+    return get_account_config_summary_service().get_runtime_benchmark_code(key, default)
 
 
 class FactorDataSource:

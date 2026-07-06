@@ -21,6 +21,12 @@ from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
 )
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
+from apps.asset_analysis.application.query_services import (
+    list_active_watchlist_asset_codes,
+)
+from apps.simulated_trading.application.query_services import (
+    list_held_asset_codes as _list_held_asset_codes,
+)
 from apps.realtime.domain.entities import (
     AssetType,
     RealtimePrice,
@@ -30,10 +36,14 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from core.integration.simulated_positions import list_held_simulated_asset_codes
-from core.integration.watchlist_assets import get_active_watchlist_asset_codes
 
 logger = logging.getLogger(__name__)
+
+
+def list_held_simulated_asset_codes() -> list[str]:
+    """Return distinct asset codes held in simulated-trading positions."""
+
+    return _list_held_asset_codes()
 
 
 class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
@@ -594,7 +604,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
         pool_type='watch' 且 is_active=True 的资产。
         """
         try:
-            result = get_active_watchlist_asset_codes()
+            result = list_active_watchlist_asset_codes()
             if result:
                 logger.info("Loaded %d watchlist assets from asset pool", len(result))
             return result

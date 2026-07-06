@@ -16,9 +16,7 @@ from apps.strategy.infrastructure.repositories import (  # noqa: F401
     DjangoStrategyRepository,
     StrategyInterfaceRepository,
 )
-from core.integration.simulated_trading_facade import (
-    get_simulated_trading_facade_bridge,
-)
+from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
 logger = logging.getLogger(__name__)
 
@@ -344,7 +342,7 @@ class DjangoPortfolioDataProvider:
     def _get_facade(self):
         """延迟获取 Facade 实例"""
         if self._facade is None:
-            self._facade = get_simulated_trading_facade_bridge()
+            self._facade = get_simulated_trading_facade()
         return self._facade
 
     def get_positions(self, portfolio_id: int) -> list[dict[str, Any]]:

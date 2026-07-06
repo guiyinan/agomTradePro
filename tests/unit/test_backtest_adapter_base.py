@@ -1,4 +1,4 @@
-from core.integration.asset_proxy_map import get_runtime_asset_proxy_map
+from apps.backtest.infrastructure.adapters.base import get_runtime_asset_proxy_map
 
 
 def test_get_runtime_asset_proxy_map_uses_config_center_summary_service(monkeypatch):
@@ -8,8 +8,9 @@ def test_get_runtime_asset_proxy_map_uses_config_center_summary_service(monkeypa
             return {"equity": "510300.SH"}
 
     monkeypatch.setattr(
-        "core.integration.asset_proxy_map.get_config_center_summary_service",
+        "apps.config_center.application.config_summary_service.get_config_center_summary_service",
         lambda: _Service(),
     )
 
     assert get_runtime_asset_proxy_map() == {"equity": "510300.SH"}
+

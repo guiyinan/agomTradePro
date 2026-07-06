@@ -18,7 +18,6 @@ from core.exceptions import (
     DataFetchError,
     ExternalServiceError,
 )
-from core.integration.signal_reevaluation import reevaluate_signals_for_policy_change
 from core.metrics import record_exception
 
 from ..domain.entities import PolicyEvent, PolicyLevel
@@ -35,6 +34,30 @@ logger = logging.getLogger(__name__)
 
 # 获取通知服务实例（通过工厂单例）
 _notification_service = None
+
+
+def reevaluate_signals_for_policy_change(
+    *,
+    policy_level: int,
+    current_regime: str,
+    regime_confidence: float,
+):
+    """Reevaluate active signals through the owning signal use case."""
+
+    from apps.signal.application.repository_provider import get_signal_repository
+    from apps.signal.application.use_cases import (
+        ReevaluateSignalsRequest,
+        ReevaluateSignalsUseCase,
+    )
+
+    signal_repo = get_signal_repository()
+    use_case = ReevaluateSignalsUseCase(signal_repository=signal_repo)
+    request = ReevaluateSignalsRequest(
+        policy_level=policy_level,
+        current_regime=current_regime,
+        regime_confidence=regime_confidence,
+    )
+    return use_case.execute(request)
 
 
 def _get_notification_service():

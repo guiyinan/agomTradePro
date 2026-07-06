@@ -1,11 +1,22 @@
 from datetime import date
 from types import SimpleNamespace
 
-from core.integration.alpha_runtime import (
+from apps.data_center.application.interface_services import (
+    load_alpha_homepage_data,
     queue_alpha_score_prediction,
     resolve_portfolio_alpha_scope,
     run_alpha_score_prediction_now,
 )
+
+
+class _FakeAlphaHomepageQuery:
+    def execute(self, *, user, top_n, portfolio_id, pool_mode):
+        return {
+            "user": user,
+            "top_n": top_n,
+            "portfolio_id": portfolio_id,
+            "pool_mode": pool_mode,
+        }
 
 
 class _FakeResolver:
@@ -26,6 +37,25 @@ class _FakeTask:
     @staticmethod
     def apply(*, args, kwargs):
         return SimpleNamespace(get=lambda: {"args": args, "kwargs": kwargs})
+
+
+def test_load_alpha_homepage_data_uses_dashboard_query(monkeypatch):
+    monkeypatch.setattr(
+        "apps.dashboard.application.alpha_homepage.AlphaHomepageQuery",
+        _FakeAlphaHomepageQuery,
+    )
+
+    assert load_alpha_homepage_data(
+        user="user-1",
+        top_n=10,
+        portfolio_id=7,
+        pool_mode="price_covered",
+    ) == {
+        "user": "user-1",
+        "top_n": 10,
+        "portfolio_id": 7,
+        "pool_mode": "price_covered",
+    }
 
 
 def test_resolve_portfolio_alpha_scope_uses_alpha_module(monkeypatch):

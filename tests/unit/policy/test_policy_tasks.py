@@ -3,6 +3,7 @@ from apps.policy.application.tasks import (
     cleanup_old_policy_logs,
     generate_daily_policy_summary,
     monitor_sla_exceeded_task,
+    reevaluate_signals_for_policy_change,
 )
 
 
@@ -134,3 +135,33 @@ def test_monitor_sla_exceeded_task_uses_workbench_repository(monkeypatch):
         "total_exceeded": 3,
     }
     assert fake_notification_service.sla_alerts == [(2, 1)]
+
+
+def test_reevaluate_signals_for_policy_change_uses_signal_use_case(monkeypatch):
+    class _FakeSignalRepository:
+        pass
+
+    class _FakeReevaluateSignalsUseCase:
+        def __init__(self, signal_repository):
+            assert isinstance(signal_repository, _FakeSignalRepository)
+
+        def execute(self, request):
+            assert request.policy_level == 2
+            assert request.current_regime == "Recovery"
+            assert request.regime_confidence == 0.83
+            return {"rejected_count": 2}
+
+    monkeypatch.setattr(
+        "apps.signal.application.repository_provider.get_signal_repository",
+        lambda: _FakeSignalRepository(),
+    )
+    monkeypatch.setattr(
+        "apps.signal.application.use_cases.ReevaluateSignalsUseCase",
+        _FakeReevaluateSignalsUseCase,
+    )
+
+    assert reevaluate_signals_for_policy_change(
+        policy_level=2,
+        current_regime="Recovery",
+        regime_confidence=0.83,
+    ) == {"rejected_count": 2}

@@ -4,6 +4,7 @@ from apps.strategy.infrastructure.providers import (
     DjangoAssetNameResolver,
     DjangoAssetPoolProvider,
     DjangoMacroDataProvider,
+    DjangoPortfolioDataProvider,
     DjangoSignalProvider,
 )
 
@@ -309,3 +310,16 @@ def test_asset_name_resolver_delegates_to_asset_analysis_service(monkeypatch):
         "510300.OF": "沪深300ETF",
     }
     assert resolver.resolve_asset_names([]) == {}
+
+
+def test_portfolio_data_provider_uses_simulated_trading_facade(monkeypatch):
+    expected = object()
+    monkeypatch.setattr(
+        "apps.strategy.infrastructure.providers.get_simulated_trading_facade",
+        lambda: expected,
+    )
+
+    provider = DjangoPortfolioDataProvider()
+
+    assert provider._get_facade() is expected
+    assert provider._get_facade() is expected

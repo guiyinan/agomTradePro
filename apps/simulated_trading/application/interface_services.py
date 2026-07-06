@@ -17,6 +17,10 @@ from apps.simulated_trading.application.auto_trading_engine import AutoTradingEn
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
+from apps.decision_rhythm.application.exit_advisors import (
+    build_decision_rhythm_exit_advisor,
+)
+from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_fee_config_repository,
@@ -29,9 +33,6 @@ from apps.simulated_trading.application.use_cases import (
     ExecuteSellOrderUseCase,
     GetAccountPerformanceUseCase,
 )
-from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
-from core.integration.manual_trade_sync import get_manual_trade_portfolio_id_for_account
-from core.integration.share_context import get_account_owner_share_links
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,17 @@ class AccountAccessResult:
         """Whether access was granted."""
 
         return self.account is not None and self.error is None
+
+
+def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
+    """Return the legacy portfolio id used by manual trade import for one account."""
+
+    from apps.account.application.repository_provider import get_portfolio_api_repository
+
+    portfolio = get_portfolio_api_repository().get_portfolio_for_account(account_id)
+    if portfolio is None:
+        return None
+    return int(portfolio.id)
 
 
 def get_account_repository() -> Any:
@@ -174,7 +186,7 @@ def build_my_account_detail_context(user: Any, account_id: int) -> dict[str, Any
             account.id,
             limit=20,
         ),
-        "share_links": get_account_owner_share_links(
+        "share_links": list_share_links_for_account_owner(
             owner_id=user.id,
             account_id=account.id,
         ),

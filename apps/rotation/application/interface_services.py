@@ -21,7 +21,9 @@ from apps.rotation.application.use_cases import (
     GetRotationConfigsForViewUseCase,
     GetRotationSignalsForViewUseCase,
 )
-from core.integration.rotation_accounts import list_rotation_user_accounts
+from apps.simulated_trading.application.query_services import (
+    list_active_account_models_for_user,
+)
 
 
 def _query_repo() -> RotationInterfaceRepository:
@@ -123,7 +125,7 @@ def _user_accounts_for_context(user) -> list:
     """Return active account rows for authenticated users."""
     if not getattr(user, "is_authenticated", False):
         return []
-    return list_rotation_user_accounts(user.id)
+    return list_active_account_models_for_user(user.id)
 
 
 def build_rotation_assets_context() -> dict[str, Any]:

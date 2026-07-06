@@ -7,12 +7,12 @@ from datetime import date
 
 import pandas as pd
 
+from apps.data_center.application.repository_provider import get_akshare_module
 from apps.sector.infrastructure.models import (
     SectorConstituentModel,
     SectorIndexModel,
     SectorInfoModel,
 )
-from core.integration.akshare_sdk import get_akshare_module
 
 logger = logging.getLogger(__name__)
 

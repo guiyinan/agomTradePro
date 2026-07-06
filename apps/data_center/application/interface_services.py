@@ -11,14 +11,8 @@ from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProductionCoverageUniverseConfig,
 )
+from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.task_monitor.application.tracking import record_pending_task
-from core.integration.alpha_homepage import load_alpha_homepage_data
-from core.integration.alpha_runtime import (
-    queue_alpha_score_prediction,
-    resolve_portfolio_alpha_scope,
-)
-from core.integration.pulse_refresh import refresh_pulse_snapshot
-from core.integration.realtime_prices import fetch_latest_prices
 
 from .market_thermometer import (
     CalculateMarketThermometerUseCase,
@@ -83,6 +77,82 @@ from .use_cases import (
     SyncSectorMembershipUseCase,
     SyncValuationUseCase,
 )
+
+
+def refresh_pulse_snapshot(*, target_date: date):
+    """Refresh the latest pulse snapshot through the owning pulse use case."""
+
+    from apps.pulse.application.use_cases import CalculatePulseUseCase
+
+    return CalculatePulseUseCase().execute(as_of_date=target_date)
+
+
+def fetch_latest_prices(asset_codes: list[str]) -> list[dict[str, Any]]:
+    """Fetch latest realtime prices through the owning realtime use case."""
+
+    return PricePollingUseCase().get_latest_prices(asset_codes)
+
+
+def load_alpha_homepage_data(*, user, top_n: int, portfolio_id: int, pool_mode: str):
+    """Load dashboard alpha homepage data through the owning dashboard module."""
+
+    from apps.dashboard.application.alpha_homepage import AlphaHomepageQuery
+
+    return AlphaHomepageQuery().execute(
+        user=user,
+        top_n=top_n,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+    )
+
+
+def resolve_portfolio_alpha_scope(
+    *,
+    user_id: int,
+    portfolio_id: int | None,
+    trade_date: date,
+    pool_mode: str | None = None,
+):
+    """Resolve the portfolio-scoped alpha universe through the owning alpha module."""
+
+    from apps.alpha.application.pool_resolver import (
+        ALPHA_POOL_MODE_PRICE_COVERED,
+        PortfolioAlphaPoolResolver,
+    )
+
+    return PortfolioAlphaPoolResolver().resolve(
+        user_id=user_id,
+        portfolio_id=portfolio_id,
+        trade_date=trade_date,
+        pool_mode=pool_mode or ALPHA_POOL_MODE_PRICE_COVERED,
+    )
+
+
+def queue_alpha_score_prediction(*, universe_id: str, trade_date: date, scope_payload: dict):
+    """Queue scoped alpha score prediction through the owning alpha task."""
+
+    from apps.alpha.application.tasks import qlib_predict_scores
+
+    return qlib_predict_scores.apply_async(
+        args=[universe_id, trade_date.isoformat(), 30],
+        kwargs={"scope_payload": scope_payload},
+    )
+
+
+def run_alpha_score_prediction_now(
+    *,
+    universe_id: str,
+    trade_date: date,
+    scope_payload: dict,
+):
+    """Run scoped alpha score prediction synchronously through the owning alpha task."""
+
+    from apps.alpha.application.tasks import qlib_predict_scores
+
+    return qlib_predict_scores.apply(
+        args=[universe_id, trade_date.isoformat(), 30],
+        kwargs={"scope_payload": scope_payload},
+    ).get()
 
 
 def _make_provider_repo() -> ProviderConfigRepository:

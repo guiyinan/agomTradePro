@@ -6,6 +6,7 @@ import pytest
 from apps.pulse.application.use_cases import (
     PULSE_MACRO_SYNC_INDICATORS,
     CalculatePulseUseCase,
+    resolve_current_regime_for_pulse,
 )
 from apps.pulse.domain.entities import PulseIndicatorReading
 
@@ -62,3 +63,20 @@ def test_calculate_pulse_refreshes_macro_inputs_before_calculation(monkeypatch):
     assert captured["repair_kwargs"]["target_date"] == date(2026, 4, 20)
     assert captured["repair_kwargs"]["macro_indicator_codes"] == PULSE_MACRO_SYNC_INDICATORS
     assert captured["repair_kwargs"]["asset_codes"] == ("000300.SH",)
+
+
+def test_resolve_current_regime_for_pulse_uses_regime_module(monkeypatch):
+    expected = SimpleNamespace(dominant_regime="Recovery")
+
+    def _fake_resolver(*, as_of_date):
+        assert as_of_date == date(2026, 4, 26)
+        return expected
+
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.resolve_current_regime",
+        _fake_resolver,
+    )
+
+    result = resolve_current_regime_for_pulse(as_of_date=date(2026, 4, 26))
+
+    assert result is expected

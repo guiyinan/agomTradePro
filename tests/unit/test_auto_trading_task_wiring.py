@@ -62,7 +62,7 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
             return_value=asset_pool_service,
         ) as asset_pool_service_cls,
         patch(
-            "apps.decision_rhythm.application.exit_advisors.build_decision_rhythm_exit_advisor",
+            "apps.simulated_trading.application.tasks.build_decision_rhythm_exit_advisor",
             return_value=exit_advisor,
         ) as exit_advisor_builder,
         patch(
@@ -117,3 +117,23 @@ def test_daily_auto_trading_task_injects_decision_rhythm_exit_advisor():
             "total_sell_count": 2,
         },
     }
+
+
+def test_update_all_prices_after_close_uses_local_realtime_polling_helper():
+    snapshot = {
+        "total_assets": 2,
+        "success_count": 2,
+        "failed_count": 0,
+        "success_rate": 1.0,
+    }
+
+    with patch(
+        "apps.simulated_trading.application.tasks.execute_realtime_price_polling",
+        return_value=snapshot,
+    ) as polling_helper:
+        from apps.simulated_trading.application.tasks import update_all_prices_after_close
+
+        result = update_all_prices_after_close.run()
+
+    polling_helper.assert_called_once_with()
+    assert result == {"success": True, "snapshot": snapshot}

@@ -35,6 +35,22 @@ class _StubWatchlistProvider:
         return self._asset_codes
 
 
+def test_get_simulated_position_price_updater_uses_repository_provider(monkeypatch) -> None:
+    repo = object()
+    monkeypatch.setattr(
+        "apps.realtime.application.price_polling_service.get_simulated_position_repository",
+        lambda: repo,
+    )
+
+    service = PricePollingService(
+        price_repository=_StubPriceRepository(),
+        price_provider=_StubPriceProvider([]),
+        watchlist_provider=_StubWatchlistProvider([]),
+    )
+
+    assert service.position_repository is repo
+
+
 @pytest.mark.django_db
 def test_price_polling_service_updates_position_and_account_totals() -> None:
     account = SimulatedAccountModel.objects.create(

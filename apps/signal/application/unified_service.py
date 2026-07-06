@@ -9,10 +9,9 @@ import logging
 from datetime import date, timedelta
 from typing import Any
 
+from apps.factor.application.repository_provider import get_factor_integration_service
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import UnifiedSignalRepository
-from core.integration.alpha_scores import fetch_stock_scores
-from core.integration.factor_runtime import build_factor_integration_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +47,18 @@ except ImportError:
     HedgeIntegrationService = None
 
 
+def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
+    """Return alpha stock scores through the owning alpha application service."""
+
+    from apps.alpha.application.services import AlphaService
+
+    return AlphaService().get_stock_scores(
+        universe_id=universe_id,
+        intended_trade_date=intended_trade_date,
+        top_n=top_n,
+    )
+
+
 class UnifiedSignalService:
     """
     统一信号服务
@@ -58,7 +69,7 @@ class UnifiedSignalService:
     def __init__(self):
         self.unified_repo = UnifiedSignalRepository()
         self.rotation_service = RotationIntegrationService() if ROTATION_AVAILABLE else None
-        self.factor_service = build_factor_integration_service() if FACTOR_AVAILABLE else None
+        self.factor_service = get_factor_integration_service() if FACTOR_AVAILABLE else None
         self.hedge_service = HedgeIntegrationService() if HEDGE_AVAILABLE else None
         # Alpha service - 延迟导入避免循环依赖
         self._alpha_service = None

@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-06.v5",
+  "version": "2026-07-06.v10",
   "mcp_tool_count": 368,
   "business_module_count": 37,
-  "static_test_function_count": 6186,
+  "static_test_function_count": 6199,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -67,8 +67,8 @@
     "apps/data_center/application/use_cases.py": 2434,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
-    "apps/decision_rhythm/application/advisor_services.py": 2782,
-    "apps/decision_rhythm/application/use_cases.py": 2591,
+    "apps/decision_rhythm/application/advisor_services.py": 2788,
+    "apps/decision_rhythm/application/use_cases.py": 2610,
     "apps/decision_rhythm/domain/entities.py": 2253,
     "apps/decision_rhythm/domain/services.py": 1563,
     "apps/decision_rhythm/infrastructure/models.py": 2146,
@@ -77,7 +77,8 @@
     "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
     "apps/policy/infrastructure/repositories.py": 1275,
-    "apps/strategy/interface/views.py": 1294
+    "apps/strategy/interface/views.py": 1294,
+    "apps/terminal/application/tui_workbench_result_models.py": 1331
   }
 }
 

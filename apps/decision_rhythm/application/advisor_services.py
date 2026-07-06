@@ -16,11 +16,10 @@ from apps.account.application.portfolio_api_services import (
 )
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.simulated_trading.application.interface_services import get_account_access
-from core.integration.manual_trade_sync import get_manual_trade_portfolio_id_for_account
-from core.integration.simulated_positions import get_position_snapshots
 
 from .workspace_services import (
     build_recommendation_risk_checks,
+    get_simulated_position_snapshots,
     get_signal_payloads,
     list_workspace_recommendations,
 )
@@ -32,6 +31,17 @@ RISK_GATE_BLOCKING_STATUS = "BLOCKED_RISK_GATE"
 RISK_POLICY_UNAVAILABLE_STATUS = "BLOCKED_RISK_POLICY_UNAVAILABLE"
 EXECUTION_GUARD_BLOCKING_STATUS = "BLOCKED_EXECUTION_GUARD"
 EXPOSURE_LIMIT_BLOCKING_STATUS = "BLOCKED_EXPOSURE_LIMIT"
+
+
+def get_manual_trade_portfolio_id_for_account(account_id: int) -> int | None:
+    """Return the legacy portfolio id used by manual trade import for one account."""
+
+    from apps.account.application.repository_provider import get_portfolio_api_repository
+
+    portfolio = get_portfolio_api_repository().get_portfolio_for_account(account_id)
+    if portfolio is None:
+        return None
+    return int(portfolio.id)
 
 
 class AdvisorAccessError(PermissionError):
@@ -580,7 +590,7 @@ class AccountHoldingSnapshotProvider:
                     **item,
                     "data_source": "simulated",
                 }
-                for item in get_position_snapshots(account_id=normalized_account_id)
+                for item in get_simulated_position_snapshots(account_id=normalized_account_id)
             )
         except Exception as exc:
             warnings.append(f"simulated_positions_unavailable:{exc}")

@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
-from core.integration.strategy_prompt_providers import (
+from apps.strategy.application.repository_provider import (
     build_prompt_strategy_providers,
 )
 

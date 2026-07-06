@@ -12,12 +12,18 @@ from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
     build_sync_macro_data_use_case,
 )
+from apps.pulse.application.use_cases import CalculatePulseUseCase
 from apps.regime.application.navigator_use_cases import GetActionRecommendationUseCase
 from apps.regime.application.orchestration import calculate_regime_after_sync
 from apps.rotation.application.repository_provider import generate_rotation_signals
-from core.integration.pulse_refresh import refresh_pulse_snapshot
 
 logger = get_task_logger(__name__)
+
+
+def refresh_pulse_snapshot(*, target_date: date):
+    """Refresh the latest pulse snapshot through the owning pulse use case."""
+
+    return CalculatePulseUseCase().execute(as_of_date=target_date)
 
 
 def _parse_target_date(as_of_date: str | None) -> date:

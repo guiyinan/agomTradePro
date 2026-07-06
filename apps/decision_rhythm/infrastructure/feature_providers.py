@@ -24,6 +24,18 @@ from ..application.use_cases import (
 logger = logging.getLogger(__name__)
 
 
+def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
+    """Return alpha stock scores through the owning alpha application service."""
+
+    from apps.alpha.application.services import AlphaService
+
+    return AlphaService().get_stock_scores(
+        universe_id=universe_id,
+        intended_trade_date=intended_trade_date,
+        top_n=top_n,
+    )
+
+
 # ============================================================================
 # Top-down 特征提供者
 # ============================================================================
@@ -400,8 +412,6 @@ class AlphaModelFeatureProvider:
         """延迟加载 service"""
         if self._alpha_service is None:
             try:
-                from core.integration.alpha_scores import fetch_stock_scores
-
                 self._alpha_service = fetch_stock_scores
             except ImportError:
                 pass
@@ -1104,8 +1114,6 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
         """Fetch latest Alpha ranking scores through the owning application service."""
         try:
             from datetime import date
-
-            from core.integration.alpha_scores import fetch_stock_scores
 
             result = fetch_stock_scores(
                 universe_id=self.DEFAULT_ALPHA_UNIVERSE_ID,

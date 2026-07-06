@@ -8,6 +8,12 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
 
+from apps.data_center.application.interface_services import (
+    load_alpha_homepage_data,
+    queue_alpha_score_prediction,
+    resolve_portfolio_alpha_scope,
+    run_alpha_score_prediction_now,
+)
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
@@ -15,6 +21,7 @@ from apps.data_center.application.use_cases import (
     RepairDecisionDataReliabilityUseCase,
     SyncQuoteUseCase,
 )
+from apps.pulse.application.use_cases import CalculatePulseUseCase
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
@@ -25,13 +32,6 @@ from apps.data_center.infrastructure.repositories import (
     QuoteSnapshotRepository,
     RawAuditRepository,
 )
-from core.integration.alpha_homepage import load_alpha_homepage_data
-from core.integration.alpha_runtime import (
-    queue_alpha_score_prediction,
-    resolve_portfolio_alpha_scope,
-    run_alpha_score_prediction_now,
-)
-from core.integration.pulse_refresh import refresh_pulse_snapshot
 
 ALPHA_POOL_MODE_STRICT_VALUATION = "strict_valuation"
 
@@ -40,6 +40,12 @@ def _split_codes(raw: str | None, defaults: tuple[str, ...]) -> list[str]:
     if not raw:
         return list(defaults)
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def refresh_pulse_snapshot(*, target_date: date):
+    """Refresh the latest pulse snapshot through the owning pulse use case."""
+
+    return CalculatePulseUseCase().execute(as_of_date=target_date)
 
 
 class Command(BaseCommand):

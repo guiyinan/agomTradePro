@@ -11,6 +11,9 @@ from typing import Optional
 
 import pandas as pd
 
+from apps.account.application.config_summary_service import (
+    get_account_config_summary_service,
+)
 from apps.data_center.application.repository_provider import (
     get_akshare_module,
     get_macro_fact_repository,
@@ -19,12 +22,17 @@ from apps.data_center.application.repository_provider import (
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
 from apps.data_center.domain.enums import PriceAdjustment
-from core.integration.runtime_benchmarks import get_runtime_benchmark_code
 
 from ..domain.ports import MarketDataPort, RegimeDataPort, StockPoolPort
 from .models import StockDailyModel, StockInfoModel
 
 logger = logging.getLogger(__name__)
+
+
+def get_runtime_benchmark_code(key: str, default: str = "") -> str:
+    """Return a runtime benchmark code through the account-owned config service."""
+
+    return get_account_config_summary_service().get_runtime_benchmark_code(key, default)
 
 
 class TushareStockAdapter:

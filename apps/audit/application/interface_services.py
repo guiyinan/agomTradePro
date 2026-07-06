@@ -6,11 +6,9 @@ import json
 from datetime import date
 from typing import Any
 
+from apps.account.application.manual_trade_sync import ManualTradeReviewSummaryUseCase
 from apps.backtest.application.repository_provider import get_backtest_repository
 from core.integration.decision_execution_links import list_decision_execution_links
-from core.integration.manual_trade_sync import (
-    build_manual_trade_review_context as build_manual_trade_review_context_payload,
-)
 
 from .repository_provider import (
     export_audit_metrics,
@@ -40,6 +38,12 @@ from .use_cases import (
 
 def _get_backtest_repository():
     return get_backtest_repository()
+
+
+def build_manual_trade_review_context_payload(user_id: int) -> dict[str, Any]:
+    """Build manual trade review context through the owning account module."""
+
+    return ManualTradeReviewSummaryUseCase().execute(user_id=user_id)
 
 
 def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:

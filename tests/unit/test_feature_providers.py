@@ -742,7 +742,7 @@ class TestAlphaCandidateProvider:
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
         ) as mock_repo_class, patch(
-            "core.integration.alpha_scores.fetch_stock_scores"
+            "apps.decision_rhythm.infrastructure.feature_providers.fetch_stock_scores"
         ) as mock_fetch_scores:
             mock_repo = MagicMock()
             mock_candidate = MagicMock()
@@ -765,7 +765,7 @@ class TestAlphaCandidateProvider:
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
         ) as mock_repo_class, patch(
-            "core.integration.alpha_scores.fetch_stock_scores"
+            "apps.decision_rhythm.infrastructure.feature_providers.fetch_stock_scores"
         ) as mock_fetch_scores:
             mock_repo = MagicMock()
             mock_candidate = MagicMock()
@@ -807,7 +807,7 @@ class TestAlphaCandidateProvider:
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
         ) as mock_repo_class, patch(
-            "core.integration.alpha_scores.fetch_stock_scores"
+            "apps.decision_rhythm.infrastructure.feature_providers.fetch_stock_scores"
         ) as mock_fetch_scores:
             mock_repo_class.side_effect = RuntimeError("repository unavailable")
             mock_fetch_scores.return_value = SimpleNamespace(

@@ -32,6 +32,7 @@ This release freezes three things as official public posture:
   - fixed operator commands and pass/fail conditions
 - Locked the formal production database posture to PostgreSQL.
 - Kept `core/integration` bridge debt at zero under governance ratchets.
+- Continued bridge retirement after the `0.8.0` cut by removing strategy/simulated-trading/rotation/realtime/signal/equity-factor/pulse/prompt/data-center-alpha/audit/terminal/sector/account/config-center/policy/backtest/alpha-trigger/events/manual-trade/alpha-candidate/account-position-only shims from `core/integration` and routing those callers directly to owning app application/query services.
 - Reduced `apps/terminal/infrastructure/tui_metadata_repository.py` from a large central runtime file to a smaller repository plus dedicated runtime metadata patch modules.
 
 ## Version history

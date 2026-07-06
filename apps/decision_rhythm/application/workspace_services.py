@@ -10,7 +10,9 @@ from typing import Any
 from apps.asset_analysis.application.asset_name_service import resolve_asset_names
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
-from core.integration.simulated_positions import get_position_snapshots
+from apps.simulated_trading.application.query_services import (
+    get_position_snapshots as _get_position_snapshots,
+)
 
 from ..domain.entities import (
     ApprovalStatus,
@@ -52,11 +54,20 @@ from .use_cases import (
 logger = logging.getLogger(__name__)
 
 
+def get_simulated_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
+    """Return lightweight simulated position snapshots for cross-app planning."""
+
+    normalized = str(account_id or "").strip()
+    if not normalized or not normalized.isdigit():
+        return []
+    return _get_position_snapshots(account_id=int(normalized))
+
+
 class SimulatedPositionSnapshotProvider:
     """Adapter for recommendation generation over current simulated holdings."""
 
     def get_position_snapshots(self, account_id: str) -> list[dict[str, Any]]:
-        return get_position_snapshots(account_id=account_id)
+        return get_simulated_position_snapshots(account_id=account_id)
 
 
 def _resolve_security_name_map(security_codes: list[str]) -> dict[str, str]:
@@ -221,7 +232,7 @@ def build_transition_plan_for_account(
         }
     )
     signal_payloads = get_signal_payloads(signal_ids)
-    current_positions = get_position_snapshots(account_id=account_id)
+    current_positions = get_simulated_position_snapshots(account_id=account_id)
 
     plan = create_portfolio_transition_plan(
         account_id=account_id,

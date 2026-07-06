@@ -14,7 +14,16 @@ from apps.backtest.application.repository_provider import (
 )
 from apps.backtest.domain.entities import BacktestConfig
 from core.integration.decision_recommendations import build_decision_recommendation_plan_reader
-from core.integration.manual_trade_sync import get_manual_trade_sync_repository
+
+
+def get_manual_trade_sync_repository():
+    """Return the account-owned manual trade sync repository."""
+
+    from apps.account.application.repository_provider import (
+        get_manual_trade_sync_repository as _get_manual_trade_sync_repository,
+    )
+
+    return _get_manual_trade_sync_repository()
 
 
 @dataclass(frozen=True)

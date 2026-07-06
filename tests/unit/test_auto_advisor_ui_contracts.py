@@ -26,7 +26,9 @@ def test_tui_metadata_injects_auto_advisor_screen_and_action(settings):
 
     assert "command-center.auto-advisor" in screens
     assert screens["command-center.auto-advisor"]["default_action_key"] == "advisor.today_sheet"
+    assert screens["command-center.auto-advisor"]["entry_mode"] == "parameter_gate"
     assert "advisor.today_sheet" in actions
+    assert "advisor.factor_breakdown" in actions
     assert actions["advisor.today_sheet"]["endpoint"] == "/api/decision/advisor/sheet/"
     assert actions["advisor.today_sheet"]["fields"][0]["key"] == "account_id"
 
@@ -41,6 +43,7 @@ def test_tui_metadata_injects_risk_center_screen_and_actions(settings):
 
     assert modules["risk-center"]["label"] == "风控中心"
     assert screens["risk-center.overview"]["default_action_key"] == "risk-center.effective-policy"
+    assert screens["risk-center.overview"]["entry_mode"] == "parameter_gate"
     assert actions["risk-center.floor"]["endpoint"] == "/api/risk-center/floor/"
     assert actions["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert actions["risk-center.pre-trade-check"]["endpoint"] == "/api/risk-center/pre-trade-check/"

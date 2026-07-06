@@ -224,7 +224,7 @@ class AlphaTriggerPageQueryService:
         if not request_id:
             return None
         try:
-            from core.integration.decision_requests import (
+            from apps.decision_rhythm.application.repository_provider import (
                 get_decision_request_repository,
             )
 

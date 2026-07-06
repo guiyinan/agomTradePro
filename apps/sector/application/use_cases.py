@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from core.integration.market_index_returns import fetch_index_daily_returns
+from apps.equity.application.query_services import fetch_index_daily_returns
 
 from ..domain.entities import SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer

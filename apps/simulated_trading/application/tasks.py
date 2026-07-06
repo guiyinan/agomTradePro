@@ -18,6 +18,10 @@ from django.core.mail import send_mail
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
+from apps.decision_rhythm.application.exit_advisors import (
+    build_decision_rhythm_exit_advisor,
+)
+from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
@@ -37,10 +41,14 @@ from apps.simulated_trading.application.use_cases import (
 )
 from core.exceptions import DataFetchError
 from core.integration.decision_execution_links import build_decision_execution_link_recorder
-from core.integration.decision_exit_advisor import build_decision_rhythm_exit_advisor
-from core.integration.realtime_polling import execute_realtime_price_polling
 
 logger = logging.getLogger(__name__)
+
+
+def execute_realtime_price_polling() -> dict[str, Any]:
+    """Execute one realtime polling cycle through the owning realtime app."""
+
+    return PricePollingUseCase().execute_price_polling()
 
 
 # ============================================================================

@@ -11,11 +11,20 @@ from decimal import Decimal
 
 from django.utils import timezone
 
+from apps.account.application.repository_provider import (
+    get_account_position_repository as _get_account_position_repository,
+)
 from apps.policy.application.repository_provider import get_hedge_position_repository
 from apps.realtime.application.repository_provider import get_realtime_price_repository
-from core.integration.account_positions import list_portfolio_position_weights
 
 logger = logging.getLogger(__name__)
+
+
+def list_portfolio_position_weights(portfolio_id: int):
+    """Return portfolio position weights through the owning account repository."""
+
+    position_repo = _get_account_position_repository()
+    return position_repo.list_portfolio_position_weights(portfolio_id)
 
 
 class _AccountPositionRepository:

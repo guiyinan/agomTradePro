@@ -25,7 +25,7 @@
 | **Repo state** | Active development continues after `0.8.0` | branch/docs posture |
 | **Business modules** | `37` | `governance/governance_baseline.json` |
 | **MCP tools** | `368` | `governance/governance_baseline.json` |
-| **Static test functions** | `6,186` | `governance/governance_baseline.json` |
+| **Static test functions** | `6,199` | `governance/governance_baseline.json` |
 | **`core/integration` app infrastructure imports** | `0` | governance ratchet |
 | **`core/integration` ORM access lines** | `0` | governance ratchet |
 
@@ -121,19 +121,20 @@ For `0.8.0`, “production ready” means:
 - Four-layer architecture remains mandatory.
 - Domain purity is enforced by CI.
 - App-level cycles remain hard-locked at zero.
-- `core/integration` historical bridge debt remains ratcheted and is currently zero on both tracked counters.
+- `core/integration` historical bridge debt remains ratcheted and is currently zero on both tracked counters, while thin realtime/pulse/audit/terminal/account/sector helper shims continue to be retired in favor of owning app services.
 
 ### 6.2 Large-file posture
 
 Large historical Python files are governed by `governance_baseline.json`.
 
 For `0.8.0`, TUI runtime metadata mutations are no longer concentrated in a single oversized repository file; runtime screen patches, injected metadata, and action patches are split into dedicated infrastructure modules.
+`apps/terminal/application/tui_workbench_result_models.py` is currently tracked as a temporary large-file allowance while the result-model split continues.
 
 ## 7. Testing posture
 
 ### 7.1 Scale baseline
 
-- Static governed test functions: `6,186`
+- Static governed test functions: `6,199`
 - Module coverage baseline: `37/37`
 - Full `pytest` collection/execution remains a runtime fact, not a hard-coded doc number
 
@@ -154,4 +155,4 @@ See:
 ---
 
 **Maintainer**: AgomTradePro Team
-**Last updated**: `2026-07-05`
+**Last updated**: `2026-07-06`

@@ -78,10 +78,8 @@ from apps.strategy.interface.serializers import (
     StrategyExecutionLogSerializer,
     StrategySerializer,
 )
+from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from core.exceptions import DuplicateResourceError, InvalidInputError
-from core.integration.simulated_trading_facade import (
-    get_simulated_trading_facade_bridge,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -1256,7 +1254,7 @@ def bind_strategy(request):
             id=strategy_id,
             created_by=request.user.account_profile,
         )
-        if not get_simulated_trading_facade_bridge().user_owns_account(
+        if not get_simulated_trading_facade().user_owns_account(
             portfolio_id,
             request.user.id,
         ):
@@ -1294,7 +1292,7 @@ def unbind_strategy(request):
         if not portfolio_id:
             raise InvalidInputError('缺少必要参数')
         portfolio_id = int(portfolio_id)
-        if not get_simulated_trading_facade_bridge().user_owns_account(
+        if not get_simulated_trading_facade().user_owns_account(
             portfolio_id,
             request.user.id,
         ):

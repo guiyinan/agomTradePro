@@ -1,16 +1,19 @@
 """Pulse Application Layer Use Cases"""
 
 import logging
+from collections.abc import Sequence
 from datetime import date
+from typing import Any
 
+from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
+from apps.data_center.application.interface_services import make_decision_repair_use_case
 from apps.pulse.application.repository_provider import (
     get_pulse_data_provider,
     get_pulse_repository,
 )
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
-from core.integration.current_regime import resolve_current_regime_for_pulse
-from core.integration.decision_data_reliability import refresh_pulse_macro_inputs
+from apps.regime.application.current_regime import resolve_current_regime
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8
@@ -22,6 +25,36 @@ PULSE_MACRO_SYNC_INDICATORS = (
     "CN_LPR",
     "CN_M2_YOY",
 )
+
+
+def resolve_current_regime_for_pulse(*, as_of_date: date):
+    """Resolve the current regime through the owning regime module."""
+
+    return resolve_current_regime(as_of_date=as_of_date)
+
+
+def refresh_pulse_macro_inputs(
+    *,
+    target_date: date,
+    macro_indicator_codes: Sequence[str],
+    asset_codes: Sequence[str],
+) -> dict[str, Any]:
+    """Repair the macro and quote inputs that Pulse depends on."""
+
+    report = make_decision_repair_use_case(user=None).execute(
+        DecisionReliabilityRepairRequest(
+            target_date=target_date,
+            portfolio_id=None,
+            asset_codes=[str(code).strip().upper() for code in asset_codes if code],
+            macro_indicator_codes=[
+                str(code).strip().upper() for code in macro_indicator_codes if code
+            ],
+            strict=False,
+            repair_pulse=False,
+            repair_alpha=False,
+        )
+    )
+    return report.to_dict()
 
 
 def _is_snapshot_usable(

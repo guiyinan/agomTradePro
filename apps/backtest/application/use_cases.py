@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from core.integration.audit_reports import generate_audit_report_for_backtest
+from apps.audit.application.interface_services import generate_attribution_report_for_backtest
 
 from ..domain.entities import (
     DEFAULT_PUBLICATION_LAGS,
@@ -138,7 +138,7 @@ class RunBacktestUseCase:
                 logger.info(f"Backtest {backtest_id} 完成，触发审计分析...")
                 audit_status = "pending"
 
-                audit_response = generate_audit_report_for_backtest(
+                audit_response = generate_attribution_report_for_backtest(
                     backtest_id=backtest_id,
                     backtest_repository=self.repository,
                 )

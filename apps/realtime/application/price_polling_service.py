@@ -31,9 +31,17 @@ from apps.realtime.domain.protocols import (
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from core.integration.simulated_positions import get_simulated_position_price_updater
+from apps.simulated_trading.application.repository_provider import (
+    get_simulated_position_repository,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def get_simulated_position_price_updater():
+    """Return the default simulated position repository for price updates."""
+
+    return get_simulated_position_repository()
 
 
 class PricePollingService:

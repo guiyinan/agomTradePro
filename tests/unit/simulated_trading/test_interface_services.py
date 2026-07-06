@@ -42,7 +42,7 @@ def test_build_my_account_detail_context_uses_share_context_bridge(monkeypatch):
         lambda: _FakeTradeRepository(),
     )
     monkeypatch.setattr(
-        "apps.simulated_trading.application.interface_services.get_account_owner_share_links",
+        "apps.simulated_trading.application.interface_services.list_share_links_for_account_owner",
         lambda owner_id, account_id: [{"owner_id": owner_id, "account_id": account_id}],
     )
 

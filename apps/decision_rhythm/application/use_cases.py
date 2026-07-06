@@ -18,8 +18,8 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.alpha_trigger.domain.entities import CandidateStatus
+from apps.account.application.repository_provider import get_account_position_repository
 from apps.events.domain.entities import EventType, create_event
-from core.integration.account_positions import update_or_create_account_position
 
 from ..domain.entities import (
     DecisionPriority,
@@ -62,6 +62,28 @@ RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
+
+def update_or_create_account_position(
+    *,
+    portfolio_id: int,
+    asset_code: str,
+    shares: int | float,
+    avg_cost: Decimal,
+    current_price: Decimal,
+    source: str,
+) -> Any:
+    """Persist one legacy account position through the owning account repository."""
+
+    position_repo = get_account_position_repository()
+    return position_repo.update_or_create_position(
+        portfolio_id=portfolio_id,
+        asset_code=asset_code,
+        shares=shares,
+        avg_cost=avg_cost,
+        current_price=current_price,
+        source=source,
+    )
 
 
 # ========== DTOs ==========
