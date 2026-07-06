@@ -59,7 +59,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
         docs_data["expected_static_test_function_count"]
         == expected_baseline["static_test_function_count"]
     )
-    assert docs_data["core_version"] == "0.7.0"
+    assert docs_data["core_version"] == "0.8.0"
     assert docs_data["pyproject_version"] == docs_data["core_version"]
 
     section_names = {section["name"] for section in report["sections"]}

@@ -5,20 +5,19 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-04-26
-> **系统版本**: AgomTradePro 0.7.0
+> **最后更新**: 2026-07-05
+> **系统版本**: AgomTradePro 0.8.0
 > **项目状态**: 生产就绪
 > **规模口径**: 见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)
 > （业务模块 / MCP 工具 / 静态测试函数统一以该文档和 `governance/governance_baseline.json` 为准）
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
-**最新完成** (0.7.0):
-- 新增 Setup Wizard 模块（系统初始化向导）
-- 新增 AI Capability Catalog 模块（系统级 AI 能力目录与统一路由）
-- 新增 Terminal CLI 模块（终端风格 AI 交互界面）
-- 新增 Pulse 脉搏层模块（战术层脉搏指标聚合与转折预警）
-- 完整的 DDD 四层架构实现
+**最新完成** (0.8.0):
+- 正式切出 `0.8.0` 版本线并统一版本口径
+- 完成 `task_monitor + readiness + VPS` 运维闭环文档收口
+- 明确正式生产数据库策略为 PostgreSQL
+- 拆分 TUI runtime metadata 中心文件，降低单点膨胀风险
 
 **版本管理**: 参见 [docs/VERSION.md](docs/VERSION.md)
 
@@ -26,7 +25,7 @@ AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台�
 
 - Python 3.11+
 - Django 5.x
-- SQLite（开发）/ PostgreSQL（生产，后续开发）
+- SQLite（本地开发/单机演示）/ PostgreSQL（正式生产）
 - Celery + Redis（异步任务）
 - Pandas + NumPy（数据处理）
 
@@ -579,7 +578,7 @@ ak.macro_china_money_supply()
 
 ## 当前开发阶段
 
-**项目状态**: 核心功能已完成 (99%)
+**项目状态**: `0.8.0` 已正式收口发布，仓库继续迭代
 
 **Phase 1-7 已完成** ✅:
 - ✅ Django 项目骨架
@@ -609,10 +608,10 @@ ak.macro_china_money_supply()
 - ✅ Task Monitor 模块（任务监控）
 - ✅ Pulse 模块（脉搏层，战术指标聚合与转折预警）
 
-**Phase 8: 功能完善** (进行中):
+**Phase 8: 发布收口与稳定化** ✅:
 - [x] Audit 模块补全 ✅ (含 Brinson 归因 + 完整测试覆盖)
 - [x] Dashboard 图表优化 ✅ (Streamlit 集成)
-- [ ] 定时任务监控完善
+- [x] 定时任务监控 / readiness / VPS 验收闭环
 
 **架构合规性修复 (2026-02-20)** ✅:
 - ✅ 删除 `apps/shared/` 目录，移动到 `shared/infrastructure/htmx/`

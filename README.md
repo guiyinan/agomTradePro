@@ -26,6 +26,13 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-07-05
+
+- `0.8.0` 正式切版：公开版本号、文档基线、README、AGENTS 与系统说明已统一到 `0.8.0-build.20260705`
+- `task_monitor / readiness / VPS` 收口为标准运维闭环：本地严格验收、VPS scheduler-clean 验收、证据文件路径与通过条件都已有固定 runbook
+- 正式生产数据库策略定稿为 `PostgreSQL`；`SQLite` 保留给本地开发、演示和显式迁移/诊断路径
+- TUI runtime metadata 运行时补丁已按职责拆分，降低 `tui_metadata_repository.py` 单点膨胀风险
+
 ### 2026-05-14
 
 - Equity Detail 图表默认日期现在会按交易时段自动推导：盘中、收盘后和非交易时段都会回落到正确的已完成交易日，避免详情页首屏默认图表错位到未收盘或未来日期
@@ -228,7 +235,7 @@ AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板�
 - 核心宏观准入链路已可用：Regime / Policy / Signal / 审批 / 执行 / 审计
 - 新主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动
 - AI 原生能力已成型：**原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog**
-- 仍在持续完善：定时任务监控、更多 public demo 场景、README/文档国际化与部署体验
+- 仍在持续完善：更多 public demo 场景、README/文档国际化、运维自动化与后续架构减债
 
 ---
 

@@ -2,6 +2,7 @@
 Global fixtures for Playwright tests.
 """
 import os
+import re
 from collections.abc import Generator
 from pathlib import Path
 
@@ -161,16 +162,25 @@ def authenticated_page(page: Page, base_url: str) -> Generator[Page, None, None]
     Logs in as admin user before yielding the page.
     """
     login = LoginPage(page, base_url)
-
-    # Navigate to login
-    login.goto()
-
-    # Perform login
-    login.login_as_admin()
-    login.assert_login_success()
-
-    # Wait for navigation after login
-    page.wait_for_load_state("load")
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            login.goto()
+            login.login_as_admin()
+            login.assert_login_success()
+            page.wait_for_url(
+                re.compile(r".*/(tui/|dashboard/|account/profile/|admin/).*"),
+                timeout=config.navigation_timeout,
+            )
+            page.wait_for_load_state("domcontentloaded")
+            break
+        except Exception as exc:
+            last_error = exc
+            if attempt == 2:
+                raise
+            page.wait_for_timeout(1000)
+    if last_error and re.search(r".*/account/login/.*", page.url or ""):
+        raise last_error
 
     yield page
 

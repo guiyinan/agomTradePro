@@ -16,6 +16,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 
 from apps.account.infrastructure.models import AccountProfileModel
+from apps.asset_analysis.infrastructure.models import AssetPoolEntry
 from apps.asset_analysis.infrastructure.models import AssetScoreCache
 from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
@@ -129,6 +130,36 @@ class TestStrategyExecuteFlow(TestCase):
             regime='HG',
             policy_level='P2',
             sentiment_index=0.5
+        )
+
+        AssetPoolEntry.objects.create(
+            asset_category='equity',
+            asset_code='000001.SH',
+            asset_name='上证指数',
+            pool_type='investable',
+            total_score=75.0,
+            regime_score=80.0,
+            policy_score=70.0,
+            sentiment_score=60.0,
+            signal_score=70.0,
+            entry_date='2024-01-31',
+            risk_level='中风险',
+            is_active=True,
+        )
+
+        AssetPoolEntry.objects.create(
+            asset_category='equity',
+            asset_code='510300.SH',
+            asset_name='沪深300ETF',
+            pool_type='investable',
+            total_score=68.0,
+            regime_score=72.0,
+            policy_score=65.0,
+            sentiment_score=60.0,
+            signal_score=65.0,
+            entry_date='2024-01-31',
+            risk_level='中风险',
+            is_active=True,
         )
 
     def test_strategy_execute_returns_real_results(self):

@@ -1,201 +1,126 @@
-# AgomTradePro 数据库配置文档
+# AgomTradePro Database Strategy
 
-> 更新时间: 2026-01-31
-> 数据库: PostgreSQL 15 on Docker
-
----
-
-## 当前配置
-
-### 端口分配
-
-| 环境 | 主机端口 | 容器端口 | 说明 |
-|------|----------|----------|------|
-| 开发环境 | 5433 | 5432 | `docker-compose-dev.yml` |
-| 生产环境 | 5433 | 5432 | `docker-compose.yml` |
-
-### 连接信息
-
-```
-Host: localhost
-Port: 5433
-Database: agomtradepro
-User: agomtradepro
-Password: changeme (请修改)
-```
-
-### 连接字符串
-
-```
-# Django/DATABASE_URL
-DATABASE_URL=postgres://agomtradepro:changeme@localhost:5433/agomtradepro
-
-# psql 命令行
-docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
-
-# Python/Django
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'agomtradepro',
-        'USER': 'agomtradepro',
-        'PASSWORD': 'changeme',
-        'HOST': 'localhost',
-        'PORT': 5433,
-    }
-}
-```
+> **Last updated**: `2026-07-05`
+> **Release line**: `0.8.0`
 
 ---
 
-## 配置文件清单
+## 1. Official recommendation
 
-| 文件 | 状态 | 说明 |
+AgomTradePro now uses a **two-posture database strategy**:
+
+| Posture | Database | Intended use |
 |------|------|------|
-| `.env` | ✅ 已更新 | DATABASE_URL=postgresql://...@localhost:5433/agomtradepro |
-| `docker-compose-dev.yml` | ✅ 已更新 | 端口映射 5433:5432 |
-| `docker-compose.yml` | ✅ 已更新 | 端口映射 5433:5432 |
-| `core/settings/development.py` | ✅ 默认配置 | 使用 env.db() 读取 DATABASE_URL |
-| `core/settings/production.py` | ✅ 默认配置 | 使用 env.db() 读取 DATABASE_URL |
+| Local first-run / lightweight development | `SQLite` | fastest startup, demo, local feature work |
+| Formal production | `PostgreSQL` | VPS deployment, sustained scheduler/runtime operation, formal readiness acceptance |
 
----
+### Formal 0.8.0 production database posture
 
-## 启动步骤
+For any environment that is called “production” in `0.8.0`, the recommended primary database is:
 
-### 1. 启动 PostgreSQL
-
-#### Windows PowerShell
-
-```powershell
-cd .
-docker compose -f docker-compose-dev.yml up -d
-docker ps
+```text
+PostgreSQL 15+
 ```
 
-#### Linux/macOS / Git Bash
+SQLite on VPS remains acceptable only for:
+
+- one-off demo environments
+- explicit snapshot seed / restore workflows
+- short diagnostic runs
+- legacy migration handoff
+
+It is no longer the formal production recommendation.
+
+## 2. Why PostgreSQL is the production default
+
+- better write concurrency than SQLite
+- safer fit for Celery worker + beat + web shared runtime
+- clearer backup / restore / migration posture
+- aligns with readiness evidence persistence and sustained scheduler verification
+
+## 3. Local-first posture
+
+You do **not** need PostgreSQL to run the system locally for the first time.
+
+Default local path:
 
 ```bash
-cd .
-docker compose -f docker-compose-dev.yml up -d
-docker ps | grep agomtradepro
-```
-
-### 2. 验证连接
-
-```bash
-# 检查 PostgreSQL 健康状态
-docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro
-
-# 连接数据库
-docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
-```
-
-### 3. 运行 Django 迁移（如需要）
-
-#### Windows PowerShell
-
-```powershell
-$env:DATABASE_URL="postgres://agomtradepro:changeme@localhost:5433/agomtradepro"
+python manage.py bootstrap_local_env
 python manage.py migrate
+python manage.py runserver
 ```
 
-#### Linux/macOS (bash)
+If `DATABASE_URL` is unset, the project can use local SQLite for the lightweight path.
+
+## 4. Formal production checklist
+
+### Required components
+
+- PostgreSQL 15+
+- Redis 7+
+- Celery worker
+- Celery beat
+- persisted application data paths:
+  - database storage
+  - `var/readiness-evidence/`
+  - media/log/audit artifacts as applicable
+
+### Expected connection variables
+
+```env
+DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<database>
+REDIS_URL=redis://<host>:6379/0
+```
+
+## 5. PostgreSQL verification commands
 
 ```bash
-export DATABASE_URL="postgres://agomtradepro:changeme@localhost:5433/agomtradepro"
+# Connectivity
 python manage.py migrate
+
+# App health
+python manage.py healthcheck --json
+
+# Runtime acceptance
+python manage.py show_personal_readiness_status --json --strict-monitor --require-local-scheduler-runtime
 ```
 
----
-
-## 端口冲突解决方案
-
-如果 5433 端口也被占用，可以：
-
-### 方案 A：修改为其他端口
-
-```yaml
-# docker-compose-dev.yml
-ports:
-  - "5434:5432"  # 改用 5434
-
-# .env
-DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5434/agomtradepro
-```
-
-### 方案 B：停止占用端口的服务
-
-#### Windows PowerShell
-
-```powershell
-netstat -ano | findstr :5433
-docker stop <container_name>
-```
-
-#### Linux/macOS (bash)
+Docker-hosted PostgreSQL example:
 
 ```bash
-lsof -i :5433
-docker stop <container_name>
+docker exec -it <postgres_container> pg_isready -U <user>
+docker exec -it <postgres_container> psql -U <user> -d <database>
 ```
 
----
+## 6. SQLite usage policy
 
-## 常用命令
+### Allowed
 
-### 数据库连接
+- local development
+- first-run preview
+- feature work without Redis/Celery
+- explicit SQLite export/import bundle workflows
 
-```bash
-# PostgreSQL 容器内
-docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
+### Not recommended as formal production
 
-# 查看所有表
-\dt
+- long-running VPS scheduler acceptance
+- formal release sign-off
+- sustained concurrent web/worker/beat operation
 
-# 查看宏观数据
-SELECT COUNT(*) FROM macro_indicator;
-SELECT code, value, original_unit FROM macro_indicator LIMIT 10;
+## 7. Migration posture
 
-# 退出
-\q
-```
+If an environment currently uses SQLite and is being promoted to formal production:
 
-### 容器管理
+1. freeze the environment
+2. export the data
+3. import into PostgreSQL
+4. point `DATABASE_URL` to PostgreSQL
+5. rerun migrations and health checks
+6. rerun readiness/runtime verification
 
-```bash
-# 查看日志
-docker logs agomtradepro_postgres_dev --tail 50
+## 8. Related docs
 
-# 重启容器
-docker restart agomtradepro_postgres_dev
+- [VPS Bundle Deployment](VPS_BUNDLE_DEPLOYMENT.md)
+- [Operations Runbook](../operations/runbook.md)
+- [System Baseline](../governance/SYSTEM_BASELINE.md)
 
-# 停止容器
-docker compose -f docker-compose-dev.yml down
-
-# 重新启动
-docker compose -f docker-compose-dev.yml up -d
-```
-
-### 数据备份
-
-```bash
-# 导出数据
-docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup_$(date +%Y%m%d).sql
-
-# 导入数据
-docker exec -i agomtradepro_postgres_dev psql -U agomtradepro agomtradepro < backup_file.sql
-```
-
----
-
-## 安全提醒
-
-⚠️ **生产环境必须修改默认密码！**
-
-```bash
-# 生成随机密码
-openssl rand -base64 32
-
-# 更新 docker-compose.yml 的 POSTGRES_PASSWORD
-# 更新 .env 的 DATABASE_URL
-```

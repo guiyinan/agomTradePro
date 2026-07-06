@@ -1,223 +1,157 @@
-# AgomTradePro 系统基线
+# AgomTradePro System Baseline
 
-> **版本**: 0.7.0
-> **基线日期**: 2026-03-28
-> **文档性质**: 单一叙事来源（Single Source of Truth）
-> **更新频率**: 每次发布后更新
-> **版本管理**: [VERSION.md](../VERSION.md)
-
----
-
-## 1. 系统身份
-
-**名称**: AgomTradePro (Agom Strategic Asset Allocation Framework)
-
-**定位**: 个人投研平台
-
-**核心理念**: 通过 **Regime（增长/通胀象限）** 和 **Policy（政策档位）** 双重过滤，确保投资者 **"不在错误的宏观环境中下注"**
+> **Version**: `0.8.0`
+> **Baseline date**: `2026-07-05`
+> **Document role**: Single narrative source of truth
+> **Version management**: [../VERSION.md](../VERSION.md)
 
 ---
 
-## 2. 当前版本
+## 1. System identity
 
-| 指标 | 数值 | 来源 |
+**Name**: AgomTradePro (Agom Strategic Asset Allocation Framework)
+
+**Positioning**: AI-native personal investment research and decision platform
+
+**Core principle**: do not place a correct trade thesis inside the wrong macro regime.
+
+## 2. Current baseline
+
+| Metric | Value | Source |
 |------|------|------|
-| **系统版本** | 0.7.0 | `core/version.py` |
-| **发布状态** | 生产就绪 | `docs/development/system-review-report.md` |
-| **最后更新** | 2026-04-21 | Git log |
-| **业务模块** | 37个 | `apps/` 目录扫描 |
-| **MCP 工具** | 368个 | `sdk/agomtradepro_mcp.server` 本地注册 |
-| **测试规模** | 6,186 个静态测试函数 | AST 轻量治理统计 |
-| **代码行数** | 50,000+ | 代码统计 |
-| **API 路径** | 515个 | `docs/testing/api/openapi.json` |
-| **数据库表** | 80+ | Migration 文件 |
+| **System version** | `0.8.0` | `core/version.py` |
+| **Build** | `20260705` | `core/version.py` |
+| **Release state** | Formal public release | release closure `0.8.0` |
+| **Repo state** | Active development continues after `0.8.0` | branch/docs posture |
+| **Business modules** | `37` | `governance/governance_baseline.json` |
+| **MCP tools** | `368` | `governance/governance_baseline.json` |
+| **Static test functions** | `6,186` | `governance/governance_baseline.json` |
+| **`core/integration` app infrastructure imports** | `0` | governance ratchet |
+| **`core/integration` ORM access lines** | `0` | governance ratchet |
+
+### Release interpretation
+
+- `0.8.0` means the public version line is now formally cut.
+- It does **not** mean the repository is frozen.
+- Local-first usage and formal production usage are deliberately separated:
+  - local first-run can stay lightweight
+  - production acceptance requires the full runtime posture
+
+## 3. Module baseline
+
+### 3.1 Category view
+
+- **Core engines**: `macro`, `regime`, `policy`, `signal`, `filter`
+- **Asset analysis**: `asset_analysis`, `equity`, `fund`, `sector`, `sentiment`
+- **Decision and execution**: `beta_gate`, `alpha_trigger`, `decision_rhythm`, `strategy`, `account`, `simulated_trading`, `realtime`, `audit`, `backtest`
+- **Data and AI**: `alpha`, `factor`, `rotation`, `hedge`, `data_center`, `ai_provider`, `prompt`, `terminal`, `agent_runtime`, `ai_capability`
+- **Operations and product surfaces**: `dashboard`, `events`, `task_monitor`, `share`, `setup_wizard`, `pulse`
+
+### 3.2 Governance truth source
+
+Dynamic counts such as business-module count, MCP-tool count, static-test count, module-shape minima, large-file allowances, and bridge-debt ratchets are governed by:
+
+- `governance/governance_baseline.json`
+- `scripts/check_governance_consistency.py`
+
+This file is the human-readable narrative layer; the JSON baseline remains the machine truth source.
+
+## 4. Deployment posture
+
+### 4.1 Local first-run / demo posture
+
+| Concern | Default |
+|------|------|
+| Database | `SQLite` |
+| Redis | optional |
+| Celery worker/beat | optional |
+| Goal | first run, local development, feature work, lightweight preview |
+
+### 4.2 Formal production posture for 0.8.0
+
+| Concern | Official recommendation |
+|------|------|
+| Primary database | `PostgreSQL` |
+| Queue/cache | `Redis` |
+| Task runtime | `Celery worker + Celery beat` |
+| Evidence persistence | persist `var/readiness-evidence/` |
+| Runtime proof | worker, beat, quote pre-refresh, daily readiness evidence, weekly advisor evidence must be inspectable |
+
+### 4.3 Transitional / diagnostic posture
+
+SQLite on VPS is allowed only for:
+
+- demo environments
+- explicit seed/restore workflows
+- diagnostics
+- legacy migration handoff
+
+It is **not** the formal `0.8.0` production recommendation.
+
+## 5. Operations acceptance baseline
+
+### 5.1 Standard readiness chain
+
+The accepted release-closure path is:
+
+```text
+quote pre-refresh -> daily readiness evidence -> readiness window validation
+                 -> scheduler safety proof -> local/VPS runtime proof
+```
+
+### 5.2 Required evidence posture
+
+- Evidence files live under `var/readiness-evidence/`
+- Local strict acceptance and VPS scheduler-clean acceptance are documented runbook flows
+- `task_monitor` is part of the formal release posture, not an unfinished appendix
+
+### 5.3 Production-stability meaning
+
+For `0.8.0`, “production ready” means:
+
+- a recommended production stack is explicit
+- readiness evidence is repeatable
+- scheduler/runtime verification is operator-readable
+- failures can be diagnosed from standard commands and evidence artifacts
+
+## 6. Governance baseline
+
+### 6.1 Architecture and dependency guardrails
+
+- Four-layer architecture remains mandatory.
+- Domain purity is enforced by CI.
+- App-level cycles remain hard-locked at zero.
+- `core/integration` historical bridge debt remains ratcheted and is currently zero on both tracked counters.
+
+### 6.2 Large-file posture
+
+Large historical Python files are governed by `governance_baseline.json`.
+
+For `0.8.0`, TUI runtime metadata mutations are no longer concentrated in a single oversized repository file; runtime screen patches, injected metadata, and action patches are split into dedicated infrastructure modules.
+
+## 7. Testing posture
+
+### 7.1 Scale baseline
+
+- Static governed test functions: `6,186`
+- Module coverage baseline: `37/37`
+- Full `pytest` collection/execution remains a runtime fact, not a hard-coded doc number
+
+### 7.2 Release-closure verification
+
+The `0.8.0` closure emphasizes:
+
+- governance consistency
+- targeted TUI metadata repository regression coverage
+- readiness/task-monitor acceptance commands
+- release regression evidence
+
+See:
+
+- [../testing/0.8.0-release-regression-report-2026-07-05.md](../testing/0.8.0-release-regression-report-2026-07-05.md)
+- [../operations/runbook.md](../operations/runbook.md)
 
 ---
 
-## 3. 模块清单
-
-### 3.1 按层级分类
-
-**基础设施层 (4个)**: `regime`, `ai_provider`, `events`, `macro`（宏观采集编排/兼容层）
-
-**核心业务层 (14个)**: `signal`, `policy`, `sentiment`, `filter`, `alpha_trigger`, `beta_gate`, `alpha`, `factor`, `hedge`, `rotation`, `sector`, `agent_runtime`, `task_monitor`, `ai_capability`
-
-**资产分析层 (3个)**: `asset_analysis`, `equity`, `fund`
-
-**应用集成层 (10个)**: `backtest`, `audit`, `dashboard`, `prompt`, `realtime`, `data_center`, `terminal`, `strategy`, `decision_rhythm`, `share`
-
-**战术指标层 (1个)**: `pulse`
-
-**顶层聚合层 (3个)**: `simulated_trading`, `account`, `setup_wizard`
-
-### 3.2 完整清单（按字母序）
-
-```
-account, ai_capability, ai_provider, agent_runtime, alpha, alpha_trigger,
-asset_analysis, audit, backtest, beta_gate, dashboard,
-decision_rhythm, equity, events, factor, filter,
-fund, hedge, macro, data_center, policy,
-prompt, pulse, realtime, regime, rotation, sector,
-sentiment, setup_wizard, share, signal, simulated_trading, strategy,
-task_monitor, terminal
-```
-
----
-
-## 4. 部署口径
-
-### 4.1 部署模式
-
-| 模式 | 说明 | 文档 |
-|------|------|------|
-| **Docker Compose** | 本地开发 + 生产部署 | `docs/deployment/DOCKER_DEPLOYMENT.md` |
-| **VPS Bundle** | 打包上传到 Linux VPS | `docs/deployment/VPS_BUNDLE_DEPLOYMENT.md` |
-| **三机架构** | VPS FRP + 本地运行 + AI Agent | `docs/architecture/frp-vps-local-runtime-architecture.md` |
-
-### 4.2 部署流程
-
-```
-本地打包 → 上传 Bundle → VPS 部署 → 健康检查
-    ↓            ↓            ↓           ↓
-package-for-vps.ps1  scp    deploy-on-vps.sh  /api/health/
-```
-
-### 4.3 数据库
-
-- **开发环境**: SQLite (`db.sqlite3`)
-- **生产环境**: SQLite (Docker Volume) / PostgreSQL (可选)
-
-### 4.4 缓存
-
-- **开发环境**: 内存缓存 (`LocMemCache`)
-- **生产环境**: Redis
-
----
-
-## 5. 测试口径
-
-> 说明：业务模块数、MCP 工具数、静态测试函数数等动态规模口径仅在本文件维护；
-> 其他文档应链接到本页，不再重复抄写当前数值。机器真源仍为 `governance/governance_baseline.json`。
-
-### 5.1 测试分层
-
-| 层级 | 内容 | 文件数 | 覆盖率 |
-|------|------|--------|--------|
-| **L0 静态质量** | ruff/black/mypy | - | 100% |
-| **L1 单元层** | Domain 规则/算法 | ~100 | 90%+ |
-| **L2 组件层** | use_case + repository | ~50 | 85%+ |
-| **L3 集成层** | 模块间流程 | ~30 | 80%+ |
-| **L4 API 合同** | OpenAPI/鉴权/契约 | ~20 | 100% |
-| **L5 E2E 层** | 浏览器关键路径 | ~10 | 关键路径 |
-| **L6 UAT 层** | 用户旅程验收 | ~5 | A-E旅程 |
-| **L7 生产守护** | 冒烟/监控/回滚 | - | 100% |
-
-### 5.2 测试统计
-
-| 指标 | 数值 | 来源 |
-|------|------|------|
-| **测试文件数** | 238 | `find tests/ -name "test_*.py" | wc -l` |
-| **静态测试函数数** | 6,186 | AST 轻量治理统计 |
-| **Domain 层覆盖率** | ≥ 90% | coverage 报告 |
-| **模块覆盖率** | 100% (37/37) | 扫描结果 |
-
-### 5.3 质量门禁
-
-- **PR Gate**: 10-15 分钟，Guardrail 回归 + 变更影响测试
-- **Nightly Gate**: 30-60 分钟，全量单元/集成测试
-- **RC Gate**: 发布前，关键旅程 ≥ 90%, P0 缺陷 = 0
-- **Post-Deploy Gate**: 上线后 30 分钟，健康检查 + 核心流程
-- **Governance Gate**: `check_governance_consistency.py` 锁定治理基线健康度、治理说明文档、版本号、MCP 计数、业务模块数、静态测试函数数、模块形态、文档链接、架构规则集健康度、依赖预算基线健康度、CI 门禁挂载、`core/integration` 历史桥接债务、Application 第三方库导入和生产 Python 巨型文件增长基线
-- **Domain Purity Gate**: `verify_architecture.py` 拦截 Domain 层对 Django、Pandas、NumPy、Requests 和数据源客户端的运行时依赖
-- **Dependency Gate**: `check_module_cycles.py` 锁定 app 级循环为 0，并限制跨 app import edge、全局单模块最大出边/入边和逐 app 出边/入边预算不超过当前基线
-
----
-
-## 6. 核心链路
-
-### 6.1 主业务链路
-
-```
-宏观采集/同步 → Data Center 宏观事实 → Regime 判定 → Policy 档位 → Alpha 选股 → 信号生成 → 模拟盘交易 → 事后审计
-      ↓                 ↓                 ↓             ↓            ↓            ↓            ↓            ↓
-   macro            data_center       regime        policy       alpha       signal   simulated_trading  audit
-```
-
-### 6.2 关键约束链路
-
-```
-Regime 象限 → Policy 闸门 → Beta 闸门 → 决策频率 → 执行审批
-    ↓            ↓            ↓            ↓            ↓
-  regime      policy     beta_gate   decision_rhythm  account
-```
-
-### 6.3 数据流链路
-
-```
-外部数据源 → Market Data 统一接口 → 各模块消费 → 数据库存储 → 审计日志
-     ↓               ↓                  ↓             ↓            ↓
-Tushare/AKShare  data_center      regime/policy   SQLite      audit
-东方财富/Redis
-```
-
-### 6.4 宏观数据治理真源
-
-- 指标目录真源：`IndicatorCatalog`
-- 量纲/单位规则真源：`IndicatorUnitRule`
-- 宏观事实真源：`data_center_macro_fact`
-- 对外宏观 HTTP 入口：`/api/data-center/indicators/*`、`/api/data-center/macro/series/`、`/api/data-center/sync/macro/`
-- 对外宏观 MCP 入口：`data_center_list_indicators`、`data_center_get_macro_series`、`data_center_sync_macro`
-
----
-
-## 7. 技术栈
-
-| 类别 | 技术选型 | 版本 |
-|------|----------|------|
-| **语言** | Python | 3.11+ |
-| **Web框架** | Django | 5.x |
-| **API框架** | Django REST Framework | 3.x |
-| **异步任务** | Celery + Redis | - |
-| **数据处理** | Pandas + NumPy | - |
-| **AI 集成** | Qlib | - |
-| **测试框架** | Pytest | - |
-| **代码质量** | ruff + black + mypy | - |
-| **容器化** | Docker + Docker Compose | - |
-
----
-
-## 8. 文档索引
-
-### 8.1 核心文档
-
-| 文档 | 用途 | 位置 |
-|------|------|------|
-| **系统说明书** | 完整技术+功能说明 | `docs/SYSTEM_SPECIFICATION.md` |
-| **快速启动** | 新用户上手 | `docs/QUICK_START.md` |
-| **模块账本** | 边界规则/依赖统计 | `docs/development/module-ledger.md` |
-| **模块依赖** | 依赖拓扑图 | `docs/architecture/MODULE_DEPENDENCIES.md` |
-
-### 8.2 治理文档
-
-| 文档 | 用途 | 位置 |
-|------|------|------|
-| **系统基线** | 单一叙事来源 | `docs/governance/SYSTEM_BASELINE.md` (本文档) |
-| **模块分级** | 核心/成熟/试验 | `docs/governance/MODULE_CLASSIFICATION.md` |
-| **开发禁令** | 禁止事项清单 | `docs/governance/DEVELOPMENT_BANLIST.md` |
-
----
-
-## 9. 变更记录
-
-| 日期 | 版本 | 变更内容 |
-|------|------|----------|
-| 2026-03-28 | V1.2 | 更新模块数量(34→35)，新增 pulse、setup_wizard 模块，新增战术指标层 |
-| 2026-03-22 | V1.1 | 更新模块数量(32→33)，新增 ai_capability 模块 |
-| 2026-03-18 | V1.0 | 初始版本，建立系统基线 |
-
----
-
-**维护者**: AgomTradePro Team
-**最后更新**: 2026-03-28
-**下次更新**: 下次发布后
-
+**Maintainer**: AgomTradePro Team
+**Last updated**: `2026-07-05`

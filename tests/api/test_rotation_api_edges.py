@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.rotation.infrastructure.models import RotationConfigModel, RotationSignalModel
@@ -127,7 +128,7 @@ def test_rotation_latest_signal_treats_risk_parity_allocation_as_quality_coverag
     )
     RotationSignalModel.objects.create(
         config=config,
-        signal_date="2026-07-05",
+        signal_date=timezone.localdate(),
         target_allocation={"510300": 0.6, "510500": 0.4},
         momentum_ranking=[],
         expected_return=0.08,

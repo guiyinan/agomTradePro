@@ -4,8 +4,8 @@ AgomTradePro Version Information.
 版本号管理 - 单一来源（Single Source of Truth）
 """
 
-__version__ = "0.7.0"
-__build__ = "20260323"
+__version__ = "0.8.0"
+__build__ = "20260705"
 __codename__ = "AgomTradePro"
 
 

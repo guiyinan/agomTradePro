@@ -10,17 +10,34 @@
 
 | 项目 | AgomTradePro (Agom Strategic Asset Allocation Framework) |
 |------|------------------------------------------------------|
-| 版本 | 0.7.0 |
+| 版本 | 0.8.0 |
 | 状态 | 生产就绪 |
 | 完成度 | 99% |
 | 业务模块 | 37个 |
-| 测试规模 | 6,026 个静态测试函数 |
+| 测试规模 | 6,186 个静态测试函数 |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
 ---
 
 ## 核心命令
+
+### 发布收口 / readiness 验收
+
+```bash
+# 只读监控摘要
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -SummaryOnly
+
+# 最终严格验收
+powershell -ExecutionPolicy Bypass -File scripts/check-personal-readiness-monitor.ps1 -StrictAcceptance
+
+# 结构化状态 / 证据 / 窗口校验
+agomtradepro/Scripts/python manage.py show_personal_readiness_status --json
+agomtradepro/Scripts/python manage.py inspect_personal_readiness_evidence --target-date <YYYY-MM-DD> --json
+agomtradepro/Scripts/python manage.py validate_personal_readiness_window --json
+```
+
+- 正式生产数据库口径以 PostgreSQL 为准；本文件中的 `SQLite` 命令仅对应本地开发 / 首次体验路径。
 
 ### Django 命令
 

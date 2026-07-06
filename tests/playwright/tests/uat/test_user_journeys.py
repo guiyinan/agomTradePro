@@ -70,8 +70,8 @@ class TestJourneyA:
 
     @pytest.mark.uat
     @pytest.mark.journey_a
-    def test_A1_login_redirects_to_dashboard(self, login_page: LoginPage) -> None:
-        """A1: After login, user should be redirected to dashboard."""
+    def test_A1_login_redirects_to_default_workspace(self, login_page: LoginPage) -> None:
+        """A1: After login, user should land on the default authenticated workspace."""
         login_page.goto()
         login_page.login_as_admin()
         login_page.assert_login_success()
@@ -79,10 +79,11 @@ class TestJourneyA:
         # Wait for navigation
         login_page.page.wait_for_load_state("networkidle")
 
-        # Should be on dashboard
+        # Should land on the authenticated default entrypoint.
         current_url = login_page.page.url
-        assert "dashboard" in current_url.lower(), \
-            f"Should redirect to dashboard after login, got: {current_url}"
+        assert any(fragment in current_url.lower() for fragment in ("/tui/", "/dashboard/")), (
+            f"Should redirect to the default authenticated workspace after login, got: {current_url}"
+        )
 
     @pytest.mark.uat
     @pytest.mark.journey_a
@@ -429,6 +430,7 @@ class TestGlobalExperienceBaseline:
     @pytest.mark.global_experience
     def test_feedback_loading_states(self, authenticated_page: Page) -> None:
         """Feedback: loading, success, failure, empty states are perceivable."""
+        authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
         _assert_dashboard_contract(authenticated_page)
         _assert_has_any(
             authenticated_page,

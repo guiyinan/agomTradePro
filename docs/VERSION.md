@@ -1,322 +1,114 @@
-# AgomTradePro 版本号管理规范
+# AgomTradePro Versioning
 
-> **当前版本**: `0.7.0`
-> **Build 日期**: `2026-03-23`
-> **完整版本号**: `0.7.0-build.20260323`
-> **开发文档快照**: `2026-05-25`
-
----
-
-## 版本号格式
-
-采用**语义化版本**（Semantic Versioning）+ **Build 日期**组合：
-
-```
-主版本号.次版本号.修订号-build.日期
-
-示例：0.7.0-build.20260323
-```
-
-### 版本号组成
-
-| 组成部分 | 说明 | 变更时机 |
-|---------|------|---------|
-| **主版本号** | 架构级变更 | 不兼容的 API 变更、重大架构重构 |
-| **次版本号** | 功能级变更 | 新增功能模块、重要功能改进 |
-| **修订号** | 修复级变更 | Bug 修复、小优化 |
-| **Build 日期** | 构建日期 | 每次发布时更新，格式 `YYYYMMDD` |
+> **Current version**: `0.8.0`
+> **Build date**: `2026-07-05`
+> **Full version**: `0.8.0-build.20260705`
+> **Release status**: Formal public release
+> **Repository status**: Active development continues on top of the `0.8.0` release line
 
 ---
 
-## 当前版本信息
+## Current release
 
-```
-版本: 0.7.0
-代号: AgomTradePro
-状态: 开发中
-Build: 2026-03-23
-文档快照: 2026-05-14
-```
+`0.8.0` is the first release that closes the long-running post-`0.7.0` snapshot period into one formal version line.
 
-> 当前公开版本号仍为 `0.7.0`。2026-03-23 之后的功能收口、界面整合与架构修复仍记入 `Unreleased` / 开发快照，尚未单独切出新发布版本号。
+This release freezes three things as official public posture:
 
-## 0.7.0 之后的开发快照（截至 2026-07-04）
+1. **Release boundary**
+   Local first-run and demo can still use `SQLite + synchronous tasks`, but the formal production recommendation is now `PostgreSQL + Redis + Celery + persisted var/media evidence`.
+2. **Operations boundary**
+   `task_monitor`, readiness evidence, scheduler proof, and VPS bundle verification are now documented as repeatable acceptance flows instead of ad-hoc operator knowledge.
+3. **Architecture boundary**
+   TUI runtime metadata no longer depends on one oversized repository file as its single mutation center; runtime patches and injected metadata are split by responsibility.
 
-- `2026-07-04` AI Capability Gateway 和 MCP 工具治理完成收口：新增 `/settings/capability-gateway/` 统一接入页，TUI 注入 `capability-router.gateway` 屏幕，MCP 工具页支持查看 input schema；Capability Catalog 同步后会保留已复核治理状态并默认执行治理，MCP 可执行工具以 SDK `@server.tool()` 代码注册为真源，数据库仅作为同步快照和路由治理投影。当前本地能力目录为 `total=1975 / enabled=1645 / disabled=330 / manual_governance=0`。
+## 0.8.0 highlights
 
-- `2026-06-30` 治理一致性检查新增治理说明文档自检：`check_governance_consistency.py` 现在验证 `docs/governance/ARCHITECTURE_GUARDRAILS.md` 包含当前治理命令和 report section token，防止文档落后于实际 CI 门禁
-- `2026-06-30` 治理一致性检查新增 `core/integration` 历史桥接债务 ratchet：`governance_baseline.json` 锁定当前 app infrastructure import 数和 ORM access 行数，新增会失败，减少会以 stale baseline 要求同步收紧
-- `2026-06-30` 治理一致性检查新增 governance baseline 自检：`check_governance_consistency.py` 现在验证 `governance_baseline.json` 版本格式、必需字段、计数字段、模块形态 baseline 覆盖、Application 第三方库导入 baseline 和巨型文件 baseline 类型
-- `2026-06-30` 治理一致性检查新增 CI 门禁挂载检查：`check_governance_consistency.py` 现在验证 architecture-layer-guard workflow 仍执行增量架构扫描、全仓架构审计和模块依赖 baseline，consistency-check workflow 仍执行治理一致性检查并写出报告
-- `2026-06-30` 治理一致性检查新增依赖预算基线健康检查：`check_governance_consistency.py` 现在验证 `module_cycle_allowlist.json` 版本格式、description、逐 app 出边/入边预算覆盖、全局最大出边/入边预算一致性和循环白名单模块引用
-- `2026-06-30` 治理一致性检查新增架构规则集健康检查：`check_governance_consistency.py` 现在验证 `architecture_rules.json` 版本格式、规则 ID 唯一性、description/rationale 元数据、source selector 和 forbidden matcher，防止治理规则自身漂移
-- `2026-06-30` Domain 纯净性纳入架构审计：`architecture_rules.json` 升级到 `2026-06-30.v8`，新增 `apps_domain_no_external_runtime_imports`，禁止 Domain 层 import `django/pandas/numpy/requests/akshare/tushare` 等运行时框架或数据源客户端
-- `2026-06-30` 模块依赖图门禁新增入站依赖预算：`module_cycle_allowlist.json` 锁定当前单 app 最多 `23` 个入边，并为 `37` 个业务模块逐一记录 `max_inbound_modules_by_app`，防止核心模块被更多业务模块隐性耦合
-- `2026-06-29` 架构治理继续加严：`check_module_cycles.py --fail-on-cycles` 现在同时拦截双向 app import pair 和三段以上强连通 cycle component，并补齐 guardrail 测试；Backtest 的 Decision Rhythm 默认执行计划读取改走 `core/integration/decision_recommendations.py` 延迟桥接，当前 app 级 cycle component 恢复为 `0`
-- `2026-06-29` 模块依赖图新增密度预算：`module_cycle_allowlist.json` 锁定当前 `181` 条跨 app import edge 和单 app 最多 `19` 个出边，`check_module_cycles.py --fail-on-cycles` 会阻止依赖图重新变密
-- `2026-06-29` 模块依赖图新增逐 app 出边预算：`module_cycle_allowlist.json` 为当前 `37` 个业务模块逐一记录 `max_outbound_modules_by_app`，防止低耦合模块在全局预算内隐性增加跨 app 依赖
-- `2026-06-29` 模块依赖图门禁新增 ratchet 行为：当循环白名单、跨 app edge 数或单模块出边数下降时，`check_module_cycles.py` 会以 stale baseline 失败，要求同步收紧 `module_cycle_allowlist.json`
-- `2026-06-29` 测试规模口径纳入治理一致性检查：`governance_baseline.json` 锁定当前 `5,898` 个静态 `test_` 函数，关键文档统一改为 AST 轻量治理基线，完整 pytest collect / 执行结果仍以 CI 报告为准
-- `2026-06-29` 治理一致性检查新增生产 Python 巨型文件增长门禁：`governance_baseline.json` 记录当前 25 个超过 1200 非空行的历史文件，`check_governance_consistency.py` 会阻止新增超限文件或历史超限文件继续变大
-- `2026-06-28` 集中风控中心日报升级为可归档查询：生成风控/持仓日报时按 `account_id + report_date` 保存快照，`GET /api/risk-center/daily-report/?account_id=<id>&report_date=<YYYY-MM-DD>` 可查询任意单日，SDK 新增 `get_daily_report()` / `list_daily_reports()`，MCP 新增 `get_risk_center_daily_report` / `list_risk_center_daily_reports`，Web 和 TUI 均提供历史日报查询入口
-- `2026-06-28` 集中风控中心新增风控日报和持仓日报：`POST /api/risk-center/daily-report/`、SDK `client.risk_center.generate_daily_report()`、MCP `generate_risk_center_daily_report`、TUI `risk-center.daily-report` 和 `/risk-center/` Web 按钮可基于账户日终快照输出 `risk_daily_report`、`position_daily_report` 与底层投后巡检结果
-- `2026-06-28` 集中风控中心新增投后风控巡检：`POST /api/risk-center/post-investment-check/`、SDK `client.risk_center.check_post_investment()`、MCP `check_post_investment_risk`、TUI `risk-center.post-investment-check` 和 `/risk-center/` Web 面板可对账户权益、现金、日亏损/回撤和持仓快照做健康检查，输出总仓位、单标的、现金底线、硬排除、强制止损和止盈观察结果
-- `2026-06-27` 新增独立 `risk_center` 集中风控中心 V1：提供全局风控底线、风险模板、账户级策略、管理员例外、审计记录和有效策略解析 API，并补齐 SDK `client.risk_center` 与真实 MCP 工具 `get_risk_floor`、`update_risk_floor`、`list_risk_templates`、`upsert_account_risk_policy`、`get_account_risk_policy`、`get_effective_risk_policy`、`list_risk_exceptions`、`create_risk_exception`
-- `2026-06-27` 集中风控中心已接入交易前置风控：模拟盘自动交易的策略买入和传统候选买入会在下单前检查硬排除、总仓位、单标的、现金底线；策略执行编排会在保存 `OrderIntent` 前调用风控中心，拒单时不落库、不提交 adapter，风控中心异常按失败关闭处理
-- `2026-06-27` 集中风控中心前端/TUI 继续收口：`/risk-center/` 控制台已支持保存全局底线、账户策略、有效策略预览和例外创建；TUI runtime metadata 注入 `risk-center.overview` 屏幕，提供风控查看和确认型写入动作
-- `2026-06-27` 集中风控中心新增交易前风控预览：`POST /api/risk-center/pre-trade-check/`、SDK `client.risk_center.check_pre_trade()`、MCP `check_pre_trade_risk` 和 TUI `risk-center.pre-trade-check` 可直接预览拟交易是否会被硬排除、总仓位、单标的或现金底线拒绝
-- `2026-06-27` 账户层止盈止损定时任务已开始读取 `risk_center` 的有效策略作为运行时阈值来源：`max_stop_loss_pct` 会收紧持仓止损配置，`take_profit_pct` 会收紧持仓止盈目标；风控中心解析失败时自动沿用原持仓配置，避免影响既有执行链路
-- `2026-06-27` 账户层止盈止损链路补齐真实执行能力：`PositionRepository.close_position()` 已支持止损/止盈触发价和原因写入交易流水，账户层 combined 检查任务已注册到 `CELERY_BEAT_SCHEDULE` 并接入 `init_scheduler_defaults` 数据库调度初始化，盘中可定时执行，同时修正止损百分比配置提示为正数语义
-- `2026-06-26` Data Center 资产主数据补档增强了 Alpha 历史缓存的股票名称恢复链路：`backfill_asset_master --include-remote` 现在会先使用 AKShare A 股代码名称表补齐缺失股票，再兜底 EastMoney 单票接口；本地已对历史 Qlib `csi300` cache 中 18 个缺失主数据代码完成补档，`alpha.scores` 历史日期查询不再裸显这些股票代码
-- `2026-06-26` TUI 今日总览已修复市场周期象限字段映射与 Alpha 排名误染色：Regime 面板会识别 `/api/regime/current/` 的 `dominant_regime`，Alpha 迷你表的颜色判定也改为跳过标的/代码/名称列，避免股票名中的“中”或日期横杠被误当作状态信号
-- `2026-06-26` TUI 表格翻页已补齐 `limit/offset` 型接口支持：待看事件等只返回 `items/total` 的列表会按实际返回行数生成 pager，PgUp/PgDn 会改写 `offset` 而不是只发送无效 `page` 参数；Policy Workbench items API 也同步返回 `limit/offset/page/page_size` 分页元数据
-- `2026-06-23` TUI / Alpha 排名的股票名称解析已补齐 data_center 资产主数据兜底：当 `equity_stock_info` 缺少个股名称但 `AssetMasterModel` 已有 canonical 主数据时，`alpha.scores` 等统一资产名称解析入口会自动显示股票名称，并通过名称缓存版本升级避免旧缺失缓存继续影响展示
-- `2026-06-08` Pulse 指标口径已修正：M2 脉搏输入从余额水平 `CN_M2` 切换为同比增速 `CN_M2_YOY`，新增信贷阈值改为匹配 Data Center canonical `元` 存储量级，并修复 level 信号在阈值边界处 signal 与 score 不一致的问题
-- `2026-06-03` 模拟盘自动交易执行链路已补齐推荐执行关联：Decision Rhythm 退出建议现在会携带 `recommendation_id`，自动交易卖出成功后会通过集成桥写入 `DecisionExecutionLinkModel` 并标记统一推荐为 `ADOPTED`；策略模式自动买卖也会在存在近 5 日同账户、同证券、同方向统一推荐时自动匹配关联；执行关联新增 `transaction_source` 区分手工成交与模拟盘成交，并已通过 `/api/audit/execution-links/`、SDK `audit.list_execution_links`、MCP `list_audit_execution_links` 和 Audit/手工复盘页面“推荐执行关联”表格打通推荐 -> 执行的回溯展示闭环
-- `2026-06-03` 模拟盘自动交易新增价格触发约束：策略信号/资产候选可通过 `entry_price_low/high`、`buy_price_low/high` 或 `limit_price` 限制买入触发区间；卖出可通过 `target_price_low/high`、`sell_price_low/high` 或 `limit_price` 限制目标卖出区间，并支持 `stop_loss_price` 跌破触发。15:30 收盘后任务仍使用当日收盘价作为模拟成交价格源，但只有价格进入触发区间才会成交
-- `2026-05-25` Dashboard 首页 Alpha 摘要、`/api/dashboard/alpha/stocks/` JSON 和 HTMX 局部刷新已统一使用同一套 readiness gate：账户专属 scope 下，`recommendation_ready=false` 的 broader-scope cache / trade-date-adjusted 历史结果不再继续伪装成可展示推荐；同时首页查询、手动刷新和批量 scoped 推理的目标交易日也已统一收口到“最近一个已收盘交易日”，避免交易日白天仍拿 `today` 去请求、却只能读到上一个收盘结果时被误判成数据链断裂
-- `2026-05-21` Security Scan 的依赖审计门禁已补充对 `joblib` 争议型漏洞 `PYSEC-2024-277 / CVE-2024-34997` 的显式窄豁免；该告警当前无上游 fix version，CI 不再因不可处置的审计噪音阻断 push，但豁免范围仅限该单一 advisory
-- `2026-05-20` 市场温度计已接入 Macro 页面、账户宏观仓位系数和 Dashboard Alpha 推荐链路；具体资产建议现在会同时考虑 `Regime + Pulse + Market Thermometer + Drawdown`，并支持按 band 独立调节缩仓系数与 `extreme` 新仓阻断开关
+- Unified public version and build metadata across code, docs, and agent guidance.
+- Closed the historical `task_monitor` “unfinished” status in project guidance.
+- Standardized readiness acceptance around:
+  - local strict acceptance
+  - VPS scheduler-clean acceptance
+  - evidence files under `var/readiness-evidence/`
+  - fixed operator commands and pass/fail conditions
+- Locked the formal production database posture to PostgreSQL.
+- Kept `core/integration` bridge debt at zero under governance ratchets.
+- Reduced `apps/terminal/infrastructure/tui_metadata_repository.py` from a large central runtime file to a smaller repository plus dedicated runtime metadata patch modules.
 
-- `2026-05-14` Equity Detail 技术图切换链路已提速：分时接口改为本地快照优先、分钟主备源后置；前端新增同页缓存与预取，收盘后默认也会优先展示最近交易时段分时
-- `2026-05-14` Equity Detail 图表默认日期现按交易时段自动推导：盘中、收盘后和非交易时段都会回落到正确的已完成交易日，避免详情页首屏默认图表错位到未收盘或未来日期
-- `2026-05-13` 新增独立 `config_center` 业务模块，Qlib 训练管理、运行时摘要、管理入口与 API/SDK/MCP 相关能力开始统一收口到专门配置中心；Qlib token 权限边界也同步收紧
-- `2026-05-13` Equity Detail 页面加载链已解除阻塞，缺失局部上下文时支持更稳的部分加载；后台重复 Jazzmin 静态资源注入问题也已修复
-- `2026-05-12` Data Center 新增按需 hydration 能力与覆盖审计命令；个股等读链在本地缺少真源数据时可触发更明确的补抓路径
-- `2026-05-12` Pulse 宏观新鲜度链路已修复；Factor 计算结果页的结果读取与展示也同步补强
-- `2026-05-10` 新增 Workspace Snapshot 与 Task Monitor 调度控制台页面；系统初始化后可更直观看到周期任务、快照刷新和调度状态
-- `2026-05-10` MCP onboarding 页面与启动欢迎上下文已接入，首次接入 AI Agent 时能更快看到可用能力、配置入口和使用方式
-- `2026-05-10` Dashboard / Decision Workspace 的退出链路 deep link 已补齐锚点定位与高亮提示；首页“退出链路入口”现在会自动收起已采纳 / 已忽略项，避免重复提醒；Workspace 侧也已改为复用统一 `dashboard_detail_url`，并新增模板 guardrail 防止回退到手拼链接；Alpha Trigger → Workspace 的旧参数桥接也已兼容收口到 `security_code/action/step`；Dashboard / Equity 的 Workspace 入口现在统一走 canonical URL builder，`进入 Step 4 / 去 Step 5` 链接已与真实 step 参数对齐；Decision Workspace 的 `user_action_label` 也已改为后端单源下发，前端不再独立维护一套显示口径；主页 query / API / SDK / MCP 暴露的退出项也已收口到同一套 canonical Workspace URL 与 processed 状态字段，减少前后端各自补丁造成的漂移
-- `2026-05-08` 本地 Alpha ETF fallback 已补入 seed data，Fund / Dashboard 相关 smoke contract 也已对齐当前页面行为；离线回归与降级路径的可重复性更稳
-- `2026-05-07` 宏观治理与 Dashboard 数据流继续收口；累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
-- `2026-05-07` `task_monitor` 载荷口径已标准化，VPS SQLite 启动任务的序列化问题已修复，任务可见性与远端启动排障更稳定
-- `2026-05-06` 宏观指标治理 seeds 与 CI / 测试基线已对齐当前实现，治理 guardrail 与 smoke contract 误报继续减少
-- `2026-05-05` Dashboard Alpha 新增完整排名入口；Data Center governance 与宏观页面探索能力继续扩展
-- `2026-05-04` 基金研究工作流、宏观同步覆盖面与 `DR007` 同步链路继续扩展 / 修复；MCP 文档快照已更新到 `326`
+## Version history
 
-- 宏观数据中心页面已在前端显式把 Data Center 倒序返回的时间序列标准化为“过去 → 现在”，修复图表时间轴左右颠倒、切换指标后最新值取错的问题
-- 宏观数据中心页面现在会显式区分“未同步”和“未接入”：前者表示该指标已接入自动同步但当前库里暂无事实数据，后者表示目录有定义但尚未接入自动抓取链路；页面头部也新增“全部刷新可抓取指标”按钮，仅对已接入自动同步的指标批量补抓
-- 宏观治理白名单已按 `2026-05-04` 的真实抓取冒烟结果扩到 53 个可自动同步指标；新增放开的包括 PMI/非制造业 PMI、SHIBOR、LPR、RRR、DR007、新增信贷、人民币存贷款、国债收益率、运价指数、PMI 分项等，页面“全部刷新可抓取指标”会覆盖这批已验证可回数的序列
-- `CN_DR007` 已切换到按区间调用 `repo_rate_hist(start_date, end_date)` 并显式读取 `FDR007` 列，不再依赖无参数默认返回的 2020 年旧样本；该指标现已重新纳入自动同步
-- 宏观页图表展示现在额外在前端做时间序列强制正序兜底：无论首屏 SSR 注入数据还是切换指标后的 API 返回数据，最终都统一按 `past -> now` 排序再渲染，避免 `CN_IMPORT_YOY` 一类序列出现 x 轴左右反转
-- 宏观序列顺序职责已进一步固化：Data Center `macro/series` API 继续明确提供“最新优先”的倒序数据，宏观页面与 UI helper 则统一在展示层转成 `past -> now`；相关仓储、用例与模板回归测试已补齐，避免不同指标或不同入口出现顺序规则漂移
-- 登录页与注册页已切换到轻量认证基座，不再默认加载全站导航、浮动告警中心和多组无关前端依赖；匿名认证页首屏负担已明显收敛
-- `core.context_processors.get_market_visuals` 现对匿名 `/account/login/` 与 `/account/register/` 做默认值短路，不再为认证页额外触发运行时配置摘要读取
-- Data Center 与 Macro 页面已补齐 GDP 语义修正：`CN_GDP` 明确标记为“国内生产总值累计值”，并通过元数据暴露 `series_semantics` / `paired_indicator_code`，避免把季度累计额误读成单季值或同比
-- 宏观页默认展示逻辑已支持语义优先级；当 `CN_GDP` 与 `CN_GDP_YOY` 同时存在时，会优先落到同比增速，季度标签也统一显示为 `YYYY-Qn`
-- 宏观图表治理已进一步从“页面规则”下沉到指标元数据：`IndicatorCatalog.extra.chart_policy` 现统一由语义规则驱动落库，当前标准化为 `continuous_line` / `period_bar` / `yearly_reset_bar` 三类；对累计值类指标还会同步落库 `chart_reset_frequency` / `chart_segment_basis`，宏观页据此统一复用 reset-stack 图表逻辑，避免再按指标代码写展示特判
-- reset-stack 类累计值图表现统一隐藏图例，直接依赖柱内颜色分段与 tooltip 展示周期位次，减少 `CN_GDP`、固投、工业利润等图表的纵向占用
-- active 宏观指标现已补齐显式 `series_semantics`，包括累计值、当期流量、余额、指数、利率、同比/环比与 compat alias 口径；`python manage.py init_macro_indicator_governance --strict` 可幂等修复这套治理元数据并作为新环境初始化护栏
-- `python manage.py sync_macro_data` 已修复 GDP / 月度指标将 `PeriodType` 枚举误写入 JSON 的问题，`CN_GDP_YOY` 可正常回填入库
-- 宏观口径治理已扩展到 M2、CPI、PPI、社零、固投、工业增加值、外储、社融、进出口等高风险指标；`IndicatorCatalog` 现在会显式标注 level / index_level / yoy_rate / cumulative_level / balance_level 等语义
-- AKShare 采集链已校正 `CN_RETAIL_SALES` 与 `CN_FX_RESERVES` 的 code-to-column / code-to-unit 对应关系，避免把社零同比误当总额、把外储亿美元误写成万亿美元口径
-- Data Center 新增宏观数据治理台 `/data-center/governance/`，集中审计 legacy source 别名、catalog-only 缺口、可自动补同步缺口和配对序列缺失，并提供一键修复入口
-- 固定资产投资、社会融资规模、进出口口径已进一步治理：`CN_FIXED_INVESTMENT/CN_FAI_YOY` 与 `CN_SOCIAL_FINANCING/CN_SOCIAL_FINANCING_YOY` 已接入并完成回填；`CN_EXPORTS/CN_IMPORTS` 已纠正为金额口径，`CN_EXPORT_YOY/CN_IMPORT_YOY` 单独承载同比口径
-- 宏观运行配置已开始从代码常量下沉到 `IndicatorCatalog.extra`：调度频率、发布时间 lag、季度发布时间窗口、period override 现可通过运行时 metadata 暴露给页面、SDK 与 MCP
-- `sync_macro_data` 现直接读取 catalog runtime metadata 解析 period_type；季度调度判定也已补齐，不再出现 `quarterly` 配置存在但运行时永远不触发的问题
-- 宏观 fetcher 层的单位解析已开始优先读取 runtime metadata / unit rule，本地 `INDICATOR_UNITS` 退化为 fallback，不再作为抓取链的主要口径真源
-- 宏观治理台的巡检范围与自动补数范围也已下沉到 `IndicatorCatalog.extra`；治理台不再依赖页面层硬编码指标列表
-- legacy source 统一逻辑现优先读取 `data_center_macro_fact.extra.source_type`，再结合 `ProviderConfig.name -> source_type` 推断 canonical source，页面层不再维护独立 alias 常量表
-- Data Center 全部事实表后续新增写入已统一使用 canonical `source_type`；provider display name 仅保留在 `extra.provider_name` 与审计链路
-- `apps/data_center/migrations/0017_canonicalize_fact_sources.py` 已完成存量事实表 `source` 规范化整改，覆盖 macro/price/quote/fund/financial/valuation/sector/news/capital flow
-- 宏观调度、publication lag、period override 的本地治理 fallback 表已移除，运行时统一以 `IndicatorCatalog.extra` 元数据为准
-- `apps/data_center/migrations/0018_seed_macro_compat_alias_catalog.py` 已将剩余 legacy code alias 下沉为 catalog-managed 兼容别名，`apps/macro/application/indicator_service.py` 不再维护本地 `LEGACY_CODE_ALIASES`
-- `tests/guardrails/test_logic_guardrails.py` 已新增宏观治理防回归护栏：禁止重新引入本地 fallback 常量，并要求最小健康基线数据下治理摘要保持全绿；该 guardrail 会被核心 CI 持续执行
+| Version | Date | Status | Summary |
+|------|------|------|------|
+| `0.8.0` | `2026-07-05` | Released | Release closure, operations hardening, readiness/VPS runbook, TUI metadata refactor |
+| `0.7.0` | `2026-03-23` | Released | Setup Wizard, AI Capability Catalog, Terminal CLI, Agent Runtime, Pulse |
+| `0.6.0` | `2026-03-19` | Released | AI Capability Catalog initial public release |
+| `0.5.0` | `2026-03-17` | Released | Terminal CLI and Agent Runtime initial public release |
 
-- `main` 已拉齐到最新通过 CI 的开发主线，当前公开主线包含宏观单位治理、Alpha/Qlib 运维台和异步任务可见性修复
-- `/equity/screen/` 的“系统自动推荐”按钮现已改为真正触发 `/api/dashboard/alpha/refresh/` 后再回读推荐结果，并对当前推荐股票顺手同步 `/api/equity/valuation-data/sync/` 与 `/api/equity/financial-data/sync/` 真源数据；不再只是重复读取旧的 `/api/dashboard/alpha/stocks/` 缓存视图，页面摘要也会显式展示最新评分日，便于识别像 `2026-05-06` 收盘后仍停留在 `2026-04-30` 这类新鲜度问题
-- `/equity/screen/` 读取 `/api/dashboard/alpha/stocks/` 时现已显式附加时间戳并使用 `cache: 'no-store'`，避免浏览器继续复用更早的 `2026-04-24` JSON 响应而掩盖服务端其实已经切到 `2026-04-30` 的情况
-- Alpha / Qlib 的收盘后自动链路已补齐三处修复：`qlib_predict_scores` 在刷新本地日线后会强制清空单进程 qlib 初始化状态，避免首个任务明明把数据刷到 `2026-05-06` 却仍按旧的 `2026-04-30` calendar 继续推理并落旧 `asof_date`
-- `qlib_daily_scoped_inference` 现改为按“最近一个已收盘交易日”而不是裸 `localdate()` 决定目标交易日，并对已有 `asof_date == intended_trade_date` 的 scoped qlib cache 做幂等跳过；午夜到次日收盘前的恢复任务会继续补前一交易日，不会误切到尚未收盘的“今天”
-- Celery 现显式声明 `celery / qlib_infer / qlib_train` 队列，并新增 `qlib-post-close-scoped-inference-recovery` 收盘后恢复调度；即使 beat 晚于 `17:40` 启动，后续 `18:00-18:50` 的恢复窗口仍会自动补跑缺失 scoped inference，不再依赖页面手点触发
-- `/equity/screen/` 新增直达 `/dashboard/alpha/ranking/` 的“查看完整排名”入口，并沿用当前 URL 中的 `portfolio_id / pool_mode / alpha_scope`；财务与估值展示继续坚持单一真源优先，未同步时保持空值而不是混源 fallback
-- `/dashboard/alpha/ranking/` 现补齐“推荐历史”直达入口，并展示最近账户 Alpha 推荐记录摘要；`/dashboard/alpha/history/` 也提供返回当前完整排名的入口，避免用户只能从首页摘要区发现历史快照
-- `/equity/screen/` / Dashboard Alpha 上下文中的财务与估值字段现已明确只读取 `data_center` canonical fact tables；旧 `equity_financial_data` / `equity_valuation` 镜像表不再参与页面展示兜底，避免 Alpha 股票池看到“有旧本地值但不是真源”的混源结果
-- `DjangoStockRepository.list_active_stock_codes()` 的默认 universe 已从仅 `equity_stock_info.is_active=True` 扩到“legacy active + Data Center 当前 `price_covered` canonical stock”，财务同步、估值同步与估值质量校验的默认覆盖面已从本地 10 只扩大到当前实际可见的 49 只，避免后台定时任务继续只围着旧 active 清单打转
-- `/api/dashboard/alpha/stocks/` 现已通过 `never_cache` 返回 `Cache-Control: no-store`，避免 Dashboard / Equity Screen / 浏览器 fetch 在同一登录态下继续复用陈旧 Alpha JSON
-- Alpha ops、Dashboard Alpha refresh、Policy RSS 抓取和 Data Center decision reliability repair 现在都会在返回 `task_id` 后立即向 `task_monitor` 写入 `pending` 记录
-- `provider_filter` 单点探测失败不再误报全局 `provider_unavailable`，Alpha 运维告警语义与 Dashboard fast-path/fallback 语义已对齐
-- 新增回归脚本 `python scripts/run_alpha_ops_regression.py`，当前覆盖 Alpha ops、Dashboard、Policy RSS 和 Data Center decision reliability repair 的关键回归点
+## Version format
 
-- Alpha / Qlib 运维台 V1 已落地：新增 staff 可读、superuser 可执行的推理管理与基础数据管理页面，方便统一查看激活模型、缓存、任务、告警与本地 Qlib 数据状态
-- 这轮运维台与 Nightly 修复没有变更 MCP 外部契约：SDK/MCP 的 tool 名称、参数 schema、canonical API 路径与 RBAC 语义保持不变
-- `tests/integration/test_alpha_stress.py` 已切到默认离线 ETF fallback mock，避免 GitHub Actions 上偶发落到 `akshare` 远端请求；最新 push CI 与 Nightly 已重新全绿
-- Dashboard / SDK / MCP 的 Alpha 候选读取链已统一支持 `pool_mode` 和共享 `contract` 元数据，明确区分研究排序、异步刷新与真实可行动推荐
-- Alpha 账户驱动股票池补齐价格覆盖同步与资产主数据回填，账户池稳定性、可解释性和跨入口一致性进一步提升
-- Pulse 重算前会先刷新上游宏观输入；当当前 Regime 只能解析到 `Unknown` 时，系统会保留最近有效的 Pulse 快照而不是覆盖成未知状态
-- Alpha cache 读取已回收至 repository 边界，Architecture Layer Guard 与整条 Nightly 主回归重新恢复绿色
-- Domain / Application 层一批静默 `except Exception:` 已改成显式日志分支，架构治理时可以保留降级行为，同时不再无痕吞错
-- Strategy 外部 provider 已移除对 macro / asset_analysis / signal / equity / fund ORM model 的跨 App 直连，统一改走 Application Service / Repository Provider / Facade 边界
-- Asset name resolution 桥接已回收到 equity / fund / rotation / asset_analysis 各自应用层公开入口，`asset_analysis` 与 `core/integration` 不再跨过去直接访问这些模块的 ORM
-- Asset pool screening 桥接已改为调用 equity / fund 各自 application facade，`core/integration` 不再自行组装 scorer + repository
-- asset_analysis 跨 App 市场协作已升级为 shared technical registry；equity / fund / rotation 在启动时注册 repository / screener / name-resolver，旧 `core/integration/asset_analysis_market_sources.py` 已移除且未引入新循环依赖
-- `tests/unit` 缺失的测试包入口已补齐，Nightly 全量 pytest 收集不再因重复测试文件名触发 `import file mismatch`
-- 多个 Application provider 入口已改回按调用时解析 concrete implementation，并补回 Alpha / StopLoss 旧测试契约兼容层，Nightly 可继续暴露真实单测失败而不是被 patch 断点卡住
-- Nightly integration 步骤已从 `pytest-xdist` 并行改为串行执行，并补充 `faulthandler` / per-test timeout，优先保证 GitHub hosted runner 上的稳定性与可诊断性
-- Strategy 执行在 investable asset pool 尚未预热时会回退读取 asset_analysis 最新评分缓存；Decision Workspace AI 证伪草稿接口已切到新的 `generate_chat_completion` 参数签名
-- 统一账户 API、SDK 与 MCP 契约进一步收口，统一到账户绩效、估值与 canonical 路径
-- Equity Detail 补齐技术图表、分时数据 fallback 与更完整的市场上下文展示
-- Equity Detail 在本地股票主数据或估值缓存缺失时，支持基础信息回退与部分加载，避免详情页整体阻塞
-- Equity Detail 日线/Regime 相关性在本地缓存缺失时接入 Tushare Gateway 历史行情回退，降低单一 AKShare/EastMoney 失败影响
-- Equity Detail 历史行情回退新增 read-through cache，远端成功返回后会幂等写回本地 `equity_stock_daily`
-- 系统设置中心、管理员界面、MCP Tools、服务日志与文档管理页统一到共享管理界面
-- 财经数据源配置页收口为统一数据源中心，支持 Provider Inventory 与运行时连接测试
-- RSS 管理页支持 RSSHub / timeout / retry / proxy 等更完整的源配置
-- GitHub Actions 架构与逻辑门禁已跟上这轮界面和数据源收口后的最新代码边界
+AgomTradePro uses semantic versioning plus a build date:
 
----
-
-## 版本演进历史
-
-### 0.7.0 (2026-03-23)
-
-**新增模块**:
-- `setup_wizard` - 系统初始化向导（首次安装引导）
-- `ai_capability` - AI 能力目录与统一路由
-- `terminal` - 终端 CLI（AI 交互界面）
-- `agent_runtime` - Agent 运行时
-- `pulse` - Pulse 脉搏层（战术指标聚合与转折预警）
-
-**功能改进**:
-- 网页版安装向导，引导配置管理员密码、AI API、数据源
-- 密码强度实时检查
-- 已初始化系统需密码验证才能修改配置
-
-**当前规模口径**: 见 `docs/governance/SYSTEM_BASELINE.md`
-
----
-
-### 0.6.0 (2026-03-19)
-
-**新增模块**:
-- `ai_capability` - 系统级 AI 能力目录与统一路由
-
-**功能改进**:
-- 支持四种能力来源：builtin/terminal_command/mcp_tool/api
-- 统一路由 API
-- 自动采集全站 API 并进行安全分层
-
----
-
-### 0.5.0 (2026-03-17)
-
-**新增模块**:
-- `terminal` - 终端 CLI（终端风格 AI 交互界面）
-- `agent_runtime` - Agent 运行时（Terminal AI 后端）
-
-**功能改进**:
-- 支持可配置命令系统（Prompt/API 两种执行类型）
-- 任务编排和 Facade 模式
-
----
-
-## 版本号使用场景
-
-### 1. 文档中引用版本
-
-```markdown
-> **版本**: 0.7.0
-> **Build**: 2026-03-23
+```text
+major.minor.patch-build.YYYYMMDD
 ```
 
-### 2. API 响应中返回版本
+Example:
 
-```json
-{
-  "version": "0.7.0",
-  "build": "20260323",
-  "modules": 35
-}
+```text
+0.8.0-build.20260705
 ```
 
-### 3. 代码中获取版本
+### Change rules
 
-```python
-# core/version.py
-__version__ = "0.7.0"
-__build__ = "20260323"
+- **Major**: incompatible API or architecture boundary change
+- **Minor**: new release line with meaningful capability or operations boundary change
+- **Patch**: fixes-only release on an existing line
+- **Build date**: the release build date
 
-def get_version():
-    return __version__
+## Release posture
 
-def get_full_version():
-    return f"{__version__}-build.{__build__}"
-```
+### Local / first-run posture
 
-### 4. Git 标签
+- Default local path: `SQLite`
+- Redis/Celery optional
+- Setup Wizard remains the preferred first-run entry
 
-```bash
-git tag -a v0.7.0 -m "Release 0.7.0: Setup Wizard + AI Capability"
-git push origin v0.7.0
-```
+### Formal production posture for 0.8.0
 
----
+- Primary database: `PostgreSQL`
+- Queue/cache: `Redis`
+- Async runtime: `Celery worker + Celery beat`
+- Persistence expectations:
+  - DB persisted outside container lifecycle
+  - `var/readiness-evidence/` persisted
+  - media/log/audit artifacts persisted
 
-## 版本发布流程
+SQLite on VPS is now explicitly treated as a **demo / migration / diagnostic path**, not the formal production recommendation.
 
-### 1. 开发阶段
-- 在 `develop` 分支开发
-- 版本号保持 `-dev` 后缀，如 `0.8.0-dev`
+## Related files that must stay aligned
 
-### 2. 测试阶段
-- 合并到 `release` 分支
-- 版本号改为 `-rc.N`，如 `0.8.0-rc.1`
+| File | Purpose |
+|------|------|
+| `core/version.py` | Single source of truth for runtime version/build |
+| `pyproject.toml` | Package version |
+| `AGENTS.md` | Agent-facing project status and architecture guidance |
+| `README.md` / `README_EN.md` | Public repo release narrative |
+| `docs/INDEX.md` | Doc entrypoint |
+| `docs/governance/SYSTEM_BASELINE.md` | Single narrative source for scale and deployment posture |
 
-### 3. 发布阶段
-- 合并到 `main` 分支
-- 更新 Build 日期
-- 创建 Git 标签 `v0.8.0`
-- 更新本文档的版本历史
+## Release checklist
 
----
+When cutting a new formal version:
 
-## 版本号变更规则
-
-### 主版本号 (0 → 1)
-- [ ] 生产环境首次正式部署
-- [ ] API 发生不兼容变更
-- [ ] 数据库架构重大调整
-- [ ] 核心架构重构
-
-### 次版本号 (7 → 8)
-- [x] 新增业务模块
-- [ ] 重大功能改进
-- [ ] 性能大幅优化
-
-### 修订号 (0 → 1)
-- [ ] Bug 修复
-- [ ] 小功能优化
-- [ ] 文档更新
+- [ ] Update `core/version.py`
+- [ ] Update `pyproject.toml`
+- [ ] Update `AGENTS.md`
+- [ ] Update `README.md`
+- [ ] Update `README_EN.md`
+- [ ] Update `docs/INDEX.md`
+- [ ] Update `docs/governance/SYSTEM_BASELINE.md`
+- [ ] Update release notes and regression report
 
 ---
 
-## 相关文件
-
-| 文件 | 用途 |
-|-----|------|
-| `docs/VERSION.md` | 版本号管理规范（本文档）|
-| `core/version.py` | 版本号常量定义 |
-| `pyproject.toml` | Python 包版本（必须与 `core/version.py` 对齐） |
-| `AGENTS.md` | AI Agent 指引（引用版本号）|
-| `README.md` | 项目说明（引用版本号）|
-| `docs/INDEX.md` | 文档索引（引用版本号）|
-
----
-
-## 版本号同步检查清单
-
-发布新版本时，需更新以下文件：
-
-- [ ] `core/version.py` - 版本号常量
-- [ ] `pyproject.toml` - Python 包版本
-- [ ] `AGENTS.md` - 项目概述中的版本号
-- [ ] `README.md` - 项目说明中的版本号
-- [ ] `docs/INDEX.md` - 文档索引中的版本号
-- [ ] `docs/VERSION.md` - 版本历史记录
-- [ ] `docs/governance/SYSTEM_BASELINE.md` - 系统基线中的版本号
-- [ ] `docs/SYSTEM_SPECIFICATION.md` - 系统规格书中的版本号
-
----
-
-**维护者**: AgomTradePro Team  
-**最后更新**: 2026-05-14
+**Maintainer**: AgomTradePro Team
+**Last updated**: `2026-07-05`

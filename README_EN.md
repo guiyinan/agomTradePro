@@ -26,6 +26,13 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-07-05
+
+- `0.8.0` is now the formal public release line, with version/build metadata unified across code, docs, README, and agent guidance as `0.8.0-build.20260705`
+- `task_monitor`, readiness evidence, and VPS runtime verification are now documented as a standard operations loop with fixed commands, evidence files, and pass criteria
+- The formal production database recommendation is now locked to `PostgreSQL`; `SQLite` remains for local development, demos, and explicit migration/diagnostic paths
+- TUI runtime metadata patches are now split by responsibility, reducing the risk concentrated in `tui_metadata_repository.py`
+
 ### 2026-05-14
 
 - Equity Detail chart defaults are now derived from real market sessions, so intraday, post-close, and non-trading-time visits all fall back to the correct completed trading day instead of a not-yet-closed or future date
@@ -160,7 +167,7 @@ If what you want is not “another dashboard” but “a base for building your 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
 - The new primary flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage
 - AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
-- Still being improved: scheduled task monitoring, more public demo paths, documentation polish, deployment experience
+- Still being improved: more public demo paths, documentation polish, operations automation, and follow-up architecture debt reduction
 
 ---
 
