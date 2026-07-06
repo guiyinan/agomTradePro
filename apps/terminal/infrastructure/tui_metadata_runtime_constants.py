@@ -5,6 +5,7 @@ from __future__ import annotations
 from .tui_metadata_runtime_action_patch_registry import RUNTIME_ACTION_PATCHES
 from .tui_metadata_runtime_injections import (
     RUNTIME_ADVISOR_ACTION,
+    RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION,
     RUNTIME_ADVISOR_SCREEN,
     RUNTIME_ADVISOR_SELECTOR_ACTION,
     RUNTIME_CAPABILITY_ROUTER_ACTIONS,
@@ -27,6 +28,7 @@ from .tui_metadata_runtime_screen_patch_registry import (
 __all__ = [
     "RUNTIME_ACTION_PATCHES",
     "RUNTIME_ADVISOR_ACTION",
+    "RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION",
     "RUNTIME_ADVISOR_SCREEN",
     "RUNTIME_ADVISOR_SELECTOR_ACTION",
     "RUNTIME_CAPABILITY_ROUTER_ACTIONS",

@@ -1469,6 +1469,87 @@ a {
     margin-right: 6px;
 }
 
+.tui-entry-state {
+    display: grid;
+    gap: 10px;
+}
+
+.tui-entry-copy {
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+    padding: 9px 10px;
+    color: var(--tui-text);
+}
+
+.tui-entry-copy strong {
+    display: block;
+    color: var(--tui-accent);
+    margin-bottom: 6px;
+}
+
+.tui-entry-copy p {
+    margin: 0;
+    color: var(--tui-muted);
+    line-height: 1.5;
+}
+
+.tui-entry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.tui-entry-card,
+.tui-entry-actions button {
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+    color: var(--tui-text);
+    font: 700 12px/1.35 var(--tui-mono);
+}
+
+.tui-entry-card {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    text-align: left;
+}
+
+.tui-entry-card strong {
+    color: var(--tui-accent);
+}
+
+.tui-entry-card span,
+.tui-entry-card small {
+    color: var(--tui-muted);
+    font-weight: 400;
+}
+
+.tui-entry-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tui-entry-actions button {
+    min-height: 34px;
+    padding: 0 10px;
+}
+
+.tui-entry-card:hover,
+.tui-entry-card:focus,
+.tui-entry-actions button:hover,
+.tui-entry-actions button:focus {
+    outline: 1px solid var(--tui-text);
+    outline-offset: -1px;
+    background: var(--tui-text);
+    color: var(--tui-inverse);
+}
+
+.tui-entry-card:hover strong,
+.tui-entry-card:focus strong {
+    color: var(--tui-inverse);
+}
+
 .tui-message-list {
     display: grid;
     gap: 8px;

@@ -74,10 +74,12 @@ def main() -> int:
         backend_version=args.backend_version,
         source_evidence_hash=_file_hash(root, args.source_evidence_path),
     )
+    noop = bool(getattr(model, "_publish_was_noop", False))
     print(
         json.dumps(
             {
                 "ok": True,
+                "noop": noop,
                 "registry_id": model.pk,
                 "registry_key": model.registry_key,
                 "status": model.status,

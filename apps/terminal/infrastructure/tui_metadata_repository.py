@@ -91,6 +91,13 @@ class PublishedTuiMetadataRepository:
             .order_by("-published_at", "-updated_at")
             .first()
         )
+        if previous_model is not None and self._is_same_published_payload(
+            previous_model=previous_model,
+            compacted_payload=compacted,
+            source_hash=source_hash,
+        ):
+            setattr(previous_model, "_publish_was_noop", True)
+            return previous_model
         previous_payload = dict(previous_model.payload or {}) if previous_model is not None else {}
         resolved_changed_fields = changed_fields
         if resolved_changed_fields is None:
@@ -115,6 +122,21 @@ class PublishedTuiMetadataRepository:
             approved_by=approved_by if getattr(approved_by, "is_authenticated", False) else None,
             rollback_of=rollback_of,
             published_at=now,
+        )
+
+    @staticmethod
+    def _is_same_published_payload(
+        *,
+        previous_model: TuiMetadataRegistryORM,
+        compacted_payload: dict[str, Any],
+        source_hash: str,
+    ) -> bool:
+        """Return True when the latest published payload already matches the requested publish."""
+
+        previous_payload = dict(previous_model.payload or {})
+        previous_source_hash = str(previous_model.source_hash or "").strip()
+        return previous_payload == compacted_payload or (
+            bool(previous_source_hash) and previous_source_hash == source_hash
         )
 
     def _load_published_file(self) -> dict[str, Any]:

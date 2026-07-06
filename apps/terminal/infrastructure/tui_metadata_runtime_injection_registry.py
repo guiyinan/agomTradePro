@@ -7,6 +7,7 @@ from typing import Any
 
 from .tui_metadata_runtime_injection_advisor import (
     RUNTIME_ADVISOR_ACTION,
+    RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION,
     RUNTIME_ADVISOR_SCREEN,
     RUNTIME_ADVISOR_SELECTOR_ACTION,
 )
@@ -58,7 +59,11 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_advisor_metadata",
         screens=(RUNTIME_ADVISOR_SCREEN,),
-        actions=(RUNTIME_ADVISOR_SELECTOR_ACTION, RUNTIME_ADVISOR_ACTION),
+        actions=(
+            RUNTIME_ADVISOR_SELECTOR_ACTION,
+            RUNTIME_ADVISOR_ACTION,
+            RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION,
+        ),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_risk_center_metadata",

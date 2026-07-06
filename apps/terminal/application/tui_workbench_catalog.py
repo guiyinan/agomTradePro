@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import timedelta
 from typing import Any
@@ -63,7 +64,11 @@ class TuiWorkbenchCatalogMixin:
         }
 
     def _screen_summary(
-        self, screen: dict[str, Any], actions: list[dict[str, Any]]
+        self,
+        screen: dict[str, Any],
+        actions: list[dict[str, Any]],
+        *,
+        user: Any | None = None,
     ) -> dict[str, Any]:
         return {
             "key": screen["key"],
@@ -79,6 +84,7 @@ class TuiWorkbenchCatalogMixin:
             "dashboard_panels": list(screen.get("dashboard_panels") or []),
             "workflow": dict(screen.get("workflow") or {}),
             "business_context": self._screen_business_context(screen, actions),
+            "entry_state": self._screen_entry_state(screen, actions, user=user),
         }
 
     def _screen_default_action_key(
@@ -90,10 +96,7 @@ class TuiWorkbenchCatalogMixin:
 
         actions_by_key = {str(action.get("key") or ""): action for action in actions}
         configured_action = actions_by_key.get(configured_key)
-        if configured_action and (
-            str(configured_action.get("risk") or "read") != "read"
-            or not self._action_requires_operator_input(configured_action)
-        ):
+        if configured_action:
             return configured_key
 
         panel_candidates = self._panel_default_action_candidates(screen, actions_by_key)
@@ -167,6 +170,114 @@ class TuiWorkbenchCatalogMixin:
             bool(field.get("required")) and str(field.get("input_type") or "") != "hidden"
             for field in action.get("fields") or []
         )
+
+    def _screen_entry_state(
+        self,
+        screen: dict[str, Any],
+        actions: list[dict[str, Any]],
+        *,
+        user: Any | None = None,
+    ) -> dict[str, Any]:
+        default_action_key = self._screen_default_action_key(screen, actions)
+        default_action = next(
+            (action for action in actions if str(action.get("key") or "") == default_action_key),
+            None,
+        )
+        blocking_fields = self._blocking_required_fields(default_action) if default_action else []
+        explicit_mode = str(screen.get("entry_mode") or "").strip().lower()
+        mode = explicit_mode if explicit_mode in {"auto_run", "parameter_gate", "dashboard"} else ""
+        if not mode:
+            if screen.get("dashboard_panels"):
+                mode = "dashboard"
+            elif blocking_fields:
+                mode = "parameter_gate"
+            else:
+                mode = "auto_run"
+        field_key = str(screen.get("entry_field_key") or "").strip()
+        if not field_key and blocking_fields:
+            field_key = str(blocking_fields[0].get("key") or "").strip()
+        return {
+            "mode": mode,
+            "field_key": field_key,
+            "help_steps": self._screen_entry_help_steps(
+                screen,
+                default_action,
+                blocking_fields,
+                mode=mode,
+            ),
+            "empty_copy": self._screen_entry_empty_copy(
+                screen,
+                default_action,
+                blocking_fields,
+                mode=mode,
+            ),
+        }
+
+    def _blocking_required_fields(self, action: dict[str, Any] | None) -> list[dict[str, Any]]:
+        if not action:
+            return []
+        blocking: list[dict[str, Any]] = []
+        for field in action.get("fields") or []:
+            if not field.get("required"):
+                continue
+            if str(field.get("input_type") or "").strip().lower() == "hidden":
+                continue
+            if self._resolved_field_default(action, field) in (None, ""):
+                blocking.append(field)
+        return blocking
+
+    def _screen_entry_help_steps(
+        self,
+        screen: dict[str, Any],
+        action: dict[str, Any] | None,
+        blocking_fields: list[dict[str, Any]],
+        *,
+        mode: str,
+    ) -> list[str]:
+        explicit = [
+            self._operator_text(item)
+            for item in (screen.get("entry_help_steps") or [])
+            if str(item or "").strip()
+        ]
+        if explicit:
+            return explicit
+        if mode == "dashboard":
+            return ["先看中心概览，再从左侧任务进入明细或操作。"]
+        if mode == "auto_run":
+            label = self._operator_text((action or {}).get("label") or "默认任务")
+            return [f"进入屏幕后会自动执行“{label}”。"]
+        if not blocking_fields:
+            return ["先补充默认任务参数，再继续执行。"]
+        field = blocking_fields[0]
+        input_type = str(field.get("input_type") or "").strip().lower()
+        label = self._operator_text(field.get("label") or field.get("key") or "参数")
+        if input_type == "select":
+            return [f"先选择{label}，系统会自动进入默认结果。"]
+        return [f"先补充{label}，再继续执行默认任务。"]
+
+    def _screen_entry_empty_copy(
+        self,
+        screen: dict[str, Any],
+        action: dict[str, Any] | None,
+        blocking_fields: list[dict[str, Any]],
+        *,
+        mode: str,
+    ) -> str:
+        explicit = self._operator_text(screen.get("entry_empty_copy") or "")
+        if explicit:
+            return explicit
+        if mode == "dashboard":
+            return self._operator_text(screen.get("summary") or "先看当前概览。")
+        if mode == "auto_run":
+            return "正在准备默认结果。"
+        if not blocking_fields:
+            return self._operator_text(screen.get("summary") or "先补充参数，再继续执行。")
+        field = blocking_fields[0]
+        input_type = str(field.get("input_type") or "").strip().lower()
+        label = self._operator_text(field.get("label") or field.get("key") or "对象")
+        if input_type == "select":
+            return f"先选择{label}，再进入本屏默认结果。"
+        return f"先补充{label}，再进入本屏默认结果。"
 
     def _screen_business_context(
         self, screen: dict[str, Any], actions: list[dict[str, Any]]
@@ -379,7 +490,7 @@ class TuiWorkbenchCatalogMixin:
     ) -> Any:
         default = field.get("default")
         if default not in (None, ""):
-            return default
+            return self._coerce_field_default(field, default)
         if not action or str(action.get("risk") or "") != "read":
             return default
         key = str(field.get("key") or "").strip().lower()
@@ -392,6 +503,43 @@ class TuiWorkbenchCatalogMixin:
         if key in {"end_date", "end", "as_of_date", "as_of", "date", "trade_date"}:
             return today.isoformat()
         return default
+
+    def _coerce_field_default(self, field: dict[str, Any], value: Any) -> Any:
+        if value in (None, ""):
+            return value
+        value_type = str(field.get("value_type") or field.get("input_type") or "").strip().lower()
+        if not value_type:
+            return value
+        if value_type == "integer":
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return value
+        if value_type == "float":
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return value
+        if value_type == "boolean":
+            if isinstance(value, bool):
+                return value
+            normalized = str(value).strip().lower()
+            if normalized in {"true", "1", "yes", "y", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "n", "off"}:
+                return False
+            return value
+        if value_type in {"list", "json", "object"} and isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError:
+                return value
+            if value_type == "list" and not isinstance(parsed, list):
+                return value
+            if value_type == "object" and not isinstance(parsed, dict):
+                return value
+            return parsed
+        return value
 
     def _is_technical_field_label(self, *, key: str, label: str) -> bool:
         if not label:

@@ -1115,6 +1115,19 @@ until compose run --rm --no-deps web python manage.py migrate --noinput; do
   sleep 5
 done
 
+TUI_METADATA_PATH="config/tui/published/tui_operation_graph.published.json"
+if [ -f "$TUI_METADATA_PATH" ]; then
+  echo "[INFO] publishing reviewed TUI metadata"
+  TUI_PUBLISH_CMD="python tui-metadata-compiler/scripts/publish_tui_metadata.py $TUI_METADATA_PATH --approve --generation-source mixed --backend-version $RELEASE_TAG --review-note 'Automatic deploy publish $RELEASE_TAG'"
+  if [ -f "config/tui/generated/tui_operation_evidence.generated.json" ]; then
+    TUI_PUBLISH_CMD="$TUI_PUBLISH_CMD --source-evidence-path config/tui/generated/tui_operation_evidence.generated.json"
+  fi
+  if ! compose run --rm --no-deps web sh -lc "$TUI_PUBLISH_CMD"; then
+    echo "[ERROR] TUI metadata publish failed" >&2
+    exit 1
+  fi
+fi
+
 BOOTSTRAP_ALPHA="${AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA:-0}"
 BOOTSTRAP_DECISION_REPAIR="${AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR:-0}"
 BOOTSTRAP_CMD="python manage.py bootstrap_cold_start"

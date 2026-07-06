@@ -38,6 +38,7 @@ Runtime note for production:
 
 - `celery_worker` must receive the same data-source and AI provider env vars as `web`, especially `TUSHARE_TOKEN`, otherwise Alpha/Qlib inference tasks will fail inside the worker even when the site renders normally.
 - Qlib inference is memory-sensitive on VPS. Keep the worker memory limit comfortably above the idle baseline; `500m` is too low for this project and can lead to `SIGKILL` / `WorkerLostError` during inference.
+- After `migrate`, the remote deploy flow now auto-publishes `config/tui/published/tui_operation_graph.published.json` into the runtime DB registry. Identical compacted payloads short-circuit as `noop`, so repeated deploys do not keep growing `terminal_tui_metadata_registry`.
 
 Built image tar is saved under:
 

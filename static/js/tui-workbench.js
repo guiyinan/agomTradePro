@@ -26,6 +26,9 @@
         inspectorCollapsed: false,
         inspectorWidth: null,
         themeKey: "B",
+        pendingRequestId: 0,
+        pendingController: null,
+        slowActionTimer: null,
     };
 
     const els = {
@@ -762,6 +765,111 @@
         return response.json();
     }
 
+    function clearPendingRequest(options = {}) {
+        const { abort = false } = options;
+        if (state.slowActionTimer) {
+            window.clearTimeout(state.slowActionTimer);
+            state.slowActionTimer = null;
+        }
+        if (abort && state.pendingController) {
+            try {
+                state.pendingController.abort();
+            } catch (error) {
+                // Ignore abort races on already-settled requests.
+            }
+        }
+        state.pendingController = null;
+        state.pendingRequestId = 0;
+    }
+
+    function startPendingRequest(controller) {
+        clearPendingRequest();
+        state.pendingRequestId = Date.now();
+        state.pendingController = controller;
+        return state.pendingRequestId;
+    }
+
+    function renderActionLoadingState(action, screenSpec, options = {}) {
+        const waitingCopy = options.waitingCopy || "正在读取业务数据...";
+        els.main.innerHTML = `
+            <section class="tui-entry-state">
+                <div class="tui-view-status">加载中 / ${escapeHtml(action.label || "默认任务")}</div>
+                <div class="tui-entry-copy">
+                    <strong>${escapeHtml(waitingCopy)}</strong>
+                    <p>${escapeHtml(screenSpec?.screen?.summary || "系统正在准备默认结果。")}</p>
+                </div>
+            </section>
+        `;
+        setStatus("读取数据");
+    }
+
+    function scheduleSlowActionState(requestId, action) {
+        const slowTargets = new Set(["cli.chat_router", "terminal.chat_router", "capability-router.route-message"]);
+        if (!slowTargets.has(action.key)) {
+            return;
+        }
+        state.slowActionTimer = window.setTimeout(() => {
+            if (state.pendingRequestId !== requestId) {
+                return;
+            }
+            renderSlowActionState(action);
+        }, 15000);
+    }
+
+    function renderSlowActionState(action) {
+        els.main.innerHTML = `
+            <section class="tui-entry-state">
+                <div class="tui-view-status">响应较慢 / ${escapeHtml(action.label || "")}</div>
+                <div class="tui-entry-copy">
+                    <strong>CLI 响应较慢，可继续等待 / 重试 / 打开 AI 交互终端 / 打开能力路由接入。</strong>
+                    <p>当前请求仍在执行中。你可以继续等待，也可以中止并切换到更直接的入口。</p>
+                </div>
+                <div class="tui-entry-actions">
+                    <button type="button" data-slow-command="wait">继续等待</button>
+                    <button type="button" data-slow-command="retry">重试</button>
+                    <button type="button" data-slow-command="ai-terminal">打开 AI 交互终端</button>
+                    <button type="button" data-slow-command="router">打开能力路由接入</button>
+                    <button type="button" data-slow-command="cancel">取消本次请求</button>
+                </div>
+            </section>
+        `;
+        els.main.querySelectorAll("[data-slow-command]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const command = button.dataset.slowCommand;
+                if (command === "wait") {
+                    renderActionLoadingState(action, state.screen, { waitingCopy: "继续等待远端响应..." });
+                    scheduleSlowActionState(state.pendingRequestId, action);
+                } else if (command === "retry") {
+                    clearPendingRequest({ abort: true });
+                    runAction(action.key, null, { params: { ...state.lastParams } });
+                } else if (command === "ai-terminal") {
+                    clearPendingRequest({ abort: true });
+                    loadScreen("ai-ops.terminal");
+                } else if (command === "router") {
+                    clearPendingRequest({ abort: true });
+                    loadScreen("capability-router.gateway");
+                } else if (command === "cancel") {
+                    clearPendingRequest({ abort: true });
+                    els.main.innerHTML = renderEmptyState("已取消当前请求。", ["你可以重试，或切换到其他入口继续。"]);
+                    setStatus("已取消");
+                }
+            });
+        });
+        setStatus("响应较慢");
+    }
+
+    function focusActionForm(actionKey) {
+        const action = currentAction(actionKey);
+        if (!action) {
+            setStatus("默认任务未找到");
+            return;
+        }
+        const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
+        form?.scrollIntoView({ block: "nearest" });
+        form?.querySelector("input:not([type='hidden']),select,textarea,button")?.focus();
+        setStatus(`已定位到 ${action.label}`);
+    }
+
     function renderCatalog(catalog) {
         state.catalog = catalog;
         const groups = catalog.groups || [];
@@ -929,7 +1037,7 @@
         setCurrentLocation(null);
         markActiveScreen(screen.key);
         renderWorkflowStrip(screen.workflow || {});
-        const dashboardScreen = hasDashboardPanels(screen);
+        const dashboardScreen = hasDashboardPanels(screen) && (screen.entry_state?.mode !== "parameter_gate");
         const immersiveDashboard = isImmersiveDashboardScreen(screen);
         els.actions.closest(".tui-panel").hidden = immersiveDashboard;
         els.inspector.closest(".tui-panel").hidden = immersiveDashboard;
@@ -980,14 +1088,17 @@
         });
         updatePager(null);
         updateRawDrawer();
+        const entryState = screen.entry_state || {};
         const defaultAction = resolveDefaultAction(screenSpec);
-        if (defaultAction) {
+        if (entryState.mode === "parameter_gate" && defaultAction) {
+            renderEntryState(screenSpec, defaultAction, entryState);
+            setStatus("等待选择");
+        } else if (defaultAction) {
             const defaultForm = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(defaultAction))}"]`);
-            els.main.innerHTML = '<div class="tui-loading">加载默认视图...</div>';
-            setStatus("加载默认视图");
+            renderActionLoadingState(defaultAction, screenSpec, { waitingCopy: entryState.empty_copy });
             runAction(defaultAction.key, defaultForm);
         } else {
-            els.main.innerHTML = `<div class="tui-empty-state">${escapeHtml(screen.summary)}<br>请选择左侧任务或按 F6 执行下一主流程。</div>`;
+            els.main.innerHTML = `<div class="tui-empty-state">${escapeHtml(entryState.empty_copy || screen.summary)}<br>请选择左侧任务或按 F6 执行下一主流程。</div>`;
             setStatus("工作区就绪");
         }
     }
@@ -998,13 +1109,105 @@
             return null;
         }
         const screen = screenSpec.screen || {};
+        const entryState = screen.entry_state || {};
+        if (entryState.mode === "dashboard") {
+            return null;
+        }
         const preferred = actions.find((action) => action.key === screen.default_action_key);
         const candidate = preferred || actions[0];
-        const requiredFields = (candidate.fields || []).filter((field) => field.required && !field.default);
+        if (!candidate) {
+            return null;
+        }
+        if (entryState.mode === "parameter_gate") {
+            return candidate;
+        }
+        const requiredFields = unresolvedRequiredFields(candidate);
         if (requiredFields.length) {
             return null;
         }
         return candidate;
+    }
+
+    function unresolvedRequiredFields(action) {
+        return (action?.fields || [])
+            .filter((field) => field.required && field.input_type !== "hidden")
+            .filter((field) => field.default === undefined || field.default === null || field.default === "");
+    }
+
+    function renderEntryState(screenSpec, action, entryState) {
+        const fieldKey = String(entryState.field_key || "");
+        const field = (action.fields || []).find((item) => item.key === fieldKey) || unresolvedRequiredFields(action)[0];
+        if (!field) {
+            els.main.innerHTML = renderEmptyState(
+                entryState.empty_copy || screenSpec.screen.summary,
+                entryState.help_steps || ["请选择左侧任务继续。"],
+            );
+            return;
+        }
+        const inputType = String(field.input_type || "").toLowerCase();
+        if (inputType === "select" && Array.isArray(field.options) && field.options.length) {
+            renderSelectorEntryState(screenSpec, action, entryState, field);
+            return;
+        }
+        renderTaskStartEntryState(screenSpec, action, entryState, field);
+    }
+
+    function renderSelectorEntryState(screenSpec, action, entryState, field) {
+        const options = (field.options || []).filter((option) => {
+            if (option && typeof option === "object") {
+                return String(option.value ?? "").trim() !== "";
+            }
+            return String(option ?? "").trim() !== "";
+        });
+        const cards = options.map((option, index) => {
+            const optionValue = typeof option === "object" ? option.value : option;
+            const optionLabel = typeof option === "object" ? option.label : option;
+            const optionSummary = typeof option === "object"
+                ? [option.account_name, option.account_type, option.summary].filter(Boolean).join(" / ")
+                : "";
+            return `
+                <button type="button" class="tui-entry-card" data-entry-option-index="${index}" data-entry-option-value="${escapeHtml(optionValue)}">
+                    <strong>${escapeHtml(optionLabel)}</strong>
+                    <span>${escapeHtml(optionSummary || "选择后自动进入默认结果。")}</span>
+                    <small>${escapeHtml(action.label)}</small>
+                </button>
+            `;
+        }).join("");
+        els.main.innerHTML = `
+            <section class="tui-entry-state">
+                <div class="tui-view-status">入口选择 / ${escapeHtml(screenSpec.screen.label)}</div>
+                <div class="tui-entry-copy">
+                    <strong>${escapeHtml(entryState.empty_copy || `先选择${field.label}`)}</strong>
+                    ${(entryState.help_steps || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+                </div>
+                <div class="tui-entry-grid">${cards}</div>
+            </section>
+        `;
+        els.main.querySelectorAll("[data-entry-option-index]").forEach((button, index) => {
+            button.addEventListener("click", () => {
+                const option = options[index];
+                const value = typeof option === "object" ? option.value : option;
+                runAction(action.key, null, { params: { [field.key]: value } });
+            });
+        });
+    }
+
+    function renderTaskStartEntryState(screenSpec, action, entryState, field) {
+        els.main.innerHTML = `
+            <section class="tui-entry-state">
+                <div class="tui-view-status">任务起步 / ${escapeHtml(screenSpec.screen.label)}</div>
+                <div class="tui-entry-copy">
+                    <strong>${escapeHtml(entryState.empty_copy || `先补充${field.label}`)}</strong>
+                    ${(entryState.help_steps || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+                </div>
+                <div class="tui-entry-actions">
+                    <button type="button" data-focus-default-action>打开默认任务</button>
+                </div>
+            </section>
+        `;
+        els.main.querySelector("[data-focus-default-action]")?.addEventListener("click", () => {
+            focusActionForm(action.key);
+        });
     }
 
     function hasDashboardPanels(screen) {
@@ -1905,6 +2108,7 @@
 
     async function loadScreen(screenKey) {
         try {
+            clearPendingRequest({ abort: true });
             closeMenu();
             closeModal();
             els.main.innerHTML = '<div class="tui-loading">正在加载工作区...</div>';
@@ -1932,8 +2136,10 @@
             setCurrentLocation(action);
             closeMenu();
             closeModal();
-            els.main.innerHTML = '<div class="tui-loading">正在读取业务数据...</div>';
-            setStatus("读取数据");
+            const controller = new AbortController();
+            const requestId = startPendingRequest(controller);
+            renderActionLoadingState(action, state.screen);
+            scheduleSlowActionState(requestId, action);
             const requestBody = { params, confirmed: Boolean(options.confirmed) };
             if (options.confirmation) {
                 requestBody.confirmation = options.confirmation;
@@ -1944,7 +2150,9 @@
             const result = await fetchJson(actionRunUrl(actualActionKey), {
                 method: "POST",
                 body: JSON.stringify(requestBody),
+                signal: controller.signal,
             });
+            clearPendingRequest();
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 state.lastRaw = null;
                 renderViewModel(result.view_model);
@@ -1979,6 +2187,11 @@
             updateRawDrawer();
             setStatus("读取完成");
         } catch (error) {
+            if (error?.name === "AbortError") {
+                setStatus("请求已取消");
+                return;
+            }
+            clearPendingRequest();
             renderError(error.message);
         }
     }
@@ -2117,7 +2330,11 @@
                     </tbody>
                 </table>
             `
-            : renderEmptyState(emptyMessage, state.filterText ? ["清空筛选后查看全部记录。"] : viewModel.empty_guidance);
+            : renderEmptyState(
+                emptyMessage,
+                state.filterText ? ["清空筛选后查看全部记录。"] : viewModel.empty_guidance,
+                state.filterText ? [] : viewModel.next_steps,
+            );
         els.main.innerHTML = `
             <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}${escapeHtml(filterSuffix)}</div>
             ${renderDecisionCue(viewModel)}
@@ -2133,6 +2350,7 @@
         els.main.querySelectorAll("[data-page-delta]").forEach((button) => {
             button.addEventListener("click", () => pageDelta(Number(button.dataset.pageDelta || 0)));
         });
+        bindNextStepButtons(els.main, viewModel.next_steps);
         if (rows.length) {
             state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);
         } else {
@@ -2159,8 +2377,9 @@
         `;
     }
 
-    function renderEmptyState(message, guidance) {
+    function renderEmptyState(message, guidance, nextSteps = []) {
         const lines = (guidance || []).filter(Boolean);
+        const steps = Array.isArray(nextSteps) ? nextSteps : [];
         return `
             <div class="tui-empty-state tui-empty-guidance">
                 <strong>${escapeHtml(message)}</strong>
@@ -2169,8 +2388,42 @@
                         ${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
                     </ul>
                 ` : ""}
+                ${steps.length ? `
+                    <div class="tui-entry-actions">
+                        ${steps.map((step, index) => `
+                            <button type="button" data-next-step-index="${index}">
+                                ${escapeHtml(step.label || "继续")}
+                            </button>
+                        `).join("")}
+                    </div>
+                ` : ""}
             </div>
         `;
+    }
+
+    function bindNextStepButtons(container, nextSteps) {
+        container.querySelectorAll("[data-next-step-index]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const index = Number(button.dataset.nextStepIndex || 0);
+                executeNextStep((nextSteps || [])[index]);
+            });
+        });
+    }
+
+    function executeNextStep(step) {
+        if (!step) {
+            return;
+        }
+        if (step.action_key) {
+            const params = step.params && typeof step.params === "object" ? step.params : { ...state.lastParams };
+            runAction(step.action_key, null, { params });
+            return;
+        }
+        if (step.screen_key) {
+            loadScreen(step.screen_key);
+            return;
+        }
+        setStatus(step.hint || "已记录下一步");
     }
 
     function renderChart(viewModel) {
@@ -2504,7 +2757,9 @@
                     ${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}
                 </div>
             ` : ""}
+            ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
         `;
+        bindNextStepButtons(els.main, viewModel.next_steps);
     }
 
     function renderMessage(viewModel) {
@@ -2529,13 +2784,15 @@
             <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "消息")}</div>
             ${renderDecisionCue(viewModel)}
             <div class="tui-message-list">${body}</div>
+            ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
         `;
+        bindNextStepButtons(els.main, viewModel.next_steps);
     }
 
     function renderDecisionCue(viewModel) {
         const screen = state.screen?.screen || {};
         const context = screen.business_context || {};
-        if (!context.decision_output && !context.objective) {
+        if (!context.decision_output && !context.objective && !viewModel?.business_summary) {
             return "";
         }
         const workflow = screen.workflow || {};
@@ -2543,10 +2800,14 @@
         const actions = (state.screen && state.screen.actions) || [];
         const summary = summarizeActions(actions);
         const evidence = resultEvidenceLabel(viewModel);
+        const businessSummary = String(viewModel?.business_summary || "").trim();
         const rows = [
-            ["判断产出", context.decision_output || context.objective],
+            ["判断产出", businessSummary || context.decision_output || context.objective],
             ["当前证据", evidence],
         ];
+        if (viewModel?.blocking_reason) {
+            rows.push(["当前阻断", viewModel.blocking_reason]);
+        }
         const cueActions = [];
         if (summary.operation) {
             rows.push(["可执行操作", `${summary.operation} 项，提交前确认`]);

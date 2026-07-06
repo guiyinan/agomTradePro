@@ -274,7 +274,7 @@
       "group": "research",
       "summary": "查看当前有效信号和统一信号汇总。",
       "view_type": "datagrid",
-      "status": "planned",
+      "status": "online",
       "default_action_key": "signal.active",
       "workflow": {
         "name": "每日投研流程",

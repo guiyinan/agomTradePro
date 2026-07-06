@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.account.application.rbac import get_user_role
-from core.integration.capability_routing import route_terminal_message
+from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
 from ..application.repository_provider import (
     get_terminal_audit_repository,
@@ -53,6 +53,12 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def route_terminal_message(**kwargs):
+    """Route one terminal message through the owning AI capability facade."""
+
+    return CapabilityRoutingFacade().route(**kwargs)
 
 
 def _get_mcp_enabled(user) -> bool:

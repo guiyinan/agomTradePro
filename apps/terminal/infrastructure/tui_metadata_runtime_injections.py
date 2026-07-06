@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .tui_metadata_runtime_injection_advisor import (
     RUNTIME_ADVISOR_ACTION,
+    RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION,
     RUNTIME_ADVISOR_SCREEN,
     RUNTIME_ADVISOR_SELECTOR_ACTION,
 )
@@ -27,6 +28,7 @@ from .tui_metadata_runtime_injection_risk_center import (
 
 __all__ = [
     "RUNTIME_ADVISOR_ACTION",
+    "RUNTIME_ADVISOR_FACTOR_BREAKDOWN_ACTION",
     "RUNTIME_ADVISOR_SCREEN",
     "RUNTIME_ADVISOR_SELECTOR_ACTION",
     "RUNTIME_CAPABILITY_ROUTER_ACTIONS",

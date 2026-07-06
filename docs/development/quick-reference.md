@@ -199,6 +199,8 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\validate_tui_metad
 # 发布已审核 metadata 到本地 DB registry
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metadata.py config\tui\published\tui_operation_graph.published.json --approve --generation-source mixed --backend-version "local-dev" --source-evidence-path config\tui\generated\tui_operation_evidence.generated.json --review-note "Reviewed TUI metadata"
 
+# 重复发布同一份 compacted payload 时会 no-op，不再新增 registry 历史行
+
 # TUI 契约与渲染核心回归
 agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests\unit\test_tui_ui_mode.py tests\unit\test_tui_metadata_compiler.py -q -p no:cacheprovider
 ```

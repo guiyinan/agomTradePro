@@ -416,6 +416,15 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
     sleep 5
   done
 
+  if [ -f config/tui/published/tui_operation_graph.published.json ]; then
+    log_info "Publishing reviewed TUI metadata"
+    tui_publish_cmd="python tui-metadata-compiler/scripts/publish_tui_metadata.py config/tui/published/tui_operation_graph.published.json --approve --generation-source mixed --backend-version ${release_name} --review-note 'Automatic deploy publish ${release_name}'"
+    if [ -f config/tui/generated/tui_operation_evidence.generated.json ]; then
+      tui_publish_cmd="$tui_publish_cmd --source-evidence-path config/tui/generated/tui_operation_evidence.generated.json"
+    fi
+    compose_vps exec -T web sh -lc "$tui_publish_cmd"
+  fi
+
   log_info "Running cold-start bootstrap"
   compose_vps exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
 

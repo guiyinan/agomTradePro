@@ -30,14 +30,14 @@ from apps.terminal.infrastructure.tui_metadata_repository import (
 )
 
 
-def _metadata_payload(actions=None):
+def _metadata_payload(actions=None, screens=None, modules=None, groups=None, default_screen=None):
     return {
         "version": "tui-workbench.v2",
         "registry_key": "default",
-        "default_screen": "command-center.overview",
+        "default_screen": default_screen or "command-center.overview",
         "interaction_model": "published-metadata-to-pc-tools",
-        "groups": [{"key": "workflow", "label": "Workflow"}],
-        "modules": [
+        "groups": groups or [{"key": "workflow", "label": "Workflow"}],
+        "modules": modules or [
             {
                 "key": "command-center",
                 "label": "Command Center",
@@ -46,7 +46,7 @@ def _metadata_payload(actions=None):
                 "status": "online",
             }
         ],
-        "screens": [
+        "screens": screens or [
             {
                 "key": "command-center.overview",
                 "label": "Command Overview",
@@ -809,7 +809,9 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
     action_by_key = {action["key"]: action for action in payload["actions"]}
     assert payload["module"]["key"] == "risk-center"
     assert payload["screen"]["label"] == "集中风控中心"
-    assert payload["screen"]["default_action_key"] == "risk-center.account-policies"
+    assert payload["screen"]["default_action_key"] == "risk-center.effective-policy"
+    assert payload["screen"]["entry_state"]["mode"] == "parameter_gate"
+    assert payload["screen"]["entry_state"]["field_key"] == "account_id"
     assert action_by_key["risk-center.effective-policy"]["risk"] == "read"
     assert action_by_key["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert action_by_key["risk-center.pre-trade-check"]["risk"] == "read"
@@ -854,9 +856,12 @@ def test_tui_auto_advisor_screen_defaults_to_account_selector(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "advisor.account_selector"
+    assert payload["screen"]["default_action_key"] == "advisor.today_sheet"
+    assert payload["screen"]["entry_state"]["mode"] == "parameter_gate"
+    assert payload["screen"]["entry_state"]["field_key"] == "account_id"
     action_by_key = {action["key"]: action for action in payload["actions"]}
     assert "advisor.account_selector" in action_by_key
+    assert "advisor.factor_breakdown" in action_by_key
     assert action_by_key["advisor.account_selector"]["fields"] == []
     assert action_by_key["advisor.today_sheet"]["fields"][0]["key"] == "account_id"
     panels = payload["screen"]["dashboard_panels"]
@@ -5657,6 +5662,34 @@ def test_tui_metadata_repository_records_publish_audit_fields(db, tui_user):
     assert model.approved_by == tui_user
 
 
+@pytest.mark.django_db
+def test_tui_metadata_repository_publish_is_noop_for_same_compacted_payload():
+    payload = _metadata_payload()
+    repository = PublishedTuiMetadataRepository()
+
+    first = repository.publish_payload(
+        payload=payload,
+        review_note="Initial reviewed metadata",
+        generation_source="mixed",
+        backend_version="test-backend",
+    )
+    second = repository.publish_payload(
+        payload=payload,
+        review_note="Repeat deploy publish",
+        generation_source="mixed",
+        backend_version="test-backend",
+    )
+
+    records = list(
+        TuiMetadataRegistryORM._default_manager.filter(registry_key="default").order_by("id")
+    )
+
+    assert first.pk == second.pk
+    assert getattr(second, "_publish_was_noop", False) is True
+    assert len(records) == 1
+    assert records[0].status == "published"
+
+
 def test_tui_service_derives_business_context_for_unannotated_screens():
     service = TuiWorkbenchService(metadata_repository=FakeMetadataRepository())
 
@@ -5718,6 +5751,296 @@ def test_published_tui_performance_and_snapshot_actions_expose_required_query_fi
         "as_of_date",
     ]
     assert actions["auto.api.get.api.sentiment.index.range"]["label"] == "情绪指数区间"
+
+
+def test_tui_screen_entry_state_contract_for_blocked_and_auto_run_defaults():
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                screens=[
+                    {
+                        "key": "command-center.overview",
+                        "label": "Command Overview",
+                        "module_key": "command-center",
+                        "group": "workflow",
+                        "summary": "Overview.",
+                        "view_type": "status",
+                        "status": "online",
+                        "default_action_key": "quotes.read",
+                    },
+                    {
+                        "key": "command-center.selector",
+                        "label": "Selector",
+                        "module_key": "command-center",
+                        "group": "workflow",
+                        "summary": "Selector.",
+                        "view_type": "detail",
+                        "status": "online",
+                        "default_action_key": "advisor.read",
+                    },
+                ],
+                actions=[
+                    {
+                        "key": "quotes.read",
+                        "label": "Quotes",
+                        "method": "GET",
+                        "endpoint": "/api/quotes/",
+                        "intent": "quotes",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [],
+                        "description": "Quotes.",
+                        "source": "approved:test",
+                    },
+                    {
+                        "key": "advisor.read",
+                        "label": "Advisor",
+                        "method": "GET",
+                        "endpoint": "/api/advisor/",
+                        "intent": "advisor",
+                        "screen_key": "command-center.selector",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [
+                            {
+                                "key": "account_id",
+                                "label": "账户 ID",
+                                "input_type": "select",
+                                "required": True,
+                                "default": "",
+                                "options": [{"value": "1", "label": "A"}],
+                            }
+                        ],
+                        "description": "Advisor.",
+                        "source": "approved:test",
+                    },
+                ],
+            )
+        )
+    )
+
+    auto_screen = service.get_screen("command-center.overview")["screen"]
+    selector_screen = service.get_screen("command-center.selector")["screen"]
+
+    assert auto_screen["entry_state"]["mode"] == "auto_run"
+    assert selector_screen["entry_state"]["mode"] == "parameter_gate"
+    assert selector_screen["entry_state"]["field_key"] == "account_id"
+
+
+def test_tui_advisor_today_sheet_returns_business_first_contract():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "success": True,
+                    "data": {
+                        "account": {
+                            "account_id": "365",
+                            "account_name": "默认组合",
+                            "available_cash": 10000,
+                            "total_asset": 50000,
+                            "holding_count": 2,
+                        },
+                        "today_conclusion": "REVIEW",
+                        "data_health": {"status": "blocked", "blocked_reasons": ["行情陈旧"]},
+                        "order_summary": {"total": 3, "actionable": 1, "blocked": 2},
+                        "holdings": [{}, {}],
+                        "order_intents": [{}, {}, {}],
+                        "execution_plan": {
+                            "execution_mode": "manual_review",
+                            "confirmation_status": "PENDING",
+                        },
+                        "blockers": [{"message": "现金不足"}],
+                        "warnings": [],
+                        "next_actions": [{"label": "刷新推荐", "hint": "重新生成"}],
+                    }
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "advisor.today_sheet",
+                        "label": "今日自动投顾建议单",
+                        "method": "GET",
+                        "endpoint": "/api/decision/advisor/sheet/",
+                        "intent": "advisor",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [
+                            {
+                                "key": "account_id",
+                                "label": "账户 ID",
+                                "input_type": "text",
+                                "required": True,
+                                "default": "",
+                            }
+                        ],
+                        "description": "Advisor.",
+                        "source": "approved:test",
+                    },
+                    {
+                        "key": "advisor.factor_breakdown",
+                        "label": "建议单因子明细",
+                        "method": "GET",
+                        "endpoint": "/api/decision/advisor/sheet/",
+                        "intent": "advisor_factor",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [
+                            {
+                                "key": "account_id",
+                                "label": "账户 ID",
+                                "input_type": "text",
+                                "required": True,
+                                "default": "",
+                            }
+                        ],
+                        "description": "Factor.",
+                        "source": "approved:test",
+                    },
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(
+        action_key="advisor.today_sheet",
+        params={"account_id": "365"},
+        user=None,
+    )
+
+    fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
+    assert result["view_model"]["kind"] == "detail"
+    assert fields["账户结论"] == "需要复核"
+    assert "建议动作/建议订单" in fields
+    assert fields["阻断项"] == "现金不足"
+    assert any(step.get("label") == "建议单因子明细" for step in result["next_steps"])
+
+
+def test_tui_ai_result_maps_provider_config_error_to_user_message():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "reply": "AI 调用失败: System fallback quota is not configured for this user.",
+                    "metadata": {"decision": "chat"},
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "terminal.chat_router",
+                        "label": "询问 AI 助手",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "chat",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "detail",
+                        "risk": "ai",
+                        "fields": [
+                            {
+                                "key": "message",
+                                "label": "消息",
+                                "input_type": "textarea",
+                                "required": True,
+                                "default": "hi",
+                            }
+                        ],
+                        "description": "Chat.",
+                        "source": "approved:test",
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(action_key="terminal.chat_router", params={}, user=None)
+
+    assert result["user_error_code"] == "AI_PROVIDER_NOT_CONFIGURED"
+    assert "当前账号未配置默认 AI 服务" in result["business_summary"]
+
+
+def test_tui_macro_strategy_empty_state_exposes_recovery_actions():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {"status_code": 200, "payload": {"results": [], "count": 0}}
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                default_screen="macro-regime.strategy",
+                screens=[
+                    {
+                        "key": "macro-regime.strategy",
+                        "label": "策略与仓位规则",
+                        "module_key": "command-center",
+                        "group": "workflow",
+                        "summary": "Strategy.",
+                        "view_type": "datagrid",
+                        "status": "online",
+                        "default_action_key": "strategy.list",
+                    }
+                ],
+                actions=[
+                    {
+                        "key": "strategy.list",
+                        "label": "策略清单",
+                        "method": "GET",
+                        "endpoint": "/api/strategy/strategies/",
+                        "intent": "strategy",
+                        "screen_key": "macro-regime.strategy",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                        "description": "Strategy.",
+                        "source": "approved:test",
+                        "view_model": {"kind": "datagrid", "rows_path": "results", "total_path": "count"},
+                    }
+                ],
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(action_key="strategy.list", params={}, user=None)
+
+    assert [step["label"] for step in result["next_steps"]] == ["仓位规则", "策略绑定", "相关配置/同步任务"]
+
+
+@pytest.mark.django_db
+def test_published_tui_navigation_does_not_expose_planned_screens(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    visible_screens = [
+        screen
+        for group in payload["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    ]
+    assert all(screen["status"] != "planned" for screen in visible_screens)
 
 
 @pytest.mark.django_db

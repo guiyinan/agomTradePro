@@ -158,7 +158,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                     screen_actions = actions_by_screen.get(screen["key"], [])
                     if not screen_actions and screen["key"] != metadata["default_screen"]:
                         continue
-                    screens.append(self._screen_summary(screen, screen_actions))
+                    screens.append(self._screen_summary(screen, screen_actions, user=user))
                 if not screens:
                     continue
                 group_modules.append(
@@ -212,7 +212,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         ]
         return {
             "version": metadata["version"],
-            "screen": self._screen_summary(screen, actions),
+            "screen": self._screen_summary(screen, actions, user=user),
             "module": self._module_summary(module),
             "layout": {
                 "type": "pc-tools-workbench",
@@ -355,6 +355,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                     "raw_response": payload if action.get("raw_debug", True) else None,
                 },
             }
+            envelope.update(self._result_head_payload(view_model))
         except Exception as exc:
             self._append_tui_audit(
                 action,
@@ -418,6 +419,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "response": {"status_code": 409},
             "view_model": view_model,
             "debug": {"raw_available": False, "raw_response": None},
+            **self._result_head_payload(view_model),
         }
 
     def _password_challenge_required_payload(
@@ -459,6 +461,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "response": {"status_code": 401},
             "view_model": view_model,
             "debug": {"raw_available": False, "raw_response": None},
+            **self._result_head_payload(view_model),
         }
 
     def _missing_required_fields(
@@ -475,7 +478,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             key = str(field.get("key") or "")
             if not key:
                 continue
-            if field.get("default") not in (None, ""):
+            if self._resolved_field_default(action, field) not in (None, ""):
                 continue
             value = params.get(key)
             if value in (None, "") or (isinstance(value, list) and not value):
@@ -520,6 +523,17 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "view_model": view_model,
             "missing_fields": missing_fields,
             "debug": {"raw_available": False, "raw_response": None},
+            **self._result_head_payload(view_model),
+        }
+
+    def _result_head_payload(self, view_model: dict[str, Any] | None) -> dict[str, Any]:
+        model = view_model if isinstance(view_model, dict) else {}
+        return {
+            "business_summary": str(model.get("business_summary") or ""),
+            "blocking_reason": str(model.get("blocking_reason") or ""),
+            "next_steps": list(model.get("next_steps") or []),
+            "debug_hidden_fields": list(model.get("debug_hidden_fields") or []),
+            "user_error_code": str(model.get("user_error_code") or ""),
         }
 
     def _bind_endpoint_params(

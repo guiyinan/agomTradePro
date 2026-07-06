@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 
-RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {'research.asset-lab': {'dashboard_panels': [{'key': 'asset-pool-summary',
+RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {'research.asset-lab': {'view_type': 'detail',
+                                              'dashboard_panels': [{'key': 'asset-pool-summary',
                                               'title': '一、资产池概览',
                                               'kind': 'detail',
                                               'action_key': 'auto.api.get.api.asset-analysis.pool-summary',

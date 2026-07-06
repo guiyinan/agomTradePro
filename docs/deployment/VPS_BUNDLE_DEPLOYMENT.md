@@ -122,6 +122,8 @@ Run deployment script directly from repo or extracted bundle scripts:
 bash ./scripts/deploy-on-vps.sh --bundle /tmp/agomtradepro-vps-bundle-20260208153000.tar.gz
 ```
 
+The deploy flow now automatically publishes `config/tui/published/tui_operation_graph.published.json` into the runtime DB registry after `migrate` succeeds. When the compacted published payload is unchanged, the publish step returns `noop` and does not create an extra `terminal_tui_metadata_registry` history row.
+
 The script supports interactive actions:
 
 1. `fresh` - first-time deployment.
