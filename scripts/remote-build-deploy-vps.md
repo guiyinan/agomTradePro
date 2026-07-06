@@ -75,7 +75,6 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
 - `-PasswordFile`: text file containing SSH password
 - `-Action`: `fresh` or `upgrade`
 - `-HttpPort`: optional public HTTP port override. Leave unset to preserve the existing remote port, use `80` for a normal domain deployment, or fall back to `8000` for temporary IP-only access.
-- When `DOMAIN` is configured, redeploy no longer overwrites an existing remote `CADDY_HTTP_PORT`; pass `-HttpPort 80` only if you intentionally want to move the public HTTP entry back to port `80`.
 - `-IncludeSqlite`: include local `db.sqlite3` in upload bundle
 - `-WipeDocker`: remove existing Docker containers/images/volumes before deploy
 - `-Domain`: optional domain for Caddy
