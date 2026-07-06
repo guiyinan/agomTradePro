@@ -5,6 +5,7 @@ agomtradepro/
 !sdk/agomtradepro/**
 .env
 *.sqlite3
+*.sqlite3.*
 db.sqlite3
 
 # Python
@@ -130,5 +131,3 @@ cookies.txt
 /tmp
 /debug
 docs/xiaohongshu-draft-2026-04-24.md
-db.sqlite3.bak-20260705064013
-
