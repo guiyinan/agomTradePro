@@ -25,7 +25,9 @@ def _file_hash(root: Path, value: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Publish reviewed TUI metadata to the DB registry.")
+    parser = argparse.ArgumentParser(
+        description="Publish reviewed TUI metadata to the DB registry."
+    )
     parser.add_argument("path", help="Path to reviewed TUI metadata JSON")
     parser.add_argument("--registry-key", default="default")
     parser.add_argument("--approved-by-username", default="")

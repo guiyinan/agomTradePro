@@ -1089,12 +1089,9 @@ class TuiWorkbenchResultModelMixin:
             payload.get("order_summary") if isinstance(payload.get("order_summary"), dict) else {}
         )
         execution_plan = (
-            payload.get("execution_plan")
-            if isinstance(payload.get("execution_plan"), dict)
-            else {}
+            payload.get("execution_plan") if isinstance(payload.get("execution_plan"), dict) else {}
         )
         blockers = list(payload.get("blockers") or [])
-        warnings = list(payload.get("warnings") or [])
         next_actions = list(payload.get("next_actions") or [])
         conclusion = self._advisor_verdict_label(payload.get("today_conclusion"))
         holdings_text = (
@@ -1103,9 +1100,12 @@ class TuiWorkbenchResultModelMixin:
         )
         blocker_text = "无明确阻断项"
         if blockers:
-            blocker_text = "；".join(
-                self._operator_text(item.get("message") or "") for item in blockers[:2] if item
-            ) or f"{len(blockers)} 项阻断"
+            blocker_text = (
+                "；".join(
+                    self._operator_text(item.get("message") or "") for item in blockers[:2] if item
+                )
+                or f"{len(blockers)} 项阻断"
+            )
         action_text = (
             f"共 {order_summary.get('total', 0)} 单 / 可执行 {order_summary.get('actionable', 0)} 单 "
             f"/ 阻断 {order_summary.get('blocked', 0)} 单"
@@ -1136,8 +1136,16 @@ class TuiWorkbenchResultModelMixin:
                 },
             ],
             "nested": [
-                {"key": "holdings", "label": "当前持仓", "count": len(payload.get("holdings") or [])},
-                {"key": "order_intents", "label": "建议订单", "count": len(payload.get("order_intents") or [])},
+                {
+                    "key": "holdings",
+                    "label": "当前持仓",
+                    "count": len(payload.get("holdings") or []),
+                },
+                {
+                    "key": "order_intents",
+                    "label": "建议订单",
+                    "count": len(payload.get("order_intents") or []),
+                },
                 {"key": "blockers", "label": "阻断清单", "count": len(blockers)},
             ],
             "business_summary": f"{conclusion}；{action_text}",
@@ -1209,7 +1217,9 @@ class TuiWorkbenchResultModelMixin:
             ],
             "nested": [],
             "business_summary": mapped_reply or reply or route_decision,
-            "blocking_reason": mapped_reply if error_code else self._default_blocking_reason(payload, status_code),
+            "blocking_reason": (
+                mapped_reply if error_code else self._default_blocking_reason(payload, status_code)
+            ),
             "next_steps": self._ai_router_next_steps(action, error_code=error_code),
             "debug_hidden_fields": [
                 "session_id",
@@ -1231,7 +1241,7 @@ class TuiWorkbenchResultModelMixin:
         status_code: int,
     ) -> str:
         if view_model.get("kind") == "datagrid":
-            total = int(((view_model.get("pager") or {}).get("total_rows") or 0))
+            total = int((view_model.get("pager") or {}).get("total_rows") or 0)
             return f"{self._action_title(action)}：{total} 行。"
         if view_model.get("kind") == "detail":
             fields = list(view_model.get("fields") or [])
@@ -1305,7 +1315,9 @@ class TuiWorkbenchResultModelMixin:
         if warnings:
             return self._operator_text(str(warnings[0]))
         data_health = payload.get("data_health")
-        if isinstance(data_health, dict) and str(data_health.get("status") or "").strip().lower() not in {
+        if isinstance(data_health, dict) and str(
+            data_health.get("status") or ""
+        ).strip().lower() not in {
             "",
             "ok",
             "normal",
@@ -1313,9 +1325,7 @@ class TuiWorkbenchResultModelMixin:
             return self._advisor_data_health_message(data_health)
         return ""
 
-    def _map_user_facing_ai_error(
-        self, payload: dict[str, Any], reply: str
-    ) -> tuple[str, str]:
+    def _map_user_facing_ai_error(self, payload: dict[str, Any], reply: str) -> tuple[str, str]:
         code = str(payload.get("code") or "").strip().upper()
         text = reply or ""
         if "System fallback quota is not configured for this user." in text:
@@ -1334,7 +1344,10 @@ class TuiWorkbenchResultModelMixin:
                 "当前账号的默认 AI 当月额度已用完，请切换到个人 AI 服务商或联系管理员调整额度。",
             )
         if code == "VALIDATION_ERROR":
-            return ("VALIDATION_ERROR", self._operator_text(payload.get("error") or "请求参数验证失败"))
+            return (
+                "VALIDATION_ERROR",
+                self._operator_text(payload.get("error") or "请求参数验证失败"),
+            )
         return "", ""
 
     def _ai_router_next_step(self, payload: dict[str, Any], *, error_code: str) -> str:
@@ -1351,7 +1364,9 @@ class TuiWorkbenchResultModelMixin:
     def _ai_router_next_steps(
         self, action: dict[str, Any], *, error_code: str
     ) -> list[dict[str, Any]]:
-        steps: list[dict[str, Any]] = [{"label": "重试", "action_key": str(action.get("key") or "")}]
+        steps: list[dict[str, Any]] = [
+            {"label": "重试", "action_key": str(action.get("key") or "")}
+        ]
         if error_code:
             steps.extend(
                 [

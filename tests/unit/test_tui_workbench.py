@@ -37,7 +37,8 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
         "default_screen": default_screen or "command-center.overview",
         "interaction_model": "published-metadata-to-pc-tools",
         "groups": groups or [{"key": "workflow", "label": "Workflow"}],
-        "modules": modules or [
+        "modules": modules
+        or [
             {
                 "key": "command-center",
                 "label": "Command Center",
@@ -46,7 +47,8 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
                 "status": "online",
             }
         ],
-        "screens": screens or [
+        "screens": screens
+        or [
             {
                 "key": "command-center.overview",
                 "label": "Command Overview",
@@ -156,7 +158,7 @@ def test_tui_workbench_page_is_standalone(client, tui_user):
     assert "TUI Workbench - AgomTradePro" in html
     assert "tui-workbench.css" in html
     assert "tui-workbench.js" in html
-    assert 'tui-workbench.js?v=' in html
+    assert "tui-workbench.js?v=" in html
     assert "data-module-tree" in html
     assert "data-workflow-strip" in html
     assert 'id="tui-location-input"' in html
@@ -5857,7 +5859,7 @@ def test_tui_advisor_today_sheet_returns_business_first_contract():
                         "blockers": [{"message": "现金不足"}],
                         "warnings": [],
                         "next_actions": [{"label": "刷新推荐", "hint": "重新生成"}],
-                    }
+                    },
                 },
             }
 
@@ -6013,7 +6015,11 @@ def test_tui_macro_strategy_empty_state_exposes_recovery_actions():
                         "fields": [],
                         "description": "Strategy.",
                         "source": "approved:test",
-                        "view_model": {"kind": "datagrid", "rows_path": "results", "total_path": "count"},
+                        "view_model": {
+                            "kind": "datagrid",
+                            "rows_path": "results",
+                            "total_path": "count",
+                        },
                     }
                 ],
             )
@@ -6023,7 +6029,11 @@ def test_tui_macro_strategy_empty_state_exposes_recovery_actions():
 
     result = service.run_action(action_key="strategy.list", params={}, user=None)
 
-    assert [step["label"] for step in result["next_steps"]] == ["仓位规则", "策略绑定", "相关配置/同步任务"]
+    assert [step["label"] for step in result["next_steps"]] == [
+        "仓位规则",
+        "策略绑定",
+        "相关配置/同步任务",
+    ]
 
 
 @pytest.mark.django_db

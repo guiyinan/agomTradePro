@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_RISK_CENTER_MODULE: dict[str, Any] = {
     "key": "risk-center",
     "label": "风控中心",

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_ADVISOR_SCREEN: dict[str, Any] = {
     "key": "command-center.auto-advisor",
     "label": "自动投顾",

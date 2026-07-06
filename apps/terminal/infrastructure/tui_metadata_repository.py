@@ -17,14 +17,14 @@ from apps.terminal.application.tui_metadata import (
 )
 
 from .models import TuiMetadataRegistryORM
-from .tui_metadata_runtime_injection_registry import (
-    RUNTIME_METADATA_INJECTIONS,
-    RuntimeMetadataInjectionBundle,
-)
 from .tui_metadata_runtime_constants import (
     RUNTIME_ACTION_PATCHES,
     RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS,
     RUNTIME_SCREEN_PATCHES,
+)
+from .tui_metadata_runtime_injection_registry import (
+    RUNTIME_METADATA_INJECTIONS,
+    RuntimeMetadataInjectionBundle,
 )
 
 
@@ -96,7 +96,7 @@ class PublishedTuiMetadataRepository:
             compacted_payload=compacted,
             source_hash=source_hash,
         ):
-            setattr(previous_model, "_publish_was_noop", True)
+            previous_model._publish_was_noop = True
             return previous_model
         previous_payload = dict(previous_model.payload or {}) if previous_model is not None else {}
         resolved_changed_fields = changed_fields
@@ -266,7 +266,9 @@ class PublishedTuiMetadataRepository:
             patch = patches.get(str(screen.get("key") or ""))
             if not patch:
                 continue
-            resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(patch, action_keys=action_keys)
+            resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(
+                patch, action_keys=action_keys
+            )
             updated = dict(screen)
             for key, value in resolved_patch.items():
                 updated[key] = value

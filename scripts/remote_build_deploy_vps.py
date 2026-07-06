@@ -471,7 +471,9 @@ def _add_runtime_docs(zf: zipfile.ZipFile, bundle_root_name: str, project_root: 
     skill_src = project_root / ".agents" / "skills" / "mcp-remote-agomtradepro" / "SKILL.md"
     if skill_src.exists():
         skill_text = _redact_sensitive_text(skill_src.read_text(encoding="utf-8"))
-        zf.writestr(f"{bundle_root_name}/skills/mcp-remote-agomtradepro/SKILL.redacted.md", skill_text)
+        zf.writestr(
+            f"{bundle_root_name}/skills/mcp-remote-agomtradepro/SKILL.redacted.md", skill_text
+        )
 
 
 def _create_local_runtime_bundle(
@@ -1249,9 +1251,12 @@ def main() -> int:
         "--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None
     )
     ap.add_argument(
-        "--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomtradepro-source-upload")
+        "--remote-dir",
+        default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomtradepro-source-upload"),
     )
-    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomtradepro"))
+    ap.add_argument(
+        "--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomtradepro")
+    )
     ap.add_argument("--http-port", type=int, default=None)
     ap.add_argument("--domain", default=os.environ.get("AGOM_VPS_DOMAIN", "").strip())
     ap.add_argument("--allowed-hosts", default=os.environ.get("AGOM_VPS_ALLOWED_HOSTS", "").strip())
@@ -1282,10 +1287,27 @@ def main() -> int:
     ap.add_argument("--decision-quote-max-age-hours", default="4")
     ap.add_argument("--decision-repair-skip-pulse", action="store_true", default=False)
     ap.add_argument("--decision-repair-skip-alpha", action="store_true", default=False)
-    ap.add_argument("--encryption-key", default="", help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
-    ap.add_argument("--git-clone", action="store_true", default=False, help="Clone from GitHub on VPS instead of uploading local source (much faster)")
-    ap.add_argument("--git-repo", default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"), help="Git repo URL for --git-clone mode")
-    ap.add_argument("--git-branch", default=os.environ.get("AGOM_VPS_GIT_BRANCH", "main"), help="Git branch/tag for --git-clone mode")
+    ap.add_argument(
+        "--encryption-key",
+        default="",
+        help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)",
+    )
+    ap.add_argument(
+        "--git-clone",
+        action="store_true",
+        default=False,
+        help="Clone from GitHub on VPS instead of uploading local source (much faster)",
+    )
+    ap.add_argument(
+        "--git-repo",
+        default=os.environ.get("AGOM_VPS_GIT_REPO", "https://github.com/guiyinan/agomTradePro.git"),
+        help="Git repo URL for --git-clone mode",
+    )
+    ap.add_argument(
+        "--git-branch",
+        default=os.environ.get("AGOM_VPS_GIT_BRANCH", "main"),
+        help="Git branch/tag for --git-clone mode",
+    )
     args = ap.parse_args()
     if args.http_port is None:
         args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
@@ -1355,6 +1377,7 @@ def main() -> int:
             gen_key = _prompt_bool("Generate a new encryption key?", False)
             if gen_key:
                 from cryptography.fernet import Fernet
+
                 encryption_key = Fernet.generate_key().decode()
                 _info(f"Generated encryption key: {encryption_key}")
                 _info("Save this key! You will need it if you redeploy from scratch.")
@@ -1385,7 +1408,9 @@ def main() -> int:
     tag = time.strftime("%Y%m%d%H%M%S")
     bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
-    local_image_path = (project_root / args.built_image_dir / f"agomtradepro-web-{tag}.tar").resolve()
+    local_image_path = (
+        project_root / args.built_image_dir / f"agomtradepro-web-{tag}.tar"
+    ).resolve()
     remote_dir = args.remote_dir.rstrip("/")
     remote_image_tar = posixpath.join(remote_dir, f"agomtradepro-web-{tag}.tar")
     sqlite_file = _latest_sqlite(project_root) if include_sqlite else None
@@ -1533,11 +1558,17 @@ def main() -> int:
                 "INCLUDE_SQLITE": _bool_env(include_sqlite),
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
-                "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(args.bootstrap_decision_repair),
+                "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(
+                    args.bootstrap_decision_repair
+                ),
                 "AGOMTRADEPRO_DECISION_ASSET_CODES": args.decision_asset_codes,
                 "AGOMTRADEPRO_DECISION_QUOTE_MAX_AGE_HOURS": args.decision_quote_max_age_hours,
-                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_PULSE": _bool_env(args.decision_repair_skip_pulse),
-                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_ALPHA": _bool_env(args.decision_repair_skip_alpha),
+                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_PULSE": _bool_env(
+                    args.decision_repair_skip_pulse
+                ),
+                "AGOMTRADEPRO_DECISION_REPAIR_SKIP_ALPHA": _bool_env(
+                    args.decision_repair_skip_alpha
+                ),
                 "PRESET_ENCRYPTION_KEY": encryption_key,
             }
             deploy_exports = " ".join(
