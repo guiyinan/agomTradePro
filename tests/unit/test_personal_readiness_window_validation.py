@@ -238,6 +238,33 @@ def test_validate_personal_readiness_window_accepts_required_trading_days(tmp_pa
     assert payload["projected_scheduler_remaining_calendar_days"] == 0
 
 
+def test_validate_personal_readiness_window_accepts_latest_completed_session_quotes(tmp_path):
+    _write_evidence(
+        tmp_path,
+        date(2026, 7, 6),
+        status="ok",
+        operation_context={
+            "mode": "formal",
+            "target_date_closed": True,
+            "latest_closed_date": "2026-07-06",
+            "allow_unclosed_target_date": False,
+            "trigger_source": "manual",
+        },
+        quote_freshness_status="latest_completed_session",
+    )
+
+    payload = command_module.validate_personal_readiness_window(
+        output_dir=tmp_path,
+        required_days=1,
+        calendar_source="weekday",
+    )
+
+    assert payload["status"] == "accepted"
+    assert payload["accepted_days"] == 1
+    assert payload["accepted_evidence_quality"]["formal_quote_freshness_ok_record_count"] == 1
+    assert payload["accepted_evidence_quality"]["formal_quote_freshness_stale_record_count"] == 0
+
+
 def test_validate_personal_readiness_window_rejects_missing_day_gap(tmp_path):
     _write_evidence(tmp_path, date(2026, 6, 29), status="ok")
     _write_evidence(tmp_path, date(2026, 7, 1), status="ok")
@@ -855,6 +882,7 @@ def _write_evidence(
     include_risk_report_id: bool = True,
     auto_advisor: dict | None = None,
     include_quote_pre_readiness_scheduler: bool = True,
+    quote_freshness_status: str = "fresh",
 ) -> None:
     risk_report = {"status": "ok"}
     if operation_context is not None and include_risk_report_id:
@@ -909,13 +937,13 @@ def _write_evidence(
                         "510300.SH": {
                             "status": "ok",
                             "is_stale": False,
-                            "freshness_status": "fresh",
+                            "freshness_status": quote_freshness_status,
                             "must_not_use_for_decision": False,
                         },
                         "000300.SH": {
                             "status": "ok",
                             "is_stale": False,
-                            "freshness_status": "fresh",
+                            "freshness_status": quote_freshness_status,
                             "must_not_use_for_decision": False,
                         },
                     },

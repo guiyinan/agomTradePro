@@ -13,6 +13,12 @@ from apps.task_monitor.application.readiness_status_services import (
     classify_formal_risk_evidence,
 )
 
+ACCEPTED_DECISION_QUOTE_FRESHNESS_STATUSES = {
+    "fresh",
+    "ok",
+    "latest_completed_session",
+}
+
 
 @dataclass(frozen=True)
 class _EvidenceRecord:
@@ -606,7 +612,10 @@ def _decision_quote_freshness_status(decision_data: dict[str, Any]) -> str:
         if quote.get("is_stale") is True:
             has_stale = True
         freshness_status = str(quote.get("freshness_status") or "").lower()
-        if freshness_status and freshness_status not in {"fresh", "ok"}:
+        if (
+            freshness_status
+            and freshness_status not in ACCEPTED_DECISION_QUOTE_FRESHNESS_STATUSES
+        ):
             has_stale = True
     return "stale" if has_stale else "ok"
 

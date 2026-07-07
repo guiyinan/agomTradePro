@@ -20,6 +20,12 @@ from apps.task_monitor.management.commands.validate_personal_readiness_window im
     _evaluate_payload,
 )
 
+ACCEPTED_DECISION_QUOTE_FRESHNESS_STATUSES = {
+    "fresh",
+    "ok",
+    "latest_completed_session",
+}
+
 
 class Command(BaseCommand):
     help = "Inspect a personal readiness evidence JSON file and explain blockers."
@@ -488,7 +494,8 @@ def _append_quote_freshness_blockers(
             continue
         freshness_status = str(quote.get("freshness_status") or "").lower()
         if quote.get("is_stale") is True or (
-            freshness_status and freshness_status not in {"fresh", "ok"}
+            freshness_status
+            and freshness_status not in ACCEPTED_DECISION_QUOTE_FRESHNESS_STATUSES
         ):
             stale_assets.append(str(asset_code))
 

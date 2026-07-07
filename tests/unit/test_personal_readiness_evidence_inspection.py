@@ -13,18 +13,18 @@ from apps.task_monitor.management.commands import (
 )
 
 
-def _fresh_decision_quotes():
+def _fresh_decision_quotes(*, freshness_status: str = "fresh"):
     return {
         "510300.SH": {
             "status": "ok",
             "is_stale": False,
-            "freshness_status": "fresh",
+            "freshness_status": freshness_status,
             "must_not_use_for_decision": False,
         },
         "000300.SH": {
             "status": "ok",
             "is_stale": False,
-            "freshness_status": "fresh",
+            "freshness_status": freshness_status,
             "must_not_use_for_decision": False,
         },
     }
@@ -115,6 +115,79 @@ def test_inspect_personal_readiness_evidence_accepts_formal_ok_payload(tmp_path)
     assert payload["blockers"] == []
     assert payload["observations"] == []
     assert payload["next_action"]["action"] == "continue_window"
+
+
+def test_inspect_personal_readiness_evidence_accepts_latest_completed_session_quotes(tmp_path):
+    evidence_path = tmp_path / "2026-07-06-personal-readiness.json"
+    evidence_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "test",
+                "status": "ok",
+                "target_date": "2026-07-06",
+                "generated_at": "2026-07-07T08:50:00+08:00",
+                "operation_context": {
+                    "mode": "formal",
+                    "target_date_closed": True,
+                    "allow_unclosed_target_date": False,
+                },
+                "summary": {
+                    "system_status": "ok",
+                    "qlib_status": "ok",
+                    "workspace_status": "ok",
+                    "target_count": 1,
+                },
+                "qlib": _qlib_ok_evidence(),
+                "system": {
+                    "status": "ok",
+                    "checks": {
+                        "decision_data": {
+                            "status": "ok",
+                            "readiness_status": "ok",
+                            "must_not_use_for_decision": False,
+                            "quotes": _fresh_decision_quotes(
+                                freshness_status="latest_completed_session"
+                            ),
+                        },
+                        "alpha_workspace_consistency": {"status": "ok"},
+                    },
+                },
+                "workspace": {
+                    "status": "ok",
+                    "result": {
+                        "components": {
+                            "regime_snapshot": {"status": "success"},
+                            "pulse_snapshot": {"status": "success", "is_reliable": True},
+                            "action_recommendation": {"status": "success"},
+                        }
+                    },
+                },
+                "accounts": [
+                    {
+                        "status": "ok",
+                        "account_id": 101,
+                        "risk_center_daily_report": {
+                            "status": "ok",
+                            "report_id": "risk-2026-07-06-101",
+                            "pre_trade_check": {"status": "ok"},
+                            "post_investment_check": {"passed": True},
+                        },
+                        "auto_advisor": {"status": "ok"},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = command_module.inspect_personal_readiness_evidence(
+        output_dir=tmp_path,
+        target_date=date(2026, 7, 6),
+    )
+
+    assert payload["status"] == "accepted"
+    assert payload["acceptance"]["accepted"] is True
+    assert payload["blockers"] == []
 
 
 def test_inspect_personal_readiness_evidence_reports_risk_persistence_observation(tmp_path):

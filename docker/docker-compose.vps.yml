@@ -1,4 +1,19 @@
 services:
+  runtime_ns:
+    image: ${RUNTIME_NS_IMAGE:-alpine:3.20}
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - trap 'exit 0' TERM INT; while true; do sleep 3600; done
+    mem_limit: 32m
+    cpus: 0.1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
     restart: unless-stopped
@@ -30,6 +45,7 @@ services:
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
+    pid: "service:runtime_ns"
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
       REDIS_HOST: redis
@@ -66,6 +82,8 @@ services:
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
+      runtime_ns:
+        condition: service_started
       redis:
         condition: service_healthy
     healthcheck:
@@ -85,7 +103,7 @@ services:
   celery_worker:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
-    pid: "service:web"
+    pid: "service:runtime_ns"
     command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
@@ -115,6 +133,8 @@ services:
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
+      runtime_ns:
+        condition: service_started
       redis:
         condition: service_healthy
       web:
@@ -132,7 +152,7 @@ services:
   celery_beat:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
-    pid: "service:web"
+    pid: "service:runtime_ns"
     command: ["celery", "-A", "core", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
@@ -158,6 +178,8 @@ services:
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
+      runtime_ns:
+        condition: service_started
       redis:
         condition: service_healthy
       web:

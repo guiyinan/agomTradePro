@@ -36,6 +36,14 @@ def test_vps_compose_worker_consumes_qlib_queues() -> None:
     assert "healthcheck:\n      disable: true" in compose
 
 
+def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+
+    assert "runtime_ns:" in compose
+    assert 'pid: "service:runtime_ns"' in compose
+    assert 'pid: "service:web"' not in compose
+
+
 def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
 
