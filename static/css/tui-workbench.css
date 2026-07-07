@@ -1035,7 +1035,8 @@ a {
 
 .tui-workflow-main,
 .tui-workflow-role,
-.tui-workflow-nav {
+.tui-workflow-nav,
+.tui-workflow-tools {
     min-width: 0;
     border: 1px solid var(--tui-border-dim);
     padding: 4px 6px;
@@ -1076,8 +1077,16 @@ a {
     white-space: nowrap;
 }
 
+.tui-workflow-tools {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
 .tui-workflow-nav button,
-.tui-workflow-nav span {
+.tui-workflow-nav span,
+.tui-workflow-tools button {
     border: 1px solid var(--tui-border);
     border-radius: 0;
     background: var(--tui-panel);
@@ -1171,13 +1180,40 @@ a {
 }
 
 .tui-tree-module-title {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 4px 0 2px;
 }
 
 .tui-tree-module-title span {
     color: var(--tui-accent);
     font-family: var(--tui-mono);
     font-size: 11px;
+}
+
+.tui-tree-module-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tui-tree-module-meta small {
+    color: var(--tui-muted);
+}
+
+.tui-screen-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+    align-items: center;
+}
+
+.tui-screen-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .tui-screen-button {
@@ -1235,6 +1271,24 @@ a {
     color: var(--tui-accent);
 }
 
+.tui-screen-pin {
+    min-width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--tui-border-dim);
+    background: transparent;
+    color: var(--tui-muted);
+    font: 14px/1 var(--tui-mono);
+}
+
+.tui-screen-pin:hover,
+.tui-screen-pin:focus,
+.tui-screen-pin.is-active {
+    color: var(--tui-accent);
+    border-color: var(--tui-accent);
+    outline: none;
+}
+
 .tui-main-body {
     background: var(--tui-panel);
 }
@@ -1290,6 +1344,10 @@ a {
 }
 
 .tui-dash-panel h3 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin: 0 0 10px;
     min-width: 0;
     overflow: hidden;
@@ -1298,6 +1356,69 @@ a {
     color: var(--tui-text);
     font: 15px/1.2 var(--tui-mono);
     letter-spacing: 0;
+}
+
+.tui-home-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.tui-home-action {
+    display: grid;
+    gap: 4px;
+    min-height: 74px;
+    padding: 10px 12px;
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+    color: var(--tui-text);
+    text-align: left;
+}
+
+.tui-home-action strong {
+    color: var(--tui-accent);
+    font: 14px/1.2 var(--tui-mono);
+}
+
+.tui-home-action span {
+    color: var(--tui-muted);
+    font: 12px/1.35 var(--tui-mono);
+}
+
+.tui-home-action:hover,
+.tui-home-action:focus,
+.tui-home-action.is-active {
+    border-color: var(--tui-accent);
+    outline: none;
+}
+
+.tui-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid var(--tui-border-dim);
+    font: 11px/1 var(--tui-mono);
+    font-weight: 700;
+}
+
+.tui-badge--compact {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+}
+
+.tui-badge--blocked {
+    border-color: var(--tui-danger);
+    color: var(--tui-danger);
+}
+
+.tui-badge--warning {
+    border-color: var(--tui-warn);
+    color: var(--tui-warn);
 }
 
 .tui-quadrant {
@@ -1407,6 +1528,12 @@ a {
 
 .tui-panel-placeholder small {
     color: var(--tui-accent);
+}
+
+.tui-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
 }
 
 .tui-mini-table {
@@ -2711,6 +2838,10 @@ a {
         justify-content: center;
         padding-right: 8px;
     }
+
+    .tui-home-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 640px) {
@@ -2874,6 +3005,10 @@ a {
     .tui-function-bar .tui-framework-credit {
         flex-basis: 188px;
         min-width: 188px;
+    }
+
+    .tui-home-actions {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 

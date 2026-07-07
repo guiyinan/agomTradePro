@@ -20,6 +20,7 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_SCREEN,
 )
 from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
+from .tui_metadata_runtime_injection_operator import RUNTIME_OPERATOR_ACTIONS
 from .tui_metadata_runtime_injection_risk_center import (
     RUNTIME_RISK_CENTER_ACTIONS,
     RUNTIME_RISK_CENTER_MODULE,
@@ -39,6 +40,7 @@ __all__ = [
     "RUNTIME_CLI_MODULE",
     "RUNTIME_CLI_SCREEN",
     "RUNTIME_CONFIG_CENTER_ACTIONS",
+    "RUNTIME_OPERATOR_ACTIONS",
     "RUNTIME_RISK_CENTER_ACTIONS",
     "RUNTIME_RISK_CENTER_MODULE",
     "RUNTIME_RISK_CENTER_SCREEN",

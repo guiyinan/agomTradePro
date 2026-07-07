@@ -4,6 +4,8 @@
     const state = {
         catalog: null,
         screen: null,
+        screenBadges: {},
+        homePanelBadges: {},
         lastAction: null,
         lastParams: {},
         lastRaw: null,
@@ -26,6 +28,9 @@
         inspectorCollapsed: false,
         inspectorWidth: null,
         themeKey: "B",
+        pinnedScreenKeys: new Set(),
+        preferredHomeLane: "decision",
+        lastNonHomeScreen: "",
         pendingRequestId: 0,
         pendingController: null,
         slowActionTimer: null,
@@ -109,6 +114,10 @@
     const progressStorageKey = "agom-tui-primary-progress:v1";
     const themeStorageKey = "agom-tui-theme:v1";
     const inspectorWidthStorageKey = "agom-tui-inspector-width:v1";
+    const lastNonHomeScreenStorageKey = "agom-tui-last-non-home-screen:v1";
+    const pinnedScreensStorageKey = "agom-tui-pinned-screen-keys:v1";
+    const preferredHomeLaneStorageKey = "agom-tui-preferred-home-lane:v1";
+    const resumeOnBootStorageKey = "agom-tui-resume-on-boot:v1";
     const inspectorWidthMin = 220;
     const inspectorWidthMax = 640;
     const THEME_SEQUENCE = ["A", "B", "C"];
@@ -251,6 +260,48 @@
         return `${apiBase}/actions/${encodeURIComponent(actionKey)}/run/`;
     }
 
+    function operatorHomeUrl() {
+        return `${apiBase}/operator/home/`;
+    }
+
+    function governanceQueueUrl(domain = "") {
+        const suffix = domain ? `?domain=${encodeURIComponent(domain)}` : "";
+        return `${apiBase}/operator/governance-queue/${suffix}`;
+    }
+
+    function isOperatorHomeScreen(screenKey) {
+        return String(screenKey || "") === "command-center.overview";
+    }
+
+    function isGovernanceWorkflow(workflow) {
+        return String(workflow?.name || "") === "系统治理流程";
+    }
+
+    function isDailyWorkflow(workflow) {
+        return String(workflow?.name || "") === "每日投研流程";
+    }
+
+    function governanceLaneStartScreen() {
+        return "api-library.runtime";
+    }
+
+    function decisionLaneStartScreen() {
+        return "macro-regime.overview";
+    }
+
+    function homeLaneStartScreen(lane = state.preferredHomeLane) {
+        return lane === "governance" ? governanceLaneStartScreen() : decisionLaneStartScreen();
+    }
+
+    function isHomeClientAction(actionKey) {
+        return [
+            "operator.home.continue_decision_flow",
+            "operator.home.enter_governance_flow",
+            "operator.home.resume_last_workspace",
+            "operator.home.open_cli",
+        ].includes(String(actionKey || ""));
+    }
+
     function escapeHtml(value) {
         return String(value ?? "").replace(/[&<>"']/g, (char) => ({
             "&": "&amp;",
@@ -259,6 +310,35 @@
             '"': "&quot;",
             "'": "&#39;",
         }[char]));
+    }
+
+    function badgeCountsFromRows(rows) {
+        return (rows || []).reduce((counts, row) => {
+            const severity = String(row?.severity || "").trim().toLowerCase();
+            if (severity === "blocked") {
+                counts.blockedCount += 1;
+            } else if (severity === "warning") {
+                counts.warningCount += 1;
+            }
+            return counts;
+        }, { blockedCount: 0, warningCount: 0 });
+    }
+
+    function hasBadgeCounts(badge) {
+        return Number(badge?.blockedCount || 0) > 0 || Number(badge?.warningCount || 0) > 0;
+    }
+
+    function badgeMarkup(badge, options = {}) {
+        if (!hasBadgeCounts(badge)) {
+            return "";
+        }
+        const blockedCount = Number(badge?.blockedCount || 0);
+        const warningCount = Number(badge?.warningCount || 0);
+        const severity = blockedCount > 0 ? "blocked" : "warning";
+        const count = blockedCount > 0 ? blockedCount : warningCount;
+        const label = blockedCount > 0 ? "阻断" : "预警";
+        const extraClass = options.compact ? " tui-badge--compact" : "";
+        return `<span class="tui-badge tui-badge--${escapeHtml(severity)}${extraClass}" aria-label="${escapeHtml(label)} ${count}">${escapeHtml(count)}</span>`;
     }
 
     function getCookie(name) {
@@ -487,6 +567,27 @@
         }
     }
 
+    function loadStoredOperatorState() {
+        state.lastNonHomeScreen = String(
+            window.localStorage?.getItem(lastNonHomeScreenStorageKey) || ""
+        ).trim();
+        const storedLane = String(
+            window.localStorage?.getItem(preferredHomeLaneStorageKey) || "decision"
+        ).trim();
+        state.preferredHomeLane = storedLane === "governance" ? "governance" : "decision";
+        try {
+            const rawPinned = window.localStorage?.getItem(pinnedScreensStorageKey);
+            const parsed = rawPinned ? JSON.parse(rawPinned) : [];
+            state.pinnedScreenKeys = new Set(
+                Array.isArray(parsed)
+                    ? parsed.map((value) => String(value || "").trim()).filter(Boolean)
+                    : []
+            );
+        } catch (_error) {
+            state.pinnedScreenKeys = new Set();
+        }
+    }
+
     function persistProgress() {
         try {
             const serializable = {};
@@ -498,6 +599,170 @@
             window.sessionStorage?.setItem(progressStorageKey, JSON.stringify(serializable));
         } catch (error) {
             // Session progress is a UI convenience; ignore storage failures.
+        }
+    }
+
+    function persistLastNonHomeScreen(screenKey) {
+        const normalizedKey = String(screenKey || "").trim();
+        state.lastNonHomeScreen = normalizedKey;
+        try {
+            if (normalizedKey) {
+                window.localStorage?.setItem(lastNonHomeScreenStorageKey, normalizedKey);
+            } else {
+                window.localStorage?.removeItem(lastNonHomeScreenStorageKey);
+            }
+        } catch (_error) {
+            return;
+        }
+    }
+
+    function persistPreferredHomeLane(lane) {
+        state.preferredHomeLane = lane === "governance" ? "governance" : "decision";
+        try {
+            window.localStorage?.setItem(preferredHomeLaneStorageKey, state.preferredHomeLane);
+        } catch (_error) {
+            return;
+        }
+    }
+
+    function persistPinnedScreens() {
+        try {
+            window.localStorage?.setItem(
+                pinnedScreensStorageKey,
+                JSON.stringify(Array.from(state.pinnedScreenKeys))
+            );
+        } catch (_error) {
+            return;
+        }
+    }
+
+    function shouldResumeOnBoot() {
+        try {
+            return window.sessionStorage?.getItem(resumeOnBootStorageKey) === "1";
+        } catch (_error) {
+            return false;
+        }
+    }
+
+    function clearResumeOnBootFlag() {
+        try {
+            window.sessionStorage?.removeItem(resumeOnBootStorageKey);
+        } catch (_error) {
+            return;
+        }
+    }
+
+    function markResumeOnBoot() {
+        try {
+            if (state.screen?.screen?.key && !isOperatorHomeScreen(state.screen.screen.key)) {
+                window.sessionStorage?.setItem(resumeOnBootStorageKey, "1");
+            } else {
+                window.sessionStorage?.removeItem(resumeOnBootStorageKey);
+            }
+        } catch (_error) {
+            return;
+        }
+    }
+
+    function openCliSurface() {
+        window.open("/terminal/", "_blank", "noopener,noreferrer");
+        setStatus("CLI 已在新标签页打开");
+    }
+
+    function restoreLastWorkspace() {
+        const target = String(state.lastNonHomeScreen || "").trim();
+        if (!target) {
+            setStatus("没有可恢复的最近工作区");
+            return false;
+        }
+        loadScreen(target);
+        return true;
+    }
+
+    function executeHomeAction(actionKey) {
+        const normalizedKey = String(actionKey || "").trim();
+        if (normalizedKey === "operator.home.continue_decision_flow") {
+            persistPreferredHomeLane("decision");
+            loadScreen(decisionLaneStartScreen());
+            return true;
+        }
+        if (normalizedKey === "operator.home.enter_governance_flow") {
+            persistPreferredHomeLane("governance");
+            loadScreen(governanceLaneStartScreen());
+            return true;
+        }
+        if (normalizedKey === "operator.home.resume_last_workspace") {
+            return restoreLastWorkspace();
+        }
+        if (normalizedKey === "operator.home.open_cli") {
+            openCliSurface();
+            return true;
+        }
+        return false;
+    }
+
+    function inferLaneFromScreen(screen) {
+        const workflow = screen?.workflow || {};
+        if (isGovernanceWorkflow(workflow)) {
+            return "governance";
+        }
+        if (isDailyWorkflow(workflow)) {
+            return "decision";
+        }
+        return "";
+    }
+
+    function badgeCountsByScreen(items) {
+        const next = {};
+        (items || []).forEach((item) => {
+            const severity = String(item?.severity || "").trim().toLowerCase();
+            if (!["blocked", "warning"].includes(severity)) {
+                return;
+            }
+            const screenKey = String(item?.target_screen || "").trim();
+            if (!screenKey) {
+                return;
+            }
+            if (!next[screenKey]) {
+                next[screenKey] = { blockedCount: 0, warningCount: 0 };
+            }
+            if (severity === "blocked") {
+                next[screenKey].blockedCount += 1;
+            } else {
+                next[screenKey].warningCount += 1;
+            }
+        });
+        return next;
+    }
+
+    function refreshVisibleHomePanelBadges() {
+        if (!isOperatorHomeScreen(state.screen?.screen?.key) || !els.main) {
+            return;
+        }
+        els.main.querySelectorAll("[data-dashboard-panel]").forEach((panelElement) => {
+            const panelKey = panelElement.dataset.dashboardPanel;
+            const badge = state.homePanelBadges[panelKey];
+            const badgeHost = panelElement.querySelector("[data-panel-badge]");
+            if (!badgeHost) {
+                return;
+            }
+            badgeHost.innerHTML = badgeMarkup(badge, { compact: true });
+        });
+    }
+
+    async function refreshGovernanceBadges() {
+        try {
+            const payload = await fetchJson(governanceQueueUrl());
+            state.screenBadges = badgeCountsByScreen(payload.items || []);
+            if (state.catalog) {
+                renderCatalog(state.catalog);
+            }
+            refreshVisibleHomePanelBadges();
+        } catch (_error) {
+            state.screenBadges = {};
+            if (state.catalog) {
+                renderCatalog(state.catalog);
+            }
         }
     }
 
@@ -879,14 +1144,39 @@
                 <div class="tui-group-title">${escapeHtml(group.label)}</div>
                 ${(group.modules || []).map((module) => `
                     <div class="tui-tree-module">
-                        <div class="tui-tree-module-title">${escapeHtml(module.label)}
-                            <span>${escapeHtml(module.action_count || 0)}</span>
+                        <div class="tui-tree-module-title">
+                            <span>${escapeHtml(module.label)}</span>
+                            <div class="tui-tree-module-meta">
+                                ${badgeMarkup((module.screens || []).reduce((counts, screen) => {
+                                    const badge = state.screenBadges[screen.key] || {};
+                                    counts.blockedCount += Number(badge.blockedCount || 0);
+                                    counts.warningCount += Number(badge.warningCount || 0);
+                                    return counts;
+                                }, { blockedCount: 0, warningCount: 0 }), { compact: true })}
+                                <small>${escapeHtml(module.action_count || 0)}</small>
+                            </div>
                         </div>
-                        ${(module.screens || []).map((screen) => `
-                            <button class="tui-screen-button" type="button" data-screen-key="${escapeHtml(screen.key)}">
-                                <span>${++screenIndex} ${escapeHtml(screen.label)}</span>
-                                <small>${escapeHtml(viewLabel(screen.view_type))} / ${escapeHtml(screen.action_count)} 项</small>
-                            </button>
+                        ${((module.screens || []).slice().sort((left, right) => {
+                            const leftPinned = state.pinnedScreenKeys.has(left.key) ? 0 : 1;
+                            const rightPinned = state.pinnedScreenKeys.has(right.key) ? 0 : 1;
+                            return leftPinned - rightPinned;
+                        })).map((screen) => `
+                            <div class="tui-screen-row">
+                                <button class="tui-screen-button" type="button" data-screen-key="${escapeHtml(screen.key)}">
+                                    <span>${++screenIndex} ${escapeHtml(screen.label)}</span>
+                                    <small>${escapeHtml(viewLabel(screen.view_type))} / ${escapeHtml(screen.action_count)} 项</small>
+                                </button>
+                                <div class="tui-screen-tools">
+                                    ${badgeMarkup(state.screenBadges[screen.key], { compact: true })}
+                                    <button
+                                        class="tui-screen-pin${state.pinnedScreenKeys.has(screen.key) ? " is-active" : ""}"
+                                        type="button"
+                                        data-pin-screen-key="${escapeHtml(screen.key)}"
+                                        aria-label="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消置顶工作区" : "置顶工作区")}"
+                                        title="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消置顶工作区" : "置顶工作区")}"
+                                    >${state.pinnedScreenKeys.has(screen.key) ? "★" : "☆"}</button>
+                                </div>
+                            </div>
                         `).join("")}
                     </div>
                 `).join("")}
@@ -895,6 +1185,26 @@
         els.moduleTree.querySelectorAll("[data-screen-key]").forEach((button) => {
             button.addEventListener("click", () => loadScreen(button.dataset.screenKey));
         });
+        els.moduleTree.querySelectorAll("[data-pin-screen-key]").forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const screenKey = String(button.dataset.pinScreenKey || "").trim();
+                if (!screenKey) {
+                    return;
+                }
+                if (state.pinnedScreenKeys.has(screenKey)) {
+                    state.pinnedScreenKeys.delete(screenKey);
+                } else {
+                    state.pinnedScreenKeys.add(screenKey);
+                }
+                persistPinnedScreens();
+                renderCatalog(state.catalog);
+            });
+        });
+        if (state.screen?.screen?.key) {
+            markActiveScreen(state.screen.screen.key);
+        }
     }
 
     function markActiveScreen(screenKey) {
@@ -1029,8 +1339,17 @@
         state.screen = screenSpec;
         state.lastRaw = null;
         state.lastPager = null;
+        state.homePanelBadges = {};
         resetGridState();
         const screen = screenSpec.screen;
+        const inferredLane = inferLaneFromScreen(screen);
+        if (inferredLane) {
+            persistPreferredHomeLane(inferredLane);
+        }
+        if (!isOperatorHomeScreen(screen.key)) {
+            persistLastNonHomeScreen(screen.key);
+        }
+        markResumeOnBoot();
         els.screenTitle.textContent = screen.label.toUpperCase();
         els.screenStatus.textContent = screen.status.toUpperCase();
         els.mainTitle.textContent = screen.label.toUpperCase();
@@ -1243,6 +1562,11 @@
         if (!els.workflowStrip) {
             return;
         }
+        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+            els.workflowStrip.hidden = true;
+            els.workflowStrip.innerHTML = "";
+            return;
+        }
         const wf = workflow || {};
         if (!wf.name) {
             els.workflowStrip.hidden = true;
@@ -1251,6 +1575,14 @@
         }
         const previous = wf.previous || {};
         const next = wf.next || {};
+        const governanceTools = isGovernanceWorkflow(wf)
+            ? `
+                <div class="tui-workflow-tools">
+                    <button type="button" data-home-action-key="operator.home.resume_last_workspace">恢复上次工作区</button>
+                    <button type="button" data-home-action-key="operator.home.open_cli">打开 CLI</button>
+                </div>
+            `
+            : "";
         els.workflowStrip.hidden = false;
         els.workflowStrip.innerHTML = `
             <div class="tui-workflow-main">
@@ -1263,10 +1595,37 @@
                 ${previous.key ? `<button type="button" data-workflow-target="${escapeHtml(previous.key)}">&lt; ${escapeHtml(previous.label)}</button>` : "<span>起点</span>"}
                 ${next.key ? `<button type="button" data-workflow-target="${escapeHtml(next.key)}">${escapeHtml(next.label)} &gt;</button>` : "<span>终点</span>"}
             </div>
+            ${governanceTools}
         `;
         els.workflowStrip.querySelectorAll("[data-workflow-target]").forEach((button) => {
             button.addEventListener("click", () => loadScreen(button.dataset.workflowTarget));
         });
+        els.workflowStrip.querySelectorAll("[data-home-action-key]").forEach((button) => {
+            button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
+        });
+    }
+
+    function renderHomeActionStrip() {
+        return `
+            <section class="tui-home-actions" aria-label="统一首页主动作">
+                <button type="button" class="tui-home-action${state.preferredHomeLane === "decision" ? " is-active" : ""}" data-home-action-key="operator.home.continue_decision_flow">
+                    <strong>继续今日决策流程</strong>
+                    <span>进入 15 步每日投研 workflow</span>
+                </button>
+                <button type="button" class="tui-home-action${state.preferredHomeLane === "governance" ? " is-active" : ""}" data-home-action-key="operator.home.enter_governance_flow">
+                    <strong>进入系统治理流</strong>
+                    <span>从 runtime 起点进入治理主线</span>
+                </button>
+                <button type="button" class="tui-home-action" data-home-action-key="operator.home.resume_last_workspace">
+                    <strong>恢复上次工作区</strong>
+                    <span>${escapeHtml(state.lastNonHomeScreen || "最近无可恢复工作区")}</span>
+                </button>
+                <button type="button" class="tui-home-action" data-home-action-key="operator.home.open_cli">
+                    <strong>打开 CLI</strong>
+                    <span>独立入口，不中断当前 TUI</span>
+                </button>
+            </section>
+        `;
     }
 
     function renderDashboardHome(screenSpec) {
@@ -1281,10 +1640,11 @@
         setWorkspaceViewKind("dashboard");
         els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
         els.main.innerHTML = `
+            ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
             <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
                     <section class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" tabindex="0" role="button">
-                        <h3>${escapeHtml(panel.title)}</h3>
+                        <h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>
                         <div class="tui-loading">读取业务数据...</div>
                     </section>
                 `).join("")}
@@ -1325,6 +1685,9 @@
                     loadScreen(target);
                 }
             });
+        });
+        els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
+            button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
         panels.forEach((panel) => loadDashboardPanel(panel));
     }
@@ -1416,7 +1779,7 @@
             return;
         }
         if (!panel.action_key) {
-            container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderPanelPlaceholder(panel, "等待发布数据源。")}`;
+            container.innerHTML = `<h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>${renderPanelPlaceholder(panel, "等待发布数据源。")}`;
             return;
         }
         try {
@@ -1424,13 +1787,23 @@
                 method: "POST",
                 body: JSON.stringify({ params: {} }),
             });
+            const rows = Array.isArray(result?.view_model?.rows) ? result.view_model.rows : [];
+            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+                state.homePanelBadges[panel.key] = badgeCountsFromRows(rows);
+            }
             if (!renderDashboardRegisteredRenderer(panel, result.view_model, container)) {
-                container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderDashboardPanelBody(panel, result.view_model)}`;
+                container.innerHTML = `<h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>${renderDashboardPanelBody(panel, result.view_model)}`;
                 processHostSlot(container);
+            }
+            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+                const badgeHost = container.querySelector("[data-panel-badge]");
+                if (badgeHost) {
+                    badgeHost.innerHTML = badgeMarkup(state.homePanelBadges[panel.key], { compact: true });
+                }
             }
             setLastRefresh();
         } catch (error) {
-            container.innerHTML = `<h3>${escapeHtml(panel.title)}</h3>${renderPanelPlaceholder(panel, error.message)}`;
+            container.innerHTML = `<h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>${renderPanelPlaceholder(panel, error.message)}`;
         }
     }
 
@@ -1444,7 +1817,7 @@
             return false;
         }
         container.innerHTML = `
-            <h3>${escapeHtml(panel.title)}</h3>
+            <h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>
             <div class="tui-extension-host is-dashboard" data-renderer="${escapeHtml(rendererName)}"></div>
         `;
         const host = container.querySelector(".tui-extension-host");
@@ -2115,9 +2488,12 @@
             setStatus("加载工作区");
             const screenSpec = await fetchJson(screenUrl(screenKey));
             renderScreen(screenSpec);
+            refreshGovernanceBadges();
+            return screenSpec;
         } catch (error) {
             resetLocationInput();
             renderError(error.message);
+            return null;
         }
     }
 
@@ -2128,6 +2504,10 @@
             return;
         }
         const actualActionKey = action.key;
+        if (isHomeClientAction(actualActionKey)) {
+            executeHomeAction(actualActionKey);
+            return;
+        }
         try {
             const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : { ...state.lastParams });
             state.lastAction = actualActionKey;
@@ -2186,6 +2566,7 @@
             renderResultInspector(result, result.view_model);
             updateRawDrawer();
             setStatus("读取完成");
+            refreshGovernanceBadges();
         } catch (error) {
             if (error?.name === "AbortError") {
                 setStatus("请求已取消");
@@ -3454,7 +3835,31 @@
             <dt>${escapeHtml(key)}</dt>
             <dd>${escapeHtml(value)}</dd>
         `).join("");
-        showModal(`第 ${state.selectedRowIndex + 1} 行`, `<dl class="tui-detail-grid">${rows}</dl>`);
+        const targetScreen = String(row?.target_screen || "").trim();
+        const targetActionKey = String(row?.target_action_key || "").trim();
+        const canDrillDown = Boolean(targetScreen || targetActionKey);
+        showModal(
+            `第 ${state.selectedRowIndex + 1} 行`,
+            `
+                <dl class="tui-detail-grid">${rows}</dl>
+                ${canDrillDown ? `
+                    <div class="tui-modal-actions">
+                        <button type="button" data-row-target-screen="${escapeHtml(targetScreen)}" data-row-target-action="${escapeHtml(targetActionKey)}">进入处理屏</button>
+                    </div>
+                ` : ""}
+            `,
+        );
+        els.modalBody?.querySelector("[data-row-target-screen], [data-row-target-action]")?.addEventListener("click", async () => {
+            closeModal();
+            const nextScreen = targetScreen || state.screen?.screen?.key || "";
+            if (!nextScreen) {
+                return;
+            }
+            await loadScreen(nextScreen);
+            if (targetActionKey && currentAction(targetActionKey)) {
+                runAction(targetActionKey, null, { params: {} });
+            }
+        });
         setStatus("行详情");
     }
 
@@ -3726,6 +4131,14 @@
     }
 
     function loadWorkflowStep(direction) {
+        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+            executeHomeAction(
+                state.preferredHomeLane === "governance"
+                    ? "operator.home.enter_governance_flow"
+                    : "operator.home.continue_decision_flow"
+            );
+            return;
+        }
         const workflow = state.screen?.screen?.workflow || {};
         const target = direction < 0 ? workflow.previous : workflow.next;
         if (target && target.key) {
@@ -3811,6 +4224,14 @@
     }
 
     function runNextPrimaryAction() {
+        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+            executeHomeAction(
+                state.preferredHomeLane === "governance"
+                    ? "operator.home.enter_governance_flow"
+                    : "operator.home.continue_decision_flow"
+            );
+            return;
+        }
         const action = nextPrimaryAction();
         if (!action) {
             setStatus("本屏主流程已完成");
@@ -4125,8 +4546,16 @@
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
             const catalog = await fetchJson(catalogUrl());
+            await refreshGovernanceBadges();
             renderCatalog(catalog);
-            await loadScreen(catalog.default_screen);
+            const initialScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
+                ? state.lastNonHomeScreen
+                : catalog.default_screen;
+            clearResumeOnBootFlag();
+            const loaded = await loadScreen(initialScreen);
+            if (!loaded && initialScreen !== catalog.default_screen) {
+                await loadScreen(catalog.default_screen);
+            }
         } catch (error) {
             els.moduleTree.innerHTML = `<div class="tui-error">${escapeHtml(error.message)}</div>`;
             renderError(error.message);
@@ -4134,6 +4563,7 @@
     }
 
     loadStoredProgress();
+    loadStoredOperatorState();
     applyTheme(loadStoredTheme(), { silent: true });
     loadStoredInspectorWidth();
     bindControls();

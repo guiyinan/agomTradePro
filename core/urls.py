@@ -30,6 +30,8 @@ from apps.ai_capability.interface.views import (
     toggle_mcp_tool_flag_view,
 )
 from apps.terminal.interface.api_views import (
+    TuiOperatorGovernanceQueueView,
+    TuiOperatorHomeView,
     TuiWorkbenchActionRunView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
@@ -57,6 +59,7 @@ from core.views import (
     admin_console_view,
     asset_screen_view,
     chat_example_view,
+    database_health_view,
     decision_workspace_view,
     docs_view,
     health_view,
@@ -148,6 +151,7 @@ core_patterns = [
     ),
     path("api/", api_root_view, name="api-root"),
     path("api/health/", health_view, name="health"),
+    path("api/health/db/", database_health_view, name="health-db"),
     path("api/ready/", readiness_view, name="readiness"),
     path("api/chat/web/", web_chat, name="api-chat-web"),
     path(
@@ -178,6 +182,12 @@ core_patterns = [
     path("terminal/config/", terminal_config_view, name="terminal-config"),
     path("tui/", tui_workbench_view, name="tui-workbench"),
     path("api/tui/catalog/", TuiWorkbenchCatalogView.as_view(), name="api-tui-catalog"),
+    path("api/tui/operator/home/", TuiOperatorHomeView.as_view(), name="api-tui-operator-home"),
+    path(
+        "api/tui/operator/governance-queue/",
+        TuiOperatorGovernanceQueueView.as_view(),
+        name="api-tui-operator-governance-queue",
+    ),
     path(
         "api/tui/screens/<str:screen_key>/",
         TuiWorkbenchScreenView.as_view(),
@@ -544,4 +554,5 @@ def metrics_view(request):
 # 将 metrics 端点添加到核心路由
 urlpatterns += [
     path("metrics/", metrics_view, name="prometheus-metrics"),
+    path("api/metrics/", metrics_view, name="api-prometheus-metrics"),
 ]

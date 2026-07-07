@@ -172,6 +172,7 @@ class PublishedTuiMetadataRepository:
             screens,
             screen_patches,
             action_keys={str(action.get("key") or "") for action in actions},
+            screen_keys={str(screen.get("key") or "") for screen in screens},
         )
         if patched_screens:
             normalized["screens"] = screens
@@ -258,6 +259,7 @@ class PublishedTuiMetadataRepository:
         patches: dict[str, dict[str, Any]],
         *,
         action_keys: set[str],
+        screen_keys: set[str],
     ) -> int:
         """Apply runtime screen patches and return the changed screen count."""
 
@@ -267,7 +269,9 @@ class PublishedTuiMetadataRepository:
             if not patch:
                 continue
             resolved_patch = PublishedTuiMetadataRepository._resolve_screen_patch(
-                patch, action_keys=action_keys
+                patch,
+                action_keys=action_keys,
+                screen_keys=screen_keys,
             )
             updated = dict(screen)
             for key, value in resolved_patch.items():
@@ -282,6 +286,7 @@ class PublishedTuiMetadataRepository:
         patch: dict[str, Any],
         *,
         action_keys: set[str],
+        screen_keys: set[str],
     ) -> dict[str, Any]:
         resolved = dict(patch)
         panels = patch.get("dashboard_panels")
@@ -293,6 +298,8 @@ class PublishedTuiMetadataRepository:
             if not isinstance(panel, dict)
             or str(panel.get("action_key") or "").strip() == ""
             or str(panel.get("action_key") or "").strip() in action_keys
+            if str(panel.get("target_screen") or "").strip() == ""
+            or str(panel.get("target_screen") or "").strip() in screen_keys
         ]
         return resolved
 

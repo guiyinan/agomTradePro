@@ -24,6 +24,10 @@ from ..application.repository_provider import (
     get_tui_metadata_repository,
 )
 from ..application.services import AnswerChainSettingsService, CommandExecutionService
+from ..application.tui_operator_services import (
+    build_operator_governance_queue_payload,
+    build_operator_home_payload,
+)
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
 from ..application.use_cases import (
     CreateCommandRequest,
@@ -657,6 +661,34 @@ class TuiWorkbenchScreenView(APIView):
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
         return Response(service.get_screen(screen_key, user=request.user))
+
+
+class TuiOperatorHomeView(APIView):
+    """Expose the unified TUI operator home summary."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return the fixed six-section home payload."""
+
+        return Response(build_operator_home_payload(user=request.user))
+
+
+class TuiOperatorGovernanceQueueView(APIView):
+    """Expose sortable governance rows for TUI drilldown."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return governance rows ordered by severity and recency."""
+
+        domain = str(request.query_params.get("domain") or "").strip()
+        return Response(
+            build_operator_governance_queue_payload(
+                user=request.user,
+                domain=domain,
+            )
+        )
 
 
 class TuiWorkbenchActionRunView(APIView):

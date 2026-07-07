@@ -23,6 +23,7 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_SCREEN,
 )
 from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
+from .tui_metadata_runtime_injection_operator import RUNTIME_OPERATOR_ACTIONS
 from .tui_metadata_runtime_injection_risk_center import (
     RUNTIME_RISK_CENTER_ACTIONS,
     RUNTIME_RISK_CENTER_MODULE,
@@ -74,5 +75,9 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_config_center_metadata",
         actions=RUNTIME_CONFIG_CENTER_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_operator_metadata",
+        actions=RUNTIME_OPERATOR_ACTIONS,
     ),
 )
