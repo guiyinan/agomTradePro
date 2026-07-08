@@ -240,6 +240,155 @@ def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
     return _interface_repo().build_mcp_guide_context(user_id=user_id, base_url=base_url)
 
 
+def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]:
+    """Build a JSON-friendly MCP self-service payload for TUI/API consumers."""
+
+    context = build_mcp_guide_context(user_id=user_id, base_url=base_url)
+    profile = context["profile"]
+    preferred_token = dict(context.get("preferred_token") or {})
+    access_tokens = [dict(item) for item in context.get("visible_tokens", [])]
+    prompt_payload = build_mcp_agent_prompt_payload(
+        base_url=base_url,
+        token_value=str(preferred_token.get("plaintext") or "").strip(),
+        token_name=str(preferred_token.get("name") or "").strip(),
+        access_level=str(preferred_token.get("access_level") or TOKEN_ACCESS_LEVEL_READ_ONLY),
+        access_level_label=str(
+            preferred_token.get("access_level_label")
+            or dict(TOKEN_ACCESS_LEVEL_CHOICES).get(
+                TOKEN_ACCESS_LEVEL_READ_ONLY,
+                TOKEN_ACCESS_LEVEL_READ_ONLY,
+            )
+        ),
+        default_account_id=context.get("default_account_id"),
+    )
+    return {
+        "user_id": context["user"].id,
+        "username": context["user"].username,
+        "mcp_enabled": bool(profile.mcp_enabled),
+        "rbac_role": str(getattr(profile, "rbac_role", "") or ""),
+        "token_plaintext_allowed": bool(context.get("token_plaintext_allowed")),
+        "active_token_count": len(access_tokens),
+        "account_count": int(context.get("account_count") or 0),
+        "default_account_id": context.get("default_account_id"),
+        "default_account_name": context.get("default_account_name") or "",
+        "base_url": context.get("base_url") or base_url,
+        "api_root_endpoint": context.get("api_root_endpoint") or "",
+        "preferred_token": preferred_token or None,
+        "access_tokens": access_tokens,
+        **prompt_payload,
+    }
+
+
+def build_admin_mcp_users_payload(
+    *,
+    search_query: str = "",
+    only_without_token: bool = False,
+) -> dict[str, Any]:
+    """Build one JSON-friendly MCP user-governance payload for admin APIs/TUI."""
+
+    context = build_token_management_context(
+        search_query=search_query,
+        only_without_token=only_without_token,
+    )
+    rows = []
+    for row in context["rows"]:
+        user = row["user"]
+        profile = row.get("profile")
+        tokens = [
+            {
+                "id": token.id,
+                "name": token.name,
+                "preview": token.preview,
+                "access_level": token.access_level,
+                "access_level_label": token.get_access_level_display(),
+                "created_at": token.created_at,
+                "last_used_at": token.last_used_at,
+            }
+            for token in row.get("tokens", [])
+        ]
+        rows.append(
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email or "",
+                "approval_status": str(getattr(profile, "approval_status", "") or ""),
+                "rbac_role": str(getattr(profile, "rbac_role", "") or ""),
+                "mcp_enabled": bool(getattr(profile, "mcp_enabled", False)),
+                "has_token": bool(row["has_token"]),
+                "token_count": int(row["token_count"]),
+                "read_only_token_count": int(row["read_only_token_count"]),
+                "tokens": tokens,
+            }
+        )
+
+    return {
+        "search_query": context["search_query"],
+        "only_without_token": bool(context["only_without_token"]),
+        "total_users": int(context["total_users"]),
+        "with_token_count": int(context["with_token_count"]),
+        "without_token_count": int(context["without_token_count"]),
+        "total_token_count": int(context["total_token_count"]),
+        "rows": rows,
+        "system_default_mcp_enabled": bool(context["system_settings"].default_mcp_enabled),
+        "allow_token_plaintext_view": bool(context["system_settings"].allow_token_plaintext_view),
+    }
+
+
+def build_admin_mcp_user_detail_payload(target_user_id: int, *, base_url: str) -> dict[str, Any]:
+    """Build one admin-facing MCP detail payload for a specific user."""
+
+    detail = build_self_mcp_api_payload(target_user_id, base_url=base_url)
+    user = find_user_by_id(target_user_id)
+    if user is None:
+        raise LookupError("用户不存在")
+    detail["email"] = str(getattr(user, "email", "") or "")
+    return detail
+
+
+def build_mcp_agent_prompt_payload(
+    *,
+    base_url: str,
+    token_value: str,
+    token_name: str,
+    access_level: str,
+    access_level_label: str,
+    default_account_id: Any | None,
+) -> dict[str, Any]:
+    """Build a copy-ready MCP bootstrap prompt for TUI/API consumers."""
+
+    token_placeholder = token_value or "<请先生成一个新 Token>"
+    account_hint = str(default_account_id) if default_account_id not in (None, "") else "可留空"
+    route_endpoint = f"{base_url.rstrip('/')}/api/ai-capability/route/"
+    safety_line = (
+        "- 当前 Token 为只读：只允许 GET/HEAD/OPTIONS，不要执行写入、删除、审批、交易或同步类动作。"
+        if access_level == TOKEN_ACCESS_LEVEL_READ_ONLY
+        else "- 当前 Token 为读写：仍受账号 RBAC、后端确认和风险控制约束，不要假设拥有管理员权限。"
+    )
+    prompt = "\n".join(
+        [
+            "请按以下信息接入 AgomTradePro：",
+            f"- Base URL: {base_url.rstrip('/')}",
+            f"- Route API: {route_endpoint}",
+            f"- Authorization: Token {token_placeholder}",
+            f"- Token name: {token_name or '未命名 Token'}",
+            f"- Token access level: {access_level_label}",
+            f"- Default account id: {account_hint}",
+            "",
+            "执行规则：",
+            "- 优先调用 Route API，用自然语言请求让后端统一路由能力。",
+            safety_line,
+            "- 需要排查能力目录时，再读取 Capability Catalog 与 MCP 治理接口。",
+        ]
+    )
+    return {
+        "agent_bootstrap_prompt": prompt,
+        "agent_bootstrap_token_ready": bool(token_value),
+        "agent_bootstrap_token_name": token_name,
+        "agent_bootstrap_access_level": access_level,
+        "agent_bootstrap_access_level_label": access_level_label,
+    }
+
+
 def get_active_portfolio_for_user(user_id: int):
     """Return the user's active portfolio when available."""
 

@@ -6,6 +6,8 @@ from django.apps import apps as django_apps
 from rest_framework import serializers
 
 from apps.account.application.interface_services import (
+    TOKEN_ACCESS_LEVEL_CHOICES,
+    TOKEN_ACCESS_LEVEL_READ_ONLY,
     count_owned_active_observer_grants,
     create_observer_grant_record,
     find_user_by_id,
@@ -635,3 +637,128 @@ class MacroSizingConfigUpdateSerializer(serializers.Serializer):
             missing = [key for key in required_keys if key not in item]
             if missing:
                 raise serializers.ValidationError(f"{field_name} 缺少字段: {', '.join(missing)}")
+
+
+class MCPTokenAccessLevelChoiceSerializer(serializers.Serializer):
+    """MCP Token access-level choice payload."""
+
+    value = serializers.CharField(read_only=True)
+    label = serializers.CharField(read_only=True)
+
+
+class MCPAccessTokenSerializer(serializers.Serializer):
+    """MCP access token summary payload."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    preview = serializers.CharField(read_only=True)
+    access_level = serializers.CharField(read_only=True)
+    access_level_label = serializers.CharField(read_only=True)
+    plaintext = serializers.CharField(read_only=True, allow_blank=True, required=False)
+    created_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    last_used_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+class MCPAgentPromptSerializer(serializers.Serializer):
+    """Copy-ready agent bootstrap prompt payload."""
+
+    agent_bootstrap_prompt = serializers.CharField(read_only=True)
+    agent_bootstrap_token_ready = serializers.BooleanField(read_only=True)
+    agent_bootstrap_token_name = serializers.CharField(read_only=True, allow_blank=True)
+    agent_bootstrap_access_level = serializers.CharField(read_only=True, allow_blank=True)
+    agent_bootstrap_access_level_label = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
+    """Current-user MCP self-service payload."""
+
+    user_id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    mcp_enabled = serializers.BooleanField(read_only=True)
+    rbac_role = serializers.CharField(read_only=True, allow_blank=True)
+    token_plaintext_allowed = serializers.BooleanField(read_only=True)
+    active_token_count = serializers.IntegerField(read_only=True)
+    account_count = serializers.IntegerField(read_only=True)
+    default_account_id = serializers.IntegerField(read_only=True, allow_null=True)
+    default_account_name = serializers.CharField(read_only=True, allow_blank=True)
+    base_url = serializers.CharField(read_only=True)
+    api_root_endpoint = serializers.CharField(read_only=True, allow_blank=True)
+    preferred_token = MCPAccessTokenSerializer(read_only=True, allow_null=True)
+    access_tokens = MCPAccessTokenSerializer(many=True, read_only=True)
+    token_access_level_choices = MCPTokenAccessLevelChoiceSerializer(many=True, read_only=True)
+
+
+class MCPAdminUserRowSerializer(serializers.Serializer):
+    """Admin-facing MCP governance row for one user."""
+
+    user_id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+    email = serializers.CharField(read_only=True, allow_blank=True)
+    approval_status = serializers.CharField(read_only=True, allow_blank=True)
+    rbac_role = serializers.CharField(read_only=True, allow_blank=True)
+    mcp_enabled = serializers.BooleanField(read_only=True)
+    has_token = serializers.BooleanField(read_only=True)
+    token_count = serializers.IntegerField(read_only=True)
+    read_only_token_count = serializers.IntegerField(read_only=True)
+    tokens = MCPAccessTokenSerializer(many=True, read_only=True)
+
+
+class MCPAdminUsersPayloadSerializer(serializers.Serializer):
+    """Admin-facing MCP user governance payload."""
+
+    search_query = serializers.CharField(read_only=True, allow_blank=True)
+    only_without_token = serializers.BooleanField(read_only=True)
+    total_users = serializers.IntegerField(read_only=True)
+    with_token_count = serializers.IntegerField(read_only=True)
+    without_token_count = serializers.IntegerField(read_only=True)
+    total_token_count = serializers.IntegerField(read_only=True)
+    system_default_mcp_enabled = serializers.BooleanField(read_only=True)
+    allow_token_plaintext_view = serializers.BooleanField(read_only=True)
+    rows = MCPAdminUserRowSerializer(many=True, read_only=True)
+
+
+class MCPAdminUserDetailSerializer(MCPSelfServicePayloadSerializer):
+    """Admin-facing MCP detail payload for one target user."""
+
+    email = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class MCPTokenCreateRequestSerializer(serializers.Serializer):
+    """Create-token request payload for self/admin MCP flows."""
+
+    token_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    access_level = serializers.ChoiceField(
+        choices=TOKEN_ACCESS_LEVEL_CHOICES,
+        required=False,
+        default=TOKEN_ACCESS_LEVEL_READ_ONLY,
+    )
+
+
+class MCPAdminUsersQuerySerializer(serializers.Serializer):
+    """Admin MCP user list query params."""
+
+    q = serializers.CharField(required=False, allow_blank=True, default="")
+    without_token = serializers.BooleanField(required=False, default=False)
+
+
+class MCPTokenPayloadSerializer(serializers.Serializer):
+    """Newly created MCP token payload."""
+
+    username = serializers.CharField(read_only=True)
+    token_name = serializers.CharField(read_only=True)
+    token = serializers.CharField(read_only=True)
+    access_level = serializers.CharField(read_only=True)
+    access_level_label = serializers.CharField(read_only=True)
+    generated_at = serializers.CharField(read_only=True)
+
+
+class MCPMutationResultSerializer(serializers.Serializer):
+    """Generic mutation response payload for MCP governance flows."""
+
+    success = serializers.BooleanField(read_only=True)
+    message = serializers.CharField(read_only=True)
+    token_id = serializers.IntegerField(read_only=True, required=False)
+    token_payload = MCPTokenPayloadSerializer(read_only=True, allow_null=True, required=False)
+    created_agent_prompt = MCPAgentPromptSerializer(read_only=True, required=False)
+    self_service = MCPSelfServicePayloadSerializer(read_only=True, required=False)
+    user_detail = MCPAdminUserDetailSerializer(read_only=True, required=False)

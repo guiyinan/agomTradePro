@@ -3,7 +3,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.account.interface import classification_api_views, sizing_views, views
+from apps.account.interface import classification_api_views, mcp_api_views, sizing_views, views
 from apps.account.interface.observer_api_views import ObserverGrantViewSet
 from apps.account.interface.performance_compat_views import (
     PortfolioBenchmarksCompatView,
@@ -74,6 +74,39 @@ urlpatterns = [
     path("health/", AccountHealthView.as_view(), name="health"),
     path("macro-sizing-config/", MacroSizingConfigView.as_view(), name="macro-sizing-config"),
     path("users/search/", UserSearchView.as_view(), name="user-search"),
+    path("mcp/self/", mcp_api_views.MCPSelfServiceView.as_view(), name="mcp-self"),
+    path("mcp/tokens/", mcp_api_views.MCPSelfTokenCreateView.as_view(), name="mcp-token-create"),
+    path(
+        "mcp/tokens/<int:token_id>/revoke/",
+        mcp_api_views.MCPSelfTokenRevokeView.as_view(),
+        name="mcp-token-revoke",
+    ),
+    path("admin/mcp/users/", mcp_api_views.MCPAdminUsersView.as_view(), name="admin-mcp-users"),
+    path(
+        "admin/mcp/users/<int:user_id>/",
+        mcp_api_views.MCPAdminUserDetailView.as_view(),
+        name="admin-mcp-user-detail",
+    ),
+    path(
+        "admin/mcp/users/<int:user_id>/tokens/",
+        mcp_api_views.MCPAdminUserTokenCreateView.as_view(),
+        name="admin-mcp-user-token-create",
+    ),
+    path(
+        "admin/mcp/users/<int:user_id>/tokens/revoke/",
+        mcp_api_views.MCPAdminUserTokensRevokeView.as_view(),
+        name="admin-mcp-user-tokens-revoke",
+    ),
+    path(
+        "admin/mcp/tokens/<int:token_id>/revoke/",
+        mcp_api_views.MCPAdminTokenRevokeView.as_view(),
+        name="admin-mcp-token-revoke",
+    ),
+    path(
+        "admin/mcp/users/<int:user_id>/toggle/",
+        mcp_api_views.MCPAdminUserToggleView.as_view(),
+        name="admin-mcp-user-toggle",
+    ),
     path(
         "broker-trades/preview/",
         BrokerTradeImportPreviewView.as_view(),

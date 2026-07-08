@@ -1043,6 +1043,8 @@ def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_u
     }
 
     assert "capability-router.mcp-center" not in screen_keys
+    assert "capability-router.admin-access" not in screen_keys
+    assert "capability-router.self-service" in screen_keys
 
 
 def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin_user):
@@ -1060,6 +1062,8 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
     }
 
     assert "capability-router.mcp-center" in screens
+    assert "capability-router.admin-access" in screens
+    assert "capability-router.self-service" in screens
     assert screens["capability-router.mcp-center"]["default_action_key"] == (
         "capability-router.mcp-tools-stats"
     )
@@ -1212,7 +1216,10 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     runtime_response = client.get("/api/tui/screens/ai-ops.agent-runtime/")
     runtime_payload = runtime_response.json()
-    assert runtime_payload["screen"]["default_action_key"] == "operator.governance.agent_runtime_summary"
+    assert (
+        runtime_payload["screen"]["default_action_key"]
+        == "operator.governance.agent_runtime_summary"
+    )
 
     alpha_response = client.get("/api/tui/screens/research.alpha-triggers/")
     alpha_payload = alpha_response.json()
@@ -1262,6 +1269,57 @@ def test_tui_providers_screen_shows_personal_provider_detail_when_user_has_provi
     payload = response.json()
     actions = {action["key"] for action in payload["actions"]}
     assert "param.api.get.api.ai.me.providers.pk" in actions
+
+
+def test_tui_my_providers_screen_exposes_self_service_actions(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/ai-ops.my-providers/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    action_keys = {action["key"] for action in payload["actions"]}
+    assert payload["screen"]["default_action_key"] == "ai-ops.list-my-providers"
+    assert "ai-ops.create-my-provider" in action_keys
+    assert "ai-ops.update-my-provider" in action_keys
+    assert "ai-ops.toggle-my-provider" in action_keys
+    assert "ai-ops.delete-my-provider" in action_keys
+    assert "ai-ops.my-quota-current" in action_keys
+    assert "ai-ops.my-ai-logs" in action_keys
+
+
+def test_tui_catalog_hides_admin_ai_management_screens_from_regular_user(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen_keys = {
+        screen["key"]
+        for group in payload["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    }
+    assert "ai-ops.system-providers" not in screen_keys
+    assert "ai-ops.user-quotas" not in screen_keys
+
+
+def test_tui_catalog_shows_admin_ai_management_screens_to_admin_user(client, tui_admin_user):
+    client.force_login(tui_admin_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen_keys = {
+        screen["key"]
+        for group in payload["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    }
+    assert "ai-ops.system-providers" in screen_keys
+    assert "ai-ops.user-quotas" in screen_keys
 
 
 def test_tui_dashboard_screen_hides_alpha_history_detail_without_history_rows(
@@ -1878,7 +1936,8 @@ def test_tui_catalog_registers_capability_router_entry(client, tui_user):
     assert modules["capability-router"]["label"] == "能力路由"
     assert modules["capability-router"]["group"] == "ops"
     assert [screen["key"] for screen in modules["capability-router"]["screens"]] == [
-        "capability-router.gateway"
+        "capability-router.gateway",
+        "capability-router.self-service",
     ]
     assert (
         modules["capability-router"]["screens"][0]["default_action_key"]

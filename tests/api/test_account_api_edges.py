@@ -14,6 +14,8 @@ from apps.account.infrastructure.models import (
     PortfolioModel,
     PortfolioObserverGrantModel,
     PositionModel,
+    SystemSettingsModel,
+    UserAccessTokenModel,
 )
 
 
@@ -48,6 +50,33 @@ def authenticated_client(api_client, auth_user):
     return api_client
 
 
+@pytest.fixture
+def admin_user(db):
+    user = get_user_model().objects.create_superuser(
+        username="account_api_admin",
+        password="testpass123",
+        email="admin@example.com",
+    )
+    AccountProfileModel.objects.update_or_create(
+        user=user,
+        defaults={
+            "display_name": "Account API Admin",
+            "initial_capital": Decimal("1000000.00"),
+            "approval_status": "approved",
+            "user_agreement_accepted": True,
+            "risk_warning_acknowledged": True,
+            "rbac_role": "admin",
+        },
+    )
+    return user
+
+
+@pytest.fixture
+def admin_authenticated_client(api_client, admin_user):
+    api_client.force_authenticate(user=admin_user)
+    return api_client
+
+
 @pytest.mark.django_db
 def test_account_health_contract(authenticated_client):
     response = authenticated_client.get("/api/account/health/")
@@ -57,6 +86,89 @@ def test_account_health_contract(authenticated_client):
     payload = response.json()
     assert payload["status"] == "healthy"
     assert payload["service"] == "account"
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_contract(authenticated_client, auth_user):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="sdk-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    response = authenticated_client.get("/api/account/mcp/self/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["username"] == auth_user.username
+    assert payload["mcp_enabled"] is True
+    assert payload["active_token_count"] == 1
+    assert payload["preferred_token"]["name"] == "sdk-token"
+    assert payload["agent_bootstrap_token_ready"] is True
+    assert payload["token_access_level_choices"][0]["value"] == "read_only"
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_create_token_returns_copy_payload(authenticated_client):
+    response = authenticated_client.post(
+        "/api/account/mcp/tokens/",
+        {"token_name": "tui-self", "access_level": "read_write"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["token_payload"]["token_name"] == "tui-self"
+    assert payload["token_payload"]["access_level"] == "read_write"
+    assert payload["created_agent_prompt"]["agent_bootstrap_token_ready"] is True
+    assert payload["self_service"]["active_token_count"] == 1
+
+
+@pytest.mark.django_db
+def test_account_admin_mcp_users_contract(admin_authenticated_client, auth_user, admin_user):
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="managed-token",
+        created_by=admin_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    response = admin_authenticated_client.get("/api/account/admin/mcp/users/?without_token=false")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_users"] >= 1
+    row = next(item for item in payload["rows"] if item["user_id"] == auth_user.id)
+    assert row["username"] == auth_user.username
+    assert row["has_token"] is True
+    assert row["token_count"] == 1
+    assert row["tokens"][0]["name"] == "managed-token"
+
+
+@pytest.mark.django_db
+def test_account_admin_create_mcp_token_returns_prompt(
+    admin_authenticated_client,
+    auth_user,
+):
+    response = admin_authenticated_client.post(
+        f"/api/account/admin/mcp/users/{auth_user.id}/tokens/",
+        {"token_name": "admin-issued", "access_level": "read_only"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["token_payload"]["token_name"] == "admin-issued"
+    assert payload["created_agent_prompt"]["agent_bootstrap_token_ready"] is True
+    assert payload["user_detail"]["user_id"] == auth_user.id
+    assert payload["user_detail"]["active_token_count"] == 1
 
 
 @pytest.mark.django_db
@@ -404,7 +516,9 @@ def test_account_transaction_create_returns_403_for_foreign_position(authenticat
         password="testpass123",
         email="foreign-position@example.com",
     )
-    portfolio = PortfolioModel.objects.create(user=other_user, name="Foreign Portfolio", is_active=True)
+    portfolio = PortfolioModel.objects.create(
+        user=other_user, name="Foreign Portfolio", is_active=True
+    )
     position = PositionModel.objects.create(
         portfolio=portfolio,
         asset_code="600000.SH",
@@ -448,7 +562,9 @@ def test_account_capital_flow_create_returns_404_for_foreign_portfolio(authentic
         password="testpass123",
         email="foreign-portfolio@example.com",
     )
-    portfolio = PortfolioModel.objects.create(user=other_user, name="Foreign Capital Portfolio", is_active=True)
+    portfolio = PortfolioModel.objects.create(
+        user=other_user, name="Foreign Capital Portfolio", is_active=True
+    )
 
     response = authenticated_client.post(
         "/api/account/capital-flows/",
