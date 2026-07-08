@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any, Optional
 
 from django.db import models, transaction
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 
 from ..domain.entities import PolicyEvent, PolicyLevel, PolicyLevelKeywordRule
@@ -172,7 +173,24 @@ class DjangoPolicyRepository:
         if before_date:
             query = query.filter(event_date__lte=before_date)
 
-        orm_obj = query.order_by('-event_date').first()
+        query = query.annotate(
+            _event_type_priority=Case(
+                When(event_type="policy", then=Value(0)),
+                When(event_type="mixed", then=Value(1)),
+                When(event_type="hotspot", then=Value(2)),
+                When(event_type="sentiment", then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        )
+
+        orm_obj = query.order_by(
+            "-event_date",
+            "-gate_effective",
+            "_event_type_priority",
+            "-effective_at",
+            "-created_at",
+        ).first()
 
         if orm_obj:
             return self._orm_to_entity(orm_obj)

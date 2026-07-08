@@ -31,6 +31,14 @@ class DjangoSignalRepository:
     def __init__(self):
         self._model = InvestmentSignalModel
 
+    _NON_PRODUCTION_ASSET_CODE_PREFIXES = (
+        "UATSIG",
+        "TESTSIG",
+        "TEST_",
+        "UAT_",
+        "DEMO_",
+    )
+
     # Protocol compatibility methods
     def get_by_id(self, id: str) -> InvestmentSignal | None:
         return self.get_signal_by_id(id)
@@ -208,6 +216,7 @@ class DjangoSignalRepository:
         asset_class: str = "",
         direction: str = "",
         search: str = "",
+        include_test: bool = False,
         limit: int = 50,
     ) -> list[InvestmentSignalModel]:
         """Return signal ORM records for the management page."""
@@ -223,6 +232,8 @@ class DjangoSignalRepository:
             queryset = queryset.filter(
                 Q(asset_code__icontains=search) | Q(logic_desc__icontains=search)
             )
+        if not include_test:
+            queryset = self._exclude_non_production_records(queryset)
         return list(queryset.order_by("-created_at")[:limit])
 
     def get_signal_management_metadata(self) -> dict[str, Any]:
@@ -256,6 +267,7 @@ class DjangoSignalRepository:
         asset_class: str = "",
         direction: str = "",
         search: str = "",
+        include_test: bool = False,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Return serialized signal payloads for API responses."""
@@ -267,9 +279,20 @@ class DjangoSignalRepository:
                 asset_class=asset_class,
                 direction=direction,
                 search=search,
+                include_test=include_test,
                 limit=limit,
             )
         ]
+
+    def _exclude_non_production_records(self, queryset):
+        """Hide obvious UAT/demo records from production-facing list responses."""
+
+        filter_q = Q()
+        for prefix in self._NON_PRODUCTION_ASSET_CODE_PREFIXES:
+            filter_q |= Q(asset_code__istartswith=prefix)
+        if not filter_q:
+            return queryset
+        return queryset.exclude(filter_q)
 
     def get_signal_payload(self, signal_id: str) -> dict[str, Any] | None:
         """Return one serialized signal payload by id."""

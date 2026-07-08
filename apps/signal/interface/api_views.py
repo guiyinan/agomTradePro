@@ -66,6 +66,7 @@ class SignalViewSet(viewsets.GenericViewSet):
             asset_class=data.get("asset_class") or "",
             direction=data.get("direction") or "",
             search=data.get("search") or "",
+            include_test=data.get("include_test", False),
             limit=data.get("limit", 50),
         )
         return Response(InvestmentSignalSerializer(signals, many=True).data)

@@ -1444,6 +1444,7 @@ class AgomTerminal {
                 `- **Timestamp**: \`${data.timestamp || '-'}\``,
             ].join('\n');
 
+            this.updateSessionInfo();
             this.printAIResponse(reply, {
                 provider: 'terminal',
                 model: 'builtin-status',
@@ -1584,7 +1585,7 @@ class AgomTerminal {
         this.printInfo('Fetching active signals...');
         
         try {
-            const response = await fetch('/api/signal/signals/');
+            const response = await fetch('/api/signal/active/');
             const data = await response.json();
             const signals = data.results || data.signals || data.items || [];
             

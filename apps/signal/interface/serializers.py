@@ -141,6 +141,7 @@ class SignalListQuerySerializer(serializers.Serializer):
     asset_class = serializers.CharField(required=False, allow_null=True)
     direction = serializers.CharField(required=False, allow_null=True)
     search = serializers.CharField(required=False, allow_null=True)
+    include_test = serializers.BooleanField(required=False, default=False)
     limit = serializers.IntegerField(default=50, min_value=1, max_value=500)
 
 

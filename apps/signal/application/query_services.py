@@ -144,6 +144,7 @@ def list_investment_signal_payloads(
     asset_class: str = "",
     direction: str = "",
     search: str = "",
+    include_test: bool = False,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Return serialized investment signals for API responses."""
@@ -153,6 +154,7 @@ def list_investment_signal_payloads(
         asset_class=asset_class,
         direction=direction,
         search=search,
+        include_test=include_test,
         limit=limit,
     )
 

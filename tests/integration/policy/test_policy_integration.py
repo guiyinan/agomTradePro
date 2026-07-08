@@ -193,6 +193,36 @@ class TestPolicyRepository:
         current = repo.get_current_policy_level()
         assert current == PolicyLevel.P2
 
+    def test_get_latest_event_prefers_effective_policy_event_on_same_day(self):
+        """同日多条记录时，应优先返回已生效的政策事件而不是热点噪音。"""
+        repo = DjangoPolicyRepository()
+        today = date.today()
+
+        PolicyLog.objects.create(
+            event_date=today,
+            level=PolicyLevel.P1.value,
+            title="海外市场快讯",
+            description="同日热点快讯",
+            evidence_url="https://example.com/hotspot",
+            event_type="hotspot",
+            gate_effective=False,
+        )
+        PolicyLog.objects.create(
+            event_date=today,
+            level=PolicyLevel.P2.value,
+            title="央行政策调整",
+            description="同日正式政策事件",
+            evidence_url="https://example.com/policy",
+            event_type="policy",
+            gate_effective=True,
+        )
+
+        latest = repo.get_latest_event()
+
+        assert latest is not None
+        assert latest.title == "央行政策调整"
+        assert latest.level == PolicyLevel.P2
+
     def test_is_intervention_active(self):
         """测试干预状态判断"""
         repo = DjangoPolicyRepository()

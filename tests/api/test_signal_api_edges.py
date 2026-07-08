@@ -146,6 +146,63 @@ def test_signal_active_alias_returns_only_approved_signals(authenticated_client)
 
 
 @pytest.mark.django_db
+def test_signal_list_excludes_uat_records_by_default(authenticated_client):
+    InvestmentSignalModel.objects.create(
+        asset_code="UATSIG_CN_ALPHA",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="UAT signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+    prod_signal = InvestmentSignalModel.objects.create(
+        asset_code="510300.SH",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Production signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+
+    response = authenticated_client.get("/api/signal/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["id"] for item in payload] == [prod_signal.id]
+
+
+@pytest.mark.django_db
+def test_signal_list_can_include_uat_records_when_requested(authenticated_client):
+    uat_signal = InvestmentSignalModel.objects.create(
+        asset_code="UATSIG_CN_ALPHA",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="UAT signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+    prod_signal = InvestmentSignalModel.objects.create(
+        asset_code="510300.SH",
+        asset_class="a_share_growth",
+        direction="LONG",
+        logic_desc="Production signal",
+        invalidation_description="PMI < 50",
+        target_regime="Recovery",
+        status="approved",
+    )
+
+    response = authenticated_client.get("/api/signal/?include_test=true")
+
+    assert response.status_code == 200
+    payload = response.json()
+    returned_ids = {item["id"] for item in payload}
+    assert returned_ids == {uat_signal.id, prod_signal.id}
+
+
+@pytest.mark.django_db
 def test_signal_retrieve_invalid_id_returns_json_404(authenticated_client):
     response = authenticated_client.get("/api/signal/active-like-string/")
 
