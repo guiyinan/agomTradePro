@@ -32,6 +32,7 @@ from apps.ai_capability.interface.views import (
 from apps.terminal.interface.api_views import (
     TuiOperatorGovernanceQueueView,
     TuiOperatorHomeView,
+    TuiOperatorHomeSectionView,
     TuiWorkbenchActionRunView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
@@ -183,6 +184,11 @@ core_patterns = [
     path("tui/", tui_workbench_view, name="tui-workbench"),
     path("api/tui/catalog/", TuiWorkbenchCatalogView.as_view(), name="api-tui-catalog"),
     path("api/tui/operator/home/", TuiOperatorHomeView.as_view(), name="api-tui-operator-home"),
+    path(
+        "api/tui/operator/home/<str:section_key>/",
+        TuiOperatorHomeSectionView.as_view(),
+        name="api-tui-operator-home-section",
+    ),
     path(
         "api/tui/operator/governance-queue/",
         TuiOperatorGovernanceQueueView.as_view(),

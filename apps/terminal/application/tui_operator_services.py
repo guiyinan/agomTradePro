@@ -6,6 +6,7 @@ from collections import Counter
 from datetime import date, datetime
 from typing import Any
 
+from django.core.cache import cache
 from django.utils import timezone
 
 from apps.account.application.query_services import get_account_diagnostic_summary
@@ -46,57 +47,55 @@ SEVERITY_ORDER = {
 
 DATA_TASK_DOMAINS = {"runtime", "data-center", "agent-runtime"}
 AI_CONFIG_DOMAINS = {"ai-provider", "config-center", "ai-capability"}
+OPERATOR_HOME_CACHE_TTL_SECONDS = 15
+OPERATOR_HOME_SECTION_KEYS = (
+    "decision_queue",
+    "market_context",
+    "account_signal_summary",
+    "system_exception_summary",
+    "data_task_summary",
+    "ai_config_summary",
+)
 
 
 def build_operator_home_payload(*, user: Any) -> dict[str, Any]:
     """Return the unified TUI home payload for one operator."""
 
-    governance = build_operator_governance_queue_payload(user=user)
-    governance_rows = list(governance["items"])
+    cache_key = _operator_home_cache_key(user=user)
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict):
+        return cached
 
-    decision_rows = _decision_queue_rows()
-    market_rows = _market_context_rows()
-    account_rows = _account_signal_rows()
-    system_rows = _section_rows(
-        governance_rows,
-        domains=None,
-        fallback_title="当前没有系统治理阻断项。",
-        fallback_screen="api-library.runtime",
-        fallback_action_key="operator.governance.runtime_summary",
-    )
-    data_task_rows = _section_rows(
-        governance_rows,
-        domains=DATA_TASK_DOMAINS,
-        fallback_title="数据、任务与运行时链路当前正常。",
-        fallback_screen="api-library.runtime",
-        fallback_action_key="operator.governance.runtime_summary",
-    )
-    ai_config_rows = _section_rows(
-        governance_rows,
-        domains=AI_CONFIG_DOMAINS,
-        fallback_title="AI、MCP 与配置链路当前正常。",
-        fallback_screen="ai-ops.providers",
-        fallback_action_key="operator.governance.ai_provider_summary",
-    )
-
-    return {
-        "status": _overall_status(
-            [
-                decision_rows,
-                market_rows,
-                account_rows,
-                system_rows,
-                data_task_rows,
-                ai_config_rows,
-            ]
-        ),
-        "decision_queue": _section_payload(decision_rows),
-        "market_context": _section_payload(market_rows),
-        "account_signal_summary": _section_payload(account_rows),
-        "system_exception_summary": _section_payload(system_rows),
-        "data_task_summary": _section_payload(data_task_rows),
-        "ai_config_summary": _section_payload(ai_config_rows),
+    payload = {
+        section_key: build_operator_home_section_payload(user=user, section_key=section_key)
+        for section_key in OPERATOR_HOME_SECTION_KEYS
     }
+    response = {
+        "status": _overall_status(
+            [list((payload[section_key].get("rows") or [])) for section_key in OPERATOR_HOME_SECTION_KEYS]
+        ),
+        **payload,
+    }
+    cache.set(cache_key, response, OPERATOR_HOME_CACHE_TTL_SECONDS)
+    return response
+
+
+def build_operator_home_section_payload(*, user: Any, section_key: str) -> dict[str, Any]:
+    """Return one operator home section payload."""
+
+    normalized_key = str(section_key or "").strip()
+    if normalized_key not in OPERATOR_HOME_SECTION_KEYS:
+        raise KeyError(normalized_key)
+
+    cache_key = _operator_home_section_cache_key(user=user, section_key=normalized_key)
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict):
+        return cached
+
+    rows = _operator_home_section_rows(user=user, section_key=normalized_key)
+    payload = _section_payload(rows)
+    cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
+    return payload
 
 
 def build_operator_governance_queue_payload(
@@ -105,6 +104,11 @@ def build_operator_governance_queue_payload(
     domain: str = "",
 ) -> dict[str, Any]:
     """Return sorted governance exceptions for TUI drilldown."""
+
+    cache_key = _operator_governance_cache_key(user=user, domain=domain)
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict):
+        return cached
 
     rows = [
         *_runtime_governance_rows(),
@@ -132,12 +136,74 @@ def build_operator_governance_queue_payload(
             )
         ]
     rows.sort(key=_governance_sort_key)
-    return {
+    payload = {
         "status": rows[0]["severity"] if rows else "ok",
         "items": rows,
         "total": len(rows),
         "summary": dict(Counter(row["severity"] for row in rows)),
     }
+    cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
+    return payload
+
+
+def _operator_home_section_rows(*, user: Any, section_key: str) -> list[dict[str, Any]]:
+    if section_key == "decision_queue":
+        return _decision_queue_rows()
+    if section_key == "market_context":
+        return _market_context_rows()
+    if section_key == "account_signal_summary":
+        return _account_signal_rows()
+
+    governance_rows = list(build_operator_governance_queue_payload(user=user).get("items") or [])
+    if section_key == "system_exception_summary":
+        return _section_rows(
+            governance_rows,
+            domains=None,
+            fallback_title="当前没有系统治理阻断项。",
+            fallback_screen="api-library.runtime",
+            fallback_action_key="operator.governance.runtime_summary",
+        )
+    if section_key == "data_task_summary":
+        return _section_rows(
+            governance_rows,
+            domains=DATA_TASK_DOMAINS,
+            fallback_title="数据、任务与运行时链路当前正常。",
+            fallback_screen="api-library.runtime",
+            fallback_action_key="operator.governance.runtime_summary",
+        )
+    if section_key == "ai_config_summary":
+        return _section_rows(
+            governance_rows,
+            domains=AI_CONFIG_DOMAINS,
+            fallback_title="AI、MCP 与配置链路当前正常。",
+            fallback_screen="ai-ops.providers",
+            fallback_action_key="operator.governance.ai_provider_summary",
+        )
+    raise KeyError(section_key)
+
+
+def _operator_home_cache_key(*, user: Any) -> str:
+    return f"terminal:tui:operator-home:v1:user:{_operator_cache_user_fragment(user)}"
+
+
+def _operator_home_section_cache_key(*, user: Any, section_key: str) -> str:
+    return (
+        "terminal:tui:operator-home-section:v1:"
+        f"user:{_operator_cache_user_fragment(user)}:section:{section_key}"
+    )
+
+
+def _operator_governance_cache_key(*, user: Any, domain: str) -> str:
+    normalized_domain = str(domain or "").strip().lower() or "all"
+    return (
+        "terminal:tui:operator-governance:v1:"
+        f"user:{_operator_cache_user_fragment(user)}:domain:{normalized_domain}"
+    )
+
+
+def _operator_cache_user_fragment(user: Any) -> str:
+    user_id = getattr(user, "pk", None)
+    return str(user_id if user_id is not None else "anon")
 
 
 def _decision_queue_rows() -> list[dict[str, Any]]:

@@ -27,6 +27,7 @@ from ..application.services import AnswerChainSettingsService, CommandExecutionS
 from ..application.tui_operator_services import (
     build_operator_governance_queue_payload,
     build_operator_home_payload,
+    build_operator_home_section_payload,
 )
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
 from ..application.use_cases import (
@@ -672,6 +673,27 @@ class TuiOperatorHomeView(APIView):
         """Return the fixed six-section home payload."""
 
         return Response(build_operator_home_payload(user=request.user))
+
+
+class TuiOperatorHomeSectionView(APIView):
+    """Expose one operator-home section payload."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, section_key: str):
+        """Return one fixed section without rebuilding unrelated summaries."""
+
+        try:
+            payload = build_operator_home_section_payload(
+                user=request.user,
+                section_key=section_key,
+            )
+        except KeyError:
+            return Response(
+                {"error": "Unknown operator home section"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(payload)
 
 
 class TuiOperatorGovernanceQueueView(APIView):

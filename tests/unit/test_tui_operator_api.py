@@ -51,6 +51,36 @@ def test_tui_operator_home_api_returns_fixed_payload(client, tui_user, monkeypat
     ]
 
 
+def test_tui_operator_home_section_api_returns_requested_payload(client, tui_user, monkeypatch):
+    captured = {}
+
+    def fake_section_payload(*, user, section_key):
+        captured["username"] = user.username
+        captured["section_key"] = section_key
+        return {
+            "rows": [{"title": "ok"}],
+            "total": 1,
+            "status": "ok",
+            "badge": {"blocked_count": 0, "warning_count": 0},
+        }
+
+    monkeypatch.setattr(
+        tui_api_views,
+        "build_operator_home_section_payload",
+        fake_section_payload,
+    )
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/operator/home/decision_queue/")
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert captured == {
+        "username": "tui_operator_api",
+        "section_key": "decision_queue",
+    }
+
+
 def test_tui_operator_governance_queue_api_forwards_domain(client, tui_user, monkeypatch):
     captured = {}
 
@@ -94,7 +124,9 @@ def test_tui_operator_governance_queue_api_forwards_domain(client, tui_user, mon
 
 def test_tui_operator_api_requires_authentication(client):
     home_response = client.get("/api/tui/operator/home/")
+    section_response = client.get("/api/tui/operator/home/decision_queue/")
     governance_response = client.get("/api/tui/operator/governance-queue/")
 
     assert home_response.status_code in {302, 401, 403}
+    assert section_response.status_code in {302, 401, 403}
     assert governance_response.status_code in {302, 401, 403}
