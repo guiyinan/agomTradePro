@@ -264,6 +264,14 @@
         return `${apiBase}/operator/home/`;
     }
 
+    function operatorHomeSectionUrl(sectionKey) {
+        const normalizedKey = String(sectionKey || "").trim();
+        if (!normalizedKey) {
+            return "";
+        }
+        return `${operatorHomeUrl()}${encodeURIComponent(normalizedKey)}/`;
+    }
+
     function governanceQueueUrl(domain = "") {
         const suffix = domain ? `?domain=${encodeURIComponent(domain)}` : "";
         return `${apiBase}/operator/governance-queue/${suffix}`;
@@ -300,6 +308,17 @@
             "operator.home.resume_last_workspace",
             "operator.home.open_cli",
         ].includes(String(actionKey || ""));
+    }
+
+    function operatorHomePanelSectionKey(panel) {
+        const actionKey = String(panel?.action_key || "").trim();
+        if (!actionKey.startsWith("operator.home.")) {
+            return "";
+        }
+        if (isHomeClientAction(actionKey)) {
+            return "";
+        }
+        return actionKey.slice("operator.home.".length);
     }
 
     function escapeHtml(value) {
@@ -1779,16 +1798,33 @@
             return;
         }
         try {
-            const result = await fetchJson(actionRunUrl(panel.action_key), {
-                method: "POST",
-                body: JSON.stringify({ params: {} }),
-            });
-            const rows = Array.isArray(result?.view_model?.rows) ? result.view_model.rows : [];
-            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-                state.homePanelBadges[panel.key] = badgeCountsFromRows(rows);
+            let viewModel = null;
+            let panelBadge = null;
+            const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
+                ? operatorHomePanelSectionKey(panel)
+                : "";
+            if (operatorSectionKey) {
+                const payload = await fetchJson(operatorHomeSectionUrl(operatorSectionKey));
+                viewModel = operatorHomePanelViewModel(panel, payload);
+                panelBadge = payload?.badge
+                    ? {
+                        blockedCount: Number(payload.badge.blocked_count || 0),
+                        warningCount: Number(payload.badge.warning_count || 0),
+                    }
+                    : badgeCountsFromRows(viewModel.rows || []);
+            } else {
+                const result = await fetchJson(actionRunUrl(panel.action_key), {
+                    method: "POST",
+                    body: JSON.stringify({ params: {} }),
+                });
+                viewModel = result.view_model;
+                panelBadge = badgeCountsFromRows(Array.isArray(viewModel?.rows) ? viewModel.rows : []);
             }
-            if (!renderDashboardRegisteredRenderer(panel, result.view_model, container)) {
-                container.innerHTML = `<h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>${renderDashboardPanelBody(panel, result.view_model)}`;
+            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+                state.homePanelBadges[panel.key] = panelBadge;
+            }
+            if (!renderDashboardRegisteredRenderer(panel, viewModel, container)) {
+                container.innerHTML = `<h3><span>${escapeHtml(panel.title)}</span><span data-panel-badge></span></h3>${renderDashboardPanelBody(panel, viewModel)}`;
                 processHostSlot(container);
             }
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
@@ -1865,6 +1901,26 @@
             return renderPanelDetail(panel, viewModel);
         }
         return `<div class="tui-message">${escapeHtml(viewModel.message || viewModel.status || "正常")}</div>`;
+    }
+
+    function operatorHomePanelViewModel(panel, payload) {
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const columns = (Array.isArray(panel?.columns) ? panel.columns : [])
+            .map((column) => ({
+                key: String(column?.key || "").trim(),
+                label: String(column?.label || column?.key || "").trim(),
+            }))
+            .filter((column) => column.key);
+        return {
+            kind: "datagrid",
+            title: panel?.title || "",
+            status: String(payload?.status || "ok"),
+            columns,
+            rows,
+            total: Number(payload?.total || rows.length || 0),
+            empty_message: "暂无数据",
+            empty_guidance: [],
+        };
     }
 
     function renderRegimePanel(viewModel) {
@@ -4542,7 +4598,6 @@
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
             const catalog = await fetchJson(catalogUrl());
-            await refreshGovernanceBadges();
             renderCatalog(catalog);
             const initialScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
                 ? state.lastNonHomeScreen

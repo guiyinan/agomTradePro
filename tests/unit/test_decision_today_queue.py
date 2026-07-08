@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from django.apps import apps
@@ -153,6 +154,56 @@ def _account(user, name: str):
         is_active=True,
         auto_trading_enabled=True,
     )
+
+
+def test_today_queue_can_skip_system_health_items(monkeypatch):
+    class _EmptyRecommendationRepo:
+        def get_conflicts(self, account_id):
+            return []
+
+        def get_plan_candidates(self, account_id):
+            return []
+
+    class _EmptyPlanRepo:
+        def get_latest_for_account(self, account_id):
+            return None
+
+    class _EmptyApprovalRepo:
+        def get_pending_requests(self, account_id):
+            return []
+
+    monkeypatch.setattr(
+        "apps.decision_rhythm.application.today_queue.get_unified_recommendation_repository",
+        lambda: _EmptyRecommendationRepo(),
+    )
+    monkeypatch.setattr(
+        "apps.decision_rhythm.application.today_queue.get_portfolio_transition_plan_repository",
+        lambda: _EmptyPlanRepo(),
+    )
+    monkeypatch.setattr(
+        "apps.decision_rhythm.application.today_queue.get_execution_approval_request_repository",
+        lambda: _EmptyApprovalRepo(),
+    )
+
+    calls: list[str] = []
+
+    def _fake_system_health(self, account_id: str):
+        calls.append(account_id)
+        return []
+
+    monkeypatch.setattr(
+        TodayDecisionQueueQueryService,
+        "_system_health_items",
+        _fake_system_health,
+    )
+
+    service = TodayDecisionQueueQueryService()
+    result_without_health = service.execute(account_id="default", include_system_health=False)
+    result_with_health = service.execute(account_id="default", include_system_health=True)
+
+    assert result_without_health.items == []
+    assert result_with_health.items == []
+    assert calls == ["default"]
 
 
 @pytest.mark.django_db

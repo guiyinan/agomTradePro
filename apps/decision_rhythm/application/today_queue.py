@@ -46,7 +46,12 @@ class TodayDecisionQueueQueryService:
 
     target_screen = "command-center.decision-flow"
 
-    def execute(self, *, account_id: str = "default") -> TodayDecisionQueueResult:
+    def execute(
+        self,
+        *,
+        account_id: str = "default",
+        include_system_health: bool = True,
+    ) -> TodayDecisionQueueResult:
         """Return actionable queue items for one account."""
 
         normalized_account_id = str(account_id or "default").strip() or "default"
@@ -70,7 +75,8 @@ class TodayDecisionQueueQueryService:
 
         adopted_recommendations = recommendation_repo.get_plan_candidates(normalized_account_id)
         items.extend(self._adopted_recommendation_items(adopted_recommendations))
-        items.extend(self._system_health_items(normalized_account_id))
+        if include_system_health:
+            items.extend(self._system_health_items(normalized_account_id))
 
         sorted_items = sort_today_decision_queue_items(items)
         return TodayDecisionQueueResult(

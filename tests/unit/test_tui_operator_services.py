@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import apps.terminal.application.tui_operator_services as operator_services
@@ -232,3 +232,36 @@ def test_ai_provider_governance_rows_map_provider_failures_and_quota(monkeypatch
     assert "deepseek" in failure_row["blocking_reason"]
     assert quota_row["severity"] == "warning"
     assert capability_row["target_action_key"] == "auto.api.get.api.prompt.chat.providers"
+
+
+def test_config_center_governance_rows_use_lightweight_runtime_summary(monkeypatch):
+    class FakeModelRegistryRepository:
+        def get_active_model(self):
+            return SimpleNamespace(model_name="qlib-demo")
+
+    monkeypatch.setattr(
+        operator_services,
+        "get_runtime_qlib_config",
+        lambda: {"enabled": True, "provider_uri": "/tmp/qlib"},
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "get_qlib_model_registry_repository",
+        lambda: FakeModelRegistryRepository(),
+    )
+    monkeypatch.setattr(
+        operator_services,
+        "inspect_latest_trade_date",
+        lambda provider_uri: date(2026, 7, 1),
+    )
+    monkeypatch.setattr(operator_services, "has_qlib_training_runs", lambda: False)
+
+    rows = operator_services._config_center_governance_rows(
+        user=SimpleNamespace(is_staff=True, is_superuser=False)
+    )
+
+    assert len(rows) == 2
+    assert rows[0]["severity"] == "ok"
+    assert rows[0]["target_action_key"] == "config_center.qlib_runtime"
+    assert rows[1]["severity"] == "warning"
+    assert rows[1]["blocking_reason"] == "本地 Qlib 数据滞后 7 天。"

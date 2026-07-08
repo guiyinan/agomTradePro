@@ -17,9 +17,9 @@ from apps.ai_provider.application.use_cases import (
     ListProvidersUseCase,
     ListUsageLogsUseCase,
 )
-from apps.alpha.application.ops_services import (
-    AlphaOpsOverviewQueryService,
-    QlibDataOpsOverviewQueryService,
+from apps.alpha.application.repository_provider import (
+    get_qlib_model_registry_repository,
+    inspect_latest_trade_date,
 )
 from apps.agent_runtime.application.repository_provider import get_operator_repository
 from apps.config_center.application.query_services import has_qlib_training_runs
@@ -37,6 +37,7 @@ from apps.task_monitor.application.readiness_monitor_service import (
     get_personal_readiness_monitor_summary,
 )
 from apps.terminal.application.query_services import get_terminal_surface_status_payload
+from core.integration.runtime_settings import get_runtime_qlib_config
 
 SEVERITY_ORDER = {
     "blocked": 0,
@@ -207,7 +208,10 @@ def _operator_cache_user_fragment(user: Any) -> str:
 
 
 def _decision_queue_rows() -> list[dict[str, Any]]:
-    result = TodayDecisionQueueQueryService().execute(account_id="default")
+    result = TodayDecisionQueueQueryService().execute(
+        account_id="default",
+        include_system_health=False,
+    )
     rows = [dict(item.to_dict()) for item in result.items]
     if rows:
         for row in rows:
@@ -579,13 +583,19 @@ def _account_settings_governance_rows() -> list[dict[str, Any]]:
 def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     if not _is_admin_user(user):
         return []
-    alpha_overview = AlphaOpsOverviewQueryService().build()
-    qlib_data = QlibDataOpsOverviewQueryService().build()
-    runtime = dict(alpha_overview.get("qlib_runtime") or {})
-    active_model = alpha_overview.get("active_model")
-    local_data_status = dict(qlib_data.get("local_data_status") or {})
-    lag_days = local_data_status.get("lag_days")
+    runtime = dict(get_runtime_qlib_config() or {})
+    active_model = get_qlib_model_registry_repository().get_active_model()
+    lag_days = None
+    provider_uri = runtime.get("provider_uri")
+    if runtime.get("enabled") and provider_uri:
+        try:
+            latest_local_trade_date = inspect_latest_trade_date(str(provider_uri))
+            if latest_local_trade_date is not None:
+                lag_days = max((timezone.localdate() - latest_local_trade_date).days, 0)
+        except Exception:
+            lag_days = None
     lag_warning = isinstance(lag_days, int) and lag_days > 3
+    has_training_runs = has_qlib_training_runs()
     enabled = bool(runtime.get("enabled"))
     rows = [
         _governance_row(
@@ -604,14 +614,14 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
             observed_at=timezone.now(),
         ),
         _governance_row(
-            severity="warning" if lag_warning else ("notice" if not has_qlib_training_runs() else "ok"),
+            severity="warning" if lag_warning else ("notice" if not has_training_runs else "ok"),
             domain="config-center",
             title="训练记录与本地数据滞后",
             status="lag" if lag_warning else "ok",
             blocking_reason=(
                 f"本地 Qlib 数据滞后 {lag_days} 天。"
                 if lag_warning
-                else ("当前没有训练运行记录。" if not has_qlib_training_runs() else "")
+                else ("当前没有训练运行记录。" if not has_training_runs else "")
             ),
             next_action="查看训练运行记录",
             target_screen="api-library.config-center",
