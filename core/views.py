@@ -15,7 +15,7 @@ from apps.account.application.documentation_use_cases import (
     get_documentation_service,
 )
 from apps.regime.application.current_regime import resolve_current_regime
-from core.health_checks import is_healthy, run_readiness_checks
+from core.health_checks import check_database, is_healthy, run_readiness_checks
 from core.ui_modes import DEFAULT_TUI_PATH, UI_MODE_TUI, set_ui_mode_cookie
 
 
@@ -64,6 +64,26 @@ def readiness_view(request):
             "checks": checks,
         }
         return JsonResponse(response_data, status=503)
+
+
+def database_health_view(request):
+    """
+    数据库健康检查
+
+    Returns the direct database probe payload so deployment scripts can
+    distinguish runtime availability from dependency health.
+    """
+
+    result = check_database()
+    status_code = 200 if result.get("status") == "ok" else 503
+    return JsonResponse(
+        {
+            "status": result.get("status", "error"),
+            "timestamp": datetime.now(UTC).isoformat(),
+            "database": result,
+        },
+        status=status_code,
+    )
 
 
 def chat_example_view(request):
