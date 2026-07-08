@@ -168,6 +168,74 @@ class CatalogStatsSerializer(serializers.Serializer):
     by_route_group = serializers.DictField()
 
 
+class McpToolSerializer(serializers.Serializer):
+    """Serializer for MCP governance list rows."""
+
+    capability_key = serializers.CharField()
+    name = serializers.CharField()
+    module_name = serializers.CharField()
+    summary = serializers.CharField()
+    description = serializers.CharField()
+    route_group = serializers.CharField()
+    category = serializers.CharField()
+    risk_level = serializers.CharField()
+    review_status = serializers.CharField()
+    visibility = serializers.CharField()
+    requires_confirmation = serializers.BooleanField()
+    enabled_for_routing = serializers.BooleanField()
+    enabled_for_terminal = serializers.BooleanField()
+
+
+class McpToolListSerializer(serializers.Serializer):
+    """Serializer for MCP governance list payload."""
+
+    total_count = serializers.IntegerField()
+    module_choices = serializers.ListField(child=serializers.CharField())
+    search_query = serializers.CharField()
+    module_filter = serializers.CharField()
+    status_filter = serializers.CharField()
+    latest_sync_at = serializers.DateTimeField(allow_null=True)
+    latest_sync_total_discovered = serializers.IntegerField()
+    tools = McpToolSerializer(many=True)
+
+
+class McpToolStatsSerializer(serializers.Serializer):
+    """Serializer for MCP governance summary payload."""
+
+    status = serializers.CharField()
+    total = serializers.IntegerField()
+    module_count = serializers.IntegerField()
+    routing_enabled = serializers.IntegerField()
+    routing_disabled = serializers.IntegerField()
+    terminal_enabled = serializers.IntegerField()
+    terminal_disabled = serializers.IntegerField()
+    requires_confirmation = serializers.IntegerField()
+    high_risk = serializers.IntegerField()
+    latest_sync_at = serializers.DateTimeField(allow_null=True)
+    latest_sync_total_discovered = serializers.IntegerField()
+    latest_sync_created = serializers.IntegerField()
+    latest_sync_updated = serializers.IntegerField()
+    latest_sync_disabled = serializers.IntegerField()
+
+
+class McpToolToggleResultSerializer(serializers.Serializer):
+    """Serializer for one MCP flag toggle result."""
+
+    capability_key = serializers.CharField()
+    name = serializers.CharField()
+    changed_flag = serializers.CharField()
+    changed_value = serializers.BooleanField()
+    enabled_for_routing = serializers.BooleanField()
+    enabled_for_terminal = serializers.BooleanField()
+
+
+class McpToolSyncResultSerializer(serializers.Serializer):
+    """Serializer for MCP sync plus governance summary."""
+
+    sync = SyncResultSerializer()
+    governance = serializers.DictField()
+
+
 class WebChatRequestSerializer(serializers.Serializer):
     """Serializer for shared web chat request."""
 

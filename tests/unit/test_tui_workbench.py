@@ -1028,6 +1028,46 @@ def test_tui_catalog_shows_admin_only_config_center_to_admin_user(client, tui_ad
     )
 
 
+def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen_keys = {
+        screen["key"]
+        for group in payload["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    }
+
+    assert "capability-router.mcp-center" not in screen_keys
+
+
+def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin_user):
+    client.force_login(tui_admin_user)
+
+    response = client.get("/api/tui/catalog/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screens = {
+        screen["key"]: screen
+        for group in payload["groups"]
+        for module in group["modules"]
+        for screen in module["screens"]
+    }
+
+    assert "capability-router.mcp-center" in screens
+    assert screens["capability-router.mcp-center"]["default_action_key"] == (
+        "capability-router.mcp-tools-stats"
+    )
+    assert screens["capability-router.mcp-center"]["workflow"]["previous"]["key"] == (
+        "capability-router.gateway"
+    )
+
+
 def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, tui_user):
     client.force_login(tui_user)
 

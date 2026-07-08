@@ -23,7 +23,7 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 | **安全分层** | 自动识别 unsafe_api、写入 API 和高风险 MCP，统一治理路由开关 |
 | **统一路由** | 三阶段路由：Retrieval → Decision → Dispatch |
 | **审计追踪** | 记录所有路由决策和执行结果 |
-| **接入引导** | `/settings/capability-gateway/` 提供 Token、Route API、TUI 和 MCP 工具治理入口 |
+| **接入引导** | `/settings/capability-gateway/` 提供 Token、Route API、TUI 和 MCP 工具治理入口；TUI 同步暴露 `capability-router.gateway` 与 `capability-router.mcp-center` |
 
 ### 1.3 设计原则
 

@@ -55,14 +55,96 @@ def get_mcp_tools_page_context(
 ) -> dict[str, Any]:
     """Build the template context for the MCP tools page."""
 
-    capability_repo = get_capability_repository()
-    tools = capability_repo.list_capabilities(source_type="mcp_tool", enabled_only=False)
+    catalog_payload = get_mcp_tools_catalog_payload(
+        search_query=search_query,
+        module_filter=module_filter,
+        status_filter=status_filter,
+        limit=300,
+    )
 
+    return {
+        "page_title": "MCP 工具管理",
+        "page_subtitle": "管理已同步到 AI Capability Catalog 的 MCP 工具，支持检索、查看 Schema、切换终端/路由启用状态以及重新同步。",
+        **catalog_payload,
+    }
+
+
+def get_mcp_tools_catalog_payload(
+    *,
+    search_query: str = "",
+    module_filter: str = "",
+    status_filter: str = "",
+    limit: int = 80,
+) -> dict[str, Any]:
+    """Return serializer-ready MCP tool catalog payload for web and TUI surfaces."""
+
+    capability_repo = get_capability_repository()
+    all_tools = capability_repo.list_capabilities(source_type="mcp_tool", enabled_only=False)
+    tools = _filter_mcp_tools(
+        all_tools,
+        search_query=search_query,
+        module_filter=module_filter,
+        status_filter=status_filter,
+    )
+    latest_sync = get_capability_sync_log_repository().get_latest("mcp_tool")
+
+    return {
+        "tools": [_mcp_tool_page_payload(tool) for tool in tools[: max(limit, 1)]],
+        "total_count": len(tools),
+        "module_choices": sorted({_derive_module_name(item.name) for item in all_tools}),
+        "search_query": search_query,
+        "module_filter": module_filter,
+        "status_filter": status_filter,
+        "latest_sync": latest_sync,
+        "latest_sync_at": latest_sync.finished_at if latest_sync else None,
+        "latest_sync_total_discovered": latest_sync.total_discovered if latest_sync else 0,
+    }
+
+
+def get_mcp_tools_stats_payload() -> dict[str, Any]:
+    """Return aggregate MCP governance stats for TUI and JSON surfaces."""
+
+    tools = get_capability_repository().list_capabilities(source_type="mcp_tool", enabled_only=False)
+    latest_sync = get_capability_sync_log_repository().get_latest("mcp_tool")
+    total = len(tools)
+    routing_enabled = sum(1 for item in tools if item.enabled_for_routing)
+    terminal_enabled = sum(1 for item in tools if item.enabled_for_terminal)
+
+    return {
+        "status": "ready" if total else "empty",
+        "total": total,
+        "module_count": len({_derive_module_name(item.name) for item in tools}),
+        "routing_enabled": routing_enabled,
+        "routing_disabled": total - routing_enabled,
+        "terminal_enabled": terminal_enabled,
+        "terminal_disabled": total - terminal_enabled,
+        "requires_confirmation": sum(1 for item in tools if item.requires_confirmation),
+        "high_risk": sum(
+            1
+            for item in tools
+            if getattr(item.risk_level, "value", str(item.risk_level)) in {"high", "critical"}
+        ),
+        "latest_sync_at": latest_sync.finished_at if latest_sync else None,
+        "latest_sync_total_discovered": latest_sync.total_discovered if latest_sync else 0,
+        "latest_sync_created": latest_sync.created_count if latest_sync else 0,
+        "latest_sync_updated": latest_sync.updated_count if latest_sync else 0,
+        "latest_sync_disabled": latest_sync.disabled_count if latest_sync else 0,
+    }
+
+
+def _filter_mcp_tools(
+    tools: list[Any],
+    *,
+    search_query: str,
+    module_filter: str,
+    status_filter: str,
+) -> list[Any]:
+    filtered = list(tools)
     if search_query:
         normalized_query = search_query.lower()
-        tools = [
+        filtered = [
             item
-            for item in tools
+            for item in filtered
             if normalized_query in item.capability_key.lower()
             or normalized_query in item.name.lower()
             or normalized_query in item.summary.lower()
@@ -70,38 +152,18 @@ def get_mcp_tools_page_context(
         ]
 
     if module_filter:
-        tools = [item for item in tools if _derive_module_name(item.name) == module_filter]
+        filtered = [item for item in filtered if _derive_module_name(item.name) == module_filter]
 
     if status_filter == "routing_on":
-        tools = [item for item in tools if item.enabled_for_routing]
+        filtered = [item for item in filtered if item.enabled_for_routing]
     elif status_filter == "routing_off":
-        tools = [item for item in tools if not item.enabled_for_routing]
+        filtered = [item for item in filtered if not item.enabled_for_routing]
     elif status_filter == "terminal_on":
-        tools = [item for item in tools if item.enabled_for_terminal]
+        filtered = [item for item in filtered if item.enabled_for_terminal]
     elif status_filter == "terminal_off":
-        tools = [item for item in tools if not item.enabled_for_terminal]
+        filtered = [item for item in filtered if not item.enabled_for_terminal]
 
-    module_choices = sorted(
-        {
-            _derive_module_name(item.name)
-            for item in capability_repo.list_capabilities(
-                source_type="mcp_tool", enabled_only=False
-            )
-        }
-    )
-    latest_sync = get_capability_sync_log_repository().get_latest("mcp_tool")
-
-    return {
-        "page_title": "MCP 工具管理",
-        "page_subtitle": "管理已同步到 AI Capability Catalog 的 MCP 工具，支持检索、查看 Schema、切换终端/路由启用状态以及重新同步。",
-        "tools": [_mcp_tool_page_payload(tool) for tool in tools[:300]],
-        "total_count": len(tools),
-        "module_choices": module_choices,
-        "search_query": search_query,
-        "module_filter": module_filter,
-        "status_filter": status_filter,
-        "latest_sync": latest_sync,
-    }
+    return filtered
 
 
 def _mcp_tool_page_payload(capability) -> dict[str, Any]:
@@ -109,10 +171,15 @@ def _mcp_tool_page_payload(capability) -> dict[str, Any]:
     return {
         "capability_key": capability.capability_key,
         "name": capability.name,
+        "module_name": _derive_module_name(capability.name),
         "summary": capability.summary,
         "description": capability.description,
         "route_group": capability.route_group.value,
+        "category": capability.category,
         "risk_level": capability.risk_level.value,
+        "review_status": capability.review_status.value,
+        "visibility": capability.visibility.value,
+        "requires_confirmation": capability.requires_confirmation,
         "input_schema": input_schema,
         "input_schema_json": (
             json.dumps(input_schema, ensure_ascii=False, indent=2)

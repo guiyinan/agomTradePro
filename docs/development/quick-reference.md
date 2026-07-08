@@ -215,7 +215,7 @@ agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests
 - `python manage.py govern_ai_capability_catalog --apply`：治理 AI Capability Catalog，清理不在当前 API/MCP 源内的历史自动采集项；安全只读能力自动放行，写入能力保留确认，高风险 MCP 保持待人工复核，unsafe API 标记拒绝。
 - MCP 可执行工具以 `sdk/agomtradepro_mcp/tools/*` 中的 `@server.tool()` 代码注册为真源；数据库中的 `ai_capability_catalog` 是同步快照和治理投影，不作为任意可执行代码入口。
 - `sync_ai_capability_catalog` 默认会在 API/MCP 同步后执行治理；如需只看原始采集结果，可加 `--skip-governance`。
-- TUI 运行时会注入 `capability-router.gateway` 屏幕，包含“测试统一路由”“能力目录统计”“能力列表”三个动作，均走 `/api/ai-capability/*`。
+- TUI 运行时会注入 `capability-router.gateway` 与 `capability-router.mcp-center` 两个屏幕：前者用于统一路由验证，后者提供 MCP 接入中心，可直接查看 `/api/ai-capability/mcp-tools/*` 的同步摘要、工具目录和开关操作。
 
 ```powershell
 # 同步 MCP 工具到 Capability Catalog

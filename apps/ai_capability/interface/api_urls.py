@@ -11,8 +11,12 @@ from .api_views import (
     catalog_stats,
     get_capability,
     list_capabilities,
+    list_mcp_tools,
+    mcp_tools_stats,
     route_message,
+    sync_mcp_tools,
     sync_capabilities,
+    toggle_mcp_tool,
     web_chat,
 )
 
@@ -27,6 +31,14 @@ urlpatterns = [
     path("capabilities/<str:capability_key>/", get_capability, name="ai-capability-detail"),
     path("sync/", sync_capabilities, name="ai-capability-sync"),
     path("stats/", catalog_stats, name="ai-capability-stats"),
+    path("mcp-tools/", list_mcp_tools, name="ai-capability-mcp-tools"),
+    path("mcp-tools/stats/", mcp_tools_stats, name="ai-capability-mcp-tools-stats"),
+    path("mcp-tools/sync/", sync_mcp_tools, name="ai-capability-mcp-tools-sync"),
+    path(
+        "mcp-tools/<str:capability_key>/toggle/<str:flag>/",
+        toggle_mcp_tool,
+        name="ai-capability-mcp-tool-toggle",
+    ),
 ]
 
 urlpatterns += router.urls

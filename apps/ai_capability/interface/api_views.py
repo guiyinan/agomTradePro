@@ -10,7 +10,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from ..application.dtos import RouteRequestDTO
-from ..application.interface_services import list_capability_summary_payloads
+from ..application.governance_services import CapabilityCatalogGovernanceService
+from ..application.interface_services import (
+    get_mcp_tools_catalog_payload,
+    get_mcp_tools_stats_payload,
+    list_capability_summary_payloads,
+    toggle_mcp_tool_flag,
+)
 from ..application.use_cases import (
     GetCapabilityDetailUseCase,
     GetCatalogStatsUseCase,
@@ -22,6 +28,10 @@ from .serializers import (
     CapabilityPublicDetailSerializer,
     CapabilitySummarySerializer,
     CatalogStatsSerializer,
+    McpToolListSerializer,
+    McpToolStatsSerializer,
+    McpToolSyncResultSerializer,
+    McpToolToggleResultSerializer,
     RouteRequestSerializer,
     SyncResultSerializer,
     WebChatRequestSerializer,
@@ -52,6 +62,9 @@ def api_root(request):
                 "web": "/api/ai-capability/web/",
                 "sync": "/api/ai-capability/sync/",
                 "stats": "/api/ai-capability/stats/",
+                "mcp_tools": "/api/ai-capability/mcp-tools/",
+                "mcp_tools_stats": "/api/ai-capability/mcp-tools/stats/",
+                "mcp_tools_sync": "/api/ai-capability/mcp-tools/sync/",
             },
         }
     )
@@ -457,6 +470,116 @@ def catalog_stats(request):
         return Response(serializer.data)
     except Exception as e:
         logger.exception("Failed to get stats")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def _admin_forbidden_response():
+    return Response(
+        {"error": "Admin privileges required"},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_mcp_tools(request):
+    """List MCP capability governance rows for TUI and admin surfaces."""
+
+    if not request.user.is_staff:
+        return _admin_forbidden_response()
+
+    q = (request.query_params.get("q") or "").strip()
+    module_filter = (request.query_params.get("module") or "").strip()
+    status_filter = (request.query_params.get("status") or "").strip()
+    try:
+        limit = int(request.query_params.get("limit") or 80)
+    except (TypeError, ValueError):
+        limit = 80
+
+    payload = get_mcp_tools_catalog_payload(
+        search_query=q,
+        module_filter=module_filter,
+        status_filter=status_filter,
+        limit=max(1, min(limit, 300)),
+    )
+    serializer = McpToolListSerializer(payload)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def mcp_tools_stats(request):
+    """Return MCP capability governance summary for TUI and admin surfaces."""
+
+    if not request.user.is_staff:
+        return _admin_forbidden_response()
+
+    serializer = McpToolStatsSerializer(get_mcp_tools_stats_payload())
+    return Response(serializer.data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_mcp_tools(request):
+    """Sync MCP tools and apply governance in one admin action."""
+
+    if not request.user.is_staff:
+        return _admin_forbidden_response()
+
+    try:
+        sync_result = SyncCapabilitiesUseCase().execute(sync_type="incremental", source="mcp_tool")
+        governance_result = CapabilityCatalogGovernanceService().execute(apply=True)
+        serializer = McpToolSyncResultSerializer(
+            {
+                "sync": sync_result.to_dict(),
+                "governance": governance_result.to_dict(),
+            }
+        )
+        return Response(serializer.data)
+    except Exception as e:
+        logger.exception("Failed to sync MCP tools")
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def toggle_mcp_tool(request, capability_key: str, flag: str):
+    """Toggle one MCP governance flag for a synced tool."""
+
+    if not request.user.is_staff:
+        return _admin_forbidden_response()
+    if flag not in {"enabled_for_terminal", "enabled_for_routing"}:
+        return Response(
+            {"error": "Unsupported MCP flag"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        tool = toggle_mcp_tool_flag(capability_key=capability_key, flag=flag)
+        if tool is None:
+            return Response(
+                {"error": "MCP tool not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = McpToolToggleResultSerializer(
+            {
+                "capability_key": tool.capability_key,
+                "name": tool.name,
+                "changed_flag": flag,
+                "changed_value": bool(getattr(tool, flag)),
+                "enabled_for_routing": bool(tool.enabled_for_routing),
+                "enabled_for_terminal": bool(tool.enabled_for_terminal),
+            }
+        )
+        return Response(serializer.data)
+    except Exception as e:
+        logger.exception("Failed to toggle MCP tool flag")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

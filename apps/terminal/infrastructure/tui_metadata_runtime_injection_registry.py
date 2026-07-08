@@ -14,6 +14,7 @@ from .tui_metadata_runtime_injection_advisor import (
 from .tui_metadata_runtime_injection_capability_router import (
     RUNTIME_CAPABILITY_ROUTER_ACTIONS,
     RUNTIME_CAPABILITY_ROUTER_MODULE,
+    RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,
     RUNTIME_CAPABILITY_ROUTER_SCREEN,
 )
 from .tui_metadata_runtime_injection_cli import (
@@ -54,7 +55,7 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
         coverage_key="runtime_injected_capability_router_metadata",
         groups=(RUNTIME_CLI_GROUP,),
         modules=(RUNTIME_CAPABILITY_ROUTER_MODULE,),
-        screens=(RUNTIME_CAPABILITY_ROUTER_SCREEN,),
+        screens=(RUNTIME_CAPABILITY_ROUTER_SCREEN, RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN),
         actions=RUNTIME_CAPABILITY_ROUTER_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(

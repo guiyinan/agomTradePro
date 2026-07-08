@@ -88,6 +88,31 @@ def builtin_status_capability(db):
     )
 
 
+@pytest.fixture
+def mcp_tool_capability(db):
+    return CapabilityCatalogModel.objects.create(
+        capability_key="mcp_tool.get_macro_summary",
+        source_type="mcp_tool",
+        source_ref="get_macro_summary",
+        name="get_macro_summary",
+        summary="Read macro summary",
+        description="Read macro summary from MCP",
+        route_group="tool",
+        category="mcp",
+        execution_target={"type": "mcp_tool", "tool_name": "get_macro_summary"},
+        risk_level="low",
+        requires_mcp=True,
+        requires_confirmation=True,
+        enabled_for_routing=True,
+        enabled_for_terminal=False,
+        enabled_for_chat=False,
+        enabled_for_agent=True,
+        visibility="admin",
+        auto_collected=True,
+        review_status="approved",
+    )
+
+
 @pytest.mark.django_db
 def test_ai_capability_root_exposes_endpoint_directory(api_client, regular_user):
     api_client.force_authenticate(user=regular_user)
@@ -98,6 +123,7 @@ def test_ai_capability_root_exposes_endpoint_directory(api_client, regular_user)
     data = response.json()
     assert data["module"] == "ai-capability"
     assert data["endpoints"]["capabilities"] == "/api/ai-capability/capabilities/"
+    assert data["endpoints"]["mcp_tools"] == "/api/ai-capability/mcp-tools/"
 
 
 @pytest.mark.django_db
@@ -197,6 +223,56 @@ def test_capability_list_endpoint_still_works(api_client, regular_user, write_ca
     assert response.status_code == 200
     data = response.json()
     assert any(item["capability_key"] == write_capability.capability_key for item in data)
+
+
+@pytest.mark.django_db
+def test_admin_mcp_tools_endpoint_returns_governance_rows(
+    api_client, staff_user, mcp_tool_capability
+):
+    api_client.force_authenticate(user=staff_user)
+
+    response = api_client.get("/api/ai-capability/mcp-tools/?status=routing_on&limit=10")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_count"] == 1
+    assert data["module_choices"] == ["get"]
+    assert data["tools"][0]["capability_key"] == mcp_tool_capability.capability_key
+    assert data["tools"][0]["enabled_for_routing"] is True
+    assert data["tools"][0]["enabled_for_terminal"] is False
+
+
+@pytest.mark.django_db
+def test_regular_user_cannot_access_mcp_governance_endpoints(
+    api_client, regular_user, mcp_tool_capability
+):
+    api_client.force_authenticate(user=regular_user)
+
+    list_response = api_client.get("/api/ai-capability/mcp-tools/")
+    stats_response = api_client.get("/api/ai-capability/mcp-tools/stats/")
+
+    assert list_response.status_code == 403
+    assert stats_response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_admin_toggle_mcp_tool_endpoint_updates_model(
+    api_client, staff_user, mcp_tool_capability
+):
+    api_client.force_authenticate(user=staff_user)
+
+    response = api_client.post(
+        f"/api/ai-capability/mcp-tools/{mcp_tool_capability.capability_key}/toggle/enabled_for_terminal/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["changed_flag"] == "enabled_for_terminal"
+    assert data["changed_value"] is True
+    mcp_tool_capability.refresh_from_db()
+    assert mcp_tool_capability.enabled_for_terminal is True
 
 
 @pytest.mark.django_db
