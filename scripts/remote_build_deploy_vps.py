@@ -1092,7 +1092,7 @@ if [ "$ACTION" = "fresh" ]; then
   compose down --remove-orphans || true
 fi
 
-compose up -d redis
+compose up -d runtime_ns redis
 
 if [ "$INCLUDE_SQLITE" = "1" ]; then
   if [ ! -f backups/db.sqlite3 ]; then
@@ -1158,7 +1158,7 @@ if ! compose run --rm --no-deps web python manage.py setup_macro_daily_sync --ho
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi
 
-SERVICES="redis web caddy"
+SERVICES="runtime_ns redis web caddy"
 if [ "$ENABLE_RSSHUB" = "1" ]; then
   SERVICES="$SERVICES rsshub"
 fi
