@@ -46,6 +46,38 @@ def test_alpha_ranking_snapshot_reads_latest_cache() -> None:
     assert snapshot.provider_source == AlphaScoreCacheModel.PROVIDER_QLIB
 
 
+def test_alpha_ranking_snapshot_uses_recent_closed_trade_date(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Intraday Alpha cache must not outrun the latest closed trade date."""
+
+    AlphaScoreCacheModel.objects.create(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 7, 7),
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=date(2026, 7, 7),
+        scores=[{"code": "688223.SH", "score": 0.8}],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+    )
+    AlphaScoreCacheModel.objects.create(
+        universe_id="csi300",
+        intended_trade_date=date(2026, 7, 8),
+        provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+        asof_date=date(2026, 7, 8),
+        scores=[{"code": "300274.SZ", "score": 0.9}],
+        status=AlphaScoreCacheModel.STATUS_AVAILABLE,
+    )
+    monkeypatch.setattr(
+        "apps.decision_rhythm.infrastructure.consistency_snapshots._resolve_recent_closed_trade_date",
+        lambda: date(2026, 7, 7),
+    )
+
+    snapshot = get_latest_alpha_ranking_snapshot(top_n=1)
+
+    assert snapshot.latest_trade_date == date(2026, 7, 7)
+    assert snapshot.top_codes == ("688223.SH",)
+
+
 def test_workspace_snapshot_reads_latest_recommendations() -> None:
     """Workspace snapshot includes latest recommendations and source candidate ids."""
 

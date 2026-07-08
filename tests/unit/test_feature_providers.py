@@ -765,6 +765,9 @@ class TestAlphaCandidateProvider:
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
         ) as mock_repo_class, patch(
+            "apps.decision_rhythm.infrastructure.feature_providers._resolve_recent_closed_trade_date",
+            return_value=date(2026, 6, 4),
+        ), patch(
             "apps.decision_rhythm.infrastructure.feature_providers.fetch_stock_scores"
         ) as mock_fetch_scores:
             mock_repo = MagicMock()
@@ -798,6 +801,11 @@ class TestAlphaCandidateProvider:
                 "000001.SZ",
                 "002709.SZ",
             ]
+            mock_fetch_scores.assert_called_once_with(
+                universe_id="csi300",
+                intended_trade_date=date(2026, 6, 4),
+                top_n=30,
+            )
             assert result[0]["candidate_id"] == "cand_001"
             assert result[1]["candidate_id"] == "alpha_rank:002709.SZ:2026-06-04"
             assert result[1]["alpha_score"] == 0.9
@@ -807,6 +815,9 @@ class TestAlphaCandidateProvider:
         with patch(
             "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
         ) as mock_repo_class, patch(
+            "apps.decision_rhythm.infrastructure.feature_providers._resolve_recent_closed_trade_date",
+            return_value=date(2026, 6, 4),
+        ), patch(
             "apps.decision_rhythm.infrastructure.feature_providers.fetch_stock_scores"
         ) as mock_fetch_scores:
             mock_repo_class.side_effect = RuntimeError("repository unavailable")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 from io import StringIO
 from types import SimpleNamespace
 
@@ -26,6 +26,7 @@ def _closed_trade_date(monkeypatch):
         lambda: {
             "status": "ok",
             "enabled": True,
+            "name": "decision-quote-pre-readiness-refresh",
             "schedule": {
                 "hour": "18",
                 "minute": "20",
@@ -231,6 +232,18 @@ def test_collect_personal_readiness_evidence_runs_account_chain(monkeypatch):
         ]
         == "2026-06-30T18:20:00+08:00"
     )
+    assert (
+        payload["scheduler_evidence"]["quote_pre_readiness_scheduler"]["schedule_expectation"][
+            "target_date"
+        ]
+        == "2026-06-30"
+    )
+    assert (
+        payload["scheduler_evidence"]["quote_pre_readiness_scheduler"]["schedule_expectation"][
+            "task_name"
+        ]
+        == "decision-quote-pre-readiness-refresh"
+    )
     assert payload["summary"]["quote_pre_readiness_scheduler_status"] == "ok"
     assert payload["summary"]["target_count"] == 1
     assert payload["summary"]["alpha_workspace_consistency"]["alpha"]["provider_source"] == "qlib"
@@ -253,6 +266,67 @@ def test_collect_personal_readiness_evidence_runs_account_chain(monkeypatch):
     assert captured["pre_trade_kwargs"]["account_id"] == 101
     assert captured["pre_trade_kwargs"]["side"] == "buy"
     assert captured["pre_trade_kwargs"]["symbol"] == "510300.SH"
+
+
+def test_enrich_quote_pre_readiness_scheduler_evidence_marks_completed_run():
+    payload = command_module._enrich_quote_pre_readiness_scheduler_evidence(
+        quote_pre_readiness_scheduler={
+            "status": "ok",
+            "enabled": True,
+            "name": "decision-quote-pre-readiness-refresh",
+            "task": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task",
+            "schedule": {
+                "hour": "15",
+                "minute": "35",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-08T15:36:00+08:00",
+                "total_run_count": 3,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+        target_date=date(2026, 7, 8),
+        current_time=datetime.fromisoformat("2026-07-08T16:05:00+08:00"),
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["schedule_expectation"]["target_date"] == "2026-07-08"
+    assert payload["schedule_expectation"]["due_status"] == "completed"
+    assert payload["schedule_expectation"]["completed_at"] == "2026-07-08T15:36:00+08:00"
+
+
+def test_enrich_quote_pre_readiness_scheduler_evidence_marks_overdue_run():
+    payload = command_module._enrich_quote_pre_readiness_scheduler_evidence(
+        quote_pre_readiness_scheduler={
+            "status": "ok",
+            "enabled": True,
+            "name": "decision-quote-pre-readiness-refresh",
+            "task": "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task",
+            "schedule": {
+                "hour": "15",
+                "minute": "35",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-03T15:35:00+08:00",
+                "total_run_count": 2,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+        target_date=date(2026, 7, 7),
+        current_time=datetime.fromisoformat("2026-07-08T12:30:00+08:00"),
+    )
+
+    assert payload["status"] == "warning"
+    assert payload["schedule_expectation"]["due_status"] == "overdue"
+    assert payload["safety"]["issues"][-1]["code"] == "quote_pre_readiness_run_missing_after_grace"
 
 
 def test_weekly_report_persistence_evidence_warns_without_delivered_notification():

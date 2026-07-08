@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-06.v10",
+  "version": "2026-07-08.v14",
   "mcp_tool_count": 368,
   "business_module_count": 37,
-  "static_test_function_count": 6199,
+  "static_test_function_count": 6225,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -76,9 +76,7 @@
     "apps/equity/infrastructure/repositories.py": 2327,
     "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
-    "apps/policy/infrastructure/repositories.py": 1275,
-    "apps/strategy/interface/views.py": 1294,
-    "apps/terminal/application/tui_workbench_result_models.py": 1331
+    "apps/strategy/interface/views.py": 1294
   }
 }
 

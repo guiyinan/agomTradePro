@@ -13,6 +13,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.utils import timezone
+from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 
 from ..application.use_cases import (
     CandidateProviderProtocol,
@@ -22,6 +23,8 @@ from ..application.use_cases import (
 )
 
 logger = logging.getLogger(__name__)
+
+_resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
 
 
 def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
@@ -1113,11 +1116,11 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
     ) -> list[dict[str, Any]]:
         """Fetch latest Alpha ranking scores through the owning application service."""
         try:
-            from datetime import date
+            target_trade_date = _resolve_recent_closed_trade_date()
 
             result = fetch_stock_scores(
                 universe_id=self.DEFAULT_ALPHA_UNIVERSE_ID,
-                intended_trade_date=date.today(),
+                intended_trade_date=target_trade_date,
                 top_n=self.DEFAULT_ALPHA_TOP_N,
             )
             if not getattr(result, "success", False) or not getattr(result, "scores", None):
@@ -1132,7 +1135,7 @@ class AlphaCandidateProvider(CandidateProviderProtocol):
                 date_suffix = (
                     intended_trade_date.isoformat()
                     if hasattr(intended_trade_date, "isoformat")
-                    else str(intended_trade_date or date.today().isoformat())
+                    else str(intended_trade_date or target_trade_date.isoformat())
                 )
                 candidates.append(
                     {

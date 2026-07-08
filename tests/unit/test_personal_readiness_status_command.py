@@ -408,6 +408,30 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     )
     monkeypatch.setattr(
         command_module,
+        "_collect_quote_pre_readiness_scheduler_status",
+        lambda: {
+            "status": "ok",
+            "name": command_module.QUOTE_PRE_READINESS_TASK_NAME,
+            "task": command_module.QUOTE_PRE_READINESS_TASK_PATH,
+            "enabled": True,
+            "schedule": {
+                "minute": "20",
+                "hour": "18",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-01T18:20:00+08:00",
+                "total_run_count": 20,
+                "date_changed": None,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+    )
+    monkeypatch.setattr(
+        command_module,
         "resolve_default_readiness_target_date",
         lambda: date(2026, 6, 30),
     )
@@ -872,6 +896,30 @@ def test_personal_readiness_status_returns_run_command_when_target_is_closed(mon
         },
     )
     monkeypatch.setattr(command_module, "_collect_scheduler_status", lambda: {"status": "ok"})
+    monkeypatch.setattr(
+        command_module,
+        "_collect_quote_pre_readiness_scheduler_status",
+        lambda: {
+            "status": "ok",
+            "name": command_module.QUOTE_PRE_READINESS_TASK_NAME,
+            "task": command_module.QUOTE_PRE_READINESS_TASK_PATH,
+            "enabled": True,
+            "schedule": {
+                "minute": "20",
+                "hour": "18",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-01T18:20:00+08:00",
+                "total_run_count": 1,
+                "date_changed": None,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+    )
     monkeypatch.setattr(
         command_module,
         "resolve_default_readiness_target_date",
@@ -4306,6 +4354,30 @@ def test_personal_readiness_status_runs_daily_when_closed_target_evidence_is_mis
     monkeypatch.setattr(command_module, "_collect_scheduler_status", lambda: {"status": "ok"})
     monkeypatch.setattr(
         command_module,
+        "_collect_quote_pre_readiness_scheduler_status",
+        lambda: {
+            "status": "ok",
+            "name": command_module.QUOTE_PRE_READINESS_TASK_NAME,
+            "task": command_module.QUOTE_PRE_READINESS_TASK_PATH,
+            "enabled": True,
+            "schedule": {
+                "minute": "20",
+                "hour": "18",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-01T18:20:00+08:00",
+                "total_run_count": 1,
+                "date_changed": None,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+    )
+    monkeypatch.setattr(
+        command_module,
         "resolve_default_readiness_target_date",
         lambda: date(2026, 7, 1),
     )
@@ -4347,6 +4419,30 @@ def test_personal_readiness_status_marks_failed_evidence_as_inspect_action(
         },
     )
     monkeypatch.setattr(command_module, "_collect_scheduler_status", lambda: {"status": "ok"})
+    monkeypatch.setattr(
+        command_module,
+        "_collect_quote_pre_readiness_scheduler_status",
+        lambda: {
+            "status": "ok",
+            "name": command_module.QUOTE_PRE_READINESS_TASK_NAME,
+            "task": command_module.QUOTE_PRE_READINESS_TASK_PATH,
+            "enabled": True,
+            "schedule": {
+                "minute": "20",
+                "hour": "18",
+                "day_of_week": "1,2,3,4,5",
+                "day_of_month": "*",
+                "month_of_year": "*",
+                "timezone": "Asia/Shanghai",
+            },
+            "run_metadata": {
+                "last_run_at": "2026-07-01T18:20:00+08:00",
+                "total_run_count": 1,
+                "date_changed": None,
+            },
+            "safety": {"status": "ok", "issues": []},
+        },
+    )
     monkeypatch.setattr(
         command_module,
         "resolve_default_readiness_target_date",
@@ -4941,6 +5037,38 @@ def test_quote_pre_readiness_schedule_expectation_marks_completed_run():
     assert payload["status"] == "ok"
     assert expectation["due_status"] == "completed"
     assert expectation["completed_at"] == "2026-07-02T18:21:00+08:00"
+
+
+def test_quote_pre_readiness_schedule_expectation_does_not_count_next_day_run():
+    scheduler = {
+        "status": "ok",
+        "name": command_module.QUOTE_PRE_READINESS_TASK_NAME,
+        "schedule": {
+            "minute": "20",
+            "hour": "18",
+            "day_of_week": "1,2,3,4,5",
+            "day_of_month": "*",
+            "month_of_year": "*",
+            "timezone": "Asia/Shanghai",
+        },
+        "run_metadata": {"last_run_at": "2026-07-03T09:00:00+08:00", "total_run_count": 3},
+        "safety": {"status": "ok", "issues": []},
+    }
+
+    payload = command_module._with_quote_pre_readiness_schedule_expectation(
+        scheduler=scheduler,
+        validation={"next_required_date": "2026-07-02"},
+        next_action={"target_date": "2026-07-02"},
+        now=datetime.fromisoformat("2026-07-03T09:05:00+08:00"),
+    )
+
+    expectation = payload["schedule_expectation"]
+    assert payload["status"] == "warning"
+    assert expectation["due_status"] == "overdue"
+    assert "completed_at" not in expectation
+    assert payload["safety"]["issues"][-1]["code"] == (
+        "quote_pre_readiness_run_missing_after_grace"
+    )
 
 
 def test_quote_pre_readiness_activity_requirement_blocks_insufficient_dispatch_history():

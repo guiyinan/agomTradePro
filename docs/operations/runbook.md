@@ -1,6 +1,6 @@
 # AgomTradePro Operations Runbook
 
-> **Last updated**: `2026-07-05`
+> **Last updated**: `2026-07-08`
 > **Release line**: `0.8.0`
 
 ---
@@ -35,6 +35,7 @@ Expected file pair per target trading day:
 ```bash
 python manage.py show_personal_readiness_status --json
 python manage.py inspect_personal_readiness_evidence --target-date <YYYY-MM-DD> --json
+python manage.py repair_personal_readiness_evidence --target-date <YYYY-MM-DD> --json
 python manage.py validate_personal_readiness_window --json
 ```
 
@@ -108,6 +109,19 @@ Check:
 python manage.py inspect_personal_readiness_evidence --target-date <blocked_date> --json
 ```
 
+If the file is historically wrong but should remain auditable, use the formal repair path instead of ad-hoc overwrite:
+
+```bash
+python manage.py repair_personal_readiness_evidence --target-date <blocked_date> --json --strict
+```
+
+Repair rules:
+
+- archive the original canonical evidence pair under `var/readiness-evidence/_repair_archive/`
+- rewrite the canonical file with `trigger_source=repair`
+- do not treat repaired evidence as scheduler-clean proof
+- use repair only for explicit historical correction, not as the normal daily operating path
+
 ### Evidence missing for closed trading day
 
 ```bash
@@ -164,7 +178,25 @@ The release-closure path is considered complete only when all of the following a
 5. Production database posture is explicit and non-conflicting.
 6. Evidence files and pass/fail conditions are documented and inspectable.
 
-## 9. Related docs
+## 9. Stabilization Bundle
+
+Use the bundled runner when you need one command that captures the current `P0/P1/P2` stabilization posture into reusable JSON/Markdown evidence:
+
+```bash
+python scripts/run_post_080_stabilization_checks.py --continue-on-failure --write-json reports/stabilization/latest.json --write-md reports/stabilization/latest.md
+```
+
+The default bundle runs:
+
+- strict readiness monitor
+- `healthcheck --json`
+- Alpha ops regression
+- Data Center regression
+- Risk Center regression
+- TUI/operator regression
+- governance consistency
+
+## 10. Related docs
 
 - [../VERSION.md](../VERSION.md)
 - [../governance/SYSTEM_BASELINE.md](../governance/SYSTEM_BASELINE.md)
