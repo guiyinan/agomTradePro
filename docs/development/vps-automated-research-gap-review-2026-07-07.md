@@ -57,7 +57,7 @@
 
 - `.agents/skills/mcp-remote-agomtradepro/SKILL.md` 仍使用旧示例：
   - 旧 token 变量：`AGOM_REMOTE_API_TOKEN`
-  - 旧路径：`/api/signals/`、`/api/macro/supported-indicators/`
+  - 旧路径：`/api/signal/`、`/api/macro/supported-indicators/`
 - 实测线上真相是：
   - 可用 token 来自 `UserAccessTokenModel.key`
   - 正常 header 仍是 `Authorization: Token <token>`
@@ -273,4 +273,3 @@
   - `/terminal/` 可执行 `/help`、`/mcp-tools`
   - `/terminal/` 的 `/status` 未在页面内闭环
   - `/admin/` 可正常进入并加载主要管理分组
-

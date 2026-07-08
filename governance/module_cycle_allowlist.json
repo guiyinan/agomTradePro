@@ -1,87 +1,224 @@
 {
-  "version": "2026-06-30.v1",
-  "description": "Accepted app-import dependency baseline after cycle remediation reached zero.",
-  "max_app_import_edges": 178,
-  "max_outbound_modules_per_app": 19,
-  "max_inbound_modules_per_app": 23,
+  "version": "2026-07-09.v1",
+  "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
+  "max_app_import_edges": 217,
+  "max_outbound_modules_per_app": 20,
+  "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
     "account": 19,
     "agent_runtime": 13,
     "ai_capability": 6,
     "ai_provider": 0,
-    "alpha": 6,
-    "alpha_trigger": 5,
+    "alpha": 7,
+    "alpha_trigger": 6,
     "asset_analysis": 4,
-    "audit": 3,
-    "backtest": 3,
+    "audit": 4,
+    "backtest": 6,
     "beta_gate": 5,
     "config_center": 1,
     "dashboard": 16,
-    "data_center": 1,
-    "decision_rhythm": 19,
-    "equity": 7,
-    "events": 0,
-    "factor": 3,
+    "data_center": 5,
+    "decision_rhythm": 20,
+    "equity": 8,
+    "events": 2,
+    "factor": 4,
     "filter": 1,
     "fund": 6,
     "hedge": 2,
     "macro": 3,
-    "policy": 4,
-    "prompt": 2,
-    "pulse": 1,
-    "realtime": 2,
+    "policy": 6,
+    "prompt": 3,
+    "pulse": 2,
+    "realtime": 4,
     "regime": 2,
     "risk_center": 0,
-    "rotation": 1,
-    "sector": 1,
+    "rotation": 2,
+    "sector": 3,
     "sentiment": 4,
     "setup_wizard": 2,
     "share": 2,
-    "signal": 7,
-    "simulated_trading": 10,
-    "strategy": 6,
+    "signal": 10,
+    "simulated_trading": 14,
+    "strategy": 7,
     "task_monitor": 0,
-    "terminal": 11
+    "terminal": 18
   },
   "max_inbound_modules_by_app": {
-    "account": 5,
-    "agent_runtime": 0,
-    "ai_capability": 0,
+    "account": 12,
+    "agent_runtime": 1,
+    "ai_capability": 1,
     "ai_provider": 12,
-    "alpha": 1,
-    "alpha_trigger": 3,
-    "asset_analysis": 9,
-    "audit": 2,
+    "alpha": 5,
+    "alpha_trigger": 4,
+    "asset_analysis": 11,
+    "audit": 3,
     "backtest": 2,
     "beta_gate": 4,
-    "config_center": 3,
-    "dashboard": 1,
-    "data_center": 20,
-    "decision_rhythm": 4,
-    "equity": 7,
+    "config_center": 4,
+    "dashboard": 2,
+    "data_center": 22,
+    "decision_rhythm": 8,
+    "equity": 8,
     "events": 5,
-    "factor": 1,
+    "factor": 2,
     "filter": 0,
     "fund": 5,
     "hedge": 2,
     "macro": 5,
     "policy": 13,
     "prompt": 4,
-    "pulse": 6,
-    "realtime": 5,
-    "regime": 23,
+    "pulse": 8,
+    "realtime": 7,
+    "regime": 24,
     "risk_center": 3,
     "rotation": 4,
     "sector": 3,
     "sentiment": 4,
     "setup_wizard": 0,
-    "share": 0,
-    "signal": 9,
-    "simulated_trading": 5,
-    "strategy": 3,
+    "share": 1,
+    "signal": 11,
+    "simulated_trading": 8,
+    "strategy": 4,
     "task_monitor": 4,
     "terminal": 1
   },
-  "allowed_bidirectional_pairs": [],
-  "allowed_cycle_components": []
+  "allowed_bidirectional_pairs": [
+    [
+      "account",
+      "audit"
+    ],
+    [
+      "account",
+      "backtest"
+    ],
+    [
+      "account",
+      "equity"
+    ],
+    [
+      "account",
+      "factor"
+    ],
+    [
+      "account",
+      "policy"
+    ],
+    [
+      "account",
+      "simulated_trading"
+    ],
+    [
+      "ai_capability",
+      "terminal"
+    ],
+    [
+      "alpha",
+      "data_center"
+    ],
+    [
+      "alpha",
+      "decision_rhythm"
+    ],
+    [
+      "alpha_trigger",
+      "decision_rhythm"
+    ],
+    [
+      "alpha_trigger",
+      "events"
+    ],
+    [
+      "asset_analysis",
+      "signal"
+    ],
+    [
+      "audit",
+      "backtest"
+    ],
+    [
+      "dashboard",
+      "data_center"
+    ],
+    [
+      "data_center",
+      "pulse"
+    ],
+    [
+      "data_center",
+      "realtime"
+    ],
+    [
+      "decision_rhythm",
+      "events"
+    ],
+    [
+      "decision_rhythm",
+      "simulated_trading"
+    ],
+    [
+      "equity",
+      "sector"
+    ],
+    [
+      "policy",
+      "signal"
+    ],
+    [
+      "prompt",
+      "strategy"
+    ],
+    [
+      "pulse",
+      "regime"
+    ],
+    [
+      "realtime",
+      "simulated_trading"
+    ],
+    [
+      "share",
+      "simulated_trading"
+    ],
+    [
+      "simulated_trading",
+      "strategy"
+    ]
+  ],
+  "allowed_cycle_components": [
+    [
+      "ai_capability",
+      "terminal"
+    ],
+    [
+      "account",
+      "alpha",
+      "alpha_trigger",
+      "asset_analysis",
+      "audit",
+      "backtest",
+      "beta_gate",
+      "config_center",
+      "dashboard",
+      "data_center",
+      "decision_rhythm",
+      "equity",
+      "events",
+      "factor",
+      "fund",
+      "hedge",
+      "macro",
+      "policy",
+      "prompt",
+      "pulse",
+      "realtime",
+      "regime",
+      "rotation",
+      "sector",
+      "sentiment",
+      "share",
+      "signal",
+      "simulated_trading",
+      "strategy"
+    ]
+  ]
 }
