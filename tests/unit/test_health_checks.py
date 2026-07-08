@@ -48,6 +48,19 @@ class TestHealthCheckEndpoints:
         response = client.get('/api/ready/')
         assert response['Content-Type'] == 'application/json'
 
+    def test_database_health_probe_returns_json_payload(self, db):
+        """Test database health probe exposes direct dependency status."""
+        client = Client()
+
+        response = client.get('/api/health/db/')
+
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/json'
+        data = response.json()
+        assert data['status'] == 'ok'
+        assert data['database']['status'] == 'ok'
+        assert 'timestamp' in data
+
 
 @pytest.mark.unit
 class TestHealthCheckFunctions:
@@ -240,3 +253,16 @@ class TestHealthCheckIntegration:
         data = response.json()
         assert data['status'] == 'error'
         assert data['checks']['database']['status'] == 'error'
+
+    @patch('core.views.check_database')
+    def test_database_health_probe_returns_503_on_failure(self, mock_check_db, db):
+        """Test database health probe returns dependency failure status."""
+        mock_check_db.return_value = {'status': 'error', 'error': 'Connection failed'}
+
+        client = Client()
+        response = client.get('/api/health/db/')
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data['status'] == 'error'
+        assert data['database']['status'] == 'error'

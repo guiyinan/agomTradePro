@@ -30,6 +30,15 @@ class TestPrometheusMetricsEndpoint:
         assert response.status_code == 200
         assert 'text/plain' in response.get('Content-Type', '')
 
+    def test_api_metrics_endpoint_alias_accessible(self):
+        """测试 /api/metrics/ 兼容别名可访问"""
+        client = Client()
+
+        response = client.get('/api/metrics/')
+
+        assert response.status_code == 200
+        assert 'text/plain' in response.get('Content-Type', '')
+
     def test_metrics_endpoint_content(self):
         """测试 metrics 端点返回内容"""
         client = Client()

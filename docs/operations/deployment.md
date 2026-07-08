@@ -171,6 +171,7 @@ SKIP_SMOKE_TESTS=true ./scripts/rollback.sh
 | Check Type | Endpoints | Failure Action |
 |------------|-----------|----------------|
 | Core Health | `/api/health/`, `/api/ready/` | Abort deployment |
+| Dependency Health | `/api/health/db/` | Warning only |
 | Module Health | All module health endpoints | Warning only |
 | Critical Pages | `/`, `/account/login/` | Warning only |
 | Critical APIs | `/api/regime/`, `/api/signal/` | Warning only |
@@ -329,6 +330,7 @@ python manage.py migrate <app> <previous_migration>
 # Check health status
 curl http://localhost:8000/api/health/
 curl http://localhost:8000/api/ready/
+curl http://localhost:8000/api/health/db/
 
 # Verify database
 python manage.py check --deploy
@@ -375,6 +377,25 @@ tail -100 /var/log/agomtradepro/application.log | grep ERROR
         "database": "passed",
         "migrations": "passed",
         "cache": "passed"
+    }
+}
+```
+
+### Database Health Endpoint
+
+**URL**: `/api/health/db/`
+
+**Method**: `GET`
+
+**Purpose**: direct dependency probe used by post-deploy gates and external monitors.
+
+**Response** (200 OK):
+```json
+{
+    "status": "ok",
+    "timestamp": "2026-07-07T10:30:00+00:00",
+    "database": {
+        "status": "ok"
     }
 }
 ```

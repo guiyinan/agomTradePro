@@ -26,7 +26,12 @@ pip install django-prometheus>=2.3.1
 
 ```bash
 curl http://localhost:8000/metrics/
+curl http://localhost:8000/api/metrics/
 ```
+
+说明：
+- `/metrics/` 是 Prometheus 抓取主入口。
+- `/api/metrics/` 是兼容运维脚本与外部探针的别名入口，返回同一份指标文本。
 
 返回示例：
 ```
