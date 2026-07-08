@@ -1156,11 +1156,7 @@
                                 <small>${escapeHtml(module.action_count || 0)}</small>
                             </div>
                         </div>
-                        ${((module.screens || []).slice().sort((left, right) => {
-                            const leftPinned = state.pinnedScreenKeys.has(left.key) ? 0 : 1;
-                            const rightPinned = state.pinnedScreenKeys.has(right.key) ? 0 : 1;
-                            return leftPinned - rightPinned;
-                        })).map((screen) => `
+                        ${(module.screens || []).map((screen) => `
                             <div class="tui-screen-row">
                                 <button class="tui-screen-button" type="button" data-screen-key="${escapeHtml(screen.key)}">
                                     <span>${++screenIndex} ${escapeHtml(screen.label)}</span>
@@ -1172,8 +1168,8 @@
                                         class="tui-screen-pin${state.pinnedScreenKeys.has(screen.key) ? " is-active" : ""}"
                                         type="button"
                                         data-pin-screen-key="${escapeHtml(screen.key)}"
-                                        aria-label="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消置顶工作区" : "置顶工作区")}"
-                                        title="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消置顶工作区" : "置顶工作区")}"
+                                        aria-label="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
+                                        title="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
                                     >${state.pinnedScreenKeys.has(screen.key) ? "★" : "☆"}</button>
                                 </div>
                             </div>

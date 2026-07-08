@@ -274,6 +274,21 @@ def test_tui_workbench_script_contains_operator_home_state_and_governance_hooks(
     assert ".tui-row-fill-button:disabled" in css
 
 
+def test_tui_workbench_star_marks_favorites_without_reordering_catalog():
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "js", "tui-workbench.js")
+        .read_text(encoding="utf-8")
+    )
+
+    assert "收藏工作区" in script
+    assert "取消收藏工作区" in script
+    assert "置顶工作区" not in script
+    assert ".slice().sort((left, right) => {" not in script
+
+
 def test_tui_workbench_supports_runtime_theme_switching():
     script = (
         Path(__file__)
