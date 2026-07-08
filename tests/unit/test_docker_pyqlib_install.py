@@ -47,6 +47,8 @@ def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
 def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
 
+    assert "compose up -d runtime_ns redis" in script
+    assert 'SERVICES="runtime_ns redis web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
     assert "celery_worker celery_beat" in script
     assert "celery -A core inspect ping --timeout=8" in script
