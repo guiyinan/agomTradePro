@@ -1,266 +1,168 @@
 ---
 name: mcp-remote-agomtradepro
-description: "Connect to remote VPS AgomTradePro system (your-vps-ip:8000) via MCP tools or direct API calls. Use when querying regime status, macro data, signals, backtest results, or managing account positions on the production system."
+description: "Connect to a remote AgomTradePro VPS through the current MCP/SDK contract. Use when querying regime, policy, signal, or data-center APIs, or when validating remote production behavior."
 ---
 
 # MCP Remote AgomTradePro Connection
 
 ## Overview
 
-Connect to the production AgomTradePro system on VPS using MCP (Model Context Protocol) or direct REST API calls. This skill enables querying macro regime, policy status, signals, backtest results, and managing account data on the remote system.
+Use this skill when a task needs to inspect or operate against a remote AgomTradePro VPS by HTTP API or MCP tooling. The canonical external contract is the current `/api/*` surface exposed by the production app, not legacy pre-cutover aliases.
 
 ## Connection Info
 
-- **VPS URL**: `http://your-vps-ip:8000`
-- **API Token**: `${AGOM_REMOTE_API_TOKEN}`
-- **Health Check**: `http://your-vps-ip:8000/api/health/`
+- **Base URL**: `http://your-vps-ip:8000`
+- **Health**: `GET /api/health/`
+- **Readiness**: `GET /api/ready/`
+- **API root**: `GET /api/`
+- **Data Center root**: `GET /api/data-center/`
 
-## Verified API Endpoints
+## Authentication
 
-Based on actual testing, these endpoints are working:
-
-### Core Endpoints
-```bash
-# Health check (returns {"status": "ok", ...})
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/health/
-
-# Current regime (returns dominant_regime, confidence, etc.)
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/regime/current/
-
-# Policy status (returns current_level, level_name, recommendations)
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/policy/status/
-
-# List signals
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/signals/
-
-# Supported macro indicators (52 indicators available)
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/macro/supported-indicators/
-
-# API root (lists all available endpoints)
-curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  http://your-vps-ip:8000/api/
-```
-
-## Current System State (2026-03-07)
-
-```json
-// Regime
-{
-  "dominant_regime": "Deflation",
-  "confidence": 0.477,
-  "observed_at": "2026-03-07",
-  "source": "akshare"
-}
-
-// Policy
-{
-  "current_level": "P0",
-  "level_name": "常态",
-  "is_intervention_active": false,
-  "is_crisis_mode": false
-}
-```
-
-## Option 1: Direct API Calls (curl)
+- The external token value is the `key` field of `UserAccessTokenModel`.
+- Header format remains:
 
 ```bash
-# Set token as variable for reuse
-TOKEN="${AGOM_REMOTE_API_TOKEN}"
-BASE="http://your-vps-ip:8000"
-
-# Quick health check
-curl -s -H "Authorization: Token $TOKEN" $BASE/api/health/
-
-# Get regime
-curl -s -H "Authorization: Token $TOKEN" $BASE/api/regime/current/ | python -m json.tool
-
-# Get policy
-curl -s -H "Authorization: Token $TOKEN" $BASE/api/policy/status/ | python -m json.tool
-
-# Get macro indicators
-curl -s -H "Authorization: Token $TOKEN" $BASE/api/macro/supported-indicators/ | python -m json.tool
-
-# List signals
-curl -s -H "Authorization: Token $TOKEN" $BASE/api/signals/ | python -m json.tool
+Authorization: Token <user_access_token_key>
 ```
 
-## Option 2: Python Client
+- Recommended shell setup:
+
+```bash
+export AGOM_REMOTE_API_TOKEN="<UserAccessTokenModel.key>"
+export AGOM_REMOTE_BASE_URL="http://your-vps-ip:8000"
+```
+
+- Read-only tokens may call `GET/HEAD/OPTIONS` only. Write APIs require a read-write token and still pass normal role checks.
+
+## Canonical Endpoints
+
+### Core probes
+
+```bash
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/health/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/ready/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/"
+```
+
+### Regime / Policy
+
+```bash
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/regime/current/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/policy/status/"
+```
+
+### Signals
+
+```bash
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/signal/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/signal/active/"
+```
+
+### Data Center
+
+```bash
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/data-center/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/data-center/indicators/"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/data-center/macro/series/?indicator_code=china_pmi"
+
+curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
+  "$AGOM_REMOTE_BASE_URL/api/data-center/prices/quotes/?asset_code=510300.SH"
+```
+
+## Python Client Skeleton
 
 ```python
+import os
 import requests
 
+
 class AgomTradeProClient:
-    """Client for AgomTradePro VPS API"""
-
-    def __init__(self, base_url="http://your-vps-ip:8000",
-                 token="${AGOM_REMOTE_API_TOKEN}"):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, base_url: str | None = None, token: str | None = None):
+        self.base_url = (base_url or os.environ["AGOM_REMOTE_BASE_URL"]).rstrip("/")
         self.session = requests.Session()
-        self.session.headers.update({"Authorization": f"Token {token}"})
+        self.session.headers.update(
+            {"Authorization": f"Token {token or os.environ['AGOM_REMOTE_API_TOKEN']}"}
+        )
 
-    def _get(self, endpoint):
-        """Make GET request and return JSON"""
-        resp = self.session.get(f"{self.base_url}{endpoint}", timeout=30)
-        resp.raise_for_status()
-        return resp.json()
+    def _get(self, endpoint: str, **params):
+        response = self.session.get(f"{self.base_url}{endpoint}", params=params, timeout=30)
+        response.raise_for_status()
+        return response.json()
 
-    def _post(self, endpoint, data=None):
-        """Make POST request and return JSON"""
-        resp = self.session.post(f"{self.base_url}{endpoint}", json=data, timeout=60)
-        resp.raise_for_status()
-        return resp.json()
-
-    # Health
     def health(self):
         return self._get("/api/health/")
 
-    # Regime
+    def readiness(self):
+        return self._get("/api/ready/")
+
+    def api_root(self):
+        return self._get("/api/")
+
     def get_current_regime(self):
         return self._get("/api/regime/current/")
 
-    def get_regime_history(self, start_date=None, end_date=None):
-        params = []
-        if start_date: params.append(f"start_date={start_date}")
-        if end_date: params.append(f"end_date={end_date}")
-        query = "&".join(params)
-        return self._get(f"/api/regime/history/?{query}" if query else "/api/regime/history/")
-
-    # Policy
     def get_policy_status(self):
         return self._get("/api/policy/status/")
 
-    # Signals
-    def list_signals(self, status=None, asset_code=None):
-        params = []
-        if status: params.append(f"status={status}")
-        if asset_code: params.append(f"asset_code={asset_code}")
-        query = "&".join(params)
-        return self._get(f"/api/signals/?{query}" if query else "/api/signals/")
+    def list_signals(self, **params):
+        return self._get("/api/signal/", **params)
 
-    def create_signal(self, asset_code, logic_desc, invalidation_logic=None, threshold=None):
-        data = {"asset_code": asset_code, "logic_desc": logic_desc}
-        if invalidation_logic: data["invalidation_logic"] = invalidation_logic
-        if threshold: data["invalidation_threshold"] = threshold
-        return self._post("/api/signals/", data)
+    def list_indicators(self, **params):
+        return self._get("/api/data-center/indicators/", **params)
 
-    # Macro
-    def list_macro_indicators(self):
-        return self._get("/api/macro/supported-indicators/")
+    def get_macro_series(self, indicator_code: str, **params):
+        return self._get("/api/data-center/macro/series/", indicator_code=indicator_code, **params)
 
-    def get_macro_data(self, indicator_code, start_date=None, end_date=None):
-        params = [f"indicator_code={indicator_code}"]
-        if start_date: params.append(f"start_date={start_date}")
-        if end_date: params.append(f"end_date={end_date}")
-        return self._get(f"/api/macro/data/?{'&'.join(params)}")
-
-    # Account
-    def get_profile(self):
-        return self._get("/api/account/profile/")
-
-    def list_portfolios(self):
-        return self._get("/api/account/portfolios/")
-
-    # Backtest
-    def list_backtests(self):
-        return self._get("/api/backtest/")
-
-
-# Usage
-client = AgomTradeProClient()
-
-# Get current state
-regime = client.get_current_regime()
-print(f"Regime: {regime['data']['dominant_regime']} (confidence: {regime['data']['confidence']:.2%})")
-
-policy = client.get_policy_status()
-print(f"Policy: {policy['level_name']} ({policy['current_level']})")
+    def get_quote(self, asset_code: str):
+        return self._get("/api/data-center/prices/quotes/", asset_code=asset_code)
 ```
 
-## Option 3: MCP Server Configuration
+## MCP Server Environment
 
-To use MCP tools directly in Claude Code, configure `~/.config/claude-code/mcp_servers.json`:
+When wiring the local SDK/MCP runtime to a remote VPS, keep these environment variables aligned:
 
 ```json
 {
-  "mcpServers": {
-    "agomtradepro-vps": {
-      "command": "python",
-      "args": ["-m", "agomtradepro_mcp.server"],
-      "cwd": "D:/githv/agomTradePro/sdk",
-      "env": {
-        "AGOMTRADEPRO_BASE_URL": "http://your-vps-ip:8000",
-        "AGOMTRADEPRO_API_TOKEN": "${AGOM_REMOTE_API_TOKEN}",
-        "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true"
-      }
-    }
-  }
+  "AGOMTRADEPRO_BASE_URL": "http://your-vps-ip:8000",
+  "AGOMTRADEPRO_API_TOKEN": "${AGOM_REMOTE_API_TOKEN}",
+  "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true"
 }
 ```
 
-After configuration, restart Claude Code. MCP tools available:
-- `get_current_regime()` - Get current macro regime
-- `get_policy_status()` - Get policy status
-- `list_signals()` - List investment signals
-- `list_macro_indicators()` - List macro indicators
-- `run_backtest()` - Run backtest
-- `get_portfolio_summary()` - Get portfolio summary
+## Contract Notes
 
-## Full API Endpoint Reference
-
-### Regime & Policy
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/regime/current/` | GET | Current macro regime |
-| `/api/regime/history/` | GET | Regime history |
-| `/api/policy/status/` | GET | Current policy status |
-| `/api/policy/events/` | GET | Policy events list |
-
-### Signals
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/signals/` | GET | List signals |
-| `/api/signals/` | POST | Create signal |
-| `/api/signals/{id}/approve/` | POST | Approve signal |
-| `/api/signals/{id}/reject/` | POST | Reject signal |
-
-### Macro Data
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/macro/supported-indicators/` | GET | List 52 supported indicators |
-| `/api/macro/data/` | GET | Get indicator time series |
-| `/api/macro/sync/` | POST | Sync indicator from source |
-
-### Account
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/account/profile/` | GET | User profile |
-| `/api/account/portfolios/` | GET | List portfolios |
-| `/api/account/portfolios/{id}/` | GET | Portfolio detail |
-
-### Backtest
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/backtest/` | GET | List backtests |
-| `/api/backtest/` | POST | Run new backtest |
-| `/api/backtest/{id}/` | GET | Get backtest result |
+- Use `/api/signal/`, not legacy `/api/signals/`.
+- Use `/api/data-center/*`, not legacy `/api/macro/*` discovery paths.
+- Prefer API root discovery before hardcoding subpaths in diagnostics.
+- If a remote environment is intentionally SQLite-backed, treat that as deployment policy unless the task is specifically about database migration.
 
 ## Troubleshooting
 
-1. **Connection refused**
-   ```bash
-   ping your-vps-ip
-   curl -I http://your-vps-ip:8000/
-   ```
+1. `401 Unauthorized`
+   - Verify the token came from `UserAccessTokenModel.key`.
+   - Confirm the user is active and `mcp_enabled` is still on.
 
-2. **401 Unauthorized**: Verify token is correct
+2. `403 Forbidden`
+   - The token may be read-only while the request is a write.
+   - The user account may lack the required app permission.
 
-3. **404 Not Found**: Check endpoint path - use `/api/` to list all endpoints
-
-4. **Timeout**: VPS may be slow, increase timeout to 30+ seconds
-
-5. **Empty data**: Database may need initial sync of macro indicators
+3. `404 Not Found`
+   - Re-check the endpoint against `GET /api/` or `GET /api/data-center/`.
+   - Do not assume old aliases like `/api/signals/` or `/api/macro/supported-indicators/` still exist.
