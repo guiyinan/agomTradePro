@@ -154,6 +154,7 @@ def inspect_personal_readiness_evidence(
             "schema_version": evidence.get("schema_version"),
             "summary": dict(evidence.get("summary") or {}),
             "operation_context": dict(evidence.get("operation_context") or {}),
+            "repair_context": dict(evidence.get("repair_context") or {}),
         },
         "acceptance": {
             "accepted": accepted,
@@ -1196,10 +1197,11 @@ def _resolve_next_action(
             "command": ("python manage.py build_qlib_data " f"--target-date {target_date}"),
         }
     return {
-        "action": "inspect_subsystem_then_rerun",
+        "action": "repair_historical_evidence",
         "reason": reason,
         "command": (
-            "python manage.py run_personal_readiness_daily " f"--target-date {target_date} --json"
+            "python manage.py repair_personal_readiness_evidence "
+            f"--target-date {target_date} --json"
         ),
     }
 

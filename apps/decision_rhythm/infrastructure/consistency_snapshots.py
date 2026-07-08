@@ -6,6 +6,7 @@ import logging
 from importlib import import_module
 from typing import Any
 
+from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.decision_rhythm.application.consistency_checks import (
     AlphaRankingSnapshot,
     AlphaWorkspaceConsistencyChecker,
@@ -14,6 +15,8 @@ from apps.decision_rhythm.application.consistency_checks import (
 )
 
 logger = logging.getLogger(__name__)
+
+_resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
 
 
 def _extract_score_code(score: Any) -> str:
@@ -30,8 +33,10 @@ def get_latest_alpha_ranking_snapshot(*, top_n: int = 30) -> AlphaRankingSnapsho
     alpha_models = import_module("apps.alpha.infrastructure.models")
     AlphaScoreCacheModel = alpha_models.AlphaScoreCacheModel
     runtime_provider_status = get_alpha_runtime_provider_status()
+    target_trade_date = _resolve_recent_closed_trade_date()
     cache = (
         AlphaScoreCacheModel._default_manager.exclude(scores=[])
+        .filter(intended_trade_date__lte=target_trade_date)
         .order_by("-intended_trade_date", "-created_at")
         .first()
     )

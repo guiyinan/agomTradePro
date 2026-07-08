@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-07-05
+> **最后更新**: 2026-07-08
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -138,6 +138,7 @@
 | [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [production-code-remediation-plan-2026-06-26.md](plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成 P0/P1/P2 |
 | [0.8.0-release-closure-plan-2026-07-05.md](plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行 |
+| [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
 | [auto-advisor-prd-2026-06-25.md](plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ 2026-06-25 新增 |
 | [auto-advisor-implementation-2026-06-25.md](plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ 2026-06-25 新增 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ 2026-06-30 Implemented v1 |
@@ -156,6 +157,7 @@
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7 层级、门禁定义）** | ✅ 2026-02-24 更新 |
 | [personal-investment-readiness-2026-06-30.md](testing/personal-investment-readiness-2026-06-30.md) | **个人投研系统可用性验收记录（readiness / Qlib / Alpha / 决策数据 / 连续运行证据）** | ✅ 2026-06-30 更新 |
 | [0.8.0-release-regression-report-2026-07-05.md](testing/0.8.0-release-regression-report-2026-07-05.md) | **0.8.0 发布回归报告（版本 / TUI / 治理 / readiness）** | ✅ 2026-07-05 新增 |
+| [post-0.8.0-stabilization-checkpoint-2026-07-08.md](testing/post-0.8.0-stabilization-checkpoint-2026-07-08.md) | **0.8.0 发布后稳定化检查点（live health / 回归 / readiness 阻塞项）** | ✅ 2026-07-08 新增 |
 | [outsourcing-full-regression-plan-2026-02-26.md](archive/process/testing/outsourcing-full-regression-plan-2026-02-26.md) | 外包全量回归执行方案（双环境+分层门禁+证据包）（归档） | ✅ 已归档 |
 | [outsourcing-acceptance-plan-post-v34-2026-02-26.md](archive/process/testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图）（归档） | ✅ 已归档 |
 | [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-26 更新 |
@@ -420,6 +422,14 @@
 ---
 
 ## 最近更新 (2026-02-20 ~ 2026-06-20)
+
+### 2026-07-08
+- ✅ **发布后稳定化检查点更新**
+  - live `healthcheck` 已恢复为全绿，`decision_data` 与 `alpha_workspace_consistency` 均为 `ok`
+  - Alpha/workspace 口径统一到最近闭市日，避免盘中未闭市 cache 误判工作台 stale
+  - P1 回归现已补跑通过：Alpha、Data Center、Risk Center、TUI/operator、governance
+  - readiness evidence 现已引入正式 historical repair 路径：原始证据归档到 `_repair_archive/`，canonical 文件以 `trigger_source=repair` 重建且不计入 scheduler-clean
+  - 当前剩余阻塞已收敛为 quote pre-readiness scheduler 连续性问题与后续真实运行窗口验证
 
 ### 2026-07-05
 - ✅ **TUI 成为默认登录入口**

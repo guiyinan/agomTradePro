@@ -1040,7 +1040,10 @@ def _with_quote_pre_readiness_schedule_expectation(
             if scheduled_for.tzinfo is not None
             else last_run_at
         )
-        if comparable_last_run >= scheduled_for:
+        if (
+            comparable_last_run.date() == scheduled_for.date()
+            and comparable_last_run >= scheduled_for
+        ):
             expectation["due_status"] = "completed"
             expectation["completed_at"] = last_run_at.isoformat()
             expectation["seconds_overdue"] = 0

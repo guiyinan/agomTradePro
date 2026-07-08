@@ -8,6 +8,7 @@ from importlib import import_module
 from io import StringIO
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.management import CommandError, call_command
@@ -16,6 +17,10 @@ from django.core.management.base import BaseCommand
 from apps.task_monitor.application import readiness_status_services as status_services
 from apps.task_monitor.management.quote_pre_readiness_scheduler_status import (
     collect_quote_pre_readiness_scheduler_status,
+)
+from apps.task_monitor.management.readiness_status_acceptance import (
+    EXPECTED_SCHEDULE_TIMEZONE,
+    _with_quote_pre_readiness_schedule_expectation,
 )
 from core.health_checks import is_healthy, run_readiness_checks
 
@@ -243,7 +248,10 @@ def collect_personal_readiness_evidence(
         target_date=target_date,
         enabled=run_workspace_refresh,
     )
-    scheduler_evidence = _collect_scheduler_evidence()
+    scheduler_evidence = _collect_scheduler_evidence(
+        target_date=target_date,
+        current_time=generated_at,
+    )
     targets = _resolve_targets(user_id=user_id, account_id=account_id)
     account_checks = [
         _collect_account_evidence(
@@ -299,10 +307,40 @@ def collect_personal_readiness_evidence(
     }
 
 
-def _collect_scheduler_evidence() -> dict[str, Any]:
+def _collect_scheduler_evidence(
+    *,
+    target_date: date,
+    current_time: datetime | None = None,
+) -> dict[str, Any]:
+    quote_pre_readiness_scheduler = collect_quote_pre_readiness_scheduler_status()
     return {
-        "quote_pre_readiness_scheduler": collect_quote_pre_readiness_scheduler_status(),
+        "quote_pre_readiness_scheduler": _enrich_quote_pre_readiness_scheduler_evidence(
+            quote_pre_readiness_scheduler=quote_pre_readiness_scheduler,
+            target_date=target_date,
+            current_time=current_time,
+        ),
     }
+
+
+def _enrich_quote_pre_readiness_scheduler_evidence(
+    *,
+    quote_pre_readiness_scheduler: dict[str, Any],
+    target_date: date,
+    current_time: datetime | None = None,
+) -> dict[str, Any]:
+    if not isinstance(quote_pre_readiness_scheduler, dict):
+        return quote_pre_readiness_scheduler
+
+    normalized_now = current_time
+    if normalized_now is not None and normalized_now.tzinfo is not None:
+        normalized_now = normalized_now.astimezone(ZoneInfo(EXPECTED_SCHEDULE_TIMEZONE))
+
+    return _with_quote_pre_readiness_schedule_expectation(
+        scheduler=quote_pre_readiness_scheduler,
+        validation={"next_required_date": target_date.isoformat()},
+        next_action={"target_date": target_date.isoformat()},
+        now=normalized_now,
+    )
 
 
 def _summarize_system_decision_data(system: dict[str, Any]) -> dict[str, Any] | None:
