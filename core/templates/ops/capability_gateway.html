@@ -224,6 +224,13 @@
                     </span>
                 </p>
                 <p>活跃 Token：{{ access_tokens|length }}</p>
+                {% if preferred_token %}
+                <p>
+                    当前推荐 Token：
+                    <code class="gateway-inline-code">{{ preferred_token.name }}</code>
+                    / {{ preferred_token.access_level_label }}
+                </p>
+                {% endif %}
                 {% if profile.mcp_enabled %}
                 <form method="post" action="{% url 'account:create_self_token' %}" class="gateway-token-form">
                     {% csrf_token %}
@@ -236,7 +243,30 @@
                     </select>
                     <button type="submit" class="btn btn-primary">生成 Token</button>
                 </form>
+                <p style="margin-top: 10px; margin-bottom: 0;">
+                    这里可以直接为自己生成 MCP/SDK Token，并通过下拉框控制只读 / 读写。推荐默认给 Agent 使用只读 Token，需要写接口时再单独生成读写 Token。
+                </p>
                 {% endif %}
+            </article>
+
+            <article class="gateway-code">
+                <h2>发给 Agent 的启动 Prompt</h2>
+                <p>
+                    复制后可直接发给 Codex、Claude Desktop 或其他支持 API/MCP 接入的 Agent。
+                    {% if agent_bootstrap_token_ready %}
+                    当前 prompt 已包含可用 Token。
+                    {% else %}
+                    当前系统未提供可见 Token，prompt 会保留占位符；先在上方生成新 Token 再复制更稳妥。
+                    {% endif %}
+                </p>
+                <p>
+                    Token 级别：<strong>{{ agent_bootstrap_access_level_label }}</strong>
+                    {% if agent_bootstrap_token_name %}
+                    / 名称：<code>{{ agent_bootstrap_token_name }}</code>
+                    {% endif %}
+                </p>
+                <button type="button" class="btn btn-secondary" data-copy-target="agentBootstrapPrompt">复制 Prompt</button>
+                <pre id="agentBootstrapPrompt">{{ agent_bootstrap_prompt }}</pre>
             </article>
 
             <article class="gateway-code">

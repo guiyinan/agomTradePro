@@ -2,6 +2,7 @@
 from django.contrib.auth.models import User
 from django.test import Client
 
+from apps.account.infrastructure.models import SystemSettingsModel, UserAccessTokenModel
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 
 
@@ -99,6 +100,32 @@ def test_capability_gateway_page_renders_for_regular_user(client, regular_user, 
     assert "测试统一路由" not in content
     assert "MCP 接入说明" in content
     assert "Capability Router" in content
+    assert "发给 Agent 的启动 Prompt" in content
+    assert "Token access level" in content
+
+
+@pytest.mark.django_db
+def test_capability_gateway_page_includes_copy_ready_agent_prompt_with_visible_token(
+    client, regular_user
+):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view"])
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=regular_user,
+        name="gateway-codex",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    client.force_login(regular_user)
+    response = client.get("/settings/capability-gateway/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert raw_key in content
+    assert "复制 Prompt" in content
+    assert "gateway-codex" in content
+    assert "当前 prompt 已包含可用 Token" in content
 
 
 @pytest.mark.django_db

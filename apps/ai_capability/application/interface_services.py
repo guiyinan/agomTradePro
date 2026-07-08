@@ -7,6 +7,7 @@ from dataclasses import replace
 from typing import Any
 
 from apps.account.application.interface_services import (
+    TOKEN_ACCESS_LEVEL_CHOICES,
     TOKEN_ACCESS_LEVEL_READ_ONLY,
     build_mcp_guide_context,
     get_token_access_level_choices,
@@ -209,6 +210,14 @@ def get_capability_gateway_page_context(
     route_endpoint = f"{base_url}/api/ai-capability/route/"
     web_endpoint = f"{base_url}/api/ai-capability/web/"
     capability_endpoint = f"{base_url}/api/ai-capability/capabilities/"
+    agent_prompt = build_capability_gateway_agent_prompt(
+        base_url=base_url,
+        route_endpoint=route_endpoint,
+        web_endpoint=web_endpoint,
+        capability_endpoint=capability_endpoint,
+        preferred_token=mcp_context.get("preferred_token"),
+        default_account_id=mcp_context.get("default_account_id"),
+    )
     token_hint = "<your_token>"
     route_payload = {
         "message": "现在系统状态如何？",
@@ -225,9 +234,14 @@ def get_capability_gateway_page_context(
         "base_url": base_url,
         "profile": mcp_context["profile"],
         "access_tokens": mcp_context.get("access_tokens", []),
+        "preferred_token": mcp_context.get("preferred_token"),
+        "token_plaintext_allowed": bool(mcp_context.get("token_plaintext_allowed")),
+        "default_account_id": mcp_context.get("default_account_id"),
+        "default_account_name": mcp_context.get("default_account_name"),
         "token_access_level_choices": get_token_access_level_choices(),
         "default_token_access_level": TOKEN_ACCESS_LEVEL_READ_ONLY,
         "new_token_payload": mcp_context.get("new_token_payload"),
+        **agent_prompt,
         "catalog_stats": stats,
         "source_cards": [
             {"label": "Builtin", **builtin_summary},
@@ -274,6 +288,79 @@ def get_capability_gateway_page_context(
                 "link_label": "打开 TUI",
             },
         ],
+    }
+
+
+def build_capability_gateway_agent_prompt(
+    *,
+    base_url: str,
+    route_endpoint: str,
+    web_endpoint: str,
+    capability_endpoint: str,
+    preferred_token: dict[str, Any] | None,
+    default_account_id: Any | None,
+    token_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a copy-ready bootstrap prompt for external AI agents."""
+
+    token_value = ""
+    token_name = ""
+    access_level = TOKEN_ACCESS_LEVEL_READ_ONLY
+    access_level_label = dict(TOKEN_ACCESS_LEVEL_CHOICES).get(
+        TOKEN_ACCESS_LEVEL_READ_ONLY,
+        "只读",
+    )
+
+    if token_payload:
+        token_value = str(token_payload.get("token") or "").strip()
+        token_name = str(token_payload.get("token_name") or "").strip()
+        access_level = str(token_payload.get("access_level") or TOKEN_ACCESS_LEVEL_READ_ONLY)
+        access_level_label = str(token_payload.get("access_level_label") or access_level_label)
+    elif preferred_token:
+        token_value = str(preferred_token.get("plaintext") or "").strip()
+        token_name = str(preferred_token.get("name") or "").strip()
+        access_level = str(preferred_token.get("access_level") or TOKEN_ACCESS_LEVEL_READ_ONLY)
+        access_level_label = str(
+            preferred_token.get("access_level_label")
+            or dict(TOKEN_ACCESS_LEVEL_CHOICES).get(access_level, access_level)
+        )
+
+    token_placeholder = token_value or "<请先在页面生成一个可见 Token>"
+    account_hint = str(default_account_id) if default_account_id not in (None, "") else "可留空"
+    safety_line = (
+        "- 当前 Token 为只读：只允许 GET/HEAD/OPTIONS 与只读查询，不要执行写入、删除、同步、交易或审批类操作。"
+        if access_level == TOKEN_ACCESS_LEVEL_READ_ONLY
+        else "- 当前 Token 为读写：仍需遵守账号 RBAC、后端确认流程和能力风险控制，不要假设拥有管理员权限。"
+    )
+    prompt_lines = [
+        "请按以下连接信息接入 AgomTradePro：",
+        f"- Base URL: {base_url}",
+        f"- Route API: {route_endpoint}",
+        f"- Web Chat API: {web_endpoint}",
+        f"- Capability Catalog: {capability_endpoint}",
+        f"- Authorization: Token {token_placeholder}",
+        f"- Token access level: {access_level_label}",
+        f"- Default account id: {account_hint}",
+        "",
+        "执行规则：",
+        "- 优先调用 Route API 处理自然语言任务，由后端统一路由到 MCP、Terminal、Builtin 或内部 API。",
+        safety_line,
+        "- 如果要直接排查目录覆盖，可读取 Capability Catalog 和 stats 接口；不要先猜底层工具名。",
+        "",
+        "Route API 示例请求：",
+        f"POST {route_endpoint}",
+        "Headers:",
+        f"Authorization: Token {token_placeholder}",
+        "Content-Type: application/json",
+        "Body:",
+        '{"message":"现在系统状态如何？","entrypoint":"agent","context":{"answer_chain_enabled":true,"params":{}}}',
+    ]
+    return {
+        "agent_bootstrap_prompt": "\n".join(prompt_lines),
+        "agent_bootstrap_token_ready": bool(token_value),
+        "agent_bootstrap_token_name": token_name,
+        "agent_bootstrap_access_level": access_level,
+        "agent_bootstrap_access_level_label": access_level_label,
     }
 
 

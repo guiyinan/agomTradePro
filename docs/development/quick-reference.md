@@ -207,7 +207,7 @@ agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests
 
 ### 能力路由网关
 
-- `/settings/capability-gateway/`：统一接入页，面向用户和管理员展示 Token 获取、Route API、Web Chat API、TUI 验证和 MCP 工具治理入口。
+- `/settings/capability-gateway/`：统一接入页，面向用户和管理员展示 Token 获取、读写级别选择、Route API、Web Chat API、TUI 验证、MCP 工具治理入口，以及可直接复制给 Agent 的启动 Prompt。
 - `/api/ai-capability/route/`：外部 Agent 的统一能力入口。请求体至少包含 `message` 与 `entrypoint`，可通过 `context.params` 提供能力参数。
 - `/api/ai-capability/web/`：网页聊天入口，复用同一套 Capability Router，并返回建议动作与回答链元数据。
 - `/api/ai-capability/capabilities/`：能力目录列表，可按 `source_type`、`route_group`、`category`、`q` 过滤。

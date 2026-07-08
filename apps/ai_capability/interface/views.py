@@ -14,6 +14,7 @@ from apps.account.interface.views import is_admin_user
 
 from ..application.governance_services import CapabilityCatalogGovernanceService
 from ..application.interface_services import (
+    build_capability_gateway_agent_prompt,
     get_capability_gateway_page_context,
     get_mcp_tools_page_context,
     toggle_mcp_tool_flag,
@@ -29,7 +30,20 @@ def capability_gateway_page(request: HttpRequest) -> HttpResponse:
         user_id=request.user.id,
         base_url=base_url,
     )
-    context["new_token_payload"] = request.session.pop("self_new_token_payload", None)
+    new_token_payload = request.session.pop("self_new_token_payload", None)
+    context["new_token_payload"] = new_token_payload
+    if new_token_payload:
+        context.update(
+            build_capability_gateway_agent_prompt(
+                base_url=base_url,
+                route_endpoint=context["route_endpoint"],
+                web_endpoint=context["web_endpoint"],
+                capability_endpoint=context["capability_endpoint"],
+                preferred_token=context.get("preferred_token"),
+                default_account_id=context.get("default_account_id"),
+                token_payload=new_token_payload,
+            )
+        )
     return render(request, "ops/capability_gateway.html", context)
 
 
