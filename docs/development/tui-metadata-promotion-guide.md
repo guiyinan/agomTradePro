@@ -4,6 +4,8 @@
 
 This guide defines how API, SDK, MCP, and classic template evidence becomes published `/tui/` operation metadata.
 
+User-facing screen rules are defined separately in `docs/development/tui-user-facing-design-standard.md`. Promotion must satisfy both this guide and that design standard.
+
 The runtime rule is fixed: `/tui/` reads published metadata only. It must not parse source files, classic templates, SDK modules, MCP tools, or URL resolver evidence at request time.
 
 The product rule is also fixed: the published workbench is organized by user tasks, not by backend API shape. API endpoints are execution details and should not appear in the ordinary task list.
@@ -159,9 +161,13 @@ When adding a screen:
 - Review screen, action, and panel labels as product copy. Endpoint-derived fragments such as `Dashboard`, `System List`, `Password Strength`, `Validate`, `Assignment`, and pluralization artifacts such as `回测s` must be translated into user tasks before publishing.
 - Add `default_action_key` for every screen that should act as a replacement for a classic page.
 - Add `workflow` and `business_context` for daily-flow screens so the UI explains the business goal, not just the available calls.
+- Add `user_experience` for every published screen. This is no longer optional review prose; schema/validator treat it as executable UX metadata.
 - A classic replacement screen must not open empty. If the default action needs required fields, provide safe defaults, a selector workflow, or keep the screen out of the replacement path until it can render useful first-screen content.
 - Add fields only when the operator should set them. Do not expose raw JSON request bodies.
 - Field `input_type` and `value_type` are fixed enums. Do not invent widget names such as `money_input` or `asset-picker` inside generated metadata; add a schema version upgrade first.
+- Use `dashboard_panels[].user_priority` and `dashboard_panels[].presentation_semantic` to mark P0/P1/P2 information hierarchy and artifact-specific presentation.
+- Use `actions[].result_semantics` when an action returns copyable token, endpoint, prompt, or other specialized self-service artifacts.
+- Use `actions[].fields[].presentation_semantic` for `primary_selector`, `api_token`, `endpoint_url`, and `prompt_text` inputs.
 - Add `view_model.rows_path` for list responses whose rows are nested inside a named field.
 - Add `view_model.total_path`, `page_path`, and `page_size_path` when the API returns pager metadata.
 - Keep raw response available only through the debug drawer with `raw_debug: true`.

@@ -1547,7 +1547,16 @@ a {
     padding: 4px 6px;
     border-bottom: 1px dashed var(--tui-grid-strong);
     text-align: left;
+    vertical-align: top;
+}
+
+.tui-mini-table th {
     white-space: nowrap;
+}
+
+.tui-mini-table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .tui-mini-table th {

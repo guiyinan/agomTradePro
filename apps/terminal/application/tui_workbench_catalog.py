@@ -83,6 +83,7 @@ class TuiWorkbenchCatalogMixin:
             "action_count": len(actions),
             "dashboard_panels": list(screen.get("dashboard_panels") or []),
             "workflow": dict(screen.get("workflow") or {}),
+            "user_experience": dict(screen.get("user_experience") or {}),
             "business_context": self._screen_business_context(screen, actions),
             "entry_state": self._screen_entry_state(screen, actions, user=user),
         }
@@ -365,6 +366,7 @@ class TuiWorkbenchCatalogMixin:
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
             "task_tier": action.get("task_tier", ""),
+            "result_semantics": list(action.get("result_semantics") or []),
             "sequence": int(action.get("sequence", 999)),
         }
         if include_technical:

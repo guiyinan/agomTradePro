@@ -57,6 +57,7 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
                 "summary": "Overview.",
                 "view_type": "status",
                 "status": "online",
+                "default_action_key": "sample.list",
             }
         ],
         "actions": (
@@ -1966,6 +1967,26 @@ def test_tui_capability_router_screen_uses_unified_route_api(client, tui_user):
     assert action["fields"][2]["key"] == "context"
 
 
+def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/capability-router.self-service/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    panels = payload["screen"]["dashboard_panels"]
+    assert [panel["key"] for panel in panels] == [
+        "mcp-self-status",
+        "mcp-self-endpoints",
+        "mcp-self-prompt-guide",
+        "mcp-self-tokens",
+    ]
+    actions = {action["key"]: action for action in payload["actions"]}
+    assert "capability-router.mcp-self-endpoints" in actions
+    assert "capability-router.mcp-self-prompt-guide" in actions
+    assert panels[3]["columns"][1]["key"] == "display_token"
+
+
 def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     client.force_login(tui_user)
 
@@ -2371,10 +2392,18 @@ def test_tui_metadata_validator_adds_schema_and_value_type_defaults():
 def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     payload = _metadata_payload()
     payload["field_aliases"] = {"company.keyword": ["keyword", "company_name"]}
+    payload["screens"][0]["user_experience"] = {
+        "journey": "dashboard",
+        "primary_task": "Preview the image result.",
+        "primary_outcome": "Confirm the preview is usable.",
+        "empty_state_hint": "Run the preview action first.",
+        "next_step_hint": "Open the detail view if the preview looks correct.",
+    }
     payload["actions"][0].update(
         {
             "view_type": "image",
             "view_model": {"kind": "image"},
+            "result_semantics": ["supporting_detail"],
             "pagination": {
                 "mode": "offset",
                 "offset_param": "offset",
@@ -2387,6 +2416,7 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
                     "input_type": "file",
                     "accept": ".json",
                     "semantic": "company.keyword",
+                    "presentation_semantic": "identifier",
                     "aliases": ["company_name"],
                 }
             ],
@@ -2399,6 +2429,8 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
             "title": "Preview",
             "kind": "image",
             "target_screen": "command-center.overview",
+            "user_priority": "p0",
+            "presentation_semantic": "supporting_detail",
         }
     ]
 
@@ -2426,6 +2458,47 @@ def test_tui_metadata_validator_rejects_unknown_dashboard_target_screen():
 
     with pytest.raises(TuiMetadataValidationError):
         validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_rejects_copyable_secret_panel_on_datagrid():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "token-panel",
+            "title": "Token",
+            "kind": "datagrid",
+            "action_key": "quotes.read",
+            "user_priority": "p0",
+            "presentation_semantic": "copyable_secret",
+        }
+    ]
+
+    with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_rejects_prompt_field_without_textarea():
+    payload = _metadata_payload()
+    payload["actions"][0]["fields"] = [
+        {
+            "key": "agent_prompt",
+            "label": "Agent Prompt",
+            "input_type": "text",
+            "value_type": "string",
+            "presentation_semantic": "prompt_text",
+        }
+    ]
+
+    with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_adds_user_facing_design_defaults():
+    validated = validate_tui_metadata(_metadata_payload())
+
+    assert validated["screens"][0]["user_experience"]["journey"] == "workspace"
+    assert validated["actions"][0]["result_semantics"] == []
+    assert validated["actions"][0]["fields"] == []
 
 
 def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
@@ -6230,6 +6303,195 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
 
     assert result["user_error_code"] == "AI_PROVIDER_NOT_CONFIGURED"
     assert "当前账号未配置默认 AI 服务" in result["business_summary"]
+
+
+def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "username": "ops_user",
+                    "mcp_enabled": True,
+                    "rbac_role": "operator",
+                    "token_plaintext_allowed": True,
+                    "active_token_count": 1,
+                    "default_account_name": "默认账户",
+                    "base_url": "https://example.test",
+                    "api_root_endpoint": "https://example.test/api/",
+                    "route_endpoint": "https://example.test/api/ai-capability/route/",
+                    "web_endpoint": "https://example.test/api/ai-capability/web/",
+                    "capability_endpoint": "https://example.test/api/ai-capability/capabilities/",
+                    "current_token_display": "agtp_live_full_token_value",
+                    "agent_bootstrap_token_ready": True,
+                    "agent_bootstrap_access_level_label": "只读",
+                    "preferred_token": {
+                        "name": "router-readonly",
+                        "access_level_label": "只读",
+                        "display_token": "agtp_live_full_token_value",
+                    },
+                    "access_tokens": [{"id": 1}],
+                    "agent_bootstrap_prompt": "请按以下信息接入 AgomTradePro：",
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                default_screen="capability-router.self-service",
+                groups=[{"key": "ops", "label": "运维"}],
+                modules=[
+                    {
+                        "key": "capability-router",
+                        "label": "能力路由",
+                        "group": "ops",
+                        "summary": "Capability router.",
+                    }
+                ],
+                screens=[
+                    {
+                        "key": "capability-router.self-service",
+                        "label": "我的 MCP 接入",
+                        "module_key": "capability-router",
+                        "group": "ops",
+                        "summary": "Self service.",
+                        "view_type": "detail",
+                        "status": "online",
+                        "default_action_key": "capability-router.mcp-self-status",
+                    }
+                ],
+                actions=[
+                    {
+                        "key": "capability-router.mcp-self-status",
+                        "label": "读取我的 MCP 状态",
+                        "method": "GET",
+                        "endpoint": "/api/account/mcp/self/",
+                        "intent": "read_current_user_mcp_self_service",
+                        "screen_key": "capability-router.self-service",
+                        "module_key": "capability-router",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [],
+                        "description": "Self service.",
+                        "source": "approved:test",
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(
+        action_key="capability-router.mcp-self-status",
+        params={},
+        user=None,
+    )
+
+    assert result["view_model"]["kind"] == "detail"
+    fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
+    assert fields["当前 Token"] == "agtp_live_full_token_value"
+    assert fields["Base URL"] == "https://example.test"
+
+
+def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "username": "ops_user",
+                    "mcp_enabled": True,
+                    "base_url": "https://example.test",
+                    "api_root_endpoint": "https://example.test/api/",
+                    "route_endpoint": "https://example.test/api/ai-capability/route/",
+                    "web_endpoint": "https://example.test/api/ai-capability/web/",
+                    "capability_endpoint": "https://example.test/api/ai-capability/capabilities/",
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                default_screen="capability-router.self-service",
+                groups=[{"key": "ops", "label": "运维"}],
+                modules=[
+                    {
+                        "key": "capability-router",
+                        "label": "能力路由",
+                        "group": "ops",
+                        "summary": "Capability router.",
+                    }
+                ],
+                screens=[
+                    {
+                        "key": "capability-router.self-service",
+                        "label": "我的 MCP 接入",
+                        "module_key": "capability-router",
+                        "group": "ops",
+                        "summary": "Self service.",
+                        "view_type": "detail",
+                        "status": "online",
+                        "default_action_key": "capability-router.mcp-self-endpoints",
+                    }
+                ],
+                actions=[
+                    {
+                        "key": "capability-router.mcp-self-endpoints",
+                        "label": "读取我的接入 Endpoint",
+                        "method": "GET",
+                        "endpoint": "/api/account/mcp/self/",
+                        "intent": "read_current_user_mcp_endpoints",
+                        "screen_key": "capability-router.self-service",
+                        "module_key": "capability-router",
+                        "view_type": "detail",
+                        "risk": "read",
+                        "fields": [],
+                        "description": "Endpoints.",
+                        "source": "approved:test",
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(
+        action_key="capability-router.mcp-self-endpoints",
+        params={},
+        user=None,
+    )
+
+    fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
+    assert fields["Route API"] == "https://example.test/api/ai-capability/route/"
+    assert fields["Capability Catalog"] == "https://example.test/api/ai-capability/capabilities/"
+
+
+@pytest.mark.django_db
+def test_tui_capability_router_self_service_screen_publishes_user_facing_semantics(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/capability-router.self-service/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen = payload["screen"]
+    panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
+    actions = {action["key"]: action for action in payload["actions"]}
+
+    assert screen["user_experience"]["journey"] == "self_service"
+    assert panels["mcp-self-status"]["presentation_semantic"] == "copyable_secret"
+    assert panels["mcp-self-endpoints"]["presentation_semantic"] == "endpoint_list"
+    assert panels["mcp-self-prompt-guide"]["presentation_semantic"] == "multiline_prompt"
+    assert actions["capability-router.mcp-self-status"]["result_semantics"] == [
+        "primary_status",
+        "copyable_secret",
+    ]
+    assert actions["capability-router.mcp-self-endpoints"]["result_semantics"] == [
+        "endpoint_list"
+    ]
+    assert actions["capability-router.mcp-self-prompt-guide"]["result_semantics"] == [
+        "multiline_prompt"
+    ]
 
 
 def test_tui_macro_strategy_empty_state_exposes_recovery_actions():

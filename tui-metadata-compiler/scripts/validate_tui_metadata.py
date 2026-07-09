@@ -46,6 +46,21 @@ def main() -> int:
                 "screens": len(validated["screens"]),
                 "actions": len(validated["actions"]),
                 "default_screen": validated["default_screen"],
+                "screen_journeys": sorted(
+                    {
+                        str((screen.get("user_experience") or {}).get("journey") or "")
+                        for screen in validated["screens"]
+                    }
+                ),
+                "p0_panels": sum(
+                    1
+                    for screen in validated["screens"]
+                    for panel in (screen.get("dashboard_panels") or [])
+                    if isinstance(panel, dict) and str(panel.get("user_priority") or "") == "p0"
+                ),
+                "specialized_result_actions": sum(
+                    1 for action in validated["actions"] if action.get("result_semantics")
+                ),
             },
             ensure_ascii=False,
             indent=2,

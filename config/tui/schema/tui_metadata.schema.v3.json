@@ -76,6 +76,7 @@
           "type": "array",
           "items": { "$ref": "#/$defs/dashboardPanel" }
         },
+        "user_experience": { "$ref": "#/$defs/userExperience" },
         "workflow": { "type": "object" },
         "business_context": { "type": "object" }
       },
@@ -110,7 +111,11 @@
         "executor": { "type": "string" },
         "task_group": { "type": "string" },
         "task_tier": { "enum": ["", "primary", "support", "advanced", "operation"] },
-        "sequence": { "type": "integer" }
+        "sequence": { "type": "integer" },
+        "result_semantics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/presentationSemantic" }
+        }
       },
       "additionalProperties": true
     },
@@ -127,6 +132,9 @@
         "placeholder": { "type": "string" },
         "accept": { "type": "string" },
         "semantic": { "type": "string" },
+        "presentation_semantic": {
+          "enum": ["identifier", "primary_selector", "api_token", "endpoint_url", "prompt_text", "debug_only"]
+        },
         "aliases": {
           "type": "array",
           "items": { "type": "string" }
@@ -194,6 +202,8 @@
         "status": { "type": "string" },
         "note": { "type": "string" },
         "max_rows": { "type": "integer" },
+        "user_priority": { "enum": ["p0", "p1", "p2"] },
+        "presentation_semantic": { "$ref": "#/$defs/presentationSemantic" },
         "columns": {
           "type": "array",
           "items": {
@@ -210,6 +220,31 @@
         "target_screen": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "userExperience": {
+      "type": "object",
+      "required": ["journey", "primary_task", "primary_outcome", "empty_state_hint", "next_step_hint"],
+      "properties": {
+        "journey": { "enum": ["dashboard", "workspace", "self_service", "admin", "toolbox", "debug"] },
+        "primary_task": { "type": "string", "minLength": 1 },
+        "primary_outcome": { "type": "string", "minLength": 1 },
+        "empty_state_hint": { "type": "string", "minLength": 1 },
+        "next_step_hint": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "presentationSemantic": {
+      "enum": [
+        "primary_status",
+        "primary_list",
+        "supporting_list",
+        "copyable_secret",
+        "endpoint_list",
+        "multiline_prompt",
+        "next_step",
+        "supporting_detail",
+        "debug_only"
+      ]
     },
     "viewType": {
       "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"]

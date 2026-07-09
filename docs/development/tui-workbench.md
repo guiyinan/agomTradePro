@@ -28,6 +28,7 @@ The V2 catalog is read from published TUI metadata:
 - Candidate evidence: `config/tui/generated/tui_operation_evidence.generated.json`.
 - Compile-time helper skill: `tui-metadata-compiler/`.
 - Promotion guide: `docs/development/tui-metadata-promotion-guide.md`.
+- User-facing design standard: `docs/development/tui-user-facing-design-standard.md`.
 
 Frontend runtime assets are synced from AgomTUI reference runtime. The current baseline is AgomTUI commit `781f75f` (`Improve responsive workbench layout`), with local AgomTradePro adaptations for dashboard panel routing, regime field aliases, table value coloring, and legacy `pagination_mode=limit_offset` compatibility.
 
@@ -54,6 +55,7 @@ The screen contract returns:
 - `screen.default_action_key`: the primary task to run automatically when a non-home workspace opens.
 - `screen.workflow`: optional daily workflow navigation metadata (`previous`, `next`, `step`, and `role`).
 - `screen.business_context`: operator guidance with the screen objective, expected decision output, and ordered checkpoints. Explicit metadata wins; the compiler and backend derive a generic fallback when a screen is not hand-annotated.
+- `screen.user_experience`: user-facing task contract (`journey`, `primary_task`, `primary_outcome`, `empty_state_hint`, `next_step_hint`). This is the executable UX standard for `/tui/`.
 - `actions`: action schemas that generate forms and buttons.
 - `actions[].ui_key`: a non-technical browser identifier for DOM bindings. It must not reveal endpoint-shaped metadata keys such as `auto.api...`.
 - `actions[].fields`: input fields used for query params or JSON bodies.
@@ -132,6 +134,15 @@ Home/dashboard screens should use `dashboard_panels` instead of hardcoding busin
 ```
 
 Allowed panel kinds are `regime_quadrant`, `datagrid`, `detail`, `status`, and `placeholder`. `action_key` must reference an already published action, so the overview cannot bypass risk review or backend permission checks. The runtime derives desktop, tablet, and mobile dashboard grid areas from `dashboard_panels`, so adding or removing panels should be done in metadata instead of adding hardcoded CSS grid classes.
+
+User-facing hierarchy now also lives in metadata, not review comments:
+
+- `dashboard_panels[].user_priority`: `p0`, `p1`, `p2`
+- `dashboard_panels[].presentation_semantic`: `primary_status`, `primary_list`, `supporting_list`, `copyable_secret`, `endpoint_list`, `multiline_prompt`, `next_step`, `supporting_detail`, `debug_only`
+- `actions[].result_semantics`: marks detail-style outputs that must surface copyable artifacts such as token, endpoint, and prompt
+- `actions[].fields[].presentation_semantic`: marks input intent such as `primary_selector`, `api_token`, `endpoint_url`, `prompt_text`
+
+These rules are validated by schema and runtime validator. See `docs/development/tui-user-facing-design-standard.md`.
 
 Any screen with published `dashboard_panels` now renders a center-pane overview grid before users drill into individual tasks. `command-center.overview` remains the immersive home screen by publishing `chrome_mode=immersive`, while business screens such as `research.asset-lab` keep the left task panel and right Inspector visible beside the overview.
 

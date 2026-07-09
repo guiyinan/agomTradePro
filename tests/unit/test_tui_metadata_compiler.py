@@ -1022,6 +1022,58 @@ def test_promoter_merges_trading_ledger_account_selector(promoter_module):
     assert selector["module_key"] == "execution"
 
 
+def test_promoter_applies_user_facing_design_metadata(promoter_module):
+    payload = {
+        "screens": [
+            {
+                "key": "capability-router.self-service",
+                "label": "我的 MCP 接入",
+                "summary": "管理自己的 MCP 接入信息。",
+                "dashboard_panels": [
+                    {
+                        "key": "mcp-self-status",
+                        "title": "状态",
+                        "kind": "detail",
+                        "action_key": "capability-router.mcp-self-status",
+                    },
+                    {
+                        "key": "mcp-self-endpoints",
+                        "title": "Endpoint",
+                        "kind": "detail",
+                        "action_key": "capability-router.mcp-self-endpoints",
+                    },
+                    {
+                        "key": "mcp-self-prompt-guide",
+                        "title": "Prompt",
+                        "kind": "detail",
+                        "action_key": "capability-router.mcp-self-prompt-guide",
+                    },
+                ],
+            }
+        ],
+        "actions": [
+            {"key": "capability-router.mcp-self-status"},
+            {"key": "capability-router.mcp-self-endpoints"},
+            {"key": "capability-router.mcp-self-prompt-guide"},
+        ],
+    }
+
+    changed = promoter_module._apply_user_facing_design_metadata(payload)
+
+    assert changed >= 1
+    screen = payload["screens"][0]
+    panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
+    actions = {action["key"]: action for action in payload["actions"]}
+    assert screen["user_experience"]["journey"] == "self_service"
+    assert panels["mcp-self-status"]["presentation_semantic"] == "copyable_secret"
+    assert panels["mcp-self-endpoints"]["presentation_semantic"] == "endpoint_list"
+    assert panels["mcp-self-prompt-guide"]["presentation_semantic"] == "multiline_prompt"
+    assert actions["capability-router.mcp-self-status"]["result_semantics"] == [
+        "primary_status",
+        "copyable_secret",
+    ]
+
+
 def test_smoke_prune_marks_auto_promoted_failures_as_prunable(smoke_module):
     assert smoke_module._should_prune_failed_action({"source": "api-collector:candidate"}) is True
     assert smoke_module._should_prune_failed_action({"source": "approved:smoke-promoted"}) is True

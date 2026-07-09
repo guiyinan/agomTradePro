@@ -424,6 +424,20 @@ test_score = StockScore(
 )
 ```
 
+### 11. TUI 面向用户设计约束
+
+`/tui/` 是面向用户完成任务的产品界面，不是 API 目录或调试壳。新增或修改 TUI metadata、runtime injection、promotion 脚本时，必须同时满足以下规则：
+
+- 一个 screen 只服务一个主用户任务，必须发布 `user_experience.primary_task` 与 `primary_outcome`
+- 用户首屏必须能看到 P0 信息，不得把 Token、Endpoint、Prompt 之类关键接入物料埋在泛型 detail/datagrid 里
+- `dashboard_panels` 必须使用 `user_priority`（`p0/p1/p2`）和 `presentation_semantic` 表达信息层级
+- Token、Endpoint、Prompt 等可复制工件必须使用专门语义：`copyable_secret`、`endpoint_list`、`multiline_prompt`
+- 非 dashboard screen 必须有 `default_action_key`；dashboard screen 必须有可执行的 P0 panel
+- 普通用户可见文案不得泄露 `/api/`、`auto.api`、`param.api`、HTTP method、path placeholder 或其他实现细节
+- 相关改动必须同步更新 `config/tui/schema/tui_metadata.schema.v3.json`、`apps/terminal/application/tui_metadata.py`、相关 compiler/runtime metadata 注入与测试，禁止只写口头约定
+
+设计标准文档：`docs/development/tui-user-facing-design-standard.md`
+
 ## 代码风格
 
 - 类型标注：强制，所有函数必须有类型提示

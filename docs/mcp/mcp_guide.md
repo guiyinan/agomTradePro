@@ -108,6 +108,19 @@ For the current logged-in user, the easiest copy/paste entry is:
 
 If the account has no active token yet, the page supports one-click token creation.
 
+### TUI Self-Service Screen (Recommended for Operator Flow)
+
+If you prefer to stay inside the standalone TUI workbench, use:
+
+- Screen: `screen:capability-router.self-service`
+- Purpose:
+  - show current user's active token count and currently recommended token
+  - show full token value when plaintext display is allowed; otherwise fall back to masked preview
+  - show Base URL, API Root, Route API, Web Chat API, and Capability Catalog entrypoints
+  - show the agent bootstrap prompt for direct copy/paste into Codex / Claude Desktop / other agents
+
+The TUI `我的 MCP 接入` dashboard now splits this into four panels: status, endpoints, prompt guide, and token list. For the full multiline prompt, run `读取我的 MCP 状态` from the left task panel after opening the screen.
+
 ### 2. Configure Claude Code
 
 Edit `~/.config/claude-code/mcp_servers.json`:

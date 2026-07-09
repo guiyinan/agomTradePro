@@ -247,8 +247,12 @@ def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]
     profile = context["profile"]
     preferred_token = dict(context.get("preferred_token") or {})
     access_tokens = [dict(item) for item in context.get("visible_tokens", [])]
+    normalized_base_url = str(context.get("base_url") or base_url).rstrip("/")
+    route_endpoint = f"{normalized_base_url}/api/ai-capability/route/"
+    web_endpoint = f"{normalized_base_url}/api/ai-capability/web/"
+    capability_endpoint = f"{normalized_base_url}/api/ai-capability/capabilities/"
     prompt_payload = build_mcp_agent_prompt_payload(
-        base_url=base_url,
+        base_url=normalized_base_url,
         token_value=str(preferred_token.get("plaintext") or "").strip(),
         token_name=str(preferred_token.get("name") or "").strip(),
         access_level=str(preferred_token.get("access_level") or TOKEN_ACCESS_LEVEL_READ_ONLY),
@@ -271,8 +275,18 @@ def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]
         "account_count": int(context.get("account_count") or 0),
         "default_account_id": context.get("default_account_id"),
         "default_account_name": context.get("default_account_name") or "",
-        "base_url": context.get("base_url") or base_url,
+        "base_url": normalized_base_url,
         "api_root_endpoint": context.get("api_root_endpoint") or "",
+        "route_endpoint": route_endpoint,
+        "web_endpoint": web_endpoint,
+        "capability_endpoint": capability_endpoint,
+        "current_token_value": str(preferred_token.get("plaintext") or "").strip(),
+        "current_token_display": str(
+            preferred_token.get("display_token")
+            or preferred_token.get("plaintext")
+            or preferred_token.get("preview")
+            or ""
+        ).strip(),
         "preferred_token": preferred_token or None,
         "access_tokens": access_tokens,
         **prompt_payload,
@@ -358,7 +372,11 @@ def build_mcp_agent_prompt_payload(
 
     token_placeholder = token_value or "<请先生成一个新 Token>"
     account_hint = str(default_account_id) if default_account_id not in (None, "") else "可留空"
-    route_endpoint = f"{base_url.rstrip('/')}/api/ai-capability/route/"
+    normalized_base_url = base_url.rstrip("/")
+    route_endpoint = f"{normalized_base_url}/api/ai-capability/route/"
+    web_endpoint = f"{normalized_base_url}/api/ai-capability/web/"
+    capability_endpoint = f"{normalized_base_url}/api/ai-capability/capabilities/"
+    api_root_endpoint = f"{normalized_base_url}/api/"
     safety_line = (
         "- 当前 Token 为只读：只允许 GET/HEAD/OPTIONS，不要执行写入、删除、审批、交易或同步类动作。"
         if access_level == TOKEN_ACCESS_LEVEL_READ_ONLY
@@ -367,8 +385,11 @@ def build_mcp_agent_prompt_payload(
     prompt = "\n".join(
         [
             "请按以下信息接入 AgomTradePro：",
-            f"- Base URL: {base_url.rstrip('/')}",
+            f"- Base URL: {normalized_base_url}",
+            f"- API Root: {api_root_endpoint}",
             f"- Route API: {route_endpoint}",
+            f"- Web Chat API: {web_endpoint}",
+            f"- Capability Catalog: {capability_endpoint}",
             f"- Authorization: Token {token_placeholder}",
             f"- Token name: {token_name or '未命名 Token'}",
             f"- Token access level: {access_level_label}",
@@ -376,8 +397,9 @@ def build_mcp_agent_prompt_payload(
             "",
             "执行规则：",
             "- 优先调用 Route API，用自然语言请求让后端统一路由能力。",
+            "- 需要兼容网页式对话时可调用 Web Chat API；需要排查能力覆盖时再读取 Capability Catalog。",
             safety_line,
-            "- 需要排查能力目录时，再读取 Capability Catalog 与 MCP 治理接口。",
+            "- 不要先猜底层 MCP tool / terminal command 名称；先让后端完成能力选择。",
         ]
     )
     return {

@@ -109,7 +109,13 @@ def test_account_mcp_self_contract(authenticated_client, auth_user):
     assert payload["mcp_enabled"] is True
     assert payload["active_token_count"] == 1
     assert payload["preferred_token"]["name"] == "sdk-token"
+    assert payload["preferred_token"]["display_token"]
+    assert payload["current_token_display"]
     assert payload["agent_bootstrap_token_ready"] is True
+    assert payload["route_endpoint"].endswith("/api/ai-capability/route/")
+    assert payload["web_endpoint"].endswith("/api/ai-capability/web/")
+    assert payload["capability_endpoint"].endswith("/api/ai-capability/capabilities/")
+    assert "Capability Catalog" in payload["agent_bootstrap_prompt"]
     assert payload["token_access_level_choices"][0]["value"] == "read_only"
 
 

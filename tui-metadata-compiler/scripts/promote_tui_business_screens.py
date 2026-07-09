@@ -16,7 +16,6 @@ from apps.terminal.application.tui_metadata import (
     validate_tui_metadata,
 )
 
-
 SCREEN_SPECS = {
     "command-center.decision-flow": {
         "key": "command-center.decision-flow",
@@ -259,6 +258,32 @@ EXACT_DEFAULT_ACTION_OVERRIDES = {
     "api-library.data-center": "auto.api.get.api.data-center.indicators",
     "execution.events": "auto.api.get.api.events.query",
     "execution.share": "auto.api.get.api.share.links",
+}
+
+SCREEN_USER_EXPERIENCE_OVERRIDES = {
+    "capability-router.self-service": {
+        "journey": "self_service",
+        "primary_task": "完成个人 MCP 接入，直接拿到可复制的 Token、Endpoint 和 Agent Prompt。",
+        "primary_outcome": "明确当前开通状态，并拿到外部 Agent 立刻可用的接入材料。",
+        "empty_state_hint": "先读取当前 MCP 状态；如果还没开通，回到接入入口完成开通。",
+        "next_step_hint": "复制 Route API 和 Prompt 后，把它们交给外部 Agent；旧 Token 不再使用时立即撤销。",
+    }
+}
+
+PANEL_PRESENTATION_OVERRIDES = {
+    "capability-router.self-service": {
+        "mcp-self-status": {"user_priority": "p0", "presentation_semantic": "copyable_secret"},
+        "mcp-self-endpoints": {"user_priority": "p0", "presentation_semantic": "endpoint_list"},
+        "mcp-self-prompt-guide": {"user_priority": "p1", "presentation_semantic": "multiline_prompt"},
+        "mcp-self-tokens": {"user_priority": "p2", "presentation_semantic": "supporting_list"},
+    }
+}
+
+ACTION_RESULT_SEMANTIC_OVERRIDES = {
+    "capability-router.mcp-self-status": ["primary_status", "copyable_secret"],
+    "capability-router.mcp-self-endpoints": ["endpoint_list"],
+    "capability-router.mcp-self-prompt-guide": ["multiline_prompt"],
+    "capability-router.create-my-mcp-token": ["copyable_secret", "multiline_prompt"],
 }
 
 
@@ -1026,7 +1051,6 @@ EXACT_LABELS = {
     "auto.api.get.api.prompt.chains": "Prompt 链路",
     "auto.api.get.api.prompt.chains.execution_modes": "链路执行模式",
     "auto.api.get.api.prompt.logs.recent": "近期 Prompt 日志",
-    "auto.api.get.api.prompt.chat.providers": "Chat Provider",
     "auto.api.get.api.prompt.chat.models": "Chat 模型",
     "auto.api.get.api.ai.me.providers": "我的 AI Provider",
     "auto.api.get.api.data-center": "数据中心状态",
@@ -1927,6 +1951,79 @@ def _merge_approved_operation_actions(payload: dict[str, Any]) -> int:
     return merged
 
 
+def _apply_user_facing_design_metadata(payload: dict[str, Any]) -> int:
+    changed = 0
+    for screen in payload.get("screens", []):
+        if not isinstance(screen, dict):
+            continue
+        screen_key = str(screen.get("key") or "")
+        summary = str(screen.get("summary") or screen.get("label") or "").strip()
+        business_context = dict(screen.get("business_context") or {})
+        workflow = dict(screen.get("workflow") or {})
+        next_label = str(dict(workflow.get("next") or {}).get("label") or "").strip()
+        user_experience = dict(screen.get("user_experience") or {})
+        if not user_experience.get("journey"):
+            user_experience["journey"] = (
+                "dashboard"
+                if screen.get("dashboard_panels")
+                else "self_service"
+                if "self-service" in screen_key
+                else "workspace"
+            )
+        user_experience.setdefault("primary_task", summary)
+        user_experience.setdefault(
+            "primary_outcome",
+            str(business_context.get("decision_output") or summary or screen.get("label") or "").strip(),
+        )
+        user_experience.setdefault(
+            "empty_state_hint",
+            "先查看 P0 面板，再进入需要展开的任务。"
+            if screen.get("dashboard_panels")
+            else "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        )
+        user_experience.setdefault(
+            "next_step_hint",
+            f"完成当前检查后进入「{next_label}」。"
+            if next_label
+            else "根据结果继续下一项主流程，或进入可执行操作。",
+        )
+        override = SCREEN_USER_EXPERIENCE_OVERRIDES.get(screen_key)
+        if override:
+            user_experience.update(override)
+        if screen.get("user_experience") != user_experience:
+            screen["user_experience"] = user_experience
+            changed += 1
+        for index, panel in enumerate(screen.get("dashboard_panels") or []):
+            if not isinstance(panel, dict):
+                continue
+            panel.setdefault("user_priority", "p0" if index == 0 else "p1" if index < 3 else "p2")
+            if not panel.get("presentation_semantic"):
+                kind = str(panel.get("kind") or "")
+                panel_key = str(panel.get("key") or "")
+                if "prompt" in panel_key:
+                    panel["presentation_semantic"] = "multiline_prompt"
+                elif "endpoint" in panel_key:
+                    panel["presentation_semantic"] = "endpoint_list"
+                elif kind == "datagrid":
+                    panel["presentation_semantic"] = "supporting_list"
+                else:
+                    panel["presentation_semantic"] = "supporting_detail"
+            panel_override = PANEL_PRESENTATION_OVERRIDES.get(screen_key, {}).get(
+                str(panel.get("key") or "")
+            )
+            if panel_override:
+                panel.update(panel_override)
+    for action in payload.get("actions", []):
+        if not isinstance(action, dict):
+            continue
+        action_key = str(action.get("key") or "")
+        override = ACTION_RESULT_SEMANTIC_OVERRIDES.get(action_key)
+        if override and action.get("result_semantics") != override:
+            action["result_semantics"] = list(override)
+            changed += 1
+    return changed
+
+
 def _normalize_special_action(action: dict[str, Any]) -> None:
     exact_view_type = EXACT_VIEW_TYPE_RULES.get(str(action.get("key") or ""))
     if exact_view_type:
@@ -2150,6 +2247,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
             action["sequence"] = _sequence(action_key)
         action["task_tier"] = _task_tier(action)
     operator_first_default_actions = _apply_operator_first_default_actions(payload)
+    user_facing_design_annotations = _apply_user_facing_design_metadata(payload)
     pruned_redundant_actions = _prune_redundant_screen_actions(payload)
     _apply_default_business_context_metadata(payload)
     pruned_empty_screens = _prune_empty_screens(payload)
@@ -2158,6 +2256,7 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
     coverage["business_promoted_actions"] = promoted
     coverage["approved_operation_actions"] = approved_operation_actions
     coverage["operator_first_default_actions"] = operator_first_default_actions
+    coverage["user_facing_design_annotations"] = user_facing_design_annotations
     coverage["pruned_redundant_screen_actions"] = pruned_redundant_actions
     coverage["pruned_empty_screens"] = pruned_empty_screens
     payload["coverage_summary"] = coverage

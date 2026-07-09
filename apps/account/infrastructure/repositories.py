@@ -2755,6 +2755,9 @@ class AccountInterfaceRepository:
                 "access_level": token.access_level,
                 "access_level_label": token.get_access_level_display(),
                 "plaintext": token.reveal_key() if token_plaintext_allowed else "",
+                "display_token": (
+                    token.reveal_key() if token_plaintext_allowed else token.preview
+                ),
                 "created_at": token.created_at,
                 "last_used_at": token.last_used_at,
             }
