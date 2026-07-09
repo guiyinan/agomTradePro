@@ -856,6 +856,10 @@ OLD_CORS_ALLOWED_ORIGINS=""
 OLD_CSRF_TRUSTED_ORIGINS=""
 OLD_CADDY_HTTP_PORT=""
 OLD_CADDY_HTTPS_PORT=""
+OLD_AGOMTRADEPRO_BASE_URL=""
+OLD_AGOMTRADEPRO_API_TOKEN=""
+OLD_AGOMTRADEPRO_USERNAME=""
+OLD_AGOMTRADEPRO_PASSWORD=""
 SECRETS_FILE="$TARGET_DIR/secrets.env"
 _read_old_keys() {
   _src="$1"
@@ -868,6 +872,10 @@ _read_old_keys() {
   [ -z "$OLD_CSRF_TRUSTED_ORIGINS" ] && OLD_CSRF_TRUSTED_ORIGINS="$(get_env_kv CSRF_TRUSTED_ORIGINS "$_src")"
   [ -z "$OLD_CADDY_HTTP_PORT" ] && OLD_CADDY_HTTP_PORT="$(get_env_kv CADDY_HTTP_PORT "$_src")"
   [ -z "$OLD_CADDY_HTTPS_PORT" ] && OLD_CADDY_HTTPS_PORT="$(get_env_kv CADDY_HTTPS_PORT "$_src")"
+  [ -z "$OLD_AGOMTRADEPRO_BASE_URL" ] && OLD_AGOMTRADEPRO_BASE_URL="$(get_env_kv AGOMTRADEPRO_BASE_URL "$_src")"
+  [ -z "$OLD_AGOMTRADEPRO_API_TOKEN" ] && OLD_AGOMTRADEPRO_API_TOKEN="$(get_env_kv AGOMTRADEPRO_API_TOKEN "$_src")"
+  [ -z "$OLD_AGOMTRADEPRO_USERNAME" ] && OLD_AGOMTRADEPRO_USERNAME="$(get_env_kv AGOMTRADEPRO_USERNAME "$_src")"
+  [ -z "$OLD_AGOMTRADEPRO_PASSWORD" ] && OLD_AGOMTRADEPRO_PASSWORD="$(get_env_kv AGOMTRADEPRO_PASSWORD "$_src")"
 }
 _read_old_keys "$SECRETS_FILE"
 _read_old_keys "$TARGET_DIR/current/deploy/.env"
@@ -1008,6 +1016,37 @@ else
 fi
 
 set_env_kv "ALLOWED_HOSTS" "$EFFECTIVE_ALLOWED_HOSTS"
+
+EFFECTIVE_AGOMTRADEPRO_BASE_URL="${AGOMTRADEPRO_BASE_URL:-}"
+if [ -z "$EFFECTIVE_AGOMTRADEPRO_BASE_URL" ] && [ -n "$OLD_AGOMTRADEPRO_BASE_URL" ]; then
+  EFFECTIVE_AGOMTRADEPRO_BASE_URL="$OLD_AGOMTRADEPRO_BASE_URL"
+fi
+if [ -z "$EFFECTIVE_AGOMTRADEPRO_BASE_URL" ]; then
+  EFFECTIVE_AGOMTRADEPRO_BASE_URL="http://web:8000"
+fi
+set_env_kv "AGOMTRADEPRO_BASE_URL" "$EFFECTIVE_AGOMTRADEPRO_BASE_URL"
+_persist_secrets_env "AGOMTRADEPRO_BASE_URL" "$EFFECTIVE_AGOMTRADEPRO_BASE_URL"
+
+EFFECTIVE_AGOMTRADEPRO_API_TOKEN="${AGOMTRADEPRO_API_TOKEN:-}"
+if [ -z "$EFFECTIVE_AGOMTRADEPRO_API_TOKEN" ] && [ -n "$OLD_AGOMTRADEPRO_API_TOKEN" ]; then
+  EFFECTIVE_AGOMTRADEPRO_API_TOKEN="$OLD_AGOMTRADEPRO_API_TOKEN"
+fi
+set_env_kv "AGOMTRADEPRO_API_TOKEN" "$EFFECTIVE_AGOMTRADEPRO_API_TOKEN"
+_persist_secrets_env "AGOMTRADEPRO_API_TOKEN" "$EFFECTIVE_AGOMTRADEPRO_API_TOKEN"
+
+EFFECTIVE_AGOMTRADEPRO_USERNAME="${AGOMTRADEPRO_USERNAME:-}"
+if [ -z "$EFFECTIVE_AGOMTRADEPRO_USERNAME" ] && [ -n "$OLD_AGOMTRADEPRO_USERNAME" ]; then
+  EFFECTIVE_AGOMTRADEPRO_USERNAME="$OLD_AGOMTRADEPRO_USERNAME"
+fi
+set_env_kv "AGOMTRADEPRO_USERNAME" "$EFFECTIVE_AGOMTRADEPRO_USERNAME"
+_persist_secrets_env "AGOMTRADEPRO_USERNAME" "$EFFECTIVE_AGOMTRADEPRO_USERNAME"
+
+EFFECTIVE_AGOMTRADEPRO_PASSWORD="${AGOMTRADEPRO_PASSWORD:-}"
+if [ -z "$EFFECTIVE_AGOMTRADEPRO_PASSWORD" ] && [ -n "$OLD_AGOMTRADEPRO_PASSWORD" ]; then
+  EFFECTIVE_AGOMTRADEPRO_PASSWORD="$OLD_AGOMTRADEPRO_PASSWORD"
+fi
+set_env_kv "AGOMTRADEPRO_PASSWORD" "$EFFECTIVE_AGOMTRADEPRO_PASSWORD"
+_persist_secrets_env "AGOMTRADEPRO_PASSWORD" "$EFFECTIVE_AGOMTRADEPRO_PASSWORD"
 
 if grep -q '^WEB_IMAGE=' deploy/.env; then
   sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=agomtradepro-web:$RELEASE_TAG|" deploy/.env
@@ -1338,6 +1377,10 @@ def main() -> int:
 
     deploy_after_build = args.deploy_after_build
     cleanup_build_only_after_download = False
+    sdk_base_url = os.environ.get("AGOMTRADEPRO_BASE_URL", "").strip()
+    sdk_api_token = os.environ.get("AGOMTRADEPRO_API_TOKEN", "").strip()
+    sdk_username = os.environ.get("AGOMTRADEPRO_USERNAME", "").strip()
+    sdk_password = os.environ.get("AGOMTRADEPRO_PASSWORD", "").strip()
     if args.host is None:
         include_sqlite = _prompt_bool("Include local SQLite database?", False)
         deploy_after_build = _prompt_bool("Deploy to VPS after remote build?", False)
@@ -1570,6 +1613,10 @@ def main() -> int:
                     args.decision_repair_skip_alpha
                 ),
                 "PRESET_ENCRYPTION_KEY": encryption_key,
+                "AGOMTRADEPRO_BASE_URL": sdk_base_url,
+                "AGOMTRADEPRO_API_TOKEN": sdk_api_token,
+                "AGOMTRADEPRO_USERNAME": sdk_username,
+                "AGOMTRADEPRO_PASSWORD": sdk_password,
             }
             deploy_exports = " ".join(
                 f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()

@@ -167,6 +167,31 @@ Notes:
 - source bundle is kept locally in `dist/`
 - remote temp files are deleted unless `--keep-remote-temp` is used
 
+## Terminal / MCP Self-Call Environment
+
+The terminal agent and MCP-backed SDK tools running inside the VPS containers need
+their own backend auth environment. The production compose stack now supports:
+
+```text
+AGOMTRADEPRO_BASE_URL
+AGOMTRADEPRO_API_TOKEN
+AGOMTRADEPRO_USERNAME
+AGOMTRADEPRO_PASSWORD
+```
+
+Recommended production posture:
+
+- Set `AGOMTRADEPRO_BASE_URL=http://web:8000` so `web`, `celery_worker`, and
+  `celery_beat` all resolve the backend over the Docker network.
+- Prefer `AGOMTRADEPRO_API_TOKEN` for long-lived deployments.
+- Use `AGOMTRADEPRO_USERNAME` / `AGOMTRADEPRO_PASSWORD` only for short-lived
+  troubleshooting or bootstrap flows.
+
+`scripts/deploy-vps.ps1` and `scripts/remote_build_deploy_vps.py` now carry any
+locally exported `AGOMTRADEPRO_*` SDK auth variables into the VPS `deploy/.env`
+and persist them in `/opt/agomtradepro/secrets.env`, so they survive a fresh
+redeploy that wipes containers/images.
+
 ## Backup and Restore (VPS)
 
 Create backup:

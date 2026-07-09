@@ -82,6 +82,23 @@ export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
 ```
 
+#### VPS Docker Deployment
+
+When MCP/SDK calls run inside the production Docker stack, do not point
+`AGOMTRADEPRO_BASE_URL` at `127.0.0.1` unless the caller is guaranteed to be in
+the `web` container itself. The safer stack-wide value is:
+
+```text
+AGOMTRADEPRO_BASE_URL=http://web:8000
+```
+
+Recommendations:
+
+- Prefer `AGOMTRADEPRO_API_TOKEN` for persistent VPS deployments.
+- Reserve `AGOMTRADEPRO_USERNAME` / `AGOMTRADEPRO_PASSWORD` for temporary
+  troubleshooting.
+- Keep these values in `deploy/.env` / `secrets.env`, not in git-tracked files.
+
 ### Admin Token Management Page (Recommended)
 
 If you are a system admin, you can manage DRF tokens in UI instead of shell scripts:
