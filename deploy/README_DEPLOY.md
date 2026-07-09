@@ -186,6 +186,10 @@ Recommended production posture:
 - Prefer the built-in terminal internal signature flow for terminal/MCP
   self-calls that originate inside the Django runtime. That path impersonates
   the currently logged-in user and follows the target account's own permissions.
+- Keep `SECURE_SSL_REDIRECT=True`, but exempt only trusted internal service
+  hosts through `SECURE_SSL_REDIRECT_EXEMPT_HOSTS=127.0.0.1,localhost,web`.
+  That preserves public HTTPS enforcement while allowing container-local SDK
+  and terminal self-calls over the Docker network.
 - Prefer `AGOMTRADEPRO_API_TOKEN` for long-lived deployments.
 - Use `AGOMTRADEPRO_USERNAME` / `AGOMTRADEPRO_PASSWORD` only for short-lived
   troubleshooting or bootstrap flows.

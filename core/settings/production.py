@@ -75,11 +75,18 @@ from .base import *  # noqa: E402, F403
 DEBUG = False
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
+security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+MIDDLEWARE[security_middleware_index] = (
+    "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"
+)
+
 # Static files
 # In production we serve collected static assets via WhiteNoise by default so
 # the app remains self-contained even when Nginx is not fronting /static.
 if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
-    security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    security_middleware_index = MIDDLEWARE.index(
+        "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"
+    )
     MIDDLEWARE.insert(
         security_middleware_index + 1,
         "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -114,6 +121,14 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # HTTPS settings - secure by default in production
 SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+SECURE_SSL_REDIRECT_EXEMPT_HOSTS = tuple(
+    host.strip().lower()
+    for host in env.list(
+        'SECURE_SSL_REDIRECT_EXEMPT_HOSTS',
+        default=['127.0.0.1', 'localhost', 'web'],
+    )
+    if host.strip()
+)
 SESSION_COOKIE_SECURE = env.bool('SESSION_COOKIE_SECURE', default=True)
 CSRF_COOKIE_SECURE = env.bool('CSRF_COOKIE_SECURE', default=True)
 SECURE_REFERRER_POLICY = env('SECURE_REFERRER_POLICY', default='strict-origin-when-cross-origin')
