@@ -313,6 +313,7 @@ REST_FRAMEWORK = {
     # 认证配置
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",  # Session 认证（Web界面）
+        "apps.account.interface.authentication.TerminalInternalAuthentication",  # Terminal 内部签名认证
         "apps.account.interface.authentication.MultiTokenAuthentication",  # Token 认证（API调用）
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -891,6 +892,10 @@ AUDIT_RETENTION_DAYS = env.int("AUDIT_RETENTION_DAYS", default=90)
 AUDIT_EXPORT_MAX_ROWS = env.int("AUDIT_EXPORT_MAX_ROWS", default=10000)
 AUDIT_EXPORT_MAX_DAYS = env.int("AUDIT_EXPORT_MAX_DAYS", default=90)
 AUDIT_INTERNAL_SECRET_KEY = env("AUDIT_INTERNAL_SECRET_KEY", default="")
+AGOMTRADEPRO_INTERNAL_AUTH_SECRET = env(
+    "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
+    default=AUDIT_INTERNAL_SECRET_KEY or SECRET_KEY,
+)
 
 # ========== Prometheus 指标配置 ==========
 PROMETHEUS_EXPORT_MIGRATIONS = False  # 不导出 Django 迁移指标

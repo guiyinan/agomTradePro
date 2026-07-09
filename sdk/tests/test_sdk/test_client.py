@@ -2,11 +2,14 @@
 Unit tests for AgomTradePro SDK Client
 """
 
+import hashlib
+import hmac
 from unittest.mock import Mock, patch
 
 import pytest
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.config import AuthConfig, ClientConfig
 from agomtradepro.exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -35,6 +38,21 @@ class TestAgomTradeProClient:
         assert client._config.base_url == "http://env.example.com"
         assert client._config.auth.api_token == "env_token"
 
+    def test_init_with_internal_auth_env_vars(self, monkeypatch):
+        """测试使用内部签名环境变量初始化客户端"""
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_USERNAME", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_PASSWORD", raising=False)
+        monkeypatch.setenv("AGOMTRADEPRO_BASE_URL", "http://env.example.com")
+        monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET", "internal-secret")
+        monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_USER_ID", "7")
+        monkeypatch.setenv("AGOMTRADEPRO_INTERNAL_USERNAME", "ops_user")
+
+        client = AgomTradeProClient()
+        assert client._config.base_url == "http://env.example.com"
+        assert client._config.auth.internal_auth_secret == "internal-secret"
+        assert client._config.auth.internal_user_id == "7"
+
     def test_init_with_username_password_bootstraps_session_auth(self, monkeypatch):
         """测试用户名密码模式会触发会话认证"""
         monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
@@ -54,6 +72,8 @@ class TestAgomTradeProClient:
         monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
         monkeypatch.delenv("AGOMTRADEPRO_USERNAME", raising=False)
         monkeypatch.delenv("AGOMTRADEPRO_PASSWORD", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET", raising=False)
+        monkeypatch.delenv("AGOMTRADEPRO_INTERNAL_USER_ID", raising=False)
         with pytest.raises(ConfigurationError):
             AgomTradeProClient(base_url="http://test.com")
 
@@ -66,6 +86,39 @@ class TestAgomTradeProClient:
         assert client._headers["Authorization"] == "Token secret_token"
         assert client._headers["Content-Type"] == "application/json"
 
+    def test_internal_auth_headers_include_signature(self):
+        """测试内部签名认证会附带签名头"""
+        client = AgomTradeProClient(
+            config=ClientConfig(
+                base_url="http://test.com",
+                auth=AuthConfig(
+                    internal_auth_secret="internal-secret",
+                    internal_user_id="7",
+                    internal_username="ops_user",
+                    internal_source="terminal_mcp",
+                ),
+            )
+        )
+
+        with patch("agomtradepro.client.time.time", return_value=1700000000):
+            headers = client._build_request_headers(
+                "GET",
+                "/api/regime/current/",
+                {"scope": "latest"},
+            )
+
+        payload = "1700000000:GET:/api/regime/current/?scope=latest:7:ops_user"
+        expected = hmac.new(
+            b"internal-secret",
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        assert headers["X-Agom-Internal-Timestamp"] == "1700000000"
+        assert headers["X-Agom-Internal-User-Id"] == "7"
+        assert headers["X-Agom-Internal-Username"] == "ops_user"
+        assert headers["X-Agom-Internal-Source"] == "terminal_mcp"
+        assert headers["X-Agom-Internal-Signature"] == expected
+
     def test_session_auth_headers_include_csrf_for_unsafe_requests(self, monkeypatch):
         """测试 session 认证在非安全方法中附带 CSRF 头"""
         monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
@@ -77,7 +130,7 @@ class TestAgomTradeProClient:
             )
 
         client._session.cookies.set("csrftoken", "csrf-token")
-        headers = client._build_request_headers("POST")
+        headers = client._build_request_headers("POST", "/test/")
 
         assert headers["X-CSRFToken"] == "csrf-token"
         assert headers["Referer"] == "http://test.com/account/login/"

@@ -53,12 +53,15 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
         auto_allowed={"read_regime": {"tool_name": "read_regime"}},
         gated={},
     )
-    server = service._build_mcp_server({"MCPServerStdio": FakeServer}, tool_access)
+    server = service._build_mcp_server({"MCPServerStdio": FakeServer}, _request(), tool_access)
 
     assert isinstance(server, FakeServer)
     assert captured["params"]["command"].lower().endswith("python.exe")
     assert captured["params"]["args"] == ["-m", "agomtradepro_mcp.server"]
     assert "PYTHONPATH" in captured["params"]["env"]
+    assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_USER_ID"] == "7"
+    assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_USERNAME"] == "ops_user"
+    assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_SOURCE"] == "terminal_mcp"
     assert captured["cache_tools_list"] is True
     assert captured["client_session_timeout_seconds"] == 90.0
     assert captured["name"] == "agomtradepro"

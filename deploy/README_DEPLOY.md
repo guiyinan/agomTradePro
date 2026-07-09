@@ -183,6 +183,9 @@ Recommended production posture:
 
 - Set `AGOMTRADEPRO_BASE_URL=http://web:8000` so `web`, `celery_worker`, and
   `celery_beat` all resolve the backend over the Docker network.
+- Prefer the built-in terminal internal signature flow for terminal/MCP
+  self-calls that originate inside the Django runtime. That path impersonates
+  the currently logged-in user and follows the target account's own permissions.
 - Prefer `AGOMTRADEPRO_API_TOKEN` for long-lived deployments.
 - Use `AGOMTRADEPRO_USERNAME` / `AGOMTRADEPRO_PASSWORD` only for short-lived
   troubleshooting or bootstrap flows.

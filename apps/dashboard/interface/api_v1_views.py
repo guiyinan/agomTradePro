@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.account.interface.authentication import MultiTokenAuthentication, TerminalInternalAuthentication
 from apps.dashboard.application.auto_advisor_outputs import (
     persist_auto_advisor_weekly_report_outputs,
 )
@@ -30,7 +30,7 @@ def _dashboard_views():
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="dashboard_summary",
@@ -68,7 +68,7 @@ def dashboard_summary_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_console(request):
     """Homepage auto-advisor console payload."""
@@ -93,7 +93,7 @@ def auto_advisor_console(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_query(request):
     """Deterministic personal auto-advisor Q&A payload."""
@@ -133,7 +133,7 @@ def _request_param(request, key: str) -> object:
 
 
 @api_view(["GET", "POST"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_weekly_report(request):
     """Personal weekly auto-advisor report payload.
@@ -186,7 +186,7 @@ def auto_advisor_weekly_report(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_weekly_report_history(request):
     """Persisted personal weekly auto-advisor report history."""
@@ -208,7 +208,7 @@ def auto_advisor_weekly_report_history(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def auto_advisor_notifications(request):
     """Stored auto-advisor notification/output items."""
@@ -230,7 +230,7 @@ def auto_advisor_notifications(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="regime_quadrant",
@@ -259,7 +259,7 @@ def regime_quadrant_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def equity_curve_v1(request):
     """Equity curve data for Streamlit."""
@@ -289,7 +289,7 @@ def equity_curve_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(
     key_prefix="signal_status",
@@ -318,7 +318,7 @@ def signal_status_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
+@authentication_classes([SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def alpha_decision_chain_v1(request):
     """Unified Alpha ranking -> actionable -> pending chain for dashboard/MCP/SDK."""

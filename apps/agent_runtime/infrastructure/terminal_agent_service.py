@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from apps.agent_runtime.application.terminal_agent import (
@@ -151,7 +152,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         try:
             sdk = self._import_agents_sdk()
             session = self._build_agent_session(sdk, request.session_id)
-            async with self._build_mcp_server(sdk, tool_access) as mcp_server:
+            async with self._build_mcp_server(sdk, request, tool_access) as mcp_server:
                 agent = self._build_agent(
                     sdk=sdk,
                     request=request,
@@ -292,6 +293,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     def _build_mcp_server(
         self,
         sdk: dict[str, Any],
+        request: TerminalAgentChatRequestDTO,
         tool_access: _ToolAccessSnapshot,
     ) -> Any:
         """Construct the stdio MCP server wrapper."""
@@ -301,6 +303,15 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         sdk_root = str((repo_root / "sdk").resolve())
         existing = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = sdk_root if not existing else f"{sdk_root}{os.pathsep}{existing}"
+        env.setdefault("AGOMTRADEPRO_BASE_URL", "http://127.0.0.1:8000")
+        env["AGOMTRADEPRO_INTERNAL_AUTH_SECRET"] = getattr(
+            settings,
+            "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
+            "",
+        )
+        env["AGOMTRADEPRO_INTERNAL_USER_ID"] = str(request.user_id or "")
+        env["AGOMTRADEPRO_INTERNAL_USERNAME"] = request.username
+        env["AGOMTRADEPRO_INTERNAL_SOURCE"] = "terminal_mcp"
         return sdk["MCPServerStdio"](
             cache_tools_list=True,
             client_session_timeout_seconds=TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,

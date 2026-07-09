@@ -22,6 +22,10 @@ class AuthConfig:
     api_token: str | None = None
     username: str | None = None
     password: str | None = None
+    internal_auth_secret: str | None = None
+    internal_user_id: str | None = None
+    internal_username: str | None = None
+    internal_source: str | None = None
 
 
 @dataclass
@@ -50,9 +54,10 @@ class ClientConfig:
 
         # 检查是否至少有一种认证方式
         if not self.auth.api_token and not (self.auth.username and self.auth.password):
-            raise ConfigurationError(
-                "Either api_token or username/password must be provided"
-            )
+            if not (self.auth.internal_auth_secret and self.auth.internal_user_id):
+                raise ConfigurationError(
+                    "Either api_token, username/password, or internal auth must be provided"
+                )
 
 
 def _load_env_config() -> dict:
@@ -65,6 +70,10 @@ def _load_env_config() -> dict:
     - AGOMTRADEPRO_API_TOKEN
     - AGOMTRADEPRO_USERNAME
     - AGOMTRADEPRO_PASSWORD
+    - AGOMTRADEPRO_INTERNAL_AUTH_SECRET
+    - AGOMTRADEPRO_INTERNAL_USER_ID
+    - AGOMTRADEPRO_INTERNAL_USERNAME
+    - AGOMTRADEPRO_INTERNAL_SOURCE
     - AGOMTRADEPRO_TIMEOUT
     - AGOMTRADEPRO_MAX_RETRIES
     - AGOMTRADEPRO_VERIFY_SSL
@@ -82,6 +91,18 @@ def _load_env_config() -> dict:
 
     if password := os.getenv("AGOMTRADEPRO_PASSWORD"):
         config["password"] = password
+
+    if internal_auth_secret := os.getenv("AGOMTRADEPRO_INTERNAL_AUTH_SECRET"):
+        config["internal_auth_secret"] = internal_auth_secret
+
+    if internal_user_id := os.getenv("AGOMTRADEPRO_INTERNAL_USER_ID"):
+        config["internal_user_id"] = internal_user_id
+
+    if internal_username := os.getenv("AGOMTRADEPRO_INTERNAL_USERNAME"):
+        config["internal_username"] = internal_username
+
+    if internal_source := os.getenv("AGOMTRADEPRO_INTERNAL_SOURCE"):
+        config["internal_source"] = internal_source
 
     if timeout := os.getenv("AGOMTRADEPRO_TIMEOUT"):
         try:
@@ -183,6 +204,10 @@ def load_config(
         api_token=merged.pop("api_token", None),
         username=merged.pop("username", None),
         password=merged.pop("password", None),
+        internal_auth_secret=merged.pop("internal_auth_secret", None),
+        internal_user_id=merged.pop("internal_user_id", None),
+        internal_username=merged.pop("internal_username", None),
+        internal_source=merged.pop("internal_source", None),
     )
 
     return ClientConfig(auth=auth, **merged)

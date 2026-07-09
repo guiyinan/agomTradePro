@@ -4,8 +4,11 @@ AgomTradePro SDK 核心客户端
 提供与 AgomTradePro API 交互的主要接口。
 """
 
+import hashlib
+import hmac
+import time
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -211,8 +214,15 @@ class AgomTradeProClient:
     def _uses_session_auth(self) -> bool:
         return bool(
             not self._config.auth.api_token
+            and not self._uses_internal_auth()
             and self._config.auth.username
             and self._config.auth.password
+        )
+
+    def _uses_internal_auth(self) -> bool:
+        return bool(
+            self._config.auth.internal_auth_secret
+            and self._config.auth.internal_user_id
         )
 
     def _authenticate_with_session(self) -> None:
@@ -247,8 +257,15 @@ class AgomTradeProClient:
                 f"Session login failed: status={login_response.status_code}"
             )
 
-    def _build_request_headers(self, method: str) -> dict[str, str]:
+    def _build_request_headers(
+        self,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, str]:
         headers = dict(self._headers)
+        if self._uses_internal_auth():
+            headers.update(self._build_internal_auth_headers(method, endpoint, params))
         if self._uses_session_auth() and method.upper() not in {"GET", "HEAD", "OPTIONS"}:
             csrf_token = self._session.cookies.get("csrftoken")
             if csrf_token:
@@ -257,6 +274,46 @@ class AgomTradeProClient:
                 "Referer",
                 urljoin(f"{self._config.base_url.rstrip('/')}/", "account/login/"),
             )
+        return headers
+
+    def _build_internal_auth_headers(
+        self,
+        method: str,
+        endpoint: str,
+        params: dict[str, Any] | None,
+    ) -> dict[str, str]:
+        timestamp = str(int(time.time()))
+        path = f"/{endpoint.lstrip('/')}"
+        if params:
+            query = urlencode(params, doseq=True)
+            if query:
+                path = f"{path}?{query}"
+
+        user_id = str(self._config.auth.internal_user_id or "")
+        username = str(self._config.auth.internal_username or "")
+        payload = ":".join(
+            [
+                timestamp,
+                method.upper(),
+                path,
+                user_id,
+                username,
+            ]
+        )
+        signature = hmac.new(
+            str(self._config.auth.internal_auth_secret).encode("utf-8"),
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        headers = {
+            "X-Agom-Internal-Timestamp": timestamp,
+            "X-Agom-Internal-User-Id": user_id,
+            "X-Agom-Internal-Signature": signature,
+        }
+        if username:
+            headers["X-Agom-Internal-Username"] = username
+        if self._config.auth.internal_source:
+            headers["X-Agom-Internal-Source"] = str(self._config.auth.internal_source)
         return headers
 
     def _request(
@@ -295,7 +352,7 @@ class AgomTradeProClient:
         url = f"{self._config.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         try:
-            headers = self._build_request_headers(method)
+            headers = self._build_request_headers(method, endpoint, params)
             if files is not None:
                 headers.pop("Content-Type", None)
 
