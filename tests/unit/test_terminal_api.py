@@ -1,18 +1,12 @@
-"""
-Terminal API Tests.
+"""Terminal API contract tests for the agent-based terminal surface."""
 
-Tests for terminal governance API endpoints, permissions, and contracts.
-"""
-
-from datetime import UTC, date, datetime
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
-from apps.data_center.infrastructure.models import MarketThermometerSnapshotModel
-from apps.terminal.infrastructure.models import TerminalAuditLogORM, TerminalCommandORM
+from apps.terminal.infrastructure.models import TerminalAuditLogORM
 
 
 @pytest.fixture
@@ -22,572 +16,195 @@ def api_client():
 
 @pytest.fixture
 def staff_user(db):
-    user = User.objects.create_user(
-        username='staff_test', password='test123', is_staff=True,
+    return User.objects.create_user(
+        username="staff_test",
+        password="test123",
+        is_staff=True,
     )
-    return user
 
 
 @pytest.fixture
 def regular_user(db):
-    user = User.objects.create_user(
-        username='regular_test', password='test123', is_staff=False,
-    )
-    return user
-
-
-@pytest.fixture
-def sample_command(db):
-    return TerminalCommandORM.objects.create(
-        name='test_read_cmd',
-        description='A read-only test command',
-        command_type='api',
-        api_endpoint='/api/test/',
-        risk_level='read',
-        requires_mcp=True,
-        enabled_in_terminal=True,
-        is_active=True,
+    return User.objects.create_user(
+        username="regular_test",
+        password="test123",
+        is_staff=False,
     )
 
 
-@pytest.fixture
-def write_command(db):
-    return TerminalCommandORM.objects.create(
-        name='test_write_cmd',
-        description='A write test command',
-        command_type='api',
-        api_endpoint='/api/test/write/',
-        risk_level='write_high',
-        requires_mcp=True,
-        enabled_in_terminal=True,
-        is_active=True,
+@pytest.mark.django_db
+class TestDeprecatedCommandEndpoints:
+    """Legacy terminal command endpoints must return 410."""
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("get", "/api/terminal/commands/"),
+            ("get", "/api/terminal/commands/available/"),
+            ("get", "/api/terminal/commands/by_category/"),
+            ("get", "/api/terminal/commands/capabilities/"),
+            ("post", "/api/terminal/commands/execute_by_name/"),
+            ("post", "/api/terminal/commands/confirm_execute/"),
+        ],
     )
+    def test_legacy_command_routes_return_410(self, api_client, staff_user, method, path):
+        api_client.force_authenticate(user=staff_user)
+        response = getattr(api_client, method)(path, {}, format="json")
+        assert response.status_code == 410
+        assert "retired" in response.json()["error"].lower()
 
-
-# ========== CRUD Permission Tests ==========
 
 @pytest.mark.django_db
-class TestCRUDPermissions:
-    """Non-staff cannot create/update/delete commands; staff can."""
+class TestTerminalSessionEndpoint:
+    """Tests for /api/terminal/session/."""
 
-    def test_non_staff_cannot_create(self, api_client, regular_user):
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.post('/api/terminal/commands/', {
-            'name': 'new_cmd',
-            'description': 'test',
-            'command_type': 'api',
-            'api_endpoint': '/test/',
-        }, format='json')
-        assert resp.status_code == 403
+    def test_session_requires_authentication(self, api_client):
+        response = api_client.post("/api/terminal/session/")
+        assert response.status_code in {401, 403}
 
-    def test_staff_can_create(self, api_client, staff_user):
+    def test_session_returns_uuid_like_id(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/', {
-            'name': 'new_cmd',
-            'description': 'test',
-            'command_type': 'api',
-            'api_endpoint': '/test/',
-        }, format='json')
-        assert resp.status_code == 201
+        response = api_client.post("/api/terminal/session/")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert len(payload["session_id"]) >= 32
 
-    def test_non_staff_cannot_delete(self, api_client, regular_user, sample_command):
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.delete(f'/api/terminal/commands/{sample_command.pk}/')
-        assert resp.status_code == 403
 
-    def test_staff_can_delete(self, api_client, staff_user, sample_command):
+@pytest.mark.django_db
+class TestTerminalChatEndpoint:
+    """Tests for /api/terminal/chat/."""
+
+    def test_terminal_chat_returns_reply_session_and_metadata(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        resp = api_client.delete(f'/api/terminal/commands/{sample_command.pk}/')
-        assert resp.status_code == 204
-
-    def test_non_staff_cannot_update(self, api_client, regular_user, sample_command):
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.patch(
-            f'/api/terminal/commands/{sample_command.pk}/',
-            {'description': 'updated'},
-            format='json',
+        response_dto = Mock(
+            reply="ok",
+            session_id="sess-1",
+            metadata={"provider": "test-provider", "model": "test-model"},
         )
-        assert resp.status_code == 403
 
-    def test_staff_can_update(self, api_client, staff_user, sample_command):
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            return_value=response_dto,
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {
+                    "message": "hello",
+                    "provider_name": "test-provider",
+                    "model": "test-model",
+                },
+                format="json",
+            )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["reply"] == "ok"
+        assert payload["session_id"] == "sess-1"
+        assert payload["metadata"]["provider"] == "test-provider"
+
+    def test_terminal_chat_returns_approval_payload(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        resp = api_client.patch(
-            f'/api/terminal/commands/{sample_command.pk}/',
-            {'description': 'updated'},
-            format='json',
-        )
-        assert resp.status_code == 200
-
-    def test_non_staff_cannot_list(self, api_client, regular_user, sample_command):
-        """Non-staff users cannot list full command definitions."""
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.get('/api/terminal/commands/')
-        assert resp.status_code == 403
-
-    def test_non_staff_cannot_retrieve(self, api_client, regular_user, sample_command):
-        """Non-staff users cannot retrieve individual command details."""
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.get(f'/api/terminal/commands/{sample_command.pk}/')
-        assert resp.status_code == 403
-
-    def test_staff_can_list(self, api_client, staff_user, sample_command):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/')
-        assert resp.status_code == 200
-
-    def test_staff_can_retrieve(self, api_client, staff_user, sample_command):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get(f'/api/terminal/commands/{sample_command.pk}/')
-        assert resp.status_code == 200
-
-
-# ========== Available Endpoint Tests ==========
-
-@pytest.mark.django_db
-class TestAvailableEndpoint:
-    """Tests for /api/terminal/commands/available/"""
-
-    def test_returns_risk_level(self, api_client, staff_user, sample_command):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/available/')
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['success'] is True
-        cmds = data['commands']
-        if cmds:
-            assert 'risk_level' in cmds[0]
-
-    def test_unauthenticated_denied(self, api_client):
-        resp = api_client.get('/api/terminal/commands/available/')
-        assert resp.status_code in (401, 403)
-
-    def test_filters_by_role(self, api_client, regular_user, db):
-        # Create an admin-only command
-        TerminalCommandORM.objects.create(
-            name='admin_only_cmd',
-            description='admin only',
-            command_type='api',
-            api_endpoint='/test/',
-            risk_level='admin',
-            requires_mcp=True,
-            enabled_in_terminal=True,
-            is_active=True,
-        )
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.get('/api/terminal/commands/available/')
-        data = resp.json()
-        cmd_names = [c['name'] for c in data['commands']]
-        assert 'admin_only_cmd' not in cmd_names
-
-
-# ========== Capabilities Endpoint Tests ==========
-
-@pytest.mark.django_db
-class TestCapabilitiesEndpoint:
-    """Tests for /api/terminal/commands/capabilities/"""
-
-    def test_returns_role_and_modes(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/capabilities/')
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['success'] is True
-        assert 'role' in data
-        assert 'available_modes' in data
-        assert 'mcp_enabled' in data
-        assert 'max_risk_level' in data
-        assert 'answer_chain_enabled' in data
-        assert 'answer_chain_visibility' in data
-
-
-# ========== Execute Endpoint Tests ==========
-
-@pytest.mark.django_db
-class TestExecuteEndpoint:
-    """Tests for /api/terminal/commands/execute_by_name/"""
-
-    @patch('apps.terminal.application.services.CommandExecutionService.execute_api_command')
-    def test_read_command_succeeds(self, mock_exec, api_client, staff_user, sample_command):
-        mock_exec.return_value = {'output': 'test output', 'metadata': {}}
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'test_read_cmd',
-            'params': {},
-            'mode': 'auto_confirm',
-        }, format='json')
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['success'] is True
-
-    def test_market_temperature_command_dispatches_internal_api(self, api_client, staff_user, db):
-        today = date.today()
-        TerminalCommandORM.objects.update_or_create(
-            name='market_temperature',
-            defaults={
-                'description': 'market thermometer',
-                'command_type': 'api',
-                'api_endpoint': '/api/data-center/market-thermometer/current/',
-                'risk_level': 'read',
-                'requires_mcp': False,
-                'enabled_in_terminal': True,
-                'is_active': True,
+        response_dto = Mock(
+            reply="approval needed",
+            session_id="sess-approval",
+            metadata={
+                "status": "approval_required",
+                "capability_key": "mcp_tool.sync_positions",
+                "risk_level": "high",
             },
         )
-        MarketThermometerSnapshotModel.objects.create(
-            observed_at=today,
-            score=82.0,
-            band='overheat',
-            change_5d=7.5,
-            change_20d=18.0,
-            components=[],
-            trigger_reasons=['成交额抬升', '融资余额抬升'],
-            stale_components=[],
-            missing_components=[],
-            valid_component_count=5,
-            data_source='calculated',
-            must_not_use_for_decision=False,
-            blocked_reason='',
-            calculated_at=datetime.now(UTC),
-        )
 
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'market_temperature',
-            'params': {'use_personal_thresholds': True},
-            'mode': 'auto_confirm',
-        }, format='json')
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            return_value=response_dto,
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {"message": "sync positions"},
+                format="json",
+            )
 
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['success'] is True
-        assert '市场温度分数' in data['output']
-        assert '温度分段' in data['output']
-        assert '阈值来源' in data['output']
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["approval_required"] is True
+        assert payload["selected_capability_key"] == "mcp_tool.sync_positions"
 
-    def test_write_returns_confirmation(self, api_client, staff_user, write_command):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'test_write_cmd',
-            'params': {},
-            'mode': 'confirm_each',
-        }, format='json')
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['confirmation_required'] is True
-        assert data['confirmation_token'] is not None
-
-    @patch('apps.terminal.application.services.CommandExecutionService.execute_api_command')
-    def test_confirm_execute_with_valid_token(self, mock_exec, api_client, staff_user, write_command):
-        mock_exec.return_value = {'output': 'done', 'metadata': {}}
+    def test_terminal_chat_returns_502_when_agent_raises(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
 
-        # Step 1: Get confirmation token
-        resp1 = api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'test_write_cmd',
-            'params': {},
-            'mode': 'confirm_each',
-        }, format='json')
-        token = resp1.json()['confirmation_token']
+        with patch(
+            "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+            side_effect=RuntimeError("agent exploded"),
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/",
+                {"message": "系统怎么了"},
+                format="json",
+            )
 
-        # Step 2: Confirm
-        resp2 = api_client.post('/api/terminal/commands/confirm_execute/', {
-            'name': 'test_write_cmd',
-            'params': {},
-            'confirmation_token': token,
-            'mode': 'confirm_each',
-        }, format='json')
-        assert resp2.status_code == 200
-        data = resp2.json()
-        assert data['success'] is True
+        assert response.status_code == 502
+        assert response.json()["error"] == "AI 调用异常: agent exploded"
 
-
-# ========== Audit Tests ==========
 
 @pytest.mark.django_db
-class TestAuditEndpoint:
-    """Tests for audit logging and /api/terminal/audit/"""
+class TestTerminalChatStreamEndpoint:
+    """Tests for /api/terminal/chat/stream/."""
 
-    @patch('apps.terminal.application.services.CommandExecutionService.execute_api_command')
-    def test_audit_entry_created_on_execute(self, mock_exec, api_client, staff_user, sample_command):
-        mock_exec.return_value = {'output': 'ok', 'metadata': {}}
+    def test_stream_endpoint_returns_sse_contract(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
+        events = iter(
+            [
+                Mock(event_type="message_delta", data={"delta": "hel"}),
+                Mock(
+                    event_type="final",
+                    data={
+                        "reply": "hello",
+                        "session_id": "sess-stream",
+                        "metadata": {"provider": "test-provider"},
+                    },
+                ),
+            ]
+        )
 
-        api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'test_read_cmd',
-            'params': {},
-            'mode': 'auto_confirm',
-        }, format='json')
+        with patch(
+            "apps.terminal.interface.api_views.StreamTerminalAgentChatUseCase.execute",
+            return_value=events,
+        ):
+            response = api_client.post(
+                "/api/terminal/chat/stream/",
+                {"message": "hello"},
+                format="json",
+            )
+            body = b"".join(response.streaming_content).decode("utf-8")
 
-        assert TerminalAuditLogORM.objects.count() >= 1
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("text/event-stream")
+        assert "event: message_delta" in body
+        assert "event: final" in body
+
+
+@pytest.mark.django_db
+class TestTerminalAuditEndpoint:
+    """Tests for audit logging and /api/terminal/audit/."""
 
     def test_audit_endpoint_staff_only(self, api_client, regular_user):
         api_client.force_authenticate(user=regular_user)
-        resp = api_client.get('/api/terminal/audit/')
-        assert resp.status_code == 403
+        response = api_client.get("/api/terminal/audit/")
+        assert response.status_code == 403
 
     def test_audit_endpoint_accessible_by_staff(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/audit/')
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['success'] is True
-        assert 'entries' in data
-
-    @patch('apps.terminal.application.services.CommandExecutionService.execute_api_command')
-    def test_audit_records_actual_username_not_id(self, mock_exec, api_client, staff_user, sample_command):
-        """Audit entry must contain the actual username, not str(user_id)."""
-        mock_exec.return_value = {'output': 'ok', 'metadata': {}}
-        api_client.force_authenticate(user=staff_user)
-
-        api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'test_read_cmd',
-            'params': {},
-            'mode': 'auto_confirm',
-        }, format='json')
-
-        log = TerminalAuditLogORM.objects.latest('created_at')
-        assert log.username == staff_user.username
-        assert log.username != str(staff_user.id)
-
-
-# ========== Route Contract Tests ==========
-
-@pytest.mark.django_db
-class TestRouteContracts:
-    """Verify all new endpoints exist and return correct status codes."""
-
-    def test_commands_list(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/')
-        assert resp.status_code == 200
-
-    def test_available(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/available/')
-        assert resp.status_code == 200
-
-    def test_terminal_chat(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
-            mock_route.return_value = {
-                'decision': 'chat',
-                'reply': 'ok',
-                'session_id': 'sess-1',
-                'metadata': {'route': 'chat'},
-                'requires_confirmation': False,
-            }
-            resp = api_client.post('/api/terminal/chat/', {
-                'message': 'hello',
-                'provider_name': 'test-provider',
-                'model': 'test-model',
-            }, format='json')
-        assert resp.status_code == 200
-        assert resp.json()['reply'] == 'ok'
-
-
-@pytest.mark.django_db
-class TestTerminalChatRouting:
-    """Tests for terminal natural language routing endpoint."""
-
-    def test_terminal_chat_routes_system_status(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
-            mock_route.return_value = {
-                'decision': 'capability',
-                'selected_capability_key': 'builtin.system_status',
-                'reply': '## System Readiness: `ok`',
-                'session_id': 'sess-status',
-                'metadata': {
-                    'route': 'capability',
-                },
-                'requires_confirmation': False,
-            }
-            resp = api_client.post('/api/terminal/chat/', {
-                'message': '目前系统是什么状态',
-                'provider_name': 'test-provider',
-                'model': 'test-model',
-            }, format='json')
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['metadata']['route'] == 'capability'
-        assert 'System Readiness' in data['reply']
-
-    def test_terminal_chat_routes_regular_chat(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
-            mock_route.return_value = {
-                'decision': 'chat',
-                'reply': 'general answer',
-                'session_id': 'sess-chat',
-                'metadata': {
-                    'route': 'chat',
-                },
-                'requires_confirmation': False,
-            }
-            resp = api_client.post('/api/terminal/chat/', {
-                'message': 'hello there',
-                'provider_name': 'test-provider',
-                'model': 'test-model',
-            }, format='json')
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['metadata']['route'] == 'chat'
-        assert data['reply'] == 'general answer'
-
-    def test_terminal_chat_returns_route_confirmation_payload(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.route_terminal_message') as mock_route:
-            mock_route.return_value = {
-                'decision': 'ask_confirmation',
-                'selected_capability_key': 'builtin.system_status',
-                'reply': 'detected possible system status intent',
-                'session_id': 'sess-suggest',
-                'metadata': {
-                    'route': 'intent_suggestion',
-                },
-                'requires_confirmation': True,
-                'missing_params': ['account_id'],
-                'suggested_command': '/status',
-                'suggested_intent': 'system_status',
-                'suggestion_prompt': 'Type Y to execute /status',
-            }
-            resp = api_client.post('/api/terminal/chat/', {
-                'message': '系统是不是有问题',
-                'provider_name': 'test-provider',
-                'model': 'test-model',
-            }, format='json')
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data['route_confirmation_required'] is True
-        assert data['selected_capability_key'] == 'builtin.system_status'
-        assert data['missing_params'] == ['account_id']
-        assert data['suggested_command'] == '/status'
-        assert data['suggested_intent'] == 'system_status'
-
-    def test_capabilities(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/commands/capabilities/')
-        assert resp.status_code == 200
-
-    def test_execute_by_name(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/execute_by_name/', {
-            'name': 'nonexistent',
-        }, format='json')
-        assert resp.status_code == 200  # returns success=false with error
-
-    def test_confirm_execute(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/commands/confirm_execute/', {
-            'name': 'nonexistent',
-            'confirmation_token': 'invalid',
-        }, format='json')
-        assert resp.status_code == 200
-
-    def test_audit(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.get('/api/terminal/audit/')
-        assert resp.status_code == 200
-
-    def test_session(self, api_client, staff_user):
-        api_client.force_authenticate(user=staff_user)
-        resp = api_client.post('/api/terminal/session/')
-        assert resp.status_code == 200
-
-
-# ========== Model Tests ==========
-
-@pytest.mark.django_db
-class TestOrmModels:
-    """Test ORM model governance fields and audit model."""
-
-    def test_command_default_governance_fields(self):
-        cmd = TerminalCommandORM.objects.create(
-            name='test_defaults',
-            command_type='api',
-            api_endpoint='/test/',
+        TerminalAuditLogORM.objects.create(
+            username=staff_user.username,
+            session_id="audit-1",
+            command_name="agent_chat",
+            risk_level="read",
+            mode="agent",
+            result_status="success",
         )
-        assert cmd.risk_level == 'read'
-        assert cmd.requires_mcp is True
-        assert cmd.enabled_in_terminal is True
-
-    def test_command_to_entity_maps_governance(self):
-        cmd = TerminalCommandORM.objects.create(
-            name='test_entity',
-            command_type='api',
-            api_endpoint='/test/',
-            risk_level='write_high',
-            requires_mcp=False,
-            enabled_in_terminal=False,
-        )
-        entity = cmd.to_entity()
-        from apps.terminal.domain.entities import TerminalRiskLevel
-        assert entity.risk_level == TerminalRiskLevel.WRITE_HIGH
-        assert entity.requires_mcp is False
-        assert entity.enabled_in_terminal is False
-
-    def test_audit_log_creation(self):
-        log = TerminalAuditLogORM.objects.create(
-            username='test_user',
-            session_id='abc123',
-            command_name='test_cmd',
-            risk_level='read',
-            mode='confirm_each',
-            result_status='success',
-        )
-        assert log.pk is not None
-        entity = log.to_entity()
-        assert entity.username == 'test_user'
-        assert entity.result_status == 'success'
-
-
-# ========== Config Page Permission Tests ==========
-
-@pytest.mark.django_db
-class TestConfigPagePermissions:
-    """Config page must require staff/admin, not just login."""
-
-    def test_config_page_denied_for_non_staff(self, client, regular_user):
-        client.force_login(regular_user)
-        resp = client.get('/terminal/config/')
-        assert resp.status_code == 403
-
-    def test_config_page_allowed_for_staff(self, client, staff_user):
-        client.force_login(staff_user)
-        resp = client.get('/terminal/config/')
-        assert resp.status_code == 200
-
-    def test_config_page_denied_for_anonymous(self, client):
-        resp = client.get('/terminal/config/')
-        # Should redirect to login
-        assert resp.status_code == 302
-
-
-# ========== by_category Filtering Tests ==========
-
-@pytest.mark.django_db
-class TestByCategoryFiltering:
-    """by_category must filter by role/MCP like available endpoint."""
-
-    def test_by_category_hides_admin_commands_from_regular(self, api_client, regular_user, db):
-        TerminalCommandORM.objects.create(
-            name='admin_only_bc',
-            description='admin only',
-            command_type='api',
-            api_endpoint='/test/',
-            risk_level='admin',
-            requires_mcp=True,
-            enabled_in_terminal=True,
-            is_active=True,
-            category='admin_cat',
-        )
-        api_client.force_authenticate(user=regular_user)
-        resp = api_client.get('/api/terminal/commands/by_category/')
-        data = resp.json()
-        all_cmd_names = []
-        for cmds in data.get('categories', {}).values():
-            all_cmd_names.extend(c['name'] for c in cmds)
-        assert 'admin_only_bc' not in all_cmd_names
+        api_client.force_authenticate(user=staff_user)
+        response = api_client.get("/api/terminal/audit/")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["success"] is True
+        assert payload["count"] >= 1

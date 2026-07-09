@@ -8,7 +8,7 @@
 
 ## 概述
 
-Terminal 模块提供终端风格的 AI 交互界面，支持可配置命令系统。用户可以通过命令行方式与 AI 进行交互，执行预定义的命令。
+Terminal 模块现在是一个薄入口。用户通过自然语言发起任务，真正的 AI 执行下沉到 `apps/agent_runtime`，由 OpenAI Agents SDK 连接现有 stdio MCP server 完成工具调用、流式输出和审批前置判断。
 
 ## 架构设计
 
@@ -33,109 +33,56 @@ apps/terminal/
     └── api_urls.py           # API 路由
 ```
 
-### 与 ai_provider / prompt 模块的关系
+### 与 ai_provider / prompt / agent_runtime 模块的关系
 
 ```
 terminal
     │
-    ├── 依赖 ai_provider 的 AI 客户端工厂 (AIClientFactory)
-    ├── 自身持有 TerminalCommandORM
-    └── 可选关联 prompt 的模板 (PromptTemplateORM)
+    ├── 依赖 agent_runtime 的终端代理服务
+    ├── agent_runtime 复用 ai_provider 的 provider / quota / usage 语义
+    ├── terminal 仍保留历史 TerminalCommandORM / 审计表
+    └── 旧 command API 仅保留 410 兼容壳
 ```
 
 ## 核心概念
 
-### 命令类型 (CommandType)
+### 终端代理入口
 
-| 类型 | 说明 | 执行方式 |
-|------|------|----------|
-| `PROMPT` | Prompt 模板调用 | 通过 AI 生成响应 |
-| `API` | API 端点调用 | 直接调用系统 API |
+- `POST /api/terminal/chat/`
+  返回一次性 JSON 应答，适合现有 TUI workbench 同步动作。
+- `POST /api/terminal/chat/stream/`
+  返回 `text/event-stream`，事件类型固定为 `message_delta`、`tool_called`、`tool_output`、`approval_required`、`final`、`error`。
+- `POST /api/terminal/session/`
+  生成新的会话标识，供前端保持上下文。
+- `GET /api/terminal/audit/`
+  保留审计读取。
 
-### 命令实体 (TerminalCommand)
+### 旧命令接口
 
-```python
-@dataclass
-class TerminalCommand:
-    id: str
-    name: str                          # 命令名称（如 analyze, report）
-    description: str                   # 命令描述
-    command_type: CommandType          # 命令类型
-    
-    # Prompt 类型配置
-    prompt_template_id: Optional[str]  # 关联的 Prompt 模板 ID
-    system_prompt: Optional[str]       # 系统提示词
-    user_prompt_template: str          # 用户提示词模板
-    
-    # API 类型配置
-    api_endpoint: Optional[str]        # API 端点路径
-    api_method: str                    # HTTP 方法（GET/POST）
-    response_jq_filter: Optional[str]  # JQ 过滤器
-    
-    # 参数定义
-    parameters: list[CommandParameter] # 交互式参数
-    
-    # 执行配置
-    timeout: int                       # 超时时间（秒）
-    provider_name: Optional[str]       # 指定 AI 提供商名称
-    model_name: Optional[str]          # 指定模型
-```
-
-### 参数定义 (CommandParameter)
-
-```python
-@dataclass
-class CommandParameter:
-    name: str                    # 参数名
-    param_type: ParameterType    # 类型：text/number/select/date/boolean
-    description: str             # 描述
-    required: bool               # 是否必需
-    default: Any                 # 默认值
-    options: list[str]           # 选项（select 类型）
-    prompt: str                  # 交互提示文本
-```
+`/api/terminal/commands/*` 已退出产品主路径，统一返回 `410 Gone`。历史 ORM 表和 migration 仍保留，用于审计和回滚兼容。
 
 ## API 端点
 
-### 命令管理 API
+### 终端代理 API
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| GET | `/api/terminal/commands/` | 获取命令列表 |
-| GET | `/api/terminal/commands/{id}/` | 获取命令详情 |
-| POST | `/api/terminal/commands/` | 创建命令 |
-| PUT | `/api/terminal/commands/{id}/` | 更新命令 |
-| DELETE | `/api/terminal/commands/{id}/` | 删除命令 |
-
-### 命令执行 API
-
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| POST | `/api/terminal/commands/{id}/execute/` | 按 ID 执行命令 |
-| POST | `/api/terminal/commands/execute_by_name/` | 按名称执行命令 |
-| GET | `/api/terminal/commands/available/` | 获取可用命令列表 |
-| GET | `/api/terminal/commands/by_category/` | 按分类获取命令 |
-
-### 会话管理 API
-
-| 方法 | 端点 | 说明 |
-|------|------|------|
+| POST | `/api/terminal/chat/` | 非流式自然语言入口 |
+| POST | `/api/terminal/chat/stream/` | SSE 流式自然语言入口 |
 | POST | `/api/terminal/session/` | 创建新会话 |
+| GET | `/api/terminal/audit/` | 读取终端审计 |
 
 ## 使用示例
 
-### 执行命令（按名称）
+### 非流式聊天
 
 ```bash
-curl -X POST /api/terminal/commands/execute_by_name/ \
+curl -X POST /api/terminal/chat/ \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "analyze",
-    "params": {
-      "symbol": "AAPL",
-      "period": "1m"
-    },
-    "session_id": "abc123"
+    "message": "总结当前系统状态，并说明是否存在阻断项",
+    "session_id": "abc123",
+    "provider_name": "personal-openai"
   }'
 ```
 
@@ -143,43 +90,25 @@ curl -X POST /api/terminal/commands/execute_by_name/ \
 
 ```json
 {
-  "success": true,
-  "output": "分析结果...",
+  "reply": "系统当前处于可用状态，未发现新的阻断项。",
+  "session_id": "abc123",
   "metadata": {
-    "provider": "openai",
-    "model": "gpt-4",
-    "tokens": 1500,
-    "session_id": "abc123"
-  },
-  "error": null,
-  "command": {
-    "id": "1",
-    "name": "analyze",
-    "type": "prompt",
-    ...
+    "provider": "personal-openai",
+    "model": "gpt-4o-mini",
+    "provider_scope": "personal",
+    "tool_call_count": 1
   }
 }
 ```
 
-### 创建命令
+### 流式聊天
 
 ```bash
-curl -X POST /api/terminal/commands/ \
+curl -N -X POST /api/terminal/chat/stream/ \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "stock_analysis",
-    "description": "股票分析命令",
-    "command_type": "prompt",
-    "user_prompt_template": "请分析股票 {symbol} 的投资价值",
-    "parameters": [
-      {
-        "name": "symbol",
-        "type": "text",
-        "description": "股票代码",
-        "required": true
-      }
-    ],
-    "category": "analysis"
+    "message": "读取当前宏观环境，并显示工具执行进度",
+    "session_id": "abc123"
   }'
 ```
 

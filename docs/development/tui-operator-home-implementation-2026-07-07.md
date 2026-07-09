@@ -40,6 +40,7 @@ This change closes the TUI operator experience around a single unified `/tui/` h
   - resume last workspace
   - open CLI
 - Governance badges are shown in the module tree and on home cards.
+- Clicking a screen row or badge with governance counts now drills into that screen's governance summary instead of only opening the workspace shell.
 - Pinned screens are sorted to the front inside each module.
 - Refresh from a non-home screen restores the last non-home workspace in the same browser session.
 - Governance datagrid rows expose a direct drill-down action into the target handling screen.

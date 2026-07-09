@@ -1,3 +1,5 @@
+"""Edge-case tests for the refactored terminal agent endpoints."""
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -29,28 +31,6 @@ def regular_user(db):
 
 
 @pytest.mark.django_db
-def test_terminal_chat_returns_502_when_router_raises(api_client, staff_user):
-    api_client.force_authenticate(user=staff_user)
-
-    with patch(
-        "apps.terminal.interface.api_views.route_terminal_message",
-        side_effect=RuntimeError("router exploded"),
-    ):
-        response = api_client.post(
-            "/api/terminal/chat/",
-            {
-                "message": "系统怎么了",
-                "provider_name": "test-provider",
-                "model": "test-model",
-            },
-            format="json",
-        )
-
-    assert response.status_code == 502
-    assert response.json()["error"] == "AI 调用异常: router exploded"
-
-
-@pytest.mark.django_db
 def test_terminal_audit_limit_is_capped_at_200(api_client, staff_user):
     api_client.force_authenticate(user=staff_user)
     repository = Mock()
@@ -72,31 +52,49 @@ def test_terminal_audit_limit_is_capped_at_200(api_client, staff_user):
 
 
 @pytest.mark.django_db
-def test_terminal_session_requires_authentication(api_client):
-    response = api_client.post("/api/terminal/session/")
+def test_terminal_stream_emits_error_event_when_use_case_fails(api_client, staff_user):
+    api_client.force_authenticate(user=staff_user)
 
-    assert response.status_code in {401, 403}
+    with patch(
+        "apps.terminal.interface.api_views.StreamTerminalAgentChatUseCase.execute",
+        side_effect=RuntimeError("stream exploded"),
+    ):
+        response = api_client.post(
+            "/api/terminal/chat/stream/",
+            {"message": "系统怎么了"},
+            format="json",
+        )
+        body = b"".join(response.streaming_content).decode("utf-8")
+
+    assert response.status_code == 200
+    assert "event: error" in body
+    assert "stream exploded" in body
 
 
 @pytest.mark.django_db
-def test_terminal_capabilities_exposes_lock_reason_when_mcp_disabled(api_client, regular_user):
+def test_terminal_chat_can_return_approval_required_payload(api_client, regular_user):
     api_client.force_authenticate(user=regular_user)
+    response_dto = Mock(
+        reply="need approval",
+        session_id="sess-approval",
+        metadata={
+            "status": "approval_required",
+            "capability_key": "mcp_tool.rebalance_portfolio",
+            "risk_level": "critical",
+        },
+    )
 
     with patch(
-        "apps.terminal.interface.api_views.get_user_role",
-        return_value="read_only",
-    ), patch(
-        "apps.terminal.interface.api_views._get_mcp_enabled",
-        return_value=False,
-    ), patch(
-        "apps.terminal.interface.api_views.AnswerChainSettingsService.get_config",
-        return_value={"enabled": False, "visibility": "masked", "is_admin": False},
+        "apps.terminal.interface.api_views.RunTerminalAgentChatUseCase.execute",
+        return_value=response_dto,
     ):
-        response = api_client.get("/api/terminal/commands/capabilities/")
+        response = api_client.post(
+            "/api/terminal/chat/",
+            {"message": "rebalance my portfolio"},
+            format="json",
+        )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["mcp_enabled"] is False
-    assert payload["role"] == "read_only"
-    assert payload["reason_if_locked"] == "MCP access disabled for your account"
-    assert payload["available_modes"] == ["readonly"]
+    assert payload["approval_required"] is True
+    assert payload["metadata"]["risk_level"] == "critical"

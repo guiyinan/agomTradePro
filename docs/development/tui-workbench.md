@@ -1,6 +1,6 @@
 # TUI Workbench
 
-> Last updated: 2026-07-05
+> Last updated: 2026-07-09
 
 `/tui/` is the standalone task-oriented interaction shell for AgomTradePro. It is not a CSS presentation mode for existing Django pages, and it is not an API catalog UI.
 
@@ -56,6 +56,8 @@ The screen contract returns:
 - `screen.workflow`: optional daily workflow navigation metadata (`previous`, `next`, `step`, and `role`).
 - `screen.business_context`: operator guidance with the screen objective, expected decision output, and ordered checkpoints. Explicit metadata wins; the compiler and backend derive a generic fallback when a screen is not hand-annotated.
 - `screen.user_experience`: user-facing task contract (`journey`, `primary_task`, `primary_outcome`, `empty_state_hint`, `next_step_hint`). This is the executable UX standard for `/tui/`.
+- `screen.dashboard_panels[].user_priority` and `screen.dashboard_panels[].presentation_semantic`: runtime layout and rendering hints. Dashboard screens must expose a real `p0` panel; the browser uses these fields directly instead of inferring priority from panel position alone.
+- `actions[].result_semantics`: runtime detail rendering selector. Copyable credentials, endpoint directories, and multiline prompt artifacts must be published explicitly so the browser renders the specialized detail view instead of a generic key/value table.
 - `actions`: action schemas that generate forms and buttons.
 - `actions[].ui_key`: a non-technical browser identifier for DOM bindings. It must not reveal endpoint-shaped metadata keys such as `auto.api...`.
 - `actions[].fields`: input fields used for query params or JSON bodies.
@@ -78,6 +80,13 @@ Action execution returns a business-first `view_model`:
 - `debug.raw_response`: raw payload for the Raw Response drawer only.
 
 The browser renders a generic decision cue above every `datagrid`, `detail`, and `message` result when the screen has `business_context`. It shows the expected decision output, the current evidence shape (for example row count, detail field count, or message section count), reviewed operations available on the screen, and the next workflow step. This cue is derived from published metadata and actual result shape; it must not invent a trading recommendation.
+
+The current `/tui/` runtime consumes the user-facing contract end to end:
+
+- Inspector/body copy prefers `screen.user_experience.primary_task`, `primary_outcome`, `empty_state_hint`, and `next_step_hint` instead of falling back to `summary` too early.
+- Empty-state copy falls back from `entry_state.empty_copy` to `screen.user_experience.empty_state_hint`.
+- Dashboard cards surface `p0/p1/p2` priority and semantic badges from published metadata.
+- Detail rendering switches on `presentation_semantic` / `result_semantics` so `copyable_secret`, `endpoint_list`, and `multiline_prompt` use dedicated views.
 
 The view model layer translates common field keys and enum-like values into operator language before the browser renders them. For example, `portfolio.total_assets`, `portfolio.total_return_pct`, `user.username`, and `regime.current=Recovery` should render as `组合 / 总资产`, `组合 / 总收益率`, `用户 / 用户名`, and `复苏`. The same shared vocabulary should also normalize nested collaboration/detail payloads such as public share snapshots (`分享链接 / 分享等级`, `快照 / 来源区间开始`, `绩效 / 年化收益`), research payloads such as `weights.policy`, `summary.investable`, `regime_fit_score`, and `total_score`, and field-specific enums such as `account_type=real`, `portfolio_type=simulated`, `rbac_role=owner`, and `risk_tolerance=moderate`. DataGrids must also prefer row-provided names such as `fund_name` over fallback asset-name lookup so fund rows do not display stock aliases. Add shared vocabulary in `TuiWorkbenchService` for reusable business terms; do not add per-endpoint label rewrites in JavaScript.
 

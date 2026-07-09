@@ -17,6 +17,7 @@ kombu
 
 # AI / ML
 openai>=1.0
+openai-agents>=0.18,<0.19
 
 # Microsoft Qlib is installed separately in Dockerfile for Linux compatibility.
 # Important: the PyPI distribution is `pyqlib`; `qlib` is a different package.
