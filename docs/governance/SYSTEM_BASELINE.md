@@ -25,7 +25,7 @@
 | **Repo state** | Active development continues after `0.8.0` | branch/docs posture |
 | **Business modules** | `37` | `governance/governance_baseline.json` |
 | **MCP tools** | `368` | `governance/governance_baseline.json` |
-| **Static test functions** | `6,225` | `governance/governance_baseline.json` |
+| **Static test functions** | `6,241` | `governance/governance_baseline.json` |
 | **`core/integration` app infrastructure imports** | `0` | governance ratchet |
 | **`core/integration` ORM access lines** | `0` | governance ratchet |
 
@@ -129,12 +129,13 @@ Large historical Python files are governed by `governance_baseline.json`.
 
 For `0.8.0`, TUI runtime metadata mutations are no longer concentrated in a single oversized repository file; runtime screen patches, injected metadata, and action patches are split into dedicated infrastructure modules.
 The result-model follow-up is now split between a base helper and specialized business-facing helpers, so `apps/terminal/application/tui_workbench_result_models.py` is back under the repository large-file limit and no longer needs a temporary allowance.
+The remaining identity-and-access runtime injection bundle is still temporarily allowlisted at `1,441` non-empty lines in `apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py` while the next split step is queued.
 
 ## 7. Testing posture
 
 ### 7.1 Scale baseline
 
-- Static governed test functions: `6,225`
+- Static governed test functions: `6,241`
 - Module coverage baseline: `37/37`
 - Full `pytest` collection/execution remains a runtime fact, not a hard-coded doc number
 
@@ -155,4 +156,4 @@ See:
 ---
 
 **Maintainer**: AgomTradePro Team
-**Last updated**: `2026-07-08`
+**Last updated**: `2026-07-09`

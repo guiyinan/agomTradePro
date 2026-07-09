@@ -26,7 +26,11 @@ def _load_governance_script():
 @pytest.mark.guardrail
 def test_guardrail_governance_consistency_has_no_regressions():
     baseline_path = REPO_ROOT / "governance" / "governance_baseline.json"
+    module_dependency_baseline_path = REPO_ROOT / "governance" / "module_cycle_allowlist.json"
     expected_baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    expected_module_dependency_baseline = json.loads(
+        module_dependency_baseline_path.read_text(encoding="utf-8")
+    )
     result = subprocess.run(
         [
             sys.executable,
@@ -99,7 +103,10 @@ def test_guardrail_governance_consistency_has_no_regressions():
     assert architecture_ruleset["duplicate_rule_ids"] == []
 
     module_dependency_baseline = sections["module_dependency_baseline"]["data"]
-    assert module_dependency_baseline["baseline_version"] == "2026-06-30.v1"
+    assert (
+        module_dependency_baseline["baseline_version"]
+        == expected_module_dependency_baseline["version"]
+    )
     assert module_dependency_baseline["module_count"] == expected_baseline[
         "business_module_count"
     ]

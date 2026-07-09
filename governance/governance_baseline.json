@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-08.v14",
+  "version": "2026-07-09.v15",
   "mcp_tool_count": 368,
   "business_module_count": 37,
-  "static_test_function_count": 6225,
+  "static_test_function_count": 6241,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -76,7 +76,8 @@
     "apps/equity/infrastructure/repositories.py": 2327,
     "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
-    "apps/strategy/interface/views.py": 1294
+    "apps/strategy/interface/views.py": 1294,
+    "apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py": 1441
   }
 }
 
