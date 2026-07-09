@@ -930,12 +930,19 @@ def _default_field_presentation_semantic(field_key: str) -> str:
         token in normalized for token in ("secret", "api_key")
     ):
         return "api_token"
-    if "prompt" in normalized:
-        return "prompt_text"
     if "endpoint" in normalized or normalized.endswith("_url") or normalized == "url":
         return "endpoint_url"
     if normalized.endswith("_id") or normalized in {"pk", "token_id"}:
         return "primary_selector"
+    if normalized in {
+        "prompt",
+        "prompt_text",
+        "prompt_body",
+        "system_prompt",
+        "user_prompt",
+        "user_prompt_template",
+    } or normalized.endswith("_prompt"):
+        return "prompt_text"
     return "identifier"
 
 

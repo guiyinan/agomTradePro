@@ -4,23 +4,31 @@ from __future__ import annotations
 
 from typing import Any
 
+
 RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
     "api-library.runtime": {
         "default_action_key": "operator.governance.runtime_summary",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先判断系统是否适合继续投研和执行，再决定是否继续查健康或就绪明细。",
+            "primary_outcome": "明确运行时、就绪状态和基础系统面是否存在阻断。",
+            "empty_state_hint": "先看运行时治理摘要，再看系统健康和就绪检查。",
+            "next_step_hint": "若存在阻断，优先进入相应治理工作区处理，再回到主线。",
+        },
         "workflow": {
             "name": "系统治理流程",
             "step": 1,
             "total": 6,
             "label": "运行时治理",
-            "role": "先看 runtime、readiness 和 operator surface 摘要，再决定进入健康或任务明细。",
+            "role": "先看运行时、就绪状态和运维摘要，再决定进入健康或任务明细。",
             "previous": {},
             "next": {"key": "api-library.data-center", "label": "数据治理"},
         },
         "business_context": {
-            "objective": "从 runtime summary 开始判断当前系统是否适合继续投研和执行。",
+            "objective": "从运行时治理摘要开始判断当前系统是否适合继续投研和执行。",
             "decision_output": "运行时治理结论：readiness、系统面、任务面是否存在阻断。",
             "checkpoints": [
-                "先看治理摘要，确认 runtime、readiness 和 operator surface 是否异常。",
+                "先看治理摘要，确认运行时、就绪状态和运维摘要是否异常。",
                 "再看系统健康、就绪检查和 Celery 健康。",
                 "需要查具体任务时，再进入系统任务列表或统计。",
             ],
@@ -28,12 +36,14 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         "dashboard_panels": [
             {
                 "key": "runtime-governance-summary",
-                "title": "一、Runtime / Readiness 异常",
+                "title": "一、运行时 / 就绪异常",
                 "kind": "datagrid",
                 "action_key": "operator.governance.runtime_summary",
                 "max_rows": 8,
                 "layout_area": "governance_summary",
                 "target_screen": "api-library.runtime",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
                 "columns": [
                     {"key": "severity", "label": "级别"},
                     {"key": "title", "label": "异常项"},
@@ -49,6 +59,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "action_key": "auto.api.get.api.health",
                 "layout_area": "health",
                 "target_screen": "api-library.runtime",
+                "user_priority": "p1",
+                "presentation_semantic": "primary_status",
             },
             {
                 "key": "runtime-ready",
@@ -57,19 +69,28 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "action_key": "auto.api.get.api.ready",
                 "layout_area": "readiness",
                 "target_screen": "api-library.runtime",
+                "user_priority": "p1",
+                "presentation_semantic": "primary_status",
             },
         ],
     },
     "ai-ops.providers": {
         "default_action_key": "operator.governance.ai_provider_summary",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先确认 AI 服务是否支持今天的辅助工作，再决定是否继续看服务商或日志。",
+            "primary_outcome": "明确当前 AI 服务是否可用、是否存在配额阻断或失败升高。",
+            "empty_state_hint": "先看服务商治理摘要，再继续打开服务商列表和调用日志。",
+            "next_step_hint": "若配额不足或失败升高，继续定位服务商配置和最近日志。",
+        },
         "workflow": {
             "name": "系统治理流程",
             "step": 3,
             "total": 6,
             "label": "AI 服务商治理",
-            "role": "先看可用性、quota 和失败日志，再进入服务商或模型目录。",
+            "role": "先看可用性、配额和失败日志，再进入服务商或模型目录。",
             "previous": {"key": "api-library.data-center", "label": "数据治理"},
-            "next": {"key": "ai-ops.agent-runtime", "label": "Agent 运行时治理"},
+            "next": {"key": "ai-ops.agent-runtime", "label": "智能任务运行时治理"},
         },
         "business_context": {
             "objective": "先确认 AI 服务商、配额和失败日志是否支持当前 AI 辅助工作流。",
@@ -83,12 +104,14 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         "dashboard_panels": [
             {
                 "key": "ai-provider-governance-summary",
-                "title": "一、Provider / Quota / 失败异常",
+                "title": "一、服务商 / 配额 / 失败异常",
                 "kind": "datagrid",
                 "action_key": "operator.governance.ai_provider_summary",
                 "max_rows": 8,
                 "layout_area": "governance_summary",
                 "target_screen": "ai-ops.providers",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
                 "columns": [
                     {"key": "severity", "label": "级别"},
                     {"key": "title", "label": "异常项"},
@@ -105,32 +128,43 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 6,
                 "layout_area": "providers",
                 "target_screen": "ai-ops.providers",
+                "user_priority": "p1",
+                "presentation_semantic": "supporting_list",
             },
             {
                 "key": "ai-provider-logs",
-                "title": '三、最近 AI 日志',
+                "title": "三、最近 AI 日志",
                 "kind": "datagrid",
                 "action_key": "auto.api.get.api.ai.me.logs",
                 "max_rows": 6,
                 "layout_area": "logs",
                 "target_screen": "ai-ops.providers",
+                "user_priority": "p2",
+                "presentation_semantic": "supporting_list",
             },
         ],
     },
     "ai-ops.agent-runtime": {
         "default_action_key": "operator.governance.agent_runtime_summary",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先判断是否存在待人工处理或失败任务，再决定是否深入任务队列。",
+            "primary_outcome": "明确智能任务运行时当前是否阻塞、是否有失败堆积，以及最该先处理的任务。",
+            "empty_state_hint": "先看待处理与失败任务摘要，再继续进入需处理任务和队列。",
+            "next_step_hint": "若存在阻断或失败任务，继续进入任务详情、时间线或产物处理。",
+        },
         "workflow": {
             "name": "系统治理流程",
             "step": 4,
             "total": 6,
-            "label": "Agent 运行时治理",
+            "label": "智能任务运行时治理",
             "role": "先看待处理与失败任务，再进入队列和时间线明细。",
             "previous": {"key": "ai-ops.providers", "label": "AI 服务商治理"},
             "next": {"key": "execution.account-settings", "label": "执行参数"},
         },
         "business_context": {
-            "objective": "先确认待处理任务、失败任务和 runtime blockage，再决定进入任务、产物或时间线明细。",
-            "decision_output": "Agent 运行时结论：队列正常、需人工处理、失败堆积或需要人工回收。",
+            "objective": "先确认待处理任务、失败任务和运行时阻断，再决定进入任务、产物或时间线明细。",
+            "decision_output": "智能任务运行时结论：队列正常、需人工处理、失败堆积或需要人工回收。",
             "checkpoints": [
                 "先看治理摘要，确认待人工处理和失败任务数量。",
                 "再看任务队列和需要关注任务。",
@@ -146,6 +180,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 8,
                 "layout_area": "governance_summary",
                 "target_screen": "ai-ops.agent-runtime",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
                 "columns": [
                     {"key": "severity", "label": "级别"},
                     {"key": "title", "label": "异常项"},
@@ -162,6 +198,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 6,
                 "layout_area": "needs_attention",
                 "target_screen": "ai-ops.agent-runtime",
+                "user_priority": "p1",
+                "presentation_semantic": "supporting_list",
             },
             {
                 "key": "agent-runtime-tasks",
@@ -171,11 +209,20 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 8,
                 "layout_area": "tasks",
                 "target_screen": "ai-ops.agent-runtime",
+                "user_priority": "p2",
+                "presentation_semantic": "supporting_list",
             },
         ],
     },
     "api-library.config-center": {
         "default_action_key": "operator.governance.config_center_summary",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先判断 Qlib runtime 和训练链路是否阻断，再决定是否进入配置或训练记录。",
+            "primary_outcome": "明确当前 runtime、训练记录和本地数据是否可支持后续训练与推理。",
+            "empty_state_hint": "先看配置中心治理摘要，再看 Qlib 运行配置和训练记录。",
+            "next_step_hint": "若发现 runtime 或训练异常，继续进入配置修正或训练运行记录排查。",
+        },
         "workflow": {
             "name": "系统治理流程",
             "step": 6,
@@ -203,6 +250,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 8,
                 "layout_area": "governance_summary",
                 "target_screen": "api-library.config-center",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
                 "columns": [
                     {"key": "severity", "label": "级别"},
                     {"key": "title", "label": "异常项"},
@@ -218,6 +267,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "action_key": "config_center.qlib_runtime",
                 "layout_area": "runtime",
                 "target_screen": "api-library.config-center",
+                "user_priority": "p1",
+                "presentation_semantic": "supporting_detail",
             },
             {
                 "key": "config-center-training-runs",
@@ -227,6 +278,8 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
                 "max_rows": 6,
                 "layout_area": "training_runs",
                 "target_screen": "api-library.config-center",
+                "user_priority": "p2",
+                "presentation_semantic": "supporting_list",
             },
         ],
         "view_type": "detail",

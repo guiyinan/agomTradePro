@@ -116,7 +116,9 @@
               "key": "security_code",
               "label": "标的"
             }
-          ]
+          ],
+          "user_priority": "p0",
+          "presentation_semantic": "primary_list"
         },
         {
           "key": "regime-status",
@@ -124,14 +126,18 @@
           "kind": "regime_quadrant",
           "action_key": "regime.current",
           "max_rows": 6,
-          "layout_area": "regime"
+          "layout_area": "regime",
+          "user_priority": "p1",
+          "presentation_semantic": "primary_status"
         },
         {
           "key": "pulse-alerts",
           "title": "二、战术脉搏预警",
           "kind": "detail",
           "action_key": "pulse.current",
-          "layout_area": "pulse"
+          "layout_area": "pulse",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail"
         },
         {
           "key": "account-positions",
@@ -139,7 +145,9 @@
           "kind": "detail",
           "action_key": "dashboard.v1_summary",
           "layout_area": "account",
-          "note": "账户持仓明细待权限和字段模型批准后升级为表格。"
+          "note": "账户持仓明细待权限和字段模型批准后升级为表格。",
+          "user_priority": "p1",
+          "presentation_semantic": "supporting_detail"
         },
         {
           "key": "alpha-ranking",
@@ -169,14 +177,18 @@
               "key": "confidence",
               "label": "置信度"
             }
-          ]
+          ],
+          "user_priority": "p2",
+          "presentation_semantic": "supporting_list"
         },
         {
           "key": "task-monitor",
           "title": "五、任务监控",
           "kind": "detail",
           "action_key": "task_monitor.dashboard",
-          "layout_area": "tasks"
+          "layout_area": "tasks",
+          "user_priority": "p2",
+          "presentation_semantic": "supporting_detail"
         }
       ],
       "workflow": {
@@ -199,6 +211,13 @@
           "再看账户持仓和 Alpha 排名是否需要进一步研究。",
           "最后看任务监控是否影响数据可信度。"
         ]
+      },
+      "user_experience": {
+        "journey": "dashboard",
+        "primary_task": "先判断今天是否继续投研，再决定是否先处理系统治理阻断。",
+        "primary_outcome": "明确今天的主线入口、当前阻断点，以及最应该先进入的下一个工作区。",
+        "empty_state_hint": "先看今日待办和环境摘要，再根据异常面板决定进入决策流还是治理流。",
+        "next_step_hint": "确认首页结论后，优先进入今日决策流程；若存在阻断，转到对应治理工作区处理。"
       }
     },
     {
@@ -232,6 +251,13 @@
           "检查市场温度、风险状态和核心仪表盘摘要。",
           "如果环境和信号不一致，优先进入风险约束或脉搏检查。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "快速读取当前 Regime、政策状态和市场温度。",
+        "primary_outcome": "环境判断结论：可行动、观察、降风险或暂停。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「政策热点」。"
       }
     },
     {
@@ -265,6 +291,13 @@
           "再看 RSS、热点和情绪事件。",
           "只把会影响仓位、轮动或风险约束的事件带入决策流程。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看政策、情绪、热点队列，识别需要人工判断的事件。",
+        "primary_outcome": "政策结论：维持原计划、提高关注、延后执行或收紧仓位。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「战术脉搏」。"
       }
     },
     {
@@ -274,7 +307,6 @@
       "group": "research",
       "summary": "查看当前有效信号和统一信号汇总。",
       "view_type": "datagrid",
-      "status": "online",
       "default_action_key": "signal.active",
       "workflow": {
         "name": "每日投研流程",
@@ -299,6 +331,13 @@
           "关注信号强度、来源和失效条件。",
           "只有通过环境和风控约束的信号才进入候选。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看当前有效信号和统一信号汇总。",
+        "primary_outcome": "信号结论：可研究候选、等待确认或剔除。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「Alpha 候选」。"
       }
     },
     {
@@ -332,6 +371,13 @@
           "再看持仓、交易流水和资金流水。",
           "执行前必须确认成本、现金和现有仓位不会破坏策略规则。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看账户健康、组合、持仓、流水、资产和交易成本，作为执行前检查。",
+        "primary_outcome": "执行前检查结论：可执行、资金不足、持仓冲突或需调整账户。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「策略仓位」。"
       }
     },
     {
@@ -350,6 +396,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看系统可用的 AI 能力和能力分布。",
+        "primary_outcome": "可筛选、可翻页、可打开明细的业务列表。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -368,6 +421,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看组合概览、市场象限、净值曲线和信号状态。",
+        "primary_outcome": "当前状态、异常信号和后续检查方向。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -385,6 +445,13 @@
           "先按主流程任务读取本屏关键判断。",
           "发现矛盾或缺口时展开支撑检查。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看当前宏观环境下应该谨慎、观察还是推进。",
+        "primary_outcome": "当前状态、异常信号和后续检查方向。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -418,6 +485,13 @@
           "需要时执行已确认的市场温度重算或输入同步。",
           "把过热、转折和数据缺口带入每日决策流程。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先确认当前脉搏指标是否出现转折，再决定是否继续查看历史变化。",
+        "primary_outcome": "明确当前脉搏状态、是否有异常变化，以及是否需要用历史数据复核趋势。",
+        "empty_state_hint": "先看当前脉搏指标，再进入历史观察变化方向。",
+        "next_step_hint": "如果当前脉搏出现异常或转折，继续查看历史并回到环境行动建议。"
       }
     },
     {
@@ -447,10 +521,17 @@
         "objective": "从 Alpha 排名和来源状态中找到可研究候选，并维护推理数据可用性。",
         "decision_output": "Alpha 结论：候选名单、数据需刷新或推理需触发。",
         "checkpoints": [
-          "先看 Alpha 排名和 Provider 状态。",
+          "先看 Alpha 排名和服务商状态。",
           "数据过期时先刷新 Qlib 运行数据。",
           "需要新候选时再触发已确认的批量推理。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看 Alpha 候选、来源健康和模型/缓存状态。",
+        "primary_outcome": "Alpha 结论：候选名单、数据需刷新或推理需触发。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「资产研究」。"
       }
     },
     {
@@ -469,6 +550,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看可用因子定义，作为研究解释和筛选依据。",
+        "primary_outcome": "可筛选、可翻页、可打开明细的业务列表。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -487,6 +575,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看回测统计和历史回测结果。",
+        "primary_outcome": "可筛选、可翻页、可打开明细的业务列表。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -520,6 +615,13 @@
           "再看失败计数和链路记录。",
           "复盘发现的问题要回到策略、数据或风控修复。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看操作日志和决策链路，支持事后复盘。",
+        "primary_outcome": "复盘结论：动作有效、需修正、需补记录或需排查异常。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「分享观察」。"
       }
     },
     {
@@ -536,6 +638,13 @@
         "checkpoints": [
           "先按主流程任务读取本屏关键判断。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看异步任务、失败队列和调度健康。",
+        "primary_outcome": "当前状态、异常信号和后续检查方向。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -545,33 +654,47 @@
       "group": "ops",
       "summary": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。",
       "view_type": "detail",
-      "default_action_key": "terminal.chat_router",
+      "default_action_key": "terminal.agent_chat",
       "business_context": {
-        "objective": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。",
-        "decision_output": "当前对象或当前任务的结构化摘要。",
+        "objective": "在一个自然语言操作台里完成终端问答、工具调用和审批前置判断。",
+        "decision_output": "回复正文、工具进度、最终状态和需要审批的下一步动作。",
         "checkpoints": [
-          "先按主流程任务读取本屏关键判断。",
-          "发现矛盾或缺口时展开支撑检查。",
-          "需要定位单条记录时再使用条件查询。",
-          "写入或 AI 交互只在证据明确后执行，并接受确认。"
+          "先直接输入任务，不需要写 JSON 或命令参数。",
+          "默认使用同步入口，前端流式客户端再切换到 SSE 入口。",
+          "涉及受控 MCP 工具时走审批，不直接自动执行。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "用自然语言发起任务，查看回复、工具进度与审批提示。",
+        "primary_outcome": "回复正文、工具进度、最终状态和需要审批的下一步动作。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
       "key": "ai-ops.agent-runtime",
-      "label": "AI 任务队列",
+      "label": "智能任务运行时",
       "module_key": "ai-ops",
       "group": "ops",
-      "summary": "查看 Agent Runtime 健康和需要人工处理的任务。",
+      "summary": "查看智能任务运行时健康和需要人工处理的任务。",
       "view_type": "datagrid",
       "default_action_key": "auto.api.get.api.agent-runtime.tasks",
       "business_context": {
-        "objective": "查看 Agent Runtime 健康和需要人工处理的任务。",
-        "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
+        "objective": "查看智能任务运行时健康和需要人工处理的任务。",
+        "decision_output": "运行时结论：健康、阻塞、失败堆积或需要人工处理。",
         "checkpoints": [
-          "先按主流程任务读取本屏关键判断。",
-          "发现矛盾或缺口时展开支撑检查。"
+          "先看运行状态和待处理任务。",
+          "再看任务队列、时间线和任务产物。",
+          "发现失败堆积时优先定位最该先处理的任务。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断是否存在待人工处理或失败任务，再决定是否深入任务队列。",
+        "primary_outcome": "明确智能任务运行时当前是否阻塞、是否有失败堆积，以及最该先处理的任务。",
+        "empty_state_hint": "先看待处理与失败任务摘要，再继续进入需处理任务和队列。",
+        "next_step_hint": "若存在阻断或失败任务，继续进入任务详情、时间线或产物处理。"
       }
     },
     {
@@ -605,6 +728,13 @@
           "如数据缺口影响判断，先执行已确认的数据就绪度修复。",
           "最终结论必须能回溯到环境、信号和约束。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "按环境、信号、约束、建议和复盘顺序检查当天是否应该行动。",
+        "primary_outcome": "当天行动结论：执行、等待、修复数据、降风险或复盘记录。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「信号池」。"
       }
     },
     {
@@ -638,6 +768,13 @@
           "再核对绑定关系和执行记录。",
           "策略与环境不匹配时，返回环境或风控屏复核。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看策略清单、仓位规则、执行记录和策略绑定状态。",
+        "primary_outcome": "策略结论：采用的策略、目标仓位和执行边界。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「轮动配置」。"
       }
     },
     {
@@ -671,6 +808,13 @@
           "再看资产、模板和账户配置。",
           "只在环境、信号和风控都一致时进入执行准备。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看轮动资产、信号、模板、账户配置和最新配置建议。",
+        "primary_outcome": "轮动结论：配置建议、等待确认或不轮动。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「风控约束」。"
       }
     },
     {
@@ -704,6 +848,13 @@
           "再看 Beta Gate、对冲快照和主动预警。",
           "风控不通过时，不进入执行动作。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看决策频率、Beta Gate、对冲组合和主动风控提醒。",
+        "primary_outcome": "风控结论：放行、降仓、对冲、冷却或禁止执行。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "完成当前检查后进入「事件监控」。"
       }
     },
     {
@@ -737,24 +888,38 @@
           "再看基金、板块和情绪证据。",
           "筛选结果必须回到信号、Alpha 或账户约束中使用。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先看资产池和当前权重结论，再决定是否继续调整权重配置。",
+        "primary_outcome": "明确当前资产池结构、当前权重状态，以及权重配置是否需要继续复核。",
+        "empty_state_hint": "先看资产池概览，再看当前资产权重和权重配置状态。",
+        "next_step_hint": "若资产池或权重状态异常，继续进入基金、板块和筛选器研究补证据。"
       }
     },
     {
       "key": "ai-ops.prompt-workbench",
-      "label": "Prompt 与模型配置",
+      "label": "提示词与模型配置",
       "module_key": "ai-ops",
       "group": "ops",
-      "summary": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。",
+      "summary": "查看 AI 服务商、提示词模板、链路、日志和可用模型。",
       "view_type": "datagrid",
       "default_action_key": "auto.api.get.api.prompt.templates",
       "business_context": {
-        "objective": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。",
-        "decision_output": "可筛选、可翻页、可打开明细的业务列表。",
+        "objective": "确认提示词模板、链路和模型配置是否支持当前 AI 辅助流程。",
+        "decision_output": "提示词配置结论：可用、需更新模板、需排查链路或需切换模型。",
         "checkpoints": [
-          "先按主流程任务读取本屏关键判断。",
-          "发现矛盾或缺口时展开支撑检查。",
-          "需要定位单条记录时再使用条件查询。"
+          "先确认提示词模板是否齐备且可直接复用。",
+          "再看链路与执行模式是否匹配当前任务。",
+          "最后查看近期日志和模型可用性，确认没有隐藏阻断。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先看提示词模板和模型清单，再决定是否继续排查链路或近期日志。",
+        "primary_outcome": "明确当前提示词、链路和模型配置是否支持今天的 AI 辅助流程。",
+        "empty_state_hint": "先读取提示词模板，再继续打开链路和日志。",
+        "next_step_hint": "若模板、链路或模型异常，继续定位对应配置或近期日志。"
       }
     },
     {
@@ -773,6 +938,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断系统是否适合继续投研和执行，再决定是否继续查健康或就绪明细。",
+        "primary_outcome": "明确 runtime、readiness 和基础系统面是否存在阻断。",
+        "empty_state_hint": "先看运行时治理摘要，再看系统健康和就绪检查。",
+        "next_step_hint": "若存在阻断，优先进入相应治理工作区处理，再回到主线。"
       }
     },
     {
@@ -791,6 +963,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "写入或 AI 交互只在证据明确后执行，并接受确认。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先确认 freshness、来源链路和温度异常，再决定是否继续进入目录或同步动作。",
+        "primary_outcome": "明确当前数据中心是否存在 freshness 缺口、服务商异常或覆盖不足。",
+        "empty_state_hint": "先看治理摘要，再看服务商列表和指标目录。",
+        "next_step_hint": "如果存在 freshness 或来源异常，继续进入对应目录或同步动作排查。"
       }
     },
     {
@@ -824,6 +1003,13 @@
           "再看指标和告警。",
           "重大事件必须反馈到政策、风险或复盘。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断事件总线今天是否正常，再决定是否需要检查指标或运行状态。",
+        "primary_outcome": "明确事件链路是否正常、是否堆积，以及是否需要排查订阅端和运行状态。",
+        "empty_state_hint": "先看最近事件，再看事件指标和运行状态，不从底层实现细节入手。",
+        "next_step_hint": "若发现堆积或失败升高，继续进入运行状态和订阅端排查。"
       }
     },
     {
@@ -854,6 +1040,13 @@
           "再看访问记录和观察者协作。",
           "只分享业务结论，不分享原始 JSON 或内部接口。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。",
+        "primary_outcome": "分享结论：可分享、需脱敏、撤回或继续观察。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -872,6 +1065,13 @@
           "如果来自模拟盘，核对模拟账户、成交和费用配置。",
           "发现落账异常时，进入复盘审计或账户参数屏处理。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。",
+        "primary_outcome": "落账检查结论：执行已落账、流水异常、资金冲突或需回到复盘。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -890,6 +1090,13 @@
           "再按账户或组合查看估值快照、估值时间线和净值曲线。",
           "偏离明显时，把证据带入复盘审计和策略仓位检查。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。",
+        "primary_outcome": "绩效结论：表现正常、偏离基准、估值异常或需要检查记录。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -908,6 +1115,13 @@
           "再看资产分类、币种、汇率和观察授权。",
           "参数异常时先修正配置，再回到执行或风控判断。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。",
+        "primary_outcome": "参数结论：可执行、成本需修正、汇率需更新或权限需调整。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -926,6 +1140,13 @@
           "再看配置、标的池和健康状态。",
           "版本或规则冲突时进入版本对比，不直接执行。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断当前市场暴露是否被放行，再决定是否继续查看配置和标的池版本差异。",
+        "primary_outcome": "明确最近放行结论、当前配置是否匹配风险画像，以及是否需要做版本复核。",
+        "empty_state_hint": "先看最近闸门决策，再看配置版本和标的池快照。",
+        "next_step_hint": "如果放行结论与预期不一致，继续比较配置版本并复核规则差异。"
       }
     },
     {
@@ -944,6 +1165,13 @@
           "再看对冲组合、相关性和有效性。",
           "对冲信号必须回到风控约束后再进入执行。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断当前是否存在需要处理的对冲变化或主动预警，再决定是否继续看有效性。",
+        "primary_outcome": "明确最新对冲快照、当前预警状态，以及是否需要继续复核对冲有效性。",
+        "empty_state_hint": "先看最新对冲快照和当前预警，再查看对冲有效性。",
+        "next_step_hint": "若快照或预警显示风险上升，继续进入有效性和相关性检查。"
       }
     },
     {
@@ -962,6 +1190,13 @@
           "再看板块状态和板块变化。",
           "基金或板块候选必须回到信号、Alpha 和风控约束中确认。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看基金排行、基金池和板块信息，补充资产研究的横向比较。",
+        "primary_outcome": "基金板块结论：优先基金、优先板块、继续观察或排除。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -980,6 +1215,13 @@
           "再看近期情绪指数和情绪健康。",
           "筛选或情绪异常只作为风险提示，不直接生成交易动作。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看筛选器、筛选指标、情绪指数和情绪健康，用于候选过滤和风险提示。",
+        "primary_outcome": "筛选情绪结论：通过、待观察、情绪过热或剔除。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -998,6 +1240,13 @@
           "再看调用日志、配额和失败记录。",
           "AI 不可用时，不让决策流程依赖 AI 解释作为唯一证据。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先确认 AI 服务是否支持今天的辅助工作，再决定是否继续看服务商或日志。",
+        "primary_outcome": "明确当前 AI 服务是否可用、是否存在 quota 阻断或失败升高。",
+        "empty_state_hint": "先看服务商治理摘要，再继续打开服务商列表和调用日志。",
+        "next_step_hint": "若配额不足或失败升高，继续定位服务商配置和最近日志。"
       }
     },
     {
@@ -1016,6 +1265,13 @@
           "再看个人阈值和最近数据更新时间。",
           "数据缺口需要先同步或重算，再回到环境判断。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "查看市场温度历史、个人阈值和可执行的数据同步动作，辅助环境与脉搏判断。",
+        "primary_outcome": "市场温度结论：正常、过热、过冷、阈值需调整或数据需同步。",
+        "empty_state_hint": "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+        "next_step_hint": "根据结果继续下一项主流程，或进入可执行操作。"
       }
     },
     {
@@ -1034,6 +1290,13 @@
           "发现矛盾或缺口时展开支撑检查。",
           "需要定位单条记录时再使用条件查询。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先筛出今天最值得推进的候选，再决定继续跟进活跃触发器还是观察列表。",
+        "primary_outcome": "明确今天应优先推进的候选，以及哪些触发器仍在延续或需要继续观察。",
+        "empty_state_hint": "先看可操作候选，再核对活跃触发器和观察列表。",
+        "next_step_hint": "若存在高优先级候选，继续进入标的研究、绩效复核或执行前检查。"
       }
     },
     {
@@ -1050,6 +1313,13 @@
         "checkpoints": [
           "写入或 AI 交互只在证据明确后执行，并接受确认。"
         ]
+      },
+      "user_experience": {
+        "journey": "workspace",
+        "primary_task": "先判断 Qlib runtime 和训练链路是否阻断，再决定是否进入配置或训练记录。",
+        "primary_outcome": "明确当前 runtime、训练记录和本地数据是否可支持后续训练与推理。",
+        "empty_state_hint": "先看配置中心治理摘要，再看 Qlib 运行配置和训练记录。",
+        "next_step_hint": "若发现 runtime 或训练异常，继续进入配置修正或训练运行记录排查。"
       }
     }
   ],
@@ -1065,7 +1335,10 @@
       "source": "published",
       "task_group": "01 决策状态",
       "sequence": 100,
-      "task_tier": "primary"
+      "task_tier": "primary",
+      "result_semantics": [
+        "primary_status"
+      ]
     },
     {
       "key": "decision.funnel_context",
@@ -1096,7 +1369,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "view_model": {
@@ -1110,11 +1384,11 @@
       "task_tier": "support"
     },
     {
-      "key": "terminal.chat_router",
-      "label": "询问 AI 助手",
+      "key": "terminal.agent_chat",
+      "label": "发送 AI 请求",
       "method": "POST",
       "endpoint": "/api/terminal/chat/",
-      "intent": "route_natural_language_task",
+      "intent": "run_terminal_agent_request",
       "screen_key": "ai-ops.terminal",
       "view_type": "detail",
       "risk": "ai",
@@ -1126,13 +1400,41 @@
           "required": true,
           "default": "总结当前决策流程，并指出今天是否应该行动。",
           "placeholder": "直接输入问题或任务，不需要写 JSON",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。（交互）",
       "source": "approved:smoke-promoted",
       "task_group": "常用任务",
       "sequence": 900,
+      "task_tier": "operation"
+    },
+    {
+      "key": "terminal.agent_stream",
+      "label": "流式 AI 请求",
+      "method": "POST",
+      "endpoint": "/api/terminal/chat/stream/",
+      "intent": "stream_terminal_agent_request",
+      "screen_key": "ai-ops.terminal",
+      "view_type": "detail",
+      "risk": "ai",
+      "fields": [
+        {
+          "key": "message",
+          "label": "消息",
+          "input_type": "textarea",
+          "required": true,
+          "default": "总结当前系统状态，并显示工具执行进度。",
+          "placeholder": "直接输入问题或任务，不需要写 JSON",
+          "value_type": "string",
+          "presentation_semantic": "identifier"
+        }
+      ],
+      "description": "发起一次支持 SSE 的自然语言终端任务。",
+      "source": "approved:terminal-agent",
+      "task_group": "01 自然语言操作台",
+      "sequence": 110,
       "task_tier": "operation"
     },
     {
@@ -1202,7 +1504,8 @@
           "required": false,
           "default": "1",
           "placeholder": "",
-          "value_type": "float"
+          "value_type": "float",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "浏览系统可用 AI 能力。",
@@ -1210,19 +1513,6 @@
       "task_group": "01 能力清单",
       "sequence": 100,
       "task_tier": "primary"
-    },
-    {
-      "key": "terminal.capabilities",
-      "label": "我的终端权限",
-      "endpoint": "/api/terminal/commands/capabilities/",
-      "intent": "list_terminal_capabilities",
-      "screen_key": "ai-ops.capabilities",
-      "view_type": "detail",
-      "description": "查看当前用户可用的终端能力。",
-      "source": "published",
-      "task_group": "02 终端权限",
-      "sequence": 200,
-      "task_tier": "support"
     },
     {
       "key": "dashboard.v1_summary",
@@ -1375,7 +1665,8 @@
           "binding": "query",
           "default": 50,
           "required": false,
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "offset",
@@ -1385,7 +1676,8 @@
           "binding": "query",
           "default": 0,
           "required": false,
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "pagination": {
@@ -1428,7 +1720,10 @@
       "source": "approved:api-evidence",
       "task_group": "02 来源状态",
       "sequence": 200,
-      "task_tier": "primary"
+      "task_tier": "primary",
+      "result_semantics": [
+        "primary_status"
+      ]
     },
     {
       "key": "alpha.health",
@@ -1584,36 +1879,6 @@
       "task_tier": "primary"
     },
     {
-      "key": "terminal.commands_available",
-      "label": "可用指令",
-      "endpoint": "/api/terminal/commands/available/",
-      "intent": "browse_terminal_commands",
-      "screen_key": "ai-ops.terminal",
-      "view_type": "datagrid",
-      "description": "浏览当前用户可用终端指令。",
-      "source": "approved:api-evidence",
-      "view_model": {
-        "rows_path": "commands",
-        "total_path": "count"
-      },
-      "task_group": "02 指令清单",
-      "sequence": 200,
-      "task_tier": "support"
-    },
-    {
-      "key": "terminal.commands_by_category",
-      "label": "指令分类",
-      "endpoint": "/api/terminal/commands/by_category/",
-      "intent": "read_terminal_command_categories",
-      "screen_key": "ai-ops.terminal",
-      "view_type": "detail",
-      "description": "按分类查看终端指令。",
-      "source": "approved:api-evidence",
-      "task_group": "03 指令分类",
-      "sequence": 300,
-      "task_tier": "support"
-    },
-    {
       "key": "ai_capability.stats",
       "label": "AI 能力统计",
       "endpoint": "/api/ai-capability/stats/",
@@ -1633,7 +1898,7 @@
       "intent": "read_agent_runtime_health",
       "screen_key": "ai-ops.agent-runtime",
       "view_type": "status",
-      "description": "查看 Agent Runtime 健康状态。",
+      "description": "查看智能任务运行时健康状态。",
       "source": "approved:api-evidence",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -2828,14 +3093,14 @@
     },
     {
       "key": "auto.api.get.api.ai.me.providers",
-      "label": "我的 AI Provider",
+      "label": "我的 AI 服务商",
       "endpoint": "/api/ai/me/providers/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
       "view_type": "datagrid",
       "description": "查看我的 AI 服务商、模型、调用日志和配额状态，确认 AI 助手是否可用。（查看）",
       "source": "approved:smoke-promoted",
-      "task_group": "01 Provider",
+      "task_group": "01 服务商",
       "sequence": 100,
       "task_tier": "primary"
     },
@@ -2848,61 +3113,73 @@
       "view_type": "datagrid",
       "description": "查看我的 AI 服务商、模型、调用日志和配额状态，确认 AI 助手是否可用。（查看）",
       "source": "approved:smoke-promoted",
-      "task_group": "01 Provider",
+      "task_group": "01 服务商",
       "sequence": 100,
       "task_tier": "primary"
     },
     {
       "key": "auto.api.get.api.prompt",
-      "label": "Prompt 总览",
+      "label": "提示词总览",
       "endpoint": "/api/prompt/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.templates",
-      "label": "Prompt 模板",
+      "label": "提示词模板",
       "endpoint": "/api/prompt/templates/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
-      "task_tier": "primary"
+      "task_tier": "primary",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.templates.categories",
-      "label": "Prompt 分类",
+      "label": "提示词分类",
       "endpoint": "/api/prompt/templates/categories/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "02 模板",
       "sequence": 200,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.chains",
-      "label": "Prompt 链路",
+      "label": "提示词链路",
       "endpoint": "/api/prompt/chains/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 链路",
       "sequence": 300,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.chains.execution_modes",
@@ -2911,41 +3188,50 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 链路",
       "sequence": 300,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.logs",
-      "label": "Prompt 日志",
+      "label": "提示词 日志",
       "endpoint": "/api/prompt/logs/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 日志",
       "sequence": 400,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.logs.recent",
-      "label": "近期 Prompt 日志",
+      "label": "近期提示词日志",
       "endpoint": "/api/prompt/logs/recent/",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.prompt-workbench",
       "view_type": "datagrid",
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "04 日志",
       "sequence": 400,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.chat.providers",
-      "label": "Chat 服务商",
+      "label": "对话服务商",
       "endpoint": "/api/prompt/chat/providers",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
@@ -2954,11 +3240,14 @@
       "source": "approved:smoke-promoted",
       "task_group": "05 模型",
       "sequence": 500,
-      "task_tier": "primary"
+      "task_tier": "primary",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.prompt.chat.models",
-      "label": "Chat 模型",
+      "label": "对话模型",
       "endpoint": "/api/prompt/chat/models",
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.providers",
@@ -2967,33 +3256,10 @@
       "source": "approved:smoke-promoted",
       "task_group": "05 模型",
       "sequence": 500,
-      "task_tier": "primary"
-    },
-    {
-      "key": "auto.api.get.api.terminal.commands",
-      "label": "终端指令",
-      "endpoint": "/api/terminal/commands/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.terminal",
-      "view_type": "datagrid",
-      "description": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "primary"
-    },
-    {
-      "key": "auto.api.get.api.terminal",
-      "label": "终端能力总览",
-      "endpoint": "/api/terminal/",
-      "intent": "auto_safe_read_candidate",
-      "screen_key": "ai-ops.terminal",
-      "view_type": "datagrid",
-      "description": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。（查看）",
-      "source": "approved:smoke-promoted",
-      "task_group": "常用任务",
-      "sequence": 900,
-      "task_tier": "support"
+      "task_tier": "primary",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "auto.api.get.api.realtime",
@@ -3669,7 +3935,10 @@
       "source": "approved:smoke-promoted",
       "task_group": "03 今日信号",
       "sequence": 300,
-      "task_tier": "support"
+      "task_tier": "support",
+      "result_semantics": [
+        "primary_status"
+      ]
     },
     {
       "key": "auto.api.get.api.dashboard.pulse-card",
@@ -3921,7 +4190,8 @@
           "default": "",
           "placeholder": "输入资产代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看决策频率、Beta Gate、对冲组合和主动风控提醒。（查看）",
@@ -3946,7 +4216,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看决策频率、Beta Gate、对冲组合和主动风控提醒。（查看）",
@@ -3971,7 +4242,8 @@
           "default": "",
           "placeholder": "输入快照 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "按环境、信号、约束、建议和复盘顺序检查当天是否应该行动。（查看）",
@@ -3996,7 +4268,8 @@
           "default": "",
           "placeholder": "输入计划 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "按环境、信号、约束、建议和复盘顺序检查当天是否应该行动。（查看）",
@@ -4021,7 +4294,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4031,7 +4305,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4041,7 +4316,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户健康、组合、持仓、流水、资产和交易成本，作为执行前检查。（查看）",
@@ -4066,7 +4342,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -4076,7 +4353,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4101,7 +4379,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4111,7 +4390,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4121,7 +4401,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4146,7 +4427,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -4156,7 +4438,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4181,7 +4464,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4191,7 +4475,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4201,7 +4486,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4226,7 +4512,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -4236,7 +4523,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4261,7 +4549,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4286,7 +4575,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4311,7 +4601,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4336,7 +4627,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4361,7 +4653,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4386,7 +4679,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4411,7 +4705,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4436,7 +4731,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4461,7 +4757,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4486,7 +4783,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4511,7 +4809,8 @@
           "default": "",
           "placeholder": "输入资产类别",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4536,7 +4835,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4561,7 +4861,8 @@
           "default": "",
           "placeholder": "输入授权 ID（UUID）",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4586,7 +4887,8 @@
           "default": "",
           "placeholder": "输入授权 ID（UUID）",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4611,7 +4913,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4636,7 +4939,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4661,7 +4965,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4686,7 +4991,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4711,7 +5017,8 @@
           "default": "",
           "placeholder": "输入源币种",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "to_code",
@@ -4721,7 +5028,8 @@
           "default": "",
           "placeholder": "输入目标币种",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4746,7 +5054,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4771,7 +5080,8 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4781,7 +5091,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4791,7 +5102,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "维护执行前需要核对的资产分类、币种、汇率、成本、观察授权和仓位测算参数。（查看）",
@@ -4816,7 +5128,8 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4826,7 +5139,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4836,7 +5150,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4861,7 +5176,8 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -4871,7 +5187,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4896,7 +5213,8 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4921,7 +5239,8 @@
           "default": "",
           "placeholder": "输入组合 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看账户和组合绩效、估值快照、净值曲线、基准和检查记录。（查看）",
@@ -4946,7 +5265,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -4956,7 +5276,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -4966,7 +5287,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -4991,7 +5313,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -5001,7 +5324,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5026,7 +5350,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5051,7 +5376,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5076,7 +5402,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5101,7 +5428,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5126,7 +5454,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "start_date",
@@ -5136,7 +5465,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -5146,7 +5476,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5171,7 +5502,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "as_of_date",
@@ -5181,7 +5513,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入日期"
+          "placeholder": "输入日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5206,7 +5539,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5231,7 +5565,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看持仓、交易流水、资金流水和模拟交易记录，确认执行结果是否落账。（查看）",
@@ -5256,7 +5591,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5281,7 +5617,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5306,7 +5643,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5331,7 +5669,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5356,7 +5695,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5381,7 +5721,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5406,7 +5747,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5431,7 +5773,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5456,7 +5799,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5481,7 +5825,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5506,7 +5851,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5531,7 +5877,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -5556,7 +5903,8 @@
           "default": "",
           "placeholder": "输入事件日期",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -5581,7 +5929,8 @@
           "default": "",
           "placeholder": "输入事件 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -5606,7 +5955,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -5631,7 +5981,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -5656,7 +6007,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -5681,7 +6033,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看当前有效信号和统一信号汇总。（查看）",
@@ -5706,7 +6059,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看当前有效信号和统一信号汇总。（查看）",
@@ -5731,7 +6085,8 @@
           "default": "",
           "placeholder": "输入指标代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看筛选器、筛选指标、情绪指数和情绪健康，用于候选过滤和风险提示。（查看）",
@@ -5756,7 +6111,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看回测统计和历史回测结果。（查看）",
@@ -5781,7 +6137,8 @@
           "default": "",
           "placeholder": "输入报告 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5806,7 +6163,8 @@
           "default": "",
           "placeholder": "输入指标代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5831,7 +6189,8 @@
           "default": "",
           "placeholder": "输入验证 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5856,7 +6215,8 @@
           "default": "",
           "placeholder": "输入汇总 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5881,7 +6241,8 @@
           "default": "",
           "placeholder": "输入日志 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5906,7 +6267,8 @@
           "default": "",
           "placeholder": "输入请求 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -5931,7 +6293,8 @@
           "default": "",
           "placeholder": "输入基金代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看基金排行、基金池和板块信息，补充资产研究的横向比较。（查看）",
@@ -5956,7 +6319,8 @@
           "default": "",
           "placeholder": "输入基金代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看基金排行、基金池和板块信息，补充资产研究的横向比较。（查看）",
@@ -5981,7 +6345,8 @@
           "default": "",
           "placeholder": "输入基金代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看基金排行、基金池和板块信息，补充资产研究的横向比较。（查看）",
@@ -6006,7 +6371,8 @@
           "default": "",
           "placeholder": "输入基金代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看基金排行、基金池和板块信息，补充资产研究的横向比较。（查看）",
@@ -6031,7 +6397,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看我的 AI 服务商、模型、调用日志和配额状态，确认 AI 助手是否可用。（查看）",
@@ -6042,7 +6409,7 @@
     },
     {
       "key": "param.api.get.api.prompt.templates.pk",
-      "label": "Prompt / 模板 / 详情",
+      "label": "提示词 / 模板 / 详情",
       "endpoint": "/api/prompt/templates/<pk>/",
       "intent": "parameterized_safe_read",
       "screen_key": "ai-ops.prompt-workbench",
@@ -6056,18 +6423,22 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
-      "task_tier": "advanced"
+      "task_tier": "advanced",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "param.api.get.api.prompt.chains.pk",
-      "label": "Prompt / 链路 / 详情",
+      "label": "提示词 / 链路 / 详情",
       "endpoint": "/api/prompt/chains/<pk>/",
       "intent": "parameterized_safe_read",
       "screen_key": "ai-ops.prompt-workbench",
@@ -6081,18 +6452,22 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
-      "task_tier": "advanced"
+      "task_tier": "advanced",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "param.api.get.api.prompt.logs.pk",
-      "label": "Prompt / 日志 / 详情",
+      "label": "提示词 / 日志 / 详情",
       "endpoint": "/api/prompt/logs/<pk>/",
       "intent": "parameterized_safe_read",
       "screen_key": "ai-ops.prompt-workbench",
@@ -6106,39 +6481,18 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。（查看）",
+      "description": "查看 AI 服务商、提示词模板、链路、日志和可用模型。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "06 条件查询",
       "sequence": 600,
-      "task_tier": "advanced"
-    },
-    {
-      "key": "param.api.get.api.terminal.commands.pk",
-      "label": "终端 / 指令 / 详情",
-      "endpoint": "/api/terminal/commands/<pk>/",
-      "intent": "parameterized_safe_read",
-      "screen_key": "ai-ops.terminal",
-      "view_type": "datagrid",
-      "fields": [
-        {
-          "key": "pk",
-          "label": "记录 ID",
-          "input_type": "number",
-          "required": true,
-          "default": "",
-          "placeholder": "输入记录 ID",
-          "binding": "path",
-          "value_type": "integer"
-        }
-      ],
-      "description": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。（查看）",
-      "source": "approved:parameterized-promoted",
-      "task_group": "06 条件查询",
-      "sequence": 600,
-      "task_tier": "advanced"
+      "task_tier": "advanced",
+      "result_semantics": [
+        "multiline_prompt"
+      ]
     },
     {
       "key": "param.api.get.api.factor.definitions.pk",
@@ -6156,7 +6510,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看可用因子定义，作为研究解释和筛选依据。（查看）",
@@ -6181,7 +6536,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看可用因子定义，作为研究解释和筛选依据。（查看）",
@@ -6206,7 +6562,8 @@
           "default": "",
           "placeholder": "输入代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6231,7 +6588,8 @@
           "default": "",
           "placeholder": "输入代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6256,7 +6614,8 @@
           "default": "",
           "placeholder": "输入代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6281,7 +6640,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6306,7 +6666,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6331,7 +6692,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6356,7 +6718,8 @@
           "default": "",
           "placeholder": "输入账户 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6381,7 +6744,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -6406,7 +6770,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看 Beta Gate 状态、配置、决策记录、标的池和版本对比，判断市场暴露是否放行。（查看）",
@@ -6431,7 +6796,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看 Beta Gate 状态、配置、决策记录、标的池和版本对比，判断市场暴露是否放行。（查看）",
@@ -6456,7 +6822,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看 Beta Gate 状态、配置、决策记录、标的池和版本对比，判断市场暴露是否放行。（查看）",
@@ -6481,7 +6848,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看对冲组合、相关性、快照、有效性和当前预警，判断是否需要降风险或对冲。（查看）",
@@ -6506,7 +6874,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看对冲组合、相关性、快照、有效性和当前预警，判断是否需要降风险或对冲。（查看）",
@@ -6531,7 +6900,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看对冲组合、相关性、快照、有效性和当前预警，判断是否需要降风险或对冲。（查看）",
@@ -6556,7 +6926,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看对冲组合、相关性、快照、有效性和当前预警，判断是否需要降风险或对冲。（查看）",
@@ -6581,14 +6952,18 @@
           "default": "",
           "placeholder": "输入任务 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看健康检查、Celery、基础系统状态和初始化检查。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
-      "task_tier": "advanced"
+      "task_tier": "advanced",
+      "result_semantics": [
+        "primary_status"
+      ]
     },
     {
       "key": "param.api.get.api.dashboard.position.str.asset_code",
@@ -6606,7 +6981,8 @@
           "default": "",
           "placeholder": "输入资产代码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看组合概览、市场象限、净值曲线和信号状态。（查看）",
@@ -6631,7 +7007,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6656,7 +7033,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6681,7 +7059,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6706,7 +7085,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6732,7 +7112,8 @@
           "placeholder": "输入分享码",
           "binding": "path",
           "value_type": "string",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "password",
@@ -6742,7 +7123,8 @@
           "placeholder": "如分享受密码保护则输入访问密码",
           "binding": "body",
           "value_type": "string",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "输入分享码和可选访问密码，建立当前会话的公开分享访问权限。",
@@ -6767,7 +7149,8 @@
           "default": "",
           "placeholder": "输入分享码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6792,7 +7175,8 @@
           "default": "",
           "placeholder": "输入分享码",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看分享链接、公开快照和访问记录，支持复盘与观察者协作。（查看）",
@@ -6817,7 +7201,8 @@
           "default": "",
           "placeholder": "输入Capability Key",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看系统可用的 AI 能力和能力分布。（查看）",
@@ -6857,7 +7242,8 @@
           "input_type": "date",
           "required": false,
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "portfolio_id",
@@ -6866,7 +7252,8 @@
           "required": false,
           "value_type": "integer",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "asset_codes",
@@ -6875,7 +7262,8 @@
           "required": false,
           "placeholder": "逗号分隔，如 000001.SH,510300.SH",
           "value_type": "list",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "macro_indicator_codes",
@@ -6884,7 +7272,8 @@
           "required": false,
           "placeholder": "逗号分隔",
           "value_type": "list",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "strict",
@@ -6893,7 +7282,8 @@
           "required": false,
           "default": true,
           "value_type": "boolean",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "quote_max_age_hours",
@@ -6902,7 +7292,8 @@
           "required": false,
           "default": 4,
           "value_type": "float",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "检查并修复决策前需要的宏观、报价、Pulse 和 Alpha 输入。",
@@ -6927,7 +7318,8 @@
           "input_type": "date",
           "required": false,
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "按指定日期或当前日期重新计算市场温度快照。",
@@ -6952,7 +7344,8 @@
           "input_type": "date",
           "required": false,
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "同步市场温度计算所需输入数据。",
@@ -6973,12 +7366,13 @@
       "fields": [
         {
           "key": "provider_id",
-          "label": "Provider ID",
+          "label": "服务商 ID",
           "input_type": "number",
           "required": true,
           "value_type": "integer",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "asset_codes",
@@ -6987,7 +7381,8 @@
           "required": true,
           "placeholder": "逗号分隔，如 000001.SH,510300.SH",
           "value_type": "list",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "从指定数据源同步一组资产的最新报价。",
@@ -7013,7 +7408,8 @@
           "required": true,
           "default": "daily_scoped_batch",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "top_n",
@@ -7022,7 +7418,8 @@
           "required": false,
           "default": 30,
           "value_type": "integer",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "pool_mode",
@@ -7041,7 +7438,8 @@
             }
           ],
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "触发按组合范围聚合的 Alpha 推理任务。",
@@ -7067,7 +7465,8 @@
           "required": true,
           "default": "scoped_codes",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "target_date",
@@ -7075,7 +7474,8 @@
           "input_type": "date",
           "required": true,
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "lookback_days",
@@ -7084,7 +7484,8 @@
           "required": false,
           "default": 400,
           "value_type": "integer",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "portfolio_ids",
@@ -7093,7 +7494,8 @@
           "required": false,
           "placeholder": "逗号分隔",
           "value_type": "list",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "all_active_portfolios",
@@ -7102,7 +7504,8 @@
           "required": false,
           "default": false,
           "value_type": "boolean",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "pool_mode",
@@ -7121,7 +7524,8 @@
             }
           ],
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "刷新 Qlib 推理所需的运行数据。",
@@ -7254,7 +7658,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.agent-runtime",
       "view_type": "datagrid",
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "03 任务队列",
       "sequence": 300,
@@ -7267,7 +7671,7 @@
       "intent": "auto_safe_read_candidate",
       "screen_key": "ai-ops.agent-runtime",
       "view_type": "datagrid",
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:smoke-promoted",
       "task_group": "01 运行状态",
       "sequence": 100,
@@ -7289,7 +7693,8 @@
           "default": "",
           "placeholder": "输入Regime",
           "binding": "path",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。（查看）",
@@ -7314,7 +7719,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。（查看）",
@@ -7339,7 +7745,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看 Alpha 触发器、候选池、观察列表和绩效统计，跟踪离散触发后的研究动作。（查看）",
@@ -7364,7 +7771,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看可用因子定义，作为研究解释和筛选依据。（查看）",
@@ -7389,7 +7797,8 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看轮动资产、信号、模板、账户配置和最新配置建议。（查看）",
@@ -7414,7 +7823,8 @@
           "default": "",
           "placeholder": "输入Run Id",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看组合概览、市场象限、净值曲线和信号状态。（查看）",
@@ -7439,10 +7849,11 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -7464,10 +7875,11 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -7489,10 +7901,11 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -7514,10 +7927,11 @@
           "default": "",
           "placeholder": "输入记录 ID",
           "binding": "path",
-          "value_type": "integer"
+          "value_type": "integer",
+          "presentation_semantic": "primary_selector"
         }
       ],
-      "description": "查看 Agent Runtime 健康和需要人工处理的任务。（查看）",
+      "description": "查看智能任务运行时健康和需要人工处理的任务。（查看）",
       "source": "approved:parameterized-promoted",
       "task_group": "09 条件查询",
       "sequence": 900,
@@ -7554,16 +7968,18 @@
           "required": false,
           "value_type": "boolean",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "provider_uri",
-          "label": "Provider URI",
+          "label": "服务商地址",
           "input_type": "text",
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "region",
@@ -7572,7 +7988,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_root",
@@ -7581,7 +7998,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "default_universe",
@@ -7590,7 +8008,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "default_feature_set_id",
@@ -7599,7 +8018,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "default_label_id",
@@ -7608,7 +8028,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "train_queue_name",
@@ -7617,7 +8038,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "infer_queue_name",
@@ -7626,7 +8048,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "allow_auto_activate",
@@ -7635,16 +8058,18 @@
           "required": false,
           "value_type": "boolean",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "alpha_fixed_provider",
-          "label": "固定 Provider",
+          "label": "固定服务商",
           "input_type": "text",
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "alpha_pool_mode",
@@ -7653,7 +8078,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "更新 Qlib 运行时配置。",
@@ -7697,7 +8123,8 @@
           "required": false,
           "value_type": "integer",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "profile_key",
@@ -7706,7 +8133,8 @@
           "required": true,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "name",
@@ -7715,7 +8143,8 @@
           "required": true,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_name",
@@ -7724,7 +8153,8 @@
           "required": true,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_type",
@@ -7733,7 +8163,8 @@
           "required": true,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "universe",
@@ -7742,7 +8173,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "start_date",
@@ -7751,7 +8183,8 @@
           "required": false,
           "value_type": "date",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -7760,7 +8193,8 @@
           "required": false,
           "value_type": "date",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "feature_set_id",
@@ -7769,7 +8203,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "label_id",
@@ -7778,7 +8213,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "learning_rate",
@@ -7787,7 +8223,8 @@
           "required": false,
           "value_type": "float",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "epochs",
@@ -7796,7 +8233,8 @@
           "required": false,
           "value_type": "integer",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_params",
@@ -7805,7 +8243,8 @@
           "required": false,
           "placeholder": "{\"key\": \"value\"}",
           "value_type": "object",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "extra_train_config",
@@ -7814,7 +8253,8 @@
           "required": false,
           "placeholder": "{\"key\": \"value\"}",
           "value_type": "object",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "activate_after_train",
@@ -7823,7 +8263,8 @@
           "required": false,
           "value_type": "boolean",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "is_active",
@@ -7832,7 +8273,8 @@
           "required": false,
           "default": true,
           "value_type": "boolean",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "notes",
@@ -7841,7 +8283,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "创建或更新一个 Qlib 训练模板。",
@@ -7885,7 +8328,8 @@
           "binding": "path",
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "按运行 ID 查看一条训练运行详情。",
@@ -7911,7 +8355,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_name",
@@ -7920,7 +8365,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_type",
@@ -7929,7 +8375,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "universe",
@@ -7938,7 +8385,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "start_date",
@@ -7947,7 +8395,8 @@
           "required": false,
           "value_type": "date",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -7956,7 +8405,8 @@
           "required": false,
           "value_type": "date",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "feature_set_id",
@@ -7965,7 +8415,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "label_id",
@@ -7974,7 +8425,8 @@
           "required": false,
           "default": "",
           "placeholder": "",
-          "value_type": "string"
+          "value_type": "string",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "learning_rate",
@@ -7983,7 +8435,8 @@
           "required": false,
           "value_type": "float",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "epochs",
@@ -7992,7 +8445,8 @@
           "required": false,
           "value_type": "integer",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "model_params",
@@ -8001,7 +8455,8 @@
           "required": false,
           "placeholder": "{\"key\": \"value\"}",
           "value_type": "object",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "extra_train_config",
@@ -8010,7 +8465,8 @@
           "required": false,
           "placeholder": "{\"key\": \"value\"}",
           "value_type": "object",
-          "default": ""
+          "default": "",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "activate",
@@ -8019,7 +8475,8 @@
           "required": false,
           "value_type": "boolean",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "提交一个新的 Qlib 训练任务。",
@@ -8058,7 +8515,8 @@
           ],
           "value_type": "string",
           "default": "",
-          "placeholder": "输入配额周期"
+          "placeholder": "输入配额周期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "account_id",
@@ -8068,7 +8526,8 @@
           "binding": "query",
           "default": "default",
           "value_type": "string",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看决策频率、Beta Gate、对冲组合和主动风控提醒。（查看）",
@@ -8093,7 +8552,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "direction",
@@ -8117,7 +8577,8 @@
           ],
           "value_type": "string",
           "default": "",
-          "placeholder": "输入方向"
+          "placeholder": "输入方向",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看决策频率、Beta Gate、对冲组合和主动风控提醒。（查看）",
@@ -8142,7 +8603,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "status",
@@ -8152,7 +8614,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入Status"
+          "placeholder": "输入Status",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "page",
@@ -8162,7 +8625,8 @@
           "binding": "query",
           "value_type": "integer",
           "default": "",
-          "placeholder": "输入Page"
+          "placeholder": "输入Page",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "page_size",
@@ -8172,7 +8636,8 @@
           "binding": "query",
           "value_type": "integer",
           "default": "",
-          "placeholder": "输入Page Size"
+          "placeholder": "输入Page Size",
+          "presentation_semantic": "identifier"
         }
       ],
       "view_model": {
@@ -8203,7 +8668,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "view_model": {
@@ -8234,7 +8700,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "从推荐列表或今日待办行带入"
+          "placeholder": "从推荐列表或今日待办行带入",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "action",
@@ -8262,7 +8729,8 @@
               "value": "pending",
               "label": "待定"
             }
-          ]
+          ],
+          "presentation_semantic": "identifier"
         },
         {
           "key": "account_id",
@@ -8272,7 +8740,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "note",
@@ -8282,7 +8751,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "记录采纳或忽略原因"
+          "placeholder": "记录采纳或忽略原因",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "对统一推荐记录人工采纳、忽略、观察或待定动作。",
@@ -8309,7 +8779,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "recommendation_ids",
@@ -8319,7 +8790,8 @@
           "binding": "body",
           "value_type": "list",
           "default": "",
-          "placeholder": "留空时使用当前账户所有已采纳且非冲突推荐"
+          "placeholder": "留空时使用当前账户所有已采纳且非冲突推荐",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "基于已采纳推荐生成账户级调仓计划。",
@@ -8346,7 +8818,8 @@
           "binding": "path",
           "value_type": "string",
           "default": "",
-          "placeholder": "从生成计划结果、计划列表或今日待办行带入"
+          "placeholder": "从生成计划结果、计划列表或今日待办行带入",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "orders",
@@ -8356,7 +8829,8 @@
           "binding": "body",
           "value_type": "list",
           "default": "",
-          "placeholder": "JSON 数组，补齐止损价、证伪条件和复盘日期"
+          "placeholder": "JSON 数组，补齐止损价、证伪条件和复盘日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "risk_contract",
@@ -8366,7 +8840,8 @@
           "binding": "body",
           "value_type": "object",
           "default": "",
-          "placeholder": "JSON 对象，更新计划级风控约束"
+          "placeholder": "JSON 对象，更新计划级风控约束",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "计划存在阻塞项时，补齐止损、证伪和计划级风控契约。",
@@ -8393,7 +8868,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "从计划详情或今日待办行带入"
+          "placeholder": "从计划详情或今日待办行带入",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "account_id",
@@ -8403,7 +8879,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "default",
-          "placeholder": "默认账户口径，可改成自定义账户ID"
+          "placeholder": "默认账户口径，可改成自定义账户ID",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "create_request",
@@ -8413,7 +8890,8 @@
           "binding": "body",
           "value_type": "boolean",
           "default": true,
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "基于调仓计划创建执行审批；计划存在阻塞项时后端会拒绝。",
@@ -8440,7 +8918,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "从审批详情或今日待办行带入"
+          "placeholder": "从审批详情或今日待办行带入",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "reviewer_comments",
@@ -8450,7 +8929,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "记录批准依据"
+          "placeholder": "记录批准依据",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "批准待审批执行请求，成功后可进入审计/复盘。",
@@ -8477,7 +8957,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "从审批详情或今日待办行带入"
+          "placeholder": "从审批详情或今日待办行带入",
+          "presentation_semantic": "primary_selector"
         },
         {
           "key": "reviewer_comments",
@@ -8487,7 +8968,8 @@
           "binding": "body",
           "value_type": "string",
           "default": "",
-          "placeholder": "记录拒绝原因"
+          "placeholder": "记录拒绝原因",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "拒绝待审批执行请求，并保留复盘线索。",
@@ -8512,7 +8994,8 @@
           "binding": "query",
           "value_type": "integer",
           "default": "",
-          "placeholder": "输入组合 ID"
+          "placeholder": "输入组合 ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -8537,7 +9020,8 @@
           "binding": "query",
           "value_type": "integer",
           "default": "",
-          "placeholder": "输入组合 ID"
+          "placeholder": "输入组合 ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -8562,7 +9046,8 @@
           "binding": "query",
           "value_type": "integer",
           "default": "",
-          "placeholder": "输入策略 ID"
+          "placeholder": "输入策略 ID",
+          "presentation_semantic": "primary_selector"
         }
       ],
       "description": "查看策略清单、仓位规则、执行记录和策略绑定状态。（查看）",
@@ -8587,7 +9072,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入起始日期"
+          "placeholder": "输入起始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -8597,7 +9083,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "level",
@@ -8625,7 +9112,8 @@
           ],
           "value_type": "string",
           "default": "",
-          "placeholder": "输入政策档位"
+          "placeholder": "输入政策档位",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看政策、情绪、热点队列，识别需要人工判断的事件。（查看）",
@@ -8650,7 +9138,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "days",
@@ -8660,7 +9149,8 @@
           "binding": "query",
           "default": 30,
           "value_type": "integer",
-          "placeholder": "输入回看天数"
+          "placeholder": "输入回看天数",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "source",
@@ -8670,7 +9160,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入信号来源"
+          "placeholder": "输入信号来源",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看当前有效信号和统一信号汇总。（查看）",
@@ -8695,7 +9186,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -8705,7 +9197,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看筛选器、筛选指标、情绪指数和情绪健康，用于候选过滤和风险提示。（查看）",
@@ -8730,7 +9223,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入任务名"
+          "placeholder": "输入任务名",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "days",
@@ -8740,7 +9234,8 @@
           "binding": "query",
           "default": 7,
           "value_type": "integer",
-          "placeholder": "输入统计天数"
+          "placeholder": "输入统计天数",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看健康检查、Celery、基础系统状态和初始化检查。（查看）",
@@ -8765,7 +9260,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入指标代码"
+          "placeholder": "输入指标代码",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8790,7 +9286,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8815,7 +9312,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "strict_freshness",
@@ -8825,7 +9323,8 @@
           "binding": "query",
           "value_type": "boolean",
           "default": "",
-          "placeholder": ""
+          "placeholder": "",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8850,7 +9349,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入基金代码"
+          "placeholder": "输入基金代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "start",
@@ -8860,7 +9360,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end",
@@ -8870,7 +9371,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8895,7 +9397,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "period_type",
@@ -8905,7 +9408,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入财报周期"
+          "placeholder": "输入财报周期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "limit",
@@ -8915,7 +9419,8 @@
           "binding": "query",
           "default": 20,
           "value_type": "integer",
-          "placeholder": "输入条数上限"
+          "placeholder": "输入条数上限",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8940,7 +9445,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "start",
@@ -8950,7 +9456,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end",
@@ -8960,7 +9467,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -8985,7 +9493,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入板块代码"
+          "placeholder": "输入板块代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "as_of",
@@ -8995,7 +9504,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入截止日期"
+          "placeholder": "输入截止日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -9020,7 +9530,8 @@
           "binding": "query",
           "value_type": "string",
           "default": "",
-          "placeholder": "输入资产代码"
+          "placeholder": "输入资产代码",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "start",
@@ -9030,7 +9541,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end",
@@ -9040,7 +9552,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看数据中心状态、新闻、市场温度和个人阈值。（查看）",
@@ -9065,7 +9578,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入开始日期"
+          "placeholder": "输入开始日期",
+          "presentation_semantic": "identifier"
         },
         {
           "key": "end_date",
@@ -9075,7 +9589,8 @@
           "binding": "query",
           "value_type": "date",
           "default": "",
-          "placeholder": "输入结束日期"
+          "placeholder": "输入结束日期",
+          "presentation_semantic": "identifier"
         }
       ],
       "description": "查看操作日志和决策链路，支持事后复盘。（查看）",
@@ -9127,7 +9642,7 @@
       "write_like_or_heavy": 30,
       "internal_debug_or_docs": 8
     },
-    "business_promoted_actions": 316,
+    "business_promoted_actions": 313,
     "approved_operation_actions": 19,
     "pruned_empty_screens": 0,
     "smoke_total": 354,
@@ -9135,8 +9650,9 @@
     "smoke_needs_input": 139,
     "smoke_error": 0,
     "smoke_pruned_auto_actions": 0,
-    "operator_first_default_actions": 1,
-    "pruned_redundant_screen_actions": 0
+    "operator_first_default_actions": 0,
+    "pruned_redundant_screen_actions": 0,
+    "user_facing_design_annotations": 0
   },
   "publication_note": "Publish-ready TUI metadata generated from reviewed baseline plus direct safe-read tool candidates.",
   "schema_version": "tui-metadata.v3"

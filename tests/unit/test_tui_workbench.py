@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -31,36 +32,40 @@ from apps.terminal.infrastructure.tui_metadata_repository import (
 
 
 def _metadata_payload(actions=None, screens=None, modules=None, groups=None, default_screen=None):
-    return {
+    payload = {
         "version": "tui-workbench.v2",
         "registry_key": "default",
         "default_screen": default_screen or "command-center.overview",
         "interaction_model": "published-metadata-to-pc-tools",
-        "groups": groups or [{"key": "workflow", "label": "Workflow"}],
-        "modules": modules
-        or [
-            {
-                "key": "command-center",
-                "label": "Command Center",
-                "group": "workflow",
-                "summary": "Command tools.",
-                "status": "online",
-            }
-        ],
-        "screens": screens
-        or [
-            {
-                "key": "command-center.overview",
-                "label": "Command Overview",
-                "module_key": "command-center",
-                "group": "workflow",
-                "summary": "Overview.",
-                "view_type": "status",
-                "status": "online",
-                "default_action_key": "sample.list",
-            }
-        ],
-        "actions": (
+        "groups": deepcopy(groups or [{"key": "workflow", "label": "Workflow"}]),
+        "modules": deepcopy(
+            modules
+            or [
+                {
+                    "key": "command-center",
+                    "label": "Command Center",
+                    "group": "workflow",
+                    "summary": "Command tools.",
+                    "status": "online",
+                }
+            ]
+        ),
+        "screens": deepcopy(
+            screens
+            or [
+                {
+                    "key": "command-center.overview",
+                    "label": "Command Overview",
+                    "module_key": "command-center",
+                    "group": "workflow",
+                    "summary": "Overview.",
+                    "view_type": "status",
+                    "status": "online",
+                    "default_action_key": "sample.list",
+                }
+            ]
+        ),
+        "actions": deepcopy(
             actions
             if actions is not None
             else [
@@ -82,6 +87,91 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
             ]
         ),
     }
+    groups_payload = payload["groups"]
+    modules_payload = payload["modules"]
+    screens_payload = payload["screens"]
+    actions_payload = payload["actions"]
+    screen_keys = {str(screen.get("key") or "") for screen in screens_payload if isinstance(screen, dict)}
+    action_keys = {str(action.get("key") or "") for action in actions_payload if isinstance(action, dict)}
+
+    group_keys = {str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)}
+    referenced_group_keys = {
+        str(screen.get("group") or "")
+        for screen in screens_payload
+        if isinstance(screen, dict) and str(screen.get("group") or "")
+    }
+    for group_key in sorted(referenced_group_keys - group_keys):
+        groups_payload.append({"key": group_key, "label": group_key})
+
+    group_keys = {str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)}
+    module_keys = {str(module.get("key") or "") for module in modules_payload if isinstance(module, dict)}
+    referenced_module_keys = {
+        str(item.get("module_key") or "")
+        for item in [*screens_payload, *actions_payload]
+        if isinstance(item, dict) and str(item.get("module_key") or "")
+    }
+    for module_key in sorted(referenced_module_keys - module_keys):
+        group_key = next(
+            (
+                str(screen.get("group") or "")
+                for screen in screens_payload
+                if isinstance(screen, dict) and str(screen.get("module_key") or "") == module_key
+            ),
+            next(iter(group_keys), "workflow"),
+        )
+        modules_payload.append(
+            {
+                "key": module_key,
+                "label": module_key,
+                "group": group_key,
+                "summary": f"{module_key} tools.",
+                "status": "online",
+            }
+        )
+
+    actions_by_screen: dict[str, list[str]] = {}
+    for action in actions_payload:
+        if not isinstance(action, dict):
+            continue
+        screen_key = str(action.get("screen_key") or "")
+        action_key = str(action.get("key") or "")
+        if screen_key and action_key:
+            actions_by_screen.setdefault(screen_key, []).append(action_key)
+
+    for screen in screens_payload:
+        if not isinstance(screen, dict):
+            continue
+        screen_key = str(screen.get("key") or "")
+        panels = screen.get("dashboard_panels")
+        if isinstance(panels, list):
+            filtered_panels = [
+                panel
+                for panel in panels
+                if not isinstance(panel, dict)
+                or str(panel.get("action_key") or "").strip() == ""
+                or str(panel.get("action_key") or "").strip() in action_keys
+            ]
+            if filtered_panels != panels:
+                screen["dashboard_panels"] = filtered_panels
+        default_action_key = str(screen.get("default_action_key") or "").strip()
+        if not default_action_key or default_action_key in action_keys:
+            fallback_action_key = next(iter(actions_by_screen.get(screen_key, [])), "")
+            if not default_action_key and fallback_action_key:
+                screen["default_action_key"] = fallback_action_key
+        else:
+            fallback_action_key = next(iter(actions_by_screen.get(screen_key, [])), "")
+            if fallback_action_key:
+                screen["default_action_key"] = fallback_action_key
+            else:
+                screen["default_action_key"] = ""
+        user_experience = screen.get("user_experience")
+        if isinstance(user_experience, dict) and str(user_experience.get("journey") or "") == "dashboard":
+            if not screen.get("dashboard_panels"):
+                screen["user_experience"] = {**user_experience, "journey": "workspace"}
+
+    if str(payload.get("default_screen") or "") not in screen_keys and screens_payload:
+        payload["default_screen"] = str(screens_payload[0].get("key") or "")
+    return payload
 
 
 def _runtime_transform_counts(payload: dict[str, object]) -> tuple[int, int]:
@@ -745,6 +835,44 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert ".tui-dash-panel:focus" in css
 
 
+def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract():
+    css = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "css", "tui-workbench.css")
+        .read_text(encoding="utf-8")
+    )
+    script = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("static", "js", "tui-workbench.js")
+        .read_text(encoding="utf-8")
+    )
+
+    assert "function screenUserExperience(screen)" in script
+    assert "function userExperienceSections(screen)" in script
+    assert "function screenEmptyStateHint(screen, fallback = \"\")" in script
+    assert "function renderSemanticDetailView(viewModel, semantics, options = {})" in script
+    assert "function renderSemanticCopyFields(fields)" in script
+    assert "function renderSemanticPromptFields(fields)" in script
+    assert "function bindCopyButtons(root = document)" in script
+    assert "navigator.clipboard.writeText" in script
+    assert "loadScreen(normalizedKey, { suppressAutoAction: true })" in script
+    assert "button.addEventListener(\"click\", () => loadScreen(button.dataset.screenKey));" in script
+    assert "endpoint_list: \"地址\"" in script
+    assert "multiline_prompt: \"提示词\"" in script
+    assert "data-panel-priority" in script
+    assert "data-panel-semantic" in script
+    assert "entryState.empty_copy || screenEmptyStateHint(" in script
+    assert ".tui-dash-panel[data-panel-priority=\"p0\"]" in css
+    assert ".tui-panel-priority" in css
+    assert ".tui-status-hero" in css
+    assert ".tui-copy-block" in css
+    assert ".tui-copy-action" in css
+
+
 def test_tui_registry_api_returns_module_contracts(client, tui_user):
     client.force_login(tui_user)
 
@@ -788,7 +916,7 @@ def test_tui_action_schema_can_generate_form_controls(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     router_action = next(
-        action for action in payload["actions"] if action["key"] == "terminal.chat_router"
+        action for action in payload["actions"] if action["key"] == "terminal.agent_chat"
     )
     assert router_action["ui_key"].startswith("task-")
     assert "terminal" not in router_action["ui_key"]
@@ -1885,11 +2013,11 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     assert payload["screen"]["label"] == "AI 交互终端"
-    assert payload["screen"]["default_action_key"] == "terminal.chat_router"
+    assert payload["screen"]["default_action_key"] == "terminal.agent_chat"
     action = next(
-        action for action in payload["actions"] if action["key"] == "terminal.chat_router"
+        action for action in payload["actions"] if action["key"] == "terminal.agent_chat"
     )
-    assert action["label"] == "询问 AI 助手"
+    assert action["label"] == "发送 AI 请求"
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
     assert action["fields"][0]["label"] == "消息"
@@ -1903,10 +2031,10 @@ def test_tui_catalog_registers_cli_module_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["cli"]["label"] == "CLI"
+    assert modules["cli"]["label"] == "AI 助手"
     assert modules["cli"]["group"] == "ops"
     assert [screen["key"] for screen in modules["cli"]["screens"]] == ["cli.terminal"]
-    assert modules["cli"]["screens"][0]["default_action_key"] == "cli.chat_router"
+    assert modules["cli"]["screens"][0]["default_action_key"] == "cli.agent_chat"
 
 
 def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
@@ -1917,10 +2045,10 @@ def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     assert payload["module"]["key"] == "cli"
-    assert payload["screen"]["label"] == "CLI 终端"
-    assert payload["screen"]["default_action_key"] == "cli.chat_router"
-    action = next(action for action in payload["actions"] if action["key"] == "cli.chat_router")
-    assert action["label"] == "打开 CLI 交互"
+    assert payload["screen"]["label"] == "助手终端"
+    assert payload["screen"]["default_action_key"] == "cli.agent_chat"
+    action = next(action for action in payload["actions"] if action["key"] == "cli.agent_chat")
+    assert action["label"] == "发送助手请求"
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
     assert action["fields"][0]["label"] == "消息"
@@ -2482,12 +2610,26 @@ def test_tui_metadata_validator_rejects_prompt_field_without_textarea():
     payload["actions"][0]["fields"] = [
         {
             "key": "agent_prompt",
-            "label": "Agent Prompt",
+            "label": "助手提示词",
             "input_type": "text",
             "value_type": "string",
             "presentation_semantic": "prompt_text",
         }
     ]
+
+    with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_rejects_internal_contract_copy_in_user_experience():
+    payload = _metadata_payload()
+    payload["screens"][0]["user_experience"] = {
+        "journey": "workspace",
+        "primary_task": "Open /api/account/accounts/ to continue.",
+        "primary_outcome": "Review the current screen result.",
+        "empty_state_hint": "Run the preview action first.",
+        "next_step_hint": "Continue after reviewing the result.",
+    }
 
     with pytest.raises(TuiMetadataValidationError):
         validate_tui_metadata(payload)
@@ -3542,7 +3684,7 @@ def test_tui_service_validates_required_fields_before_write_confirmation(tui_use
                         "view_type": "detail",
                         "risk": "write",
                         "fields": [
-                            {"key": "provider_id", "label": "Provider ID", "required": True},
+                            {"key": "provider_id", "label": "服务商 ID", "required": True},
                             {"key": "asset_codes", "label": "资产代码", "required": True},
                         ],
                     }
@@ -4310,7 +4452,7 @@ def test_tui_service_localizes_alpha_stats_and_agent_runtime_labels(tui_user):
                     },
                     {
                         "key": "agent.task.detail",
-                        "label": "Agent Runtime / Task / 详情",
+                        "label": "智能体运行时 / 任务 / 详情",
                         "method": "GET",
                         "endpoint": "/api/agent-runtime/tasks/1/",
                         "intent": "read_agent_task",
@@ -5566,6 +5708,9 @@ def test_tui_metadata_repository_prunes_redundant_capability_pk_actions_from_fil
     payload["screens"][0]["key"] = "ai-ops.capabilities"
     payload["screens"][0]["label"] = "AI Capabilities"
     payload["screens"][0]["summary"] = "Capabilities."
+    payload["screens"][0]["default_action_key"] = (
+        "param.api.get.api.ai-capability.capabilities.str.capability_key"
+    )
     payload["default_screen"] = "ai-ops.capabilities"
     with TemporaryDirectory(dir=Path(__file__).resolve().parents[2]) as temp_dir:
         path = Path(temp_dir) / "published.json"
@@ -5624,6 +5769,7 @@ def test_tui_metadata_repository_runtime_normalization_is_idempotent():
     payload["screens"][0]["key"] = "ai-ops.capabilities"
     payload["screens"][0]["label"] = "AI Capabilities"
     payload["screens"][0]["summary"] = "Capabilities."
+    payload["screens"][0]["default_action_key"] = "auto.api.get.api.system.list"
     payload["default_screen"] = "ai-ops.capabilities"
     repository = PublishedTuiMetadataRepository()
 
@@ -5708,6 +5854,29 @@ def test_tui_metadata_repository_keeps_valid_dashboard_panels_when_one_action_is
         "auto.api.get.api.asset-analysis.pool-summary"
     ]
     assert [panel["title"] for panel in panels] == ["一、资产池概览"]
+
+
+def test_tui_metadata_repository_skips_dashboard_patch_when_panel_actions_are_absent():
+    payload = _metadata_payload()
+    repository = PublishedTuiMetadataRepository()
+
+    loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
+    screen = next(screen for screen in loaded["screens"] if screen["key"] == "command-center.overview")
+
+    assert screen.get("dashboard_panels", []) == []
+    assert screen["user_experience"]["journey"] == "workspace"
+
+
+def test_tui_metadata_repository_injects_ai_ops_module_for_identity_access_screens():
+    payload = _metadata_payload()
+    repository = PublishedTuiMetadataRepository()
+
+    loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
+    ai_ops_module = next(module for module in loaded["modules"] if module["key"] == "ai-ops")
+
+    assert ai_ops_module["label"] == "AI 助手"
+    assert ai_ops_module["group"] == "ops"
+    assert any(screen["module_key"] == "ai-ops" for screen in loaded["screens"])
 
 
 @pytest.mark.django_db
@@ -5849,20 +6018,19 @@ def test_tui_metadata_repository_patches_audit_uuid_detail_fields_to_text():
     )
 
 
-def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_detail(tui_user):
+def test_tui_service_renders_terminal_agent_payload_as_detail(tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):
             return {
                 "status_code": 200,
                 "payload": {
-                    "id": "1",
-                    "name": "tmp_cmd_x",
-                    "description": "orig",
-                    "type": "api",
-                    "command_type": "api",
-                    "parameters": [],
-                    "tags": [],
-                    "is_active": True,
+                    "reply": "all clear",
+                    "session_id": "sess-1",
+                    "metadata": {
+                        "provider": "test-provider",
+                        "model": "test-model",
+                        "tool_call_count": 1,
+                    },
                 },
             }
 
@@ -5871,20 +6039,20 @@ def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_d
             _metadata_payload(
                 actions=[
                     {
-                        "key": "param.api.get.api.terminal.commands.pk",
-                        "label": "终端 / 指令 / 详情",
-                        "method": "GET",
-                        "endpoint": "/api/terminal/commands/<pk>/",
-                        "intent": "parameterized_safe_read",
+                        "key": "terminal.agent_chat",
+                        "label": "发送 AI 请求",
+                        "method": "POST",
+                        "endpoint": "/api/terminal/chat/",
+                        "intent": "run_terminal_agent_request",
                         "screen_key": "command-center.overview",
                         "module_key": "command-center",
-                        "view_type": "datagrid",
-                        "risk": "read",
+                        "view_type": "detail",
+                        "risk": "ai",
                         "fields": [
                             {
-                                "key": "pk",
-                                "label": "记录 ID",
-                                "input_type": "number",
+                                "key": "message",
+                                "label": "消息",
+                                "input_type": "textarea",
                                 "required": True,
                             }
                         ],
@@ -5896,18 +6064,18 @@ def test_tui_service_renders_terminal_command_detail_payload_with_aux_lists_as_d
     )
 
     payload = service.run_action(
-        action_key="param.api.get.api.terminal.commands.pk",
-        params={"pk": 1},
+        action_key="terminal.agent_chat",
+        params={"message": "hello"},
         user=tui_user,
     )
 
     assert payload["view_model"]["kind"] == "detail"
     assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}[
-        "ID"
-    ] == "1"
+        "回复"
+    ] == "all clear"
     assert {field["label"]: field["value"] for field in payload["view_model"]["fields"]}[
-        "名称"
-    ] == "tmp_cmd_x"
+        "建议下一步"
+    ]
 
 
 def test_tui_service_renders_wrapped_audit_log_detail_as_detail(tui_user):
@@ -6272,8 +6440,8 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
             _metadata_payload(
                 actions=[
                     {
-                        "key": "terminal.chat_router",
-                        "label": "询问 AI 助手",
+                        "key": "terminal.agent_chat",
+                        "label": "发送 AI 请求",
                         "method": "POST",
                         "endpoint": "/api/terminal/chat/",
                         "intent": "chat",
@@ -6299,7 +6467,7 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
         action_executor=FakeExecutor(),
     )
 
-    result = service.run_action(action_key="terminal.chat_router", params={}, user=None)
+    result = service.run_action(action_key="terminal.agent_chat", params={}, user=None)
 
     assert result["user_error_code"] == "AI_PROVIDER_NOT_CONFIGURED"
     assert "当前账号未配置默认 AI 服务" in result["business_summary"]
@@ -6389,8 +6557,8 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
 
     assert result["view_model"]["kind"] == "detail"
     fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
-    assert fields["当前 Token"] == "agtp_live_full_token_value"
-    assert fields["Base URL"] == "https://example.test"
+    assert fields["当前令牌"] == "agtp_live_full_token_value"
+    assert fields["基础地址"] == "https://example.test"
 
 
 def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
@@ -6462,8 +6630,8 @@ def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
     )
 
     fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
-    assert fields["Route API"] == "https://example.test/api/ai-capability/route/"
-    assert fields["Capability Catalog"] == "https://example.test/api/ai-capability/capabilities/"
+    assert fields["智能路由地址"] == "https://example.test/api/ai-capability/route/"
+    assert fields["能力目录地址"] == "https://example.test/api/ai-capability/capabilities/"
 
 
 @pytest.mark.django_db
@@ -6492,6 +6660,32 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     assert actions["capability-router.mcp-self-prompt-guide"]["result_semantics"] == [
         "multiline_prompt"
     ]
+
+
+@pytest.mark.django_db
+def test_tui_dashboard_screens_publish_explicit_user_task_contracts(client, tui_user):
+    client.force_login(tui_user)
+
+    overview_payload = client.get("/api/tui/screens/command-center.overview/").json()
+    overview_screen = overview_payload["screen"]
+    overview_panels = {panel["key"]: panel for panel in overview_screen["dashboard_panels"]}
+    assert overview_screen["user_experience"]["journey"] == "dashboard"
+    assert overview_panels["today-queue"]["user_priority"] == "p0"
+    assert overview_panels["today-queue"]["presentation_semantic"] == "primary_list"
+
+    events_payload = client.get("/api/tui/screens/execution.events/").json()
+    events_screen = events_payload["screen"]
+    events_panels = {panel["key"]: panel for panel in events_screen["dashboard_panels"]}
+    assert events_screen["user_experience"]["primary_task"]
+    assert events_panels["events-query"]["user_priority"] == "p0"
+    assert events_panels["events-status"]["presentation_semantic"] == "primary_status"
+
+    asset_payload = client.get("/api/tui/screens/research.asset-lab/").json()
+    asset_screen = asset_payload["screen"]
+    asset_panels = {panel["key"]: panel for panel in asset_screen["dashboard_panels"]}
+    assert asset_screen["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
+    assert asset_panels["asset-pool-summary"]["presentation_semantic"] == "primary_status"
+    assert asset_panels["asset-pool-summary"]["user_priority"] == "p0"
 
 
 def test_tui_macro_strategy_empty_state_exposes_recovery_actions():

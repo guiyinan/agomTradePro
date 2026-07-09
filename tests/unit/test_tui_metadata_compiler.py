@@ -111,6 +111,22 @@ def test_api_evidence_default_collects_all_safe_records(generator_module, monkey
     assert all(item["endpoint"].startswith("/api/safe/") for item in evidence)
 
 
+def test_safe_api_excludes_deprecated_terminal_command_routes(generator_module):
+    assert (
+        generator_module._is_safe_api(
+            {
+                "method": "GET",
+                "endpoint": "/api/terminal/commands/capabilities/",
+                "risk_level": "low",
+                "visibility": "user",
+                "requires_confirmation": False,
+                "route_group": "public",
+            }
+        )
+        is False
+    )
+
+
 def test_sdk_mcp_and_template_evidence_default_is_uncapped(generator_module):
     with tempfile.TemporaryDirectory(prefix="tui-metadata-compiler-") as temp_dir:
         root = Path(temp_dir)
@@ -583,7 +599,7 @@ def test_write_like_candidate_detection_ignores_resource_nouns_but_blocks_operat
 ):
     agent_runtime_read = {
         "key": "api.get.api.agent-runtime.tasks",
-        "name": "Get Agent Runtime Tasks",
+        "name": "Get 智能体运行时 Tasks",
         "method": "GET",
         "endpoint": "/api/agent-runtime/tasks/",
         "summary": "List tasks.",
@@ -603,7 +619,7 @@ def test_write_like_candidate_detection_ignores_resource_nouns_but_blocks_operat
     }
     agent_runtime_cancel = {
         "key": "api.get.api.agent-runtime.tasks.pk.cancel",
-        "name": "Get Agent Runtime Task Cancel",
+        "name": "Get 智能体运行时 Task Cancel",
         "method": "GET",
         "endpoint": "/api/agent-runtime/tasks/<pk>/cancel/",
         "summary": "Cancel task.",
@@ -637,7 +653,7 @@ def test_safe_api_actions_include_agent_runtime_and_alpha_trigger_reads(generato
     safe_records = [
         {
             "key": "agent-runtime.tasks",
-            "name": "Get Agent Runtime Tasks",
+            "name": "Get 智能体运行时 Tasks",
             "method": "GET",
             "endpoint": "/api/agent-runtime/tasks/",
             "summary": "List tasks.",
@@ -700,7 +716,7 @@ def test_safe_api_actions_skip_curated_non_runtime_fragment_and_collection_route
         },
         {
             "key": "agent-runtime.proposals",
-            "name": "Get Agent Runtime Proposals",
+            "name": "Get 智能体运行时 Proposals",
             "method": "GET",
             "endpoint": "/api/agent-runtime/proposals/",
             "summary": "Collection route is not a stable read surface.",
@@ -1072,6 +1088,42 @@ def test_promoter_applies_user_facing_design_metadata(promoter_module):
         "primary_status",
         "copyable_secret",
     ]
+
+
+def test_generator_assigns_default_actions_to_auto_library_screens(generator_module):
+    payload = {"screens": [], "actions": []}
+
+    generator_module._ensure_auto_library_screens(payload)
+    payload["actions"] = [
+        {
+            "key": "auto.workflow.detail",
+            "screen_key": "api-library.workflow",
+            "view_type": "detail",
+            "fields": [{"key": "account_id", "required": True, "default": "", "input_type": "text"}],
+            "sequence": 200,
+        },
+        {
+            "key": "auto.workflow.list",
+            "screen_key": "api-library.workflow",
+            "view_type": "datagrid",
+            "fields": [],
+            "sequence": 100,
+        },
+        {
+            "key": "auto.system.list",
+            "screen_key": "api-library.system",
+            "view_type": "datagrid",
+            "fields": [],
+            "sequence": 120,
+        },
+    ]
+
+    generator_module._assign_auto_library_default_actions(payload)
+
+    screens = {screen["key"]: screen for screen in payload["screens"]}
+    assert screens["api-library.workflow"]["user_experience"] == {"journey": "toolbox"}
+    assert screens["api-library.workflow"]["default_action_key"] == "auto.workflow.list"
+    assert screens["api-library.system"]["default_action_key"] == "auto.system.list"
 
 
 def test_smoke_prune_marks_auto_promoted_failures_as_prunable(smoke_module):

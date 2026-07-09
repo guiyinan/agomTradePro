@@ -237,7 +237,7 @@ class TerminalChatRequestSerializer(serializers.Serializer):
     message = serializers.CharField()
     session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     context = serializers.JSONField(allow_null=True, required=False)
-    provider_ref = serializers.JSONField(required=False)
+    provider_ref = serializers.JSONField(required=False, allow_null=True)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
 
@@ -248,13 +248,10 @@ class TerminalChatResponseSerializer(serializers.Serializer):
     reply = serializers.CharField()
     session_id = serializers.CharField()
     metadata = serializers.JSONField()
-    route_confirmation_required = serializers.BooleanField(default=False)
-    selected_capability_key = serializers.CharField(allow_null=True, allow_blank=True, default=None)
-    suggested_command = serializers.CharField(allow_null=True, allow_blank=True, default=None)
-    suggested_intent = serializers.CharField(allow_null=True, allow_blank=True, default=None)
-    suggestion_prompt = serializers.CharField(allow_null=True, allow_blank=True, default=None)
-    missing_params = serializers.ListField(
-        child=serializers.CharField(),
+    approval_required = serializers.BooleanField(default=False, required=False)
+    selected_capability_key = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+        default=None,
         required=False,
-        default=list,
     )

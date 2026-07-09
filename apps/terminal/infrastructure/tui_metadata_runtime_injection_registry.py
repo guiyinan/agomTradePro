@@ -22,9 +22,11 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_GROUP,
     RUNTIME_CLI_MODULE,
     RUNTIME_CLI_SCREEN,
+    RUNTIME_CLI_STREAM_ACTION,
 )
 from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
 from .tui_metadata_runtime_injection_identity_access import (
+    RUNTIME_AI_OPS_MODULE,
     RUNTIME_AI_MY_PROVIDERS_SCREEN,
     RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
     RUNTIME_AI_USER_QUOTAS_SCREEN,
@@ -57,12 +59,12 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
         groups=(RUNTIME_CLI_GROUP,),
         modules=(RUNTIME_CLI_MODULE,),
         screens=(RUNTIME_CLI_SCREEN,),
-        actions=(RUNTIME_CLI_CHAT_ACTION,),
+        actions=(RUNTIME_CLI_CHAT_ACTION, RUNTIME_CLI_STREAM_ACTION),
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_capability_router_metadata",
         groups=(RUNTIME_CLI_GROUP,),
-        modules=(RUNTIME_CAPABILITY_ROUTER_MODULE,),
+        modules=(RUNTIME_CAPABILITY_ROUTER_MODULE, RUNTIME_AI_OPS_MODULE),
         screens=(
             RUNTIME_CAPABILITY_ROUTER_SCREEN,
             RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,

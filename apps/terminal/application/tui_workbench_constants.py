@@ -534,7 +534,7 @@ FIELD_TOKEN_LABELS = {
     "timestamp": "时间",
     "title": "标题",
     "to": "目标",
-    "tokens": "Token",
+    "tokens": "令牌",
     "top": "前列",
     "trends": "趋势",
     "transition": "切换",

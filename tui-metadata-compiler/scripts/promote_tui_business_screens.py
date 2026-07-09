@@ -159,10 +159,10 @@ SCREEN_SPECS = {
     },
     "ai-ops.prompt-workbench": {
         "key": "ai-ops.prompt-workbench",
-        "label": "Prompt 与模型配置",
+        "label": "提示词与模型配置",
         "module_key": "ai-ops",
         "group": "ops",
-        "summary": "查看 AI Provider、Prompt 模板、链路、日志和可用模型。",
+        "summary": "查看 AI 服务商、提示词模板、链路、日志和可用模型。",
         "view_type": "datagrid",
         "status": "online",
         "default_action_key": "auto.api.get.api.prompt.templates",
@@ -185,7 +185,17 @@ SCREEN_SPECS = {
         "summary": "用自然语言询问系统状态、生成说明或执行已授权的终端任务。",
         "view_type": "detail",
         "status": "online",
-        "default_action_key": "terminal.chat_router",
+        "default_action_key": "terminal.agent_chat",
+    },
+    "ai-ops.agent-runtime": {
+        "key": "ai-ops.agent-runtime",
+        "label": "智能任务运行时",
+        "module_key": "ai-ops",
+        "group": "ops",
+        "summary": "查看智能任务运行时健康和需要人工处理的任务。",
+        "view_type": "datagrid",
+        "status": "online",
+        "default_action_key": "auto.api.get.api.agent-runtime.tasks",
     },
     "api-library.runtime": {
         "key": "api-library.runtime",
@@ -261,16 +271,103 @@ EXACT_DEFAULT_ACTION_OVERRIDES = {
 }
 
 SCREEN_USER_EXPERIENCE_OVERRIDES = {
+    "command-center.overview": {
+        "journey": "dashboard",
+        "primary_task": "先判断今天是否继续投研，再决定是否先处理系统治理阻断。",
+        "primary_outcome": "明确今天的主线入口、当前阻断点，以及最应该先进入的下一个工作区。",
+        "empty_state_hint": "先看今日待办和环境摘要，再根据异常面板决定进入决策流还是治理流。",
+        "next_step_hint": "确认首页结论后，优先进入今日决策流程；若存在阻断，转到对应治理工作区处理。",
+    },
+    "api-library.runtime": {
+        "primary_task": "先判断系统是否适合继续投研和执行，再决定是否继续查健康或就绪明细。",
+        "primary_outcome": "明确 runtime、readiness 和基础系统面是否存在阻断。",
+        "empty_state_hint": "先看运行时治理摘要，再看系统健康和就绪检查。",
+        "next_step_hint": "若存在阻断，优先进入相应治理工作区处理，再回到主线。",
+    },
+    "api-library.data-center": {
+        "primary_task": "先确认 freshness、来源链路和温度异常，再决定是否继续进入目录或同步动作。",
+        "primary_outcome": "明确当前数据中心是否存在 freshness 缺口、服务商异常或覆盖不足。",
+        "empty_state_hint": "先看治理摘要，再看服务商列表和指标目录。",
+        "next_step_hint": "如果存在 freshness 或来源异常，继续进入对应目录或同步动作排查。",
+    },
+    "ai-ops.providers": {
+        "primary_task": "先确认 AI 服务是否支持今天的辅助工作，再决定是否继续看服务商或日志。",
+        "primary_outcome": "明确当前 AI 服务是否可用、是否存在 quota 阻断或失败升高。",
+        "empty_state_hint": "先看服务商治理摘要，再继续打开服务商列表和调用日志。",
+        "next_step_hint": "若配额不足或失败升高，继续定位服务商配置和最近日志。",
+    },
+    "ai-ops.agent-runtime": {
+        "primary_task": "先判断是否存在待人工处理或失败任务，再决定是否深入任务队列。",
+        "primary_outcome": "明确智能任务运行时当前是否阻塞、是否有失败堆积，以及最该先处理的任务。",
+        "empty_state_hint": "先看待处理与失败任务摘要，再继续进入需处理任务和队列。",
+        "next_step_hint": "若存在阻断或失败任务，继续进入任务详情、时间线或产物处理。",
+    },
+    "api-library.config-center": {
+        "primary_task": "先判断 Qlib runtime 和训练链路是否阻断，再决定是否进入配置或训练记录。",
+        "primary_outcome": "明确当前 runtime、训练记录和本地数据是否可支持后续训练与推理。",
+        "empty_state_hint": "先看配置中心治理摘要，再看 Qlib 运行配置和训练记录。",
+        "next_step_hint": "若发现 runtime 或训练异常，继续进入配置修正或训练运行记录排查。",
+    },
+    "execution.events": {
+        "primary_task": "先判断事件总线今天是否正常，再决定是否需要检查指标或运行状态。",
+        "primary_outcome": "明确事件链路是否正常、是否堆积，以及是否需要排查订阅端和运行状态。",
+        "empty_state_hint": "先看最近事件，再看事件指标和运行状态，不从底层实现细节入手。",
+        "next_step_hint": "若发现堆积或失败升高，继续进入运行状态和订阅端排查。",
+    },
+    "macro-regime.beta-gate": {
+        "primary_task": "先判断当前市场暴露是否被放行，再决定是否继续查看配置和标的池版本差异。",
+        "primary_outcome": "明确最近放行结论、当前配置是否匹配风险画像，以及是否需要做版本复核。",
+        "empty_state_hint": "先看最近闸门决策，再看配置版本和标的池快照。",
+        "next_step_hint": "如果放行结论与预期不一致，继续比较配置版本并复核规则差异。",
+    },
+    "macro-regime.hedge": {
+        "primary_task": "先判断当前是否存在需要处理的对冲变化或主动预警，再决定是否继续看有效性。",
+        "primary_outcome": "明确最新对冲快照、当前预警状态，以及是否需要继续复核对冲有效性。",
+        "empty_state_hint": "先看最新对冲快照和当前预警，再查看对冲有效性。",
+        "next_step_hint": "若快照或预警显示风险上升，继续进入有效性和相关性检查。",
+    },
+    "macro-regime.pulse": {
+        "primary_task": "先确认当前脉搏指标是否出现转折，再决定是否继续查看历史变化。",
+        "primary_outcome": "明确当前脉搏状态、是否有异常变化，以及是否需要用历史数据复核趋势。",
+        "empty_state_hint": "先看当前脉搏指标，再进入历史观察变化方向。",
+        "next_step_hint": "如果当前脉搏出现异常或转折，继续查看历史并回到环境行动建议。",
+    },
+    "research.asset-lab": {
+        "primary_task": "先看资产池和当前权重结论，再决定是否继续调整权重配置。",
+        "primary_outcome": "明确当前资产池结构、当前权重状态，以及权重配置是否需要继续复核。",
+        "empty_state_hint": "先看资产池概览，再看当前资产权重和权重配置状态。",
+        "next_step_hint": "若资产池或权重状态异常，继续进入基金、板块和筛选器研究补证据。",
+    },
+    "research.alpha-triggers": {
+        "primary_task": "先筛出今天最值得推进的候选，再决定继续跟进活跃触发器还是观察列表。",
+        "primary_outcome": "明确今天应优先推进的候选，以及哪些触发器仍在延续或需要继续观察。",
+        "empty_state_hint": "先看可操作候选，再核对活跃触发器和观察列表。",
+        "next_step_hint": "若存在高优先级候选，继续进入标的研究、绩效复核或执行前检查。",
+    },
+    "ai-ops.prompt-workbench": {
+        "primary_task": "先看提示词模板和模型清单，再决定是否继续排查链路或近期日志。",
+        "primary_outcome": "明确当前提示词、链路和模型配置是否支持今天的 AI 辅助流程。",
+        "empty_state_hint": "先读取提示词模板，再继续打开链路和日志。",
+        "next_step_hint": "若模板、链路或模型异常，继续定位对应配置或近期日志。",
+    },
     "capability-router.self-service": {
         "journey": "self_service",
-        "primary_task": "完成个人 MCP 接入，直接拿到可复制的 Token、Endpoint 和 Agent Prompt。",
-        "primary_outcome": "明确当前开通状态，并拿到外部 Agent 立刻可用的接入材料。",
+        "primary_task": "完成个人 MCP 接入，直接拿到可复制的接入令牌、连接地址和代理接入提示词。",
+        "primary_outcome": "明确当前开通状态，并拿到外部代理立刻可用的接入材料。",
         "empty_state_hint": "先读取当前 MCP 状态；如果还没开通，回到接入入口完成开通。",
-        "next_step_hint": "复制 Route API 和 Prompt 后，把它们交给外部 Agent；旧 Token 不再使用时立即撤销。",
+        "next_step_hint": "复制连接地址和接入提示词后，把它们交给外部代理；旧令牌不再使用时立即撤销。",
     }
 }
 
 PANEL_PRESENTATION_OVERRIDES = {
+    "command-center.overview": {
+        "today-queue": {"user_priority": "p0", "presentation_semantic": "primary_list"},
+        "regime-status": {"user_priority": "p1", "presentation_semantic": "primary_status"},
+        "pulse-alerts": {"user_priority": "p1", "presentation_semantic": "supporting_detail"},
+        "account-positions": {"user_priority": "p1", "presentation_semantic": "supporting_detail"},
+        "alpha-ranking": {"user_priority": "p2", "presentation_semantic": "supporting_list"},
+        "task-monitor": {"user_priority": "p2", "presentation_semantic": "supporting_detail"},
+    },
     "capability-router.self-service": {
         "mcp-self-status": {"user_priority": "p0", "presentation_semantic": "copyable_secret"},
         "mcp-self-endpoints": {"user_priority": "p0", "presentation_semantic": "endpoint_list"},
@@ -401,11 +498,15 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
 )
 
 EXACT_SCREEN_RULES = {
-    "terminal.chat_router": "ai-ops.terminal",
+    "terminal.agent_chat": "ai-ops.terminal",
     "param.api.get.api.account.portfolios.pk": "execution.portfolio-performance",
     "param.api.get.api.account.portfolios.pk.statistics": "execution.portfolio-performance",
     "param.api.get.api.account.portfolios.pk.positions": "execution.portfolio-performance",
     "param.api.get.api.valuation.snapshot.str.snapshot_id": "command-center.decision-flow",
+}
+
+ACTION_DESCRIPTION_OVERRIDES = {
+    "agent_runtime.health": "查看智能任务运行时健康状态。",
 }
 
 EXACT_VIEW_TYPE_RULES = {
@@ -637,7 +738,7 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "write",
         "fields": [
-            {"key": "provider_id", "label": "Provider ID", "input_type": "number", "required": True, "value_type": "integer"},
+            {"key": "provider_id", "label": "服务商 ID", "input_type": "number", "required": True, "value_type": "integer"},
             {
                 "key": "asset_codes",
                 "label": "资产代码",
@@ -799,7 +900,7 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "risk": "admin",
         "fields": [
             {"key": "enabled", "label": "启用", "input_type": "checkbox", "required": False, "value_type": "boolean"},
-            {"key": "provider_uri", "label": "Provider URI", "input_type": "text", "required": False},
+            {"key": "provider_uri", "label": "服务商地址", "input_type": "text", "required": False},
             {"key": "region", "label": "区域", "input_type": "text", "required": False},
             {"key": "model_root", "label": "模型目录", "input_type": "text", "required": False},
             {"key": "default_universe", "label": "默认标的池", "input_type": "text", "required": False},
@@ -808,7 +909,7 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
             {"key": "train_queue_name", "label": "训练队列", "input_type": "text", "required": False},
             {"key": "infer_queue_name", "label": "推理队列", "input_type": "text", "required": False},
             {"key": "allow_auto_activate", "label": "允许自动激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
-            {"key": "alpha_fixed_provider", "label": "固定 Provider", "input_type": "text", "required": False},
+            {"key": "alpha_fixed_provider", "label": "固定服务商", "input_type": "text", "required": False},
             {"key": "alpha_pool_mode", "label": "资产池模式", "input_type": "text", "required": False},
         ],
         "description": "更新 Qlib 运行时配置。",
@@ -1045,14 +1146,14 @@ EXACT_LABELS = {
     "auto.api.get.api.sentiment.index.range": "情绪指数区间",
     "auto.api.get.api.sentiment.health": "情绪健康",
     "auto.api.get.api.ai.me.logs": "我的 AI 日志",
-    "auto.api.get.api.prompt": "Prompt 总览",
-    "auto.api.get.api.prompt.templates": "Prompt 模板",
-    "auto.api.get.api.prompt.templates.categories": "Prompt 分类",
-    "auto.api.get.api.prompt.chains": "Prompt 链路",
+    "auto.api.get.api.prompt": "提示词总览",
+    "auto.api.get.api.prompt.templates": "提示词模板",
+    "auto.api.get.api.prompt.templates.categories": "提示词分类",
+    "auto.api.get.api.prompt.chains": "提示词链路",
     "auto.api.get.api.prompt.chains.execution_modes": "链路执行模式",
-    "auto.api.get.api.prompt.logs.recent": "近期 Prompt 日志",
-    "auto.api.get.api.prompt.chat.models": "Chat 模型",
-    "auto.api.get.api.ai.me.providers": "我的 AI Provider",
+    "auto.api.get.api.prompt.logs.recent": "近期提示词日志",
+    "auto.api.get.api.prompt.chat.models": "对话模型",
+    "auto.api.get.api.ai.me.providers": "我的 AI 服务商",
     "auto.api.get.api.data-center": "数据中心状态",
     "auto.api.get.api.data-center.news": "新闻数据",
     "auto.api.get.api.data-center.market-thermometer.history": "市场温度历史",
@@ -1100,7 +1201,7 @@ EXACT_LABELS = {
     "auto.api.get.api.ai-capability": "AI 能力目录",
     "auto.api.get.api.system": "系统总览",
     "auto.api.get.api.system.list": "系统任务列表",
-    "auto.api.get.api.prompt.chat.providers": "Chat 服务商",
+    "auto.api.get.api.prompt.chat.providers": "对话服务商",
     "param.api.get.api.signal.pk.validate": "信号校验详情",
     "param.api.get.api.strategy.script-configs.pk": "策略脚本配置详情",
     "param.api.get.api.strategy.assignments.pk": "策略绑定详情",
@@ -1184,12 +1285,12 @@ WORD_REPLACEMENTS = (
     ("Data Center", "数据中心"),
     ("Market Thermometer", "市场温度"),
     ("News", "新闻"),
-    ("Prompt", "Prompt"),
+    ("Prompt", "提示词"),
     ("Templates", "模板"),
     ("Logs", "日志"),
     ("Recent", "近期"),
-    ("Providers", "Provider"),
-    ("Provider", "Provider"),
+    ("Providers", "服务商"),
+    ("Provider", "服务商"),
     ("Assets", "资产"),
     ("Asset", "资产"),
     ("Fund", "基金"),
@@ -1349,7 +1450,7 @@ BUSINESS_CONTEXTS: dict[str, dict[str, Any]] = {
         "objective": "从 Alpha 排名和来源状态中找到可研究候选，并维护推理数据可用性。",
         "decision_output": "Alpha 结论：候选名单、数据需刷新或推理需触发。",
         "checkpoints": [
-            "先看 Alpha 排名和 Provider 状态。",
+            "先看 Alpha 排名和服务商状态。",
             "数据过期时先刷新 Qlib 运行数据。",
             "需要新候选时再触发已确认的批量推理。",
         ],
@@ -1498,6 +1599,24 @@ BUSINESS_CONTEXTS: dict[str, dict[str, Any]] = {
             "AI 不可用时，不让决策流程依赖 AI 解释作为唯一证据。",
         ],
     },
+    "ai-ops.prompt-workbench": {
+        "objective": "确认提示词模板、链路和模型配置是否支持当前 AI 辅助流程。",
+        "decision_output": "提示词配置结论：可用、需更新模板、需排查链路或需切换模型。",
+        "checkpoints": [
+            "先确认提示词模板是否齐备且可直接复用。",
+            "再看链路与执行模式是否匹配当前任务。",
+            "最后查看近期日志和模型可用性，确认没有隐藏阻断。",
+        ],
+    },
+    "ai-ops.agent-runtime": {
+        "objective": "查看智能任务运行时健康和需要人工处理的任务。",
+        "decision_output": "运行时结论：健康、阻塞、失败堆积或需要人工处理。",
+        "checkpoints": [
+            "先看运行状态和待处理任务。",
+            "再看任务队列、时间线和任务产物。",
+            "发现失败堆积时优先定位最该先处理的任务。",
+        ],
+    },
     "api-library.market-thermometer": {
         "objective": "查看市场温度历史和个人阈值，确认环境与脉搏判断的数据基础。",
         "decision_output": "市场温度结论：正常、过热、过冷、阈值需调整或数据需同步。",
@@ -1571,7 +1690,7 @@ TASK_GROUP_RULES: tuple[tuple[str, str], ...] = (
     ("auto.api.get.api.fund", "03 基金板块"),
     ("auto.api.get.api.sector", "03 基金板块"),
     ("auto.api.get.api.sentiment", "04 情绪"),
-    ("auto.api.get.api.ai.me", "01 Provider"),
+    ("auto.api.get.api.ai.me", "01 服务商"),
     ("auto.api.get.api.prompt.templates", "02 模板"),
     ("auto.api.get.api.prompt.chains", "03 链路"),
     ("auto.api.get.api.prompt.logs", "04 日志"),
@@ -1638,7 +1757,7 @@ PRIMARY_ACTION_KEYS = {
     "audit.decision_traces",
     "task_monitor.dashboard",
     "ai_capability.list",
-    "terminal.chat_router",
+    "terminal.agent_chat",
     "terminal.session.start",
     "agent_runtime.needs_attention",
     "auto.api.get.api.decision.context.step1",
@@ -1737,10 +1856,7 @@ EXACT_TASK_GROUPS = {
     "audit.decision_traces": "02 决策痕迹",
     "task_monitor.dashboard": "01 任务状态",
     "ai_capability.list": "01 能力清单",
-    "terminal.capabilities": "02 终端权限",
     "ai_capability.stats": "03 能力统计",
-    "terminal.commands_available": "02 指令清单",
-    "terminal.commands_by_category": "03 指令分类",
     "agent_runtime.health": "01 运行状态",
     "agent_runtime.needs_attention": "02 待处理任务",
     "auto.api.get.api.alpha-triggers.candidates.actionable": "01 候选池",
@@ -2040,7 +2156,7 @@ def _normalize_special_action(action: dict[str, Any]) -> None:
             override = field_overrides.get(str(field.get("key") or ""))
             if override:
                 field.update(override)
-    if action.get("key") != "terminal.chat_router":
+    if action.get("key") != "terminal.agent_chat":
         return
     fields = action.get("fields") or []
     for field in fields:
@@ -2245,6 +2361,9 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
             action["task_group"] = _task_group(action_key)
         if "sequence" not in action:
             action["sequence"] = _sequence(action_key)
+        override_description = ACTION_DESCRIPTION_OVERRIDES.get(action_key)
+        if override_description:
+            action["description"] = override_description
         action["task_tier"] = _task_tier(action)
     operator_first_default_actions = _apply_operator_first_default_actions(payload)
     user_facing_design_annotations = _apply_user_facing_design_metadata(payload)

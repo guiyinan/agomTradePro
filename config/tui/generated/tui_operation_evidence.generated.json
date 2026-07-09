@@ -2,10 +2,10 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 468,
-    "sdk_methods": 405,
-    "mcp_tools": 346,
-    "classic_templates": 127
+    "api_safe_read": 488,
+    "sdk_methods": 433,
+    "mcp_tools": 369,
+    "classic_templates": 130
   },
   "source_evidence": {
     "api_safe_read": [
@@ -37,6 +37,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.health.db",
+        "name": "Get Health Db",
+        "method": "GET",
+        "endpoint": "/api/health/db/",
+        "category": "health",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.ready",
         "name": "Get Ready",
         "method": "GET",
@@ -50,6 +59,33 @@
         "name": "Get Tui Catalog",
         "method": "GET",
         "endpoint": "/api/tui/catalog/",
+        "category": "tui",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.tui.operator.home",
+        "name": "Get Tui Operator Home",
+        "method": "GET",
+        "endpoint": "/api/tui/operator/home/",
+        "category": "tui",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.tui.operator.home.str:section_key",
+        "name": "Get Operator Home Str:Section Key",
+        "method": "GET",
+        "endpoint": "/api/tui/operator/home/<str:section_key>/",
+        "category": "tui",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.tui.operator.governance-queue",
+        "name": "Get Tui Operator Governance Queue",
+        "method": "GET",
+        "endpoint": "/api/tui/operator/governance-queue/",
         "category": "tui",
         "risk_level": "safe",
         "visibility": "internal"
@@ -190,6 +226,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.decision.advisor.sheet",
+        "name": "Get Decision Advisor Sheet",
+        "method": "GET",
+        "endpoint": "/api/decision/advisor/sheet/",
+        "category": "decision",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.decision-rhythm.quotas",
         "name": "Get Decision Rhythm Quotas",
         "method": "GET",
@@ -311,6 +356,15 @@
         "name": "Get Decision Workspace Aggregated",
         "method": "GET",
         "endpoint": "/api/decision/workspace/aggregated/",
+        "category": "decision",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.decision.workspace.today-queue",
+        "name": "Get Decision Workspace Today Queue",
+        "method": "GET",
+        "endpoint": "/api/decision/workspace/today-queue/",
         "category": "decision",
         "risk_level": "safe",
         "visibility": "internal"
@@ -572,6 +626,15 @@
         "name": "Get Account Users Search",
         "method": "GET",
         "endpoint": "/api/account/users/search/",
+        "category": "account",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.account.mcp.self",
+        "name": "Get Account Mcp Self",
+        "method": "GET",
+        "endpoint": "/api/account/mcp/self/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2539,51 +2602,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.terminal.commands",
-        "name": "Get Terminal Commands",
-        "method": "GET",
-        "endpoint": "/api/terminal/commands/",
-        "category": "terminal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.terminal.commands.available",
-        "name": "Get Terminal Commands Available",
-        "method": "GET",
-        "endpoint": "/api/terminal/commands/available/",
-        "category": "terminal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.terminal.commands.by_category",
-        "name": "Get Terminal Commands By_Category",
-        "method": "GET",
-        "endpoint": "/api/terminal/commands/by_category/",
-        "category": "terminal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.terminal.commands.capabilities",
-        "name": "Get Terminal Commands Capabilities",
-        "method": "GET",
-        "endpoint": "/api/terminal/commands/capabilities/",
-        "category": "terminal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.terminal.commands.pk",
-        "name": "Get Terminal Commands Pk",
-        "method": "GET",
-        "endpoint": "/api/terminal/commands/<pk>/",
-        "category": "terminal",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.terminal",
         "name": "Get Terminal",
         "method": "GET",
@@ -3196,6 +3214,87 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.risk-center",
+        "name": "Get Risk Center",
+        "method": "GET",
+        "endpoint": "/api/risk-center/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.floor",
+        "name": "Get Risk Center Floor",
+        "method": "GET",
+        "endpoint": "/api/risk-center/floor/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.templates",
+        "name": "Get Risk Center Templates",
+        "method": "GET",
+        "endpoint": "/api/risk-center/templates/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.templates.int:template_id",
+        "name": "Get Risk Center Templates Int:Template Id",
+        "method": "GET",
+        "endpoint": "/api/risk-center/templates/<int:template_id>/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.account-policies",
+        "name": "Get Risk Center Account Policies",
+        "method": "GET",
+        "endpoint": "/api/risk-center/account-policies/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.account-policies.by-account.int:account_id",
+        "name": "Get Account Policies By Account Int:Account Id",
+        "method": "GET",
+        "endpoint": "/api/risk-center/account-policies/by-account/<int:account_id>/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.exceptions",
+        "name": "Get Risk Center Exceptions",
+        "method": "GET",
+        "endpoint": "/api/risk-center/exceptions/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.effective-policy",
+        "name": "Get Risk Center Effective Policy",
+        "method": "GET",
+        "endpoint": "/api/risk-center/effective-policy/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.risk-center.daily-report",
+        "name": "Get Risk Center Daily Report",
+        "method": "GET",
+        "endpoint": "/api/risk-center/daily-report/",
+        "category": "risk-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.hedge",
         "name": "Get Hedge",
         "method": "GET",
@@ -3655,6 +3754,51 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.dashboard.auto-advisor-console",
+        "name": "Get Dashboard Auto Advisor Console",
+        "method": "GET",
+        "endpoint": "/api/dashboard/auto-advisor-console/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.auto-advisor-query",
+        "name": "Get Dashboard Auto Advisor Query",
+        "method": "GET",
+        "endpoint": "/api/dashboard/auto-advisor-query/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.auto-advisor-weekly-report",
+        "name": "Get Dashboard Auto Advisor Weekly Report",
+        "method": "GET",
+        "endpoint": "/api/dashboard/auto-advisor-weekly-report/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.auto-advisor-weekly-report-history",
+        "name": "Get Dashboard Auto Advisor Weekly Report History",
+        "method": "GET",
+        "endpoint": "/api/dashboard/auto-advisor-weekly-report-history/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.dashboard.auto-advisor-notifications",
+        "name": "Get Dashboard Auto Advisor Notifications",
+        "method": "GET",
+        "endpoint": "/api/dashboard/auto-advisor-notifications/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.dashboard.v1.summary",
         "name": "Get Dashboard V1 Summary",
         "method": "GET",
@@ -3889,6 +4033,15 @@
         "visibility": "public"
       },
       {
+        "key": "api.get.api.share.public.str:short_code.performance",
+        "name": "Get Public Str:Short Code Performance",
+        "method": "GET",
+        "endpoint": "/api/share/public/<str:short_code>/performance/",
+        "category": "share",
+        "risk_level": "safe",
+        "visibility": "public"
+      },
+      {
         "key": "api.get.api.agent-runtime.tasks",
         "name": "Get Agent Runtime Tasks",
         "method": "GET",
@@ -4060,6 +4213,24 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.ai-capability.mcp-tools",
+        "name": "Get Ai Capability Mcp Tools",
+        "method": "GET",
+        "endpoint": "/api/ai-capability/mcp-tools/",
+        "category": "ai-capability",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capability.mcp-tools.stats",
+        "name": "Get Ai Capability Mcp Tools Stats",
+        "method": "GET",
+        "endpoint": "/api/ai-capability/mcp-tools/stats/",
+        "category": "ai-capability",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.ai-capability.capabilities",
         "name": "Get Ai Capability Capabilities",
         "method": "GET",
@@ -4218,6 +4389,15 @@
         "method": "GET",
         "endpoint": "/api/data-center/market-thermometer/me/",
         "category": "data-center",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.metrics",
+        "name": "Get Metrics",
+        "method": "GET",
+        "endpoint": "/api/metrics/",
+        "category": "metrics",
         "risk_level": "safe",
         "visibility": "internal"
       }
@@ -5278,6 +5458,31 @@
       },
       {
         "module": "config_center",
+        "method": "list_alpha_universes",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/config_center.py"
+      },
+      {
+        "module": "config_center",
+        "method": "save_alpha_universe",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/config_center.py"
+      },
+      {
+        "module": "config_center",
+        "method": "get_alpha_universe_members",
+        "args": [
+          "universe_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/config_center.py"
+      },
+      {
+        "module": "config_center",
         "method": "list_qlib_training_runs",
         "args": [],
         "summary": "",
@@ -5357,6 +5562,65 @@
         "method": "signal_status_v1",
         "args": [],
         "summary": "",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "auto_advisor_console",
+        "args": [
+          "account_id"
+        ],
+        "summary": "Read the homepage auto-advisor console for one account.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "auto_advisor_query",
+        "args": [
+          "account_id",
+          "question"
+        ],
+        "summary": "Ask the deterministic auto-advisor Q&A endpoint.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "auto_advisor_weekly_report",
+        "args": [
+          "account_id",
+          "as_of"
+        ],
+        "summary": "Generate/read the personal weekly auto-advisor report payload.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "create_auto_advisor_weekly_report",
+        "args": [
+          "account_id",
+          "as_of"
+        ],
+        "summary": "Generate and persist a personal weekly auto-advisor report.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "auto_advisor_weekly_report_history",
+        "args": [
+          "account_id",
+          "limit"
+        ],
+        "summary": "List persisted personal weekly auto-advisor reports.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "auto_advisor_notifications",
+        "args": [
+          "account_id",
+          "limit"
+        ],
+        "summary": "List persisted auto-advisor notification/output items.",
         "source": "sdk/agomtradepro/modules/dashboard.py"
       },
       {
@@ -5896,6 +6160,15 @@
           "payload"
         ],
         "summary": "",
+        "source": "sdk/agomtradepro/modules/decision_rhythm.py"
+      },
+      {
+        "module": "decision_rhythm",
+        "method": "advisor_sheet",
+        "args": [
+          "account_id"
+        ],
+        "summary": "Return the account-level auto-advisor decision sheet.",
         "source": "sdk/agomtradepro/modules/decision_rhythm.py"
       },
       {
@@ -7139,6 +7412,162 @@
         ],
         "summary": "获取指定时间段内的 Regime 分布统计",
         "source": "sdk/agomtradepro/modules/regime.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_floor",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "update_floor",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "list_templates",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "create_template",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "update_template",
+        "args": [
+          "template_id",
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "list_account_policies",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "upsert_account_policy",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "update_account_policy",
+        "args": [
+          "policy_id",
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_account_policy",
+        "args": [
+          "account_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "apply_template_to_policy",
+        "args": [
+          "policy_id",
+          "template_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "list_exceptions",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "create_exception",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_effective_policy",
+        "args": [
+          "account_id"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "check_pre_trade",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "check_post_investment",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "generate_daily_report",
+        "args": [
+          "payload"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "list_daily_reports",
+        "args": [],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
+      },
+      {
+        "module": "risk_center",
+        "method": "get_daily_report",
+        "args": [
+          "account_id",
+          "report_date"
+        ],
+        "summary": "",
+        "source": "sdk/agomtradepro/modules/risk_center.py"
       },
       {
         "module": "rotation",
@@ -8963,6 +9392,37 @@
         "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
       },
       {
+        "tool": "list_alpha_universes",
+        "args": [
+          "include_inactive"
+        ],
+        "summary": "列出 Alpha/Qlib 模型 Universe 配置；不影响生产覆盖验收口径。",
+        "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
+      },
+      {
+        "tool": "save_alpha_universe",
+        "args": [
+          "universe_id",
+          "name",
+          "source_type",
+          "stock_codes",
+          "filters",
+          "is_active",
+          "description"
+        ],
+        "summary": "创建或更新 Alpha/Qlib 模型 Universe。需要读写 Token，且调用账号必须是 superuser。",
+        "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
+      },
+      {
+        "tool": "get_alpha_universe_members",
+        "args": [
+          "universe_id",
+          "limit"
+        ],
+        "summary": "按模型 Universe ID 解析 Alpha/Qlib 成分股；生产覆盖验收请用 Data Center Universe。",
+        "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
+      },
+      {
         "tool": "list_qlib_training_runs",
         "args": [
           "limit"
@@ -9069,6 +9529,67 @@
         "tool": "get_dashboard_signal_status_v1",
         "args": [],
         "summary": "",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "get_auto_advisor_decision_sheet",
+        "args": [
+          "account_id"
+        ],
+        "summary": "获取账户级自动投顾建议单。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "get_auto_advisor_console",
+        "args": [
+          "account_id"
+        ],
+        "summary": "获取首页自动投顾 console 聚合数据。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "ask_auto_advisor",
+        "args": [
+          "account_id",
+          "question"
+        ],
+        "summary": "使用自然语言查询个人自动投顾上下文。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "get_auto_advisor_weekly_report",
+        "args": [
+          "account_id",
+          "as_of"
+        ],
+        "summary": "获取个人自动投顾周报。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "create_auto_advisor_weekly_report",
+        "args": [
+          "account_id",
+          "as_of"
+        ],
+        "summary": "生成并持久化个人自动投顾周报。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "list_auto_advisor_weekly_report_history",
+        "args": [
+          "account_id",
+          "limit"
+        ],
+        "summary": "列出已持久化的个人自动投顾周报历史。",
+        "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
+      },
+      {
+        "tool": "list_auto_advisor_notifications",
+        "args": [
+          "account_id",
+          "limit"
+        ],
+        "summary": "列出已持久化的自动投顾通知/输出渠道记录。",
         "source": "sdk/agomtradepro_mcp/tools/dashboard_tools.py"
       },
       {
@@ -10414,6 +10935,132 @@
         "source": "sdk/agomtradepro_mcp/tools/regime_tools.py"
       },
       {
+        "tool": "get_risk_floor",
+        "args": [],
+        "summary": "读取当前启用的全局风控底线。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "update_risk_floor",
+        "args": [
+          "payload"
+        ],
+        "summary": "更新全局风控底线。调用方必须提供变更理由字段 reason。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "list_risk_templates",
+        "args": [],
+        "summary": "列出全局风险模板。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "upsert_account_risk_policy",
+        "args": [
+          "payload"
+        ],
+        "summary": "创建或更新账户级风控策略。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "get_account_risk_policy",
+        "args": [
+          "account_id"
+        ],
+        "summary": "按统一账户 ID 读取账户级风控策略。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "get_effective_risk_policy",
+        "args": [
+          "account_id"
+        ],
+        "summary": "解析账户最终生效风控策略，包含继承来源、底线和例外说明。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "list_risk_exceptions",
+        "args": [
+          "account_id"
+        ],
+        "summary": "列出管理员风控例外；可按账户过滤。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "create_risk_exception",
+        "args": [
+          "payload"
+        ],
+        "summary": "创建有理由和过期时间的管理员风控例外。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "check_pre_trade_risk",
+        "args": [
+          "account_id",
+          "symbol",
+          "side",
+          "quantity",
+          "price",
+          "account_equity",
+          "total_position_value",
+          "cash_balance",
+          "current_symbol_position_value"
+        ],
+        "summary": "预览一笔拟交易是否会被集中风控中心拒绝。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "check_post_investment_risk",
+        "args": [
+          "account_id",
+          "account_equity",
+          "positions",
+          "cash_balance",
+          "total_position_value",
+          "daily_pnl_pct",
+          "drawdown_pct"
+        ],
+        "summary": "投后巡检一个账户当前持仓是否触碰集中风控约束。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "generate_risk_center_daily_report",
+        "args": [
+          "account_id",
+          "account_equity",
+          "report_date",
+          "positions",
+          "cash_balance",
+          "total_position_value",
+          "daily_pnl_pct",
+          "drawdown_pct"
+        ],
+        "summary": "生成风控日报和持仓日报。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "get_risk_center_daily_report",
+        "args": [
+          "account_id",
+          "report_date"
+        ],
+        "summary": "按账户和日期读取已归档的风控日报和持仓日报。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
+        "tool": "list_risk_center_daily_reports",
+        "args": [
+          "account_id",
+          "report_date",
+          "start_date",
+          "end_date",
+          "limit"
+        ],
+        "summary": "查询已归档的风控日报历史；支持按账户、单日或日期区间过滤。",
+        "source": "sdk/agomtradepro_mcp/tools/risk_center_tools.py"
+      },
+      {
         "tool": "list_rotation_regimes",
         "args": [],
         "summary": "列出轮动配置使用的宏观象限",
@@ -11588,7 +12235,7 @@
         "features": {
           "status_cards": 0,
           "tabs": 0,
-          "filters": 1,
+          "filters": 3,
           "tables": 0,
           "modals": 0,
           "batch_actions": 0,
@@ -11663,6 +12310,22 @@
         }
       },
       {
+        "template": "apps/data_center/templates/data_center/universe.html",
+        "features": {
+          "status_cards": 0,
+          "tabs": 0,
+          "filters": 0,
+          "tables": 3,
+          "modals": 0,
+          "batch_actions": 0,
+          "pagination": 0,
+          "onclick_actions": [
+            "loadUniversePage",
+            "saveUniverseConfig"
+          ]
+        }
+      },
+      {
         "template": "apps/decision_rhythm/templates/decision_rhythm/quota.html",
         "features": {
           "status_cards": 0,
@@ -11692,6 +12355,19 @@
             "resetQuota",
             "updateQuota"
           ]
+        }
+      },
+      {
+        "template": "apps/risk_center/templates/risk_center/console.html",
+        "features": {
+          "status_cards": 0,
+          "tabs": 0,
+          "filters": 9,
+          "tables": 15,
+          "modals": 0,
+          "batch_actions": 0,
+          "pagination": 0,
+          "onclick_actions": []
         }
       },
       {
@@ -12221,7 +12897,7 @@
         "features": {
           "status_cards": 21,
           "tabs": 0,
-          "filters": 3,
+          "filters": 4,
           "tables": 8,
           "modals": 18,
           "batch_actions": 0,
@@ -12366,9 +13042,13 @@
             "applySystemInvalidationTemplate",
             "approveCurrentTransitionPlan",
             "closeApprovalModal",
+            "copyAdvisorManualList",
             "generateAIInvalidationDraft",
+            "generateTransitionPlan",
+            "loadConflicts",
             "openApprovalModal",
             "queueRecommendationForPlan",
+            "refreshAdvisorSheet",
             "rejectCurrentTransitionPlan",
             "submitTransitionPlanForApproval"
           ]
@@ -12647,6 +13327,19 @@
         }
       },
       {
+        "template": "core/templates/ops/capability_gateway.html",
+        "features": {
+          "status_cards": 0,
+          "tabs": 0,
+          "filters": 1,
+          "tables": 0,
+          "modals": 0,
+          "batch_actions": 0,
+          "pagination": 0,
+          "onclick_actions": []
+        }
+      },
+      {
         "template": "core/templates/ops/center.html",
         "features": {
           "status_cards": 0,
@@ -12747,9 +13440,9 @@
           "tabs": 6,
           "filters": 19,
           "tables": 4,
-          "modals": 15,
+          "modals": 13,
           "batch_actions": 6,
-          "pagination": 3,
+          "pagination": 5,
           "onclick_actions": [
             "applyFilters",
             "batchApprove",
@@ -12769,14 +13462,16 @@
           "tabs": 4,
           "filters": 21,
           "tables": 7,
-          "modals": 67,
+          "modals": 92,
           "batch_actions": 0,
           "pagination": 3,
           "onclick_actions": [
             "clearTestResult",
             "closeChainModal",
             "closeTemplateModal",
+            "deleteChain",
             "deleteTemplate",
+            "editChain",
             "editTemplate",
             "executeTemplate",
             "executeTest",

@@ -9,7 +9,7 @@ RUNTIME_CAPABILITY_ROUTER_MODULE: dict[str, Any] = {
     "key": "capability-router",
     "label": "能力路由",
     "group": "ops",
-    "summary": "统一接入 AI Capability Catalog、路由 API、MCP 工具和内部能力。",
+    "summary": "统一接入能力目录、智能路由、MCP 工具和内部能力。",
 }
 
 RUNTIME_CAPABILITY_ROUTER_SCREEN: dict[str, Any] = {
@@ -172,7 +172,7 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": "capability-router.gateway",
         "module_key": "capability-router",
         "view_type": "detail",
-        "description": "查看 Capability Catalog 总量、启用量、来源分布和路由组分布。",
+        "description": "查看能力目录总量、启用量、来源分布和路由组分布。",
         "source": "approved:runtime-capability-router",
         "task_group": "02 目录检查",
         "sequence": 110,
@@ -257,7 +257,7 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": "capability-router.mcp-center",
         "module_key": "capability-router",
         "view_type": "datagrid",
-        "description": "查看已同步到 Capability Catalog 的 MCP 工具及其治理开关。",
+        "description": "查看已同步到能力目录的 MCP 工具及其治理开关。",
         "source": "approved:runtime-capability-router",
         "task_group": "03 MCP 治理",
         "sequence": 210,
@@ -389,7 +389,7 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "screen_key": "capability-router.mcp-center",
         "module_key": "capability-router",
         "view_type": "detail",
-        "description": "重新同步 SDK 注册的 MCP 工具，并立即执行 Capability Catalog 治理。",
+        "description": "重新同步 SDK 注册的 MCP 工具，并立即执行能力目录治理。",
         "source": "approved:runtime-capability-router",
         "task_group": "03 MCP 治理",
         "sequence": 240,

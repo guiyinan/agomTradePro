@@ -206,6 +206,10 @@ class PublishedTuiMetadataRepository:
                         coverage.get("runtime_patched_screens", 0) or 0
                     )
                     normalized["coverage_summary"] = coverage
+                    self._repair_runtime_screen_contracts(
+                        screens=list(normalized.get("screens") or []),
+                        actions=list(normalized.get("actions") or []),
+                    )
                     return validate_tui_metadata(normalized)
                 return payload
             coverage = self._merge_runtime_coverage(
@@ -217,6 +221,10 @@ class PublishedTuiMetadataRepository:
                     coverage.get("runtime_patched_screens", 0) or 0
                 )
             normalized["coverage_summary"] = coverage
+            self._repair_runtime_screen_contracts(
+                screens=list(normalized.get("screens") or []),
+                actions=list(normalized.get("actions") or []),
+            )
             return validate_tui_metadata(normalized)
 
         normalized["actions"] = kept
@@ -236,6 +244,10 @@ class PublishedTuiMetadataRepository:
             injected_counts=injected_counts,
         )
         normalized["coverage_summary"] = coverage
+        self._repair_runtime_screen_contracts(
+            screens=list(normalized.get("screens") or []),
+            actions=kept,
+        )
         return validate_tui_metadata(normalized)
 
     @staticmethod
@@ -252,6 +264,46 @@ class PublishedTuiMetadataRepository:
                 continue
             coverage[coverage_key] = injected_count + int(coverage.get(coverage_key, 0) or 0)
         return coverage
+
+    @staticmethod
+    def _repair_runtime_screen_contracts(
+        *,
+        screens: list[dict[str, Any]],
+        actions: list[dict[str, Any]],
+    ) -> None:
+        """Keep screens valid after runtime pruning/injection mutates the action set."""
+
+        action_keys = {str(action.get("key") or "") for action in actions if isinstance(action, dict)}
+        screen_keys = {str(screen.get("key") or "") for screen in screens if isinstance(screen, dict)}
+        actions_by_screen: dict[str, list[str]] = {}
+        for action in actions:
+            if not isinstance(action, dict):
+                continue
+            screen_key = str(action.get("screen_key") or "")
+            action_key = str(action.get("key") or "")
+            if screen_key and action_key:
+                actions_by_screen.setdefault(screen_key, []).append(action_key)
+        for screen in screens:
+            if not isinstance(screen, dict):
+                continue
+            panels = screen.get("dashboard_panels")
+            if isinstance(panels, list):
+                screen["dashboard_panels"] = [
+                    panel
+                    for panel in panels
+                    if not isinstance(panel, dict)
+                    or str(panel.get("action_key") or "").strip() == ""
+                    or str(panel.get("action_key") or "").strip() in action_keys
+                    if str(panel.get("target_screen") or "").strip() == ""
+                    or str(panel.get("target_screen") or "").strip() in screen_keys
+                ]
+            default_action_key = str(screen.get("default_action_key") or "").strip()
+            if default_action_key and default_action_key not in action_keys:
+                fallback_action_key = next(
+                    iter(actions_by_screen.get(str(screen.get("key") or ""), [])),
+                    "",
+                )
+                screen["default_action_key"] = fallback_action_key
 
     @staticmethod
     def _apply_screen_patches(
@@ -292,7 +344,7 @@ class PublishedTuiMetadataRepository:
         panels = patch.get("dashboard_panels")
         if not isinstance(panels, list):
             return resolved
-        resolved["dashboard_panels"] = [
+        resolved_panels = [
             panel
             for panel in panels
             if not isinstance(panel, dict)
@@ -301,6 +353,9 @@ class PublishedTuiMetadataRepository:
             if str(panel.get("target_screen") or "").strip() == ""
             or str(panel.get("target_screen") or "").strip() in screen_keys
         ]
+        if panels and not resolved_panels:
+            return {}
+        resolved["dashboard_panels"] = resolved_panels
         return resolved
 
     @staticmethod

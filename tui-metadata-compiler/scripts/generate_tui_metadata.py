@@ -23,15 +23,20 @@ def _humanize(value: str) -> str:
 def _operator_label(value: str) -> str:
     label = _humanize(value)
     label = re.sub(r"^(Get|List|Read|Fetch)\s+", "", label, flags=re.IGNORECASE).strip()
-    return label or "System Tool"
+    return label or "系统工具"
 
 
 FIELD_LABELS = {
     "account_id": "账户 ID",
+    "ai_provider": "AI 服务商",
+    "alpha_fixed_provider": "固定服务商",
     "asset_class": "资产类别",
     "asset_code": "资产代码",
+    "base_url": "基础地址",
     "code": "代码",
     "config_id": "配置 ID",
+    "completion_tokens": "补全令牌数",
+    "display_token": "令牌",
     "factor_id": "因子 ID",
     "event_id": "事件 ID",
     "event_date": "事件日期",
@@ -43,6 +48,16 @@ FIELD_LABELS = {
     "pk": "记录 ID",
     "plan_id": "计划 ID",
     "portfolio_id": "组合 ID",
+    "prompt_template": "提示词模板",
+    "prompt_template_id": "提示词模板 ID",
+    "prompt_tokens": "提示词令牌数",
+    "provider_id": "服务商 ID",
+    "provider_name": "服务商名称",
+    "provider_scope": "服务商范围",
+    "provider_type": "服务商类型",
+    "provider_type_label": "服务商类型",
+    "provider_uri": "服务商地址",
+    "rendered_prompt": "渲染后提示词",
     "report_id": "报告 ID",
     "request_id": "请求 ID",
     "short_code": "分享码",
@@ -51,9 +66,13 @@ FIELD_LABELS = {
     "strategy_id": "策略 ID",
     "summary_id": "汇总 ID",
     "symbol": "代码",
+    "system_prompt": "系统提示词",
     "task_id": "任务 ID",
+    "token_id": "令牌 ID",
     "to_code": "目标币种",
+    "total_tokens": "总令牌数",
     "universe": "标的池",
+    "user_prompt_template": "用户提示词模板",
     "validation_id": "验证 ID",
 }
 
@@ -111,12 +130,37 @@ LABEL_REPLACEMENTS = (
     ("Sentiment", "情绪"),
     ("Data Center", "数据中心"),
     ("Market Thermometer", "市场温度"),
-    ("Prompt", "Prompt"),
+    ("Agent Runtime", "智能体运行时"),
+    ("Admin Runtime", "管理员运行时"),
+    ("Agent Prompt", "助手提示词"),
+    ("Prompt Templates", "提示词模板"),
+    ("Prompt Template", "提示词模板"),
+    ("System Prompt", "系统提示词"),
+    ("Rendered Prompt", "渲染后提示词"),
+    ("Prompt Tokens", "提示词令牌数"),
+    ("Completion Tokens", "补全令牌数"),
+    ("Total Tokens", "总令牌数"),
+    ("Prompt", "提示词"),
+    ("Tokens", "令牌"),
+    ("Token", "令牌"),
     ("Templates", "模板"),
     ("Chains", "链路"),
     ("Logs", "日志"),
-    ("Provider", "Provider"),
-    ("Providers", "Provider"),
+    ("Ai Provider", "AI 服务商"),
+    ("Provider Type Label", "服务商类型"),
+    ("Provider Type", "服务商类型"),
+    ("Provider Scope", "服务商范围"),
+    ("Provider Uri", "服务商地址"),
+    ("Provider Used", "使用服务商"),
+    ("Provider Name", "服务商名称"),
+    ("Provider Id", "服务商 ID"),
+    ("Providers", "服务商"),
+    ("Provider", "服务商"),
+    ("Base Url", "基础地址"),
+    ("Endpoint", "地址"),
+    ("Chat", "对话"),
+    ("Runtime", "运行时"),
+    ("Catalog", "目录"),
     ("Health", "健康"),
     ("Status", "状态"),
     ("Summary", "概览"),
@@ -213,8 +257,8 @@ ROUTE_SEGMENT_LABELS = {
     "positions": "持仓",
     "public": "公开分享",
     "access": "访问记录",
-    "prompt": "Prompt",
-    "providers": "Provider",
+    "prompt": "提示词",
+    "providers": "服务商",
     "requests": "请求",
     "rotation": "轮动",
     "rules": "规则",
@@ -843,6 +887,15 @@ def _query_field_type(name: str) -> tuple[str, str]:
     normalized = str(name or "").strip().lower()
     if normalized in {"strict_freshness", "include_ignored"}:
         return "checkbox", "boolean"
+    if normalized in {
+        "prompt",
+        "prompt_text",
+        "prompt_body",
+        "system_prompt",
+        "user_prompt",
+        "user_prompt_template",
+    } or normalized.endswith("_prompt"):
+        return "textarea", "string"
     if normalized in {"page", "page_size", "days", "limit"} or normalized.endswith("_id"):
         return "number", "integer"
     if normalized in {"max_age_hours"}:
@@ -1015,36 +1068,43 @@ AUTO_LIBRARY_SCREENS = {
         "key": "api-library.workflow",
         "label": "决策与工作流工具",
         "summary": "已发布的决策上下文、仪表盘和日常工作流工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "macro": {
         "key": "api-library.macro",
         "label": "环境与策略工具",
         "summary": "已发布的宏观环境、策略、节奏和市场状态工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "research": {
         "key": "api-library.research",
         "label": "研究与信号工具",
         "summary": "已发布的研究、因子、信号、回测和标的分析工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "account": {
         "key": "api-library.account",
         "label": "账户与组合工具",
         "summary": "已发布的账户、组合、资产和模拟交易工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "execution": {
         "key": "api-library.execution",
         "label": "执行与复盘工具",
         "summary": "已发布的执行、审计、任务和风控检查工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "system": {
         "key": "api-library.system",
         "label": "系统与 AI 工具",
         "summary": "已发布的系统健康、AI 能力、终端和数据中心工具。",
+        "user_experience": {"journey": "toolbox"},
     },
     "parameterized": {
         "key": "api-library.parameterized",
         "label": "带条件查询",
         "summary": "需要输入对象编号、代码或主键后才能执行的详情工具。",
+        "user_experience": {"journey": "toolbox"},
     },
 }
 
@@ -1099,14 +1159,58 @@ def _ensure_auto_library_screens(payload: dict[str, Any]) -> None:
                 "summary": spec["summary"],
                 "view_type": "datagrid",
                 "status": "online",
+                "user_experience": dict(spec.get("user_experience") or {}),
             }
         )
         existing_screen_keys.add(spec["key"])
 
 
+def _assign_auto_library_default_actions(payload: dict[str, Any]) -> None:
+    screens = payload.get("screens") or []
+    actions = payload.get("actions") or []
+    auto_library_keys = {spec["key"] for spec in AUTO_LIBRARY_SCREENS.values()}
+    actions_by_screen: dict[str, list[dict[str, Any]]] = {}
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        screen_key = str(action.get("screen_key") or "").strip()
+        if not screen_key:
+            continue
+        actions_by_screen.setdefault(screen_key, []).append(action)
+
+    for screen in screens:
+        if not isinstance(screen, dict):
+            continue
+        screen_key = str(screen.get("key") or "").strip()
+        if screen_key not in auto_library_keys:
+            continue
+        if str(screen.get("default_action_key") or "").strip():
+            continue
+        screen_actions = actions_by_screen.get(screen_key) or []
+        if not screen_actions:
+            continue
+        ordered = sorted(
+            screen_actions,
+            key=lambda action: (
+                any(
+                    bool(field.get("required"))
+                    and str(field.get("input_type") or "").strip().lower() != "hidden"
+                    and field.get("default") in (None, "")
+                    for field in action.get("fields") or []
+                ),
+                str(action.get("view_type") or "") != str(screen.get("view_type") or ""),
+                int(action.get("sequence", 999) or 999),
+                str(action.get("key") or ""),
+            ),
+        )
+        screen["default_action_key"] = str(ordered[0].get("key") or "")
+
+
 def _is_safe_api(record: dict[str, Any]) -> bool:
     endpoint = str(record.get("endpoint", "")).lower()
     if str(record.get("method", "")).upper() != "GET":
+        return False
+    if endpoint.startswith("/api/terminal/commands/"):
         return False
     if record.get("requires_confirmation"):
         return False
@@ -1681,6 +1785,7 @@ def main() -> int:
         added_parameterized_actions=added_parameterized_actions,
         payload=payload,
     )
+    _assign_auto_library_default_actions(payload)
     source_evidence = {
         "api_safe_read": api_evidence,
         "sdk_methods": sdk_evidence,

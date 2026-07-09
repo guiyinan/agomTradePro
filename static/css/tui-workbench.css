@@ -1216,6 +1216,19 @@ a {
     gap: 4px;
 }
 
+.tui-badge-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+}
+
+.tui-badge-button:hover .tui-badge,
+.tui-badge-button:focus .tui-badge {
+    box-shadow: 0 0 0 1px var(--tui-accent);
+    outline: none;
+}
+
 .tui-screen-button {
     position: relative;
     display: grid;
@@ -1337,6 +1350,19 @@ a {
     box-shadow: none;
 }
 
+.tui-dash-panel[data-panel-priority="p0"] {
+    border-color: var(--tui-accent);
+    background: color-mix(in srgb, var(--tui-panel) 88%, var(--tui-accent) 12%);
+}
+
+.tui-dash-panel[data-panel-priority="p1"] {
+    border-color: var(--tui-border);
+}
+
+.tui-dash-panel[data-panel-priority="p2"] {
+    opacity: 0.96;
+}
+
 .tui-dash-panel:focus,
 .tui-dash-panel:hover {
     outline: 2px solid var(--tui-accent);
@@ -1356,6 +1382,33 @@ a {
     color: var(--tui-text);
     font: 15px/1.2 var(--tui-mono);
     letter-spacing: 0;
+}
+
+.tui-panel-heading-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.tui-panel-priority,
+.tui-panel-semantic {
+    border: 1px solid var(--tui-border-dim);
+    padding: 1px 5px;
+    color: var(--tui-muted);
+    font: 700 10px/1.2 var(--tui-mono);
+    white-space: nowrap;
+}
+
+.tui-dash-panel[data-panel-priority="p0"] .tui-panel-priority {
+    border-color: var(--tui-accent);
+    color: var(--tui-accent);
+}
+
+.tui-panel-caption {
+    margin: -3px 0 8px;
+    color: var(--tui-muted);
+    font: 11px/1.45 var(--tui-mono);
 }
 
 .tui-home-actions {
@@ -2148,6 +2201,93 @@ a {
 
 .tui-detail-grid dd {
     overflow-wrap: anywhere;
+}
+
+.tui-semantic-detail {
+    display: grid;
+    gap: 8px;
+}
+
+.tui-semantic-detail.is-compact {
+    gap: 6px;
+}
+
+.tui-status-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+}
+
+.tui-status-hero strong {
+    color: var(--tui-text);
+    font: 700 13px/1.3 var(--tui-mono);
+}
+
+.tui-status-pill {
+    border: 1px solid var(--tui-accent);
+    padding: 2px 8px;
+    color: var(--tui-accent);
+    font: 700 11px/1.2 var(--tui-mono);
+    white-space: nowrap;
+}
+
+.tui-copy-stack {
+    display: grid;
+    gap: 8px;
+}
+
+.tui-copy-row,
+.tui-copy-block-card {
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg-deep);
+    padding: 8px 10px;
+}
+
+.tui-copy-row {
+    display: grid;
+    gap: 5px;
+}
+
+.tui-copy-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tui-copy-row span,
+.tui-copy-block-card strong {
+    color: var(--tui-accent);
+    font: 700 12px/1.3 var(--tui-mono);
+}
+
+.tui-copy-row code,
+.tui-copy-block {
+    display: block;
+    margin: 0;
+    color: var(--tui-text);
+    font: 12px/1.5 var(--tui-mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.tui-copy-action {
+    border: 1px solid var(--tui-border);
+    background: var(--tui-bg);
+    color: var(--tui-text);
+    padding: 3px 8px;
+    font: 700 11px/1.2 var(--tui-mono);
+}
+
+.tui-copy-action:hover,
+.tui-copy-action:focus {
+    border-color: var(--tui-accent);
+    color: var(--tui-accent);
 }
 
 .tui-inspector-card {
