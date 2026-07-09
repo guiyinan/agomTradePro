@@ -1003,9 +1003,9 @@ else
 fi
 
 if [ -n "$EFFECTIVE_DOMAIN" ]; then
-  AUTO_ALLOWED_HOSTS="$EFFECTIVE_DOMAIN,127.0.0.1,localhost,$HOST"
+  AUTO_ALLOWED_HOSTS="$EFFECTIVE_DOMAIN,127.0.0.1,localhost,$HOST,web"
 else
-  AUTO_ALLOWED_HOSTS="127.0.0.1,localhost,$HOST"
+  AUTO_ALLOWED_HOSTS="127.0.0.1,localhost,$HOST,web"
 fi
 
 if [ -n "$ALLOWED_HOSTS_INPUT" ]; then
