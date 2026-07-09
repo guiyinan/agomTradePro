@@ -33,9 +33,18 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     captured = {}
 
     class FakeServer:
-        def __init__(self, *, params, cache_tools_list, tool_filter, name):
+        def __init__(
+            self,
+            *,
+            params,
+            cache_tools_list,
+            client_session_timeout_seconds,
+            tool_filter,
+            name,
+        ):
             captured["params"] = params
             captured["cache_tools_list"] = cache_tools_list
+            captured["client_session_timeout_seconds"] = client_session_timeout_seconds
             captured["tool_filter"] = tool_filter
             captured["name"] = name
 
@@ -51,6 +60,7 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     assert captured["params"]["args"] == ["-m", "agomtradepro_mcp.server"]
     assert "PYTHONPATH" in captured["params"]["env"]
     assert captured["cache_tools_list"] is True
+    assert captured["client_session_timeout_seconds"] == 90.0
     assert captured["name"] == "agomtradepro"
     assert captured["tool_filter"](SimpleNamespace(server_name="stdio"), SimpleNamespace(name="read_regime")) is True
 

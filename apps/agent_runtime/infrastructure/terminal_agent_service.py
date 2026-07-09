@@ -32,6 +32,10 @@ AUTO_APPROVED_RISKS = {"safe", "low"}
 APPROVAL_REQUIRED_RISKS = {"medium", "high", "critical"}
 TERMINAL_AGENT_NAME = "AgomTradePro Terminal Agent"
 TERMINAL_AGENT_MCP_SERVER_NAME = "agomtradepro"
+# Some task-monitor tools take ~15-20s on local data and the model may queue
+# several MCP calls in one turn, so keep the stdio client timeout comfortably
+# above the default 5s SDK value.
+TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS = 90.0
 
 
 @dataclass(frozen=True)
@@ -299,6 +303,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         env["PYTHONPATH"] = sdk_root if not existing else f"{sdk_root}{os.pathsep}{existing}"
         return sdk["MCPServerStdio"](
             cache_tools_list=True,
+            client_session_timeout_seconds=TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
             name=TERMINAL_AGENT_MCP_SERVER_NAME,
             tool_filter=self._build_tool_filter(tool_access.auto_allowed),
             params={
