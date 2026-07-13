@@ -27,6 +27,14 @@ def authenticated_client(api_client, auth_user):
     return api_client
 
 
+@pytest.fixture
+def staff_client(api_client, auth_user):
+    auth_user.is_staff = True
+    auth_user.save(update_fields=["is_staff"])
+    api_client.force_authenticate(user=auth_user)
+    return api_client
+
+
 @pytest.mark.django_db
 def test_policy_status_invalid_date_returns_400(authenticated_client):
     response = authenticated_client.get("/api/policy/status/?as_of_date=2026/04/02")
@@ -61,8 +69,8 @@ def test_policy_reject_event_requires_reason(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_policy_workbench_fetch_rejects_invalid_source_id(authenticated_client):
-    response = authenticated_client.post(
+def test_policy_workbench_fetch_rejects_invalid_source_id(staff_client):
+    response = staff_client.post(
         "/api/policy/workbench/fetch/",
         {"source_id": "not-an-int"},
         format="json",

@@ -2,7 +2,7 @@
 Asset Name Resolver - 资产名称解析服务测试
 
 测试资产代码到名称的解析功能。
-数据来源是数据库表，不是硬编码或mock。
+名称数据来源是本地数据库表，单元测试会隔离远程补全请求。
 """
 
 import os
@@ -34,6 +34,13 @@ class AssetNameResolverTest(TestCase):
         from apps.rotation.infrastructure.models import AssetClassModel
 
         cache.clear()
+        self.remote_name_patcher = patch(
+            "apps.data_center.infrastructure.asset_master_backfill."
+            "AssetMasterBackfillService._fetch_remote_name",
+            return_value="",
+        )
+        self.remote_name_patcher.start()
+        self.addCleanup(self.remote_name_patcher.stop)
         AssetMasterModel.objects.all().delete()
         StockInfoModel.objects.all().delete()
         FundHoldingModel.objects.all().delete()
@@ -194,9 +201,7 @@ class AssetNameResolverTest(TestCase):
     def test_read_only_resolution_does_not_populate_cache(self):
         """只读解析允许查库，但不得在 cache miss 时回写缓存。"""
 
-        with patch(
-            "apps.asset_analysis.infrastructure.asset_name_resolver.cache.set"
-        ) as cache_set:
+        with patch("apps.asset_analysis.infrastructure.asset_name_resolver.cache.set") as cache_set:
             result = resolve_asset_names_read_only(["000001.SZ"])
 
         self.assertEqual(result.get("000001.SZ"), "平安银行")

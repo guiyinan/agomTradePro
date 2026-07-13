@@ -51,9 +51,23 @@ class AssetNameResolver:
 
         resolved: dict[str, str] = {}
 
-        resolved.update(self._resolve_stocks(code_set - set(resolved.keys())))
-        resolved.update(self._resolve_funds(code_set - set(resolved.keys())))
+        explicit_fund_codes = {code for code in code_set if str(code).upper().endswith(".OF")}
+        resolved.update(self._resolve_funds(explicit_fund_codes))
+
+        # Rotation assets take precedence for configured ETFs.  This keeps a
+        # stable product display name instead of replacing it with a remote
+        # exchange security name.
         resolved.update(self._resolve_rotation_assets(code_set - set(resolved.keys())))
+
+        # Explicit fund identifiers must never fall through to the equity
+        # resolver, whose read-through path may call remote market providers.
+        unresolved_stock_codes = {
+            code
+            for code in code_set - set(resolved.keys())
+            if not str(code).upper().endswith(".OF")
+        }
+        resolved.update(self._resolve_stocks(unresolved_stock_codes))
+        resolved.update(self._resolve_funds(code_set - set(resolved.keys())))
         resolved.update(self._resolve_fund_holdings(code_set - set(resolved.keys())))
         resolved.update(self._resolve_indices(code_set - set(resolved.keys())))
 

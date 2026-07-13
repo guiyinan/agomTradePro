@@ -23,26 +23,26 @@ def _get_tool_names():
 
 
 class TestProposalToolRegistration:
-    """Test that all M3 proposal tools are registered."""
+    """Legacy proposal tools stay off the default governed MCP surface."""
 
     @pytest.fixture(autouse=True)
     def _tool_names(self):
         self.tool_names = _get_tool_names()
 
     def test_create_agent_proposal_registered(self):
-        assert "create_agent_proposal" in self.tool_names
+        assert "create_agent_proposal" not in self.tool_names
 
     def test_get_agent_proposal_registered(self):
-        assert "get_agent_proposal" in self.tool_names
+        assert "get_agent_proposal" not in self.tool_names
 
     def test_approve_agent_proposal_registered(self):
-        assert "approve_agent_proposal" in self.tool_names
+        assert "approve_agent_proposal" not in self.tool_names
 
     def test_reject_agent_proposal_registered(self):
-        assert "reject_agent_proposal" in self.tool_names
+        assert "reject_agent_proposal" not in self.tool_names
 
     def test_execute_agent_proposal_registered(self):
-        assert "execute_agent_proposal" in self.tool_names
+        assert "execute_agent_proposal" not in self.tool_names
 
 
 class TestProposalToolExecution:

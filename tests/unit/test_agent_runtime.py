@@ -681,7 +681,7 @@ class TestChainFinalOutputResolution:
 
 
 class TestMCPToolNaming:
-    """Agent Runtime MCP 工具不能覆盖旧 prompt_* 工具。"""
+    """The default MCP surface exposes governed core tools only."""
 
     def test_agent_runtime_tool_names_are_distinct(self):
         import sys
@@ -693,9 +693,8 @@ class TestMCPToolNaming:
 
         tools = server_module.server._tool_manager._tools
 
-        assert "prompt_chat" in tools
-        assert "generate_prompt_report" in tools
-        assert "generate_prompt_signal" in tools
-        assert "agent_chat" in tools
-        assert "agent_generate_report" in tools
-        assert "agent_generate_signal" in tools
+        from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
+
+        assert set(CORE_TOOL_NAMES).issubset(tools)
+        assert "prompt_chat" not in tools
+        assert "agent_chat" not in tools

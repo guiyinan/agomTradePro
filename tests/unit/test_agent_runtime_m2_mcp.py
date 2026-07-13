@@ -12,35 +12,36 @@ from tests.utils.async_helpers import run_async_callable
 
 
 class TestAgentTaskToolRegistration:
-    """Test that agent task tools are registered in the MCP server."""
+    """Legacy task tools stay off the default governed MCP surface."""
 
     @pytest.fixture
     def tool_names(self):
         """Get all registered tool names from MCP server."""
         from agomtradepro_mcp.server import server
+
         tools = run_async_callable(server.list_tools)
         return [t.name for t in tools]
 
     def test_start_research_task_registered(self, tool_names):
-        assert "start_research_task" in tool_names
+        assert "start_research_task" not in tool_names
 
     def test_start_monitoring_task_registered(self, tool_names):
-        assert "start_monitoring_task" in tool_names
+        assert "start_monitoring_task" not in tool_names
 
     def test_start_decision_task_registered(self, tool_names):
-        assert "start_decision_task" in tool_names
+        assert "start_decision_task" not in tool_names
 
     def test_start_execution_task_registered(self, tool_names):
-        assert "start_execution_task" in tool_names
+        assert "start_execution_task" not in tool_names
 
     def test_start_ops_task_registered(self, tool_names):
-        assert "start_ops_task" in tool_names
+        assert "start_ops_task" not in tool_names
 
     def test_resume_agent_task_registered(self, tool_names):
-        assert "resume_agent_task" in tool_names
+        assert "resume_agent_task" not in tool_names
 
     def test_cancel_agent_task_registered(self, tool_names):
-        assert "cancel_agent_task" in tool_names
+        assert "cancel_agent_task" not in tool_names
 
 
 class TestContextResourceRegistration:
@@ -50,6 +51,7 @@ class TestContextResourceRegistration:
     def resource_uris(self):
         """Get all registered resource URIs."""
         from agomtradepro_mcp.server import server
+
         resources = run_async_callable(server.list_resources)
         return [str(r.uri) for r in resources]
 
@@ -93,6 +95,7 @@ class TestWorkflowPromptRegistration:
     def prompt_names(self):
         """Get all registered prompt names."""
         from agomtradepro_mcp.server import server
+
         prompts = run_async_callable(server.list_prompts)
         return [p.name for p in prompts]
 

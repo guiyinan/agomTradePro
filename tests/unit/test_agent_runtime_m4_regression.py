@@ -189,7 +189,7 @@ class TestSDKContracts:
 
 @pytest.mark.agent_runtime_mcp
 class TestMCPRegistration:
-    """Verify all MCP tools/resources/prompts remain registered."""
+    """Verify retired raw tools are absent from the default MCP surface."""
 
     @pytest.fixture(autouse=True)
     def _tool_names(self):
@@ -199,23 +199,23 @@ class TestMCPRegistration:
 
     # M2 task tools
     def test_m2_start_research_task(self):
-        assert "start_research_task" in self.tool_names
+        assert "start_research_task" not in self.tool_names
 
     def test_m2_resume_agent_task(self):
-        assert "resume_agent_task" in self.tool_names
+        assert "resume_agent_task" not in self.tool_names
 
     def test_m2_cancel_agent_task(self):
-        assert "cancel_agent_task" in self.tool_names
+        assert "cancel_agent_task" not in self.tool_names
 
     # M3 proposal tools
     def test_m3_create_agent_proposal(self):
-        assert "create_agent_proposal" in self.tool_names
+        assert "create_agent_proposal" not in self.tool_names
 
     def test_m3_approve_agent_proposal(self):
-        assert "approve_agent_proposal" in self.tool_names
+        assert "approve_agent_proposal" not in self.tool_names
 
     def test_m3_reject_agent_proposal(self):
-        assert "reject_agent_proposal" in self.tool_names
+        assert "reject_agent_proposal" not in self.tool_names
 
     def test_m3_execute_agent_proposal(self):
-        assert "execute_agent_proposal" in self.tool_names
+        assert "execute_agent_proposal" not in self.tool_names

@@ -518,28 +518,25 @@ class AnalyzeValuationUseCase:
             end_date = date.today()
             start_date = end_date - timedelta(days=request.lookback_days)
 
-            valuation_history = _call_repo_with_hydrate(
+            valuation_history = _load_repo_cache_first(
                 self.stock_repo.get_valuation_history,
                 request.stock_code,
                 start_date,
                 end_date,
-                hydrate=False,
             )
 
             # 5. 获取财务数据
-            financial = _call_repo_with_hydrate(
+            financial = _load_repo_cache_first(
                 self.stock_repo.get_latest_financial_data,
                 request.stock_code,
-                hydrate=False,
             )
 
             # 6. 获取日线数据（用于获取当前价格、换手率等）
-            daily_prices = _call_repo_with_hydrate(
+            daily_prices = _load_repo_cache_first(
                 self.stock_repo.get_daily_prices,
                 request.stock_code,
                 start_date=end_date - timedelta(days=7),
                 end_date=end_date,
-                hydrate=False,
             )
             latest_daily = daily_prices[-1] if daily_prices else None
 

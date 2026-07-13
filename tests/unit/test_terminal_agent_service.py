@@ -1,5 +1,6 @@
 """Unit tests for the refactored terminal agent service."""
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -55,7 +56,7 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     server = service._build_mcp_server({"MCPServerStdio": FakeServer}, _request(), tool_access)
 
     assert isinstance(server, FakeServer)
-    assert captured["params"]["command"].lower().endswith("python.exe")
+    assert Path(captured["params"]["command"]).name.lower() in {"python", "python.exe"}
     assert captured["params"]["args"] == ["-m", "agomtradepro_mcp.server"]
     assert "PYTHONPATH" in captured["params"]["env"]
     assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_USER_ID"] == "7"
@@ -64,7 +65,12 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     assert captured["cache_tools_list"] is True
     assert captured["client_session_timeout_seconds"] == 90.0
     assert captured["name"] == "agomtradepro"
-    assert captured["tool_filter"](SimpleNamespace(server_name="stdio"), SimpleNamespace(name="read_regime")) is True
+    assert (
+        captured["tool_filter"](
+            SimpleNamespace(server_name="stdio"), SimpleNamespace(name="read_regime")
+        )
+        is True
+    )
 
 
 def test_resolve_provider_prefers_personal_provider_without_fallback_quota():
