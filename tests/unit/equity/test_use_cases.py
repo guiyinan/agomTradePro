@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -147,7 +147,7 @@ def _build_valuation_metrics(stock_code: str, trade_date: date) -> ValuationMetr
         total_mv=Decimal("1000000000"),
         circ_mv=Decimal("800000000"),
         dividend_yield=1.2,
-        fetched_at=datetime(2026, 5, 13, 9, 30, tzinfo=timezone.utc),
+        fetched_at=datetime(2026, 5, 13, 9, 30, tzinfo=UTC),
     )
 
 
@@ -168,7 +168,7 @@ def _build_financial_data(stock_code: str, report_date: date) -> FinancialData:
         period_end=report_date,
         period_type="annual",
         source="test",
-        fetched_at=datetime(2026, 5, 13, 9, 35, tzinfo=timezone.utc),
+        fetched_at=datetime(2026, 5, 13, 9, 35, tzinfo=UTC),
     )
 
 
@@ -199,7 +199,7 @@ def test_analyze_valuation_prefers_cached_payloads_before_hydration() -> None:
     ]
 
 
-def test_analyze_valuation_hydrates_only_when_cached_payload_missing() -> None:
+def test_analyze_valuation_does_not_hydrate_when_persisted_payload_missing() -> None:
     valuation = _build_valuation_metrics("002493.SZ", date(2026, 5, 12))
     financial = _build_financial_data("002493.SZ", date(2025, 12, 31))
     repo = _FakeStockRepository(
@@ -217,12 +217,10 @@ def test_analyze_valuation_hydrates_only_when_cached_payload_missing() -> None:
 
     assert response.success is True
     assert response.latest_valuation is not None
-    assert response.latest_valuation["price"] == 19.88
+    assert response.latest_valuation["price"] is None
+    assert response.error == "未找到股票 002493.SZ 的估值数据"
     assert repo.calls == [
         ("valuation", False),
-        ("valuation", True),
         ("financial", False),
-        ("financial", True),
         ("daily_prices", False),
-        ("daily_prices", True),
     ]

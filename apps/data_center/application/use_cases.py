@@ -301,7 +301,6 @@ class ManageProviderConfigUseCase:
         if existing is None:
             return None
 
-        # Apply only the fields that were explicitly provided (non-None)
         updated = ProviderConfig(
             id=existing.id,
             name=request.name if request.name is not None else existing.name,
@@ -1023,14 +1022,13 @@ class QueryLatestQuoteUseCase:
         quote_is_stale = (age_seconds / 3600) > effective_max_age_hours
         freshness_status = "stale" if quote_is_stale else "fresh"
 
-        latest_completed_session = _latest_completed_cn_quote_session(current_now)
         snapshot_local = normalized_snapshot_at.astimezone(CN_MARKET_TZ)
-        snapshot_local_date = snapshot_local.date()
         if (
             quote_is_stale
-            and latest_completed_session is not None
+            and (latest_completed_session := _latest_completed_cn_quote_session(current_now))
+            is not None
             and _is_cn_listed_asset(asset_code)
-            and snapshot_local_date == latest_completed_session
+            and snapshot_local.date() == latest_completed_session
             and snapshot_local.time() >= CN_MARKET_CLOSE
         ):
             quote_is_stale = False
@@ -1039,7 +1037,7 @@ class QueryLatestQuoteUseCase:
         blocked_reason = ""
         if quote_is_stale:
             blocked_reason = (
-                "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，" "不得直接用于决策。"
+                "最新行情快照已超过 freshness 阈值，当前结果仅可用于诊断，不得直接用于决策。"
             )
 
         return QuoteResponse(
