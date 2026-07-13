@@ -734,8 +734,19 @@ CI 必须阻止以下回归：
 | `keep_task` | 转为正式 capability |
 | `aggregate` | 合并进更高层任务 capability |
 | `internal_only` | 不再暴露给 MCP |
-| `legacy_compat` | 暂时保留，标 replacement |
+| `legacy_compat` | 仅保留显式兼容调用；声明 replacement 或推荐的正式能力 |
 | `remove` | 删除或停止注册 |
+| `unsupported` | 当前服务端契约不成立，登记机器可读禁用原因，禁止伪造 replacement |
+
+分类执行标准：
+
+1. `sdk/agomtradepro_mcp/legacy_dispositions.py` 是未替代 raw tool 处置的机器注册表；不得在 Markdown 维护第二份动态数量。
+2. 每条没有 `replacement_capability_key` 的 raw tool 必须且只能命中一条 disposition；缺失、重复和多余记录都必须使 `scripts/check_mcp_catalog_dedup.py` 失败。
+3. 任意已分类 legacy catalog entry 必须强制 `enabled_for_routing=false`、`review_status=rejected`，不得因它是只读工具而重新进入 Agent 候选。
+4. `aggregate` 与 `legacy_compat` 必须声明实际存在的 `recommended_capability_keys`；推荐目标缺失时治理检查必须失败。
+5. `unsupported` 必须同时存在于 `sdk/agomtradepro/unsupported_legacy_contracts.py`，并写清错误路径、证据和解冻条件。
+6. `keep_task` 只表示真实待迁移债务，不得用于掩盖 aggregate、internal-only 或 unsupported；阶段收口时不得遗留未解释的 `keep_task`。
+7. disposition、replacement 和 manifest 的实时统计只写入 `governance/governance_baseline.json`。
 
 ### 9.2 退役流程
 

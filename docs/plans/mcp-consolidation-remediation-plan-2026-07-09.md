@@ -1788,9 +1788,28 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
 7. unsupported legacy contract 要继续单独维护，不与 governed replacement 候选池混放。
    - 当前明确样板是 `realtime.delete.price_alert`：它是显式 unsupported legacy contract，不是待迁移 capability。
 
-### 当前推荐下一批整改顺序（2026-07-13，按最新续做入口重排）
+### SDK/MCP 契约全量收口结果（2026-07-13）
 
-上一轮已完成多域 governed read/write 收口，最新补齐 Unified Account、Hedge、Asset Analysis、Equity 持久化读取、Dashboard Auto Advisor read family、Factor persisted read/compute、Strategy persisted reads、Fund/Sector score、Realtime sector performance、`beta_gate.create.config`、`data_center.read.capital_flows`、`alpha_trigger.read.performance`、`policy.start.rss_fetch`、Audit workflows 与 `config_center.read.snapshot`，并修正 SDK route guard 的动态 helper 覆盖；`realtime.delete.price_alert` 仍作为 unsupported legacy contract 与普通候选分流。当前新的下一轮整改动作，按优先级从上到下执行；原则是继续只迁移证据链完整的能力，避免把错误 raw path 继续制度化：
+> 本节取代下方历史“下一批”表作为后续执行入口。动态治理数据只读取
+> `governance/governance_baseline.json`，本文不复制 manifest、replacement、legacy 或 test 数量。
+
+本轮已完成：
+
+1. 新增 `sdk/agomtradepro_mcp/legacy_dispositions.py`，所有没有 formal replacement 的 raw tool 均已获得唯一、可执行的处置结论；注册表不再遗留 `keep_task`。
+2. `aggregate`、`internal_only`、`legacy_compat` 与 `unsupported` 不再伪装成待迁移 capability；它们同步为不可路由、`review_status=rejected` 的 legacy catalog 记录。
+3. Agent Task 生命周期、Alpha/Qlib 运维、Alpha Trigger、Backtest、Config Center、Dashboard Alpha、Data Center repair、Decision Workflow、Equity 数据治理、Factor portfolio、Fund performance、Rotation signal 与 Sentiment provider 调用已发布为 preview/confirmation/idempotency/audit 完整的 governed workflow。
+4. Alpha stock scores、factor exposure、Asset Analysis screens、Decision precheck/funnel、Equity score/recommendation/analysis、Fund catalog 与 Sector analysis/comparison 已通过 canonical SDK/API 和 controlled fallback 发布为 governed read/compute。
+5. `get_top_movers` 已从会触发轮询和缓存写入的 POST 链拆出 cached-only authenticated GET；正式 SDK 与 MCP capability 只读缓存监控资产，不访问 provider、不刷新价格、不写缓存。
+6. Alpha factor exposure 的 raw MCP wrapper 已移除本地 Django/provider registry 直连，统一调用正式 SDK HTTP 契约。
+7. Event replay、Realtime price alerts 与 price subscriptions 保持机器可读 `unsupported`；在各自解冻条件完成前不会进入统一调用面。
+8. Terminal 继续保持 MCP-backed，只消费默认 core tools 和 governed registry；普通站内 API/Web/TUI 仍直接调用 Application/API，不倒流到 MCP。
+9. catalog dedup、governance consistency、SDK route、read evidence、write evidence 与 large-file ratchet 已形成闭环；本轮没有提高大文件 allowance，也没有新增 raw `@server.tool()`。
+
+后续不再以“继续迁移现存 raw tool”为默认动作。新的系统功能必须先落 canonical Application/API/SDK，再按本标准决定是否批准为 Agent capability；兼容 raw surface 只允许缩减。
+
+### 历史推荐整改顺序（已完成或重新分类，仅保留审计）
+
+以下内容记录当时的候选判断，不再是续做清单；本轮已按上节结论完成迁移、聚合、内部化或 unsupported 分流：
 
 | 顺序 | 优先迁移目标 capability / 动作 | 当前 raw tool / 语义来源 | 迁移原因 | 最低验收 |
 | --- | --- | --- | --- | --- |
