@@ -13,7 +13,13 @@ work already in progress in the working tree.
 - Make the terminal MCP Python entrypoint assertion portable across Windows and Linux.
 - Prevent explicit `.OF` fund codes from falling through to equity remote hydration.
 - Prefer configured rotation names for ETF display-name stability.
-- Restore cache-first then hydrate-on-miss behavior in equity valuation analysis.
+- Keep the equity valuation GET path as a strict persisted read; missing valuation,
+  financial, or price data is reported without triggering provider hydration.
+- Keep Alpha health uncached so an all-provider outage immediately returns HTTP 503.
+- Preserve HTTP 409 for `strict_freshness=true` while limiting the completed-session
+  exception to snapshots captured at or after the A-share market close.
+- Compose realtime sector performance through `core/integration` so the SDK projection
+  does not add a new `realtime -> sector` application dependency edge.
 - Validate the staff-only policy RSS fetch payload with a staff test client.
 
 ## Regression scope
@@ -27,9 +33,14 @@ Verified locally with Python 3.13:
 - `sdk/tests/test_sdk/test_client.py`: 19 passed.
 - `tests/unit/test_internal_ssl_redirect.py`: 2 passed.
 - Focused six-test regression for the exact CI failures: 6 passed.
+- Follow-up five-test regression for the 2026-07-13 push failures: 5 passed.
+- Expanded Alpha, data-center, equity, and realtime API/use-case regression:
+  90 passed.
+- Module-cycle guard: 217 observed edges / 217 budget, with no exceeded
+  app budgets or unexpected/stale cycle entries.
 - Ruff checks for the focused changed-file set passed before preserving the
   pre-existing formatting style of the M4 regression file.
-- `git diff --check` passed.
+- Ruff, Black, isort, and `git diff --check` passed for the follow-up files.
 
 Not verified locally:
 
@@ -44,4 +55,8 @@ Not verified locally:
   naming rule is established.
 - Legacy MCP tools remain available only through their explicit compatibility path;
   the default server registration remains core-only.
+- Alpha health now reports provider outages immediately rather than serving a cached
+  healthy response for up to 30 seconds.
+- The completed-session quote exemption requires an at-or-after-close timestamp;
+  pre-close intraday snapshots continue to obey the caller's freshness threshold.
 - Full nightly and the complete Logic Guardrails matrix remain required before merge.

@@ -1024,12 +1024,14 @@ class QueryLatestQuoteUseCase:
         freshness_status = "stale" if quote_is_stale else "fresh"
 
         latest_completed_session = _latest_completed_cn_quote_session(current_now)
-        snapshot_local_date = normalized_snapshot_at.astimezone(CN_MARKET_TZ).date()
+        snapshot_local = normalized_snapshot_at.astimezone(CN_MARKET_TZ)
+        snapshot_local_date = snapshot_local.date()
         if (
             quote_is_stale
             and latest_completed_session is not None
             and _is_cn_listed_asset(asset_code)
             and snapshot_local_date == latest_completed_session
+            and snapshot_local.time() >= CN_MARKET_CLOSE
         ):
             quote_is_stale = False
             freshness_status = "latest_completed_session"

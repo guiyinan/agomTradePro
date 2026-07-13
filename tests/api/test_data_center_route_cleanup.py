@@ -508,9 +508,7 @@ def test_data_center_news_returns_canonical_asset_envelope(
         return_value=use_case,
     )
 
-    response = authenticated_client.get(
-        "/api/data-center/news/?asset_code=510300.SH&limit=5"
-    )
+    response = authenticated_client.get("/api/data-center/news/?asset_code=510300.SH&limit=5")
 
     assert response.status_code == 200
     payload = response.json()
@@ -534,7 +532,9 @@ def test_data_center_quotes_strict_freshness_blocks_stale_snapshot(
     authenticated_client,
     mocker,
 ):
-    snapshot_at = timezone.now() - timedelta(hours=6)
+    # Keep this deterministic across intraday, after-hours, and weekend CI runs.
+    # A quote from ten days ago can never be the latest completed session.
+    snapshot_at = timezone.now() - timedelta(days=10)
     QuoteSnapshotModel.objects.create(
         asset_code="510300.SH",
         snapshot_at=snapshot_at,
@@ -644,9 +644,7 @@ def test_data_center_capital_flows_resolve_alias_to_canonical_asset(authenticate
             small_net="-4900000.00",
             source="test",
         )
-    before = list(
-        CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at")
-    )
+    before = list(CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at"))
 
     response = authenticated_client.get(
         "/api/data-center/capital-flows/"
@@ -674,9 +672,9 @@ def test_data_center_capital_flows_resolve_alias_to_canonical_asset(authenticate
         today.isoformat(),
         (today - timedelta(days=1)).isoformat(),
     ]
-    assert list(
-        CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at")
-    ) == before
+    assert (
+        list(CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at")) == before
+    )
 
 
 @pytest.mark.django_db

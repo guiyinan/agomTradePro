@@ -137,7 +137,9 @@ def alpha_ops_qlib_data_page(request: HttpRequest) -> HttpResponse:
 
 
 def _staff_api_denied() -> Response:
-    return Response({"success": False, "error": "需要 staff 权限"}, status=status.HTTP_403_FORBIDDEN)
+    return Response(
+        {"success": False, "error": "需要 staff 权限"}, status=status.HTTP_403_FORBIDDEN
+    )
 
 
 def _superuser_api_denied() -> Response:
@@ -371,10 +373,12 @@ def get_available_universes(request: Request) -> Response:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-@cached_api(key_prefix="alpha_health", ttl_seconds=30, method="GET")
 def health_check(request: Request) -> Response:
     """
-    Alpha 服务健康检查
+    Alpha 服务健康检查。
+
+    健康检查不得缓存，否则 provider 全部失效后仍可能短暂返回旧的
+    healthy 响应，导致 readiness 与负载均衡器无法及时摘除实例。
 
     GET /api/alpha/health/
 
@@ -409,9 +413,11 @@ def health_check(request: Request) -> Response:
                     "total": total,
                 },
             },
-            status=status.HTTP_200_OK
-            if health_status == "healthy"
-            else status.HTTP_503_SERVICE_UNAVAILABLE,
+            status=(
+                status.HTTP_200_OK
+                if health_status == "healthy"
+                else status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
         )
 
     except Exception as e:
@@ -471,7 +477,9 @@ def alpha_inference_ops_trigger(request: Request) -> Response:
             pool_mode=data.get("pool_mode", "price_covered"),
         )
 
-    response_status = status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    response_status = (
+        status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    )
     return Response(payload, status=response_status)
 
 
@@ -516,5 +524,7 @@ def qlib_data_ops_refresh(request: Request) -> Response:
             pool_mode=data.get("pool_mode", "price_covered"),
         )
 
-    response_status = status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    response_status = (
+        status.HTTP_202_ACCEPTED if payload.get("success") else status.HTTP_409_CONFLICT
+    )
     return Response(payload, status=response_status)

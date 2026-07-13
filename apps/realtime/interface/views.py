@@ -20,11 +20,13 @@ from rest_framework.views import APIView
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
     list_cached_top_movers_payloads,
-    list_sector_performance_payloads,
 )
 from apps.realtime.interface.serializers import (
     SectorPerformanceQuerySerializer,
     TopMoversQuerySerializer,
+)
+from core.integration.realtime_sector_performance import (
+    list_realtime_sector_performance_payloads,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,9 +65,13 @@ class MarketSummaryView(View):
             index_payload[f"{field_name}_change_pct"] = price.get("change_pct")
             timestamp = price.get("timestamp")
             if timestamp:
-                latest_timestamp = timestamp if latest_timestamp is None else max(
-                    latest_timestamp,
-                    timestamp,
+                latest_timestamp = (
+                    timestamp
+                    if latest_timestamp is None
+                    else max(
+                        latest_timestamp,
+                        timestamp,
+                    )
                 )
             total_volume += price.get("volume") or 0
             available_count += 1
@@ -131,14 +137,16 @@ class RealtimePriceView(View):
             asset_codes = [code.strip() for code in asset_codes_str.split(",") if code.strip()]
             prices = self.use_case.get_latest_prices(asset_codes)
 
-            return JsonResponse({
-                "success_flag": True,
-                "timestamp": prices[0].get("timestamp") if prices else None,
-                "prices": prices,
-                "total": len(asset_codes),
-                "success": len(prices),
-                "failed": len(asset_codes) - len(prices)
-            })
+            return JsonResponse(
+                {
+                    "success_flag": True,
+                    "timestamp": prices[0].get("timestamp") if prices else None,
+                    "prices": prices,
+                    "total": len(asset_codes),
+                    "success": len(prices),
+                    "failed": len(asset_codes) - len(prices),
+                }
+            )
         else:
             # 触发价格轮询
             snapshot = self.use_case.execute_price_polling()
@@ -185,10 +193,9 @@ class SingleAssetPriceView(View):
         prices = self.use_case.get_latest_prices([asset_code])
 
         if not prices:
-            return JsonResponse({
-                "success": False,
-                "error": f"Price not found for asset: {asset_code}"
-            }, status=404)
+            return JsonResponse(
+                {"success": False, "error": f"Price not found for asset: {asset_code}"}, status=404
+            )
 
         payload = {"success": True}
         payload.update(prices[0])
@@ -203,7 +210,7 @@ class SectorPerformanceView(APIView):
     def get(self, request) -> Response:
         query = SectorPerformanceQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
-        results = list_sector_performance_payloads()
+        results = list_realtime_sector_performance_payloads()
         return Response({"results": results, "count": len(results)})
 
 
@@ -285,10 +292,12 @@ class HealthCheckView(View):
             finally:
                 executor.shutdown(wait=False, cancel_futures=True)
 
-        return JsonResponse({
-            "success": True,
-            "status": "healthy" if is_available else "unhealthy",
-            "data_provider_available": is_available,
-            "timestamp": use_case.service.config.to_dict(),
-            "error": health_error,
-        })
+        return JsonResponse(
+            {
+                "success": True,
+                "status": "healthy" if is_available else "unhealthy",
+                "data_provider_available": is_available,
+                "timestamp": use_case.service.config.to_dict(),
+                "error": health_error,
+            }
+        )

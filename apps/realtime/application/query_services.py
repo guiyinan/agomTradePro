@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from apps.sector.application.repository_provider import get_sector_repository
+from typing import Any, Protocol
 
 from .price_polling_service import PricePollingUseCase
+
+
+class SectorPerformanceRepositoryProtocol(Protocol):
+    """Minimal persisted-read contract required by the realtime projection."""
+
+    def get_all_sectors(self) -> list[Any]:
+        """Return active sector definitions."""
+
+    def get_latest_sector_index(self, sector_code: str) -> Any | None:
+        """Return the latest persisted index row for one sector."""
 
 
 def list_cached_top_movers_payloads(
@@ -28,10 +36,11 @@ def list_cached_top_movers_payloads(
     return sorted(prices, key=_change_percent, reverse=reverse)[:limit]
 
 
-def list_sector_performance_payloads() -> list[dict[str, Any]]:
+def list_sector_performance_payloads(
+    repository: SectorPerformanceRepositoryProtocol,
+) -> list[dict[str, Any]]:
     """Return the latest persisted index performance for active sectors."""
 
-    repository = get_sector_repository()
     results: list[dict[str, Any]] = []
     for sector in repository.get_all_sectors():
         latest = repository.get_latest_sector_index(sector.sector_code)

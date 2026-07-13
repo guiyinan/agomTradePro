@@ -893,18 +893,20 @@ class TestQueryLatestQuoteUseCase:
         assert result.age_minutes >= 15
 
     def test_marks_stale_quote_as_non_decision_grade(self):
-        stale_snapshot = QuoteSnapshot(
+        result = QueryLatestQuoteUseCase.build_response(
             asset_code="510300.SH",
-            snapshot_at=datetime.now(UTC) - timedelta(hours=6),
+            snapshot_at=datetime(2026, 7, 13, 3, 0, tzinfo=UTC),
             current_price=3.88,
-            source="test",
+            open=None,
+            high=None,
+            low=None,
+            prev_close=None,
             volume=12345.0,
+            source="test",
+            max_age_hours=1.0,
+            now=datetime(2026, 7, 13, 9, 0, tzinfo=UTC),
         )
-        uc = QueryLatestQuoteUseCase(_QuoteSnapshotRepo(stale_snapshot))
 
-        result = uc.execute(LatestQuoteRequest(asset_code="510300.SH", max_age_hours=1.0))
-
-        assert result is not None
         assert result.is_stale is True
         assert result.freshness_status == "stale"
         assert result.must_not_use_for_decision is True
