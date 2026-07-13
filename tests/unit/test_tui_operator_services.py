@@ -254,6 +254,11 @@ def test_config_center_governance_rows_use_lightweight_runtime_summary(monkeypat
         "inspect_latest_trade_date",
         lambda provider_uri: date(2026, 7, 1),
     )
+    monkeypatch.setattr(
+        operator_services.timezone,
+        "localdate",
+        lambda: date(2026, 7, 8),
+    )
     monkeypatch.setattr(operator_services, "has_qlib_training_runs", lambda: False)
 
     rows = operator_services._config_center_governance_rows(

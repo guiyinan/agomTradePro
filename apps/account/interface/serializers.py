@@ -32,10 +32,15 @@ TransactionModel = django_apps.get_model("account", "TransactionModel")
 class AccountProfileSerializer(serializers.ModelSerializer):
     """账户配置序列化器"""
 
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+
     class Meta:
         model = AccountProfileModel
         fields = [
             "id",
+            "user_id",
+            "username",
             "display_name",
             "initial_capital",
             "risk_tolerance",

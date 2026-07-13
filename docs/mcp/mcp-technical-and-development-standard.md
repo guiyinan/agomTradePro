@@ -468,6 +468,8 @@ agom_capability_call(capability_key, arguments, context)
 12. 写入审计日志。
 13. 返回结果。
 
+MCP/SDK 审计写入使用内部 HMAC 签名鉴权，不得继承面向未认证公网请求的通用 anonymous throttle。否则多个合法 Agent 会共享匿名限流桶，造成业务调用成功但审计持续返回 `429`。如需限制内部审计流量，必须使用独立的内部限流 scope，并保持 HMAC 校验、调用方身份和请求 ID 审计完整。调用方身份必须从已认证 Profile 契约中的 `user_id/username` 读取，禁止把 Profile 主键 `id` 当作用户 ID，也不得在 Token 已认证时静默写入 `anonymous`。
+
 ### 4.3 Executor 类型
 
 允许的 executor：

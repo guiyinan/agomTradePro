@@ -369,7 +369,8 @@ def _get_user_id() -> int | None:
         client = AgomTradeProClient()
         payload = client.get("api/account/profile/")
         if isinstance(payload, dict):
-            return payload.get("id")
+            user_id = payload.get("user_id")
+            return user_id if isinstance(user_id, int) else None
     except Exception:
         pass
     return None
@@ -382,7 +383,8 @@ def _get_username() -> str:
         client = AgomTradeProClient()
         payload = client.get("api/account/profile/")
         if isinstance(payload, dict):
-            return payload.get("username", "anonymous")
+            username = payload.get("username")
+            return username if isinstance(username, str) and username else "anonymous"
     except Exception:
         pass
     return "anonymous"

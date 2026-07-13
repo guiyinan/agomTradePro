@@ -1,6 +1,27 @@
+import agomtradepro
 import pytest
 
 from agomtradepro_mcp import rbac
+
+
+class _ProfileClient:
+    def get(self, endpoint: str) -> dict[str, object]:
+        assert endpoint == "api/account/profile/"
+        return {
+            "id": 987,
+            "user_id": 42,
+            "username": "mcp-operator",
+            "rbac_role": "trader",
+        }
+
+
+def test_audit_identity_uses_user_fields_not_profile_primary_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", _ProfileClient)
+
+    assert rbac._get_user_id() == 42
+    assert rbac._get_username() == "mcp-operator"
 
 
 @pytest.mark.parametrize(

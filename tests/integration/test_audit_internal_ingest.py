@@ -12,6 +12,7 @@ from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.audit.infrastructure.models import OperationLogModel
+from apps.audit.interface.views import OperationLogIngestView
 
 
 def _sign(secret_key: str, timestamp: str, payload: dict) -> str:
@@ -74,6 +75,11 @@ class TestAuditInternalIngest:
         assert log.request_id == "req-internal-001"
         assert log.mcp_tool_name == "create_signal"
         assert log.request_params["password"] == "***"
+
+    def test_ingest_does_not_use_general_anonymous_throttle(self) -> None:
+        """Signed internal audit traffic must not consume the public anon bucket."""
+
+        assert OperationLogIngestView.throttle_classes == []
 
     def test_ingest_with_invalid_signature_rejected(self):
         client = APIClient()

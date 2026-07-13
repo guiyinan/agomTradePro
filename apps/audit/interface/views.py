@@ -781,6 +781,10 @@ class OperationLogIngestView(APIView):
     permission_classes = [HasInternalAuditSignature]
     parser_classes = [JSONParser]
     authentication_classes = []  # 不需要用户认证，使用签名验证
+    # MCP/SDK 每次能力调用都会写入一条审计记录。该端点没有 DRF 用户，若继承
+    # 全局匿名限流会共享 anon bucket，并在正常高频调用下错误返回 429。
+    # 请求仍须先通过 HasInternalAuditSignature 的 HMAC 与时效校验。
+    throttle_classes = []
 
     @extend_schema(
         summary="内部写入操作日志",

@@ -20,6 +20,11 @@ Default user entry now lands on TUI first:
 - Compatibility registry: `GET /api/tui/registry/`
 - Compatibility module snapshot: `GET /api/tui/modules/<module_key>/snapshot/`
 
+Runtime prerequisites:
+
+- Apply all Django migrations before starting `/tui/`. Published screens may aggregate fields introduced by recent migrations; a stale schema can let the shell render while individual panels fail or remain loading.
+- Date-sensitive service tests must freeze `django.utils.timezone.localdate()` (or inject an explicit as-of date). Expected lag/age values must not depend on the wall-clock date when the suite runs.
+
 The V2 catalog is read from published TUI metadata:
 
 - Runtime primary source: `terminal_tui_metadata_registry` rows with `status=published`.
