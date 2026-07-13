@@ -58,6 +58,20 @@ class AnalyzeValuationRequestSerializer(serializers.Serializer):
         help_text="回看天数（默认 252，即 1 年）"
     )
 
+    def to_internal_value(self, data):
+        """Reject unknown query parameters instead of silently ignoring them."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown query parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
 
 class LatestValuationSerializer(serializers.Serializer):
     """最新估值数据序列化器"""

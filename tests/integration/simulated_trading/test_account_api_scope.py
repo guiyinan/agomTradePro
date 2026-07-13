@@ -91,3 +91,29 @@ def test_account_detail_api_rejects_non_owner(api_client: APIClient, owner, othe
     data = response.json()
     assert data["success"] is False
     assert "无权查看该账户" in data["error"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path_suffix",
+    (
+        "positions/",
+        "performance/",
+        "performance-report/?start_date=2026-07-01&end_date=2026-07-10",
+        "inspections/",
+    ),
+)
+def test_account_read_apis_reject_non_owner(
+    api_client: APIClient,
+    owner,
+    other_user,
+    path_suffix: str,
+):
+    foreign_account = _create_account(other_user, "foreign_read_scope", is_active=True)
+    api_client.force_login(owner)
+
+    response = api_client.get(
+        f"/api/account/accounts/{foreign_account.id}/{path_suffix}"
+    )
+
+    assert response.status_code == 403

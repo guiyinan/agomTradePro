@@ -54,16 +54,21 @@ class TestBacktestModule:
             "sharpe_ratio": 1.5,
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
+        with patch.object(client, "_request", return_value=mock_response) as mock_request:
             result = client.backtest.get_result(1)
 
             assert result.id == 1
             assert result.status == "completed"
+            mock_request.assert_called_once_with(
+                "GET",
+                "/api/backtest/backtests/1/",
+                params=None,
+            )
 
     def test_list_backtests(self, client):
         """测试获取回测列表"""
         mock_response = {
-            "results": [
+            "backtests": [
                 {
                     "id": 1,
                     "status": "completed",
@@ -81,12 +86,17 @@ class TestBacktestModule:
             ]
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
-            results = client.backtest.list_backtests()
+        with patch.object(client, "_request", return_value=mock_response) as mock_request:
+            results = client.backtest.list_backtests(status="completed", limit=20)
 
             assert len(results) == 2
             assert results[0].id == 1
             assert results[1].status == "running"
+            mock_request.assert_called_once_with(
+                "GET",
+                "/api/backtest/backtests/",
+                params={"limit": 20, "status": "completed"},
+            )
 
     def test_list_alias(self, client):
         """测试 list() 兼容别名"""
@@ -111,18 +121,29 @@ class TestBacktestModule:
     def test_get_equity_curve(self, client):
         """测试获取净值曲线"""
         mock_response = {
+            "backtest_id": 1,
+            "status": "completed",
             "curve": [
                 {"date": "2023-01-01", "value": 1000000.0},
                 {"date": "2023-01-02", "value": 1005000.0},
                 {"date": "2023-01-03", "value": 1010000.0},
-            ]
+            ],
+            "point_count": 3,
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
+        with patch.object(client, "_request", return_value=mock_response) as mock_request:
             curve = client.backtest.get_equity_curve(1)
 
             assert len(curve) == 3
             assert curve[0]["value"] == 1000000.0
+            payload = client.backtest.get_equity_curve_payload(1)
+            assert payload["point_count"] == 3
+            assert mock_request.call_count == 2
+            mock_request.assert_called_with(
+                "GET",
+                "/api/backtest/backtests/1/equity-curve/",
+                params=None,
+            )
 
     def test_delete_result(self, client):
         """测试删除回测结果"""

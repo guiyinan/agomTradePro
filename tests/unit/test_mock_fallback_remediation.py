@@ -131,7 +131,15 @@ class _FakeSectorRepo:
 
 
 class _UnavailableMarketAdapter:
-    def get_index_daily_returns(self, index_code: str, start_date: date, end_date: date):
+    def get_index_daily_returns(
+        self,
+        index_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = True,
+    ):
+        assert hydrate is False
         return {}
 
 

@@ -9,7 +9,11 @@ from apps.ai_capability.application.repository_provider import (
     build_api_capability_collector,
     get_capability_repository,
 )
-from apps.ai_capability.application.use_cases import _list_sdk_mcp_tools
+from apps.ai_capability.application.use_cases import (
+    _list_sdk_mcp_capability_manifests,
+    _list_sdk_mcp_core_tool_names,
+    _list_sdk_mcp_tools,
+)
 from apps.ai_capability.domain.entities import (
     CapabilityDefinition,
     ReviewStatus,
@@ -158,9 +162,14 @@ class CapabilityCatalogGovernanceService:
     def _discover_current_keys_by_source(self) -> dict[str, set[str]]:
         api_capabilities = build_api_capability_collector().collect()
         mcp_tools = _list_sdk_mcp_tools()
+        core_tool_names = _list_sdk_mcp_core_tool_names()
+        core_capabilities = _list_sdk_mcp_capability_manifests()
         return {
             SourceType.API.value: {cap.capability_key for cap in api_capabilities},
-            SourceType.MCP_TOOL.value: {f"mcp_tool.{tool.name}" for tool in mcp_tools},
+            SourceType.MCP_TOOL.value: {
+                *(f"mcp_tool.{tool.name}" for tool in mcp_tools if tool.name not in core_tool_names),
+                *(f"mcp_tool.{cap.capability_key}" for cap in core_capabilities),
+            },
         }
 
     def _govern_current_capability(

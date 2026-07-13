@@ -13,7 +13,7 @@ class DjangoDataCenterConfigSummaryRepository:
     def get_provider_summary(self) -> dict[str, Any]:
         """Return provider configuration summary."""
 
-        provider_settings = DataProviderSettingsModel.load()
+        provider_settings = DataProviderSettingsModel.load_for_read()
         rows = list(
             ProviderConfigModel._default_manager.all().values(
                 "source_type",
@@ -69,6 +69,7 @@ class DjangoDataCenterConfigSummaryRepository:
         """Return active provider names configured in the database."""
 
         return list(
-            ProviderConfigModel._default_manager.filter(is_active=True).values_list("name", flat=True)
+            ProviderConfigModel._default_manager.filter(is_active=True).values_list(
+                "name", flat=True
+            )
         )
-

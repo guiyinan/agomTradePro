@@ -60,17 +60,19 @@ class TestSignalModule:
             "logic_desc": "Test signal",
             "status": "approved",
             "created_at": "2024-01-15T10:30:00Z",
-            "invalidation_logic": "Test invalidation",
+            "invalidation_description": "Test invalidation",
             "invalidation_threshold": 50.0,
             "approved_at": "2024-01-15T11:00:00Z",
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
+        with patch.object(client, "_request", return_value=mock_response) as mocked:
             signal = client.signal.get(123)
 
             assert signal.id == 123
             assert signal.asset_code == "000001.SH"
             assert signal.status == "approved"
+            assert signal.invalidation_logic == "Test invalidation"
+            mocked.assert_called_once_with("GET", "/api/signal/123/", params=None)
 
     def test_create_signal(self, client):
         """测试创建信号"""
@@ -136,7 +138,7 @@ class TestSignalModule:
             "policy_status": "stimulus",
         }
 
-        with patch.object(client, "_request", return_value=mock_response):
+        with patch.object(client, "_request", return_value=mock_response) as mocked:
             result = client.signal.check_eligibility(
                 asset_code="000001.SH",
                 logic_desc="PMI rising",
@@ -144,3 +146,12 @@ class TestSignalModule:
 
             assert result.is_eligible is True
             assert result.regime_match is True
+            mocked.assert_called_once_with(
+                "POST",
+                "/api/signal/check_eligibility/",
+                data=None,
+                json={
+                    "asset_code": "000001.SH",
+                    "logic_desc": "PMI rising",
+                },
+            )

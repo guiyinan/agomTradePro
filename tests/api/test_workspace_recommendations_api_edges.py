@@ -68,7 +68,17 @@ def test_workspace_recommendations_normalize_enum_filters_before_service_call(au
         )
 
     assert response.status_code == 200
-    assert response.json()["success"] is True
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload == {
+        "success": True,
+        "data": {
+            "recommendations": [],
+            "total_count": 0,
+            "page": 1,
+            "page_size": 20,
+        },
+    }
     kwargs = list_mock.call_args.kwargs
     assert kwargs["status"] == "REVIEWING"
     assert kwargs["user_action"] == "WATCHING"

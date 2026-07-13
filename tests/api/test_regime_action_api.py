@@ -1,7 +1,10 @@
+import re
 from datetime import date
 
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -26,12 +29,19 @@ def test_regime_action_api_contract(monkeypatch):
         generated_at=date(2026, 3, 24),
         confidence=0.63,
     )
+    captured_calls = []
+
+    def _execute(self, as_of_date=None, **kwargs):
+        captured_calls.append({"as_of_date": as_of_date, **kwargs})
+        return action
+
     monkeypatch.setattr(
         "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase.execute",
-        lambda self, as_of_date=None: action,
+        _execute,
     )
 
-    response = client.get("/api/regime/action/")
+    with CaptureQueriesContext(connection) as queries:
+        response = client.get("/api/regime/action/")
 
     assert response.status_code == status.HTTP_200_OK
     assert response["Content-Type"].startswith("application/json")
@@ -42,6 +52,23 @@ def test_regime_action_api_contract(monkeypatch):
     assert "regime_contribution" in payload["data"]
     assert payload["data"]["must_not_use_for_decision"] is False
     assert payload["data"]["contract"]["must_not_use_for_decision"] is False
+    assert captured_calls == [
+        {
+            "as_of_date": date.today(),
+            "refresh_pulse_if_stale": False,
+            "persist_result": False,
+        }
+    ]
+    mutation_sql = [
+        query["sql"]
+        for query in queries.captured_queries
+        if re.match(
+            r"^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b",
+            query["sql"],
+            re.IGNORECASE,
+        )
+    ]
+    assert mutation_sql == []
 
 
 @pytest.mark.django_db
@@ -70,7 +97,7 @@ def test_regime_action_api_returns_blocked_contract_for_unreliable_pulse(monkeyp
     )
     monkeypatch.setattr(
         "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase.execute",
-        lambda self, as_of_date=None: blocked,
+        lambda self, as_of_date=None, **kwargs: blocked,
     )
 
     response = client.get("/api/regime/action/")

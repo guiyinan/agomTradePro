@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from apps.regime.application.repository_provider import get_regime_repository
+
 from ..domain.entities import FundPerformance, FundScore
 from ..domain.services import FundPerformanceCalculator, FundScreener, FundStyleAnalyzer
 from .repository_provider import DjangoFundRepository
@@ -101,8 +103,14 @@ class ScreenFundsUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                from apps.regime.application.current_regime import resolve_current_regime
-                regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
+                latest_regime = get_regime_repository().get_latest_snapshot(
+                    before_date=date.today()
+                )
+                if latest_regime is None:
+                    raise ValueError(
+                        "No persisted Regime snapshot is available; provide regime explicitly."
+                    )
+                regime = latest_regime.dominant_regime
 
             # 2. 获取筛选偏好（通过 fund 仓储加载）
             preferred_types = self.fund_repo.get_fund_type_preferences_by_regime(regime)
@@ -127,7 +135,10 @@ class ScreenFundsUseCase:
                 lookback_days=365,
             )
 
-            all_funds = self.fund_repo.get_funds_with_performance(start_date, end_date)
+            all_funds = self.fund_repo.get_persisted_funds_with_performance(
+                start_date,
+                end_date,
+            )
 
             # 4. 筛选（调用 Domain 服务）
             min_scale = request.min_scale or Decimal(0)
@@ -199,7 +210,10 @@ class RankFundsUseCase:
             lookback_days=365,
         )
 
-        all_funds = self.fund_repo.get_funds_with_performance(start_date, end_date)
+        all_funds = self.fund_repo.get_persisted_funds_with_performance(
+            start_date,
+            end_date,
+        )
 
         # 2. 获取 Regime 权重配置
         preferred_types = self.fund_repo.get_fund_type_preferences_by_regime(regime)

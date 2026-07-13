@@ -35,6 +35,11 @@ class TuiWorkbenchSpecializedResultMixin:
             "capability-router.mcp-self-prompt-guide",
         } and isinstance(payload, dict):
             return self._mcp_self_service_result_model(action, payload)
+        if action_key in {
+            "capability-router.create-my-mcp-token",
+            "capability-router.revoke-my-mcp-token",
+        } and isinstance(payload, dict):
+            return self._mcp_self_service_mutation_result_model(action, payload)
         return None
 
     def _advisor_today_sheet_model(
@@ -300,7 +305,8 @@ class TuiWorkbenchSpecializedResultMixin:
             preferred_token.get("name") or payload.get("agent_bootstrap_token_name") or "未配置"
         )
         token_display = self._display_value(
-            payload.get("current_token_display")
+            payload.get("current_token_value")
+            or payload.get("current_token_display")
             or preferred_token.get("display_token")
             or preferred_token.get("plaintext")
             or preferred_token.get("preview")
@@ -376,4 +382,130 @@ class TuiWorkbenchSpecializedResultMixin:
                 }
             ],
             "business_summary": f"{mcp_status}；令牌 {self._display_value(payload.get('active_token_count'))} 个。",
+        }
+
+    def _mcp_self_service_mutation_result_model(
+        self,
+        action: dict[str, Any],
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        action_key = str(action.get("key") or "")
+        self_service = (
+            payload.get("self_service") if isinstance(payload.get("self_service"), dict) else {}
+        )
+        token_payload = (
+            payload.get("token_payload") if isinstance(payload.get("token_payload"), dict) else {}
+        )
+        created_prompt = (
+            payload.get("created_agent_prompt")
+            if isinstance(payload.get("created_agent_prompt"), dict)
+            else {}
+        )
+        username = self._display_value(
+            self_service.get("username") or token_payload.get("username") or action.get("label")
+        )
+        active_token_count = self._display_value(self_service.get("active_token_count"))
+        route_endpoint = str(self_service.get("route_endpoint") or "-")
+
+        if action_key == "capability-router.create-my-mcp-token":
+            token_name = self._display_value(
+                token_payload.get("token_name")
+                or self_service.get("agent_bootstrap_token_name")
+                or "未命名令牌"
+            )
+            token_level = self._display_value(
+                token_payload.get("access_level_label")
+                or created_prompt.get("agent_bootstrap_access_level_label")
+                or self_service.get("agent_bootstrap_access_level_label")
+                or "-"
+            )
+            token_value = self._display_value(
+                token_payload.get("token")
+                or self_service.get("current_token_value")
+                or self_service.get("current_token_display")
+                or "未返回明文令牌"
+            )
+            prompt_value = self._display_value(
+                created_prompt.get("agent_bootstrap_prompt")
+                or self_service.get("agent_bootstrap_prompt")
+                or "-"
+            )
+            return {
+                "kind": "detail",
+                "title": username,
+                "status": "已创建",
+                "fields": [
+                    {
+                        "key": "message",
+                        "label": "处理结果",
+                        "value": self._display_value(payload.get("message") or "MCP 令牌已创建"),
+                    },
+                    {"key": "token_name", "label": "新令牌", "value": token_name},
+                    {"key": "token_level", "label": "访问级别", "value": token_level},
+                    {"key": "token_value", "label": "令牌明文", "value": token_value},
+                    {
+                        "key": "active_token_count",
+                        "label": "活跃令牌",
+                        "value": active_token_count,
+                    },
+                    {
+                        "key": "route_endpoint",
+                        "label": "智能路由地址",
+                        "value": route_endpoint,
+                    },
+                    {
+                        "key": "agent_bootstrap_prompt",
+                        "label": "接入提示词",
+                        "value": prompt_value,
+                    },
+                ],
+                "nested": [
+                    {
+                        "key": "access_tokens",
+                        "label": "令牌列表",
+                        "count": len(self_service.get("access_tokens") or []),
+                    }
+                ],
+                "business_summary": self._display_value(
+                    payload.get("message") or f"已创建 {token_name}"
+                ),
+            }
+
+        preferred_token = (
+            self_service.get("preferred_token")
+            if isinstance(self_service.get("preferred_token"), dict)
+            else {}
+        )
+        token_display = self._display_value(
+            self_service.get("current_token_value")
+            or self_service.get("current_token_display")
+            or preferred_token.get("display_token")
+            or preferred_token.get("plaintext")
+            or preferred_token.get("preview")
+            or "未生成"
+        )
+        return {
+            "kind": "detail",
+            "title": username,
+            "status": "已撤销",
+            "fields": [
+                {
+                    "key": "message",
+                    "label": "处理结果",
+                    "value": self._display_value(payload.get("message") or "MCP 令牌已撤销"),
+                },
+                {"key": "active_token_count", "label": "剩余活跃令牌", "value": active_token_count},
+                {"key": "current_token", "label": "当前令牌", "value": token_display},
+                {"key": "route_endpoint", "label": "智能路由地址", "value": route_endpoint},
+            ],
+            "nested": [
+                {
+                    "key": "access_tokens",
+                    "label": "令牌列表",
+                    "count": len(self_service.get("access_tokens") or []),
+                }
+            ],
+            "business_summary": self._display_value(
+                payload.get("message") or "令牌已撤销，请复制新的可用令牌。"
+            ),
         }

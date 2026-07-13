@@ -12,7 +12,7 @@
 | 角色 | 入口文档 | 说明 |
 |------|----------|------|
 | **系统概览** | [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) | **完整系统说明书（技术+功能）** |
-| **系统基线** | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **单一叙事来源（版本/模块/部署/测试）** |
+| **系统基线** | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **治理叙事索引；动态数字读取机器基线** |
 | **0.8.0 发布说明** | [RELEASE_0.8.0.md](RELEASE_0.8.0.md) | **版本边界、发布摘要、正式生产口径** |
 | **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
 | **Git 工作流** | [GIT_WORKFLOW.md](GIT_WORKFLOW.md) | **分支命名、commit 规范、main/dev 工作流** |
@@ -45,7 +45,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **系统基线（单一叙事来源）** | ✅ 2026-03-18 新增 |
+| [SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **系统基线叙事索引（不复制动态治理数字）** | ✅ 2026-03-18 新增 |
 | [MODULE_CLASSIFICATION.md](governance/MODULE_CLASSIFICATION.md) | **模块分级表（核心/成熟/试验）** | ✅ 2026-03-18 新增 |
 | [DEVELOPMENT_BANLIST.md](governance/DEVELOPMENT_BANLIST.md) | **开发禁令（5条核心约束）** | ✅ 2026-03-18 新增 |
 | [ARCHITECTURE_GUARDRAILS.md](governance/ARCHITECTURE_GUARDRAILS.md) | **架构与治理 CI 护栏说明** | ✅ 2026-04-24 新增 |
@@ -115,6 +115,7 @@
 | [tui-metadata-promotion-guide.md](development/tui-metadata-promotion-guide.md) | **TUI metadata 证据审核、批准与发布指南** | ✅ 2026-06-20 新增 |
 | [error-handling-guide.md](development/error-handling-guide.md) | 错误处理改进指南 | ✅ 2026-02-20 |
 | [api-mcp-sdk-alignment-2026-03-14.md](development/api-mcp-sdk-alignment-2026-03-14.md) | **API / MCP / SDK 契约对齐说明** | ✅ 2026-03-14 新增 |
+| [mcp-technical-and-development-standard.md](mcp/mcp-technical-and-development-standard.md) | **MCP 技术与开发标准（统一注册 / 统一调用 / 收口治理）** | ✅ 2026-07-09 新增 |
 | [dashboard-alpha-decision-chain-2026-04-12.md](development/dashboard-alpha-decision-chain-2026-04-12.md) | **Dashboard Alpha 决策链收束说明（含通用/专属拆分、解释面板、API/SDK/MCP）** | ✅ 2026-04-22 更新 |
 | [alpha-workspace-consistency-guardrail-2026-06-05.md](development/alpha-workspace-consistency-guardrail-2026-06-05.md) | **Alpha 排名 / 决策工作台一致性运行时与 CI 护栏** | ✅ 2026-06-05 新增 |
 | [alpha-ops-console-v1-2026-04-28.md](development/alpha-ops-console-v1-2026-04-28.md) | **Alpha / Qlib 运维台 V1（推理管理 + 基础数据管理）** | ✅ 2026-04-28 新增 |
@@ -139,6 +140,7 @@
 | [production-code-remediation-plan-2026-06-26.md](plans/production-code-remediation-plan-2026-06-26.md) | **投产代码整改方案（数据守门 / 初始化 / UI 闭环）** | ✅ 2026-06-26 完成 P0/P1/P2 |
 | [0.8.0-release-closure-plan-2026-07-05.md](plans/0.8.0-release-closure-plan-2026-07-05.md) | **0.8.0 收口开发计划（发布 / 运维 / 架构减债 Top 10）** | ✅ 2026-07-05 已执行 |
 | [post-0.8.0-stabilization-priority-2026-07-08.md](plans/post-0.8.0-stabilization-priority-2026-07-08.md) | **0.8.0 发布后两周稳定化实施清单（优先级 / 负责人 / 命令 / 验收）** | 进行中 |
+| [mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) | **MCP 收口整改计划（统一能力注册、统一调用、legacy 退役）** | P0 已启动 |
 | [auto-advisor-prd-2026-06-25.md](plans/auto-advisor-prd-2026-06-25.md) | **账户级自动投顾 PRD（持仓驱动 + 建议订单清单）** | ✅ 2026-06-25 新增 |
 | [auto-advisor-implementation-2026-06-25.md](plans/auto-advisor-implementation-2026-06-25.md) | **账户级自动投顾实施文档（后端/Classic UI/TUI/测试）** | ✅ 2026-06-25 新增 |
 | [personal-auto-advisor-roadmap-2026-06-30.md](plans/personal-auto-advisor-roadmap-2026-06-30.md) | **个人自用自动投顾增强路线图（风控 / 数据新鲜度 / 决策卡片 / 复盘）** | ✅ 2026-06-30 Implemented v1 |
@@ -286,7 +288,7 @@
 
 **系统版本**: AgomTradePro 0.8.0
 
-**系统规模口径**: 见 [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md)
+**系统规模口径**: 机器唯一真源为 [`governance/governance_baseline.json`](../governance/governance_baseline.json)；[governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) 只提供叙事索引和验证入口
 
 **REST API 路径**: OpenAPI 快照
 
@@ -312,23 +314,23 @@
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
 - 页面与 API 边界：页面导航不得直连业务 API（`/api/*`），仅 `/api/docs/` 例外
 
-### 完整四层架构模块 (37个)
+### 完整四层架构模块清单
 
-#### 核心引擎模块 (5个)
+#### 核心引擎模块
 - `macro` - 宏观数据采集
 - `regime` - Regime 判定
 - `policy` - 政策事件管理
 - `signal` - 投资信号管理
 - `filter` - HP/Kalman 滤波
 
-#### 资产分析模块 (5个)
+#### 资产分析模块
 - `asset_analysis` - 通用资产分析框架
 - `equity` - 个股分析
 - `fund` - 基金分析
 - `sector` - 板块分析
 - `sentiment` - 舆情情感分析
 
-#### AI 智能模块 (8个)
+#### AI 智能模块
 - `alpha` - Alpha AI 选股信号（Qlib 集成）
 - `alpha_trigger` - Alpha 离散触发
 - `beta_gate` - Beta 闸门
@@ -338,20 +340,20 @@
 - `hedge` - 对冲策略
 - `ai_capability` - **系统级 AI 能力目录与统一路由** ✅ 2026-03-19 新增
 
-#### 风控与账户模块 (5个)
+#### 风控与账户模块
 - `account` - 账户与持仓管理
 - `audit` - 事后审计（完整测试覆盖 + Brinson 归因 + 前端可视化）
 - `simulated_trading` - 模拟盘自动交易
 - `realtime` - 实时价格监控
 - `strategy` - 策略系统
 
-#### 数据接入模块 (1个)
+#### 数据接入模块
 - `data_center` - 统一数据中台（Provider 配置、标准化、同步、查询、MCP/SDK 对齐）
 
-#### 战术指标模块 (1个)
+#### 战术指标模块
 - `pulse` - **Pulse 脉搏层（战术指标聚合与转折预警）** ✅ 2026-03-28 新增
 
-#### 工具模块 (8个)
+#### 工具模块
 - `ai_provider` - AI 服务商管理
 - `prompt` - AI Prompt 模板
 - `dashboard` - 仪表盘
@@ -361,7 +363,7 @@
 - `share` - 分享功能
 - `setup_wizard` - **系统初始化向导** ✅ 2026-03-23 新增
 
-#### AI 运行时模块 (2个)
+#### AI 运行时模块
 - `terminal` - 终端 CLI（AI 交互界面）
 - `agent_runtime` - Agent 运行时（Terminal AI 后端，支持任务编排和 Facade 模式）
 
@@ -372,7 +374,7 @@
 ### 新加入开发人员
 1. [QUICK_START.md](QUICK_START.md) - 系统实战理念
 2. [development/quick-reference.md](development/quick-reference.md) - 快速了解常用命令和 API
-3. [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) - **系统基线（单一叙事来源）**
+3. [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) - **系统基线叙事索引；动态数字读取机器基线**
 4. [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) - 理解系统架构
 5. [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) - 学习业务逻辑
 6. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
@@ -393,20 +395,10 @@
 
 ## 文档口径来源
 
-- 代码扫描日期：`2026-04-21`
-- 事实来源：
-  - `apps/*` 目录结构扫描（业务模块数，排除 `__pycache__`）
-  - `python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`（MCP 工具注册数）
-  - `docs/testing/api/openapi.json` 的 `paths` 键计数（REST API 路径）
-  - `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`（静态测试函数数、模块数、MCP 工具数和文档口径）
-  - `docs/` 目录文件计数（文档文件）
-- 口径说明：
-  - "业务模块数"按 `apps/`（排除 `shared` 与 `__pycache__`）统计
-  - "MCP 工具数"按本地 server `list_tools()` 注册结果统计
-  - "REST API 路径"按 OpenAPI `paths` 键数量统计
-  - "文档文件"按 `docs/` 目录中的文件数量统计
-  - "完成度"使用里程碑状态，不再维护固定百分比
-  - "测试规模"当前治理口径为静态 `test_` 函数数；完整 pytest collect / 执行结果仍以 CI 报告为准
+- 仓库级动态治理数据以 `governance/governance_baseline.json` 为机器唯一真源。
+- MCP 整改期 live 治理数据同样写入 `governance/governance_baseline.json` 的 `mcp_governance` 字段；[plans/mcp-consolidation-remediation-plan-2026-07-09.md](plans/mcp-consolidation-remediation-plan-2026-07-09.md) 的 `0.2.2` 只解释字段和验证入口，`0.2.3` 维护默认续做顺序。
+- 本索引只维护导航、清单和阅读路径，不复制业务模块数、MCP 工具数、静态测试函数数等动态治理数字。
+- 验证命令：`python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
 ---
 
@@ -445,8 +437,8 @@
   - TUI metadata 已拆成 compact operation graph 与单独 evidence snapshot；运行时图不再内联 API/SDK/MCP/template 证据
   - 新增 `screen.default_action_key` 与 `screen.dashboard_panels`，支持经典页面打开即有内容、首页面板由已审核 action 组合
   - 普通用户界面隐藏 endpoint、method 与裸 JSON；Raw Response 仅保留在调试抽屉
-  - 当前发布基线为 34 个 screen、312 个 published action；其中 203 个可直接打开、109 个需要输入字段，保留手工整理的核心工作台，并把 276 个安全动作提升为决策、账户、策略、风控、研究、事件监控、分享、AI 和数据中心业务 screen
-  - 当前编译证据为 468 条 safe GET、405 个 SDK 方法、346 个 MCP tool、127 个 classic 模板特征；259 条直接安全只读候选和 109 条参数化安全只读候选经过 smoke/needs-input 门禁后进入发布图，43 条不可用自动候选保持剪枝
+  - 发布规模与 action 状态以 `config/tui/published/tui_operation_graph.published.json` 为机器产物，本索引不维护动态计数副本
+  - API / SDK / MCP / template 编译证据以 TUI metadata 编译产物和治理基线为准；MCP live 数量统一读取 `governance/governance_baseline.json`
 
 ### 2026-04-24
 - ✅ **人机协同决策分层文档**

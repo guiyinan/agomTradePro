@@ -22,10 +22,7 @@ from rest_framework.response import Response
 from core.cache_utils import cached_api
 from core.integration.runtime_settings import get_runtime_qlib_config
 
-from ..application.interface_services import (
-    resolve_requested_alpha_user,
-    upload_alpha_scores,
-)
+from ..application.interface_services import resolve_requested_alpha_user
 from ..application.ops_use_cases import (
     GetAlphaInferenceOpsOverviewUseCase,
     GetQlibDataOpsOverviewUseCase,
@@ -42,7 +39,6 @@ from .serializers import (
     GetStockScoresRequestSerializer,
     ProviderStatusSerializer,
     QlibDataRefreshTriggerSerializer,
-    UploadScoresSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -401,83 +397,6 @@ def health_check(request: Request) -> Response:
                 "error": str(e),
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        )
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def upload_scores(request: Request) -> Response:
-    """
-    上传本地 Qlib 推理结果
-
-    POST /api/alpha/scores/upload/
-
-    Body:
-        universe_id: 股票池标识
-        asof_date: 信号真实生成日期（ISO）
-        intended_trade_date: 计划交易日期（ISO）
-        model_id: 模型标识（默认 local_qlib）
-        model_artifact_hash: 模型哈希（可选）
-        scope: "user"（个人）或 "system"（全局，仅 admin）
-        scores: [{code, score, rank, factors, confidence, source}, ...]
-
-    Returns:
-        {"success": true, "count": N, "scope": "user"|"system", "id": pk}
-    """
-    try:
-        serializer = UploadScoresSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        scope = data.get("scope", "user")
-
-        # 权限检查：只有 admin 能写系统级评分
-        if scope == "system" and not request.user.is_staff:
-            return Response(
-                {"success": False, "error": "只有管理员可以上传系统级评分（scope=system）"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # 确定写入的 user：system 级别 user=None，否则 user=当前用户
-        write_user = None if scope == "system" else request.user
-
-        cache_obj, created = upload_alpha_scores(
-            write_user=write_user,
-            universe_id=data["universe_id"],
-            asof_date=data["asof_date"],
-            intended_trade_date=data["intended_trade_date"],
-            model_id=data.get("model_id", "local_qlib"),
-            model_artifact_hash=data.get("model_artifact_hash", "") or "",
-            scores=data["scores"],
-        )
-
-        logger.info(
-            f"上传评分成功: user={write_user}, universe={data['universe_id']}, "
-            f"date={data['intended_trade_date']}, count={len(data['scores'])}, "
-            f"created={created}"
-        )
-
-        return Response(
-            {
-                "success": True,
-                "count": len(data["scores"]),
-                "scope": scope,
-                "id": cache_obj.pk,
-                "created": created,
-            },
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
-        )
-
-    except ValidationError as e:
-        return Response(
-            {"success": False, "error": e.detail},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except Exception as e:
-        logger.error(f"上传评分失败: {e}", exc_info=True)
-        return Response(
-            {"success": False, "error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 

@@ -7,7 +7,23 @@ No business logic here — only field-level validation.
 
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import serializers
+
+_SENSITIVE_PROVIDER_KEYS = frozenset({"api_key", "api_secret", "token", "secret", "password"})
+
+
+def _sanitize_provider_config_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _sanitize_provider_config_value(item)
+            for key, item in value.items()
+            if str(key).lower() not in _SENSITIVE_PROVIDER_KEYS
+        }
+    if isinstance(value, list):
+        return [_sanitize_provider_config_value(item) for item in value]
+    return value
 
 
 class ProviderConfigSerializer(serializers.Serializer):
@@ -32,13 +48,14 @@ class ProviderConfigSerializer(serializers.Serializer):
         max_length=500,
         allow_blank=True,
         default="",
-        # Write-only so tokens are never echoed in list responses
+        write_only=True,
         style={"input_type": "password"},
     )
     api_secret = serializers.CharField(
         max_length=500,
         allow_blank=True,
         default="",
+        write_only=True,
         style={"input_type": "password"},
     )
     http_url = serializers.URLField(allow_blank=True, default="")
@@ -57,13 +74,20 @@ class ProviderConfigListSerializer(serializers.Serializer):
     priority = serializers.IntegerField()
     # Mask actual key value, just indicate whether one is configured
     has_api_key = serializers.SerializerMethodField()
+    has_api_secret = serializers.SerializerMethodField()
     http_url = serializers.CharField()
     api_endpoint = serializers.CharField()
-    extra_config = serializers.DictField()
+    extra_config = serializers.SerializerMethodField()
     description = serializers.CharField()
 
     def get_has_api_key(self, obj: dict) -> bool:  # type: ignore[override]
         return bool(obj.get("api_key"))
+
+    def get_has_api_secret(self, obj: dict) -> bool:  # type: ignore[override]
+        return bool(obj.get("api_secret"))
+
+    def get_extra_config(self, obj: dict) -> dict:  # type: ignore[override]
+        return _sanitize_provider_config_value(obj.get("extra_config") or {})
 
 
 class DataProviderSettingsSerializer(serializers.Serializer):
@@ -268,6 +292,43 @@ class SyncCapitalFlowRequestSerializer(serializers.Serializer):
     provider_id = serializers.IntegerField()
     asset_code = serializers.CharField(max_length=20)
     period = serializers.CharField(max_length=10, default="5d")
+
+
+class CapitalFlowQuerySerializer(serializers.Serializer):
+    """Validate the canonical persisted capital-flow query contract."""
+
+    asset_code = serializers.CharField(
+        max_length=20,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+    start = serializers.DateField(required=False, allow_null=True)
+    end = serializers.DateField(required=False, allow_null=True)
+    limit = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=500,
+        default=100,
+    )
+
+    def to_internal_value(self, data):
+        """Reject legacy or unknown query parameters."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {"non_field_errors": [f"Unknown query parameters: {', '.join(unknown_fields)}"]}
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        """Require an ordered optional date range."""
+
+        start = attrs.get("start")
+        end = attrs.get("end")
+        if start is not None and end is not None and start > end:
+            raise serializers.ValidationError("start must be on or before end")
+        return attrs
 
 
 class MarketThermometerConfigSerializer(serializers.Serializer):

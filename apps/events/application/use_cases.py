@@ -50,6 +50,7 @@ class PublishEventResponse:
     event_id: str
     published_at: datetime
     subscribers_notified: int = 0
+    error_code: str | None = None
     error_message: str | None = None
 
 
@@ -188,8 +189,17 @@ class PublishEventUseCase:
             发布事件响应
         """
         try:
+            if request.event_id and self.event_store.get_by_id(request.event_id):
+                return PublishEventResponse(
+                    success=False,
+                    event_id=request.event_id,
+                    published_at=datetime.now(UTC),
+                    error_code="EVENT_ALREADY_EXISTS",
+                    error_message=f"Event already exists: {request.event_id}",
+                )
+
             # 创建事件
-            metadata = request.metadata or {}
+            metadata = dict(request.metadata or {})
             if request.correlation_id:
                 metadata["correlation_id"] = request.correlation_id
             if request.causation_id:
@@ -204,14 +214,22 @@ class PublishEventUseCase:
             )
 
             # 持久化事件
-            self.event_store.append(event)
+            if not self.event_store.append(event):
+                return PublishEventResponse(
+                    success=False,
+                    event_id=event.event_id,
+                    published_at=datetime.now(UTC),
+                    error_code="EVENT_PERSISTENCE_FAILED",
+                    error_message="Event persistence failed; subscribers were not notified.",
+                )
 
             # 发布到事件总线
+            processed_before = self.event_bus.get_metrics().total_processed
             self.event_bus.publish(event)
 
             # 获取订阅者数量
             metrics = self.event_bus.get_metrics()
-            subscribers_notified = metrics.total_processed
+            subscribers_notified = max(metrics.total_processed - processed_before, 0)
 
             return PublishEventResponse(
                 success=True,
@@ -226,6 +244,7 @@ class PublishEventUseCase:
                 success=False,
                 event_id=request.event_id or "unknown",
                 published_at=datetime.now(UTC),
+                error_code="EVENT_PUBLISH_FAILED",
                 error_message=str(e),
             )
 

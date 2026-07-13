@@ -9,8 +9,9 @@ class BetaGateModule(BaseModule):
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/beta-gate")
 
-    def list_configs(self) -> list[dict[str, Any]]:
-        response = self._get("configs/")
+    def list_configs(self, *, active_only: bool = True) -> list[dict[str, Any]]:
+        params = None if active_only else {"active_only": "false"}
+        response = self._get("configs/", params=params) if params else self._get("configs/")
         return response.get("results", response) if isinstance(response, dict) else response
 
     def get_config(self, config_id: str | int) -> dict[str, Any]:
@@ -29,7 +30,14 @@ class BetaGateModule(BaseModule):
         return self._post("test/", json=payload)
 
     def version_compare(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._post("version/compare/", json=payload)
+        version1 = payload.get("version1", payload.get("version_a", payload.get("from")))
+        version2 = payload.get("version2", payload.get("version_b", payload.get("to")))
+        params = {}
+        if version1 is not None:
+            params["version1"] = version1
+        if version2 is not None:
+            params["version2"] = version2
+        return self._get("version/compare/", params=params or None)
 
     def rollback_config(self, config_id: str) -> dict[str, Any]:
         return self._post(f"config/rollback/{config_id}/", json={})

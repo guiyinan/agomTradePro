@@ -22,21 +22,22 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.strategy.application.interface_services import (
     bind_strategy_assignment,
     build_strategy_executor,
     build_strategy_list_context,
     delete_strategy_script_config,
-    get_ai_strategy_config_queryset,
+    get_ai_strategy_config_queryset_for_access,
     get_assignment_queryset,
     get_execution_log_queryset,
-    get_position_management_rule_queryset,
+    get_position_management_rule_queryset_for_access,
     get_rule_condition_queryset,
     get_script_config_queryset,
     get_strategy_ai_config,
     get_strategy_execution_logs_page,
     get_strategy_position_rule,
-    get_strategy_queryset,
+    get_strategy_queryset_for_access,
     get_strategy_queryset_for_owner,
     get_strategy_script_config,
     list_active_ai_providers_for_user,
@@ -78,7 +79,6 @@ from apps.strategy.interface.serializers import (
     StrategyExecutionLogSerializer,
     StrategySerializer,
 )
-from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from core.exceptions import DuplicateResourceError, InvalidInputError
 
 logger = logging.getLogger(__name__)
@@ -453,7 +453,9 @@ class StrategyViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return get_strategy_queryset()
+        return get_strategy_queryset_for_access(
+            owner_profile_id=getattr(getattr(self.request.user, "account_profile", None), "id", None),
+            include_all=bool(self.request.user.is_staff or self.request.user.is_superuser))
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
@@ -644,7 +646,7 @@ class PositionManagementRuleViewSet(viewsets.ModelViewSet):
     ordering = ['-updated_at']
 
     def get_queryset(self):
-        return get_position_management_rule_queryset()
+        return get_position_management_rule_queryset_for_access(owner_profile_id=getattr(getattr(self.request.user, "account_profile", None), "id", None), include_all=bool(self.request.user.is_staff or self.request.user.is_superuser))
 
     @extend_schema(
         summary="评估仓位管理规则",
@@ -754,7 +756,7 @@ class AIStrategyConfigViewSet(viewsets.ModelViewSet):
     search_fields = ['strategy__name']
 
     def get_queryset(self):
-        return get_ai_strategy_config_queryset()
+        return get_ai_strategy_config_queryset_for_access(owner_profile_id=getattr(getattr(self.request.user, "account_profile", None), "id", None), include_all=bool(self.request.user.is_staff or self.request.user.is_superuser))
 
 
 # ========================================================================

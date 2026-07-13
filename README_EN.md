@@ -325,7 +325,7 @@ Your Idea → Regime Gate → Policy Gate → Signal Validation → Approval →
 Not just an API wrapper. AgomTradePro is built for the AI agent era:
 
 - **Python SDK** — full programmatic access across the system's business modules
-- **MCP Server (368 registered tools)** — plug directly into Claude, Cursor, or any MCP-compatible AI
+- **MCP Server** — use the governed core-tool surface and capability registry from Claude, Cursor, or any MCP-compatible AI
 - **Terminal CLI** — AI-interactive command interface
 - **Agent Runtime** — task orchestration with proposal → approval → execution lifecycle
 
@@ -461,7 +461,7 @@ The architecture rules are enforced by CI, not only documented.
 
 - **Delta guard**: `Architecture Layer Guard` scans changed lines and fails new Domain / Application / Interface layer violations
 - **Repository-wide governance check**: `scripts/check_governance_consistency.py` scans MCP tool counts, key documentation counters, `docs/INDEX.md` links, module shape, misplaced `AppConfig`, singular `dto.py`, and Application-layer pandas/numpy imports
-- **Historical-debt baseline**: `governance/governance_baseline.json` records the current accepted state, so old debt stays visible while new regressions fail CI
+- **Machine governance source of truth**: `governance/governance_baseline.json` is the only current source for dynamic module, MCP, test, debt-ratchet, and large-file governance counts; narrative docs provide explanations and verification commands without copying live values
 
 See [Architecture Guardrails](docs/governance/ARCHITECTURE_GUARDRAILS.md) for details.
 
@@ -716,7 +716,7 @@ pytest tests/integration/ -v -m "not live_required and not optional_runtime and 
 ## Project Stats
 
 ```
-Business modules / MCP tools / static test functions: see docs/governance/SYSTEM_BASELINE.md
+Business modules / MCP tools / static test functions: the only machine source of truth is `governance/governance_baseline.json`; `docs/governance/SYSTEM_BASELINE.md` is a narrative index only.
 REST API paths: OpenAPI snapshot
 Documentation files: docs/INDEX.md
 ```

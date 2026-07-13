@@ -197,7 +197,7 @@ class FundModule(BaseModule):
         limit: int = 30,
     ) -> dict[str, Any]:
         """
-        Call the canonical fund screening endpoint.
+        Screen persisted fund snapshots through the canonical pure-compute endpoint.
         """
         payload: dict[str, Any] = {"max_count": limit}
         if regime is not None:

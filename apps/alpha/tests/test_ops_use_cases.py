@@ -2,11 +2,13 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from django.core.cache import cache
 
 from apps.alpha.application.ops_locks import (
     build_dashboard_alpha_refresh_lock_key,
     build_inference_batch_lock_key,
     build_qlib_data_refresh_lock_key,
+    list_active_dashboard_alpha_refresh_locks,
     release_dashboard_alpha_refresh_lock,
     release_inference_batch_lock,
     release_qlib_data_refresh_lock,
@@ -20,6 +22,39 @@ from apps.alpha.application.ops_use_cases import (
 )
 from apps.task_monitor.application.repository_provider import get_task_record_repository
 from apps.task_monitor.domain.entities import TaskStatus
+
+
+def test_dashboard_refresh_lock_inspection_does_not_clean_completed_cache_entries():
+    registry_key = "alpha:ops:dashboard_refresh_lock_registry"
+    lock_key = "dashboard:alpha_refresh_lock:general:csi300:2026-04-28:20"
+    meta_key = f"{lock_key}:meta"
+
+    class ReadyResult:
+        state = "SUCCESS"
+
+        def __init__(self, task_id: str):
+            self.task_id = task_id
+
+        def ready(self) -> bool:
+            return True
+
+    cache.set(registry_key, [lock_key], timeout=None)
+    cache.set(lock_key, "completed-task-1", timeout=600)
+    cache.set(meta_key, {"requested_trade_date": "2026-04-28"}, timeout=600)
+    try:
+        locks = list_active_dashboard_alpha_refresh_locks(
+            ReadyResult,
+            cleanup_stale=False,
+        )
+
+        assert locks == []
+        assert cache.get(registry_key) == [lock_key]
+        assert cache.get(lock_key) == "completed-task-1"
+        assert cache.get(meta_key) == {"requested_trade_date": "2026-04-28"}
+    finally:
+        cache.delete(lock_key)
+        cache.delete(meta_key)
+        cache.delete(registry_key)
 
 
 @pytest.mark.django_db

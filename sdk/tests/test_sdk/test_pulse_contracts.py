@@ -36,10 +36,10 @@ def test_pulse_action_recommendation_preserves_blocked_contract():
         },
     }
 
-    with patch.object(client, "get", return_value=blocked_payload):
+    with patch.object(client, "get", return_value=blocked_payload) as get_mock:
         result = client.pulse.get_action_recommendation()
 
+    get_mock.assert_called_once_with("/api/regime/action/", params=None)
     assert result["data"]["contract"]["must_not_use_for_decision"] is True
     assert result["data"]["contract"]["pulse_is_reliable"] is False
     assert result["data"]["contract"]["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
-

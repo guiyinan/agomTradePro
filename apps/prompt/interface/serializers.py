@@ -9,6 +9,7 @@ from rest_framework import serializers
 from ..application.interface_services import (
     create_chain_config,
     create_prompt_template,
+    prompt_template_name_exists,
     update_chain_config,
     update_prompt_template,
 )
@@ -30,10 +31,9 @@ CHAIN_EXECUTION_MODE_CHOICES = [
 
 class PlaceholderSerializer(serializers.Serializer):
     """占位符序列化器"""
+
     name = serializers.CharField(max_length=50)
-    type = serializers.ChoiceField(choices=[
-        'simple', 'structured', 'function', 'conditional'
-    ])
+    type = serializers.ChoiceField(choices=["simple", "structured", "function", "conditional"])
     description = serializers.CharField(allow_blank=True, required=False)
     default_value = serializers.JSONField(required=False, allow_null=True)
     required = serializers.BooleanField(default=True)
@@ -43,6 +43,7 @@ class PlaceholderSerializer(serializers.Serializer):
 
 class PromptTemplateSerializer(serializers.Serializer):
     """Prompt模板序列化器"""
+
     id = serializers.CharField(read_only=True)
     name = serializers.CharField(max_length=100)
     category = serializers.ChoiceField(choices=PROMPT_CATEGORY_CHOICES)
@@ -116,6 +117,17 @@ class PromptTemplateSerializer(serializers.Serializer):
 class PromptTemplateCreateSerializer(PromptTemplateSerializer):
     """Prompt模板创建序列化器"""
 
+    def validate_name(self, value):
+        """Reject names already reserved by active or inactive templates."""
+
+        instance_id = getattr(self.instance, "id", None)
+        if prompt_template_name_exists(
+            value,
+            exclude_template_id=int(instance_id) if instance_id is not None else None,
+        ):
+            raise serializers.ValidationError("模板名称已存在")
+        return value
+
     def _build_entity(self, validated_data):
         """Build the prompt template domain entity from validated data."""
 
@@ -126,33 +138,33 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
             PromptTemplate,
         )
 
-        placeholders_data = validated_data.pop('placeholders', [])
+        placeholders_data = validated_data.pop("placeholders", [])
 
         placeholders = [
             PlaceholderDef(
-                name=p['name'],
-                type=PlaceholderType(p['type']),
-                description=p.get('description', ''),
-                default_value=p.get('default_value'),
-                required=p.get('required', True),
-                function_name=p.get('function_name'),
-                function_params=p.get('function_params')
+                name=p["name"],
+                type=PlaceholderType(p["type"]),
+                description=p.get("description", ""),
+                default_value=p.get("default_value"),
+                required=p.get("required", True),
+                function_name=p.get("function_name"),
+                function_params=p.get("function_params"),
             )
             for p in placeholders_data
         ]
 
         entity = PromptTemplate(
             id=None,
-            name=validated_data['name'],
-            category=PromptCategory(validated_data['category']),
-            version=validated_data.get('version', '1.0'),
-            template_content=validated_data['template_content'],
+            name=validated_data["name"],
+            category=PromptCategory(validated_data["category"]),
+            version=validated_data.get("version", "1.0"),
+            template_content=validated_data["template_content"],
             placeholders=placeholders,
-            system_prompt=validated_data.get('system_prompt'),
-            temperature=validated_data.get('temperature', 0.7),
-            max_tokens=validated_data.get('max_tokens'),
-            description=validated_data.get('description', ''),
-            is_active=validated_data.get('is_active', True)
+            system_prompt=validated_data.get("system_prompt"),
+            temperature=validated_data.get("temperature", 0.7),
+            max_tokens=validated_data.get("max_tokens"),
+            description=validated_data.get("description", ""),
+            is_active=validated_data.get("is_active", True),
         )
         return entity
 
@@ -166,7 +178,9 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
 
         merged_data = {
             "name": getattr(instance, "name", ""),
-            "category": getattr(getattr(instance, "category", None), "value", getattr(instance, "category", "")),
+            "category": getattr(
+                getattr(instance, "category", None), "value", getattr(instance, "category", "")
+            ),
             "version": getattr(instance, "version", "1.0"),
             "template_content": getattr(instance, "template_content", ""),
             "placeholders": getattr(instance, "placeholders", []),
@@ -185,6 +199,7 @@ class PromptTemplateCreateSerializer(PromptTemplateSerializer):
 
 class ChainStepSerializer(serializers.Serializer):
     """链步骤序列化器"""
+
     step_id = serializers.CharField(max_length=50)
     template_id = serializers.CharField()
     step_name = serializers.CharField(max_length=100)
@@ -194,14 +209,13 @@ class ChainStepSerializer(serializers.Serializer):
     parallel_group = serializers.CharField(allow_blank=True, required=False)
     enable_tool_calling = serializers.BooleanField(default=False)
     available_tools = serializers.ListField(
-        child=serializers.CharField(),
-        allow_null=True,
-        required=False
+        child=serializers.CharField(), allow_null=True, required=False
     )
 
 
 class ChainConfigSerializer(serializers.Serializer):
     """链配置序列化器"""
+
     id = serializers.CharField(read_only=True)
     name = serializers.CharField(max_length=100)
     category = serializers.ChoiceField(choices=PROMPT_CATEGORY_CHOICES)
@@ -225,7 +239,7 @@ class ChainConfigSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f"步骤验证失败: {serializer.errors}")
 
         # 检查order唯一性
-        orders = [s.get('order') for s in value]
+        orders = [s.get("order") for s in value]
         if len(orders) != len(set(orders)):
             raise serializers.ValidationError("步骤order必须唯一")
 
@@ -273,20 +287,20 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
 
         from ..domain.entities import ChainConfig, ChainExecutionMode, ChainStep, PromptCategory
 
-        steps_data = validated_data.pop('steps')
-        aggregate_data = validated_data.pop('aggregate_step', None)
+        steps_data = validated_data.pop("steps")
+        aggregate_data = validated_data.pop("aggregate_step", None)
 
         steps = [
             ChainStep(
-                step_id=s['step_id'],
-                template_id=s['template_id'],
-                step_name=s['step_name'],
-                order=s['order'],
-                input_mapping=s['input_mapping'],
-                output_parser=s.get('output_parser'),
-                parallel_group=s.get('parallel_group'),
-                enable_tool_calling=s.get('enable_tool_calling', False),
-                available_tools=s.get('available_tools')
+                step_id=s["step_id"],
+                template_id=s["template_id"],
+                step_name=s["step_name"],
+                order=s["order"],
+                input_mapping=s["input_mapping"],
+                output_parser=s.get("output_parser"),
+                parallel_group=s.get("parallel_group"),
+                enable_tool_calling=s.get("enable_tool_calling", False),
+                available_tools=s.get("available_tools"),
             )
             for s in steps_data
         ]
@@ -294,26 +308,26 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
         aggregate_step = None
         if aggregate_data:
             aggregate_step = ChainStep(
-                step_id=aggregate_data['step_id'],
-                template_id=aggregate_data['template_id'],
-                step_name=aggregate_data['step_name'],
-                order=aggregate_data['order'],
-                input_mapping=aggregate_data['input_mapping'],
-                output_parser=aggregate_data.get('output_parser'),
-                parallel_group=aggregate_data.get('parallel_group'),
-                enable_tool_calling=aggregate_data.get('enable_tool_calling', False),
-                available_tools=aggregate_data.get('available_tools')
+                step_id=aggregate_data["step_id"],
+                template_id=aggregate_data["template_id"],
+                step_name=aggregate_data["step_name"],
+                order=aggregate_data["order"],
+                input_mapping=aggregate_data["input_mapping"],
+                output_parser=aggregate_data.get("output_parser"),
+                parallel_group=aggregate_data.get("parallel_group"),
+                enable_tool_calling=aggregate_data.get("enable_tool_calling", False),
+                available_tools=aggregate_data.get("available_tools"),
             )
 
         entity = ChainConfig(
             id=None,
-            name=validated_data['name'],
-            category=PromptCategory(validated_data['category']),
-            description=validated_data.get('description', ''),
+            name=validated_data["name"],
+            category=PromptCategory(validated_data["category"]),
+            description=validated_data.get("description", ""),
             steps=steps,
-            execution_mode=ChainExecutionMode(validated_data['execution_mode']),
+            execution_mode=ChainExecutionMode(validated_data["execution_mode"]),
             aggregate_step=aggregate_step,
-            is_active=validated_data.get('is_active', True)
+            is_active=validated_data.get("is_active", True),
         )
         return entity
 
@@ -327,7 +341,9 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
 
         merged_data = {
             "name": getattr(instance, "name", ""),
-            "category": getattr(getattr(instance, "category", None), "value", getattr(instance, "category", "")),
+            "category": getattr(
+                getattr(instance, "category", None), "value", getattr(instance, "category", "")
+            ),
             "description": getattr(instance, "description", ""),
             "steps": getattr(instance, "steps", []),
             "execution_mode": getattr(
@@ -347,6 +363,7 @@ class ChainConfigCreateSerializer(ChainConfigSerializer):
 
 class ExecutePromptSerializer(serializers.Serializer):
     """执行Prompt请求序列化器"""
+
     template_id = serializers.IntegerField()
     placeholder_values = serializers.JSONField(default=dict)
     provider_ref = serializers.JSONField(required=False)
@@ -358,6 +375,7 @@ class ExecutePromptSerializer(serializers.Serializer):
 
 class ExecutePromptResponseSerializer(serializers.Serializer):
     """执行Prompt响应序列化器"""
+
     success = serializers.BooleanField()
     content = serializers.CharField()
     provider_used = serializers.CharField(allow_blank=True)
@@ -374,6 +392,7 @@ class ExecutePromptResponseSerializer(serializers.Serializer):
 
 class ExecuteChainSerializer(serializers.Serializer):
     """执行链请求序列化器"""
+
     chain_id = serializers.IntegerField()
     placeholder_values = serializers.JSONField(default=dict)
     provider_ref = serializers.JSONField(required=False)
@@ -383,6 +402,7 @@ class ExecuteChainSerializer(serializers.Serializer):
 
 class ExecuteChainResponseSerializer(serializers.Serializer):
     """执行链响应序列化器"""
+
     success = serializers.BooleanField()
     chain_name = serializers.CharField()
     execution_mode = serializers.CharField()
@@ -396,14 +416,13 @@ class ExecuteChainResponseSerializer(serializers.Serializer):
 
 class GenerateReportSerializer(serializers.Serializer):
     """生成报告请求序列化器"""
+
     as_of_date = serializers.DateField()
     include_regime = serializers.BooleanField(default=True)
     include_policy = serializers.BooleanField(default=True)
     include_macro = serializers.BooleanField(default=True)
     indicators = serializers.ListField(
-        child=serializers.CharField(),
-        allow_null=True,
-        required=False
+        child=serializers.CharField(), allow_null=True, required=False
     )
     provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
@@ -412,12 +431,14 @@ class GenerateReportSerializer(serializers.Serializer):
 
 class GenerateReportResponseSerializer(serializers.Serializer):
     """生成报告响应序列化器"""
+
     report = serializers.CharField()
     metadata = serializers.JSONField()
 
 
 class GenerateSignalSerializer(serializers.Serializer):
     """生成信号请求序列化器"""
+
     asset_code = serializers.CharField(max_length=20)
     analysis_context = serializers.JSONField(default=dict)
     provider_ref = serializers.JSONField(required=False)
@@ -426,6 +447,7 @@ class GenerateSignalSerializer(serializers.Serializer):
 
 class GenerateSignalResponseSerializer(serializers.Serializer):
     """生成信号响应序列化器"""
+
     asset_code = serializers.CharField()
     direction = serializers.CharField()
     logic_desc = serializers.CharField()
@@ -437,6 +459,7 @@ class GenerateSignalResponseSerializer(serializers.Serializer):
 
 class ChatRequestSerializer(serializers.Serializer):
     """聊天请求序列化器"""
+
     message = serializers.CharField()
     session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     context = serializers.JSONField(allow_null=True, required=False)
@@ -447,6 +470,7 @@ class ChatRequestSerializer(serializers.Serializer):
 
 class ChatResponseSerializer(serializers.Serializer):
     """聊天响应序列化器"""
+
     reply = serializers.CharField()
     session_id = serializers.CharField()
     metadata = serializers.JSONField()
@@ -454,6 +478,7 @@ class ChatResponseSerializer(serializers.Serializer):
 
 class ExecutionLogSerializer(serializers.Serializer):
     """执行日志序列化器"""
+
     id = serializers.IntegerField(read_only=True)
     execution_id = serializers.CharField(read_only=True)
     template_id = serializers.IntegerField(read_only=True, allow_null=True)
@@ -491,6 +516,7 @@ class ExecutionLogSerializer(serializers.Serializer):
 
 class ChatSessionSerializer(serializers.Serializer):
     """聊天会话序列化器"""
+
     id = serializers.IntegerField(read_only=True)
     session_id = serializers.CharField(read_only=True)
     user_message = serializers.CharField(read_only=True)
@@ -504,6 +530,7 @@ class ChatSessionSerializer(serializers.Serializer):
 
 class AgentExecuteRequestSerializer(serializers.Serializer):
     """Agent Runtime 执行请求序列化器"""
+
     task_type = serializers.CharField(max_length=50)
     user_input = serializers.CharField()
     provider_ref = serializers.JSONField(required=False, allow_null=True)
@@ -526,6 +553,7 @@ class AgentExecuteRequestSerializer(serializers.Serializer):
 
 class ToolCallRecordSerializer(serializers.Serializer):
     """工具调用记录序列化器"""
+
     tool_name = serializers.CharField()
     arguments = serializers.JSONField()
     success = serializers.BooleanField()
@@ -536,6 +564,7 @@ class ToolCallRecordSerializer(serializers.Serializer):
 
 class AgentExecuteResponseSerializer(serializers.Serializer):
     """Agent Runtime 执行响应序列化器"""
+
     success = serializers.BooleanField()
     final_answer = serializers.CharField(allow_null=True, allow_blank=True)
     structured_output = serializers.JSONField(allow_null=True, required=False)

@@ -22,11 +22,13 @@ from .models import ChainConfigORM, PromptExecutionLogORM, PromptTemplateORM
 
 class PromptRepositoryError(Exception):
     """Prompt仓储异常"""
+
     pass
 
 
 class ChainRepositoryError(Exception):
     """链配置仓储异常"""
+
     pass
 
 
@@ -43,7 +45,35 @@ class DjangoPromptRepository:
     def get_active_template_queryset(self) -> Any:
         """Return the active template queryset ordered for API consumption."""
 
-        return self._model._default_manager.filter(is_active=True).order_by("category", "name")
+        return self.get_template_queryset()
+
+    def get_template_queryset(
+        self,
+        *,
+        name: str | None = None,
+        include_inactive: bool = False,
+    ) -> Any:
+        """Return a filtered template queryset for interface consumers."""
+
+        queryset = self._model._default_manager.all()
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        if name:
+            queryset = queryset.filter(name=name)
+        return queryset.order_by("category", "name")
+
+    def template_name_exists(
+        self,
+        name: str,
+        *,
+        exclude_template_id: int | None = None,
+    ) -> bool:
+        """Return whether a template name is already reserved."""
+
+        queryset = self._model._default_manager.filter(name=name)
+        if exclude_template_id is not None:
+            queryset = queryset.exclude(id=exclude_template_id)
+        return queryset.exists()
 
     def get_template_by_id(self, template_id: int) -> PromptTemplate | None:
         """根据ID获取模板
@@ -76,9 +106,7 @@ class DjangoPromptRepository:
             return None
 
     def list_templates(
-        self,
-        category: str | None = None,
-        is_active: bool = True
+        self, category: str | None = None, is_active: bool = True
     ) -> list[PromptTemplate]:
         """列出模板
 
@@ -127,16 +155,12 @@ class DjangoPromptRepository:
             temperature=template.temperature,
             max_tokens=template.max_tokens,
             description=template.description,
-            is_active=template.is_active
+            is_active=template.is_active,
         )
 
         return self._orm_to_entity(orm_obj)
 
-    def update_template(
-        self,
-        template_id: int,
-        template: PromptTemplate
-    ) -> PromptTemplate | None:
+    def update_template(self, template_id: int, template: PromptTemplate) -> PromptTemplate | None:
         """更新模板
 
         Args:
@@ -185,9 +209,7 @@ class DjangoPromptRepository:
         Args:
             template_id: 模板ID
         """
-        self._model.objects.filter(id=template_id).update(
-            last_used_at=timezone.now()
-        )
+        self._model.objects.filter(id=template_id).update(last_used_at=timezone.now())
 
     @staticmethod
     def _orm_to_entity(orm: PromptTemplateORM) -> PromptTemplate:
@@ -225,7 +247,7 @@ class DjangoPromptRepository:
             max_tokens=orm.max_tokens,
             description=orm.description,
             is_active=orm.is_active,
-            created_at=orm.created_at.date()
+            created_at=orm.created_at.date(),
         )
 
 
@@ -274,11 +296,7 @@ class DjangoChainRepository:
         except self._model.DoesNotExist:
             return None
 
-    def list_chains(
-        self,
-        category: str | None = None,
-        is_active: bool = True
-    ) -> list[ChainConfig]:
+    def list_chains(self, category: str | None = None, is_active: bool = True) -> list[ChainConfig]:
         """列出链配置
 
         Args:
@@ -340,7 +358,7 @@ class DjangoChainRepository:
             steps=steps_data,
             execution_mode=chain.execution_mode.value,
             aggregate_step=aggregate_data,
-            is_active=chain.is_active
+            is_active=chain.is_active,
         )
 
         return self._orm_to_entity(orm_obj)
@@ -442,7 +460,7 @@ class DjangoChainRepository:
             execution_mode=ChainExecutionMode(orm.execution_mode),
             aggregate_step=aggregate_step,
             is_active=orm.is_active,
-            created_at=orm.created_at.date()
+            created_at=orm.created_at.date(),
         )
 
 
@@ -497,14 +515,10 @@ class DjangoExecutionLogRepository:
         Returns:
             日志ORM对象列表
         """
-        return list(self._model.objects.filter(
-            execution_id=execution_id
-        ).order_by('created_at'))
+        return list(self._model.objects.filter(execution_id=execution_id).order_by("created_at"))
 
     def get_logs_by_template(
-        self,
-        template_id: int,
-        limit: int = 100
+        self, template_id: int, limit: int = 100
     ) -> list[PromptExecutionLogORM]:
         """根据模板ID获取日志
 
@@ -515,9 +529,9 @@ class DjangoExecutionLogRepository:
         Returns:
             日志ORM对象列表
         """
-        return list(self._model.objects.filter(
-            template_id=template_id
-        ).order_by('-created_at')[:limit])
+        return list(
+            self._model.objects.filter(template_id=template_id).order_by("-created_at")[:limit]
+        )
 
     def get_recent_logs(self, limit: int = 50) -> list[PromptExecutionLogORM]:
         """获取最近的日志
@@ -528,4 +542,4 @@ class DjangoExecutionLogRepository:
         Returns:
             日志ORM对象列表
         """
-        return list(self._model.objects.order_by('-created_at')[:limit])
+        return list(self._model.objects.order_by("-created_at")[:limit])

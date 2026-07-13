@@ -74,9 +74,11 @@ class _FakeClient:
                 "ok": True,
                 "payload": kwargs,
             },
-            get_capital_flows=lambda asset_code, period="5d": {
+            get_capital_flows=lambda asset_code, start=None, end=None, limit=100: {
                 "asset_code": asset_code,
-                "period": period,
+                "start": start,
+                "end": end,
+                "limit": limit,
             },
             sync_capital_flows=lambda payload: {"ok": True, "payload": payload},
             get_news=lambda asset_code, limit=20: {"asset_code": asset_code, "limit": limit},
@@ -155,7 +157,15 @@ class _FakeClient:
                 "strict": True,
             },
         ),
-        ("data_center_get_capital_flows", {"asset_code": "000001.SZ", "period": "10d"}),
+        (
+            "data_center_get_capital_flows",
+            {
+                "asset_code": "000001.SZ",
+                "start": "2026-04-01",
+                "end": "2026-04-10",
+                "limit": 10,
+            },
+        ),
         (
             "data_center_sync_capital_flows",
             {"provider_id": 1, "asset_code": "000001.SZ", "period": "5d"},
@@ -165,15 +175,11 @@ class _FakeClient:
     ],
 )
 def test_data_center_tools_execute(
-    monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict
+    monkeypatch: pytest.MonkeyPatch,
+    legacy_enabled_mcp_server,
+    tool_name: str,
+    arguments: dict,
 ):
-    try:
-        from agomtradepro_mcp.server import server
-    except ModuleNotFoundError as exc:
-        if "mcp" in str(exc):
-            pytest.skip("mcp package not installed in current test environment")
-        raise
-
     for module_name in [
         "agomtradepro_mcp.tools.config_center_tools",
         "agomtradepro_mcp.tools.data_center_tools",
@@ -181,5 +187,5 @@ def test_data_center_tools_execute(
         module = importlib.import_module(module_name)
         monkeypatch.setattr(module, "AgomTradeProClient", _FakeClient)
 
-    result = asyncio.run(server.call_tool(tool_name, arguments))
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool(tool_name, arguments))
     assert result is not None

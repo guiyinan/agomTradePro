@@ -31,13 +31,18 @@ class StrategyModule(BaseModule):
         self,
         status: str | None = None,
         limit: int = 100,
+        *,
+        strategy_type: str | None = None,
+        is_active: bool | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取策略列表
 
         Args:
-            status: 策略状态过滤（active/inactive/archived）
+            status: 兼容状态过滤（active/inactive）
             limit: 返回数量限制
+            strategy_type: canonical 策略类型过滤
+            is_active: canonical 激活状态过滤
 
         Returns:
             策略列表
@@ -48,13 +53,33 @@ class StrategyModule(BaseModule):
             >>> for s in strategies:
             ...     print(f"{s['name']}: {s['type']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+
+        resolved_active = is_active
         if status is not None:
-            params["status"] = status
+            normalized_status = status.strip().lower()
+            if normalized_status not in {"active", "inactive"}:
+                raise ValueError("status must be active or inactive")
+            status_active = normalized_status == "active"
+            if resolved_active is not None and resolved_active != status_active:
+                raise ValueError("status and is_active filters conflict")
+            resolved_active = status_active
+
+        params: dict[str, Any] = {}
+        if strategy_type is not None:
+            normalized_type = strategy_type.strip()
+            if not normalized_type:
+                raise ValueError("strategy_type must be a non-empty string")
+            params["strategy_type"] = normalized_type
+        if resolved_active is not None:
+            params["is_active"] = resolved_active
 
         response = self._get("strategies/", params=params)
-        results = response.get("results", response)
-        return results
+        results = response.get("results", response) if isinstance(response, dict) else response
+        if not isinstance(results, list):
+            raise ValueError("strategy catalog response must contain a list")
+        return [dict(item) for item in results[:limit] if isinstance(item, dict)]
 
     def get_strategy(self, strategy_id: int) -> dict[str, Any]:
         """
@@ -296,7 +321,10 @@ class StrategyModule(BaseModule):
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """获取 AI 策略配置列表。"""
-        params: dict[str, Any] = {"limit": limit}
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+
+        params: dict[str, Any] = {}
         if strategy_id is not None:
             params["strategy"] = strategy_id
         if approval_mode is not None:
@@ -304,7 +332,10 @@ class StrategyModule(BaseModule):
         if ai_provider_id is not None:
             params["ai_provider"] = ai_provider_id
         response = self._get("ai-configs/", params=params)
-        return response.get("results", response)
+        results = response.get("results", response) if isinstance(response, dict) else response
+        if not isinstance(results, list):
+            raise ValueError("AI strategy config response must contain a list")
+        return [dict(item) for item in results[:limit] if isinstance(item, dict)]
 
     def get_strategy_ai_config(self, strategy_id: int) -> dict[str, Any]:
         """获取指定策略的一条 AI 配置；不存在时返回空结果。"""
@@ -418,13 +449,19 @@ class StrategyModule(BaseModule):
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """获取仓位管理规则列表。"""
-        params: dict[str, Any] = {"limit": limit}
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+
+        params: dict[str, Any] = {}
         if strategy_id is not None:
             params["strategy"] = strategy_id
         if is_active is not None:
             params["is_active"] = is_active
         response = self._get("position-rules/", params=params)
-        return response.get("results", response)
+        results = response.get("results", response) if isinstance(response, dict) else response
+        if not isinstance(results, list):
+            raise ValueError("position rule response must contain a list")
+        return [dict(item) for item in results[:limit] if isinstance(item, dict)]
 
     def get_position_rule(self, rule_id: int) -> dict[str, Any]:
         """获取单条仓位管理规则。"""

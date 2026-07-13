@@ -94,7 +94,8 @@ SQLite on VPS is now explicitly treated as a **demo / migration / diagnostic pat
 | `AGENTS.md` | Agent-facing project status and architecture guidance |
 | `README.md` / `README_EN.md` | Public repo release narrative |
 | `docs/INDEX.md` | Doc entrypoint |
-| `docs/governance/SYSTEM_BASELINE.md` | Single narrative source for scale and deployment posture |
+| `governance/governance_baseline.json` | Machine source of truth for dynamic governance data |
+| `docs/governance/SYSTEM_BASELINE.md` | Narrative index only; never a numeric fallback baseline |
 
 ## Release checklist
 
@@ -106,7 +107,9 @@ When cutting a new formal version:
 - [ ] Update `README.md`
 - [ ] Update `README_EN.md`
 - [ ] Update `docs/INDEX.md`
-- [ ] Update `docs/governance/SYSTEM_BASELINE.md`
+- [ ] Update `governance/governance_baseline.json` only when code-derived governance facts changed
+- [ ] Update `docs/governance/SYSTEM_BASELINE.md` only when its narrative, source mapping, or deployment posture changed
+- [ ] Run `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 - [ ] Update release notes and regression report
 
 ---

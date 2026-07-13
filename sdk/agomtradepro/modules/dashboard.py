@@ -13,7 +13,7 @@ class DashboardModule(BaseModule):
         return self._get(f"position/{asset_code}/")
 
     def positions(self) -> dict[str, Any]:
-        return self._get("positions/")
+        return self._get("positions/data/")
 
     def allocation(self) -> dict[str, Any]:
         return self._get("allocation/")
@@ -240,8 +240,53 @@ class DashboardModule(BaseModule):
             params["source"] = source
         return self._get("alpha/history/", params=params)
 
+    def alpha_history_payload(
+        self,
+        portfolio_id: int | None = None,
+        trade_date: str | None = None,
+        stock_code: str | None = None,
+        stage: str | None = None,
+        source: str | None = None,
+    ) -> dict[str, Any]:
+        """Return Alpha history using the stable governed list envelope."""
+
+        response = self.alpha_history(
+            portfolio_id=portfolio_id,
+            trade_date=trade_date,
+            stock_code=stock_code,
+            stage=stage,
+            source=source,
+        )
+        if response.get("success") is not True:
+            raise ValueError(str(response.get("error") or "dashboard Alpha history failed"))
+        runs = response.get("data", [])
+        if not isinstance(runs, list):
+            raise ValueError("dashboard Alpha history returned an invalid data payload")
+        return {
+            "runs": runs,
+            "total_count": len(runs),
+            "query": {
+                "portfolio_id": portfolio_id,
+                "trade_date": trade_date,
+                "stock_code": stock_code,
+                "stage": stage,
+                "source": source,
+            },
+        }
+
     def alpha_history_detail(self, run_id: int) -> dict[str, Any]:
         return self._get(f"alpha/history/{run_id}/")
+
+    def alpha_history_detail_payload(self, run_id: int) -> dict[str, Any]:
+        """Return one Alpha history run using the stable governed envelope."""
+
+        response = self.alpha_history_detail(run_id)
+        if response.get("success") is not True:
+            raise ValueError(str(response.get("error") or "dashboard Alpha history detail failed"))
+        run = response.get("data")
+        if not isinstance(run, dict):
+            raise ValueError("dashboard Alpha history detail returned an invalid data payload")
+        return {"run": run}
 
     def alpha_refresh(
         self,

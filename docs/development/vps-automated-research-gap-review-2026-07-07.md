@@ -164,7 +164,7 @@
 
 ### P2. 运行规模与治理指标跨界面表达不一致
 
-- `docs/governance/SYSTEM_BASELINE.md` 写 MCP tools 基线为 `368`
+- `docs/governance/SYSTEM_BASELINE.md` 当时写死了 MCP tools 基线数字
 - Terminal `/mcp-tools` 页面展示 `187`
 - 运行库里 `CapabilityCatalogModel` 实际记录数为 `3488`
 

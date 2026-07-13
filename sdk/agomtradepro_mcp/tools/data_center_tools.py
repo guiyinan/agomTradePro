@@ -348,11 +348,18 @@ def register_data_center_tools(server: FastMCP) -> None:
     @server.tool()
     def data_center_get_capital_flows(
         asset_code: str,
-        period: str = "5d",
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 100,
     ) -> dict[str, Any]:
         """读取指定资产的资金流数据。"""
         client = AgomTradeProClient()
-        return client.data_center.get_capital_flows(asset_code, period=period)
+        return client.data_center.get_capital_flows(
+            asset_code,
+            start=start,
+            end=end,
+            limit=limit,
+        )
 
     @server.tool()
     def data_center_sync_capital_flows(

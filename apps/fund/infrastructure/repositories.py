@@ -734,6 +734,39 @@ class DjangoFundRepository:
 
         return result
 
+    def get_persisted_funds_with_performance(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> list[tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]]:
+        """Return fund research inputs from persisted snapshots without hydration."""
+
+        result: list[
+            tuple[FundInfo, FundPerformance, list[FundSectorAllocation]]
+        ] = []
+        for fund in self.get_all_funds():
+            performance = self.get_fund_performance(
+                fund.fund_code,
+                start_date,
+                end_date,
+            )
+            if performance is None:
+                performance = self.get_nearest_fund_performance(
+                    fund.fund_code,
+                    start_date,
+                    end_date,
+                )
+            if performance is None:
+                continue
+            result.append(
+                (
+                    fund,
+                    performance,
+                    self.get_fund_sector_allocation(fund.fund_code),
+                )
+            )
+        return result
+
     # ==================== 数据同步 ====================
 
     def sync_fund_info_from_tushare(self) -> int:

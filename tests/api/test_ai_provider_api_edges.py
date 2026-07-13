@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUserFallbackQuota
+from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
 
 
 @pytest.fixture
@@ -63,6 +63,55 @@ def test_ai_provider_logs_reject_invalid_provider_filter(admin_client):
 
 
 @pytest.mark.django_db
+def test_ai_provider_logs_list_success_contract(admin_client):
+    provider = AIProviderConfig.objects.create(
+        name="system-main",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/system",
+        api_key="sk-system",
+        default_model="gpt-4o-mini",
+    )
+    AIUsageLog.objects.create(
+        provider=provider,
+        user=None,
+        provider_scope="system_global",
+        quota_charged=False,
+        model="gpt-4o-mini",
+        request_type="chat",
+        prompt_tokens=11,
+        completion_tokens=22,
+        total_tokens=33,
+        estimated_cost=0.0123,
+        response_time_ms=45,
+        status="success",
+        error_message="",
+        request_metadata={"trace": "abc"},
+    )
+
+    response = admin_client.get(f"/api/ai/logs/?provider={provider.id}&status=success")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["provider_id"] == provider.id
+    assert payload[0]["provider_name"] == "system-main"
+    assert payload[0]["provider_scope"] == "system_global"
+    assert payload[0]["quota_charged"] is False
+    assert payload[0]["model"] == "gpt-4o-mini"
+    assert payload[0]["request_type"] == "chat"
+    assert payload[0]["prompt_tokens"] == 11
+    assert payload[0]["completion_tokens"] == 22
+    assert payload[0]["total_tokens"] == 33
+    assert payload[0]["estimated_cost"] == 0.0123
+    assert payload[0]["response_time_ms"] == 45
+    assert payload[0]["status"] == "success"
+    assert "created_at" in payload[0]
+
+
+@pytest.mark.django_db
 def test_ai_provider_list_requires_authentication(api_client):
     response = api_client.get("/api/ai/providers/")
 
@@ -74,6 +123,53 @@ def test_ai_provider_system_list_requires_admin(authenticated_client):
     response = authenticated_client.get("/api/ai/providers/")
 
     assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_admin_can_create_system_ai_provider(admin_client):
+    response = admin_client.post(
+        "/api/ai/providers/",
+        data={
+            "name": "system-main",
+            "provider_type": "openai",
+            "base_url": "https://example.invalid/system",
+            "api_key": "sk-system-main",
+            "default_model": "gpt-4o-mini",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["name"] == "system-main"
+    assert payload["scope"] == "system"
+    assert payload["provider_type"] == "openai"
+    assert payload["base_url"] == "https://example.invalid/system"
+    assert payload["default_model"] == "gpt-4o-mini"
+
+
+@pytest.mark.django_db
+def test_admin_can_toggle_system_ai_provider_active_state(admin_client):
+    provider = AIProviderConfig.objects.create(
+        name="system-main",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/system",
+        api_key="sk-system",
+        default_model="gpt-4o-mini",
+    )
+
+    response = admin_client.post(f"/api/ai/providers/{provider.id}/toggle_active/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == provider.id
+    assert payload["is_active"] is False
+
+    provider.refresh_from_db()
+    assert provider.is_active is False
 
 
 @pytest.mark.django_db
@@ -145,6 +241,33 @@ def test_admin_system_provider_list_includes_usage_fields(admin_client):
     assert payload[0]["today_cost"] == 0.0
     assert payload[0]["month_requests"] == 0
     assert payload[0]["month_cost"] == 0.0
+
+
+@pytest.mark.django_db
+def test_admin_can_get_system_ai_provider_detail(admin_client):
+    provider = AIProviderConfig.objects.create(
+        name="system-main",
+        scope="system",
+        provider_type="openai",
+        is_active=True,
+        priority=10,
+        base_url="https://example.invalid/system",
+        api_key="sk-system",
+        default_model="gpt-4o-mini",
+        api_mode="responses_only",
+        fallback_enabled=True,
+    )
+
+    response = admin_client.get(f"/api/ai/providers/{provider.id}/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == provider.id
+    assert payload["name"] == "system-main"
+    assert payload["scope"] == "system"
+    assert payload["provider_type"] == "openai"
+    assert payload["default_model"] == "gpt-4o-mini"
+    assert payload["base_url"] == "https://example.invalid/system"
 
 
 @pytest.mark.django_db

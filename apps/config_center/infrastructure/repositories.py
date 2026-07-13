@@ -76,12 +76,18 @@ class ConfigCenterSettingsRepository:
     def get_system_settings(self) -> SystemSettingsModel:
         return SystemSettingsModel.get_settings()
 
+    def get_system_settings_for_read(self) -> SystemSettingsModel:
+        settings_obj = SystemSettingsModel._default_manager.filter(pk=1).first()
+        if settings_obj is not None:
+            return settings_obj
+        return SystemSettingsModel(pk=1)
+
     def acquire_system_settings_lock(self) -> SystemSettingsModel:
         settings_obj = SystemSettingsModel.get_settings()
         return SystemSettingsModel._default_manager.select_for_update().get(pk=settings_obj.pk)
 
     def build_runtime_config_payload(self) -> dict[str, Any]:
-        settings_obj = self.get_system_settings()
+        settings_obj = self.get_system_settings_for_read()
         runtime = dict(settings_obj.get_runtime_qlib_config_payload())
         qlib_model_registry_model = django_apps.get_model("alpha", "QlibModelRegistryModel")
         active_model = qlib_model_registry_model._default_manager.filter(is_active=True).first()

@@ -25,9 +25,8 @@ class DjangoAccountConfigSummaryRepository:
         metadata: dict[str, dict[str, Any]] = {}
         catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
         rules: dict[str, IndicatorUnitRuleModel] = {}
-        for rule in (
-            IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="")
-            .order_by("indicator_code", "-priority", "id")
+        for rule in IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="").order_by(
+            "indicator_code", "-priority", "id"
         ):
             rules.setdefault(rule.indicator_code, rule)
 
@@ -81,7 +80,7 @@ class DjangoAccountConfigSummaryRepository:
     def get_system_settings_summary(self) -> dict[str, Any]:
         """Return singleton system settings summary."""
 
-        settings_obj = SystemSettingsModel.get_settings()
+        settings_obj = SystemSettingsModel.get_settings_for_read()
         return {
             "status": "configured",
             "summary": {
@@ -153,9 +152,7 @@ class DjangoAccountConfigSummaryRepository:
             "pending_profiles": AccountProfileModel._default_manager.filter(
                 approval_status="pending"
             ).count(),
-            "active_tokens": UserAccessTokenModel._default_manager.filter(
-                is_active=True
-            ).count(),
+            "active_tokens": UserAccessTokenModel._default_manager.filter(is_active=True).count(),
             "users": User.objects.count(),
         }
 

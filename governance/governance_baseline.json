@@ -1,8 +1,19 @@
 {
-  "version": "2026-07-09.v15",
-  "mcp_tool_count": 368,
+  "version": "2026-07-13.v121",
+  "mcp_tool_count": 375,
+  "mcp_governance": {
+    "default_top_level_tool_count": 7,
+    "governed_manifest_count": 255,
+    "governed_read_capability_count": 165,
+    "governed_write_like_capability_count": 90,
+    "catalog_candidate_count": 623,
+    "legacy_capability_count": 368,
+    "replacement_link_count": 278,
+    "unsupported_legacy_contract_count": 1,
+    "raw_tool_file_count": 36
+  },
   "business_module_count": 37,
-  "static_test_function_count": 6241,
+  "static_test_function_count": 6625,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -64,7 +75,7 @@
     "apps/dashboard/application/alpha_homepage.py": 1764,
     "apps/dashboard/interface/views.py": 1417,
     "apps/data_center/application/market_thermometer.py": 1434,
-    "apps/data_center/application/use_cases.py": 2434,
+    "apps/data_center/application/use_cases.py": 2339,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
     "apps/decision_rhythm/application/advisor_services.py": 2788,

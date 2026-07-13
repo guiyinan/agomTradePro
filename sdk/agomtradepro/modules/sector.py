@@ -29,6 +29,10 @@ class SectorModule(BaseModule):
     def list_sectors(
         self,
         limit: int = 100,
+        *,
+        regime: str | None = None,
+        lookback_days: int = 20,
+        level: str = "SW1",
     ) -> list[dict[str, Any]]:
         """
         获取板块列表
@@ -45,12 +49,39 @@ class SectorModule(BaseModule):
             >>> for sector in sectors:
             ...     print(f"{sector['name']}: {sector['stock_count']}")
         """
-        regime = self._resolve_current_regime()
-        params: dict[str, Any] = {"top_n": limit}
-        if regime:
-            params["regime"] = regime
-        response = self._get("rotation/", params=params)
+        response = self.get_rotation_ranking(
+            regime=regime,
+            lookback_days=lookback_days,
+            level=level,
+            top_n=limit,
+        )
         return response.get("top_sectors", [])
+
+    def get_rotation_ranking(
+        self,
+        *,
+        regime: str | None = None,
+        lookback_days: int = 20,
+        level: str = "SW1",
+        top_n: int = 10,
+    ) -> dict[str, Any]:
+        """Read the persisted sector rotation ranking."""
+
+        if not 5 <= lookback_days <= 120:
+            raise ValueError("lookback_days must be between 5 and 120")
+        if level not in {"SW1", "SW2", "SW3"}:
+            raise ValueError("level must be one of SW1, SW2, or SW3")
+        if not 1 <= top_n <= 50:
+            raise ValueError("top_n must be between 1 and 50")
+
+        params: dict[str, Any] = {
+            "lookback_days": lookback_days,
+            "level": level,
+            "top_n": top_n,
+        }
+        if regime is not None:
+            params["regime"] = regime
+        return self._get("rotation/", params=params)
 
     def get_sector_score(
         self,
@@ -110,6 +141,9 @@ class SectorModule(BaseModule):
         self,
         regime: str | None = None,
         limit: int = 10,
+        *,
+        lookback_days: int = 20,
+        level: str = "SW1",
     ) -> list[dict[str, Any]]:
         """
         获取板块推荐
@@ -127,19 +161,13 @@ class SectorModule(BaseModule):
             >>> for sector in recs:
             ...     print(f"{sector['name']}: {sector['reason']}")
         """
-        params: dict[str, Any] = {"top_n": limit}
-        if regime is not None:
-            params["regime"] = regime
-
-        response = self._get("rotation/", params=params)
+        response = self.get_rotation_ranking(
+            regime=regime,
+            lookback_days=lookback_days,
+            level=level,
+            top_n=limit,
+        )
         return response.get("top_sectors", [])
-
-    def _resolve_current_regime(self) -> str | None:
-        response = self._client.get("/api/regime/current/")
-        if isinstance(response, dict):
-            payload = response.get("data", response)
-            return payload.get("dominant_regime")
-        return None
 
     def analyze_sector(
         self,
@@ -269,6 +297,10 @@ class SectorModule(BaseModule):
     def get_hot_sectors(
         self,
         limit: int = 10,
+        *,
+        regime: str | None = None,
+        lookback_days: int = 20,
+        level: str = "SW1",
     ) -> list[dict[str, Any]]:
         """
         获取热门板块
@@ -285,4 +317,9 @@ class SectorModule(BaseModule):
             >>> for sector in hot:
             ...     print(f"{sector['name']}: {sector['change']:.2%}")
         """
-        return self.list_sectors(limit=limit)
+        return self.list_sectors(
+            limit=limit,
+            regime=regime,
+            lookback_days=lookback_days,
+            level=level,
+        )

@@ -166,6 +166,20 @@ class ConfigurationError(AgomTradeProAPIError):
         super().__init__(message)
 
 
+class UnsupportedFeatureError(AgomTradeProAPIError):
+    """
+    当前服务端构建不支持的功能异常。
+
+    用于历史兼容入口仍存在，但当前 canonical API / 后端能力并不存在的场景。
+    """
+
+    def __init__(
+        self,
+        message: str = "This feature is not available in the current server build.",
+    ) -> None:
+        super().__init__(message, status_code=501)
+
+
 def raise_for_status(status_code: int, response: dict | None = None) -> None:
     """
     根据状态码抛出对应的异常

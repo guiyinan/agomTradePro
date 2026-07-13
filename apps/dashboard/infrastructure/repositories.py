@@ -189,12 +189,20 @@ class DashboardAlphaContextRepository:
     def __init__(self, integration_gateway: Any) -> None:
         self._integration_gateway = integration_gateway
 
-    def load_stock_context(self, codes: list[str]) -> dict[str, dict[str, Any]]:
+    def load_stock_context(
+        self,
+        codes: list[str],
+        *,
+        persist_names: bool = True,
+    ) -> dict[str, dict[str, Any]]:
         if not codes:
             return {}
 
         code_aliases = self._build_code_aliases(codes)
-        local_context = self._integration_gateway.get_stock_context_map(codes)
+        if persist_names:
+            local_context = self._integration_gateway.get_stock_context_map(codes)
+        else:
+            local_context = {}
 
         asset_context = self._load_data_center_asset_context(codes, code_aliases)
         legacy_holding_context = self._load_legacy_holding_asset_context(
@@ -207,6 +215,7 @@ class DashboardAlphaContextRepository:
                 )
             ],
             code_aliases,
+            persist_asset_names=persist_names,
         )
         quote_context = self._load_data_center_quote_context(codes, code_aliases)
 
@@ -303,6 +312,8 @@ class DashboardAlphaContextRepository:
         self,
         codes: list[str],
         code_aliases: dict[str, set[str]],
+        *,
+        persist_asset_names: bool,
     ) -> dict[str, dict[str, str]]:
         context: dict[str, dict[str, str]] = {}
         for code in codes:
@@ -322,10 +333,11 @@ class DashboardAlphaContextRepository:
                     continue
 
                 context[normalized_code] = {"name": stock_name}
-                AssetMasterModel._default_manager.update_or_create(
-                    code=normalized_code,
-                    defaults={"name": stock_name},
-                )
+                if persist_asset_names:
+                    AssetMasterModel._default_manager.update_or_create(
+                        code=normalized_code,
+                        defaults={"name": stock_name},
+                    )
                 break
         return context
 

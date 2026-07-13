@@ -2,6 +2,14 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from apps.alpha.infrastructure.models import (
+    AlphaAlertModel,
+    AlphaScoreCacheModel,
+    QlibModelRegistryModel,
+)
+from apps.config_center.infrastructure.models import SystemSettingsModel
+from apps.task_monitor.infrastructure.models import TaskExecutionModel
+
 
 @pytest.fixture
 def api_client():
@@ -89,6 +97,73 @@ def test_alpha_ops_overview_returns_use_case_payload_for_staff(api_client, staff
 
 
 @pytest.mark.django_db
+def test_alpha_ops_overviews_default_chain_are_pure_staff_reads(
+    api_client,
+    staff_user,
+    monkeypatch,
+):
+    api_client.force_authenticate(user=staff_user)
+    SystemSettingsModel._default_manager.all().delete()
+    monkeypatch.setattr(
+        "apps.alpha.application.ops_services.AlphaOpsOverviewQueryService._get_celery_health",
+        lambda _self: {
+            "is_healthy": True,
+            "broker_reachable": True,
+            "backend_reachable": True,
+            "active_workers": [],
+            "active_tasks_count": 0,
+            "pending_tasks_count": 0,
+            "scheduled_tasks_count": 0,
+            "last_check": "2026-07-11T00:00:00+00:00",
+        },
+    )
+
+    tracked_models = (
+        SystemSettingsModel,
+        QlibModelRegistryModel,
+        AlphaScoreCacheModel,
+        AlphaAlertModel,
+        TaskExecutionModel,
+    )
+    counts_before = {
+        model._meta.label_lower: model._default_manager.count()
+        for model in tracked_models
+    }
+
+    inference_response = api_client.get("/api/alpha/ops/inference/overview/")
+    qlib_data_response = api_client.get("/api/alpha/ops/qlib-data/overview/")
+
+    assert inference_response.status_code == 200
+    inference_payload = inference_response.json()
+    assert inference_payload["success"] is True
+    assert set(inference_payload["data"]) == {
+        "active_model",
+        "qlib_runtime",
+        "celery_health",
+        "dashboard_refresh_locks",
+        "recent_tasks",
+        "recent_caches",
+        "recent_alerts",
+    }
+    assert qlib_data_response.status_code == 200
+    qlib_data_payload = qlib_data_response.json()
+    assert qlib_data_payload["success"] is True
+    assert set(qlib_data_payload["data"]) == {
+        "qlib_runtime",
+        "local_data_status",
+        "recent_tasks",
+        "latest_build_summary",
+    }
+
+    counts_after = {
+        model._meta.label_lower: model._default_manager.count()
+        for model in tracked_models
+    }
+    assert counts_after == counts_before
+    assert SystemSettingsModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
 def test_alpha_ops_post_requires_superuser(api_client, staff_user):
     api_client.force_authenticate(user=staff_user)
 
@@ -143,4 +218,3 @@ def test_alpha_ops_post_returns_accepted_for_superuser(api_client, superuser, mo
     )
     assert response.status_code == 202
     assert response.json()["task_id"] == "task-123"
-

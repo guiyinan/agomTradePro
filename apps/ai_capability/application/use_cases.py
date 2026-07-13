@@ -2,16 +2,12 @@
 AI Capability Catalog Application Use Cases.
 """
 
-import asyncio
 import json
 import logging
-import os
 import re
-import sys
 import time
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from django.urls import Resolver404, resolve
@@ -51,19 +47,32 @@ from ..domain.entities import (
     RoutingContext,
     RoutingDecision,
     SourceType,
-    Visibility,
 )
 from ..domain.services import (
     BuiltinCapabilityRegistry,
     CapabilityFilter,
     CapabilityRetrievalScorer,
+    CapabilitySemanticDeduper,
+)
+from .mcp_catalog_projection import (
+    build_governed_mcp_capability,
+    build_legacy_mcp_capability,
+    build_legacy_replacement_map,
+)
+from .mcp_runtime_gateway import (
+    call_sdk_mcp_tool as _call_sdk_mcp_tool,
+)
+from .mcp_runtime_gateway import (
+    list_sdk_mcp_capability_manifests as _list_sdk_mcp_capability_manifests,
+)
+from .mcp_runtime_gateway import (
+    list_sdk_mcp_core_tool_names as _list_sdk_mcp_core_tool_names,
+)
+from .mcp_runtime_gateway import (
+    list_sdk_mcp_tools as _list_sdk_mcp_tools,
 )
 
 logger = logging.getLogger(__name__)
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_SDK_ROOT = _REPO_ROOT / "sdk"
-_MCP_CONFIG_PATH = _REPO_ROOT / ".mcp.json"
 
 _MCP_MUTATING_KEYWORDS = (
     "activate",
@@ -130,43 +139,6 @@ class _CapabilityRegimeAdapter:
         }
 
 
-def _ensure_sdk_on_path() -> None:
-    sdk_path = str(_SDK_ROOT)
-    if sdk_path not in sys.path:
-        sys.path.insert(0, sdk_path)
-
-
-def _load_mcp_env_from_repo_config() -> None:
-    if not _MCP_CONFIG_PATH.exists():
-        return
-
-    try:
-        payload = json.loads(_MCP_CONFIG_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        logger.exception("Failed to load MCP config from %s", _MCP_CONFIG_PATH)
-        return
-
-    server_conf = (payload.get("mcpServers") or {}).get("agomtradepro_local") or {}
-    for key, value in (server_conf.get("env") or {}).items():
-        if value is not None:
-            os.environ.setdefault(str(key), str(value))
-
-
-def _list_sdk_mcp_tools() -> list[Any]:
-    _ensure_sdk_on_path()
-    from agomtradepro_mcp.server import server
-
-    return asyncio.run(server.list_tools())
-
-
-def _call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
-    _ensure_sdk_on_path()
-    _load_mcp_env_from_repo_config()
-    from agomtradepro_mcp.server import server
-
-    return asyncio.run(server.call_tool(tool_name, params))
-
-
 _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
     "You are the AgomTradePro system assistant for an investment decision platform. "
     "Prioritize answers within AgomTradePro operational context, including system status, "
@@ -196,10 +168,29 @@ class CapabilityRegistryService:
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.filter_service = filter_service or CapabilityFilter()
+        self.semantic_deduper = CapabilitySemanticDeduper()
 
     def get_routable_capabilities(self, context: RoutingContext) -> list[CapabilityDefinition]:
         capabilities = self.capability_repo.get_all_for_routing()
-        return self.filter_service.filter_by_context(capabilities, context)
+        filtered = self.filter_service.filter_by_context(capabilities, context)
+        return self._apply_entrypoint_source_policy(filtered, context)
+
+    def _apply_entrypoint_source_policy(
+        self,
+        capabilities: list[CapabilityDefinition],
+        context: RoutingContext,
+    ) -> list[CapabilityDefinition]:
+        """Apply entrypoint-specific source preference and MCP de-dup policy."""
+        deduped = self.semantic_deduper.deduplicate(
+            capabilities,
+            entrypoint=context.entrypoint,
+        )
+        if context.entrypoint in {"web", "chat"}:
+            non_mcp = [cap for cap in deduped if cap.source_type != SourceType.MCP_TOOL]
+            if non_mcp:
+                return non_mcp
+            return []
+        return deduped
 
 
 class CapabilityRetrievalService:
@@ -449,11 +440,18 @@ class CapabilityExecutionDispatcher:
         capability: CapabilityDefinition,
         context: RoutingContext,
     ) -> dict[str, Any]:
+        target_type = capability.execution_target.get("type", "mcp_tool")
         tool_name = capability.execution_target.get("tool_name")
         params = context.context.get("params", {}) or {}
+        call_params = params
+        if target_type == "mcp_capability":
+            call_params = {
+                "capability_key": capability.execution_target.get("capability_key"),
+                "arguments": params,
+            }
 
         try:
-            result = _call_sdk_mcp_tool(tool_name, params)
+            result = _call_sdk_mcp_tool(tool_name, call_params)
         except Exception:
             logger.exception(
                 "SDK MCP tool execution failed for %s; falling back to builtin registry", tool_name
@@ -1280,6 +1278,7 @@ class SyncCapabilitiesUseCase:
                 description=cmd.description,
                 route_group=RouteGroup.TOOL,
                 category=cmd.category,
+                semantic_key=f"terminal.{cmd.name}",
                 tags=tags,
                 when_to_use=when_to_use,
                 when_not_to_use=[],
@@ -1326,40 +1325,30 @@ class SyncCapabilitiesUseCase:
         capabilities = []
 
         try:
-            for tool in _list_sdk_mcp_tools():
+            core_manifests = _list_sdk_mcp_capability_manifests()
+            core_tool_names = _list_sdk_mcp_core_tool_names()
+            legacy_replacement_map = build_legacy_replacement_map(core_manifests)
+            capabilities.extend(
+                build_governed_mcp_capability(manifest)
+                for manifest in core_manifests
+            )
+
+            for tool in _list_sdk_mcp_tools(include_legacy=True):
+                if tool.name in core_tool_names:
+                    continue
                 risk_level, requires_confirmation, enabled_for_routing = self._classify_mcp_tool(
                     tool.name
                 )
-                cap = CapabilityDefinition(
-                    capability_key=f"mcp_tool.{tool.name}",
-                    source_type=SourceType.MCP_TOOL,
-                    source_ref=tool.name,
-                    name=tool.name,
-                    summary=tool.description,
-                    description=tool.description,
-                    route_group=RouteGroup.TOOL,
-                    category="mcp",
-                    tags=["mcp", "tool"],
-                    when_to_use=[],
-                    when_not_to_use=[],
-                    examples=[],
-                    input_schema=getattr(tool, "inputSchema", {}) or {},
-                    execution_target={
-                        "type": "mcp_tool",
-                        "tool_name": tool.name,
-                    },
-                    risk_level=risk_level,
-                    requires_mcp=True,
-                    requires_confirmation=requires_confirmation,
-                    enabled_for_routing=enabled_for_routing,
-                    enabled_for_terminal=True,
-                    enabled_for_chat=True,
-                    enabled_for_agent=True,
-                    visibility=Visibility.ADMIN,
-                    auto_collected=True,
-                    review_status="auto",
+                replacement_capability_key = legacy_replacement_map.get(tool.name, "")
+                capabilities.append(
+                    build_legacy_mcp_capability(
+                        tool,
+                        replacement_capability_key=replacement_capability_key,
+                        risk_level=risk_level,
+                        requires_confirmation=requires_confirmation,
+                        enabled_for_routing=enabled_for_routing,
+                    )
                 )
-                capabilities.append(cap)
         except Exception as e:
             logger.warning(f"Failed to sync MCP tools: {e}")
 

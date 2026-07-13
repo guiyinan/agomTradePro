@@ -163,6 +163,8 @@ class RotationInterfaceRepository:
         """Import or reactivate the default rotation asset pool."""
         created = 0
         reactivated = 0
+        updated = 0
+        unchanged = 0
         existing = 0
 
         for asset_data in DEFAULT_ROTATION_ASSETS:
@@ -183,17 +185,83 @@ class RotationInterfaceRepository:
                 asset.is_active = True
                 reactivated += 1
                 should_update = True
+            elif should_update:
+                updated += 1
             else:
-                existing += 1
+                unchanged += 1
 
             if should_update:
                 asset.save()
 
+        existing = updated + unchanged
         return {
             'created': created,
             'reactivated': reactivated,
+            'updated': updated,
+            'unchanged': unchanged,
             'existing': existing,
             'total_defaults': len(DEFAULT_ROTATION_ASSETS),
+        }
+
+    def preview_default_asset_import(self) -> dict:
+        """Return a read-only import plan for the default rotation asset pool."""
+        default_codes = [item['code'] for item in DEFAULT_ROTATION_ASSETS]
+        existing_assets = {
+            asset.code: asset
+            for asset in AssetClassModel._default_manager.filter(code__in=default_codes)
+        }
+        items = []
+        summary = {
+            'created': 0,
+            'reactivated': 0,
+            'updated': 0,
+            'unchanged': 0,
+            'existing': 0,
+            'total_defaults': len(DEFAULT_ROTATION_ASSETS),
+        }
+
+        for asset_data in DEFAULT_ROTATION_ASSETS:
+            code = asset_data['code']
+            asset = existing_assets.get(code)
+            if asset is None:
+                action_name = 'create'
+                changed_fields = sorted([*asset_data.keys(), 'is_active'])
+                summary['created'] += 1
+            else:
+                changed_fields = sorted(
+                    field
+                    for field, value in asset_data.items()
+                    if getattr(asset, field) != value
+                )
+                if not asset.is_active:
+                    action_name = 'reactivate'
+                    changed_fields = sorted({*changed_fields, 'is_active'})
+                    summary['reactivated'] += 1
+                elif changed_fields:
+                    action_name = 'update'
+                    summary['updated'] += 1
+                    summary['existing'] += 1
+                else:
+                    action_name = 'unchanged'
+                    summary['unchanged'] += 1
+                    summary['existing'] += 1
+
+            items.append(
+                {
+                    'code': code,
+                    'name': asset_data['name'],
+                    'action': action_name,
+                    'changed_fields': changed_fields,
+                    'target': {
+                        **asset_data,
+                        'is_active': True,
+                    },
+                }
+            )
+
+        return {
+            **summary,
+            'items': items,
         }
 
     def export_asset_rows(self) -> tuple[list[str], list[dict]]:

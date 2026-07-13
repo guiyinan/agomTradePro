@@ -1,5 +1,4 @@
 from datetime import date
-from types import SimpleNamespace
 
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,
@@ -18,8 +17,12 @@ class _EmptySectorRepo:
 
 def test_analyze_sector_rotation_resolves_latest_regime_when_missing(mocker) -> None:
     mocker.patch(
-        "apps.regime.application.current_regime.resolve_current_regime",
-        return_value=SimpleNamespace(dominant_regime="Recovery"),
+        "apps.sector.application.use_cases.get_latest_regime_diagnostic_payload",
+        return_value={
+            "dominant_regime": "Recovery",
+            "observed_at": date(2026, 7, 12),
+            "confidence": 0.8,
+        },
     )
     result = AnalyzeSectorRotationUseCase(_EmptySectorRepo()).execute(
         AnalyzeSectorRotationRequest(regime=None, level="SW1")
@@ -89,3 +92,9 @@ def test_get_market_returns_pads_one_missing_benchmark_observation(mocker) -> No
     )
 
     assert returns == [0.0, 0.01, -0.004]
+    mock_adapter.get_index_daily_returns.assert_called_once_with(
+        index_code="000300.SH",
+        start_date=date(2025, 3, 3),
+        end_date=date(2025, 3, 5),
+        hydrate=False,
+    )

@@ -50,6 +50,20 @@ def _normalize_api_path(raw: str) -> str | None:
     return cleaned
 
 
+def _derive_semantic_key(path: str) -> str:
+    """Derive a stable semantic key from a canonical API path."""
+    parts = []
+    for part in path.strip("/").split("/"):
+        if part == "api":
+            continue
+        if part.startswith("<") and part.endswith(">"):
+            continue
+        normalized = part.strip().lower().replace("-", "_")
+        if normalized:
+            parts.append(normalized)
+    return ".".join(parts)
+
+
 class ApiCapabilityCollector:
     """Collects internal API endpoints as capabilities."""
 
@@ -194,6 +208,7 @@ class ApiCapabilityCollector:
             description=f"Internal API endpoint at {path}",
             route_group=route_group,
             category=self._determine_category(path),
+            semantic_key=_derive_semantic_key(path),
             tags=["api", "internal"],
             when_to_use=[],
             when_not_to_use=[],
@@ -246,6 +261,7 @@ class ApiCapabilityCollector:
             description=docstring or f"Internal API endpoint at {path}",
             route_group=route_group,
             category=self._determine_category(path),
+            semantic_key=_derive_semantic_key(path),
             tags=self._extract_tags(path, view_class),
             when_to_use=[],
             when_not_to_use=[],

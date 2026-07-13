@@ -13,6 +13,11 @@ class AuditModule(BaseModule):
     def generate_report(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("reports/generate/", json=payload)
 
+    def preview_report_generation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Read generation targets and side effects without creating a report."""
+
+        return self._post("reports/generate/preview/", json=payload)
+
     def get_summary(
         self,
         backtest_id: int | None = None,
@@ -55,11 +60,21 @@ class AuditModule(BaseModule):
     def update_threshold(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("update-threshold/", json=payload)
 
+    def preview_threshold_update(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Read current and target threshold levels without updating them."""
+
+        return self._post("update-threshold/preview/", json=payload)
+
     def threshold_validation_data(self, summary_id: int) -> dict[str, Any]:
         return self._get(f"threshold-validation-data/{summary_id}/")
 
     def run_validation(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("run-validation/", json=payload)
+
+    def preview_validation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Read validation targets and impact without running or persisting validation."""
+
+        return self._post("run-validation/preview/", json=payload)
 
     def list_execution_links(
         self,

@@ -292,6 +292,7 @@ def register_policy_tools(server: FastMCP) -> None:
     def override_workbench_event(
         event_id: int,
         reason: str,
+        new_level: str | None = None,
         expires_in_hours: int | None = None,
     ) -> dict[str, Any]:
         """
@@ -300,7 +301,8 @@ def register_policy_tools(server: FastMCP) -> None:
         Args:
             event_id: 事件 ID
             reason: 豁免原因（必填）
-            expires_in_hours: 豁免过期时间（小时）
+            new_level: 可选的新档位（`P0`/`P1`/`P2`/`P3`）
+            expires_in_hours: 历史兼容参数，当前 canonical API 不支持
 
         Returns:
             操作结果
@@ -309,12 +311,17 @@ def register_policy_tools(server: FastMCP) -> None:
             >>> result = override_workbench_event(
             ...     123,
             ...     reason="特殊情况临时豁免",
-            ...     expires_in_hours=24
+            ...     new_level="P1",
             ... )
             >>> print(f"豁免结果: {result['success']}")
         """
         client = AgomTradeProClient()
-        return client.policy.override_event(event_id, reason, expires_in_hours)
+        return client.policy.override_event(
+            event_id,
+            reason,
+            new_level=new_level,
+            expires_in_hours=expires_in_hours,
+        )
 
     @server.tool()
     def get_sentiment_gate_state(asset_class: str = "all") -> dict[str, Any]:

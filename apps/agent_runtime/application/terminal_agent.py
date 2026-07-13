@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,33 @@ class TerminalAgentService(Protocol):
         ...
 
 
+class TerminalCapabilityGateway(Protocol):
+    """Gateway for Terminal-visible MCP capability discovery and matching."""
+
+    def list_terminal_mcp_capabilities(
+        self,
+        *,
+        session_id: str,
+        user_id: int | None,
+        user_is_admin: bool,
+        mcp_enabled: bool,
+        provider_name: str | None,
+        model: str | None,
+        context: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Return normalized MCP capability records visible to the request."""
+        ...
+
+    def match_terminal_mcp_capability(
+        self,
+        *,
+        message: str,
+        capability_keys: list[str],
+    ) -> dict[str, Any] | None:
+        """Return the best high-confidence capability match, if any."""
+        ...
+
+
 class RunTerminalAgentChatUseCase:
     """Execute one non-stream terminal agent request."""
 
@@ -73,4 +101,3 @@ class StreamTerminalAgentChatUseCase:
         """Return the service stream iterator."""
 
         return self._service.stream_chat(request)
-

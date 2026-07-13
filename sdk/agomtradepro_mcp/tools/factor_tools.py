@@ -10,6 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.modules.factor import resolve_factor_focus_weights
 
 
 def register_factor_tools(server: FastMCP) -> None:
@@ -100,40 +101,7 @@ def register_factor_tools(server: FastMCP) -> None:
         """
         client = AgomTradeProClient()
 
-        # Determine factor weights based on focus
-        if focus == "value":
-            factor_weights = {
-                "pe_ttm": -0.4,
-                "pb": -0.3,
-                "roe": 0.15,
-                "revenue_growth": 0.1,
-                "profit_growth": 0.05,
-            }
-        elif focus == "growth":
-            factor_weights = {
-                "revenue_growth": 0.35,
-                "profit_growth": 0.35,
-                "roe": 0.2,
-                "momentum_3m": 0.1,
-            }
-        elif focus == "quality":
-            factor_weights = {
-                "roe": 0.3,
-                "roa": 0.2,
-                "debt_ratio": -0.2,
-                "current_ratio": 0.15,
-                "gross_margin": 0.15,
-            }
-        else:  # balanced
-            factor_weights = {
-                "pe_ttm": -0.2,
-                "pb": -0.1,
-                "roe": 0.25,
-                "revenue_growth": 0.2,
-                "profit_growth": 0.15,
-                "momentum_3m": 0.1,
-            }
-
+        factor_weights = resolve_factor_focus_weights(focus)
         result = client.factor.explain_stock(stock_code, factor_weights)
 
         if result is None or "error" in result:

@@ -980,6 +980,21 @@ class StrategyInterfaceRepository:
     def get_strategy_queryset_for_owner(self, owner_profile_id: int):
         return self.get_strategy_queryset().filter(created_by_id=owner_profile_id)
 
+    def get_strategy_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ):
+        """Return strategies visible to one authenticated owner or staff caller."""
+
+        queryset = self.get_strategy_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(created_by_id=owner_profile_id)
+
     def list_user_strategies_with_counts(self, owner_profile_id: int):
         return (
             self.get_strategy_queryset_for_owner(owner_profile_id)
@@ -1065,6 +1080,21 @@ class StrategyInterfaceRepository:
     def get_position_management_rule_queryset(self):
         return PositionManagementRuleModel._default_manager.select_related("strategy").all()
 
+    def get_position_management_rule_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ):
+        """Return position rules visible to one owner or staff caller."""
+
+        queryset = self.get_position_management_rule_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(strategy__created_by_id=owner_profile_id)
+
     def get_rule_condition_queryset(self):
         return RuleConditionModel._default_manager.select_related("strategy").all()
 
@@ -1081,6 +1111,21 @@ class StrategyInterfaceRepository:
             "chain_config",
             "ai_provider",
         ).order_by("strategy_id", "id")
+
+    def get_ai_strategy_config_queryset_for_access(
+        self,
+        *,
+        owner_profile_id: int | None,
+        include_all: bool = False,
+    ):
+        """Return AI strategy configs visible to one owner or staff caller."""
+
+        queryset = self.get_ai_strategy_config_queryset()
+        if include_all:
+            return queryset
+        if owner_profile_id is None:
+            return queryset.none()
+        return queryset.filter(strategy__created_by_id=owner_profile_id)
 
     def get_assignment_queryset(self):
         return PortfolioStrategyAssignmentModel._default_manager.select_related(

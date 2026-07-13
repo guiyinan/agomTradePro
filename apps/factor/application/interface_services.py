@@ -169,7 +169,9 @@ def explain_stock_score(
 ) -> dict | None:
     """Return stock factor score explanation."""
 
-    return get_factor_integration_service().explain_stock_score(
+    return get_factor_integration_service(
+        cache_price_results=False,
+    ).explain_stock_score(
         stock_code=stock_code,
         factor_weights=factor_weights,
         trade_date=trade_date_value,
@@ -194,9 +196,11 @@ def calculate_factor_scores(
 
 
 def get_top_stocks(*, factor_preferences: dict[str, str], top_n: int = 30) -> list[dict]:
-    """Return top stocks from factor preferences."""
+    """Return top stocks without mutating the shared price cache."""
 
-    return get_factor_integration_service().get_top_stocks(factor_preferences, top_n)
+    return get_factor_integration_service(
+        cache_price_results=False,
+    ).get_top_stocks(factor_preferences, top_n)
 
 
 def get_all_portfolio_config_payloads() -> list[dict]:

@@ -94,7 +94,10 @@ def resolve_hedge_alert(*, alert_id: int) -> ResolveHedgeAlertResponse:
 def get_hedge_effectiveness_payload(*, pair_name: str) -> dict[str, Any] | None:
     """Return hedge effectiveness payload for one pair."""
 
-    return _get_integration_service().check_hedge_effectiveness(pair_name)
+    return _get_integration_service().check_hedge_effectiveness(
+        pair_name,
+        cache_price_reads=False,
+    )
 
 
 def get_correlation_matrix_payload(*, asset_codes: list[str], window_days: int) -> dict[str, Any]:
@@ -114,7 +117,7 @@ def get_correlation_matrix_payload(*, asset_codes: list[str], window_days: int) 
 def get_all_effectiveness_payload() -> dict[str, Any]:
     """Return the effectiveness payload for all active hedge pairs."""
 
-    results = _get_integration_service().get_all_effectiveness()
+    results = _get_integration_service().get_all_effectiveness(cache_price_reads=False)
     return {
         "count": len(results),
         "results": results,

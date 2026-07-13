@@ -12,7 +12,7 @@ from typing import Literal
 # Regime 相关类型
 # =============================================================================
 
-RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Repression"]
+RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Deflation"]
 GrowthLevel = Literal["up", "down", "neutral"]
 InflationLevel = Literal["up", "down", "neutral"]
 
@@ -23,7 +23,7 @@ class RegimeState:
     宏观象限状态
 
     Attributes:
-        dominant_regime: 主导象限（Recovery/Overheat/Stagflation/Repression）
+        dominant_regime: 主导象限（Recovery/Overheat/Stagflation/Deflation）
         observed_at: 观测日期
         growth_level: 增长水平（up/down/neutral）
         inflation_level: 通胀水平（up/down/neutral）
@@ -54,13 +54,15 @@ class RegimeCalculationParams:
         as_of_date: 计算日期（None 表示最新）
         growth_indicator: 增长指标代码
         inflation_indicator: 通胀指标代码
-        use_kalman: 是否使用 Kalman 滤波
+        use_pit: 是否使用 Point-in-Time 数据
+        data_source: 已持久化宏观数据来源
     """
 
     as_of_date: date | None = None
     growth_indicator: str = "PMI"
     inflation_indicator: str = "CPI"
-    use_kalman: bool = True
+    use_pit: bool = True
+    data_source: str = "akshare"
 
 
 # =============================================================================

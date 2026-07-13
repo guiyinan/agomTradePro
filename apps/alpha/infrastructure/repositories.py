@@ -74,7 +74,9 @@ class AlphaPoolDataRepository:
             logger.warning("AlphaPoolDataRepository: failed to resolve pool mode: %s", exc)
             return default_mode
 
-    def resolve_instrument_codes(self, *, market: str, trade_date: date, pool_mode: str) -> list[str]:
+    def resolve_instrument_codes(
+        self, *, market: str, trade_date: date, pool_mode: str
+    ) -> list[str]:
         base_codes = self._resolve_market_codes(market=market)
         if not base_codes:
             return []
@@ -97,8 +99,7 @@ class AlphaPoolDataRepository:
             asset_rows = asset_rows.filter(exchange__in=["SSE", "SZSE", "BSE"])
 
         asset_codes = {
-            normalize_stock_code(code)
-            for code in asset_rows.values_list("code", flat=True)
+            normalize_stock_code(code) for code in asset_rows.values_list("code", flat=True)
         }
         if asset_codes:
             return {code for code in asset_codes if code}
@@ -263,6 +264,35 @@ class AlphaScoreCacheRepository:
 
         return normalize_cached_stock_code(raw_code)
 
+    def get_upload_target(
+        self,
+        *,
+        user: Any | None,
+        universe_id: str,
+        intended_trade_date: date,
+        model_artifact_hash: str,
+    ) -> dict[str, Any] | None:
+        """Read the exact Qlib upload target without creating or updating it."""
+
+        from .models import AlphaScoreCacheModel
+
+        row = AlphaScoreCacheModel._default_manager.filter(
+            user=user,
+            universe_id=universe_id,
+            intended_trade_date=intended_trade_date,
+            provider_source=AlphaScoreCacheModel.PROVIDER_QLIB,
+            model_artifact_hash=model_artifact_hash,
+        ).first()
+        if row is None:
+            return None
+        return {
+            "id": row.pk,
+            "score_count": len(row.scores or []),
+            "asof_date": row.asof_date.isoformat() if row.asof_date else None,
+            "model_id": row.model_id,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        }
+
     def list_recent_provider_caches(self, *, provider: str, since) -> list[Any]:
         """Return recent cache rows for one provider."""
 
@@ -312,9 +342,9 @@ class AlphaScoreCacheRepository:
         from .models import AlphaScoreCacheModel
 
         return list(
-            AlphaScoreCacheModel._default_manager.filter(
-                created_at__date=target_date
-            ).values("provider_source", "status")
+            AlphaScoreCacheModel._default_manager.filter(created_at__date=target_date).values(
+                "provider_source", "status"
+            )
         )
 
     def list_recent_qlib_caches(self, *, limit: int = 20) -> list[Any]:
@@ -325,8 +355,7 @@ class AlphaScoreCacheRepository:
         return list(
             AlphaScoreCacheModel._default_manager.filter(
                 provider_source=AlphaScoreCacheModel.PROVIDER_QLIB
-            )
-            .order_by("-created_at")[:limit]
+            ).order_by("-created_at")[:limit]
         )
 
     def list_recent_caches(self, *, limit: int = 100) -> list[Any]:
@@ -504,9 +533,7 @@ class AlphaScoreCacheRepository:
             raise ValueError("asof_date is required")
 
         resolved_model_id = model_id or getattr(active_model, "model_name", "")
-        resolved_artifact_hash = model_artifact_hash or getattr(
-            active_model, "artifact_hash", ""
-        )
+        resolved_artifact_hash = model_artifact_hash or getattr(active_model, "artifact_hash", "")
         resolved_scores = scores_data if scores_data is not None else scores
         if resolved_scores is None:
             resolved_scores = []
@@ -550,9 +577,13 @@ class AlphaScoreCacheRepository:
         if scope_hash is not None:
             queryset = queryset.filter(scope_hash=scope_hash)
 
-        latest_cache = queryset.filter(
-            model_artifact_hash=model_artifact_hash,
-        ).order_by("-intended_trade_date", "-created_at").first()
+        latest_cache = (
+            queryset.filter(
+                model_artifact_hash=model_artifact_hash,
+            )
+            .order_by("-intended_trade_date", "-created_at")
+            .first()
+        )
         if latest_cache is not None:
             return latest_cache
         return queryset.order_by("-intended_trade_date", "-created_at").first()
@@ -667,7 +698,10 @@ class AlphaAlertRepository:
     ) -> bool:
         from .models import AlphaAlertModel
 
-        return AlphaAlertModel._default_manager.filter(id=alert_id).update(
-            message=message,
-            metadata=metadata,
-        ) > 0
+        return (
+            AlphaAlertModel._default_manager.filter(id=alert_id).update(
+                message=message,
+                metadata=metadata,
+            )
+            > 0
+        )

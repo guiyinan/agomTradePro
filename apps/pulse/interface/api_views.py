@@ -48,15 +48,18 @@ class PulseHistoryView(APIView):
     """获取历史 Pulse 记录
 
     GET /api/pulse/history/?months=6
+    GET /api/pulse/history/?limit=30
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
             months = int(request.query_params.get("months", 6))
+            limit_raw = request.query_params.get("limit")
+            limit = int(limit_raw) if limit_raw is not None else None
             from apps.pulse.application.query_services import list_pulse_history_payloads
 
-            data = list_pulse_history_payloads(months=months)
+            data = list_pulse_history_payloads(months=months, limit=limit)
 
             return Response({"success": True, "count": len(data), "data": data})
 

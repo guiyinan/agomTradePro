@@ -1,16 +1,16 @@
 # AgomTradePro 项目结构说明
 
 > 生成时间: 2025-12-30
-> 更新时间: 2026-04-21
-> 项目版本: 1.4
-> 模块数量: 35个业务模块
+> 更新时间: 2026-07-10
+> 项目版本真源: `core/version.py`
+> 动态治理真源: `governance/governance_baseline.json`
 
 ## 1. 项目概述
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **系统状态**: 生产就绪
-**测试规模**: 5,212个已收集测试项（2026-04-21 `pytest --collect-only` 快照；`main` nightly 全绿）
+**模块与测试规模**: 读取 `governance/governance_baseline.json`；本文不维护动态数量副本
 
 ## 2. 技术栈
 

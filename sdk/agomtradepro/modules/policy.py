@@ -7,6 +7,7 @@ AgomTradePro SDK - Policy 政策事件模块
 from datetime import date, datetime
 from typing import Any
 
+from ..exceptions import ValidationError
 from ..types import (
     EventType,
     GateLevel,
@@ -28,6 +29,8 @@ class PolicyModule(BaseModule):
 
     提供政策状态查询、事件管理、工作台操作等功能。
     """
+
+    _OVERRIDE_LEVELS = frozenset({"P0", "P1", "P2", "P3"})
 
     def __init__(self, client: Any) -> None:
         """
@@ -89,20 +92,30 @@ class PolicyModule(BaseModule):
             >>> for event in events:
             ...     print(f"{event.event_date}: {event.description}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {}
 
         if start_date is not None:
             params["start_date"] = start_date.isoformat()
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
-        if event_type is not None:
-            params["event_type"] = event_type
         if gear is not None:
-            params["gear"] = gear
+            params["level"] = self._gear_to_level(gear)
 
         response = self._get("events/", params=params)
-        results = response.get("results", response)
-        return [self._parse_event(item) for item in results]
+        if isinstance(response, dict):
+            results = response.get(
+                "events",
+                response.get("results", response.get("data", [])),
+            )
+        elif isinstance(response, list):
+            results = response
+        else:
+            results = []
+
+        events = [self._parse_event(item) for item in results]
+        if event_type is not None:
+            events = [item for item in events if item.event_type == event_type]
+        return events[:limit]
 
     def get_event(self, event_id: int) -> PolicyEvent:
         """
@@ -297,10 +310,12 @@ class PolicyModule(BaseModule):
             >>> for item in result.items:
             ...     print(f"{item.event_date}: {item.title}")
         """
+        normalized_page = max(int(page), 1)
+        normalized_page_size = max(int(page_size), 1)
         params: dict[str, Any] = {
             "tab": tab,
-            "page": page,
-            "page_size": page_size,
+            "limit": normalized_page_size,
+            "offset": (normalized_page - 1) * normalized_page_size,
         }
 
         if event_type is not None:
@@ -386,6 +401,7 @@ class PolicyModule(BaseModule):
         self,
         event_id: int,
         reason: str,
+        new_level: str | None = None,
         expires_in_hours: int | None = None,
     ) -> dict[str, Any]:
         """
@@ -394,7 +410,8 @@ class PolicyModule(BaseModule):
         Args:
             event_id: 事件 ID
             reason: 豁免原因（必填）
-            expires_in_hours: 豁免过期时间（小时）
+            new_level: 可选的新档位（`P0`/`P1`/`P2`/`P3`）
+            expires_in_hours: 历史兼容参数，当前 canonical API 不支持
 
         Returns:
             操作结果
@@ -408,13 +425,28 @@ class PolicyModule(BaseModule):
             >>> result = client.policy.override_event(
             ...     123,
             ...     reason="特殊情况临时豁免",
-            ...     expires_in_hours=24
+            ...     new_level="P1",
             ... )
             >>> print(f"豁免结果: {result['success']}")
         """
-        data: dict[str, Any] = {"reason": reason}
         if expires_in_hours is not None:
-            data["expires_in_hours"] = expires_in_hours
+            raise ValidationError(
+                message=(
+                    "Legacy override expiry is unsupported by the canonical policy "
+                    "workbench API. Use `new_level` or omit the field."
+                ),
+                errors={"expires_in_hours": ["unsupported legacy parameter"]},
+            )
+
+        data: dict[str, Any] = {"reason": reason}
+        if new_level is not None:
+            normalized_level = str(new_level).strip().upper()
+            if normalized_level not in self._OVERRIDE_LEVELS:
+                raise ValidationError(
+                    message="Validation failed.",
+                    errors={"new_level": [f"must be one of {sorted(self._OVERRIDE_LEVELS)}"]},
+                )
+            data["new_level"] = normalized_level
 
         return self._post(f"workbench/items/{event_id}/override/", json=data)
 
@@ -512,6 +544,35 @@ class PolicyModule(BaseModule):
 
         return self._post("workbench/fetch/", json=data)
 
+    def list_rss_sources(
+        self,
+        *,
+        is_active: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return persisted RSS source metadata without triggering a fetch."""
+        params = None if is_active is None else {"is_active": str(is_active).lower()}
+        response = self._get("rss/sources/", params=params)
+        if isinstance(response, list):
+            items = response
+        elif isinstance(response, dict):
+            items = response.get(
+                "results",
+                response.get("sources", response.get("data", [])),
+            )
+        else:
+            items = []
+        return [dict(item) for item in items if isinstance(item, dict)]
+
+    def get_rss_source(self, source_id: int) -> dict[str, Any]:
+        """Return one persisted RSS source without triggering a fetch."""
+        if isinstance(source_id, bool) or not isinstance(source_id, int) or source_id <= 0:
+            raise ValidationError(
+                message="Validation failed.",
+                errors={"source_id": ["must be a positive integer"]},
+            )
+        response = self._get(f"rss/sources/{source_id}/")
+        return dict(response)
+
     # =========================================================================
     # 解析方法
     # =========================================================================
@@ -524,12 +585,21 @@ class PolicyModule(BaseModule):
         elif obs_date is None:
             obs_date = date.today()
 
+        current_gear = data.get("current_gear")
+        if current_gear is None:
+            current_gear = self._level_to_gear(data.get("current_level"))
+
+        recent_event_payloads = list(data.get("recent_events", []))
+        latest_event = data.get("latest_event")
+        if isinstance(latest_event, dict):
+            recent_event_payloads.append(latest_event)
+
         recent_events = []
-        for event_data in data.get("recent_events", []):
+        for event_data in recent_event_payloads:
             recent_events.append(self._parse_event(event_data))
 
         return PolicyStatus(
-            current_gear=data.get("current_gear", data.get("current_level", "normal")),
+            current_gear=current_gear,
             observed_at=obs_date,
             recent_events=recent_events,
         )

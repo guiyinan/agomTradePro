@@ -1,6 +1,7 @@
 """AgomTradePro MCP Server."""
 
 import os
+from collections.abc import Callable
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -9,6 +10,30 @@ from agomtradepro_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
     wrap_tool_with_rbac_and_audit,
+)
+from agomtradepro_mcp.registry.dispatcher import CapabilityDispatcher
+from agomtradepro_mcp.registry.internal_handlers.alpha import (
+    import_score_cache as _internal_handler_alpha_import_score_cache,
+)
+from agomtradepro_mcp.registry.internal_handlers.audit import (
+    generate_attribution_report as _internal_handler_audit_generate_attribution_report,
+)
+from agomtradepro_mcp.registry.internal_handlers.audit import (
+    start_threshold_validation as _internal_handler_audit_start_threshold_validation,
+)
+from agomtradepro_mcp.registry.internal_handlers.audit import (
+    update_threshold_levels as _internal_handler_audit_update_threshold_levels,
+)
+from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
+from agomtradepro_mcp.registry.read_handlers.config_center import (
+    get_config_center_snapshot as _fallback_get_config_center_snapshot,
+)
+from agomtradepro_mcp.registry.runtime_handlers.common import (
+    configure_legacy_tool_caller,
+)
+from agomtradepro_mcp.registry.runtime_handlers.registry import (
+    OWNER_GOVERNED_HANDLERS,
+    OWNER_LEGACY_TOOL_FALLBACKS,
 )
 from agomtradepro_mcp.tools.account_tools import register_account_tools
 from agomtradepro_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
@@ -22,6 +47,7 @@ from agomtradepro_mcp.tools.audit_tools import register_audit_tools
 from agomtradepro_mcp.tools.backtest_tools import register_backtest_tools
 from agomtradepro_mcp.tools.beta_gate_tools import register_beta_gate_tools
 from agomtradepro_mcp.tools.config_center_tools import register_config_center_tools
+from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES, register_core_tools
 from agomtradepro_mcp.tools.dashboard_tools import register_dashboard_tools
 from agomtradepro_mcp.tools.data_center_tools import register_data_center_tools
 from agomtradepro_mcp.tools.decision_rhythm_tools import register_decision_rhythm_tools
@@ -93,65 +119,122 @@ server = FastMCP(
     instructions=_build_welcome_message(),
 )
 
+LEGACY_TOOL_REGISTRARS = (
+    register_regime_tools,
+    register_signal_tools,
+    register_policy_tools,
+    register_backtest_tools,
+    register_account_tools,
+    register_simulated_trading_tools,
+    register_equity_tools,
+    register_fund_tools,
+    register_sector_tools,
+    register_strategy_tools,
+    register_realtime_tools,
+    register_factor_tools,
+    register_rotation_tools,
+    register_hedge_tools,
+    register_alpha_tools,
+    register_ai_provider_tools,
+    register_prompt_tools,
+    register_audit_tools,
+    register_events_tools,
+    register_decision_rhythm_tools,
+    register_beta_gate_tools,
+    register_alpha_trigger_tools,
+    register_dashboard_tools,
+    register_config_center_tools,
+    register_risk_center_tools,
+    register_asset_analysis_tools,
+    register_sentiment_tools,
+    register_task_monitor_tools,
+    register_filter_tools,
+    register_decision_workflow_tools,
+    register_data_center_tools,
+    register_agent_task_tools,
+    register_agent_runtime_tools,
+    register_agent_proposal_tools,
+    register_pulse_tools,
+)
+
+
+def _env_flag_enabled(name: str, *, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+INTERNAL_LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
+    **OWNER_LEGACY_TOOL_FALLBACKS,
+    "get_config_center_snapshot": _fallback_get_config_center_snapshot,
+}
+
+INTERNAL_GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    **OWNER_GOVERNED_HANDLERS,
+    "audit_start_threshold_validation": _internal_handler_audit_start_threshold_validation,
+    "audit_update_threshold_levels": _internal_handler_audit_update_threshold_levels,
+    "audit_generate_attribution_report": _internal_handler_audit_generate_attribution_report,
+    "alpha_import_score_cache": _internal_handler_alpha_import_score_cache,
+}
+
+
+def _call_registered_tool(tool_name: str, arguments: dict[str, Any]) -> Any:
+    if tool_name in CORE_TOOL_NAMES:
+        raise RuntimeError(f"Refusing to recursively dispatch to core tool: {tool_name}")
+
+    manager = getattr(server, "_tool_manager", None)
+    if manager is None:
+        raise RuntimeError("MCP tool manager is not initialized")
+
+    tools = getattr(manager, "_tools", {})
+    tool_obj = tools.get(tool_name)
+    if tool_obj is None:
+        fallback = INTERNAL_LEGACY_TOOL_FALLBACKS.get(tool_name)
+        if fallback is not None:
+            return fallback(**arguments)
+        raise KeyError(f"Legacy tool is not registered: {tool_name}")
+
+    fn = getattr(tool_obj, "fn", None)
+    if fn is None:
+        raise RuntimeError(f"Registered tool has no callable fn: {tool_name}")
+    return fn(**arguments)
+
+
+def _call_internal_handler(handler_name: str, arguments: dict[str, Any]) -> Any:
+    handler = INTERNAL_GOVERNED_HANDLERS.get(handler_name)
+    if handler is None:
+        raise KeyError(f"Internal governed handler is not registered: {handler_name}")
+    return handler(**arguments)
+
+
+configure_legacy_tool_caller(_call_registered_tool)
+
+
+CORE_REGISTRY_LOADER = CapabilityRegistryLoader()
+CORE_CAPABILITY_REGISTRY = CORE_REGISTRY_LOADER.build_registry()
+CORE_DISPATCHER = CapabilityDispatcher(
+    registry=CORE_CAPABILITY_REGISTRY,
+    legacy_tool_caller=_call_registered_tool,
+    internal_handler_caller=_call_internal_handler,
+)
+CORE_WORKFLOW_RUNS: dict[str, dict[str, Any]] = {}
+
 
 def register_all_tools() -> None:
     """注册所有 MCP 工具"""
-    # Core modules
-    register_regime_tools(server)
-    register_signal_tools(server)
-    register_policy_tools(server)
-    register_backtest_tools(server)
-    register_account_tools(server)
+    global CORE_WORKFLOW_RUNS
 
-    # Extended modules
-    register_simulated_trading_tools(server)
-    register_equity_tools(server)
-    register_fund_tools(server)
-    register_sector_tools(server)
-    register_strategy_tools(server)
-    register_realtime_tools(server)
+    if _env_flag_enabled("AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS", default=True):
+        CORE_WORKFLOW_RUNS = register_core_tools(
+            server,
+            dispatcher=CORE_DISPATCHER,
+            welcome_message_factory=_build_welcome_message,
+        )
 
-    # New modules: Factor + Rotation + Hedge
-    register_factor_tools(server)
-    register_rotation_tools(server)
-    register_hedge_tools(server)
-
-    # New module: Alpha 抽象层
-    register_alpha_tools(server)
-
-    # Governance + operation modules
-    register_ai_provider_tools(server)
-    register_prompt_tools(server)
-    register_audit_tools(server)
-    register_events_tools(server)
-    register_decision_rhythm_tools(server)
-    register_beta_gate_tools(server)
-    register_alpha_trigger_tools(server)
-    register_dashboard_tools(server)
-    register_config_center_tools(server)
-    register_risk_center_tools(server)
-    register_asset_analysis_tools(server)
-    register_sentiment_tools(server)
-    register_task_monitor_tools(server)
-    register_filter_tools(server)
-
-    # Decision Workflow module
-    register_decision_workflow_tools(server)
-
-    # Data Center 统一数据中台模块
-    register_data_center_tools(server)
-
-    # Agent Runtime task tools (M2)
-    register_agent_task_tools(server)
-
-    # Agent Runtime execution tools (unified AI execution)
-    register_agent_runtime_tools(server)
-
-    # Agent Proposal tools (M3)
-    register_agent_proposal_tools(server)
-
-    # Pulse + Navigator tools
-    register_pulse_tools(server)
+    if _env_flag_enabled("AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS", default=False):
+        for registrar in LEGACY_TOOL_REGISTRARS:
+            registrar(server)
 
 
 def apply_tool_rbac_guards() -> None:
@@ -556,14 +639,14 @@ def resource_account_summary() -> str:
     )
 
     return f"""默认账户ID: {account_id}
-账户名称: {account.get('account_name')}
-账户类型: {account.get('account_type')}
-总资产: {account.get('total_value')}
-可用现金: {account.get('current_cash')}
+账户名称: {account.get("account_name")}
+账户类型: {account.get("account_type")}
+总资产: {account.get("total_value")}
+可用现金: {account.get("current_cash")}
 持仓数: {len(positions)}
-总交易数: {performance.get('total_trades') if isinstance(performance, dict) else None}
-总收益率: {performance_summary.get('total_return')}
-最大回撤: {performance_summary.get('max_drawdown')}"""
+总交易数: {performance.get("total_trades") if isinstance(performance, dict) else None}
+总收益率: {performance_summary.get("total_return")}
+最大回撤: {performance_summary.get("max_drawdown")}"""
 
 
 @server.resource(

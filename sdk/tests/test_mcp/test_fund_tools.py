@@ -113,19 +113,13 @@ class _FakeClient:
 )
 def test_fund_tools_execute(
     monkeypatch: pytest.MonkeyPatch,
+    legacy_enabled_mcp_server,
     tool_name: str,
     arguments: dict,
     expected_snippet: str,
 ):
-    try:
-        from agomtradepro_mcp.server import server
-    except ModuleNotFoundError as exc:
-        if "mcp" in str(exc):
-            pytest.skip("mcp package not installed in current test environment")
-        raise
-
     module = importlib.import_module("agomtradepro_mcp.tools.fund_tools")
     monkeypatch.setattr(module, "AgomTradeProClient", _FakeClient)
 
-    result = asyncio.run(server.call_tool(tool_name, arguments))
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool(tool_name, arguments))
     assert expected_snippet in str(result)

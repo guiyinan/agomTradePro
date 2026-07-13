@@ -2,7 +2,56 @@
 Serializers for Audit API.
 """
 
+import math
+from collections.abc import Mapping
+
 from rest_framework import serializers
+
+
+class StrictFieldsSerializer(serializers.Serializer):
+    """Reject request fields that are not declared by the canonical contract."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, Mapping):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+                )
+        return super().to_internal_value(data)
+
+
+class AuditValidationRequestSerializer(StrictFieldsSerializer):
+    """Canonical date range for threshold validation preview and execution."""
+
+    start_date = serializers.DateField(required=True)
+    end_date = serializers.DateField(required=True)
+
+    def validate(self, attrs):
+        start_date = attrs["start_date"]
+        end_date = attrs["end_date"]
+        if start_date > end_date:
+            raise serializers.ValidationError("start_date must not be after end_date")
+        if (end_date - start_date).days > 3660:
+            raise serializers.ValidationError("validation range must not exceed 3660 days")
+        return attrs
+
+
+class AuditThresholdLevelsRequestSerializer(StrictFieldsSerializer):
+    """Canonical threshold-level update contract."""
+
+    indicator_code = serializers.CharField(required=True, max_length=50, trim_whitespace=True)
+    level_low = serializers.FloatField(required=True)
+    level_high = serializers.FloatField(required=True)
+
+    def validate(self, attrs):
+        level_low = attrs["level_low"]
+        level_high = attrs["level_high"]
+        if not math.isfinite(level_low) or not math.isfinite(level_high):
+            raise serializers.ValidationError("threshold levels must be finite numbers")
+        if level_low >= level_high:
+            raise serializers.ValidationError("level_low must be less than level_high")
+        return attrs
 
 
 class IndicatorPerformanceReportSerializer(serializers.Serializer):
@@ -49,6 +98,7 @@ class ThresholdValidationReportSerializer(serializers.Serializer):
 
 class LossAnalysisSerializer(serializers.Serializer):
     """损失分析序列化器"""
+
     id = serializers.IntegerField()
     loss_source = serializers.CharField()
     loss_source_display = serializers.CharField()
@@ -60,6 +110,7 @@ class LossAnalysisSerializer(serializers.Serializer):
 
 class ExperienceSummarySerializer(serializers.Serializer):
     """经验总结序列化器"""
+
     id = serializers.IntegerField()
     lesson = serializers.CharField()
     recommendation = serializers.CharField()
@@ -70,6 +121,7 @@ class ExperienceSummarySerializer(serializers.Serializer):
 
 class AttributionReportSerializer(serializers.Serializer):
     """归因报告序列化器"""
+
     id = serializers.IntegerField()
     backtest_id = serializers.IntegerField()
     period_start = serializers.CharField()
@@ -88,13 +140,15 @@ class AttributionReportSerializer(serializers.Serializer):
     experience_summaries = ExperienceSummarySerializer(many=True, required=False)
 
 
-class GenerateAttributionReportRequestSerializer(serializers.Serializer):
+class GenerateAttributionReportRequestSerializer(StrictFieldsSerializer):
     """生成归因报告请求序列化器"""
-    backtest_id = serializers.IntegerField(required=True)
+
+    backtest_id = serializers.IntegerField(required=True, min_value=1)
 
 
 class GenerateAttributionReportResponseSerializer(serializers.Serializer):
     """生成归因报告响应序列化器"""
+
     success = serializers.BooleanField()
     report_id = serializers.IntegerField(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
@@ -102,8 +156,10 @@ class GenerateAttributionReportResponseSerializer(serializers.Serializer):
 
 # ============ MCP/SDK 操作审计日志序列化器 ============
 
+
 class OperationLogSerializer(serializers.Serializer):
     """操作审计日志序列化器"""
+
     id = serializers.CharField()
     request_id = serializers.CharField()
     user_id = serializers.IntegerField(allow_null=True)
@@ -137,6 +193,7 @@ class OperationLogSerializer(serializers.Serializer):
 
 class OperationLogListSerializer(serializers.Serializer):
     """操作日志列表响应序列化器"""
+
     success = serializers.BooleanField()
     logs = OperationLogSerializer(many=True)
     total_count = serializers.IntegerField()
@@ -146,6 +203,7 @@ class OperationLogListSerializer(serializers.Serializer):
 
 class OperationLogDetailSerializer(serializers.Serializer):
     """操作日志详情响应序列化器"""
+
     success = serializers.BooleanField()
     log = OperationLogSerializer(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
@@ -153,6 +211,7 @@ class OperationLogDetailSerializer(serializers.Serializer):
 
 class OperationLogQuerySerializer(serializers.Serializer):
     """操作日志查询参数序列化器"""
+
     user_id = serializers.IntegerField(required=False, allow_null=True)
     username = serializers.CharField(required=False, allow_blank=True)
     operation_type = serializers.CharField(required=False, allow_blank=True)
@@ -166,43 +225,45 @@ class OperationLogQuerySerializer(serializers.Serializer):
     end_date = serializers.DateField(required=False, allow_null=True)
     resource_id = serializers.CharField(required=False, allow_blank=True)
     source = serializers.CharField(required=False, allow_blank=True)
-    ordering = serializers.CharField(required=False, default='-timestamp')
+    ordering = serializers.CharField(required=False, default="-timestamp")
     page = serializers.IntegerField(required=False, default=1, min_value=1)
     page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
 
 
 class OperationLogIngestSerializer(serializers.Serializer):
     """操作日志内部写入序列化器"""
+
     request_id = serializers.CharField(required=True)
     user_id = serializers.IntegerField(required=False, allow_null=True)
-    username = serializers.CharField(required=False, default='anonymous')
-    source = serializers.CharField(required=False, default='MCP')
-    operation_type = serializers.CharField(required=False, default='MCP_CALL')
-    module = serializers.CharField(required=False, default='')
-    action = serializers.CharField(required=False, default='READ')
+    username = serializers.CharField(required=False, default="anonymous")
+    source = serializers.CharField(required=False, default="MCP")
+    operation_type = serializers.CharField(required=False, default="MCP_CALL")
+    module = serializers.CharField(required=False, default="")
+    action = serializers.CharField(required=False, default="READ")
     mcp_tool_name = serializers.CharField(required=False, allow_null=True)
     request_params = serializers.DictField(required=False, default=dict)
     response_payload = serializers.JSONField(required=False, allow_null=True, default=None)
-    response_text = serializers.CharField(required=False, allow_blank=True, default='')
+    response_text = serializers.CharField(required=False, allow_blank=True, default="")
     response_status = serializers.IntegerField(required=False, default=200)
-    response_message = serializers.CharField(required=False, allow_blank=True, default='')
-    error_code = serializers.CharField(required=False, allow_blank=True, default='')
-    exception_traceback = serializers.CharField(required=False, allow_blank=True, default='')
+    response_message = serializers.CharField(required=False, allow_blank=True, default="")
+    error_code = serializers.CharField(required=False, allow_blank=True, default="")
+    exception_traceback = serializers.CharField(required=False, allow_blank=True, default="")
     duration_ms = serializers.IntegerField(required=False, allow_null=True)
     ip_address = serializers.CharField(required=False, allow_null=True)
-    user_agent = serializers.CharField(required=False, allow_blank=True, default='')
-    client_id = serializers.CharField(required=False, allow_blank=True, default='')
-    resource_type = serializers.CharField(required=False, allow_blank=True, default='')
+    user_agent = serializers.CharField(required=False, allow_blank=True, default="")
+    client_id = serializers.CharField(required=False, allow_blank=True, default="")
+    resource_type = serializers.CharField(required=False, allow_blank=True, default="")
     resource_id = serializers.CharField(required=False, allow_null=True)
-    mcp_client_id = serializers.CharField(required=False, allow_blank=True, default='')
-    mcp_role = serializers.CharField(required=False, allow_blank=True, default='')
-    sdk_version = serializers.CharField(required=False, allow_blank=True, default='')
-    request_method = serializers.CharField(required=False, default='MCP')
-    request_path = serializers.CharField(required=False, allow_blank=True, default='')
+    mcp_client_id = serializers.CharField(required=False, allow_blank=True, default="")
+    mcp_role = serializers.CharField(required=False, allow_blank=True, default="")
+    sdk_version = serializers.CharField(required=False, allow_blank=True, default="")
+    request_method = serializers.CharField(required=False, default="MCP")
+    request_path = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OperationStatsSerializer(serializers.Serializer):
     """操作统计序列化器"""
+
     total_count = serializers.IntegerField()
     error_count = serializers.IntegerField()
     error_rate = serializers.FloatField()
@@ -216,6 +277,7 @@ class OperationStatsSerializer(serializers.Serializer):
 
 class ExportOperationLogsSerializer(serializers.Serializer):
     """导出操作日志响应序列化器"""
+
     success = serializers.BooleanField()
     data = serializers.CharField(allow_null=True, required=False)
     filename = serializers.CharField(allow_null=True, required=False)
@@ -225,6 +287,7 @@ class ExportOperationLogsSerializer(serializers.Serializer):
 
 class DecisionTraceStepSerializer(serializers.Serializer):
     """决策链步骤序列化器"""
+
     step_index = serializers.IntegerField()
     log_id = serializers.CharField()
     timestamp = serializers.CharField()
@@ -240,6 +303,7 @@ class DecisionTraceStepSerializer(serializers.Serializer):
 
 class DecisionTraceSummarySerializer(serializers.Serializer):
     """决策链摘要序列化器"""
+
     request_id = serializers.CharField()
     mcp_client_id = serializers.CharField()
     username = serializers.CharField()
@@ -257,6 +321,7 @@ class DecisionTraceSummarySerializer(serializers.Serializer):
 
 class DecisionTraceListSerializer(serializers.Serializer):
     """决策链列表响应序列化器"""
+
     success = serializers.BooleanField()
     traces = DecisionTraceSummarySerializer(many=True)
     total_count = serializers.IntegerField()
@@ -266,6 +331,7 @@ class DecisionTraceListSerializer(serializers.Serializer):
 
 class DecisionTraceDetailSerializer(serializers.Serializer):
     """决策链详情响应序列化器"""
+
     success = serializers.BooleanField()
     trace = serializers.DictField(required=False)
     error = serializers.CharField(allow_null=True, required=False)
@@ -273,6 +339,7 @@ class DecisionTraceDetailSerializer(serializers.Serializer):
 
 class ExecutionLinkSerializer(serializers.Serializer):
     """推荐执行关联序列化器"""
+
     id = serializers.IntegerField()
     recommendation_id = serializers.CharField(allow_blank=True)
     transaction_id = serializers.IntegerField()
@@ -288,5 +355,6 @@ class ExecutionLinkSerializer(serializers.Serializer):
 
 class ExecutionLinkListSerializer(serializers.Serializer):
     """推荐执行关联列表响应序列化器"""
+
     success = serializers.BooleanField()
     links = ExecutionLinkSerializer(many=True)

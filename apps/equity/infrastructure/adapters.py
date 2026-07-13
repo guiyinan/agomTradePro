@@ -400,7 +400,12 @@ class MarketDataRepositoryAdapter(MarketDataPort):
         return []
 
     def get_index_daily_returns(
-        self, index_code: str, start_date: date, end_date: date
+        self,
+        index_code: str,
+        start_date: date,
+        end_date: date,
+        *,
+        hydrate: bool = True,
     ) -> dict[date, float]:
         """
         获取指数日收益率
@@ -411,13 +416,14 @@ class MarketDataRepositoryAdapter(MarketDataPort):
             index_code: 指数代码（如 000300.SH 表示沪深 300）
             start_date: 起始日期
             end_date: 结束日期
+            hydrate: 本地数据不足时是否允许远端补数并持久化
 
         Returns:
             {日期: 收益率}，收益率以小数表示（如 0.01 表示 1%）
         """
         try:
             data_points = self._load_local_index_points(index_code, start_date, end_date)
-            if len(data_points) < 2:
+            if hydrate and len(data_points) < 2:
                 data_points = self._load_remote_index_points(index_code, start_date, end_date)
 
             # 计算收益率

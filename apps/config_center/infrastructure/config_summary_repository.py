@@ -16,9 +16,8 @@ class DjangoConfigCenterSummaryRepository:
         metadata: dict[str, dict[str, Any]] = {}
         catalogs = IndicatorCatalogModel.objects.filter(is_active=True).order_by("code")
         rules: dict[str, IndicatorUnitRuleModel] = {}
-        for rule in (
-            IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="")
-            .order_by("indicator_code", "-priority", "id")
+        for rule in IndicatorUnitRuleModel.objects.filter(is_active=True, source_type="").order_by(
+            "indicator_code", "-priority", "id"
         ):
             rules.setdefault(rule.indicator_code, rule)
 
@@ -43,7 +42,7 @@ class DjangoConfigCenterSummaryRepository:
         return metadata
 
     def get_system_settings_summary(self) -> dict[str, Any]:
-        settings_obj = SystemSettingsModel.get_settings()
+        settings_obj = SystemSettingsModel.get_settings_for_read()
         runtime_qlib = settings_obj.get_runtime_qlib_config_payload()
         return {
             "status": "configured",
@@ -94,4 +93,3 @@ class DjangoConfigCenterSummaryRepository:
 
     def get_runtime_asset_proxy_map(self) -> dict[str, str]:
         return SystemSettingsModel.get_runtime_asset_proxy_map()
-

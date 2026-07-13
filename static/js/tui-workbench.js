@@ -1806,7 +1806,7 @@
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
             <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
-                    <section class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}" tabindex="0" role="button">
+                    <section class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" data-dashboard-action="${escapeHtml(panel.action_key || "")}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}" tabindex="0" role="button">
                         <h3>
                             <span>${escapeHtml(panel.title)}</span>
                             <span class="tui-panel-heading-tools">
@@ -1849,14 +1849,20 @@
         });
         els.main.querySelectorAll("[data-dashboard-target]").forEach((panelElement) => {
             const target = panelElement.dataset.dashboardTarget;
-            if (!target) {
+            const actionKey = panelElement.dataset.dashboardAction;
+            if (!target && !actionKey) {
                 return;
             }
-            panelElement.addEventListener("click", () => loadScreen(target));
+            panelElement.addEventListener("click", (event) => {
+                if (isInteractiveTarget(event.target)) {
+                    return;
+                }
+                activateDashboardPanel(target, actionKey);
+            });
             panelElement.addEventListener("keydown", (event) => {
                 if (event.key === "Enter") {
                     event.preventDefault();
-                    loadScreen(target);
+                    activateDashboardPanel(target, actionKey);
                 }
             });
         });
@@ -1868,6 +1874,20 @@
 
     function dashboardTargetScreen(panel) {
         return String(panel.target_screen || panel.screen_key || "");
+    }
+
+    function activateDashboardPanel(targetScreen, actionKey) {
+        const normalizedTarget = String(targetScreen || "").trim();
+        const normalizedActionKey = String(actionKey || "").trim();
+        const currentScreenKey = String(state.screen?.screen?.key || "").trim();
+        if (normalizedTarget && normalizedTarget !== currentScreenKey) {
+            loadScreen(normalizedTarget);
+            return;
+        }
+        if (normalizedActionKey) {
+            runAction(normalizedActionKey, null, { params: {} });
+            return;
+        }
     }
 
     function actionResultSemantics(actionRef) {
@@ -2253,11 +2273,23 @@
                 </div>
             `
             : "";
-        const fieldMarkup = hasSemantic(semantics, "multiline_prompt")
-            ? renderSemanticPromptFields(fields)
-            : hasSemantic(semantics, "copyable_secret") || hasSemantic(semantics, "endpoint_list")
-                ? renderSemanticCopyFields(fields)
-                : renderSemanticGridFields(fields);
+        const hasPromptSemantic = hasSemantic(semantics, "multiline_prompt");
+        const hasCopySemantic = hasSemantic(semantics, "copyable_secret") || hasSemantic(semantics, "endpoint_list");
+        const promptFields = hasPromptSemantic ? fields.filter((field) => fieldLooksLikePrompt(field)) : [];
+        const baseFields = hasPromptSemantic && promptFields.length
+            ? fields.filter((field) => !fieldLooksLikePrompt(field))
+            : fields;
+        const copyFields = hasCopySemantic ? baseFields.filter((field) => fieldLooksLikeCopyable(field)) : [];
+        const metaFields = hasCopySemantic && copyFields.length
+            ? baseFields.filter((field) => !fieldLooksLikeCopyable(field))
+            : baseFields;
+        const fieldMarkup = [
+            hasCopySemantic && copyFields.length ? renderSemanticCopyFields(copyFields) : "",
+            metaFields.length ? renderSemanticGridFields(metaFields) : "",
+            hasPromptSemantic
+                ? renderSemanticPromptFields(promptFields.length ? promptFields : (fields.length ? fields : []))
+                : "",
+        ].filter(Boolean).join("");
         const nestedMarkup = nested.length
             ? `<div class="tui-nested-list">${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}</div>`
             : "";
@@ -2282,6 +2314,24 @@
                 `).join("")}
             </dl>
         `;
+    }
+
+    function semanticFieldKey(field) {
+        return String(field?.key || "").trim().toLowerCase();
+    }
+
+    function semanticFieldLabel(field) {
+        return String(field?.label || "").trim().toLowerCase();
+    }
+
+    function fieldLooksLikePrompt(field) {
+        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
+        return /prompt|提示词/.test(haystack);
+    }
+
+    function fieldLooksLikeCopyable(field) {
+        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
+        return /token|令牌|endpoint|地址|url|base_url|route|web|capability|api_root/.test(haystack);
     }
 
     function renderSemanticCopyFields(fields) {
@@ -2356,7 +2406,9 @@
                 return;
             }
             button.dataset.copyBound = "true";
-            button.addEventListener("click", async () => {
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
                 const label = String(button.dataset.copyLabel || "内容").trim();
                 const originalText = button.textContent;
                 try {

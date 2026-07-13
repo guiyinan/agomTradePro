@@ -392,6 +392,30 @@ class PositionViewSet(ObserverAuditMixin, viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="read-only")
+    def read_only(self, request):
+        """Return position projections without synchronizing the unified ledger."""
+
+        portfolio_id_raw = request.query_params.get("portfolio_id")
+        portfolio_id = int(portfolio_id_raw) if portfolio_id_raw not in (None, "") else None
+        include_closed = request.query_params.get("include_closed", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        payload = portfolio_api_services.list_position_records_read_payload(
+            user_id=request.user.id,
+            portfolio_id=portfolio_id,
+            asset_code=request.query_params.get("asset_code"),
+            include_closed=include_closed,
+        )
+        page = self.paginate_queryset(payload)
+        positions = page if page is not None else payload
+        serializer = PositionSerializer(positions, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
     @action(detail=True, methods=["post"])
     def close(self, request, pk=None):
         """Close one position through the application service boundary."""

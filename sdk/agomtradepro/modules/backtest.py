@@ -191,8 +191,14 @@ class BacktestModule(BaseModule):
             >>> for point in curve:
             ...     print(f"{point['date']}: {point['value']:.2f}")
         """
+        return self.get_equity_curve_payload(backtest_id)["curve"]
+
+    def get_equity_curve_payload(self, backtest_id: int) -> dict[str, Any]:
+        """Return the canonical persisted equity-curve envelope."""
         response = self._get(f"backtests/{backtest_id}/equity-curve/")
-        return response.get("curve", response)
+        if not isinstance(response, dict) or not isinstance(response.get("curve"), list):
+            raise ValueError("backtest equity curve response must contain a curve array")
+        return response
 
     def run_decision_replay(
         self,

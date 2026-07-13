@@ -55,6 +55,14 @@ class FilterRepositoryProtocol(Protocol):
         """保存 Kalman 状态"""
         ...
 
+    def update_filter_config(self, indicator_code: str, payload: dict[str, object]) -> dict[str, object]:
+        """更新滤波器配置"""
+        ...
+
+    def delete_filter_config(self, indicator_code: str) -> bool:
+        """删除滤波器配置"""
+        ...
+
 
 class DjangoFilterRepository:
     """Django ORM 滤波器仓储实现"""
@@ -167,6 +175,36 @@ class DjangoFilterRepository:
                 'kalman_slope_variance': 0.005,
                 'kalman_observation_variance': 0.5,
             }
+
+    def update_filter_config(self, indicator_code: str, payload: dict[str, object]) -> dict[str, object]:
+        """Update or create one filter config by indicator code."""
+        config, _created = FilterConfig._default_manager.get_or_create(
+            indicator_code=indicator_code,
+        )
+        field_names = (
+            "hp_enabled",
+            "hp_lambda",
+            "kalman_enabled",
+            "kalman_level_variance",
+            "kalman_slope_variance",
+            "kalman_observation_variance",
+            "description",
+        )
+        for field_name in field_names:
+            if field_name in payload:
+                setattr(config, field_name, payload[field_name])
+        config.save()
+        result = self.get_filter_config(indicator_code)
+        result["indicator_code"] = indicator_code
+        result["description"] = config.description
+        return result
+
+    def delete_filter_config(self, indicator_code: str) -> bool:
+        """Delete one persisted filter config override by indicator code."""
+        deleted_count, _detail = FilterConfig._default_manager.filter(
+            indicator_code=indicator_code,
+        ).delete()
+        return deleted_count > 0
 
     def get_macro_indicator_data(
         self,

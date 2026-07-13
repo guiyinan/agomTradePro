@@ -303,7 +303,10 @@ class SignalModule(BaseModule):
             logic_desc=data.get("logic_desc", ""),
             status=data.get("status", "pending"),
             created_at=parse_datetime(data.get("created_at")),
-            invalidation_logic=data.get("invalidation_logic"),
+            invalidation_logic=(
+                data.get("invalidation_logic")
+                or data.get("invalidation_description")
+            ),
             invalidation_threshold=data.get("invalidation_threshold"),
             approved_at=parse_datetime(data.get("approved_at")),
             invalidated_at=parse_datetime(data.get("invalidated_at")),

@@ -1,0 +1,157 @@
+"""task_monitor read capability manifests."""
+
+from __future__ import annotations
+
+from agomtradepro_mcp.registry.manifest import CapabilityManifest
+
+MANIFESTS = [
+    CapabilityManifest(
+        capability_key="system.read.task_monitor.statistics",
+        title="Task Monitor Statistics",
+        summary="Read task monitor summary statistics.",
+        description="Return the operator-facing task monitor statistics snapshot.",
+        owner_app="task_monitor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="get_task_monitor_statistics",
+        tags=("task_monitor", "operations", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_name": {"type": "string"},
+                "days": {"type": "integer"},
+            },
+            "required": ["task_name"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "task_name": {"type": "string"},
+                "total_executions": {"type": "integer"},
+                "successful_executions": {"type": "integer"},
+                "failed_executions": {"type": "integer"},
+                "average_runtime": {"type": "number"},
+                "success_rate": {"type": "number"},
+                "last_execution_status": {"type": "string"},
+                "last_execution_at": {"type": ["string", "null"]},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("get_task_monitor_statistics",),
+    ),
+    CapabilityManifest(
+        capability_key="task_monitor.read.task_status",
+        title="Task Monitor Task Status",
+        summary="Read one task status from task monitor.",
+        description="Return the current status payload for one task monitor task ID.",
+        owner_app="task_monitor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="get_task_monitor_status",
+        tags=("task_monitor", "operations", "task", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string"},
+            },
+            "required": ["task_id"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string"},
+                "task_name": {"type": "string"},
+                "status": {"type": "string"},
+                "started_at": {"type": ["string", "null"]},
+                "finished_at": {"type": ["string", "null"]},
+                "runtime_seconds": {"type": ["number", "null"]},
+                "retries": {"type": "integer"},
+                "is_success": {"type": "boolean"},
+                "is_failure": {"type": "boolean"},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("get_task_monitor_status",),
+    ),
+    CapabilityManifest(
+        capability_key="task_monitor.read.task_list",
+        title="Task Monitor Task List",
+        summary="Read the current task monitor task list.",
+        description="Return the current task list view from task monitor for operator review.",
+        owner_app="task_monitor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="list_task_monitor_tasks",
+        tags=("task_monitor", "operations", "task", "list", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "total": {"type": "integer"},
+                "items": {"type": "array"},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("list_task_monitor_tasks",),
+    ),
+    CapabilityManifest(
+        capability_key="task_monitor.read.dashboard",
+        title="Task Monitor Dashboard",
+        summary="Read the operator-facing task monitor dashboard snapshot.",
+        description="Return the current task monitor dashboard summary for operators.",
+        owner_app="task_monitor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="get_task_monitor_dashboard",
+        tags=("task_monitor", "operations", "dashboard", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "recent_failures": {"type": "object"},
+                "celery_health": {"type": "object"},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("get_task_monitor_dashboard",),
+    ),
+    CapabilityManifest(
+        capability_key="task_monitor.read.celery_health",
+        title="Task Monitor Celery Health",
+        summary="Read current Celery worker health from task monitor.",
+        description="Return the current Celery worker and queue health snapshot.",
+        owner_app="task_monitor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="get_task_monitor_celery_health",
+        tags=("task_monitor", "operations", "celery", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "is_healthy": {"type": "boolean"},
+                "broker_reachable": {"type": "boolean"},
+                "backend_reachable": {"type": "boolean"},
+                "active_workers": {"type": "array"},
+                "active_tasks_count": {"type": "integer"},
+                "pending_tasks_count": {"type": "integer"},
+                "scheduled_tasks_count": {"type": "integer"},
+                "last_check": {"type": ["string", "null"]},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("get_task_monitor_celery_health",),
+    ),
+]

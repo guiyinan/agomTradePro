@@ -52,6 +52,7 @@ class TestCapabilityDefinition:
             description="Detailed description",
             route_group=RouteGroup.READ_API,
             category="market",
+            semantic_key="market.regime",
             tags=["regime", "market"],
             when_to_use=["User asks about regime"],
             when_not_to_use=["User asks about system status"],
@@ -71,6 +72,7 @@ class TestCapabilityDefinition:
 
         assert cap.capability_key == "api.get.regime"
         assert cap.route_group == RouteGroup.READ_API
+        assert cap.semantic_key == "market.regime"
         assert cap.tags == ["regime", "market"]
         assert cap.priority_weight == 5.0
 
@@ -89,6 +91,7 @@ class TestCapabilityDefinition:
         assert d["capability_key"] == "test.cap"
         assert d["source_type"] == "builtin"
         assert d["name"] == "Test"
+        assert d["semantic_key"] == ""
 
     def test_capability_from_dict(self):
         """Test creating capability from dict."""
@@ -100,6 +103,7 @@ class TestCapabilityDefinition:
             "summary": "Test summary",
             "route_group": "read_api",
             "risk_level": "low",
+            "semantic_key": "market.regime",
         }
 
         cap = CapabilityDefinition.from_dict(d)
@@ -108,6 +112,7 @@ class TestCapabilityDefinition:
         assert cap.source_type == SourceType.API
         assert cap.route_group == RouteGroup.READ_API
         assert cap.risk_level == RiskLevel.LOW
+        assert cap.semantic_key == "market.regime"
 
     def test_capability_to_summary_dict(self):
         """Test converting capability to summary dict."""
@@ -125,6 +130,7 @@ class TestCapabilityDefinition:
 
         assert summary["capability_key"] == "test.cap"
         assert summary["name"] == "Test"
+        assert summary["semantic_key"] == ""
         assert summary["risk_level"] == "high"
         assert summary["requires_confirmation"] is True
 

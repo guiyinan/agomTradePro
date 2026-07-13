@@ -145,10 +145,15 @@ class RotationIntegrationService:
 
         # Create domain context
         def get_prices(asset_code: str, end_date: date, days: int) -> list[float] | None:
-            return self.price_service.get_prices(asset_code, end_date, days)
+            return self.price_service.get_prices(
+                asset_code,
+                end_date,
+                days,
+                cache_result=False,
+            )
 
         def get_regime() -> str | None:
-            return self._get_current_regime()
+            return None
 
         context = RotationContext(
             calc_date=date.today(),
@@ -184,7 +189,10 @@ class RotationIntegrationService:
         price_dict = {}
         for asset_code in asset_codes:
             prices = self.price_service.get_prices(
-                asset_code, date.today(), window_days + 30  # Add buffer
+                asset_code,
+                date.today(),
+                window_days + 30,
+                cache_result=False,
             )
             if prices:
                 price_dict[asset_code] = prices[-window_days:]

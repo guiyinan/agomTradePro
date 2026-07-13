@@ -28,6 +28,7 @@ def dashboard_api_root(request):
                 "action_recommendation": "/api/dashboard/action-recommendation/",
                 "position_detail": "/api/dashboard/position/{asset_code}/",
                 "positions": "/api/dashboard/positions/",
+                "positions_data": "/api/dashboard/positions/data/",
                 "allocation": "/api/dashboard/allocation/",
                 "performance": "/api/dashboard/performance/",
                 "auto_advisor_console": "/api/dashboard/auto-advisor-console/",
@@ -74,6 +75,7 @@ urlpatterns = [
         name="position_detail",
     ),
     path("positions/", portfolio_views.positions_list_htmx, name="positions_list"),
+    path("positions/data/", portfolio_views.positions_json, name="positions_data"),
     path("allocation/", portfolio_views.allocation_chart_htmx, name="allocation"),
     path("performance/", portfolio_views.performance_chart_htmx, name="performance"),
     path(

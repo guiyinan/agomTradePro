@@ -10,6 +10,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 
@@ -290,7 +291,7 @@ class FeeConfigMapper:
 class DjangoSimulatedAccountRepository:
     """模拟账户Repository实现"""
 
-    def save(self, account: SimulatedAccount) -> int:
+    def save(self, account: SimulatedAccount, user_id: int | None = None) -> int:
         """
         保存账户(创建或更新)
 
@@ -301,6 +302,9 @@ class DjangoSimulatedAccountRepository:
             # 创建新账户
             model = SimulatedAccountMapper.to_model(account)
             model.id = None  # 确保是新记录
+            if user_id is not None:
+                user_model = get_user_model()
+                model.user = user_model._default_manager.get(id=user_id)
             model.save()
             return model.id
         else:
@@ -344,13 +348,15 @@ class DjangoSimulatedAccountRepository:
             user_id=user_id,
         ).first()
 
-    def get_by_name(self, account_name: str) -> SimulatedAccount | None:
-        """根据名称获取账户"""
-        try:
-            model = SimulatedAccountModel._default_manager.get(account_name=account_name)
-            return SimulatedAccountMapper.to_entity(model)
-        except SimulatedAccountModel.DoesNotExist:
-            return None
+    def get_by_name(
+        self, account_name: str, user_id: int | None = None
+    ) -> SimulatedAccount | None:
+        """Return an account by name, scoped to the owner when available."""
+        queryset = SimulatedAccountModel._default_manager.filter(account_name=account_name)
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        model = queryset.order_by("id").first()
+        return SimulatedAccountMapper.to_entity(model) if model is not None else None
 
     def get_active_accounts(self) -> list[SimulatedAccount]:
         """获取所有活跃的自动交易账户"""

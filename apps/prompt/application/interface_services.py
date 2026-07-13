@@ -38,10 +38,30 @@ from .use_cases import (
 logger = logging.getLogger(__name__)
 
 
-def get_prompt_template_queryset() -> Any:
-    """Return the active prompt template queryset for interface consumers."""
+def get_prompt_template_queryset(
+    *,
+    name: str | None = None,
+    include_inactive: bool = False,
+) -> Any:
+    """Return the filtered prompt template queryset for interface consumers."""
 
-    return get_prompt_repository().get_active_template_queryset()
+    return get_prompt_repository().get_template_queryset(
+        name=name,
+        include_inactive=include_inactive,
+    )
+
+
+def prompt_template_name_exists(
+    name: str,
+    *,
+    exclude_template_id: int | None = None,
+) -> bool:
+    """Return whether a prompt template name is already reserved."""
+
+    return get_prompt_repository().template_name_exists(
+        name,
+        exclude_template_id=exclude_template_id,
+    )
 
 
 def get_chain_config_queryset() -> Any:

@@ -9,8 +9,21 @@ class PromptModule(BaseModule):
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/prompt")
 
-    def list_templates(self) -> list[dict[str, Any]]:
-        response = self._get("templates/")
+    def list_templates(
+        self,
+        *,
+        name: str | None = None,
+        include_inactive: bool = False,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "name": name,
+                "include_inactive": include_inactive if include_inactive else None,
+            }.items()
+            if value is not None
+        }
+        response = self._get("templates/", params=params or None)
         return response.get("results", response) if isinstance(response, dict) else response
 
     def get_template(self, template_id: int) -> dict[str, Any]:

@@ -89,6 +89,21 @@ def positions_list_htmx(request):
 
 
 @login_required(login_url="/account/login/")
+def positions_json(request):
+    """Return the authenticated user's persisted simulated positions as JSON."""
+    positions = _dashboard_views()._load_simulated_positions_fallback(request.user.id)
+    return JsonResponse(
+        {
+            "success": True,
+            "data": {
+                "positions": positions,
+                "total_count": len(positions),
+            },
+        }
+    )
+
+
+@login_required(login_url="/account/login/")
 def allocation_chart_htmx(request):
     """Return allocation chart payload for one account or the aggregated portfolio."""
 

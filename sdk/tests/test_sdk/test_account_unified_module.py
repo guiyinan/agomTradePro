@@ -7,7 +7,9 @@ class TestAccountModuleUnifiedAliases:
     def test_list_accounts_uses_unified_account_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
 
-        with patch.object(client, "get", return_value={"accounts": [{"account_id": 1, "account_type": "real"}]}) as mock_get:
+        with patch.object(
+            client, "get", return_value={"accounts": [{"account_id": 1, "account_type": "real"}]}
+        ) as mock_get:
             rows = client.account.list_accounts(account_type="real", active_only=True, limit=10)
 
         assert rows == [{"account_id": 1, "account_type": "real"}]
@@ -15,6 +17,39 @@ class TestAccountModuleUnifiedAliases:
             "/api/account/accounts/",
             params={"active_only": True, "limit": 10, "account_type": "real"},
         )
+
+    def test_get_account_uses_unified_account_detail_endpoint(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={"account": {"account_id": 3, "account_type": "simulated"}},
+        ) as mock_get:
+            account = client.account.get_account(3)
+
+        assert account == {"account_id": 3, "account_type": "simulated"}
+        mock_get.assert_called_once_with("/api/account/accounts/3/")
+
+    def test_get_account_positions_uses_unified_account_positions_endpoint(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={
+                "positions": [
+                    {
+                        "account_id": 3,
+                        "asset_code": "510300.SH",
+                    }
+                ]
+            },
+        ) as mock_get:
+            positions = client.account.get_account_positions(3)
+
+        assert positions == [{"account_id": 3, "asset_code": "510300.SH"}]
+        mock_get.assert_called_once_with("/api/account/accounts/3/positions/")
 
     def test_create_account_passes_account_type(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
@@ -35,6 +70,19 @@ class TestAccountModuleUnifiedAliases:
         payload = mock_post.call_args.kwargs["json"]
         assert payload["account_type"] == "real"
         assert mock_post.call_args.args[0] == "/api/account/accounts/"
+
+    def test_get_account_performance_uses_basic_endpoint_without_dates(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+
+        with patch.object(
+            client,
+            "get",
+            return_value={"performance": {"total_return": 0.05}},
+        ) as mock_get:
+            result = client.account.get_account_performance(account_id=3)
+
+        assert result == {"total_return": 0.05}
+        mock_get.assert_called_once_with("/api/account/accounts/3/performance/")
 
     def test_get_account_performance_uses_report_endpoint_when_dates_provided(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")
@@ -85,3 +133,49 @@ class TestAccountModuleUnifiedAliases:
 
         assert result["created_rows"] == 1
         assert mock_post.call_args.args[0] == "/api/account/broker-trades/import/"
+
+    def test_structured_broker_trades_use_canonical_csv_sdk_methods(self):
+        client = AgomTradeProClient(base_url="http://test.com", api_token="token")
+        trades = [
+            {
+                "traded_at": "2026-05-01T10:00:00+08:00",
+                "action": "buy",
+                "asset_code": "600519.SH",
+                "shares": 100,
+                "price": 1500,
+                "external_trade_id": "trade-1",
+            }
+        ]
+
+        with (
+            patch.object(
+                client.account,
+                "preview_broker_trades_csv",
+                return_value={"valid_rows": 1},
+            ) as mock_preview,
+            patch.object(
+                client.account,
+                "import_broker_trades_csv",
+                return_value={"imported_rows": 1},
+            ) as mock_import,
+        ):
+            preview = client.account.preview_broker_trades(
+                portfolio_id=9,
+                trades=trades,
+                broker_name="eastmoney",
+            )
+            imported = client.account.import_broker_trades(
+                portfolio_id=9,
+                trades=trades,
+                broker_name="eastmoney",
+            )
+
+        assert preview == {"valid_rows": 1}
+        assert imported == {"imported_rows": 1}
+        preview_kwargs = mock_preview.call_args.kwargs
+        import_kwargs = mock_import.call_args.kwargs
+        assert preview_kwargs["portfolio_id"] == 9
+        assert preview_kwargs["broker_name"] == "eastmoney"
+        assert preview_kwargs["filename"] == "broker_trades.structured.csv"
+        assert "trade-1" in preview_kwargs["csv_text"]
+        assert import_kwargs == preview_kwargs

@@ -13,9 +13,12 @@ def list_active_navigator_asset_config_payloads() -> list[dict[str, Any]]:
     return get_navigator_asset_config_repository().list_active_config_payloads()
 
 
-def list_pulse_history_payloads(months: int = 6) -> list[dict[str, Any]]:
+def list_pulse_history_payloads(
+    months: int = 6,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
     """Return serialized pulse history payloads for interface consumers."""
-    logs = get_pulse_repository().get_history(months=months)
+    logs = get_pulse_repository().get_history(months=months, limit=limit)
     return [
         {
             "observed_at": log.observed_at.isoformat(),

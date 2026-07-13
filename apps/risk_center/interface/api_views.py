@@ -270,7 +270,7 @@ class AccountRiskPolicyDetailView(APIView):
                 actor=request.user,
                 payload=payload,
             )
-        except RiskCenterAccessDeniedError as exc:
+        except (RiskCenterAccessDeniedError, RiskCenterValidationError) as exc:
             return _error_response(exc)
         return Response({"success": True, "data": _serialize_model(updated)})
 

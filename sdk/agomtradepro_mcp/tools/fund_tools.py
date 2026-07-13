@@ -45,7 +45,7 @@ def register_fund_tools(server: FastMCP) -> None:
         按当前 canonical fund screen 接口筛选基金。
 
         Args:
-            regime: 宏观象限；为空时由后端按当前环境推断
+            regime: 宏观象限；为空时由后端读取最新持久化 Regime 快照
             custom_types: 自定义基金类型列表
             custom_styles: 自定义投资风格列表
             min_scale: 最低基金规模

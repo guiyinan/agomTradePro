@@ -72,6 +72,25 @@ def test_config_center_snapshot_requires_staff(normal_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/api/system/config-capabilities/",
+        "/api/system/config-center/qlib/runtime/",
+        "/api/system/config-center/qlib/training-profiles/",
+        "/api/system/config-center/qlib/alpha-universes/",
+        "/api/system/config-center/qlib/alpha-universes/example/members/",
+        "/api/system/config-center/qlib/training-runs/",
+        "/api/system/config-center/qlib/training-runs/example/",
+    ),
+)
+def test_config_center_governed_read_candidates_require_staff(normal_client, path):
+    response = normal_client.get(path)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_config_center_snapshot_returns_sections(staff_client):
     response = staff_client.get("/api/system/config-center/")
     assert response.status_code == 200

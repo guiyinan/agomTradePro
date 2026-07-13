@@ -319,8 +319,9 @@ class GetActionRecommendationUseCase:
         *,
         refresh_pulse_if_stale: bool = True,
         prefer_cached: bool = False,
+        persist_result: bool = True,
     ) -> RegimeActionRecommendation | None:
-        """Build an action recommendation, optionally refreshing stale Pulse data."""
+        """Build an action recommendation with explicit refresh and persistence controls."""
         target_date = as_of_date or date.today()
 
         try:
@@ -433,24 +434,24 @@ class GetActionRecommendationUseCase:
                 as_of_date=target_date,
             )
 
-            # 持久化 ActionRecommendationLog
-            try:
-                repo = get_navigator_repository()
-                repo.save_action_recommendation(
-                    observed_at=target_date,
-                    data={
-                        "regime_name": navigator.regime_name,
-                        "pulse_strength": pulse_strength,
-                        "asset_weights": action_rec.asset_weights,
-                        "risk_budget_pct": action_rec.risk_budget_pct,
-                        "recommended_sectors": action_rec.recommended_sectors,
-                        "benefiting_styles": action_rec.benefiting_styles,
-                        "must_not_use_for_decision": action_rec.must_not_use_for_decision,
-                        "blocked_reason": action_rec.blocked_reason,
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"Failed to save ActionRecommendationLog: {e}")
+            if persist_result:
+                try:
+                    repo = get_navigator_repository()
+                    repo.save_action_recommendation(
+                        observed_at=target_date,
+                        data={
+                            "regime_name": navigator.regime_name,
+                            "pulse_strength": pulse_strength,
+                            "asset_weights": action_rec.asset_weights,
+                            "risk_budget_pct": action_rec.risk_budget_pct,
+                            "recommended_sectors": action_rec.recommended_sectors,
+                            "benefiting_styles": action_rec.benefiting_styles,
+                            "must_not_use_for_decision": action_rec.must_not_use_for_decision,
+                            "blocked_reason": action_rec.blocked_reason,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to save ActionRecommendationLog: {e}")
 
             return action_rec
 

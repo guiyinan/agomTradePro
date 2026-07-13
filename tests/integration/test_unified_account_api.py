@@ -105,3 +105,33 @@ def test_account_module_canonical_alias_positions_and_trades(client, accounts):
     trades_resp = client.get(f"/api/account/accounts/{real_account.id}/trades/")
     assert trades_resp.status_code == status.HTTP_200_OK
     assert trades_resp.json()["account_id"] == real_account.id
+
+
+def test_account_module_canonical_alias_basic_performance(client, accounts):
+    real_account, _ = accounts
+
+    response = client.get(f"/api/account/accounts/{real_account.id}/performance/")
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["success"] is True
+    assert body["account"]["account_id"] == real_account.id
+    assert "performance" in body
+
+
+def test_account_module_canonical_alias_performance_report(client, accounts):
+    real_account, _ = accounts
+
+    response = client.get(
+        f"/api/account/accounts/{real_account.id}/performance-report/",
+        {
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-10",
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body["period"]["start_date"] == "2026-07-01"
+    assert body["period"]["end_date"] == "2026-07-10"
+    assert "returns" in body

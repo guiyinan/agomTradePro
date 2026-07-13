@@ -1,5 +1,6 @@
 """Dashboard Alpha SDK contract tests."""
 
+from types import SimpleNamespace
 from typing import Any
 
 from agomtradepro.modules.dashboard import DashboardModule
@@ -267,3 +268,54 @@ def test_alpha_refresh_general_scope_forwards_scope_and_uses_research_message() 
     assert contract["alpha_scope"] == "general"
     assert contract["must_not_use_for_decision"] is True
     assert "research ranking" in contract["blocked_reason"]
+
+
+def test_alpha_history_payload_uses_canonical_endpoint_and_stable_envelope() -> None:
+    fake_client = _FakeClient(
+        get_payload={
+            "success": True,
+            "data": [{"id": 7, "trade_date": "2026-07-11", "source": "cache"}],
+        }
+    )
+    client = SimpleNamespace(dashboard=DashboardModule(fake_client))
+
+    result = client.dashboard.alpha_history_payload(
+        portfolio_id=135,
+        trade_date="2026-07-11",
+        stock_code="000001.SZ",
+        stage="actionable",
+        source="cache",
+    )
+
+    assert fake_client.last_get == (
+        "/api/dashboard/alpha/history/",
+        {
+            "portfolio_id": 135,
+            "trade_date": "2026-07-11",
+            "stock_code": "000001.SZ",
+            "stage": "actionable",
+            "source": "cache",
+        },
+    )
+    assert result["runs"][0]["id"] == 7
+    assert result["total_count"] == 1
+    assert result["query"]["portfolio_id"] == 135
+
+
+def test_alpha_history_detail_payload_uses_canonical_endpoint_and_stable_envelope() -> None:
+    fake_client = _FakeClient(
+        get_payload={
+            "success": True,
+            "data": {
+                "id": 7,
+                "snapshots": [{"code": "000001.SZ", "stage": "actionable"}],
+            },
+        }
+    )
+    client = SimpleNamespace(dashboard=DashboardModule(fake_client))
+
+    result = client.dashboard.alpha_history_detail_payload(7)
+
+    assert fake_client.last_get == ("/api/dashboard/alpha/history/7/", None)
+    assert result["run"]["id"] == 7
+    assert result["run"]["snapshots"][0]["code"] == "000001.SZ"

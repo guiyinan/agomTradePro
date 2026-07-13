@@ -635,9 +635,6 @@ class DeletePolicyEventUseCase:
             return False, "当前仓储不支持删除操作"
 
 
-# ========== RSS 相关用例 ==========
-
-
 @dataclass
 class FetchRSSInput:
     """RSS抓取输入 DTO"""
@@ -753,6 +750,9 @@ class FetchRSSUseCase:
             sources = [self.rss_repository.get_source_by_id(input.source_id)]
             if not sources[0]:
                 output.errors.append(f"RSS源 {input.source_id} 不存在")
+                return output
+            if not sources[0].is_active:
+                output.errors.append(f"RSS源 {input.source_id} 已停用")
                 return output
         else:
             sources = self.rss_repository.get_active_sources()
@@ -1220,9 +1220,6 @@ AI置信度: N/A
             return False
 
 
-# ========== 审核工作流用例 ==========
-
-
 @dataclass
 class ReviewPolicyItemInput:
     """审核政策条目的输入"""
@@ -1442,9 +1439,7 @@ class AutoAssignAuditsUseCase:
             "auditors": auditor_count,
         }
 
-# ============================================================
 # 工作台 Use Cases
-# ============================================================
 
 
 @dataclass

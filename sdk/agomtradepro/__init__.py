@@ -14,6 +14,7 @@ from .exceptions import (
     NotFoundError,
     RateLimitError,
     ServerError,
+    UnsupportedFeatureError,
     ValidationError,
     raise_for_status,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "ConflictError",
     "RateLimitError",
     "ServerError",
+    "UnsupportedFeatureError",
     "SDKConnectionError",
     "SDKTimeoutError",
     "ConfigurationError",

@@ -4,6 +4,7 @@
 > **基线日期**: 2026-03-22
 > **文档性质**: 治理约束规范
 > **强制执行**: 所有代码变更
+> **动态治理真源**: `governance/governance_baseline.json`
 
 ---
 
@@ -11,10 +12,10 @@
 
 **为什么需要禁令？**
 
-1. 防止系统失控（33个模块已足够复杂）
+1. 防止系统规模和依赖复杂度失控
 2. 保持架构边界清晰
 3. 避免重复造轮子
-4. 确保单一叙事来源
+4. 确保动态治理数据只有一个机器真源
 
 **违规后果**：
 - ❌ PR 拒绝合并
@@ -29,7 +30,8 @@
 
 **内容**：禁止新增独立的业务模块
 
-**现状**：33个业务模块已覆盖所有核心场景
+**现状**：当前业务模块数量与模块形态只读取
+`governance/governance_baseline.json`；本文不维护数量副本。
 
 **例外**：
 - ✅ 允许拆分现有模块（如 `account`）
@@ -163,16 +165,13 @@ grep -r "requests\\.get\|requests\\.post" apps/ --exclude-dir=infrastructure
 
 ### 禁令 5：account 模块重构前禁止新增依赖
 
-**内容**：`account` 模块当前依赖 14 个模块，禁止继续增加依赖
+**内容**：`account` 模块禁止突破已批准的依赖预算
 
 **现状**：
-```
-account (依赖 14 个模块)
-    ↓ 依赖
-audit, backtest, decision_rhythm, equity, events, factor, 
-hedge, macro, prompt, regime, rotation, signal, 
-simulated_trading, strategy
-```
+实际依赖图、入边/出边预算和例外清单以
+`governance/module_cycle_allowlist.json` 与
+`python scripts/check_module_cycles.py --allowlist-file governance/module_cycle_allowlist.json --fail-on-cycles`
+输出为准；本文不复制动态依赖数量或模块列表。
 
 **建议拆分方案**：
 ```

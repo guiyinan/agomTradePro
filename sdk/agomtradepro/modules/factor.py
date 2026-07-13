@@ -11,6 +11,48 @@ if TYPE_CHECKING:
     from ..client import AgomTradeProClient
 
 
+FACTOR_FOCUS_WEIGHTS: dict[str, dict[str, float]] = {
+    "value": {
+        "pe_ttm": -0.4,
+        "pb": -0.3,
+        "roe": 0.15,
+        "revenue_growth": 0.1,
+        "profit_growth": 0.05,
+    },
+    "growth": {
+        "revenue_growth": 0.35,
+        "profit_growth": 0.35,
+        "roe": 0.2,
+        "momentum_3m": 0.1,
+    },
+    "quality": {
+        "roe": 0.3,
+        "roa": 0.2,
+        "debt_ratio": -0.2,
+        "current_ratio": 0.15,
+        "gross_margin": 0.15,
+    },
+    "balanced": {
+        "pe_ttm": -0.2,
+        "pb": -0.1,
+        "roe": 0.25,
+        "revenue_growth": 0.2,
+        "profit_growth": 0.15,
+        "momentum_3m": 0.1,
+    },
+}
+
+
+def resolve_factor_focus_weights(focus: str) -> dict[str, float]:
+    """Return the stable factor-weight contract for one explanation focus."""
+
+    if focus not in FACTOR_FOCUS_WEIGHTS:
+        raise ValueError(
+            "focus must be one of: value, growth, quality, balanced"
+        )
+    return dict(FACTOR_FOCUS_WEIGHTS[focus])
+
+
 class FactorModule:
     """因子选股模块"""
 
@@ -105,6 +147,18 @@ class FactorModule:
                 "stock_code": stock_code,
                 "factor_weights": factor_weights,
             }
+        )
+
+    def explain_stock_by_focus(
+        self,
+        stock_code: str,
+        focus: str = "balanced",
+    ) -> dict[str, Any]:
+        """Explain one stock using the stable named focus contract."""
+
+        return self.explain_stock(
+            stock_code,
+            resolve_factor_focus_weights(focus),
         )
 
     def get_portfolio(self, config_name: str) -> dict[str, Any] | None:

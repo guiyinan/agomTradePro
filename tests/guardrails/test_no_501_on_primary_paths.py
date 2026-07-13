@@ -317,9 +317,9 @@ def test_guardrail_primary_endpoints_have_complete_implementation():
             "backtest_list_view",
             "run_backtest_api_view",
         ],
-        "apps/audit/interface/views.py": [
-            "GenerateAttributionReportView",
-            "AuditSummaryView",
+        "apps/audit/interface/views.py": ["AuditSummaryView"],
+        "apps/audit/interface/attribution_report_api_views.py": [
+            "GenerateAttributionReportView"
         ],
     }
 

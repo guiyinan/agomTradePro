@@ -92,6 +92,8 @@ class DecisionQuotaSerializer(serializers.Serializer):
 
     quota_id = serializers.CharField(read_only=True, help_text="配额 ID")
 
+    account_id = serializers.CharField(read_only=True, help_text="账户 ID")
+
     period = QuotaPeriodSerializer(read_only=True, help_text="配额周期")
 
     max_decisions = serializers.IntegerField(read_only=True, help_text="最大决策次数")
@@ -126,6 +128,7 @@ class DecisionQuotaSerializer(serializers.Serializer):
         """转换为表示"""
         return {
             "quota_id": instance.quota_id,
+            "account_id": instance.account_id,
             "period": instance.period.value,
             "max_decisions": instance.max_decisions,
             "max_execution_count": instance.max_execution_count,

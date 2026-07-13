@@ -9,6 +9,7 @@ import logging
 from django.shortcuts import render
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -59,15 +60,31 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
     """Prompt模板管理ViewSet"""
 
     serializer_class = PromptTemplateSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         """Return the interface-safe prompt template queryset."""
 
-        return get_prompt_template_queryset()
+        include_inactive = (
+            self.request.query_params.get("include_inactive", "").strip().lower()
+            in {"1", "true", "yes"}
+            and self.request.user.is_staff
+        )
+        return get_prompt_template_queryset(
+            name=self.request.query_params.get("name") or None,
+            include_inactive=include_inactive,
+        )
+
+    def get_permissions(self):
+        """Restrict prompt-template mutations to staff users."""
+
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAdminUser()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
-        if self.action in ['create', 'update']:
+        if self.action in ["create", "update", "partial_update"]:
             return PromptTemplateCreateSerializer
         return PromptTemplateSerializer
 
@@ -107,7 +124,7 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def execute(self, request, pk=None):
         """执行模板"""
         self.get_object()
@@ -126,14 +143,14 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
         response_serializer = ExecutePromptResponseSerializer(result)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def categories(self, request):
         """获取所有分类"""
         categories = [
-            {'value': 'report', 'label': 'Report Analysis'},
-            {'value': 'signal', 'label': 'Signal Generation'},
-            {'value': 'analysis', 'label': 'Data Analysis'},
-            {'value': 'chat', 'label': 'Chat'},
+            {"value": "report", "label": "Report Analysis"},
+            {"value": "signal", "label": "Signal Generation"},
+            {"value": "analysis", "label": "Data Analysis"},
+            {"value": "chat", "label": "Chat"},
         ]
         return Response(categories)
 
@@ -150,11 +167,11 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """根据操作选择序列化器"""
-        if self.action in ['create', 'update']:
+        if self.action in ["create", "update"]:
             return ChainConfigCreateSerializer
         return ChainConfigSerializer
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def execute(self, request, pk=None):
         """执行链"""
         self.get_object()
@@ -173,14 +190,14 @@ class ChainConfigViewSet(viewsets.ModelViewSet):
         response_serializer = ExecuteChainResponseSerializer(result)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def execution_modes(self, request):
         """获取所有执行模式"""
         modes = [
-            {'value': 'serial', 'label': 'Serial'},
-            {'value': 'parallel', 'label': 'Parallel'},
-            {'value': 'tool', 'label': 'Tool Calling'},
-            {'value': 'hybrid', 'label': 'Hybrid'},
+            {"value": "serial", "label": "Serial"},
+            {"value": "parallel", "label": "Parallel"},
+            {"value": "tool", "label": "Tool Calling"},
+            {"value": "hybrid", "label": "Hybrid"},
         ]
         return Response(modes)
 
@@ -236,17 +253,20 @@ class ChatView(APIView):
         serializer.is_valid(raise_exception=True)
 
         # 获取参数
-        message = serializer.validated_data['message']
-        session_id = serializer.validated_data.get('session_id') or self._generate_session_id()
-        provider_ref = serializer.validated_data.get('provider_ref', serializer.validated_data.get('provider_name'))
-        model = serializer.validated_data.get('model')
-        context = serializer.validated_data.get('context', {})
+        message = serializer.validated_data["message"]
+        session_id = serializer.validated_data.get("session_id") or self._generate_session_id()
+        provider_ref = serializer.validated_data.get(
+            "provider_ref", serializer.validated_data.get("provider_name")
+        )
+        model = serializer.validated_data.get("model")
+        context = serializer.validated_data.get("context", {})
 
         # 构建消息
-        messages = context.get('history', [])
-        messages.append({'role': 'user', 'content': message})
+        messages = context.get("history", [])
+        messages.append({"role": "user", "content": message})
 
         import time
+
         start_time = time.time()
 
         try:
@@ -257,30 +277,26 @@ class ChatView(APIView):
                 user=request.user if request.user.is_authenticated else None,
             )
 
-            ai_status = ai_response.get('status', 'error')
-            if ai_status != 'success':
-                error_msg = ai_response.get('error_message', 'AI 调用失败')
-                return Response({
-                    'error': error_msg
-                }, status=status.HTTP_502_BAD_GATEWAY)
+            ai_status = ai_response.get("status", "error")
+            if ai_status != "success":
+                error_msg = ai_response.get("error_message", "AI 调用失败")
+                return Response({"error": error_msg}, status=status.HTTP_502_BAD_GATEWAY)
 
         except Exception as e:
             logger.error("Chat AI call failed: %s", e)
-            return Response({
-                'error': f'AI 调用异常: {str(e)}'
-            }, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"error": f"AI 调用异常: {str(e)}"}, status=status.HTTP_502_BAD_GATEWAY)
 
         response_data = {
-            'reply': ai_response.get('content', ''),
-            'session_id': session_id,
-            'metadata': {
-                'provider': ai_response.get('provider_used', ''),
-                'provider_scope': ai_response.get('provider_scope', 'system_global'),
-                'quota_charged': ai_response.get('quota_charged', False),
-                'model': ai_response.get('model', ''),
-                'tokens': ai_response.get('total_tokens', 0),
-                'response_time_ms': int((time.time() - start_time) * 1000),
-            }
+            "reply": ai_response.get("content", ""),
+            "session_id": session_id,
+            "metadata": {
+                "provider": ai_response.get("provider_used", ""),
+                "provider_scope": ai_response.get("provider_scope", "system_global"),
+                "quota_charged": ai_response.get("quota_charged", False),
+                "model": ai_response.get("model", ""),
+                "tokens": ai_response.get("total_tokens", 0),
+                "response_time_ms": int((time.time() - start_time) * 1000),
+            },
         }
 
         response_serializer = ChatResponseSerializer(response_data)
@@ -289,6 +305,7 @@ class ChatView(APIView):
     def _generate_session_id(self):
         """生成会话ID"""
         import uuid
+
         return str(uuid.uuid4())
 
 
@@ -299,10 +316,12 @@ class ChatProvidersView(APIView):
         """获取所有活跃的AI提供商"""
         providers_data = list_active_provider_summaries()
 
-        return Response({
-            'providers': providers_data,
-            'default_provider': providers_data[0]['name'] if providers_data else None
-        })
+        return Response(
+            {
+                "providers": providers_data,
+                "default_provider": providers_data[0]["name"] if providers_data else None,
+            }
+        )
 
 
 class ChatModelsView(APIView):
@@ -310,8 +329,8 @@ class ChatModelsView(APIView):
 
     def get(self, request):
         """获取模型列表"""
-        provider_name = request.query_params.get('provider', '')
-        return Response({'models': list_supported_models(provider_name)})
+        provider_name = request.query_params.get("provider", "")
+        return Response({"models": list_supported_models(provider_name)})
 
 
 class AgentExecuteView(APIView):
@@ -356,17 +375,21 @@ class AgentExecuteView(APIView):
                 "final_answer": response.final_answer,
                 "structured_output": response.structured_output,
                 "used_context": response.used_context,
-                "tool_calls": [
-                    {
-                        "tool_name": tc.tool_name,
-                        "arguments": tc.arguments,
-                        "success": tc.success,
-                        "result": tc.result,
-                        "error_message": tc.error_message,
-                        "duration_ms": tc.duration_ms,
-                    }
-                    for tc in (response.tool_calls or [])
-                ] if response.tool_calls else None,
+                "tool_calls": (
+                    [
+                        {
+                            "tool_name": tc.tool_name,
+                            "arguments": tc.arguments,
+                            "success": tc.success,
+                            "result": tc.result,
+                            "error_message": tc.error_message,
+                            "duration_ms": tc.duration_ms,
+                        }
+                        for tc in (response.tool_calls or [])
+                    ]
+                    if response.tool_calls
+                    else None
+                ),
                 "turn_count": response.turn_count,
                 "provider_used": response.provider_used,
                 "model_used": response.model_used,
@@ -380,7 +403,9 @@ class AgentExecuteView(APIView):
             }
 
             resp_serializer = AgentExecuteResponseSerializer(response_data)
-            http_status = status.HTTP_200_OK if response.success else status.HTTP_422_UNPROCESSABLE_ENTITY
+            http_status = (
+                status.HTTP_200_OK if response.success else status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
             return Response(resp_serializer.data, status=http_status)
 
         except Exception as e:
@@ -398,10 +423,10 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         """获取查询集"""
-        template_id = self.request.query_params.get('template_id')
-        chain_id = self.request.query_params.get('chain_id')
-        execution_id = self.request.query_params.get('execution_id')
-        status_filter = self.request.query_params.get('status')
+        template_id = self.request.query_params.get("template_id")
+        chain_id = self.request.query_params.get("chain_id")
+        execution_id = self.request.query_params.get("execution_id")
+        status_filter = self.request.query_params.get("status")
         return get_execution_log_queryset(
             template_id=template_id,
             chain_id=chain_id,
@@ -409,10 +434,10 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
             status_filter=status_filter,
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def recent(self, request):
         """获取最近的日志"""
-        limit = int(request.query_params.get('limit', 50))
+        limit = int(request.query_params.get("limit", 50))
         logs = self.get_queryset()[:limit]
         serializer = self.get_serializer(logs, many=True)
         return Response(serializer.data)
@@ -420,6 +445,7 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 # ==================== 页面视图 ====================
 
+
 def prompt_manage_view(request):
     """Prompt 模板管理页面"""
-    return render(request, 'prompt/manage.html')
+    return render(request, "prompt/manage.html")

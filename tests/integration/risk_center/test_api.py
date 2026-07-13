@@ -6,7 +6,13 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.risk_center.infrastructure.models import AccountRiskPolicyModel, RiskDailyReportModel
+from apps.risk_center.infrastructure.models import (
+    AccountRiskPolicyModel,
+    GlobalRiskFloorModel,
+    RiskDailyReportModel,
+    RiskPolicyAuditModel,
+    RiskTemplateModel,
+)
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
@@ -56,6 +62,33 @@ def test_risk_center_api_returns_json_contract_for_core_endpoints():
 
 
 @pytest.mark.django_db
+def test_risk_center_default_reads_do_not_persist_fallback_configuration():
+    staff = _user("risk_read_only_staff", is_staff=True)
+    account = _account(staff)
+    client = _client(staff)
+    before = {
+        "floors": GlobalRiskFloorModel._default_manager.count(),
+        "templates": RiskTemplateModel._default_manager.count(),
+    }
+
+    floor_response = client.get("/api/risk-center/floor/")
+    templates_response = client.get("/api/risk-center/templates/")
+    effective_response = client.get(
+        f"/api/risk-center/effective-policy/?account_id={account.id}"
+    )
+
+    assert floor_response.status_code == 200
+    assert templates_response.status_code == 200
+    assert len(templates_response.data["data"]) >= 3
+    assert effective_response.status_code == 200
+    after = {
+        "floors": GlobalRiskFloorModel._default_manager.count(),
+        "templates": RiskTemplateModel._default_manager.count(),
+    }
+    assert after == before
+
+
+@pytest.mark.django_db
 def test_non_staff_cannot_update_floor_template_or_exception():
     user = _user("risk_regular")
     account = _account(user)
@@ -94,6 +127,95 @@ def test_non_staff_cannot_update_floor_template_or_exception():
 
 
 @pytest.mark.django_db
+def test_risk_floor_returns_active_floor_snapshot():
+    staff = _user("risk_floor_staff", is_staff=True)
+    client = _client(staff)
+
+    update_response = client.put(
+        "/api/risk-center/floor/",
+        {
+            "max_total_position_pct": 0.75,
+            "max_single_position_pct": 0.2,
+            "min_cash_pct": 0.1,
+            "force_stop_loss": True,
+            "reason": "tighten the integration-test floor",
+        },
+        format="json",
+    )
+
+    assert update_response.status_code == 200
+
+    response = client.get("/api/risk-center/floor/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    data = response.data["data"]
+    assert data["max_total_position_pct"] == 0.75
+    assert data["max_single_position_pct"] == 0.2
+    assert data["min_cash_pct"] == 0.1
+    assert data["force_stop_loss"] is True
+    assert data["is_active"] is True
+    audit = RiskPolicyAuditModel._default_manager.get(
+        target_type=RiskPolicyAuditModel.TARGET_FLOOR,
+        target_id=str(data["id"]),
+        action="update",
+    )
+    assert audit.reason == "tighten the integration-test floor"
+
+
+@pytest.mark.django_db
+def test_risk_template_list_returns_created_templates_with_status():
+    staff = _user("risk_template_staff", is_staff=True)
+    client = _client(staff)
+
+    create_response = client.post(
+        "/api/risk-center/templates/",
+        {
+            "key": "moderate",
+            "name": "Moderate",
+            "risk_profile": "moderate",
+            "max_total_position_pct": 0.7,
+            "max_single_position_pct": 0.2,
+            "min_cash_pct": 0.1,
+        },
+        format="json",
+    )
+    assert create_response.status_code == 201
+
+    inactive_response = client.post(
+        "/api/risk-center/templates/",
+        {
+            "key": "legacy-off",
+            "name": "Legacy Off",
+            "risk_profile": "custom",
+            "max_total_position_pct": 0.5,
+            "is_active": False,
+        },
+        format="json",
+    )
+    assert inactive_response.status_code == 201
+
+    response = client.get("/api/risk-center/templates/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    data = response.data["data"]
+    by_key = {item["key"]: item for item in data}
+    assert "moderate" in by_key
+    assert "legacy-off" in by_key
+    assert by_key["moderate"]["name"] == "Moderate"
+    assert by_key["moderate"]["risk_profile"] == "moderate"
+    assert by_key["moderate"]["max_total_position_pct"] == 0.7
+    assert by_key["moderate"]["max_single_position_pct"] == 0.2
+    assert by_key["moderate"]["min_cash_pct"] == 0.1
+    assert by_key["moderate"]["is_active"] is True
+    assert by_key["legacy-off"]["name"] == "Legacy Off"
+    assert by_key["legacy-off"]["risk_profile"] == "custom"
+    assert by_key["legacy-off"]["max_total_position_pct"] == 0.5
+    assert by_key["legacy-off"]["is_active"] is False
+
+
+@pytest.mark.django_db
 def test_account_owner_can_upsert_and_read_own_policy():
     user = _user("risk_owner")
     account = _account(user)
@@ -105,15 +227,108 @@ def test_account_owner_can_upsert_and_read_own_policy():
             "account_id": account.id,
             "risk_profile": "moderate",
             "max_total_position_pct": 0.72,
+            "reason": "create owner policy",
         },
         format="json",
     )
 
     assert response.status_code == 201
     assert response.data["data"]["account_id"] == account.id
+    update_response = client.post(
+        "/api/risk-center/account-policies/",
+        {
+            "account_id": account.id,
+            "risk_profile": "moderate",
+            "max_total_position_pct": 0.68,
+            "reason": "tighten owner policy",
+        },
+        format="json",
+    )
+    assert update_response.status_code == 201
+    assert AccountRiskPolicyModel._default_manager.filter(account_id=account.id).count() == 1
     read_response = client.get(f"/api/risk-center/account-policies/by-account/{account.id}/")
     assert read_response.status_code == 200
-    assert read_response.data["data"]["max_total_position_pct"] == 0.72
+    assert read_response.data["data"]["max_total_position_pct"] == 0.68
+    audit_actions = list(
+        RiskPolicyAuditModel._default_manager.filter(
+            target_type=RiskPolicyAuditModel.TARGET_POLICY,
+            target_id=str(read_response.data["data"]["id"]),
+        )
+        .order_by("created_at")
+        .values_list("action", "reason")
+    )
+    assert audit_actions == [
+        ("create", "create owner policy"),
+        ("update", "tighten owner policy"),
+    ]
+    invalid_template_response = client.post(
+        "/api/risk-center/account-policies/",
+        {
+            "account_id": account.id,
+            "template_id": 999999,
+            "reason": "invalid template must fail",
+        },
+        format="json",
+    )
+    assert invalid_template_response.status_code == 400
+    stored_policy = AccountRiskPolicyModel._default_manager.get(account_id=account.id)
+    assert stored_policy.template_id is None
+    assert stored_policy.max_total_position_pct == 0.68
+    assert (
+        RiskPolicyAuditModel._default_manager.filter(
+            target_type=RiskPolicyAuditModel.TARGET_POLICY,
+            target_id=str(stored_policy.id),
+        ).count()
+        == 2
+    )
+
+
+@pytest.mark.django_db
+def test_risk_exception_list_returns_created_exceptions_for_account_filter():
+    staff = _user("risk_exception_staff", is_staff=True)
+    account = _account(staff)
+    other_account = _account(_user("risk_exception_other"))
+    client = _client(staff)
+
+    response_a = client.post(
+        "/api/risk-center/exceptions/",
+        {
+            "account_id": account.id,
+            "field_name": "max_total_position_pct",
+            "allowed_value": 0.85,
+            "reason": "temporary rebalance",
+            "expires_at": (timezone.now() + timedelta(hours=1)).isoformat(),
+        },
+        format="json",
+    )
+    response_b = client.post(
+        "/api/risk-center/exceptions/",
+        {
+            "account_id": other_account.id,
+            "field_name": "min_cash_pct",
+            "allowed_value": 0.08,
+            "reason": "cash bridge",
+            "expires_at": (timezone.now() + timedelta(hours=2)).isoformat(),
+        },
+        format="json",
+    )
+
+    assert response_a.status_code == 201
+    assert response_b.status_code == 201
+
+    response = client.get(f"/api/risk-center/exceptions/?account_id={account.id}")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    data = response.data["data"]
+    assert len(data) == 1
+    item = data[0]
+    assert item["account_id"] == account.id
+    assert item["field_name"] == "max_total_position_pct"
+    assert item["allowed_value"] == 0.85
+    assert item["reason"] == "temporary rebalance"
+    assert item["is_active"] is True
+    assert item["created_by_username"] == staff.username
 
 
 @pytest.mark.django_db
@@ -294,6 +509,10 @@ def test_daily_report_returns_risk_and_position_sections():
     assert data["position_daily_report"]["position_count"] == 2
     assert data["position_daily_report"]["top_positions"][0]["symbol"] == "000001.SZ"
     assert data["post_investment_check"]["effective_policy"]["account_id"] == account.id
+    stored = RiskDailyReportModel._default_manager.get(id=data["report_id"])
+    assert stored.generated_by_id == staff.id
+    assert stored.account_id == account.id
+    assert stored.report_date.isoformat() == "2026-06-28"
 
     default_date_response = client.post(
         "/api/risk-center/daily-report/",

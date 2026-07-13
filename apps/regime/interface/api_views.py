@@ -71,21 +71,11 @@ class RegimeViewSet(viewsets.ViewSet):
             "data_source": "akshare"       // 可选，默认 akshare
         }
         """
-        try:
-            # 验证请求参数
-            request_serializer = RegimeCalculateRequestSerializer(data=request.data)
-            request_serializer.is_valid(raise_exception=True)
-            data = request_serializer.validated_data
-
-            payload = calculate_regime_payload(data=data)
-            response_serializer = RegimeCalculateResponseSerializer(payload)
-            return Response(response_serializer.data)
-
-        except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        request_serializer = RegimeCalculateRequestSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        payload = calculate_regime_payload(data=request_serializer.validated_data)
+        response_serializer = RegimeCalculateResponseSerializer(payload)
+        return Response(response_serializer.data)
 
     @action(detail=False, methods=['get'])
     def history(self, request):
@@ -258,7 +248,11 @@ class RegimeActionView(APIView):
                 )
 
             use_case = GetActionRecommendationUseCase()
-            action = use_case.execute(as_of_date)
+            action = use_case.execute(
+                as_of_date,
+                refresh_pulse_if_stale=False,
+                persist_result=False,
+            )
 
             if not action:
                 return Response(

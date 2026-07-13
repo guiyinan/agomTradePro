@@ -6,6 +6,7 @@ from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
     AccountDiagnosticRepository,
     AccountInterfaceRepository,
+    AccountReadRepository,
     AccountRepository,
     AssetMetadataRepository,
     MacroSizingConfigRepository,
@@ -20,6 +21,12 @@ from apps.account.infrastructure.providers import (
     TransactionCostConfigRepository,
     TransactionRepository,
 )
+
+
+def get_account_read_repository() -> AccountReadRepository:
+    """Return the side-effect-free account query repository."""
+
+    return AccountReadRepository()
 
 
 def get_account_diagnostic_repository() -> AccountDiagnosticRepository:
@@ -140,6 +147,7 @@ __all__ = [
     "AccountClassificationRepository",
     "AccountDiagnosticRepository",
     "AccountInterfaceRepository",
+    "AccountReadRepository",
     "AccountRepository",
     "AssetMetadataRepository",
     "MacroSizingConfigRepository",
@@ -161,6 +169,7 @@ __all__ = [
     "generate_backup_archive",
     "generate_download_token",
     "get_account_diagnostic_repository",
+    "get_account_read_repository",
     "get_account_interface_repository",
     "get_account_position_repository",
     "get_account_repository",

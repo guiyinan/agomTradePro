@@ -28,12 +28,7 @@ class FilterModule(BaseModule):
         filter_id: int | None = None,
         indicator_code: str | None = None,
     ) -> dict[str, Any]:
-        code = indicator_code
-        if code is None and filter_id is not None:
-            filters = self.list_filters()
-            matched = next((item for item in filters if item.get("id") == filter_id), None)
-            if matched:
-                code = matched.get("code")
+        code = self._resolve_indicator_code(filter_id=filter_id, indicator_code=indicator_code)
         if not code:
             return {
                 "success": False,
@@ -52,11 +47,50 @@ class FilterModule(BaseModule):
         request_payload.setdefault("save_results", True)
         return self._post("", json=request_payload)
 
-    def update_filter(self, filter_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._patch(f"{filter_id}/", json=payload)
+    def update_filter(
+        self,
+        filter_id: int | None = None,
+        payload: dict[str, Any] | None = None,
+        indicator_code: str | None = None,
+    ) -> dict[str, Any]:
+        indicator_code = self._resolve_indicator_code(
+            filter_id=filter_id,
+            indicator_code=indicator_code,
+        )
+        if not indicator_code:
+            raise ValueError("filter not found")
+        return self._patch(f"config/{indicator_code}/", json=dict(payload or {}))
 
-    def delete_filter(self, filter_id: int) -> None:
-        self._delete(f"{filter_id}/")
+    def delete_filter(
+        self,
+        filter_id: int | None = None,
+        *,
+        indicator_code: str | None = None,
+    ) -> None:
+        indicator_code = self._resolve_indicator_code(
+            filter_id=filter_id,
+            indicator_code=indicator_code,
+        )
+        if not indicator_code:
+            raise ValueError("filter not found")
+        self._delete(f"config/{indicator_code}/")
 
     def health(self) -> dict[str, Any]:
         return self._get("health/")
+
+    def _resolve_indicator_code(
+        self,
+        *,
+        filter_id: int | None = None,
+        indicator_code: str | None = None,
+    ) -> str | None:
+        if indicator_code:
+            return indicator_code
+        if filter_id is None:
+            return None
+        filters = self.list_filters()
+        matched = next((item for item in filters if item.get("id") == filter_id), None)
+        if not isinstance(matched, dict):
+            return None
+        code = matched.get("code")
+        return code if isinstance(code, str) and code else None

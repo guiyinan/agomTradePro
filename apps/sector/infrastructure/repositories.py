@@ -82,13 +82,20 @@ class DjangoSectorRepository:
     def get_sector_weights_by_regime(self, regime: str) -> dict[str, float]:
         """Return configured sector weights for one regime."""
 
-        configs = SectorPreferenceConfigModel._default_manager.filter(
+        configs = list(SectorPreferenceConfigModel._default_manager.filter(
             regime=regime,
             is_active=True,
+        ))
+        codes_by_name = dict(
+            SectorInfoModel._default_manager.filter(
+                sector_name__in=[config.sector_name for config in configs],
+                is_active=True,
+            ).values_list("sector_name", "sector_code")
         )
         return {
-            config.sector_name: config.weight
+            codes_by_name[config.sector_name]: config.weight
             for config in configs
+            if config.sector_name in codes_by_name
         }
 
     def save_sector_info(

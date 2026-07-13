@@ -379,6 +379,7 @@ class CapitalFlowRepositoryProtocol(Protocol):
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        limit: int | None = None,
     ) -> list[CapitalFlowFact]: ...
 
     def get_latest(self, asset_code: str) -> CapitalFlowFact | None: ...

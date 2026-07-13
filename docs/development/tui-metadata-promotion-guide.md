@@ -10,6 +10,8 @@ The runtime rule is fixed: `/tui/` reads published metadata only. It must not pa
 
 The product rule is also fixed: the published workbench is organized by user tasks, not by backend API shape. API endpoints are execution details and should not appear in the ordinary task list.
 
+Repository-level governance counts use `governance/governance_baseline.json` as the machine source of truth. TUI screen, action, smoke, and evidence counts use the current published graph and generated promotion report as their machine sources; this guide does not maintain numeric copies.
+
 Generated evidence is intentionally separate from the generated operation graph:
 
 | Artifact | Purpose |
@@ -39,14 +41,10 @@ agomtradepro\Scripts\python.exe manage.py spectacular --file tmp\tui_openapi.jso
 
 ## Evidence Snapshot
 
-The current full compile-time scan collects:
-
-| Evidence source | Count |
-| --- | ---: |
-| Safe GET API evidence | 468 |
-| SDK methods | 405 |
-| MCP tools | 346 |
-| Classic templates with UX features | 127 |
+The current full compile-time scan writes its evidence to
+`config/tui/generated/tui_operation_evidence.generated.json`. Read source totals
+from that generated artifact. MCP repository governance totals remain owned by
+`governance/governance_baseline.json`.
 
 These numbers are evidence volume, not published menu size. The ordinary TUI surface should stay user-task oriented. Broad coverage belongs in the task-bucketed tool library, not in endpoint-shaped navigation.
 
@@ -88,24 +86,9 @@ The first approved expansion promotes 27 new read actions, bringing the publishe
 
 ## Safe-Read Coverage Batch
 
-The current broad-coverage baseline promotes direct safe-read candidates and field-backed parameterized read candidates into user-task screens after automatic filtering and same-process smoke checks. It now contains 37 screens and 367 published actions. The current coverage summary tracks 354 smoke-covered `read`/`ai` actions: 215 open directly, 139 require field input, and 0 currently fail the local smoke gate. The graph also includes 15 reviewed operation/admin actions with explicit confirmation and permission UX. Known HTMX-only fragments, operation-like calculate/check routes, unstable collection routes, and other non-user-facing reads are filtered before publication, so the current published graph no longer carries smoke-pruned auto failures. As of the 2026-06-22 local rerun, the same-process smoke pass also stays console-clean for expected degraded Alpha/Celery/task-monitor paths, excludes the stale POST-only `evaluate_position_management` GET variant, replaces the stale share public `.../access/` GET publication with a reviewed `share.public.access` POST action, and preserves session-backed public-share challenges as user-visible `401` password prompts instead of internal `502` crashes.
+The broad-coverage baseline promotes direct safe-read candidates and field-backed parameterized read candidates into user-task screens after automatic filtering and same-process smoke checks. Dynamic coverage counts are not maintained in this guide; use the generated promotion report from the current run as the single source for screen, action, smoke, and deferred-record totals.
 
-| Coverage bucket | Count |
-| --- | ---: |
-| Safe GET evidence | 468 |
-| Direct safe-read candidates | 228 |
-| Parameterized safe-read candidates | 137 |
-| Smoke-covered read/ai actions | 355 |
-| Direct smoke-passing actions | 215 |
-| Published actions needing input | 140 |
-| Smoke errors retained for follow-up | 0 |
-| Smoke-pruned auto actions | 0 |
-| Smoke-passing or field-backed actions promoted to business screens | 319 |
-| Published actions total | 368 |
-| Reviewed operation/admin actions | 14 |
-| Deferred path-parameter records | 37 |
-| Deferred write-like or heavy records | 30 |
-| Deferred internal/debug/docs records | 8 |
+Known HTMX-only fragments, operation-like calculate/check routes, unstable collection routes, and other non-user-facing reads are filtered before publication. Expected degraded Alpha/Celery/task-monitor paths should remain console-clean, stale method variants should be excluded, and session-backed public-share challenges should stay user-visible authorization prompts rather than internal crashes.
 
 System toolbox screens are now fallback buckets rather than the primary organization model:
 

@@ -1,9 +1,12 @@
+from datetime import date
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from apps.regime.application.current_regime import CurrentRegimeResult
+from apps.signal.domain.rules import Eligibility
 from apps.signal.infrastructure.models import InvestmentSignalModel
 
 
@@ -38,6 +41,19 @@ def sample_signal(db):
         target_regime="Recovery",
         status="pending",
     )
+
+
+@pytest.mark.django_db
+def test_signal_retrieve_returns_success_contract(authenticated_client, sample_signal):
+    response = authenticated_client.get(f"/api/signal/{sample_signal.id}/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["id"] == sample_signal.id
+    assert payload["asset_code"] == "510300"
+    assert payload["logic_desc"] == "PMI 回升，看好市场"
+    assert payload["invalidation_description"] == "PMI 跌破 50"
 
 
 @pytest.mark.django_db
@@ -81,6 +97,44 @@ def test_signal_check_eligibility_returns_400_when_regime_missing(authenticated_
 
     assert response.status_code == 400
     assert response.json()["error"] == "No regime data available"
+
+
+@pytest.mark.django_db
+def test_signal_check_eligibility_returns_success_contract(authenticated_client):
+    current_regime = CurrentRegimeResult(
+        dominant_regime="Recovery",
+        confidence=0.88,
+        observed_at=date(2026, 7, 10),
+        data_source="test",
+        warnings=[],
+    )
+    with patch(
+        "apps.signal.application.query_services.resolve_current_regime",
+        return_value=current_regime,
+    ), patch(
+        "apps.signal.application.query_services.check_eligibility",
+        return_value=Eligibility.PREFERRED,
+    ):
+        response = authenticated_client.post(
+            "/api/signal/check_eligibility/",
+            {
+                "asset_code": "510300",
+                "logic_desc": "PMI recovery supports equities",
+            },
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "success": True,
+        "is_eligible": True,
+        "eligibility": "preferred",
+        "regime_match": True,
+        "policy_match": True,
+        "current_regime": "Recovery",
+        "rejection_reason": None,
+    }
 
 
 @pytest.mark.django_db

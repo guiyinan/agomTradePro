@@ -2,6 +2,8 @@
 
 The MCP (Model Context Protocol) Server enables AI agents like Claude Code to interact with AgomTradePro through native tools.
 
+> Governance note: new MCP work must follow [MCP 技术与开发标准](mcp-technical-and-development-standard.md). MCP is the external Agent operation protocol, not a one-to-one replacement for internal API endpoints. The long-term target is a small stable tool surface backed by a unified capability registry and dispatcher.
+
 ## Welcome Message
 
 When Codex, Claude Code, or another MCP client connects, the server now exposes a standard `instructions` welcome message during MCP initialize.
@@ -52,6 +54,11 @@ MCP server uses SDK credentials to call AgomTradePro backend:
 - `AGOMTRADEPRO_API_TOKEN` (recommended)
 - Or `AGOMTRADEPRO_USERNAME` + `AGOMTRADEPRO_PASSWORD`
 - `AGOMTRADEPRO_DEFAULT_ACCOUNT_ID` (optional, used by account resources)
+
+Tool-surface note:
+
+- MCP server now defaults to the governed `core-only` surface.
+- To expose legacy raw tools for compatibility testing only, set `AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=true` explicitly.
 
 Auth format on backend is DRF Token (`Authorization: Token <token>`).
 
@@ -227,17 +234,18 @@ Recommended environment split:
 
 Do not switch local/prod by editing one shared server entry.
 
-You can validate tool registration locally. Current local snapshot on `2026-07-05`: `368` registered tools.
+You can validate tool registration locally. Current MCP governance counts are not maintained in this guide; `governance/governance_baseline.json` is the machine source of truth, while [mcp-consolidation-remediation-plan-2026-07-09.md](../plans/mcp-consolidation-remediation-plan-2026-07-09.md) section `0.2.2 唯一机器真源字段与验证入口` explains field meanings and verification commands.
 
 ```bash
 python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
+AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=true python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
 ```
 
 ## Recent MCP-Facing Changes
 
 - MCP 工具真实注册源固定为 SDK 代码：`sdk/agomtradepro_mcp/server.py` 调用各模块 `register_*_tools(server)`，具体工具在 `sdk/agomtradepro_mcp/tools/*` 中以 `@server.tool()` 注册。数据库 `ai_capability_catalog` 中的 `mcp_tool.*` 记录只是同步快照和 AI 路由治理投影，不作为任意可执行代码入口。
 - AI Capability Catalog 现在提供统一接入页 `/settings/capability-gateway/` 和 MCP 工具治理页 `/settings/mcp-tools/`。同步 MCP/API 能力后会默认执行治理：安全只读能力可进入路由，写入/导出/预览等能力保留确认，高风险写入、交易、审批、删除、同步、回滚类 MCP 不进入自动路由。
-- `python manage.py sync_ai_capability_catalog --source mcp_tool` 默认会在同步后保留已复核的 `approved/rejected` 治理状态；如需只查看原始采集结果，可使用 `--skip-governance`。当前本地治理口径为 `manual_governance=0`。
+- `python manage.py sync_ai_capability_catalog --source mcp_tool` 默认会在同步后保留已复核的 `approved/rejected` 治理状态；如需只查看原始采集结果，可使用 `--skip-governance`。本地治理统计以命令输出为准，不在本文维护动态数字。
 - Personal Auto Advisor is exposed as native MCP tools via the SDK MCP server:
   - `get_auto_advisor_decision_sheet(account_id)` reads `/api/decision/advisor/sheet/`.
   - `get_auto_advisor_console(account_id)` reads the Dashboard auto-advisor console payload.

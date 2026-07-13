@@ -61,11 +61,11 @@ def get_context_snapshot_repository():
     return DjangoContextSnapshotRepository()
 
 
-def get_terminal_agent_service():
+def get_terminal_agent_service(*, capability_gateway=None):
     """Return the default terminal agent execution service."""
 
     from apps.agent_runtime.infrastructure.terminal_agent_service import (
         OpenAIAgentsTerminalService,
     )
 
-    return OpenAIAgentsTerminalService()
+    return OpenAIAgentsTerminalService(capability_gateway=capability_gateway)

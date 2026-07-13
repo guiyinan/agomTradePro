@@ -86,26 +86,6 @@ def _normalize_position_input(row: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _list_endpoint_rows(
-    client: AgomTradeProClient,
-    endpoint: str,
-    limit: int = 500,
-) -> list[dict[str, Any]]:
-    page = 1
-    rows: list[dict[str, Any]] = []
-    while len(rows) < limit:
-        params = {"limit": min(200, limit), "page": page}
-        payload = client.get(endpoint, params=params)
-        batch = _extract_results(payload)
-        if not batch:
-            break
-        rows.extend(batch)
-        if not isinstance(payload, dict) or not payload.get("next"):
-            break
-        page += 1
-    return rows[:limit]
-
-
 def _normalize_transaction_input(row: dict[str, Any]) -> dict[str, Any]:
     action = str(row.get("action", "")).strip().lower()
     if action not in {"buy", "sell"}:
@@ -254,8 +234,7 @@ def register_account_tools(server: FastMCP) -> None:
             >>> portfolios = list_portfolios()
         """
         client = AgomTradeProClient()
-        payload = client.get("api/account/portfolios/", params={"limit": limit})
-        rows = _extract_results(payload)
+        rows = client.account.list_portfolio_records(limit=limit)
         return [
             {
                 "id": r.get("id"),
@@ -283,11 +262,12 @@ def register_account_tools(server: FastMCP) -> None:
             >>> portfolio = get_portfolio(1)
         """
         client = AgomTradeProClient()
-        portfolio = client.get(f"api/account/portfolios/{portfolio_id}/")
-        pos_payload = client.get(
-            "api/account/positions/", params={"portfolio_id": portfolio_id, "limit": 200}
+        portfolio = client.account.get_portfolio_record(portfolio_id)
+        pos_rows = client.account.list_position_records(
+            portfolio_id=portfolio_id,
+            include_closed=False,
+            limit=200,
         )
-        pos_rows = [r for r in _extract_results(pos_payload) if not r.get("is_closed")]
 
         return {
             "id": portfolio.get("id"),
@@ -331,14 +311,12 @@ def register_account_tools(server: FastMCP) -> None:
             >>> positions = get_positions(portfolio_id=1)
         """
         client = AgomTradeProClient()
-        params: dict[str, Any] = {"limit": limit}
-        if portfolio_id is not None:
-            params["portfolio_id"] = portfolio_id
-        if asset_code:
-            params["asset_code"] = asset_code
-
-        payload = client.get("api/account/positions/", params=params)
-        rows = _extract_results(payload)
+        rows = client.account.list_position_records(
+            portfolio_id=portfolio_id,
+            asset_code=asset_code,
+            include_closed=False,
+            limit=limit,
+        )
         return [
             {
                 "id": p.get("id"),
@@ -423,29 +401,11 @@ def register_account_tools(server: FastMCP) -> None:
             持仓明细列表
         """
         client = AgomTradeProClient()
-        page = 1
-        collected: list[dict[str, Any]] = []
-
-        while len(collected) < limit:
-            params: dict[str, Any] = {"limit": min(200, limit), "page": page}
-            if portfolio_id is not None:
-                params["portfolio_id"] = portfolio_id
-
-            payload = client.get("api/account/positions/", params=params)
-            rows = _extract_results(payload)
-            if not rows:
-                break
-
-            if not include_closed:
-                rows = [r for r in rows if not r.get("is_closed")]
-
-            collected.extend(rows)
-
-            if not isinstance(payload, dict) or not payload.get("next"):
-                break
-            page += 1
-
-        return collected[:limit]
+        return client.account.list_position_records(
+            portfolio_id=portfolio_id,
+            include_closed=include_closed,
+            limit=limit,
+        )
 
     @server.tool()
     def export_positions_json(
@@ -679,10 +639,10 @@ def register_account_tools(server: FastMCP) -> None:
         获取交易明细（含 transaction id）
         """
         client = AgomTradeProClient()
-        rows = _list_endpoint_rows(client, "api/account/transactions/", limit=limit)
-        if portfolio_id is not None:
-            rows = [r for r in rows if r.get("portfolio") == portfolio_id]
-        return rows[:limit]
+        return client.account.list_transaction_records(
+            portfolio_id=portfolio_id,
+            limit=limit,
+        )
 
     @server.tool()
     def export_transactions_json(
@@ -919,10 +879,10 @@ def register_account_tools(server: FastMCP) -> None:
         获取资金流水明细（含 flow id）
         """
         client = AgomTradeProClient()
-        rows = _list_endpoint_rows(client, "api/account/capital-flows/", limit=limit)
-        if portfolio_id is not None:
-            rows = [r for r in rows if r.get("portfolio") == portfolio_id]
-        return rows[:limit]
+        return client.account.list_capital_flow_records(
+            portfolio_id=portfolio_id,
+            limit=limit,
+        )
 
     @server.tool()
     def export_capital_flows_json(

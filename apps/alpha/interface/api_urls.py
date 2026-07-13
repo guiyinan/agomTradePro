@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.urls import path
 
 from apps.alpha.interface import views
+from apps.alpha.interface.score_upload_api_views import preview_score_upload, upload_scores
 
 app_name = "alpha_api"
 
@@ -17,6 +18,7 @@ urlpatterns = [
                     "/api/alpha/scores/",
                     "/api/alpha/scores/?ai_filter=1",
                     "/api/alpha/scores/upload/",
+                    "/api/alpha/scores/upload/preview/",
                     "/api/alpha/providers/status/",
                     "/api/alpha/universes/",
                     "/api/alpha/health/",
@@ -30,7 +32,8 @@ urlpatterns = [
         name="api-root",
     ),
     path("scores/", views.get_stock_scores, name="get_stock_scores"),
-    path("scores/upload/", views.upload_scores, name="upload_scores"),
+    path("scores/upload/preview/", preview_score_upload, name="upload_scores_preview"),
+    path("scores/upload/", upload_scores, name="upload_scores"),
     path("providers/status/", views.get_provider_status, name="provider_status"),
     path("universes/", views.get_available_universes, name="available_universes"),
     path("health/", views.health_check, name="health_check"),

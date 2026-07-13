@@ -14,6 +14,7 @@ from .base import BaseModule
 def _get_alpha_service() -> Any:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
     import django
+
     if not django.apps.apps.ready:
         django.setup()
     from apps.alpha.application.services import AlphaService
@@ -128,6 +129,30 @@ class AlphaModule(BaseModule):
             payload["model_artifact_hash"] = model_artifact_hash
 
         return self._post("scores/upload/", json=payload)
+
+    def preview_score_upload(
+        self,
+        *,
+        scores: list[dict[str, Any]],
+        universe_id: str,
+        asof_date: str,
+        intended_trade_date: str,
+        model_id: str = "local_qlib",
+        model_artifact_hash: str = "",
+        scope: str = "user",
+    ) -> dict[str, Any]:
+        """Preview one score-cache upsert without changing persisted scores."""
+
+        payload = {
+            "universe_id": universe_id,
+            "asof_date": asof_date,
+            "intended_trade_date": intended_trade_date,
+            "model_id": model_id,
+            "model_artifact_hash": model_artifact_hash,
+            "scope": scope,
+            "scores": scores,
+        }
+        return self._post("scores/upload/preview/", json=payload)
 
     def get_provider_status(self) -> dict[str, Any]:
         """
@@ -267,10 +292,7 @@ class AlphaModule(BaseModule):
         return self._get("universes/")
 
     def get_factor_exposure(
-        self,
-        stock_code: str,
-        trade_date: str | None = None,
-        provider: str = "simple"
+        self, stock_code: str, trade_date: str | None = None, provider: str = "simple"
     ) -> dict[str, Any]:
         """
         获取个股因子暴露
@@ -326,10 +348,7 @@ class AlphaModule(BaseModule):
         return self._get("health/")
 
     def get_top_stocks(
-        self,
-        universe: str = "csi300",
-        trade_date: str | None = None,
-        top_n: int = 10
+        self, universe: str = "csi300", trade_date: str | None = None, top_n: int = 10
     ) -> list[dict[str, Any]]:
         """
         获取排名前 N 的股票（便捷方法）
@@ -355,10 +374,7 @@ class AlphaModule(BaseModule):
             return []
 
     def compare_stocks(
-        self,
-        stock_codes: list[str],
-        universe: str = "csi300",
-        trade_date: str | None = None
+        self, stock_codes: list[str], universe: str = "csi300", trade_date: str | None = None
     ) -> dict[str, dict[str, Any]]:
         """
         比较多只股票的评分（便捷方法）
@@ -387,7 +403,4 @@ class AlphaModule(BaseModule):
         stock_map = {s["code"]: s for s in result.get("stocks", [])}
 
         # 返回请求的股票
-        return {
-            code: stock_map.get(code)
-            for code in stock_codes
-        }
+        return {code: stock_map.get(code) for code in stock_codes}

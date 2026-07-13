@@ -9,7 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from core.throttling import BacktestRateThrottle, WriteRateThrottle
@@ -21,6 +21,7 @@ from ..application.decision_replay import (
 from ..application.interface_services import (
     backtest_exists,
     delete_backtest_payload,
+    get_backtest_equity_curve_payload,
     get_backtest_result_payload,
     get_backtest_statistics_payload,
     list_backtests_payload,
@@ -105,6 +106,22 @@ class BacktestViewSet(viewsets.ViewSet):
             'status': response['status'],
             'result': response['result'],
         })
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="equity-curve",
+        permission_classes=[IsAdminUser],
+    )
+    def equity_curve(self, request, pk=None):
+        """Return one persisted equity curve without running a backtest."""
+        payload = get_backtest_equity_curve_payload(int(pk))
+        if payload is None:
+            return Response(
+                {"error": "Backtest not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(payload)
 
     def create(self, request):
         """创建并运行回测"""

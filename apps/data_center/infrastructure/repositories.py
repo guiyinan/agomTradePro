@@ -271,7 +271,6 @@ class MarketThermometerSnapshotRepository:
         return model.to_domain()
 
 
-# ---------------------------------------------------------------------------
 # Phase 2 — helpers
 # ---------------------------------------------------------------------------
 
@@ -1641,6 +1640,7 @@ class CapitalFlowRepository:
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        limit: int | None = None,
     ) -> list[CapitalFlowFact]:
         for candidate in _resolve_asset_code_candidates(asset_code):
             qs = CapitalFlowFactModel.objects.filter(asset_code=candidate)
@@ -1648,7 +1648,7 @@ class CapitalFlowRepository:
                 qs = qs.filter(flow_date__gte=start)
             if end:
                 qs = qs.filter(flow_date__lte=end)
-            rows = list(qs.order_by("-flow_date"))
+            rows = list(qs.order_by("-flow_date") if limit is None else qs.order_by("-flow_date")[:limit])
             if rows:
                 return [self._from_model(m) for m in rows]
         return []

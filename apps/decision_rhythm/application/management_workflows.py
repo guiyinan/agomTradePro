@@ -58,8 +58,14 @@ class ResetQuotaByAccountUseCase:
 
         reset_periods: list[str] = []
         for period in QuotaPeriod:
-            self.quota_repo.reset_quota(period, account_id=request.account_id)
-            reset_periods.append(period.value)
+            if self.quota_repo.reset_quota(period, account_id=request.account_id):
+                reset_periods.append(period.value)
+
+        if not reset_periods:
+            return ResetQuotaByAccountResponse(
+                success=False,
+                error="未找到对应配额",
+            )
 
         return ResetQuotaByAccountResponse(
             success=True,

@@ -33,12 +33,12 @@ User = get_user_model()
 def mock_asset_returns():
     """Auto-mock _build_asset_returns to avoid external API calls."""
     mock_data = {
-        'equity': [(date(2024, 1, 15), 0.02), (date(2024, 2, 15), 0.015)],
-        'bond': [(date(2024, 1, 15), 0.005), (date(2024, 2, 15), 0.003)],
+        "equity": [(date(2024, 1, 15), 0.02), (date(2024, 2, 15), 0.015)],
+        "bond": [(date(2024, 1, 15), 0.005), (date(2024, 2, 15), 0.003)],
     }
     with patch(
-        'apps.audit.application.use_cases.GenerateAttributionReportUseCase._build_asset_returns',
-        return_value=mock_data
+        "apps.audit.application.use_cases.GenerateAttributionReportUseCase._build_asset_returns",
+        return_value=mock_data,
     ):
         yield
 
@@ -46,8 +46,9 @@ def mock_asset_returns():
 def _build_authenticated_api_client(username: str = "testuser") -> APIClient:
     """Create an authenticated client without failing on duplicate usernames."""
     user, _ = User.objects.get_or_create(username=username)
-    user.set_password('testpass')
-    user.save(update_fields=['password'])
+    user.is_staff = True
+    user.set_password("testpass")
+    user.save(update_fields=["password", "is_staff"])
     client = APIClient()
     client.force_authenticate(user=user)
     return client
@@ -88,124 +89,106 @@ class TestGenerateAttributionReportAPI:
             equity_curve=json.dumps(equity_curve),
             regime_history=json.dumps(regime_history),
             trades=[],
-            status='completed'
+            status="completed",
         )
         return backtest
 
     def test_generate_attribution_report_success(self, api_client, sample_backtest):
         """Test successful generation of attribution report."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert 'id' in response.data
-        assert 'backtest_id' in response.data
-        assert 'total_pnl' in response.data
-        assert 'regime_timing_pnl' in response.data
-        assert 'asset_selection_pnl' in response.data
-        assert 'interaction_pnl' in response.data
-        assert 'regime_accuracy' in response.data
+        assert "id" in response.data
+        assert "backtest_id" in response.data
+        assert "total_pnl" in response.data
+        assert "regime_timing_pnl" in response.data
+        assert "asset_selection_pnl" in response.data
+        assert "interaction_pnl" in response.data
+        assert "regime_accuracy" in response.data
 
-    def test_generate_attribution_report_includes_nested_data(
-        self,
-        api_client,
-        sample_backtest
-    ):
+    def test_generate_attribution_report_includes_nested_data(self, api_client, sample_backtest):
         """Test that response includes loss_analyses and experience_summaries."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         # Check for nested data (may be empty if no losses)
-        assert 'loss_analyses' in response.data
-        assert 'experience_summaries' in response.data
+        assert "loss_analyses" in response.data
+        assert "experience_summaries" in response.data
 
     def test_generate_attribution_report_missing_backtest_id(self, api_client):
         """Test with missing backtest_id field."""
-        url = '/api/audit/reports/generate/'
+        url = "/api/audit/reports/generate/"
         data = {}  # Missing backtest_id
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data or 'backtest_id' in response.data
+        assert "error" in response.data or "backtest_id" in response.data
 
     def test_generate_attribution_report_nonexistent_backtest(self, api_client):
         """Test with non-existent backtest ID."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': 99999}  # Non-existent
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": 99999}  # Non-existent
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "error" in response.data
 
     def test_generate_attribution_report_invalid_backtest_id_type(self, api_client):
         """Test with invalid backtest_id type."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': 'not_an_integer'}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": "not_an_integer"}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_generate_attribution_report_creates_db_records(
-        self,
-        api_client,
-        sample_backtest
-    ):
+    def test_generate_attribution_report_creates_db_records(self, api_client, sample_backtest):
         """Test that API creates database records."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
         initial_count = AttributionReport.objects.count()
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert AttributionReport.objects.count() == initial_count + 1
 
         # Verify report was created
-        report = AttributionReport.objects.get(id=response.data['id'])
+        report = AttributionReport.objects.get(id=response.data["id"])
         assert report.backtest_id == sample_backtest.id
 
     def test_generate_attribution_report_unauthenticated(self):
         """Test that unauthenticated request is rejected."""
         client = APIClient()  # Not authenticated
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': 1}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": 1}
 
-        response = client.post(url, data, format='json')
+        response = client.post(url, data, format="json")
 
         # Should be unauthorized or redirect
-        assert response.status_code in [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN
-        ]
+        assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
-    def test_generate_multiple_reports_same_backtest(
-        self,
-        api_client,
-        sample_backtest
-    ):
+    def test_generate_multiple_reports_same_backtest(self, api_client, sample_backtest):
         """Test generating multiple reports for the same backtest."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response1 = api_client.post(url, data, format='json')
-        response2 = api_client.post(url, data, format='json')
+        response1 = api_client.post(url, data, format="json")
+        response2 = api_client.post(url, data, format="json")
 
         assert response1.status_code == status.HTTP_201_CREATED
         assert response2.status_code == status.HTTP_201_CREATED
-        assert response1.data['id'] != response2.data['id']
+        assert response1.data["id"] != response2.data["id"]
 
-    def test_attribution_report_with_losses_creates_loss_analysis(
-        self,
-        api_client
-    ):
+    def test_attribution_report_with_losses_creates_loss_analysis(self, api_client):
         """Test that loss scenarios create loss analysis records."""
         # Create backtest with losses
         equity_curve = [
@@ -230,21 +213,21 @@ class TestGenerateAttributionReportAPI:
             equity_curve=json.dumps(equity_curve),
             regime_history=json.dumps(regime_history),
             trades=[],
-            status='completed'
+            status="completed",
         )
 
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
 
         # Check for loss analyses
-        LossAnalysis.objects.filter(report_id=response.data['id'])
+        LossAnalysis.objects.filter(report_id=response.data["id"])
         # May or may not exist depending on attribution logic
         # Just verify the field is present in response
-        assert 'loss_analyses' in response.data
+        assert "loss_analyses" in response.data
 
 
 @pytest.mark.django_db
@@ -274,7 +257,7 @@ class TestAuditSummaryAPI:
                 equity_curve=json.dumps([["2024-01-01", 100000.0]]),
                 regime_history=json.dumps([{"date": "2024-01-01", "regime": "RECOVERY"}]),
                 trades=[],
-                status='completed'
+                status="completed",
             )
 
             report = AttributionReport.objects.create(
@@ -286,7 +269,7 @@ class TestAuditSummaryAPI:
                 asset_selection_pnl=0.05,
                 interaction_pnl=0.02,
                 regime_accuracy=0.75,
-                regime_predicted="RECOVERY"
+                regime_predicted="RECOVERY",
             )
             reports.append(report)
 
@@ -295,7 +278,7 @@ class TestAuditSummaryAPI:
     def test_get_summary_by_backtest_id(self, api_client, sample_reports):
         """Test getting summary by backtest ID."""
         backtest_id = sample_reports[0].backtest_id
-        url = f'/api/audit/summary/?backtest_id={backtest_id}'
+        url = f"/api/audit/summary/?backtest_id={backtest_id}"
 
         response = api_client.get(url)
 
@@ -305,7 +288,7 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_by_date_range(self, api_client, sample_reports):
         """Test getting summary by date range."""
-        url = '/api/audit/summary/?start_date=2024-01-01&end_date=2024-12-31'
+        url = "/api/audit/summary/?start_date=2024-01-01&end_date=2024-12-31"
 
         response = api_client.get(url)
 
@@ -314,30 +297,30 @@ class TestAuditSummaryAPI:
 
     def test_get_summary_missing_parameters(self, api_client):
         """Test with missing required parameters."""
-        url = '/api/audit/summary/'  # No parameters
+        url = "/api/audit/summary/"  # No parameters
 
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data
+        assert "error" in response.data
 
     def test_get_summary_invalid_backtest_id(self, api_client):
         """Test with invalid backtest_id type."""
-        url = '/api/audit/summary/?backtest_id=not_an_integer'
+        url = "/api/audit/summary/?backtest_id=not_an_integer"
 
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data
+        assert "error" in response.data
 
     def test_get_summary_invalid_date_format(self, api_client):
         """Test with invalid date format."""
-        url = '/api/audit/summary/?start_date=01-01-2024&end_date=12-31-2024'
+        url = "/api/audit/summary/?start_date=01-01-2024&end_date=12-31-2024"
 
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'error' in response.data
+        assert "error" in response.data
 
     def test_get_summary_includes_nested_data(self, api_client, sample_reports):
         """Test that summary includes loss_analyses and experience_summaries."""
@@ -346,32 +329,32 @@ class TestAuditSummaryAPI:
         # Create nested data
         LossAnalysis.objects.create(
             report_id=sample_reports[0].id,
-            loss_source='REGIME_ERROR',
+            loss_source="REGIME_ERROR",
             impact=-0.02,
             impact_percentage=20.0,
-            description='Test loss',
-            improvement_suggestion='Test suggestion'
+            description="Test loss",
+            improvement_suggestion="Test suggestion",
         )
 
         ExperienceSummary.objects.create(
             report_id=sample_reports[0].id,
-            lesson='Test lesson',
-            recommendation='Test recommendation',
-            priority='HIGH'
+            lesson="Test lesson",
+            recommendation="Test recommendation",
+            priority="HIGH",
         )
 
-        url = f'/api/audit/summary/?backtest_id={backtest_id}'
+        url = f"/api/audit/summary/?backtest_id={backtest_id}"
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         # Check that nested data is included
         if len(response.data) > 0:
-            assert 'loss_analyses' in response.data[0]
-            assert 'experience_summaries' in response.data[0]
+            assert "loss_analyses" in response.data[0]
+            assert "experience_summaries" in response.data[0]
 
     def test_get_summary_empty_result(self, api_client):
         """Test with no matching reports."""
-        url = '/api/audit/summary/?backtest_id=99999'
+        url = "/api/audit/summary/?backtest_id=99999"
 
         response = api_client.get(url)
 
@@ -381,15 +364,12 @@ class TestAuditSummaryAPI:
     def test_get_summary_unauthenticated(self):
         """Test that unauthenticated request is rejected."""
         client = APIClient()  # Not authenticated
-        url = '/api/audit/summary/?backtest_id=1'
+        url = "/api/audit/summary/?backtest_id=1"
 
         response = client.get(url)
 
         # Should be unauthorized or redirect
-        assert response.status_code in [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN
-        ]
+        assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
 
 @pytest.mark.django_db
@@ -425,74 +405,70 @@ class TestAuditAPIResponseSerialization:
             equity_curve=json.dumps(equity_curve),
             regime_history=json.dumps(regime_history),
             trades=[],
-            status='completed'
+            status="completed",
         )
 
     def test_attribution_report_data_types(self, api_client, sample_backtest):
         """Test that response data has correct types."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
 
         # Check field types
-        assert isinstance(response.data['id'], int)
-        assert isinstance(response.data['backtest_id'], int)
-        assert isinstance(response.data['total_pnl'], (int, float))
-        assert isinstance(response.data['regime_timing_pnl'], (int, float))
-        assert isinstance(response.data['asset_selection_pnl'], (int, float))
-        assert isinstance(response.data['interaction_pnl'], (int, float))
-        assert isinstance(response.data['regime_accuracy'], (int, float))
+        assert isinstance(response.data["id"], int)
+        assert isinstance(response.data["backtest_id"], int)
+        assert isinstance(response.data["total_pnl"], (int, float))
+        assert isinstance(response.data["regime_timing_pnl"], (int, float))
+        assert isinstance(response.data["asset_selection_pnl"], (int, float))
+        assert isinstance(response.data["interaction_pnl"], (int, float))
+        assert isinstance(response.data["regime_accuracy"], (int, float))
 
     def test_summary_response_is_list(self, api_client, sample_backtest):
         """Test that summary API returns a list."""
         # First generate a report
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
-        api_client.post(url, data, format='json')
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
+        api_client.post(url, data, format="json")
 
         # Then get summary
-        summary_url = f'/api/audit/summary/?backtest_id={sample_backtest.id}'
+        summary_url = f"/api/audit/summary/?backtest_id={sample_backtest.id}"
         response = api_client.get(summary_url)
 
         assert response.status_code == status.HTTP_200_OK
         assert isinstance(response.data, list)
 
-    def test_date_fields_serialized_correctly(
-        self,
-        api_client,
-        sample_backtest
-    ):
+    def test_date_fields_serialized_correctly(self, api_client, sample_backtest):
         """Test that date fields are serialized correctly."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
 
         # Check date fields
-        if 'period_start' in response.data:
-            assert response.data['period_start'] is not None
-        if 'period_end' in response.data:
-            assert response.data['period_end'] is not None
+        if "period_start" in response.data:
+            assert response.data["period_start"] is not None
+        if "period_end" in response.data:
+            assert response.data["period_end"] is not None
 
     def test_nested_data_structure(self, api_client, sample_backtest):
         """Test that nested data has correct structure."""
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': sample_backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": sample_backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
 
         # Check nested data structure
-        if 'loss_analyses' in response.data:
-            assert isinstance(response.data['loss_analyses'], list)
-        if 'experience_summaries' in response.data:
-            assert isinstance(response.data['experience_summaries'], list)
+        if "loss_analyses" in response.data:
+            assert isinstance(response.data["loss_analyses"], list)
+        if "experience_summaries" in response.data:
+            assert isinstance(response.data["experience_summaries"], list)
 
 
 @pytest.mark.django_db
@@ -522,16 +498,16 @@ class TestAuditAPIErrorHandling:
                 equity_curve=json.dumps([["2024-01-01", 100000.0]]),
                 regime_history=json.dumps([{"date": "2024-01-01", "regime": "RECOVERY"}]),
                 trades=[],
-                status='completed'
+                status="completed",
             )
             backtests.append(backtest)
 
         # Generate reports concurrently (sequentially in test)
-        url = '/api/audit/reports/generate/'
+        url = "/api/audit/reports/generate/"
         responses = []
         for backtest in backtests:
-            data = {'backtest_id': backtest.id}
-            response = api_client.post(url, data, format='json')
+            data = {"backtest_id": backtest.id}
+            response = api_client.post(url, data, format="json")
             responses.append(response)
 
         # All should succeed
@@ -541,11 +517,11 @@ class TestAuditAPIErrorHandling:
     def test_summary_with_partial_date_range(self, api_client):
         """Test summary with only start_date or end_date."""
         # These should fail - both dates required
-        url = '/api/audit/summary/?start_date=2024-01-01'
+        url = "/api/audit/summary/?start_date=2024-01-01"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-        url = '/api/audit/summary/?end_date=2024-12-31'
+        url = "/api/audit/summary/?end_date=2024-12-31"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -564,19 +540,16 @@ class TestAuditAPIErrorHandling:
             equity_curve=json.dumps([]),  # Empty
             regime_history=json.dumps([]),  # Empty
             trades=[],
-            status='in_progress'  # Not completed
+            status="in_progress",  # Not completed
         )
 
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         # Should handle gracefully (may succeed or fail with specific error)
-        assert response.status_code in [
-            status.HTTP_201_CREATED,
-            status.HTTP_400_BAD_REQUEST
-        ]
+        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
 
     def test_large_backtest_data_handling(self, api_client):
         """Test handling of backtest with large data."""
@@ -598,16 +571,13 @@ class TestAuditAPIErrorHandling:
             equity_curve=json.dumps(equity_curve),
             regime_history=json.dumps([{"date": "2024-01-01", "regime": "RECOVERY"}]),
             trades=[],
-            status='completed'
+            status="completed",
         )
 
-        url = '/api/audit/reports/generate/'
-        data = {'backtest_id': backtest.id}
+        url = "/api/audit/reports/generate/"
+        data = {"backtest_id": backtest.id}
 
-        response = api_client.post(url, data, format='json')
+        response = api_client.post(url, data, format="json")
 
         # Should handle large data
-        assert response.status_code in [
-            status.HTTP_201_CREATED,
-            status.HTTP_400_BAD_REQUEST
-        ]
+        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]

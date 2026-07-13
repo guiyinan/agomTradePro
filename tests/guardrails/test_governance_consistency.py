@@ -88,9 +88,13 @@ def test_guardrail_governance_consistency_has_no_regressions():
     governance_baseline = sections["governance_baseline"]["data"]
     assert governance_baseline["baseline_version"] == expected_baseline["version"]
     assert governance_baseline["missing_required_keys"] == []
-    assert governance_baseline["module_shape_entry_count"] == expected_baseline[
-        "business_module_count"
-    ]
+    assert governance_baseline["mcp_governance_entry_count"] == len(
+        expected_baseline["mcp_governance"]
+    )
+    assert (
+        governance_baseline["module_shape_entry_count"]
+        == expected_baseline["business_module_count"]
+    )
 
     governance_docs = sections["governance_docs"]["data"]
     assert governance_docs["required_token_count"] > 0
@@ -107,15 +111,15 @@ def test_guardrail_governance_consistency_has_no_regressions():
         module_dependency_baseline["baseline_version"]
         == expected_module_dependency_baseline["version"]
     )
-    assert module_dependency_baseline["module_count"] == expected_baseline[
-        "business_module_count"
-    ]
-    assert module_dependency_baseline["outbound_budget_count"] == expected_baseline[
-        "business_module_count"
-    ]
-    assert module_dependency_baseline["inbound_budget_count"] == expected_baseline[
-        "business_module_count"
-    ]
+    assert module_dependency_baseline["module_count"] == expected_baseline["business_module_count"]
+    assert (
+        module_dependency_baseline["outbound_budget_count"]
+        == expected_baseline["business_module_count"]
+    )
+    assert (
+        module_dependency_baseline["inbound_budget_count"]
+        == expected_baseline["business_module_count"]
+    )
 
     ci_governance_wiring = sections["ci_governance_wiring"]["data"]
     assert ci_governance_wiring["architecture_workflow"] == (
@@ -186,6 +190,18 @@ def test_large_python_file_baseline_detects_missing_growth_and_stale(monkeypatch
     }
 
 
+def test_large_python_file_guard_includes_production_sdk_surfaces():
+    module = _load_governance_script()
+
+    assert "sdk/agomtradepro" in module.PRODUCTION_PYTHON_ROOTS
+    assert "sdk/agomtradepro_mcp" in module.PRODUCTION_PYTHON_ROOTS
+    assert set(module.GOVERNED_LARGE_FILE_TEST_ROOTS) == {
+        "sdk/tests/test_mcp",
+        "sdk/tests/test_sdk",
+        "tests/unit/test_ai_capability",
+    }
+
+
 def test_module_count_line_detection_requires_module_keyword():
     module = _load_governance_script()
 
@@ -202,6 +218,141 @@ def test_test_count_line_detection_accepts_plain_and_comma_formats():
     assert module.line_mentions_test_count("tests-5,898", 5898)
     assert module.line_mentions_test_count("5,898 static test functions", 5898)
     assert not module.line_mentions_test_count("5,898 modules", 5898)
+
+
+def test_docs_consistency_uses_machine_baseline_without_numeric_doc_copies(
+    monkeypatch,
+    tmp_path,
+):
+    module = _load_governance_script()
+    narrative = tmp_path / "SYSTEM_BASELINE.md"
+    narrative.write_text(
+        "Dynamic governance data: governance/governance_baseline.json\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "DYNAMIC_GOVERNANCE_DOCS", (str(narrative),))
+    monkeypatch.setattr(module, "VERSION_DOCS", ())
+    monkeypatch.setattr(module, "load_core_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "load_pyproject_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "count_mcp_tools", lambda: 368)
+    monkeypatch.setattr(module, "count_business_modules", lambda: 37)
+    monkeypatch.setattr(module, "count_static_test_functions", lambda: 6241)
+
+    violations, _data = module.check_docs_consistency(
+        {
+            "mcp_tool_count": 368,
+            "business_module_count": 37,
+            "static_test_function_count": 6241,
+        }
+    )
+
+    assert violations == []
+
+
+def test_docs_consistency_rejects_dynamic_governance_count_copies(
+    monkeypatch,
+    tmp_path,
+):
+    module = _load_governance_script()
+    narrative = tmp_path / "MCP_PLAN.md"
+    narrative.write_text(
+        "Machine source: governance/governance_baseline.json\n当前已注册 7 个统一 core tools。\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "DYNAMIC_GOVERNANCE_DOCS", (str(narrative),))
+    monkeypatch.setattr(module, "VERSION_DOCS", ())
+    monkeypatch.setattr(module, "load_core_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "load_pyproject_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "count_mcp_tools", lambda: 368)
+    monkeypatch.setattr(module, "count_business_modules", lambda: 37)
+    monkeypatch.setattr(module, "count_static_test_functions", lambda: 6241)
+
+    violations, _data = module.check_docs_consistency(
+        {
+            "mcp_tool_count": 368,
+            "business_module_count": 37,
+            "static_test_function_count": 6241,
+        }
+    )
+
+    assert {violation.code for violation in violations} == {"dynamic_governance_count_doc_copy"}
+
+
+@pytest.mark.parametrize(
+    "copied_count",
+    (
+        "MCP Server (368 registered tools)",
+        "MCP 工具数：368 tools",
+        "303 个 MCP 工具",
+        "模块总数: 35",
+        "业务模块 | 37个",
+        "当前已有 33 个模块",
+        "App Modules: 37 business modules",
+        "静态测试函数数：6,421",
+        "6,421 static test functions",
+        "The bundle is allowlisted at 1,441 non-empty lines.",
+        "core/integration is currently zero on both tracked counters.",
+        "已有 `17` 个样板 read capability。",
+        "已落地第六十二个 governed write capability 样板。",
+        "已有六十个 preview-first 写能力样板。",
+        "当前已完成三个 governed 子路径。",
+        "该 contract 对应 `3` 个 raw tools。",
+        "agomtradepro_mcp.server -> 7 core tools -> capability registry",
+    ),
+)
+def test_docs_consistency_rejects_other_dynamic_governance_count_copies(
+    monkeypatch,
+    tmp_path,
+    copied_count,
+):
+    module = _load_governance_script()
+    narrative = tmp_path / "CURRENT_GUIDE.md"
+    narrative.write_text(
+        f"Machine source: governance/governance_baseline.json\n{copied_count}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "DYNAMIC_GOVERNANCE_DOCS", (str(narrative),))
+    monkeypatch.setattr(module, "VERSION_DOCS", ())
+    monkeypatch.setattr(module, "load_core_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "load_pyproject_version", lambda: "0.8.0")
+    monkeypatch.setattr(module, "count_mcp_tools", lambda: 368)
+    monkeypatch.setattr(module, "count_business_modules", lambda: 37)
+    monkeypatch.setattr(module, "count_static_test_functions", lambda: 6241)
+
+    violations, _data = module.check_docs_consistency(
+        {
+            "mcp_tool_count": 368,
+            "business_module_count": 37,
+            "static_test_function_count": 6241,
+        }
+    )
+
+    assert {violation.code for violation in violations} == {"dynamic_governance_count_doc_copy"}
+
+
+def test_dynamic_governance_count_patterns_ignore_section_numbers():
+    module = _load_governance_script()
+    text = "未新增独立业务模块（禁令 1）"
+
+    assert not any(
+        pattern.search(text) for pattern in module.DYNAMIC_GOVERNANCE_COUNT_COPY_PATTERNS
+    )
+
+
+def test_mcp_governance_baseline_rejects_inconsistent_partitions():
+    module = _load_governance_script()
+    baseline = json.loads(
+        (REPO_ROOT / "governance" / "governance_baseline.json").read_text(encoding="utf-8")
+    )
+    baseline["mcp_governance"]["governed_read_capability_count"] += 1
+    baseline["mcp_governance"]["legacy_capability_count"] -= 1
+
+    violations, _data = module.check_governance_baseline_health(baseline)
+
+    assert {violation.code for violation in violations} >= {
+        "governance_baseline_mcp_manifest_partition_invalid",
+        "governance_baseline_mcp_catalog_partition_invalid",
+    }
 
 
 def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_path):
@@ -223,8 +374,7 @@ def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_pa
     assert data["core_version"] == "0.7.0"
     assert data["pyproject_version"] == "0.1.0"
     assert any(
-        violation.code == "version_pyproject_mismatch"
-        and violation.path == "pyproject.toml"
+        violation.code == "version_pyproject_mismatch" and violation.path == "pyproject.toml"
         for violation in violations
     )
 
@@ -269,9 +419,7 @@ def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_pa
     docs_violations, docs_data = module.check_governance_docs_current()
 
     assert docs_data["missing_tokens"]
-    assert {violation.code for violation in docs_violations} == {
-        "governance_guardrails_doc_stale"
-    }
+    assert {violation.code for violation in docs_violations} == {"governance_guardrails_doc_stale"}
 
     invalid_baseline = {
         "version": "bad-version",
@@ -291,9 +439,7 @@ def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_pa
             "README.md": "many",
         },
     }
-    baseline_violations, baseline_data = module.check_governance_baseline_health(
-        invalid_baseline
-    )
+    baseline_violations, baseline_data = module.check_governance_baseline_health(invalid_baseline)
 
     assert baseline_data["baseline_version"] == "bad-version"
     assert {violation.code for violation in baseline_violations} >= {
@@ -328,9 +474,7 @@ def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_pa
     invalid_allowlist_path.write_text(json.dumps(invalid_allowlist), encoding="utf-8")
     monkeypatch.setattr(module, "MODULE_CYCLE_ALLOWLIST", invalid_allowlist_path)
 
-    dependency_violations, dependency_data = (
-        module.check_module_dependency_baseline_health()
-    )
+    dependency_violations, dependency_data = module.check_module_dependency_baseline_health()
 
     assert dependency_data["baseline_version"] == "bad-version"
     assert {violation.code for violation in dependency_violations} >= {

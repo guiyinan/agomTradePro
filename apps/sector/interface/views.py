@@ -9,18 +9,19 @@
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..application.repository_provider import get_sector_adapter, get_sector_repository
 from ..application.use_cases import (
-    AnalyzeSectorRotationRequest,
     AnalyzeSectorRotationUseCase,
     UpdateSectorDataRequest,
     UpdateSectorDataUseCase,
 )
 from .serializers import (
     AnalyzeSectorRotationRequestSerializer,
+    SectorRotationQuerySerializer,
     SectorRotationResultSerializer,
     UpdateSectorDataRequestSerializer,
 )
@@ -38,32 +39,11 @@ def _get_sector_result_status_code(result) -> int:
 class SectorRotationViewSet(viewsets.ViewSet):
     """板块轮动分析 API"""
 
+    permission_classes = [IsAuthenticated]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.sector_repo = get_sector_repository()
-        self.adapter = get_sector_adapter()
-
-    def _run_analysis(self, use_case_request):
-        use_case = AnalyzeSectorRotationUseCase(sector_repo=self.sector_repo)
-        result = use_case.execute(use_case_request)
-        warning_code = getattr(result, "warning_message", "")
-        if warning_code != "sector_data_unavailable":
-            return result
-
-        sync_result = UpdateSectorDataUseCase(
-            sector_repo=self.sector_repo,
-            adapter=self.adapter,
-        ).execute(
-            UpdateSectorDataRequest(
-                level=use_case_request.level,
-                start_date=None,
-                end_date=None,
-                force_update=False,
-            )
-        )
-        if not sync_result.success:
-            return result
-        return use_case.execute(use_case_request)
 
     @action(detail=False, methods=['post'], url_path='analyze')
     def analyze(self, request):
@@ -109,7 +89,9 @@ class SectorRotationViewSet(viewsets.ViewSet):
         use_case_request = serializer.to_use_case_request()
 
         # 3. 执行用例
-        result = self._run_analysis(use_case_request)
+        result = AnalyzeSectorRotationUseCase(
+            sector_repo=self.sector_repo
+        ).execute(use_case_request)
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
@@ -131,22 +113,11 @@ class SectorRotationViewSet(viewsets.ViewSet):
             "top_sectors": [...]
         }
         """
-        # 1. 从查询参数获取数据
-        regime = request.query_params.get('regime')
-        lookback_days = int(request.query_params.get('lookback_days', 20))
-        level = request.query_params.get('level', 'SW1')
-        top_n = int(request.query_params.get('top_n', 10))
-
-        # 2. 构建用例请求
-        use_case_request = AnalyzeSectorRotationRequest(
-            regime=regime,
-            lookback_days=lookback_days,
-            level=level,
-            top_n=top_n
-        )
-
-        # 3. 执行用例
-        result = self._run_analysis(use_case_request)
+        serializer = SectorRotationQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        result = AnalyzeSectorRotationUseCase(
+            sector_repo=self.sector_repo
+        ).execute(serializer.to_use_case_request())
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
@@ -156,6 +127,8 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
 class SectorDataUpdateView(APIView):
     """板块数据更新 API"""
+
+    permission_classes = [IsAdminUser]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

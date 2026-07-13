@@ -180,6 +180,7 @@ class EvaluateBatchResponse:
     success: bool
     decisions: list[GateDecision] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
+    config: GateConfig | None = None
     error: str | None = None
 
 
@@ -377,6 +378,7 @@ class EvaluateBatchUseCase:
                 success=True,
                 decisions=decisions,
                 summary=summary,
+                config=config,
             )
 
         except Exception as e:

@@ -22,6 +22,7 @@ from .market_thermometer import (
     SyncMarketThermometerInputsUseCase,
     build_market_thermometer_override_payload,
 )
+from .provider_connection_workflow import RunProviderConnectionTestUseCase
 from .repository_provider import (
     AssetRepository,
     CapitalFlowRepository,
@@ -66,7 +67,6 @@ from .use_cases import (
     RepairDecisionDataReliabilityUseCase,
     ResolveAssetUseCase,
     RunMacroGovernanceActionUseCase,
-    RunProviderConnectionTestUseCase,
     SyncCapitalFlowUseCase,
     SyncFinancialUseCase,
     SyncFundNavUseCase,

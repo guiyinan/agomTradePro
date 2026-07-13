@@ -39,6 +39,14 @@ def auth_client(api_client, test_user):
 
 
 @pytest.fixture
+def regular_auth_client(api_client, db):
+    """Create an authenticated non-staff API client."""
+    user = User.objects.create_user(username="regular-policy-user", password="testpass123")
+    api_client.force_authenticate(user=user)
+    return api_client
+
+
+@pytest.fixture
 def sample_event(db, test_user):
     """创建示例事件"""
     event = PolicyLog.objects.create(
@@ -97,6 +105,75 @@ class TestWorkbenchBootstrapAPI:
 @pytest.mark.django_db
 class TestWorkbenchFetchAPI:
     """测试 Fetch API"""
+
+    def test_fetch_requires_staff_permission(self, regular_auth_client):
+        """Ordinary authenticated users cannot trigger global policy ingestion."""
+        with patch(
+            "apps.policy.interface.workbench_api_views.FetchRSSUseCase.execute"
+        ) as execute:
+            response = regular_auth_client.post(
+                "/api/policy/workbench/fetch/",
+                data={},
+                format="json",
+            )
+
+        assert response.status_code == 403
+        execute.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("payload", "field"),
+        [
+            ({"source_id": 0}, "source_id"),
+            ({"source_id": -1}, "source_id"),
+            ({"unknown": "value"}, "non_field_errors"),
+        ],
+    )
+    def test_fetch_rejects_invalid_or_unknown_fields(self, auth_client, payload, field):
+        """The synchronous fetch endpoint accepts only its strict canonical contract."""
+        with patch(
+            "apps.policy.interface.workbench_api_views.FetchRSSUseCase.execute"
+        ) as execute:
+            response = auth_client.post(
+                "/api/policy/workbench/fetch/",
+                data=payload,
+                format="json",
+            )
+
+        assert response.status_code == 400
+        assert field in response.json()["errors"]
+        execute.assert_not_called()
+
+    def test_fetch_rejects_inactive_source_without_side_effects(self, auth_client):
+        """Inactive sources fail before adapters, logs, events, status writes, or alerts."""
+        source = RSSSourceConfigModel.objects.create(
+            name="Inactive policy feed",
+            url="https://example.com/inactive-feed.xml",
+            is_active=False,
+            category="policy",
+        )
+        before_source = (
+            source.last_fetch_at,
+            source.last_fetch_status,
+            source.last_error_message,
+        )
+        before_policy_logs = PolicyLog.objects.count()
+
+        response = auth_client.post(
+            "/api/policy/workbench/fetch/",
+            data={"source_id": source.id},
+            format="json",
+        )
+
+        source.refresh_from_db()
+        assert response.status_code == 200
+        assert response.json()["success"] is False
+        assert response.json()["errors"] == [f"RSS源 {source.id} 已停用"]
+        assert PolicyLog.objects.count() == before_policy_logs
+        assert (
+            source.last_fetch_at,
+            source.last_fetch_status,
+            source.last_error_message,
+        ) == before_source
 
     def test_fetch_all_sources_success(self, auth_client):
         """测试抓取全部源"""

@@ -106,6 +106,7 @@ For self-service screens such as `screen:capability-router.self-service`, the fi
 - copyable connection endpoint set
 - copyable onboarding prompt
 - immediate next-step guidance
+- in-place panel expansion for same-screen self-service cards; clicking a summary card must not hard-refresh the current screen
 
 Do not require users to assemble these pieces from multiple generic detail actions.
 

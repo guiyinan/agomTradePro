@@ -37,3 +37,36 @@ def upload_alpha_scores(
         model_artifact_hash=model_artifact_hash,
         scores=scores,
     )
+
+
+def preview_alpha_score_upload(
+    *,
+    write_user,
+    universe_id: str,
+    asof_date,
+    intended_trade_date,
+    model_id: str,
+    model_artifact_hash: str,
+    scores: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Read the exact upload target and describe the pending upsert."""
+
+    existing = get_alpha_score_cache_repository().get_upload_target(
+        user=write_user,
+        universe_id=universe_id,
+        intended_trade_date=intended_trade_date,
+        model_artifact_hash=model_artifact_hash,
+    )
+    return {
+        "operation": "update" if existing else "create",
+        "scope": "system" if write_user is None else "user",
+        "universe_id": universe_id,
+        "asof_date": asof_date.isoformat(),
+        "intended_trade_date": intended_trade_date.isoformat(),
+        "model_id": model_id,
+        "model_artifact_hash": model_artifact_hash,
+        "incoming_score_count": len(scores),
+        "incoming_codes": [item["code"] for item in scores],
+        "existing": existing,
+        "writes": ["alpha_score_cache"],
+    }

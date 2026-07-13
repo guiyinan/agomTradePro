@@ -134,10 +134,12 @@ def _resolve_async_lock(
     registry_key: str,
     lock_key: str,
     async_result_cls=AsyncResult,
+    cleanup_stale: bool = True,
 ) -> dict[str, Any] | None:
     existing_lock = cache.get(lock_key)
     if not existing_lock:
-        _clear_lock(registry_key, lock_key)
+        if cleanup_stale:
+            _clear_lock(registry_key, lock_key)
         return None
 
     meta = dict(cache.get(_lock_meta_key(lock_key)) or {})
@@ -162,7 +164,8 @@ def _resolve_async_lock(
     try:
         task_result = async_result_cls(task_id)
         if task_result.ready():
-            _clear_lock(registry_key, lock_key)
+            if cleanup_stale:
+                _clear_lock(registry_key, lock_key)
             return None
         task_state = getattr(task_result, "state", "PENDING")
     except Exception:
@@ -209,6 +212,7 @@ def _list_active_locks(
     *,
     registry_key: str,
     async_result_cls=AsyncResult,
+    cleanup_stale: bool = True,
 ) -> list[dict[str, Any]]:
     active_items: list[dict[str, Any]] = []
     for lock_key in list(cache.get(registry_key) or []):
@@ -216,6 +220,7 @@ def _list_active_locks(
             registry_key=registry_key,
             lock_key=lock_key,
             async_result_cls=async_result_cls,
+            cleanup_stale=cleanup_stale,
         )
         if lock_meta is None:
             continue
@@ -280,11 +285,16 @@ def release_dashboard_alpha_refresh_lock(lock_key: str) -> None:
     _clear_lock(_DASHBOARD_ALPHA_REFRESH_REGISTRY_KEY, lock_key)
 
 
-def list_active_dashboard_alpha_refresh_locks(async_result_cls=AsyncResult) -> list[dict[str, Any]]:
+def list_active_dashboard_alpha_refresh_locks(
+    async_result_cls=AsyncResult,
+    *,
+    cleanup_stale: bool = True,
+) -> list[dict[str, Any]]:
     """Return current dashboard alpha refresh locks visible to the ops page."""
     return _list_active_locks(
         registry_key=_DASHBOARD_ALPHA_REFRESH_REGISTRY_KEY,
         async_result_cls=async_result_cls,
+        cleanup_stale=cleanup_stale,
     )
 
 

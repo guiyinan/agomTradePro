@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -34,6 +35,7 @@ from .serializers import (
     CalculateFundPerformanceRequestSerializer,
     CalculateFundPerformanceResponseSerializer,
     FundScoreSerializer,
+    RankFundsQuerySerializer,
     ScreenFundsRequestSerializer,
     ScreenFundsResponseSerializer,
 )
@@ -62,15 +64,13 @@ class ScreenFundsView(APIView):
     POST /api/fund/screen/
     """
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request) -> Response:
         """筛选基金"""
         # 1. 验证请求
         serializer = ScreenFundsRequestSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {'success': False, 'error': '请求参数无效', 'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
 
@@ -165,10 +165,14 @@ class RankFundsView(APIView):
     GET /api/fund/rank/?regime=Recovery&max_count=50
     """
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request) -> Response:
         """获取基金排名"""
-        regime = request.query_params.get('regime', 'Recovery')
-        max_count = int(request.query_params.get('max_count', 50))
+        query = RankFundsQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        regime = query.validated_data["regime"]
+        max_count = query.validated_data["max_count"]
 
         # 执行用例
         fund_scores = interface_services.rank_funds(regime, max_count)

@@ -123,6 +123,26 @@ def _policy_to_domain(model: AccountRiskPolicyModel) -> AccountRiskPolicy:
     )
 
 
+def _default_floor_model() -> GlobalRiskFloorModel:
+    """Build the default floor without persisting it."""
+
+    return GlobalRiskFloorModel(**DEFAULT_FLOOR)
+
+
+def _default_template_model(profile: RiskProfile) -> RiskTemplateModel:
+    """Build one default template model without persisting it."""
+
+    template = fallback_template_for_profile(profile)
+    return RiskTemplateModel(
+        key=template.key,
+        name=template.name,
+        risk_profile=template.risk_profile.value,
+        description=f"Default {template.risk_profile.value} risk template",
+        is_active=True,
+        **template.parameters.to_dict(),
+    )
+
+
 class DjangoRiskFloorRepository(SnapshotMixin):
     def get_active_floor(self) -> GlobalRiskFloorModel:
         floor = (
@@ -132,7 +152,7 @@ class DjangoRiskFloorRepository(SnapshotMixin):
         )
         if floor:
             return floor
-        return GlobalRiskFloorModel._default_manager.create(**DEFAULT_FLOOR)
+        return _default_floor_model()
 
     def save_floor(
         self, payload: dict[str, Any], *, actor: Any | None = None
@@ -155,45 +175,50 @@ class DjangoRiskFloorRepository(SnapshotMixin):
 
 
 class DjangoRiskTemplateRepository(SnapshotMixin):
-    def _ensure_defaults(self) -> None:
+    def list_templates(self) -> list[RiskTemplateModel]:
+        persisted = list(RiskTemplateModel._default_manager.all())
+        persisted_keys = {template.key for template in persisted}
+        defaults = [
+            _default_template_model(profile)
+            for profile in (
+                RiskProfile.CONSERVATIVE,
+                RiskProfile.MODERATE,
+                RiskProfile.AGGRESSIVE,
+            )
+            if fallback_template_for_profile(profile).key not in persisted_keys
+        ]
+        return [*persisted, *defaults]
+
+    def get_template(self, template_id: int) -> RiskTemplateModel | None:
+        return RiskTemplateModel._default_manager.filter(id=template_id).first()
+
+    def get_template_domain_by_key(self, key: str) -> RiskTemplate | None:
+        model = RiskTemplateModel._default_manager.filter(key=key, is_active=True).first()
+        if model:
+            return _template_to_domain(model)
         for profile in (
             RiskProfile.CONSERVATIVE,
             RiskProfile.MODERATE,
             RiskProfile.AGGRESSIVE,
         ):
-            template = fallback_template_for_profile(profile)
-            values = template.parameters.to_dict()
-            RiskTemplateModel._default_manager.get_or_create(
-                key=template.key,
-                defaults={
-                    "name": template.name,
-                    "risk_profile": template.risk_profile.value,
-                    "description": f"Default {template.risk_profile.value} risk template",
-                    **values,
-                },
-            )
-
-    def list_templates(self) -> list[RiskTemplateModel]:
-        self._ensure_defaults()
-        return list(RiskTemplateModel._default_manager.all())
-
-    def get_template(self, template_id: int) -> RiskTemplateModel | None:
-        self._ensure_defaults()
-        return RiskTemplateModel._default_manager.filter(id=template_id).first()
-
-    def get_template_domain_by_key(self, key: str) -> RiskTemplate | None:
-        self._ensure_defaults()
-        model = RiskTemplateModel._default_manager.filter(key=key, is_active=True).first()
-        return _template_to_domain(model) if model else None
+            fallback = fallback_template_for_profile(profile)
+            if fallback.key == key:
+                return fallback
+        return None
 
     def get_template_domain_by_profile(self, profile: str) -> RiskTemplate | None:
-        self._ensure_defaults()
         model = (
             RiskTemplateModel._default_manager.filter(risk_profile=profile, is_active=True)
             .order_by("key")
             .first()
         )
-        return _template_to_domain(model) if model else None
+        if model:
+            return _template_to_domain(model)
+        try:
+            normalized_profile = RiskProfile(profile)
+        except ValueError:
+            return None
+        return fallback_template_for_profile(normalized_profile)
 
     def save_template(
         self, payload: dict[str, Any], *, actor: Any | None = None

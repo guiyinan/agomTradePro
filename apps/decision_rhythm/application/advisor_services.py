@@ -12,9 +12,9 @@ from typing import Any, Protocol
 from apps.account.application.portfolio_api_services import (
     PortfolioAccessDeniedError,
     PortfolioNotFoundError,
-    get_portfolio_positions_payload,
+    get_portfolio_positions_read_payload,
 )
-from apps.asset_analysis.application.asset_name_service import resolve_asset_names
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names_read_only
 from apps.simulated_trading.application.interface_services import get_account_access
 
 from .workspace_services import (
@@ -598,7 +598,7 @@ class AccountHoldingSnapshotProvider:
         portfolio_id = get_manual_trade_portfolio_id_for_account(normalized_account_id)
         if portfolio_id is not None:
             try:
-                _, payload = get_portfolio_positions_payload(
+                _, payload = get_portfolio_positions_read_payload(
                     user_id=int(user.id),
                     portfolio_id=portfolio_id,
                 )
@@ -2075,7 +2075,7 @@ def _resolve_missing_names(holdings: list[AdvisorHoldingSnapshot], recommendatio
     codes = [_recommendation_asset_code(item) for item in recommendations]
     missing = [code for code in codes if code and code not in names]
     if missing:
-        names.update(resolve_asset_names(missing))
+        names.update(resolve_asset_names_read_only(missing))
     return names
 
 

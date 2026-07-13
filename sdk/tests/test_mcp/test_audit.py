@@ -95,3 +95,46 @@ def test_log_mcp_call_includes_response_payload_and_traceback(monkeypatch) -> No
     assert captured["response_payload"]["ok"] is True
     assert '"token": "***"' in captured["response_text"]
     assert "RuntimeError: boom" in captured["exception_traceback"]
+
+
+def test_log_governed_capability_event_includes_lifecycle_metadata(monkeypatch) -> None:
+    logger = AuditLogger(secret_key="k")
+    ctx = AuditContext.create(request_id="req-3", username="u", mcp_role="investment_manager")
+    captured = {}
+
+    def fake_send(data):
+        captured.update(data)
+        return "log-2"
+
+    monkeypatch.setattr(logger, "_send_audit_log", fake_send)
+
+    result = logger.log_governed_capability_event(
+        tool_name="agom_capability_call",
+        capability_key="account.import.positions",
+        params={
+            "portfolio_id": 1,
+            "positions": [{"asset_code": "510300.SH", "token": "secret"}],
+        },
+        result={"ok": False, "status": "confirmation_required"},
+        error=None,
+        context=ctx,
+        owner_app="account",
+        risk_level="medium",
+        event_type="preview_staged",
+        confirmation_status="pending",
+        idempotency_key="idem-1",
+        request_arguments={"portfolio_id": 1},
+        affected_objects={"portfolio_id": 1, "position_count": 1},
+    )
+
+    assert result == "log-2"
+    assert captured["module"] == "account"
+    assert captured["action"] == "UPDATE"
+    assert captured["mcp_tool_name"] == "agom_capability_call"
+    assert captured["resource_type"] == "mcp_capability"
+    assert captured["resource_id"] == "account.import.positions"
+    assert captured["request_path"] == "/mcp/capabilities/account.import.positions"
+    assert captured["request_params"]["event_type"] == "preview_staged"
+    assert captured["request_params"]["confirmation_status"] == "pending"
+    assert captured["request_params"]["idempotency_key"] == "idem-1"
+    assert captured["request_params"]["arguments"]["positions"][0]["token"] == "***"

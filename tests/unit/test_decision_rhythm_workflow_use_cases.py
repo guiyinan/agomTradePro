@@ -491,6 +491,18 @@ def test_reset_quota_by_account_use_case_resets_all_periods_for_account():
     ]
 
 
+def test_reset_quota_by_account_use_case_reports_missing_account_quotas():
+    quota_repo = FakeQuotaRepo()
+    quota_repo.reset_returns = {(period, "missing-account"): False for period in QuotaPeriod}
+    use_case = ResetQuotaByAccountUseCase(quota_repo)
+
+    response = use_case.execute(ResetQuotaByAccountRequest(account_id="missing-account"))
+
+    assert response.success is False
+    assert response.error == "未找到对应配额"
+    assert response.reset_periods == []
+
+
 def test_get_trend_data_use_case_uses_daily_quota_from_repository():
     quota_repo = FakeQuotaRepo(
         DecisionQuota(

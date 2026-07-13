@@ -87,13 +87,31 @@ class EquityModule(BaseModule):
             >>> for stock in stocks:
             ...     print(f"{stock['code']}: {stock['name']}")
         """
+        result = self.get_stock_pool(
+            sector=sector,
+            min_score=min_score,
+            max_score=max_score,
+            limit=limit,
+        )
+        return result["stocks"]
+
+    def get_stock_pool(
+        self,
+        sector: str | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Read the current persisted stock-pool snapshot with stable metadata."""
         response = self._get("pool/")
-        stocks = response.get("stocks", response.get("results", response))
+        stocks = response.get("stocks", response.get("results", []))
         if not isinstance(stocks, list):
-            return []
+            stocks = []
 
         filtered: list[dict[str, Any]] = []
         for stock in stocks:
+            if not isinstance(stock, dict):
+                continue
             stock_sector = stock.get("sector")
             stock_score = stock.get("score")
 
@@ -105,7 +123,22 @@ class EquityModule(BaseModule):
                 continue
             filtered.append(stock)
 
-        return filtered[:limit]
+        selected = filtered[:limit]
+        return {
+            "success": bool(response.get("success", True)),
+            "regime": response.get("regime", "Unknown"),
+            "update_time": response.get("update_time"),
+            "avg_roe": response.get("avg_roe"),
+            "avg_pe": response.get("avg_pe"),
+            "stocks": selected,
+            "total_count": len(selected),
+            "query": {
+                "sector": sector,
+                "min_score": min_score,
+                "max_score": max_score,
+                "limit": limit,
+            },
+        }
 
     def get_stock_detail(self, stock_code: str) -> dict[str, Any]:
         """
@@ -254,14 +287,14 @@ class EquityModule(BaseModule):
     def get_valuation(
         self,
         stock_code: str,
-        as_of_date: date | None = None,
+        lookback_days: int = 252,
     ) -> dict[str, Any]:
         """
         获取股票估值详情（完整数据）
 
         Args:
             stock_code: 股票代码
-            as_of_date: 估值日期（None 表示最新）
+            lookback_days: 历史估值回看天数
 
         Returns:
             完整估值数据，包括：
@@ -287,11 +320,10 @@ class EquityModule(BaseModule):
             >>> print(f"PE: {valuation['latest_valuation']['pe']}")
             >>> print(f"ROE: {valuation['financial_data']['roe']}%")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"valuation/{stock_code}/", params=params)
+        return self._get(
+            f"valuation/{stock_code}/",
+            params={"lookback_days": lookback_days},
+        )
 
     # =========================================================================
     # 估值修复跟踪 API
@@ -357,9 +389,24 @@ class EquityModule(BaseModule):
             >>> for point in history[-10:]:
             ...     print(f"{point['trade_date']}: {point['composite_percentile'] * 100:.1f}%")
         """
+        response = self.get_valuation_repair_history_payload(
+            stock_code=stock_code,
+            lookback_days=lookback_days,
+        )
+        return response["points"]
+
+    def get_valuation_repair_history_payload(
+        self,
+        stock_code: str,
+        lookback_days: int = 252,
+    ) -> dict[str, Any]:
+        """Return the canonical valuation-repair history envelope."""
+
         params: dict[str, Any] = {"lookback_days": lookback_days}
         response = self._get(f"valuation-repair/{stock_code}/history/", params=params)
-        return response.get("points", response)
+        if not isinstance(response, dict) or not isinstance(response.get("points"), list):
+            raise ValueError("valuation repair history response must contain points")
+        return dict(response)
 
     def scan_valuation_repairs(
         self,
@@ -526,8 +573,23 @@ class EquityModule(BaseModule):
         Example:
             >>> configs = client.equity.list_valuation_repair_configs()
         """
-        response = self._get("config/valuation-repair/", params={"limit": limit})
-        return response.get("results", response)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+        response = self._get("config/valuation-repair/")
+        results = response.get("results", response) if isinstance(response, dict) else response
+        if not isinstance(results, list):
+            raise ValueError("valuation repair config response must contain a list")
+        return [dict(item) for item in results[:limit] if isinstance(item, dict)]
+
+    def get_valuation_repair_config_by_id(self, config_id: int) -> dict[str, Any]:
+        """Get one persisted valuation repair config by numeric ID."""
+
+        if isinstance(config_id, bool) or not isinstance(config_id, int) or config_id <= 0:
+            raise ValueError("config_id must be a positive integer")
+        response = self._get(f"config/valuation-repair/{config_id}/")
+        if not isinstance(response, dict):
+            raise ValueError("valuation repair config detail response must be an object")
+        return dict(response)
 
     def create_valuation_repair_config(
         self,

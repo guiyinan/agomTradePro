@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.dashboard.application.auto_advisor_outputs import (
     persist_auto_advisor_weekly_report_outputs,
@@ -13,6 +14,7 @@ from apps.dashboard.infrastructure.models import (
     AutoAdvisorNotificationModel,
     AutoAdvisorWeeklyReportModel,
 )
+from apps.dashboard.interface import api_v1_views
 
 
 @pytest.mark.django_db
@@ -46,6 +48,81 @@ def test_persist_auto_advisor_weekly_report_outputs_creates_report_notification_
     assert history["reports"][0]["id"] == report.id
     assert notifications["count"] == 1
     assert notifications["notifications"][0]["id"] == notification.id
+
+
+@pytest.mark.django_db
+def test_auto_advisor_weekly_report_history_api_is_user_scoped_and_read_only(
+    django_user_model,
+):
+    user = django_user_model.objects.create_user(username="advisor-history-user")
+    other_user = django_user_model.objects.create_user(username="advisor-history-other")
+    persisted = persist_auto_advisor_weekly_report_outputs(
+        user=user,
+        report_payload=_weekly_report_payload(),
+    )
+    persist_auto_advisor_weekly_report_outputs(
+        user=other_user,
+        report_payload=_weekly_report_payload(),
+    )
+    before_counts = (
+        AutoAdvisorWeeklyReportModel._default_manager.count(),
+        AutoAdvisorNotificationModel._default_manager.count(),
+    )
+
+    request = APIRequestFactory().get(
+        "/api/dashboard/auto-advisor-weekly-report-history/",
+        {"account_id": "101", "limit": 5},
+    )
+    force_authenticate(request, user=user)
+    response = api_v1_views.auto_advisor_weekly_report_history(request)
+
+    assert response.status_code == 200
+    assert response.data["success"] is True
+    assert response.data["data"]["count"] == 1
+    assert response.data["data"]["reports"][0]["id"] == persisted["report"]["id"]
+    assert before_counts == (
+        AutoAdvisorWeeklyReportModel._default_manager.count(),
+        AutoAdvisorNotificationModel._default_manager.count(),
+    )
+
+
+@pytest.mark.django_db
+def test_auto_advisor_notifications_api_is_user_scoped_and_read_only(
+    django_user_model,
+):
+    user = django_user_model.objects.create_user(username="advisor-notification-user")
+    other_user = django_user_model.objects.create_user(username="advisor-notification-other")
+    persisted = persist_auto_advisor_weekly_report_outputs(
+        user=user,
+        report_payload=_weekly_report_payload(),
+    )
+    persist_auto_advisor_weekly_report_outputs(
+        user=other_user,
+        report_payload=_weekly_report_payload(),
+    )
+    before_counts = (
+        AutoAdvisorWeeklyReportModel._default_manager.count(),
+        AutoAdvisorNotificationModel._default_manager.count(),
+    )
+
+    request = APIRequestFactory().get(
+        "/api/dashboard/auto-advisor-notifications/",
+        {"account_id": "101", "limit": 5},
+    )
+    force_authenticate(request, user=user)
+    response = api_v1_views.auto_advisor_notifications(request)
+
+    assert response.status_code == 200
+    assert response.data["success"] is True
+    assert response.data["data"]["count"] == 1
+    assert (
+        response.data["data"]["notifications"][0]["id"]
+        == persisted["notification"]["id"]
+    )
+    assert before_counts == (
+        AutoAdvisorWeeklyReportModel._default_manager.count(),
+        AutoAdvisorNotificationModel._default_manager.count(),
+    )
 
 
 def _weekly_report_payload() -> dict:

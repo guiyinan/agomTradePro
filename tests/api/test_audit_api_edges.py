@@ -14,6 +14,7 @@ def auth_user(db):
         username="audit_api_user",
         password="testpass123",
         email="audit@example.com",
+        is_staff=True,
     )
 
 
@@ -44,7 +45,7 @@ def test_audit_run_validation_invalid_date_returns_400(authenticated_client):
 
     assert response.status_code == 400
     payload = response.json()
-    assert "日期格式错误" in payload["error"]
+    assert "start_date" in payload["details"]
 
 
 @pytest.mark.django_db
@@ -56,7 +57,7 @@ def test_audit_validate_all_requires_date_range(authenticated_client):
     )
 
     assert response.status_code == 400
-    assert response.json()["error"] == "必须提供 start_date 和 end_date"
+    assert set(response.json()["details"]) == {"start_date", "end_date"}
 
 
 @pytest.mark.django_db

@@ -7,6 +7,7 @@ AgomTradePro SDK - Regime 判定模块
 from datetime import date
 from typing import Any
 
+from ..exceptions import ValidationError
 from ..types import RegimeState, RegimeType
 from .base import BaseModule
 
@@ -53,7 +54,8 @@ class RegimeModule(BaseModule):
         as_of_date: date | None = None,
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
-        use_kalman: bool = True,
+        use_pit: bool = True,
+        data_source: str = "akshare",
     ) -> RegimeState:
         """
         计算指定日期的 Regime 判定
@@ -62,7 +64,8 @@ class RegimeModule(BaseModule):
             as_of_date: 计算日期（None 表示使用最新数据）
             growth_indicator: 增长指标代码（默认 PMI）
             inflation_indicator: 通胀指标代码（默认 CPI）
-            use_kalman: 是否使用 Kalman 滤波（默认 True）
+            use_pit: 是否使用 Point-in-Time 数据（默认 True）
+            data_source: 已持久化宏观数据的来源（默认 akshare）
 
         Returns:
             计算得到的宏观象限状态
@@ -81,17 +84,53 @@ class RegimeModule(BaseModule):
             ... )
             >>> print(f"象限: {regime.dominant_regime}")
         """
-        params: dict[str, Any] = {
+        response = self.calculate_snapshot(
+            as_of_date=as_of_date,
+            growth_indicator=growth_indicator,
+            inflation_indicator=inflation_indicator,
+            use_pit=use_pit,
+            data_source=data_source,
+        )
+        snapshot = response.get("snapshot")
+        if not response.get("success") or not isinstance(snapshot, dict):
+            raise ValidationError(
+                response.get("error") or "Regime calculation returned no snapshot.",
+                response=response,
+            )
+
+        raw_data = response.get("raw_data")
+        growth_rows = raw_data.get("growth", []) if isinstance(raw_data, dict) else []
+        inflation_rows = raw_data.get("inflation", []) if isinstance(raw_data, dict) else []
+        normalized = {
+            **snapshot,
+            "growth_level": self._series_direction(growth_rows),
+            "inflation_level": self._series_direction(inflation_rows),
             "growth_indicator": growth_indicator,
             "inflation_indicator": inflation_indicator,
-            "use_kalman": use_kalman,
+            "growth_value": self._latest_series_value(growth_rows),
+            "inflation_value": self._latest_series_value(inflation_rows),
         }
+        return self._parse_regime_state(normalized)
 
+    def calculate_snapshot(
+        self,
+        as_of_date: date | None = None,
+        growth_indicator: str = "PMI",
+        inflation_indicator: str = "CPI",
+        use_pit: bool = True,
+        data_source: str = "akshare",
+    ) -> dict[str, Any]:
+        """Return the canonical pure-calculation response envelope."""
+
+        payload: dict[str, Any] = {
+            "use_pit": use_pit,
+            "growth_indicator": growth_indicator,
+            "inflation_indicator": inflation_indicator,
+            "data_source": data_source,
+        }
         if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        response = self._post("calculate/", json=params)
-        return self._parse_regime_state(response)
+            payload["as_of_date"] = as_of_date.isoformat()
+        return self._post("calculate/", json=payload)
 
     def history(
         self,
@@ -187,12 +226,14 @@ class RegimeModule(BaseModule):
             "Recovery": 0,
             "Overheat": 0,
             "Stagflation": 0,
-            "Repression": 0,
+            "Deflation": 0,
         }
         for stat in stats:
             regime = stat.get("dominant_regime")
+            if regime == "Repression":
+                regime = "Deflation"
             if regime in distribution:
-                distribution[regime] = stat.get("count", 0)
+                distribution[regime] += stat.get("count", 0)
         return distribution
 
     def _parse_regime_state(self, data: dict[str, Any]) -> RegimeState:
@@ -225,3 +266,31 @@ class RegimeModule(BaseModule):
             inflation_value=data.get("inflation_value"),
             confidence=data.get("confidence"),
         )
+
+    @staticmethod
+    def _latest_series_value(rows: Any) -> float | None:
+        """Return the latest numeric value from a canonical raw-data series."""
+
+        if not isinstance(rows, list) or not rows:
+            return None
+        value = rows[-1].get("value") if isinstance(rows[-1], dict) else None
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _series_direction(cls, rows: Any) -> str:
+        """Derive the stable SDK direction label from the latest two values."""
+
+        if not isinstance(rows, list) or len(rows) < 2:
+            return "neutral"
+        previous = cls._latest_series_value(rows[:-1])
+        current = cls._latest_series_value(rows)
+        if previous is None or current is None:
+            return "neutral"
+        if current > previous:
+            return "up"
+        if current < previous:
+            return "down"
+        return "neutral"

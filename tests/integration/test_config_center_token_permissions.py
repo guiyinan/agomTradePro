@@ -58,6 +58,30 @@ def test_read_only_token_can_read_qlib_runtime(tmp_path):
 
 
 @pytest.mark.django_db
+def test_qlib_runtime_read_does_not_create_system_settings():
+    user = User.objects.create_user(
+        username="config_staff_pure_read",
+        password="pass12345",
+        is_staff=True,
+    )
+    _create_profile(user)
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=user,
+        name="staff-pure-read",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    SystemSettingsModel._default_manager.all().delete()
+
+    client = APIClient()
+    _authorize(client, raw_key)
+    response = client.get("/api/system/config-center/qlib/runtime/")
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert SystemSettingsModel._default_manager.count() == 0
+
+
+@pytest.mark.django_db
 def test_read_only_token_cannot_write_qlib_runtime(tmp_path):
     user = User.objects.create_user(
         username="config_admin_readonly_token",

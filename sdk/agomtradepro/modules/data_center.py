@@ -288,12 +288,15 @@ class DataCenterModule(BaseModule):
     def get_capital_flows(
         self,
         asset_code: str,
-        period: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
         limit: int | None = None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {"asset_code": asset_code}
-        if period:
-            params["period"] = period
+        if start:
+            params["start"] = start
+        if end:
+            params["end"] = end
         if limit is not None:
             params["limit"] = limit
         return self._get("capital-flows/", params=params)

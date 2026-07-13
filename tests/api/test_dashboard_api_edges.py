@@ -1,5 +1,10 @@
+import re
+from types import SimpleNamespace
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.dashboard.infrastructure.models import (
     AlphaRecommendationRunModel,
@@ -26,6 +31,7 @@ def test_dashboard_api_root_contract(client):
     assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["endpoints"]["allocation"] == "/api/dashboard/allocation/"
+    assert payload["endpoints"]["positions_data"] == "/api/dashboard/positions/data/"
     assert payload["endpoints"]["alpha_stocks"] == "/api/dashboard/alpha/stocks/"
     assert (
         payload["endpoints"]["v1_alpha_decision_chain"]
@@ -43,6 +49,141 @@ def test_dashboard_allocation_rejects_invalid_account_id(client, auth_user):
     payload = response.json()
     assert payload["success"] is False
     assert "account_id" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_dashboard_allocation_is_user_scoped_json_without_database_writes(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    calls = []
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._load_simulated_positions_fallback",
+        lambda user_id, account_id=None: calls.append((user_id, account_id))
+        or [
+            {"asset_class": "equity", "market_value": 600000.0},
+            {"asset_class_display": "债券", "market_value": 300000.0},
+            {"asset_class": "equity", "market_value": 100000.0},
+        ],
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = client.get("/api/dashboard/allocation/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "success": True,
+        "data": {"equity": 700000.0, "债券": 300000.0},
+    }
+    assert calls == [(auth_user.id, None)]
+    mutation_sql = [
+        query["sql"]
+        for query in queries.captured_queries
+        if re.match(
+            r"^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b",
+            query["sql"],
+            re.IGNORECASE,
+        )
+    ]
+    assert mutation_sql == []
+
+
+@pytest.mark.django_db
+def test_dashboard_positions_data_is_user_scoped_json_without_database_writes(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    calls = []
+    positions = [
+        {
+            "account_id": 17,
+            "account_name": "Core account",
+            "asset_code": "510300.SH",
+            "asset_name": "沪深300ETF",
+            "asset_class": "etf",
+            "market_value": 600000.0,
+        }
+    ]
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._load_simulated_positions_fallback",
+        lambda user_id, account_id=None: calls.append((user_id, account_id)) or positions,
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = client.get("/api/dashboard/positions/data/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "success": True,
+        "data": {"positions": positions, "total_count": 1},
+    }
+    assert calls == [(auth_user.id, None)]
+    mutation_sql = [
+        query["sql"]
+        for query in queries.captured_queries
+        if re.match(
+            r"^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b",
+            query["sql"],
+            re.IGNORECASE,
+        )
+    ]
+    assert mutation_sql == []
+
+
+@pytest.mark.django_db
+def test_dashboard_equity_curve_v1_is_json_and_executes_no_database_writes(
+    client,
+    auth_user,
+    monkeypatch,
+):
+    client.force_login(auth_user)
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._build_dashboard_data",
+        lambda user_id: SimpleNamespace(
+            performance_data=[
+                {
+                    "date": "2026-07-12",
+                    "portfolio_value": 1020000.0,
+                    "return_pct": 2.0,
+                }
+            ],
+            total_assets=1020000.0,
+            total_return_pct=2.0,
+        ),
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = client.get("/api/dashboard/v1/equity-curve/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "range": "ALL",
+        "has_history": True,
+        "series": [
+            {
+                "date": "2026-07-12",
+                "portfolio_value": 1020000.0,
+                "return_pct": 2.0,
+            }
+        ],
+    }
+    mutation_sql = [
+        query["sql"]
+        for query in queries.captured_queries
+        if re.match(
+            r"^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b",
+            query["sql"],
+            re.IGNORECASE,
+        )
+    ]
+    assert mutation_sql == []
 
 
 @pytest.mark.django_db
@@ -215,7 +356,7 @@ def test_dashboard_alpha_history_detail_fills_missing_snapshot_name_from_data_ce
 
 
 @pytest.mark.django_db
-def test_dashboard_alpha_history_detail_backfills_asset_master_from_legacy_holding(
+def test_dashboard_alpha_history_detail_resolves_legacy_holding_name_without_writing_asset_master(
     client,
     auth_user,
 ):
@@ -259,6 +400,9 @@ def test_dashboard_alpha_history_detail_backfills_asset_master_from_legacy_holdi
         stock_code="601899.SH",
         stock_name="紫金矿业",
     )
+    assets_before = list(
+        AssetMasterModel.objects.filter(code="601899.SH").values("id", "code", "name")
+    )
 
     response = client.get(f"/api/dashboard/alpha/history/{run.id}/")
 
@@ -266,4 +410,65 @@ def test_dashboard_alpha_history_detail_backfills_asset_master_from_legacy_holdi
     payload = response.json()
     assert payload["success"] is True
     assert payload["data"]["snapshots"][0]["name"] == "紫金矿业"
-    assert AssetMasterModel.objects.filter(code="601899.SH", name="紫金矿业").exists()
+    assert assets_before == list(
+        AssetMasterModel.objects.filter(code="601899.SH").values("id", "code", "name")
+    )
+
+
+@pytest.mark.django_db
+def test_dashboard_alpha_history_is_user_scoped_and_read_only(client, auth_user):
+    other_user = get_user_model().objects.create_user(
+        username="dashboard_history_other",
+        password="testpass123",
+        email="dashboard-history-other@example.com",
+    )
+    own_run = AlphaRecommendationRunModel.objects.create(
+        user=auth_user,
+        portfolio_id=135,
+        portfolio_name="Own Portfolio",
+        trade_date="2026-07-11",
+        scope_hash="scope-own",
+        scope_label="Own scope",
+        source="cache",
+        provider_source="cache",
+        uses_cached_data=True,
+        cache_reason="",
+        fallback_reason="",
+        meta={},
+    )
+    other_run = AlphaRecommendationRunModel.objects.create(
+        user=other_user,
+        portfolio_id=246,
+        portfolio_name="Other Portfolio",
+        trade_date="2026-07-11",
+        scope_hash="scope-other",
+        scope_label="Other scope",
+        source="cache",
+        provider_source="cache",
+        uses_cached_data=True,
+        cache_reason="",
+        fallback_reason="",
+        meta={},
+    )
+    before_counts = {
+        "runs": AlphaRecommendationRunModel.objects.count(),
+        "snapshots": AlphaRecommendationSnapshotModel.objects.count(),
+        "assets": AssetMasterModel.objects.count(),
+    }
+
+    client.force_login(auth_user)
+    list_response = client.get("/api/dashboard/alpha/history/")
+    other_detail_response = client.get(
+        f"/api/dashboard/alpha/history/{other_run.id}/"
+    )
+
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert payload["success"] is True
+    assert [item["id"] for item in payload["data"]] == [own_run.id]
+    assert other_detail_response.status_code == 404
+    assert before_counts == {
+        "runs": AlphaRecommendationRunModel.objects.count(),
+        "snapshots": AlphaRecommendationSnapshotModel.objects.count(),
+        "assets": AssetMasterModel.objects.count(),
+    }

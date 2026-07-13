@@ -12,6 +12,7 @@ from apps.asset_analysis.application.repository_provider import (
     enrich_with_asset_names,
     resolve_asset_name,
     resolve_asset_names,
+    resolve_asset_names_read_only,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "enrich_with_asset_names",
     "resolve_asset_name",
     "resolve_asset_names",
+    "resolve_asset_names_read_only",
 ]

@@ -28,8 +28,18 @@ class AlphaTriggerModule(BaseModule):
     def generate_candidate(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("generate-candidate/", json=payload)
 
-    def performance(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._get("performance/", params=payload)
+    def performance(
+        self,
+        *,
+        days: int | None = None,
+        trigger_id: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if days is not None:
+            params["days"] = days
+        if trigger_id:
+            params["trigger_id"] = trigger_id
+        return self._get("performance/", params=params or None)
 
     def list_candidates(self) -> list[dict[str, Any]]:
         response = self._get("candidates/")

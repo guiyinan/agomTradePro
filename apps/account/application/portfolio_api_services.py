@@ -8,6 +8,7 @@ from typing import Any
 from apps.account.application.repository_provider import (
     get_account_interface_repository,
     get_account_position_repository,
+    get_account_read_repository,
     get_portfolio_api_repository,
 )
 from apps.simulated_trading.application.unified_position_service import (
@@ -102,6 +103,20 @@ def get_portfolio_positions_payload(
         _portfolio_api_repo().build_position_payload(position, context.portfolio)
         for position in positions
     ]
+    return context, payload
+
+
+def get_portfolio_positions_read_payload(
+    *,
+    user_id: int,
+    portfolio_id: int | str,
+) -> tuple[PortfolioAccessContext, list[dict[str, Any]]]:
+    """Return legacy portfolio positions without synchronizing the unified ledger."""
+
+    context = resolve_portfolio_for_user(user_id=user_id, portfolio_id=portfolio_id)
+    payload = get_account_read_repository().list_open_legacy_position_payloads(
+        context.portfolio
+    )
     return context, payload
 
 
@@ -271,6 +286,23 @@ def list_positions_payload(
         for unified_position in unified_positions
     ]
     return payload, observer_portfolios
+
+
+def list_position_records_read_payload(
+    *,
+    user_id: int,
+    portfolio_id: int | None = None,
+    asset_code: str | None = None,
+    include_closed: bool = False,
+) -> list[dict[str, Any]]:
+    """Return position records without creating or synchronizing ledger state."""
+
+    return get_account_read_repository().list_position_payloads(
+        user_id=user_id,
+        portfolio_id=portfolio_id,
+        asset_code=asset_code,
+        include_closed=include_closed,
+    )
 
 
 def close_position_payload(

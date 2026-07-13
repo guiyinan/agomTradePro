@@ -8,6 +8,7 @@ from apps.asset_analysis.infrastructure.asset_name_resolver import (  # noqa: F4
     enrich_with_asset_names,
     resolve_asset_name,
     resolve_asset_names,
+    resolve_asset_names_read_only,
 )
 from apps.asset_analysis.infrastructure.providers import (
     AssetAnalysisLogRepository,

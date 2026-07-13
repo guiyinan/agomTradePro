@@ -94,10 +94,11 @@ def _get_factor_from_data_center(
 class CachedFactorAdapter(FactorDataSource):
     """Cached factor adapter with price-based calculations"""
 
-    def __init__(self, price_adapter=None):
+    def __init__(self, price_adapter=None, *, cache_price_results: bool = True):
         from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
 
         self.price_service = price_adapter or RotationPriceDataService()
+        self.cache_price_results = cache_price_results
         self._cache = {}
 
     def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
@@ -131,7 +132,12 @@ class CachedFactorAdapter(FactorDataSource):
             else:
                 days = 60
 
-            prices = self.price_service.get_prices(stock_code, trade_date, days + 10)
+            prices = self.price_service.get_prices(
+                stock_code,
+                trade_date,
+                days + 10,
+                cache_result=self.cache_price_results,
+            )
 
             if not prices or len(prices) < days:
                 return None
@@ -144,7 +150,12 @@ class CachedFactorAdapter(FactorDataSource):
                 benchmark_code = get_runtime_benchmark_code("factor_beta_benchmark")
                 if not benchmark_code:
                     return None
-                benchmark_prices = self.price_service.get_prices(benchmark_code, trade_date, days)
+                benchmark_prices = self.price_service.get_prices(
+                    benchmark_code,
+                    trade_date,
+                    days,
+                    cache_result=self.cache_price_results,
+                )
                 if benchmark_prices:
                     return self._calculate_beta(prices, benchmark_prices, days)
 
@@ -235,10 +246,12 @@ class CachedFactorAdapter(FactorDataSource):
 class FailoverFactorAdapter(FactorDataSource):
     """Failover factor adapter with multiple data sources"""
 
-    def __init__(self):
+    def __init__(self, *, cache_price_results: bool = True):
         self.primary_adapter = TushareFactorAdapter()
         self.secondary_adapter = AkshareFactorAdapter()
-        self.cached_adapter = CachedFactorAdapter()
+        self.cached_adapter = CachedFactorAdapter(
+            cache_price_results=cache_price_results,
+        )
 
     def get_factor_value(self, stock_code: str, factor_code: str, trade_date: date) -> float | None:
         """Get factor value with failover"""

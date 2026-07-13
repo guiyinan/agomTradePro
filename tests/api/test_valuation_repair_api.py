@@ -141,6 +141,38 @@ class TestValuationRepairStatusAPI:
         assert response.status_code == status.HTTP_400_BAD_REQUEST, \
             f"lookback_days > 2520 should return 400, got {response.status_code}"
 
+    def test_status_endpoint_returns_canonical_success_contract(self, api_client):
+        payload = {
+            "stock_code": "000001.SZ",
+            "stock_name": "平安银行",
+            "as_of_date": "2026-07-10",
+            "phase": "repairing",
+            "signal": "hold",
+            "composite_percentile": 0.3,
+            "repair_progress": 0.4,
+            "repair_speed_per_30d": 0.05,
+            "estimated_days_to_target": 60,
+            "is_stalled": False,
+            "confidence": 0.8,
+            "data_quality_flag": "ok",
+            "data_source_provider": "local_db",
+            "data_as_of_date": "2026-07-10",
+        }
+        with patch(
+            "apps.equity.interface.views.GetValuationRepairStatusUseCase"
+        ) as mock_use_case:
+            mock_use_case.return_value.execute.return_value = MagicMock(
+                success=True,
+                data=payload,
+            )
+
+            response = api_client.get(
+                "/api/equity/valuation-repair/000001.SZ/?lookback_days=756"
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == payload
+
 
 class TestValuationRepairHistoryAPI:
     """估值修复历史 API 测试"""
@@ -171,6 +203,33 @@ class TestValuationRepairHistoryAPI:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST, \
             f"Invalid lookback_days should return 400, got {response.status_code}"
+
+    def test_history_endpoint_returns_canonical_success_contract(self, api_client):
+        points = [
+            {
+                "trade_date": "2026-07-10",
+                "pe_percentile": 0.2,
+                "pb_percentile": 0.4,
+                "composite_percentile": 0.3,
+                "composite_method": "pe_pb_blend",
+            }
+        ]
+        with patch(
+            "apps.equity.interface.views.GetValuationPercentileHistoryUseCase"
+        ) as mock_use_case:
+            mock_use_case.return_value.execute.return_value = MagicMock(
+                success=True,
+                data=points,
+            )
+
+            response = api_client.get(
+                "/api/equity/valuation-repair/000001.SZ/history/?lookback_days=252"
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["stock_code"] == "000001.SZ"
+        assert response.json()["points"] == points
+        assert response.json()["data_source_provider"] == "local_db"
 
 
 class TestValuationRepairScanAPI:

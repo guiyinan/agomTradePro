@@ -82,7 +82,25 @@ def test_data_center_capital_flows_require_asset_code(authenticated_client):
     response = authenticated_client.get("/api/data-center/capital-flows/")
 
     assert response.status_code == 400
-    assert "asset_code" in response.json()["detail"]
+    assert "asset_code" in response.json()["details"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    (
+        "asset_code=000001.SZ&start=not-a-date",
+        "asset_code=000001.SZ&start=2026-04-10&end=2026-04-01",
+        "asset_code=000001.SZ&period=10d",
+    ),
+)
+def test_data_center_capital_flows_reject_invalid_or_legacy_query(
+    authenticated_client,
+    query,
+):
+    response = authenticated_client.get(f"/api/data-center/capital-flows/?{query}")
+
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db
@@ -472,6 +490,46 @@ def test_data_center_quotes_expose_freshness_metadata(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_data_center_news_returns_canonical_asset_envelope(
+    authenticated_client,
+    mocker,
+):
+    use_case = mocker.Mock()
+    use_case.execute.return_value = [
+        {
+            "asset_code": "510300.SH",
+            "title": "ETF market update",
+            "published_at": "2026-07-10T09:30:00+08:00",
+            "source": "test",
+        }
+    ]
+    mocker.patch(
+        "apps.data_center.interface.api_views.make_query_news_use_case",
+        return_value=use_case,
+    )
+
+    response = authenticated_client.get(
+        "/api/data-center/news/?asset_code=510300.SH&limit=5"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "asset_code": "510300.SH",
+        "total": 1,
+        "data": [
+            {
+                "asset_code": "510300.SH",
+                "title": "ETF market update",
+                "published_at": "2026-07-10T09:30:00+08:00",
+                "source": "test",
+            }
+        ],
+    }
+    use_case.execute.assert_called_once_with(asset_code="510300.SH", limit=5)
+
+
+@pytest.mark.django_db
 def test_data_center_quotes_strict_freshness_blocks_stale_snapshot(
     authenticated_client,
     mocker,
@@ -574,25 +632,51 @@ def test_data_center_capital_flows_resolve_alias_to_canonical_asset(authenticate
         provider_name="legacy",
         alias_code="300502",
     )
-    CapitalFlowFactModel.objects.create(
-        asset_code="300502.SZ",
-        flow_date=today,
-        main_net="5600000.00",
-        retail_net="-5600000.00",
-        super_large_net="2200000.00",
-        large_net="1800000.00",
-        medium_net="900000.00",
-        small_net="-4900000.00",
-        source="test",
+    for offset in range(3):
+        CapitalFlowFactModel.objects.create(
+            asset_code="300502.SZ",
+            flow_date=today - timedelta(days=offset),
+            main_net=str(5600000 + offset),
+            retail_net="-5600000.00",
+            super_large_net="2200000.00",
+            large_net="1800000.00",
+            medium_net="900000.00",
+            small_net="-4900000.00",
+            source="test",
+        )
+    before = list(
+        CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at")
     )
 
     response = authenticated_client.get(
-        f"/api/data-center/capital-flows/?asset_code=300502&start={today.isoformat()}"
+        "/api/data-center/capital-flows/"
+        f"?asset_code=300502&start={(today - timedelta(days=2)).isoformat()}"
+        f"&end={today.isoformat()}&limit=2"
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["total"] == 1
+    assert payload == {
+        "asset_code": "300502",
+        "query": {
+            "start": (today - timedelta(days=2)).isoformat(),
+            "end": today.isoformat(),
+            "limit": 2,
+        },
+        "total": 2,
+        "data": payload["data"],
+    }
+    assert [row["asset_code"] for row in payload["data"]] == [
+        "300502.SZ",
+        "300502.SZ",
+    ]
+    assert [row["flow_date"] for row in payload["data"]] == [
+        today.isoformat(),
+        (today - timedelta(days=1)).isoformat(),
+    ]
+    assert list(
+        CapitalFlowFactModel.objects.order_by("id").values_list("id", "fetched_at")
+    ) == before
 
 
 @pytest.mark.django_db

@@ -18,6 +18,16 @@ def _unavailable(source_name: str, error: str) -> dict[str, Any]:
     }
 
 
+def _unsupported(source_name: str, error: str) -> dict[str, Any]:
+    """Return a stable placeholder for an unsupported source contract."""
+
+    return {
+        "status": "unsupported",
+        "source": source_name,
+        "error": str(error),
+    }
+
+
 class DjangoContextSnapshotRepository:
     """Read model for cross-app agent context snapshots."""
 
@@ -245,12 +255,19 @@ class DjangoContextSnapshotRepository:
         """Fetch realtime price alert counts."""
 
         try:
-            from apps.realtime.infrastructure.models import PriceAlert
+            from apps.realtime.infrastructure import models as realtime_models
+
+            price_alert_model = getattr(realtime_models, "PriceAlert", None)
+            if price_alert_model is None:
+                return _unsupported(
+                    "realtime",
+                    "PriceAlert is not implemented in the current realtime server build.",
+                )
 
             return {
                 "status": "ok",
-                "active_price_alerts": PriceAlert.objects.filter(is_active=True).count(),
-                "triggered_price_alerts": PriceAlert.objects.filter(
+                "active_price_alerts": price_alert_model.objects.filter(is_active=True).count(),
+                "triggered_price_alerts": price_alert_model.objects.filter(
                     is_active=True,
                     is_triggered=True,
                 ).count(),

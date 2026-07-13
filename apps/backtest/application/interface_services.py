@@ -123,6 +123,20 @@ def get_backtest_result_payload(backtest_id: int) -> dict[str, Any]:
     }
 
 
+def get_backtest_equity_curve_payload(backtest_id: int) -> dict[str, Any] | None:
+    """Return one persisted backtest equity curve without recalculation."""
+    backtest = get_backtest_repository().get_backtest_by_id(backtest_id)
+    if backtest is None:
+        return None
+    curve = [dict(point) for point in backtest.equity_curve if isinstance(point, dict)]
+    return {
+        "backtest_id": backtest.id,
+        "status": backtest.status,
+        "curve": curve,
+        "point_count": len(curve),
+    }
+
+
 def run_backtest_payload(validated_data: dict[str, Any]):
     """Execute a backtest run from validated request data."""
     return RunBacktestUseCase(

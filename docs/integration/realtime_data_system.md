@@ -354,7 +354,7 @@ curl -X POST http://localhost:8000/api/realtime/poll/
 
 ## 相关文档
 
-- [系统基线](../governance/SYSTEM_BASELINE.md) - 单一叙事来源
+- [系统基线](../governance/SYSTEM_BASELINE.md) - 治理叙事索引；动态治理数据读取 `governance/governance_baseline.json`
 - [系统说明书](../SYSTEM_SPECIFICATION.md) - 完整技术文档
 - [项目结构](../architecture/project_structure.md)
 - [API 参考](../testing/api/API_REFERENCE.md)

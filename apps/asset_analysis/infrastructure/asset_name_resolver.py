@@ -148,16 +148,13 @@ def _build_cache_key(codes: list[str]) -> str:
     return f"{CACHE_PREFIX}:{codes_hash}"
 
 
-def resolve_asset_names(codes: list[str]) -> dict[str, str]:
-    """
-    Resolve asset names with cache support.
+def _resolve_asset_names_with_cache_policy(
+    codes: list[str],
+    *,
+    populate_cache: bool,
+) -> dict[str, str]:
+    """Resolve asset names while controlling whether cache misses may write."""
 
-    Args:
-        codes: Asset code list.
-
-    Returns:
-        Mapping from asset code to asset name.
-    """
     code_set = {code for code in codes if code}
     if not code_set:
         return {}
@@ -174,12 +171,33 @@ def resolve_asset_names(codes: list[str]) -> dict[str, str]:
     resolver = AssetNameResolver()
     result = resolver.resolve_asset_names(list(code_set))
 
-    try:
-        cache.set(cache_key, result, CACHE_TTL)
-    except Exception as exc:
-        logger.warning("Cache set failed: %s", exc)
+    if populate_cache:
+        try:
+            cache.set(cache_key, result, CACHE_TTL)
+        except Exception as exc:
+            logger.warning("Cache set failed: %s", exc)
 
     return result
+
+
+def resolve_asset_names(codes: list[str]) -> dict[str, str]:
+    """
+    Resolve asset names and populate the shared cache on cache misses.
+
+    Args:
+        codes: Asset code list.
+
+    Returns:
+        Mapping from asset code to asset name.
+    """
+
+    return _resolve_asset_names_with_cache_policy(codes, populate_cache=True)
+
+
+def resolve_asset_names_read_only(codes: list[str]) -> dict[str, str]:
+    """Resolve asset names without mutating the shared cache."""
+
+    return _resolve_asset_names_with_cache_policy(codes, populate_cache=False)
 
 
 def resolve_asset_name(code: str) -> str:

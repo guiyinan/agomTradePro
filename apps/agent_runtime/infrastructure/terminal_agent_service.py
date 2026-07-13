@@ -18,9 +18,8 @@ from apps.agent_runtime.application.terminal_agent import (
     TerminalAgentChatResponseDTO,
     TerminalAgentEventDTO,
     TerminalAgentService,
+    TerminalCapabilityGateway,
 )
-from apps.ai_capability.domain.services import CapabilityFilter, CapabilityRetrievalScorer
-from apps.ai_capability.infrastructure.repositories import DjangoCapabilityRepository
 from apps.ai_provider.infrastructure.repositories import (
     AIProviderRepository,
     AIUsageRepository,
@@ -33,6 +32,17 @@ AUTO_APPROVED_RISKS = {"safe", "low"}
 APPROVAL_REQUIRED_RISKS = {"medium", "high", "critical"}
 TERMINAL_AGENT_NAME = "AgomTradePro Terminal Agent"
 TERMINAL_AGENT_MCP_SERVER_NAME = "agomtradepro"
+TERMINAL_AGENT_CORE_MCP_TOOLS = frozenset(
+    {
+        "agom_bootstrap",
+        "agom_capability_search",
+        "agom_capability_schema",
+        "agom_capability_call",
+        "agom_confirmation_resume",
+        "agom_workflow_start",
+        "agom_workflow_status",
+    }
+)
 # Some task-monitor tools take ~15-20s on local data and the model may queue
 # several MCP calls in one turn, so keep the stdio client timeout comfortably
 # above the default 5s SDK value.
@@ -54,6 +64,7 @@ class _ResolvedProvider:
 class _ToolAccessSnapshot:
     auto_allowed: dict[str, dict[str, Any]]
     gated: dict[str, dict[str, Any]]
+    allowed_tool_names: frozenset[str]
 
 
 class OpenAIAgentsTerminalService(TerminalAgentService):
@@ -62,17 +73,15 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     def __init__(
         self,
         *,
-        capability_repo: DjangoCapabilityRepository | None = None,
+        capability_gateway: TerminalCapabilityGateway | None = None,
         provider_repo: AIProviderRepository | None = None,
         usage_repo: AIUsageRepository | None = None,
         quota_repo: AIUserFallbackQuotaRepository | None = None,
     ) -> None:
-        self._capability_repo = capability_repo or DjangoCapabilityRepository()
+        self._capability_gateway = capability_gateway
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
         self._quota_repo = quota_repo or AIUserFallbackQuotaRepository(usage_repo=self._usage_repo)
-        self._capability_filter = CapabilityFilter()
-        self._retrieval_scorer = CapabilityRetrievalScorer()
 
     def run_chat(self, request: TerminalAgentChatRequestDTO) -> TerminalAgentChatResponseDTO:
         """Execute a non-stream terminal chat request."""
@@ -138,8 +147,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             resolved_provider=resolved_provider,
             events=events,
         )
-        for event in events:
-            yield event
+        yield from events
 
     async def _collect_events(
         self,
@@ -316,7 +324,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             cache_tools_list=True,
             client_session_timeout_seconds=TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
             name=TERMINAL_AGENT_MCP_SERVER_NAME,
-            tool_filter=self._build_tool_filter(tool_access.auto_allowed),
+            tool_filter=self._build_tool_filter(tool_access.allowed_tool_names),
             params={
                 "command": sys.executable,
                 "args": ["-m", "agomtradepro_mcp.server"],
@@ -324,10 +332,10 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             }
         )
 
-    def _build_tool_filter(self, auto_allowed: dict[str, dict[str, Any]]):
+    def _build_tool_filter(self, allowed_tool_names: frozenset[str]):
         """Build a tool filter that only exposes auto-approved MCP tools."""
 
-        allowed_names = set(auto_allowed)
+        allowed_names = set(allowed_tool_names)
 
         def _filter(_context: Any, tool: Any) -> bool:
             runtime_name = str(getattr(tool, "name", "") or "")
@@ -347,15 +355,25 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     ) -> str:
         """Build prompt instructions for the terminal agent."""
 
-        safe_tool_names = ", ".join(sorted(tool_access.auto_allowed)) or "none"
-        gated_tool_names = ", ".join(sorted(tool_access.gated)) or "none"
+        safe_tool_names = ", ".join(
+            sorted(
+                str(item.get("display_name") or key)
+                for key, item in tool_access.auto_allowed.items()
+            )
+        ) or "none"
+        gated_tool_names = ", ".join(
+            sorted(
+                str(item.get("display_name") or key)
+                for key, item in tool_access.gated.items()
+            )
+        ) or "none"
         return (
             "You are the AgomTradePro terminal agent. "
             "Use MCP tools when they are available and necessary, keep answers concise, "
             "and never invent tool results.\n"
             f"Current user: {request.username} ({request.user_role}).\n"
-            f"Auto-approved MCP tools: {safe_tool_names}.\n"
-            f"Gated MCP tools not available without approval: {gated_tool_names}.\n"
+            f"Auto-approved MCP capabilities/tools: {safe_tool_names}.\n"
+            f"Gated MCP capabilities/tools not available without approval: {gated_tool_names}.\n"
             "If a gated action would be required, explain that explicit approval is needed.\n"
             "Prefer grounded tool-backed answers over generic speculation."
         )
@@ -366,11 +384,14 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     ) -> _ToolAccessSnapshot:
         """Resolve the current user's MCP tool visibility and risk gating."""
 
-        from apps.ai_capability.domain.entities import RoutingContext
+        if self._capability_gateway is None:
+            return _ToolAccessSnapshot(
+                auto_allowed={},
+                gated={},
+                allowed_tool_names=frozenset(),
+            )
 
-        capabilities = self._capability_repo.get_by_source_type("mcp_tool")
-        routing_context = RoutingContext(
-            entrypoint="terminal",
+        visible = self._capability_gateway.list_terminal_mcp_capabilities(
             session_id=request.session_id,
             user_id=request.user_id,
             user_is_admin=request.user_is_admin,
@@ -378,28 +399,46 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             provider_name=str(request.provider_ref or ""),
             model=request.model,
             context=dict(request.context),
-            answer_chain_enabled=False,
         )
-        visible = self._capability_filter.filter_by_context(capabilities, routing_context)
 
         auto_allowed: dict[str, dict[str, Any]] = {}
         gated: dict[str, dict[str, Any]] = {}
+        raw_tool_names: set[str] = set()
+        has_governed_capabilities = False
         for capability in visible:
-            tool_name = str(capability.source_ref or "").strip()
-            if not tool_name or not capability.enabled_for_terminal:
+            target = dict(capability.get("execution_target") or {})
+            target_type = str(target.get("type") or "mcp_tool")
+            tool_name = str(target.get("tool_name") or capability.get("source_ref") or "").strip()
+            if not tool_name:
                 continue
-            risk_level = getattr(capability.risk_level, "value", str(capability.risk_level))
+            if target_type == "mcp_capability":
+                has_governed_capabilities = True
+                display_name = str(capability.get("capability_key") or "")
+            else:
+                raw_tool_names.add(tool_name)
+                display_name = tool_name
+            risk_level = str(capability.get("risk_level") or "low")
             payload = {
-                "capability_key": capability.capability_key,
+                "capability_key": str(capability.get("capability_key") or ""),
                 "tool_name": tool_name,
+                "display_name": display_name,
+                "execution_target_type": target_type,
                 "risk_level": risk_level,
-                "summary": capability.summary,
+                "summary": str(capability.get("summary") or ""),
             }
             if risk_level in AUTO_APPROVED_RISKS:
-                auto_allowed[tool_name] = payload
+                auto_allowed[display_name] = payload
             else:
-                gated[tool_name] = payload
-        return _ToolAccessSnapshot(auto_allowed=auto_allowed, gated=gated)
+                gated[display_name] = payload
+
+        allowed_tool_names = (
+            TERMINAL_AGENT_CORE_MCP_TOOLS if has_governed_capabilities else frozenset(raw_tool_names)
+        )
+        return _ToolAccessSnapshot(
+            auto_allowed=auto_allowed,
+            gated=gated,
+            allowed_tool_names=allowed_tool_names,
+        )
 
     def _match_gated_tool(
         self,
@@ -411,26 +450,25 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         if not tool_access.gated:
             return None
 
-        gated_capabilities = [
-            self._capability_repo.get_by_key(payload["capability_key"])
-            for payload in tool_access.gated.values()
-        ]
-        capabilities = [item for item in gated_capabilities if item is not None]
-        if not capabilities:
+        if self._capability_gateway is None:
             return None
 
-        matches = self._retrieval_scorer.retrieve_top_k(
-            capabilities=capabilities,
-            query=request.message,
-            k=1,
-            min_score=6.0,
+        matched = self._capability_gateway.match_terminal_mcp_capability(
+            message=request.message,
+            capability_keys=[
+                str(payload.get("capability_key") or "")
+                for payload in tool_access.gated.values()
+                if str(payload.get("capability_key") or "")
+            ],
         )
-        if not matches:
+        if matched is None:
             return None
 
-        matched = matches[0].capability
-        tool_name = str(matched.source_ref or "")
-        return dict(tool_access.gated.get(tool_name) or {})
+        matched_key = str(matched.get("capability_key") or "")
+        for payload in tool_access.gated.values():
+            if payload["capability_key"] == matched_key:
+                return dict(payload)
+        return None
 
     def _resolve_provider(self, request: TerminalAgentChatRequestDTO) -> _ResolvedProvider:
         """Resolve one provider using the existing personal/fallback semantics."""

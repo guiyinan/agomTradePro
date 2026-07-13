@@ -47,3 +47,54 @@ jobs:
           name: consistency-check-results
           path: reports/consistency/
           retention-days: 30
+
+  mcp-governance-guards:
+    name: MCP governance guards
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-mcp-governance-secret-key-123456789012345678901234567890
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          pip install -e sdk/
+
+      - name: Run MCP top-level budget guard
+        run: python scripts/check_mcp_tool_budget.py
+
+      - name: Run MCP manifest schema guard
+        run: python scripts/check_mcp_manifest_schema.py
+
+      - name: Run MCP raw tool surface guard
+        run: python scripts/check_mcp_no_raw_tools.py
+
+      - name: Run MCP catalog dedup guard
+        run: python scripts/check_mcp_catalog_dedup.py
+
+      - name: Run MCP read evidence guard
+        run: python scripts/check_mcp_read_evidence.py
+
+      - name: Run MCP write confirmation guard
+        run: python scripts/check_mcp_write_confirmation.py
+
+      - name: Run MCP write evidence guard
+        run: python scripts/check_mcp_write_evidence.py
+
+      - name: Run MCP write preview guard
+        run: python scripts/check_mcp_write_preview.py
+
+      - name: Run MCP write audit guard
+        run: python scripts/check_mcp_write_audit.py

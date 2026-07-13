@@ -6,6 +6,8 @@ AgomTradePro SDK - Realtime 实时价格监控模块
 
 from typing import Any
 
+from ..exceptions import UnsupportedFeatureError
+from ..unsupported_legacy_contracts import get_unsupported_legacy_contract
 from .base import BaseModule
 
 
@@ -143,13 +145,7 @@ class RealtimeModule(BaseModule):
             >>> for alert in alerts:
             ...     print(f"{alert['asset_code']}: {alert['condition']}")
         """
-        params: dict[str, Any] = {"limit": limit}
-        if status is not None:
-            params["status"] = status
-
-        response = self._get("alerts/", params=params)
-        results = response.get("results", response)
-        return results
+        self._raise_unsupported_price_alert_contract()
 
     def create_alert(
         self,
@@ -183,16 +179,7 @@ class RealtimeModule(BaseModule):
             ... )
             >>> print(f"预警已创建: {alert['id']}")
         """
-        data: dict[str, Any] = {
-            "asset_code": asset_code,
-            "condition": condition,
-            "threshold": threshold,
-        }
-
-        if message is not None:
-            data["message"] = message
-
-        return self._post("alerts/", json=data)
+        self._raise_unsupported_price_alert_contract()
 
     def get_alert(self, alert_id: int) -> dict[str, Any]:
         """
@@ -213,7 +200,7 @@ class RealtimeModule(BaseModule):
             >>> print(f"资产: {alert['asset_code']}")
             >>> print(f"状态: {alert['status']}")
         """
-        return self._get(f"alerts/{alert_id}/")
+        self._raise_unsupported_price_alert_contract()
 
     def delete_alert(self, alert_id: int) -> None:
         """
@@ -230,7 +217,7 @@ class RealtimeModule(BaseModule):
             >>> client.realtime.delete_alert(1)
             >>> print("预警已删除")
         """
-        self._delete(f"alerts/{alert_id}/")
+        self._raise_unsupported_price_alert_contract()
 
     def get_market_summary(self) -> dict[str, Any]:
         """
@@ -427,6 +414,12 @@ class RealtimeModule(BaseModule):
         normalized.setdefault("change_pct", change_pct)
         normalized.setdefault("timestamp", timestamp)
         return normalized
+
+    def _raise_unsupported_price_alert_contract(self) -> None:
+        """Fail fast for retired legacy alert CRUD endpoints."""
+
+        contract = get_unsupported_legacy_contract("realtime.delete.price_alert")
+        raise UnsupportedFeatureError(contract.build_error_message())
 
     def _numeric(self, value: Any) -> float:
         try:

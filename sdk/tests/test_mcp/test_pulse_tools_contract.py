@@ -29,18 +29,14 @@ class _FakeClient:
         )
 
 
-def test_mcp_action_recommendation_exposes_blocked_contract(monkeypatch: pytest.MonkeyPatch):
-    try:
-        from agomtradepro_mcp.server import server
-    except ModuleNotFoundError as exc:
-        if "mcp" in str(exc):
-            pytest.skip("mcp package not installed in current test environment")
-        raise
-
+def test_mcp_action_recommendation_exposes_blocked_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    legacy_enabled_mcp_server,
+):
     module = importlib.import_module("agomtradepro_mcp.tools.pulse_tools")
     monkeypatch.setattr(module, "AgomTradeProClient", _FakeClient)
 
-    result = asyncio.run(server.call_tool("get_action_recommendation", {}))
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool("get_action_recommendation", {}))
     rendered = str(result)
 
     assert "must_not_use_for_decision" in rendered

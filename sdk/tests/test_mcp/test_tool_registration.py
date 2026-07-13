@@ -2,18 +2,18 @@
 
 import asyncio
 
-import pytest
+from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
 
 
-def test_extended_mcp_tools_registered():
-    try:
-        from agomtradepro_mcp.server import server
-    except ModuleNotFoundError as exc:
-        if "mcp" in str(exc):
-            pytest.skip("mcp package not installed in current test environment")
-        raise
+def test_server_registers_core_tools_by_default(core_only_mcp_server):
+    tools = asyncio.run(core_only_mcp_server.list_tools())
+    names = {t.name for t in tools}
 
-    tools = asyncio.run(server.list_tools())
+    assert names == set(CORE_TOOL_NAMES)
+
+
+def test_extended_mcp_tools_registered_when_legacy_enabled(legacy_enabled_mcp_server):
+    tools = asyncio.run(legacy_enabled_mcp_server.list_tools())
     names = {t.name for t in tools}
 
     expected = {
@@ -83,6 +83,12 @@ def test_extended_mcp_tools_registered():
         "get_regime_navigator",
         "get_action_recommendation",
         "explain_pulse_dimensions",
+        "get_workbench_items",
+        "get_sentiment_gate_state",
+        "create_policy_event",
+        "create_valuation_repair_config",
+        "activate_valuation_repair_config",
+        "rollback_valuation_repair_config",
         "list_data_center_providers",
         "test_data_center_provider_connection",
         "get_data_center_provider_status",
@@ -113,3 +119,5 @@ def test_extended_mcp_tools_registered():
 
     missing = expected - names
     assert not missing, f"Missing MCP tools: {sorted(missing)}"
+    for tool_name in CORE_TOOL_NAMES:
+        assert tool_name in names

@@ -68,6 +68,7 @@ SAMPLE_SCORES = [
     },
 ]
 
+
 def _make_upload_payload(**overrides):
     """生成使用动态日期的上传 payload"""
     today = date.today()
@@ -108,7 +109,8 @@ class TestUploadScoresPermissions:
         payload = {**UPLOAD_PAYLOAD, "scope": "system"}
         resp = user_client.post("/api/alpha/scores/upload/", data=payload, format="json")
         assert resp.status_code == 403
-        assert "admin" in resp.json().get("error", "").lower() or "管理员" in resp.json().get("error", "")
+        error = resp.json().get("error", "")
+        assert any(term in error.lower() for term in ("admin", "staff")) or "管理员" in error
 
     def test_admin_can_upload_system_scope(self, admin_client):
         payload = {**UPLOAD_PAYLOAD, "scope": "system"}
@@ -189,12 +191,11 @@ class TestUploadValidation:
         resp = user_client.post("/api/alpha/scores/upload/", data=payload, format="json")
         assert resp.status_code == 400
 
-    def test_empty_scores_accepted(self, user_client):
-        """空评分列表可以上传（清空操作）"""
+    def test_empty_scores_rejected(self, user_client):
+        """Empty batches cannot masquerade as an undocumented clear operation."""
         payload = {**UPLOAD_PAYLOAD, "scores": []}
         resp = user_client.post("/api/alpha/scores/upload/", data=payload, format="json")
-        assert resp.status_code in (200, 201)
-        assert resp.json()["count"] == 0
+        assert resp.status_code == 400
 
 
 @pytest.mark.django_db
@@ -215,7 +216,16 @@ class TestReadIsolation:
             asof_date=yesterday,
             model_id="system_model",
             model_artifact_hash="system_hash",
-            scores=[{"code": "SYS", "score": 0.1, "rank": 1, "confidence": 1.0, "source": "system", "factors": {}}],
+            scores=[
+                {
+                    "code": "SYS",
+                    "score": 0.1,
+                    "rank": 1,
+                    "confidence": 1.0,
+                    "source": "system",
+                    "factors": {},
+                }
+            ],
             status="available",
         )
         AlphaScoreCacheModel.objects.create(
@@ -226,7 +236,16 @@ class TestReadIsolation:
             asof_date=yesterday,
             model_id="user_model",
             model_artifact_hash="user_hash",
-            scores=[{"code": "USR", "score": 0.9, "rank": 1, "confidence": 1.0, "source": "user", "factors": {}}],
+            scores=[
+                {
+                    "code": "USR",
+                    "score": 0.9,
+                    "rank": 1,
+                    "confidence": 1.0,
+                    "source": "user",
+                    "factors": {},
+                }
+            ],
             status="available",
         )
 
@@ -249,7 +268,16 @@ class TestReadIsolation:
             asof_date=yesterday,
             model_id="system_model",
             model_artifact_hash="system_hash",
-            scores=[{"code": "SYS", "score": 0.1, "rank": 1, "confidence": 1.0, "source": "system", "factors": {}}],
+            scores=[
+                {
+                    "code": "SYS",
+                    "score": 0.1,
+                    "rank": 1,
+                    "confidence": 1.0,
+                    "source": "system",
+                    "factors": {},
+                }
+            ],
             status="available",
         )
 
@@ -272,7 +300,16 @@ class TestReadIsolation:
             asof_date=yesterday,
             model_id="user_model",
             model_artifact_hash="user_hash",
-            scores=[{"code": "USR", "score": 0.9, "rank": 1, "confidence": 1.0, "source": "user", "factors": {}}],
+            scores=[
+                {
+                    "code": "USR",
+                    "score": 0.9,
+                    "rank": 1,
+                    "confidence": 1.0,
+                    "source": "user",
+                    "factors": {},
+                }
+            ],
             status="available",
         )
 

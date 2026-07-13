@@ -12,15 +12,50 @@ from apps.events.domain.entities import EventType
 # ========== 请求序列化器 ==========
 
 
-class EventPublishRequestSerializer(serializers.Serializer):
+class StrictFieldsSerializer(serializers.Serializer):
+    """Reject request fields that are not part of the published contract."""
+
+    def to_internal_value(self, data):
+        """Validate the request key set before normal field conversion."""
+
+        if not isinstance(data, dict):
+            raise serializers.ValidationError("Expected an object payload.")
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown fields: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
+class EventPublishRequestSerializer(StrictFieldsSerializer):
     """发布事件请求序列化器"""
     event_type = serializers.ChoiceField(choices=[e.value for e in EventType])
     payload = serializers.DictField()
     metadata = serializers.DictField(required=False)
-    event_id = serializers.CharField(required=False, allow_null=True)
+    event_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=False,
+        max_length=64,
+    )
     occurred_at = serializers.DateTimeField(required=False, allow_null=True)
-    correlation_id = serializers.CharField(required=False, allow_null=True)
-    causation_id = serializers.CharField(required=False, allow_null=True)
+    correlation_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=False,
+        max_length=64,
+    )
+    causation_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=False,
+        max_length=64,
+    )
 
 
 class EventSubscriptionRequestSerializer(serializers.Serializer):

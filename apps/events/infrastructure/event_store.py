@@ -802,6 +802,14 @@ class InMemoryEventStore:
         self._events.extend(events)
         return len(events)
 
+    def get_by_id(self, event_id: str) -> DomainEvent | None:
+        """Return one event by its stable identifier."""
+
+        return next(
+            (event for event in self._events if event.event_id == event_id),
+            None,
+        )
+
     def get_events(
         self,
         event_type: EventType | None = None,

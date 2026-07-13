@@ -29,7 +29,18 @@ ARCHITECTURE_RULES = REPO_ROOT / "governance" / "architecture_rules.json"
 MODULE_CYCLE_ALLOWLIST = REPO_ROOT / "governance" / "module_cycle_allowlist.json"
 ARCHITECTURE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "architecture-layer-guard.yml"
 CONSISTENCY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "consistency-check.yml"
-PRODUCTION_PYTHON_ROOTS = ("apps", "core", "shared")
+PRODUCTION_PYTHON_ROOTS = (
+    "apps",
+    "core",
+    "shared",
+    "sdk/agomtradepro",
+    "sdk/agomtradepro_mcp",
+)
+GOVERNED_LARGE_FILE_TEST_ROOTS = (
+    "sdk/tests/test_mcp",
+    "sdk/tests/test_sdk",
+    "tests/unit/test_ai_capability",
+)
 RULE_SELECTOR_KEYS = (
     "source_roots",
     "source_module",
@@ -47,6 +58,7 @@ RULE_MATCHER_KEYS = (
 GOVERNANCE_BASELINE_REQUIRED_KEYS = (
     "version",
     "mcp_tool_count",
+    "mcp_governance",
     "business_module_count",
     "static_test_function_count",
     "module_shape_minimums",
@@ -57,6 +69,17 @@ GOVERNANCE_BASELINE_REQUIRED_KEYS = (
     "core_management_command_orm_access_count",
     "python_file_non_empty_line_limit",
     "allowed_large_python_files",
+)
+MCP_GOVERNANCE_REQUIRED_KEYS = (
+    "default_top_level_tool_count",
+    "governed_manifest_count",
+    "governed_read_capability_count",
+    "governed_write_like_capability_count",
+    "catalog_candidate_count",
+    "legacy_capability_count",
+    "replacement_link_count",
+    "unsupported_legacy_contract_count",
+    "raw_tool_file_count",
 )
 
 REQUIRED_MODULE_FILES = (
@@ -73,11 +96,97 @@ REQUIRED_MODULE_FILES = (
     "interface/api_urls.py",
 )
 
-AUTHORITATIVE_GOVERNANCE_DOC = "docs/governance/SYSTEM_BASELINE.md"
+GOVERNANCE_NARRATIVE_INDEX = "docs/governance/SYSTEM_BASELINE.md"
+GOVERNANCE_MACHINE_SOURCE = "governance/governance_baseline.json"
 
-MCP_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
+DYNAMIC_GOVERNANCE_DOCS = (
+    GOVERNANCE_NARRATIVE_INDEX,
+    "README.md",
+    "README_EN.md",
+    "sdk/README.md",
+    "docs/SYSTEM_SPECIFICATION.md",
+    "docs/VERSION.md",
+    "docs/architecture/MODULE_DEPENDENCIES.md",
+    "docs/architecture/SYSTEM_TOPOLOGY.md",
+    "docs/architecture/project_structure.md",
+    "docs/development/module-ledger.md",
+    "docs/development/quick-reference.md",
+    "docs/development/tui-metadata-promotion-guide.md",
+    "docs/development/tui-workbench.md",
+    "docs/governance/ARCHITECTURE_GUARDRAILS.md",
+    "docs/governance/DEVELOPMENT_BANLIST.md",
+    "docs/plans/mcp-consolidation-remediation-plan-2026-07-09.md",
+    "docs/mcp/mcp-technical-and-development-standard.md",
+    "docs/mcp/mcp_guide.md",
+    "docs/modules/ai_capability/ai-capability-guide.md",
+    "docs/INDEX.md",
+    "AGENTS.md",
+)
 
-MODULE_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
+DYNAMIC_GOVERNANCE_COUNT_COPY_PATTERNS = (
+    re.compile(
+        r"(?:->|→)\s*`?\d[\d,]*\+?`?\s*"
+        r"(?:core\s+tools?|MCP\s*(?:tools?|工具))\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:MCP(?:\s+Server)?|MCP\s*工具(?:数量|数)?)"
+        r"[^\n]{0,60}?"
+        r"`?\d[\d,]*\+?`?\s*"
+        r"(?:registered\s+tools?|tools?|个\s*(?:已注册|注册)?\s*工具)"
+        r"|`?\d[\d,]*\+?`?\s*个\s*MCP\s*工具",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:当前|实时|live|默认)[^\n]{0,100}"
+        r"`?\d[\d,]*\+?`?\s*"
+        r"(?:(?:个|条|项)\s*(?:统一|对应|默认|已批准|governed|legacy)?\s*)?"
+        r"(?:(?:MCP|core|raw|tools?|capabilit(?:y|ies)|manifests?|reads?|writes?|"
+        r"candidates?|legacy|replacements?|contracts?|files?|modules?)\b|(?:业务)?模块)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:当前已完成|已有|已落地)"
+        r"[^\n]{0,24}?"
+        r"(?:第)?(?:`?\d[\d,]*\+?`?|[零一二三四五六七八九十百千]+)\s*个"
+        r"[^\n]{0,100}?"
+        r"(?:governed|MCP|capabilit(?:y|ies)|能力|工具|样板|子路径)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:`?\d[\d,]*\+?`?|[零一二三四五六七八九十百千]+)\s*个\s*"
+        r"(?:legacy\s+)?raw\s+tools?\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:模块总数|业务模块(?:数量|数)?|business modules?|app modules?)"
+        r"\s*(?:[:：|=/\-])\s*`?\d[\d,]*\+?`?"
+        r"(?:\s*个|\s+(?:business modules?|app modules?))?"
+        r"|`?\d[\d,]*\+?`?\s*个\s*业务模块"
+        r"|`?\d[\d,]*\+?`?\s+(?:business modules?|app modules?)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:静态测试函数(?:数)?|static test functions?)"
+        r"\s*(?:[:：|=/\-])\s*`?\d[\d,]*\+?`?"
+        r"|`?\d[\d,]*\+?`?\s*个\s*静态测试函数(?:数)?"
+        r"|`?\d[\d,]*\+?`?\s+static test functions?",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:allowlisted\s+at|large[- ]file\s+allowance\s*(?:is|[:：])|"
+        r"大文件(?:允许|豁免)(?:上限|行数)?\s*(?:是|为|[:：]))"
+        r"[^\n]{0,60}`?\d[\d,]*`?\s*(?:non-empty\s+lines?|lines?|行)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:currently|current|当前|现状)[^\n]{0,120}"
+        r"(?:zero|`?\d[\d,]*`?)[^\n]{0,80}"
+        r"(?:bridge\s+debt|tracked\s+counters?|infrastructure\s+imports?|"
+        r"ORM\s+access|架构债务|桥接债务|ORM\s*访问)",
+        re.IGNORECASE,
+    ),
+)
 
 VERSION_DOCS = (
     "AGENTS.md",
@@ -86,8 +195,6 @@ VERSION_DOCS = (
     "docs/governance/SYSTEM_BASELINE.md",
     "docs/SYSTEM_SPECIFICATION.md",
 )
-
-TEST_COUNT_DOCS = (AUTHORITATIVE_GOVERNANCE_DOC,)
 
 GOVERNANCE_DOC_REQUIRED_TOKENS = (
     "governance_baseline",
@@ -125,7 +232,10 @@ def load_core_version() -> str:
     for node in tree.body:
         if (
             isinstance(node, ast.Assign)
-            and any(isinstance(target, ast.Name) and target.id == "__version__" for target in node.targets)
+            and any(
+                isinstance(target, ast.Name) and target.id == "__version__"
+                for target in node.targets
+            )
             and isinstance(node.value, ast.Constant)
             and isinstance(node.value.value, str)
         ):
@@ -181,11 +291,7 @@ def count_mcp_tools() -> int:
 
 def count_business_modules() -> int:
     return len(
-        [
-            path
-            for path in APPS_ROOT.iterdir()
-            if path.is_dir() and not path.name.startswith("__")
-        ]
+        [path for path in APPS_ROOT.iterdir() if path.is_dir() and not path.name.startswith("__")]
     )
 
 
@@ -217,9 +323,7 @@ def count_tokens(count: int) -> set[str]:
 def line_mentions_module_count(line: str, count: int) -> bool:
     lowered = line.lower()
     has_module_keyword = (
-        "业务模块" in line
-        or "business module" in lowered
-        or "business_modules" in lowered
+        "业务模块" in line or "business module" in lowered or "business_modules" in lowered
     )
     return has_module_keyword and str(count) in line
 
@@ -270,23 +374,40 @@ def check_docs_consistency(baseline: dict) -> tuple[list[Violation], dict]:
             )
         )
 
-    expected_text = str(actual_count)
-    for doc in MCP_COUNT_DOCS:
+    for doc in DYNAMIC_GOVERNANCE_DOCS:
         path = REPO_ROOT / doc
         if not path.exists():
             violations.append(
-                Violation("mcp_count_doc_missing", doc, "Expected MCP count doc is missing.")
+                Violation(
+                    "dynamic_governance_doc_missing",
+                    doc,
+                    "Expected governance narrative document is missing.",
+                )
             )
             continue
         text = path.read_text(encoding="utf-8")
-        if expected_text not in text:
+        if GOVERNANCE_MACHINE_SOURCE not in text:
             violations.append(
                 Violation(
-                    "mcp_count_doc_stale",
+                    "dynamic_governance_source_missing",
                     doc,
-                    f"Document does not contain current MCP tool count {expected_text}.",
+                    "Governance narrative document must reference the machine baseline.",
                 )
             )
+        for pattern in DYNAMIC_GOVERNANCE_COUNT_COPY_PATTERNS:
+            match = pattern.search(text)
+            if match is None:
+                continue
+            excerpt = " ".join(match.group(0).split())
+            violations.append(
+                Violation(
+                    "dynamic_governance_count_doc_copy",
+                    doc,
+                    "Dynamic governance counts must only live in "
+                    f"{GOVERNANCE_MACHINE_SOURCE}; remove document copy: {excerpt}",
+                )
+            )
+            break
 
     actual_module_count = count_business_modules()
     expected_module_count = int(baseline["business_module_count"])
@@ -299,33 +420,6 @@ def check_docs_consistency(baseline: dict) -> tuple[list[Violation], dict]:
             )
         )
 
-    for doc in MODULE_COUNT_DOCS:
-        path = REPO_ROOT / doc
-        if not path.exists():
-            violations.append(
-                Violation("module_count_doc_missing", doc, "Expected module count doc is missing.")
-            )
-            continue
-        lines = path.read_text(encoding="utf-8").splitlines()
-        if not any(line_mentions_module_count(line, actual_module_count) for line in lines):
-            violations.append(
-                Violation(
-                    "module_count_doc_stale",
-                    doc,
-                    f"Document has no current module-count line for {actual_module_count} business modules.",
-                )
-            )
-        if doc == "docs/governance/SYSTEM_BASELINE.md" and (
-            f"{actual_module_count}/{actual_module_count}" not in "\n".join(lines)
-        ):
-            violations.append(
-                Violation(
-                    "module_coverage_doc_stale",
-                    doc,
-                    f"SYSTEM_BASELINE.md must contain current module coverage {actual_module_count}/{actual_module_count}.",
-                )
-            )
-
     actual_test_count = count_static_test_functions()
     expected_test_count = int(baseline["static_test_function_count"])
     if actual_test_count != expected_test_count:
@@ -337,23 +431,6 @@ def check_docs_consistency(baseline: dict) -> tuple[list[Violation], dict]:
             )
         )
 
-    for doc in TEST_COUNT_DOCS:
-        path = REPO_ROOT / doc
-        if not path.exists():
-            violations.append(
-                Violation("test_count_doc_missing", doc, "Expected test count doc is missing.")
-            )
-            continue
-        lines = path.read_text(encoding="utf-8").splitlines()
-        if not any(line_mentions_test_count(line, actual_test_count) for line in lines):
-            violations.append(
-                Violation(
-                    "test_count_doc_stale",
-                    doc,
-                    f"Document has no current test-count line for {actual_test_count} static test functions.",
-                )
-            )
-
     return violations, {
         "actual_mcp_tool_count": actual_count,
         "expected_mcp_tool_count": expected_count,
@@ -361,6 +438,7 @@ def check_docs_consistency(baseline: dict) -> tuple[list[Violation], dict]:
         "expected_business_module_count": expected_module_count,
         "actual_static_test_function_count": actual_test_count,
         "expected_static_test_function_count": expected_test_count,
+        "dynamic_governance_doc_count": len(DYNAMIC_GOVERNANCE_DOCS),
         "core_version": core_version,
         "pyproject_version": pyproject_version,
     }
@@ -422,9 +500,7 @@ def check_governance_docs_current() -> tuple[list[Violation], dict]:
         ], {"required_token_count": len(GOVERNANCE_DOC_REQUIRED_TOKENS)}
 
     text = ARCHITECTURE_GUARDRAILS_DOC.read_text(encoding="utf-8")
-    missing_tokens = [
-        token for token in GOVERNANCE_DOC_REQUIRED_TOKENS if token not in text
-    ]
+    missing_tokens = [token for token in GOVERNANCE_DOC_REQUIRED_TOKENS if token not in text]
     for token in missing_tokens:
         violations.append(
             Violation(
@@ -442,9 +518,7 @@ def check_governance_docs_current() -> tuple[list[Violation], dict]:
 def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], dict]:
     violations: list[Violation] = []
     path_label = display_path(DEFAULT_BASELINE)
-    missing_keys = [
-        key for key in GOVERNANCE_BASELINE_REQUIRED_KEYS if key not in baseline
-    ]
+    missing_keys = [key for key in GOVERNANCE_BASELINE_REQUIRED_KEYS if key not in baseline]
     for key in missing_keys:
         violations.append(
             Violation(
@@ -481,6 +555,65 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
                     f"{key} must be a non-negative integer.",
                 )
             )
+
+    mcp_governance = baseline.get("mcp_governance", {})
+    if not isinstance(mcp_governance, dict):
+        violations.append(
+            Violation(
+                "governance_baseline_mcp_governance_invalid",
+                path_label,
+                "mcp_governance must be a JSON object.",
+            )
+        )
+        mcp_governance = {}
+    else:
+        missing_mcp_keys = [
+            key for key in MCP_GOVERNANCE_REQUIRED_KEYS if key not in mcp_governance
+        ]
+        for key in missing_mcp_keys:
+            violations.append(
+                Violation(
+                    "governance_baseline_mcp_key_missing",
+                    path_label,
+                    f"mcp_governance is missing required key {key}.",
+                )
+            )
+        for key, value in sorted(mcp_governance.items()):
+            if key in MCP_GOVERNANCE_REQUIRED_KEYS and not is_non_negative_int(value):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_count_invalid",
+                        path_label,
+                        f"mcp_governance.{key} must be a non-negative integer.",
+                    )
+                )
+
+        governed_count = mcp_governance.get("governed_manifest_count")
+        read_count = mcp_governance.get("governed_read_capability_count")
+        write_count = mcp_governance.get("governed_write_like_capability_count")
+        if all(is_non_negative_int(value) for value in (governed_count, read_count, write_count)):
+            if int(read_count) + int(write_count) != int(governed_count):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_manifest_partition_invalid",
+                        path_label,
+                        "MCP read and write-like counts must sum to governed_manifest_count.",
+                    )
+                )
+
+        candidate_count = mcp_governance.get("catalog_candidate_count")
+        legacy_count = mcp_governance.get("legacy_capability_count")
+        if all(
+            is_non_negative_int(value) for value in (candidate_count, governed_count, legacy_count)
+        ):
+            if int(governed_count) + int(legacy_count) != int(candidate_count):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_catalog_partition_invalid",
+                        path_label,
+                        "Governed and legacy capability counts must sum to catalog_candidate_count.",
+                    )
+                )
 
     module_names = current_module_names()
     shape_minimums = baseline.get("module_shape_minimums", {})
@@ -584,6 +717,8 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
         "baseline_version": version,
         "required_key_count": len(GOVERNANCE_BASELINE_REQUIRED_KEYS),
         "missing_required_keys": missing_keys,
+        "mcp_governance_required_key_count": len(MCP_GOVERNANCE_REQUIRED_KEYS),
+        "mcp_governance_entry_count": len(mcp_governance),
         "module_shape_entry_count": len(shape_minimums),
         "allowed_application_import_file_count": len(allowed_imports)
         if isinstance(allowed_imports, dict)
@@ -1124,9 +1259,7 @@ def collect_core_integration_debt() -> dict[str, object]:
 
 
 def collect_core_management_command_debt() -> dict[str, object]:
-    return collect_app_infrastructure_orm_debt(
-        REPO_ROOT / "core" / "management" / "commands"
-    )
+    return collect_app_infrastructure_orm_debt(REPO_ROOT / "core" / "management" / "commands")
 
 
 def check_debt_baseline(
@@ -1142,9 +1275,7 @@ def check_debt_baseline(
     violations: list[Violation] = []
     actual_infrastructure_imports = int(actual["infrastructure_import_count"])
     actual_orm_accesses = int(actual["orm_access_count"])
-    expected_infrastructure_imports = int(
-        baseline.get(baseline_infrastructure_import_key, 0)
-    )
+    expected_infrastructure_imports = int(baseline.get(baseline_infrastructure_import_key, 0))
     expected_orm_accesses = int(baseline.get(baseline_orm_access_key, 0))
 
     if actual_infrastructure_imports > expected_infrastructure_imports:
@@ -1225,6 +1356,14 @@ def collect_large_python_files(limit: int) -> dict[str, int]:
         for path in sorted(root.rglob("*.py")):
             if not is_production_python_file(path):
                 continue
+            line_count = count_non_empty_lines(path)
+            if line_count > limit:
+                result[rel(path)] = line_count
+    for root_name in GOVERNED_LARGE_FILE_TEST_ROOTS:
+        root = REPO_ROOT / root_name
+        if not root.exists():
+            continue
+        for path in iter_python_files(root):
             line_count = count_non_empty_lines(path)
             if line_count > limit:
                 result[rel(path)] = line_count

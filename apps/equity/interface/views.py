@@ -19,7 +19,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -277,7 +277,10 @@ class EquityViewSet(viewsets.ViewSet):
         request=AnalyzeValuationRequestSerializer,
         responses={200: AnalyzeValuationResponseSerializer},
     )
-    @action(detail=False, methods=["get"], url_path="valuation/(?P<stock_code>[^/]+)")
+    @action(
+        detail=False, methods=["get"], url_path="valuation/(?P<stock_code>[^/]+)",
+        permission_classes=[IsAuthenticated]
+    )
     def analyze_valuation(self, request, stock_code):
         """
         GET /api/equity/valuation/{stock_code}/
@@ -323,12 +326,9 @@ class EquityViewSet(viewsets.ViewSet):
         }
         """
         # 1. 验证请求
-        serializer = AnalyzeValuationRequestSerializer(
-            data={
-                "stock_code": stock_code,
-                "lookback_days": request.query_params.get("lookback_days", 252),
-            }
-        )
+        query = request.query_params.copy()
+        query["stock_code"] = stock_code
+        serializer = AnalyzeValuationRequestSerializer(data=query)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 

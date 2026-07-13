@@ -7,6 +7,8 @@ P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
 
+from collections.abc import Mapping
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -622,8 +624,28 @@ class WorkbenchItemDetailSerializer(serializers.Serializer):
 class WorkbenchFetchInputSerializer(serializers.Serializer):
     """工作台抓取输入序列化器"""
 
-    source_id = serializers.IntegerField(required=False, allow_null=True)
+    source_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+    )
     force_refetch = serializers.BooleanField(required=False, default=False)
+
+    def to_internal_value(self, data):
+        """Reject fields outside the canonical synchronous fetch contract."""
+        if not isinstance(data, Mapping):
+            return super().to_internal_value(data)
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown fields: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
 
 
 class WorkbenchFetchOutputSerializer(serializers.Serializer):

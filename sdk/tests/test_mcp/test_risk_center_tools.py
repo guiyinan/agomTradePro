@@ -101,16 +101,14 @@ class _FakeClient:
         ),
     ],
 )
-def test_risk_center_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):
-    try:
-        from agomtradepro_mcp.server import server
-    except ModuleNotFoundError as exc:
-        if "mcp" in str(exc):
-            pytest.skip("mcp package not installed in current test environment")
-        raise
-
+def test_risk_center_tools_can_execute(
+    monkeypatch: pytest.MonkeyPatch,
+    legacy_enabled_mcp_server,
+    tool_name: str,
+    arguments: dict,
+):
     module = importlib.import_module("agomtradepro_mcp.tools.risk_center_tools")
     monkeypatch.setattr(module, "AgomTradeProClient", _FakeClient)
 
-    result = asyncio.run(server.call_tool(tool_name, arguments))
+    result = asyncio.run(legacy_enabled_mcp_server.call_tool(tool_name, arguments))
     assert result is not None

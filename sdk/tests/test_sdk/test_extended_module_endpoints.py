@@ -5,6 +5,7 @@ from unittest.mock import ANY, patch
 import pytest
 
 from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -49,6 +50,20 @@ def client():
             {"params": {"provider": 7, "status": "success"}},
         ),
         (lambda c: c.prompt.list_templates(), "GET", "/api/prompt/templates/"),
+        (
+            lambda c: c.prompt.list_templates(
+                name="Governed Analysis Template",
+                include_inactive=True,
+            ),
+            "GET",
+            "/api/prompt/templates/",
+            {
+                "params": {
+                    "name": "Governed Analysis Template",
+                    "include_inactive": True,
+                }
+            },
+        ),
         (lambda c: c.prompt.get_template(3), "GET", "/api/prompt/templates/3/"),
         (
             lambda c: c.prompt.create_template({"name": "t1"}),
@@ -140,6 +155,30 @@ def client():
         (lambda c: c.events.status(), "GET", "/api/events/status/"),
         (lambda c: c.events.publish({"event_type": "test"}), "POST", "/api/events/publish/"),
         (
+            lambda c: c.events.publish_event(
+                event_type="regime_changed",
+                payload={"new_regime": "Overheat"},
+                occurred_at="2026-07-12T12:00:00+00:00",
+                event_id="event-sdk-001",
+                metadata={"source": "sdk-test"},
+                correlation_id="correlation-sdk-001",
+                causation_id="causation-sdk-001",
+            ),
+            "POST",
+            "/api/events/publish/",
+            {
+                "json": {
+                    "event_type": "regime_changed",
+                    "payload": {"new_regime": "Overheat"},
+                    "occurred_at": "2026-07-12T12:00:00+00:00",
+                    "event_id": "event-sdk-001",
+                    "metadata": {"source": "sdk-test"},
+                    "correlation_id": "correlation-sdk-001",
+                    "causation_id": "causation-sdk-001",
+                }
+            },
+        ),
+        (
             lambda c: c.events.query({"event_type": "test"}),
             "GET",
             "/api/events/query/",
@@ -155,6 +194,11 @@ def client():
         (lambda c: c.decision_rhythm.list_quotas(), "GET", "/api/decision-rhythm/quotas/"),
         (lambda c: c.decision_rhythm.list_cooldowns(), "GET", "/api/decision-rhythm/cooldowns/"),
         (lambda c: c.decision_rhythm.list_requests(), "GET", "/api/decision-rhythm/requests/"),
+        (
+            lambda c: c.decision_rhythm.get_request("request-001"),
+            "GET",
+            "/api/decision-rhythm/requests/request-001/",
+        ),
         (
             lambda c: c.decision_rhythm.submit({"request_type": "rebalance"}),
             "POST",
@@ -174,16 +218,30 @@ def client():
             {"params": {"days": 7}},
         ),
         (
+            lambda c: c.pulse.get_navigator(),
+            "GET",
+            "/api/regime/navigator/",
+        ),
+        (
             lambda c: c.decision_rhythm.advisor_sheet(135),
             "GET",
             "/api/decision/advisor/sheet/",
             {"params": {"account_id": "135"}},
         ),
         (
-            lambda c: c.decision_rhythm.reset_quota({"user_id": "u1"}),
+            lambda c: c.decision_rhythm.list_quotas(
+                account_id="acct-1",
+                period="weekly",
+            ),
+            "GET",
+            "/api/decision-rhythm/quotas/",
+            {"params": {"account_id": "acct-1", "period": "weekly"}},
+        ),
+        (
+            lambda c: c.decision_rhythm.reset_quota({"account_id": "acct-1", "period": "weekly"}),
             "POST",
             "/api/decision-rhythm/reset-quota/",
-            {"json": {"user_id": "u1"}},
+            {"json": {"account_id": "acct-1", "period": "weekly"}},
         ),
         (lambda c: c.decision_rhythm.trend_data(), "GET", "/api/decision-rhythm/trend-data/"),
         (
@@ -216,15 +274,66 @@ def client():
         (lambda c: c.beta_gate.test_gate({"scenario": "smoke"}), "POST", "/api/beta-gate/test/"),
         (
             lambda c: c.beta_gate.version_compare({"from": "v1", "to": "v2"}),
-            "POST",
+            "GET",
             "/api/beta-gate/version/compare/",
-            {"json": {"from": "v1", "to": "v2"}},
+            {"params": {"version1": "v1", "version2": "v2"}},
         ),
         (
             lambda c: c.beta_gate.rollback_config("cfg1"),
             "POST",
             "/api/beta-gate/config/rollback/cfg1/",
             {"json": {}},
+        ),
+        (
+            lambda c: c.policy.override_event(123, "manual override", new_level="P1"),
+            "POST",
+            "/api/policy/workbench/items/123/override/",
+            {"json": {"reason": "manual override", "new_level": "P1"}},
+        ),
+        (
+            lambda c: c.signal.list(
+                status="approved",
+                asset_code="510300.SH",
+                limit=20,
+                offset=0,
+            ),
+            "GET",
+            "/api/signal/",
+            {
+                "params": {
+                    "limit": 20,
+                    "offset": 0,
+                    "status": "approved",
+                    "asset_code": "510300.SH",
+                }
+            },
+        ),
+        (
+            lambda c: c.policy.get_workbench_bootstrap(),
+            "GET",
+            "/api/policy/workbench/bootstrap/",
+        ),
+        (
+            lambda c: c.policy.get_workbench_event_detail(123),
+            "GET",
+            "/api/policy/workbench/items/123/",
+        ),
+        (
+            lambda c: c.policy.get_workbench_summary(),
+            "GET",
+            "/api/policy/workbench/summary/",
+        ),
+        (
+            lambda c: c.policy.get_workbench_items(tab="pending", level="P2", page=2, page_size=10),
+            "GET",
+            "/api/policy/workbench/items/",
+            {"params": {"tab": "pending", "limit": 10, "offset": 10, "level": "P2"}},
+        ),
+        (
+            lambda c: c.policy.get_sentiment_gate_state(asset_class="equity"),
+            "GET",
+            "/api/policy/sentiment-gate/state/",
+            {"params": {"asset_class": "equity"}},
         ),
         (
             lambda c: c.beta_gate.suggest_config({"signal": "s1"}),
@@ -353,12 +462,17 @@ def client():
             "/api/alpha-triggers/generate-candidate/",
             {"json": {"symbol": "AAPL"}},
         ),
-        (lambda c: c.alpha_trigger.performance(), "GET", "/api/alpha-triggers/performance/"),
         (
-            lambda c: c.alpha_trigger.performance({"days": 30}),
+            lambda c: c.alpha_trigger.performance(),
             "GET",
             "/api/alpha-triggers/performance/",
-            {"params": {"days": 30}},
+            {"params": None},
+        ),
+        (
+            lambda c: c.alpha_trigger.performance(days=30, trigger_id="t1"),
+            "GET",
+            "/api/alpha-triggers/performance/",
+            {"params": {"days": 30, "trigger_id": "t1"}},
         ),
         (lambda c: c.alpha_trigger.list_candidates(), "GET", "/api/alpha-triggers/candidates/"),
         (
@@ -388,7 +502,7 @@ def client():
             lambda c: c.strategy.list_ai_strategy_configs(strategy_id=12, approval_mode="auto"),
             "GET",
             "/api/strategy/ai-configs/",
-            {"params": {"limit": 100, "strategy": 12, "approval_mode": "auto"}},
+            {"params": {"strategy": 12, "approval_mode": "auto"}},
         ),
         (
             lambda c: c.strategy.create_ai_strategy_config(
@@ -422,7 +536,7 @@ def client():
         ),
         (lambda c: c.dashboard.summary_v1(), "GET", "/api/dashboard/v1/summary/"),
         (lambda c: c.dashboard.position_detail("AAPL"), "GET", "/api/dashboard/position/AAPL/"),
-        (lambda c: c.dashboard.positions(), "GET", "/api/dashboard/positions/"),
+        (lambda c: c.dashboard.positions(), "GET", "/api/dashboard/positions/data/"),
         (lambda c: c.dashboard.allocation(), "GET", "/api/dashboard/allocation/"),
         (lambda c: c.dashboard.performance(), "GET", "/api/dashboard/performance/"),
         (lambda c: c.dashboard.regime_quadrant_v1(), "GET", "/api/dashboard/v1/regime-quadrant/"),
@@ -524,10 +638,10 @@ def client():
         ),
         (lambda c: c.sentiment.get_index(), "GET", "/api/sentiment/index/"),
         (
-            lambda c: c.sentiment.get_index({"window_days": 7}),
+            lambda c: c.sentiment.get_index({"date": "2026-07-10"}),
             "GET",
             "/api/sentiment/index/",
-            {"params": {"window_days": 7}},
+            {"params": {"date": "2026-07-10"}},
         ),
         (lambda c: c.sentiment.index_range(), "GET", "/api/sentiment/index/range/"),
         (
@@ -538,10 +652,10 @@ def client():
         ),
         (lambda c: c.sentiment.index_recent(), "GET", "/api/sentiment/index/recent/"),
         (
-            lambda c: c.sentiment.index_recent({"limit": 10}),
+            lambda c: c.sentiment.index_recent({"days": 10}),
             "GET",
             "/api/sentiment/index/recent/",
-            {"params": {"limit": 10}},
+            {"params": {"days": 10}},
         ),
         (lambda c: c.sentiment.clear_cache(), "POST", "/api/sentiment/cache/clear/", {"json": {}}),
         (lambda c: c.task_monitor.get_task_status("task-1"), "GET", "/api/system/status/task-1/"),
@@ -562,13 +676,6 @@ def client():
             "/api/filter/",
             {"json": {"name": "f1", "filter_type": "HP", "save_results": True}},
         ),
-        (
-            lambda c: c.filter.update_filter(11, {"name": "f2"}),
-            "PATCH",
-            "/api/filter/11/",
-            {"json": {"name": "f2"}},
-        ),
-        (lambda c: c.filter.delete_filter(11), "DELETE", "/api/filter/11/"),
         (lambda c: c.filter.health(), "GET", "/api/filter/health/"),
         (
             lambda c: c.decision_workflow.precheck("cand-1"),
@@ -716,6 +823,11 @@ def client():
         (lambda c: c.rotation.list_assets(), "GET", "/api/rotation/assets/"),
         (lambda c: c.rotation.get_asset("510300"), "GET", "/api/rotation/assets/510300/"),
         (
+            lambda c: c.rotation.get_latest_signals(),
+            "GET",
+            "/api/rotation/signals/latest/",
+        ),
+        (
             lambda c: c.rotation.create_asset({"code": "510300", "name": "沪深300ETF"}),
             "POST",
             "/api/rotation/assets/",
@@ -739,6 +851,11 @@ def client():
             "POST",
             "/api/rotation/assets/import-defaults/",
             {"json": {}},
+        ),
+        (
+            lambda c: c.rotation.preview_default_asset_import(),
+            "GET",
+            "/api/rotation/assets/import-defaults-preview/",
         ),
         (
             lambda c: c.rotation.export_assets("csv"),
@@ -806,6 +923,12 @@ def client():
             {"json": {"strategy_id": 12, "auto_create_proposal": True}},
         ),
         (
+            lambda c: c.simulated_trading.list_daily_inspections(5, limit=10),
+            "GET",
+            "/api/simulated-trading/accounts/5/inspections/",
+            {"params": {"limit": 10}},
+        ),
+        (
             lambda c: c.simulated_trading.run_auto_trading(account_ids=[5, 6]),
             "POST",
             "/api/simulated-trading/auto-trading/run/",
@@ -826,3 +949,170 @@ def test_extended_module_endpoint_contract(client, case):
         assert args[1] == expected_endpoint
         for k, v in expected_kwargs.items():
             assert kwargs.get(k) == v
+
+
+def test_filter_update_endpoint_contract_resolves_filter_id_to_config_path(client):
+    with patch.object(
+        client.filter,
+        "list_filters",
+        return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
+    ), patch.object(client, "_request", return_value={"success": True}) as mock_request:
+        client.filter.update_filter(11, {"hp_lambda": 6400.0})
+
+    args, kwargs = mock_request.call_args
+    assert args[0] == "PATCH"
+    assert args[1] == "/api/filter/config/PMI/"
+    assert kwargs["json"] == {"hp_lambda": 6400.0}
+
+
+def test_policy_override_endpoint_rejects_legacy_expiry_contract(client):
+    with pytest.raises(ValidationError, match="Legacy override expiry is unsupported"):
+        client.policy.override_event(123, "manual override", expires_in_hours=24)
+
+
+def test_policy_override_endpoint_rejects_invalid_new_level(client):
+    with pytest.raises(ValidationError, match="Validation failed"):
+        client.policy.override_event(123, "manual override", new_level="PX")
+
+
+def test_filter_delete_endpoint_contract_resolves_filter_id_to_config_path(client):
+    with patch.object(
+        client.filter,
+        "list_filters",
+        return_value=[{"id": 11, "code": "PMI", "name": "PMI"}],
+    ), patch.object(client, "_request", return_value={}) as mock_request:
+        client.filter.delete_filter(11)
+
+    args, kwargs = mock_request.call_args
+    assert args[0] == "DELETE"
+    assert args[1] == "/api/filter/config/PMI/"
+    assert kwargs == {"params": None}
+
+
+@pytest.mark.parametrize(
+    ("invoker", "endpoint", "expected_kwargs"),
+    [
+        (
+            lambda client: client.sentiment.get_index({"date": "2026-07-10"}),
+            "/api/sentiment/index/",
+            {"params": {"date": "2026-07-10"}},
+        ),
+        (
+            lambda client: client.sentiment.index_recent({"days": 7}),
+            "/api/sentiment/index/recent/",
+            {"params": {"days": 7}},
+        ),
+        (
+            lambda client: client.sentiment.health(),
+            "/api/sentiment/health/",
+            {"params": None},
+        ),
+    ],
+)
+def test_sentiment_governed_read_endpoint_contracts(
+    client,
+    invoker,
+    endpoint,
+    expected_kwargs,
+):
+    with patch.object(client, "_request", return_value={}) as mock_request:
+        invoker(client)
+
+    args, kwargs = mock_request.call_args
+    assert args == ("GET", endpoint)
+    assert kwargs == expected_kwargs
+
+
+@pytest.mark.parametrize(
+    ("invoker", "endpoint", "expected_kwargs"),
+    [
+        (
+            lambda client: client.events.query(
+                {
+                    "event_type": "regime_changed",
+                    "correlation_id": "corr-1",
+                    "limit": 10,
+                }
+            ),
+            "/api/events/query/",
+            {
+                "params": {
+                    "event_type": "regime_changed",
+                    "correlation_id": "corr-1",
+                    "limit": 10,
+                }
+            },
+        ),
+        (
+            lambda client: client.events.metrics(),
+            "/api/events/metrics/",
+            {"params": None},
+        ),
+        (
+            lambda client: client.events.status(),
+            "/api/events/status/",
+            {"params": None},
+        ),
+    ],
+)
+def test_events_governed_read_endpoint_contracts(
+    client,
+    invoker,
+    endpoint,
+    expected_kwargs,
+):
+    with patch.object(client, "_request", return_value={}) as mock_request:
+        invoker(client)
+
+    args, kwargs = mock_request.call_args
+    assert args == ("GET", endpoint)
+    assert kwargs == expected_kwargs
+
+
+@pytest.mark.parametrize(
+    ("invoker", "endpoint", "expected_kwargs"),
+    [
+        (
+            lambda client: client.audit.get_summary(
+                start_date="2026-07-01",
+                end_date="2026-07-10",
+            ),
+            "/api/audit/summary/",
+            {
+                "params": {
+                    "start_date": "2026-07-01",
+                    "end_date": "2026-07-10",
+                }
+            },
+        ),
+        (
+            lambda client: client.audit.list_execution_links(
+                account_id="7",
+                recommendation_id="rec-1",
+                transaction_source="simulated_trade",
+                limit=10,
+            ),
+            "/api/audit/execution-links/",
+            {
+                "params": {
+                    "account_id": "7",
+                    "recommendation_id": "rec-1",
+                    "transaction_source": "simulated_trade",
+                    "limit": 10,
+                }
+            },
+        ),
+    ],
+)
+def test_audit_governed_read_endpoint_contracts(
+    client,
+    invoker,
+    endpoint,
+    expected_kwargs,
+):
+    with patch.object(client, "_request", return_value=[]) as mock_request:
+        invoker(client)
+
+    args, kwargs = mock_request.call_args
+    assert args == ("GET", endpoint)
+    assert kwargs == expected_kwargs

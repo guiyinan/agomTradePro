@@ -15,6 +15,7 @@ from apps.ai_capability.domain.services import (
     BuiltinCapabilityRegistry,
     CapabilityFilter,
     CapabilityRetrievalScorer,
+    CapabilitySemanticDeduper,
     RetrievalScore,
 )
 
@@ -247,6 +248,87 @@ class TestCapabilityFilter:
         user_results = filter_service.filter_by_context(sample_capabilities, context_user)
 
         assert len(admin_results) >= len(user_results)
+
+
+class TestCapabilitySemanticDeduper:
+    def test_web_prefers_api_over_mcp_for_same_semantic_key(self):
+        deduper = CapabilitySemanticDeduper()
+        api_cap = CapabilityDefinition(
+            capability_key="api.get.api.nebula.summary",
+            source_type=SourceType.API,
+            source_ref="GET api/nebula/summary/",
+            name="Get Nebula Summary",
+            summary="Get nebula summary",
+            semantic_key="nebula.summary",
+        )
+        mcp_cap = CapabilityDefinition(
+            capability_key="mcp_tool.system.read.nebula.summary",
+            source_type=SourceType.MCP_TOOL,
+            source_ref="system.read.nebula.summary",
+            name="system.read.nebula.summary",
+            summary="Get nebula summary",
+            semantic_key="nebula.summary",
+            requires_mcp=True,
+        )
+
+        result = deduper.deduplicate([mcp_cap, api_cap], entrypoint="web")
+
+        assert [item.capability_key for item in result] == ["api.get.api.nebula.summary"]
+
+    def test_terminal_prefers_mcp_over_api_for_same_semantic_key(self):
+        deduper = CapabilitySemanticDeduper()
+        api_cap = CapabilityDefinition(
+            capability_key="api.get.api.nebula.summary",
+            source_type=SourceType.API,
+            source_ref="GET api/nebula/summary/",
+            name="Get Nebula Summary",
+            summary="Get nebula summary",
+            semantic_key="nebula.summary",
+        )
+        mcp_cap = CapabilityDefinition(
+            capability_key="mcp_tool.system.read.nebula.summary",
+            source_type=SourceType.MCP_TOOL,
+            source_ref="system.read.nebula.summary",
+            name="system.read.nebula.summary",
+            summary="Get nebula summary",
+            semantic_key="nebula.summary",
+            requires_mcp=True,
+        )
+
+        result = deduper.deduplicate([api_cap, mcp_cap], entrypoint="terminal")
+
+        assert [item.capability_key for item in result] == [
+            "mcp_tool.system.read.nebula.summary"
+        ]
+
+    def test_terminal_prefers_governed_mcp_capability_over_legacy_wrapper(self):
+        deduper = CapabilitySemanticDeduper()
+        governed = CapabilityDefinition(
+            capability_key="mcp_tool.system.read.nebula.summary",
+            source_type=SourceType.MCP_TOOL,
+            source_ref="system.read.nebula.summary",
+            name="system.read.nebula.summary",
+            summary="Governed capability",
+            semantic_key="nebula.summary",
+            requires_mcp=True,
+            priority_weight=10.0,
+        )
+        legacy = CapabilityDefinition(
+            capability_key="mcp_tool.get_nebula_summary",
+            source_type=SourceType.MCP_TOOL,
+            source_ref="get_nebula_summary",
+            name="get_nebula_summary",
+            summary="Legacy raw tool wrapper",
+            semantic_key="nebula.summary",
+            requires_mcp=True,
+            priority_weight=0.1,
+        )
+
+        result = deduper.deduplicate([legacy, governed], entrypoint="terminal")
+
+        assert [item.capability_key for item in result] == [
+            "mcp_tool.system.read.nebula.summary"
+        ]
 
 
 class TestBuiltinCapabilityRegistry:

@@ -2,9 +2,10 @@
 
 > Rules version: `2026-03-28.v1`
 > Generated at: `2026-03-28`
+> Snapshot role: historical generated evidence; current dynamic governance data uses `governance/governance_baseline.json` as the machine source of truth
 > Boundary rules: `4`
 > Violations: `0`
-> Business Modules: `35`
+> Business Modules: see `governance/governance_baseline.json`
 
 ## Boundary Baseline
 

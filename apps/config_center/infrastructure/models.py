@@ -293,6 +293,27 @@ class SystemSettingsModel(models.Model):
             settings_obj.save(update_fields=update_fields)
         return settings_obj
 
+    @classmethod
+    def get_settings_for_read(cls):
+        """Return persisted settings or an unsaved default object for runtime reads."""
+
+        settings_obj = cls._default_manager.filter(pk=1).first()
+        if settings_obj is None:
+            settings_obj = cls(
+                pk=1,
+                require_user_approval=True,
+                auto_approve_first_admin=True,
+                user_agreement_content=cls._get_default_agreement(),
+                risk_warning_content=cls._get_default_risk_warning(),
+                benchmark_code_map=cls._get_default_benchmark_code_map(),
+                asset_proxy_code_map=cls._get_default_asset_proxy_code_map(),
+            )
+        if not settings_obj.benchmark_code_map:
+            settings_obj.benchmark_code_map = cls._get_default_benchmark_code_map()
+        if not settings_obj.asset_proxy_code_map:
+            settings_obj.asset_proxy_code_map = cls._get_default_asset_proxy_code_map()
+        return settings_obj
+
     @staticmethod
     def _get_secret_fernet() -> Fernet:
         return _build_app_fernet()
@@ -438,31 +459,34 @@ class SystemSettingsModel(models.Model):
 
     @classmethod
     def get_runtime_benchmark_code(cls, key: str, default: str = "") -> str:
-        return cls.get_settings().get_benchmark_code(key, default)
+        return cls.get_settings_for_read().get_benchmark_code(key, default)
 
     @classmethod
     def get_runtime_asset_proxy_code(cls, asset_class: str, default: str = "") -> str:
-        return cls.get_settings().get_asset_proxy_code(asset_class, default)
+        return cls.get_settings_for_read().get_asset_proxy_code(asset_class, default)
 
     @classmethod
     def get_runtime_market_visual_tokens(cls) -> dict[str, str]:
-        return cls.get_settings().get_market_visual_tokens()
+        return cls.get_settings_for_read().get_market_visual_tokens()
 
     @classmethod
     def get_runtime_asset_proxy_map(cls) -> dict:
-        return cls.get_settings().asset_proxy_code_map or {}
+        return cls.get_settings_for_read().asset_proxy_code_map or {}
 
     @classmethod
     def get_runtime_qlib_config(cls) -> dict:
-        return cls.get_settings().get_runtime_qlib_config_payload()
+        return cls.get_settings_for_read().get_runtime_qlib_config_payload()
 
     @classmethod
     def get_runtime_alpha_fixed_provider(cls) -> str:
-        return cls.get_settings().alpha_fixed_provider or ""
+        return cls.get_settings_for_read().alpha_fixed_provider or ""
 
     @classmethod
     def get_runtime_alpha_pool_mode(cls) -> str:
-        return cls.get_settings().alpha_pool_mode or cls.ALPHA_POOL_MODE_STRICT_VALUATION
+        return (
+            cls.get_settings_for_read().alpha_pool_mode
+            or cls.ALPHA_POOL_MODE_STRICT_VALUATION
+        )
 
     @staticmethod
     def _get_default_agreement():

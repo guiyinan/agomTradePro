@@ -735,7 +735,7 @@ class AlphaHomepageQuery:
         snapshot_codes = [
             str(snapshot.stock_code or "").strip().upper() for snapshot in run.snapshots.all()
         ]
-        stock_context = self.context_repo.load_stock_context(snapshot_codes)
+        stock_context = self.context_repo.load_stock_context(snapshot_codes, persist_names=False)
         snapshots = []
         for snapshot in run.snapshots.all():
             snapshot_code = str(snapshot.stock_code or "").strip().upper()

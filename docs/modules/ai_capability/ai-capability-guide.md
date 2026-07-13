@@ -286,22 +286,24 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 }
 ```
 
-**响应**:
+**响应字段结构**:
 
-```json
+动态统计值以接口实际返回为准，不在本文维护固定数字。
+
+```jsonc
 {
   "sync_type": "full",
-  "total_discovered": 2008,
-  "created_count": 0,
-  "updated_count": 2008,
-  "disabled_count": 0,
-  "error_count": 0,
-  "duration_seconds": 4.63,
+  "total_discovered": "<runtime_count>",
+  "created_count": "<runtime_count>",
+  "updated_count": "<runtime_count>",
+  "disabled_count": "<runtime_count>",
+  "error_count": "<runtime_count>",
+  "duration_seconds": "<runtime_seconds>",
   "summary": {
-    "builtin": {"created": 0, "updated": 2},
-    "terminal_command": {"created": 0, "updated": 1},
-    "mcp_tool": {"created": 0, "updated": 368},
-    "api": {"created": 0, "updated": 1604}
+    "builtin": {"created": "<runtime_count>", "updated": "<runtime_count>"},
+    "terminal_command": {"created": "<runtime_count>", "updated": "<runtime_count>"},
+    "mcp_tool": {"created": "<runtime_count>", "updated": "<runtime_count>"},
+    "api": {"created": "<runtime_count>", "updated": "<runtime_count>"}
   }
 }
 ```
@@ -312,33 +314,35 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 **权限**: 需要登录
 
-**响应**:
+**响应字段结构**:
 
-```json
+动态统计值以接口实际返回为准，不在本文维护固定数字。
+
+```jsonc
 {
-  "total": 1975,
-  "enabled": 1645,
-  "disabled": 330,
+  "total": "<runtime_count>",
+  "enabled": "<runtime_count>",
+  "disabled": "<runtime_count>",
   "by_source": {
-    "builtin": 2,
-    "terminal_command": 1,
-    "mcp_tool": 368,
-    "api": 1604
+    "builtin": "<runtime_count>",
+    "terminal_command": "<runtime_count>",
+    "mcp_tool": "<runtime_count>",
+    "api": "<runtime_count>"
   },
   "by_route_group": {
-    "builtin": 2,
-    "tool": 369,
-    "read_api": 735,
-    "write_api": 635,
-    "unsafe_api": 234
+    "builtin": "<runtime_count>",
+    "tool": "<runtime_count>",
+    "read_api": "<runtime_count>",
+    "write_api": "<runtime_count>",
+    "unsafe_api": "<runtime_count>"
   },
   "by_review_status": {
-    "auto": 2,
-    "pending": 0,
-    "approved": 1643,
-    "rejected": 330
+    "auto": "<runtime_count>",
+    "pending": "<runtime_count>",
+    "approved": "<runtime_count>",
+    "rejected": "<runtime_count>"
   },
-  "manual_governance": 0
+  "manual_governance": "<runtime_count>"
 }
 ```
 
@@ -354,28 +358,28 @@ python manage.py init_ai_capability_catalog
 
 **功能**: 全量扫描并初始化能力目录
 
-**输出示例**:
+**输出结构**:
 
 ```
 Initializing AI capability catalog...
 
-Initialization complete in 4.63s
-  Total discovered: 2008
-  Created: 0
-  Updated: 2008
-  Disabled: 0
-  Errors: 0
+Initialization complete in <runtime_seconds>s
+  Total discovered: <runtime_count>
+  Created: <runtime_count>
+  Updated: <runtime_count>
+  Disabled: <runtime_count>
+  Errors: <runtime_count>
 
 Details by source:
   builtin:
-    Created: 0
-    Updated: 2
+    Created: <runtime_count>
+    Updated: <runtime_count>
   mcp_tool:
-    Created: 0
-    Updated: 368
+    Created: <runtime_count>
+    Updated: <runtime_count>
   api:
-    Created: 0
-    Updated: 1604
+    Created: <runtime_count>
+    Updated: <runtime_count>
 ```
 
 ### 4.2 同步命令
@@ -414,7 +418,7 @@ python manage.py govern_ai_capability_catalog [--apply] [--keep-stale] [--format
 - 已复核只读 MCP 放行但强制确认
 - 创建、更新、删除、交易、同步、审批、回滚等高风险 MCP 标记 `rejected`
 
-当前本地治理口径：`manual_governance=0`，即没有待人工复核项。
+本地治理统计的机器唯一真源为 `governance/governance_baseline.json`，命令输出用于验证实际状态；本文不维护固定数字。
 
 ### 4.4 审查命令
 
@@ -422,40 +426,40 @@ python manage.py govern_ai_capability_catalog [--apply] [--keep-stale] [--format
 python manage.py review_ai_capability_catalog [--format json]
 ```
 
-**输出示例**:
+**输出结构**:
 
 ```
 ============================================================
 AI Capability Catalog Review
 ============================================================
 
-Total capabilities: 1975
-  Enabled: 1645
-  Disabled: 330
-  Pending manual governance: 0
+Total capabilities: <runtime_count>
+  Enabled: <runtime_count>
+  Disabled: <runtime_count>
+  Pending manual governance: <runtime_count>
 
 By Source Type:
-  builtin: 2
-  terminal_command: 1
-  mcp_tool: 368
-  api: 1604
+  builtin: <runtime_count>
+  terminal_command: <runtime_count>
+  mcp_tool: <runtime_count>
+  api: <runtime_count>
 
 By Route Group:
-  builtin: 2
-  tool: 369
-  read_api: 735
-  write_api: 635
-  unsafe_api: 234
+  builtin: <runtime_count>
+  tool: <runtime_count>
+  read_api: <runtime_count>
+  write_api: <runtime_count>
+  unsafe_api: <runtime_count>
 
 By Review Status:
-  auto: 2
-  pending: 0
-  approved: 1643
-  rejected: 330
+  auto: <runtime_count>
+  pending: <runtime_count>
+  approved: <runtime_count>
+  rejected: <runtime_count>
 
 ============================================================
 
-Warning: 234 unsafe API(s) detected
+Warning: <runtime_count> unsafe API(s) detected
 
 ============================================================
 Review complete

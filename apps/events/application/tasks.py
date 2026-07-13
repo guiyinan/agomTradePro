@@ -91,7 +91,10 @@ def publish_event_async(
         event_store = get_event_store()
 
         # 持久化事件
-        event_store.append(event)
+        if not event_store.append(event):
+            raise RuntimeError(
+                f"Event persistence failed; event was not published: {event.event_id}"
+            )
 
         # 发布事件
         event_bus.publish(event)
@@ -163,7 +166,10 @@ def publish_batch_events_async(
             )
 
             # 持久化
-            event_store.append(event)
+            if not event_store.append(event):
+                raise RuntimeError(
+                    f"Event persistence failed; event was not published: {event.event_id}"
+                )
 
             # 发布
             event_bus.publish(event)

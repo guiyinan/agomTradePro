@@ -5,11 +5,11 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-07-05
+> **最后更新**: 2026-07-09
 > **系统版本**: AgomTradePro 0.8.0
 > **项目状态**: 生产就绪
-> **规模口径**: 见 [docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md)
-> （业务模块 / MCP 工具 / 静态测试函数统一以该文档和 `governance/governance_baseline.json` 为准）
+> **规模口径**: 机器唯一真源为 `governance/governance_baseline.json`
+> （[docs/governance/SYSTEM_BASELINE.md](docs/governance/SYSTEM_BASELINE.md) 只保留叙事索引，不复制动态治理数字）
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是个人投研平台，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
@@ -527,6 +527,22 @@ git push origin dev/feat-terminal-routing
 
 再通过 PR 或本地验证后合并回 `main`。
 
+### 3.1 开发节奏与主线切分（新增要求）
+
+- 不得在同一个开发批次中无边界并行推进 `功能实现 + 架构重构 + 部署修复 + 治理文档` 四类高耦合工作；如必须并行，必须在计划文档中显式拆成独立主线。
+- 单日允许集中推进一个“大主线”加一个“小收口”，不鼓励同时推进多个高风险主线。
+- 以下类型的工作应优先拆分到独立分支阶段或独立 commit 组，而不是混在一次收口中：
+  - `terminal / tui`
+  - `agent_runtime / sdk / mcp`
+  - `deploy / vps / production settings`
+  - `governance / inventory / docs standard`
+- 当工作已进入“持续 2 个以上提交仍在扩展边界”的状态，必须补充阶段计划文档，写清：
+  - 当前阶段目标
+  - 已完成项
+  - 剩余项
+  - 回归测试范围
+  - 风险与回滚点
+
 ### 4. Commit 规范
 
 提交信息统一采用：
@@ -557,13 +573,27 @@ test: add contract coverage for regime api
 ### 5. 提交要求
 
 - 一个 commit 尽量只做一件事
+- 一个 commit 不得同时混入“功能改动、部署修复、文档治理、测试重写”四种性质中的多种，除非该提交的主题本身就是收口某一主线
 - 提交主题使用英文，简短明确
+- 提交说明要能回答“这次只解决什么，不解决什么”
+- 当改动面跨 `Python + JS + 模板 + 文档 + 配置` 中的 3 类及以上时，应优先拆成多个可验证提交，而不是堆成单个大提交
 - 禁止使用无意义提交信息，如：
   - `update`
   - `fix bug`
   - `wip`
   - `misc`
   - `final`
+
+### 6. 固定最小回归包（高风险链路）
+
+- 涉及 `terminal / tui / mcp / sdk / deploy` 任一链路时，提交前应优先运行对应最小回归包，而不是只做人工点测。
+- 当前建议固定最小回归包：
+  - `pytest tests/unit/test_tui_workbench.py -q`
+  - `pytest tests/unit/test_terminal_agent_service.py -q`
+  - `pytest sdk/tests/test_sdk/test_client.py -q`
+  - `pytest tests/unit/test_internal_ssl_redirect.py -q`
+- 若本次改动未运行上述相关测试，必须在总结、PR 或交接说明中明确写出“未验证项”。
+- 若某条主线已有更小的局部测试集，可先运行局部集；但进入合并前，仍应补齐对应链路的最小回归包。
 
 ## 数据源 API
 
@@ -646,6 +676,14 @@ ak.macro_china_money_supply()
 7. **文档索引**: 查看 `docs/INDEX.md` 获取完整文档导航
 8. **快速参考**: 查看 `docs/development/quick-reference.md` 获取常用命令和 API 端点
 9. **外包工作指南**: 查看 `docs/development/outsourcing-work-guidelines.md` 了解代码规范和质量要求
+10. 大型整改不得长期处于“边开发边扩散”状态；当一条主线已形成独立阶段时，必须补对应 plan / remediation 文档并持续更新完成状态
+11. 做用户面改动时，不要只验证“代码能跑”，还要验证“用户能完成主任务”；尤其是 `TUI / terminal workbench / MCP self-service` 一类页面
+12. 对高风险链路优先采用“功能推进日”和“治理收口日”分离的节奏，减少在同一天内同时修改运行面、接入面和部署面的耦合
+13. 任何涉及 `terminal / tui / mcp / sdk / deploy` 的改动，在结束前都要明确列出：
+    - 已完成项
+    - 未完成项
+    - 已验证测试
+    - 未验证风险
 
 ## 外包团队必读规则
 
@@ -667,6 +705,9 @@ ak.macro_china_money_supply()
 11. **时区感知 datetime**: 必须使用 `datetime.now(timezone.utc)` 或 Django 的 `timezone.now()`，禁止使用 `datetime.now()`
 12. **实体参数验证**: 构造实体或编写测试时，必须先查看实体定义，确保参数名和类型完全匹配
 13. **事件类型处理**: 未知事件类型必须使用 `UNKNOWN` 类型，不得映射到业务事件类型
+14. **主线切分**: 不得把功能实现、部署修复、治理文档、测试重写无边界混在同一批提交里，必须按主线拆分
+15. **回归显式化**: 涉及 `terminal / tui / mcp / sdk / deploy` 时，必须说明运行了哪些测试，未跑哪些测试
+16. **收口定义**: 进入整改阶段的工作必须定义完成标准，不得长期停留在“还差一点”的模糊状态
 
 **环境配置**:
 - python 虚拟环境为 `agomtradepro`

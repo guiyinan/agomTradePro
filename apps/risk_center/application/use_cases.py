@@ -88,6 +88,11 @@ class UpsertAccountRiskPolicyUseCase:
     def execute(self, *, actor: Any, payload: dict[str, Any]) -> Any:
         account_id = int(payload["account_id"])
         _require_account_access(actor, account_id)
+        template_id = payload.get("template_id")
+        if template_id is not None and get_risk_template_repository().get_template(
+            int(template_id)
+        ) is None:
+            raise RiskCenterValidationError("Risk template not found.")
         return get_risk_policy_repository().upsert_policy(payload, actor=actor)
 
 

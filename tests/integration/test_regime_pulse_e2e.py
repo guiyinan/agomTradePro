@@ -128,7 +128,7 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
     )
     monkeypatch.setattr(
         "apps.regime.application.navigator_use_cases.GetActionRecommendationUseCase.execute",
-        lambda self, as_of_date=None: _sample_action(),
+        lambda self, as_of_date=None, **kwargs: _sample_action(),
     )
     monkeypatch.setattr(
         "apps.dashboard.interface.views._build_dashboard_data",
@@ -195,6 +195,55 @@ def test_regime_pulse_phase1_endpoints_and_dashboard_partials(monkeypatch):
         "hx-get=\"/api/dashboard/regime-status/\"",
     )
     assert "加载中..." not in status_content
+
+
+@pytest.mark.django_db
+def test_pulse_history_endpoint_accepts_limit_and_returns_latest_first():
+    repository = PulseRepository()
+    older = _sample_pulse_snapshot()
+    latest = _sample_pulse_snapshot()
+    older = PulseSnapshot(
+        observed_at=date(2026, 3, 23),
+        regime_context=older.regime_context,
+        dimension_scores=older.dimension_scores,
+        composite_score=-0.2,
+        regime_strength="weak",
+        transition_warning=older.transition_warning,
+        transition_direction=older.transition_direction,
+        transition_reasons=older.transition_reasons,
+        indicator_readings=older.indicator_readings,
+        data_source=older.data_source,
+        stale_indicator_count=older.stale_indicator_count,
+    )
+    latest = PulseSnapshot(
+        observed_at=date(2026, 3, 24),
+        regime_context=latest.regime_context,
+        dimension_scores=latest.dimension_scores,
+        composite_score=0.1,
+        regime_strength=latest.regime_strength,
+        transition_warning=latest.transition_warning,
+        transition_direction=latest.transition_direction,
+        transition_reasons=latest.transition_reasons,
+        indicator_readings=latest.indicator_readings,
+        data_source=latest.data_source,
+        stale_indicator_count=latest.stale_indicator_count,
+    )
+    repository.save_snapshot(older)
+    repository.save_snapshot(latest)
+
+    user = User.objects.create_user(username="pulse_history", password="pass")
+    api_client = APIClient()
+    api_client.force_authenticate(user=user)
+
+    response = api_client.get("/api/pulse/history/?limit=1")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["count"] == 1
+    assert len(payload["data"]) == 1
+    assert payload["data"][0]["observed_at"].startswith("2026-03-24")
 
 
 @pytest.mark.django_db

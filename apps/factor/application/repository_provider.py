@@ -28,7 +28,10 @@ def get_factor_portfolio_holding_repository() -> FactorPortfolioHoldingRepositor
     return FactorPortfolioHoldingRepository()
 
 
-def get_factor_integration_service() -> FactorIntegrationService:
-    """Return the default factor integration service."""
+def get_factor_integration_service(
+    *,
+    cache_price_results: bool = True,
+) -> FactorIntegrationService:
+    """Return the factor integration service with explicit cache-write policy."""
 
-    return FactorIntegrationService()
+    return FactorIntegrationService(cache_price_results=cache_price_results)

@@ -436,7 +436,8 @@ class AccountListAPIView(APIView):
                 max_position_pct=data.get('max_position_pct', 20.0),
                 stop_loss_pct=data.get('stop_loss_pct'),
                 commission_rate=data.get('commission_rate', 0.0003),
-                slippage_rate=data.get('slippage_rate', 0.001)
+                slippage_rate=data.get('slippage_rate', 0.001),
+                user_id=request.user.id,
             )
 
             # 3. 序列化响应

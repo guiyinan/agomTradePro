@@ -38,6 +38,7 @@ from apps.data_center.application.dtos import (
     LatestQuoteRequest,
     MacroSeriesRequest,
     PriceHistoryRequest,
+    ProviderResponse,
     ResolveAssetRequest,
     SyncCapitalFlowRequest,
     SyncFinancialRequest,
@@ -99,6 +100,7 @@ from apps.data_center.application.use_cases import (
     RepairDecisionDataReliabilityUseCase,
 )
 from apps.data_center.interface.serializers import (
+    CapitalFlowQuerySerializer,
     ConnectionTestResultSerializer,
     DataProviderSettingsSerializer,
     DecisionReliabilityRepairRequestSerializer,
@@ -124,6 +126,7 @@ from apps.data_center.interface.serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 def _parse_bool_param(raw_value: str | None, *, default: bool = False) -> bool:
     if raw_value in (None, ""):
@@ -202,6 +205,12 @@ def _enrich_provider_status_snapshot(snapshot: dict, extra_config: dict) -> dict
 
     return enriched
 
+
+def _safe_provider_payload(provider: ProviderResponse) -> dict:
+    serializer = ProviderConfigListSerializer(provider.to_dict())
+    return dict(serializer.data)
+
+
 def _make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
     return make_decision_repair_use_case(user)
 
@@ -243,7 +252,7 @@ def provider_list_create(request: Request) -> Response:
     )
     created = use_case.create(req)
     refresh_registry()
-    return Response(created.to_dict(), status=status.HTTP_201_CREATED)
+    return Response(_safe_provider_payload(created), status=status.HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +275,7 @@ def provider_detail(request: Request, provider_id: int) -> Response:
         provider = use_case.get(provider_id)
         if provider is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(provider.to_dict())
+        return Response(_safe_provider_payload(provider))
 
     if request.method == "DELETE":
         deleted = use_case.delete(provider_id)
@@ -297,7 +306,7 @@ def provider_detail(request: Request, provider_id: int) -> Response:
     if updated is None:
         return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
     refresh_registry()
-    return Response(updated.to_dict())
+    return Response(_safe_provider_payload(updated))
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +496,9 @@ def indicator_unit_rule_detail(request: Request, indicator_code: str, rule_id: i
     use_case = make_manage_indicator_unit_rule_use_case()
     existing = use_case.get(rule_id)
     if existing is None or existing.indicator_code != indicator_code:
-        return Response({"detail": "Indicator unit rule not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Indicator unit rule not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if request.method == "GET":
         return Response(existing.to_dict())
@@ -562,7 +573,11 @@ def provider_status(request: Request) -> Response:
         live.setdefault(snap.provider_name, []).append(snap.to_dict())
 
     providers = sorted(
-        (provider for provider in make_manage_provider_config_use_case().list_all() if provider.is_active),
+        (
+            provider
+            for provider in make_manage_provider_config_use_case().list_all()
+            if provider.is_active
+        ),
         key=lambda provider: (provider.priority, provider.name),
     )
     results = []
@@ -954,25 +969,29 @@ def news(request: Request) -> Response:
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def capital_flows(request: Request) -> Response:
-    from datetime import date as date_cls
-
-    asset_code = request.query_params.get("asset_code", "").strip()
-    if not asset_code:
-        return Response({"detail": "Query parameter 'asset_code' is required."}, status=400)
-
-    def _parse_date(s: str) -> date_cls | None:
-        try:
-            return date_cls.fromisoformat(s)
-        except (ValueError, AttributeError):
-            return None
-
+    serializer = CapitalFlowQuerySerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    query = serializer.validated_data
     data = make_query_capital_flows_use_case().execute(
-        asset_code=asset_code,
-        start=_parse_date(request.query_params.get("start", "")),
-        end=_parse_date(request.query_params.get("end", "")),
+        asset_code=query["asset_code"],
+        start=query.get("start"),
+        end=query.get("end"),
+        limit=query["limit"],
     )
-    return Response({"asset_code": asset_code, "total": len(data), "data": data})
+    return Response(
+        {
+            "asset_code": query["asset_code"],
+            "query": {
+                "start": query["start"].isoformat() if query.get("start") else None,
+                "end": query["end"].isoformat() if query.get("end") else None,
+                "limit": query["limit"],
+            },
+            "total": len(data),
+            "data": data,
+        }
+    )
 
 
 @api_view(["GET"])
@@ -1076,7 +1095,9 @@ def market_thermometer_import_investor_accounts(request: Request) -> Response:
         csv_text = serializer.validated_data.get("csv_text", "")
 
     if not str(csv_text or "").strip():
-        return Response({"detail": "csv_text or file is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "csv_text or file is required."}, status=status.HTTP_400_BAD_REQUEST
+        )
 
     result = make_import_investor_accounts_use_case().execute(
         csv_text,

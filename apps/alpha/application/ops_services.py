@@ -176,7 +176,9 @@ class AlphaOpsOverviewQueryService:
             "active_model": self._serialize_active_model(active_model),
             "qlib_runtime": qlib_config,
             "celery_health": self._get_celery_health(),
-            "dashboard_refresh_locks": list_active_dashboard_alpha_refresh_locks(),
+            "dashboard_refresh_locks": list_active_dashboard_alpha_refresh_locks(
+                cleanup_stale=False
+            ),
             "recent_tasks": self._list_recent_tasks(INFERENCE_TASK_NAMES, limit=12),
             "recent_caches": self._list_recent_caches(limit=12),
             "recent_alerts": self._list_recent_alerts(limit=8),

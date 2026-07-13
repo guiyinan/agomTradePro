@@ -56,7 +56,8 @@ def register_regime_tools(server: FastMCP) -> None:
         as_of_date: str | None = None,
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
-        use_kalman: bool = True,
+        use_pit: bool = True,
+        data_source: str = "akshare",
     ) -> dict[str, Any]:
         """
         计算指定日期的 Regime 判定
@@ -65,7 +66,8 @@ def register_regime_tools(server: FastMCP) -> None:
             as_of_date: 计算日期（ISO 格式，如 2024-01-01），None 表示使用最新数据
             growth_indicator: 增长指标代码（默认 PMI）
             inflation_indicator: 通胀指标代码（默认 CPI）
-            use_kalman: 是否使用 Kalman 滤波（默认 True）
+            use_pit: 是否使用 Point-in-Time 数据（默认 True）
+            data_source: 已持久化宏观数据来源（默认 akshare）
 
         Returns:
             包含 Regime 状态的字典
@@ -88,7 +90,8 @@ def register_regime_tools(server: FastMCP) -> None:
             as_of_date=parsed_date,
             growth_indicator=growth_indicator,
             inflation_indicator=inflation_indicator,
-            use_kalman=use_kalman,
+            use_pit=use_pit,
+            data_source=data_source,
         )
 
         return {

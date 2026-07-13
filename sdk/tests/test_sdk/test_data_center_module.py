@@ -63,6 +63,20 @@ def client():
             [],
         ),
         (
+            lambda c: c.data_center.get_publisher("NBS"),
+            "GET",
+            "/api/data-center/publishers/NBS/",
+            {"params": None},
+            {"code": "NBS"},
+        ),
+        (
+            lambda c: c.data_center.list_publishers(active_only=True),
+            "GET",
+            "/api/data-center/publishers/",
+            {"params": {"active_only": "true"}},
+            [],
+        ),
+        (
             lambda c: c.data_center.list_indicators(active_only=True),
             "GET",
             "/api/data-center/indicators/",
@@ -174,10 +188,26 @@ def client():
             {"ok": True},
         ),
         (
-            lambda c: c.data_center.get_price_history("000001.SZ", limit=5),
+            lambda c: c.data_center.get_price_history(
+                "000001.SZ",
+                start="2026-04-01",
+                end="2026-04-21",
+                freq="1d",
+                adjustment="qfq",
+                limit=5,
+            ),
             "GET",
             "/api/data-center/prices/history/",
-            {"params": {"asset_code": "000001.SZ", "limit": 5}},
+            {
+                "params": {
+                    "asset_code": "000001.SZ",
+                    "start": "2026-04-01",
+                    "end": "2026-04-21",
+                    "freq": "1d",
+                    "adjustment": "qfq",
+                    "limit": 5,
+                }
+            },
             {"ok": True},
         ),
         (
@@ -205,10 +235,29 @@ def client():
             {"ok": True},
         ),
         (
-            lambda c: c.data_center.get_capital_flows("000001.SZ", period="10d"),
+            lambda c: c.data_center.get_news("000001.SZ", limit=5),
+            "GET",
+            "/api/data-center/news/",
+            {"params": {"asset_code": "000001.SZ", "limit": 5}},
+            {"ok": True},
+        ),
+        (
+            lambda c: c.data_center.get_capital_flows(
+                "000001.SZ",
+                start="2026-04-01",
+                end="2026-04-10",
+                limit=10,
+            ),
             "GET",
             "/api/data-center/capital-flows/",
-            {"params": {"asset_code": "000001.SZ", "period": "10d"}},
+            {
+                "params": {
+                    "asset_code": "000001.SZ",
+                    "start": "2026-04-01",
+                    "end": "2026-04-10",
+                    "limit": 10,
+                }
+            },
             {"ok": True},
         ),
         (

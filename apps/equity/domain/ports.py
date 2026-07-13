@@ -66,7 +66,9 @@ class MarketDataPort(Protocol):
         self,
         index_code: str,
         start_date: date,
-        end_date: date
+        end_date: date,
+        *,
+        hydrate: bool = True,
     ) -> dict[date, float]:
         """
         获取指数日收益率
@@ -75,6 +77,7 @@ class MarketDataPort(Protocol):
             index_code: 指数代码（如 000300.SH 表示沪深 300）
             start_date: 起始日期
             end_date: 结束日期
+            hydrate: 本地数据不足时是否允许远端补数并持久化
 
         Returns:
             {日期: 收益率}，收益率以小数表示（如 0.01 表示 1%）

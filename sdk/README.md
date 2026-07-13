@@ -189,7 +189,10 @@ Three methods (priority order):
 
 ## MCP Tools
 
-Current local MCP registration snapshot on `2026-06-30`: `365` tools.
+Dynamic MCP governance counts are not maintained in this guide. The machine source of truth is
+[`governance/governance_baseline.json`](../governance/governance_baseline.json); field meanings
+and verification commands are documented in
+[`docs/governance/SYSTEM_BASELINE.md`](../docs/governance/SYSTEM_BASELINE.md).
 
 Canonical API routing for SDK/MCP is documented in:
 
@@ -451,13 +454,12 @@ agomtradepro-mcp
 
 ## Project Status
 
-- **Version**: 1.2.0
-- **App Modules**: 35 business modules
-- **SDK Modules**: 36 service modules
-- **MCP Tools**: 365 tools
+- **Version**: See [`pyproject.toml`](../pyproject.toml) and [`core/version.py`](../core/version.py)
+- **App Modules / MCP Tools / Static Tests**: See [`governance/governance_baseline.json`](../governance/governance_baseline.json)
+- **SDK Modules**: Derived from `sdk/agomtradepro/modules/`; this guide does not maintain a dynamic count
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
-- **Last Updated**: 2026-05-04
+- **Governance Verification**: `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text`
 
 ## License
 

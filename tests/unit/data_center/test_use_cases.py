@@ -17,13 +17,15 @@ from apps.data_center.application.dtos import (
     UpdateProviderRequest,
     UpdatePublisherCatalogRequest,
 )
+from apps.data_center.application.provider_connection_workflow import (
+    RunProviderConnectionTestUseCase,
+)
 from apps.data_center.application.use_cases import (
     ManageProviderConfigUseCase,
     ManagePublisherCatalogUseCase,
     QueryLatestQuoteUseCase,
     QueryMacroSeriesUseCase,
     RepairDecisionDataReliabilityUseCase,
-    RunProviderConnectionTestUseCase,
 )
 from apps.data_center.domain.entities import (
     ConnectionTestResult,
@@ -190,9 +192,7 @@ class _IndicatorUnitRuleRepo:
         original_unit: str | None = None,
     ) -> IndicatorUnitRule | None:
         candidates = [
-            rule
-            for rule in self._rules
-            if rule.indicator_code == indicator_code and rule.is_active
+            rule for rule in self._rules if rule.indicator_code == indicator_code and rule.is_active
         ]
         if original_unit is not None:
             candidates = [rule for rule in candidates if rule.original_unit == original_unit]
@@ -714,9 +714,7 @@ class TestQueryMacroSeriesUseCase:
             ),
         )
 
-        result = uc.execute(
-            MacroSeriesRequest(indicator_code="CN_EXPORT_YOY", end=current_period)
-        )
+        result = uc.execute(MacroSeriesRequest(indicator_code="CN_EXPORT_YOY", end=current_period))
 
         assert result.decision_grade == "decision_safe"
         assert result.must_not_use_for_decision is False

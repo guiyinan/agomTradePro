@@ -94,6 +94,44 @@ class AnalyzeSectorRotationRequestSerializer(serializers.Serializer):
         )
 
 
+class SectorRotationQuerySerializer(serializers.Serializer):
+    """Strict query contract for persisted sector rotation reads."""
+
+    regime = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_null=True,
+        help_text="Regime 名称；不填时读取最新持久化快照",
+    )
+    lookback_days = serializers.IntegerField(default=20, min_value=5, max_value=120)
+    level = serializers.ChoiceField(choices=["SW1", "SW2", "SW3"], default="SW1")
+    top_n = serializers.IntegerField(default=10, min_value=1, max_value=50)
+
+    def to_internal_value(self, data):
+        """Reject unknown query parameters instead of silently ignoring them."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown query parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+    def to_use_case_request(self) -> AnalyzeSectorRotationRequest:
+        """Convert validated query parameters into an application request."""
+
+        return AnalyzeSectorRotationRequest(
+            regime=self.validated_data.get("regime"),
+            lookback_days=self.validated_data["lookback_days"],
+            level=self.validated_data["level"],
+            top_n=self.validated_data["top_n"],
+        )
+
+
 class SectorRotationResultSerializer(serializers.Serializer):
     """板块轮动分析结果序列化器"""
     success = serializers.BooleanField()

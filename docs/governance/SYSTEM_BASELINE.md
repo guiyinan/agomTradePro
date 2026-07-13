@@ -1,8 +1,10 @@
-# AgomTradePro System Baseline
+# AgomTradePro System Baseline Narrative Index
 
 > **Version**: `0.8.0`
 > **Baseline date**: `2026-07-05`
-> **Document role**: Single narrative source of truth
+> **Document role**: Narrative index only; it is not a second governance baseline
+> **Machine source of truth**: `governance/governance_baseline.json`
+> **Authority rule**: If narrative text and machine data differ, the machine baseline and its consistency checks prevail
 > **Version management**: [../VERSION.md](../VERSION.md)
 
 ---
@@ -23,11 +25,11 @@
 | **Build** | `20260705` | `core/version.py` |
 | **Release state** | Formal public release | release closure `0.8.0` |
 | **Repo state** | Active development continues after `0.8.0` | branch/docs posture |
-| **Business modules** | `37` | `governance/governance_baseline.json` |
-| **MCP tools** | `368` | `governance/governance_baseline.json` |
-| **Static test functions** | `6,241` | `governance/governance_baseline.json` |
-| **`core/integration` app infrastructure imports** | `0` | governance ratchet |
-| **`core/integration` ORM access lines** | `0` | governance ratchet |
+| **Business modules** | See machine baseline | `governance/governance_baseline.json` |
+| **MCP tools** | See machine baseline | `governance/governance_baseline.json` |
+| **Static test functions** | See machine baseline | `governance/governance_baseline.json` |
+| **`core/integration` app infrastructure imports** | See governance ratchet | `governance/governance_baseline.json` |
+| **`core/integration` ORM access lines** | See governance ratchet | `governance/governance_baseline.json` |
 
 ### Release interpretation
 
@@ -49,12 +51,16 @@
 
 ### 3.2 Governance truth source
 
-Dynamic counts such as business-module count, MCP-tool count, static-test count, module-shape minima, large-file allowances, and bridge-debt ratchets are governed by:
+Dynamic counts such as business-module count, MCP-tool count, MCP governed-capability rollout, static-test count, module-shape minima, large-file allowances, and bridge-debt ratchets are governed by:
 
 - `governance/governance_baseline.json`
 - `scripts/check_governance_consistency.py`
 
-This file is the human-readable narrative layer; the JSON baseline remains the machine truth source.
+This file is the human-readable narrative layer. It must not act as an independent or fallback source of governance data. It must not derive current counts from prose, tables, ordered lists, completion logs, or historical reports. Update the JSON baseline only after code-derived checks establish the actual values, and use the consistency script output as the authoritative report.
+
+MCP consolidation metrics are stored under `mcp_governance`; the root `mcp_tool_count` remains the total static `@server.tool()` definition count used by the repository governance checker, while `mcp_governance.legacy_capability_count` tracks the legacy catalog projection.
+
+Do not update this document merely because a governance count changed. Update it only when the narrative structure, field-to-source mapping, or deployment posture changes.
 
 ## 4. Deployment posture
 
@@ -121,7 +127,7 @@ For `0.8.0`, “production ready” means:
 - Four-layer architecture remains mandatory.
 - Domain purity is enforced by CI.
 - App-level cycles remain hard-locked at zero.
-- `core/integration` historical bridge debt remains ratcheted and is currently zero on both tracked counters, while thin realtime/pulse/audit/terminal/account/sector helper shims continue to be retired in favor of owning app services.
+- `core/integration` historical bridge debt remains ratcheted by the machine baseline, while thin realtime/pulse/audit/terminal/account/sector helper shims continue to be retired in favor of owning app services. Current debt values must be read from `governance/governance_baseline.json`.
 
 ### 6.2 Large-file posture
 
@@ -129,14 +135,14 @@ Large historical Python files are governed by `governance_baseline.json`.
 
 For `0.8.0`, TUI runtime metadata mutations are no longer concentrated in a single oversized repository file; runtime screen patches, injected metadata, and action patches are split into dedicated infrastructure modules.
 The result-model follow-up is now split between a base helper and specialized business-facing helpers, so `apps/terminal/application/tui_workbench_result_models.py` is back under the repository large-file limit and no longer needs a temporary allowance.
-The remaining identity-and-access runtime injection bundle is still temporarily allowlisted at `1,441` non-empty lines in `apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py` while the next split step is queued.
+The remaining identity-and-access runtime injection bundle is still temporarily governed by the machine large-file allowance while the next split step is queued. The current allowance must be read from `governance/governance_baseline.json`.
 
 ## 7. Testing posture
 
 ### 7.1 Scale baseline
 
-- Static governed test functions: `6,241`
-- Module coverage baseline: `37/37`
+- Static governed test functions: see `governance/governance_baseline.json`
+- Module coverage baseline: see `governance/governance_baseline.json`
 - Full `pytest` collection/execution remains a runtime fact, not a hard-coded doc number
 
 ### 7.2 Release-closure verification
@@ -156,4 +162,4 @@ See:
 ---
 
 **Maintainer**: AgomTradePro Team
-**Last updated**: `2026-07-09`
+**Last updated**: `2026-07-12`

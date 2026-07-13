@@ -36,10 +36,11 @@
 
 | 指标 | 数值 |
 |------|------|
-| 系统规模基线 | 见 `docs/governance/SYSTEM_BASELINE.md` |
-| 代码行数 | 50,000+ |
+| 动态治理规模 | 机器唯一真源：`governance/governance_baseline.json` |
+| 治理口径说明 | `docs/governance/SYSTEM_BASELINE.md`，只作叙事索引，不复制 live 数字 |
+| 代码规模 | 由仓库统计工具实时生成，不在文档固化数量 |
 | API 路径 | OpenAPI 快照 |
-| 数据库表 | 80+ |
+| 数据库结构 | Django models 与 migrations |
 
 ### 1.3 核心功能
 
@@ -1745,7 +1746,7 @@ tools = [
 ### 10.2 参考资料
 
 **内部文档**：
-- [系统基线](governance/SYSTEM_BASELINE.md) - 单一叙事来源
+- [系统基线](governance/SYSTEM_BASELINE.md) - 治理叙事索引；动态治理数据读取 `governance/governance_baseline.json`
 - [模块分级表](governance/MODULE_CLASSIFICATION.md) - 模块治理
 - [开发禁令](governance/DEVELOPMENT_BANLIST.md) - 开发约束
 - [业务需求文档](business/AgomTradePro_V3.4.md)

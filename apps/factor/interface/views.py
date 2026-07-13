@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -17,6 +20,43 @@ from apps.factor.interface.serializers import (
     FactorPortfolioConfigSerializer,
     FactorScoreRequestSerializer,
 )
+
+
+def _parse_factor_explanation_input(
+    data: Mapping[str, Any],
+) -> tuple[str, dict[str, float]]:
+    """Validate and normalize the shared factor-explanation request contract."""
+
+    stock_code = data.get("stock_code")
+    factor_weights = data.get("factor_weights")
+    if not isinstance(stock_code, str) or not stock_code.strip():
+        raise ValueError("stock_code must be a non-empty string")
+    if (
+        not isinstance(factor_weights, dict)
+        or not factor_weights
+        or len(factor_weights) > 20
+    ):
+        raise ValueError(
+            "factor_weights must be a non-empty object with at most 20 entries"
+        )
+
+    normalized_weights: dict[str, float] = {}
+    for code, weight in factor_weights.items():
+        if (
+            not isinstance(code, str)
+            or not code.strip()
+            or isinstance(weight, bool)
+            or not isinstance(weight, (int, float))
+            or not -1.0 <= float(weight) <= 1.0
+        ):
+            raise ValueError(
+                "factor weights must use non-empty codes and values between -1 and 1"
+            )
+        normalized_weights[code.strip()] = float(weight)
+
+    if not any(weight != 0.0 for weight in normalized_weights.values()):
+        raise ValueError("factor_weights must contain at least one non-zero value")
+    return stock_code.strip(), normalized_weights
 
 
 class FactorDefinitionViewSet(viewsets.GenericViewSet):
@@ -256,12 +296,13 @@ class FactorScoreViewSet(viewsets.ViewSet):
     def explain_stock(self, request):
         """Explain one stock factor score."""
 
-        stock_code = request.data.get("stock_code")
-        factor_weights = request.data.get("factor_weights")
-
-        if not stock_code or not factor_weights:
+        try:
+            stock_code, factor_weights = _parse_factor_explanation_input(
+                request.data
+            )
+        except ValueError as exc:
             return Response(
-                {"error": "stock_code and factor_weights are required"},
+                {"error": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -301,6 +342,29 @@ class FactorActionViewSet(viewsets.ViewSet):
 
         factor_preferences = request.data.get("factor_preferences", {})
         top_n = request.data.get("top_n", 30)
+        if not isinstance(factor_preferences, dict):
+            return Response(
+                {"error": "factor_preferences must be an object"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if isinstance(top_n, bool) or not isinstance(top_n, int) or not 1 <= top_n <= 100:
+            return Response(
+                {"error": "top_n must be an integer between 1 and 100"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invalid_preferences = {
+            str(key): value
+            for key, value in factor_preferences.items()
+            if value not in {"high", "medium", "low"}
+        }
+        if invalid_preferences:
+            return Response(
+                {
+                    "error": "factor preference values must be high, medium, or low",
+                    "invalid_preferences": invalid_preferences,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         stocks = factor_interface_services.get_top_stocks(
             factor_preferences=factor_preferences,
             top_n=top_n,
@@ -339,12 +403,13 @@ class FactorActionViewSet(viewsets.ViewSet):
     def explain_stock_action(self, request):
         """Explain one stock factor score breakdown."""
 
-        stock_code = request.data.get("stock_code")
-        factor_weights = request.data.get("factor_weights")
-
-        if not stock_code or not factor_weights:
+        try:
+            stock_code, factor_weights = _parse_factor_explanation_input(
+                request.data
+            )
+        except ValueError as exc:
             return Response(
-                {"error": "stock_code and factor_weights are required"},
+                {"error": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from apps.asset_analysis.infrastructure.models import AssetPoolEntry
+from apps.asset_analysis.infrastructure.models import AssetPoolEntry, WeightConfigModel
 
 
 @pytest.fixture
@@ -78,6 +78,83 @@ def test_asset_pool_summary_filters_by_asset_type(authenticated_client):
     assert payload["summary"]["investable"] == 1
     assert payload["summary"]["watch"] == 0
     assert payload["summary"]["total"] == 1
+
+
+@pytest.mark.django_db
+def test_asset_weight_config_catalog_contract(authenticated_client):
+    WeightConfigModel.objects.create(
+        name="equity-recovery",
+        description="Equity recovery weights",
+        regime_weight=0.45,
+        policy_weight=0.25,
+        sentiment_weight=0.15,
+        signal_weight=0.15,
+        asset_type="equity",
+        market_condition="recovery",
+        is_active=True,
+        priority=10,
+    )
+
+    response = authenticated_client.get("/api/asset-analysis/weight-configs/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["active"] == "equity-recovery"
+    config = payload["configs"]["equity-recovery"]
+    assert config["weights"]["regime"] == 0.45
+    assert config["asset_type"] == "equity"
+    assert config["market_condition"] == "recovery"
+    assert config["is_active"] is True
+
+
+@pytest.mark.django_db
+def test_asset_current_weight_contract_uses_requested_context(authenticated_client):
+    WeightConfigModel.objects.create(
+        name="equity-crisis",
+        regime_weight=0.25,
+        policy_weight=0.40,
+        sentiment_weight=0.20,
+        signal_weight=0.15,
+        asset_type="equity",
+        market_condition="crisis",
+        is_active=True,
+        priority=20,
+    )
+
+    response = authenticated_client.get(
+        "/api/asset-analysis/current-weight/"
+        "?asset_type=equity&market_condition=crisis"
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["asset_type"] == "equity"
+    assert payload["market_condition"] == "crisis"
+    assert payload["weights"] == {
+        "regime": 0.25,
+        "policy": 0.4,
+        "sentiment": 0.2,
+        "signal": 0.15,
+    }
+
+
+@pytest.mark.django_db
+def test_asset_current_weight_default_is_read_only(authenticated_client):
+    assert WeightConfigModel.objects.count() == 0
+
+    response = authenticated_client.get("/api/asset-analysis/current-weight/")
+
+    assert response.status_code == 200
+    assert response.json()["weights"] == {
+        "regime": 0.4,
+        "policy": 0.25,
+        "sentiment": 0.2,
+        "signal": 0.15,
+    }
+    assert WeightConfigModel.objects.count() == 0
 
 
 @pytest.mark.django_db

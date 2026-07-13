@@ -182,6 +182,89 @@ class AuditLogger:
 
         return self._send_audit_log(audit_data)
 
+    def log_governed_capability_event(
+        self,
+        *,
+        tool_name: str,
+        capability_key: str,
+        params: dict[str, Any],
+        result: Any,
+        error: Exception | None,
+        context: AuditContext,
+        owner_app: str = "",
+        risk_level: str = "",
+        event_type: str = "",
+        confirmation_status: str = "",
+        idempotency_key: str | None = None,
+        request_arguments: dict[str, Any] | None = None,
+        affected_objects: dict[str, Any] | None = None,
+    ) -> str | None:
+        """Record one governed capability lifecycle event."""
+        if not self.enabled:
+            return None
+
+        if error:
+            if isinstance(error, PermissionError):
+                response_status = 403
+                error_code = "RBAC_DENIED"
+            else:
+                response_status = 500
+                error_code = type(error).__name__
+            response_message = str(error)
+        else:
+            response_status = 200
+            error_code = ""
+            response_message = event_type or "Success"
+
+        duration_ms = int((time.time() - context.start_time) * 1000)
+
+        masked_params = self._mask_sensitive_params(
+            {
+                "capability_key": capability_key,
+                "event_type": event_type,
+                "confirmation_status": confirmation_status,
+                "risk_level": risk_level,
+                "idempotency_key": idempotency_key,
+                "arguments": params,
+                "request_arguments": request_arguments or params,
+                "affected_objects": affected_objects or {},
+            }
+        )
+        response_payload = self._serialize_payload(result)
+        response_text = self._build_response_text(result)
+        exception_traceback = self._format_exception_traceback(error)
+
+        audit_data = {
+            "request_id": context.request_id,
+            "user_id": context.user_id,
+            "username": context.username,
+            "source": "MCP",
+            "operation_type": "DATA_MODIFY",
+            "module": owner_app or self._infer_module(capability_key),
+            "action": self._infer_capability_action(capability_key),
+            "mcp_tool_name": tool_name,
+            "request_params": masked_params,
+            "response_payload": response_payload,
+            "response_text": response_text,
+            "response_status": response_status,
+            "response_message": response_message,
+            "error_code": error_code,
+            "exception_traceback": exception_traceback,
+            "duration_ms": duration_ms,
+            "ip_address": context.ip_address,
+            "user_agent": context.user_agent,
+            "client_id": context.client_id,
+            "resource_type": "mcp_capability",
+            "resource_id": capability_key,
+            "mcp_client_id": context.client_id,
+            "mcp_role": context.mcp_role,
+            "sdk_version": context.sdk_version,
+            "request_method": "MCP",
+            "request_path": f"/mcp/capabilities/{capability_key}",
+        }
+
+        return self._send_audit_log(audit_data)
+
     def log_sdk_call(
         self,
         method: str,
@@ -414,6 +497,27 @@ class AuditLogger:
             return "EXECUTE"
         else:
             return "READ"
+
+    @staticmethod
+    def _infer_capability_action(capability_key: str) -> str:
+        """Infer action from a governed capability key."""
+        key_lower = capability_key.lower()
+
+        if ".create." in key_lower:
+            return "CREATE"
+        if ".update." in key_lower or ".import." in key_lower:
+            return "UPDATE"
+        if ".delete." in key_lower or ".remove." in key_lower:
+            return "DELETE"
+        if (
+            ".execute." in key_lower
+            or ".execution_" in key_lower
+            or ".run." in key_lower
+            or ".start." in key_lower
+            or ".submit." in key_lower
+        ):
+            return "EXECUTE"
+        return "READ"
 
     @staticmethod
     def _mask_sensitive_params(params: Any, mask: str = "***") -> Any:

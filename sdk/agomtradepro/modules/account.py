@@ -4,11 +4,26 @@ AgomTradePro SDK - Account 账户管理模块
 提供账户和持仓管理相关的 API 操作。
 """
 
+import csv
+import io
 from pathlib import Path
 from typing import Any
 
 from ..types import Portfolio, Position
 from .base import BaseModule
+
+_BROKER_TRADE_COLUMNS = (
+    "traded_at",
+    "action",
+    "asset_code",
+    "shares",
+    "price",
+    "commission",
+    "stamp_duty",
+    "transfer_fee",
+    "external_trade_id",
+    "notes",
+)
 
 
 class AccountModule(BaseModule):
@@ -205,6 +220,47 @@ class AccountModule(BaseModule):
             files={"file": (filename, csv_text.encode("utf-8"))},
         )
 
+    def preview_broker_trades(
+        self,
+        portfolio_id: int,
+        trades: list[dict[str, Any]],
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """Preview structured broker trades through the canonical multipart API."""
+
+        return self.preview_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=self._broker_trades_to_csv(trades),
+            broker_name=broker_name,
+            filename="broker_trades.structured.csv",
+        )
+
+    def import_broker_trades(
+        self,
+        portfolio_id: int,
+        trades: list[dict[str, Any]],
+        broker_name: str = "manual",
+    ) -> dict[str, Any]:
+        """Import structured broker trades through the canonical multipart API."""
+
+        return self.import_broker_trades_csv(
+            portfolio_id=portfolio_id,
+            csv_text=self._broker_trades_to_csv(trades),
+            broker_name=broker_name,
+            filename="broker_trades.structured.csv",
+        )
+
+    @staticmethod
+    def _broker_trades_to_csv(trades: list[dict[str, Any]]) -> str:
+        """Serialize the governed structured trade contract to canonical CSV."""
+
+        out = io.StringIO()
+        writer = csv.DictWriter(out, fieldnames=_BROKER_TRADE_COLUMNS)
+        writer.writeheader()
+        for trade in trades:
+            writer.writerow({column: trade.get(column, "") for column in _BROKER_TRADE_COLUMNS})
+        return out.getvalue()
+
     def get_macro_sizing_config(self) -> dict[str, Any]:
         """
         获取当前生效的宏观仓位系数配置。
@@ -267,6 +323,11 @@ class AccountModule(BaseModule):
         results = response.get("results", response)
         return [self._parse_portfolio(item) for item in results]
 
+    def list_portfolio_records(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Return raw accessible portfolio records from the canonical API."""
+
+        return self._list_record_pages("portfolios/", limit=limit)
+
     def get_portfolio(self, portfolio_id: int) -> Portfolio:
         """
         获取单个投资组合详情（兼容接口）。
@@ -288,6 +349,14 @@ class AccountModule(BaseModule):
         """
         response = self._get(f"portfolios/{portfolio_id}/")
         return self._parse_portfolio(response)
+
+    def get_portfolio_record(self, portfolio_id: int) -> dict[str, Any]:
+        """Return one raw accessible portfolio record."""
+
+        response = self._get(f"portfolios/{portfolio_id}/")
+        if isinstance(response, dict):
+            return response
+        return {}
 
     def get_positions(
         self,
@@ -312,16 +381,65 @@ class AccountModule(BaseModule):
             >>> for position in positions:
             ...     print(f"{position.asset_code}: {position.quantity}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        records = self.list_position_records(
+            portfolio_id=portfolio_id,
+            asset_code=asset_code,
+            include_closed=False,
+            limit=limit,
+        )
+        return [self._parse_position(item) for item in records]
 
+    def list_position_records(
+        self,
+        portfolio_id: int | None = None,
+        asset_code: str | None = None,
+        include_closed: bool = False,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Return read-only position records without ledger synchronization."""
+
+        params: dict[str, Any] = {"include_closed": include_closed}
         if portfolio_id is not None:
             params["portfolio_id"] = portfolio_id
         if asset_code is not None:
             params["asset_code"] = asset_code
+        return self._list_record_pages(
+            "positions/read-only/",
+            limit=limit,
+            params=params,
+        )
 
-        response = self._get("positions/", params=params)
-        results = response.get("results", response)
-        return [self._parse_position(item) for item in results]
+    def list_transaction_records(
+        self,
+        portfolio_id: int | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Return transaction records visible to the authenticated owner."""
+
+        rows = self._list_record_pages("transactions/", limit=limit)
+        if portfolio_id is not None:
+            rows = [row for row in rows if row.get("portfolio") == portfolio_id]
+        return rows[:limit]
+
+    def list_capital_flow_records(
+        self,
+        portfolio_id: int | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Return capital-flow records visible to the authenticated owner."""
+
+        rows = self._list_record_pages("capital-flows/", limit=limit)
+        if portfolio_id is not None:
+            rows = [row for row in rows if row.get("portfolio") == portfolio_id]
+        return rows[:limit]
+
+    def get_portfolio_statistics(self, portfolio_id: int) -> dict[str, Any]:
+        """Return canonical summary statistics for one portfolio."""
+
+        response = self._get(f"portfolios/{portfolio_id}/statistics/")
+        if isinstance(response, dict):
+            return response
+        return {}
 
     def get_position(self, position_id: int) -> Position:
         """
@@ -496,6 +614,41 @@ class AccountModule(BaseModule):
             profit_loss=self._to_float(profit_loss_raw, default=0.0),
         )
 
+    def _list_record_pages(
+        self,
+        endpoint: str,
+        *,
+        limit: int,
+        params: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Read paginated records through one SDK-owned transport loop."""
+
+        if limit <= 0:
+            return []
+
+        page = 1
+        rows: list[dict[str, Any]] = []
+        while len(rows) < limit:
+            request_params = dict(params or {})
+            request_params.update({"limit": min(200, limit), "page": page})
+            response = self._get(endpoint, params=request_params)
+            if isinstance(response, dict):
+                batch = response.get("results", [])
+                has_next = bool(response.get("next"))
+            elif isinstance(response, list):
+                batch = response
+                has_next = False
+            else:
+                batch = []
+                has_next = False
+            if not isinstance(batch, list) or not batch:
+                break
+            rows.extend(item for item in batch if isinstance(item, dict))
+            if not has_next:
+                break
+            page += 1
+        return rows[:limit]
+
     # ==================== Trading Cost Config ====================
 
     def get_trading_cost_configs(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -625,7 +778,12 @@ class AccountModule(BaseModule):
             "amount": amount,
             "is_shanghai": is_shanghai,
         }
-        return self._post(f"trading-cost-configs/{config_id}/calculate/", json=data)
+        response = self._post(f"trading-cost-configs/{config_id}/calculate/", json=data)
+        if isinstance(response, dict):
+            result = response.get("data", response)
+            if isinstance(result, dict):
+                return result
+        return {}
 
     @staticmethod
     def _to_float(value: Any, default: float = 0.0) -> float:

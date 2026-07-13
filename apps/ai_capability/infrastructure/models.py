@@ -70,6 +70,13 @@ class CapabilityCatalogModel(models.Model):
         db_index=True,
         help_text="Capability category",
     )
+    semantic_key = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Optional semantic key for API/MCP capability de-duplication",
+    )
     tags = models.JSONField(
         default=list,
         blank=True,
@@ -195,6 +202,7 @@ class CapabilityCatalogModel(models.Model):
             description=self.description,
             route_group=RouteGroup(self.route_group),
             category=self.category,
+            semantic_key=self.semantic_key,
             tags=list(self.tags or []),
             when_to_use=list(self.when_to_use or []),
             when_not_to_use=list(self.when_not_to_use or []),
@@ -230,6 +238,7 @@ class CapabilityCatalogModel(models.Model):
             description=entity.description,
             route_group=entity.route_group.value,
             category=entity.category,
+            semantic_key=entity.semantic_key,
             tags=list(entity.tags),
             when_to_use=list(entity.when_to_use),
             when_not_to_use=list(entity.when_not_to_use),

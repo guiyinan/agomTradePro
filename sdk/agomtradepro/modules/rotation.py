@@ -217,6 +217,15 @@ class RotationModule:
         """
         return self._client.post("/api/rotation/assets/import-defaults/", json={})
 
+    def preview_default_asset_import(self) -> dict[str, Any]:
+        """
+        预览默认轮动资产池导入计划，不执行写入。
+
+        Returns:
+            创建、恢复、更新和保持不变的资产计划
+        """
+        return self._client.get("/api/rotation/assets/import-defaults-preview/")
+
     def export_assets(self, export_format: str = "json") -> Any:
         """
         导出当前轮动资产池

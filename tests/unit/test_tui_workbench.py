@@ -707,6 +707,10 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert "data-toggle-support" in script
     assert "data-toggle-advanced" in script
     assert "data-dashboard-target" in script
+    assert "data-dashboard-action" in script
+    assert "function activateDashboardPanel(targetScreen, actionKey)" in script
+    assert "if (normalizedTarget && normalizedTarget !== currentScreenKey)" in script
+    assert 'runAction(normalizedActionKey, null, { params: {} });' in script
     assert "支撑检查已显示" in script
     assert "高级查询已显示" in script
     assert "主流程" in script
@@ -858,6 +862,9 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
     assert "function renderSemanticCopyFields(fields)" in script
     assert "function renderSemanticPromptFields(fields)" in script
     assert "function bindCopyButtons(root = document)" in script
+    assert "function fieldLooksLikePrompt(field)" in script
+    assert "function fieldLooksLikeCopyable(field)" in script
+    assert "event.stopPropagation();" in script
     assert "navigator.clipboard.writeText" in script
     assert "loadScreen(normalizedKey, { suppressAutoAction: true })" in script
     assert "button.addEventListener(\"click\", () => loadScreen(button.dataset.screenKey));" in script
@@ -6490,13 +6497,14 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
                     "route_endpoint": "https://example.test/api/ai-capability/route/",
                     "web_endpoint": "https://example.test/api/ai-capability/web/",
                     "capability_endpoint": "https://example.test/api/ai-capability/capabilities/",
-                    "current_token_display": "agtp_live_full_token_value",
+                    "current_token_value": "agtp_live_plaintext_token_value",
+                    "current_token_display": "agtp_live_preview_token_value",
                     "agent_bootstrap_token_ready": True,
                     "agent_bootstrap_access_level_label": "只读",
                     "preferred_token": {
                         "name": "router-readonly",
                         "access_level_label": "只读",
-                        "display_token": "agtp_live_full_token_value",
+                        "display_token": "agtp_live_preview_token_value",
                     },
                     "access_tokens": [{"id": 1}],
                     "agent_bootstrap_prompt": "请按以下信息接入 AgomTradePro：",
@@ -6557,7 +6565,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
 
     assert result["view_model"]["kind"] == "detail"
     fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
-    assert fields["当前令牌"] == "agtp_live_full_token_value"
+    assert fields["当前令牌"] == "agtp_live_plaintext_token_value"
     assert fields["基础地址"] == "https://example.test"
 
 
@@ -6634,6 +6642,100 @@ def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
     assert fields["能力目录地址"] == "https://example.test/api/ai-capability/capabilities/"
 
 
+def test_tui_mcp_self_service_create_token_model_surfaces_new_token_and_prompt():
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 201,
+                "payload": {
+                    "success": True,
+                    "message": "已创建新的 MCP 令牌。",
+                    "token_payload": {
+                        "username": "ops_user",
+                        "token_name": "self-readonly",
+                        "token": "agtp_new_plaintext_token_value",
+                        "access_level": "read_only",
+                        "access_level_label": "只读",
+                        "generated_at": "2026-07-09T10:00:00+08:00",
+                    },
+                    "created_agent_prompt": {
+                        "agent_bootstrap_prompt": "请使用该令牌接入 AgomTradePro。",
+                        "agent_bootstrap_token_ready": True,
+                        "agent_bootstrap_token_name": "self-readonly",
+                        "agent_bootstrap_access_level": "read_only",
+                        "agent_bootstrap_access_level_label": "只读",
+                    },
+                    "self_service": {
+                        "username": "ops_user",
+                        "active_token_count": 2,
+                        "route_endpoint": "https://example.test/api/ai-capability/route/",
+                        "access_tokens": [{"id": 1}, {"id": 2}],
+                    },
+                },
+            }
+
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                default_screen="capability-router.self-service",
+                groups=[{"key": "ops", "label": "运维"}],
+                modules=[
+                    {
+                        "key": "capability-router",
+                        "label": "能力路由",
+                        "group": "ops",
+                        "summary": "Capability router.",
+                    }
+                ],
+                screens=[
+                    {
+                        "key": "capability-router.self-service",
+                        "label": "我的 MCP 接入",
+                        "module_key": "capability-router",
+                        "group": "ops",
+                        "summary": "Self service.",
+                        "view_type": "detail",
+                        "status": "online",
+                        "default_action_key": "capability-router.create-my-mcp-token",
+                    }
+                ],
+                actions=[
+                    {
+                        "key": "capability-router.create-my-mcp-token",
+                        "label": "创建我的 MCP 令牌",
+                        "method": "POST",
+                        "endpoint": "/api/account/mcp/tokens/",
+                        "intent": "create_current_user_mcp_token",
+                        "screen_key": "capability-router.self-service",
+                        "module_key": "capability-router",
+                        "view_type": "detail",
+                        "risk": "write",
+                        "fields": [],
+                        "description": "Create token.",
+                        "source": "approved:test",
+                        "result_semantics": ["copyable_secret", "multiline_prompt"],
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    result = service.run_action(
+        action_key="capability-router.create-my-mcp-token",
+        params={},
+        user=None,
+        confirmed=True,
+    )
+
+    assert result["view_model"]["kind"] == "detail"
+    fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
+    assert result["view_model"]["status"] == "已创建"
+    assert fields["令牌明文"] == "agtp_new_plaintext_token_value"
+    assert fields["智能路由地址"] == "https://example.test/api/ai-capability/route/"
+    assert fields["接入提示词"] == "请使用该令牌接入 AgomTradePro。"
+
+
 @pytest.mark.django_db
 def test_tui_capability_router_self_service_screen_publishes_user_facing_semantics(client, tui_user):
     client.force_login(tui_user)
@@ -6660,6 +6762,8 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     assert actions["capability-router.mcp-self-prompt-guide"]["result_semantics"] == [
         "multiline_prompt"
     ]
+    assert actions["capability-router.create-my-mcp-token"]["task_tier"] == "operation"
+    assert actions["capability-router.revoke-my-mcp-token"]["task_tier"] == "operation"
 
 
 @pytest.mark.django_db

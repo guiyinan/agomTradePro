@@ -70,7 +70,9 @@ class RotationPriceDataService:
         self,
         asset_code: str,
         end_date: date,
-        days_back: int = 252
+        days_back: int = 252,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """
         获取资产历史收盘价。
@@ -79,6 +81,7 @@ class RotationPriceDataService:
             asset_code: 资产代码（如 "510300"、"000300"）
             end_date: 截止日期
             days_back: 向前取多少个交易日
+            cache_result: 是否把成功读取结果写入进程内缓存
 
         Returns:
             收盘价列表（从旧到新），或 None
@@ -91,7 +94,7 @@ class RotationPriceDataService:
         # 从 data_center 事实表获取
         prices = self._fetch_from_data_center(asset_code, end_date, days_back)
 
-        if prices:
+        if prices and cache_result:
             self.cache.set(asset_code, end_date, prices)
 
         return prices

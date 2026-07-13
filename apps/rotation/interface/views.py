@@ -14,7 +14,7 @@ from django.views.decorators.http import require_http_methods
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.rotation.application import interface_services as rotation_interface_services
@@ -36,6 +36,19 @@ class AssetClassViewSet(viewsets.ModelViewSet):
     ordering_fields = ['category', 'code']
     lookup_field = 'code'
 
+    def get_permissions(self) -> list[BasePermission]:
+        """Restrict global asset-catalog mutations to staff users."""
+        if self.action in {
+            'create',
+            'update',
+            'partial_update',
+            'destroy',
+            'import_defaults',
+            'preview_import_defaults',
+        }:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+
     @action(detail=False, methods=['get'])
     def with_prices(self, request):
         """Get all assets with current price information"""
@@ -46,6 +59,11 @@ class AssetClassViewSet(viewsets.ModelViewSet):
     def import_defaults(self, request):
         """Import or reactivate default rotation assets."""
         return Response(rotation_interface_services.import_default_assets())
+
+    @action(detail=False, methods=['get'], url_path='import-defaults-preview')
+    def preview_import_defaults(self, request):
+        """Preview default asset creation, reactivation and updates."""
+        return Response(rotation_interface_services.preview_default_asset_import())
 
     @action(detail=False, methods=['get'], url_path='export')
     def export_assets(self, request):
@@ -184,9 +202,28 @@ class RotationActionViewSet(viewsets.ViewSet):
         asset_codes = request.data.get('asset_codes', [])
         lookback_days = request.data.get('lookback_days', 60)
 
-        if not asset_codes:
+        if (
+            not isinstance(asset_codes, list)
+            or not asset_codes
+            or len(asset_codes) > 20
+            or any(not isinstance(code, str) or not code.strip() for code in asset_codes)
+        ):
             return Response(
-                {'error': 'asset_codes is required'},
+                {
+                    'error': (
+                        'asset_codes must be a non-empty list of at most 20 '
+                        'non-empty strings'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if (
+            isinstance(lookback_days, bool)
+            or not isinstance(lookback_days, int)
+            or not 1 <= lookback_days <= 500
+        ):
+            return Response(
+                {'error': 'lookback_days must be an integer between 1 and 500'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

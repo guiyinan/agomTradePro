@@ -6,30 +6,63 @@
 - 不包含业务逻辑
 """
 
-
 from rest_framework import serializers
 
+REGIME_CHOICES = ("Recovery", "Overheat", "Stagflation", "Deflation")
 
-class ScreenFundsRequestSerializer(serializers.Serializer):
+
+class StrictFieldsSerializer(serializers.Serializer):
+    """Reject request fields that are not part of the published contract."""
+
+    def to_internal_value(self, data):
+        """Validate the request key set before normal field conversion."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
+class ScreenFundsRequestSerializer(StrictFieldsSerializer):
     """筛选基金请求序列化器"""
-    regime = serializers.CharField(required=False, allow_null=True)
-    custom_types = serializers.ListField(
-        child=serializers.CharField(),
+    regime = serializers.ChoiceField(
+        choices=REGIME_CHOICES,
         required=False,
-        allow_null=True
+        allow_null=True,
+    )
+    custom_types = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+        allow_null=True,
+        max_length=20,
     )
     custom_styles = serializers.ListField(
-        child=serializers.CharField(),
+        child=serializers.CharField(max_length=50),
         required=False,
-        allow_null=True
+        allow_null=True,
+        max_length=20,
     )
     min_scale = serializers.DecimalField(
         max_digits=20,
         decimal_places=2,
         required=False,
-        allow_null=True
+        allow_null=True,
+        min_value=0,
     )
     max_count = serializers.IntegerField(default=30, min_value=1, max_value=100)
+
+
+class RankFundsQuerySerializer(StrictFieldsSerializer):
+    """Strict query contract for persisted fund ranking reads."""
+
+    regime = serializers.ChoiceField(choices=REGIME_CHOICES, default="Recovery")
+    max_count = serializers.IntegerField(default=50, min_value=1, max_value=200)
 
 
 class ScreenFundsResponseSerializer(serializers.Serializer):

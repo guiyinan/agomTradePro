@@ -27,7 +27,7 @@ from ..domain.entities import (
     RoutingDecision,
     SourceType,
 )
-from ..domain.services import CapabilityFilter
+from ..domain.services import CapabilityFilter, CapabilityRetrievalScorer
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,72 @@ class CapabilityRoutingFacade:
             capability_repo=self.capability_repo,
             routing_log_repo=self.routing_log_repo,
         )
+        self.retrieval_scorer = CapabilityRetrievalScorer()
+
+    def list_terminal_mcp_capabilities(
+        self,
+        *,
+        session_id: str,
+        user_id: int | None,
+        user_is_admin: bool,
+        mcp_enabled: bool,
+        provider_name: str | None,
+        model: str | None,
+        context: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Return normalized MCP capabilities visible to Terminal Agent."""
+
+        routing_context = RoutingContext(
+            entrypoint="terminal",
+            session_id=session_id,
+            user_id=user_id,
+            user_is_admin=user_is_admin,
+            mcp_enabled=mcp_enabled,
+            provider_name=provider_name,
+            model=model,
+            context=dict(context),
+            answer_chain_enabled=False,
+        )
+        capabilities = self.capability_repo.get_by_source_type(SourceType.MCP_TOOL.value)
+        visible = CapabilityFilter().filter_by_context(capabilities, routing_context)
+        return [
+            {
+                "capability_key": capability.capability_key,
+                "source_ref": capability.source_ref,
+                "summary": capability.summary,
+                "risk_level": capability.risk_level.value,
+                "execution_target": dict(capability.execution_target or {}),
+            }
+            for capability in visible
+            if capability.enabled_for_terminal
+        ]
+
+    def match_terminal_mcp_capability(
+        self,
+        *,
+        message: str,
+        capability_keys: list[str],
+    ) -> dict[str, Any] | None:
+        """Return the best high-confidence Terminal MCP capability match."""
+
+        capabilities = [
+            capability
+            for capability_key in capability_keys
+            if (capability := self.capability_repo.get_by_key(capability_key)) is not None
+        ]
+        matches = self.retrieval_scorer.retrieve_top_k(
+            capabilities=capabilities,
+            query=message,
+            k=1,
+            min_score=6.0,
+        )
+        if not matches:
+            return None
+        capability = matches[0].capability
+        return {
+            "capability_key": capability.capability_key,
+            "risk_level": capability.risk_level.value,
+        }
 
     def route(
         self,

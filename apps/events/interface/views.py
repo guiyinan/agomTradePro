@@ -9,7 +9,7 @@ from typing import Any
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -103,7 +103,7 @@ class EventPublishView(BaseAPIView):
 
     POST /api/events/publish/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request) -> Response:
         """
@@ -153,9 +153,17 @@ class EventPublishView(BaseAPIView):
                     message="Event published successfully",
                 )
             else:
+                error_status = (
+                    status.HTTP_409_CONFLICT
+                    if use_case_response.error_code == "EVENT_ALREADY_EXISTS"
+                    else status.HTTP_500_INTERNAL_SERVER_ERROR
+                    if use_case_response.error_code == "EVENT_PERSISTENCE_FAILED"
+                    else status.HTTP_400_BAD_REQUEST
+                )
                 return self.error_response(
                     message=use_case_response.error_message or "Failed to publish event",
-                    error_code="PUBLISH_FAILED",
+                    error_code=use_case_response.error_code or "PUBLISH_FAILED",
+                    http_status=error_status,
                 )
 
         except Exception as e:

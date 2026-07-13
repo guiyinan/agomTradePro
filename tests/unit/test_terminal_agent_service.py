@@ -3,8 +3,6 @@
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-import pytest
-
 from apps.agent_runtime.application.terminal_agent import (
     TerminalAgentChatRequestDTO,
     TerminalAgentEventDTO,
@@ -52,6 +50,7 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     tool_access = SimpleNamespace(
         auto_allowed={"read_regime": {"tool_name": "read_regime"}},
         gated={},
+        allowed_tool_names=frozenset({"read_regime"}),
     )
     server = service._build_mcp_server({"MCPServerStdio": FakeServer}, _request(), tool_access)
 
@@ -153,67 +152,86 @@ def test_resolve_provider_uses_system_fallback_when_personal_missing():
 
 
 def test_build_tool_access_snapshot_separates_auto_and_gated_tools():
-    capability_repo = Mock()
-    safe_cap = SimpleNamespace(
-        source_ref="read_regime",
-        enabled_for_terminal=True,
-        risk_level=SimpleNamespace(value="safe"),
-        requires_confirmation=False,
-        capability_key="mcp_tool.read_regime",
-        summary="Read regime",
-    )
-    gated_cap = SimpleNamespace(
-        source_ref="rebalance_portfolio",
-        enabled_for_terminal=True,
-        risk_level=SimpleNamespace(value="high"),
-        requires_confirmation=True,
-        capability_key="mcp_tool.rebalance_portfolio",
-        summary="Rebalance",
-    )
-    capability_repo.get_by_source_type.return_value = [safe_cap, gated_cap]
+    capability_gateway = Mock()
+    capability_gateway.list_terminal_mcp_capabilities.return_value = [
+        {
+            "source_ref": "read_regime",
+            "execution_target": {"type": "mcp_tool", "tool_name": "read_regime"},
+            "risk_level": "safe",
+            "capability_key": "mcp_tool.read_regime",
+            "summary": "Read regime",
+        },
+        {
+            "source_ref": "rebalance_portfolio",
+            "execution_target": {"type": "mcp_tool", "tool_name": "rebalance_portfolio"},
+            "risk_level": "high",
+            "capability_key": "mcp_tool.rebalance_portfolio",
+            "summary": "Rebalance",
+        },
+    ]
 
-    service = OpenAIAgentsTerminalService(capability_repo=capability_repo)
-    with patch.object(
-        service._capability_filter,
-        "filter_by_context",
-        return_value=[safe_cap, gated_cap],
-    ):
-        snapshot = service._build_tool_access_snapshot(_request())
+    service = OpenAIAgentsTerminalService(capability_gateway=capability_gateway)
+    snapshot = service._build_tool_access_snapshot(_request())
 
     assert "read_regime" in snapshot.auto_allowed
     assert "rebalance_portfolio" in snapshot.gated
+    assert snapshot.allowed_tool_names == frozenset({"read_regime", "rebalance_portfolio"})
 
 
 def test_build_tool_access_snapshot_keeps_low_risk_tools_auto_allowed_even_if_confirmation_flagged():
-    capability_repo = Mock()
-    low_cap = SimpleNamespace(
-        source_ref="check_alpha_health",
-        enabled_for_terminal=True,
-        risk_level=SimpleNamespace(value="low"),
-        requires_confirmation=True,
-        capability_key="mcp_tool.check_alpha_health",
-        summary="Health check",
-    )
-    capability_repo.get_by_source_type.return_value = [low_cap]
+    capability_gateway = Mock()
+    capability_gateway.list_terminal_mcp_capabilities.return_value = [
+        {
+            "source_ref": "check_alpha_health",
+            "execution_target": {
+                "type": "mcp_tool",
+                "tool_name": "check_alpha_health",
+            },
+            "risk_level": "low",
+            "capability_key": "mcp_tool.check_alpha_health",
+            "summary": "Health check",
+        }
+    ]
 
-    service = OpenAIAgentsTerminalService(capability_repo=capability_repo)
-    with patch.object(
-        service._capability_filter,
-        "filter_by_context",
-        return_value=[low_cap],
-    ):
-        snapshot = service._build_tool_access_snapshot(_request())
+    service = OpenAIAgentsTerminalService(capability_gateway=capability_gateway)
+    snapshot = service._build_tool_access_snapshot(_request())
 
     assert "check_alpha_health" in snapshot.auto_allowed
     assert "check_alpha_health" not in snapshot.gated
 
 
-def test_match_gated_tool_returns_high_confidence_match():
-    capability_repo = Mock()
-    matched_capability = SimpleNamespace(source_ref="rebalance_portfolio")
-    capability_repo.get_by_key.return_value = matched_capability
+def test_build_tool_access_snapshot_prefers_core_tools_for_governed_mcp_capabilities():
+    capability_gateway = Mock()
+    capability_gateway.list_terminal_mcp_capabilities.return_value = [
+        {
+            "source_ref": "system.read.regime.current",
+            "execution_target": {
+                "type": "mcp_capability",
+                "tool_name": "agom_capability_call",
+                "capability_key": "system.read.regime.current",
+            },
+            "risk_level": "safe",
+            "capability_key": "mcp_tool.system.read.regime.current",
+            "summary": "Read regime through governed MCP capability",
+        }
+    ]
 
-    service = OpenAIAgentsTerminalService(capability_repo=capability_repo)
+    service = OpenAIAgentsTerminalService(capability_gateway=capability_gateway)
+    snapshot = service._build_tool_access_snapshot(_request())
+
+    assert "mcp_tool.system.read.regime.current" in snapshot.auto_allowed
+    assert "agom_capability_call" in snapshot.allowed_tool_names
+    assert "agom_capability_search" in snapshot.allowed_tool_names
+    assert "agom_bootstrap" in snapshot.allowed_tool_names
+
+
+def test_match_gated_tool_returns_high_confidence_match():
+    capability_gateway = Mock()
+    capability_gateway.match_terminal_mcp_capability.return_value = {
+        "capability_key": "mcp_tool.rebalance_portfolio",
+        "risk_level": "high",
+    }
+    service = OpenAIAgentsTerminalService(capability_gateway=capability_gateway)
     tool_access = SimpleNamespace(
         auto_allowed={},
         gated={
@@ -226,15 +244,10 @@ def test_match_gated_tool_returns_high_confidence_match():
         },
     )
 
-    with patch.object(
-        service._retrieval_scorer,
-        "retrieve_top_k",
-        return_value=[SimpleNamespace(capability=matched_capability)],
-    ):
-        matched = service._match_gated_tool(
-            _request(message="rebalance the account"),
-            tool_access,
-        )
+    matched = service._match_gated_tool(
+        _request(message="rebalance the account"),
+        tool_access,
+    )
 
     assert matched["tool_name"] == "rebalance_portfolio"
     assert matched["risk_level"] == "high"

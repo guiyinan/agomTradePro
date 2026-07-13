@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from apps.alpha.domain.entities import AlphaResult, StockScore
@@ -36,6 +37,84 @@ def staff_user(db):
 def authenticated_client(api_client, auth_user):
     api_client.force_authenticate(user=auth_user)
     return api_client
+
+
+@pytest.mark.django_db
+def test_alpha_provider_status_success_contract(authenticated_client):
+    cache.clear()
+    with patch(
+        "apps.alpha.interface.views.AlphaService.get_provider_status",
+        return_value={
+            "cache": {
+                "priority": 10,
+                "status": "available",
+                "max_staleness_days": 5,
+                "error": None,
+            },
+            "simple": {
+                "priority": 100,
+                "status": "degraded",
+                "max_staleness_days": 7,
+                "error": "fallback mode",
+            },
+        },
+    ) as mock_status:
+        response = authenticated_client.get("/api/alpha/providers/status/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {
+        "cache": {
+            "priority": 10,
+            "status": "available",
+            "max_staleness_days": 5,
+            "error": None,
+        },
+        "simple": {
+            "priority": 100,
+            "status": "degraded",
+            "max_staleness_days": 7,
+            "error": "fallback mode",
+        },
+    }
+    mock_status.assert_called_once_with()
+
+
+@pytest.mark.django_db
+def test_alpha_available_universes_success_contract(authenticated_client):
+    cache.clear()
+    with patch(
+        "apps.alpha.interface.views.AlphaService.get_available_universes",
+        return_value=["csi500", "csi300", "csi300"],
+    ) as mock_universes:
+        response = authenticated_client.get("/api/alpha/universes/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json() == {"universes": ["csi300", "csi500"]}
+    mock_universes.assert_called_once_with()
+
+
+@pytest.mark.django_db
+def test_alpha_health_success_contract(authenticated_client):
+    cache.clear()
+    with patch(
+        "apps.alpha.interface.views.AlphaService.get_provider_status",
+        return_value={
+            "qlib": {"status": "unavailable"},
+            "cache": {"status": "available"},
+            "simple": {"status": "degraded"},
+        },
+    ) as mock_status:
+        response = authenticated_client.get("/api/alpha/health/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["status"] == "healthy"
+    assert payload["providers"] == {"available": 2, "total": 3}
+    assert payload["timestamp"]
+    mock_status.assert_called_once_with()
 
 
 @pytest.mark.django_db

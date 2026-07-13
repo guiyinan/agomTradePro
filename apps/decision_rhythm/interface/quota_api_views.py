@@ -6,6 +6,7 @@ from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -109,6 +110,8 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
 class ResetQuotaView(APIView):
     """POST /api/decision-rhythm/reset-quota/"""
 
+    permission_classes = [IsAdminUser]
+
     @extend_schema(request=ResetQuotaRequestSerializer, responses={200: dict})
     def post(self, request) -> Response:
         """Reset one or all quotas for the selected account."""
@@ -125,7 +128,14 @@ class ResetQuotaView(APIView):
                 )
             )
             if response.success:
-                return Response({"success": True, "message": response.message})
+                return Response(
+                    {
+                        "success": True,
+                        "message": response.message,
+                        "account_id": str(data.get("account_id") or "default"),
+                        "reset_periods": response.reset_periods,
+                    }
+                )
 
             return Response(
                 {"success": False, "error": response.error},

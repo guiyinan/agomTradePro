@@ -87,6 +87,8 @@ The current `/tui/` runtime consumes the user-facing contract end to end:
 - Empty-state copy falls back from `entry_state.empty_copy` to `screen.user_experience.empty_state_hint`.
 - Dashboard cards surface `p0/p1/p2` priority and semantic badges from published metadata.
 - Detail rendering switches on `presentation_semantic` / `result_semantics` so `copyable_secret`, `endpoint_list`, and `multiline_prompt` use dedicated views.
+- If a dashboard panel points back to the current screen, the browser must run or expand that panel's approved action in place instead of reloading the same screen.
+- Copy buttons rendered inside dashboard/detail panels must stop click bubbling so copying a token, endpoint, or prompt never triggers panel navigation.
 
 The view model layer translates common field keys and enum-like values into operator language before the browser renders them. For example, `portfolio.total_assets`, `portfolio.total_return_pct`, `user.username`, and `regime.current=Recovery` should render as `组合 / 总资产`, `组合 / 总收益率`, `用户 / 用户名`, and `复苏`. The same shared vocabulary should also normalize nested collaboration/detail payloads such as public share snapshots (`分享链接 / 分享等级`, `快照 / 来源区间开始`, `绩效 / 年化收益`), research payloads such as `weights.policy`, `summary.investable`, `regime_fit_score`, and `total_score`, and field-specific enums such as `account_type=real`, `portfolio_type=simulated`, `rbac_role=owner`, and `risk_tolerance=moderate`. DataGrids must also prefer row-provided names such as `fund_name` over fallback asset-name lookup so fund rows do not display stock aliases. Add shared vocabulary in `TuiWorkbenchService` for reusable business terms; do not add per-endpoint label rewrites in JavaScript.
 
@@ -333,7 +335,21 @@ Normal runtime menus expose `read`, `ai`, and reviewed `write` actions. `write` 
 
 ## Current Published Surface
 
-The reviewed file and local DB baseline now contain 37 screens and 367 published actions. The current coverage summary tracks 354 smoke-covered `read`/`ai` actions, of which 215 open directly, 139 require field input, and 0 currently fail the local smoke gate. The graph also carries 15 reviewed operation/admin actions with explicit risk, field, and confirmation policy. Known HTMX fragments, POST-only proposal collections, and operation-like calculate/check routes are now filtered out before publication, so the current published graph carries `smoke_pruned_auto_actions = 0`. The latest local rerun on 2026-06-22 completed with the same `354 / 215 / 139 / 0` baseline and no runtime warning noise from expected Alpha, Celery, or task-monitor fallback paths. A same-day authenticated live UAT pass against a temporary local Django server also verified all 37 screen default actions, representative parameter-required actions, and representative confirmation-required write/admin actions. Follow-up UAT on 2026-06-22 then verified the previously broken account/simulated-trading `performance-report` and `valuation-snapshot` actions after adding the missing date fields, confirmed that strategy `ai_config` / `script_config` empty states now render as `暂无数据` instead of a hard error, removed the stale published GET action for `evaluate_position_management` because the backend route is POST-only, and replaced the stale share public `.../access/` GET publication with an explicit reviewed `share.public.access` POST access action. The observer-grant detail and positions APIs now also reject malformed UUID path input with a `400` validation response instead of bubbling into a `502`. In the TUI runtime path, same-process internal execution now forwards session state, so password-protected public-share reads no longer explode with `502`; they render the backend `401` challenge payload as a user-visible password challenge, append an operator hint that points users to the reviewed access action, and the reviewed access action can establish the same-session verification state needed for follow-up snapshot reads. Share access statuses such as `revoked` and `expired` are also localized in the TUI layer. The detail renderer now also hides wrapper flags such as `success=true` and prefers `detail` over accidental nested-list `datagrid` rendering when a response is clearly a single business object, which makes account详情、策略仓位规则、Prompt 模板/链条、公开分享快照等 screen 更接近用户预期。 The compiler also prunes stale promoted parameterized safe-read actions during rebuild. The unit contract suite now also enforces two global TUI guarantees on the published graph: all 143 actions with required fields must return the `需要参数` contract when invoked empty, and all 13 `write`/`admin` actions must either return `需要参数`, return `待确认`, or succeed immediately only when they are reviewed admin `GET` reads. Follow-up live UAT on 2026-06-23 then verified the current `user-task-52` asset pair against a fresh local Django host on `127.0.0.1:8036`: `api-library.data-center` now opens `指标目录` correctly, supports same-screen `indicator_code` row-fill into `Macro Serie`, and still opens `服务商列表` / `发布机构目录`; `execution.account-settings`, `execution.trading-ledger`, `execution.portfolio-performance`, `macro-regime.hedge`, `execution.share`, `research.fund-sector`, and `research.screening-sentiment` all completed representative `datagrid -> row-fill -> detail/query` loops; `macro-regime.beta-gate`, `research.alpha-triggers`, `api-library.market-thermometer`, and `ai-ops.providers` also completed representative main-flow screen transitions without browser console errors. These 2026-06-23 checks also validated the delegated actions-panel event handling and the actions-panel scroll padding/margin fix that prevents the first support task in long panels from being auto-scrolled into a non-clickable position. A same-day post-fix rerun against a fresh host on `127.0.0.1:8038` then confirmed that `execution.audit` no longer misrenders `审计 / 操作日志 / 详情` as an accidental datagrid: the same `log_id` path now renders a detail view with `Log / ID`、`Log / 请求ID` and other wrapped log fields. The regression suite also now locks two detail-inference cases that previously regressed into datagrids: wrapped audit-log objects and terminal-command detail payloads that include auxiliary lists such as `parameters` / `tags`. A follow-up UI fix on 2026-06-23 also moved action-form submission and row-fill onto explicit per-form bindings, marked runtime forms `novalidate`, and auto-prefills blank row-backed fields from the current selection, so browser-native validation and delegated-submit quirks no longer block terminal-screen flows such as `终端 / 指令 / 详情`. It keeps the hand-authored user workbench screens, promotes smoke-passing direct and parameterized tools into user-task screens, and keeps only low-frequency system/runtime tools in the system toolbox:
+Repository-level governance counts use `governance/governance_baseline.json` as
+the machine source of truth. TUI screen, action, smoke, and evidence totals use
+`config/tui/published/tui_operation_graph.published.json`,
+`config/tui/generated/tui_operation_evidence.generated.json`, and the current
+smoke/promotion report; this document does not define an independent baseline.
+
+The published surface is accepted only when the generated graph validates, the
+same-process smoke run has no retained auto-action failures, required-input
+actions return the business `需要参数` contract, and reviewed write/admin actions
+follow confirmation and permission rules. Historical UAT on 2026-06-22 and
+2026-06-23 also verified session-backed public-share challenges, detail rendering,
+row-fill behavior, admin visibility, and representative task-screen transitions.
+Live totals are intentionally omitted here. The workbench keeps hand-authored
+user screens, promotes smoke-passing actions into task screens, and leaves only
+low-frequency system/runtime tools in the system toolbox:
 
 - Decision and workflow tools.
 - Environment, strategy, rhythm, rotation, and hedge tools.
@@ -343,13 +359,27 @@ The reviewed file and local DB baseline now contain 37 screens and 367 published
 - System, AI capability, terminal, agent-runtime, setup, data-center, and admin-only config-center tools.
 - Parameterized detail/query tools are placed into the relevant user screen, with required fields instead of endpoint exposure.
 
-The main business screens now include daily decision flow, dashboard checks, policy intake, tactical pulse, account and portfolio checks, strategy and position rules, rotation and allocation, rhythm/hedge controls, asset and market research, events/realtime monitoring, sharing/observer workflows, Prompt/model configuration, runtime health, data center status, and the admin-only Qlib config center. All 37 published screens now include explicit or generated `business_context`, so the Inspector shows the user's objective and expected decision output before they execute or inspect tasks. `audit.summary` is now modeled as a required-input read action instead of surfacing as a smoke-failing generic GET.
+The main business screens cover daily decision flow, dashboard checks, policy
+intake, tactical pulse, account and portfolio checks, strategy and position
+rules, rotation and allocation, rhythm/hedge controls, asset and market research,
+events/realtime monitoring, sharing/observer workflows, Prompt/model
+configuration, runtime health, data center status, and the admin-only Qlib
+config center. Every published screen must include explicit or generated
+`business_context`, so the Inspector shows the user's objective and expected
+decision output before execution. `audit.summary` is modeled as a required-input
+read action instead of a generic smoke-failing GET.
 
-The compile-time scan currently sees 468 safe GET evidence records, 405 SDK methods, 346 MCP tools, and 127 classic templates with UX features. Of those safe GET records, 228 are direct safe-read candidates and 137 are parameterized safe-read candidates after filtering technical suffix routes, HTMX-only fragments, unstable collection routes, and operation-like GET routes. The current compact published graph exposes 367 runtime actions, 319 business-promoted actions, and 15 reviewed operation/admin actions. Deferred counts now stand at 37 path-parameter records, 30 write-like or heavy records, and 8 internal/debug/docs records.
+Compile-time evidence totals must be read from
+`config/tui/generated/tui_operation_evidence.generated.json`; MCP governance
+totals must be read from `governance/governance_baseline.json`; runtime action
+totals and classifications must be read from the current published graph.
 
 Latest local runtime audit: the ordinary catalog still hides `api-library.config-center`, while admin users see that screen and can open `config_center.qlib_runtime` directly. Admin `POST` actions stay in the same workbench but require confirmation before execution. Focused regression tests now cover both visibility modes and the updated published metadata statistics.
 
-Deferred candidates remain in generated evidence but are not normal-menu actions when they still lack safe field metadata, return HTML/HTMX fragments, expose debug/docs/TUI internals, or look like write/heavy operations despite using GET. Current deferred counts are 37 remaining path-parameter records, 30 write-like or heavy records, and 8 internal/debug/docs records. The current published graph no longer depends on post-smoke pruning to remove auto-promoted failures.
+Deferred candidates remain in generated evidence but are not normal-menu actions
+when they still lack safe field metadata, return HTML/HTMX fragments, expose
+debug/docs/TUI internals, or look like write/heavy operations despite using GET.
+Their live totals come from the generated evidence and promotion report.
 
 ## Migration Rule
 

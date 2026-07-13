@@ -16,7 +16,12 @@ def register_sector_tools(server: FastMCP) -> None:
     """注册 Sector 相关的 MCP 工具"""
 
     @server.tool()
-    def list_sectors(limit: int = 50) -> list[dict[str, Any]]:
+    def list_sectors(
+        limit: int = 50,
+        regime: str | None = None,
+        lookback_days: int = 20,
+        level: str = "SW1",
+    ) -> list[dict[str, Any]]:
         """
         获取板块列表
 
@@ -30,7 +35,12 @@ def register_sector_tools(server: FastMCP) -> None:
             >>> sectors = list_sectors()
         """
         client = AgomTradeProClient()
-        return client.sector.list_sectors(limit=limit)
+        return client.sector.list_sectors(
+            limit=limit,
+            regime=regime,
+            lookback_days=lookback_days,
+            level=level,
+        )
 
     @server.tool()
     def get_sector_score(
@@ -58,6 +68,8 @@ def register_sector_tools(server: FastMCP) -> None:
     def get_sector_recommendations(
         regime: str | None = None,
         limit: int = 10,
+        lookback_days: int = 20,
+        level: str = "SW1",
     ) -> list[dict[str, Any]]:
         """
         获取板块推荐
@@ -73,7 +85,12 @@ def register_sector_tools(server: FastMCP) -> None:
             >>> recs = get_sector_recommendations(regime="Recovery")
         """
         client = AgomTradeProClient()
-        return client.sector.get_recommendations(regime=regime, limit=limit)
+        return client.sector.get_recommendations(
+            regime=regime,
+            limit=limit,
+            lookback_days=lookback_days,
+            level=level,
+        )
 
     @server.tool()
     def analyze_sector(
@@ -121,7 +138,12 @@ def register_sector_tools(server: FastMCP) -> None:
         return client.sector.get_sector_stocks(sector_name, order_by=order_by, limit=limit)
 
     @server.tool()
-    def get_hot_sectors(limit: int = 10) -> list[dict[str, Any]]:
+    def get_hot_sectors(
+        limit: int = 10,
+        regime: str | None = None,
+        lookback_days: int = 20,
+        level: str = "SW1",
+    ) -> list[dict[str, Any]]:
         """
         获取热门板块
 
@@ -135,7 +157,12 @@ def register_sector_tools(server: FastMCP) -> None:
             >>> hot = get_hot_sectors()
         """
         client = AgomTradeProClient()
-        return client.sector.get_hot_sectors(limit=limit)
+        return client.sector.get_hot_sectors(
+            limit=limit,
+            regime=regime,
+            lookback_days=lookback_days,
+            level=level,
+        )
 
     @server.tool()
     def compare_sectors(sector_names: list[str]) -> dict[str, Any]:

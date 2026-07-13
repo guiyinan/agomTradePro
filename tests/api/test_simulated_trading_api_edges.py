@@ -84,3 +84,22 @@ def test_daily_inspection_list_rejects_invalid_limit(authenticated_client, owned
     payload = response.json()
     assert payload["success"] is False
     assert "limit" in payload["error"]
+
+
+@pytest.mark.django_db
+def test_daily_inspection_list_returns_stable_empty_envelope(
+    authenticated_client,
+    owned_account,
+):
+    response = authenticated_client.get(
+        f"/api/account/accounts/{owned_account.id}/inspections/?limit=10"
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload == {
+        "success": True,
+        "count": 0,
+        "reports": [],
+    }

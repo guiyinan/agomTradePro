@@ -90,6 +90,7 @@ class CapabilityDefinition:
     description: str = ""
     route_group: RouteGroup = RouteGroup.TOOL
     category: str = "general"
+    semantic_key: str = ""
     tags: list[str] = field(default_factory=list)
     when_to_use: list[str] = field(default_factory=list)
     when_not_to_use: list[str] = field(default_factory=list)
@@ -136,6 +137,7 @@ class CapabilityDefinition:
             "description": self.description,
             "route_group": self.route_group.value,
             "category": self.category,
+            "semantic_key": self.semantic_key,
             "tags": self.tags,
             "when_to_use": self.when_to_use,
             "when_not_to_use": self.when_not_to_use,
@@ -167,6 +169,7 @@ class CapabilityDefinition:
             description=data.get("description", ""),
             route_group=RouteGroup(data.get("route_group", "tool")),
             category=data.get("category", "general"),
+            semantic_key=data.get("semantic_key", ""),
             tags=data.get("tags", []),
             when_to_use=data.get("when_to_use", []),
             when_not_to_use=data.get("when_not_to_use", []),
@@ -196,6 +199,7 @@ class CapabilityDefinition:
             "name": self.name,
             "summary": self.summary,
             "category": self.category,
+            "semantic_key": self.semantic_key,
             "risk_level": self.risk_level.value,
             "requires_confirmation": self.requires_confirmation,
         }

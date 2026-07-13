@@ -4,6 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from apps.hedge.infrastructure.models import HedgePairModel
+
 
 @pytest.fixture
 def api_client():
@@ -23,6 +25,74 @@ def auth_user(db):
 def authenticated_client(api_client, auth_user):
     api_client.force_authenticate(user=auth_user)
     return api_client
+
+
+@pytest.fixture
+def hedge_pair(db):
+    return HedgePairModel.objects.create(
+        name="股债对冲",
+        long_asset="510300",
+        hedge_asset="511260",
+        hedge_method="beta",
+    )
+
+
+@pytest.mark.django_db
+def test_pair_catalog_and_detail_return_persisted_contract(
+    authenticated_client,
+    hedge_pair,
+):
+    list_response = authenticated_client.get("/api/hedge/pairs/")
+    detail_response = authenticated_client.get(f"/api/hedge/pairs/{hedge_pair.id}/")
+
+    assert list_response.status_code == 200
+    list_payload = list_response.json()
+    rows = list_payload.get("results", list_payload)
+    assert any(row["name"] == "股债对冲" for row in rows)
+
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()
+    assert detail_payload["name"] == "股债对冲"
+    assert detail_payload["hedge_method"] == "beta"
+
+
+@pytest.mark.django_db
+def test_active_alerts_return_canonical_list(authenticated_client):
+    with patch(
+        "apps.hedge.interface.views.interface_services.get_recent_alerts_payload",
+        return_value=[
+            {
+                "id": 9,
+                "pair_name": "股债对冲",
+                "severity": "warning",
+                "is_resolved": False,
+            }
+        ],
+    ) as mock_alerts:
+        response = authenticated_client.get("/api/hedge/alerts/active/?days=7")
+
+    assert response.status_code == 200
+    assert response.json()[0]["severity"] == "warning"
+    mock_alerts.assert_called_once_with(days=7)
+
+
+@pytest.mark.django_db
+def test_latest_snapshots_return_persisted_state_contract(authenticated_client):
+    with patch(
+        "apps.hedge.interface.views.interface_services.get_latest_snapshots_payload",
+        return_value=[
+            {
+                "pair_name": "股债对冲",
+                "trade_date": "2026-07-10",
+                "hedge_effectiveness": 0.72,
+            }
+        ],
+    ) as mock_snapshots:
+        response = authenticated_client.get("/api/hedge/snapshots/latest/")
+
+    assert response.status_code == 200
+    assert response.json()[0]["hedge_effectiveness"] == 0.72
+    mock_snapshots.assert_called_once_with()
 
 
 @pytest.mark.django_db
@@ -47,6 +117,114 @@ def test_pairs_correlation_matrix_uses_asset_codes_and_window_days(authenticated
     assert payload["window_days"] == 30
     assert payload["matrix"] == [[1.0, -0.42], [-0.42, 1.0]]
     mock_matrix.assert_called_once_with(asset_codes=["510300", "511260"], window_days=30)
+
+
+@pytest.mark.django_db
+def test_actions_correlation_matrix_is_pure_calculation(authenticated_client):
+    from apps.hedge.infrastructure.models import (
+        CorrelationHistoryModel,
+        HedgeAlertModel,
+        HedgePortfolioSnapshotModel,
+    )
+
+    class _ReadOnlyPrices:
+        def get_asset_prices(
+            self,
+            asset_code,
+            end_date,
+            days,
+            *,
+            cache_result=True,
+        ):
+            assert cache_result is False
+            base = 10.0 if asset_code == "510300" else 20.0
+            return [base + index for index in range(days)]
+
+    tracked_models = (
+        CorrelationHistoryModel,
+        HedgeAlertModel,
+        HedgePortfolioSnapshotModel,
+    )
+    before = {model: model.objects.count() for model in tracked_models}
+
+    with patch(
+        "apps.hedge.infrastructure.services.get_hedge_adapter",
+        return_value=_ReadOnlyPrices(),
+    ):
+        response = authenticated_client.post(
+            "/api/hedge/actions/get_correlation_matrix/",
+            {"asset_codes": ["510300", "511260"], "window_days": 30},
+            format="json",
+        )
+
+    after = {model: model.objects.count() for model in tracked_models}
+    assert response.status_code == 200
+    assert response.json()["asset_codes"] == ["510300", "511260"]
+    assert response.json()["window_days"] == 30
+    assert response.json()["matrix"]["510300"]["510300"] == 1.0
+    assert after == before
+
+
+@pytest.mark.django_db
+def test_pair_effectiveness_is_authenticated_pure_calculation(
+    authenticated_client,
+    hedge_pair,
+):
+    from apps.hedge.infrastructure.models import (
+        CorrelationHistoryModel,
+        HedgeAlertModel,
+        HedgePerformanceModel,
+        HedgePortfolioSnapshotModel,
+    )
+
+    class _ReadOnlyPrices:
+        def get_asset_prices(
+            self,
+            asset_code,
+            end_date,
+            days,
+            *,
+            cache_result=True,
+        ):
+            assert cache_result is False
+            if asset_code == "510300":
+                return [100.0 + index for index in range(days)]
+            return [200.0 - index for index in range(days)]
+
+    tracked_models = (
+        CorrelationHistoryModel,
+        HedgeAlertModel,
+        HedgePerformanceModel,
+        HedgePortfolioSnapshotModel,
+    )
+    before = {model: model._default_manager.count() for model in tracked_models}
+
+    with patch(
+        "apps.hedge.infrastructure.services.get_hedge_adapter",
+        return_value=_ReadOnlyPrices(),
+    ):
+        response = authenticated_client.post(
+            f"/api/hedge/pairs/{hedge_pair.id}/check_effectiveness/",
+            {},
+            format="json",
+        )
+
+    after = {model: model._default_manager.count() for model in tracked_models}
+    assert response.status_code == 200
+    assert response.json()["pair_name"] == hedge_pair.name
+    assert response.json()["effectiveness"] >= 0.95
+    assert after == before
+
+
+@pytest.mark.django_db
+def test_pair_effectiveness_rejects_unauthenticated_access(api_client, hedge_pair):
+    response = api_client.post(
+        f"/api/hedge/pairs/{hedge_pair.id}/check_effectiveness/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code in (401, 403)
 
 
 @pytest.mark.django_db

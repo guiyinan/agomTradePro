@@ -6,6 +6,7 @@ Asset Name Resolver - 资产名称解析服务测试
 """
 
 import os
+from unittest.mock import patch
 
 import django
 
@@ -18,6 +19,7 @@ from django.test import TestCase
 from apps.asset_analysis.application.asset_name_service import (
     AssetNameResolver,
     enrich_with_asset_names,
+    resolve_asset_names_read_only,
 )
 
 
@@ -188,6 +190,17 @@ class AssetNameResolverTest(TestCase):
 
         result = resolver.resolve_asset_names(["000001.SZ"])
         self.assertEqual(result.get("000001.SZ"), "平安银行")
+
+    def test_read_only_resolution_does_not_populate_cache(self):
+        """只读解析允许查库，但不得在 cache miss 时回写缓存。"""
+
+        with patch(
+            "apps.asset_analysis.infrastructure.asset_name_resolver.cache.set"
+        ) as cache_set:
+            result = resolve_asset_names_read_only(["000001.SZ"])
+
+        self.assertEqual(result.get("000001.SZ"), "平安银行")
+        cache_set.assert_not_called()
 
     def test_empty_codes(self):
         """测试空代码列表"""

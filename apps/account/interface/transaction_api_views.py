@@ -1,6 +1,5 @@
 """Account transaction and capital flow API views."""
 
-
 from rest_framework import serializers, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -42,22 +41,22 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
-        if self.action == 'create':
+        if self.action == "create":
             return TransactionCreateSerializer
         return TransactionSerializer
 
     def perform_create(self, serializer):
         """创建时验证持仓归属"""
-        portfolio = serializer.validated_data.get('portfolio')
-        position = serializer.validated_data.get('position')
+        portfolio = serializer.validated_data.get("portfolio")
+        position = serializer.validated_data.get("position")
         if position and position.portfolio.user != self.request.user:
             raise PermissionDenied("无权为此持仓创建交易记录")
         if position and portfolio and position.portfolio_id != portfolio.id:
             raise ValidationError({"position": "持仓不属于该投资组合"})
 
         # 计算成交金额
-        shares = serializer.validated_data['shares']
-        price = serializer.validated_data['price']
+        shares = serializer.validated_data["shares"]
+        price = serializer.validated_data["price"]
         notional = shares * float(price)
 
         serializer.save(notional=notional)
@@ -81,13 +80,16 @@ class BrokerTradeImportPreviewView(APIView):
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         uploaded_file = serializer.validated_data["file"]
-        result = ManualTradeImportUseCase().preview(
-            user_id=request.user.id,
-            portfolio_id=serializer.validated_data["portfolio_id"],
-            broker_name=serializer.validated_data.get("broker_name") or "manual",
-            filename=uploaded_file.name,
-            content=uploaded_file.read(),
-        )
+        try:
+            result = ManualTradeImportUseCase().preview(
+                user_id=request.user.id,
+                portfolio_id=serializer.validated_data["portfolio_id"],
+                broker_name=serializer.validated_data.get("broker_name") or "manual",
+                filename=uploaded_file.name,
+                content=uploaded_file.read(),
+            )
+        except LookupError as exc:
+            raise PermissionDenied("无权导入该投资组合的券商成交") from exc
         return Response(result.__dict__, status=status.HTTP_200_OK)
 
 
@@ -101,14 +103,18 @@ class BrokerTradeImportConfirmView(APIView):
         serializer = BrokerTradeImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         uploaded_file = serializer.validated_data["file"]
-        result = ManualTradeImportUseCase().confirm(
-            user_id=request.user.id,
-            portfolio_id=serializer.validated_data["portfolio_id"],
-            broker_name=serializer.validated_data.get("broker_name") or "manual",
-            filename=uploaded_file.name,
-            content=uploaded_file.read(),
-        )
+        try:
+            result = ManualTradeImportUseCase().confirm(
+                user_id=request.user.id,
+                portfolio_id=serializer.validated_data["portfolio_id"],
+                broker_name=serializer.validated_data.get("broker_name") or "manual",
+                filename=uploaded_file.name,
+                content=uploaded_file.read(),
+            )
+        except LookupError as exc:
+            raise PermissionDenied("无权导入该投资组合的券商成交") from exc
         return Response(result.__dict__, status=status.HTTP_201_CREATED)
+
 
 class CapitalFlowViewSet(viewsets.ModelViewSet):
     """
@@ -129,7 +135,7 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
-        if self.action == 'create':
+        if self.action == "create":
             return CapitalFlowCreateSerializer
         return CapitalFlowSerializer
 
@@ -144,4 +150,3 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
         if portfolio is None:
             raise NotFound()
         serializer.save(portfolio=portfolio, user=self.request.user)
-

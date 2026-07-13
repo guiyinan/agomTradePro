@@ -9,8 +9,21 @@ class DecisionRhythmModule(BaseModule):
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/decision-rhythm")
 
-    def list_quotas(self) -> list[dict[str, Any]]:
-        response = self._get("quotas/")
+    def list_quotas(
+        self,
+        *,
+        account_id: str | None = None,
+        period: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params = {
+            key: value
+            for key, value in {
+                "account_id": account_id,
+                "period": period,
+            }.items()
+            if value is not None
+        }
+        response = self._get("quotas/", params=params or None)
         return response.get("results", response) if isinstance(response, dict) else response
 
     def list_cooldowns(self) -> list[dict[str, Any]]:

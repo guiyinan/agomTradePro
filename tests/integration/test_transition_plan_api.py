@@ -167,6 +167,17 @@ def test_transition_plan_generate_update_and_preview_flow():
     }
     assert generate_payload["orders"][0]["data_asof"]
 
+    detail_response = client.get(
+        f"/api/decision/workspace/plans/{generate_payload['plan_id']}/"
+    )
+    assert detail_response.status_code == 200
+    assert detail_response["Content-Type"].startswith("application/json")
+    detail_payload = detail_response.json()
+    assert detail_payload["success"] is True
+    assert detail_payload["data"]["plan_id"] == generate_payload["plan_id"]
+    assert detail_payload["data"]["account_id"] == str(account.id)
+    assert detail_payload["data"]["orders"][0]["security_code"] == "000001.SH"
+
     update_response = client.post(
         f"/api/decision/workspace/plans/{generate_payload['plan_id']}/update/",
         data={

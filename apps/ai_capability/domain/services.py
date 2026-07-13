@@ -229,6 +229,72 @@ class CapabilityFilter:
         return False
 
 
+class CapabilitySemanticDeduper:
+    """Deduplicate capabilities that represent the same business semantic."""
+
+    def deduplicate(
+        self,
+        capabilities: list[CapabilityDefinition],
+        *,
+        entrypoint: str,
+    ) -> list[CapabilityDefinition]:
+        grouped: dict[str, list[CapabilityDefinition]] = {}
+        passthrough: list[CapabilityDefinition] = []
+
+        for capability in capabilities:
+            semantic_key = capability.semantic_key.strip()
+            if not semantic_key:
+                passthrough.append(capability)
+                continue
+            grouped.setdefault(semantic_key, []).append(capability)
+
+        deduped = list(passthrough)
+        for semantic_key in sorted(grouped):
+            selected = self._select_for_entrypoint(grouped[semantic_key], entrypoint=entrypoint)
+            deduped.extend(selected)
+        return deduped
+
+    def _select_for_entrypoint(
+        self,
+        candidates: list[CapabilityDefinition],
+        *,
+        entrypoint: str,
+    ) -> list[CapabilityDefinition]:
+        ordered = sorted(
+            candidates,
+            key=lambda capability: (
+                self._source_rank(capability.source_type, entrypoint=entrypoint),
+                -capability.priority_weight,
+                capability.capability_key,
+            ),
+        )
+
+        if entrypoint in {"web", "chat"}:
+            preferred = [cap for cap in ordered if cap.source_type != SourceType.MCP_TOOL]
+            if preferred:
+                return preferred[:1]
+            return []
+
+        return ordered[:1]
+
+    def _source_rank(self, source_type: SourceType, *, entrypoint: str) -> int:
+        if entrypoint in {"terminal", "agent"}:
+            order = {
+                SourceType.BUILTIN: 0,
+                SourceType.TERMINAL_COMMAND: 1,
+                SourceType.MCP_TOOL: 2,
+                SourceType.API: 3,
+            }
+        else:
+            order = {
+                SourceType.BUILTIN: 0,
+                SourceType.TERMINAL_COMMAND: 1,
+                SourceType.API: 2,
+                SourceType.MCP_TOOL: 3,
+            }
+        return order.get(source_type, 99)
+
+
 class BuiltinCapabilityRegistry:
     """Registry for builtin capabilities.
 
@@ -246,6 +312,7 @@ class BuiltinCapabilityRegistry:
             "description": "Returns current system health including database, Redis, Celery, and critical data status.",
             "route_group": RouteGroup.BUILTIN,
             "category": "system",
+            "semantic_key": "system.status",
             "tags": ["status", "health", "system", "readiness"],
             "when_to_use": [
                 "User asks about system status",
@@ -283,6 +350,7 @@ class BuiltinCapabilityRegistry:
             "description": "Returns the current macro regime (growth/inflation quadrant) and policy level.",
             "route_group": RouteGroup.BUILTIN,
             "category": "market",
+            "semantic_key": "market.regime",
             "tags": ["regime", "macro", "market", "policy"],
             "when_to_use": [
                 "User asks about current market regime",

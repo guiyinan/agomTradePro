@@ -308,14 +308,14 @@ def get_qlib_runtime_summary(user: Any = None) -> dict[str, Any]:
 
     return {
         "status": "configured",
-        "summary": GetQlibRuntimeConfigUseCase().execute(),
+        "summary": GetQlibRuntimeConfigUseCase().execute(actor=user),
     }
 
 
 def get_qlib_training_summary(user: Any = None) -> dict[str, Any]:
     from apps.config_center.application.use_cases import ListQlibTrainingRunsUseCase
 
-    runs = ListQlibTrainingRunsUseCase().execute(limit=5)
+    runs = ListQlibTrainingRunsUseCase().execute(actor=user, limit=5)
     latest_run = runs[0] if runs else None
     return {
         "status": "configured",

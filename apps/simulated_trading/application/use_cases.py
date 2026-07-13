@@ -35,9 +35,13 @@ def _as_float(value) -> float:
 # Protocol接口定义（依赖倒置）
 class SimulatedAccountRepositoryProtocol(Protocol):
     """模拟账户Repository接口"""
-    def save(self, account: SimulatedAccount) -> int: ...
+    def save(self, account: SimulatedAccount, user_id: int | None = None) -> int: ...
     def get_by_id(self, account_id: int) -> SimulatedAccount | None: ...
-    def get_by_name(self, account_name: str) -> SimulatedAccount | None: ...
+    def get_by_name(
+        self,
+        account_name: str,
+        user_id: int | None = None,
+    ) -> SimulatedAccount | None: ...
     def get_active_accounts(self) -> list[SimulatedAccount]: ...
     def get_all_accounts(self) -> list[SimulatedAccount]: ...
     def get_by_user(self, user_id: int) -> list[SimulatedAccount]: ...
@@ -70,11 +74,12 @@ class CreateSimulatedAccountUseCase:
         account_name: str,
         initial_capital: float,
         account_type: AccountType = AccountType.SIMULATED,
-        auto_trading_enabled: bool = True,
+        auto_trading_enabled: bool | None = None,
         max_position_pct: float = 20.0,
         stop_loss_pct: float | None = None,
         commission_rate: float = 0.0003,
-        slippage_rate: float = 0.001
+        slippage_rate: float = 0.001,
+        user_id: int | None = None,
     ) -> SimulatedAccount:
         """
         创建账户
@@ -92,9 +97,15 @@ class CreateSimulatedAccountUseCase:
             创建的账户
         """
         # 1. 检查账户名称是否已存在
-        existing = self.account_repo.get_by_name(account_name)
+        existing = self.account_repo.get_by_name(account_name, user_id=user_id)
         if existing:
             raise ValueError(f"账户名称已存在: {account_name}")
+
+        resolved_auto_trading_enabled = (
+            account_type == AccountType.SIMULATED
+            if auto_trading_enabled is None
+            else auto_trading_enabled
+        )
 
         # 2. 创建账户实体
         account = SimulatedAccount(
@@ -105,7 +116,7 @@ class CreateSimulatedAccountUseCase:
             current_cash=initial_capital,
             current_market_value=0.0,
             total_value=initial_capital,
-            auto_trading_enabled=auto_trading_enabled,
+            auto_trading_enabled=resolved_auto_trading_enabled,
             max_position_pct=max_position_pct,
             stop_loss_pct=stop_loss_pct,
             commission_rate=commission_rate,
@@ -114,7 +125,7 @@ class CreateSimulatedAccountUseCase:
         )
 
         # 3. 保存到数据库
-        account_id = self.account_repo.save(account)
+        account_id = self.account_repo.save(account, user_id=user_id)
 
         logger.info(
             "创建账户成功: %s (ID=%s, type=%s), 初始资金: %s",

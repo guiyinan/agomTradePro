@@ -20,6 +20,19 @@ def get_strategy_queryset_for_owner(owner_profile_id: int):
     return _repo().get_strategy_queryset_for_owner(owner_profile_id)
 
 
+def get_strategy_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+):
+    """Return the strategy queryset visible to an owner or staff caller."""
+
+    return _repo().get_strategy_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def build_strategy_list_context(owner_profile_id: int) -> dict:
     strategies = list(_repo().list_user_strategies_with_counts(owner_profile_id))
     for strategy in strategies:
@@ -70,6 +83,19 @@ def get_position_management_rule_queryset():
     return _repo().get_position_management_rule_queryset()
 
 
+def get_position_management_rule_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+):
+    """Return position rules visible to an owner or staff caller."""
+
+    return _repo().get_position_management_rule_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
+
+
 def get_rule_condition_queryset():
     return _repo().get_rule_condition_queryset()
 
@@ -80,6 +106,19 @@ def get_script_config_queryset():
 
 def get_ai_strategy_config_queryset():
     return _repo().get_ai_strategy_config_queryset()
+
+
+def get_ai_strategy_config_queryset_for_access(
+    *,
+    owner_profile_id: int | None,
+    include_all: bool = False,
+):
+    """Return AI strategy configs visible to an owner or staff caller."""
+
+    return _repo().get_ai_strategy_config_queryset_for_access(
+        owner_profile_id=owner_profile_id,
+        include_all=include_all,
+    )
 
 
 def get_assignment_queryset():

@@ -76,6 +76,11 @@ def import_default_assets() -> dict[str, int]:
     return _query_repo().import_default_assets()
 
 
+def preview_default_asset_import() -> dict:
+    """Return a read-only plan for importing default rotation assets."""
+    return _query_repo().preview_default_asset_import()
+
+
 def export_asset_rows() -> tuple[list[str], list[dict]]:
     """Return exportable asset fields and rows."""
     return _query_repo().export_asset_rows()

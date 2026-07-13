@@ -11,9 +11,18 @@ from rest_framework.test import APIClient
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
     AssetMasterModel,
+    FinancialFactModel,
     PriceBarModel,
+    ValuationFactModel,
 )
-from apps.equity.infrastructure.models import StockDailyModel, StockInfoModel
+from apps.equity.infrastructure.models import (
+    FinancialDataModel,
+    StockDailyModel,
+    StockInfoModel,
+    StockPoolSnapshot,
+    ValuationModel,
+)
+from apps.regime.infrastructure.models import RegimeLog
 
 
 @pytest.fixture
@@ -58,6 +67,87 @@ def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
     assert payload["regime"] == "Recovery"
     assert payload["count"] == 0
     assert payload["stocks"] == []
+
+
+@pytest.mark.django_db
+def test_equity_pool_default_read_chain_does_not_persist_business_state(
+    authenticated_client,
+):
+    from django.core.cache import cache
+
+    today = timezone.localdate()
+    cache.delete("equity:stock_pool:current")
+    cache.delete("equity:stock_pool:meta")
+    StockPoolSnapshot.objects.create(
+        stock_codes=["000001.SZ"],
+        regime="Recovery",
+        as_of_date=today,
+        is_active=True,
+        count=1,
+    )
+    StockInfoModel.objects.create(
+        stock_code="000001.SZ",
+        name="平安银行",
+        sector="银行",
+        market="SZ",
+        list_date=today,
+        is_active=True,
+    )
+    FinancialDataModel.objects.create(
+        stock_code="000001.SZ",
+        report_date=today,
+        report_type="4Q",
+        revenue=Decimal("1000000"),
+        net_profit=Decimal("100000"),
+        revenue_growth=8.0,
+        net_profit_growth=10.0,
+        total_assets=Decimal("5000000"),
+        total_liabilities=Decimal("3000000"),
+        equity=Decimal("2000000"),
+        roe=12.0,
+        roa=2.0,
+        debt_ratio=60.0,
+    )
+    ValuationModel.objects.create(
+        stock_code="000001.SZ",
+        trade_date=today,
+        pe=10.0,
+        pb=1.2,
+        ps=1.0,
+        total_mv=Decimal("1000000000"),
+        circ_mv=Decimal("800000000"),
+    )
+    tracked_models = (
+        StockPoolSnapshot,
+        StockInfoModel,
+        FinancialDataModel,
+        ValuationModel,
+        FinancialFactModel,
+        ValuationFactModel,
+        RegimeLog,
+    )
+    before = {model: model.objects.count() for model in tracked_models}
+
+    response = authenticated_client.get("/api/equity/pool/")
+
+    after = {model: model.objects.count() for model in tracked_models}
+    assert response.status_code == 200
+    assert response.json()["stocks"] == [
+        {
+            "code": "000001.SZ",
+            "name": "平安银行",
+            "sector": "银行",
+            "roe": 12.0,
+            "pe": 10.0,
+            "pb": 1.2,
+            "revenue_growth": 8.0,
+            "profit_growth": 10.0,
+            "score": 0,
+        }
+    ]
+    assert after == before
+    assert cache.get("equity:stock_pool:current") is None
+    assert cache.get("equity:stock_pool:meta") is None
 
 
 @pytest.mark.django_db
@@ -226,6 +316,35 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_equity_valuation_requires_authentication(api_client):
+    response = api_client.get("/api/equity/valuation/300308.SZ/")
+
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    (
+        "lookback_days=29",
+        "lookback_days=1261",
+        "lookback_days=invalid",
+        "as_of_date=2026-07-12",
+        "unknown=value",
+    ),
+)
+def test_equity_valuation_rejects_invalid_or_unknown_query(
+    authenticated_client,
+    query,
+):
+    response = authenticated_client.get(
+        f"/api/equity/valuation/300308.SZ/?{query}"
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticated_client):
     today = timezone.localdate()
     asset = AssetMasterModel.objects.create(
@@ -255,7 +374,57 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
         source="test",
     )
 
-    response = authenticated_client.get("/api/equity/valuation/300308.SZ/")
+    tracked_before = {
+        "assets": list(
+            AssetMasterModel.objects.order_by("id").values_list(
+                "id",
+                "updated_at",
+            )
+        ),
+        "aliases": list(
+            AssetAliasModel.objects.order_by("id").values_list("id", "created_at")
+        ),
+        "prices": list(
+            PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "valuations": list(
+            ValuationFactModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "financials": list(
+            FinancialFactModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "legacy_stocks": list(
+            StockInfoModel.objects.order_by("id").values_list("id", "updated_at")
+        ),
+        "legacy_prices": list(
+            StockDailyModel.objects.order_by("id").values_list("id", "created_at")
+        ),
+        "legacy_valuations": list(
+            ValuationModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "legacy_financials": list(
+            FinancialDataModel.objects.order_by("id").values_list("id", "updated_at")
+        ),
+    }
+    on_demand = SimpleNamespace(
+        ensure_valuations=lambda *args, **kwargs: pytest.fail(
+            "valuation GET must not hydrate valuations"
+        ),
+        ensure_financials=lambda *args, **kwargs: pytest.fail(
+            "valuation GET must not hydrate financials"
+        ),
+        ensure_price_bars=lambda *args, **kwargs: pytest.fail(
+            "valuation GET must not hydrate prices"
+        ),
+    )
+
+    with patch(
+        "apps.equity.infrastructure.repositories.make_on_demand_data_center_service",
+        return_value=on_demand,
+    ):
+        response = authenticated_client.get(
+            "/api/equity/valuation/300308.SZ/?lookback_days=365"
+        )
 
     assert response.status_code == 200
     payload = response.json()
@@ -266,6 +435,38 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
     assert payload["latest_valuation"]["price"] == 606.52
     assert payload["latest_valuation"]["pe"] is None
     assert "估值数据" in payload["error"]
+    assert {
+        "assets": list(
+            AssetMasterModel.objects.order_by("id").values_list(
+                "id",
+                "updated_at",
+            )
+        ),
+        "aliases": list(
+            AssetAliasModel.objects.order_by("id").values_list("id", "created_at")
+        ),
+        "prices": list(
+            PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "valuations": list(
+            ValuationFactModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "financials": list(
+            FinancialFactModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "legacy_stocks": list(
+            StockInfoModel.objects.order_by("id").values_list("id", "updated_at")
+        ),
+        "legacy_prices": list(
+            StockDailyModel.objects.order_by("id").values_list("id", "created_at")
+        ),
+        "legacy_valuations": list(
+            ValuationModel.objects.order_by("id").values_list("id", "fetched_at")
+        ),
+        "legacy_financials": list(
+            FinancialDataModel.objects.order_by("id").values_list("id", "updated_at")
+        ),
+    } == tracked_before
 
 
 @pytest.mark.django_db

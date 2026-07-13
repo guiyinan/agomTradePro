@@ -22,7 +22,9 @@ from ..domain.entities import FilterType
 from .serializers import (
     ApplyFilterRequestSerializer,
     CompareFiltersRequestSerializer,
+    FilterConfigSerializer,
     GetFilterDataRequestSerializer,
+    UpdateFilterConfigRequestSerializer,
 )
 
 
@@ -34,6 +36,12 @@ class DjangoFilterRepository:
 
     def get_filter_config(self, indicator_code: str):
         return self._repository.get_filter_config(indicator_code)
+
+    def update_filter_config(self, indicator_code: str, payload: dict[str, object]):
+        return self._repository.update_filter_config(indicator_code, payload)
+
+    def delete_filter_config(self, indicator_code: str):
+        return self._repository.delete_filter_config(indicator_code)
 
     def __getattr__(self, item):
         return getattr(self._repository, item)
@@ -251,6 +259,41 @@ class FilterHealthView(APIView):
             'service': 'Filter API',
             'filters_available': ['HP', 'Kalman'],
         })
+
+
+class FilterConfigDetailView(APIView):
+    """Canonical filter-config detail endpoint by indicator code."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.repository = DjangoFilterRepository()
+
+    def get(self, request, indicator_code: str):
+        config = self.repository.get_filter_config(indicator_code)
+        config["indicator_code"] = indicator_code
+        serializer = FilterConfigSerializer(config)
+        return Response({"success": True, "config": serializer.data})
+
+    def patch(self, request, indicator_code: str):
+        serializer = UpdateFilterConfigRequestSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data:
+            return Response(
+                {"success": False, "error": "No config fields provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        config = self.repository.update_filter_config(indicator_code, serializer.validated_data)
+        response_serializer = FilterConfigSerializer(config)
+        return Response({"success": True, "config": response_serializer.data})
+
+    def delete(self, request, indicator_code: str):
+        deleted = self.repository.delete_filter_config(indicator_code)
+        if not deleted:
+            return Response(
+                {"success": False, "error": f"Filter config not found: {indicator_code}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"success": True, "indicator_code": indicator_code})
 
 
 def _serialize_series(series) -> dict:

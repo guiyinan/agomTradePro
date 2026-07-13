@@ -182,3 +182,14 @@ def test_qlib_runtime_paths_fall_back_when_persisted_path_is_not_local(tmp_path)
     assert runtime_config["provider_uri"] == str(provider_dir)
     assert runtime_config["model_path"] == str(model_dir)
     assert runtime_config["is_configured"] is True
+
+
+@pytest.mark.django_db
+def test_runtime_qlib_config_uses_unsaved_defaults_when_settings_are_missing():
+    SystemSettingsModel._default_manager.all().delete()
+
+    runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+
+    assert runtime_config["enabled"] is False
+    assert runtime_config["default_universe"] == "csi300"
+    assert SystemSettingsModel._default_manager.count() == 0

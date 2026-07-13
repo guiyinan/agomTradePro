@@ -18,6 +18,7 @@ from apps.agent_runtime.application.terminal_agent import (
     StreamTerminalAgentChatUseCase,
     TerminalAgentChatRequestDTO,
 )
+from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
 from ..application.repository_provider import (
     get_terminal_audit_repository,
@@ -38,6 +39,12 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_terminal_agent_service():
+    """Compose Terminal Agent with the owning AI capability facade."""
+
+    return get_terminal_agent_service(capability_gateway=CapabilityRoutingFacade())
 
 
 def _get_mcp_enabled(user) -> bool:
@@ -165,7 +172,7 @@ class TerminalChatView(APIView):
                 serializer.validated_data,
             )
             response_dto = RunTerminalAgentChatUseCase(
-                get_terminal_agent_service()
+                _get_terminal_agent_service()
             ).execute(request_dto)
             response_data = {
                 "reply": response_dto.reply,
@@ -198,7 +205,7 @@ class TerminalChatStreamView(APIView):
         request_dto = _build_terminal_agent_request(request, serializer.validated_data)
 
         def _event_stream():
-            use_case = StreamTerminalAgentChatUseCase(get_terminal_agent_service())
+            use_case = StreamTerminalAgentChatUseCase(_get_terminal_agent_service())
             try:
                 for event in use_case.execute(request_dto):
                     yield _format_sse_event(event.event_type, event.data)

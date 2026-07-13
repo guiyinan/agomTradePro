@@ -63,6 +63,36 @@ def generate_attribution_report_payload(backtest_id: int) -> dict[str, Any]:
     return {"success": True, "error": None, "report": report}
 
 
+def preview_attribution_report_generation(*, backtest_id: int) -> dict[str, Any]:
+    """Describe one attribution report generation without external I/O or writes."""
+
+    backtest = _get_backtest_repository().get_backtest_by_id(backtest_id)
+    if backtest is None:
+        raise LookupError(f"backtest {backtest_id} does not exist")
+    if backtest.status != "completed":
+        raise ValueError(f"backtest {backtest_id} is not completed")
+
+    existing_reports = get_audit_repository().get_reports_by_backtest(backtest_id)
+    return {
+        "backtest": {
+            "id": backtest.id,
+            "name": backtest.name,
+            "status": backtest.status,
+            "start_date": backtest.start_date.isoformat(),
+            "end_date": backtest.end_date.isoformat(),
+        },
+        "existing_report_count": len(existing_reports),
+        "external_reads": ["historical_asset_prices"],
+        "writes": [
+            "audit_attribution_report",
+            "audit_loss_analysis_if_applicable",
+            "audit_experience_summary",
+        ],
+        "duplicate_reports_allowed": True,
+        "partial_write_possible": True,
+    }
+
+
 def generate_attribution_report_for_backtest(backtest_id: int, backtest_repository):
     """Generate an attribution report using the provided backtest repository."""
 
@@ -252,6 +282,24 @@ def run_threshold_validation(
     )
 
 
+def preview_threshold_validation(*, start_date: date, end_date: date) -> dict[str, Any]:
+    """Return validation targets and write impact without running validation."""
+
+    configs = get_audit_repository().get_active_threshold_configs_by_codes(indicator_codes=None)
+    indicator_codes = [
+        str(config.get("indicator_code") or "").strip()
+        for config in configs
+        if str(config.get("indicator_code") or "").strip()
+    ]
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "active_indicator_count": len(indicator_codes),
+        "indicator_codes": indicator_codes,
+        "writes": ["validation_summary", "indicator_performance_reports"],
+    }
+
+
 def update_indicator_threshold_levels(
     *,
     indicator_code: str,
@@ -264,6 +312,36 @@ def update_indicator_threshold_levels(
         level_low=level_low,
         level_high=level_high,
     )
+
+
+def preview_indicator_threshold_levels(
+    *,
+    indicator_code: str,
+    level_low: float,
+    level_high: float,
+) -> dict[str, Any]:
+    """Return current and target levels without changing persisted configuration."""
+
+    config = get_audit_repository().get_threshold_config_by_indicator(indicator_code)
+    if config is None:
+        raise LookupError(f"indicator {indicator_code} threshold config does not exist")
+
+    current = {
+        "level_low": config.get("level_low"),
+        "level_high": config.get("level_high"),
+    }
+    target = {"level_low": level_low, "level_high": level_high}
+    changed_fields = [name for name in target if current[name] != target[name]]
+    if not changed_fields:
+        raise ValueError("threshold levels are unchanged")
+    return {
+        "indicator_code": indicator_code,
+        "indicator_name": config.get("indicator_name", ""),
+        "current": current,
+        "target": target,
+        "changed_fields": changed_fields,
+        "writes": ["audit_indicator_threshold_config"],
+    }
 
 
 def build_audit_overview_context() -> dict[str, Any]:

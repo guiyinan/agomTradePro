@@ -14,7 +14,8 @@ from dataclasses import replace
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect, render
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,8 +25,9 @@ from ..application.repository_provider import (
     get_beta_gate_decision_repository,
     get_beta_gate_universe_repository,
 )
-from ..domain.entities import RiskProfile, create_gate_config
+from ..domain.entities import RiskProfile, create_gate_config, get_default_configs
 from .forms import GateConfigForm
+from .serializers import BetaGateTestSerializer, GateConfigCreateSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,8 @@ class BetaGateVersionCompareAPIView(APIView):
 
     处理版本对比请求。
     """
+
+    permission_classes = [IsAuthenticated]
 
     def get(self, request) -> Response:
         """
@@ -140,44 +144,50 @@ class RollbackConfigView(APIView):
     POST /api/beta-gate/config/rollback/
     """
 
+    permission_classes = [IsAdminUser]
+
     def post(self, request, config_id=None) -> Response:
-        """
-        回滚到指定版本
-
-        POST /api/beta-gate/config/rollback/
-        {
-            "version": 2
-        }
-        """
+        """Activate the exact persisted config identified by the route."""
         try:
-            import json
-
-            data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
-            config_service = get_beta_gate_config_query_service()
-            target_version = data.get("version")
-            if target_version is None and config_id:
-                target_version = config_service.resolve_version_for_config_id(config_id)
-            try:
-                target_version = int(target_version)
-            except (TypeError, ValueError):
+            if not config_id:
                 return Response(
-                    {"success": False, "error": "Invalid version number"},
+                    {"success": False, "error": "Config id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            config_service = get_beta_gate_config_query_service()
+            target_config = config_service.get_config_for_edit(config_id)
+            if target_config is None:
+                return Response(
+                    {"success": False, "error": f"Config {config_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if target_config.is_active:
+                return Response(
+                    {"success": False, "error": f"Config {config_id} is already active"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if target_config.is_expired:
+                return Response(
+                    {"success": False, "error": f"Config {config_id} is expired"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # 获取目标版本配置
-            target_config = config_service.rollback_to_version(target_version)
-            if not target_config:
-                return Response(
-                    {"success": False, "error": f"Version {target_version} not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
+            activated = config_service.activate_config(config_id)
             return Response(
                 {
                     "success": True,
-                    "message": f"已回滚到版本 {target_version}",
-                    "config_id": target_config.config_id,
+                    "message": f"已回滚到配置 {config_id}",
+                    "result": {
+                        "config_id": activated.config_id,
+                        "risk_profile": activated.risk_profile.lower(),
+                        "version": activated.version,
+                        "is_active": activated.is_active,
+                        "effective_date": (
+                            activated.effective_date.isoformat()
+                            if activated.effective_date
+                            else None
+                        ),
+                    },
                 }
             )
 
@@ -441,45 +451,18 @@ class BetaGateTestAPIView(APIView):
     处理单个或批量资产测试请求。
     """
 
+    permission_classes = [IsAuthenticated]
+
     def post(self, request) -> Response:
-        """
-        测试单个或多个资产
-
-        POST /api/beta-gate/test/
-        {
-            "asset_codes": ["000001.SH", "000300.SH"],
-            "asset_class": "a_股票"
-        }
-        """
+        """Evaluate a bounded asset batch without persisting decisions or events."""
         try:
-            import json
-
             from ..application.use_cases import EvaluateBatchRequest, EvaluateBatchUseCase
-            from ..domain.entities import RiskProfile
 
-            # 解析请求
-            data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
-            asset_codes = data.get("asset_codes", [])
-            asset_class = data.get("asset_class", "a_股票")
-
-            if not asset_codes:
-                return Response(
-                    {"success": False, "error": "请提供资产代码"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # 获取当前环境信息
-            current_regime = data.get("current_regime", "Recovery")
-            regime_confidence = float(data.get("regime_confidence", 0.5))
-            policy_level = int(data.get("policy_level", 0))
-            risk_profile_raw = str(data.get("risk_profile", "BALANCED"))
-            try:
-                risk_profile = RiskProfile(risk_profile_raw)
-            except ValueError:
-                risk_profile = RiskProfile(risk_profile_raw.lower())
-
-            # 构建资产列表
-            assets = [(code, asset_class) for code in asset_codes]
+            serializer = BetaGateTestSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            risk_profile = RiskProfile(data["risk_profile"])
+            assets = [(code, data["asset_class"]) for code in data["asset_codes"]]
 
             # 创建配置选择器
             class SimpleConfigSelector:
@@ -487,57 +470,24 @@ class BetaGateTestAPIView(APIView):
                     self.config_repo = config_repo
 
                 def get_config(self, risk_profile):
-                    configs = self.config_repo.get_all_active()
-                    if configs:
-                        config = configs[0]
+                    config = self.config_repo.get_by_risk_profile(risk_profile)
+                    if config is not None:
                         return config.to_domain() if hasattr(config, "to_domain") else config
-                    # 返回默认配置
-                    from ..domain.entities import (
-                        GateConfig,
-                        PolicyConstraint,
-                        PortfolioConstraint,
-                        RegimeConstraint,
-                    )
-
-                    allowed_asset_classes = [asset_class] if asset_class else []
-                    return GateConfig(
-                        config_id="default",
+                    return replace(
+                        get_default_configs()[risk_profile],
+                        config_id=f"default-{risk_profile.value}",
                         version=1,
-                        is_active=True,
-                        is_valid=True,
-                        risk_profile=RiskProfile.BALANCED,
-                        regime_constraint=RegimeConstraint(
-                            current_regime="Recovery",
-                            confidence=0.5,
-                            allowed_asset_classes=allowed_asset_classes,
-                        ),
-                        policy_constraint=PolicyConstraint(
-                            current_level=0,
-                            max_risk_exposure=100,
-                            hard_exclusions=[],
-                        ),
-                        portfolio_constraint=PortfolioConstraint(
-                            max_positions=10,
-                            max_single_position_weight=20,
-                            max_concentration_ratio=60,
-                        ),
                     )
 
             config_selector = SimpleConfigSelector(get_beta_gate_config_repository())
-
-            # 创建用例
             use_case = EvaluateBatchUseCase(config_selector)
-
-            # 构建请求
             eval_request = EvaluateBatchRequest(
                 assets=assets,
-                current_regime=current_regime,
-                regime_confidence=regime_confidence,
-                policy_level=policy_level,
+                current_regime=data["current_regime"],
+                regime_confidence=data["regime_confidence"],
+                policy_level=data["policy_level"],
                 risk_profile=risk_profile,
             )
-
-            # 执行评估
             response = use_case.execute(eval_request)
 
             if response.success:
@@ -559,6 +509,19 @@ class BetaGateTestAPIView(APIView):
                 return Response(
                     {
                         "success": True,
+                        "config": {
+                            "config_id": response.config.config_id,
+                            "risk_profile": response.config.risk_profile.value,
+                            "version": response.config.version,
+                        },
+                        "query": {
+                            "asset_codes": data["asset_codes"],
+                            "asset_class": data["asset_class"],
+                            "current_regime": data["current_regime"],
+                            "regime_confidence": data["regime_confidence"],
+                            "policy_level": data["policy_level"],
+                            "risk_profile": data["risk_profile"],
+                        },
                         "results": results,
                         "summary": response.summary,
                     }
@@ -569,6 +532,11 @@ class BetaGateTestAPIView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
+        except serializers.ValidationError as e:
+            return Response(
+                {"success": False, "errors": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to test assets: {e}", exc_info=True)
             return Response(
@@ -580,14 +548,26 @@ class BetaGateTestAPIView(APIView):
 class GateConfigViewSet(viewsets.ViewSet):
     """闸门配置视图集（简化版）"""
 
+    permission_classes = [IsAuthenticated]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.config_repository = get_beta_gate_config_repository()
 
     def list(self, request) -> Response:
-        """获取所有激活配置"""
+        """Return active configs by default, or all configs when explicitly requested."""
         try:
-            configs = self.config_repository.get_all_active()
+            active_only = str(request.query_params.get("active_only", "true")).lower()
+            if active_only not in {"true", "false"}:
+                return Response(
+                    {"success": False, "error": "active_only must be true or false"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            configs = (
+                self.config_repository.get_all_active()
+                if active_only == "true"
+                else self.config_repository.list_latest(limit=None)
+            )
             results = []
             for config in configs:
                 config_entity = config.to_domain() if hasattr(config, "to_domain") else config
@@ -597,6 +577,7 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "risk_profile": config_entity.risk_profile.value,
                         "version": config_entity.version,
                         "is_active": config_entity.is_active,
+                        "is_expired": config_entity.is_expired,
                         "regime_constraints": config_entity.regime_constraint.to_dict(),
                         "policy_constraints": config_entity.policy_constraint.to_dict(),
                         "portfolio_constraints": config_entity.portfolio_constraint.to_dict(),
@@ -640,9 +621,16 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "risk_profile": config_entity.risk_profile.value,
                         "version": config_entity.version,
                         "is_active": config_entity.is_active,
+                        "is_expired": config_entity.is_expired,
                         "regime_constraints": config_entity.regime_constraint.to_dict(),
                         "policy_constraints": config_entity.policy_constraint.to_dict(),
                         "portfolio_constraints": config_entity.portfolio_constraint.to_dict(),
+                        "effective_date": config_entity.effective_date.isoformat()
+                        if config_entity.effective_date
+                        else None,
+                        "expires_at": config_entity.expires_at.isoformat()
+                        if config_entity.expires_at
+                        else None,
                     },
                 }
             )
@@ -661,48 +649,56 @@ class GateConfigViewSet(viewsets.ViewSet):
             policy_constraints = payload.get("policy_constraints", {}) or {}
             portfolio_constraints = payload.get("portfolio_constraints", {}) or {}
 
-            risk_profile_raw = str(payload.get("risk_profile", "balanced")).strip().lower()
-            try:
-                risk_profile = RiskProfile(risk_profile_raw)
-            except ValueError:
-                return Response(
-                    {"success": False, "error": f"Invalid risk_profile: {risk_profile_raw}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             level_raw = payload.get(
                 "max_policy_level", policy_constraints.get("max_allowed_level", 2)
             )
             if isinstance(level_raw, str) and level_raw.upper().startswith("P"):
                 level_raw = level_raw[1:]
 
+            normalized_payload = {
+                "risk_profile": payload.get("risk_profile", "balanced"),
+                "allowed_regimes": payload.get(
+                    "allowed_regimes",
+                    regime_constraints.get("allowed_regimes"),
+                ),
+                "min_confidence": payload.get(
+                    "min_confidence",
+                    regime_constraints.get("min_confidence", 0.3),
+                ),
+                "max_policy_level": level_raw,
+                "veto_on_p3": payload.get(
+                    "veto_on_p3",
+                    policy_constraints.get("veto_on_p3", True),
+                ),
+                "max_total_position": payload.get(
+                    "max_total_position",
+                    portfolio_constraints.get("max_total_position_pct", 95.0),
+                ),
+                "max_single_position": payload.get(
+                    "max_single_position",
+                    portfolio_constraints.get("max_single_position_pct", 20.0),
+                ),
+            }
+            if payload.get("config_id") is not None:
+                normalized_payload["config_id"] = payload["config_id"]
+            if normalized_payload["allowed_regimes"] is None:
+                normalized_payload.pop("allowed_regimes")
+
+            serializer = GateConfigCreateSerializer(data=normalized_payload)
+            serializer.is_valid(raise_exception=True)
+            validated = serializer.validated_data
+
             config = create_gate_config(
-                risk_profile=risk_profile,
-                allowed_regimes=payload.get(
-                    "allowed_regimes", regime_constraints.get("allowed_regimes")
-                ),
-                min_confidence=float(
-                    payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))
-                ),
-                max_policy_level=int(level_raw),
-                veto_on_p3=bool(
-                    payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))
-                ),
-                max_total_position=float(
-                    payload.get(
-                        "max_total_position",
-                        portfolio_constraints.get("max_total_position_pct", 95.0),
-                    )
-                ),
-                max_single_position=float(
-                    payload.get(
-                        "max_single_position",
-                        portfolio_constraints.get("max_single_position_pct", 20.0),
-                    )
-                ),
+                risk_profile=RiskProfile(validated["risk_profile"]),
+                allowed_regimes=validated.get("allowed_regimes"),
+                min_confidence=validated["min_confidence"],
+                max_policy_level=validated["max_policy_level"],
+                veto_on_p3=validated["veto_on_p3"],
+                max_total_position=validated["max_total_position"],
+                max_single_position=validated["max_single_position"],
             )
-            if payload.get("config_id"):
-                config = replace(config, config_id=str(payload["config_id"]))
+            if validated.get("config_id"):
+                config = replace(config, config_id=validated["config_id"])
 
             saved = self.config_repository.save(config)
             return Response(
@@ -724,6 +720,11 @@ class GateConfigViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_201_CREATED,
             )
+        except serializers.ValidationError as e:
+            return Response(
+                {"success": False, "errors": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except (TypeError, ValueError) as e:
             return Response(
                 {"success": False, "error": str(e)},
@@ -735,6 +736,13 @@ class GateConfigViewSet(viewsets.ViewSet):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    def get_permissions(self):
+        """Require staff authorization for config mutation."""
+
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAdminUser()]
+        return [permission() for permission in self.permission_classes]
 
 
 class GateDecisionViewSet(viewsets.ViewSet):

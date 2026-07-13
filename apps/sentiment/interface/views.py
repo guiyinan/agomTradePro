@@ -12,6 +12,7 @@ from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -296,6 +297,8 @@ class SentimentHealthView(APIView):
 
 class SentimentCacheClearView(APIView):
     """清除缓存 API"""
+
+    permission_classes = [IsAdminUser]
 
     @extend_schema(
         summary="清除情感分析缓存",

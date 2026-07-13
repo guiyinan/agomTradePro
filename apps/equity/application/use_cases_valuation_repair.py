@@ -162,7 +162,7 @@ class GetValuationRepairStatusUseCase:
                 stock_name=stock_info.name,
                 history=history_dicts,
                 lookback_days=request.lookback_days,
-                config=get_valuation_repair_config(),
+                config=get_valuation_repair_config(use_cache=False),
             )
 
             # 5. 转换为字典返回
@@ -284,7 +284,7 @@ class GetValuationPercentileHistoryUseCase:
             series = build_percentile_series(
                 history_dicts,
                 lookback_days=request.lookback_days,
-                config=get_valuation_repair_config(),
+                config=get_valuation_repair_config(use_cache=False),
             )
 
             # 4. 转换为字典列表

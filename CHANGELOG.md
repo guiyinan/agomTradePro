@@ -5,6 +5,10 @@ All notable changes to AgomTradePro will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Historical entries may retain values observed at the time of a change. Current dynamic
+governance counts have a single machine source of truth:
+`governance/governance_baseline.json`.
+
 ## [Unreleased]
 
 ### Added
@@ -47,12 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 新增 `shared/infrastructure/asset_analysis_registry.py`，将 `equity`、`fund`、`rotation` 与 `asset_analysis` 之间的只读协作 contract 收口到共享技术注册表
 
 ### Changed
-- 系统模块覆盖口径更新为 `36/36`，新增 `config_center` 作为独立业务模块
+- 系统模块覆盖基线已纳入新增的独立 `config_center` 模块；当前覆盖数量读取机器治理基线
 - Qlib 训练相关系统配置与管理入口继续从 `account` 收口到 `config_center`，对应页面、SDK、MCP 与文档说明同步对齐
 - 宏观数据页探索体验继续增强，宏观同步状态与批量刷新语义现更明确区分“未同步”和“未接入”
 - 宏观治理与 Dashboard 数据流继续收口，累计类宏观输入现在不会再误入 Regime / Pulse 的实时语义链路
 - `task_monitor` 任务载荷口径已标准化，VPS SQLite 启动任务的投递与排障链路更稳定
-- MCP 工具数文档口径已同步到当前 `326` 个本地注册快照，README / 版本文档 / 变更说明保持一致
+- MCP 工具数已改由机器治理基线统一维护，README / 版本文档 / 变更说明不再复制当前注册数量
 - `/equity/screen/` 结果表现在会为首页带入的 Dashboard Alpha 候选补齐最新 `ROE / PE / PB / 营收增长 / 净利润增长` 上下文，不再只显示综合评分
 - Dashboard 退出链入口已统一：首页主工作流、Decision Workspace、Alpha history/detail 以及相关 API 现在经 `query_services` / `interface_services` / integration gateway 收口，不再依赖超大混合视图
 - 运行时桥接与 provider 装配继续收口到 app-owned provider 与 `core/integration/*`，`shared/` 清理和跨模块 `infrastructure` 边界治理继续推进
@@ -63,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions `Consistency Check` 现会运行全仓治理一致性检查，并上传 `reports/consistency/governance-consistency.json`
 - 架构审计规则版本更新为 `2026-04-24.v1`，新增 Application 层 pandas/numpy 导入审计和错位 `AppConfig` 审计规则
 - `pulse`、`realtime`、`alpha`、`sentiment`、`strategy` 的四层规范文件形态已补齐到当前治理基线；`strategy/application/dto.py` 已统一为 `dtos.py`
-- 系统模块覆盖口径继续保持 `35/35`
+- 系统模块覆盖继续受机器治理基线约束，文档不再维护当前数量副本
 - 本轮架构债治理将多个 Interface / Application 热路径收口到 application interface service、repository provider 与 infrastructure repository 边界，减少直接 ORM / Infrastructure 耦合
 - `main` 与 `dev/next-development` 已对齐到同一提交，最新 push CI 与 Nightly 主链重新保持绿色
 - Pulse 按需重算现在会在重建前刷新上游宏观输入，减少 stale / degraded 快照反复重算后继续输出低质量上下文的情况
@@ -77,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions 的日常门禁 workflow 现在对 `dev/**` 分支的 push / pull request 也会自动触发，不再只覆盖 `main`
 - `strategy` 绑定链路改经 facade 收口，减少页面层直接耦合
 - `decision/workspace` 推荐与执行主线进一步收口：第 5 步以账户级推荐刷新为主，第 6 步固定为执行入口，不再回退成审计主流程
-- 文档与 README 对外口径同步到 35 个业务模块、个人投研平台
+- 文档与 README 对外定位同步为个人投研平台；业务模块当前数量改由机器治理基线统一提供
 - 默认 pytest 收集范围从仅 `tests/` 扩展到 `tests/` + `apps/*/tests`
 - `tests/uat/run_uat.py` 改为基于真实 JUnit XML 统计 Journey / API / Navigation 结果
 - Playwright 运行时 `--base-url` 现在会同步覆盖全局测试配置，避免误打默认 `localhost:8000`

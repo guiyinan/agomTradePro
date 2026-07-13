@@ -71,7 +71,7 @@
 
 - 基金研究数据工作流补了一轮扩展，宏观同步覆盖面继续扩大，`DR007` 同步链路也已恢复
 - 宏观页现在更明确地区分“未同步”和“未接入”，批量刷新入口也只针对已接入自动同步的指标执行补抓
-- MCP 文档口径已同步到当前 `368` 个本地注册工具快照
+- MCP 文档口径已切换为 `governance/governance_baseline.json` 统一治理，不再维护注册工具数量副本
 
 ### 2026-05-02
 
@@ -95,7 +95,7 @@
 ### 2026-04-29
 
 - 宏观 MCP/SDK 正式收口到 `data_center`：MCP 官方宏观工具切到 `data_center_*`，指标目录与量纲规则可直接经 MCP/HTTP 治理
-- 宏观治理与 MCP 文档已同步刷新；当前文档快照口径会由治理检查保持为最新 MCP 工具数
+- 宏观治理与 MCP 文档已同步刷新；当前 MCP 工具数只读取 `governance/governance_baseline.json`，治理检查不再要求文档复制数量
 
 ### 2026-04-28
 
@@ -183,7 +183,7 @@
 - 金融数据源运行时统一到新的 registry/factory 路径，补入 QMT 行情接入与配置中心可见配置
 - `strategy` 绑定链路改经 facade 收口，减少页面层与底层存储的耦合
 - 多模块写一致性继续加固：`strategy` / `beta_gate` / `regime` / `prompt` 的关键写路径补充事务与唯一激活约束
-- 文档基线在当时同步到 35 个业务模块、个人投研平台口径
+- 文档基线在当时完成个人投研平台口径收口；当前规模统一读取机器治理基线
 
 ### 2026-03-27
 
@@ -486,8 +486,8 @@ PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹�
 
 不是后期加个 API 就叫 AI。AgomTradePro 从底层为 AI Agent 时代而设计：
 
-- **Python SDK** — 32 个模块的完整编程接口
-- **MCP Server（当前注册 368 个工具）** — 直接接入 Claude、Cursor 或任何支持 MCP 的 AI
+- **Python SDK** — 覆盖正式服务模块的编程接口
+- **MCP Server** — 通过统一 core tools 和 capability registry 接入 Claude、Cursor 或任何支持 MCP 的 AI
 - **Terminal CLI** — 终端风格的 AI 交互界面
 - **Agent Runtime** — 任务编排，支持 提案 → 审批 → 执行 全生命周期
 
@@ -758,7 +758,8 @@ AI 负责分析速度。人类负责执行判断。全链路可追溯。
 ## 项目规模
 
 ```
-业务模块 / MCP 工具 / 静态测试函数：统一口径见 docs/governance/SYSTEM_BASELINE.md
+业务模块 / MCP 工具 / 静态测试函数：机器唯一真源为 governance/governance_baseline.json
+治理字段解释：docs/governance/SYSTEM_BASELINE.md
 REST API 路径：OpenAPI 快照
 文档文件：docs/INDEX.md
 ```

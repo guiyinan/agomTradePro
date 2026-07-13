@@ -150,6 +150,32 @@ class InvalidationConditionSerializer(serializers.Serializer):
 # ========== Main Serializers ==========
 
 
+class AlphaTriggerPerformanceQuerySerializer(serializers.Serializer):
+    """Validate the canonical trigger-performance query contract."""
+
+    days = serializers.IntegerField(required=False, min_value=1, max_value=365, default=30)
+    trigger_id = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        trim_whitespace=True,
+        max_length=64,
+    )
+
+    def to_internal_value(self, data):
+        """Reject unknown query parameters instead of silently ignoring them."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown query parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
 class AlphaTriggerSerializer(serializers.Serializer):
     """
     Alpha 触发器序列化器
@@ -295,7 +321,7 @@ class AlphaTriggerSerializer(serializers.Serializer):
             "source_signal_id": instance.source_signal_id or "",
             "related_regime": instance.related_regime or "",
             "related_policy_level": instance.related_policy_level,
-            "custom_data": instance.custom_data,
+            "custom_data": getattr(instance, "custom_data", {}) or {},
         }
 
 
@@ -450,7 +476,7 @@ class AlphaCandidateSerializer(serializers.Serializer):
             "updated_at": instance.updated_at.isoformat() if instance.updated_at else None,
             "status_changed_at": instance.status_changed_at.isoformat() if instance.status_changed_at else None,
             "promoted_to_signal_at": instance.promoted_to_signal_at.isoformat() if instance.promoted_to_signal_at else None,
-            "custom_data": instance.custom_data,
+            "custom_data": getattr(instance, "custom_data", {}) or {},
             # 新增字段
             "last_decision_request_id": instance.last_decision_request_id,
             "last_execution_status": instance.last_execution_status,

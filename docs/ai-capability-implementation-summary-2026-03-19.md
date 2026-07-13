@@ -1652,7 +1652,7 @@ tools = [
 ### 10.2 参考资料
 
 **内部文档**：
-- [系统基线](governance/SYSTEM_BASELINE.md) - 单一叙事来源
+- [系统基线](governance/SYSTEM_BASELINE.md) - 治理叙事索引；动态治理数据读取 `governance/governance_baseline.json`
 - [模块分级表](governance/MODULE_CLASSIFICATION.md) - 模块治理
 - [开发禁令](governance/DEVELOPMENT_BANLIST.md) - 开发约束
 - [业务需求文档](business/AgomTradePro_V3.4.md)

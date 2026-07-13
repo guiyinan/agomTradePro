@@ -1,0 +1,180 @@
+"""ai_provider write capability manifests."""
+
+from __future__ import annotations
+
+from agomtradepro_mcp.registry.manifest import CapabilityManifest
+
+MANIFESTS = [
+    CapabilityManifest(
+        capability_key="ai_provider.create.provider",
+        title="Create AI Provider",
+        summary="Preview the new AI provider config, then confirm creating the provider.",
+        description=(
+            "Normalize and summarize the requested AI provider configuration first, "
+            "then require explicit confirmation before creating the provider through "
+            "the existing AI provider write path."
+        ),
+        owner_app="ai_provider",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="ai_provider_create_provider",
+        tags=("ai_provider", "provider", "config", "create", "write"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "provider_type": {"type": "string"},
+                "is_active": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "base_url": {"type": "string"},
+                "api_key": {"type": "string"},
+                "default_model": {"type": "string"},
+                "api_mode": {"type": "string"},
+                "fallback_enabled": {"type": "boolean"},
+                "daily_budget_limit": {"type": "number"},
+                "monthly_budget_limit": {"type": "number"},
+                "extra_config": {"type": "object"},
+                "description": {"type": "string"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["name", "provider_type"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": {"type": "string"},
+                "provider_type": {"type": "string"},
+                "scope": {"type": "string"},
+                "is_active": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "base_url": {"type": "string"},
+                "default_model": {"type": "string"},
+                "api_mode": {"type": "string"},
+                "fallback_enabled": {"type": "boolean"},
+                "daily_budget_limit": {"type": "number"},
+                "monthly_budget_limit": {"type": "number"},
+                "extra_config": {"type": "object"},
+                "description": {"type": "string"},
+            },
+            "required": [],
+        },
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        audit_tags=("ai_provider:create_provider", "mcp:write"),
+        legacy_tool_names=("create_ai_provider",),
+    ),
+    CapabilityManifest(
+        capability_key="ai_provider.update.provider",
+        title="Update AI Provider",
+        summary="Preview the current AI provider config and requested changes, then confirm updating the provider.",
+        description=(
+            "Load the current AI provider configuration first and summarize the requested "
+            "changes, then require explicit confirmation before updating the provider "
+            "through the existing AI provider write path."
+        ),
+        owner_app="ai_provider",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="ai_provider_update_provider",
+        tags=("ai_provider", "provider", "config", "update", "write"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "provider_id": {"type": "integer"},
+                "name": {"type": "string"},
+                "provider_type": {"type": "string"},
+                "is_active": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "base_url": {"type": "string"},
+                "api_key": {"type": "string"},
+                "default_model": {"type": "string"},
+                "api_mode": {"type": "string"},
+                "fallback_enabled": {"type": "boolean"},
+                "daily_budget_limit": {"type": "number"},
+                "monthly_budget_limit": {"type": "number"},
+                "extra_config": {"type": "object"},
+                "description": {"type": "string"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["provider_id"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": {"type": "string"},
+                "provider_type": {"type": "string"},
+                "scope": {"type": "string"},
+                "is_active": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "base_url": {"type": "string"},
+                "default_model": {"type": "string"},
+                "api_mode": {"type": "string"},
+                "fallback_enabled": {"type": "boolean"},
+                "daily_budget_limit": {"type": "number"},
+                "monthly_budget_limit": {"type": "number"},
+                "extra_config": {"type": "object"},
+                "description": {"type": "string"},
+            },
+            "required": [],
+        },
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        audit_tags=("ai_provider:update_provider", "mcp:write"),
+        legacy_tool_names=("update_ai_provider",),
+    ),
+    CapabilityManifest(
+        capability_key="ai_provider.toggle.provider",
+        title="Toggle AI Provider Active State",
+        summary="Preview the current AI provider state, then confirm toggling its active flag.",
+        description=(
+            "Load the current AI provider configuration first and summarize the target "
+            "active state, then require explicit confirmation before toggling the provider "
+            "through the existing AI provider toggle path."
+        ),
+        owner_app="ai_provider",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="ai_provider_toggle_provider",
+        tags=("ai_provider", "provider", "toggle", "active", "write"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "provider_id": {"type": "integer"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["provider_id"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"},
+                "name": {"type": "string"},
+                "provider_type": {"type": "string"},
+                "scope": {"type": "string"},
+                "is_active": {"type": "boolean"},
+                "priority": {"type": "integer"},
+                "base_url": {"type": "string"},
+                "default_model": {"type": "string"},
+                "api_mode": {"type": "string"},
+                "fallback_enabled": {"type": "boolean"},
+                "daily_budget_limit": {"type": "number"},
+                "monthly_budget_limit": {"type": "number"},
+                "extra_config": {"type": "object"},
+                "description": {"type": "string"},
+            },
+            "required": [],
+        },
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        audit_tags=("ai_provider:toggle_provider", "mcp:write"),
+        legacy_tool_names=("toggle_ai_provider",),
+    ),
+]

@@ -51,8 +51,8 @@ from apps.data_center.application.dtos import (
     UpdateProviderRequest,
     UpdatePublisherCatalogRequest,
 )
+from apps.data_center.application.provider_capabilities import SOURCE_TYPE_CAPABILITIES
 from apps.data_center.domain.entities import (
-    ConnectionTestResult,
     IndicatorCatalog,
     IndicatorUnitRule,
     ProviderConfig,
@@ -63,7 +63,6 @@ from apps.data_center.domain.enums import DataCapability, FinancialPeriodType
 from apps.data_center.domain.protocols import (
     AssetRepositoryProtocol,
     CapitalFlowRepositoryProtocol,
-    ConnectionTesterProtocol,
     FinancialFactRepositoryProtocol,
     FundNavRepositoryProtocol,
     IndicatorCatalogRepositoryProtocol,
@@ -161,50 +160,7 @@ TUSHARE_CPI_INDICATORS = frozenset(
         "CN_CPI_RURAL_MOM",
     }
 )
-_SOURCE_TYPE_CAPABILITIES: dict[str, tuple[str, ...]] = {
-    "tushare": (
-        DataCapability.MACRO.value,
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.REALTIME_QUOTE.value,
-        DataCapability.FUND_NAV.value,
-        DataCapability.FINANCIAL.value,
-        DataCapability.VALUATION.value,
-    ),
-    "akshare": (
-        DataCapability.MACRO.value,
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.REALTIME_QUOTE.value,
-        DataCapability.FUND_NAV.value,
-        DataCapability.FINANCIAL.value,
-        DataCapability.VALUATION.value,
-        DataCapability.SECTOR_MEMBERSHIP.value,
-        DataCapability.NEWS.value,
-        DataCapability.CAPITAL_FLOW.value,
-    ),
-    "eastmoney": (
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.REALTIME_QUOTE.value,
-        DataCapability.NEWS.value,
-        DataCapability.CAPITAL_FLOW.value,
-    ),
-    "qmt": (
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.REALTIME_QUOTE.value,
-    ),
-    "fred": (DataCapability.MACRO.value,),
-    "wind": (
-        DataCapability.MACRO.value,
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.FINANCIAL.value,
-        DataCapability.VALUATION.value,
-        DataCapability.SECTOR_MEMBERSHIP.value,
-    ),
-    "choice": (
-        DataCapability.MACRO.value,
-        DataCapability.HISTORICAL_PRICE.value,
-        DataCapability.FINANCIAL.value,
-    ),
-}
+_SOURCE_TYPE_CAPABILITIES = SOURCE_TYPE_CAPABILITIES
 
 
 def _config_to_response(config: ProviderConfig) -> ProviderResponse:
@@ -620,68 +576,6 @@ class ManageIndicatorUnitRuleUseCase:
         return True
 
 
-class RunProviderConnectionTestUseCase:
-    """Run a connectivity probe against a configured provider.
-
-    Args:
-        repo: Used to look up provider config by id.
-        tester: Injected ConnectionTesterProtocol implementation.
-    """
-
-    def __init__(
-        self,
-        repo: ProviderConfigRepositoryProtocol,
-        tester: ConnectionTesterProtocol,
-    ) -> None:
-        self._repo = repo
-        self._tester = tester
-
-    def execute(self, provider_id: int) -> ConnectionTestResult | None:
-        """Return a ConnectionTestResult, or None if the provider was not found."""
-        config = self._repo.get_by_id(provider_id)
-        if config is None:
-            return None
-        logger.info("Running connection test for provider id=%s (%s)", provider_id, config.name)
-        result = self._tester.test(config)
-        self._persist_provider_health_probe(config, result)
-        return result
-
-    def _persist_provider_health_probe(
-        self,
-        config: ProviderConfig,
-        result: ConnectionTestResult,
-    ) -> None:
-        extra_config = dict(config.extra_config or {})
-        recorded_at = result.tested_at
-
-        extra_config["provider_last_success_at"] = (
-            recorded_at.isoformat()
-            if result.success
-            else extra_config.get("provider_last_success_at")
-        )
-        extra_config["provider_last_probe_at"] = recorded_at.isoformat()
-        extra_config["provider_last_status"] = "healthy" if result.success else "degraded"
-        extra_config["provider_last_error"] = "" if result.success else result.summary
-
-        capability_metrics = dict(extra_config.get("health_metrics") or {})
-        for capability in _SOURCE_TYPE_CAPABILITIES.get(config.source_type, ()):
-            metric = dict(capability_metrics.get(capability) or {})
-            if result.success:
-                metric["last_success_at"] = recorded_at.isoformat()
-                metric["consecutive_failures"] = 0
-                metric["last_status"] = "healthy"
-                metric["last_error"] = ""
-            else:
-                metric["consecutive_failures"] = int(metric.get("consecutive_failures", 0)) + 1
-                metric["last_failure_at"] = recorded_at.isoformat()
-                metric["last_status"] = "degraded"
-                metric["last_error"] = result.summary
-            capability_metrics[capability] = metric
-
-        extra_config["health_metrics"] = capability_metrics
-        self._repo.save(dataclasses.replace(config, extra_config=extra_config))
-
-
 class GetProviderStatusUseCase:
     """Query live health snapshots from the runtime registry.
 
@@ -696,7 +590,6 @@ class GetProviderStatusUseCase:
         return self._registry.get_all_statuses()
 
 
-# ---------------------------------------------------------------------------
 # Phase 2 — Query use cases
 # ---------------------------------------------------------------------------
 
@@ -1772,8 +1665,9 @@ class QueryValuationsUseCase:
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, object]]:
-        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end)]
+        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end, limit)]
 
 
 class QuerySectorConstituentsUseCase:
@@ -1815,8 +1709,9 @@ class QueryCapitalFlowsUseCase:
         asset_code: str,
         start: date | None = None,
         end: date | None = None,
+        limit: int | None = None,
     ) -> list[dict[str, object]]:
-        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end)]
+        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end, limit)]
 
 
 class RunMacroGovernanceActionUseCase:
@@ -1880,7 +1775,9 @@ class RunMacroGovernanceActionUseCase:
         raise ValueError(f"Unsupported governance action: {action}")
 
     def _normalize_units(self) -> dict[str, Any]:
-        indicator_codes = self._governance_repo.list_governed_indicator_codes(scope=self.DEFAULT_SCOPE)
+        indicator_codes = self._governance_repo.list_governed_indicator_codes(
+            scope=self.DEFAULT_SCOPE
+        )
         details = self._governance_repo.normalize_macro_fact_units(
             indicator_codes=indicator_codes,
             dry_run=False,
@@ -1943,9 +1840,7 @@ class RunMacroGovernanceActionUseCase:
 
         return {
             "indicator_codes": [
-                str(row.get("code") or "").strip()
-                for row in target_rows
-                if row.get("code")
+                str(row.get("code") or "").strip() for row in target_rows if row.get("code")
             ],
             "sync_runs": sync_runs,
         }
@@ -1957,7 +1852,8 @@ class RunMacroGovernanceActionUseCase:
             if provider.id is not None
             and provider.is_active
             and provider.source_type == source_type
-            and DataCapability.MACRO.value in _SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
+            and DataCapability.MACRO.value
+            in _SOURCE_TYPE_CAPABILITIES.get(provider.source_type, ())
         ]
         providers.sort(key=lambda provider: provider.priority)
         if not providers:

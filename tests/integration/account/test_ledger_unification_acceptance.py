@@ -185,6 +185,36 @@ def test_account_api_create_visible_in_account_positions(alice_client, portfolio
     assert sim_pos is not None, "Position must be written to the unified ledger"
     assert abs(float(sim_pos.quantity) - 500) < 1e-4
     assert created_id == sim_pos.id
+    buy_trades = SimulatedTradeModel.objects.filter(
+        account=sim_pos.account,
+        asset_code="UNIFIED_TEST",
+        action="buy",
+    )
+    assert buy_trades.count() == 1
+    assert float(buy_trades.get().quantity) == pytest.approx(500.0)
+
+    increase_resp = alice_client.post(
+        "/api/account/positions/",
+        {
+            "portfolio": portfolio_a.id,
+            "asset_code": "UNIFIED_TEST",
+            "asset_class": "equity",
+            "region": "CN",
+            "cross_border": "domestic",
+            "shares": 50,
+            "avg_cost": "10.00",
+            "current_price": "10.00",
+            "source": "manual",
+        },
+        format="json",
+    )
+    assert increase_resp.status_code == 201, increase_resp.data
+    assert increase_resp.data["id"] == created_id
+
+    sim_pos.refresh_from_db()
+    assert float(sim_pos.quantity) == pytest.approx(550.0)
+    assert float(sim_pos.avg_cost) == pytest.approx((500 * 8 + 50 * 10) / 550, abs=1e-4)
+    assert buy_trades.count() == 2
 
     list_resp = alice_client.get("/api/account/positions/", {"portfolio_id": portfolio_a.id}, format="json")
     assert list_resp.status_code == 200

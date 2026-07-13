@@ -14,6 +14,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -40,6 +41,7 @@ from ..domain.entities import (
 from ..domain.services import TriggerConfig
 from .serializers import (
     AlphaCandidateSerializer,
+    AlphaTriggerPerformanceQuerySerializer,
     AlphaTriggerSerializer,
     CheckInvalidationRequestSerializer,
     CreateTriggerRequestSerializer,
@@ -1013,6 +1015,8 @@ class TriggerPerformanceAPIView(APIView):
     GET /api/alpha-triggers/performance/?days=30
     """
 
+    permission_classes = [IsAuthenticated]
+
     def get(self, request) -> Response:
         """
         获取性能数据
@@ -1021,9 +1025,12 @@ class TriggerPerformanceAPIView(APIView):
         - days: 统计天数（默认 30）
         - trigger_id: 特定触发器 ID（可选）
         """
+        serializer = AlphaTriggerPerformanceQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+        days = query["days"]
+        trigger_id = query.get("trigger_id")
         try:
-            days = int(request.query_params.get("days", 30))
-            trigger_id = request.query_params.get("trigger_id", None)
             performance_data = get_alpha_trigger_page_query_service().get_performance_data(
                 days=days,
                 trigger_id=trigger_id,
@@ -1035,6 +1042,7 @@ class TriggerPerformanceAPIView(APIView):
                     "data": performance_data,
                     "summary": {
                         "days": days,
+                        "trigger_id": trigger_id,
                         "total_triggers": len(performance_data),
                     },
                 }

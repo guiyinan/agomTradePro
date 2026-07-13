@@ -234,7 +234,6 @@ class TestAgentTaskAPI:
         assert "error_code" in response.data
         assert response.data["error_code"] == "not_found"
         assert "message" in response.data
-
     # ========== FORBIDDEN PATHS TESTS (Requirement #6) ==========
 
     def test_put_task_is_forbidden(self, api_client, mock_user):
@@ -648,3 +647,51 @@ class TestAgentTaskAPI:
         # Optional fields
         if "details" in data:
             assert isinstance(data["details"], dict)
+
+
+class TestAgentProposalReadAPI:
+    """Focused proposal-detail read contract."""
+
+    @patch("apps.agent_runtime.interface.views.GetProposalUseCase")
+    @patch("apps.agent_runtime.interface.views.get_proposal_model", return_value=None)
+    def test_get_proposal_success(
+        self,
+        mock_get_proposal_model,
+        mock_use_case_class,
+    ):
+        api_client = APIClient()
+        user = MagicMock()
+        user.id = 1
+        user.pk = 1
+        user.is_authenticated = True
+        user.is_staff = False
+        api_client.force_authenticate(user=user)
+
+        proposal = MagicMock()
+        proposal.id = 7
+        proposal.request_id = "apr_20260710_001"
+        proposal.schema_version = "v1"
+        proposal.task_id = 3
+        proposal.proposal_type = "rebalance"
+        proposal.status = "submitted"
+        proposal.risk_level = "medium"
+        proposal.approval_required = True
+        proposal.approval_status = "pending"
+        proposal.approval_reason = None
+        proposal.proposal_payload = {"portfolio_id": 2}
+        proposal.created_by = 1
+        proposal.created_at = datetime(2026, 7, 10, tzinfo=UTC)
+        proposal.updated_at = datetime(2026, 7, 10, tzinfo=UTC)
+
+        output = MagicMock()
+        output.request_id = "apr_20260710_001"
+        output.proposal = proposal
+        mock_use_case_class.return_value.execute.return_value = output
+
+        response = api_client.get("/api/agent-runtime/proposals/7/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["request_id"] == "apr_20260710_001"
+        assert response.data["proposal"]["id"] == 7
+        assert response.data["proposal"]["status"] == "submitted"
+        mock_get_proposal_model.assert_called_once_with(proposal_id=7)

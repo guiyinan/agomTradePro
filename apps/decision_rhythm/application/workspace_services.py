@@ -7,7 +7,7 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import Any
 
-from apps.asset_analysis.application.asset_name_service import resolve_asset_names
+from apps.asset_analysis.application.asset_name_service import resolve_asset_names_read_only
 from apps.equity.application.query_services import get_valuation_repair_snapshot_map
 from apps.signal.application.query_services import get_signal_invalidation_payloads
 from apps.simulated_trading.application.query_services import (
@@ -77,7 +77,7 @@ def _resolve_security_name_map(security_codes: list[str]) -> dict[str, str]:
     ]
     if not normalized_codes:
         return {}
-    return resolve_asset_names(normalized_codes)
+    return resolve_asset_names_read_only(normalized_codes)
 
 
 def _attach_security_name(

@@ -57,7 +57,9 @@ class ProviderConfigModel(models.Model):
     api_endpoint = models.URLField(blank=True, help_text="Override API endpoint URL")
 
     # Provider-specific extras (QMT client_path/data_dir, etc.)
-    extra_config = models.JSONField(default=dict, blank=True, help_text="Provider-specific parameters")
+    extra_config = models.JSONField(
+        default=dict, blank=True, help_text="Provider-specific parameters"
+    )
 
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -153,6 +155,20 @@ class DataProviderSettingsModel(models.Model):
             },
         )
         return obj
+
+    @classmethod
+    def load_for_read(cls) -> "DataProviderSettingsModel":
+        """Return persisted settings or an unsaved in-memory default."""
+
+        obj = cls.objects.filter(pk=cls._SINGLETON_PK).first()
+        if obj is not None:
+            return obj
+        return cls(
+            pk=cls._SINGLETON_PK,
+            default_source="akshare",
+            enable_failover=True,
+            failover_tolerance=0.01,
+        )
 
     def to_domain(self):
         """Convert to domain DataProviderSettings value object."""
@@ -294,7 +310,9 @@ class AssetMasterModel(models.Model):
     ]
 
     code = models.CharField(
-        max_length=20, unique=True, db_index=True,
+        max_length=20,
+        unique=True,
+        db_index=True,
         help_text="Canonical ticker (Tushare format, e.g. 600519.SH)",
     )
     name = models.CharField(max_length=100, help_text="Full security name")
@@ -309,7 +327,10 @@ class AssetMasterModel(models.Model):
     industry = models.CharField(max_length=100, blank=True)
     currency = models.CharField(max_length=10, default="CNY")
     total_shares = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Total shares outstanding",
     )
 
@@ -339,13 +360,17 @@ class AssetAliasModel(models.Model):
     """
 
     asset = models.ForeignKey(
-        AssetMasterModel, on_delete=models.CASCADE, related_name="aliases",
+        AssetMasterModel,
+        on_delete=models.CASCADE,
+        related_name="aliases",
     )
     provider_name = models.CharField(
-        max_length=50, help_text="Provider identifier (e.g. 'akshare', 'wind')",
+        max_length=50,
+        help_text="Provider identifier (e.g. 'akshare', 'wind')",
     )
     alias_code = models.CharField(
-        max_length=40, help_text="Provider-local ticker code",
+        max_length=40,
+        help_text="Provider-local ticker code",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -435,7 +460,9 @@ class IndicatorCatalogModel(models.Model):
     ]
 
     code = models.CharField(
-        max_length=50, unique=True, db_index=True,
+        max_length=50,
+        unique=True,
+        db_index=True,
         help_text="Canonical indicator code (e.g. CN_GDP)",
     )
     name_cn = models.CharField(max_length=100, help_text="中文名称")
@@ -443,10 +470,13 @@ class IndicatorCatalogModel(models.Model):
     description = models.TextField(blank=True)
     default_unit = models.CharField(max_length=20, blank=True, help_text="e.g. 亿元, %, bps")
     default_period_type = models.CharField(
-        max_length=1, choices=PERIOD_TYPE_CHOICES, default="M",
+        max_length=1,
+        choices=PERIOD_TYPE_CHOICES,
+        default="M",
     )
     category = models.CharField(
-        max_length=30, blank=True,
+        max_length=30,
+        blank=True,
         help_text="e.g. growth, inflation, money, trade, financial",
     )
     is_active = models.BooleanField(default=True)
@@ -550,7 +580,8 @@ class MacroFactModel(models.Model):
     ]
 
     indicator_code = models.CharField(
-        max_length=50, db_index=True,
+        max_length=50,
+        db_index=True,
         help_text="Matches IndicatorCatalogModel.code",
     )
     reporting_period = models.DateField(db_index=True)
@@ -560,7 +591,9 @@ class MacroFactModel(models.Model):
     revision_number = models.SmallIntegerField(default=0)
     published_at = models.DateField(null=True, blank=True)
     quality = models.CharField(
-        max_length=10, choices=QUALITY_CHOICES, default="valid",
+        max_length=10,
+        choices=QUALITY_CHOICES,
+        default="valid",
     )
     fetched_at = models.DateTimeField(auto_now_add=True)
     extra = models.JSONField(default=dict, blank=True)
@@ -607,18 +640,26 @@ class PriceBarModel(models.Model):
     bar_date = models.DateField(db_index=True)
     freq = models.CharField(max_length=5, choices=FREQ_CHOICES, default="1d")
     adjustment = models.CharField(
-        max_length=10, choices=ADJUSTMENT_CHOICES, default="none",
+        max_length=10,
+        choices=ADJUSTMENT_CHOICES,
+        default="none",
     )
     open = models.DecimalField(max_digits=18, decimal_places=4)
     high = models.DecimalField(max_digits=18, decimal_places=4)
     low = models.DecimalField(max_digits=18, decimal_places=4)
     close = models.DecimalField(max_digits=18, decimal_places=4)
     volume = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Volume in shares",
     )
     amount = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Turnover amount in CNY",
     )
     source = models.CharField(max_length=50)
@@ -683,11 +724,17 @@ class FundNavFactModel(models.Model):
     nav_date = models.DateField(db_index=True)
     nav = models.DecimalField(max_digits=18, decimal_places=6, help_text="Unit NAV")
     acc_nav = models.DecimalField(
-        max_digits=18, decimal_places=6, null=True, blank=True,
+        max_digits=18,
+        decimal_places=6,
+        null=True,
+        blank=True,
         help_text="Accumulated NAV",
     )
     daily_return = models.DecimalField(
-        max_digits=10, decimal_places=6, null=True, blank=True,
+        max_digits=10,
+        decimal_places=6,
+        null=True,
+        blank=True,
         help_text="Daily return rate",
     )
     source = models.CharField(max_length=50)
@@ -723,7 +770,8 @@ class FinancialFactModel(models.Model):
     period_end = models.DateField(db_index=True, help_text="Period end date (e.g. 2024-12-31)")
     period_type = models.CharField(max_length=15, choices=PERIOD_TYPE_CHOICES)
     metric_code = models.CharField(
-        max_length=60, db_index=True,
+        max_length=60,
+        db_index=True,
         help_text="Metric identifier (e.g. revenue, net_profit, total_assets)",
     )
     value = models.DecimalField(max_digits=28, decimal_places=4)
@@ -761,14 +809,23 @@ class ValuationFactModel(models.Model):
     pb = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     ps_ttm = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
     market_cap = models.DecimalField(
-        max_digits=28, decimal_places=2, null=True, blank=True,
+        max_digits=28,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Market cap in CNY",
     )
     float_market_cap = models.DecimalField(
-        max_digits=28, decimal_places=2, null=True, blank=True,
+        max_digits=28,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     dv_ratio = models.DecimalField(
-        max_digits=10, decimal_places=6, null=True, blank=True,
+        max_digits=10,
+        decimal_places=6,
+        null=True,
+        blank=True,
         help_text="Dividend yield",
     )
     source = models.CharField(max_length=50)
@@ -796,14 +853,18 @@ class SectorMembershipFactModel(models.Model):
 
     asset_code = models.CharField(max_length=20, db_index=True)
     sector_code = models.CharField(
-        max_length=30, db_index=True,
+        max_length=30,
+        db_index=True,
         help_text="Industry / index code (e.g. 399300.SZ for CSI 300)",
     )
     sector_name = models.CharField(max_length=100, blank=True)
     effective_date = models.DateField()
     expiry_date = models.DateField(null=True, blank=True, help_text="Null = currently active")
     weight = models.DecimalField(
-        max_digits=10, decimal_places=6, null=True, blank=True,
+        max_digits=10,
+        decimal_places=6,
+        null=True,
+        blank=True,
         help_text="Weight in index (0–1)",
     )
     source = models.CharField(max_length=50)
@@ -832,7 +893,9 @@ class NewsFactModel(models.Model):
     """
 
     asset_code = models.CharField(
-        max_length=20, blank=True, db_index=True,
+        max_length=20,
+        blank=True,
+        db_index=True,
         help_text="Primary associated ticker (blank = market-wide news)",
     )
     title = models.CharField(max_length=500)
@@ -842,7 +905,9 @@ class NewsFactModel(models.Model):
     source = models.CharField(max_length=50)
     external_id = models.CharField(max_length=200, blank=True, help_text="Provider article ID")
     sentiment_score = models.FloatField(
-        null=True, blank=True, help_text="Sentiment score in [-1, +1]",
+        null=True,
+        blank=True,
+        help_text="Sentiment score in [-1, +1]",
     )
     extra = models.JSONField(default=dict, blank=True)
     fetched_at = models.DateTimeField(auto_now_add=True)
@@ -871,24 +936,42 @@ class CapitalFlowFactModel(models.Model):
     asset_code = models.CharField(max_length=20, db_index=True)
     flow_date = models.DateField(db_index=True)
     main_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Main-force net inflow (CNY)",
     )
     retail_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Retail net inflow (CNY)",
     )
     super_large_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     large_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     medium_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     small_net = models.DecimalField(
-        max_digits=24, decimal_places=2, null=True, blank=True,
+        max_digits=24,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     source = models.CharField(max_length=50)
     fetched_at = models.DateTimeField(auto_now_add=True)
@@ -1105,9 +1188,7 @@ class MarketThermometerSnapshotModel(models.Model):
                         is_stale=bool(item.get("is_stale", False)),
                         is_missing=bool(item.get("is_missing", False)),
                         age_days=(
-                            int(item.get("age_days"))
-                            if item.get("age_days") is not None
-                            else None
+                            int(item.get("age_days")) if item.get("age_days") is not None else None
                         ),
                         reason=str(item.get("reason", "")),
                     )
@@ -1151,7 +1232,8 @@ class RawAuditModel(models.Model):
 
     provider_name = models.CharField(max_length=50, db_index=True)
     capability = models.CharField(
-        max_length=30, db_index=True,
+        max_length=30,
+        db_index=True,
         help_text="DataCapability value (e.g. 'macro', 'historical_price')",
     )
     request_params = models.JSONField(default=dict, blank=True)

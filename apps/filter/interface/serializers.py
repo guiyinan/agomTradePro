@@ -112,3 +112,16 @@ class FilterConfigSerializer(serializers.Serializer):
     kalman_level_variance = serializers.FloatField()
     kalman_slope_variance = serializers.FloatField()
     kalman_observation_variance = serializers.FloatField()
+    description = serializers.CharField(required=False, allow_blank=True)
+
+
+class UpdateFilterConfigRequestSerializer(serializers.Serializer):
+    """Update one filter config override."""
+
+    hp_enabled = serializers.BooleanField(required=False)
+    hp_lambda = serializers.FloatField(required=False)
+    kalman_enabled = serializers.BooleanField(required=False)
+    kalman_level_variance = serializers.FloatField(required=False)
+    kalman_slope_variance = serializers.FloatField(required=False)
+    kalman_observation_variance = serializers.FloatField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True)

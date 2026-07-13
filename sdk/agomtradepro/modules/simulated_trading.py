@@ -113,8 +113,12 @@ class SimulatedTradingModule(BaseModule):
         self,
         name: str,
         initial_capital: float,
-        start_date: date,
+        start_date: date | None = None,
         account_type: str = "simulated",
+        max_position_pct: float = 20.0,
+        stop_loss_pct: float | None = 10.0,
+        commission_rate: float = 0.0003,
+        slippage_rate: float = 0.001,
     ) -> dict[str, Any]:
         """
         创建账户
@@ -122,8 +126,12 @@ class SimulatedTradingModule(BaseModule):
         Args:
             name: 账户名称
             initial_capital: 初始资金
-            start_date: 起始日期
+            start_date: 起始日期（当前 canonical API 不消费该字段，保留兼容）
             account_type: 账户类型，real 或 simulated
+            max_position_pct: 单资产最大持仓比例
+            stop_loss_pct: 止损比例
+            commission_rate: 手续费率
+            slippage_rate: 滑点率
 
         Returns:
             创建的账户信息
@@ -145,10 +153,10 @@ class SimulatedTradingModule(BaseModule):
             "account_name": name,
             "account_type": account_type,
             "initial_capital": initial_capital,
-            "max_position_pct": 20.0,
-            "stop_loss_pct": 10.0,
-            "commission_rate": 0.0003,
-            "slippage_rate": 0.001,
+            "max_position_pct": max_position_pct,
+            "stop_loss_pct": stop_loss_pct,
+            "commission_rate": commission_rate,
+            "slippage_rate": slippage_rate,
         }
 
         response = self._post("accounts/", json=data)

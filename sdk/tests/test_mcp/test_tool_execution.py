@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytestmark = pytest.mark.usefixtures("legacy_enabled_mcp_server")
+
 
 class _FakeClient:
     def __init__(self):
@@ -27,16 +29,25 @@ class _FakeClient:
             generate_report=lambda payload: {"report": True, "payload": payload},
             generate_signal=lambda payload: {"signal": True, "payload": payload},
         )
+        self.policy = SimpleNamespace(
+            create_event=lambda event_date, event_type, description, gear, title=None, level=None, evidence_url=None: SimpleNamespace(
+                id=4,
+                event_date=event_date,
+                event_type=event_type,
+                description=description,
+                gear=gear,
+                title=title,
+                level=level,
+                evidence_url=evidence_url,
+            ),
+        )
         self.audit = SimpleNamespace(
             get_summary=lambda: {"ok": True},
             generate_report=lambda payload: {"ok": True, "payload": payload},
             run_validation=lambda payload: {"ok": True, "payload": payload},
             validate_all_indicators=lambda: {"ok": True},
             update_threshold=lambda payload: {"ok": True, "payload": payload},
-            list_execution_links=lambda account_id=None,
-            recommendation_id=None,
-            transaction_source=None,
-            limit=50: {
+            list_execution_links=lambda account_id=None, recommendation_id=None, transaction_source=None, limit=50: {
                 "links": [],
                 "account_id": account_id,
                 "recommendation_id": recommendation_id,
@@ -61,32 +72,19 @@ class _FakeClient:
         )
         self.decision_workflow = SimpleNamespace(
             precheck=lambda candidate_id: {"candidate_id": candidate_id, "ok": True},
-            list_recommendations=lambda account_id,
-            status=None,
-            user_action=None,
-            security_code=None,
-            recommendation_id=None,
-            include_ignored=False,
-            page=1,
-            page_size=20: {
+            list_recommendations=lambda account_id, status=None, user_action=None, security_code=None, recommendation_id=None, include_ignored=False, page=1, page_size=20: {
                 "account_id": account_id,
                 "recommendations": [],
                 "page": page,
                 "page_size": page_size,
             },
-            refresh_recommendations=lambda account_id=None,
-            security_codes=None,
-            force=False,
-            async_mode=True: {
+            refresh_recommendations=lambda account_id=None, security_codes=None, force=False, async_mode=True: {
                 "account_id": account_id,
                 "security_codes": security_codes or [],
                 "force": force,
                 "async_mode": async_mode,
             },
-            apply_recommendation_action=lambda recommendation_id,
-            action,
-            account_id=None,
-            note=None: {
+            apply_recommendation_action=lambda recommendation_id, action, account_id=None, note=None: {
                 "recommendation_id": recommendation_id,
                 "action": action,
                 "account_id": account_id,
@@ -124,11 +122,7 @@ class _FakeClient:
                 "success": True,
                 "data": {"plan_id": plan_id, "orders": orders},
             },
-            preview_execution=lambda account_id,
-            plan_id=None,
-            recommendation_id=None,
-            create_request=False,
-            market_price=None: {
+            preview_execution=lambda account_id, plan_id=None, recommendation_id=None, create_request=False, market_price=None: {
                 "success": True,
                 "data": {
                     "account_id": account_id,
@@ -174,7 +168,15 @@ class _FakeClient:
             evaluate=lambda payload: {"evaluated": True, "payload": payload},
             check_invalidation=lambda payload: {"invalidated": False, "payload": payload},
             generate_candidate=lambda payload: {"candidate": True, "payload": payload},
-            performance=lambda payload=None: {"performance": True, "payload": payload},
+            performance=lambda *, days=None, trigger_id=None: {
+                "success": True,
+                "data": [],
+                "summary": {
+                    "days": days,
+                    "trigger_id": trigger_id,
+                    "total_triggers": 0,
+                },
+            },
         )
         self.dashboard = SimpleNamespace(
             summary_v1=lambda: {"summary": True},
@@ -303,6 +305,30 @@ class _FakeClient:
             create_ai_strategy_config=lambda **payload: {"id": 9, **payload},
             update_ai_strategy_config=lambda config_id, **updates: {"id": config_id, **updates},
             update_position_rule=lambda rule_id, **updates: {"id": rule_id, **updates},
+            evaluate_position_rule=lambda rule_id, context: {
+                "rule_id": rule_id,
+                "context": context,
+                "should_buy": True,
+                "should_sell": False,
+                "buy_price": 10.0,
+                "sell_price": 12.0,
+                "stop_loss_price": 9.0,
+                "take_profit_price": 12.0,
+                "position_size": 1000.0,
+                "risk_reward_ratio": 2.0,
+            },
+            evaluate_strategy_position_management=lambda strategy_id, context: {
+                "strategy_id": strategy_id,
+                "context": context,
+                "should_buy": False,
+                "should_sell": True,
+                "buy_price": 10.0,
+                "sell_price": 12.0,
+                "stop_loss_price": 9.0,
+                "take_profit_price": 14.0,
+                "position_size": 500.0,
+                "risk_reward_ratio": 0.5,
+            },
         )
         self.account = SimpleNamespace(
             get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
@@ -573,6 +599,18 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("prompt_chat", {"payload": {"messages": [{"role": "user", "content": "hi"}]}}),
         ("generate_prompt_report", {"payload": {"template_id": 1}}),
         ("generate_prompt_signal", {"payload": {"template_id": 1}}),
+        (
+            "create_policy_event",
+            {
+                "event_date": "2026-07-11",
+                "event_type": "liquidity_support",
+                "description": "Targeted liquidity support was announced.",
+                "gear": "stimulus",
+                "title": "Liquidity support",
+                "level": "P2",
+                "evidence_url": "https://example.com/policy/create",
+            },
+        ),
         ("get_audit_summary", {}),
         ("generate_audit_report", {"payload": {"days": 7}}),
         ("run_audit_validation", {"payload": {"scope": "all"}}),
@@ -643,7 +681,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("evaluate_alpha_trigger", {"payload": {"trigger_id": "t1"}}),
         ("check_alpha_trigger_invalidation", {"payload": {"trigger_id": "t1"}}),
         ("generate_alpha_candidate", {"payload": {"symbol": "AAPL"}}),
-        ("alpha_trigger_performance", {"payload": {"window_days": 30}}),
+        ("alpha_trigger_performance", {"days": 30, "trigger_id": "t1"}),
         ("get_dashboard_summary_v1", {}),
         (
             "get_dashboard_alpha_decision_chain_v1",
@@ -706,6 +744,26 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ),
         ("update_ai_strategy_config", {"config_id": 8, "updates": {"temperature": 0.2}}),
         ("update_position_rule", {"rule_id": 5, "updates": {"is_active": False}}),
+        (
+            "evaluate_position_rule",
+            {
+                "rule_id": 5,
+                "context": {
+                    "current_price": 10.0,
+                    "account_equity": 100000.0,
+                },
+            },
+        ),
+        (
+            "evaluate_strategy_position_management",
+            {
+                "strategy_id": 2,
+                "context": {
+                    "current_price": 13.0,
+                    "account_equity": 100000.0,
+                },
+            },
+        ),
         (
             "run_simulated_daily_inspection",
             {

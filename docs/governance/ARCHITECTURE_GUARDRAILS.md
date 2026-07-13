@@ -1,8 +1,11 @@
 # Architecture Guardrails
 
 > Last updated: 2026-06-30
+> Dynamic governance machine source of truth: `governance/governance_baseline.json`
 
 This document defines how repository-wide architecture and governance checks are enforced.
+It documents rules and verification entrypoints only; it must not maintain copies of
+current governance counts.
 
 ## Checks
 

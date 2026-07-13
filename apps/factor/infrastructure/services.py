@@ -31,8 +31,10 @@ class FactorIntegrationService:
     Integrates domain services with repositories and data adapters.
     """
 
-    def __init__(self, factor_adapter=None):
-        self.factor_adapter = factor_adapter or FailoverFactorAdapter()
+    def __init__(self, factor_adapter=None, *, cache_price_results: bool = True):
+        self.factor_adapter = factor_adapter or FailoverFactorAdapter(
+            cache_price_results=cache_price_results,
+        )
         self.factor_repo = FactorDefinitionRepository()
         self.config_repo = FactorPortfolioConfigRepository()
         self.holding_repo = FactorPortfolioHoldingRepository()
@@ -247,19 +249,19 @@ class FactorIntegrationService:
             return self.factor_adapter.get_factor_value(stock_code, factor_code, calc_date)
 
         def get_stock_info(stock_code: str) -> dict | None:
-            try:
-                from apps.equity.infrastructure.repositories import StockInfoRepository
-                equity_repo = StockInfoRepository()
-                stock = equity_repo.get_by_code(stock_code)
-                if stock:
-                    return {
-                        'name': stock.name,
-                        'sector': stock.sector,
-                        'market_cap': stock.list_date,
-                    }
-            except Exception:
-                pass
-            return None
+            from apps.equity.infrastructure.models import StockInfoModel
+
+            stock = StockInfoModel._default_manager.filter(
+                stock_code=stock_code,
+                is_active=True,
+            ).first()
+            if stock is None:
+                return None
+            return {
+                'name': stock.name,
+                'sector': stock.sector,
+                'market_cap': None,
+            }
 
         context = FactorCalculationContext(
             trade_date=trade_date,
@@ -415,24 +417,18 @@ class FactorIntegrationService:
             preference = factor_preferences.get(category, 'medium')
 
             if preference == 'high':
-                # Positive weight
-                base_weight = 0.2
+                base_weight = 1.5
             elif preference == 'low':
-                # Negative weight
-                base_weight = -0.1
+                base_weight = 0.5
             else:
-                # Neutral/medium
-                base_weight = 0.0
+                base_weight = 1.0
 
-            if factor.direction.value == 'negative':
-                factor_weights[factor.code] = -base_weight
-            else:
-                factor_weights[factor.code] = base_weight
+            factor_weights[factor.code] = base_weight
 
         # Normalize weights
-        total_weight = sum(abs(w) for w in factor_weights.values())
+        total_weight = sum(factor_weights.values())
         if total_weight > 0:
-            factor_weights = {k: abs(v) / total_weight for k, v in factor_weights.items()}
+            factor_weights = {k: v / total_weight for k, v in factor_weights.items()}
 
         # Get universe
         universe = self.resolve_universe_stocks('all_a')

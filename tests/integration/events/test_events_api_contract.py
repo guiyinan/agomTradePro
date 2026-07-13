@@ -9,16 +9,31 @@ Phase 3: Events API Migration from placeholder to real implementation.
 """
 
 import json
+from types import SimpleNamespace
 
 import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from apps.events.application.use_cases import PublishEventUseCase
+from apps.events.infrastructure.event_store import (
+    DatabaseEventStore,
+    StoredEventModel,
+)
+from apps.events.interface import views as event_views
 
-def _build_authenticated_api_client(username: str = "events_api_tester") -> APIClient:
+
+def _build_authenticated_api_client(
+    username: str = "events_api_tester",
+    *,
+    is_staff: bool = True,
+) -> APIClient:
     """Build an authenticated API client for testing."""
     user_model = get_user_model()
     user, _ = user_model.objects.get_or_create(username=username)
+    if user.is_staff != is_staff:
+        user.is_staff = is_staff
+        user.save(update_fields=["is_staff"])
     client = APIClient()
     client.force_authenticate(user=user)
     return client
@@ -89,6 +104,122 @@ class TestEventsPublishAPI:
         assert response.status_code == 400
         data = response.json()
         assert data["success"] is False
+
+    def test_publish_rejects_unknown_request_fields(self):
+        """Publishing must reject fields outside the canonical contract."""
+        client = _build_authenticated_api_client("events_publish_unknown_field")
+
+        response = client.post(
+            "/api/events/publish/",
+            data={
+                "event_type": "regime_changed",
+                "payload": {"new_regime": "Overheat"},
+                "unexpected": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error_code"] == "INVALID_REQUEST"
+        assert StoredEventModel.objects.count() == 0
+
+    def test_duplicate_event_id_does_not_notify_subscribers_twice(self, monkeypatch):
+        """Database identity must block duplicate cross-module side effects."""
+
+        class _RecordingEventBus:
+            def __init__(self):
+                self.events = []
+
+            def publish(self, event):
+                self.events.append(event)
+
+            def get_metrics(self):
+                return SimpleNamespace(total_processed=len(self.events))
+
+        event_bus = _RecordingEventBus()
+        monkeypatch.setattr(
+            event_views,
+            "PublishEventUseCase",
+            lambda: PublishEventUseCase(
+                event_bus=event_bus,
+                event_store=DatabaseEventStore(),
+            ),
+        )
+        client = _build_authenticated_api_client("events_publish_duplicate")
+        request_payload = {
+            "event_type": "regime_changed",
+            "payload": {"new_regime": "Overheat"},
+            "event_id": "event-idempotency-001",
+            "occurred_at": "2026-07-12T12:00:00Z",
+        }
+
+        first_response = client.post(
+            "/api/events/publish/",
+            data=request_payload,
+            format="json",
+        )
+        duplicate_response = client.post(
+            "/api/events/publish/",
+            data=request_payload,
+            format="json",
+        )
+
+        assert first_response.status_code == 200
+        assert first_response.json()["subscribers_notified"] == 1
+        assert duplicate_response.status_code == 409
+        assert duplicate_response.json()["error_code"] == "EVENT_ALREADY_EXISTS"
+        assert StoredEventModel.objects.filter(
+            event_id="event-idempotency-001"
+        ).count() == 1
+        assert len(event_bus.events) == 1
+
+    def test_persistence_failure_blocks_event_bus_publication(self, monkeypatch):
+        """Subscribers must not run when the event store rejects the append."""
+
+        class _FailingEventStore:
+            @staticmethod
+            def get_by_id(event_id):
+                return None
+
+            @staticmethod
+            def append(event):
+                return False
+
+        class _RecordingEventBus:
+            def __init__(self):
+                self.events = []
+
+            def publish(self, event):
+                self.events.append(event)
+
+            @staticmethod
+            def get_metrics():
+                return SimpleNamespace(total_processed=0)
+
+        event_bus = _RecordingEventBus()
+        monkeypatch.setattr(
+            event_views,
+            "PublishEventUseCase",
+            lambda: PublishEventUseCase(
+                event_bus=event_bus,
+                event_store=_FailingEventStore(),
+            ),
+        )
+        client = _build_authenticated_api_client("events_publish_store_failure")
+
+        response = client.post(
+            "/api/events/publish/",
+            data={
+                "event_type": "regime_changed",
+                "payload": {"new_regime": "Overheat"},
+                "event_id": "event-store-failure-001",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 500
+        assert response.json()["error_code"] == "EVENT_PERSISTENCE_FAILED"
+        assert event_bus.events == []
 
 
 @pytest.mark.django_db
@@ -309,9 +440,12 @@ class TestEventsAPIAuthentication:
         # Should return 401 or 403 for unauthenticated
         assert response.status_code in [401, 403]
 
-    def test_authenticated_request_succeeds(self):
-        """Authenticated requests should succeed."""
-        client = _build_authenticated_api_client("events_auth_success")
+    def test_non_staff_request_is_denied(self):
+        """Arbitrary domain event publication is staff-only."""
+        client = _build_authenticated_api_client(
+            "events_auth_non_staff",
+            is_staff=False,
+        )
 
         response = client.post(
             "/api/events/publish/",
@@ -322,6 +456,20 @@ class TestEventsAPIAuthentication:
             content_type="application/json",
         )
 
-        # Should not be authentication error
-        assert response.status_code not in [401, 403]
+        assert response.status_code == 403
+
+    def test_staff_request_succeeds(self):
+        """Staff users may publish canonical domain events."""
+        client = _build_authenticated_api_client("events_auth_staff")
+
+        response = client.post(
+            "/api/events/publish/",
+            data=json.dumps({
+                "event_type": "regime_changed",
+                "payload": {"test": "data"},
+            }),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
 

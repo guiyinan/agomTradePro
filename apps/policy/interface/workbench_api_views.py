@@ -4,7 +4,7 @@ import logging
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -659,7 +659,7 @@ class WorkbenchFetchView(APIView):
     POST /api/policy/workbench/fetch/ - 触发 RSS 抓取
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     @extend_schema(
         tags=["Policy Workbench"],
@@ -671,8 +671,6 @@ class WorkbenchFetchView(APIView):
     def post(self, request):
         """触发RSS抓取"""
         try:
-            from .serializers import WorkbenchFetchInputSerializer
-
             serializer = WorkbenchFetchInputSerializer(data=request.data)
             if not serializer.is_valid():
                 return Response(

@@ -20,7 +20,9 @@ class HedgeDataSource:
         self,
         asset_code: str,
         end_date: date,
-        days: int = 60
+        days: int = 60,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """
         Get historical prices for an asset.
@@ -50,7 +52,9 @@ class TushareHedgeAdapter(HedgeDataSource):
         self,
         asset_code: str,
         end_date: date,
-        days: int = 60
+        days: int = 60,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """Get ETF prices from persisted price bars."""
         try:
@@ -95,7 +99,9 @@ class AkshareHedgeAdapter(HedgeDataSource):
         self,
         asset_code: str,
         end_date: date,
-        days: int = 60
+        days: int = 60,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """Get ETF prices from persisted price bars."""
         try:
@@ -156,7 +162,9 @@ class CachedHedgeAdapter(HedgeDataSource):
         self,
         asset_code: str,
         end_date: date,
-        days: int = 60
+        days: int = 60,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """Return cached prices from previous successful fetches"""
         # 1. Try Django cache (last-known-good from Tushare/Akshare)
@@ -205,7 +213,9 @@ class FailoverHedgeAdapter(HedgeDataSource):
         self,
         asset_code: str,
         end_date: date,
-        days: int = 60
+        days: int = 60,
+        *,
+        cache_result: bool = True,
     ) -> list[float] | None:
         """Get prices with automatic failover and caching"""
         last_error = None
@@ -219,7 +229,7 @@ class FailoverHedgeAdapter(HedgeDataSource):
                         logger.info(f"Using fallback source {i+1} for {asset_code}")
 
                     # Cache successful results from primary sources (not CachedHedgeAdapter)
-                    if not isinstance(source, CachedHedgeAdapter):
+                    if cache_result and not isinstance(source, CachedHedgeAdapter):
                         _cache_hedge_prices(asset_code, prices)
 
                     return prices

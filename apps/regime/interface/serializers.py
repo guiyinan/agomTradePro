@@ -29,6 +29,20 @@ class RegimeCalculateRequestSerializer(serializers.Serializer):
     inflation_indicator = serializers.CharField(default="CPI")
     data_source = serializers.CharField(default="akshare")
 
+    def to_internal_value(self, data):
+        """Reject unsupported inputs instead of silently ignoring contract drift."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown fields: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
 
 class RegimeCalculateResponseSerializer(serializers.Serializer):
     """Serializer for Regime calculation response"""

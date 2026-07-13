@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from apps.equity.application.query_services import fetch_index_daily_returns
+from apps.regime.application.query_services import get_latest_regime_diagnostic_payload
 
 from ..domain.entities import SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer
@@ -104,6 +105,7 @@ class AnalyzeSectorRotationUseCase:
         Returns:
             分析结果
         """
+        regime = request.regime or ""
         try:
             market_returns_fallback = False
             market_returns_cache: dict[int, list[float]] = {}
@@ -111,9 +113,20 @@ class AnalyzeSectorRotationUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                # 自动获取最新 Regime（统一 V2 链路）
-                from apps.regime.application.current_regime import resolve_current_regime
-                regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
+                latest_regime = get_latest_regime_diagnostic_payload()
+                if latest_regime is None:
+                    return SectorRotationResult(
+                        success=False,
+                        regime="",
+                        analysis_date=date.today(),
+                        top_sectors=[],
+                        error="未找到已持久化的 Regime 快照",
+                        status="unavailable",
+                        data_source="persisted",
+                        warning_message="regime_snapshot_unavailable",
+                        warning_detail="请先通过显式 Regime 计算流程生成快照，或在请求中指定 regime。",
+                    )
+                regime = str(latest_regime["dominant_regime"])
 
             # 2. 加载板块权重配置
             regime_weights = self.sector_repo.get_sector_weights_by_regime(regime)
@@ -125,7 +138,7 @@ class AnalyzeSectorRotationUseCase:
                     top_sectors=[],
                     error=f"未找到 Regime '{regime}' 的板块权重配置，请在 Django Admin 中配置",
                     status="unavailable",
-                    data_source="fallback",
+                    data_source="persisted",
                     warning_message="sector_weights_unavailable",
                     warning_detail="当前 Regime 的板块权重配置缺失，需先在系统配置中补齐。",
                 )
@@ -140,9 +153,9 @@ class AnalyzeSectorRotationUseCase:
                     top_sectors=[],
                     error=f"未找到级别为 {request.level} 的板块数据",
                     status="unavailable",
-                    data_source="fallback",
+                    data_source="persisted",
                     warning_message="sector_data_unavailable",
-                    warning_detail=f"{request.level} 板块基础信息尚未初始化，系统将尝试自动同步。",
+                    warning_detail=f"{request.level} 板块基础信息尚未初始化，请通过显式数据更新流程同步。",
                 )
 
             # 4. 计算每个板块的动量和相对强弱
@@ -209,7 +222,7 @@ class AnalyzeSectorRotationUseCase:
                     top_sectors=[],
                     error="没有足够的板块指数数据进行分析",
                     status="unavailable",
-                    data_source="fallback",
+                    data_source="persisted",
                     warning_message="sector_indices_insufficient",
                     warning_detail="板块指数历史数据不足，无法计算动量与相对强弱。",
                 )
@@ -232,7 +245,7 @@ class AnalyzeSectorRotationUseCase:
                 analysis_date=date.today(),
                 top_sectors=top_sectors,
                 status="degraded" if market_returns_fallback else "available",
-                data_source="fallback" if market_returns_fallback else "live",
+                data_source="fallback" if market_returns_fallback else "persisted",
                 warning_message=(
                     "market_returns_fallback"
                     if market_returns_fallback
@@ -284,12 +297,14 @@ class AnalyzeSectorRotationUseCase:
                     index_code='000300.SH',
                     start_date=start_date,
                     end_date=end_date,
+                    hydrate=False,
                 )
             elif callable(self.market_adapter):
                 returns_dict = self.market_adapter(
                     index_code='000300.SH',
                     start_date=start_date,
                     end_date=end_date,
+                    hydrate=False,
                 )
             else:
                 logger.warning("市场数据适配器不支持 index returns，大盘收益率 unavailable")

@@ -62,11 +62,18 @@ class PulseRepository:
             return None
         return self._log_to_snapshot(log)
 
-    def get_history(self, months: int = 6) -> list[PulseLog]:
+    def get_history(self, months: int = 6, limit: int | None = None) -> list[PulseLog]:
         """获取历史记录"""
         from datetime import timedelta
+
         cutoff = date.today() - timedelta(days=months * 30)
-        return list(PulseLog.objects.filter(observed_at__gte=cutoff))
+        queryset = PulseLog.objects.filter(observed_at__gte=cutoff).order_by(
+            "-observed_at",
+            "-created_at",
+        )
+        if limit is not None:
+            queryset = queryset[:limit]
+        return list(queryset)
 
     def _log_to_snapshot(self, log: PulseLog) -> PulseSnapshot:
         """将 PulseLog ORM 实例转换回 PulseSnapshot 域对象"""

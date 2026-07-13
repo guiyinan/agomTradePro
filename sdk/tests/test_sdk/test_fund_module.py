@@ -11,6 +11,62 @@ def client():
     return AgomTradeProClient(base_url="http://test.com", api_token="test_token")
 
 
+def test_rank_funds_uses_canonical_endpoint_and_unwraps_funds(client):
+    payload = {
+        "success": True,
+        "regime": "Recovery",
+        "count": 1,
+        "funds": [
+            {
+                "fund_code": "000001",
+                "fund_name": "华夏成长",
+                "total_score": 85.5,
+                "rank": 1,
+            }
+        ],
+    }
+
+    with patch.object(client, "_request", return_value=payload) as mock_request:
+        funds = client.fund.rank_funds(regime="Recovery", max_count=20)
+
+    args, kwargs = mock_request.call_args
+    assert args[0] == "GET"
+    assert args[1] == "/api/fund/rank/"
+    assert kwargs["params"] == {"regime": "Recovery", "max_count": 20}
+    assert funds == payload["funds"]
+
+
+def test_screen_funds_uses_canonical_persisted_compute_endpoint(client):
+    payload = {
+        "success": True,
+        "regime": "Recovery",
+        "fund_codes": ["000001"],
+        "fund_names": ["华夏成长"],
+        "screening_criteria": {"fund_types": ["股票型"]},
+    }
+
+    with patch.object(client, "_request", return_value=payload) as mock_request:
+        result = client.fund.screen_funds(
+            regime="Recovery",
+            custom_types=["股票型"],
+            custom_styles=["成长"],
+            min_scale=1000000000,
+            limit=10,
+        )
+
+    args, kwargs = mock_request.call_args
+    assert args[0] == "POST"
+    assert args[1] == "/api/fund/screen/"
+    assert kwargs["json"] == {
+        "regime": "Recovery",
+        "custom_types": ["股票型"],
+        "custom_styles": ["成长"],
+        "min_scale": 1000000000,
+        "max_count": 10,
+    }
+    assert result == payload
+
+
 def test_get_fund_detail_unwraps_fund_payload_and_normalizes_code(client):
     payload = {
         "success": True,

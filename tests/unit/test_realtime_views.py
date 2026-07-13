@@ -84,6 +84,30 @@ def test_realtime_single_asset_not_found_returns_404(client):
 
 
 @pytest.mark.django_db
+def test_realtime_single_asset_returns_success_contract(client):
+    prices = [
+        {
+            "asset_code": "000001.SZ",
+            "price": 10.5,
+            "change": 0.2,
+            "change_pct": 1.94,
+            "timestamp": "2026-07-10T14:30:00+08:00",
+            "source": "test",
+        }
+    ]
+    mock_use_case = _build_mock_use_case(prices=prices)
+    with patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case):
+        resp = client.get("/api/realtime/prices/000001.SZ/")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["asset_code"] == "000001.SZ"
+    assert data["price"] == 10.5
+    assert data["timestamp"] == "2026-07-10T14:30:00+08:00"
+
+
+@pytest.mark.django_db
 def test_realtime_health_view_returns_healthy_status(client):
     mock_use_case = _build_mock_use_case(is_available=True)
     with patch("apps.realtime.interface.views.PricePollingUseCase", return_value=mock_use_case):

@@ -4,6 +4,8 @@ Alpha Serializers
 Django REST Framework 序列化器定义。
 """
 
+import math
+from collections.abc import Mapping
 from typing import Any
 
 from rest_framework import serializers
@@ -12,6 +14,19 @@ from ..application.pool_resolver import get_alpha_pool_mode_choices
 from ..domain.entities import AlphaResult, StockScore
 
 _ALPHA_POOL_MODE_VALUES = [item["value"] for item in get_alpha_pool_mode_choices()]
+
+
+class StrictFieldsSerializer(serializers.Serializer):
+    """Reject request fields that are not declared by the canonical contract."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, Mapping):
+            unknown_fields = sorted(set(data) - set(self.fields))
+            if unknown_fields:
+                raise serializers.ValidationError(
+                    {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
+                )
+        return super().to_internal_value(data)
 
 
 class StockScoreSerializer(serializers.Serializer):
@@ -133,35 +148,78 @@ class ProviderStatusSerializer(serializers.Serializer):
     error = serializers.CharField(help_text="错误信息", required=False, allow_null=True)
 
 
-class UploadScoreItemSerializer(serializers.Serializer):
+class UploadScoreItemSerializer(StrictFieldsSerializer):
     """单条评分上传序列化器"""
 
-    code = serializers.CharField(help_text="股票代码")
+    code = serializers.CharField(max_length=32, allow_blank=False, help_text="股票代码")
     score = serializers.FloatField(help_text="评分")
-    rank = serializers.IntegerField(help_text="排名")
+    rank = serializers.IntegerField(min_value=1, help_text="排名")
     factors = serializers.DictField(
         child=serializers.FloatField(), required=False, default=dict, help_text="因子暴露"
     )
-    confidence = serializers.FloatField(required=False, default=1.0, help_text="置信度")
-    source = serializers.CharField(required=False, default="local_qlib", help_text="来源标识")
+    confidence = serializers.FloatField(
+        required=False,
+        default=1.0,
+        min_value=0.0,
+        max_value=1.0,
+        help_text="置信度",
+    )
+    source = serializers.CharField(
+        required=False,
+        default="local_qlib",
+        max_length=64,
+        allow_blank=False,
+        help_text="来源标识",
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        numeric_values = [attrs["score"], attrs["confidence"], *attrs["factors"].values()]
+        if any(not math.isfinite(float(value)) for value in numeric_values):
+            raise serializers.ValidationError("score, confidence and factors must be finite")
+        attrs["code"] = attrs["code"].strip().upper()
+        return attrs
 
 
-class UploadScoresSerializer(serializers.Serializer):
+class UploadScoresSerializer(StrictFieldsSerializer):
     """批量评分上传序列化器"""
 
-    universe_id = serializers.CharField(help_text="股票池标识")
+    universe_id = serializers.CharField(max_length=100, allow_blank=False, help_text="股票池标识")
     asof_date = serializers.DateField(help_text="信号真实生成日期")
     intended_trade_date = serializers.DateField(help_text="计划交易日期")
-    model_id = serializers.CharField(required=False, default="local_qlib", help_text="模型标识")
+    model_id = serializers.CharField(
+        required=False,
+        default="local_qlib",
+        max_length=100,
+        allow_blank=False,
+        help_text="模型标识",
+    )
     model_artifact_hash = serializers.CharField(
-        required=False, default="", help_text="模型文件哈希"
+        required=False, default="", max_length=64, allow_blank=True, help_text="模型文件哈希"
     )
     scope = serializers.ChoiceField(
         choices=["user", "system"],
         default="user",
         help_text="写入范围：user=个人，system=全局（仅 admin）",
     )
-    scores = UploadScoreItemSerializer(many=True, help_text="评分列表")
+    scores = UploadScoreItemSerializer(
+        many=True, allow_empty=False, max_length=1000, help_text="评分列表"
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["asof_date"] > attrs["intended_trade_date"]:
+            raise serializers.ValidationError(
+                {"asof_date": "asof_date must not be after intended_trade_date"}
+            )
+        codes = [item["code"] for item in attrs["scores"]]
+        ranks = [item["rank"] for item in attrs["scores"]]
+        if len(codes) != len(set(codes)):
+            raise serializers.ValidationError({"scores": "stock codes must be unique"})
+        if len(ranks) != len(set(ranks)):
+            raise serializers.ValidationError({"scores": "ranks must be unique"})
+        attrs["universe_id"] = attrs["universe_id"].strip()
+        attrs["model_id"] = attrs["model_id"].strip()
+        attrs["model_artifact_hash"] = attrs["model_artifact_hash"].strip()
+        return attrs
 
 
 class AlphaOpsInferenceTriggerSerializer(serializers.Serializer):

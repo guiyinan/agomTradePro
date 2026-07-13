@@ -37,13 +37,20 @@ def register_alpha_trigger_tools(server: FastMCP) -> None:
         return client.alpha_trigger.generate_candidate(payload)
 
     @server.tool()
-    def alpha_trigger_performance(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def alpha_trigger_performance(
+        days: int = 30,
+        trigger_id: str | None = None,
+    ) -> dict[str, Any]:
         client = AgomTradeProClient()
-        result = client.alpha_trigger.performance(payload)
+        result = client.alpha_trigger.performance(days=days, trigger_id=trigger_id)
         if isinstance(result, list):
             return {
                 "data": result,
-                "summary": {},
+                "summary": {
+                    "days": days,
+                    "trigger_id": trigger_id,
+                    "total_triggers": len(result),
+                },
             }
         return result
 

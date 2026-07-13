@@ -369,6 +369,58 @@ class TestRollbackEventAPI:
 
 
 @pytest.mark.django_db
+class TestOverrideEventAPI:
+    """Tests for /api/policy/workbench/items/{id}/override/ endpoint."""
+
+    def test_override_requires_reason(self, authenticated_client):
+        """Override without reason should return error."""
+        client, user = authenticated_client
+
+        event = PolicyLog.objects.create(
+            event_date=date.today(),
+            level='P2',
+            title='Test Event',
+            description='Test',
+            evidence_url='https://example.com/test',
+            event_type='policy',
+        )
+
+        response = client.post(f'/api/policy/workbench/items/{event.id}/override/', {
+            'reason': ''
+        })
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data['success'] is False
+
+    def test_override_success(self, authenticated_client):
+        """Successful override should update level and review notes."""
+        client, user = authenticated_client
+
+        event = PolicyLog.objects.create(
+            event_date=date.today(),
+            level='P2',
+            title='Test Event',
+            description='Test',
+            evidence_url='https://example.com/test',
+            event_type='policy',
+            review_notes='',
+        )
+
+        response = client.post(f'/api/policy/workbench/items/{event.id}/override/', {
+            'reason': 'Manual override due to exceptional context',
+            'new_level': 'P1',
+        })
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['success'] is True
+        assert response.data['event_id'] == event.id
+
+        event.refresh_from_db()
+        assert event.level == 'P1'
+        assert event.review_notes == '[豁免] Manual override due to exceptional context'
+
+
+@pytest.mark.django_db
 class TestSentimentGateStateAPI:
     """Tests for /api/policy/sentiment-gate/state/ endpoint."""
 

@@ -26,11 +26,12 @@ from apps.sentiment.interface.views import (
 )
 
 
-def _make_test_user():
+def _make_test_user(*, is_staff=False):
     User = get_user_model()
     return User.objects.create_user(
         username=f"testuser_{uuid.uuid4().hex[:8]}",
-        password='testpass'
+        password='testpass',
+        is_staff=is_staff,
     )
 
 
@@ -331,7 +332,7 @@ class TestSentimentCacheClearView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentCacheClearView.as_view()
-        self.user = _make_test_user()
+        self.user = _make_test_user(is_staff=True)
 
     @patch('apps.sentiment.interface.views.clear_sentiment_cache_payload')
     def test_clear_cache(self, mock_clear_cache):
@@ -348,6 +349,14 @@ class TestSentimentCacheClearView(TestCase):
         assert response.status_code == status.HTTP_200_OK
         assert response.data['success'] is True
         assert '42' in response.data['message']
+
+    def test_clear_cache_rejects_non_staff_user(self):
+        request = self.factory.post('/sentiment/api/cache/clear/')
+        force_authenticate(request, user=_make_test_user())
+
+        response = self.view(request)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 class TestSentimentDashboardView(TestCase):

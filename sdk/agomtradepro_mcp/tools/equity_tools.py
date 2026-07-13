@@ -146,14 +146,14 @@ def register_equity_tools(server: FastMCP) -> None:
     @server.tool()
     def get_stock_valuation(
         stock_code: str,
-        as_of_date: str | None = None,
+        lookback_days: int = 252,
     ) -> dict[str, Any]:
         """
         获取股票估值数据
 
         Args:
             stock_code: 股票代码
-            as_of_date: 估值日期（ISO 格式，None 表示最新）
+            lookback_days: 历史估值回看天数
 
         Returns:
             估值数据
@@ -162,8 +162,7 @@ def register_equity_tools(server: FastMCP) -> None:
             >>> valuation = get_stock_valuation("000001.SZ")
         """
         client = AgomTradeProClient()
-        parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
-        return client.equity.get_valuation(stock_code, parsed_date)
+        return client.equity.get_valuation(stock_code, lookback_days=lookback_days)
 
     # =========================================================================
     # 估值修复跟踪工具

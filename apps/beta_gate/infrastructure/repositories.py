@@ -61,6 +61,10 @@ class GateConfigRepository:
         """保存配置"""
         model = GateConfigModel.from_domain(config)
         with transaction.atomic():
+            max_version = GateConfigModel._default_manager.aggregate(
+                max_v=Max("version")
+            ).get("max_v")
+            model.version = (max_version or 0) + 1
             if model.is_active:
                 lock_filter = Q(is_active=True) & Q(risk_profile=model.risk_profile)
                 if model.pk:
