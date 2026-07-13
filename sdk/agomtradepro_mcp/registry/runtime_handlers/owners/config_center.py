@@ -386,6 +386,62 @@ def _internal_handler_config_center_create_data_center_provider(
     )
 
 
+def _config_workflow_preview(operation: str, payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload or {})
+    return {
+        "success": True,
+        "preview_only": True,
+        "operation": operation,
+        "target": {
+            key: normalized.get(key)
+            for key in ("id", "profile_key", "universe_id", "model_name", "profile_id")
+            if normalized.get(key) not in (None, "")
+        },
+        "field_count": len(normalized),
+        "fields": sorted(normalized),
+        "stock_code_count": len(normalized.get("stock_codes") or []),
+    }
+
+
+def _internal_handler_config_center_update_qlib_training_profile(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    normalized = dict(payload or {})
+    if preview_only:
+        return _config_workflow_preview("save_qlib_training_profile", normalized)
+    return AgomTradeProClient().config_center.save_qlib_training_profile(normalized)
+
+
+def _internal_handler_config_center_update_alpha_universe(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    normalized = dict(payload or {})
+    if preview_only:
+        return _config_workflow_preview("save_alpha_universe", normalized)
+    return AgomTradeProClient().config_center.save_alpha_universe(normalized)
+
+
+def _internal_handler_config_center_start_qlib_training(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    normalized = dict(payload or {})
+    if preview_only:
+        return _config_workflow_preview("trigger_qlib_training", normalized)
+    return AgomTradeProClient().config_center.trigger_qlib_training(normalized)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "list_config_capabilities": _fallback_list_config_capabilities,
     "get_qlib_runtime_config": _fallback_get_qlib_runtime_config,
@@ -403,4 +459,7 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "config_center_update_runtime_setting": _internal_handler_config_center_update_runtime_setting,
     "config_center_create_data_center_provider": _internal_handler_config_center_create_data_center_provider,
     "config_center_update_data_center_provider": _internal_handler_config_center_update_data_center_provider,
+    "config_center_update_qlib_training_profile": _internal_handler_config_center_update_qlib_training_profile,
+    "config_center_update_alpha_universe": _internal_handler_config_center_update_alpha_universe,
+    "config_center_start_qlib_training": _internal_handler_config_center_start_qlib_training,
 }

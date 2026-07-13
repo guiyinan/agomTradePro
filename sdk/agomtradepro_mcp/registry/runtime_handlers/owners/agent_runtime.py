@@ -237,6 +237,81 @@ def _internal_handler_agent_proposal_reject_proposal(
     )
 
 
+def _internal_handler_agent_task_create_task(
+    task_domain: str,
+    task_type: str,
+    input_payload: dict[str, Any] | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    allowed_domains = {"research", "monitoring", "decision", "execution", "ops"}
+    if task_domain not in allowed_domains:
+        raise ValueError(f"Unsupported agent task domain: {task_domain}")
+    payload = dict(input_payload or {})
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "task_domain": task_domain,
+            "task_type": task_type,
+            "input_payload_keys": sorted(payload),
+            "message": "Preview generated. Confirm to create the Agent task.",
+        }
+    return _call_registered_tool(
+        f"start_{task_domain}_task",
+        {"task_type": task_type, "input_payload": payload},
+    )
+
+
+def _internal_handler_agent_task_resume_task(
+    task_id: int,
+    target_status: str | None = None,
+    reason: str | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if preview_only:
+        current = AgomTradeProClient().agent_runtime.get_task(task_id)
+        return {
+            "success": True,
+            "preview_only": True,
+            "task_id": task_id,
+            "current_status": current.get("status"),
+            "target_status": target_status,
+            "reason": reason,
+        }
+    return _call_registered_tool(
+        "resume_agent_task",
+        {"task_id": task_id, "target_status": target_status, "reason": reason},
+    )
+
+
+def _internal_handler_agent_task_cancel_task(
+    task_id: int,
+    reason: str,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if preview_only:
+        current = AgomTradeProClient().agent_runtime.get_task(task_id)
+        return {
+            "success": True,
+            "preview_only": True,
+            "task_id": task_id,
+            "current_status": current.get("status"),
+            "target_status": "cancelled",
+            "reason": reason,
+        }
+    return _call_registered_tool(
+        "cancel_agent_task",
+        {"task_id": task_id, "reason": reason},
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_agent_proposal": _fallback_get_agent_proposal,
     "create_agent_proposal": _fallback_create_agent_proposal,
@@ -250,4 +325,7 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "agent_proposal_execute_proposal": _internal_handler_agent_proposal_execute_proposal,
     "agent_proposal_approve_proposal": _internal_handler_agent_proposal_approve_proposal,
     "agent_proposal_reject_proposal": _internal_handler_agent_proposal_reject_proposal,
+    "agent_task_create_task": _internal_handler_agent_task_create_task,
+    "agent_task_resume_task": _internal_handler_agent_task_resume_task,
+    "agent_task_cancel_task": _internal_handler_agent_task_cancel_task,
 }

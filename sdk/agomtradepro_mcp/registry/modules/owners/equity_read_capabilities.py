@@ -441,3 +441,92 @@ MANIFESTS.append(
         legacy_tool_names=("get_stock_financials",),
     )
 )
+
+MANIFESTS.extend(
+    [
+        CapabilityManifest(
+            capability_key="equity.read.score",
+            title="Equity Score",
+            summary="Read the current canonical score projection for one stock.",
+            description=(
+                "Read persisted stock detail and expose its score with an optional "
+                "as-of label; no provider synchronization or snapshot write occurs."
+            ),
+            owner_app="equity",
+            risk_level="low",
+            executor_kind="legacy_tool",
+            executor_ref="equity_read_score",
+            tags=("equity", "stock", "score", "research", "read"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "stock_code": {"type": "string", "minLength": 1, "maxLength": 32},
+                    "as_of_date": {"type": ["string", "null"], "format": "date"},
+                },
+                "required": ["stock_code"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            legacy_tool_names=("get_stock_score",),
+        ),
+        CapabilityManifest(
+            capability_key="equity.compute.recommendations",
+            title="Equity Recommendations",
+            summary="Calculate a bounded stock recommendation projection.",
+            description=(
+                "Apply the canonical persisted stock screen for an optional Regime and "
+                "return normalized recommendation rows without persisting a new ranking."
+            ),
+            owner_app="equity",
+            risk_level="medium",
+            executor_kind="legacy_tool",
+            executor_ref="equity_compute_recommendations",
+            tags=("equity", "stock", "recommendation", "screen", "compute"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "regime": {"type": ["string", "null"], "maxLength": 32},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "recommendations": {"type": "array"},
+                    "total_count": {"type": "integer"},
+                },
+                "required": ["recommendations", "total_count"],
+            },
+            audit_tags=("equity:recommendations", "mcp:research_read"),
+            legacy_tool_names=("get_stock_recommendations",),
+        ),
+        CapabilityManifest(
+            capability_key="equity.compute.analysis",
+            title="Equity Analysis",
+            summary="Compose persisted stock detail and valuation evidence.",
+            description=(
+                "Compose the canonical stock detail and valuation reads for one code "
+                "without provider synchronization, cache mutation, or snapshot creation."
+            ),
+            owner_app="equity",
+            risk_level="medium",
+            executor_kind="legacy_tool",
+            executor_ref="equity_compute_analysis",
+            tags=("equity", "stock", "valuation", "analysis", "compute"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "stock_code": {"type": "string", "minLength": 1, "maxLength": 32},
+                    "as_of_date": {"type": ["string", "null"], "format": "date"},
+                },
+                "required": ["stock_code"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            audit_tags=("equity:analysis", "mcp:research_read"),
+            legacy_tool_names=("analyze_stock",),
+        ),
+    ]
+)

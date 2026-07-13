@@ -91,6 +91,25 @@ def build_legacy_mcp_capability(
 ) -> CapabilityDefinition:
     """Project one compatibility-only raw MCP tool into the catalog."""
 
+    from .mcp_runtime_gateway import get_sdk_mcp_legacy_disposition
+
+    legacy_disposition = get_sdk_mcp_legacy_disposition(tool.name)
+    disposition = str(getattr(legacy_disposition, "disposition", "") or "").strip()
+    disposition_reason = str(
+        getattr(legacy_disposition, "rationale", "") or ""
+    ).strip()
+    recommended_capability_keys = [
+        str(key).strip()
+        for key in list(
+            getattr(legacy_disposition, "recommended_capability_keys", ()) or ()
+        )
+        if str(key).strip()
+    ]
+    owner_app = str(getattr(legacy_disposition, "owner_app", "") or "").strip()
+    tags = ["mcp", "tool", "legacy"]
+    if disposition:
+        tags.append(f"disposition:{disposition}")
+
     return CapabilityDefinition(
         capability_key=f"mcp_tool.{tool.name}",
         source_type=SourceType.MCP_TOOL,
@@ -99,9 +118,9 @@ def build_legacy_mcp_capability(
         summary=tool.description,
         description=tool.description,
         route_group=RouteGroup.TOOL,
-        category="mcp",
+        category=owner_app or "mcp",
         semantic_key=replacement_capability_key or f"legacy.mcp.{tool.name}",
-        tags=["mcp", "tool", "legacy"],
+        tags=tags,
         when_to_use=[],
         when_not_to_use=[],
         examples=[],
@@ -111,16 +130,23 @@ def build_legacy_mcp_capability(
             "tool_name": tool.name,
             "legacy": True,
             "replacement_capability_key": replacement_capability_key,
+            "legacy_disposition": disposition,
+            "disposition_reason": disposition_reason,
+            "recommended_capability_keys": recommended_capability_keys,
         },
         risk_level=risk_level,
         requires_mcp=True,
         requires_confirmation=requires_confirmation,
-        enabled_for_routing=enabled_for_routing,
+        enabled_for_routing=enabled_for_routing and legacy_disposition is None,
         enabled_for_terminal=False,
         enabled_for_chat=False,
         enabled_for_agent=False,
         visibility=Visibility.ADMIN,
         auto_collected=True,
-        review_status="auto",
-        priority_weight=0.1 if replacement_capability_key else 1.0,
+        review_status="rejected" if legacy_disposition is not None else "auto",
+        priority_weight=(
+            0.01
+            if legacy_disposition is not None
+            else (0.1 if replacement_capability_key else 1.0)
+        ),
     )

@@ -33,9 +33,33 @@ def _fallback_sector_read_score(sector_name: str) -> dict[str, Any]:
     return {"score": score}
 
 
+def _fallback_sector_compute_analysis(
+    sector_name: str,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    from datetime import date
+
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
+    return client.sector.analyze_sector(sector_name, parsed_date)
+
+
+def _fallback_sector_compute_comparison(
+    sector_names: list[str],
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    return client.sector.compare_sectors(list(sector_names))
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "sector_read_rotation_ranking": _fallback_sector_read_rotation_ranking,
     "sector_read_score": _fallback_sector_read_score,
+    "sector_compute_analysis": _fallback_sector_compute_analysis,
+    "sector_compute_comparison": _fallback_sector_compute_comparison,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}

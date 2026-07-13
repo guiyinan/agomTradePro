@@ -286,6 +286,35 @@ def _internal_handler_dashboard_create_auto_advisor_weekly_report(
     )
 
 
+def _internal_handler_dashboard_refresh_alpha(
+    top_n: int = 10,
+    portfolio_id: int | None = None,
+    pool_mode: str | None = None,
+    alpha_scope: str = "general",
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if alpha_scope == "portfolio" and portfolio_id is None:
+        raise ValueError("portfolio_id is required for portfolio Alpha refresh")
+    arguments = {
+        "top_n": top_n,
+        "portfolio_id": portfolio_id,
+        "pool_mode": pool_mode,
+        "alpha_scope": alpha_scope,
+    }
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "refresh_target": arguments,
+            "must_not_treat_as_recommendation": True,
+            "side_effects": {"will_enqueue_async_refresh": True},
+        }
+    return AgomTradeProClient().dashboard.alpha_refresh(**arguments)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "dashboard_read_auto_advisor_console": _fallback_dashboard_read_auto_advisor_console,
     "dashboard_query_auto_advisor": _fallback_dashboard_query_auto_advisor,
@@ -301,4 +330,5 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "dashboard_create_auto_advisor_weekly_report": _internal_handler_dashboard_create_auto_advisor_weekly_report,
+    "dashboard_refresh_alpha": _internal_handler_dashboard_refresh_alpha,
 }

@@ -652,6 +652,41 @@ def _internal_handler_rotation_apply_template_account_config(
     )
 
 
+def _internal_handler_rotation_generate_signal(
+    config_name: str,
+    signal_date: str | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if preview_only:
+        configs = AgomTradeProClient().rotation.get_all_configs()
+        config = next(
+            (
+                item
+                for item in configs
+                if isinstance(item, dict) and str(item.get("name")) == config_name
+            ),
+            None,
+        )
+        if config is None:
+            raise ValueError(f"Unknown rotation config: {config_name}")
+        return {
+            "success": True,
+            "preview_only": True,
+            "config_name": config_name,
+            "signal_date": signal_date,
+            "config_found": True,
+            "config_id": config.get("id"),
+            "will_persist_signal": True,
+        }
+    return _call_registered_tool(
+        "generate_rotation_signal",
+        {"config_name": config_name, "signal_date": signal_date},
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "list_rotation_regimes": _fallback_list_rotation_regimes,
     "list_rotation_templates": _fallback_list_rotation_templates,
@@ -677,4 +712,5 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "rotation_delete_account_config": _internal_handler_rotation_delete_account_config,
     "rotation_update_account_config": _internal_handler_rotation_update_account_config,
     "rotation_apply_template_account_config": _internal_handler_rotation_apply_template_account_config,
+    "rotation_generate_signal": _internal_handler_rotation_generate_signal,
 }

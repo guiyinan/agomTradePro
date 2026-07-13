@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
+
 
 def _backtest_result_payload(result: Any) -> dict[str, Any]:
     return {
@@ -55,10 +57,66 @@ def _fallback_backtest_read_equity_curve(backtest_id: int) -> dict[str, Any]:
     }
 
 
+def _validate_backtest_window(start_date: str, end_date: str) -> None:
+    from datetime import date
+
+    parsed_start = date.fromisoformat(start_date)
+    parsed_end = date.fromisoformat(end_date)
+    if parsed_start > parsed_end:
+        raise ValueError("start_date must not be after end_date")
+
+
+def _internal_handler_backtest_run_strategy(
+    strategy_name: str,
+    start_date: str,
+    end_date: str,
+    initial_capital: float = 1_000_000.0,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    _validate_backtest_window(start_date, end_date)
+    arguments = {
+        "strategy_name": strategy_name,
+        "start_date": start_date,
+        "end_date": end_date,
+        "initial_capital": initial_capital,
+    }
+    if preview_only:
+        return {"success": True, "preview_only": True, "run_target": arguments}
+    return _call_registered_tool("run_backtest", arguments)
+
+
+def _internal_handler_backtest_run_decision_replay(
+    portfolio_id: int,
+    start_date: str,
+    end_date: str,
+    branch_type: str,
+    initial_capital: float = 1_000_000.0,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    _validate_backtest_window(start_date, end_date)
+    if branch_type not in {"actual", "no_action", "system_plan", "delayed_1d"}:
+        raise ValueError("Unsupported decision replay branch_type")
+    arguments = {
+        "portfolio_id": portfolio_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "branch_type": branch_type,
+        "initial_capital": initial_capital,
+    }
+    if preview_only:
+        return {"success": True, "preview_only": True, "run_target": arguments}
+    return _call_registered_tool("run_decision_replay_backtest", arguments)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_backtest_result": _fallback_get_backtest_result,
     "list_backtests": _fallback_list_backtests,
     "backtest_read_equity_curve": _fallback_backtest_read_equity_curve,
 }
 
-GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}
+GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "backtest_run_strategy": _internal_handler_backtest_run_strategy,
+    "backtest_run_decision_replay": _internal_handler_backtest_run_decision_replay,
+}

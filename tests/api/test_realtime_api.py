@@ -143,3 +143,41 @@ def test_sector_performance_is_strict_authenticated_persisted_read(client):
     client.logout()
     anonymous_response = client.get("/api/realtime/sector-performance/")
     assert anonymous_response.status_code in {401, 403}
+
+
+@pytest.mark.django_db
+def test_top_movers_is_authenticated_cached_read(client):
+    user = get_user_model().objects.create_user(
+        username="realtime_movers_user",
+        password="testpass123",
+    )
+    client.force_login(user)
+    cached = [
+        {"asset_code": "000001.SZ", "change_pct": "2.5"},
+        {"asset_code": "600000.SH", "change_pct": "1.2"},
+    ]
+
+    with patch(
+        "apps.realtime.interface.views.list_cached_top_movers_payloads",
+        return_value=cached,
+    ) as query:
+        response = client.get(
+            "/api/realtime/top-movers/",
+            {"direction": "up", "limit": 2},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "results": cached,
+        "count": 2,
+        "source": "cached_monitored_prices",
+    }
+    query.assert_called_once_with(direction="up", limit=2)
+
+    unknown_response = client.get("/api/realtime/top-movers/", {"refresh": True})
+    assert unknown_response.status_code == 400
+    assert "Unknown query parameters: refresh" in str(unknown_response.json())
+
+    client.logout()
+    anonymous_response = client.get("/api/realtime/top-movers/")
+    assert anonymous_response.status_code in {401, 403}

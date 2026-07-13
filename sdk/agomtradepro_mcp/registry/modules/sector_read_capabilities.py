@@ -90,3 +90,64 @@ MANIFESTS.append(
         legacy_tool_names=("get_sector_score",),
     )
 )
+
+MANIFESTS.extend(
+    [
+        CapabilityManifest(
+            capability_key="sector.compute.analysis",
+            title="Sector Analysis",
+            summary="Compose persisted evidence for one sector.",
+            description=(
+                "Resolve one sector from canonical persisted rotation data and return its "
+                "analysis projection without provider synchronization or cache writes."
+            ),
+            owner_app="sector",
+            risk_level="medium",
+            executor_kind="legacy_tool",
+            executor_ref="sector_compute_analysis",
+            tags=("sector", "rotation", "analysis", "research", "compute"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "sector_name": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "as_of_date": {"type": ["string", "null"], "format": "date"},
+                },
+                "required": ["sector_name"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            audit_tags=("sector:analysis", "mcp:research_read"),
+            legacy_tool_names=("analyze_sector",),
+        ),
+        CapabilityManifest(
+            capability_key="sector.compute.comparison",
+            title="Sector Comparison",
+            summary="Compare a bounded set of sectors from one persisted rotation snapshot.",
+            description=(
+                "Match requested sector names against canonical persisted rotation rows "
+                "without refreshing market data or changing stored sector state."
+            ),
+            owner_app="sector",
+            risk_level="medium",
+            executor_kind="legacy_tool",
+            executor_ref="sector_compute_comparison",
+            tags=("sector", "rotation", "comparison", "research", "compute"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "sector_names": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 20,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 64},
+                    }
+                },
+                "required": ["sector_names"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            audit_tags=("sector:comparison", "mcp:research_read"),
+            legacy_tool_names=("compare_sectors",),
+        ),
+    ]
+)

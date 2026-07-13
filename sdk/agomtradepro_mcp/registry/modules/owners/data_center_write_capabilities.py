@@ -540,3 +540,45 @@ MANIFESTS = [
         legacy_tool_names=("test_data_center_provider_connection",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="data_center.repair.decision_reliability",
+        title="Repair Decision Data Reliability",
+        summary="Preview and confirm a bounded multi-domain decision-data repair.",
+        description=(
+            "Show the target date, portfolio, asset, macro-indicator, freshness, and strictness "
+            "scope before repairing macro, quote, Pulse, and Alpha reliability inputs."
+        ),
+        owner_app="data_center",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="data_center_repair_decision_reliability",
+        tags=("data_center", "decision", "reliability", "repair", "write"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "target_date": {"type": ["string", "null"], "format": "date"},
+                "portfolio_id": {"type": ["integer", "null"], "minimum": 1},
+                "asset_codes": {"type": ["array", "null"], "items": {"type": "string"}},
+                "macro_indicator_codes": {
+                    "type": ["array", "null"],
+                    "items": {"type": "string"},
+                },
+                "strict": {"type": "boolean"},
+                "quote_max_age_hours": {"type": ["number", "null"], "minimum": 0},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={"type": "object", "properties": {}, "required": []},
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        required_roles=("staff",),
+        audit_tags=("data_center:repair_decision_reliability", "mcp:write"),
+        legacy_tool_names=("data_center_repair_decision_data_reliability",),
+    )
+)

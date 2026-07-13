@@ -44,6 +44,20 @@ def test_sync_mcp_tools_marks_mutating_tools_high_risk_and_non_routable():
             return_value=set(),
         ),
         patch(
+            "apps.ai_capability.application.mcp_runtime_gateway.get_sdk_mcp_legacy_disposition",
+            side_effect=lambda tool_name: (
+                SimpleNamespace(
+                    tool_name="get_asset_info",
+                    owner_app="rotation",
+                    disposition="aggregate",
+                    rationale="Use the persisted governed asset detail.",
+                    recommended_capability_keys=("rotation.read.asset_detail",),
+                )
+                if tool_name == "get_asset_info"
+                else None
+            ),
+        ),
+        patch(
             "apps.ai_capability.application.use_cases._list_sdk_mcp_tools",
             return_value=[
                 SimpleNamespace(
@@ -67,7 +81,13 @@ def test_sync_mcp_tools_marks_mutating_tools_high_risk_and_non_routable():
     asset_read = by_key["mcp_tool.get_asset_info"]
     assert asset_read.risk_level.value == "low"
     assert asset_read.requires_confirmation is True
-    assert asset_read.enabled_for_routing is True
+    assert asset_read.enabled_for_routing is False
+    assert asset_read.review_status == "rejected"
+    assert asset_read.category == "rotation"
+    assert asset_read.execution_target["legacy_disposition"] == "aggregate"
+    assert asset_read.execution_target["recommended_capability_keys"] == [
+        "rotation.read.asset_detail"
+    ]
 
     readonly = by_key["mcp_tool.get_portfolio_status"]
     assert readonly.risk_level.value == "low"

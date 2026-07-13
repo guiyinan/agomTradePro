@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -92,6 +93,45 @@ def _legacy_wrapper():
     )
 
 
+def _classified_legacy_wrapper():
+    return CapabilityDefinition(
+        capability_key="mcp_tool.explain_current_regime",
+        source_type=SourceType.MCP_TOOL,
+        source_ref="explain_current_regime",
+        name="explain_current_regime",
+        summary="Legacy aggregate tool",
+        semantic_key="legacy.mcp.explain_current_regime",
+        execution_target={
+            "type": "mcp_tool",
+            "tool_name": "explain_current_regime",
+            "legacy": True,
+            "replacement_capability_key": "",
+            "legacy_disposition": "aggregate",
+            "disposition_reason": "Compose the governed regime read.",
+            "recommended_capability_keys": ["system.read.regime.current"],
+        },
+        requires_mcp=True,
+        enabled_for_routing=False,
+        enabled_for_terminal=False,
+        enabled_for_chat=False,
+        enabled_for_agent=False,
+        review_status="rejected",
+        priority_weight=0.01,
+    )
+
+
+def _aggregate_disposition(**overrides):
+    values = {
+        "tool_name": "explain_current_regime",
+        "owner_app": "regime",
+        "disposition": "aggregate",
+        "rationale": "Compose the governed regime read.",
+        "recommended_capability_keys": ("system.read.regime.current",),
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_validate_mcp_catalog_dedup_accepts_governed_and_legacy_pair():
     module = _load_module()
 
@@ -164,4 +204,52 @@ def test_validate_mcp_governance_baseline_rejects_stale_counter():
         module.validate_mcp_governance_baseline(
             actual,
             {**actual, "replacement_link_count": 7},
+        )
+
+
+def test_validate_legacy_disposition_coverage_accepts_exact_partition():
+    module = _load_module()
+
+    summary = module.validate_legacy_disposition_coverage(
+        [_governed_capability(), _classified_legacy_wrapper()],
+        dispositions=[_aggregate_disposition()],
+    )
+
+    assert summary == {
+        "legacy_disposition_count": 1,
+        "legacy_keep_task_count": 0,
+        "legacy_unclassified_count": 0,
+    }
+
+
+def test_validate_legacy_disposition_coverage_honors_explicit_empty_registry():
+    module = _load_module()
+
+    with pytest.raises(ValueError, match="coverage mismatch"):
+        module.validate_legacy_disposition_coverage(
+            [_governed_capability(), _classified_legacy_wrapper()],
+            dispositions=[],
+        )
+
+
+def test_validate_legacy_disposition_coverage_rejects_missing_recommendation():
+    module = _load_module()
+    legacy = CapabilityDefinition.from_dict(
+        {
+            **_classified_legacy_wrapper().to_dict(),
+            "execution_target": {
+                **_classified_legacy_wrapper().execution_target,
+                "recommended_capability_keys": ["regime.read.missing"],
+            },
+        }
+    )
+
+    with pytest.raises(ValueError, match="recommends missing governed capabilities"):
+        module.validate_legacy_disposition_coverage(
+            [_governed_capability(), legacy],
+            dispositions=[
+                _aggregate_disposition(
+                    recommended_capability_keys=("regime.read.missing",)
+                )
+            ],
         )

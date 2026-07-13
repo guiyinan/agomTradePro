@@ -371,42 +371,13 @@ def register_alpha_tools(server) -> None:
             >>> result = get_alpha_factor_exposure("000001.SH", "2026-02-05")
             >>> print(f"PE倒数因子: {result['factors']['pe_inv']:.3f}")
         """
-        from datetime import date
-
         try:
-            _ensure_django()
-            from apps.alpha.application.services import AlphaService
-            service = AlphaService()
-
-            # 解析日期
-            parsed_date = date.today()
-            if trade_date:
-                try:
-                    parsed_date = date.fromisoformat(trade_date)
-                except ValueError:
-                    pass
-
-            # 获取指定的 Provider
-            registry = service._registry
-            provider_instance = registry.get_provider(provider)
-
-            if not provider_instance:
-                return {
-                    "success": False,
-                    "error": f"Provider '{provider}' 不存在",
-                    "stock_code": stock_code,
-                }
-
-            # 获取因子暴露
-            factors = provider_instance.get_factor_exposure(stock_code, parsed_date)
-
-            return {
-                "success": True,
-                "stock_code": stock_code,
-                "trade_date": parsed_date.isoformat(),
-                "provider": provider,
-                "factors": factors
-            }
+            client = AgomTradeProClient()
+            return client.alpha.get_factor_exposure(
+                stock_code,
+                trade_date=trade_date,
+                provider=provider,
+            )
 
         except Exception as e:
             logger.error(f"获取因子暴露失败: {e}", exc_info=True)

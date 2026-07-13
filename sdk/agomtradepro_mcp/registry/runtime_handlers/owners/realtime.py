@@ -43,11 +43,23 @@ def _fallback_realtime_read_sector_performance() -> dict[str, Any]:
     return {"sectors": sectors, "total_count": len(sectors)}
 
 
+def _fallback_realtime_read_top_movers(
+    direction: str = "up",
+    limit: int = 10,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    movers = client.realtime.get_top_movers(direction=direction, limit=limit)
+    return {"movers": movers, "total_count": len(movers)}
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_realtime_price": _fallback_get_realtime_price,
     "get_multiple_realtime_prices": _fallback_get_multiple_realtime_prices,
     "get_market_summary": _fallback_get_market_summary,
     "realtime_read_sector_performance": _fallback_realtime_read_sector_performance,
+    "realtime_read_top_movers": _fallback_realtime_read_top_movers,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}

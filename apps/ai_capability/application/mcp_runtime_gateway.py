@@ -78,6 +78,26 @@ def list_sdk_mcp_capability_manifests() -> list[Any]:
     return list(CapabilityRegistryLoader().build_registry().values())
 
 
+def list_sdk_mcp_legacy_dispositions() -> list[Any]:
+    """Return curated governance decisions for unreplaced raw MCP tools."""
+
+    _ensure_sdk_on_path()
+    from agomtradepro_mcp.legacy_dispositions import (
+        list_legacy_tool_dispositions,
+    )
+
+    return list(list_legacy_tool_dispositions())
+
+
+def get_sdk_mcp_legacy_disposition(tool_name: str) -> Any | None:
+    """Return the curated governance decision for one raw MCP tool."""
+
+    _ensure_sdk_on_path()
+    from agomtradepro_mcp.legacy_dispositions import get_legacy_tool_disposition
+
+    return get_legacy_tool_disposition(tool_name)
+
+
 def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
     """Execute one MCP tool through the SDK server contract."""
 

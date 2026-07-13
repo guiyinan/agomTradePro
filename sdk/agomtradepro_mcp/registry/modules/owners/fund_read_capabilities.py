@@ -200,3 +200,39 @@ MANIFESTS.append(
         legacy_tool_names=("get_fund_score",),
     )
 )
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="fund.read.catalog",
+        title="Fund Catalog",
+        summary="Read a bounded filtered projection of the persisted fund ranking.",
+        description=(
+            "Filter the canonical persisted-only fund ranking by fund type and minimum "
+            "score without calculating or saving performance snapshots."
+        ),
+        owner_app="fund",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="fund_read_catalog",
+        tags=("fund", "catalog", "ranking", "filter", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "fund_type": {"type": ["string", "null"], "maxLength": 64},
+                "min_score": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "funds": {"type": "array"},
+                "total_count": {"type": "integer"},
+            },
+            "required": ["funds", "total_count"],
+        },
+        legacy_tool_names=("list_funds",),
+    )
+)

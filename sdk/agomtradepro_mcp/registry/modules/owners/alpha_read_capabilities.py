@@ -6,6 +6,79 @@ from agomtradepro_mcp.registry.manifest import CapabilityManifest
 
 MANIFESTS = [
     CapabilityManifest(
+        capability_key="alpha.read.stock_scores",
+        title="Alpha Stock Scores",
+        summary="Read bounded Alpha scores for one research universe.",
+        description=(
+            "Return the authenticated actor's canonical Alpha score result through the "
+            "HTTP SDK contract. Cross-user user_id access is intentionally excluded."
+        ),
+        owner_app="alpha",
+        risk_level="medium",
+        executor_kind="legacy_tool",
+        executor_ref="alpha_read_stock_scores",
+        tags=("alpha", "score", "universe", "research", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "universe": {"type": "string", "minLength": 1, "maxLength": 100},
+                "trade_date": {"type": ["string", "null"], "format": "date"},
+                "top_n": {"type": "integer", "minimum": 1, "maximum": 500},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "source": {"type": "string"},
+                "status": {"type": "string"},
+                "stocks": {"type": "array", "items": {"type": "object"}},
+                "metadata": {"type": "object"},
+            },
+            "required": ["stocks"],
+        },
+        audit_tags=("alpha:stock_scores", "mcp:research_read"),
+        legacy_tool_names=("get_alpha_stock_scores",),
+    ),
+    CapabilityManifest(
+        capability_key="alpha.read.factor_exposure",
+        title="Alpha Factor Exposure",
+        summary="Read one stock's factor exposure from a named Alpha provider.",
+        description=(
+            "Use the canonical authenticated Alpha HTTP endpoint; do not initialize "
+            "Django or reach into the provider registry from the SDK or MCP process."
+        ),
+        owner_app="alpha",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="alpha_read_factor_exposure",
+        tags=("alpha", "factor", "exposure", "research", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "stock_code": {"type": "string", "minLength": 1, "maxLength": 32},
+                "trade_date": {"type": ["string", "null"], "format": "date"},
+                "provider": {"type": "string", "minLength": 1, "maxLength": 64},
+            },
+            "required": ["stock_code"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "stock_code": {"type": "string"},
+                "trade_date": {"type": "string"},
+                "provider": {"type": "string"},
+                "factors": {"type": "object"},
+            },
+            "required": ["success", "stock_code", "factors"],
+        },
+        legacy_tool_names=("get_alpha_factor_exposure",),
+    ),
+    CapabilityManifest(
         capability_key="alpha.read.provider_status",
         title="Alpha Provider Status",
         summary="Read the canonical Alpha provider health map.",

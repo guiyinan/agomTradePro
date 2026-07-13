@@ -363,3 +363,34 @@ MANIFESTS = [
         legacy_tool_names=("apply_rotation_template_to_account_config",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="rotation.generate.signal",
+        title="Generate Rotation Signal",
+        summary="Preview and confirm generation of one persisted rotation signal.",
+        description="Resolve the named rotation config before calculating and saving signal state.",
+        owner_app="rotation",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="rotation_generate_signal",
+        tags=("rotation", "signal", "strategy", "generate", "write"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "config_name": {"type": "string", "minLength": 1, "maxLength": 128},
+                "signal_date": {"type": ["string", "null"], "format": "date"},
+                "idempotency_key": {"type": "string"},
+            },
+            "required": ["config_name"],
+            "additionalProperties": False,
+        },
+        output_schema={"type": "object", "properties": {}, "required": []},
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        audit_tags=("rotation:generate_signal", "mcp:write"),
+        legacy_tool_names=("generate_rotation_signal",),
+    )
+)

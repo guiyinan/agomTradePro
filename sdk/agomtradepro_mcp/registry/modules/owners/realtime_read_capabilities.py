@@ -148,3 +148,38 @@ MANIFESTS.append(
         legacy_tool_names=("get_sector_realtime_performance",),
     )
 )
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="realtime.read.top_movers",
+        title="Realtime Top Movers",
+        summary="Read top movers from cached monitored-asset prices.",
+        description=(
+            "Sort the current cached monitored-asset snapshot without polling providers, "
+            "refreshing prices, or writing cache entries."
+        ),
+        owner_app="realtime",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="realtime_read_top_movers",
+        tags=("realtime", "price", "movers", "cached", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "direction": {"type": "string", "enum": ["up", "down"]},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "movers": {"type": "array"},
+                "total_count": {"type": "integer"},
+            },
+            "required": ["movers", "total_count"],
+        },
+        legacy_tool_names=("get_top_movers",),
+    )
+)

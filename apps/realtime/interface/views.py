@@ -19,9 +19,13 @@ from rest_framework.views import APIView
 
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
+    list_cached_top_movers_payloads,
     list_sector_performance_payloads,
 )
-from apps.realtime.interface.serializers import SectorPerformanceQuerySerializer
+from apps.realtime.interface.serializers import (
+    SectorPerformanceQuerySerializer,
+    TopMoversQuerySerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +205,24 @@ class SectorPerformanceView(APIView):
         query.is_valid(raise_exception=True)
         results = list_sector_performance_payloads()
         return Response({"results": results, "count": len(results)})
+
+
+class TopMoversView(APIView):
+    """Read top movers from cached monitored prices without polling providers."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        query = TopMoversQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        results = list_cached_top_movers_payloads(**query.validated_data)
+        return Response(
+            {
+                "results": results,
+                "count": len(results),
+                "source": "cached_monitored_prices",
+            }
+        )
 
 
 class PricePollingTriggerView(View):

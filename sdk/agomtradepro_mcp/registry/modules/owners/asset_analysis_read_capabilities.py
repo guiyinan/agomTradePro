@@ -95,4 +95,69 @@ MANIFESTS = [
         },
         legacy_tool_names=("asset_pool_summary",),
     ),
+    CapabilityManifest(
+        capability_key="asset_analysis.compute.multidim_screen",
+        title="Asset Multi-Dimensional Screen",
+        summary="Calculate a multi-dimensional asset screen from bounded inputs.",
+        description=(
+            "Execute the canonical scoring use case over persisted inputs. The operation "
+            "does not synchronize providers, enqueue work, or persist screen results."
+        ),
+        owner_app="asset_analysis",
+        risk_level="medium",
+        executor_kind="legacy_tool",
+        executor_ref="asset_analysis_compute_multidim_screen",
+        tags=("asset_analysis", "screen", "score", "research", "compute"),
+        input_schema={
+            "type": "object",
+            "properties": {"payload": {"type": "object"}},
+            "required": ["payload"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "results": {"type": "array"},
+            },
+            "required": [],
+        },
+        audit_tags=("asset_analysis:multidim_screen", "mcp:research_read"),
+        legacy_tool_names=("asset_multidim_screen",),
+    ),
+    CapabilityManifest(
+        capability_key="asset_analysis.compute.pool_screen",
+        title="Asset Pool Screen",
+        summary="Classify scored equity or fund assets into an in-memory pool result.",
+        description=(
+            "Read the canonical scoring context and calculate pool classifications in "
+            "memory without changing persisted pool membership or refreshing providers."
+        ),
+        owner_app="asset_analysis",
+        risk_level="medium",
+        executor_kind="legacy_tool",
+        executor_ref="asset_analysis_compute_pool_screen",
+        tags=("asset_analysis", "pool", "screen", "research", "compute"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "asset_type": {"type": "string", "enum": ["equity", "fund"]},
+                "payload": {"type": ["object", "null"]},
+            },
+            "required": ["asset_type"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "asset_type": {"type": "string"},
+                "pools_summary": {"type": "object"},
+                "assets": {"type": "array"},
+            },
+            "required": [],
+        },
+        audit_tags=("asset_analysis:pool_screen", "mcp:research_read"),
+        legacy_tool_names=("asset_pool_screen",),
+    ),
 ]

@@ -121,6 +121,28 @@ def _fallback_decision_workflow_preview_execution(
     )
 
 
+def _fallback_decision_compute_workflow_precheck(
+    candidate_id: str,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    return client.decision_workflow.precheck(candidate_id)
+
+
+def _fallback_decision_read_funnel_context(
+    trade_id: str = "unknown",
+    backtest_id: int | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    return client.decision_workflow.get_funnel_context(
+        trade_id=trade_id,
+        backtest_id=backtest_id,
+    )
+
+
 def _fallback_submit_batch_decision_request(
     payload: dict[str, Any],
     idempotency_key: str | None = None,
@@ -378,6 +400,105 @@ def _internal_handler_decision_reset_quota(
     return client.decision_rhythm.reset_quota(payload)
 
 
+def _internal_handler_decision_refresh_recommendations(
+    account_id: str | None = None,
+    security_codes: list[str] | None = None,
+    force: bool = False,
+    async_mode: bool = True,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    arguments = {
+        "account_id": account_id or "",
+        "security_codes": None if security_codes is None else list(security_codes),
+        "force": force,
+        "async_mode": async_mode,
+    }
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "refresh_target": arguments,
+            "security_count": len(arguments["security_codes"] or []),
+        }
+    return _call_registered_tool("decision_workflow_refresh_recommendations", arguments)
+
+
+def _internal_handler_decision_update_recommendation_action(
+    recommendation_id: str,
+    action: str,
+    account_id: str | None = None,
+    note: str | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    if action not in {"watch", "adopt", "ignore", "pending"}:
+        raise ValueError("Unsupported recommendation action")
+    arguments = {
+        "recommendation_id": recommendation_id,
+        "action": action,
+        "account_id": account_id or "",
+        "note": note or "",
+    }
+    if preview_only:
+        return {"success": True, "preview_only": True, "action_target": arguments}
+    return _call_registered_tool("decision_workflow_apply_recommendation_action", arguments)
+
+
+def _internal_handler_decision_create_transition_plan(
+    account_id: str,
+    recommendation_ids: list[str] | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    arguments = {
+        "account_id": account_id,
+        "recommendation_ids": (
+            None if recommendation_ids is None else list(recommendation_ids)
+        ),
+    }
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "plan_target": arguments,
+            "recommendation_count": len(arguments["recommendation_ids"] or []),
+        }
+    return _call_registered_tool("decision_workflow_generate_transition_plan", arguments)
+
+
+def _internal_handler_decision_update_transition_plan(
+    plan_id: str,
+    orders: list[dict[str, Any]],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    normalized_orders = [dict(order) for order in orders]
+    if preview_only:
+        current = AgomTradeProClient().decision_workflow.get_transition_plan(plan_id)
+        return {
+            "success": True,
+            "preview_only": True,
+            "plan_id": plan_id,
+            "current_status": current.get("status"),
+            "current_order_count": len(current.get("orders") or []),
+            "replacement_order_count": len(normalized_orders),
+            "asset_codes": sorted(
+                {
+                    str(order.get("asset_code"))
+                    for order in normalized_orders
+                    if order.get("asset_code")
+                }
+            ),
+        }
+    return _call_registered_tool(
+        "decision_workflow_update_transition_plan",
+        {"plan_id": plan_id, "orders": normalized_orders},
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "decision_read_advisor_sheet": _fallback_decision_read_advisor_sheet,
     "list_decision_quotas": _fallback_list_decision_quotas,
@@ -387,6 +508,8 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "decision_workflow_list_recommendations": _fallback_decision_workflow_list_recommendations,
     "decision_workflow_get_transition_plan": _fallback_decision_workflow_get_transition_plan,
     "decision_workflow_preview_execution": _fallback_decision_workflow_preview_execution,
+    "decision_compute_workflow_precheck": _fallback_decision_compute_workflow_precheck,
+    "decision_read_funnel_context": _fallback_decision_read_funnel_context,
     "submit_batch_decision_request": _fallback_submit_batch_decision_request,
     "submit_decision_request": _fallback_submit_decision_request,
     "decision_execute_request": _fallback_decision_execute_request,
@@ -399,4 +522,8 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "decision_execute_request": _internal_handler_decision_execute_request,
     "decision_cancel_request": _internal_handler_decision_cancel_request,
     "decision_reset_quota": _internal_handler_decision_reset_quota,
+    "decision_refresh_recommendations": _internal_handler_decision_refresh_recommendations,
+    "decision_update_recommendation_action": _internal_handler_decision_update_recommendation_action,
+    "decision_create_transition_plan": _internal_handler_decision_create_transition_plan,
+    "decision_update_transition_plan": _internal_handler_decision_update_transition_plan,
 }

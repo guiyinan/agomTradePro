@@ -170,3 +170,101 @@ MANIFESTS = [
         legacy_tool_names=("update_data_center_provider",),
     ),
 ]
+
+MANIFESTS.extend(
+    [
+        CapabilityManifest(
+            capability_key="config_center.update.qlib_training_profile",
+            title="Save Qlib Training Profile",
+            summary="Preview and confirm a Qlib training-profile upsert.",
+            description=(
+                "Summarize the exact profile identity and changed fields before the "
+                "superuser-scoped canonical API creates or updates the profile."
+            ),
+            owner_app="config_center",
+            risk_level="high",
+            executor_kind="internal_handler",
+            executor_ref="config_center_update_qlib_training_profile",
+            tags=("config_center", "qlib", "training", "profile", "update", "write"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "payload": {"type": "object"},
+                    "idempotency_key": {"type": "string"},
+                },
+                "required": ["payload"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            requires_confirmation=True,
+            confirmation_preview_arguments={"preview_only": True},
+            confirmation_commit_arguments={"preview_only": False},
+            idempotency="required",
+            required_roles=("staff",),
+            audit_tags=("config_center:save_training_profile", "mcp:write"),
+            legacy_tool_names=("save_qlib_training_profile",),
+        ),
+        CapabilityManifest(
+            capability_key="config_center.update.alpha_universe",
+            title="Save Alpha Universe",
+            summary="Preview and confirm an Alpha universe upsert.",
+            description=(
+                "Summarize the universe identity, member count, and filters before the "
+                "superuser-scoped canonical API creates or updates it."
+            ),
+            owner_app="config_center",
+            risk_level="high",
+            executor_kind="internal_handler",
+            executor_ref="config_center_update_alpha_universe",
+            tags=("config_center", "alpha", "universe", "update", "write"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "payload": {"type": "object"},
+                    "idempotency_key": {"type": "string"},
+                },
+                "required": ["payload"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            requires_confirmation=True,
+            confirmation_preview_arguments={"preview_only": True},
+            confirmation_commit_arguments={"preview_only": False},
+            idempotency="required",
+            required_roles=("staff",),
+            audit_tags=("config_center:save_alpha_universe", "mcp:write"),
+            legacy_tool_names=("save_alpha_universe",),
+        ),
+        CapabilityManifest(
+            capability_key="config_center.start.qlib_training",
+            title="Start Qlib Training",
+            summary="Preview and confirm one asynchronous Qlib training run.",
+            description=(
+                "Summarize the model, profile, universe, date window, and activation flag "
+                "before the superuser-scoped canonical API enqueues training."
+            ),
+            owner_app="config_center",
+            risk_level="high",
+            executor_kind="internal_handler",
+            executor_ref="config_center_start_qlib_training",
+            tags=("config_center", "qlib", "training", "task", "start", "write"),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "payload": {"type": "object"},
+                    "idempotency_key": {"type": "string"},
+                },
+                "required": ["payload"],
+                "additionalProperties": False,
+            },
+            output_schema={"type": "object", "properties": {}, "required": []},
+            requires_confirmation=True,
+            confirmation_preview_arguments={"preview_only": True},
+            confirmation_commit_arguments={"preview_only": False},
+            idempotency="required",
+            required_roles=("staff",),
+            audit_tags=("config_center:start_qlib_training", "mcp:write"),
+            legacy_tool_names=("trigger_qlib_training",),
+        ),
+    ]
+)

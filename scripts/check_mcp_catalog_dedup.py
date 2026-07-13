@@ -148,6 +148,90 @@ def validate_mcp_catalog_dedup(capabilities) -> dict[str, int]:
     }
 
 
+def validate_legacy_disposition_coverage(
+    capabilities,
+    *,
+    dispositions=None,
+) -> dict[str, int]:
+    """Require every unreplaced raw tool to have one enforced disposition."""
+
+    from agomtradepro.unsupported_legacy_contracts import (
+        get_unsupported_legacy_contract_for_tool,
+    )
+    from agomtradepro_mcp.legacy_dispositions import (
+        list_legacy_tool_dispositions,
+    )
+
+    records = list(
+        list_legacy_tool_dispositions() if dispositions is None else dispositions
+    )
+    by_tool_name = {record.tool_name: record for record in records}
+    if len(by_tool_name) != len(records):
+        raise ValueError("Duplicate legacy MCP disposition tool_name detected")
+
+    governed_keys = {
+        cap.source_ref
+        for cap in capabilities
+        if (cap.execution_target or {}).get("type") == "mcp_capability"
+    }
+    unreplaced = {
+        cap.source_ref: cap
+        for cap in capabilities
+        if (cap.execution_target or {}).get("type") == "mcp_tool"
+        and not str(
+            (cap.execution_target or {}).get("replacement_capability_key") or ""
+        ).strip()
+    }
+    missing = sorted(set(unreplaced) - set(by_tool_name))
+    extra = sorted(set(by_tool_name) - set(unreplaced))
+    if missing or extra:
+        raise ValueError(
+            "Legacy MCP disposition coverage mismatch: "
+            f"missing={missing}, extra={extra}"
+        )
+
+    keep_task_count = 0
+    for tool_name, cap in unreplaced.items():
+        record = by_tool_name[tool_name]
+        target = cap.execution_target or {}
+        if target.get("legacy_disposition") != record.disposition:
+            raise ValueError(
+                f"Legacy tool {tool_name} catalog disposition does not match registry"
+            )
+        if target.get("disposition_reason") != record.rationale:
+            raise ValueError(
+                f"Legacy tool {tool_name} catalog rationale does not match registry"
+            )
+        recommended = list(record.recommended_capability_keys)
+        if list(target.get("recommended_capability_keys") or []) != recommended:
+            raise ValueError(
+                f"Legacy tool {tool_name} catalog recommendations do not match registry"
+            )
+        missing_recommendations = sorted(set(recommended) - governed_keys)
+        if missing_recommendations:
+            raise ValueError(
+                f"Legacy tool {tool_name} recommends missing governed capabilities: "
+                f"{missing_recommendations}"
+            )
+        if cap.enabled_for_routing:
+            raise ValueError(
+                f"Classified legacy tool {tool_name} must not be enabled for routing"
+            )
+        if record.disposition == "unsupported":
+            if get_unsupported_legacy_contract_for_tool(tool_name) is None:
+                raise ValueError(
+                    f"Unsupported legacy tool {tool_name} is absent from the contract registry"
+                )
+        if record.disposition == "keep_task":
+            keep_task_count += 1
+
+    return {
+        "legacy_disposition_count": len(records),
+        "legacy_keep_task_count": keep_task_count,
+        "legacy_unclassified_count": 0,
+    }
+
+
 def collect_mcp_governance_metrics(
     capabilities,
     *,
@@ -167,6 +251,7 @@ def collect_mcp_governance_metrics(
     write_count = sum(1 for manifest in manifests if is_write_like_manifest(manifest))
     legacy_count = dedup_summary["legacy_capabilities"]
     replacement_count = dedup_summary["replacement_links"]
+    disposition_summary = validate_legacy_disposition_coverage(capabilities)
     return {
         "default_top_level_tool_count": len(CORE_TOOL_NAMES),
         "governed_manifest_count": len(manifests),
@@ -176,6 +261,7 @@ def collect_mcp_governance_metrics(
         "legacy_capability_count": legacy_count,
         "replacement_link_count": replacement_count,
         "legacy_without_replacement_count": legacy_count - replacement_count,
+        **disposition_summary,
         "unsupported_legacy_contract_count": len(list_unsupported_legacy_contracts()),
         "raw_tool_file_count": len(
             list((SDK_ROOT / "agomtradepro_mcp" / "tools").glob("*_tools.py"))
@@ -209,6 +295,7 @@ def main() -> int:
 
     capabilities = collect_mcp_sync_capabilities()
     summary = validate_mcp_catalog_dedup(capabilities)
+    disposition_summary = validate_legacy_disposition_coverage(capabilities)
     baseline = json.loads(GOVERNANCE_BASELINE_PATH.read_text(encoding="utf-8"))
     governance_metrics = collect_mcp_governance_metrics(
         capabilities,
@@ -220,6 +307,9 @@ def main() -> int:
     )
     print("MCP catalog dedup OK")
     for key, value in summary.items():
+        print(f"- {key}: {value}")
+    print("Legacy MCP dispositions OK")
+    for key, value in disposition_summary.items():
         print(f"- {key}: {value}")
     print("MCP governance baseline OK")
     return 0

@@ -8,11 +8,10 @@ import importlib.util
 import json
 import re
 import sys
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVER_PATH = REPO_ROOT / "sdk" / "agomtradepro_mcp" / "server.py"
@@ -20,6 +19,9 @@ TOOLS_DIR = REPO_ROOT / "sdk" / "agomtradepro_mcp" / "tools"
 REPORTS_DIR = REPO_ROOT / "reports" / "mcp"
 UNSUPPORTED_LEGACY_CONTRACTS_PATH = (
     REPO_ROOT / "sdk" / "agomtradepro" / "unsupported_legacy_contracts.py"
+)
+LEGACY_DISPOSITIONS_PATH = (
+    REPO_ROOT / "sdk" / "agomtradepro_mcp" / "legacy_dispositions.py"
 )
 
 REGISTER_DEF_RE = re.compile(
@@ -111,6 +113,9 @@ class ToolRecord:
     risk_hint: str
     disposition_hint: str
     unsupported_contract_key: str | None = None
+    legacy_disposition: str | None = None
+    disposition_rationale: str | None = None
+    recommended_capability_keys: tuple[str, ...] = ()
 
 
 def _load_unsupported_legacy_contracts_module():
@@ -120,6 +125,20 @@ def _load_unsupported_legacy_contracts_module():
     )
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load unsupported legacy contracts module.")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_legacy_dispositions_module():
+    spec = importlib.util.spec_from_file_location(
+        "agomtradepro_mcp_legacy_dispositions",
+        LEGACY_DISPOSITIONS_PATH,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load legacy MCP dispositions module.")
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -187,6 +206,7 @@ def _parse_tool_file(
     registered_calls: set[str],
     *,
     unsupported_tool_to_contract: dict[str, str],
+    disposition_by_tool: dict[str, object],
 ) -> Iterable[ToolRecord]:
     text = _load_text(path)
     register_match = REGISTER_DEF_RE.search(text)
@@ -202,6 +222,10 @@ def _parse_tool_file(
         operation_type = _infer_operation_type(tool_name)
         risk_hint = _infer_risk_hint(tool_name, operation_type)
         unsupported_contract_key = unsupported_tool_to_contract.get(tool_name)
+        disposition = disposition_by_tool.get(tool_name)
+        disposition_name = (
+            str(getattr(disposition, "disposition", "") or "").strip() or None
+        )
         records.append(
             ToolRecord(
                 tool_name=tool_name,
@@ -211,13 +235,21 @@ def _parse_tool_file(
                 registered_in_server=register_name in registered_calls,
                 operation_type=operation_type,
                 risk_hint=risk_hint,
-                disposition_hint=_infer_disposition_hint(
+                disposition_hint=disposition_name
+                or _infer_disposition_hint(
                     tool_name,
                     operation_type,
                     risk_hint,
                     unsupported_contract_key=unsupported_contract_key,
                 ),
                 unsupported_contract_key=unsupported_contract_key,
+                legacy_disposition=disposition_name,
+                disposition_rationale=(
+                    str(getattr(disposition, "rationale", "") or "").strip() or None
+                ),
+                recommended_capability_keys=tuple(
+                    getattr(disposition, "recommended_capability_keys", ()) or ()
+                ),
             )
         )
 
@@ -231,6 +263,9 @@ def build_inventory() -> dict[str, object]:
     registered_calls = _registered_functions(server_text)
     unsupported_module = _load_unsupported_legacy_contracts_module()
     unsupported_contracts = unsupported_module.list_unsupported_legacy_contracts()
+    dispositions_module = _load_legacy_dispositions_module()
+    dispositions = dispositions_module.list_legacy_tool_dispositions()
+    disposition_by_tool = {record.tool_name: record for record in dispositions}
     unsupported_tool_to_contract = {
         tool_name: contract.contract_key
         for contract in unsupported_contracts
@@ -245,6 +280,7 @@ def build_inventory() -> dict[str, object]:
                 path,
                 registered_calls,
                 unsupported_tool_to_contract=unsupported_tool_to_contract,
+                disposition_by_tool=disposition_by_tool,
             )
         )
         if not parsed:
@@ -269,7 +305,7 @@ def build_inventory() -> dict[str, object]:
             unregistered_tools.append(record.tool_name)
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "server_path": str(SERVER_PATH.relative_to(REPO_ROOT)).replace("\\", "/"),
         "tools_dir": str(TOOLS_DIR.relative_to(REPO_ROOT)).replace("\\", "/"),
         "summary": {
@@ -279,6 +315,10 @@ def build_inventory() -> dict[str, object]:
             "tool_files_without_register_function": len(missing_register_files),
             "unregistered_tool_count": len(unregistered_tools),
             "unsupported_legacy_contract_count": len(unsupported_contracts),
+            "legacy_disposition_count": len(dispositions),
+            "legacy_keep_task_count": sum(
+                1 for record in dispositions if record.disposition == "keep_task"
+            ),
             "by_module": dict(sorted(by_module.items())),
             "by_operation": dict(sorted(by_operation.items())),
             "by_risk_hint": dict(sorted(by_risk_hint.items())),
@@ -313,6 +353,8 @@ def _render_markdown(payload: dict[str, object]) -> str:
         f"- Tool files without register function: `{summary['tool_files_without_register_function']}`",
         f"- Unregistered tools: `{summary['unregistered_tool_count']}`",
         f"- Unsupported legacy contracts: `{summary['unsupported_legacy_contract_count']}`",
+        f"- Classified unreplaced legacy tools: `{summary['legacy_disposition_count']}`",
+        f"- Remaining governed migration tasks: `{summary['legacy_keep_task_count']}`",
         "",
         "## By Operation",
         "",
@@ -386,7 +428,7 @@ def main() -> int:
     parser.add_argument("--output-md", type=Path, default=None, help="Path to write the Markdown report.")
     args = parser.parse_args()
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d")
     default_json_path, default_md_path = _default_report_paths(timestamp)
     output_json = args.output_json or default_json_path
     output_md = args.output_md or default_md_path

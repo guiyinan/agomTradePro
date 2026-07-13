@@ -93,6 +93,27 @@ UNSUPPORTED_LEGACY_CONTRACTS: tuple[UnsupportedLegacyContract, ...] = (
             "Do not expose storage-only placeholder routes as a working push subscription API."
         ),
     ),
+    UnsupportedLegacyContract(
+        contract_key="events.replay",
+        title="Domain Event Replay",
+        owner_app="events",
+        legacy_tool_names=("replay_events",),
+        sdk_methods=("replay_events",),
+        suspected_paths=("/api/events/replay/",),
+        reason=(
+            "The canonical replay endpoint has no concrete target subscriber and can "
+            "swallow per-event failures while returning an empty successful result."
+        ),
+        evidence=(
+            "EventReplayView currently invokes the replay use case without a target handler.",
+            "The replay loop requires can_handle()/handle() on a real subscriber.",
+            "No staff-scoped subscriber allow-list or partial-failure contract exists.",
+        ),
+        governance_rule=(
+            "Do not expose event replay until a concrete target identity, allow-list, "
+            "preview, confirmation, idempotency, audit, and partial-failure contract exist."
+        ),
+    ),
 )
 
 _BY_KEY = {contract.contract_key: contract for contract in UNSUPPORTED_LEGACY_CONTRACTS}

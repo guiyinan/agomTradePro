@@ -1228,6 +1228,45 @@ def _internal_handler_data_center_run_provider_connection_test(
     return _sanitize_provider_probe_payload(result)
 
 
+def _internal_handler_data_center_repair_decision_reliability(
+    target_date: str | None = None,
+    portfolio_id: int | None = None,
+    asset_codes: list[str] | None = None,
+    macro_indicator_codes: list[str] | None = None,
+    strict: bool = True,
+    quote_max_age_hours: float | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    arguments = {
+        "target_date": target_date,
+        "portfolio_id": portfolio_id,
+        "asset_codes": None if asset_codes is None else list(asset_codes),
+        "macro_indicator_codes": (
+            None if macro_indicator_codes is None else list(macro_indicator_codes)
+        ),
+        "strict": strict,
+        "quote_max_age_hours": quote_max_age_hours,
+    }
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "repair_target": arguments,
+            "asset_count": len(arguments["asset_codes"] or []),
+            "macro_indicator_count": len(arguments["macro_indicator_codes"] or []),
+            "side_effects": {
+                "will_refresh_macro": True,
+                "will_refresh_quotes": True,
+                "will_refresh_pulse": True,
+                "will_refresh_alpha": True,
+            },
+        }
+    return AgomTradeProClient().data_center.repair_decision_data_reliability(**arguments)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_data_center_provider_status": _fallback_get_data_center_provider_status,
     "list_data_center_providers": _fallback_list_data_center_providers,
@@ -1269,4 +1308,5 @@ GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "data_center_update_publisher": _internal_handler_data_center_update_publisher,
     "data_center_update_indicator": _internal_handler_data_center_update_indicator,
     "data_center_run_provider_connection_test": _internal_handler_data_center_run_provider_connection_test,
+    "data_center_repair_decision_reliability": _internal_handler_data_center_repair_decision_reliability,
 }

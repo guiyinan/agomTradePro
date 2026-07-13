@@ -99,6 +99,70 @@ def _internal_handler_alpha_trigger_update_candidate_status(
     )
 
 
+def _preview_or_call_alpha_trigger_workflow(
+    *,
+    tool_name: str,
+    payload: dict[str, Any],
+    preview_only: bool,
+) -> dict[str, Any]:
+    normalized = dict(payload or {})
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "operation": tool_name,
+            "payload_keys": sorted(normalized),
+            "target_ids": {
+                key: normalized.get(key)
+                for key in ("trigger_id", "candidate_id", "asset_code")
+                if normalized.get(key) is not None
+            },
+        }
+    return _call_registered_tool(tool_name, {"payload": normalized})
+
+
+def _internal_handler_alpha_trigger_create_trigger(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    return _preview_or_call_alpha_trigger_workflow(
+        tool_name="create_alpha_trigger", payload=payload, preview_only=preview_only
+    )
+
+
+def _internal_handler_alpha_trigger_execute_evaluation(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    return _preview_or_call_alpha_trigger_workflow(
+        tool_name="evaluate_alpha_trigger", payload=payload, preview_only=preview_only
+    )
+
+
+def _internal_handler_alpha_trigger_execute_invalidation_check(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    return _preview_or_call_alpha_trigger_workflow(
+        tool_name="check_alpha_trigger_invalidation",
+        payload=payload,
+        preview_only=preview_only,
+    )
+
+
+def _internal_handler_alpha_trigger_generate_candidate(
+    payload: dict[str, Any],
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    return _preview_or_call_alpha_trigger_workflow(
+        tool_name="generate_alpha_candidate", payload=payload, preview_only=preview_only
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "list_alpha_triggers": _fallback_list_alpha_triggers,
     "list_alpha_candidates": _fallback_list_alpha_candidates,
@@ -109,4 +173,8 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "alpha_trigger_update_candidate_status": _internal_handler_alpha_trigger_update_candidate_status,
+    "alpha_trigger_create_trigger": _internal_handler_alpha_trigger_create_trigger,
+    "alpha_trigger_execute_evaluation": _internal_handler_alpha_trigger_execute_evaluation,
+    "alpha_trigger_execute_invalidation_check": _internal_handler_alpha_trigger_execute_invalidation_check,
+    "alpha_trigger_generate_candidate": _internal_handler_alpha_trigger_generate_candidate,
 }

@@ -265,6 +265,12 @@ class PricePollingUseCase:
             if asset_code in prices_by_code
         ]
 
+    def get_cached_monitored_prices(self) -> list[dict]:
+        """Return cached prices for monitored assets without provider fallback or writes."""
+
+        asset_codes = sorted(set(self.watchlist_provider.get_all_monitored_assets()))
+        return [price.to_dict() for price in self.price_repository.get_latest_prices(asset_codes)]
+
     def check_provider_availability(self, timeout_seconds: float = 2.0) -> tuple[bool, str | None]:
         """Check whether the configured price provider responds within timeout."""
 

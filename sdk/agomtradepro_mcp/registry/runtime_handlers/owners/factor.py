@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
+
 
 def _fallback_factor_read_definition_catalog() -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
@@ -107,6 +109,40 @@ def _fallback_factor_read_portfolio(config_name: str) -> dict[str, Any]:
     }
 
 
+def _internal_handler_factor_create_portfolio(
+    config_name: str,
+    trade_date: str | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if preview_only:
+        configs = AgomTradeProClient().factor.get_all_configs()
+        matched = next(
+            (
+                item
+                for item in configs
+                if isinstance(item, dict) and str(item.get("name")) == config_name
+            ),
+            None,
+        )
+        if matched is None:
+            raise ValueError(f"Unknown factor config: {config_name}")
+        return {
+            "success": True,
+            "preview_only": True,
+            "config_name": config_name,
+            "trade_date": trade_date,
+            "config_found": True,
+            "will_persist_holdings": True,
+        }
+    return _call_registered_tool(
+        "create_factor_portfolio",
+        {"config_name": config_name, "trade_date": trade_date},
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "factor_compute_top_stocks": _fallback_factor_compute_top_stocks,
     "factor_compute_stock_explanation": _fallback_factor_compute_stock_explanation,
@@ -115,4 +151,6 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "factor_read_portfolio": _fallback_factor_read_portfolio,
 }
 
-GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}
+GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "factor_create_portfolio": _internal_handler_factor_create_portfolio,
+}

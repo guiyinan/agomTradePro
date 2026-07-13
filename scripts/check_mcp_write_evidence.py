@@ -52,6 +52,7 @@ WRITE_ACTIONS = frozenset(
         "remove",
         "repair",
         "reset",
+        "resume",
         "revoke",
         "rollback",
         "run",

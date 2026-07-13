@@ -257,4 +257,69 @@ MANIFESTS = [
         },
         legacy_tool_names=("get_auto_advisor_decision_sheet",),
     ),
+    CapabilityManifest(
+        capability_key="decision.compute.workflow_precheck",
+        title="Decision Workflow Precheck",
+        summary="Evaluate whether one Alpha candidate can enter the decision workflow.",
+        description=(
+            "Read candidate, Beta Gate, quota, and cooldown state and return a bounded "
+            "precheck result without submitting or mutating a decision request."
+        ),
+        owner_app="decision_rhythm",
+        risk_level="medium",
+        executor_kind="legacy_tool",
+        executor_ref="decision_compute_workflow_precheck",
+        tags=("decision", "workflow", "precheck", "guardrail", "compute"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "candidate_id": {"type": "string", "minLength": 1, "maxLength": 128}
+            },
+            "required": ["candidate_id"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "result": {"type": "object"},
+                "error": {"type": ["string", "null"]},
+            },
+            "required": ["success"],
+        },
+        audit_tags=("decision:workflow_precheck", "mcp:research_read"),
+        legacy_tool_names=("decision_workflow_precheck",),
+    ),
+    CapabilityManifest(
+        capability_key="decision.read.funnel_context",
+        title="Decision Funnel Context",
+        summary="Read the canonical decision funnel and attribution context.",
+        description=(
+            "Return environment, direction, sector, and optional attribution context "
+            "without refreshing recommendations or changing workflow state."
+        ),
+        owner_app="decision_rhythm",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="decision_read_funnel_context",
+        tags=("decision", "funnel", "context", "attribution", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "trade_id": {"type": "string", "maxLength": 128},
+                "backtest_id": {"type": ["integer", "null"], "minimum": 1},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "success": {"type": "boolean"},
+                "data": {"type": "object"},
+            },
+            "required": [],
+        },
+        legacy_tool_names=("decision_workflow_get_funnel_context",),
+    ),
 ]

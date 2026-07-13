@@ -79,6 +79,9 @@ MCP_GOVERNANCE_REQUIRED_KEYS = (
     "legacy_capability_count",
     "replacement_link_count",
     "legacy_without_replacement_count",
+    "legacy_disposition_count",
+    "legacy_keep_task_count",
+    "legacy_unclassified_count",
     "unsupported_legacy_contract_count",
     "raw_tool_file_count",
 )
@@ -632,6 +635,37 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
                         "governance_baseline_mcp_replacement_partition_invalid",
                         path_label,
                         "MCP replacement and unresolved counts must sum to legacy_capability_count.",
+                    )
+                )
+
+        disposition_count = mcp_governance.get("legacy_disposition_count")
+        keep_task_count = mcp_governance.get("legacy_keep_task_count")
+        unclassified_count = mcp_governance.get("legacy_unclassified_count")
+        if all(
+            is_non_negative_int(value)
+            for value in (
+                without_replacement_count,
+                disposition_count,
+                keep_task_count,
+                unclassified_count,
+            )
+        ):
+            if int(disposition_count) + int(unclassified_count) != int(
+                without_replacement_count
+            ):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_disposition_partition_invalid",
+                        path_label,
+                        "Classified and unclassified legacy counts must partition unreplaced legacy tools.",
+                    )
+                )
+            if int(keep_task_count) > int(disposition_count):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_keep_task_count_invalid",
+                        path_label,
+                        "MCP keep-task debt cannot exceed classified legacy dispositions.",
                     )
                 )
 

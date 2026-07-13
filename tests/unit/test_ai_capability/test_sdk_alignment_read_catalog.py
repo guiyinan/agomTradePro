@@ -11,6 +11,39 @@ from apps.ai_capability.application.use_cases import SyncCapabilitiesUseCase
 @pytest.mark.parametrize(
     ("capability_key", "owner_app", "legacy_tool_name"),
     [
+        ("alpha.read.stock_scores", "alpha", "get_alpha_stock_scores"),
+        ("alpha.read.factor_exposure", "alpha", "get_alpha_factor_exposure"),
+        (
+            "asset_analysis.compute.multidim_screen",
+            "asset_analysis",
+            "asset_multidim_screen",
+        ),
+        (
+            "asset_analysis.compute.pool_screen",
+            "asset_analysis",
+            "asset_pool_screen",
+        ),
+        (
+            "decision.compute.workflow_precheck",
+            "decision_rhythm",
+            "decision_workflow_precheck",
+        ),
+        (
+            "decision.read.funnel_context",
+            "decision_rhythm",
+            "decision_workflow_get_funnel_context",
+        ),
+        ("equity.read.score", "equity", "get_stock_score"),
+        (
+            "equity.compute.recommendations",
+            "equity",
+            "get_stock_recommendations",
+        ),
+        ("equity.compute.analysis", "equity", "analyze_stock"),
+        ("fund.read.catalog", "fund", "list_funds"),
+        ("sector.compute.analysis", "sector", "analyze_sector"),
+        ("sector.compute.comparison", "sector", "compare_sectors"),
+        ("realtime.read.top_movers", "realtime", "get_top_movers"),
         ("equity.read.financial_history", "equity", "get_stock_financials"),
         ("fund.read.score", "fund", "get_fund_score"),
         ("sector.read.score", "sector", "get_sector_score"),

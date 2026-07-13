@@ -356,6 +356,24 @@ def test_mcp_governance_baseline_rejects_inconsistent_partitions():
     }
 
 
+def test_mcp_governance_baseline_rejects_invalid_disposition_partition():
+    module = _load_governance_script()
+    baseline = json.loads(
+        (REPO_ROOT / "governance" / "governance_baseline.json").read_text(encoding="utf-8")
+    )
+    baseline["mcp_governance"]["legacy_disposition_count"] -= 1
+    baseline["mcp_governance"]["legacy_keep_task_count"] = (
+        baseline["mcp_governance"]["legacy_disposition_count"] + 1
+    )
+
+    violations, _data = module.check_governance_baseline_health(baseline)
+
+    assert {violation.code for violation in violations} >= {
+        "governance_baseline_mcp_disposition_partition_invalid",
+        "governance_baseline_mcp_keep_task_count_invalid",
+    }
+
+
 def test_docs_consistency_detects_pyproject_version_mismatch(monkeypatch, tmp_path):
     module = _load_governance_script()
     monkeypatch.setattr(module, "load_core_version", lambda: "0.7.0")

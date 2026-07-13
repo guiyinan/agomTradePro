@@ -6,6 +6,27 @@ from typing import Any
 
 from apps.sector.application.repository_provider import get_sector_repository
 
+from .price_polling_service import PricePollingUseCase
+
+
+def list_cached_top_movers_payloads(
+    *,
+    direction: str = "up",
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return sorted cached monitored prices without polling or cache mutation."""
+
+    prices = PricePollingUseCase().get_cached_monitored_prices()
+    reverse = direction == "up"
+
+    def _change_percent(item: dict[str, Any]) -> float:
+        try:
+            return float(item.get("change_pct") or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    return sorted(prices, key=_change_percent, reverse=reverse)[:limit]
+
 
 def list_sector_performance_payloads() -> list[dict[str, Any]]:
     """Return the latest persisted index performance for active sectors."""

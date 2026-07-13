@@ -47,6 +47,20 @@ def _manifest(
     )
 
 
+@pytest.mark.parametrize(
+    "capability_key",
+    [
+        "agent_task.resume.task",
+        "dashboard.refresh.alpha",
+        "equity.create.valuation_quality_snapshot",
+    ],
+)
+def test_is_write_like_manifest_covers_governed_workflow_actions(capability_key):
+    module = _load_module()
+
+    assert module.is_write_like_manifest(_manifest(capability_key)) is True
+
+
 def test_validate_write_evidence_accepts_legacy_tool_write():
     module = _load_module()
     manifest = _manifest("policy.approve.workbench_event")

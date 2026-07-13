@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
+
 
 def _normalize_fund_code_for_contract(fund_code: str) -> str:
     normalized = fund_code.strip().upper()
@@ -120,6 +122,46 @@ def _fallback_get_fund_holdings(
     }
 
 
+def _fallback_fund_read_catalog(
+    fund_type: str | None = None,
+    min_score: float | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    funds = client.fund.list_funds(
+        fund_type=fund_type,
+        min_score=min_score,
+        limit=limit,
+    )
+    return {"funds": funds, "total_count": len(funds)}
+
+
+def _internal_handler_fund_create_performance_snapshot(
+    fund_code: str,
+    period: str = "1y",
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    if preview_only:
+        nav = AgomTradeProClient().fund.get_nav_history(fund_code, limit=5000)
+        return {
+            "success": True,
+            "preview_only": True,
+            "fund_code": fund_code,
+            "period": period,
+            "available_nav_points": len(nav),
+            "will_persist_performance_snapshot": True,
+        }
+    return _call_registered_tool(
+        "get_fund_performance",
+        {"fund_code": fund_code, "period": period},
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "rank_funds": _fallback_rank_funds,
     "fund_compute_screen": _fallback_fund_compute_screen,
@@ -127,6 +169,9 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_fund_nav_history": _fallback_get_fund_nav_history,
     "get_fund_holdings": _fallback_get_fund_holdings,
     "fund_read_score": _fallback_fund_read_score,
+    "fund_read_catalog": _fallback_fund_read_catalog,
 }
 
-GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}
+GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "fund_create_performance_snapshot": _internal_handler_fund_create_performance_snapshot,
+}

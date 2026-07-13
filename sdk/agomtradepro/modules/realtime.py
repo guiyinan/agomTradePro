@@ -317,14 +317,12 @@ class RealtimeModule(BaseModule):
             >>> for stock in top_gainers:
             ...     print(f"{stock['code']}: {stock['change_percent']:.2%}")
         """
-        prices = self._get_live_snapshot_prices()
-        reverse = direction != "down"
-        sorted_prices = sorted(
-            prices,
-            key=lambda item: self._numeric(item.get("price_change_percent")),
-            reverse=reverse,
+        response = self._get(
+            "top-movers/",
+            params={"direction": direction, "limit": limit},
         )
-        return sorted_prices[:limit]
+        prices = response.get("results", [])
+        return [self._normalize_price_payload(item) for item in prices]
 
     def get_top_gainers(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取涨幅榜兼容方法。"""

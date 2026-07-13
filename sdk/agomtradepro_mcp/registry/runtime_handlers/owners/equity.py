@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from agomtradepro_mcp.registry.runtime_handlers.common import _call_registered_tool
+
 
 def _fallback_equity_read_pool_catalog(
     sector: str | None = None,
@@ -340,6 +342,109 @@ def _internal_handler_equity_activate_valuation_repair_config(
     return client.equity.activate_valuation_repair_config(config_id)
 
 
+def _fallback_equity_read_score(
+    stock_code: str,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    from datetime import date
+
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
+    return client.equity.get_stock_score(stock_code, parsed_date)
+
+
+def _fallback_equity_compute_recommendations(
+    regime: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    recommendations = client.equity.get_recommendations(regime=regime, limit=limit)
+    return {
+        "recommendations": recommendations,
+        "total_count": len(recommendations),
+    }
+
+
+def _fallback_equity_compute_analysis(
+    stock_code: str,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    from datetime import date
+
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
+    return client.equity.analyze_stock(stock_code, parsed_date)
+
+
+def _internal_handler_equity_run_valuation_repair_scan(
+    universe: str = "all_active",
+    lookback_days: int = 756,
+    limit: int | None = None,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    arguments = {"universe": universe, "lookback_days": lookback_days, "limit": limit}
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "scan_target": arguments,
+            "will_persist_repair_snapshots": True,
+        }
+    return _call_registered_tool("scan_valuation_repairs", arguments)
+
+
+def _internal_handler_equity_sync_valuation_data(
+    days_back: int = 1,
+    stock_codes: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    primary_source: str = "akshare",
+    fallback_source: str = "tushare",
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    arguments = {
+        "days_back": days_back,
+        "stock_codes": None if stock_codes is None else list(stock_codes),
+        "start_date": start_date,
+        "end_date": end_date,
+        "primary_source": primary_source,
+        "fallback_source": fallback_source,
+    }
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "sync_target": arguments,
+            "stock_count": len(arguments["stock_codes"] or []),
+        }
+    return _call_registered_tool("sync_valuation_data", arguments)
+
+
+def _internal_handler_equity_create_valuation_quality_snapshot(
+    as_of_date: str | None = None,
+    primary_source: str = "akshare",
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    arguments = {"as_of_date": as_of_date, "primary_source": primary_source}
+    if preview_only:
+        return {
+            "success": True,
+            "preview_only": True,
+            "snapshot_target": arguments,
+            "will_persist_quality_gate": True,
+        }
+    return _call_registered_tool("validate_valuation_data", arguments)
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "equity_read_pool_catalog": _fallback_equity_read_pool_catalog,
     "equity_read_valuation_analysis": _fallback_equity_read_valuation_analysis,
@@ -351,9 +456,15 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "equity_read_valuation_repair_config": _fallback_equity_read_valuation_repair_config,
     "equity_read_valuation_repair_config_catalog": _fallback_equity_read_valuation_repair_config_catalog,
     "equity_read_financial_history": _fallback_equity_read_financial_history,
+    "equity_read_score": _fallback_equity_read_score,
+    "equity_compute_recommendations": _fallback_equity_compute_recommendations,
+    "equity_compute_analysis": _fallback_equity_compute_analysis,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "equity_create_valuation_repair_config": _internal_handler_equity_create_valuation_repair_config,
     "equity_activate_valuation_repair_config": _internal_handler_equity_activate_valuation_repair_config,
+    "equity_run_valuation_repair_scan": _internal_handler_equity_run_valuation_repair_scan,
+    "equity_sync_valuation_data": _internal_handler_equity_sync_valuation_data,
+    "equity_create_valuation_quality_snapshot": _internal_handler_equity_create_valuation_quality_snapshot,
 }

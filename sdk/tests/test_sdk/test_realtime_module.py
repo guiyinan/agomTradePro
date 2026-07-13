@@ -82,7 +82,15 @@ def test_get_top_gainers_and_most_active_sort_snapshot(client):
         ]
     }
 
-    with patch.object(client, "_request", return_value=mock_snapshot):
+    with patch.object(
+        client,
+        "_request",
+        side_effect=[
+            {"results": [mock_snapshot["prices"][1], mock_snapshot["prices"][0]]},
+            {"results": [mock_snapshot["prices"][2]]},
+            mock_snapshot,
+        ],
+    ):
         gainers = client.realtime.get_top_gainers(limit=2)
         losers = client.realtime.get_top_losers(limit=1)
         active = client.realtime.get_most_active(limit=1)
@@ -90,6 +98,24 @@ def test_get_top_gainers_and_most_active_sort_snapshot(client):
     assert [item["asset_code"] for item in gainers] == ["B", "A"]
     assert [item["asset_code"] for item in losers] == ["C"]
     assert [item["asset_code"] for item in active] == ["C"]
+
+
+def test_get_top_movers_uses_cached_read_endpoint(client):
+    response = {
+        "results": [
+            {"asset_code": "B", "price": 20, "change_pct": 5.0},
+            {"asset_code": "A", "price": 10, "change_pct": 1.0},
+        ]
+    }
+    with patch.object(client, "_request", return_value=response) as request:
+        movers = client.realtime.get_top_movers(direction="up", limit=2)
+
+    assert [item["asset_code"] for item in movers] == ["B", "A"]
+    request.assert_called_once_with(
+        "GET",
+        "/api/realtime/top-movers/",
+        params={"direction": "up", "limit": 2},
+    )
 
 
 def test_get_market_summary_endpoint_and_overview_compatibility_fields(client):
