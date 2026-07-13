@@ -119,9 +119,14 @@ class RealtimeModule(BaseModule):
             >>> for bar in history:
             ...     print(f"{bar['timestamp']}: {bar['close']}")
         """
-        params: dict[str, Any] = {"period": period, "limit": limit}
-        response = self._get(f"prices/{asset_code}/history/", params=params)
-        results = response.get("results", response)
+        response = self._client.data_center.get_price_history(
+            asset_code=asset_code,
+            freq=period,
+            limit=limit,
+        )
+        results = response.get("data", response.get("results", response))
+        if not isinstance(results, list):
+            raise ValueError("price history response must contain a list")
         return results
 
     def list_alerts(
@@ -355,8 +360,7 @@ class RealtimeModule(BaseModule):
         Note:
             实时推送需要使用 WebSocket 连接
         """
-        data = {"asset_code": asset_code}
-        return self._post("subscriptions/", json=data)
+        self._raise_unsupported_price_subscription_contract()
 
     def unsubscribe_price(
         self,
@@ -368,8 +372,7 @@ class RealtimeModule(BaseModule):
         Args:
             asset_code: 资产代码
         """
-        data = {"asset_code": asset_code}
-        self._post("subscriptions/unsubscribe/", json=data)
+        self._raise_unsupported_price_subscription_contract()
 
     def get_subscriptions(self) -> list[dict[str, Any]]:
         """
@@ -384,9 +387,11 @@ class RealtimeModule(BaseModule):
             >>> for sub in subs:
             ...     print(f"{sub['asset_code']}: {sub['status']}")
         """
-        response = self._get("subscriptions/")
-        results = response.get("results", response)
-        return results
+        self._raise_unsupported_price_subscription_contract()
+
+    def _raise_unsupported_price_subscription_contract(self) -> None:
+        contract = get_unsupported_legacy_contract("realtime.price_subscription")
+        raise UnsupportedFeatureError(contract.build_error_message())
 
     def _get_live_snapshot_prices(self) -> list[dict[str, Any]]:
         snapshot = self._post("prices/")

@@ -131,17 +131,11 @@ class FundModule(BaseModule):
             >>> print(f"业绩分数: {score['performance_score']}")
         """
         normalized_code = self._normalize_fund_code(fund_code)
-        funds = self.list_funds(limit=200)
-        for fund in funds:
-            candidate_code = str(fund.get("fund_code") or fund.get("code") or "")
-            if self._normalize_fund_code(candidate_code) == normalized_code:
-                return fund
-        return {
-            "success": False,
-            "fund_code": normalized_code,
-            "as_of_date": as_of_date.isoformat() if as_of_date else None,
-            "error": "fund score endpoint is not exposed by current canonical API",
-        }
+        params = {"regime": "Recovery"}
+        if as_of_date is not None:
+            params["as_of_date"] = as_of_date.isoformat()
+        response = self._get(f"score/{normalized_code}/", params=params)
+        return response.get("score", response)
 
     def list_funds(
         self,

@@ -13,8 +13,15 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from django.http import JsonResponse
 from django.views import View
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.realtime.application.price_polling_service import PricePollingUseCase
+from apps.realtime.application.query_services import (
+    list_sector_performance_payloads,
+)
+from apps.realtime.interface.serializers import SectorPerformanceQuerySerializer
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +189,18 @@ class SingleAssetPriceView(View):
         payload = {"success": True}
         payload.update(prices[0])
         return JsonResponse(payload)
+
+
+class SectorPerformanceView(APIView):
+    """Read latest persisted sector index performance."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request) -> Response:
+        query = SectorPerformanceQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        results = list_sector_performance_payloads()
+        return Response({"results": results, "count": len(results)})
 
 
 class PricePollingTriggerView(View):

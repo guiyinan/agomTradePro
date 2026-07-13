@@ -151,6 +151,50 @@ def test_equity_pool_default_read_chain_does_not_persist_business_state(
 
 
 @pytest.mark.django_db
+def test_equity_financial_history_is_persisted_only_and_filters_period_type(
+    authenticated_client,
+):
+    FinancialDataModel.objects.create(
+        stock_code="000001.SZ",
+        report_date="2025-12-31",
+        report_type="4Q",
+        revenue=Decimal("100"),
+        net_profit=Decimal("10"),
+        total_assets=Decimal("500"),
+        total_liabilities=Decimal("300"),
+        equity=Decimal("200"),
+        roe=5.0,
+        debt_ratio=60.0,
+    )
+    FinancialDataModel.objects.create(
+        stock_code="000001.SZ",
+        report_date="2025-09-30",
+        report_type="3Q",
+        revenue=Decimal("75"),
+        net_profit=Decimal("7"),
+        total_assets=Decimal("480"),
+        total_liabilities=Decimal("290"),
+        equity=Decimal("190"),
+        roe=4.0,
+        debt_ratio=60.4,
+    )
+
+    with patch(
+        "apps.data_center.application.on_demand.OnDemandDataCenterService.ensure_financials"
+    ) as hydrate:
+        response = authenticated_client.get(
+            "/api/equity/financials/000001.SZ/?report_type=annual&limit=5"
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["count"] == 1
+    assert payload["results"][0]["period_type"] == "annual"
+    assert payload["results"][0]["report_date"] == "2025-12-31"
+    hydrate.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_equity_refresh_pool_returns_503_when_regime_missing(authenticated_client):
     with patch("apps.regime.application.current_regime.resolve_current_regime", return_value=None):
         response = authenticated_client.post("/api/equity/pool/refresh/", {}, format="json")

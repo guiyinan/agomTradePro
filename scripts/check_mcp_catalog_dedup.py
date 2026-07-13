@@ -4,13 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SDK_ROOT = REPO_ROOT / "sdk"
+GOVERNANCE_BASELINE_PATH = REPO_ROOT / "governance" / "governance_baseline.json"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(SDK_ROOT) not in sys.path:
@@ -147,6 +148,58 @@ def validate_mcp_catalog_dedup(capabilities) -> dict[str, int]:
     }
 
 
+def collect_mcp_governance_metrics(
+    capabilities,
+    *,
+    dedup_summary: dict[str, int],
+) -> dict[str, int]:
+    """Measure every MCP governance counter stored in the machine baseline."""
+
+    from agomtradepro.unsupported_legacy_contracts import (
+        list_unsupported_legacy_contracts,
+    )
+    from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
+    from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
+
+    from scripts.check_mcp_write_evidence import is_write_like_manifest
+
+    manifests = CapabilityRegistryLoader().load_manifests()
+    write_count = sum(1 for manifest in manifests if is_write_like_manifest(manifest))
+    legacy_count = dedup_summary["legacy_capabilities"]
+    replacement_count = dedup_summary["replacement_links"]
+    return {
+        "default_top_level_tool_count": len(CORE_TOOL_NAMES),
+        "governed_manifest_count": len(manifests),
+        "governed_read_capability_count": len(manifests) - write_count,
+        "governed_write_like_capability_count": write_count,
+        "catalog_candidate_count": len(capabilities),
+        "legacy_capability_count": legacy_count,
+        "replacement_link_count": replacement_count,
+        "legacy_without_replacement_count": legacy_count - replacement_count,
+        "unsupported_legacy_contract_count": len(list_unsupported_legacy_contracts()),
+        "raw_tool_file_count": len(
+            list((SDK_ROOT / "agomtradepro_mcp" / "tools").glob("*_tools.py"))
+        ),
+    }
+
+
+def validate_mcp_governance_baseline(
+    actual: dict[str, int],
+    expected: dict[str, int],
+) -> None:
+    """Reject stale, missing, or extra MCP counters in the machine baseline."""
+
+    if actual == expected:
+        return
+    details = []
+    for key in sorted(set(actual) | set(expected)):
+        if actual.get(key) != expected.get(key):
+            details.append(
+                f"{key}: actual={actual.get(key)!r}, baseline={expected.get(key)!r}"
+            )
+    raise ValueError("MCP governance baseline mismatch:\n- " + "\n- ".join(details))
+
+
 def main() -> int:
     """CLI entrypoint for MCP catalog dedup validation."""
     parser = argparse.ArgumentParser(
@@ -156,9 +209,19 @@ def main() -> int:
 
     capabilities = collect_mcp_sync_capabilities()
     summary = validate_mcp_catalog_dedup(capabilities)
+    baseline = json.loads(GOVERNANCE_BASELINE_PATH.read_text(encoding="utf-8"))
+    governance_metrics = collect_mcp_governance_metrics(
+        capabilities,
+        dedup_summary=summary,
+    )
+    validate_mcp_governance_baseline(
+        governance_metrics,
+        baseline["mcp_governance"],
+    )
     print("MCP catalog dedup OK")
     for key, value in summary.items():
         print(f"- {key}: {value}")
+    print("MCP governance baseline OK")
     return 0
 
 

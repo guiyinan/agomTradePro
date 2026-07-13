@@ -1087,6 +1087,20 @@ class AlphaService:
 
         return status
 
+    def get_factor_exposure(
+        self,
+        *,
+        stock_code: str,
+        trade_date: date,
+        provider_name: str = "simple",
+    ) -> dict[str, Any]:
+        """Return factor exposure from one explicitly selected registered provider."""
+
+        provider = self._registry.get_provider(provider_name)
+        if provider is None:
+            raise ValueError(f"Provider '{provider_name}' does not exist")
+        return provider.get_factor_exposure(stock_code, trade_date)
+
     def get_provider_registry_status(self) -> dict[str, dict[str, Any]]:
         """Return registered provider metadata without running health checks."""
         status = {}

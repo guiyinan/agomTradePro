@@ -13,6 +13,17 @@ from apps.equity.application.repository_provider import (
 )
 
 
+def _resolved_financial_period_type(financial: Any) -> str:
+    """Return canonical period type for Data Center and legacy financial records."""
+
+    if financial.period_type:
+        return str(financial.period_type)
+    return {3: "quarterly", 6: "semi_annual", 9: "quarterly", 12: "annual"}.get(
+        financial.report_date.month,
+        "",
+    )
+
+
 def get_valuation_repair_snapshot_map(stock_codes: list[str]) -> dict[str, dict[str, Any]]:
     """Return valuation repair snapshots keyed by upper security code."""
     normalized_codes = [code for code in stock_codes if code]
@@ -57,3 +68,44 @@ def fetch_index_daily_returns(
         end_date=end_date,
         hydrate=hydrate,
     )
+
+
+def list_stock_financial_payloads(
+    *,
+    stock_code: str,
+    report_type: str = "all",
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Return persisted financial snapshots through the equity application boundary."""
+
+    financials = get_equity_stock_repository().get_financial_data(
+        stock_code,
+        limit=max(limit * 4, limit),
+        hydrate=False,
+    )
+    if report_type != "all":
+        financials = [
+            item
+            for item in financials
+            if _resolved_financial_period_type(item) == report_type
+        ]
+    financials = financials[:limit]
+    return [
+        {
+            "stock_code": item.stock_code,
+            "report_date": item.report_date.isoformat(),
+            "period_type": _resolved_financial_period_type(item),
+            "revenue": str(item.revenue),
+            "net_profit": str(item.net_profit),
+            "revenue_growth": item.revenue_growth,
+            "net_profit_growth": item.net_profit_growth,
+            "total_assets": str(item.total_assets),
+            "total_liabilities": str(item.total_liabilities),
+            "equity": str(item.equity),
+            "roe": item.roe,
+            "roa": item.roa,
+            "debt_ratio": item.debt_ratio,
+            "source": item.source,
+        }
+        for item in financials
+    ]

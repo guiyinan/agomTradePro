@@ -6,6 +6,7 @@ Interface层:
 - 使用DRF Serializer进行数据转换
 """
 from django.apps import apps as django_apps
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -360,6 +361,77 @@ class StrategyExecutionLogListSerializer(serializers.ModelSerializer):
             'is_success', 'signals_count',
             'strategy_name', 'portfolio_name'
         ]
+
+
+class StrictStrategySerializer(serializers.Serializer):
+    """Base serializer that rejects fields outside a canonical contract."""
+
+    def to_internal_value(self, data):
+        """Reject unknown request or query fields."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
+class StrategyExecuteRequestSerializer(StrictStrategySerializer):
+    """Validate canonical strategy execution input."""
+
+    portfolio_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    as_of_date = serializers.DateField(required=False, allow_null=True)
+
+    def validate_as_of_date(self, value):
+        """Reject historical execution until the executor supports point-in-time context."""
+
+        if value is not None and value != timezone.localdate():
+            raise serializers.ValidationError(
+                "Historical strategy execution is not supported; omit as_of_date"
+            )
+        return value
+
+
+class StrategySignalQuerySerializer(StrictStrategySerializer):
+    """Validate strategy signal list filters."""
+
+    status = serializers.CharField(required=False, allow_blank=False, max_length=32)
+    limit = serializers.IntegerField(required=False, default=50, min_value=1, max_value=200)
+
+
+class StrategyPerformanceQuerySerializer(StrictStrategySerializer):
+    """Validate strategy performance date filters."""
+
+    start_date = serializers.DateField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        """Reject inverted date windows."""
+
+        if attrs.get("start_date") and attrs.get("end_date"):
+            if attrs["start_date"] > attrs["end_date"]:
+                raise serializers.ValidationError("start_date must not be after end_date")
+        return attrs
+
+
+class StrategyHistoryQuerySerializer(StrategyPerformanceQuerySerializer):
+    """Validate bounded strategy trade history filters."""
+
+    limit = serializers.IntegerField(
+        required=False,
+        default=100,
+        min_value=1,
+        max_value=500,
+    )
+
+
+class StrategyEmptyQuerySerializer(StrictStrategySerializer):
+    """Validate a zero-input strategy read contract."""
 
 
 # ========================================================================

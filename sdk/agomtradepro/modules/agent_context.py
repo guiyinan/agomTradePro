@@ -28,6 +28,8 @@ class AgentContextModule(BaseModule):
     def __init__(self, client: Any) -> None:
         super().__init__(client, "/api/agent-runtime/context")
 
+    _ALLOWED_DOMAINS = frozenset({"research", "monitoring", "decision", "execution", "ops"})
+
     def get_context_snapshot(self, domain: str) -> dict[str, Any]:
         """
         Get context snapshot for a given domain.
@@ -47,7 +49,11 @@ class AgentContextModule(BaseModule):
             >>> ctx = client.agent_context.get_context_snapshot("research")
             >>> print(ctx["regime_summary"]["dominant_regime"])
         """
-        return self._get(f"{domain}/")
+        normalized_domain = str(domain or "").strip().lower()
+        if normalized_domain not in self._ALLOWED_DOMAINS:
+            allowed = ", ".join(sorted(self._ALLOWED_DOMAINS))
+            raise ValueError(f"domain must be one of: {allowed}")
+        return self._get(f"{normalized_domain}/")
 
     def get_research_context(self) -> dict[str, Any]:
         """Get research domain context snapshot."""

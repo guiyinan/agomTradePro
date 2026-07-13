@@ -422,6 +422,55 @@ def test_beta_gate_staff_create_increments_version_and_switches_profile_activati
 
 
 @pytest.mark.django_db
+def test_beta_gate_patch_creates_replacement_version(staff_client):
+    current = GateConfigModel.objects.create(
+        config_id="beta-patch-source",
+        risk_profile=GateConfigModel.BALANCED,
+        version=3,
+        is_active=True,
+        regime_constraints={"allowed_regimes": ["Recovery"], "min_confidence": 0.3},
+        policy_constraints={"max_allowed_level": 2, "veto_on_p3": True},
+        portfolio_constraints={
+            "max_total_position_pct": 90.0,
+            "max_single_position_pct": 20.0,
+        },
+    )
+
+    response = staff_client.patch(
+        "/api/beta-gate/configs/beta-patch-source/",
+        {"regime_constraints": {"min_confidence": 0.7}},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["result"]
+    assert payload["replaces_config_id"] == "beta-patch-source"
+    assert payload["version"] == 4
+    assert payload["regime_constraints"]["min_confidence"] == 0.7
+    current.refresh_from_db()
+    assert current.is_active is False
+
+
+@pytest.mark.django_db
+def test_beta_gate_delete_soft_deactivates_config(staff_client):
+    config = GateConfigModel.objects.create(
+        config_id="beta-soft-delete",
+        risk_profile=GateConfigModel.CONSERVATIVE,
+        version=1,
+        is_active=True,
+        regime_constraints={},
+        policy_constraints={},
+        portfolio_constraints={},
+    )
+
+    response = staff_client.delete("/api/beta-gate/configs/beta-soft-delete/")
+
+    assert response.status_code == 204
+    config.refresh_from_db()
+    assert config.is_active is False
+
+
+@pytest.mark.django_db
 def test_beta_gate_all_config_catalog_is_read_only(staff_client):
     GateConfigModel.objects.create(
         config_id="beta-history",

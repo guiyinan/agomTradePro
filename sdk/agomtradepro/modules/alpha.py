@@ -4,22 +4,10 @@ Alpha SDK Module
 提供 Python SDK 访问 Alpha 信号功能。
 """
 
-import os
 from typing import Any
 
 from ..exceptions import ConflictError
 from .base import BaseModule
-
-
-def _get_alpha_service() -> Any:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
-    import django
-
-    if not django.apps.apps.ready:
-        django.setup()
-    from apps.alpha.application.services import AlphaService
-
-    return AlphaService()
 
 
 class AlphaModule(BaseModule):
@@ -309,30 +297,10 @@ class AlphaModule(BaseModule):
             >>> result = client.alpha.get_factor_exposure("000001.SH")
             >>> print(result['factors'])
         """
-        from datetime import date
-
-        parsed_date = date.today()
+        params: dict[str, Any] = {"provider": provider}
         if trade_date:
-            parsed_date = date.fromisoformat(trade_date)
-
-        service = _get_alpha_service()
-        provider_instance = service._registry.get_provider(provider)
-        if not provider_instance:
-            return {
-                "success": False,
-                "error": f"Provider '{provider}' 不存在",
-                "stock_code": stock_code,
-                "factors": {},
-            }
-
-        factors = provider_instance.get_factor_exposure(stock_code, parsed_date)
-        return {
-            "success": True,
-            "stock_code": stock_code,
-            "trade_date": parsed_date.isoformat(),
-            "provider": provider,
-            "factors": factors,
-        }
+            params["trade_date"] = trade_date
+        return self._get(f"factor-exposure/{stock_code}/", params=params)
 
     def check_health(self) -> dict[str, Any]:
         """

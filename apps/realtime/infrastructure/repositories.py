@@ -15,18 +15,15 @@ import pandas as pd
 from django.core.cache import cache
 from django.utils import timezone
 
+from apps.asset_analysis.application.query_services import (
+    list_active_watchlist_asset_codes,
+)
 from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSnapshot
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
-from apps.asset_analysis.application.query_services import (
-    list_active_watchlist_asset_codes,
-)
-from apps.simulated_trading.application.query_services import (
-    list_held_asset_codes as _list_held_asset_codes,
-)
 from apps.realtime.domain.entities import (
     AssetType,
     RealtimePrice,
@@ -35,6 +32,9 @@ from apps.realtime.domain.protocols import (
     PriceDataProviderProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
+)
+from apps.simulated_trading.application.query_services import (
+    list_held_asset_codes as _list_held_asset_codes,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,7 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
         # 使用 cache.set_many 批量设置
         cache.set_many(cache_data, timeout=self.CACHE_TIMEOUT)
         logger.info(f"Batch saved {len(prices)} prices to Redis")
+
 
     def get_latest_price(self, asset_code: str) -> RealtimePrice | None:
         """从 Redis 获取资产的最新价格"""
@@ -116,8 +117,6 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             timestamp=datetime.fromisoformat(data["timestamp"]),
             source=data["source"]
         )
-
-
 class TusharePriceDataProvider(PriceDataProviderProtocol):
     """Tushare 价格数据提供者
 

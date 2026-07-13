@@ -116,3 +116,35 @@ MANIFESTS = [
         legacy_tool_names=("get_market_summary",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="realtime.read.sector_performance",
+        title="Realtime Sector Performance",
+        summary="Read latest persisted sector index performance.",
+        description=(
+            "Return latest persisted sector index performance ordered by change without "
+            "polling providers, refreshing prices, or mutating snapshots."
+        ),
+        owner_app="realtime",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="realtime_read_sector_performance",
+        tags=("realtime", "sector", "performance", "persisted", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "sectors": {"type": "array", "items": {"type": "object"}},
+                "total_count": {"type": "integer", "minimum": 0},
+            },
+            "required": ["sectors", "total_count"],
+        },
+        legacy_tool_names=("get_sector_realtime_performance",),
+    )
+)

@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.query_services import get_sector_score_payload
 from ..application.repository_provider import get_sector_adapter, get_sector_repository
 from ..application.use_cases import (
     AnalyzeSectorRotationUseCase,
@@ -23,6 +24,7 @@ from .serializers import (
     AnalyzeSectorRotationRequestSerializer,
     SectorRotationQuerySerializer,
     SectorRotationResultSerializer,
+    SectorScoreQuerySerializer,
     UpdateSectorDataRequestSerializer,
 )
 
@@ -123,6 +125,29 @@ class SectorRotationViewSet(viewsets.ViewSet):
         result_serializer = SectorRotationResultSerializer(result)
         response_status = _get_sector_result_status_code(result)
         return Response(result_serializer.data, status=response_status)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path=r"score/(?P<sector_identifier>[^/]+)",
+    )
+    def score(self, request, sector_identifier: str):
+        """Return the latest computed score for one sector."""
+
+        serializer = SectorScoreQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        payload = get_sector_score_payload(
+            sector_identifier=sector_identifier,
+            regime=serializer.validated_data.get("regime"),
+            lookback_days=serializer.validated_data["lookback_days"],
+            level=serializer.validated_data["level"],
+        )
+        if payload is None:
+            return Response(
+                {"success": False, "error": f"板块 {sector_identifier} 暂无评分"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"success": True, "score": payload})
 
 
 class SectorDataUpdateView(APIView):

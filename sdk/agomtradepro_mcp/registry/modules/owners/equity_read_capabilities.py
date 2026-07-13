@@ -399,3 +399,45 @@ MANIFESTS = [
         legacy_tool_names=("list_valuation_repair_configs",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="equity.read.financial_history",
+        title="Equity Financial History",
+        summary="Read persisted financial statements for one stock.",
+        description=(
+            "Return a bounded annual, quarterly, or complete financial history from "
+            "persisted Equity and Data Center facts without on-demand hydration."
+        ),
+        owner_app="equity",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="equity_read_financial_history",
+        tags=("equity", "financials", "history", "persisted", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "stock_code": {"type": "string", "minLength": 1, "maxLength": 32},
+                "report_type": {
+                    "type": "string",
+                    "enum": ["annual", "quarterly", "all"],
+                    "default": "annual",
+                },
+                "limit": {"type": "integer", "minimum": 1, "maximum": 40},
+            },
+            "required": ["stock_code"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "stock_code": {"type": "string"},
+                "report_type": {"type": "string"},
+                "financials": {"type": "array", "items": {"type": "object"}},
+                "total_count": {"type": "integer", "minimum": 0},
+            },
+            "required": ["stock_code", "report_type", "financials", "total_count"],
+        },
+        legacy_tool_names=("get_stock_financials",),
+    )
+)

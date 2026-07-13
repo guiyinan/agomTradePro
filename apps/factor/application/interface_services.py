@@ -11,6 +11,7 @@ from apps.factor.application.repository_provider import (
     get_factor_definition_repository,
     get_factor_integration_service,
     get_factor_portfolio_config_repository,
+    get_factor_portfolio_holding_repository,
 )
 from apps.factor.application.use_cases import (
     CalculateScoresRequest,
@@ -159,6 +160,30 @@ def create_factor_portfolio(*, config_name: str, trade_date_value=None) -> dict 
         config_name,
         trade_date_value,
     )
+
+
+def get_factor_portfolio(*, config_name: str) -> dict[str, Any] | None:
+    """Return the latest persisted holdings for one factor portfolio config."""
+
+    holdings = get_factor_portfolio_holding_repository().get_latest_holdings(config_name)
+    if not holdings:
+        return None
+    return {
+        "config_name": config_name,
+        "trade_date": holdings[0].trade_date.isoformat(),
+        "total_stocks": len(holdings),
+        "holdings": [
+            {
+                "stock_code": holding.stock_code,
+                "stock_name": holding.stock_name,
+                "weight": round(float(holding.weight) * 100, 2),
+                "factor_score": round(float(holding.factor_score), 2),
+                "rank": holding.rank,
+                "sector": holding.sector,
+            }
+            for holding in holdings
+        ],
+    }
 
 
 def explain_stock_score(

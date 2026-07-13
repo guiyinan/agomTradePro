@@ -31,7 +31,7 @@
 8. 已落地 unsupported legacy contract 显式清单：
    - `sdk/agomtradepro/unsupported_legacy_contracts.py`
    - 已登记 contract 的实时数量读取 `governance/governance_baseline.json` 的 `mcp_governance.unsupported_legacy_contract_count`
-   - 当前登记项包含：`realtime.delete.price_alert`
+   - 当前登记项包含：`realtime.delete.price_alert`、`realtime.price_subscription`
    - 对应 raw tools 由 inventory 与 unsupported contract registry 自动关联，本文不维护数量副本
 9. 已落地 `sdk/agomtradepro_mcp/tools/core_tools.py`，统一入口工具固定为：
    - `agom_bootstrap`
@@ -152,7 +152,8 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
 | registered `@server.tool()` definitions | `mcp_tool_count` | `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text` |
 | legacy catalog capabilities | `mcp_governance.legacy_capability_count` | `python scripts/check_mcp_catalog_dedup.py` |
 | replacement links | `mcp_governance.replacement_link_count` | `python scripts/check_mcp_catalog_dedup.py` |
-| unsupported legacy contracts | `mcp_governance.unsupported_legacy_contract_count` | unsupported contract registry check |
+| legacy without replacement | `mcp_governance.legacy_without_replacement_count` | `python scripts/check_mcp_catalog_dedup.py` |
+| unsupported legacy contracts | `mcp_governance.unsupported_legacy_contract_count` | `python scripts/check_mcp_catalog_dedup.py` |
 | raw tool file surface | `mcp_governance.raw_tool_file_count` | `python scripts/check_mcp_no_raw_tools.py` |
 | business modules | `business_module_count` | `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text` |
 | static test functions | `static_test_function_count` | `python scripts/check_governance_consistency.py --baseline governance/governance_baseline.json --format text` |
@@ -167,6 +168,15 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
 - README、系统规格、架构文档、SDK/MCP 指南、文档索引、技术标准和本计划只引用机器字段、生成产物及验证命令。
 - `scripts/check_governance_consistency.py` 已将上述现行文档及 `docs/governance/ARCHITECTURE_GUARDRAILS.md` 纳入守卫，缺失机器真源引用或重新复制当前治理数量都会产生 CI 违规。
 
+SDK/MCP 契约审计状态（2026-07-13）：
+
+- `scripts/check_sdk_route_contracts.py` 已同时覆盖 `BaseModule` 相对路径调用和非继承模块的 `self._client` 绝对 API 调用；正式 SDK 的静态 route/method 契约已通过该守卫。
+- Simulated Trading 的交易历史、平仓和重置，Strategy 的执行与持久化读取 actions，Beta Gate 的不可变配置替换/软停用，Fund/Sector 单项评分，Equity 财务历史，Factor 持久化组合读取，Alpha 因子暴露与 Realtime 板块表现均已补真实 canonical contract；这只关闭 SDK/API 缺口，不自动等于 MCP governed 完成。
+- Realtime 历史价格由 SDK 委托 `data_center` 唯一 owner，不在 Realtime 重建重复 route；没有 WebSocket 或 polling 执行链的 price subscription 进入显式 unsupported contract，不再创建只存列表但不交付推送的伪 API。
+- Route 守卫扩面后暴露的 Hedge query-string 路径和 Rotation 点号资产代码/action 冲突已修复；后续不得把“自定义 SDK 模块未被扫描”当作路由通过。
+- 未建立 replacement 的 legacy 项统一读取 `mcp_governance.legacy_without_replacement_count`。该集合同时包含显式 unsupported、证据不足冻结项和本批刚补齐 canonical contract 的候选，禁止把它们等同为可直接 alias 的同一类问题。
+- 本批已将 `get_stock_financials`、`get_fund_score`、`get_sector_score`、`get_sector_realtime_performance`、`get_strategy_performance`、`get_strategy_signals`、`get_strategy_positions` 与 `get_factor_portfolio` 分别收口到 owner-scoped governed read，并通过正式 SDK、controlled fallback、core-only、catalog replacement 和 read-evidence。`get_alpha_factor_exposure` 仍因 provider 副作用证据未闭合而冻结。
+
 当前批次状态备注：
    - `account.update.macro_sizing_config` 已完成 write 收口：legacy raw tool 继续兼容，governed capability 通过 Account SDK 读取 active 配置生成无写入 preview，确认后才以 canonical PATCH 创建并激活新版本；manifest 固定 staff role、confirmation、required idempotency 与 audit tags
    - Terminal Agent 的 capability 可见性与高风险意图匹配已从 `agent_runtime` 对 `ai_capability` Domain/Infrastructure 的直接依赖，改为由 Terminal composition root 注入 AI Capability Application Facade；Terminal 仍保持 MCP-backed，模块循环与依赖预算已恢复
@@ -174,7 +184,7 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - Strategy AI 配置读取已新增 `strategy.read.ai_config_catalog` 与 `strategy.read.ai_config_detail`；AI config queryset 通过关联 strategy owner 执行相同范围隔离，配置不存在时返回未配置结果而不创建默认记录
    - Strategy 仓位规则读取已新增 `strategy.read.position_rule_catalog` 与 `strategy.read.position_rule_detail`；独立 rule ViewSet 与按策略 detail 均执行 owner/staff scope，读取不触发规则评估、启停或写入
    - Strategy 仓位计算已新增 `strategy.compute.position_rule` 与 `strategy.compute.position_management`；两条 canonical POST 均复用 owner/staff scoped ViewSet 对象查询，只调用纯表达式计算服务，focused API 合同证明跨用户返回 404 且全部 Strategy 业务表计数不变
-   - Strategy Script Config、Rule Condition、Assignment 在 canonical API 中存在但没有对应 raw MCP tool；按现行 read-evidence 标准继续冻结，不得仅因 SDK/API 存在就直接新增 manifest。Strategy performance、signals、positions 的 SDK 路径仍指向当前 ViewSet 不存在的 action，同样继续冻结
+   - Strategy Script Config、Rule Condition、Assignment 在 canonical API 中存在但没有对应 raw MCP tool；按现行 read-evidence 标准继续冻结，不得仅因 SDK/API 存在就直接新增 manifest。Strategy execute、performance、signals、positions 已完成 governed 收口；trades action 已补 canonical route但缺 raw MCP 证据，继续冻结
    - Equity 估值修复已新增 `equity.compute.valuation_repair_status`、`equity.compute.valuation_repair_history`、`equity.read.valuation_repair_config` 与 `equity.read.valuation_repair_config_catalog`；status/history 已移除运行时配置 cache miss 写入，history 保留 canonical provenance，config active/catalog 保持 staff-only 且无配置时不创建默认行
    - Dashboard Alpha 历史读取已新增 `dashboard.read.alpha_history` 与 `dashboard.read.alpha_history_detail`；列表和详情保持 authenticated user scope，详情跳过 Equity asset-name read-through backfill，并禁止从 legacy holding 向 AssetMaster 写入
    - `risk_center.read.post_investment_check`、`risk_center.read.daily_report`、`risk_center.read.daily_report_history`、`pulse.read.current`、`pulse.read.history`、`data_center.read.provider_status`、`data_center.read.macro_series`、`data_center.read.indicator_catalog`、`system.read.task_monitor.statistics`、`task_monitor.read.task_status`、`task_monitor.read.task_list`、`task_monitor.read.dashboard`、`task_monitor.read.celery_health`、`system.read.policy.status`、`regime.read.history` 与 `policy.read.events` 已完成 manifest、core-only fallback、focused API / SDK evidence、core registry、ai capability 与 governance guards 回归
@@ -203,7 +213,7 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - Audit summary 的半日期范围和 backtest/date 混用会在 governed fallback 中显式拒绝，不再静默退回 SDK 默认窗口
    - `list_portfolios` 与 `get_portfolio` 暂不迁移：legacy raw tool、SDK dataclass 与 canonical serializer 对 `cash/positions` 的输出语义不一致，必须先定义唯一组合摘要/detail 契约
    - `list_portfolios`、`get_portfolio`、`get_positions_detailed`、`get_transactions_detailed` 与 `get_capital_flows_detailed` 已完成迁移：raw tools 不再直接使用通用 HTTP client 拼装分页，而是统一调用正式 Account SDK；组合详情的 positions 与全部持仓读取走 `/api/account/positions/read-only/`，focused contract 证明不会创建统一账户、统一持仓或 ledger mapping
-   - `get_sector_realtime_performance` 因 canonical endpoint 不存在继续冻结；`get_top_movers` 因底层通过 POST 触发实时价格快照、存在副作用，不得伪装为 governed read
+   - `get_sector_realtime_performance` 已补 persisted-only canonical endpoint 并收口为 `realtime.read.sector_performance`；`get_top_movers` 因底层通过 POST 触发实时价格快照、存在副作用，继续禁止伪装为 governed read
    - `data_center_get_capital_flows` 的历史参数漂移已完成整改：persisted read 统一使用 `asset_code/start/end/limit`，`period` 仅保留在 provider sync 路径，并由 `data_center.read.capital_flows` 统一 replacement
    - `alpha_trigger.read.trigger_list`、`alpha_trigger.read.candidate_list`、`alpha_trigger.read.candidate_detail` 与 `alpha_trigger.read.performance` 已完成 canonical API success、正式 SDK endpoint、raw MCP、core-only fallback、catalog replacement 和 read-evidence 收口
    - Alpha Trigger 两条 list governed 输出分别固定为 `triggers + total_count` 和 `candidates + total_count`；legacy SDK/raw 继续保持裸数组兼容，candidate detail 在 governed fallback 中只返回 canonical `result` 对象
@@ -215,7 +225,7 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - `sector.read.rotation_ranking` 已完成收口：canonical GET/POST analyze 已移除空数据惰性同步，显式 update-data 已收紧为 staff-only，未提供 regime 时只读取持久化快照，沪深 300 基准读取固定 `hydrate=False`；正式 SDK `get_rotation_ranking()`、`list_sectors` / `get_sector_recommendations` / `get_hot_sectors` compatibility alias、core-only fallback、catalog replacement 与 Sector 相关表零变化证据已闭合
    - `fund.compute.screen` 已完成 pure-compute 收口，同时修复既有 `fund.read.ranking` 的隐藏写入边界：两条 canonical 契约现在只读取持久化基金主数据、业绩快照、行业配置和偏好，screen 缺省 Regime 只读取最新持久化快照；播种、缺失业绩计算持久化和 Tushare/NAV 同步均被 fail-fast 证据禁止
    - `get_sector_stocks` 已作为跨模块 compatibility alias 收口到 `equity.read.pool_catalog`：它实际只委托 Equity 股票池的 sector filter，不新增重复 Sector capability；legacy `order_by` 因 canonical API 未实现，不进入 governed schema
-   - `get_stock_financials` 因正式 SDK 仍直接返回空数组继续冻结，不得借估值分析的财务上下文投影伪造独立 financial history capability
+   - `get_stock_financials` 已从空数组占位改为 authenticated canonical persisted-only financial history，并收口为 `equity.read.financial_history`；GET 固定 `hydrate=False` 并执行报告期过滤，owner fallback、core-only、catalog replacement 与 read evidence 已闭合
    - `decision_rhythm.read.quota_list`、`decision_rhythm.read.request_list`、`decision_rhythm.read.request_detail` 与 `decision_rhythm.read.summary` 已完成 canonical API success、正式 SDK endpoint、raw MCP、core-only fallback、catalog replacement 和 read-evidence 收口
    - Decision Rhythm 两条 list governed 输出分别固定为 `quotas + total_count` 与 `requests + total_count`；request detail 和 summary 在 governed fallback 中只返回 canonical `result` 对象
    - Decision Rhythm summary 固定为零参数：legacy raw/SDK 虽允许传 `payload`，但 canonical API 当前不读取该参数，因此不得把 `days` 或任意 payload 固化进 governed schema
@@ -256,7 +266,7 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
 
 #### 0.2.3 当前默认续做顺序
 
-1. 第一优先项：重新审计 raw-tool gap inventory 并锁定下一条证据链完整的候选。`alpha_trigger.read.performance`、`equity.read.valuation_analysis`、`sector.read.rotation_ranking` 与 `fund.compute.screen` 已完成，不得继续占用默认续做入口；`get_stock_financials` 因正式 SDK 为空实现继续冻结
+1. 第一优先项：重新审计 raw-tool gap inventory 并锁定下一条证据链完整的候选。`equity.read.financial_history`、`fund.read.score`、`sector.read.score`、`realtime.read.sector_performance`、`strategy.read.performance`、`strategy.read.signals`、`strategy.read.positions` 与 `factor.read.portfolio` 已完成，不得继续占用默认续做入口
    - `account.create.unified_account` 已完成收口，不再占用默认续做入口：legacy `create_account`、正式 Account SDK、canonical `/api/account/accounts/`、owner-scoped 名称冲突规则、real/simulated 创建合同、pure-read preview、confirmation、required idempotency、MCP lifecycle audit、catalog replacement 和 focused SDK/API/registry contract 已闭合
    - 统一账户创建与 `trading.create.simulated_account` 保持两个语义：前者允许 real/simulated 并走 Account canonical API，后者只创建模拟交易账户并保留模拟交易专用输入；不得为了减少 capability 数量错误合并
    - `account.create.position` 已完成收口，不再占用默认续做入口：legacy `create_position`、正式 Account SDK GET/POST、canonical owner/observer 权限、统一账本同资产合并、buy ledger entry、pure-read preview、confirmation、required idempotency、MCP lifecycle audit 与 catalog replacement 已闭合；该能力只维护内部持仓账本，不发送外部 broker order
@@ -300,7 +310,7 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - 刚完成迁移：Equity valuation repair status/history 纯计算与 active config/config catalog staff-only 读取已通过 canonical API、正式 SDK、raw MCP、core-only fallback、catalog replacement、read-evidence 与 focused regression；下一默认入口不得继续停留在这四条路径
    - Equity repair status/history 必须继续保持 `use_cache=False`，config catalog 的 `limit` 只允许 SDK 本地截断；后续不得重新引入 cache miss 写入或伪 API 参数
    - 刚完成迁移：`strategy.compute.position_rule` 与 `strategy.compute.position_management` 已通过 owner/staff scoped canonical POST、纯计算业务表计数、正式 SDK endpoint、raw MCP、core-only fallback、catalog replacement 与 read-evidence；下一默认入口不得继续停留在 Strategy 仓位 evaluate
-   - Strategy Script Config、Rule Condition、Assignment 缺 raw MCP tool，performance、signals、positions 缺真实 canonical action；这些路径继续冻结，不得为扩大迁移统计补猜测契约
+   - Strategy Script Config、Rule Condition、Assignment 缺 raw MCP tool，继续冻结；performance、signals、positions 已补真实 canonical action并完成 governed read evidence，不再列为缺口
    - 刚完成迁移：`decision.read.advisor_sheet`、`dashboard.read.auto_advisor_console`、`dashboard.query.auto_advisor`、`dashboard.read.auto_advisor_weekly_report`、`dashboard.read.auto_advisor_weekly_report_history` 与 `dashboard.read.auto_advisor_notifications` 已通过 raw tool、正式 SDK、canonical API 用户范围和纯读合同、core-only fallback、catalog replacement 与 read-evidence；下一默认入口不得继续停留在 Auto Advisor read family
    - Dashboard weekly report POST 继续按 workflow/write 分流；除已具备独立 canonical GET 与 SQL 零写证明的 equity curve、asset allocation 和 position catalog 外，其余 v1 页面聚合及内部 Alpha 视图继续保持 internal-only
    - 刚完成迁移：`equity.read.valuation_repair_list`、`equity.read.valuation_freshness` 与 `equity.read.valuation_quality_latest` 已通过 raw tool、正式 SDK、canonical API、core-only fallback、catalog replacement、read-evidence 和 focused regression；下一默认入口不得继续停留在 Equity 估值持久化读取
@@ -322,14 +332,14 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - `get_action_recommendation` 已完成纯读拆分并迁入 `regime.read.action_recommendation`；`explain_pulse_dimensions` 仍因缺少 SDK/canonical API 证据冻结
    - 刚完成迁移：`audit.read.summary` 与 `audit.read.execution_links` 已通过 raw tool、SDK、canonical API、core-only、catalog replacement 与 read-evidence 全链路；下一默认入口不得继续停留在这两项
    - Audit attribution、indicator performance、threshold validation 等 SDK 读取当前缺少 raw MCP tool，继续留在证据缺口池
-   - Sector rotation ranking 已完成：`GET /api/sector/rotation/` 与 POST analyze 不再惰性调用 `UpdateSectorDataUseCase`，`list_sectors`、`get_sector_recommendations`、`get_hot_sectors` 统一 replacement 到 `sector.read.rotation_ranking`；score/detail/analyze/performance 派生语义仍需独立 canonical contract，不得直接复用排名证据
+   - Sector rotation ranking 已完成：`GET /api/sector/rotation/` 与 POST analyze 不再惰性调用 `UpdateSectorDataUseCase`，`list_sectors`、`get_sector_recommendations`、`get_hot_sectors` 统一 replacement 到 `sector.read.rotation_ranking`；score 已通过独立 strict action 收口为 `sector.read.score`，detail/analyze/performance 派生语义仍需独立 canonical contract
    - 刚完成迁移：`fund.compute.screen` 已通过 authenticated 严格 canonical POST、正式 SDK、raw MCP、core-only fallback、catalog replacement、read-evidence 和 focused pure-compute contract；screen 缺省 Regime 只读取最新持久化快照
    - `fund.read.ranking` 已同步修复隐藏写入边界，与 screen 共同改用 `get_persisted_funds_with_performance()`；`fund.read.detail`、`fund.read.nav_history` 与 `fund.read.holdings` 继续保持原 governed 契约
    - Fund governed 契约只发布 canonical API 真正处理的参数：NAV 不发布当前 API 未执行的 legacy `limit`，holdings 不发布兼容别名 `as_of_date`
-   - `get_fund_score` 继续冻结：当前没有 canonical score endpoint，SDK 只返回兼容失败 payload
+   - `get_fund_score` 已补 authenticated strict canonical GET，并以持久化 ranking projection 收口为 `fund.read.score`；缺失 performance 时只返回无评分，不执行同步或快照保存
    - `list_funds` 与 `get_fund_recommendations` 继续冻结：两者包含兼容过滤、代码归一化或额外详情请求，尚未定义唯一输出契约
    - `get_fund_performance` 已完成副作用审计并冻结为 workflow/write 候选：canonical POST 计算成功后会调用 `save_fund_performance()` 持久化 `FundPerformanceModel`，不得按 read 或 pure compute 迁移
-   - `screen_funds` 已按 pure compute 完成 `fund.compute.screen` 收口；`list_funds`、recommendation、hot-fund、score 与其他分析路径继续冻结，不能借 screen/ranking 证据迁移
+   - `screen_funds` 已按 pure compute 完成 `fund.compute.screen` 收口，score 已独立完成；`list_funds`、recommendation、hot-fund 与其他分析路径继续冻结，不能借 screen/ranking/score 证据迁移
    - 刚完成迁移：`backtest.read.detail` 与 `backtest.read.list` 已通过 canonical API success、正式 SDK endpoint、raw MCP、core-only fallback、catalog replacement 和 read-evidence 全链路
    - Backtest list governed 输入只发布 canonical API 实际处理的 `status` 与 `limit`；legacy/SDK 的 `strategy_name` 当前会被 ViewSet 忽略，因此不得固化进新 schema
    - `get_backtest_equity_curve` 的历史冻结条件已解除：canonical DRF action 已补齐并在 owner scope 完成前固定 staff-only，现由 `backtest.read.equity_curve` 承担持久化纯读合同
@@ -339,15 +349,15 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - 刚完成迁移：`factor.compute.top_stocks` 已通过 canonical POST、正式 SDK、raw MCP、core-only fallback、catalog replacement、read-evidence 与 focused pure-compute contract；默认 `medium` 偏好现形成有效正权重，价格读取固定禁止回写进程缓存，相关业务表计数保持不变
    - 刚完成迁移：`factor.compute.stock_explanation` 已通过 canonical POST、正式 SDK focus contract、raw MCP、core-only fallback、catalog replacement、read-evidence 与 focused pure-compute contract；价格读取禁止回写进程缓存，Factor/Equity 相关业务表计数保持不变
    - Factor explanation 的 `value/growth/quality/balanced` 权重映射已收口到正式 SDK，canonical endpoint 已修复不存在 `StockInfoRepository` 导致成功请求始终返回 500 的缺陷；下一默认入口回到 raw-tool gap 审计
-   - Factor 其余路径继续冻结：`FactorModule.get_portfolio()` 仍直接导入 `apps.factor.infrastructure.repositories`；create portfolio 等 POST/composite 路径必须先完成 workflow/write 副作用分类
+   - Factor persisted portfolio 已移除 SDK Infrastructure 直连并收口为 `factor.read.portfolio`；create portfolio 等 POST/composite 路径继续冻结，必须先完成 workflow/write 副作用分类
    - 刚完成迁移：`alpha.read.provider_status`、`alpha.read.universe_catalog` 与 `alpha.read.health` 已通过 canonical API success、正式 SDK endpoint、raw MCP、core-only fallback、catalog replacement 和 read-evidence 全链路
    - Alpha 本批只接收零参数直接 GET；inference/Qlib-data overview 继续核验 staff role 与聚合输出契约，trigger/refresh 明确按 workflow/write 分流
-   - `get_alpha_factor_exposure` 继续冻结：当前 SDK/raw 路径直接启动本地 Django `AlphaService`，不具备 canonical HTTP endpoint 证据
+   - `get_alpha_factor_exposure` 已移除 SDK 本地 Django 启动并补 authenticated canonical HTTP endpoint；provider 计算链的外部访问、缓存和持久化边界仍需 focused contract，因此只解除“缺 HTTP owner”阻塞，不提前记为 governed 完成
    - `get_alpha_stock_scores` 已完成副作用审计并冻结为 workflow 候选：canonical GET 的 Qlib cache miss 会投递推理任务并写 throttle cache，provider 降级或全失败会创建/更新 Alpha 告警，不得按 read-hint 直接迁移
    - 后续若保留“查询评分”语义，必须先提供严格 cached-only canonical GET；若保留现有自动推理/降级语义，则按 workflow 的 preview、confirmation、idempotency、audit 与状态查询整链治理
    - 刚完成迁移：`alpha_trigger.read.trigger_list`、`alpha_trigger.read.candidate_list` 与 `alpha_trigger.read.candidate_detail` 已通过 canonical API success、SDK endpoint、raw MCP、core-only、catalog replacement 与 read-evidence 全链路
    - Alpha Trigger list 契约保持零参数：trigger list 读取 active triggers，candidate list 读取 actionable candidates；canonical API 中未被 legacy SDK/raw 发布或未实际生效的过滤参数不进入 governed schema
-   - Alpha Trigger trigger detail 因缺 raw tool 继续留在证据缺口池；performance 已确定为下一条候选，先补显式认证、严格 query contract、focused success 与纯读零变化证据；create/evaluate/invalidation/generate 继续按 write/workflow 副作用分类
+   - Alpha Trigger trigger detail 因缺 raw tool 继续留在证据缺口池；performance 已完成 `alpha_trigger.read.performance` 收口；create/evaluate/invalidation/generate 继续按 write/workflow 副作用分类
    - 刚完成迁移：`decision_rhythm.read.quota_list`、`decision_rhythm.read.request_list`、`decision_rhythm.read.request_detail` 与 `decision_rhythm.read.summary` 已通过 canonical API success、SDK endpoint、raw MCP、core-only、catalog replacement 与 read-evidence 全链路
    - Decision Rhythm quota/request list 与 summary 保持零参数；canonical API 支持但 legacy raw/SDK 未发布的过滤参数，以及 summary 当前忽略的 payload，不进入 governed input schema
    - Decision Rhythm cooldown/trend/statistics/by-period 读取因缺 raw tool 继续冻结；quota reset 已完成 `decision.reset.quota` 收口，submit/execute/cancel 继续沿既有 governed write 链路
@@ -373,18 +383,18 @@ MCP 动态治理数据的机器唯一真源是 `governance/governance_baseline.j
    - 刚完成迁移：Sentiment index、recent 和 health 已通过 raw tool、SDK、canonical API、core-only、catalog replacement 与 read-evidence 全链路；下一默认入口不得继续停留在 `get_sentiment_index`、`get_sentiment_recent` 或 `get_sentiment_health`
    - 刚完成迁移：Events query、metrics 和 status 已通过 raw tool、SDK、canonical API integration、core-only、catalog replacement 与 read-evidence 全链路；下一默认入口不得继续停留在 `query_events`、`get_event_metrics` 或 `get_event_bus_status`
    - Account 组合目录/detail 和三个 `*_detailed` 工具已解除冻结：新增独立稳定 envelope 和正式 SDK contract；不得再把它们列入 raw-tool gap。原 `/api/account/positions/` 仍承担统一账本兼容职责，但 governed read 与 legacy read compatibility 已切到严格无同步副作用的 `/api/account/positions/read-only/`
-   - 明确冻结：`get_sector_realtime_performance` 在补齐 canonical endpoint 前不得迁移；`get_top_movers` 在改为无副作用的 cached GET 或重新定义 workflow/write 语义前不得迁移
-   - 刚完成迁移：Sector rotation GET 已拆除空数据惰性更新，基准行情读取禁止 hydration；list/recommendation/hot-sector 同义 alias 已统一收口为 `sector.read.rotation_ranking`，score/detail/analyze/performance 继续按独立语义审计
+   - `get_sector_realtime_performance` 已补 canonical persisted-only endpoint并完成 `realtime.read.sector_performance`；`get_top_movers` 仍须改为无副作用 cached GET 或重新定义 workflow/write 语义后才能迁移
+   - 刚完成迁移：Sector rotation GET 已拆除空数据惰性更新，基准行情读取禁止 hydration；list/recommendation/hot-sector 同义 alias 已统一收口为 `sector.read.rotation_ranking`，score 已独立收口为 `sector.read.score`，detail/analyze/performance 继续审计
    - `data_center.read.capital_flows` 已完成契约统一：persisted read 只发布 `asset_code/start/end/limit`，legacy `period` 继续仅用于 provider sync；严格 serializer、alias 解析、limit、纯读 API/SDK、core-only fallback、catalog replacement 与 read-evidence 已闭合
-   - Fund persisted-only ranking/detail/NAV/holdings 与 pure-compute screen 已完成，不得继续挂在默认下一步；下一条默认入口回到 raw-tool gap 审计，确认新的证据闭合候选后再更新本文
+   - Fund persisted-only ranking/detail/NAV/holdings/score 与 pure-compute screen 已完成，不得继续挂在默认下一步；下一条默认入口回到 raw-tool gap 审计，确认新的证据闭合候选后再更新本文
    - Backtest detail/list 与 staff-only equity curve 已完成，不得继续挂在默认下一步；run/delete/rerun/replay 继续按 write/workflow 冻结结论分流，detail/list 的历史 owner scope 仍需单独整改
-   - Factor definition/config catalog 与 top-stocks pure compute 已完成，不得继续挂在默认下一步；portfolio、解释和组合生成路径继续按架构违规或 POST/composite 结论分流
+   - Factor definition/config catalog、top-stocks/stock-explanation pure compute 与 persisted portfolio read 已完成，不得继续挂在默认下一步；组合生成路径继续按 POST/composite 写入结论分流
    - Alpha provider status/universe/health 与两条 staff-only 运维 overview 已完成，不得继续挂在默认下一步；trigger/refresh 与 factor exposure 按上述边界继续审计
    - `alpha.read.inference_ops_overview` 与 `alpha.read.qlib_data_ops_overview` 已完成 raw tool、正式 SDK、staff-only canonical API、真实默认链纯读合同、core-only fallback、catalog replacement 与 read-evidence 收口
    - Alpha inference overview 已改用非清理型 cache lock inspection；runtime Qlib 配置在 singleton 缺失时只构造未持久化默认对象，不再由 GET 冷启动写库
    - 刚完成迁移：Rotation `get_rotation_config` 已收口为 `rotation.read.config_detail`；raw tool 通过正式 SDK `get_all_configs()` 调用 authenticated canonical `GET /api/rotation/configs/`，focused API 已证明底层只读取持久化 `RotationConfigModel` 且计数不变
    - `rotation.read.config_detail` 只接受 `config_name`，输出固定为 `success + config + available_configs + error`；activate/deactivate/generate_signal 继续按 write/workflow 分流，不得借配置读取证据顺带迁移
-   - Equity `get_stock_financials` 已明确冻结：正式 SDK 当前直接返回空数组，canonical API 只有 `financial-data/sync` POST，没有财务历史 GET owner；不得把空数组兼容结果提升为 governed read
+   - Equity `get_stock_financials` 的空数组和缺 GET owner 问题已修复，并收口为 `equity.read.financial_history`：正式 SDK 调 authenticated persisted-only financial history，GET 不触发 on-demand hydrate 并按报告期过滤；owner fallback、core-only、catalog replacement 与 read evidence 已完成
 2. 第二优先项：对新的默认候选沿固定步骤补 manifest、fallback、registry/catalog metadata 与 focused contract 回归
    - manifest：`sdk/agomtradepro_mcp/registry/modules/basic_read_capabilities.py`
    - core-only fallback：`sdk/agomtradepro_mcp/server.py`
@@ -1723,7 +1733,7 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
 6. 第一优先项已改为沿 raw-tool gap 审计结果继续推进，并筛出下一条证据链完整候选。
    - 进入下一批迁移前，必须先通过已落地的“raw tool + SDK + canonical API 或 internal handler + 现有契约测试”证据门禁。
    - `policy.read.workbench.items`、`policy.read.sentiment_gate.state`、`data_center.read.provider_catalog`、`ai_provider.read.provider_catalog`、`ai_provider.read.provider_detail`、`ai_provider.read.usage_logs`、`filter.read.indicator_catalog`、`filter.read.config_detail`、`prompt.read.template_catalog`、`prompt.read.chain_catalog`、`risk_center.read.floor`、`risk_center.read.template_catalog`、`risk_center.read.effective_policy`、`risk_center.read.account_policy`、`risk_center.read.exception_list`、`risk_center.read.pre_trade_check`、`risk_center.read.post_investment_check`、`risk_center.read.daily_report`、`risk_center.read.daily_report_history`、`data_center.create.publisher`、`data_center.delete.publisher`、`filter.create.filter`、`data_center.create.indicator`、`data_center.delete.indicator`、`data_center.create.indicator_unit_rule`、`data_center.delete.indicator_unit_rule`、`data_center.update.indicator_unit_rule` 与 `data_center.start.sync_job`（`sync_macro`、`sync_capital_flows`、`sync_news`）已于 `2026-07-10` 完成迁移并通过 registry / catalog / guard / focused regression；默认续做入口不再停留在 `list_data_center_providers`、`list_ai_providers`、`get_ai_provider`、`list_ai_usage_logs`、`list_filters`、`get_filter`、`list_prompt_templates`、`list_prompt_chains`、`get_risk_floor`、`list_risk_templates`、`get_effective_risk_policy`、`get_account_risk_policy`、`list_risk_exceptions`、`check_pre_trade_risk`、`check_post_investment_risk`、`get_risk_center_daily_report` 或 `list_risk_center_daily_reports`，同时继续冻结 `sync_prices` / `sync_quotes`。
-   - 本轮新增完成项为 `data_center.read.price_history` 与 `realtime.read.market_summary`；`get_sector_realtime_performance` 与 `get_top_movers` 已形成明确冻结结论，不进入默认迁移序列。
+   - `data_center.read.price_history`、`realtime.read.market_summary` 与后续补齐的 `realtime.read.sector_performance` 已完成；`get_top_movers` 继续按 workflow/write 副作用冻结。
    - 后续同批新增 `data_center.read.latest_quote`、`data_center.read.news` 与 `data_center.read.capital_flows`；资金流 persisted read 已统一为 `asset_code/start/end/limit`，不再接受 legacy `period`。
    - Data Center catalog detail read family 已新增 `publisher_catalog`、`publisher_detail`、`indicator_detail`、`indicator_unit_rules` 与 `indicator_unit_rule_detail`，后续执行人不应重复把对应 raw tools 列为待迁移项。
    - Data Center 当前 raw read 已实现“已治理或显式冻结”；`data_center_get_capital_flows` 已由 `data_center.read.capital_flows` replacement，不再属于冻结入口。
@@ -1743,7 +1753,7 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
    - Audit 归因报告生成已新增 `audit.create.attribution_report`。Canonical preview/commit 已拆入独立 attribution-report API 模块并统一为 staff-only 严格 `backtest_id` 合同；不存在或未完成回测会在外部行情访问和写入前失败。预览只读取回测元数据及既有报告数量，并披露历史行情访问、报告及子记录写入、重复报告与部分写入风险。确认后 commit 才通过正式 Audit SDK 同步生成，legacy `generate_audit_report` 已建立 replacement，并满足 confirmation、required idempotency、MCP lifecycle audit、API/SDK/registry/catalog 与全部 write guards。
    - Config Center 聚合摘要已新增 `config_center.read.snapshot`。Canonical API 保持 staff-only，Account、Config Center 与 Data Center summary repository 的 singleton 缺失分支已改为 unsaved in-memory defaults，Qlib summary 已修复 actor 透传；focused SQL contract 证明整次 snapshot 请求无 INSERT/UPDATE/DELETE。Controlled fallback 只调用正式 SDK `get_snapshot()`，legacy `get_config_center_snapshot` 已建立 replacement，并具备 medium-risk read audit tags、SDK/core-only/catalog/read-evidence 回归。
    - Alpha 批量评分缓存导入已新增 `alpha.import.score_cache`。Canonical preview 与 commit 共享严格批次 serializer 和精确 upsert target，preview 只读取目标并证明无 SQL 写入，system scope 保持 staff-only；internal handler 分别只调用正式 SDK preview/upload 方法，不下传治理参数。Legacy `upload_alpha_scores` 已建立 replacement，并具备 confirmation、required idempotency、MCP lifecycle audit、API/SDK/registry/catalog 与全部 write guards。
-   - 本轮 raw-tool gap 复核冻结 `get_alpha_stock_scores`、`get_stock_detail`、`list_rotation_assets`、`get_asset_info`、`get_recommended_assets` 与 `get_sector_score`：它们分别存在混合 provider/task 链、SDK 本地 pool 扫描、动态价格聚合、raw 硬编码、忽略参数或缺真实 canonical endpoint。后续不得把这些入口误 alias 到 persisted catalog/detail，也不得只补 manifest 制造伪收口。
+   - 本轮 raw-tool gap 复核继续冻结 `get_alpha_stock_scores`、`get_stock_detail`、`list_rotation_assets`、`get_asset_info` 与 `get_recommended_assets`：它们分别存在混合 provider/task 链、SDK 本地 pool 扫描、动态价格聚合、raw 硬编码或缺真实 canonical endpoint。`get_sector_score` 已通过 strict persisted-only owner 链收口为 `sector.read.score`，不再属于该冻结清单。后续不得把仍冻结入口误 alias 到 persisted catalog/detail，也不得只补 manifest 制造伪收口。
    - 本批 large-file growth 已按职责拆分收口，没有提高 machine baseline allowance：Account legacy read projection 归入 `AccountReadRepository`，AI Capability 的 MCP runtime gateway 与 catalog projection 独立成模块，Terminal 用户 AI 配额 metadata 独立成 bundle；实际检查结果只读取 `governance/governance_baseline.json`。
    - MCP 大文件继续按 owner 分片：Audit validation/update internal handlers 已迁出 `server.py`，Audit write manifests 已迁出总写清单，新增 registry 与 catalog 测试使用独立 focused shard；write-evidence guard 已改为扫描受控 handler/test 目录，避免门禁反向迫使代码回填巨型文件。
    - Config Center snapshot 同步建立独立 read handler、manifest、registry 与 catalog shard；read-evidence guard 已改为扫描受控 focused test 目录和 split handler import alias，后续 governed read 不得再扩大 `server.py` 或两个历史巨型测试文件。
@@ -1753,14 +1763,14 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
    - Dashboard 权益曲线已新增 `dashboard.read.equity_curve`。Controlled fallback 只调用正式 SDK `equity_curve_v1()`，输出固定为 `range/has_history/series`；canonical GET 没有 cache decorator，focused SQL contract 证明请求不执行数据库 mutation。Legacy `get_dashboard_equity_curve_v1` 已建立 replacement，并具备 SDK/core-only/catalog/read-evidence 回归。Dashboard summary/regime/signal 的缓存写入证据尚未分离，继续冻结；positions 的历史契约分裂已由独立 JSON route 解决。
    - Regime 与 Pulse 联合行动建议已新增 `regime.read.action_recommendation`。Use case 增加显式 refresh/persist 控制，canonical GET 固定 `refresh_pulse_if_stale=False`、`persist_result=False`，不再刷新 Pulse 或写 `ActionRecommendationLog`；默认用例行为仍保留给非 GET 的显式生成场景。Controlled fallback 只调用正式 Pulse SDK 的 canonical Regime endpoint，完整保留 decision-safety contract；legacy `get_action_recommendation` 已建立 replacement，并具备 API SQL 零写、use-case、SDK/core-only/catalog/read-evidence 回归。
    - Backtest 持久化权益曲线已新增 `backtest.read.equity_curve`。Canonical detail action 只读取既有 JSON curve，并在 Backtest owner scope 完成前固定 staff-only；普通用户返回 403，focused SQL contract 证明无数据库 mutation。正式 SDK 新增稳定 envelope 方法，legacy list-only 方法继续兼容；`get_backtest_equity_curve` 已建立 replacement，并具备 SDK/core-only/catalog/read-evidence 回归。Run/delete/rerun/replay 与 detail/list owner scope 债务不属于本能力完成范围。
-   - `get_alpha_factor_exposure` 复核后继续冻结：SDK 与 raw tool 都直接启动本地 Django `AlphaService`/provider，不走 canonical HTTP，Qlib/simple/ETF provider 的数据访问边界也未形成统一无副作用合同；补齐 canonical owner API 前不得仅加 manifest。
+   - `get_alpha_factor_exposure` 已补 canonical HTTP owner 且 SDK 不再启动本地 Django；Qlib/simple/ETF provider 的外部访问、缓存和持久化边界尚未形成统一无副作用合同，因此在 focused evidence 完成前不得仅加 manifest。
    - Dashboard 用户资产配置已新增 `dashboard.read.asset_allocation`。Canonical JSON endpoint 只读取 authenticated user 的模拟账户及持仓，并在内存中按资产类别聚合；zero-argument capability 不扩张 `account_id` 过滤。Controlled fallback 只调用正式 SDK `allocation()`，输出固定为 `allocation/total_market_value`；legacy `get_dashboard_allocation` 已建立 replacement，并具备 API SQL 零写、SDK/core-only/catalog/read-evidence 回归。
    - Dashboard 用户持仓目录已新增 `dashboard.read.position_catalog`。原 `/api/dashboard/positions/` 继续保留 HTMX/redirect 产品语义，新 `/api/dashboard/positions/data/` 提供 authenticated JSON；正式 SDK `positions()` 已切换到新 route。Zero-argument capability 聚合当前用户全部模拟账户并保留 account metadata，不调用 dashboard backfill 或 ledger sync。Legacy `get_dashboard_positions` 已建立 replacement，并具备 API discovery/SQL 零写、SDK/core-only/catalog/read-evidence 回归。
    - Data Center Provider 连通性测试已按实际副作用收口为 `data_center.run.provider_connection_test`，不得按 read 治理。Canonical POST 保持 staff-only，真实探测会访问外部 provider、执行解析路径并持久化 provider health metadata；Application workflow 在返回和持久化前按 provider credential 精确脱敏，provider create/detail/update 响应只返回安全字段及 credential presence flags。Governed preview 只通过正式 SDK 读取安全 provider metadata，明确披露外部访问、解析和健康状态写入，不执行探测、不写 health metadata、不同步 market facts；确认后 commit 才调用正式 SDK test endpoint。Legacy `test_data_center_provider_connection` 已建立 replacement，并满足 confirmation、required idempotency、MCP lifecycle audit、API/SDK/registry/catalog 与全部 write guards。
    - 本批继续执行大文件 ratchet：Provider capability 映射与 connection workflow 已从历史 `data_center/application/use_cases.py` 拆入独立 Application 模块，机器 allowance 随实际缩减而下调；新增 API、registry 和 catalog 测试均进入 focused shard，未提高任何大文件豁免。
    - 下一候选审计确认 `get_dashboard_summary_v1`、`get_dashboard_regime_quadrant_v1` 与 `get_dashboard_signal_status_v1` 继续冻结。三条 canonical V1 view 均复用完整 `GetDashboardDataUseCase.execute()`；该链在 profile 或 portfolio 缺失时会创建默认记录，还会执行 AI insight 生成，summary/regime view 另有 response-cache 写入。不得只移除 `cached_api` 就按 pure read 迁移；必须先拆出 user-scoped strict read projection，禁止默认对象创建、AI/外部调用、cache write 和其他隐式刷新，再分别补 API SQL/外部调用证据。
    - `get_trade_history`、equity curve、valuation、benchmark 及其他只有 SDK/API、缺 raw MCP 证据的扩展读取继续冻结，不得借本批账户读取验收结果顺带迁移。
-   - Strategy 基础 strategy catalog/detail、AI config catalog/detail、position rule catalog/detail 与两条 position evaluate 纯计算已完成 owner/staff scoped governed 收口；script config、rule condition、assignment 缺 raw MCP tool，performance、signals、positions 等 SDK 方法仍指向当前 ViewSet 未实现的 action，因此这些剩余路径继续冻结。
+   - Strategy 基础 strategy catalog/detail、AI config catalog/detail、position rule catalog/detail、两条 position evaluate 纯计算及 performance/signals/positions 已完成 owner/staff scoped governed 收口；script config、rule condition、assignment 与 trades 缺 raw MCP tool，继续留在证据缺口池。
    - Equity valuation repair list、freshness、latest quality snapshot、status/history 纯计算及 active config/config catalog 已完成 governed 收口；其他 Equity 路径继续按参数漂移、canonical owner、workflow/write 与副作用证据冻结。
    - Hedge 直接读取子集已新增 `hedge.read.pair_catalog`、`hedge.read.pair_detail`、`hedge.read.alert_list` 与 `hedge.read.portfolio_state`。四条能力只读取持久化 pair、active alert 和 latest snapshot，不触发 effectiveness、correlation 或 portfolio refresh。
    - Hedge 多资产相关性矩阵已新增 `hedge.compute.correlation_matrix`：该能力通过 raw tool、正式 SDK、canonical POST、core-only fallback、catalog replacement 与 focused pure-calculation contract。
@@ -1769,28 +1779,28 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
    - Asset Analysis 直接读取子集已新增 `asset_analysis.read.weight_config_catalog`、`asset_analysis.read.current_weight` 与 `asset_analysis.read.pool_summary`。当前权重的无配置降级只构造默认值，不创建数据库行；资产池摘要只读取持久化统计。
    - `asset_multidim_screen`、`asset_pool_screen` 及其任意 payload/composite 路径继续冻结，必须先证明评分上下文构建、资产筛选和池构建链的副作用分类。
    - Equity 估值持久化读取子集已新增 `equity.read.valuation_repair_list`、`equity.read.valuation_freshness` 与 `equity.read.valuation_quality_latest`。repair list 输出固定为 `repairs + total_count + query`；freshness 与 latest quality 不执行同步、扫描、验证或快照创建。
-   - `get_stock_valuation`、repair status/history、score/detail/recommendation/composite analysis、scan/sync/validate 和 valuation config family 已按参数漂移、纯读证据、canonical owner、workflow/write、staff 权限与 fallback 语义分别冻结。
+   - `get_stock_valuation` 已统一输入并收口为 `equity.read.valuation_analysis`，repair status/history 已按 pure compute 收口，financial history 已收口为 `equity.read.financial_history`；score/detail/recommendation/composite analysis、scan/sync/validate 和未治理 config mutation 继续按 canonical owner、workflow/write、staff 权限与 fallback 语义分流。
    - Dashboard Auto Advisor read family 已新增 `decision.read.advisor_sheet`、`dashboard.read.auto_advisor_console`、`dashboard.query.auto_advisor`、`dashboard.read.auto_advisor_weekly_report`、`dashboard.read.auto_advisor_weekly_report_history` 与 `dashboard.read.auto_advisor_notifications`。动态读取不会写名称缓存、同步手工组合 ledger、持久化风险默认配置或生成周报输出记录。
    - Dashboard weekly report POST 继续按 workflow/write 治理；除已治理的 `dashboard.read.equity_curve`、`dashboard.read.asset_allocation` 与 `dashboard.read.position_catalog` 外，内部 v1/Alpha 聚合继续保持 internal-only。
    - Factor 直接目录读取已新增 `factor.read.definition_catalog` 与 `factor.read.config_catalog`。两条能力复用 authenticated canonical GET 和正式 SDK，只执行 definitions/configs 仓储读取并返回命名对象 envelope。
    - Factor top-stocks 已新增 `factor.compute.top_stocks`。该能力复用 authenticated canonical POST 和正式 SDK，只读取 active definitions、股票主数据及 Data Center 已有估值、财务、价格事实；默认偏好已修正为有效正权重，价格读取以 `cache_price_results=False` 禁止回写进程缓存，focused contract 证明不新增 exposure、holding、config 或股票记录。
-   - Factor portfolio SDK 直连 Infrastructure 与 create-portfolio 等写入路径继续冻结，不得借 top-stocks 或 stock-explanation 的纯计算证据顺带迁移。
+   - Factor portfolio SDK 已移除 Infrastructure 直连并补 persisted-only canonical GET，`factor.read.portfolio` 的 owner fallback、core-only、catalog replacement 与 read evidence 已闭合。Create-portfolio 等写入路径继续冻结，不得借读取或 top-stocks 证据顺带迁移。
 7. unsupported legacy contract 要继续单独维护，不与 governed replacement 候选池混放。
    - 当前明确样板是 `realtime.delete.price_alert`：它是显式 unsupported legacy contract，不是待迁移 capability。
 
-### 当前推荐下一批整改顺序（2026-07-12，按最新续做入口重排）
+### 当前推荐下一批整改顺序（2026-07-13，按最新续做入口重排）
 
-上一轮已完成多域 governed read/write 收口，最新补齐 Unified Account、Hedge、Asset Analysis、Equity 估值持久化读取、Dashboard Auto Advisor read family、Factor definition/config catalog、top-stocks pure compute、`beta_gate.create.config`、`data_center.read.capital_flows`、`alpha_trigger.read.performance`、`equity.read.valuation_analysis`、`sector.read.rotation_ranking`、`fund.compute.screen`、`policy.start.rss_fetch`、`audit.start.threshold_validation`、`audit.update.threshold_levels`、`audit.create.attribution_report` 与 `config_center.read.snapshot`，并修正 `fund.read.ranking` 的 persisted-only 边界；`realtime.delete.price_alert` 仍作为 unsupported legacy contract 与普通候选分流。当前新的下一轮整改动作，按优先级从上到下执行；原则是继续只迁移证据链完整的能力，避免把错误 raw path 继续制度化：
+上一轮已完成多域 governed read/write 收口，最新补齐 Unified Account、Hedge、Asset Analysis、Equity 持久化读取、Dashboard Auto Advisor read family、Factor persisted read/compute、Strategy persisted reads、Fund/Sector score、Realtime sector performance、`beta_gate.create.config`、`data_center.read.capital_flows`、`alpha_trigger.read.performance`、`policy.start.rss_fetch`、Audit workflows 与 `config_center.read.snapshot`，并修正 SDK route guard 的动态 helper 覆盖；`realtime.delete.price_alert` 仍作为 unsupported legacy contract 与普通候选分流。当前新的下一轮整改动作，按优先级从上到下执行；原则是继续只迁移证据链完整的能力，避免把错误 raw path 继续制度化：
 
 | 顺序 | 优先迁移目标 capability / 动作 | 当前 raw tool / 语义来源 | 迁移原因 | 最低验收 |
 | --- | --- | --- | --- | --- |
-| 1 | 审计下一条未治理 raw 能力 | raw-tool gap inventory | `get_stock_valuation` 已统一为 `equity.read.valuation_analysis` 并完成纯读证据，不得继续作为候选；`get_stock_financials` 是空 SDK 实现 | 只选择同时具备 raw/internal handler、正式 SDK、canonical contract 和 focused evidence 的能力；证据不完整则冻结 |
+| 1 | 审计下一条未治理 raw 能力 | raw-tool gap inventory | `get_stock_valuation` 与 `get_stock_financials` 已分别统一为 `equity.read.valuation_analysis`、`equity.read.financial_history` 并完成纯读证据，不得继续作为候选 | 只选择同时具备 raw/internal handler、正式 SDK、canonical contract 和 focused evidence 的能力；证据不完整则冻结 |
 | 2 | 冻结 `sync_prices` / `sync_quotes` 直至补齐 raw MCP tool 证据 | SDK `sync_prices()` / `sync_quotes()` + canonical API | 这两个子路径虽已有 SDK 与 canonical API，但当前缺少 raw MCP tool，不满足现行 write-evidence gate；必须先补证据或继续冻结，不能直接进入 governed 迁移 | 证据 review 结论入文档，并在补齐前保持“不进入下一优先项” |
 | 3 | 没有 raw tool 的候选继续留在审计池，不进入默认迁移 | 如 `provider_usage_stats` / `overall_stats` / `get_template` 一类仅有 SDK/API 的路径 | 现行治理标准要求 external MCP 能力保留 raw tool 证据或受控 internal handler 证据；缺口未补齐前，不得为了推进数字继续制度化错误入口 | 在补齐证据前保持“不可进入默认续做入口” |
-| 4 | 冻结无 canonical endpoint 或带隐式副作用的伪 read | `get_sector_realtime_performance` / `get_top_movers` | 前者没有真实 endpoint；后者通过 POST 触发快照刷新。两者都不满足 governed read 语义 | 补齐 GET contract，或显式改为 workflow/write 并满足确认、幂等和审计标准 |
+| 4 | 分流 Realtime 剩余 workflow | `get_top_movers` | Sector performance 已完成 governed persisted read；top movers 仍通过 POST 触发快照刷新，不能按 read 治理 | 显式改为 workflow/write 并满足确认、幂等和审计标准，或拆无副作用 persisted GET |
 | 5 | 审计 Data Center 下一条未治理 raw 能力 | raw-tool gap inventory | `data_center_get_capital_flows` 已统一为 `data_center.read.capital_flows`，不得继续占用默认入口 | 从 inventory 重新选择同时具备 raw/internal handler、正式 SDK、canonical contract 和 focused evidence 的候选 |
-| 6 | 继续冻结 Factor 剩余路径 | `FactorModule.get_portfolio()` / Factor create actions | Backtest equity curve canonical action 已完成；Factor portfolio 仍由 SDK 直接导入 Infrastructure Repository，组合生成属于未治理写入路径 | Factor portfolio 先修复 SDK/Application 架构，create 路径完成 preview/confirmation/idempotency/audit 后再审计 |
-| 7 | 分流 Alpha 剩余路径 | trigger / refresh / factor exposure | 两条 staff-only ops overview 已完成；trigger/refresh 有任务副作用；factor exposure 直接启动本地 Django service | trigger/refresh 按 workflow/write 治理；factor exposure 先补 canonical HTTP owner 与 focused contract |
+| 6 | 分流 Factor 剩余写入 | Factor create actions | Persisted portfolio read 已完成 governed 收口；组合生成仍属于未治理写入路径 | Create 路径完成 preview/confirmation/idempotency/audit 后再审计 |
+| 7 | 分流 Alpha 剩余路径 | trigger / refresh / factor exposure | 两条 staff-only ops overview 已完成；trigger/refresh 有任务副作用；factor exposure 已改走 authenticated canonical HTTP，但 provider 计算链仍需副作用和外部调用证据 | trigger/refresh 按 workflow/write 治理；factor exposure 补 focused contract、owner fallback、core-only 和 catalog replacement |
 | 8 | 分流 Alpha Trigger 剩余路径 | trigger detail / create / evaluate / invalidation / generate | trigger detail 缺 raw tool；performance 已完成只读收口；其余路径存在创建、状态更新或候选生成副作用 | 分别补齐 raw/internal-handler 证据，或按 write/workflow 完成 confirmation、idempotency、preview 和 audit |
 | 9 | 分流 Decision Rhythm 剩余路径 | cooldown / trend / statistics / quota by-period | 这些读取只有 SDK/API、缺 raw MCP tool | 补齐 raw/internal-handler 证据后再迁移；不得借用已完成的 quota reset 写证据 |
 | 10 | 冻结 Decision Funnel 聚合上下文 | raw `decision_workflow_get_funnel_context` + SDK `get_funnel_context()` + canonical GET | 无已落库 Rotation signal 时仍可能生成并保存新信号；SDK 默认 `trade_id=unknown` 还会默认进入可选 Step 6 分支，不是稳定纯读合同 | 拆分只读 snapshot 与生成 workflow，移除默认伪 trade ID，分别补纯读或 confirmation/idempotency/audit 证据 |
@@ -1819,13 +1829,13 @@ reports/mcp/mcp-tool-classification-2026-07-09.md
 - Rotation 象限、模板、账户配置、资产主数据和最新持久化信号已完成 governed read 收口，不应继续占用默认续做入口。
 - Rotation recommendation、带价格资产和资产比较仍需单独证明生成、行情、缓存和 POST 计算副作用；Rotation 相关性矩阵已证明禁止缓存写入，并作为 `hedge.compute.correlation_matrix` 的 legacy alias 收口，不得再创建重复 capability。
 - Unified Account / Simulated Trading 的账户目录、详情、持仓、绩效和日更巡检列表已完成 governed read 收口；后续执行人不得再把对应 legacy aliases 作为独立迁移目标。
-- Strategy 基础目录/详情、AI config 目录/按策略详情、position rule 目录/按策略详情及两条 position evaluate 纯计算已分别完成 governed 收口：普通用户 canonical queryset 只返回本人 strategy 及关联配置/规则，staff/superuser 可读全量，跨用户读取与计算返回 404，SDK 不再发送 API 未执行的 `status/limit` 伪过滤。Script config、rule condition、assignment 当前缺 raw MCP tool；performance、signals、positions 仍须补真实 DRF action，完成前继续冻结。
+- Strategy 基础目录/详情、AI config 目录/按策略详情、position rule 目录/按策略详情、两条 position evaluate 纯计算及 performance/signals/positions 已分别完成 governed 收口：普通用户 canonical queryset 只返回本人 strategy 及关联配置/规则，staff/superuser 可读全量，跨用户读取与计算返回 404。Script config、rule condition、assignment 与 trades 当前缺 raw MCP tool，继续冻结。
 - Hedge pair catalog/detail、active alerts、latest persisted portfolio state 与纯计算 correlation matrix 已完成 governed 收口。单对 correlation、effectiveness、monitor/update 及 raw-only explanation/recommendation 必须继续按持久化副作用、workflow/write 或缺 canonical owner 分流。
 - Asset Analysis 权重目录、当前生效权重和资产池摘要已完成 governed read 收口；多维筛选和资产池筛选仍属于 POST/composite 计算链，不能因同域直接 GET 已验收就自动迁移。
 - Equity valuation repair list、freshness、latest quality snapshot、status/history 纯计算及 active config/config catalog 已完成 governed 收口；实时计算不写运行时配置缓存，history 保留 canonical provenance，配置读取保持 staff-only 且不持久化默认值。其他 Equity 路径继续按已记录的参数漂移、canonical owner、workflow/write 与副作用结论冻结。
 - Dashboard Auto Advisor decision sheet、console、deterministic query、weekly report GET、周报历史与通知记录已完成 user-scoped governed read 收口；名称缓存、手工组合 ledger 同步和风险默认配置冷启动写入已从读取链消除。weekly report POST 与内部页面聚合继续按 workflow/write 或 internal-only 分流。
 - Decision Rhythm quota reset 已完成 `decision.reset.quota` governed write 收口。canonical endpoint 已改为 admin-only，并返回账户与实际重置周期；正式 SDK quota list 支持按 `account_id/period` 精确读取且响应包含账户字段。governed preview 只读取目标配额，commit 只调用正式 SDK reset endpoint；legacy `reset_decision_quota` 已建立 replacement，并满足 confirmation、required idempotency、staff role、audit 与 write-evidence。
-- Factor definition/config catalog、`factor.compute.top_stocks` 与 `factor.compute.stock_explanation` 已完成 governed 收口；两条纯计算路径均已证明禁止价格缓存回写且业务表计数不变。`FactorModule.get_portfolio()` 的 SDK 直连 Infrastructure 问题和 create portfolio 等 POST/composite 路径仍需独立整改，不得把本批证据扩大解释为整个 Factor family 已完成。
+- Factor definition/config catalog、`factor.compute.top_stocks`、`factor.compute.stock_explanation` 与 `factor.read.portfolio` 已完成 governed 收口；纯计算路径均已证明禁止价格缓存回写且业务表计数不变，portfolio 只读持久化 holdings。Create portfolio 等 POST/composite 路径仍需独立整改，不得把本批证据扩大解释为整个 Factor family 已完成。
 - Prompt template creation 已完成 `prompt.create.template` governed write 收口。Canonical mutation 保持 staff-only，模板名称在 inactive 记录中仍被保留；preview 通过正式 SDK 精确查询同名模板且不写入，commit 只调用正式创建接口，legacy `create_prompt_template` 已建立 replacement。
 - Policy event creation 已完成 `policy.create.event` governed write 收口。Canonical GET 保持 authenticated，POST/PUT/DELETE 改为 staff-only；governed schema 使用 canonical 字段，preview 只读取同日事件并披露告警副作用，commit 只调用正式 Policy SDK，legacy `create_policy_event` 已建立 replacement。
 - Equity valuation repair config draft creation 已完成 `equity.create.valuation_repair_config` governed write 收口。Canonical config API 保持 staff-only；preview 只调用正式 Equity SDK 的 config catalog 与 active config 读取，计算下一持久化版本和字段差异且不写入；commit 只调用正式 SDK create，创建结果保持 inactive draft，legacy `create_valuation_repair_config` 已建立 replacement。

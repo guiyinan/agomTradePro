@@ -93,11 +93,26 @@ def _fallback_factor_read_config_catalog() -> dict[str, Any]:
     }
 
 
+def _fallback_factor_read_portfolio(config_name: str) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    portfolio = client.factor.get_portfolio(config_name)
+    if portfolio is not None and not isinstance(portfolio, dict):
+        raise ValueError("factor.read.portfolio returned an invalid payload")
+    return {
+        "config_name": config_name,
+        "exists": portfolio is not None,
+        "portfolio": portfolio,
+    }
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "factor_compute_top_stocks": _fallback_factor_compute_top_stocks,
     "factor_compute_stock_explanation": _fallback_factor_compute_stock_explanation,
     "factor_read_definition_catalog": _fallback_factor_read_definition_catalog,
     "factor_read_config_catalog": _fallback_factor_read_config_catalog,
+    "factor_read_portfolio": _fallback_factor_read_portfolio,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}

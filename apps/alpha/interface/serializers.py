@@ -6,6 +6,7 @@ Django REST Framework 序列化器定义。
 
 import math
 from collections.abc import Mapping
+from datetime import date
 from typing import Any
 
 from rest_framework import serializers
@@ -146,6 +147,13 @@ class ProviderStatusSerializer(serializers.Serializer):
     status = serializers.CharField(help_text="状态")
     max_staleness_days = serializers.IntegerField(help_text="最大陈旧天数", required=False)
     error = serializers.CharField(help_text="错误信息", required=False, allow_null=True)
+
+
+class FactorExposureQuerySerializer(StrictFieldsSerializer):
+    """Validate Alpha factor-exposure queries."""
+
+    trade_date = serializers.DateField(required=False, default=date.today)
+    provider = serializers.CharField(required=False, default="simple", max_length=64)
 
 
 class UploadScoreItemSerializer(StrictFieldsSerializer):

@@ -352,6 +352,7 @@ def test_mcp_governance_baseline_rejects_inconsistent_partitions():
     assert {violation.code for violation in violations} >= {
         "governance_baseline_mcp_manifest_partition_invalid",
         "governance_baseline_mcp_catalog_partition_invalid",
+        "governance_baseline_mcp_replacement_partition_invalid",
     }
 
 

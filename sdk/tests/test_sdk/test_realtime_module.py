@@ -54,6 +54,25 @@ def test_get_multiple_prices_uses_query_endpoint(client):
     assert prices["399001.SZ"]["price_change_percent"] == -1.25
 
 
+def test_price_history_delegates_to_data_center_owner(client):
+    payload = {"data": [{"asset_code": "000001.SH", "freq": "1d", "close": 12.3}]}
+
+    with patch.object(
+        client.data_center,
+        "get_price_history",
+        return_value=payload,
+    ) as get_history, patch.object(client, "_request") as request:
+        result = client.realtime.get_price_history("000001.SH", period="1d", limit=30)
+
+    assert result == payload["data"]
+    get_history.assert_called_once_with(
+        asset_code="000001.SH",
+        freq="1d",
+        limit=30,
+    )
+    request.assert_not_called()
+
+
 def test_get_top_gainers_and_most_active_sort_snapshot(client):
     mock_snapshot = {
         "prices": [
@@ -127,4 +146,26 @@ def test_price_alert_methods_raise_unsupported_feature_without_http_calls(
     assert "Do not treat this legacy SDK/MCP surface as a governed replacement candidate" in str(
         exc_info.value
     )
+    mock_request.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("method_name", "args"),
+    [
+        ("subscribe_price", ("000001.SH",)),
+        ("unsubscribe_price", ("000001.SH",)),
+        ("get_subscriptions", ()),
+    ],
+)
+def test_price_subscription_methods_fail_fast_without_placeholder_http_calls(
+    client,
+    method_name,
+    args,
+):
+    with patch.object(client, "_request") as mock_request:
+        with pytest.raises(UnsupportedFeatureError) as exc_info:
+            getattr(client.realtime, method_name)(*args)
+
+    assert "realtime.price_subscription" in str(exc_info.value)
+    assert "no WebSocket or polling execution chain" in str(exc_info.value)
     mock_request.assert_not_called()

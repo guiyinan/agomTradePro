@@ -43,6 +43,17 @@ class ScreenStocksResponseSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
+class FinancialHistoryQuerySerializer(serializers.Serializer):
+    """Validate stock financial history query parameters."""
+
+    report_type = serializers.ChoiceField(
+        choices=("annual", "quarterly", "all"),
+        required=False,
+        default="all",
+    )
+    limit = serializers.IntegerField(required=False, default=5, min_value=1, max_value=40)
+
+
 class AnalyzeValuationRequestSerializer(serializers.Serializer):
     """估值分析请求序列化器"""
 

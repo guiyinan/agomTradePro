@@ -18,6 +18,7 @@ from apps.factor.application import interface_services as factor_interface_servi
 from apps.factor.interface.serializers import (
     FactorDefinitionSerializer,
     FactorPortfolioConfigSerializer,
+    FactorPortfolioReadQuerySerializer,
     FactorScoreRequestSerializer,
 )
 
@@ -398,6 +399,21 @@ class FactorActionViewSet(viewsets.ViewSet):
             {"error": f"Portfolio config not found or generation failed: {config_name}"},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    @action(detail=False, methods=["get"], url_path="portfolio")
+    def get_portfolio_action(self, request):
+        """Return the latest persisted holdings for a factor config."""
+
+        serializer = FactorPortfolioReadQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        config_name = serializer.validated_data["config_name"].strip()
+        portfolio = factor_interface_services.get_factor_portfolio(config_name=config_name)
+        if portfolio is None:
+            return Response(
+                {"error": f"No persisted holdings found for config: {config_name}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(portfolio)
 
     @action(detail=False, methods=["post"], url_path="explain-stock")
     def explain_stock_action(self, request):

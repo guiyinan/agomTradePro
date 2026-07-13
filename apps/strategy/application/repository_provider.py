@@ -50,3 +50,9 @@ def build_strategy_executor():
         portfolio_provider=DjangoPortfolioDataProvider(),
         script_security_mode="relaxed",
     )
+
+
+def build_strategy_portfolio_provider() -> DjangoPortfolioDataProvider:
+    """Return the strategy-owned adapter for portfolio reads."""
+
+    return DjangoPortfolioDataProvider()

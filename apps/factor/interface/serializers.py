@@ -110,6 +110,26 @@ class FactorPortfolioHoldingSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
+class FactorPortfolioReadQuerySerializer(serializers.Serializer):
+    """Validate the persisted factor portfolio read contract."""
+
+    config_name = serializers.CharField(max_length=100, allow_blank=False)
+
+    def to_internal_value(self, data):
+        """Reject query parameters outside the governed schema."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown query parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
 class FactorScoreRequestSerializer(serializers.Serializer):
     """Serializer for factor score calculation requests."""
 

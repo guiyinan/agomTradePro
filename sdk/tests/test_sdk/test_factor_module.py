@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from agomtradepro import AgomTradeProClient
+from agomtradepro import AgomTradeProClient, NotFoundError
 
 
 def test_factor_catalog_methods_hit_canonical_get_endpoints() -> None:
@@ -104,4 +104,18 @@ def test_explain_stock_by_focus_uses_stable_weights_and_canonical_endpoint() -> 
                 "gross_margin": 0.15,
             },
         },
+    )
+
+
+def test_get_portfolio_preserves_none_contract_for_missing_holdings() -> None:
+    client = AgomTradeProClient(base_url="http://test.com", api_token="test_token")
+
+    with patch.object(client, "_request", side_effect=NotFoundError()) as request:
+        result = client.factor.get_portfolio("missing-config")
+
+    assert result is None
+    request.assert_called_once_with(
+        "GET",
+        "/api/factor/portfolio/",
+        params={"config_name": "missing-config"},
     )

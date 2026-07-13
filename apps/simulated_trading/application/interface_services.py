@@ -11,16 +11,16 @@ from django.utils import timezone
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
+from apps.decision_rhythm.application.exit_advisors import (
+    build_decision_rhythm_exit_advisor,
+)
+from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
-from apps.decision_rhythm.application.exit_advisors import (
-    build_decision_rhythm_exit_advisor,
-)
-from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_fee_config_repository,
@@ -28,6 +28,7 @@ from apps.simulated_trading.application.repository_provider import (
     get_simulated_position_repository,
     get_simulated_trade_repository,
 )
+from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
 from apps.simulated_trading.application.use_cases import (
     ExecuteBuyOrderUseCase,
     ExecuteSellOrderUseCase,
@@ -275,6 +276,44 @@ def delete_account_with_summary(account_id: int) -> dict | None:
     return get_simulated_account_repository().delete_account_with_summary(account_id)
 
 
+def close_account_position(
+    *,
+    account_id: int,
+    asset_code: str,
+    close_shares: Decimal | None = None,
+    close_price: Decimal | None = None,
+    reason: str = "平仓",
+) -> dict[str, Any]:
+    """Close all or part of an account position through the unified ledger service."""
+
+    remaining = UnifiedPositionService.default().close_position(
+        account_id=account_id,
+        asset_code=asset_code,
+        close_shares=close_shares,
+        close_price=close_price,
+        reason=reason,
+    )
+    return {
+        "account_id": account_id,
+        "asset_code": asset_code,
+        "closed": remaining is None,
+        "remaining_quantity": str(remaining.quantity) if remaining is not None else "0",
+    }
+
+
+def reset_account_with_summary(
+    *,
+    account_id: int,
+    new_initial_capital: Decimal | None = None,
+) -> dict[str, Any] | None:
+    """Reset one account through its infrastructure repository boundary."""
+
+    return get_simulated_account_repository().reset_account_with_summary(
+        account_id,
+        new_initial_capital,
+    )
+
+
 def build_auto_trading_engine() -> AutoTradingEngine:
     """Build the default auto trading engine used by the manual trigger API."""
 
@@ -346,6 +385,53 @@ def list_daily_inspection_report_payloads(
         limit=limit,
         inspection_date=inspection_date,
     )
+
+
+def list_account_trade_payloads(
+    *,
+    account_id: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Return JSON-safe account trades for cross-app application queries."""
+
+    trades = get_simulated_trade_repository().get_by_account(account_id)
+    payloads: list[dict[str, Any]] = []
+    for trade in trades:
+        if start_date and trade.execution_date < start_date:
+            continue
+        if end_date and trade.execution_date > end_date:
+            continue
+        payloads.append(
+            {
+                "trade_id": trade.trade_id,
+                "account_id": trade.account_id,
+                "asset_code": trade.asset_code,
+                "asset_name": trade.asset_name,
+                "asset_type": trade.asset_type,
+                "action": trade.action.value,
+                "quantity": str(trade.quantity),
+                "price": str(trade.price),
+                "amount": str(trade.amount),
+                "commission": str(trade.commission),
+                "slippage": str(trade.slippage),
+                "total_cost": str(trade.total_cost),
+                "realized_pnl": (
+                    str(trade.realized_pnl) if trade.realized_pnl is not None else None
+                ),
+                "realized_pnl_pct": trade.realized_pnl_pct,
+                "reason": trade.reason,
+                "signal_id": trade.signal_id,
+                "order_date": trade.order_date.isoformat(),
+                "execution_date": trade.execution_date.isoformat(),
+                "execution_time": trade.execution_time.isoformat(),
+                "status": trade.status.value,
+            }
+        )
+        if len(payloads) >= limit:
+            break
+    return payloads
 
 
 def build_admin_dashboard_context() -> dict[str, Any]:

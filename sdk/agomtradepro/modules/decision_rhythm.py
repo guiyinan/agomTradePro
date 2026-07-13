@@ -54,9 +54,7 @@ class DecisionRhythmModule(BaseModule):
         return self._post("reset-quota/", json=payload)
 
     def trend_data(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("trend-data/", json=payload)
-        return self._get("trend-data/")
+        return self._get("trend-data/", params=payload)
 
     def update_quota(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("quota/update/", json=payload)

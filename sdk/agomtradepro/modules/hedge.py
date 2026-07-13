@@ -195,7 +195,10 @@ class HedgeModule:
         Returns:
             告警列表
         """
-        result = self._client.get(f"/api/hedge/alerts/active/?days={days}")
+        result = self._client.get(
+            "/api/hedge/alerts/active/",
+            params={"days": days},
+        )
         return result.get("results", result) if isinstance(result, dict) else result
 
     def monitor_alerts(self) -> dict[str, Any]:

@@ -10,6 +10,7 @@ from .performance_views import (
     AccountValuationSnapshotAPIView,
     AccountValuationTimelineAPIView,
 )
+from .sdk_contract_views import AccountResetAPIView, PositionCloseAPIView
 from .views import (
     AccountBatchDeleteAPIView,
     AccountDetailAPIView,
@@ -54,9 +55,11 @@ urlpatterns = [
     path("accounts/batch-delete/", AccountBatchDeleteAPIView.as_view(), name="account-batch-delete"),
     path("accounts/<int:account_id>/", AccountDetailAPIView.as_view(), name="account-detail"),
     path("accounts/<int:account_id>/positions/", PositionListAPIView.as_view(), name="position-list"),
+    path("accounts/<int:account_id>/positions/close/", PositionCloseAPIView.as_view(), name="position-close"),
     path("accounts/<int:account_id>/trades/", TradeListAPIView.as_view(), name="trade-list"),
     path("accounts/<int:account_id>/performance/", PerformanceAPIView.as_view(), name="performance"),
     path("accounts/<int:account_id>/trade/", ManualTradeAPIView.as_view(), name="manual-trade"),
+    path("accounts/<int:account_id>/reset/", AccountResetAPIView.as_view(), name="account-reset"),
     path("accounts/<int:account_id>/equity-curve/", EquityCurveAPIView.as_view(), name="equity-curve"),
     path("accounts/<int:account_id>/inspections/run/", DailyInspectionRunAPIView.as_view(), name="daily-inspection-run"),
     path("accounts/<int:account_id>/inspections/", DailyInspectionReportListAPIView.as_view(), name="daily-inspection-list"),

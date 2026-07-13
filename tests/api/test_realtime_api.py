@@ -1,13 +1,19 @@
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from datetime import date
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
+
+from apps.sector.infrastructure.models import SectorIndexModel, SectorInfoModel
 
 
 @pytest.fixture
 def client():
     return Client()
+
 
 @pytest.mark.django_db
 def test_market_summary_returns_major_index_snapshot(client):
@@ -86,3 +92,54 @@ def test_realtime_health_timeout_returns_unhealthy_payload(client):
     assert payload["status"] == "unhealthy"
     assert payload["data_provider_available"] is False
     assert payload["error"] == "provider_check_timeout"
+
+
+@pytest.mark.django_db
+def test_sector_performance_is_strict_authenticated_persisted_read(client):
+    user = get_user_model().objects.create_user(
+        username="realtime_sector_user",
+        password="testpass123",
+    )
+    client.force_login(user)
+    sector = SectorInfoModel._default_manager.create(
+        sector_code="801780",
+        sector_name="银行",
+        level="SW1",
+    )
+    SectorIndexModel._default_manager.create(
+        sector_code=sector.sector_code,
+        trade_date=date(2026, 7, 11),
+        open_price=Decimal("1000.00"),
+        high=Decimal("1020.00"),
+        low=Decimal("990.00"),
+        close=Decimal("1010.00"),
+        volume=1000,
+        amount=Decimal("1000000.00"),
+        change_pct=1.2,
+    )
+    before = {
+        "sectors": list(SectorInfoModel._default_manager.order_by("pk").values()),
+        "indices": list(SectorIndexModel._default_manager.order_by("pk").values()),
+    }
+
+    response = client.get("/api/realtime/sector-performance/")
+    unknown_response = client.get(
+        "/api/realtime/sector-performance/",
+        {"refresh": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["sector_code"] == sector.sector_code
+    assert response.json()["results"][0]["change_percent"] == 1.2
+    assert unknown_response.status_code == 400
+    assert "Unknown query parameters: refresh" in str(unknown_response.json())
+    after = {
+        "sectors": list(SectorInfoModel._default_manager.order_by("pk").values()),
+        "indices": list(SectorIndexModel._default_manager.order_by("pk").values()),
+    }
+    assert after == before
+
+    client.logout()
+    anonymous_response = client.get("/api/realtime/sector-performance/")
+    assert anonymous_response.status_code in {401, 403}

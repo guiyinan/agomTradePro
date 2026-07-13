@@ -1,11 +1,22 @@
+from datetime import date
+from decimal import Decimal
+from unittest.mock import patch
+
 import pytest
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.simulated_trading.infrastructure.models import (
+    PositionModel,
+    SimulatedAccountModel,
+)
 from apps.strategy.infrastructure.models import (
     AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
     PositionManagementRuleModel,
+    StrategyExecutionLogModel,
     StrategyModel,
 )
 
@@ -384,3 +395,157 @@ def test_position_rule_calculations_are_owner_scoped_and_side_effect_free(
     assert staff_response.status_code == 200
     assert staff_response.json()["position_size"] == 1000.0
     assert _strategy_table_counts() == before
+
+
+@pytest.mark.django_db
+def test_strategy_execute_action_uses_canonical_application_boundary(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="Canonical Execute",
+        description="Execution API fixture",
+        strategy_type="rule_based",
+        version=1,
+        is_active=True,
+        created_by=auth_user.account_profile,
+    )
+    expected = {
+        "success": True,
+        "strategy_id": strategy.id,
+        "executed_portfolios": 1,
+        "signals_count": 2,
+    }
+    with patch(
+        "apps.strategy.interface.sdk_contract_actions.execute_strategy_for_assignments",
+        return_value=expected,
+    ) as execute:
+        response = authenticated_client.post(
+            f"/api/strategy/strategies/{strategy.id}/execute/",
+            {"portfolio_id": 7, "as_of_date": timezone.localdate().isoformat()},
+            format="json",
+        )
+        historical_response = authenticated_client.post(
+            f"/api/strategy/strategies/{strategy.id}/execute/",
+            {"portfolio_id": 7, "as_of_date": "2000-01-01"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert response.json() == expected
+    execute.assert_called_once()
+    assert execute.call_args.kwargs["strategy_id"] == strategy.id
+    assert execute.call_args.kwargs["portfolio_id"] == 7
+    assert historical_response.status_code == 400
+    assert "Historical strategy execution" in str(historical_response.json())
+
+
+@pytest.mark.django_db
+def test_strategy_sdk_reads_are_owner_scoped_strict_and_side_effect_free(
+    authenticated_client,
+    auth_user,
+):
+    strategy = StrategyModel.objects.create(
+        name="Persisted SDK Reads",
+        description="Read contract fixture",
+        strategy_type="rule_based",
+        created_by=auth_user.account_profile,
+    )
+    account = SimulatedAccountModel.objects.create(
+        user=auth_user,
+        account_name="Strategy Read Portfolio",
+        initial_capital=Decimal("100000.00"),
+        current_cash=Decimal("99000.00"),
+        current_market_value=Decimal("1000.00"),
+        total_value=Decimal("100000.00"),
+    )
+    PortfolioStrategyAssignmentModel.objects.create(
+        portfolio=account,
+        strategy=strategy,
+        assigned_by=auth_user.account_profile,
+        is_active=True,
+    )
+    StrategyExecutionLogModel.objects.create(
+        strategy=strategy,
+        portfolio=account,
+        execution_duration_ms=25,
+        execution_result={"status": "completed"},
+        signals_generated=[
+            {
+                "asset_code": "000001.SZ",
+                "action": "buy",
+                "status": "generated",
+            }
+        ],
+        is_success=True,
+    )
+    PositionModel.objects.create(
+        account=account,
+        asset_code="000001.SZ",
+        asset_name="平安银行",
+        asset_type="equity",
+        quantity=Decimal("100.000000"),
+        available_quantity=Decimal("100.000000"),
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("10.5000"),
+        market_value=Decimal("1050.00"),
+        unrealized_pnl=Decimal("50.00"),
+        first_buy_date=date(2026, 7, 10),
+    )
+    other_user = get_user_model().objects.create_user(
+        username="strategy_other_user",
+        password="testpass123",
+    )
+    other_strategy = StrategyModel.objects.create(
+        name="Other User Strategy",
+        description="Must remain hidden",
+        strategy_type="rule_based",
+        created_by=other_user.account_profile,
+    )
+    strategy_before = _strategy_table_counts()
+    simulated_before = {
+        "accounts": list(
+            SimulatedAccountModel._default_manager.order_by("pk").values()
+        ),
+        "positions": list(PositionModel._default_manager.order_by("pk").values()),
+    }
+
+    performance_response = authenticated_client.get(
+        f"/api/strategy/strategies/{strategy.id}/performance/"
+    )
+    signals_response = authenticated_client.get(
+        f"/api/strategy/strategies/{strategy.id}/signals/",
+        {"status": "generated", "limit": 10},
+    )
+    positions_response = authenticated_client.get(
+        f"/api/strategy/strategies/{strategy.id}/positions/"
+    )
+    unknown_response = authenticated_client.get(
+        f"/api/strategy/strategies/{strategy.id}/performance/",
+        {"limit": 10},
+    )
+    hidden_response = authenticated_client.get(
+        f"/api/strategy/strategies/{other_strategy.id}/performance/"
+    )
+
+    assert performance_response.status_code == 200
+    assert performance_response.json()["execution_count"] == 1
+    assert performance_response.json()["signals_generated"] == 1
+    assert signals_response.status_code == 200
+    assert signals_response.json()["count"] == 1
+    assert signals_response.json()["results"][0]["asset_code"] == "000001.SZ"
+    assert positions_response.status_code == 200
+    assert positions_response.json()["count"] == 1
+    assert positions_response.json()["results"][0]["portfolio_id"] == account.id
+    assert unknown_response.status_code == 400
+    assert "Unknown parameters: limit" in str(unknown_response.json())
+    assert hidden_response.status_code == 404
+    assert _strategy_table_counts() == strategy_before
+    simulated_after = {
+        "accounts": list(
+            SimulatedAccountModel._default_manager.order_by("pk").values()
+        ),
+        "positions": list(PositionModel._default_manager.order_by("pk").values()),
+    }
+    assert simulated_after == simulated_before

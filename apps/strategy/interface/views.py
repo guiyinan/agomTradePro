@@ -2,8 +2,7 @@
 Django REST Framework Views for Strategy System
 
 Interface层:
-- 提供REST API接口
-- 使用DRF ViewSet组织API
+- 提供REST API接口，使用DRF ViewSet组织API
 - 只做输入验证和输出格式化，禁止业务逻辑
 """
 import json
@@ -62,6 +61,7 @@ from apps.strategy.domain.services import (
     PreTradeRiskGate,
     SizingEngine,
 )
+from apps.strategy.interface.sdk_contract_actions import StrategySDKContractActionsMixin
 from apps.strategy.interface.serializers import (
     AIStrategyConfigSerializer,
     ExecutionEvaluateInputSerializer,
@@ -442,7 +442,7 @@ def _save_position_rule(strategy: StrategyModel, post_data) -> None:
 # Strategy ViewSet
 # ========================================================================
 
-class StrategyViewSet(viewsets.ModelViewSet):
+class StrategyViewSet(StrategySDKContractActionsMixin, viewsets.ModelViewSet):
     """策略 CRUD API"""
 
     serializer_class = StrategySerializer

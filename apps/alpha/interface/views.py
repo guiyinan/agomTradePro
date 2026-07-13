@@ -22,7 +22,10 @@ from rest_framework.response import Response
 from core.cache_utils import cached_api
 from core.integration.runtime_settings import get_runtime_qlib_config
 
-from ..application.interface_services import resolve_requested_alpha_user
+from ..application.interface_services import (
+    get_factor_exposure_payload,
+    resolve_requested_alpha_user,
+)
 from ..application.ops_use_cases import (
     GetAlphaInferenceOpsOverviewUseCase,
     GetQlibDataOpsOverviewUseCase,
@@ -36,6 +39,7 @@ from ..application.services import AlphaService
 from .serializers import (
     AlphaOpsInferenceTriggerSerializer,
     AlphaResultSerializer,
+    FactorExposureQuerySerializer,
     GetStockScoresRequestSerializer,
     ProviderStatusSerializer,
     QlibDataRefreshTriggerSerializer,
@@ -307,6 +311,27 @@ def get_provider_status(request: Request) -> Response:
     except Exception as e:
         logger.error(f"获取 Provider 状态失败: {e}", exc_info=True)
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_factor_exposure(request: Request, stock_code: str) -> Response:
+    """Return one stock's factor exposure from a registered Alpha provider."""
+
+    serializer = FactorExposureQuerySerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    try:
+        payload = get_factor_exposure_payload(
+            stock_code=stock_code,
+            trade_date=serializer.validated_data["trade_date"],
+            provider=serializer.validated_data["provider"],
+        )
+    except ValueError as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return Response(payload)
 
 
 @api_view(["GET"])

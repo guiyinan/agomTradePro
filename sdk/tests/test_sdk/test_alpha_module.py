@@ -1,39 +1,39 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from agomtradepro import AgomTradeProClient
 from agomtradepro.exceptions import ConflictError
 
 
-def test_get_factor_exposure_uses_alpha_service_provider() -> None:
+def test_get_factor_exposure_uses_remote_api_contract() -> None:
     client = AgomTradeProClient(base_url="http://test.com", api_token="test_token")
-    provider = Mock()
-    provider.get_factor_exposure.return_value = {"roe": 0.12}
-    service = Mock()
-    service._registry.get_provider.return_value = provider
-
-    with patch("agomtradepro.modules.alpha._get_alpha_service", return_value=service):
-        result = client.alpha.get_factor_exposure("000001.SH", "2026-02-05", "simple")
-
-    assert result == {
+    response = {
         "success": True,
         "stock_code": "000001.SH",
         "trade_date": "2026-02-05",
         "provider": "simple",
         "factors": {"roe": 0.12},
     }
+    with patch.object(client, "_request", return_value=response) as mock_request:
+        result = client.alpha.get_factor_exposure("000001.SH", "2026-02-05", "simple")
+
+    assert result == response
+    mock_request.assert_called_once_with(
+        "GET",
+        "/api/alpha/factor-exposure/000001.SH/",
+        params={"provider": "simple", "trade_date": "2026-02-05"},
+    )
 
 
-def test_get_factor_exposure_returns_error_for_unknown_provider() -> None:
+def test_get_factor_exposure_omits_trade_date_when_not_supplied() -> None:
     client = AgomTradeProClient(base_url="http://test.com", api_token="test_token")
-    service = Mock()
-    service._registry.get_provider.return_value = None
+    with patch.object(client, "_request", return_value={"factors": {}}) as mock_request:
+        client.alpha.get_factor_exposure("000001.SH", provider="simple")
 
-    with patch("agomtradepro.modules.alpha._get_alpha_service", return_value=service):
-        result = client.alpha.get_factor_exposure("000001.SH", provider="missing")
-
-    assert result["success"] is False
-    assert result["stock_code"] == "000001.SH"
-    assert result["factors"] == {}
+    mock_request.assert_called_once_with(
+        "GET",
+        "/api/alpha/factor-exposure/000001.SH/",
+        params={"provider": "simple"},
+    )
 
 
 def test_alpha_ops_methods_hit_expected_endpoints() -> None:

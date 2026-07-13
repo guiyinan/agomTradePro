@@ -35,13 +35,13 @@ urlpatterns = [
         name="config-center-qlib-training-runs",
     ),
     path(
-        "qlib/training-runs/<str:run_id>/",
-        QlibTrainingRunDetailView.as_view(),
-        name="config-center-qlib-training-run-detail",
-    ),
-    path(
         "qlib/training-runs/trigger/",
         QlibTrainingRunTriggerView.as_view(),
         name="config-center-qlib-training-run-trigger",
+    ),
+    path(
+        "qlib/training-runs/<str:run_id>/",
+        QlibTrainingRunDetailView.as_view(),
+        name="config-center-qlib-training-run-detail",
     ),
 ]

@@ -139,6 +139,22 @@ class GateConfigRepository:
             return None
         return self._activate_model(config)
 
+    def deactivate_by_config_id(self, config_id: str) -> Any | None:
+        """Soft-delete a config while retaining its version history."""
+
+        with transaction.atomic():
+            config = (
+                GateConfigModel._default_manager.select_for_update()
+                .filter(config_id=config_id)
+                .first()
+            )
+            if config is None:
+                return None
+            if config.is_active:
+                config.is_active = False
+                config.save(update_fields=["is_active", "updated_at"])
+            return config
+
     def _save_with_single_active(self, model: Any) -> Any:
         with transaction.atomic():
             if model.is_active:

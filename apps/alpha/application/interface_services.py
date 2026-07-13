@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from apps.account.application.interface_services import find_user_by_id
 from apps.alpha.application.repository_provider import get_alpha_score_cache_repository
+from apps.alpha.application.services import AlphaService
 
 
 def resolve_requested_alpha_user(*, actor, requested_user_id: int | None):
@@ -69,4 +71,26 @@ def preview_alpha_score_upload(
         "incoming_codes": [item["code"] for item in scores],
         "existing": existing,
         "writes": ["alpha_score_cache"],
+    }
+
+
+def get_factor_exposure_payload(
+    *,
+    stock_code: str,
+    trade_date: date,
+    provider: str,
+) -> dict[str, Any]:
+    """Return one stock's factor exposure through the Alpha service boundary."""
+
+    factors = AlphaService().get_factor_exposure(
+        stock_code=stock_code,
+        trade_date=trade_date,
+        provider_name=provider,
+    )
+    return {
+        "success": True,
+        "stock_code": stock_code,
+        "trade_date": trade_date.isoformat(),
+        "provider": provider,
+        "factors": factors,
     }

@@ -93,3 +93,35 @@ def fetch_close_prices(
     if not bars:
         return None
     return [float(bar.close) for bar in reversed(bars)]
+
+
+def fetch_price_bar_payloads(
+    *,
+    asset_code: str,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Return canonical OHLCV facts, oldest to newest, for cross-app reads."""
+
+    bars = get_price_bar_repository().get_bars(
+        asset_code,
+        start=start_date,
+        end=end_date,
+        limit=limit,
+    )
+    return [
+        {
+            "asset_code": bar.asset_code,
+            "timestamp": bar.bar_date.isoformat(),
+            "period": bar.freq,
+            "open": float(bar.open),
+            "high": float(bar.high),
+            "low": float(bar.low),
+            "close": float(bar.close),
+            "volume": float(bar.volume) if bar.volume is not None else None,
+            "amount": float(bar.amount) if bar.amount is not None else None,
+            "source": bar.source,
+        }
+        for bar in reversed(bars)
+    ]

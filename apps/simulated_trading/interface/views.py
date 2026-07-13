@@ -757,8 +757,10 @@ class TradeListAPIView(APIView):
         end_date = request.query_params.get('end_date')
         asset_code = request.query_params.get('asset_code')
         action = request.query_params.get('action')
-
         try:
+            limit = _parse_positive_int(
+                request.query_params.get('limit'), field_name='limit', default=100
+            )
             parsed_start_date = _parse_iso_date(start_date, field_name='start_date') if start_date else None
             parsed_end_date = _parse_iso_date(end_date, field_name='end_date') if end_date else None
         except ValueError as exc:
@@ -798,7 +800,7 @@ class TradeListAPIView(APIView):
 
         # 序列化
         trade_list = []
-        for trade in filtered_trades:
+        for trade in filtered_trades[:limit]:
             trade_list.append({
                 'trade_id': trade.trade_id,
                 'account_id': trade.account_id,

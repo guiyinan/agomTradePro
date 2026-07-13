@@ -161,3 +161,38 @@ MANIFESTS = [
         legacy_tool_names=("list_factor_configs",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="factor.read.portfolio",
+        title="Factor Portfolio Holdings",
+        summary="Read the latest persisted holdings for one factor configuration.",
+        description=(
+            "Return latest persisted factor portfolio holdings without generating a new "
+            "portfolio, recalculating scores, or importing Django infrastructure into SDK."
+        ),
+        owner_app="factor",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="factor_read_portfolio",
+        tags=("factor", "portfolio", "holdings", "persisted", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "config_name": {"type": "string", "minLength": 1, "maxLength": 100},
+            },
+            "required": ["config_name"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "config_name": {"type": "string"},
+                "exists": {"type": "boolean"},
+                "portfolio": {"type": ["object", "null"]},
+            },
+            "required": ["config_name", "exists", "portfolio"],
+        },
+        legacy_tool_names=("get_factor_portfolio",),
+    )
+)

@@ -165,3 +165,38 @@ MANIFESTS = [
         legacy_tool_names=("get_fund_holdings",),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="fund.read.score",
+        title="Fund Score",
+        summary="Read one fund score from the canonical persisted ranking.",
+        description=(
+            "Resolve one fund from the persisted-only canonical ranking for the requested "
+            "date without saving a performance snapshot or refreshing providers."
+        ),
+        owner_app="fund",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="fund_read_score",
+        tags=("fund", "score", "ranking", "persisted", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "fund_code": {"type": "string", "minLength": 1, "maxLength": 16},
+                "as_of_date": {"type": ["string", "null"], "format": "date"},
+            },
+            "required": ["fund_code"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "fund_code": {"type": "string"},
+                "score": {"type": "object"},
+            },
+            "required": ["fund_code", "score"],
+        },
+        legacy_tool_names=("get_fund_score",),
+    )
+)

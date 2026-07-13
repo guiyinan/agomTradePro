@@ -47,6 +47,22 @@ def _fallback_fund_compute_screen(
     )
 
 
+def _fallback_fund_read_score(
+    fund_code: str,
+    as_of_date: str | None = None,
+) -> dict[str, Any]:
+    from datetime import date
+
+    from agomtradepro import AgomTradeProClient
+
+    parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
+    client = AgomTradeProClient()
+    score = client.fund.get_fund_score(fund_code, as_of_date=parsed_date)
+    if not isinstance(score, dict):
+        raise ValueError("fund.read.score returned an invalid payload")
+    return {"fund_code": fund_code, "score": score}
+
+
 def _fallback_get_fund_detail(fund_code: str) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
@@ -110,6 +126,7 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "get_fund_detail": _fallback_get_fund_detail,
     "get_fund_nav_history": _fallback_get_fund_nav_history,
     "get_fund_holdings": _fallback_get_fund_holdings,
+    "fund_read_score": _fallback_fund_read_score,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {}

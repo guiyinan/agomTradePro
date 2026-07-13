@@ -506,6 +506,80 @@ class DjangoSimulatedAccountRepository:
         account.delete()
         return summary
 
+    def reset_account_with_summary(
+        self,
+        account_id: int,
+        new_initial_capital: Decimal | None = None,
+    ) -> dict[str, Any] | None:
+        """Reset one account ledger atomically while preserving its identity and settings."""
+
+        with transaction.atomic():
+            account = (
+                SimulatedAccountModel._default_manager.select_for_update()
+                .filter(id=account_id)
+                .first()
+            )
+            if account is None:
+                return None
+
+            initial_capital = Decimal(new_initial_capital or account.initial_capital)
+            deleted_positions, _ = PositionModel._default_manager.filter(
+                account_id=account_id
+            ).delete()
+            deleted_trades, _ = SimulatedTradeModel._default_manager.filter(
+                account_id=account_id
+            ).delete()
+            deleted_net_values, _ = DailyNetValueModel._default_manager.filter(
+                account_id=account_id
+            ).delete()
+            deleted_inspections, _ = DailyInspectionReportModel._default_manager.filter(
+                account_id=account_id
+            ).delete()
+            deleted_proposals, _ = RebalanceProposalModel._default_manager.filter(
+                account_id=account_id
+            ).delete()
+
+            account.initial_capital = initial_capital
+            account.current_cash = initial_capital
+            account.current_market_value = Decimal("0")
+            account.total_value = initial_capital
+            account.total_return = 0.0
+            account.annual_return = 0.0
+            account.max_drawdown = 0.0
+            account.sharpe_ratio = 0.0
+            account.win_rate = 0.0
+            account.total_trades = 0
+            account.winning_trades = 0
+            account.last_trade_date = None
+            account.save(
+                update_fields=[
+                    "initial_capital",
+                    "current_cash",
+                    "current_market_value",
+                    "total_value",
+                    "total_return",
+                    "annual_return",
+                    "max_drawdown",
+                    "sharpe_ratio",
+                    "win_rate",
+                    "total_trades",
+                    "winning_trades",
+                    "last_trade_date",
+                    "updated_at",
+                ]
+            )
+
+        return {
+            "account_id": account_id,
+            "account_name": account.account_name,
+            "initial_capital": str(initial_capital),
+            "deleted_positions": deleted_positions,
+            "deleted_trades": deleted_trades,
+            "deleted_net_values": deleted_net_values,
+            "deleted_inspections": deleted_inspections,
+            "deleted_proposals": deleted_proposals,
+        }
+
 
 class DjangoPositionRepository:
     """持仓Repository实现"""

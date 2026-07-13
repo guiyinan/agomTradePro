@@ -7,6 +7,8 @@ AgomTradePro SDK - Factor Module
 from datetime import date
 from typing import TYPE_CHECKING, Any
 
+from ..exceptions import NotFoundError
+
 if TYPE_CHECKING:
     from ..client import AgomTradeProClient
 
@@ -171,26 +173,10 @@ class FactorModule:
         Returns:
             持仓详情
         """
-        from apps.factor.infrastructure.repositories import FactorPortfolioHoldingRepository
-        repo = FactorPortfolioHoldingRepository()
-        holdings = repo.get_latest_holdings(config_name)
-
-        if not holdings:
+        try:
+            return self._client.get(
+                "/api/factor/portfolio/",
+                params={"config_name": config_name},
+            )
+        except NotFoundError:
             return None
-
-        return {
-            'config_name': config_name,
-            'trade_date': holdings[0].trade_date.isoformat() if holdings else '',
-            'total_stocks': len(holdings),
-            'holdings': [
-                {
-                    'stock_code': h.stock_code,
-                    'stock_name': h.stock_name,
-                    'weight': round(float(h.weight) * 100, 2),
-                    'factor_score': round(float(h.factor_score), 2),
-                    'rank': h.rank,
-                    'sector': h.sector,
-                }
-                for h in holdings
-            ],
-        }

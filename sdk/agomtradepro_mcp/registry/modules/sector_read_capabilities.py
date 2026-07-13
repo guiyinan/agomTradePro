@@ -59,3 +59,34 @@ MANIFESTS = [
         ),
     ),
 ]
+
+MANIFESTS.append(
+    CapabilityManifest(
+        capability_key="sector.read.score",
+        title="Sector Score",
+        summary="Read the current persisted rotation score for one sector.",
+        description=(
+            "Resolve one sector from the canonical persisted rotation calculation without "
+            "provider synchronization, cache writes, or background work."
+        ),
+        owner_app="sector",
+        risk_level="low",
+        executor_kind="legacy_tool",
+        executor_ref="sector_read_score",
+        tags=("sector", "score", "rotation", "persisted", "read"),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "sector_name": {"type": "string", "minLength": 1, "maxLength": 64},
+            },
+            "required": ["sector_name"],
+            "additionalProperties": False,
+        },
+        output_schema={
+            "type": "object",
+            "properties": {"score": {"type": "object"}},
+            "required": ["score"],
+        },
+        legacy_tool_names=("get_sector_score",),
+    )
+)

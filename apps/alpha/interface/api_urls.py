@@ -35,6 +35,11 @@ urlpatterns = [
     path("scores/upload/preview/", preview_score_upload, name="upload_scores_preview"),
     path("scores/upload/", upload_scores, name="upload_scores"),
     path("providers/status/", views.get_provider_status, name="provider_status"),
+    path(
+        "factor-exposure/<str:stock_code>/",
+        views.get_factor_exposure,
+        name="factor-exposure",
+    ),
     path("universes/", views.get_available_universes, name="available_universes"),
     path("health/", views.health_check, name="health_check"),
     path(

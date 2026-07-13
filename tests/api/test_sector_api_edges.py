@@ -182,6 +182,14 @@ def test_sector_rotation_is_strict_persisted_read(authenticated_client):
                 "top_n": 5,
             },
         )
+        score_response = authenticated_client.get(
+            f"/api/sector/score/{sector.sector_code}/",
+            {
+                "regime": "Recovery",
+                "lookback_days": 5,
+                "level": "SW1",
+            },
+        )
 
     assert response.status_code == 200
     payload = response.json()
@@ -190,6 +198,9 @@ def test_sector_rotation_is_strict_persisted_read(authenticated_client):
     assert payload["data_source"] == "fallback"
     assert payload["top_sectors"][0]["sector_code"] == sector.sector_code
     assert payload["top_sectors"][0]["regime_fit_score"] == 80.0
+    assert score_response.status_code == 200
+    assert score_response.json()["score"]["sector_code"] == sector.sector_code
+    assert score_response.json()["score"]["regime_fit_score"] == 80.0
     assert _sector_table_snapshot() == before
     sync_execute.assert_not_called()
     remote_loader.assert_not_called()
@@ -226,14 +237,19 @@ def test_sector_rotation_does_not_bootstrap_missing_data(authenticated_client):
 
 @pytest.mark.django_db
 def test_sector_rotation_rejects_unknown_query_parameters(authenticated_client):
-    response = authenticated_client.get("/api/sector/rotation/?payload=legacy")
+    for path in (
+        "/api/sector/rotation/?payload=legacy",
+        "/api/sector/score/801010/?payload=legacy",
+    ):
+        response = authenticated_client.get(path)
 
-    assert response.status_code == 400
-    assert "Unknown query parameters: payload" in str(response.json())
+        assert response.status_code == 400
+        assert "Unknown query parameters: payload" in str(response.json())
 
 
 @pytest.mark.django_db
 def test_sector_rotation_requires_authentication(api_client):
-    response = api_client.get("/api/sector/rotation/")
+    for path in ("/api/sector/rotation/", "/api/sector/score/801010/"):
+        response = api_client.get(path)
 
-    assert response.status_code in {401, 403}
+        assert response.status_code in {401, 403}

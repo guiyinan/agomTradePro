@@ -132,6 +132,28 @@ class SectorRotationQuerySerializer(serializers.Serializer):
         )
 
 
+class SectorScoreQuerySerializer(serializers.Serializer):
+    """Validate one-sector score lookup parameters."""
+
+    regime = serializers.CharField(max_length=20, required=False, allow_null=True)
+    lookback_days = serializers.IntegerField(default=20, min_value=5, max_value=120)
+    level = serializers.ChoiceField(choices=["SW1", "SW2", "SW3"], default="SW1")
+
+    def to_internal_value(self, data):
+        """Reject query parameters outside the score capability contract."""
+
+        unknown_fields = sorted(set(data) - set(self.fields))
+        if unknown_fields:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        f"Unknown query parameters: {', '.join(unknown_fields)}"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
+
+
 class SectorRotationResultSerializer(serializers.Serializer):
     """板块轮动分析结果序列化器"""
     success = serializers.BooleanField()

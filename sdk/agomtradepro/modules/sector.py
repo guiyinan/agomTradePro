@@ -106,15 +106,10 @@ class SectorModule(BaseModule):
             >>> score = client.sector.get_sector_score("银行")
             >>> print(f"综合评分: {score['overall_score']}")
         """
-        candidates = self.list_sectors(limit=200)
-        for sector in candidates:
-            if sector.get("sector_name") == sector_name or sector.get("name") == sector_name:
-                return sector
-        return {
-            "success": False,
-            "sector_name": sector_name,
-            "error": "sector score endpoint is not exposed by current canonical API",
-        }
+        if as_of_date is not None:
+            raise ValueError("historical sector scores are not available; omit as_of_date")
+        response = self._get(f"score/{sector_name}/")
+        return response.get("score", response)
 
     def get_sector_detail(self, sector_name: str) -> dict[str, Any]:
         """

@@ -183,6 +183,44 @@ class PositionListResponseSerializer(serializers.Serializer):
     positions = PositionResponseSerializer(many=True)
 
 
+class ClosePositionRequestSerializer(serializers.Serializer):
+    """Validate a canonical position-close request."""
+
+    asset_code = serializers.CharField(max_length=32, allow_blank=False)
+    close_shares = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=20,
+        decimal_places=6,
+        min_value=Decimal("0.000001"),
+    )
+    close_price = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=12,
+        decimal_places=4,
+        min_value=Decimal("0.0001"),
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        max_length=200,
+        default="平仓",
+    )
+
+
+class ResetAccountRequestSerializer(serializers.Serializer):
+    """Validate a canonical simulated-account reset request."""
+
+    new_initial_capital = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=15,
+        decimal_places=2,
+        min_value=Decimal("1000.00"),
+    )
+
+
 # ============================================================================
 # 交易记录相关序列化器
 # ============================================================================

@@ -184,6 +184,10 @@ def test_fund_screen_and_rank_use_persisted_snapshots_without_writes(
             "/api/fund/rank/",
             {"regime": "Recovery", "max_count": 10},
         )
+        score_response = authenticated_client.get(
+            "/api/fund/score/000001/",
+            {"regime": "Recovery"},
+        )
 
     assert screen_response.status_code == 200
     assert screen_response.json()["success"] is True
@@ -193,6 +197,9 @@ def test_fund_screen_and_rank_use_persisted_snapshots_without_writes(
     assert rank_response.status_code == 200
     assert rank_response.json()["count"] == 1
     assert rank_response.json()["funds"][0]["fund_code"] == "000001"
+    assert score_response.status_code == 200
+    assert score_response.json()["score"]["fund_code"] == "000001"
+    assert score_response.json()["score"]["rank"] == 1
     after = {
         model._meta.label: list(model.objects.order_by("pk").values())
         for model in tracked_models
@@ -206,6 +213,7 @@ def test_fund_screen_and_rank_use_persisted_snapshots_without_writes(
     [
         ("post", "/api/fund/screen/", {"unknown": True}),
         ("get", "/api/fund/rank/", {"unknown": True}),
+        ("get", "/api/fund/score/000001/", {"unknown": True}),
     ],
 )
 def test_fund_research_contracts_reject_unknown_parameters(
@@ -226,6 +234,7 @@ def test_fund_research_contracts_reject_unknown_parameters(
     [
         ("post", "/api/fund/screen/"),
         ("get", "/api/fund/rank/"),
+        ("get", "/api/fund/score/000001/"),
     ],
 )
 def test_fund_research_contracts_require_authentication(api_client, method, path):

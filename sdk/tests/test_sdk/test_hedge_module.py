@@ -108,7 +108,10 @@ class TestHedgeModuleReadContracts:
             alerts = client.hedge.get_alerts()
 
         assert alerts == [{"id": 9, "severity": "warning"}]
-        mock_get.assert_called_once_with("/api/hedge/alerts/active/?days=7")
+        mock_get.assert_called_once_with(
+            "/api/hedge/alerts/active/",
+            params={"days": 7},
+        )
 
     def test_get_portfolio_state_uses_latest_snapshot_endpoint(self):
         client = AgomTradeProClient(base_url="http://test.com", api_token="token")

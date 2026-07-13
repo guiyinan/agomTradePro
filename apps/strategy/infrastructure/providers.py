@@ -10,13 +10,13 @@ Infrastructure层:
 import logging
 from typing import Any
 
+from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.strategy.infrastructure.repositories import (  # noqa: F401
     DjangoStrategyExecutionLogRepository,
     DjangoStrategyGatewayRepository,
     DjangoStrategyRepository,
     StrategyInterfaceRepository,
 )
-from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
 logger = logging.getLogger(__name__)
 

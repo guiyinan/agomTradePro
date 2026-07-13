@@ -38,6 +38,9 @@ def test_factor_api_root_contract(authenticated_client):
 
 @pytest.mark.django_db
 def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
+    from datetime import date
+    from decimal import Decimal
+
     from apps.factor.infrastructure.models import (
         FactorDefinitionModel,
         FactorPortfolioConfigModel,
@@ -54,13 +57,24 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
         direction="positive",
         is_active=True,
     )
-    FactorPortfolioConfigModel._default_manager.create(
+    config = FactorPortfolioConfigModel._default_manager.create(
         name="Factor read config",
         description="Pure read evidence",
         factor_weights={"factor_read_contract": 1.0},
         universe="all_a",
         top_n=20,
         is_active=True,
+    )
+    FactorPortfolioHoldingModel._default_manager.create(
+        config=config,
+        trade_date=date(2026, 7, 13),
+        stock_code="000001.SZ",
+        stock_name="平安银行",
+        weight=Decimal("0.0500"),
+        factor_score=Decimal("88.5000"),
+        rank=1,
+        sector="银行",
+        factor_scores={"quality": 88.5},
     )
     tracked_models = (
         FactorDefinitionModel,
@@ -74,9 +88,14 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
 
     definitions_response = authenticated_client.get("/api/factor/all-factors/")
     configs_response = authenticated_client.get("/api/factor/all-configs/")
+    portfolio_response = authenticated_client.get(
+        "/api/factor/portfolio/",
+        {"config_name": config.name},
+    )
 
     assert definitions_response.status_code == 200
     assert configs_response.status_code == 200
+    assert portfolio_response.status_code == 200
     assert any(
         item["code"] == "factor_read_contract"
         for item in definitions_response.json()
@@ -85,6 +104,8 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
         item["name"] == "Factor read config"
         for item in configs_response.json()
     )
+    assert portfolio_response.json()["config_name"] == config.name
+    assert portfolio_response.json()["holdings"][0]["stock_code"] == "000001.SZ"
     after_counts = {
         model._meta.label_lower: model._default_manager.count()
         for model in tracked_models
@@ -197,11 +218,26 @@ def test_factor_top_stocks_rejects_invalid_compute_contract(authenticated_client
 
 
 @pytest.mark.django_db
-def test_factor_create_portfolio_requires_config_name(authenticated_client):
-    response = authenticated_client.post("/api/factor/create-portfolio/", {}, format="json")
+def test_factor_portfolio_contract_rejects_missing_or_unknown_inputs(
+    authenticated_client,
+):
+    create_response = authenticated_client.post(
+        "/api/factor/create-portfolio/",
+        {},
+        format="json",
+    )
+    read_response = authenticated_client.get("/api/factor/portfolio/")
+    unknown_response = authenticated_client.get(
+        "/api/factor/portfolio/",
+        {"config_name": "balanced", "unknown": True},
+    )
 
-    assert response.status_code == 400
-    assert response.json()["error"] == "config_name is required"
+    assert create_response.status_code == 400
+    assert create_response.json()["error"] == "config_name is required"
+    assert read_response.status_code == 400
+    assert "config_name" in str(read_response.json())
+    assert unknown_response.status_code == 400
+    assert "Unknown query parameters: unknown" in str(unknown_response.json())
 
 
 @pytest.mark.django_db

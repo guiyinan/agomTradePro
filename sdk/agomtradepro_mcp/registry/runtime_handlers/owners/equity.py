@@ -128,6 +128,29 @@ def _fallback_equity_read_valuation_repair_config_catalog(
     return {"configs": configs, "total_count": len(configs)}
 
 
+def _fallback_equity_read_financial_history(
+    stock_code: str,
+    report_type: str = "annual",
+    limit: int = 5,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    financials = client.equity.get_financials(
+        stock_code,
+        report_type=report_type,
+        limit=limit,
+    )
+    if not isinstance(financials, list):
+        raise ValueError("equity.read.financial_history returned an invalid payload")
+    return {
+        "stock_code": stock_code,
+        "report_type": report_type,
+        "financials": financials,
+        "total_count": len(financials),
+    }
+
+
 def _internal_handler_equity_create_valuation_repair_config(
     change_reason: str,
     min_history_points: int = 120,
@@ -327,6 +350,7 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "equity_compute_valuation_repair_history": _fallback_equity_compute_valuation_repair_history,
     "equity_read_valuation_repair_config": _fallback_equity_read_valuation_repair_config,
     "equity_read_valuation_repair_config_catalog": _fallback_equity_read_valuation_repair_config_catalog,
+    "equity_read_financial_history": _fallback_equity_read_financial_history,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {

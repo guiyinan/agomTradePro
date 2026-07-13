@@ -150,7 +150,7 @@ def test_rotation_asset_catalog_and_detail_return_persisted_master_data(
     authenticated_client,
 ):
     AssetClassModel.objects.create(
-        code="510300",
+        code="510300.SH",
         name="沪深300ETF",
         category="equity",
         currency="CNY",
@@ -158,18 +158,27 @@ def test_rotation_asset_catalog_and_detail_return_persisted_master_data(
     )
 
     list_response = authenticated_client.get("/api/rotation/assets/")
-    detail_response = authenticated_client.get("/api/rotation/assets/510300/")
+    detail_response = authenticated_client.get("/api/rotation/assets/510300.SH/")
+    with patch(
+        "apps.rotation.application.interface_services.get_asset_info",
+        return_value={"code": "510300.SH", "source": "persisted-test"},
+    ):
+        action_response = authenticated_client.get(
+            "/api/rotation/assets/510300.SH/detail/"
+        )
 
     assert list_response.status_code == 200
     assets = _list_payload(list_response)
-    assert assets[0]["code"] == "510300"
+    assert assets[0]["code"] == "510300.SH"
     assert assets[0]["name"] == "沪深300ETF"
 
     assert detail_response.status_code == 200
     detail = detail_response.json()
-    assert detail["code"] == "510300"
+    assert detail["code"] == "510300.SH"
     assert detail["category"] == "equity"
     assert detail["currency"] == "CNY"
+    assert action_response.status_code == 200
+    assert action_response.json()["code"] == "510300.SH"
 
 
 @pytest.mark.django_db

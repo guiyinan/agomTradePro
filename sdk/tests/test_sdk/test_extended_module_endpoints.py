@@ -246,9 +246,9 @@ def client():
         (lambda c: c.decision_rhythm.trend_data(), "GET", "/api/decision-rhythm/trend-data/"),
         (
             lambda c: c.decision_rhythm.trend_data({"days": 30}),
-            "POST",
+            "GET",
             "/api/decision-rhythm/trend-data/",
-            {"json": {"days": 30}},
+            {"params": {"days": 30}},
         ),
         (
             lambda c: c.decision_rhythm.update_quota({"limit": 5}),
@@ -612,8 +612,9 @@ def client():
         ),
         (
             lambda c: c.asset_analysis.screen_asset_pool("equity"),
-            "GET",
+            "POST",
             "/api/asset-analysis/screen/equity/",
+            {"json": {}},
         ),
         (
             lambda c: c.asset_analysis.screen_asset_pool("equity", {"top_n": 10}),

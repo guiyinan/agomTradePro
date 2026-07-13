@@ -192,7 +192,8 @@ class RankFundsUseCase:
     def execute(
         self,
         regime: str,
-        max_count: int = 50
+        max_count: int = 50,
+        as_of_date: date | None = None,
     ) -> list[FundScore]:
         """
         执行基金排名
@@ -206,7 +207,7 @@ class RankFundsUseCase:
         """
         # 1. 获取全市场基金数据
         start_date, end_date = self.fund_repo.resolve_research_window(
-            requested_end_date=date.today(),
+            requested_end_date=as_of_date or date.today(),
             lookback_days=365,
         )
 

@@ -19,6 +19,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ..application.config_mutation_service import deactivate_gate_config, replace_gate_config
 from ..application.config_query_service import get_beta_gate_config_query_service
 from ..application.repository_provider import (
     get_beta_gate_config_repository,
@@ -27,7 +28,11 @@ from ..application.repository_provider import (
 )
 from ..domain.entities import RiskProfile, create_gate_config, get_default_configs
 from .forms import GateConfigForm
-from .serializers import BetaGateTestSerializer, GateConfigCreateSerializer
+from .serializers import (
+    BetaGateTestSerializer,
+    GateConfigCreateSerializer,
+    GateConfigUpdateSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -736,6 +741,34 @@ class GateConfigViewSet(viewsets.ViewSet):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    def partial_update(self, request, pk=None) -> Response:
+        """Replace an immutable config with a newly versioned config."""
+
+        serializer = GateConfigUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = replace_gate_config(str(pk), dict(serializer.validated_data))
+        if result is None:
+            return Response(
+                {"success": False, "error": "Config not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"success": True, "result": result})
+
+    def update(self, request, pk=None) -> Response:
+        """Use immutable replacement semantics for PUT as well as PATCH."""
+
+        return self.partial_update(request, pk=pk)
+
+    def destroy(self, request, pk=None) -> Response:
+        """Soft-delete a config so historical versions remain auditable."""
+
+        if not deactivate_gate_config(str(pk)):
+            return Response(
+                {"success": False, "error": "Config not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_permissions(self):
         """Require staff authorization for config mutation."""

@@ -150,3 +150,18 @@ def test_validate_mcp_catalog_dedup_rejects_governed_write_missing_audit_tags():
 
     with pytest.raises(ValueError, match="missing synced audit_tags"):
         module.validate_mcp_catalog_dedup([broken])
+
+
+def test_validate_mcp_governance_baseline_rejects_stale_counter():
+    module = _load_module()
+    actual = {
+        "legacy_capability_count": 10,
+        "replacement_link_count": 8,
+        "legacy_without_replacement_count": 2,
+    }
+
+    with pytest.raises(ValueError, match="replacement_link_count"):
+        module.validate_mcp_governance_baseline(
+            actual,
+            {**actual, "replacement_link_count": 7},
+        )

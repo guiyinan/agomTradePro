@@ -136,6 +136,50 @@ def _fallback_strategy_compute_position_management(
     return dict(result)
 
 
+def _fallback_strategy_read_performance(
+    strategy_id: int,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> dict[str, Any]:
+    from datetime import date
+
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    result = client.strategy.get_strategy_performance(
+        strategy_id,
+        start_date=date.fromisoformat(start_date) if start_date else None,
+        end_date=date.fromisoformat(end_date) if end_date else None,
+    )
+    if not isinstance(result, dict):
+        raise ValueError("strategy.read.performance returned an invalid payload")
+    return result
+
+
+def _fallback_strategy_read_signals(
+    strategy_id: int,
+    status: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    signals = client.strategy.get_strategy_signals(strategy_id, status=status, limit=limit)
+    if not isinstance(signals, list):
+        raise ValueError("strategy.read.signals returned an invalid payload")
+    return {"signals": signals, "total_count": len(signals)}
+
+
+def _fallback_strategy_read_positions(strategy_id: int) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    client = AgomTradeProClient()
+    positions = client.strategy.get_strategy_positions(strategy_id)
+    if not isinstance(positions, list):
+        raise ValueError("strategy.read.positions returned an invalid payload")
+    return {"positions": positions, "total_count": len(positions)}
+
+
 def _fallback_execute_strategy(
     strategy_id: int,
     as_of_date: str | None = None,
@@ -640,6 +684,9 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "strategy_read_position_rule_detail": _fallback_strategy_read_position_rule_detail,
     "strategy_compute_position_rule": _fallback_strategy_compute_position_rule,
     "strategy_compute_position_management": _fallback_strategy_compute_position_management,
+    "strategy_read_performance": _fallback_strategy_read_performance,
+    "strategy_read_signals": _fallback_strategy_read_signals,
+    "strategy_read_positions": _fallback_strategy_read_positions,
     "execute_strategy": _fallback_execute_strategy,
     "bind_portfolio_strategy": _fallback_bind_portfolio_strategy,
     "unbind_portfolio_strategy": _fallback_unbind_portfolio_strategy,

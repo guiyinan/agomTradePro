@@ -19,9 +19,7 @@ class AssetAnalysisModule(BaseModule):
         return self._get("current-weight/")
 
     def screen_asset_pool(self, asset_type: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post(f"screen/{asset_type}/", json=payload)
-        return self._get(f"screen/{asset_type}/")
+        return self._post(f"screen/{asset_type}/", json=payload or {})
 
     def pool_summary(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._get("pool-summary/", params=payload)

@@ -67,6 +67,32 @@ UNSUPPORTED_LEGACY_CONTRACTS: tuple[UnsupportedLegacyContract, ...] = (
             "until a real realtime alert API is implemented."
         ),
     ),
+    UnsupportedLegacyContract(
+        contract_key="realtime.price_subscription",
+        title="Realtime Price Push Subscription",
+        owner_app="realtime",
+        legacy_tool_names=(),
+        sdk_methods=(
+            "subscribe_price",
+            "unsubscribe_price",
+            "get_subscriptions",
+        ),
+        suspected_paths=(
+            "/api/realtime/subscriptions/",
+            "/api/realtime/subscriptions/unsubscribe/",
+        ),
+        reason=(
+            "Realtime push subscriptions have no WebSocket or polling execution chain "
+            "in the current server build."
+        ),
+        evidence=(
+            "No canonical subscription model or WebSocket consumer exists.",
+            "Persisting an asset-code list alone would not deliver realtime updates.",
+        ),
+        governance_rule=(
+            "Do not expose storage-only placeholder routes as a working push subscription API."
+        ),
+    ),
 )
 
 _BY_KEY = {contract.contract_key: contract for contract in UNSUPPORTED_LEGACY_CONTRACTS}

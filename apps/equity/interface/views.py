@@ -2,8 +2,7 @@
 个股分析模块 Interface 层视图
 
 遵循四层架构规范：
-- Interface 层只做输入验证和输出格式化
-- 禁止业务逻辑
+- Interface 层只做输入验证和输出格式化，禁止业务逻辑
 - 包含 API 视图（DRF）和页面视图（Django Views）
 """
 
@@ -81,6 +80,7 @@ from apps.equity.application.use_cases_valuation_sync import (
 )
 from apps.signal.application.repository_provider import get_signal_repository
 
+from .sdk_contract_actions import EquitySDKContractActionsMixin
 from .serializers import (
     AnalyzeRegimeCorrelationRequestSerializer,
     AnalyzeRegimeCorrelationResponseSerializer,
@@ -204,7 +204,7 @@ def valuation_repair_config_page(request):
     return render(request, "equity/config.html")
 
 
-class EquityViewSet(viewsets.ViewSet):
+class EquityViewSet(EquitySDKContractActionsMixin, viewsets.ViewSet):
     """个股分析 API"""
 
     def __init__(self, *args, **kwargs):

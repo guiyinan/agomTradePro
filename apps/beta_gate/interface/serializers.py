@@ -113,6 +113,25 @@ class GateConfigCreateSerializer(serializers.Serializer):
         return attrs
 
 
+class GateConfigUpdateSerializer(serializers.Serializer):
+    """Validate the immutable-config replacement contract."""
+
+    risk_profile = serializers.ChoiceField(
+        choices=[profile.value for profile in RiskProfile],
+        required=False,
+    )
+    regime_constraints = serializers.DictField(required=False)
+    policy_constraints = serializers.DictField(required=False)
+    portfolio_constraints = serializers.DictField(required=False)
+
+    def validate(self, attrs):
+        """Require at least one replacement field."""
+
+        if not attrs:
+            raise serializers.ValidationError("At least one config field is required")
+        return attrs
+
+
 class BetaGateTestSerializer(serializers.Serializer):
     """Validate the canonical side-effect-free Beta Gate batch evaluation input."""
 

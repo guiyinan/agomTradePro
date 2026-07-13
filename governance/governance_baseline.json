@@ -1,19 +1,20 @@
 {
-  "version": "2026-07-13.v121",
+  "version": "2026-07-13.v124",
   "mcp_tool_count": 375,
   "mcp_governance": {
     "default_top_level_tool_count": 7,
-    "governed_manifest_count": 255,
-    "governed_read_capability_count": 165,
+    "governed_manifest_count": 263,
+    "governed_read_capability_count": 173,
     "governed_write_like_capability_count": 90,
-    "catalog_candidate_count": 623,
+    "catalog_candidate_count": 631,
     "legacy_capability_count": 368,
-    "replacement_link_count": 278,
-    "unsupported_legacy_contract_count": 1,
+    "replacement_link_count": 286,
+    "legacy_without_replacement_count": 82,
+    "unsupported_legacy_contract_count": 2,
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6625,
+  "static_test_function_count": 6636,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,

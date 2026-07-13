@@ -292,8 +292,8 @@ class SimulatedTradingModule(BaseModule):
             >>> for trade in trades:
             ...     print(f"{trade['created_at']}: {trade['side']} {trade['asset_code']}")
         """
-        params: dict[str, Any] = {"account_id": account_id, "limit": limit}
-        response = self._get("trade-history/", params=params)
+        params: dict[str, Any] = {"limit": limit}
+        response = self._get(f"accounts/{account_id}/trades/", params=params)
         results = response.get("results", response)
         return results
 
@@ -320,12 +320,9 @@ class SimulatedTradingModule(BaseModule):
             ... )
             >>> print(f"已平仓: {result['order_id']}")
         """
-        data: dict[str, Any] = {
-            "account_id": account_id,
-            "asset_code": asset_code,
-        }
+        data: dict[str, Any] = {"asset_code": asset_code}
 
-        return self._post("close-position/", json=data)
+        return self._post(f"accounts/{account_id}/positions/close/", json=data)
 
     def reset_account(
         self,

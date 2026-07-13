@@ -35,6 +35,7 @@ class AssetClassViewSet(viewsets.ModelViewSet):
     search_fields = ['code', 'name', 'description']
     ordering_fields = ['category', 'code']
     lookup_field = 'code'
+    lookup_value_regex = r'[^/]+'
 
     def get_permissions(self) -> list[BasePermission]:
         """Restrict global asset-catalog mutations to staff users."""
@@ -87,10 +88,10 @@ class AssetClassViewSet(viewsets.ModelViewSet):
         response['Content-Disposition'] = 'attachment; filename="rotation-assets.json"'
         return response
 
-    @action(detail=True, methods=['get'])
-    def detail(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='detail')
+    def asset_detail(self, request, code=None):
         """Get detailed information about a specific asset"""
-        asset_code = pk
+        asset_code = code
         info = rotation_interface_services.get_asset_info(asset_code)
 
         if info:

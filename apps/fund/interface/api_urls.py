@@ -11,6 +11,7 @@ from .views import (
     FundInfoView,
     FundMultiDimScreenAPIView,
     FundNavView,
+    FundScoreView,
     RankFundsView,
     ScreenFundsView,
 )
@@ -42,6 +43,7 @@ urlpatterns = [
     path("", FundApiRootView.as_view(), name="api-root"),
     path("screen/", ScreenFundsView.as_view(), name="screen"),
     path("rank/", RankFundsView.as_view(), name="rank"),
+    path("score/<str:fund_code>/", FundScoreView.as_view(), name="score"),
     path("style/<str:fund_code>/", AnalyzeFundStyleView.as_view(), name="style"),
     path("performance/calculate/", CalculateFundPerformanceView.as_view(), name="calculate_performance"),
     path("info/<str:fund_code>/", FundInfoView.as_view(), name="info"),
@@ -49,4 +51,3 @@ urlpatterns = [
     path("holding/<str:fund_code>/", FundHoldingView.as_view(), name="holding"),
     path("multidim-screen/", FundMultiDimScreenAPIView.as_view(), name="multidim_screen"),
 ]
-

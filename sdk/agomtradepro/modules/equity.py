@@ -282,7 +282,14 @@ class EquityModule(BaseModule):
             >>> for f in financials:
             ...     print(f"{f['report_date']}: 营收 {f['revenue']}")
         """
-        return []
+        response = self._get(
+            f"financials/{stock_code}/",
+            params={"report_type": report_type, "limit": limit},
+        )
+        results = response.get("results", response)
+        if not isinstance(results, list):
+            raise ValueError("financial history response must contain a list")
+        return results
 
     def get_valuation(
         self,

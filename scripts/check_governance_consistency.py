@@ -78,6 +78,7 @@ MCP_GOVERNANCE_REQUIRED_KEYS = (
     "catalog_candidate_count",
     "legacy_capability_count",
     "replacement_link_count",
+    "legacy_without_replacement_count",
     "unsupported_legacy_contract_count",
     "raw_tool_file_count",
 )
@@ -612,6 +613,25 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
                         "governance_baseline_mcp_catalog_partition_invalid",
                         path_label,
                         "Governed and legacy capability counts must sum to catalog_candidate_count.",
+                    )
+                )
+
+        replacement_count = mcp_governance.get("replacement_link_count")
+        without_replacement_count = mcp_governance.get(
+            "legacy_without_replacement_count"
+        )
+        if all(
+            is_non_negative_int(value)
+            for value in (legacy_count, replacement_count, without_replacement_count)
+        ):
+            if int(replacement_count) + int(without_replacement_count) != int(
+                legacy_count
+            ):
+                violations.append(
+                    Violation(
+                        "governance_baseline_mcp_replacement_partition_invalid",
+                        path_label,
+                        "MCP replacement and unresolved counts must sum to legacy_capability_count.",
                     )
                 )
 

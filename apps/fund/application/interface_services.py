@@ -98,10 +98,29 @@ def calculate_fund_performance(perf_request: CalculateFundPerformanceRequest):
     return CalculateFundPerformanceUseCase(DjangoFundRepository()).execute(perf_request)
 
 
-def rank_funds(regime: str, max_count: int):
+def rank_funds(regime: str, max_count: int, as_of_date: date | None = None):
     """Return ranked funds for the given regime."""
 
-    return RankFundsUseCase(DjangoFundRepository()).execute(regime, max_count)
+    return RankFundsUseCase(DjangoFundRepository()).execute(
+        regime,
+        max_count,
+        as_of_date=as_of_date,
+    )
+
+
+def get_fund_score(
+    *,
+    fund_code: str,
+    regime: str,
+    as_of_date: date | None = None,
+):
+    """Return one computed fund score from the canonical ranking use case."""
+
+    normalized = fund_code.strip().upper().removesuffix(".OF")
+    for score in rank_funds(regime, 10000, as_of_date=as_of_date):
+        if score.fund_code.strip().upper().removesuffix(".OF") == normalized:
+            return score
+    return None
 
 
 def get_fund_info(fund_code: str):

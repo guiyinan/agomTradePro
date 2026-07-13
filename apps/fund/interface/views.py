@@ -187,6 +187,29 @@ class RankFundsView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class FundScoreView(APIView):
+    """Return one computed fund score."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, fund_code: str) -> Response:
+        from .serializers import FundScoreQuerySerializer, FundScoreSerializer
+
+        query = FundScoreQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        score = interface_services.get_fund_score(
+            fund_code=fund_code,
+            regime=query.validated_data["regime"],
+            as_of_date=query.validated_data.get("as_of_date"),
+        )
+        if score is None:
+            return Response(
+                {"success": False, "error": f"基金 {fund_code} 暂无评分"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"success": True, "score": FundScoreSerializer(score).data})
+
+
 class FundInfoView(APIView):
     """基金信息 API
 

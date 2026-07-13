@@ -65,6 +65,13 @@ class RankFundsQuerySerializer(StrictFieldsSerializer):
     max_count = serializers.IntegerField(default=50, min_value=1, max_value=200)
 
 
+class FundScoreQuerySerializer(StrictFieldsSerializer):
+    """Validate one-fund score lookup parameters."""
+
+    regime = serializers.ChoiceField(choices=REGIME_CHOICES, default="Recovery")
+    as_of_date = serializers.DateField(required=False, allow_null=True)
+
+
 class ScreenFundsResponseSerializer(serializers.Serializer):
     """筛选基金响应序列化器"""
     success = serializers.BooleanField()
