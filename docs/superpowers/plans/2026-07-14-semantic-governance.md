@@ -62,7 +62,7 @@ Expected: all cases pass.
 **Files:**
 - Modify: apps/ai_capability/infrastructure/models.py
 - Create: apps/ai_capability/infrastructure/semantic_governance_repository.py
-- Create: apps/ai_capability/migrations/0004_semantic_governance.py
+- Create: apps/ai_capability/migrations/0005_semantic_governance.py
 - Test: tests/unit/ai_capability/test_semantic_governance_repository.py
 - Test: tests/migrations/test_ai_capability_semantic_governance_migration.py
 
