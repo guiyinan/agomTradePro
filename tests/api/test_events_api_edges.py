@@ -16,6 +16,7 @@ def auth_user(db):
         username="events_user",
         password="testpass123",
         email="events@example.com",
+        is_staff=True,
     )
 
 
@@ -33,7 +34,8 @@ def test_events_api_root_contract(authenticated_client):
     assert response["Content-Type"].startswith("application/json")
     payload = response.json()
     assert payload["endpoints"]["publish"] == "/api/events/publish/"
-    assert payload["endpoints"]["replay"] == "/api/events/replay/"
+    assert payload["endpoints"]["replay_preview"] == "/api/events/replay/preview/"
+    assert payload["endpoints"]["replay_commit"] == "/api/events/replay/commit/"
 
 
 @pytest.mark.django_db
@@ -59,29 +61,34 @@ def test_events_query_rejects_invalid_since_datetime(authenticated_client):
 @pytest.mark.django_db
 def test_events_replay_rejects_out_of_range_limit(authenticated_client):
     response = authenticated_client.post(
-        "/api/events/replay/",
-        {"limit": 10001},
+        "/api/events/replay/preview/",
+        {
+            "target_key": "events.decision.approved",
+            "event_type": "decision_approved",
+            "limit": 1001,
+        },
         format="json",
     )
 
     assert response.status_code == 400
     payload = response.json()
-    assert payload["success"] is False
-    assert payload["error_code"] == "INVALID_REQUEST"
+    assert set(payload) == {"limit"}
 
 
 @pytest.mark.django_db
 def test_events_replay_rejects_invalid_event_type(authenticated_client):
     response = authenticated_client.post(
-        "/api/events/replay/",
-        {"event_type": "not-real"},
+        "/api/events/replay/preview/",
+        {
+            "target_key": "events.decision.approved",
+            "event_type": "not-real",
+        },
         format="json",
     )
 
     assert response.status_code == 400
     payload = response.json()
-    assert payload["success"] is False
-    assert payload["error_code"] == "INVALID_REQUEST"
+    assert set(payload) == {"event_type"}
 
 
 @pytest.mark.django_db
