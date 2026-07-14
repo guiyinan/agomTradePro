@@ -112,6 +112,7 @@ ALLOWED_TUI_VIEW_MODEL_KEYS = {
     "title_path",
     "status_path",
     "field_presentations",
+    "columns",
 }
 ALLOWED_TUI_RESULT_FIELD_PRESENTATIONS = {"secret", "copyable", "multiline", "metadata"}
 ALLOWED_TUI_DASHBOARD_PANEL_KINDS = {
@@ -342,6 +343,23 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                             f"Action has unsupported result field presentation: "
                             f"{action['key']}.{field_key}.{presentation}"
                         )
+                continue
+            if key == "columns":
+                if not isinstance(value, list):
+                    raise TuiMetadataValidationError(
+                        f"Action view_model columns must be a list: {action['key']}"
+                    )
+                if len(value) > 8:
+                    raise TuiMetadataValidationError(
+                        f"Action view_model columns cannot exceed 8: {action['key']}"
+                    )
+                for column in value:
+                    if not isinstance(column, dict) or set(column) != {"key", "label"}:
+                        raise TuiMetadataValidationError(
+                            f"Action view_model column must contain key and label only: "
+                            f"{action['key']}"
+                        )
+                    _require_fields(column, "action view_model column", ("key", "label"))
                 continue
             if not isinstance(value, str):
                 raise TuiMetadataValidationError(

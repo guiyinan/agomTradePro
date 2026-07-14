@@ -60,6 +60,7 @@ class RuntimeMetadataInjectionBundle:
     modules: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     screens: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     actions: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    replace_existing: bool = False
 
 
 RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
@@ -89,6 +90,7 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
             RUNTIME_AI_USER_QUOTAS_SCREEN,
         ),
         actions=RUNTIME_CAPABILITY_ROUTER_ACTIONS,
+        replace_existing=True,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_advisor_metadata",
@@ -128,5 +130,6 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
         coverage_key="runtime_injected_identity_access_metadata",
         screens=(),
         actions=RUNTIME_IDENTITY_ACCESS_ACTIONS,
+        replace_existing=True,
     ),
 )

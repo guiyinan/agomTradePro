@@ -388,33 +388,42 @@ class PublishedTuiMetadataRepository:
         screens: list[dict[str, Any]],
         actions: list[dict[str, Any]],
     ) -> int:
-        """Inject one runtime metadata bundle and report the added item count."""
+        """Inject one runtime bundle and report inserted or replaced item count."""
 
         injected = 0
         injected += PublishedTuiMetadataRepository._append_unique_payloads(
             payloads=groups,
             additions=bundle.groups,
+            replace_existing=bundle.replace_existing,
         )
         injected += PublishedTuiMetadataRepository._append_unique_payloads(
             payloads=modules,
             additions=bundle.modules,
+            replace_existing=bundle.replace_existing,
         )
         injected += PublishedTuiMetadataRepository._append_unique_payloads(
             payloads=screens,
             additions=bundle.screens,
+            replace_existing=bundle.replace_existing,
         )
 
         screen_keys = {str(screen.get("key") or "") for screen in screens}
-        action_keys = {str(action.get("key") or "") for action in actions}
+        action_index = {
+            str(action.get("key") or ""): index for index, action in enumerate(actions)
+        }
         for action in bundle.actions:
             action_key = str(action.get("key") or "")
             screen_key = str(action.get("screen_key") or "")
-            if action_key in action_keys:
+            existing_index = action_index.get(action_key)
+            if existing_index is not None:
+                if bundle.replace_existing and actions[existing_index] != action:
+                    actions[existing_index] = dict(action)
+                    injected += 1
                 continue
             if screen_key and screen_key not in screen_keys:
                 continue
             actions.append(dict(action))
-            action_keys.add(action_key)
+            action_index[action_key] = len(actions) - 1
             injected += 1
         return injected
 
@@ -423,17 +432,24 @@ class PublishedTuiMetadataRepository:
         *,
         payloads: list[dict[str, Any]],
         additions: tuple[dict[str, Any], ...],
+        replace_existing: bool = False,
     ) -> int:
-        """Append payloads by unique key and return the number of inserted items."""
+        """Upsert payloads by unique key and return the number of changed items."""
 
-        existing_keys = {str(payload.get("key") or "") for payload in payloads}
+        existing_index = {
+            str(payload.get("key") or ""): index for index, payload in enumerate(payloads)
+        }
         inserted = 0
         for addition in additions:
             addition_key = str(addition.get("key") or "")
-            if addition_key in existing_keys:
+            current_index = existing_index.get(addition_key)
+            if current_index is not None:
+                if replace_existing and payloads[current_index] != addition:
+                    payloads[current_index] = dict(addition)
+                    inserted += 1
                 continue
             payloads.append(dict(addition))
-            existing_keys.add(addition_key)
+            existing_index[addition_key] = len(payloads) - 1
             inserted += 1
         return inserted
 

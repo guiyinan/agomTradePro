@@ -57,6 +57,13 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
     "view_type": "detail",
     "audience": "admin",
     "default_action_key": "capability-router.mcp-tools-stats",
+    "user_experience": {
+        "journey": "admin",
+        "primary_task": "先确认 MCP 目录同步和开关状态，再治理需要放行或收紧的工具。",
+        "primary_outcome": "明确每个 MCP 工具是否进入 Routing 与 Terminal，并能在同屏完成详情查看和开关调整。",
+        "empty_state_hint": "先读取 MCP 同步与治理概览；目录为空时执行同步，再返回工具列表复核。",
+        "next_step_hint": "处理待放行工具后，重新查看概览与列表，确认 Routing 和 Terminal 状态符合预期。",
+    },
     "workflow": {
         "name": "MCP 管理",
         "label": "MCP 治理",
@@ -81,6 +88,8 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
             "action_key": "capability-router.mcp-tools-stats",
             "layout_area": "summary",
             "target_screen": "capability-router.mcp-center",
+            "user_priority": "p0",
+            "presentation_semantic": "primary_status",
         },
         {
             "key": "mcp-tools-list",
@@ -90,6 +99,8 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
             "max_rows": 8,
             "layout_area": "tools",
             "target_screen": "capability-router.mcp-center",
+            "user_priority": "p1",
+            "presentation_semantic": "primary_list",
             "columns": [
                 {"key": "capability_key", "label": "Capability"},
                 {"key": "module_name", "label": "模块"},
@@ -123,6 +134,8 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
             "max_rows": 6,
             "layout_area": "routing_off",
             "target_screen": "capability-router.mcp-center",
+            "user_priority": "p2",
+            "presentation_semantic": "supporting_list",
             "columns": [
                 {"key": "capability_key", "label": "Capability"},
                 {"key": "review_status", "label": "审核"},
@@ -345,6 +358,13 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
             "kind": "datagrid",
             "rows_path": "tools",
             "total_path": "total_count",
+            "columns": [
+                {"key": "capability_key", "label": "Capability"},
+                {"key": "module_name", "label": "模块"},
+                {"key": "risk_level", "label": "风险"},
+                {"key": "enabled_for_routing", "label": "Routing"},
+                {"key": "enabled_for_terminal", "label": "Terminal"},
+            ],
         },
     },
     {
@@ -386,6 +406,12 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
             "kind": "datagrid",
             "rows_path": "tools",
             "total_path": "total_count",
+            "columns": [
+                {"key": "capability_key", "label": "Capability"},
+                {"key": "review_status", "label": "审核"},
+                {"key": "risk_level", "label": "风险"},
+                {"key": "summary", "label": "说明"},
+            ],
         },
     },
     {

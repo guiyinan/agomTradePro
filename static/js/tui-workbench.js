@@ -2312,6 +2312,9 @@
 
     function dashboardDesktopColumns(screen) {
         const journey = screenUserExperience(screen).journey;
+        if (screen?.key === "capability-router.mcp-center") {
+            return 1;
+        }
         return ["self_service", "admin"].includes(journey) ? 2 : 3;
     }
 
@@ -2355,7 +2358,7 @@
         }
         return `
             <table class="tui-mini-table">
-                <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
                 <tbody>
                     ${rows.map((row) => `
                         <tr>

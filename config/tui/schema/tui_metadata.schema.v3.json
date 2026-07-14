@@ -192,6 +192,19 @@
         "field_presentations": {
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/resultFieldPresentation" }
+        },
+        "columns": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

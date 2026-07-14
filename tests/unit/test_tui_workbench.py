@@ -717,7 +717,7 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert '"account-list": "execution.accounts"' not in script
     assert '"account-positions": "execution.accounts"' not in script
     assert 'positions: "execution.accounts"' not in script
-    assert "function dashboardLayout(panels)" in script
+    assert "function dashboardLayout(panels, screen)" in script
     assert "function dashboardAreaTemplate(areas, columns)" in script
     assert "data-toggle-support" in script
     assert "data-toggle-advanced" in script
@@ -851,7 +851,7 @@ def test_tui_workbench_css_uses_pc_tools_scrollbar_skin():
     assert "data-inspector-action" not in css
     assert ".tui-decision-actions" in css
     assert "position: sticky" in css
-    assert ".tui-dash-panel:focus" in css
+    assert ".tui-dashboard-open:focus-visible" in css
 
 
 def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract():
@@ -3302,6 +3302,73 @@ def test_tui_service_action_runner_wraps_list_as_datagrid(tui_user):
     assert payload["response"]["status_code"] == 200
 
 
+def test_tui_service_action_runner_honors_explicit_datagrid_columns(tui_user):
+    class FakeExecutor:
+        def execute(self, **kwargs):
+            return {
+                "status_code": 200,
+                "payload": {
+                    "tools": [
+                        {
+                            "capability_key": "mcp_tool.example.read",
+                            "name": "example.read",
+                            "module_name": "example",
+                            "summary": "示例",
+                            "description": "示例能力",
+                            "route_group": "safe_api",
+                            "category": "read",
+                            "risk_level": "low",
+                            "enabled_for_routing": True,
+                            "enabled_for_terminal": False,
+                        }
+                    ],
+                    "total_count": 1,
+                },
+            }
+
+    expected_columns = [
+        {"key": "capability_key", "label": "Capability"},
+        {"key": "enabled_for_routing", "label": "Routing"},
+        {"key": "enabled_for_terminal", "label": "Terminal"},
+    ]
+    service = TuiWorkbenchService(
+        metadata_repository=FakeMetadataRepository(
+            _metadata_payload(
+                actions=[
+                    {
+                        "key": "mcp.list",
+                        "label": "MCP tools",
+                        "method": "GET",
+                        "endpoint": "/api/ai-capability/mcp-tools/",
+                        "intent": "list_mcp_tools",
+                        "screen_key": "command-center.overview",
+                        "module_key": "command-center",
+                        "view_type": "datagrid",
+                        "risk": "read",
+                        "fields": [],
+                        "view_model": {
+                            "kind": "datagrid",
+                            "rows_path": "tools",
+                            "total_path": "total_count",
+                            "columns": expected_columns,
+                        },
+                    }
+                ]
+            )
+        ),
+        action_executor=FakeExecutor(),
+    )
+
+    payload = service.run_action(action_key="mcp.list", params={}, user=tui_user)
+
+    assert payload["view_model"]["columns"] == expected_columns
+    assert payload["view_model"]["rows"][0] == {
+        "capability_key": "mcp_tool.example.read",
+        "enabled_for_routing": "是",
+        "enabled_for_terminal": "否",
+    }
+
+
 def test_tui_service_marks_missing_optional_detail_as_empty_state(tui_user):
     class FakeExecutor:
         def execute(self, **kwargs):
@@ -4935,51 +5002,61 @@ def test_tui_service_detail_model_flattens_one_level_nested_objects(tui_user):
         "key": "user.username",
         "label": "用户 / 用户名",
         "value": "admin",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "user.display_name",
         "label": "用户 / 显示名称",
         "value": "Admin User",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "regime.current",
         "label": "环境 / 当前",
         "value": "复苏",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "portfolio.total_assets",
         "label": "组合 / 总资产",
         "value": "100000",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "portfolio.cash_balance",
         "label": "组合 / 现金余额",
         "value": "1200",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "portfolio.initial_capital",
         "label": "组合 / 初始资金",
         "value": "1000000",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "portfolio.total_return_pct",
         "label": "组合 / 总收益率",
         "value": "0.125",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "portfolio.invested_ratio",
         "label": "组合 / 已投资比例",
         "value": "0.75",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "celery_health.is_healthy",
         "label": "Celery健康 / 是否健康",
         "value": "否",
+        "presentation": "metadata",
     } in fields
     assert {
         "key": "celery_health.pending_tasks_count",
         "label": "Celery健康 / 待处理任务",
         "value": "2",
+        "presentation": "metadata",
     } in fields
     assert payload["view_model"]["status"] == "正常"
 
@@ -5841,6 +5918,7 @@ def test_tui_service_converts_endpoint_directory_to_operator_summary(tui_user):
         "key": "capability_count",
         "label": "已登记能力",
         "value": "2 项",
+        "presentation": "metadata",
     } in view_model["fields"]
     assert "/api/" not in text
     assert "Endpoints" not in text
@@ -5945,6 +6023,7 @@ def test_tui_service_hides_absolute_internal_api_paths_in_details(tui_user):
         "key": "capability_count",
         "label": "已登记能力",
         "value": "2 项",
+        "presentation": "metadata",
     } in view_model["fields"]
     assert all(item["key"] != "endpoints" for item in view_model["nested"])
 
@@ -5989,11 +6068,13 @@ def test_tui_service_treats_single_internal_link_directory_as_summary(tui_user):
         "key": "capability_count",
         "label": "已登记能力",
         "value": "1 项",
+        "presentation": "metadata",
     } in view_model["fields"]
     assert {
         "key": "operator_hint",
         "label": "操作提示",
         "value": "请从左侧业务任务进入具体操作；内部接口路径只在调试抽屉中查看。",
+        "presentation": "metadata",
     } in view_model["fields"]
 
 
@@ -6955,6 +7036,11 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
     )
     user_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][0]
 
+    assert RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["user_experience"]["journey"] == "admin"
+    assert [
+        panel["user_priority"]
+        for panel in RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["dashboard_panels"]
+    ] == ["p0", "p1", "p2"]
     assert [item["action_key"] for item in tool_panel["row_actions"]] == [
         "capability-router.mcp-tool-detail",
         "capability-router.toggle-mcp-routing",
@@ -6966,6 +7052,71 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
         "capability-router.admin-toggle-user-mcp",
         "capability-router.admin-revoke-user-mcp-tokens",
     ]
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+    css = (Path(__file__).resolve().parents[2] / "static" / "css" / "tui-workbench.css").read_text(
+        encoding="utf-8"
+    )
+    assert "tui-row-actions-header" in script
+    assert ".tui-row-actions-header," in css
+    assert "position: sticky" in css
+
+
+def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_registry import (
+        RUNTIME_METADATA_INJECTIONS,
+    )
+
+    bundle = next(
+        item
+        for item in RUNTIME_METADATA_INJECTIONS
+        if item.coverage_key == "runtime_injected_capability_router_metadata"
+    )
+    identity_bundle = next(
+        item
+        for item in RUNTIME_METADATA_INJECTIONS
+        if item.coverage_key == "runtime_injected_identity_access_metadata"
+    )
+    groups = []
+    modules = []
+    screens = [
+        {
+            "key": "capability-router.self-service",
+            "dashboard_panels": [{"key": "legacy-token-panel"}],
+        }
+    ]
+    actions = [
+        {
+            "key": "capability-router.mcp-self-status",
+            "screen_key": "capability-router.self-service",
+            "view_model": {"kind": "detail"},
+        }
+    ]
+
+    PublishedTuiMetadataRepository._inject_runtime_bundle(
+        bundle=bundle,
+        groups=groups,
+        modules=modules,
+        screens=screens,
+        actions=actions,
+    )
+    PublishedTuiMetadataRepository._inject_runtime_bundle(
+        bundle=identity_bundle,
+        groups=groups,
+        modules=modules,
+        screens=screens,
+        actions=actions,
+    )
+
+    screen = next(item for item in screens if item["key"] == "capability-router.self-service")
+    assert [panel["key"] for panel in screen["dashboard_panels"]] == [
+        "mcp-access-package",
+        "mcp-access-verification",
+        "mcp-self-tokens",
+    ]
+    action = next(item for item in actions if item["key"] == "capability-router.mcp-self-status")
+    assert action["view_model"]["field_presentations"]["access_token"] == "secret"
 
 
 def test_tui_script_renders_accessible_native_dashboard_row_actions():
@@ -6990,6 +7141,15 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert '["self_service", "admin"].includes(journey)' in script
     assert 'dashboardAreaTemplate(areas, desktopColumns)' in script
     assert 'panelPriority(panel) !== "p2"' in script
+
+
+def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'screen?.key === "capability-router.mcp-center"' in script
+    assert "return 1;" in script
 
 
 def test_tui_panel_recovery_is_contextual_and_bounded():
