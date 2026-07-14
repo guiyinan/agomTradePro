@@ -43,12 +43,13 @@ def test_build_inventory_returns_registered_tools():
     assert "events.replay" not in unsupported
 
     tools = {tool["tool_name"]: tool for tool in payload["tools"]}
-    assert tools["delete_price_alert"]["disposition_hint"] == "legacy_compat"
-    assert tools["delete_price_alert"]["legacy_disposition"] == "legacy_compat"
-    assert tools["delete_price_alert"]["disposition_rationale"]
-    assert tools["delete_price_alert"]["recommended_capability_keys"] == (
-        "realtime.delete.price_alert",
+    assert (
+        tools["delete_price_alert"]["disposition_hint"]
+        == "candidate_aggregate_or_governed"
     )
+    assert tools["delete_price_alert"]["legacy_disposition"] is None
+    assert tools["delete_price_alert"]["disposition_rationale"] is None
+    assert tools["delete_price_alert"]["recommended_capability_keys"] == ()
     assert tools["delete_price_alert"]["unsupported_contract_key"] is None
     assert tools["get_asset_info"]["legacy_disposition"] == "aggregate"
     assert tools["get_asset_info"]["recommended_capability_keys"] == (
