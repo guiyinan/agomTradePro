@@ -9,9 +9,17 @@ if TYPE_CHECKING:
         RealtimeAlertService,
         RealtimeSubscriptionService,
     )
+    from apps.realtime.domain.protocols import (
+        PriceAlertRepositoryProtocol,
+        PriceDataProviderProtocol,
+        PriceSubscriptionRepositoryProtocol,
+        RealtimeChannelNotifierProtocol,
+        RealtimePriceRepositoryProtocol,
+        WatchlistProviderProtocol,
+    )
 
 
-def get_realtime_price_repository():
+def get_realtime_price_repository() -> RealtimePriceRepositoryProtocol:
     """Return the realtime price repository."""
 
     from apps.realtime.infrastructure.providers import RedisRealtimePriceRepository
@@ -19,7 +27,7 @@ def get_realtime_price_repository():
     return RedisRealtimePriceRepository()
 
 
-def get_realtime_price_provider():
+def get_realtime_price_provider() -> PriceDataProviderProtocol:
     """Build the default chained realtime price provider."""
 
     from apps.realtime.infrastructure.providers import (
@@ -40,7 +48,7 @@ def get_realtime_price_provider():
     return CompositePriceDataProvider(providers)
 
 
-def get_watchlist_provider():
+def get_watchlist_provider() -> WatchlistProviderProtocol:
     """Return the default watchlist provider."""
 
     from apps.realtime.infrastructure.providers import DatabaseWatchlistProvider
@@ -57,12 +65,42 @@ def get_realtime_alert_service() -> RealtimeAlertService:
     return RealtimeAlertService(DjangoPriceAlertRepository())
 
 
-def get_realtime_subscription_service() -> RealtimeSubscriptionService:
+def get_realtime_subscription_service(
+    *, notify_connected_clients: bool = True
+) -> RealtimeSubscriptionService:
     """Compose the durable subscription service."""
 
     from apps.realtime.application.use_cases import RealtimeSubscriptionService
     from apps.realtime.infrastructure.providers import (
+        ChannelPriceNotifier,
         DjangoPriceSubscriptionRepository,
     )
 
-    return RealtimeSubscriptionService(DjangoPriceSubscriptionRepository())
+    notifier = ChannelPriceNotifier() if notify_connected_clients else None
+    return RealtimeSubscriptionService(DjangoPriceSubscriptionRepository(), notifier)
+
+
+def get_price_alert_repository() -> PriceAlertRepositoryProtocol:
+    """Return the durable price-alert repository."""
+
+    from apps.realtime.infrastructure.providers import DjangoPriceAlertRepository
+
+    return DjangoPriceAlertRepository()
+
+
+def get_price_subscription_repository() -> PriceSubscriptionRepositoryProtocol:
+    """Return the durable price-subscription repository."""
+
+    from apps.realtime.infrastructure.providers import (
+        DjangoPriceSubscriptionRepository,
+    )
+
+    return DjangoPriceSubscriptionRepository()
+
+
+def get_realtime_channel_notifier() -> RealtimeChannelNotifierProtocol:
+    """Return the Channels-backed realtime notifier."""
+
+    from apps.realtime.infrastructure.providers import ChannelPriceNotifier
+
+    return ChannelPriceNotifier()

@@ -116,6 +116,8 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = env.int(
 )  # 最多1000个字段
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -203,6 +205,23 @@ MIDDLEWARE = [
 ROOT_URLCONF = "core.urls"
 
 WSGI_APPLICATION = "core.wsgi.application"
+ASGI_APPLICATION = "core.asgi.application"
+
+REALTIME_WEBSOCKET_ENABLED = env.bool(
+    "REALTIME_WEBSOCKET_ENABLED",
+    default=False,
+)
+REDIS_URL = env("REDIS_URL", default="")
+CHANNEL_LAYERS = (
+    {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+    if REDIS_URL
+    else {}
+)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

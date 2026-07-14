@@ -7,12 +7,15 @@ AgomTradePro SDK 核心客户端
 import hashlib
 import hmac
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+if TYPE_CHECKING:
+    from .realtime_stream import RealtimeStream
 
 from .config import ClientConfig, load_config
 from .exceptions import (
@@ -579,6 +582,24 @@ class AgomTradeProClient:
         if self._realtime is None:
             self._realtime = RealtimeModule(self)
         return self._realtime
+
+    def realtime_stream(
+        self, asset_codes: list[str] | None = None
+    ) -> "RealtimeStream":
+        """Build an authenticated realtime WebSocket stream."""
+
+        from .realtime_stream import RealtimeStream
+
+        authorization = self._headers.get("Authorization", "")
+        if not authorization:
+            raise ConfigurationError(
+                "Realtime streaming requires a formal API token Authorization header."
+            )
+        return RealtimeStream(
+            base_url=self._config.base_url,
+            authorization=authorization,
+            asset_codes=asset_codes or [],
+        )
 
     @property
     def rotation(self) -> RotationModule:
