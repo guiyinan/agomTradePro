@@ -1131,10 +1131,21 @@
             ...requestOptions,
             headers,
         });
-        if (!response.ok) {
-            throw new Error(`业务数据读取失败 (HTTP ${response.status})`);
-        }
         const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) {
+            let errorPayload = null;
+            if (contentType.includes("application/json")) {
+                try {
+                    errorPayload = await response.json();
+                } catch (parseError) {
+                    errorPayload = null;
+                }
+            }
+            const error = new Error(errorPayload?.detail || "业务数据暂时不可用");
+            error.status = response.status;
+            error.payload = errorPayload;
+            throw error;
+        }
         if (!contentType.includes("application/json")) {
             throw new Error("业务数据格式不可渲染");
         }
@@ -5046,12 +5057,14 @@
             setStatus("启动中");
             const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
-            const initialScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
+            const isResumeAttempt = Boolean(shouldResumeOnBoot() && state.lastNonHomeScreen);
+            const initialScreen = isResumeAttempt
                 ? state.lastNonHomeScreen
                 : catalog.default_screen;
             clearResumeOnBootFlag();
             const loaded = await loadScreen(initialScreen);
-            if (!loaded && initialScreen !== catalog.default_screen) {
+            if (!loaded && isResumeAttempt) {
+                setStatus("上次工作区已不可用，已返回首页");
                 await loadScreen(catalog.default_screen);
             }
         } catch (error) {

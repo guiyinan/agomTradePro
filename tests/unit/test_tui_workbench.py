@@ -2161,14 +2161,75 @@ def test_tui_catalog_registers_capability_router_entry(client, tui_user):
     )
 
 
-def test_tui_capability_router_screen_uses_unified_route_api(client, tui_user):
+def test_tui_screen_api_returns_bounded_not_found_error(client, tui_user):
     client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/not-published.screen/")
+
+    assert response.status_code == 404
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert set(payload) == {
+        "error_code",
+        "title",
+        "detail",
+        "recovery_actions",
+        "trace_id",
+    }
+    assert payload["error_code"] == "tui_screen_not_found"
+    assert payload["title"] == "页面不存在"
+    assert payload["recovery_actions"] == [
+        {"label": "返回首页", "screen_key": "home"}
+    ]
+    assert payload["trace_id"]
+    assert "/api/" not in str(payload)
+
+
+def test_tui_screen_api_returns_bounded_forbidden_error(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/capability-router.gateway/")
+
+    assert response.status_code == 403
+    payload = response.json()
+    assert payload["error_code"] == "tui_screen_forbidden"
+    assert payload["title"] == "无权访问"
+    assert payload["recovery_actions"] == [
+        {"label": "返回我的 MCP 接入", "screen_key": "capability-router.self-service"}
+    ]
+    assert payload["trace_id"]
+    assert "admin" not in str(payload).lower()
+
+
+def test_tui_screen_payload_exposes_registry_identity(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/capability-router.self-service/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["version"]
+    assert payload["registry_key"] == "default"
+
+
+def test_tui_bootstrap_only_falls_back_for_stale_resume_state():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "const isResumeAttempt" in script
+    assert "if (!loaded && isResumeAttempt)" in script
+    assert "if (!loaded && initialScreen !== catalog.default_screen)" not in script
+
+
+def test_tui_capability_router_screen_uses_unified_route_api(client, tui_admin_user):
+    client.force_login(tui_admin_user)
 
     response = client.get("/api/tui/screens/capability-router.gateway/")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["module"]["key"] == "capability-router"
+    assert payload["module"]["key"] == "capability-router-debug"
     assert payload["screen"]["label"] == "能力路由接入"
     action = next(
         action

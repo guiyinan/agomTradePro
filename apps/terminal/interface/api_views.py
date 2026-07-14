@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import StreamingHttpResponse
@@ -47,6 +48,7 @@ from ..application.tui_operator_services import (
     build_operator_home_section_payload,
 )
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
+from ..application.tui_errors import TuiScreenForbiddenError, TuiScreenNotFoundError
 from .permissions import IsStaffOrAdmin, IsStaffOrOperator
 from .serializers import (
     TerminalApprovalDecisionSerializer,
@@ -413,6 +415,26 @@ class TuiWorkbenchCatalogView(APIView):
         return Response(service.get_catalog(user=request.user))
 
 
+def _tui_screen_error_payload(
+    *,
+    request: Any,
+    error_code: str,
+    title: str,
+    detail: str,
+    recovery_actions: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Build a bounded user-facing TUI navigation error payload."""
+
+    trace_id = str(request.headers.get("X-Request-ID") or uuid.uuid4().hex)
+    return {
+        "error_code": error_code,
+        "title": title,
+        "detail": detail,
+        "recovery_actions": recovery_actions,
+        "trace_id": trace_id,
+    }
+
+
 class TuiWorkbenchScreenView(APIView):
     """Expose one renderable PC tools screen contract."""
 
@@ -422,7 +444,36 @@ class TuiWorkbenchScreenView(APIView):
         """Return a screen spec with actions and layout policy."""
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
-        return Response(service.get_screen(screen_key, user=request.user))
+        try:
+            payload = service.get_screen(screen_key, user=request.user)
+        except TuiScreenNotFoundError:
+            return Response(
+                _tui_screen_error_payload(
+                    request=request,
+                    error_code="tui_screen_not_found",
+                    title="页面不存在",
+                    detail="这个工作区没有发布，或已被移除。",
+                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except TuiScreenForbiddenError:
+            return Response(
+                _tui_screen_error_payload(
+                    request=request,
+                    error_code="tui_screen_forbidden",
+                    title="无权访问",
+                    detail="当前账号不能打开这个工作区。",
+                    recovery_actions=[
+                        {
+                            "label": "返回我的 MCP 接入",
+                            "screen_key": "capability-router.self-service",
+                        }
+                    ],
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(payload)
 
 
 class TuiAgentActionSearchView(APIView):

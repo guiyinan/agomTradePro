@@ -26,6 +26,10 @@ from apps.terminal.application.tui_audit import (
     verified_reauth_evidence,
 )
 from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
+from apps.terminal.application.tui_errors import (
+    TuiScreenForbiddenError,
+    TuiScreenNotFoundError,
+)
 from apps.terminal.application.tui_workbench_result_models import (
     TuiWorkbenchResultModelMixin,
 )
@@ -198,10 +202,11 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         """Return a renderable screen contract from published metadata."""
 
         metadata = self._metadata()
-        screen = (
-            self._screen_by_key(metadata).get(screen_key)
-            or self._screen_by_key(metadata)[metadata["default_screen"]]
-        )
+        screen = self._screen_by_key(metadata).get(screen_key)
+        if screen is None:
+            raise TuiScreenNotFoundError(screen_key)
+        if not self._screen_is_available_for_user(screen, user=user):
+            raise TuiScreenForbiddenError(screen_key)
         module = self._module_by_key(metadata)[screen["module_key"]]
         actions = [
             action
@@ -214,6 +219,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         ]
         return {
             "version": metadata["version"],
+            "registry_key": metadata.get("registry_key", self.registry_key),
             "screen": self._screen_summary(screen, actions, user=user),
             "module": self._module_summary(module),
             "layout": {
