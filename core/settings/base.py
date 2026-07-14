@@ -211,6 +211,7 @@ REALTIME_WEBSOCKET_ENABLED = env.bool(
     "REALTIME_WEBSOCKET_ENABLED",
     default=False,
 )
+EVENT_REPLAY_ENABLED = env.bool("EVENT_REPLAY_ENABLED", default=False)
 REDIS_URL = env("REDIS_URL", default="")
 CHANNEL_LAYERS = (
     {

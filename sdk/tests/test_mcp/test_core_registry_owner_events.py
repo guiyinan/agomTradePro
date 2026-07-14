@@ -66,6 +66,7 @@ def test_events_publish_event_capability_previews_side_effects_before_staff_only
         monkeypatch,
         server_module.CORE_DISPATCHER,
     )
+    monkeypatch.setattr(server_module.CORE_DISPATCHER, "_role_provider", lambda: "staff")
 
     class _FakeEventsModule:
         @staticmethod

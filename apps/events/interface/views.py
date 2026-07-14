@@ -17,18 +17,25 @@ from apps.events.application.dtos import (
     EventPublishRequestDTO,
     metrics_to_dto,
 )
+from apps.events.application.replay_service import (
+    ReplayConflictError,
+    ReplayDisabledError,
+    ReplayInProgressError,
+)
 from apps.events.application.use_cases import (
     GetEventMetricsUseCase,
     PublishEventUseCase,
     QueryEventsUseCase,
-    ReplayEventsUseCase,
 )
 from apps.events.domain.entities import EventType
+from apps.events.domain.replay import ReplayFilter
+from core.integration.event_replay import build_replay_service
 
 from .serializers import (
     EventPublishRequestSerializer,
     EventQueryRequestSerializer,
-    EventReplayRequestSerializer,
+    EventReplayCommitRequestSerializer,
+    EventReplayPreviewRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -374,73 +381,81 @@ class EventBusStatusView(BaseAPIView):
 # ========== 事件重放视图 ==========
 
 
-class EventReplayView(BaseAPIView):
-    """
-    事件重放视图
+class _ControlledReplayView(BaseAPIView):
+    """Shared staff-only transport helpers for controlled replay."""
 
-    POST /api/events/replay/
-    """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
-    def post(self, request) -> Response:
-        """
-        重放事件
+    @staticmethod
+    def _filter(data: dict[str, Any]) -> ReplayFilter:
+        return ReplayFilter(
+            event_type=EventType(data["event_type"]),
+            start_at=data.get("start_at"),
+            end_at=data.get("end_at"),
+            limit=data.get("limit", 100),
+        )
 
-        Args:
-            request: HTTP 请求
+    def _exception_response(self, exc: Exception) -> Response:
+        if isinstance(exc, ReplayDisabledError):
+            return self.error_response(
+                str(exc), "REPLAY_DISABLED", status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        if isinstance(exc, (ReplayConflictError, ReplayInProgressError)):
+            return self.error_response(str(exc), "REPLAY_CONFLICT", status.HTTP_409_CONFLICT)
+        if isinstance(exc, (ValueError, KeyError)):
+            return self.error_response(str(exc), "INVALID_REPLAY", status.HTTP_400_BAD_REQUEST)
+        logger.exception("Controlled event replay failed")
+        return self.error_response(
+            "Controlled replay failed.",
+            "INTERNAL_ERROR",
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
-        Returns:
-            HTTP 响应
-        """
-        # 验证请求
-        serializer = EventReplayRequestSerializer(data=request.data)
+
+class EventReplayPreviewView(_ControlledReplayView):
+    """Preview a registered replay target without invoking it."""
+
+    def post(self, request: Any) -> Response:
+        serializer = EventReplayPreviewRequestSerializer(data=request.data)
         if not serializer.is_valid():
-            return self.error_response(
-                message="Invalid request data",
-                error_code="INVALID_REQUEST",
-            )
-
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
-
         try:
-            # 解析事件类型
-            event_type = None
-            if data.get("event_type"):
-                event_type = EventType(data["event_type"])
-
-            # 创建用例请求
-            from apps.events.application.use_cases import ReplayEventsRequest
-            use_case_request = ReplayEventsRequest(
-                event_type=event_type,
-                since=data.get("since"),
-                until=data.get("until"),
-                limit=data.get("limit", 1000),
-                target_handler=None,  # 暂不支持动态指定处理器
+            preview = build_replay_service().preview(
+                data["target_key"],
+                self._filter(data),
             )
+            return self.success_response(data=preview, message="Replay preview ready.")
+        except Exception as exc:
+            return self._exception_response(exc)
 
-            # 执行用例
-            use_case = ReplayEventsUseCase()
-            use_case_response = use_case.execute(use_case_request)
 
-            if use_case_response.success:
-                return self.success_response(
-                    data={
-                        "events_replayed": use_case_response.events_replayed,
-                        "replayed_at": use_case_response.replayed_at.isoformat(),
-                        "duration_ms": 0,
-                    },
-                    message=f"Replayed {use_case_response.events_replayed} events successfully",
-                )
-            else:
-                return self.error_response(
-                    message=use_case_response.error_message or "Failed to replay events",
-                    error_code="REPLAY_FAILED",
-                )
+class EventReplayCommitView(_ControlledReplayView):
+    """Commit an idempotent replay against one approved target."""
 
-        except Exception as e:
-            logger.error(f"Error in EventReplayView: {e}", exc_info=True)
-            return self.error_response(
-                message=str(e),
-                error_code="INTERNAL_ERROR",
-                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    def post(self, request: Any) -> Response:
+        serializer = EventReplayCommitRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = serializer.validated_data
+        try:
+            result = build_replay_service().commit(
+                data["target_key"],
+                self._filter(data),
+                requester_id=request.user.pk,
+                idempotency_key=data["idempotency_key"],
             )
+            return Response(
+                {
+                    "success": result.get("outcome") == "completed",
+                    "timestamp": timezone.now().isoformat(),
+                    **result,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            return self._exception_response(exc)
+
+
+class EventReplayView(EventReplayPreviewView):
+    """Compatibility class retained for interface discovery; not URL-routed."""

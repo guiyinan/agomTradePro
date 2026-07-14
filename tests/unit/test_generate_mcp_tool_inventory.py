@@ -31,7 +31,7 @@ def test_build_inventory_returns_registered_tools():
     assert summary["by_module"]["regime"] > 0
     assert summary["by_operation"]["read"] > 0
     assert payload["server_path"] == "sdk/agomtradepro_mcp/server.py"
-    assert summary["unsupported_legacy_contract_count"] >= 1
+    assert summary["unsupported_legacy_contract_count"] == 0
     assert summary["legacy_disposition_count"] > 0
     assert summary["legacy_keep_task_count"] == 0
 
@@ -40,7 +40,7 @@ def test_build_inventory_returns_registered_tools():
     }
     assert "realtime.delete.price_alert" not in unsupported
     assert "realtime.price_subscription" not in unsupported
-    assert "events.replay" in unsupported
+    assert "events.replay" not in unsupported
 
     tools = {tool["tool_name"]: tool for tool in payload["tools"]}
     assert tools["delete_price_alert"]["disposition_hint"] == "legacy_compat"

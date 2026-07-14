@@ -1013,6 +1013,28 @@ def test_tui_realtime_monitor_exposes_one_owner_workflow(client, tui_user):
     assert "<int:" not in user_copy
 
 
+def test_tui_event_replay_actions_are_staff_only(client, tui_user):
+    client.force_login(tui_user)
+    ordinary = client.get("/api/tui/screens/execution.events/").json()
+    ordinary_keys = {action["key"] for action in ordinary["actions"]}
+    assert "execution.preview-event-replay" not in ordinary_keys
+    assert "execution.commit-event-replay" not in ordinary_keys
+
+    tui_user.is_staff = True
+    tui_user.save(update_fields=["is_staff"])
+    staff = client.get("/api/tui/screens/execution.events/").json()
+    staff_actions = {action["key"]: action for action in staff["actions"]}
+    assert staff_actions["execution.preview-event-replay"]["risk"] == "admin"
+    assert staff_actions["execution.commit-event-replay"]["confirmation_required"] is True
+    user_copy = " ".join(
+        [staff_actions["execution.preview-event-replay"]["label"]]
+        + [staff_actions["execution.preview-event-replay"]["description"]]
+        + [staff_actions["execution.commit-event-replay"]["label"]]
+        + [staff_actions["execution.commit-event-replay"]["description"]]
+    )
+    assert "/api/" not in user_copy
+
+
 def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client, tui_user):
     client.force_login(tui_user)
 

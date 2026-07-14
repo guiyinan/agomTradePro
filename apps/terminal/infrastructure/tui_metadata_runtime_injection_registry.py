@@ -25,6 +25,7 @@ from .tui_metadata_runtime_injection_cli import (
     RUNTIME_CLI_STREAM_ACTION,
 )
 from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
+from .tui_metadata_runtime_injection_event_replay import RUNTIME_EVENT_REPLAY_ACTIONS
 from .tui_metadata_runtime_injection_identity_access import (
     RUNTIME_AI_MY_PROVIDERS_SCREEN,
     RUNTIME_AI_OPS_MODULE,
@@ -103,6 +104,10 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
         modules=(RUNTIME_REALTIME_MODULE,),
         screens=(RUNTIME_REALTIME_SCREEN,),
         actions=RUNTIME_REALTIME_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_event_replay_metadata",
+        actions=RUNTIME_EVENT_REPLAY_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_config_center_metadata",

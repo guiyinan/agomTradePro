@@ -67,6 +67,9 @@ def _sample_payload() -> dict:
 
 
 def test_realtime_runtime_metadata_uses_v3_user_facing_contract() -> None:
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_event_replay import (
+        RUNTIME_EVENT_REPLAY_ACTIONS,
+    )
     from apps.terminal.infrastructure.tui_metadata_runtime_injection_realtime import (
         RUNTIME_REALTIME_ACTIONS,
         RUNTIME_REALTIME_GROUP,
@@ -93,7 +96,7 @@ def test_realtime_runtime_metadata_uses_v3_user_facing_contract() -> None:
             "groups": [RUNTIME_REALTIME_GROUP],
             "modules": [RUNTIME_REALTIME_MODULE],
             "screens": [RUNTIME_REALTIME_SCREEN],
-            "actions": list(RUNTIME_REALTIME_ACTIONS),
+            "actions": [*RUNTIME_REALTIME_ACTIONS, *RUNTIME_EVENT_REPLAY_ACTIONS],
         }
     )
 

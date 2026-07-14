@@ -133,9 +133,10 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
     ),
     *_group(
         "events",
-        "unsupported",
+        "legacy_compat",
         ("replay_events",),
-        "The canonical replay route has no real target subscriber and can report success after no-op failures.",
+        "The governed preview-first controlled replay is the canonical replacement.",
+        ("events.replay.events",),
     ),
     *_group(
         "factor",

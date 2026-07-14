@@ -186,10 +186,22 @@ def client():
         ),
         (lambda c: c.events.metrics(), "GET", "/api/events/metrics/"),
         (
-            lambda c: c.events.replay({"event_ids": [1]}),
+            lambda c: c.events.replay(
+                {
+                    "target_key": "events.decision.approved",
+                    "event_type": "decision_approved",
+                    "idempotency_key": "events-replay-1",
+                }
+            ),
             "POST",
-            "/api/events/replay/",
-            {"json": {"event_ids": [1]}},
+            "/api/events/replay/commit/",
+            {
+                "json": {
+                    "target_key": "events.decision.approved",
+                    "event_type": "decision_approved",
+                    "idempotency_key": "events-replay-1",
+                }
+            },
         ),
         (lambda c: c.decision_rhythm.list_quotas(), "GET", "/api/decision-rhythm/quotas/"),
         (lambda c: c.decision_rhythm.list_cooldowns(), "GET", "/api/decision-rhythm/cooldowns/"),

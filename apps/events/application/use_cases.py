@@ -428,6 +428,10 @@ class ReplayEventsUseCase:
             重放事件响应
         """
         try:
+            if request.target_handler is None:
+                raise ValueError(
+                    "Legacy replay requires an explicit injected handler; use controlled replay."
+                )
             # 重放事件
             count = self.replay_handler.replay_to(
                 subscriber=request.target_handler,
