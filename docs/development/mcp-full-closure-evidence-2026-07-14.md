@@ -39,6 +39,10 @@ come only from `governance/governance_baseline.json`.
 - Terminal Agent + SDK client + internal SSL redirect: **32 passed**.
 - MCP inventory + polling regression: **3 passed**.
 - Guardrails: **133 passed** in one final isolated-worktree run. Current PR architecture/governance checks are green.
+- Clean-environment Nightly stabilization covered deterministic AI-provider
+  encryption setup, the current backtest attribution facade name, controlled
+  replay preview routing, and the valuation repository protocol. The three
+  affected integration files pass together: **38 passed**.
 - `python manage.py makemigrations --check --dry-run`: no changes detected.
 - `python manage.py check`: no issues.
 - `node --check static/js/tui-workbench.js`: passed.
