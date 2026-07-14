@@ -14,10 +14,16 @@ from .api_views import (
     list_mcp_tools,
     mcp_tools_stats,
     route_message,
-    sync_mcp_tools,
     sync_capabilities,
+    sync_mcp_tools,
     toggle_mcp_tool,
     web_chat,
+)
+from .semantic_governance_views import (
+    SemanticGovernanceApplyView,
+    SemanticGovernanceAuditView,
+    SemanticGovernancePreviewView,
+    SemanticGovernanceView,
 )
 
 router = DefaultRouter()
@@ -38,6 +44,26 @@ urlpatterns = [
         "mcp-tools/<str:capability_key>/toggle/<str:flag>/",
         toggle_mcp_tool,
         name="ai-capability-mcp-tool-toggle",
+    ),
+    path(
+        "semantic-governance/",
+        SemanticGovernanceView.as_view(),
+        name="semantic-governance",
+    ),
+    path(
+        "semantic-governance/preview/",
+        SemanticGovernancePreviewView.as_view(),
+        name="semantic-governance-preview",
+    ),
+    path(
+        "semantic-governance/apply/",
+        SemanticGovernanceApplyView.as_view(),
+        name="semantic-governance-apply",
+    ),
+    path(
+        "semantic-governance/audit/",
+        SemanticGovernanceAuditView.as_view(),
+        name="semantic-governance-audit",
     ),
 ]
 

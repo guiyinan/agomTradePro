@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.account.interface.views import is_admin_user
@@ -19,7 +20,13 @@ from ..application.interface_services import (
     get_mcp_tools_page_context,
     toggle_mcp_tool_flag,
 )
+from ..application.repository_provider import get_capability_repository
+from ..application.semantic_governance import SemanticGovernanceService
 from ..application.use_cases import SyncCapabilitiesUseCase
+from .semantic_governance_serializers import (
+    serialize_audit_entries,
+    serialize_governance_snapshot,
+)
 
 
 @login_required
@@ -30,6 +37,22 @@ def capability_gateway_page(request: HttpRequest) -> HttpResponse:
         user_id=request.user.id,
         base_url=base_url,
     )
+    if request.user.is_staff:
+        semantic_service = SemanticGovernanceService(
+            get_capability_repository()
+        )
+        context["semantic_governance"] = {
+            **serialize_governance_snapshot(semantic_service.inspect()),
+            "audit": serialize_audit_entries(
+                semantic_service.list_audit(limit=50)
+            ),
+            "preview_url": reverse(
+                "api_ai_capabilities:semantic-governance-preview"
+            ),
+            "apply_url": reverse(
+                "api_ai_capabilities:semantic-governance-apply"
+            ),
+        }
     new_token_payload = request.session.pop("self_new_token_payload", None)
     context["new_token_payload"] = new_token_payload
     if new_token_payload:

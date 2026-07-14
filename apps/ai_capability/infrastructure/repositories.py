@@ -2,6 +2,7 @@
 AI Capability Catalog Infrastructure Repositories.
 """
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -12,6 +13,13 @@ from ..domain.entities import (
     CapabilityDefinition,
     CapabilityRoutingLog,
     CapabilitySyncLog,
+)
+from ..domain.semantic_governance import (
+    SemanticAuditEntry,
+    SemanticBatchPersistence,
+    SemanticCatalogCapability,
+    SemanticCorrectionBatch,
+    SemanticValueSnapshot,
 )
 from .models import (
     CapabilityCatalogModel,
@@ -72,7 +80,14 @@ class DjangoCapabilityRepository:
     def save(self, capability: CapabilityDefinition) -> CapabilityDefinition:
         """Save a capability (upsert by key)."""
         now = datetime.now(UTC)
-        model, created = CapabilityCatalogModel.objects.update_or_create(
+        existing_collected_semantic_key = (
+            CapabilityCatalogModel.objects.filter(
+                capability_key=capability.capability_key,
+            )
+            .values_list("collected_semantic_key", flat=True)
+            .first()
+        )
+        model, _ = CapabilityCatalogModel.objects.update_or_create(
             capability_key=capability.capability_key,
             defaults={
                 "source_type": capability.source_type.value,
@@ -83,6 +98,11 @@ class DjangoCapabilityRepository:
                 "route_group": capability.route_group.value,
                 "category": capability.category,
                 "semantic_key": capability.semantic_key,
+                "collected_semantic_key": (
+                    existing_collected_semantic_key
+                    if existing_collected_semantic_key is not None
+                    else capability.semantic_key
+                ),
                 "tags": list(capability.tags),
                 "when_to_use": list(capability.when_to_use),
                 "when_not_to_use": list(capability.when_not_to_use),
@@ -109,6 +129,8 @@ class DjangoCapabilityRepository:
     def bulk_upsert(
         self,
         capabilities: list[CapabilityDefinition],
+        *,
+        collected_semantic_keys: Mapping[str, str] | None = None,
     ) -> dict[str, int]:
         """Bulk upsert capabilities. Returns counts."""
         created_count = 0
@@ -132,6 +154,9 @@ class DjangoCapabilityRepository:
                         "route_group": cap.route_group.value,
                         "category": cap.category,
                         "semantic_key": cap.semantic_key,
+                        "collected_semantic_key": (
+                            collected_semantic_keys or {}
+                        ).get(cap.capability_key, cap.semantic_key),
                         "tags": list(cap.tags),
                         "when_to_use": list(cap.when_to_use),
                         "when_not_to_use": list(cap.when_not_to_use),
@@ -180,6 +205,62 @@ class DjangoCapabilityRepository:
             "enabled_for_routing": existing.enabled_for_routing,
             "review_status": existing.review_status,
         }
+
+    def list_semantic_catalog(self) -> list[SemanticCatalogCapability]:
+        """Return catalog entities paired with their collected semantic keys."""
+
+        return [
+            SemanticCatalogCapability(
+                capability=model.to_entity(),
+                collected_semantic_key=model.collected_semantic_key,
+            )
+            for model in CapabilityCatalogModel.objects.all()
+        ]
+
+    def list_active_overrides(self) -> dict[str, str]:
+        """Return current active semantic overrides."""
+
+        from .semantic_governance_repository import (
+            DjangoSemanticGovernanceRepository,
+        )
+
+        return DjangoSemanticGovernanceRepository().list_active_overrides()
+
+    def apply_batch(
+        self,
+        batch: SemanticCorrectionBatch,
+        *,
+        operator_id: int,
+        snapshots: Mapping[str, SemanticValueSnapshot],
+    ) -> SemanticBatchPersistence:
+        """Persist one semantic governance batch transactionally."""
+
+        from .semantic_governance_repository import (
+            DjangoSemanticGovernanceRepository,
+        )
+
+        return DjangoSemanticGovernanceRepository().apply_batch(
+            batch,
+            operator_id=operator_id,
+            snapshots=snapshots,
+        )
+
+    def list_semantic_audit(
+        self,
+        *,
+        limit: int = 100,
+        capability_key: str | None = None,
+    ) -> tuple[SemanticAuditEntry, ...]:
+        """Return bounded semantic governance audit evidence."""
+
+        from .semantic_governance_repository import (
+            DjangoSemanticGovernanceRepository,
+        )
+
+        return DjangoSemanticGovernanceRepository().list_audit(
+            limit=limit,
+            capability_key=capability_key,
+        )
 
     def disable_missing(
         self,

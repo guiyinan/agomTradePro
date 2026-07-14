@@ -136,6 +136,57 @@
         background: #fef3c7;
     }
 
+    .semantic-governance {
+        margin: 18px 0;
+        padding: 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    .semantic-governance__issues,
+    .semantic-governance__form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+    }
+
+    .semantic-governance__issue,
+    .semantic-correction-row {
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .semantic-correction-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) 120px minmax(180px, 1fr) auto;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .semantic-correction-row input,
+    .semantic-correction-row select,
+    .semantic-governance__form input {
+        min-height: 38px;
+        padding: 7px 9px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+    }
+
+    .semantic-governance__result {
+        min-height: 90px;
+        max-height: 320px;
+        overflow: auto;
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #e2e8f0;
+        white-space: pre-wrap;
+    }
+
     @media (max-width: 980px) {
         .gateway-two-col {
             grid-template-columns: 1fr;
@@ -202,6 +253,92 @@
         </article>
         {% endfor %}
     </section>
+
+    {% if request.user.is_staff and semantic_governance %}
+    <section
+        id="semanticGovernancePanel"
+        class="semantic-governance"
+        data-preview-url="{{ semantic_governance.preview_url }}"
+        data-apply-url="{{ semantic_governance.apply_url }}"
+    >
+        <h2>语义键治理</h2>
+        <p>检查缺失、冲突和孤儿覆盖；先预览入口 winner，再应用有理由、可审计的批量修正。</p>
+
+        <div class="semantic-governance__issues">
+            <article class="semantic-governance__issue">
+                <h3>缺失</h3>
+                <ul>
+                    {% for capability_key in semantic_governance.missing_capability_keys %}
+                    <li>{{ capability_key }}</li>
+                    {% empty %}
+                    <li>无</li>
+                    {% endfor %}
+                </ul>
+            </article>
+            <article class="semantic-governance__issue">
+                <h3>冲突</h3>
+                <ul>
+                    {% for semantic_key, capability_keys in semantic_governance.conflicts.items %}
+                    <li>{{ semantic_key }}：{{ capability_keys|join:", " }}</li>
+                    {% empty %}
+                    <li>无</li>
+                    {% endfor %}
+                </ul>
+            </article>
+            <article class="semantic-governance__issue">
+                <h3>孤儿覆盖</h3>
+                <ul>
+                    {% for capability_key in semantic_governance.orphaned_override_keys %}
+                    <li>{{ capability_key }}</li>
+                    {% empty %}
+                    <li>无</li>
+                    {% endfor %}
+                </ul>
+            </article>
+        </div>
+
+        <div class="semantic-governance__form">
+            <label>
+                幂等键
+                <input id="semanticIdempotencyKey" maxlength="255" autocomplete="off">
+            </label>
+            <label>
+                修正理由
+                <input id="semanticReason" maxlength="2000" autocomplete="off">
+            </label>
+        </div>
+        <div id="semanticCorrectionRows">
+            <div class="semantic-correction-row">
+                <input data-field="capability_key" placeholder="Capability key">
+                <select data-field="action">
+                    <option value="set">设置</option>
+                    <option value="remove">移除</option>
+                </select>
+                <input data-field="semantic_key" placeholder="新的语义键">
+                <button type="button" class="btn btn-secondary" data-remove-correction>移除行</button>
+            </div>
+        </div>
+        <div class="admin-shell__actions" style="margin-top: 12px;">
+            <button type="button" class="btn btn-secondary" id="addSemanticCorrection">新增修正</button>
+            <button type="button" class="btn btn-secondary" id="previewSemanticCorrections">预览修正</button>
+            <button type="button" class="btn btn-primary" id="applySemanticCorrections">应用修正</button>
+        </div>
+        <pre id="semanticGovernanceResult" class="semantic-governance__result">尚未预览</pre>
+
+        <h3>最近审计</h3>
+        <div class="gateway-steps">
+            {% for entry in semantic_governance.audit.results %}
+            <article class="gateway-step">
+                <strong>{{ entry.capability_key }} / {{ entry.action }}</strong>
+                <p>{{ entry.reason }}</p>
+                <code>{{ entry.old_effective_value }} → {{ entry.new_effective_value }}</code>
+            </article>
+            {% empty %}
+            <p>暂无审计记录。</p>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 
     <section class="gateway-two-col">
         <div class="gateway-steps">
@@ -308,4 +445,5 @@
     });
 })();
 </script>
+<script src="{% static 'js/capability_gateway.js' %}"></script>
 {% endblock %}
