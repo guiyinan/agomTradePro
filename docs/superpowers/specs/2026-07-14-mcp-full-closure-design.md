@@ -84,8 +84,9 @@ key tests must pass in any order and in the complete suite.
 ### 4.3 Realtime route separation
 
 Realtime DRF endpoints move to `apps/realtime/interface/api_urls.py`. Page URLs
-remain in `apps/realtime/interface/urls.py`. Canonical SDK paths remain under
-`/api/realtime/`; page routes cannot resolve to DRF `APIView` classes.
+remain in `apps/realtime/interface/urls.py`. Canonical SDK requests use concrete
+endpoints such as `/api/realtime/alerts/`; page routes cannot resolve to DRF
+`APIView` classes.
 
 ## 5. Semantic-Key Governance
 

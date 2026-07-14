@@ -32,7 +32,7 @@
 | prompt | `/api/prompt/` | 仅保留 canonical |
 | strategy | `/api/strategy/` | 仅保留 canonical |
 | simulated_trading | `/api/simulated-trading/` | 下划线旧路径已移除 |
-| realtime | `/api/realtime/` | root 不再重定向到子路径 |
+| realtime | `/api/realtime/prices/` | include 前缀不作为可请求 root，使用具体资源路径 |
 | system | `/api/system/` | task monitor root 已补齐 |
 | events | `/api/events/` | 页面式旧路径 `/events/*` 已移除 |
 | dashboard | `/api/dashboard/` | 历史 module-first 前缀仅保留兼容 |
