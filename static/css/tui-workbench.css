@@ -2259,6 +2259,28 @@ a {
     gap: 8px;
 }
 
+.tui-copy-controls {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.tui-copy-block-card.is-dominant {
+    border-color: var(--tui-accent);
+    background: color-mix(in srgb, var(--tui-accent) 9%, var(--tui-bg));
+}
+
+.tui-panel-disclosure > summary {
+    min-height: 36px;
+    color: var(--tui-accent);
+    cursor: pointer;
+    font: 700 12px/1.4 var(--tui-mono);
+}
+
+.tui-panel-disclosure > summary:focus-visible {
+    outline: 2px solid var(--tui-accent);
+    outline-offset: 2px;
+}
+
 .tui-copy-row span,
 .tui-copy-block-card strong {
     color: var(--tui-accent);

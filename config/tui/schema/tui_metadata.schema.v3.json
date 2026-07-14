@@ -188,7 +188,11 @@
         "page_path": { "type": "string" },
         "page_size_path": { "type": "string" },
         "title_path": { "type": "string" },
-        "status_path": { "type": "string" }
+        "status_path": { "type": "string" },
+        "field_presentations": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/resultFieldPresentation" }
+        }
       },
       "additionalProperties": false
     },
@@ -247,6 +251,10 @@
         "supporting_detail",
         "debug_only"
       ]
+    },
+    "resultFieldPresentation": {
+      "$comment": "Runtime result fields use explicit presentation values. Legacy fields without one render as metadata and never gain copy controls by inference.",
+      "enum": ["secret", "copyable", "multiline", "metadata"]
     },
     "viewType": {
       "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"]

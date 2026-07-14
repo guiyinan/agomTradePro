@@ -372,7 +372,18 @@ RUNTIME_IDENTITY_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
         "sequence": 100,
         "task_tier": "primary",
         "fields": [],
-        "view_model": {"kind": "detail", "title_path": "username", "status_path": "mcp_enabled"},
+        "view_model": {
+            "kind": "detail",
+            "title_path": "username",
+            "status_path": "mcp_enabled",
+            "field_presentations": {
+                "access_token": "secret",
+                "route_endpoint": "copyable",
+                "capability_catalog_endpoint": "copyable",
+                "access_package": "multiline",
+                "environment_statement": "metadata",
+            },
+        },
         "result_semantics": ["primary_status", "copyable_secret"],
     },
     {

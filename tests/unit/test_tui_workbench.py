@@ -873,11 +873,20 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
     assert "function userExperienceSections(screen)" in script
     assert 'function screenEmptyStateHint(screen, fallback = "")' in script
     assert "function renderSemanticDetailView(viewModel, semantics, options = {})" in script
+    assert "function renderSemanticSecretFields(fields)" in script
     assert "function renderSemanticCopyFields(fields)" in script
-    assert "function renderSemanticPromptFields(fields)" in script
+    assert "function renderSemanticMultilineFields(fields)" in script
     assert "function bindCopyButtons(root = document)" in script
-    assert "function fieldLooksLikePrompt(field)" in script
-    assert "function fieldLooksLikeCopyable(field)" in script
+    assert "fieldLooksLikePrompt" not in script
+    assert "fieldLooksLikeCopyable" not in script
+    assert 'field?.presentation || "metadata"' in script
+    assert 'fieldPresentation(field) === "secret"' in script
+    assert 'fieldPresentation(field) === "copyable"' in script
+    assert 'fieldPresentation(field) === "multiline"' in script
+    assert "data-secret-toggle" in script
+    assert "复制完整接入包" in script
+    assert 'panelPriority(panel) !== "p2"' in script
+    assert "tui-panel-disclosure" in script
     assert "event.stopPropagation();" in script
     assert "navigator.clipboard.writeText" in script
     assert "loadScreen(normalizedKey, { suppressAutoAction: true })" in script
@@ -2624,6 +2633,17 @@ def test_tui_metadata_validator_rejects_unknown_view_model_key():
     payload["actions"][0]["view_model"] = {"business_specific_magic": "logs"}
 
     with pytest.raises(TuiMetadataValidationError):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_rejects_unknown_result_field_presentation():
+    payload = _metadata_payload()
+    payload["actions"][0]["view_model"] = {
+        "kind": "detail",
+        "field_presentations": {"status": "guessable"},
+    }
+
+    with pytest.raises(TuiMetadataValidationError, match="result field presentation"):
         validate_tui_metadata(payload)
 
 
@@ -6731,12 +6751,39 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
 
     assert result["view_model"]["kind"] == "detail"
     fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
+    presentations = {
+        field["key"]: field["presentation"] for field in result["view_model"]["fields"]
+    }
     assert result["view_model"]["status"] == "可接入"
     assert fields["接入令牌"] == "agtp_live_plaintext_token_value"
     assert fields["智能路由地址"] == "https://example.test/api/ai-capability/route/"
     assert fields["能力目录地址"] == "https://example.test/api/ai-capability/capabilities/"
-    assert fields["接入提示词"] == "请按以下信息接入 AgomTradePro："
     assert fields["环境说明"] == "当前地址可用于此环境。"
+    assert "agtp_live_plaintext_token_value" in fields["完整接入包"]
+    assert "请按以下信息接入 AgomTradePro：" in fields["完整接入包"]
+    assert presentations == {
+        "access_token": "secret",
+        "route_endpoint": "copyable",
+        "capability_catalog_endpoint": "copyable",
+        "access_package": "multiline",
+        "environment_statement": "metadata",
+    }
+
+
+def test_tui_script_uses_explicit_result_field_presentations_only():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "fieldLooksLikeCopyable" not in script
+    assert "fieldLooksLikePrompt" not in script
+    assert "fieldPresentation(field)" in script
+    assert 'fieldPresentation(field) === "secret"' in script
+    assert 'fieldPresentation(field) === "copyable"' in script
+    assert 'fieldPresentation(field) === "multiline"' in script
+    assert "data-secret-toggle" in script
+    assert "复制完整接入包" in script
+    assert 'panelPriority(panel) !== "p2"' in script
 
 
 def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():

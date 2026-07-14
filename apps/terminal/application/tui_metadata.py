@@ -110,7 +110,9 @@ ALLOWED_TUI_VIEW_MODEL_KEYS = {
     "page_size_path",
     "title_path",
     "status_path",
+    "field_presentations",
 }
+ALLOWED_TUI_RESULT_FIELD_PRESENTATIONS = {"secret", "copyable", "multiline", "metadata"}
 ALLOWED_TUI_DASHBOARD_PANEL_KINDS = {
     "datagrid",
     "detail",
@@ -321,6 +323,22 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 raise TuiMetadataValidationError(
                     f"Action view_model has unsupported key: {action['key']}.{key}"
                 )
+            if key == "field_presentations":
+                if not isinstance(value, dict):
+                    raise TuiMetadataValidationError(
+                        f"Action result field presentations must be an object: {action['key']}"
+                    )
+                for field_key, presentation in value.items():
+                    if not isinstance(field_key, str) or not field_key.strip():
+                        raise TuiMetadataValidationError(
+                            f"Action result field presentation key must be non-empty: {action['key']}"
+                        )
+                    if presentation not in ALLOWED_TUI_RESULT_FIELD_PRESENTATIONS:
+                        raise TuiMetadataValidationError(
+                            f"Action has unsupported result field presentation: "
+                            f"{action['key']}.{field_key}.{presentation}"
+                        )
+                continue
             if not isinstance(value, str):
                 raise TuiMetadataValidationError(
                     f"Action view_model path must be a string: {action['key']}.{key}"

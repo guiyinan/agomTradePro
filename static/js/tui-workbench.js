@@ -2103,7 +2103,7 @@
     }
 
     function renderDashboardPanelShell(panel, body) {
-        return `
+        const content = `
             <h3>
                 <span>${escapeHtml(panel.title)}</span>
                 <span class="tui-panel-heading-tools">
@@ -2114,6 +2114,15 @@
             </h3>
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
             ${body}
+        `;
+        if (panelPriority(panel) !== "p2") {
+            return content;
+        }
+        return `
+            <details class="tui-panel-disclosure">
+                <summary>展开${escapeHtml(panel.title)}</summary>
+                ${content}
+            </details>
         `;
     }
 
@@ -2284,22 +2293,15 @@
                 </div>
             `
             : "";
-        const hasPromptSemantic = hasSemantic(semantics, "multiline_prompt");
-        const hasCopySemantic = hasSemantic(semantics, "copyable_secret") || hasSemantic(semantics, "endpoint_list");
-        const promptFields = hasPromptSemantic ? fields.filter((field) => fieldLooksLikePrompt(field)) : [];
-        const baseFields = hasPromptSemantic && promptFields.length
-            ? fields.filter((field) => !fieldLooksLikePrompt(field))
-            : fields;
-        const copyFields = hasCopySemantic ? baseFields.filter((field) => fieldLooksLikeCopyable(field)) : [];
-        const metaFields = hasCopySemantic && copyFields.length
-            ? baseFields.filter((field) => !fieldLooksLikeCopyable(field))
-            : baseFields;
+        const secretFields = fields.filter((field) => fieldPresentation(field) === "secret");
+        const copyFields = fields.filter((field) => fieldPresentation(field) === "copyable");
+        const multilineFields = fields.filter((field) => fieldPresentation(field) === "multiline");
+        const metaFields = fields.filter((field) => fieldPresentation(field) === "metadata");
         const fieldMarkup = [
-            hasCopySemantic && copyFields.length ? renderSemanticCopyFields(copyFields) : "",
+            secretFields.length ? renderSemanticSecretFields(secretFields) : "",
+            copyFields.length ? renderSemanticCopyFields(copyFields) : "",
             metaFields.length ? renderSemanticGridFields(metaFields) : "",
-            hasPromptSemantic
-                ? renderSemanticPromptFields(promptFields.length ? promptFields : (fields.length ? fields : []))
-                : "",
+            multilineFields.length ? renderSemanticMultilineFields(multilineFields) : "",
         ].filter(Boolean).join("");
         const nestedMarkup = nested.length
             ? `<div class="tui-nested-list">${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}</div>`
@@ -2327,22 +2329,41 @@
         `;
     }
 
-    function semanticFieldKey(field) {
-        return String(field?.key || "").trim().toLowerCase();
+    function fieldPresentation(field) {
+        const presentation = String(field?.presentation || "metadata").trim().toLowerCase();
+        return ["secret", "copyable", "multiline", "metadata"].includes(presentation)
+            ? presentation
+            : "metadata";
     }
 
-    function semanticFieldLabel(field) {
-        return String(field?.label || "").trim().toLowerCase();
-    }
-
-    function fieldLooksLikePrompt(field) {
-        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
-        return /prompt|提示词/.test(haystack);
-    }
-
-    function fieldLooksLikeCopyable(field) {
-        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
-        return /token|令牌|endpoint|地址|url|base_url|route|web|capability|api_root/.test(haystack);
+    function renderSemanticSecretFields(fields) {
+        return `
+            <div class="tui-copy-stack">
+                ${fields.map((field) => `
+                    <div class="tui-copy-row is-secret">
+                        <div class="tui-copy-head">
+                            <span>${escapeHtml(field.label)}</span>
+                            <span class="tui-copy-controls">
+                                <button
+                                    class="tui-copy-action"
+                                    type="button"
+                                    data-secret-toggle
+                                    data-secret-visible="true"
+                                    aria-label="隐藏${escapeHtml(field.label)}"
+                                >隐藏</button>
+                                <button
+                                    class="tui-copy-action"
+                                    type="button"
+                                    data-copy-value="${escapeHtml(field.value)}"
+                                    data-copy-label="${escapeHtml(field.label)}"
+                                >复制</button>
+                            </span>
+                        </div>
+                        <code data-secret-value="${escapeHtml(field.value)}">${escapeHtml(field.value)}</code>
+                    </div>
+                `).join("")}
+            </div>
+        `;
     }
 
     function renderSemanticCopyFields(fields) {
@@ -2369,14 +2390,16 @@
         `;
     }
 
-    function renderSemanticPromptFields(fields) {
+    function renderSemanticMultilineFields(fields) {
         if (!fields.length) {
             return "";
         }
         return `
             <div class="tui-copy-stack">
-                ${fields.map((field) => `
-                    <section class="tui-copy-block-card">
+                ${fields.map((field) => {
+                    const accessPackage = String(field?.key || "") === "access_package";
+                    return `
+                    <section class="tui-copy-block-card${accessPackage ? " is-dominant" : ""}">
                         <div class="tui-copy-head">
                             <strong>${escapeHtml(field.label)}</strong>
                             <button
@@ -2384,11 +2407,12 @@
                                 type="button"
                                 data-copy-value="${escapeHtml(field.value)}"
                                 data-copy-label="${escapeHtml(field.label)}"
-                            >复制</button>
+                            >${accessPackage ? "复制完整接入包" : "复制"}</button>
                         </div>
                         <pre class="tui-copy-block">${escapeHtml(field.value)}</pre>
                     </section>
-                `).join("")}
+                `;
+                }).join("")}
             </div>
         `;
     }
@@ -2412,6 +2436,25 @@
     }
 
     function bindCopyButtons(root = document) {
+        root.querySelectorAll("[data-secret-toggle]").forEach((button) => {
+            if (button.dataset.secretBound === "true") {
+                return;
+            }
+            button.dataset.secretBound = "true";
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const code = button.closest(".tui-copy-row")?.querySelector("[data-secret-value]");
+                if (!code) {
+                    return;
+                }
+                const visible = button.dataset.secretVisible === "true";
+                button.dataset.secretVisible = visible ? "false" : "true";
+                button.textContent = visible ? "显示" : "隐藏";
+                button.setAttribute("aria-label", visible ? "显示接入令牌" : "隐藏接入令牌");
+                code.textContent = visible ? "••••••••••••" : code.dataset.secretValue;
+            });
+        });
         root.querySelectorAll("[data-copy-value]").forEach((button) => {
             if (button.dataset.copyBound === "true") {
                 return;
@@ -4485,6 +4528,11 @@
     }
 
     function focusActions() {
+        const grid = els.main.closest(".tui-workspace-grid");
+        if (grid?.classList.contains("is-dashboard")) {
+            grid.classList.remove("is-dashboard");
+            setWorkspaceViewKind("idle");
+        }
         const actionFilter = els.actions.querySelector("[data-action-filter]");
         if (actionFilter) {
             actionFilter.focus();

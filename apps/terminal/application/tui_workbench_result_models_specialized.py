@@ -348,6 +348,21 @@ class TuiWorkbenchSpecializedResultMixin:
                 "unavailable": "暂不可用",
             }
             state = str(payload.get("self_service_state") or "unavailable")
+            access_package_text = "\n".join(
+                [
+                    "AgomTradePro MCP 接入包",
+                    f"Token: {access_package.get('token') or '未生成'}",
+                    f"Route Endpoint: {access_package.get('route_endpoint') or '-'}",
+                    (
+                        "Capability Catalog: "
+                        f"{access_package.get('capability_catalog_endpoint') or '-'}"
+                    ),
+                    "",
+                    str(access_package.get("agent_prompt") or "未生成接入提示词"),
+                    "",
+                    str(access_package.get("environment_statement") or "-"),
+                ]
+            )
             return {
                 "kind": "detail",
                 "title": username,
@@ -357,21 +372,25 @@ class TuiWorkbenchSpecializedResultMixin:
                         "key": "access_token",
                         "label": "接入令牌",
                         "value": self._display_value(access_package.get("token") or "未生成"),
+                        "presentation": "secret",
                     },
                     {
                         "key": "route_endpoint",
                         "label": "智能路由地址",
                         "value": str(access_package.get("route_endpoint") or "-"),
+                        "presentation": "copyable",
                     },
                     {
                         "key": "capability_catalog_endpoint",
                         "label": "能力目录地址",
                         "value": str(access_package.get("capability_catalog_endpoint") or "-"),
+                        "presentation": "copyable",
                     },
                     {
-                        "key": "agent_prompt",
-                        "label": "接入提示词",
-                        "value": str(access_package.get("agent_prompt") or "-"),
+                        "key": "access_package",
+                        "label": "完整接入包",
+                        "value": access_package_text,
+                        "presentation": "multiline",
                     },
                     {
                         "key": "environment_statement",
@@ -379,6 +398,7 @@ class TuiWorkbenchSpecializedResultMixin:
                         "value": self._display_value(
                             access_package.get("environment_statement") or "-"
                         ),
+                        "presentation": "metadata",
                     },
                 ],
                 "nested": [],

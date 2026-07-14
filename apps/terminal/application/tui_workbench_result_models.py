@@ -9,9 +9,6 @@ from math import ceil
 from typing import Any
 from urllib.parse import urlparse
 
-from apps.terminal.application.tui_workbench_result_models_specialized import (
-    TuiWorkbenchSpecializedResultMixin,
-)
 from apps.terminal.application.tui_workbench_constants import (
     ASSET_CODE_FIELDS,
     ASSET_CODE_PATTERN,
@@ -23,6 +20,9 @@ from apps.terminal.application.tui_workbench_constants import (
     ROW_IDENTIFIER_FIELDS,
     STATUS_LABELS,
     VALUE_LABELS,
+)
+from apps.terminal.application.tui_workbench_result_models_specialized import (
+    TuiWorkbenchSpecializedResultMixin,
 )
 
 
@@ -290,6 +290,25 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         model["debug_hidden_fields"] = (
             list(debug_hidden_fields) if isinstance(debug_hidden_fields, list) else []
         )
+        action_view_model = action.get("view_model")
+        field_presentations = (
+            action_view_model.get("field_presentations", {})
+            if isinstance(action_view_model, dict)
+            else {}
+        )
+        fields = model.get("fields")
+        if isinstance(fields, list):
+            normalized_fields = []
+            for field in fields:
+                if not isinstance(field, dict):
+                    continue
+                presentation = (
+                    field.get("presentation")
+                    or field_presentations.get(str(field.get("key") or ""))
+                    or "metadata"
+                )
+                normalized_fields.append({**field, "presentation": str(presentation)})
+            model["fields"] = normalized_fields
         return model
 
     def _action_title(self, action: dict[str, Any]) -> str:

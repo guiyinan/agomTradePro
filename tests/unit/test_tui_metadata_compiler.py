@@ -1145,6 +1145,22 @@ def test_promoter_applies_user_facing_design_metadata(promoter_module):
     ]
 
 
+def test_schema_publishes_explicit_result_field_presentation_values():
+    root = Path(__file__).resolve().parents[2]
+    schema = json.loads(
+        (root / "config" / "tui" / "schema" / "tui_metadata.schema.v3.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert schema["$defs"]["resultFieldPresentation"]["enum"] == [
+        "secret",
+        "copyable",
+        "multiline",
+        "metadata",
+    ]
+
+
 def test_generator_assigns_default_actions_to_auto_library_screens(generator_module):
     payload = {"screens": [], "actions": []}
 
