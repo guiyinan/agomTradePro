@@ -36,6 +36,52 @@ def test_realtime_management_manifests_are_governed() -> None:
         assert "mcp:write" in manifest.audit_tags
 
 
+def test_realtime_read_capabilities_use_sdk_backed_core_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Read capabilities retain core-only and native-handler execution evidence."""
+
+    import agomtradepro_mcp.server as server_module
+
+    class _Realtime:
+        @staticmethod
+        def list_alerts(status=None, limit=100):
+            return [{"id": 1, "status": status or "active", "limit": limit}]
+
+        @staticmethod
+        def get_alert(alert_id):
+            return {"id": alert_id, "asset_code": "510300.SH"}
+
+        @staticmethod
+        def get_subscriptions():
+            return [{"asset_code": "510300.SH"}]
+
+    monkeypatch.setattr(
+        "agomtradepro.AgomTradeProClient",
+        lambda: SimpleNamespace(realtime=_Realtime()),
+    )
+    assert "list_price_alerts" in server_module.INTERNAL_LEGACY_TOOL_FALLBACKS
+    assert "realtime_get_price_alert" in server_module.INTERNAL_GOVERNED_HANDLERS
+    agom_capability_call = server_module.CORE_DISPATCHER.call
+
+    alerts = agom_capability_call(
+        capability_key="realtime.read.alerts",
+        arguments={"status": "active", "limit": 10},
+    )
+    alert = agom_capability_call(
+        capability_key="realtime.read.alert",
+        arguments={"alert_id": 1},
+    )
+    subscriptions = agom_capability_call(
+        capability_key="realtime.read.price_subscriptions",
+        arguments={},
+    )
+
+    assert alerts["result"]["total_count"] == 1
+    assert alert["result"]["id"] == 1
+    assert subscriptions["result"]["total_count"] == 1
+
+
 def test_realtime_alert_create_previews_then_commits_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -1,12 +1,7 @@
-"""Project composition root for controlled event replay."""
-
-from django.conf import settings
+"""Cross-application target composition for controlled event replay."""
 
 from apps.events.application.replay_registry import ReplayTarget, ReplayTargetRegistry
-from apps.events.application.replay_service import ReplayService
 from apps.events.domain.entities import EventHandler, EventType
-from apps.events.infrastructure.event_store import get_event_store
-from apps.events.infrastructure.repositories import DjangoReplayRunRepository
 
 
 def _decision_approved() -> EventHandler:
@@ -156,15 +151,4 @@ def build_replay_target_registry() -> ReplayTargetRegistry:
                 _alpha_trigger_promotion,
             ),
         ]
-    )
-
-
-def build_replay_service() -> ReplayService:
-    """Compose controlled replay from approved targets and concrete repositories."""
-
-    return ReplayService(
-        build_replay_target_registry(),
-        get_event_store(),
-        DjangoReplayRunRepository(),
-        enabled=bool(settings.EVENT_REPLAY_ENABLED),
     )

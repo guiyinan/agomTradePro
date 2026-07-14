@@ -28,6 +28,14 @@ class SemanticGovernanceRepositoryProtocol(Protocol):
     def list_active_overrides(self) -> dict[str, str]:
         """Return active overrides keyed by capability key."""
 
+    def bulk_upsert(
+        self,
+        capabilities: list[CapabilityDefinition],
+        *,
+        collected_semantic_keys: Mapping[str, str],
+    ) -> dict[str, int]:
+        """Persist collected and effective semantic values together."""
+
     def apply_batch(
         self,
         batch: SemanticCorrectionBatch,
@@ -93,6 +101,26 @@ def project_semantic_overrides(
         )
         for capability in capabilities
     ]
+
+
+def upsert_collected_capabilities(
+    repository: SemanticGovernanceRepositoryProtocol,
+    capabilities: list[CapabilityDefinition],
+) -> dict[str, int]:
+    """Project active semantic overrides and persist collected evidence."""
+
+    collected_semantic_keys = {
+        capability.capability_key: capability.semantic_key
+        for capability in capabilities
+    }
+    effective_capabilities = project_semantic_overrides(
+        capabilities,
+        repository.list_active_overrides(),
+    )
+    return repository.bulk_upsert(
+        effective_capabilities,
+        collected_semantic_keys=collected_semantic_keys,
+    )
 
 
 class SemanticGovernanceService:

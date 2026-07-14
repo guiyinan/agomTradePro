@@ -60,17 +60,18 @@ def _fallback_list_price_alerts(
 ) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
-    alerts = AgomTradeProClient().realtime.list_alerts(status=status, limit=limit)
+    client = AgomTradeProClient()
+    alerts = client.realtime.list_alerts(status=status, limit=limit)
     return {"alerts": alerts, "total_count": len(alerts)}
 
 
-def _fallback_get_price_alert(alert_id: int) -> dict[str, Any]:
+def _internal_handler_realtime_get_price_alert(alert_id: int) -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     return AgomTradeProClient().realtime.get_alert(alert_id)
 
 
-def _fallback_list_price_subscriptions() -> dict[str, Any]:
+def _internal_handler_realtime_list_price_subscriptions() -> dict[str, Any]:
     from agomtradepro import AgomTradeProClient
 
     subscriptions = AgomTradeProClient().realtime.get_subscriptions()
@@ -218,11 +219,13 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "realtime_read_sector_performance": _fallback_realtime_read_sector_performance,
     "realtime_read_top_movers": _fallback_realtime_read_top_movers,
     "list_price_alerts": _fallback_list_price_alerts,
-    "get_price_alert": _fallback_get_price_alert,
-    "list_price_subscriptions": _fallback_list_price_subscriptions,
 }
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
+    "realtime_get_price_alert": _internal_handler_realtime_get_price_alert,
+    "realtime_list_price_subscriptions": (
+        _internal_handler_realtime_list_price_subscriptions
+    ),
     "realtime_create_price_alert": _internal_handler_realtime_create_price_alert,
     "realtime_update_price_alert": _internal_handler_realtime_update_price_alert,
     "realtime_delete_price_alert": _internal_handler_realtime_delete_price_alert,

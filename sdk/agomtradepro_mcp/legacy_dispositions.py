@@ -132,13 +132,6 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
         ),
     ),
     *_group(
-        "events",
-        "legacy_compat",
-        ("replay_events",),
-        "The governed preview-first controlled replay is the canonical replacement.",
-        ("events.replay.events",),
-    ),
-    *_group(
         "factor",
         "aggregate",
         ("what_are_the_best_value_stocks", "what_are_the_best_growth_stocks"),
@@ -199,27 +192,6 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
         ("explain_pulse_dimensions",),
         "Pulse explanations belong to snapshot schemas and documentation, not a standalone operation.",
         ("pulse.read.current", "pulse.read.history"),
-    ),
-    *_group(
-        "realtime",
-        "legacy_compat",
-        ("list_price_alerts",),
-        "The governed owner-scoped alert list is the canonical replacement.",
-        ("realtime.read.alerts",),
-    ),
-    *_group(
-        "realtime",
-        "legacy_compat",
-        ("create_price_alert",),
-        "The governed confirmed alert creation workflow is the canonical replacement.",
-        ("realtime.create.price_alert",),
-    ),
-    *_group(
-        "realtime",
-        "legacy_compat",
-        ("delete_price_alert",),
-        "The governed confirmed alert deletion workflow is the canonical replacement.",
-        ("realtime.delete.price_alert",),
     ),
     *_group(
         "regime",

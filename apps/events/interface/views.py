@@ -27,9 +27,9 @@ from apps.events.application.use_cases import (
     PublishEventUseCase,
     QueryEventsUseCase,
 )
+from apps.events.composition import build_replay_service
 from apps.events.domain.entities import EventType
 from apps.events.domain.replay import ReplayFilter
-from core.integration.event_replay import build_replay_service
 
 from .serializers import (
     EventPublishRequestSerializer,

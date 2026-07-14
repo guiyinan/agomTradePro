@@ -21,6 +21,10 @@ def _write_manifest(
 ) -> CapabilityManifest:
     """Build a consistently governed realtime write manifest."""
 
+    audit_tags = (f"realtime:{capability_key.split('.')[-1]}", "mcp:write")
+    if not legacy_tool_names:
+        audit_tags = (*audit_tags, "mcp:native")
+
     return CapabilityManifest(
         capability_key=capability_key,
         title=title,
@@ -45,7 +49,7 @@ def _write_manifest(
         confirmation_preview_arguments={"preview_only": True},
         confirmation_commit_arguments={"preview_only": False},
         idempotency="required",
-        audit_tags=(f"realtime:{capability_key.split('.')[-1]}", "mcp:write"),
+        audit_tags=audit_tags,
         legacy_tool_names=legacy_tool_names,
     )
 
@@ -79,8 +83,8 @@ MANIFESTS = [
         description="Return one price alert only when it belongs to the authenticated account.",
         owner_app="realtime",
         risk_level="low",
-        executor_kind="legacy_tool",
-        executor_ref="get_price_alert",
+        executor_kind="internal_handler",
+        executor_ref="realtime_get_price_alert",
         tags=("realtime", "alert", "detail", "read"),
         input_schema={
             "type": "object",
@@ -89,7 +93,7 @@ MANIFESTS = [
             "additionalProperties": False,
         },
         output_schema={"type": "object"},
-        legacy_tool_names=("get_price_alert",),
+        audit_tags=("realtime:read", "mcp:native"),
     ),
     CapabilityManifest(
         capability_key="realtime.read.price_subscriptions",
@@ -98,8 +102,8 @@ MANIFESTS = [
         description="Return active asset subscriptions owned by the authenticated account.",
         owner_app="realtime",
         risk_level="low",
-        executor_kind="legacy_tool",
-        executor_ref="list_price_subscriptions",
+        executor_kind="internal_handler",
+        executor_ref="realtime_list_price_subscriptions",
         tags=("realtime", "subscription", "read"),
         input_schema={
             "type": "object",
@@ -107,7 +111,7 @@ MANIFESTS = [
             "additionalProperties": False,
         },
         output_schema={"type": "object"},
-        legacy_tool_names=("list_price_subscriptions",),
+        audit_tags=("realtime:read", "mcp:native"),
     ),
     _write_manifest(
         capability_key="realtime.create.price_alert",
@@ -146,7 +150,7 @@ MANIFESTS = [
             "message": {"type": "string"},
         },
         required=["alert_id"],
-        legacy_tool_names=("update_price_alert",),
+        legacy_tool_names=(),
     ),
     _write_manifest(
         capability_key="realtime.delete.price_alert",
@@ -168,7 +172,7 @@ MANIFESTS = [
         tags=("realtime", "subscription", "create", "write"),
         properties={"asset_code": {"type": "string"}},
         required=["asset_code"],
-        legacy_tool_names=("subscribe_price",),
+        legacy_tool_names=(),
     ),
     _write_manifest(
         capability_key="realtime.delete.price_subscription",
@@ -179,6 +183,6 @@ MANIFESTS = [
         tags=("realtime", "subscription", "delete", "write"),
         properties={"asset_code": {"type": "string"}},
         required=["asset_code"],
-        legacy_tool_names=("unsubscribe_price",),
+        legacy_tool_names=(),
     ),
 ]

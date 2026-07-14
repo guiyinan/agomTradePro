@@ -71,7 +71,7 @@ from .mcp_runtime_gateway import (
 from .mcp_runtime_gateway import (
     list_sdk_mcp_tools as _list_sdk_mcp_tools,
 )
-from .semantic_governance import project_semantic_overrides
+from .semantic_governance import upsert_collected_capabilities
 
 logger = logging.getLogger(__name__)
 
@@ -1182,8 +1182,7 @@ class SyncCapabilitiesUseCase:
         created_count = 0
         updated_count = 0
         disabled_count = 0
-        error_count = 0
-        summary = {}
+        error_count, summary = 0, {}
 
         try:
             sources = {
@@ -1193,24 +1192,11 @@ class SyncCapabilitiesUseCase:
                 "api": self._sync_apis,
             }
             source_names = [source] if source else list(sources.keys())
-            semantic_overrides = self.capability_repo.list_active_overrides()
-
             for source_name in source_names:
                 sync_func = sources[source_name]
-                collected_capabilities = sync_func()
-                total_discovered += len(collected_capabilities)
-                collected_semantic_keys = {
-                    capability.capability_key: capability.semantic_key
-                    for capability in collected_capabilities
-                }
-                capabilities = project_semantic_overrides(
-                    collected_capabilities,
-                    semantic_overrides,
-                )
-                result = self.capability_repo.bulk_upsert(
-                    capabilities,
-                    collected_semantic_keys=collected_semantic_keys,
-                )
+                capabilities = sync_func()
+                total_discovered += len(capabilities)
+                result = upsert_collected_capabilities(self.capability_repo, capabilities)
                 created_count += result["created"]
                 updated_count += result["updated"]
                 disabled = self.capability_repo.disable_missing(
