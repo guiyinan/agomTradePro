@@ -4,6 +4,62 @@ from __future__ import annotations
 
 from typing import Any
 
+RUNTIME_AI_USER_QUOTAS_SCREEN: dict[str, Any] = {
+    "key": "ai-ops.user-quotas",
+    "label": "用户 AI 配额",
+    "module_key": "ai-ops",
+    "group": "ops",
+    "summary": "管理员在 TUI 内查看和调整用户兜底配额。",
+    "view_type": "detail",
+    "default_action_key": "ai-ops.list-user-quotas",
+    "user_experience": {
+        "journey": "admin",
+        "primary_task": "先判断哪些用户配额异常，再决定是否做单用户修正或批量下发。",
+        "primary_outcome": "明确哪些用户已超预算、未配置或需要调整配额策略。",
+        "empty_state_hint": "先看用户配额列表，再决定是否继续修正单用户或批量策略。",
+        "next_step_hint": "确认异常用户后，再执行单用户修正或批量配额调整。",
+    },
+    "workflow": {
+        "name": "AI 管理流程",
+        "step": 3,
+        "total": 3,
+        "label": "配额治理",
+        "role": "先看用户配额列表，再做单用户修正或批量下发。",
+        "previous": {"key": "ai-ops.system-providers", "label": "系统 AI 服务商"},
+        "next": {},
+    },
+    "business_context": {
+        "objective": "把管理员对普通用户 AI 兜底配额的治理能力拉进 TUI。",
+        "decision_output": "哪些用户已超预算、哪些用户未配置、哪些批量策略需要更新。",
+        "checkpoints": [
+            "先看列表确认 daily/monthly spent 与 is_active。",
+            "单用户修正优先用 PATCH，批量策略再用 batch apply。",
+            "批量覆盖前确认 overwrite_existing，避免误伤已定制配额。",
+        ],
+    },
+    "dashboard_panels": [
+        {
+            "key": "user-quota-list",
+            "title": "一、用户配额列表",
+            "kind": "datagrid",
+            "action_key": "ai-ops.list-user-quotas",
+            "max_rows": 12,
+            "layout_area": "quotas",
+            "target_screen": "ai-ops.user-quotas",
+            "columns": [
+                {"key": "username", "label": "用户"},
+                {"key": "daily_limit", "label": "日额度"},
+                {"key": "monthly_limit", "label": "月额度"},
+                {"key": "daily_spent", "label": "今日已用"},
+                {"key": "monthly_spent", "label": "本月已用"},
+                {"key": "is_active", "label": "启用"},
+            ],
+            "user_priority": "p0",
+            "presentation_semantic": "primary_list",
+        }
+    ],
+}
+
 RUNTIME_AI_QUOTA_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "ai-ops.list-user-quotas",

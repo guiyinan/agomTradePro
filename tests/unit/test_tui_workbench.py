@@ -7038,8 +7038,7 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
 
     assert RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["user_experience"]["journey"] == "admin"
     assert [
-        panel["user_priority"]
-        for panel in RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["dashboard_panels"]
+        panel["user_priority"] for panel in RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["dashboard_panels"]
     ] == ["p0", "p1", "p2"]
     assert [item["action_key"] for item in tool_panel["row_actions"]] == [
         "capability-router.mcp-tool-detail",
@@ -7061,6 +7060,41 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
     assert "tui-row-actions-header" in script
     assert ".tui-row-actions-header," in css
     assert "position: sticky" in css
+
+
+def test_tui_identity_access_metadata_is_composed_from_owner_shards():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_quotas import (
+        RUNTIME_AI_QUOTA_ACTIONS,
+        RUNTIME_AI_USER_QUOTAS_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_system_providers import (
+        RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS,
+        RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_ai_user_providers import (
+        RUNTIME_AI_MY_PROVIDERS_SCREEN,
+        RUNTIME_AI_USER_PROVIDER_ACTIONS,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_identity_access import (
+        RUNTIME_IDENTITY_ACCESS_ACTIONS,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_mcp_access import (
+        RUNTIME_MCP_ACCESS_ACTIONS,
+    )
+
+    expected_actions = (
+        *RUNTIME_MCP_ACCESS_ACTIONS,
+        *RUNTIME_AI_USER_PROVIDER_ACTIONS,
+        *RUNTIME_AI_SYSTEM_PROVIDER_ACTIONS,
+        *RUNTIME_AI_QUOTA_ACTIONS,
+    )
+
+    assert [action["key"] for action in RUNTIME_IDENTITY_ACCESS_ACTIONS] == [
+        action["key"] for action in expected_actions
+    ]
+    assert RUNTIME_AI_MY_PROVIDERS_SCREEN["key"] == "ai-ops.my-providers"
+    assert RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN["key"] == "ai-ops.system-providers"
+    assert RUNTIME_AI_USER_QUOTAS_SCREEN["key"] == "ai-ops.user-quotas"
 
 
 def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
@@ -7139,7 +7173,7 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert "dashboardLayout(panels, screen)" in script
     assert "function dashboardDesktopColumns(screen)" in script
     assert '["self_service", "admin"].includes(journey)' in script
-    assert 'dashboardAreaTemplate(areas, desktopColumns)' in script
+    assert "dashboardAreaTemplate(areas, desktopColumns)" in script
     assert 'panelPriority(panel) !== "p2"' in script
 
 
