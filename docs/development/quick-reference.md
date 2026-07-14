@@ -218,7 +218,7 @@ agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests
 - `python manage.py govern_ai_capability_catalog --apply`：治理 AI Capability Catalog，清理不在当前 API/MCP 源内的历史自动采集项；安全只读能力自动放行，写入能力保留确认，高风险 MCP 保持待人工复核，unsafe API 标记拒绝。
 - MCP 可执行工具以 `sdk/agomtradepro_mcp/tools/*` 中的 `@server.tool()` 代码注册为真源；数据库中的 `ai_capability_catalog` 是同步快照和治理投影，不作为任意可执行代码入口。
 - `sync_ai_capability_catalog` 默认会在 API/MCP 同步后执行治理；如需只看原始采集结果，可加 `--skip-governance`。
-- TUI 运行时会注入 `capability-router.gateway` 与 `capability-router.mcp-center` 两个屏幕：前者用于统一路由验证，后者提供 MCP 接入中心，可直接查看 `/api/ai-capability/mcp-tools/*` 的同步摘要、工具目录和开关操作。
+- TUI 运行时保留 4 个稳定 screen key，并按 audience 拆成独立旅程：普通登录用户只看到 `capability-router.self-service`（“我的 MCP 接入”）；管理员额外看到 `capability-router.mcp-center`、`capability-router.admin-access`（“MCP 管理”）和 `capability-router.gateway`（“能力路由调试”）。未知或越权 screen 分别返回结构化 404/403，不再静默回首页。
 
 ```powershell
 # 同步 MCP 工具到 Capability Catalog
@@ -536,7 +536,30 @@ pytest sdk/tests/test_sdk/test_extended_module_endpoints.py -q
 | `/api/realtime/prices/` | GET | 查询价格 |
 | `/api/realtime/poll/` | POST | 手动触发轮询 |
 | `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
+| `/api/realtime/alerts/` | GET/POST | 查询或创建当前用户的价格告警 |
+| `/api/realtime/alerts/{id}/` | GET/PATCH/DELETE | 读取、修改或删除当前用户的告警 |
+| `/api/realtime/subscriptions/` | GET/POST | 查询或创建当前用户的持久订阅 |
+| `/api/realtime/subscriptions/{code}/` | DELETE | 取消当前用户对资产的订阅 |
 | `/api/realtime/health/` | GET | 健康检查 |
+| `/ws/realtime/prices/` | WebSocket | Token 认证的价格与单次告警事件流 |
+
+Realtime WebSocket 与事件回放默认关闭。启用和回滚顺序：
+
+1. 安装项目依赖（包含 `channels`、`channels-redis`、`websockets`）并执行 `python manage.py migrate`。
+2. 配置可达的 `REDIS_URL`，先以 ASGI 方式启动 `core.asgi:application`，再设置 `REALTIME_WEBSOCKET_ENABLED=true`；Redis 不可达时 readiness 必须失败。
+3. 完成已注册 replay target 的 preview 验证后，再设置 `EVENT_REPLAY_ENABLED=true`；commit 仍要求 staff、显式确认和幂等键。
+4. 回滚时先关闭 `EVENT_REPLAY_ENABLED`，再关闭 `REALTIME_WEBSOCKET_ENABLED`；REST 价格、告警持久化和轮询不依赖 WebSocket 开关，可继续工作。
+
+### Controlled Event Replay API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/events/replay/preview/` | POST | staff 对已注册 target 做只读预览，返回候选/跳过计数 |
+| `/api/events/replay/commit/` | POST | staff 显式确认后执行；要求幂等请求并记录逐项结果 |
+
+- `EVENT_REPLAY_ENABLED=false` 时 preview/commit 均返回 503；应先验证 target 注册、时间范围和预览结果，再启用 commit。
+- 相同幂等请求不会重复调用 handler；冲突请求返回 409。结果区分 succeeded、skipped、failed，异常内容经过边界清洗。
+- Semantic governance 修正必须先 preview，再 apply/remove；同步后仍由持久 override 生效，并生成不可变 operator audit 记录。
 
 ### Equity Technical API
 

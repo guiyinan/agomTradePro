@@ -303,11 +303,40 @@ composite_provider = CompositePriceDataProvider(providers)
 
 ---
 
+## 告警、订阅与实时推送
+
+Realtime 现在提供 owner-scoped 告警与持久订阅：普通用户只能读取和修改自己的记录。价格轮询写入 canonical snapshot 后，会向已认证且已订阅对应资产的 WebSocket group 发布 `price.update`；满足穿越规则的告警只发布一次 `alert.triggered`，并持久化触发状态防止重复推送。
+
+| 能力 | 路径 | 关键约束 |
+|------|------|----------|
+| 告警列表/创建 | `/api/realtime/alerts/` | 登录用户、owner scoped |
+| 告警详情/修改/删除 | `/api/realtime/alerts/{id}/` | 非 owner 返回 404 |
+| 订阅列表/创建 | `/api/realtime/subscriptions/` | 持久记录驱动 WebSocket group membership |
+| 取消订阅 | `/api/realtime/subscriptions/{asset_code}/` | 登录用户、owner scoped |
+| 价格流 | `/ws/realtime/prices/` | Token 认证；匿名关闭码 4401 |
+
+### 生产启用
+
+1. 安装 `channels`、`channels-redis`、`websockets` 并执行迁移。
+2. 设置可达的 `REDIS_URL`，通过 ASGI server 启动 `core.asgi:application`。
+3. 在 Redis/channel layer readiness 通过后设置 `REALTIME_WEBSOCKET_ENABLED=true`。
+4. 用真实登录用户 Token 建立 `/ws/realtime/prices/` 连接，订阅资产后触发一次价格轮询；必须收到 `price.update`，穿越告警阈值时只收到一条 `alert.triggered`。
+
+Redis 不可用而 WebSocket 开关已启用时，readiness 必须失败，consumer 使用 1013 拒绝服务；不得退化成“只保存订阅但不交付事件”。
+
+### 回滚
+
+- 先设置 `REALTIME_WEBSOCKET_ENABLED=false`，停止新 WebSocket 连接和 channel 广播。
+- 保留 REST 价格查询、告警/订阅数据和轮询链路；关闭 WebSocket 不删除业务记录。
+- 如需回退代码，先确认没有运行中的 ASGI 长连接，再部署前一稳定版本；数据库迁移只在明确评估数据丢失风险后逆向执行。
+
+---
+
 ## 后续优化方向
 
 ### 短期（1-2周）
 
-1. **WebSocket 升级**: 从轮询升级为实时推送
+1. **多进程推送容量验证**: 在生产 Redis channel layer 上验证连接数、背压与重连
 2. **关注池实现**: 完善 `WatchlistProvider`
 3. **价格变化计算**: 实现 change 和 change_pct 字段
 
