@@ -601,7 +601,7 @@ class TestBacktestAuditIntegration:
         )
 
         with patch(
-            "apps.backtest.application.use_cases.generate_audit_report_for_backtest",
+            "apps.backtest.application.use_cases.generate_attribution_report_for_backtest",
             MagicMock(return_value=mock_audit_response),
         ):
             use_case = RunBacktestUseCase(
@@ -661,7 +661,7 @@ class TestBacktestAuditIntegration:
         backtest_repo = DjangoBacktestRepository()
 
         with patch(
-            "apps.backtest.application.use_cases.generate_audit_report_for_backtest",
+            "apps.backtest.application.use_cases.generate_attribution_report_for_backtest",
             side_effect=RuntimeError("数据库连接超时"),
         ):
             use_case = RunBacktestUseCase(
