@@ -15,6 +15,11 @@ class _StubPriceRepository:
     def get_latest_price(self, asset_code):
         return None
 
+    def get_latest_prices(self, asset_codes: list[str]) -> list[RealtimePrice]:
+        """Return no stored prices for this focused polling test."""
+
+        return []
+
 
 class _StubPriceProvider:
     def __init__(self, prices):
