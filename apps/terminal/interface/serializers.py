@@ -11,6 +11,13 @@ from rest_framework import serializers
 from ..domain.entities import CommandType, TerminalRiskLevel
 
 
+class TuiAgentActionSearchQuerySerializer(serializers.Serializer):
+    """Validate bounded Agent action discovery parameters."""
+
+    query = serializers.CharField(required=False, allow_blank=True, default="")
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=20, default=10)
+
+
 class CommandParameterSerializer(serializers.Serializer):
     """命令参数序列化器"""
 
@@ -255,3 +262,11 @@ class TerminalChatResponseSerializer(serializers.Serializer):
         default=None,
         required=False,
     )
+    proposal_id = serializers.IntegerField(allow_null=True, default=None, required=False)
+
+
+class TerminalApprovalDecisionSerializer(serializers.Serializer):
+    """Validate an operator decision for a persisted Terminal MCP proposal."""
+
+    decision = serializers.ChoiceField(choices=["approve", "reject"])
+    reason = serializers.CharField(allow_blank=True, required=False, default="")

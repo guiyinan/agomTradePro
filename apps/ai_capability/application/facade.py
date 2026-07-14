@@ -93,7 +93,34 @@ class CapabilityRoutingFacade:
             }
             for capability in visible
             if capability.enabled_for_terminal
+            and self._terminal_role_allows(
+                capability=capability,
+                user_is_admin=user_is_admin,
+                context=context,
+            )
         ]
+
+    @staticmethod
+    def _terminal_role_allows(
+        *,
+        capability: Any,
+        user_is_admin: bool,
+        context: dict[str, Any],
+    ) -> bool:
+        """Filter manifest role gates using server-derived Terminal identity."""
+
+        target = dict(capability.execution_target or {})
+        required_roles = {
+            str(role).strip().lower()
+            for role in list(target.get("required_roles") or [])
+            if str(role).strip()
+        }
+        if not required_roles:
+            return True
+        if "staff" in required_roles and user_is_admin:
+            return True
+        user_role = str(context.get("user_role") or "read_only").strip().lower()
+        return user_role in required_roles
 
     def match_terminal_mcp_capability(
         self,

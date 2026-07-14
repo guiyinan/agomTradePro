@@ -8,8 +8,50 @@ from copy import deepcopy
 from typing import Any
 
 from agomtradepro_mcp.audit import AuditContext, get_audit_logger
+from agomtradepro_mcp.rbac import get_current_role, role_matches_required_roles
 
 from .manifest import CapabilityManifest
+
+CAPABILITY_SEARCH_DEFAULT_RESULTS = 10
+CAPABILITY_SEARCH_MAX_RESULTS = 20
+
+# Search aliases are protocol-routing metadata, not business rules. They keep
+# Chinese user questions on the bounded discovery path without duplicating
+# capability manifests or requiring every Agent client to translate first.
+CAPABILITY_SEARCH_QUERY_ALIASES: dict[str, tuple[str, ...]] = {
+    "账户": ("account",),
+    "持仓": ("position", "positions", "portfolio"),
+    "组合": ("portfolio", "allocation"),
+    "交易": ("trading", "trade", "execution"),
+    "宏观": ("macro", "regime"),
+    "象限": ("regime",),
+    "政策": ("policy",),
+    "信号": ("signal",),
+    "行情": ("market", "price", "quote"),
+    "报价": ("quote", "price"),
+    "价格": ("price",),
+    "股票": ("equity", "stock"),
+    "个股": ("equity", "stock"),
+    "基金": ("fund",),
+    "板块": ("sector", "rotation"),
+    "行业": ("sector",),
+    "轮动": ("rotation",),
+    "策略": ("strategy",),
+    "回测": ("backtest",),
+    "因子": ("factor",),
+    "风险": ("risk",),
+    "对冲": ("hedge",),
+    "舆情": ("sentiment",),
+    "情绪": ("sentiment",),
+    "事件": ("event", "events"),
+    "任务": ("task",),
+    "监控": ("monitor", "monitoring"),
+    "数据源": ("data", "provider"),
+    "数据": ("data",),
+    "配置": ("config", "configuration"),
+    "审计": ("audit",),
+    "告警": ("alert",),
+}
 
 
 class CapabilityDispatcher:
@@ -22,17 +64,24 @@ class CapabilityDispatcher:
         legacy_tool_caller: Callable[[str, dict[str, Any]], Any],
         internal_handler_caller: Callable[[str, dict[str, Any]], Any] | None = None,
         audit_logger: Any | None = None,
+        role_provider: Callable[[], str] | None = None,
     ) -> None:
         self._registry = dict(registry)
         self._legacy_tool_caller = legacy_tool_caller
         self._internal_handler_caller = internal_handler_caller
         self._audit_logger = audit_logger
+        self._role_provider = role_provider or get_current_role
         self._pending_confirmations: dict[str, dict[str, Any]] = {}
         self._idempotency_records: dict[tuple[str, str], dict[str, Any]] = {}
 
     def list_capabilities(self) -> list[CapabilityManifest]:
-        """Return all enabled capabilities."""
-        return [manifest for manifest in self._registry.values() if manifest.enabled]
+        """Return enabled capabilities visible to the trusted runtime role."""
+        role = self._role_provider()
+        return [
+            manifest
+            for manifest in self._registry.values()
+            if manifest.enabled and self._is_authorized(manifest, role=role)
+        ]
 
     def search(
         self,
@@ -41,7 +90,7 @@ class CapabilityDispatcher:
         tags: Sequence[str] | None = None,
         owner_app: str | None = None,
         risk_level: str | None = None,
-        limit: int = 10,
+        limit: int = CAPABILITY_SEARCH_DEFAULT_RESULTS,
     ) -> list[dict[str, Any]]:
         """Search capabilities using simple token overlap ranking."""
         normalized_tags = {tag.strip().lower() for tag in (tags or []) if str(tag).strip()}
@@ -76,12 +125,13 @@ class CapabilityDispatcher:
             matches.append((score, manifest))
 
         matches.sort(key=lambda item: (-item[0], item[1].capability_key))
-        return [manifest.to_summary_dict() for _, manifest in matches[: max(limit, 1)]]
+        effective_limit = max(1, min(int(limit), CAPABILITY_SEARCH_MAX_RESULTS))
+        return [manifest.to_discovery_dict() for _, manifest in matches[:effective_limit]]
 
     def get_schema(self, capability_key: str) -> dict[str, Any]:
         """Return full schema metadata for one capability."""
         manifest = self._registry.get(capability_key)
-        if manifest is None or not manifest.enabled:
+        if manifest is None or not manifest.enabled or not self._is_authorized(manifest):
             raise KeyError(f"Unknown capability_key: {capability_key}")
         return manifest.to_schema_dict()
 
@@ -105,6 +155,24 @@ class CapabilityDispatcher:
         safe_context = dict(context or {})
         audit_context = self._build_audit_context(safe_context)
         safe_context.setdefault("request_id", audit_context.request_id)
+        if not self._is_authorized(manifest):
+            payload = self._error_envelope(
+                code="capability_forbidden",
+                message="The authenticated MCP role cannot execute this capability.",
+                capability_key=capability_key,
+                required_roles=list(manifest.required_roles),
+            )
+            self._audit_capability_event(
+                manifest=manifest,
+                audit_context=audit_context,
+                tool_name="agom_capability_call",
+                event_type="authorization_failed",
+                confirmation_status="rejected",
+                arguments=safe_arguments,
+                request_arguments=safe_arguments,
+                response=payload,
+            )
+            return payload
         missing = self._validate_required_arguments(manifest, safe_arguments)
         if missing:
             payload = self._error_envelope(
@@ -309,6 +377,29 @@ class CapabilityDispatcher:
         arguments = pending["arguments"]
         record_key = pending.get("record_key")
         request_arguments = pending.get("request_arguments") or arguments
+        if not self._is_authorized(manifest):
+            self._pending_confirmations.pop(confirmation_token, None)
+            if record_key is not None:
+                self._idempotency_records.pop(record_key, None)
+            payload = self._error_envelope(
+                code="capability_forbidden",
+                message="The authenticated MCP role cannot execute this capability.",
+                capability_key=manifest.capability_key,
+                confirmation_token=confirmation_token,
+                required_roles=list(manifest.required_roles),
+            )
+            self._audit_capability_event(
+                manifest=manifest,
+                audit_context=audit_context,
+                tool_name="agom_confirmation_resume",
+                event_type="authorization_failed",
+                confirmation_status="rejected",
+                arguments=request_arguments,
+                request_arguments=request_arguments,
+                response=payload,
+                confirmation_token=confirmation_token,
+            )
+            return payload
         self._pending_confirmations.pop(confirmation_token, None)
         try:
             result = self._execute_manifest(manifest, arguments)
@@ -380,6 +471,19 @@ class CapabilityDispatcher:
         required = manifest.input_schema.get("required", []) or []
         return [name for name in required if name not in arguments]
 
+    def _is_authorized(
+        self,
+        manifest: CapabilityManifest,
+        *,
+        role: str | None = None,
+    ) -> bool:
+        """Check manifest roles against trusted process/backend identity only."""
+
+        return role_matches_required_roles(
+            role if role is not None else self._role_provider(),
+            manifest.required_roles,
+        )
+
     def _store_pending_confirmation(
         self,
         manifest: CapabilityManifest,
@@ -424,6 +528,7 @@ class CapabilityDispatcher:
         capability_key: str | None = None,
         confirmation_token: str | None = None,
         missing_required: list[str] | None = None,
+        required_roles: list[str] | None = None,
     ) -> dict[str, Any]:
         payload = {
             "ok": False,
@@ -439,6 +544,8 @@ class CapabilityDispatcher:
             payload["confirmation_token"] = confirmation_token
         if missing_required:
             payload["missing_required"] = missing_required
+        if required_roles:
+            payload["required_roles"] = required_roles
         return payload
 
     def _validate_idempotency_arguments(
@@ -558,11 +665,15 @@ class CapabilityDispatcher:
         normalized = str(text or "").strip().lower()
         if not normalized:
             return set()
-        return {
+        tokens = {
             token
             for token in normalized.replace("-", " ").replace("_", " ").split()
             if token
         }
+        for alias, expanded_tokens in CAPABILITY_SEARCH_QUERY_ALIASES.items():
+            if alias in normalized:
+                tokens.update(expanded_tokens)
+        return tokens
 
     def _build_audit_context(self, context: dict[str, Any]) -> AuditContext:
         return AuditContext.create(

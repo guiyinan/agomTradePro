@@ -6,6 +6,10 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
+from apps.agent_runtime.infrastructure.models import (
+    AgentExecutionRecordModel,
+    AgentProposalModel,
+)
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
 
 
@@ -112,6 +116,7 @@ class TestTerminalChatEndpoint:
                 "status": "approval_required",
                 "capability_key": "mcp_tool.sync_positions",
                 "risk_level": "high",
+                "proposal_id": 41,
             },
         )
 
@@ -129,6 +134,7 @@ class TestTerminalChatEndpoint:
         payload = response.json()
         assert payload["approval_required"] is True
         assert payload["selected_capability_key"] == "mcp_tool.sync_positions"
+        assert payload["proposal_id"] == 41
 
     def test_terminal_chat_returns_502_when_agent_raises(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
@@ -145,6 +151,112 @@ class TestTerminalChatEndpoint:
 
         assert response.status_code == 502
         assert response.json()["error"] == "AI 调用异常: agent exploded"
+
+
+@pytest.mark.django_db
+class TestTerminalApprovalDecisionEndpoint:
+    """Tests for the Terminal MCP approval decision endpoint."""
+
+    def test_approval_decision_requires_operator_permission(
+        self, api_client, regular_user
+    ):
+        api_client.force_authenticate(user=regular_user)
+
+        response = api_client.post(
+            "/api/terminal/approvals/41/decision/",
+            {"decision": "approve"},
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+    def test_staff_can_approve_and_execute_persisted_mcp_proposal(
+        self, api_client, staff_user
+    ):
+        api_client.force_authenticate(user=staff_user)
+        approved = Mock(request_id="apr-1", proposal=Mock(id=41))
+        executed = Mock(
+            request_id="apr-1",
+            proposal=Mock(id=41),
+            execution_record_id=88,
+            guardrail_decision={"decision": "allowed"},
+        )
+        persisted = Mock(proposal=Mock(proposal_type="terminal_mcp_capability"))
+
+        with (
+            patch(
+                "apps.terminal.interface.api_views.GetProposalUseCase.execute",
+                return_value=persisted,
+            ),
+            patch(
+                "apps.terminal.interface.api_views.ApproveProposalUseCase.execute",
+                return_value=approved,
+            ) as approve,
+            patch(
+                "apps.terminal.interface.api_views.ExecuteProposalUseCase.execute",
+                return_value=executed,
+            ) as execute,
+        ):
+            response = api_client.post(
+                "/api/terminal/approvals/41/decision/",
+                {"decision": "approve", "reason": "confirmed in Terminal"},
+                format="json",
+            )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "executed"
+        assert response.json()["execution_record_id"] == 88
+        approve.assert_called_once()
+        execute.assert_called_once()
+
+    def test_approval_executes_real_mcp_flow_for_standalone_proposal(
+        self, api_client, staff_user
+    ):
+        proposal = AgentProposalModel._default_manager.create(
+            request_id="apr_terminal_real_1",
+            proposal_type="terminal_mcp_capability",
+            status="submitted",
+            risk_level="high",
+            approval_required=True,
+            approval_status="pending",
+            proposal_payload={
+                "capability_key": "portfolio.write.rebalance",
+                "arguments": {"account_id": 7},
+                "session_id": "sess-real",
+            },
+            created_by=staff_user,
+        )
+        api_client.force_authenticate(user=staff_user)
+
+        with patch(
+            "apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool",
+            side_effect=[
+                {
+                    "ok": False,
+                    "status": "confirmation_required",
+                    "capability_key": "portfolio.write.rebalance",
+                    "confirmation_token": "confirm-real",
+                },
+                {
+                    "ok": True,
+                    "status": "completed",
+                    "capability_key": "portfolio.write.rebalance",
+                    "result": {"rebalanced": True},
+                },
+            ],
+        ):
+            response = api_client.post(
+                f"/api/terminal/approvals/{proposal.id}/decision/",
+                {"decision": "approve", "reason": "verified"},
+                format="json",
+            )
+
+        assert response.status_code == 200
+        proposal.refresh_from_db()
+        assert proposal.status == "executed"
+        record = AgentExecutionRecordModel._default_manager.get(proposal=proposal)
+        assert record.task_id is None
+        assert record.execution_output["mcp_result"]["result"] == {"rebalanced": True}
 
 
 @pytest.mark.django_db

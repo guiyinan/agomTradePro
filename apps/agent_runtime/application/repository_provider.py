@@ -68,4 +68,27 @@ def get_terminal_agent_service(*, capability_gateway=None):
         OpenAIAgentsTerminalService,
     )
 
-    return OpenAIAgentsTerminalService(capability_gateway=capability_gateway)
+    return OpenAIAgentsTerminalService(
+        capability_gateway=capability_gateway,
+        approval_gateway=get_terminal_mcp_approval_gateway(),
+    )
+
+
+def get_terminal_mcp_approval_gateway():
+    """Return the durable Terminal MCP approval facade."""
+
+    from apps.agent_runtime.application.terminal_approval import (
+        TerminalMcpApprovalFacade,
+    )
+
+    return TerminalMcpApprovalFacade()
+
+
+def get_approved_mcp_capability_executor():
+    """Return the infrastructure adapter that executes an approved MCP proposal."""
+
+    from apps.agent_runtime.infrastructure.mcp_proposal_executor import (
+        ApprovedMcpCapabilityExecutor,
+    )
+
+    return ApprovedMcpCapabilityExecutor()

@@ -377,8 +377,10 @@ class AgentExecutionRecordModel(models.Model):
     task = models.ForeignKey(
         AgentTaskModel,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='execution_records',
-        help_text="Linked task"
+        help_text="Linked task (optional for standalone approved capabilities)"
     )
     proposal = models.ForeignKey(
         AgentProposalModel,

@@ -154,7 +154,7 @@ class AgentTaskStep:
     """
     id: int | None = None
     request_id: str = ""
-    task_id: int = 0
+    task_id: int | None = None
     step_key: str = ""
     step_name: str = ""
     step_index: int = 0

@@ -84,6 +84,9 @@ jobs:
       - name: Run MCP catalog dedup guard
         run: python scripts/check_mcp_catalog_dedup.py
 
+      - name: Run MCP published TUI action coverage guard
+        run: python scripts/check_mcp_tui_action_coverage.py
+
       - name: Run MCP read evidence guard
         run: python scripts/check_mcp_read_evidence.py
 

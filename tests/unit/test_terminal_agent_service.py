@@ -62,6 +62,9 @@ def test_build_mcp_server_uses_stdio_python_module_entrypoint():
     assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_USER_ID"] == "7"
     assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_USERNAME"] == "ops_user"
     assert captured["params"]["env"]["AGOMTRADEPRO_INTERNAL_SOURCE"] == "terminal_mcp"
+    assert captured["params"]["env"]["AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS"] == "true"
+    assert captured["params"]["env"]["AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS"] == "false"
+    assert captured["params"]["env"]["AGOMTRADEPRO_MCP_ROLE"] == "admin"
     assert captured["cache_tools_list"] is True
     assert captured["client_session_timeout_seconds"] == 90.0
     assert captured["name"] == "agomtradepro"
@@ -226,9 +229,55 @@ def test_build_tool_access_snapshot_prefers_core_tools_for_governed_mcp_capabili
     snapshot = service._build_tool_access_snapshot(_request())
 
     assert "mcp_tool.system.read.regime.current" in snapshot.auto_allowed
+    assert (
+        snapshot.auto_allowed["mcp_tool.system.read.regime.current"]["discovery_key"]
+        == "system.read.regime.current"
+    )
     assert "agom_capability_call" in snapshot.allowed_tool_names
     assert "agom_capability_search" in snapshot.allowed_tool_names
     assert "agom_bootstrap" in snapshot.allowed_tool_names
+
+
+def test_build_agent_instructions_use_compact_governed_discovery_summary():
+    service = OpenAIAgentsTerminalService()
+    auto_allowed = {
+        f"account.read.capability_{index}": {
+            "capability_key": f"account.read.capability_{index}",
+            "execution_target_type": "mcp_capability",
+        }
+        for index in range(200)
+    }
+    gated = {
+        f"strategy.update.capability_{index}": {
+            "capability_key": f"strategy.update.capability_{index}",
+            "execution_target_type": "mcp_capability",
+        }
+        for index in range(100)
+    }
+    tool_access = SimpleNamespace(
+        auto_allowed=auto_allowed,
+        gated=gated,
+        allowed_tool_names=frozenset(
+            {
+                "agom_capability_search",
+                "agom_capability_schema",
+                "agom_capability_call",
+            }
+        ),
+    )
+
+    instructions = service._build_agent_instructions(_request(), tool_access)
+
+    assert "200 auto-approved" in instructions
+    assert "100 approval-gated" in instructions
+    assert "account, strategy" in instructions
+    assert "agom_capability_search" in instructions
+    assert "agom_capability_schema" in instructions
+    assert "agom_capability_call" in instructions
+    assert "terminal.search.user_actions" in instructions
+    assert "account.read.capability_199" not in instructions
+    assert "strategy.update.capability_99" not in instructions
+    assert len(instructions) < 1_200
 
 
 def test_match_gated_tool_returns_high_confidence_match():
@@ -289,3 +338,72 @@ def test_map_stream_event_maps_mcp_approval_requests():
             },
         )
     ]
+
+
+def test_stage_mcp_confirmation_persists_model_generated_arguments():
+    approval_gateway = Mock()
+    approval_gateway.stage_terminal_mcp_capability.return_value = {
+        "proposal_id": 41,
+        "request_id": "apr_20260713_ABC123",
+        "status": "submitted",
+    }
+    service = OpenAIAgentsTerminalService(approval_gateway=approval_gateway)
+    tool_access = SimpleNamespace(
+        auto_allowed={},
+        gated={
+            "mcp_tool.portfolio.write.rebalance": {
+                "capability_key": "mcp_tool.portfolio.write.rebalance",
+                "discovery_key": "portfolio.write.rebalance",
+                "risk_level": "high",
+                "summary": "Rebalance portfolio",
+            }
+        },
+    )
+    events = [
+        TerminalAgentEventDTO(
+            event_type="tool_called",
+            data={
+                "tool_name": "agom_capability_call",
+                "arguments": (
+                    '{"capability_key":"portfolio.write.rebalance",'
+                    '"arguments":{"account_id":7,"target":{"equity":0.6}}}'
+                ),
+            },
+        ),
+        TerminalAgentEventDTO(
+            event_type="tool_output",
+            data={
+                "tool_name": "agom_capability_call",
+                "output": (
+                    '{"ok":false,"status":"confirmation_required",'
+                    '"capability_key":"portfolio.write.rebalance",'
+                    '"confirmation_token":"ephemeral-token"}'
+                ),
+            },
+        ),
+    ]
+
+    approval_event = service._stage_mcp_confirmation(
+        request=_request(message="rebalance account 7"),
+        tool_access=tool_access,
+        events=events,
+    )
+
+    approval_gateway.stage_terminal_mcp_capability.assert_called_once_with(
+        capability_key="portfolio.write.rebalance",
+        arguments={"account_id": 7, "target": {"equity": 0.6}},
+        risk_level="high",
+        summary="Rebalance portfolio",
+        session_id="sess-1",
+        user_id=7,
+        actor={
+            "user_id": 7,
+            "username": "ops_user",
+            "is_staff": True,
+            "roles": ["admin"],
+        },
+    )
+    assert approval_event.event_type == "approval_required"
+    assert approval_event.data["proposal_id"] == 41
+    assert approval_event.data["capability_key"] == "portfolio.write.rebalance"
+    assert "ephemeral-token" not in str(approval_event.data)

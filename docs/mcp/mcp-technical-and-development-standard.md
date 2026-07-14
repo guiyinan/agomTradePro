@@ -87,6 +87,18 @@ MCP 不得承担以下职责：
 | `agom_workflow_start` | 启动系统认可的多步任务工作流 |
 | `agom_workflow_status` | 查询工作流执行状态、证据和下一步 |
 
+### 2.2 分层发现与 Token 预算
+
+1. 默认 MCP surface 只发布固定 core tools；完整 capability manifest 不得通过 `tools/list` 平铺给模型。
+2. `agom_bootstrap` 只返回 owner-domain 索引、发现步骤和固定限制，不得返回按字母排序的 capability 样本清单。
+3. `agom_capability_search` 默认返回 10 项，服务端硬上限固定为 20；调用方传入更大值时必须在 dispatcher 前后双层收敛，禁止一次输出完整 registry。
+4. search 只发布 `capability_key/title/summary/owner_app/risk_level/tags/requires_confirmation/required_roles` 等发现字段。`legacy_tool_names`、`audit_tags`、幂等参数名和完整输入输出 schema 只能由 `agom_capability_schema` 按单项返回。
+5. discovery 必须支持中英文任务词路由；中文别名只属于协议检索 metadata，不得复制或改变 Domain 业务规则。
+6. Terminal Agent 使用 governed capability 时，只能在 instructions 中发布领域索引与 auto/gated 数量，不得枚举全部 capability key；实际能力选择必须走 `search -> schema -> call`。
+7. Terminal Agent composition root 必须显式设置 core tools 为 enabled、legacy tools 为 disabled，不能继承父进程中用于兼容测试的 legacy-on 环境变量。
+8. initialize instructions 不得要求无条件预载资源。Regime/Policy 只在研究、信号、配置建议、风险或执行类问题中作为前置上下文；运维、配置和账户查询按用户问题读取相关资源。
+9. `scripts/check_mcp_tool_budget.py` 除顶层工具数量外，还必须校验默认 tool definitions 的序列化 UTF-8 字节预算；固定上限为 12,000 bytes。
+
 实现备注（2026-07-10）：
 
 1. 上述固定 core tool 集已在 `sdk/agomtradepro_mcp/tools/core_tools.py` 落地；实时数量读取 `governance/governance_baseline.json` 的 `mcp_governance.default_top_level_tool_count`。
@@ -706,7 +718,7 @@ CI 必须阻止以下回归：
 3. `scripts/check_mcp_no_raw_tools.py` 用于冻结 raw `@server.tool()` 文件面，阻止新的 legacy surface 扩张。
 4. `scripts/check_mcp_catalog_dedup.py` 用于校验 synced MCP catalog 中的 `semantic_key` 去重、governed 优先级与 `replacement_capability_key` 映射不变量。
 5. `scripts/check_mcp_write_confirmation.py` 用于校验 governed write-like manifest 必须同时声明 `requires_confirmation=true` 与 `idempotency=required`。
-6. `scripts/check_mcp_read_evidence.py` 用于校验每条 governed read manifest 同时具备 raw tool、core-only fallback、focused SDK contract、`agom_capability_call` 回归和 catalog replacement 证据。
+6. `scripts/check_mcp_read_evidence.py` 用于校验迁移型 governed read manifest 同时具备 raw tool、core-only fallback、focused SDK contract、`agom_capability_call` 回归和 catalog replacement 证据；显式声明 `mcp:native` 的 internal handler 必须改以 handler、core-only 与 catalog projection 证据通过门禁，不得伪造 legacy tool。
 7. `scripts/check_mcp_write_evidence.py` 用于校验每条 governed write-like manifest 具备 raw tool、执行路径与核心契约测试证据。
 8. `scripts/check_mcp_write_preview.py` 用于校验 governed write-like manifest 必须暴露真实 preview-first 语义，而不是只有 confirmation 外壳。
 9. `scripts/check_mcp_write_audit.py` 用于校验 governed write-like manifest 必须声明 `audit_tags`，避免审计标准只停留在文档层。
@@ -774,3 +786,11 @@ MCP 收口完成后必须满足：
 7. legacy tools 默认不推荐，且有 replacement。
 8. CI 能阻止新增散装 MCP tool。
 9. 文档明确说明 MCP 不是 API 平替。
+
+### 10.1 Terminal 持久化审批闭环
+
+130. Terminal 的 medium/high/critical MCP capability 不得依赖 stdio 子进程内存中的 confirmation token 跨请求恢复。Agent 必须先通过 `agom_capability_search/schema/call` 生成完整参数与 preview；当 call 返回 `confirmation_required` 时，Terminal 将 `capability_key + arguments + session_id + risk_level` 冻结为 `terminal_mcp_capability` AgentProposal 并提交人工审批，且不得把临时 token 持久化或返回给浏览器。staff/operator 批准后，执行适配器必须在同一个 MCP server 实例内重新调用 `agom_capability_call`，取得新的 token 后立即调用 `agom_confirmation_resume`；真实 MCP envelope 必须写入 AgentExecutionRecord。MCP 或记录持久化任一步失败时 proposal 必须进入 `execution_failed`，不得报告成功。独立 Terminal proposal 可以不绑定 AgentTask，因此 AgentExecutionRecord.task 允许为空，但 proposal、request_id、审批人和真实执行结果仍为必填审计证据。
+
+131. “Agent 可操作系统全部功能”只指已发布、可路由且具备 canonical owner 的能力。`aggregate`/`legacy_compat` 用户意图必须由 Agent 组合 `recommended_capability_keys` 完成；`internal_only` 递归 AI 调用不得反向暴露为 MCP；`unsupported` 表示系统本身没有可成立的执行合同，不得用空实现或伪成功补齐。该边界不属于 token 优化造成的能力削减。
+
+132. 已发布 TUI operation graph 是“用户可操作系统功能”的补充机器真源。专用业务 capability 未命中时，Agent 必须依次使用 `terminal.search.user_actions`（最多 20 项）、`terminal.read.user_action_schema` 和对应执行桥；`read` action 只能由 `terminal.read.user_action_result` 执行，`ai/write/admin` action 只能由 `terminal.execute.user_action` 执行。后者必须经过 MCP preview、持久化 Terminal 审批、idempotency、原 TUI 权限与审计校验；需要重新认证的 action 只返回 challenge，不得向模型暴露或持久化用户密码。该桥只允许已发布且当前用户可见的 action，不是任意 HTTP/API 代理。`scripts/check_mcp_tui_action_coverage.py` 必须证明每条已发布 action 都有且仅有明确的 read 或 confirmed bridge 分类。

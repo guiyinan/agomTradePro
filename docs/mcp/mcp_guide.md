@@ -13,7 +13,7 @@ The welcome message includes:
 
 - Current MCP role
 - Backend base URL
-- Suggested first resources and workflow prompts
+- On-demand resource guidance and workflow prompts
 - Execution guardrails for investment actions
 
 For clients that do not render `instructions`, the same content is available as resource `agomtradepro://welcome`.
@@ -59,6 +59,24 @@ Tool-surface note:
 
 - MCP server now defaults to the governed `core-only` surface.
 - To expose legacy raw tools for compatibility testing only, set `AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=true` explicitly.
+- Production and Terminal Agent runtimes must keep `AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS=false`.
+
+### Layered Discovery and Token Budget
+
+The default Agent path is intentionally layered:
+
+1. `agom_bootstrap` returns a compact owner-domain index, not a sample dump of capability manifests.
+2. `agom_capability_search` accepts English or common Chinese task terms and returns compact summaries.
+3. `agom_capability_schema` returns the full contract for only the selected capability.
+4. `agom_capability_call` executes the selected contract; governed writes continue through confirmation.
+
+Discovery safeguards:
+
+- Capability search defaults to 10 results and is hard-capped at 20 by the server.
+- Search summaries omit legacy replacement names, audit tags, and idempotency internals; those remain available from the selected capability schema.
+- Empty discovery requests remain bounded and cannot dump the full registry in one response.
+- Startup instructions do not require resource or catalog preloading. Regime and policy resources are read first only for investment research, signals, allocation, risk, or execution tasks.
+- `python scripts/check_mcp_tool_budget.py` checks both the fixed top-level tool set and a 12,000-byte serialized schema budget.
 
 Auth format on backend is DRF Token (`Authorization: Token <token>`).
 
@@ -881,6 +899,27 @@ Bundle export aggregates:
 - positions
 - transactions
 - capital flows
+
+## Built-in Terminal approval flow
+
+The built-in Terminal uses the same core-only MCP surface as external Agents. Read-only and low-risk capabilities execute directly. For a medium-or-higher-risk capability:
+
+1. The Agent searches the bounded capability index, reads only the selected schema, and calls the capability once with complete arguments.
+2. The Terminal converts the returned confirmation requirement into a durable AgentProposal. The child-process token is deliberately discarded.
+3. A staff/operator user types `Y` in Terminal to approve and execute, or `N` to reject.
+4. Approval executes the frozen arguments through `agom_capability_call` followed by `agom_confirmation_resume` in one MCP runtime and stores the real result in AgentExecutionRecord.
+5. A downstream failure is recorded as `execution_failed`; it is never displayed as a successful action.
+
+This means token optimization changes discovery from eager loading to layered retrieval; it does not remove canonical system capabilities. Composite legacy intents are fulfilled by composing their governed recommended capabilities. Internal recursive-AI tools and explicitly unsupported contracts remain unavailable by design because they are not valid system operations.
+
+When no dedicated business capability matches, the same Agent can fall back to the reviewed TUI operation graph without receiving the full catalog:
+
+1. Call `terminal.search.user_actions` with a narrow query; at most 20 compact matches are returned.
+2. Call `terminal.read.user_action_schema` for the selected `action_key`.
+3. Use `terminal.read.user_action_result` for a published read action.
+4. Use `terminal.execute.user_action` for AI, write, or admin actions. This always enters the persistent approval flow and then reuses the TUI's user permission, confirmation, audit, and reauthentication checks.
+
+The fallback is not an arbitrary HTTP proxy: only actions in the currently published TUI metadata and visible to the authenticated user can be discovered or executed. A password challenge remains a human boundary; the Agent must never request, store, or forward the user's password.
 
 ## Example Conversations
 

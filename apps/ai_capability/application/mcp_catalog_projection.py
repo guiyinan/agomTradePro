@@ -66,6 +66,7 @@ def build_governed_mcp_capability(manifest: Any) -> CapabilityDefinition:
                 "idempotency_key",
             ),
             "audit_tags": audit_tags,
+            "required_roles": list(getattr(manifest, "required_roles", ()) or ()),
         },
         risk_level=RiskLevel(getattr(manifest, "risk_level", RiskLevel.LOW.value)),
         requires_mcp=True,

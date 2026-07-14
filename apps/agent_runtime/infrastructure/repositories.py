@@ -111,7 +111,7 @@ class AgentTimelineRepository:
         self,
         *,
         request_id: str,
-        task_id: int,
+        task_id: int | None,
         proposal_id: int | None,
         event_type: str,
         event_source: str,

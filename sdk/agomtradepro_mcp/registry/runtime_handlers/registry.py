@@ -39,6 +39,7 @@ from .owners import (
     simulated_trading,
     strategy,
     task_monitor,
+    terminal,
 )
 
 OWNER_HANDLER_MODULES: tuple[ModuleType, ...] = (
@@ -74,6 +75,7 @@ OWNER_HANDLER_MODULES: tuple[ModuleType, ...] = (
     simulated_trading,
     strategy,
     task_monitor,
+    terminal,
 )
 
 

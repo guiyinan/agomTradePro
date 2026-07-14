@@ -41,8 +41,12 @@ from apps.agent_runtime.application.proposal_use_cases import (
     GetProposalUseCase,
     GuardrailBlockedError,
     InvalidProposalTransitionError,
+    ProposalExecutionError,
     RejectProposalUseCase,
     SubmitProposalForApprovalUseCase,
+)
+from apps.agent_runtime.application.repository_provider import (
+    get_approved_mcp_capability_executor,
 )
 from apps.agent_runtime.application.use_cases import (
     CancelTaskInput,
@@ -1130,7 +1134,9 @@ class AgentProposalViewSet(viewsets.ViewSet):
             return perm_error
 
         try:
-            use_case = ExecuteProposalUseCase()
+            use_case = ExecuteProposalUseCase(
+                approved_capability_executor=get_approved_mcp_capability_executor(),
+            )
             output = use_case.execute(
                 proposal_id=int(pk),
                 actor=self._get_actor(request),
@@ -1173,6 +1179,14 @@ class AgentProposalViewSet(viewsets.ViewSet):
                     "evidence": e.evidence,
                 },
                 status_code=status.HTTP_403_FORBIDDEN,
+            )
+        except ProposalExecutionError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="proposal_execution_failed",
+                message=str(e),
+                details={"execution_record_id": e.execution_record_id},
+                status_code=status.HTTP_502_BAD_GATEWAY,
             )
 
 

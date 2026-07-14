@@ -82,10 +82,15 @@ def _has_core_only_test_evidence(
     *,
     test_blocks: list[str],
 ) -> bool:
+    evidence_marker = (
+        "INTERNAL_GOVERNED_HANDLERS"
+        if manifest.executor_kind == "internal_handler"
+        else "INTERNAL_LEGACY_TOOL_FALLBACKS"
+    )
     return any(
         manifest.capability_key in block
         and "agom_capability_call" in block
-        and "INTERNAL_LEGACY_TOOL_FALLBACKS" in block
+        and evidence_marker in block
         and all(tool_name in block for tool_name in manifest.legacy_tool_names)
         for block in test_blocks
     )
@@ -122,9 +127,11 @@ def validate_read_evidence_manifests(
     sdk_contract_covered = 0
     core_only_test_covered = 0
     catalog_test_covered = 0
+    native_handler_covered = 0
 
     function_bodies = server_evidence_index["function_bodies"]
     legacy_fallbacks = server_evidence_index["legacy_fallbacks"]
+    internal_handlers = server_evidence_index["internal_handlers"]
 
     for manifest in manifests:
         if is_write_like_manifest(manifest):
@@ -136,6 +143,38 @@ def validate_read_evidence_manifests(
                 "Unsupported legacy contract must not be registered as a governed read manifest: "
                 f"{manifest.capability_key}"
             )
+        is_native_handler = (
+            manifest.executor_kind == "internal_handler"
+            and not manifest.legacy_tool_names
+            and "mcp:native" in manifest.audit_tags
+        )
+        if is_native_handler:
+            handler_name = internal_handlers.get(manifest.executor_ref)
+            if handler_name is None or not function_bodies.get(handler_name, ""):
+                raise ValueError(
+                    "Governed native MCP read manifest is missing internal handler evidence: "
+                    f"{manifest.capability_key}"
+                )
+            if not _has_core_only_test_evidence(
+                manifest,
+                test_blocks=core_registry_test_blocks,
+            ):
+                raise ValueError(
+                    "Governed native MCP read manifest is missing core-only evidence: "
+                    f"{manifest.capability_key}"
+                )
+            if not any(
+                manifest.capability_key in block for block in ai_capability_test_blocks
+            ):
+                raise ValueError(
+                    "Governed native MCP read manifest is missing catalog projection evidence: "
+                    f"{manifest.capability_key}"
+                )
+            native_handler_covered += 1
+            core_only_test_covered += 1
+            catalog_test_covered += 1
+            continue
+
         if manifest.executor_kind != "legacy_tool":
             raise ValueError(
                 "Governed MCP read evidence currently requires a controlled legacy_tool "
@@ -211,6 +250,7 @@ def validate_read_evidence_manifests(
         "sdk_contract_evidence_manifests": sdk_contract_covered,
         "core_only_test_evidence_manifests": core_only_test_covered,
         "catalog_test_evidence_manifests": catalog_test_covered,
+        "native_handler_evidence_manifests": native_handler_covered,
     }
 
 

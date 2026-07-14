@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -12,11 +13,26 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.account.application.rbac import get_user_role
-from apps.agent_runtime.application.repository_provider import get_terminal_agent_service
+from apps.agent_runtime.application.proposal_use_cases import (
+    ApproveProposalUseCase,
+    ExecuteProposalUseCase,
+    GetProposalUseCase,
+    GuardrailBlockedError,
+    InvalidProposalTransitionError,
+    ProposalExecutionError,
+    RejectProposalUseCase,
+)
+from apps.agent_runtime.application.repository_provider import (
+    get_approved_mcp_capability_executor,
+    get_terminal_agent_service,
+)
 from apps.agent_runtime.application.terminal_agent import (
     RunTerminalAgentChatUseCase,
     StreamTerminalAgentChatUseCase,
     TerminalAgentChatRequestDTO,
+)
+from apps.agent_runtime.application.terminal_approval import (
+    TERMINAL_MCP_PROPOSAL_TYPE,
 )
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
@@ -31,11 +47,13 @@ from ..application.tui_operator_services import (
     build_operator_home_section_payload,
 )
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
-from .permissions import IsStaffOrAdmin
+from .permissions import IsStaffOrAdmin, IsStaffOrOperator
 from .serializers import (
+    TerminalApprovalDecisionSerializer,
     TerminalAuditEntrySerializer,
     TerminalChatRequestSerializer,
     TerminalChatResponseSerializer,
+    TuiAgentActionSearchQuerySerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -180,6 +198,7 @@ class TerminalChatView(APIView):
                 "metadata": response_dto.metadata,
                 "approval_required": bool(response_dto.metadata.get("status") == "approval_required"),
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
+                "proposal_id": response_dto.metadata.get("proposal_id"),
             }
         except Exception as exc:
             logger.exception("Terminal agent chat failed")
@@ -227,6 +246,92 @@ class TerminalChatStreamView(APIView):
                 "X-Accel-Buffering": "no",
             },
         )
+
+
+class TerminalApprovalDecisionView(APIView):
+    """Approve-and-execute or reject one persisted Terminal MCP proposal."""
+
+    permission_classes = [IsStaffOrOperator]
+
+    def post(self, request, proposal_id: int):
+        """Apply an operator decision to a Terminal MCP proposal."""
+
+        serializer = TerminalApprovalDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        actor = {
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "is_staff": bool(request.user.is_staff or request.user.is_superuser),
+            "roles": list(request.user.groups.values_list("name", flat=True)),
+        }
+        decision = serializer.validated_data["decision"]
+        reason = serializer.validated_data.get("reason") or None
+
+        try:
+            proposal = GetProposalUseCase().execute(proposal_id=proposal_id).proposal
+            if proposal.proposal_type != TERMINAL_MCP_PROPOSAL_TYPE:
+                return Response(
+                    {"error": "Proposal is not a Terminal MCP approval"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if decision == "reject":
+                output = RejectProposalUseCase().execute(
+                    proposal_id=proposal_id,
+                    reason=reason,
+                    actor=actor,
+                )
+                return Response(
+                    {
+                        "request_id": output.request_id,
+                        "proposal_id": proposal_id,
+                        "status": "rejected",
+                    }
+                )
+
+            ApproveProposalUseCase().execute(
+                proposal_id=proposal_id,
+                reason=reason,
+                actor=actor,
+            )
+            output = ExecuteProposalUseCase(
+                approved_capability_executor=get_approved_mcp_capability_executor(),
+            ).execute(
+                proposal_id=proposal_id,
+                actor=actor,
+                context={},
+            )
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal_id": proposal_id,
+                    "status": "executed",
+                    "execution_record_id": output.execution_record_id,
+                    "guardrail_decision": output.guardrail_decision,
+                }
+            )
+        except ObjectDoesNotExist:
+            return Response(
+                {"error": "Approval proposal not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidProposalTransitionError as exc:
+            return Response(
+                {"error": exc.message},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except GuardrailBlockedError as exc:
+            return Response(
+                {"error": exc.guardrail_message, "reason_code": exc.reason_code},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ProposalExecutionError as exc:
+            return Response(
+                {
+                    "error": str(exc),
+                    "execution_record_id": exc.execution_record_id,
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
 
 class TerminalAuditView(APIView):
@@ -318,6 +423,42 @@ class TuiWorkbenchScreenView(APIView):
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
         return Response(service.get_screen(screen_key, user=request.user))
+
+
+class TuiAgentActionSearchView(APIView):
+    """Expose bounded published-action discovery to authenticated Agents."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return compact action summaries matching one query."""
+
+        serializer = TuiAgentActionSearchQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
+        return Response(
+            service.search_agent_actions(
+                query=serializer.validated_data["query"],
+                limit=serializer.validated_data["limit"],
+                user=request.user,
+            )
+        )
+
+
+class TuiAgentActionSchemaView(APIView):
+    """Expose one published action schema to authenticated Agents."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, action_key: str):
+        """Return one visible action contract or 404."""
+
+        service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
+        try:
+            payload = service.get_agent_action_schema(action_key, user=request.user)
+        except KeyError:
+            return Response({"error": "Unknown TUI action"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload)
 
 
 class TuiOperatorHomeView(APIView):

@@ -32,6 +32,7 @@ OWNER_MANIFEST_MODULES: tuple[str, ...] = (
     "agomtradepro_mcp.registry.modules.owners.simulated_trading_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.strategy_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.task_monitor_read_capabilities",
+    "agomtradepro_mcp.registry.modules.owners.terminal_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.account_write_capabilities",
     "agomtradepro_mcp.registry.modules.owners.agent_runtime_write_capabilities",
     "agomtradepro_mcp.registry.modules.owners.ai_provider_write_capabilities",
@@ -55,6 +56,7 @@ OWNER_MANIFEST_MODULES: tuple[str, ...] = (
     "agomtradepro_mcp.registry.modules.owners.signal_write_capabilities",
     "agomtradepro_mcp.registry.modules.owners.simulated_trading_write_capabilities",
     "agomtradepro_mcp.registry.modules.owners.strategy_write_capabilities",
+    "agomtradepro_mcp.registry.modules.owners.terminal_write_capabilities",
 )
 
 __all__ = ["OWNER_MANIFEST_MODULES"]

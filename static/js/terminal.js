@@ -66,8 +66,9 @@ class AgomTerminal {
 
         // Governance state
         this.terminalMode = 'confirm_each';
-        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation | pending_route_confirmation | pending_route_params
+        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation | pending_mcp_approval | pending_route_confirmation | pending_route_params
         this.pendingConfirmation = null; // {name, params, token, details}
+        this.pendingMcpApproval = null; // {proposalId, capabilityKey, riskLevel}
         this.pendingRouteSuggestion = null; // {command, intent, prompt, capabilityKey, missingParams, params, message}
         this.userCapabilities = null;
 
@@ -332,6 +333,7 @@ class AgomTerminal {
         // Check if we're in confirmation mode
         if (
             this.terminalState === 'pending_confirmation'
+            || this.terminalState === 'pending_mcp_approval'
             || this.terminalState === 'pending_route_confirmation'
             || this.terminalState === 'pending_route_params'
         ) {
@@ -352,12 +354,16 @@ class AgomTerminal {
             if (answer === 'y' || answer === 'yes') {
                 if (this.terminalState === 'pending_route_confirmation') {
                     this.confirmRouteSuggestion();
+                } else if (this.terminalState === 'pending_mcp_approval') {
+                    this.decideMcpApproval('approve');
                 } else {
                     this.confirmExecution();
                 }
             } else if (answer === 'n' || answer === 'no' || answer === '/cancel') {
                 if (this.terminalState === 'pending_route_confirmation') {
                     this.cancelRouteSuggestion();
+                } else if (this.terminalState === 'pending_mcp_approval') {
+                    this.decideMcpApproval('reject');
                 } else {
                     this.cancelConfirmation();
                 }
@@ -810,6 +816,77 @@ class AgomTerminal {
         this.updatePromptIndicator();
         this.updateInputState();
         this.printInfo('Command cancelled');
+    }
+
+    /**
+     * Enter the durable MCP proposal approval state.
+     */
+    handleMcpApproval(data) {
+        this.pendingMcpApproval = {
+            proposalId: data.proposal_id,
+            capabilityKey: data.selected_capability_key || data.metadata?.capability_key || '',
+            riskLevel: data.metadata?.risk_level || 'medium',
+        };
+        this.terminalState = 'pending_mcp_approval';
+        this.printOutput(`
+<div style="padding: 12px; border: 1px solid var(--terminal-yellow); border-radius: 4px; margin: 4px 0;">
+<strong style="color: var(--terminal-yellow);">MCP approval required</strong>
+
+  <span style="color: var(--terminal-text-dim);">Proposal:</span>   #${this.escapeHtml(String(data.proposal_id))}
+  <span style="color: var(--terminal-text-dim);">Capability:</span> ${this.escapeHtml(this.pendingMcpApproval.capabilityKey)}
+  <span style="color: var(--terminal-text-dim);">Risk:</span>       ${this.escapeHtml(this.pendingMcpApproval.riskLevel)}
+
+  Type <span class="terminal-cmd">Y</span> to approve and execute, <span class="terminal-cmd">N</span> to reject.
+</div>`, 'warning');
+        this.updatePromptIndicator('approve');
+        this.updateInputState();
+    }
+
+    /**
+     * Persist an operator decision and execute approved MCP arguments.
+     */
+    async decideMcpApproval(decision) {
+        if (!this.pendingMcpApproval) return;
+
+        const approval = this.pendingMcpApproval;
+        this.isLoading = true;
+        this.showTypingIndicator();
+        try {
+            const response = await fetch(`/api/terminal/approvals/${approval.proposalId}/decision/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    decision: decision,
+                    reason: `Terminal operator selected ${decision}`,
+                })
+            });
+            const data = await response.json();
+            this.hideTypingIndicator();
+            if (!response.ok) {
+                this.printError(data.error || 'MCP approval decision failed');
+                return;
+            }
+            if (decision === 'approve') {
+                this.printSuccess(`MCP proposal #${approval.proposalId} approved and executed`);
+                if (data.execution_record_id) {
+                    this.printInfo(`Execution record: #${data.execution_record_id}`);
+                }
+            } else {
+                this.printInfo(`MCP proposal #${approval.proposalId} rejected`);
+            }
+            this.pendingMcpApproval = null;
+            this.terminalState = 'normal';
+            this.updatePromptIndicator();
+            this.updateInputState();
+        } catch (error) {
+            this.hideTypingIndicator();
+            this.printError(`Network error: ${error.message}`);
+        } finally {
+            this.isLoading = false;
+        }
     }
 
     /**
@@ -1848,6 +1925,9 @@ class AgomTerminal {
                     this.handleRouteSuggestion(data);
                 }
                 this.printAIResponse(data.reply, data.metadata);
+                if (data.approval_required && data.proposal_id) {
+                    this.handleMcpApproval(data);
+                }
                 this.updateSessionInfo();
             } else {
                 this.printError(data.error || 'Failed to get AI response');
@@ -2106,6 +2186,8 @@ class AgomTerminal {
             this.setInputStatus('Large input detected. Review before sending.', 'warning');
         } else if (this.terminalState === 'pending_confirmation') {
             this.setInputStatus('Confirmation mode: type Y to continue or N to cancel.', 'warning');
+        } else if (this.terminalState === 'pending_mcp_approval') {
+            this.setInputStatus('MCP approval: type Y to approve and execute or N to reject.', 'warning');
         } else if (this.terminalState === 'pending_route_confirmation') {
             this.setInputStatus('Route suggestion: type Y to execute suggested command or N to cancel.', 'warning');
         } else {

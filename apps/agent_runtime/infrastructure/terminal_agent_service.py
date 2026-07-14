@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -18,6 +19,7 @@ from apps.agent_runtime.application.terminal_agent import (
     TerminalAgentChatResponseDTO,
     TerminalAgentEventDTO,
     TerminalAgentService,
+    TerminalApprovalGateway,
     TerminalCapabilityGateway,
 )
 from apps.ai_provider.infrastructure.repositories import (
@@ -74,11 +76,13 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         self,
         *,
         capability_gateway: TerminalCapabilityGateway | None = None,
+        approval_gateway: TerminalApprovalGateway | None = None,
         provider_repo: AIProviderRepository | None = None,
         usage_repo: AIUsageRepository | None = None,
         quota_repo: AIUserFallbackQuotaRepository | None = None,
     ) -> None:
         self._capability_gateway = capability_gateway
+        self._approval_gateway = approval_gateway
         self._provider_repo = provider_repo or AIProviderRepository()
         self._usage_repo = usage_repo or AIUsageRepository()
         self._quota_repo = quota_repo or AIUserFallbackQuotaRepository(usage_repo=self._usage_repo)
@@ -125,21 +129,6 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         """Yield normalized agent events for one request."""
 
         tool_access = self._build_tool_access_snapshot(request)
-        gated_match = self._match_gated_tool(request, tool_access)
-        if gated_match is not None:
-            yield TerminalAgentEventDTO(
-                event_type="approval_required",
-                data={
-                    "session_id": request.session_id,
-                    "message": (
-                        "该操作涉及受控 MCP 工具，当前不会自动执行。"
-                        " 请进入审批流程后再继续。"
-                    ),
-                    **gated_match,
-                },
-            )
-            return
-
         resolved_provider = self._resolve_provider(request)
         events = asyncio.run(self._collect_events(request, resolved_provider, tool_access))
         self._log_terminal_run(
@@ -175,6 +164,14 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 )
                 async for event in streamed.stream_events():
                     result_events.extend(self._map_stream_event(event))
+
+                approval_event = self._stage_mcp_confirmation(
+                    request=request,
+                    tool_access=tool_access,
+                    events=result_events,
+                )
+                if approval_event is not None:
+                    result_events.append(approval_event)
 
                 final_reply = self._stringify(getattr(streamed, "final_output", ""))
                 usage = self._extract_usage(streamed)
@@ -320,6 +317,11 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         env["AGOMTRADEPRO_INTERNAL_USER_ID"] = str(request.user_id or "")
         env["AGOMTRADEPRO_INTERNAL_USERNAME"] = request.username
         env["AGOMTRADEPRO_INTERNAL_SOURCE"] = "terminal_mcp"
+        env["AGOMTRADEPRO_MCP_ENABLE_CORE_TOOLS"] = "true"
+        env["AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS"] = "false"
+        env["AGOMTRADEPRO_MCP_ROLE"] = (
+            "admin" if request.user_is_admin else (request.user_role or "read_only")
+        )
         return sdk["MCPServerStdio"](
             cache_tools_list=True,
             client_session_timeout_seconds=TERMINAL_AGENT_MCP_CLIENT_TIMEOUT_SECONDS,
@@ -354,29 +356,170 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         tool_access: _ToolAccessSnapshot,
     ) -> str:
         """Build prompt instructions for the terminal agent."""
-
-        safe_tool_names = ", ".join(
-            sorted(
-                str(item.get("display_name") or key)
-                for key, item in tool_access.auto_allowed.items()
-            )
-        ) or "none"
-        gated_tool_names = ", ".join(
-            sorted(
-                str(item.get("display_name") or key)
-                for key, item in tool_access.gated.items()
-            )
-        ) or "none"
+        domains = sorted(
+            {
+                capability_key.split(".", 1)[0]
+                for items in (tool_access.auto_allowed, tool_access.gated)
+                for key, item in items.items()
+                if (
+                    capability_key := str(
+                        item.get("discovery_key") or item.get("capability_key") or key
+                    ).strip()
+                )
+            }
+        )
+        domain_summary = ", ".join(domains) or "none"
+        auto_count = len(tool_access.auto_allowed)
+        gated_count = len(tool_access.gated)
         return (
             "You are the AgomTradePro terminal agent. "
             "Use MCP tools when they are available and necessary, keep answers concise, "
             "and never invent tool results.\n"
             f"Current user: {request.username} ({request.user_role}).\n"
-            f"Auto-approved MCP capabilities/tools: {safe_tool_names}.\n"
-            f"Gated MCP capabilities/tools not available without approval: {gated_tool_names}.\n"
-            "If a gated action would be required, explain that explicit approval is needed.\n"
+            f"Available MCP domains: {domain_summary}; {auto_count} auto-approved and "
+            f"{gated_count} approval-gated capabilities.\n"
+            "For governed capabilities, use agom_capability_search with a narrow query, "
+            "inspect the selected capability with agom_capability_schema, then execute it "
+            "with agom_capability_call. Do not request the full capability catalog.\n"
+            "If no dedicated capability matches, use terminal.search.user_actions as the "
+            "bounded fallback, inspect one action schema, then use its read or confirmed "
+            "execution bridge.\n"
+            "For a gated action, call agom_capability_call once with complete arguments "
+            "to obtain its preview and confirmation requirement; never call "
+            "agom_confirmation_resume yourself. The Terminal will persist the approval request.\n"
             "Prefer grounded tool-backed answers over generic speculation."
         )
+
+    def _stage_mcp_confirmation(
+        self,
+        *,
+        request: TerminalAgentChatRequestDTO,
+        tool_access: _ToolAccessSnapshot,
+        events: list[TerminalAgentEventDTO],
+    ) -> TerminalAgentEventDTO | None:
+        """Persist a confirmation returned by the ephemeral MCP child process."""
+
+        if self._approval_gateway is None:
+            return None
+
+        calls: dict[str, dict[str, Any]] = {}
+        for event in events:
+            if event.event_type != "tool_called":
+                continue
+            tool_name = str(event.data.get("tool_name") or "")
+            if not self._is_core_tool_name(tool_name, "agom_capability_call"):
+                continue
+            call_payload = self._parse_json_object(event.data.get("arguments"))
+            capability_key = str(call_payload.get("capability_key") or "").strip()
+            arguments = call_payload.get("arguments")
+            if capability_key and isinstance(arguments, dict):
+                calls[capability_key] = dict(arguments)
+
+        for event in events:
+            if event.event_type != "tool_output":
+                continue
+            output = self._find_confirmation_payload(event.data.get("output"))
+            if output is None:
+                continue
+            capability_key = str(output.get("capability_key") or "").strip()
+            arguments = calls.get(capability_key)
+            if arguments is None:
+                continue
+            capability = self._find_gated_capability(tool_access, capability_key)
+            if capability is None:
+                continue
+
+            staged = self._approval_gateway.stage_terminal_mcp_capability(
+                capability_key=capability_key,
+                arguments=arguments,
+                risk_level=str(capability.get("risk_level") or "medium"),
+                summary=str(capability.get("summary") or ""),
+                session_id=request.session_id,
+                user_id=request.user_id,
+                actor={
+                    "user_id": request.user_id,
+                    "username": request.username,
+                    "is_staff": request.user_is_admin,
+                    "roles": [request.user_role] if request.user_role else [],
+                },
+            )
+            return TerminalAgentEventDTO(
+                event_type="approval_required",
+                data={
+                    "session_id": request.session_id,
+                    "message": (
+                        "该 MCP 操作已生成持久化审批单。审批通过后，"
+                        "Terminal 将按已冻结的参数执行。"
+                    ),
+                    "capability_key": capability_key,
+                    "risk_level": capability.get("risk_level"),
+                    "summary": capability.get("summary"),
+                    "proposal_id": staged.get("proposal_id"),
+                    "proposal_request_id": staged.get("request_id"),
+                    "proposal_status": staged.get("status"),
+                },
+            )
+        return None
+
+    def _find_gated_capability(
+        self,
+        tool_access: _ToolAccessSnapshot,
+        capability_key: str,
+    ) -> dict[str, Any] | None:
+        """Return gated metadata matching a governed discovery key."""
+
+        for capability in tool_access.gated.values():
+            candidates = {
+                str(capability.get("capability_key") or ""),
+                str(capability.get("discovery_key") or ""),
+            }
+            if capability_key in candidates or f"mcp_tool.{capability_key}" in candidates:
+                return capability
+        return None
+
+    def _find_confirmation_payload(self, raw: Any) -> dict[str, Any] | None:
+        """Find a confirmation envelope inside MCP text/content wrappers."""
+
+        parsed = self._parse_json_value(raw)
+        queue = [parsed]
+        while queue:
+            value = queue.pop(0)
+            if isinstance(value, dict):
+                if value.get("status") == "confirmation_required":
+                    return value
+                queue.extend(value.values())
+            elif isinstance(value, list):
+                queue.extend(value)
+            elif isinstance(value, str):
+                nested = self._parse_json_value(value)
+                if nested != value:
+                    queue.append(nested)
+        return None
+
+    def _parse_json_object(self, raw: Any) -> dict[str, Any]:
+        """Parse a JSON object emitted by the Agents SDK."""
+
+        value = self._parse_json_value(raw)
+        return value if isinstance(value, dict) else {}
+
+    def _parse_json_value(self, raw: Any) -> Any:
+        """Best-effort parse one JSON value without evaluating arbitrary text."""
+
+        if not isinstance(raw, str):
+            return raw
+        text = raw.strip()
+        if not text:
+            return raw
+        try:
+            return json.loads(text)
+        except (TypeError, ValueError):
+            return raw
+
+    def _is_core_tool_name(self, runtime_name: str, expected: str) -> bool:
+        """Match plain and provider-prefixed MCP tool names."""
+
+        normalized = runtime_name.split(".")[-1].split(":")[-1]
+        return normalized == expected or runtime_name.endswith(f"_{expected}")
 
     def _build_tool_access_snapshot(
         self,
@@ -398,7 +541,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             mcp_enabled=request.mcp_enabled,
             provider_name=str(request.provider_ref or ""),
             model=request.model,
-            context=dict(request.context),
+            context={**dict(request.context), "user_role": request.user_role},
         )
 
         auto_allowed: dict[str, dict[str, Any]] = {}
@@ -414,14 +557,22 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             if target_type == "mcp_capability":
                 has_governed_capabilities = True
                 display_name = str(capability.get("capability_key") or "")
+                discovery_key = str(
+                    target.get("capability_key")
+                    or capability.get("semantic_key")
+                    or capability.get("capability_key")
+                    or ""
+                )
             else:
                 raw_tool_names.add(tool_name)
                 display_name = tool_name
+                discovery_key = tool_name
             risk_level = str(capability.get("risk_level") or "low")
             payload = {
                 "capability_key": str(capability.get("capability_key") or ""),
                 "tool_name": tool_name,
                 "display_name": display_name,
+                "discovery_key": discovery_key,
                 "execution_target_type": target_type,
                 "risk_level": risk_level,
                 "summary": str(capability.get("summary") or ""),

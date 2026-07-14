@@ -78,6 +78,30 @@ def _role() -> str:
     return _normalize_role(os.getenv("AGOMTRADEPRO_MCP_DEFAULT_ROLE", "read_only"))
 
 
+def get_current_role() -> str:
+    """Return the trusted MCP role resolved from process or backend identity."""
+
+    return _role()
+
+
+def role_matches_required_roles(role: str, required_roles: tuple[str, ...]) -> bool:
+    """Return whether one trusted role satisfies a manifest role requirement."""
+
+    if not required_roles:
+        return True
+
+    normalized_role = _normalize_role(role)
+    for required_role in required_roles:
+        normalized_required = _normalize_role(required_role)
+        if normalized_required == "staff":
+            if normalized_role in {"admin", "staff"}:
+                return True
+            continue
+        if normalized_role == normalized_required:
+            return True
+    return False
+
+
 def _classify_tool_level(tool_name: str) -> str:
     name = tool_name.lower()
 

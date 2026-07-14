@@ -249,6 +249,107 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             ],
         }
 
+    def search_agent_actions(
+        self,
+        *,
+        query: str = "",
+        limit: int = 10,
+        user: Any | None = None,
+    ) -> dict[str, Any]:
+        """Search published user actions with a bounded, token-light payload."""
+
+        effective_limit = max(1, min(int(limit), 20))
+        normalized_query = str(query or "").strip().lower()
+        query_terms = {
+            term
+            for term in normalized_query.replace("-", " ").replace("_", " ").split()
+            if term
+        }
+        matches: list[tuple[int, dict[str, Any]]] = []
+        for action in self._visible_actions(self._metadata(), user=user):
+            haystack = " ".join(
+                str(action.get(key) or "")
+                for key in (
+                    "key",
+                    "label",
+                    "description",
+                    "intent",
+                    "screen_key",
+                    "module_key",
+                    "task_group",
+                )
+            ).lower()
+            score = 1
+            if normalized_query:
+                score = 5 if normalized_query in haystack else 0
+                score += sum(2 for term in query_terms if term in haystack)
+                if score <= 0:
+                    continue
+            matches.append((score, action))
+
+        matches.sort(key=lambda item: (-item[0], str(item[1].get("key") or "")))
+        actions = [
+            self._agent_action_summary(action, user=user)
+            for _, action in matches[:effective_limit]
+        ]
+        return {
+            "query": str(query or ""),
+            "actions": actions,
+            "returned_count": len(actions),
+            "limit": effective_limit,
+        }
+
+    def get_agent_action_schema(
+        self,
+        action_key: str,
+        *,
+        user: Any | None = None,
+    ) -> dict[str, Any]:
+        """Return one visible action schema without exposing its raw endpoint."""
+
+        action = self._action_by_key(action_key, user=user)
+        if action is None:
+            raise KeyError(action_key)
+        payload = self._action_payload(action, user=user)
+        return {
+            "action_key": payload["key"],
+            "label": payload["label"],
+            "description": payload["description"],
+            "intent": payload["intent"],
+            "screen_key": payload["screen_key"],
+            "risk": payload["risk"],
+            "requires_confirmation": payload["confirmation_required"],
+            "fields": payload["fields"],
+            "result_semantics": payload["result_semantics"],
+        }
+
+    def _agent_action_summary(
+        self,
+        action: dict[str, Any],
+        *,
+        user: Any | None = None,
+    ) -> dict[str, Any]:
+        """Return compact discovery metadata for one published action."""
+
+        payload = self._action_payload(action, user=user)
+        return {
+            "action_key": payload["key"],
+            "label": payload["label"],
+            "description": payload["description"],
+            "intent": payload["intent"],
+            "screen_key": payload["screen_key"],
+            "risk": payload["risk"],
+            "requires_confirmation": payload["confirmation_required"],
+            "required_fields": [
+                {
+                    "key": str(field.get("key") or ""),
+                    "label": str(field.get("label") or ""),
+                }
+                for field in payload["fields"]
+                if bool(field.get("required"))
+            ],
+        }
+
     def run_action(
         self,
         *,

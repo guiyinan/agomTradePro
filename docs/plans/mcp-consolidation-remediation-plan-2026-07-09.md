@@ -73,6 +73,30 @@
    - `web/chat` 同一语义下优先保留 builtin / terminal_command / api
    - `terminal/agent` 同一语义下可优先保留 governed MCP capability
    - 无 `semantic_key` 的旧记录仍走兼容规则，不阻塞现有功能
+18. 已完成分层发现 Token 预算收口（2026-07-13）：
+   - `agom_bootstrap` 改为 owner-domain 索引，不再返回 capability 样本摘要
+   - `agom_capability_search` 默认 10 项、服务端硬上限 20 项，并使用 compact discovery payload
+   - 常用中文任务词会扩展为 registry 英文检索词，避免中文问题因零命中反复检索
+   - 完整治理 metadata 与 input/output schema 继续只由单项 `agom_capability_schema` 返回
+19. 已完成 Terminal Agent 固定上下文压缩（2026-07-13）：
+   - instructions 只发布领域索引与 auto/gated 数量，不再枚举全部 capability key
+   - stdio composition root 显式强制 core-on / legacy-off，不继承兼容测试环境变量
+   - initialize welcome 改为按任务读取 Regime/Policy，不再要求连接后无条件预载资源或目录
+20. 已完成 Terminal Agent 持久化审批与真实执行闭环（2026-07-13）：
+   - gated capability 不再仅凭高风险意图提前返回；Agent 先完成 bounded search、selected schema 和结构化参数生成
+   - stdio 子进程返回的临时 confirmation token 不跨请求保存，`capability_key + arguments` 冻结为 `terminal_mcp_capability` AgentProposal
+   - staff/operator 可在内置 Terminal 通过 Y/N 调用独立 decision API；批准后在同一 MCP runtime 内重新 stage 并 resume
+   - AgentExecutionRecord 保存真实 MCP envelope；下游失败持久化为 `execution_failed`
+   - 独立 Terminal proposal 无 task 时 execution record 使用 nullable task，不再写入无效 `task_id=0`
+   - 浏览器验证已覆盖 Terminal 页面加载、provider/model 初始化和命令状态机；审批 handler 的 API/DB/MCP 闭环由自动化测试覆盖
+21. 默认 MCP 工具预算守卫已扩展为双门禁：
+   - 保持固定 top-level tool 数量检查
+   - 增加默认 tool definitions 的 12,000-byte 序列化 schema 预算检查
+22. 已完成发布 TUI 操作的 MCP 全功能桥接与覆盖守卫（2026-07-14）：
+   - 专用业务 capability 继续优先；未命中时通过 bounded action search -> single schema -> read/confirmed execution 进入发布 operation graph
+   - read action 不走确认；AI、write、admin action 统一进入 MCP preview、Terminal 持久化审批、TUI 权限与审计链
+   - 普通用户只能发现自身可见 action；staff-only capability 与 admin action 由服务端身份过滤，模型参数不能伪造角色
+   - `scripts/check_mcp_tui_action_coverage.py` 对发布 action 的唯一键、风险分类、路径安全和四个 bridge manifest 建立机器门禁
 
 ### 0.1 执行硬约束（2026-07-10 校正版）
 

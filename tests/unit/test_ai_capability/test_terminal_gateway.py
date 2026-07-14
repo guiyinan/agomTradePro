@@ -79,3 +79,41 @@ def test_terminal_gateway_returns_high_confidence_capability_match():
         "capability_key": "mcp_tool.account.update.macro_sizing_config",
         "risk_level": "high",
     }
+
+
+def test_terminal_gateway_hides_staff_capability_from_non_admin_user():
+    capability_repo = Mock()
+    capability = SimpleNamespace(
+        capability_key="mcp_tool.config_center.update.runtime_setting",
+        source_ref="config_center.update.runtime_setting",
+        summary="Update runtime setting",
+        risk_level=SimpleNamespace(value="high"),
+        execution_target={
+            "type": "mcp_capability",
+            "tool_name": "agom_capability_call",
+            "capability_key": "config_center.update.runtime_setting",
+            "required_roles": ["staff"],
+        },
+        enabled_for_terminal=True,
+    )
+    capability_repo.get_by_source_type.return_value = [capability]
+    facade = CapabilityRoutingFacade(
+        capability_repo=capability_repo,
+        routing_log_repo=Mock(),
+    )
+
+    with patch(
+        "apps.ai_capability.application.facade.CapabilityFilter.filter_by_context",
+        return_value=[capability],
+    ):
+        result = facade.list_terminal_mcp_capabilities(
+            session_id="session-1",
+            user_id=7,
+            user_is_admin=False,
+            mcp_enabled=True,
+            provider_name="provider",
+            model="model",
+            context={"user_role": "read_only"},
+        )
+
+    assert result == []

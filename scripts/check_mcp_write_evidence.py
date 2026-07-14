@@ -200,24 +200,30 @@ def validate_write_evidence_manifests(
                 "Unsupported legacy contract must not be registered as a governed write manifest: "
                 f"{manifest.capability_key}"
             )
-        if not manifest.legacy_tool_names:
+        is_native_handler = (
+            manifest.executor_kind == "internal_handler"
+            and not manifest.legacy_tool_names
+            and "mcp:native" in manifest.audit_tags
+        )
+        if not manifest.legacy_tool_names and not is_native_handler:
             raise ValueError(
                 "Governed MCP write manifest must declare legacy_tool_names for raw-tool evidence: "
                 f"{manifest.capability_key}"
             )
 
-        for tool_name in manifest.legacy_tool_names:
-            if tool_name not in raw_tool_index:
-                raise ValueError(
-                    "Governed MCP write manifest is missing raw tool evidence for legacy tool "
-                    f"{tool_name}: {manifest.capability_key}"
-                )
-            if tool_name not in ai_capability_text:
-                raise ValueError(
-                    "Governed MCP write manifest is missing AI capability replacement test evidence "
-                    f"for legacy tool {tool_name}: {manifest.capability_key}"
-                )
-        raw_tool_covered += 1
+        if not is_native_handler:
+            for tool_name in manifest.legacy_tool_names:
+                if tool_name not in raw_tool_index:
+                    raise ValueError(
+                        "Governed MCP write manifest is missing raw tool evidence for legacy tool "
+                        f"{tool_name}: {manifest.capability_key}"
+                    )
+                if tool_name not in ai_capability_text:
+                    raise ValueError(
+                        "Governed MCP write manifest is missing AI capability replacement test evidence "
+                        f"for legacy tool {tool_name}: {manifest.capability_key}"
+                    )
+            raw_tool_covered += 1
 
         if manifest.executor_kind == "legacy_tool":
             legacy_executor += 1

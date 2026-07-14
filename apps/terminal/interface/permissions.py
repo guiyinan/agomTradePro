@@ -16,3 +16,15 @@ class IsStaffOrAdmin(BasePermission):
             and request.user.is_authenticated
             and (request.user.is_staff or request.user.is_superuser)
         )
+
+
+class IsStaffOrOperator(BasePermission):
+    """Allow authenticated staff or members of the operator group."""
+
+    def has_permission(self, request, view) -> bool:
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            return True
+        return user.groups.filter(name="operator").exists()

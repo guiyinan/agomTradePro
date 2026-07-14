@@ -95,10 +95,14 @@ monitoring, decision support, and simulated execution.
 
 Immediate orientation:
 - The current session should treat this welcome block as already displayed
-- Read agomtradepro://regime/current and agomtradepro://policy/status first
+- Do not preload resources or the capability catalog before the user asks a question
+- Only for investment research, signal, allocation, risk, or execution questions,
+  read agomtradepro://regime/current and agomtradepro://policy/status first
+- For ops, configuration, and account lookups, retrieve only the relevant context
 - Read agomtradepro://welcome if you need the same startup guide as a resource
 - Use run_research_workflow or run_monitoring_workflow for guided flows
-- Use list_tools before calling write, approval, or execution tools
+- Use agom_capability_search, then agom_capability_schema, then agom_capability_call
+- If no dedicated capability matches, use terminal.search.user_actions as the bounded fallback
 
 Operating guardrails:
 - Check regime and policy before proposing investment actions

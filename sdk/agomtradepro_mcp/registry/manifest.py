@@ -36,6 +36,19 @@ class CapabilityManifest:
     legacy_tool_names: tuple[str, ...] = ()
     enabled: bool = True
 
+    def to_discovery_dict(self) -> dict[str, Any]:
+        """Return compact metadata suitable for bounded capability search."""
+        return {
+            "capability_key": self.capability_key,
+            "title": self.title,
+            "summary": self.summary,
+            "owner_app": self.owner_app,
+            "risk_level": self.risk_level,
+            "tags": list(self.tags),
+            "requires_confirmation": self.requires_confirmation,
+            "required_roles": list(self.required_roles),
+        }
+
     def to_summary_dict(self) -> dict[str, Any]:
         """Return a stable summary payload for discovery endpoints."""
         return {

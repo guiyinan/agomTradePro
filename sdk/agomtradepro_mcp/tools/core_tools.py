@@ -7,7 +7,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from agomtradepro_mcp.registry.dispatcher import CapabilityDispatcher
+from agomtradepro_mcp.registry.dispatcher import (
+    CAPABILITY_SEARCH_DEFAULT_RESULTS,
+    CAPABILITY_SEARCH_MAX_RESULTS,
+    CapabilityDispatcher,
+)
 
 CORE_TOOL_NAMES: tuple[str, ...] = (
     "agom_bootstrap",
@@ -50,6 +54,9 @@ def register_core_tools(
     def agom_bootstrap() -> dict[str, Any]:
         """Return startup guidance and capability registry summary."""
         capabilities = dispatcher.list_capabilities()
+        domain_counts: dict[str, int] = {}
+        for capability in capabilities:
+            domain_counts[capability.owner_app] = domain_counts.get(capability.owner_app, 0) + 1
         return {
             "ok": True,
             "status": "completed",
@@ -58,7 +65,20 @@ def register_core_tools(
             "instructions": welcome_message_factory(),
             "core_tools": list(CORE_TOOL_NAMES),
             "capability_count": len(capabilities),
-            "capabilities": [manifest.to_summary_dict() for manifest in capabilities[:10]],
+            "capability_domains": [
+                {"owner_app": owner_app, "capability_count": count}
+                for owner_app, count in sorted(domain_counts.items())
+            ],
+            "discovery": {
+                "search_default_limit": CAPABILITY_SEARCH_DEFAULT_RESULTS,
+                "search_max_limit": CAPABILITY_SEARCH_MAX_RESULTS,
+                "query_languages": ["en", "zh-CN"],
+                "steps": [
+                    "agom_capability_search",
+                    "agom_capability_schema",
+                    "agom_capability_call",
+                ],
+            },
             "workflow_keys": sorted(_WORKFLOW_DEFINITIONS),
         }
 
@@ -68,15 +88,16 @@ def register_core_tools(
         tags: list[str] | None = None,
         owner_app: str | None = None,
         risk_level: str | None = None,
-        limit: int = 10,
+        limit: int = CAPABILITY_SEARCH_DEFAULT_RESULTS,
     ) -> dict[str, Any]:
-        """Search registry-backed capabilities."""
+        """Search capabilities in English or Chinese; returns at most 20 summaries."""
+        effective_limit = max(1, min(int(limit), CAPABILITY_SEARCH_MAX_RESULTS))
         matches = dispatcher.search(
             query=query,
             tags=tags or [],
             owner_app=owner_app,
             risk_level=risk_level,
-            limit=limit,
+            limit=effective_limit,
         )
         return {
             "ok": True,
@@ -84,6 +105,8 @@ def register_core_tools(
             "query": query,
             "matches": matches,
             "total_matches": len(matches),
+            "returned_count": len(matches),
+            "limit": effective_limit,
         }
 
     @server.tool()
@@ -111,11 +134,13 @@ def register_core_tools(
     def agom_capability_call(
         capability_key: str,
         arguments: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute one capability through the dispatcher."""
         return dispatcher.call(
             capability_key=capability_key,
             arguments=arguments or {},
+            context=context or {},
         )
 
     @server.tool()

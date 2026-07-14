@@ -7,7 +7,7 @@ high-risk action migration, and audit enrichment.
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 from uuid import uuid4
 
 from django.utils import timezone
@@ -32,6 +32,22 @@ from apps.agent_runtime.domain.guardrails import (
 )
 
 logger = logging.getLogger(__name__)
+
+TERMINAL_MCP_PROPOSAL_TYPE = "terminal_mcp_capability"
+
+
+class ApprovedProposalExecutor(Protocol):
+    """Application contract for executing an approved external capability."""
+
+    def execute(
+        self,
+        *,
+        proposal: AgentProposal,
+        actor: dict[str, Any] | None,
+        context: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Execute an approved proposal and return a serializable result."""
+        ...
 
 
 def _generate_proposal_request_id() -> str:
@@ -436,11 +452,13 @@ class ExecuteProposalUseCase:
         timeline_service: TimelineEventWriterService | None = None,
         audit_service: Any | None = None,
         proposal_repo: AgentProposalRepository | None = None,
+        approved_capability_executor: ApprovedProposalExecutor | None = None,
     ):
         self.guardrail_engine = guardrail_engine or get_guardrail_engine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
         self.proposal_repo = proposal_repo or AgentProposalRepository()
+        self.approved_capability_executor = approved_capability_executor
         if self.audit_service is None:
             self.audit_service = _resolve_optional_audit_service()
 
@@ -477,17 +495,52 @@ class ExecuteProposalUseCase:
                 evidence=check.evidence,
             )
 
-        # Create execution record
+        execution_result: dict[str, Any] | None = None
         exec_started = timezone.now()
+        if proposal.proposal_type == TERMINAL_MCP_PROPOSAL_TYPE:
+            if self.approved_capability_executor is None:
+                raise ProposalExecutionError(
+                    "Approved MCP capability executor is not configured"
+                )
+            try:
+                execution_result = self.approved_capability_executor.execute(
+                    proposal=proposal,
+                    actor=actor,
+                    context=context,
+                )
+            except Exception as exc:
+                execution_record_id = self.proposal_repo.create_execution_record(
+                    request_id=proposal.request_id,
+                    task_id=proposal.task_id,
+                    proposal_id=int(proposal.id),
+                    execution_status="failed",
+                    execution_output={
+                        "proposal_type": proposal.proposal_type,
+                        "error": str(exc),
+                        "guardrail_decision": check.overall_decision.value,
+                    },
+                    started_at=exec_started,
+                    completed_at=timezone.now(),
+                )
+                self.proposal_repo.update_proposal_status(
+                    int(proposal.id),
+                    status=ProposalStatus.EXECUTION_FAILED.value,
+                )
+                raise ProposalExecutionError(
+                    str(exc), execution_record_id=execution_record_id
+                ) from exc
+
+        # Create execution record
         execution_record_id = self.proposal_repo.create_execution_record(
             request_id=proposal.request_id,
-            task_id=proposal.task_id or 0,
+            task_id=proposal.task_id,
             proposal_id=proposal.id,
             execution_status="success",
             execution_output={
                 "proposal_type": proposal.proposal_type,
                 "payload": proposal.proposal_payload,
                 "guardrail_decision": check.overall_decision.value,
+                "mcp_result": execution_result,
             },
             started_at=exec_started,
             completed_at=timezone.now(),
@@ -571,4 +624,12 @@ class GuardrailBlockedError(Exception):
         self.reason_code = reason_code
         self.guardrail_message = message
         self.evidence = evidence or {}
+        super().__init__(message)
+
+
+class ProposalExecutionError(Exception):
+    """Raised when an approved proposal fails during real execution."""
+
+    def __init__(self, message: str, execution_record_id: int | None = None):
+        self.execution_record_id = execution_record_id
         super().__init__(message)

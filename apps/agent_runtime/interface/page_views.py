@@ -20,8 +20,12 @@ from apps.agent_runtime.application.proposal_use_cases import (
     ExecuteProposalUseCase,
     GuardrailBlockedError,
     InvalidProposalTransitionError,
+    ProposalExecutionError,
     RejectProposalUseCase,
     SubmitProposalForApprovalUseCase,
+)
+from apps.agent_runtime.application.repository_provider import (
+    get_approved_mcp_capability_executor,
 )
 
 
@@ -114,7 +118,9 @@ def operator_proposal_detail_view(request: HttpRequest, proposal_id: int) -> Htt
                 RejectProposalUseCase().execute(proposal_id=proposal.id, reason=reason, actor=actor)
                 messages.success(request, "Proposal 已拒绝。")
             elif action_name == "execute":
-                output = ExecuteProposalUseCase().execute(proposal_id=proposal.id, actor=actor)
+                output = ExecuteProposalUseCase(
+                    approved_capability_executor=get_approved_mcp_capability_executor(),
+                ).execute(proposal_id=proposal.id, actor=actor)
                 messages.success(request, f"Proposal 已执行，execution_record_id={output.execution_record_id}。")
             else:
                 messages.error(request, "不支持的 proposal 动作。")
@@ -122,5 +128,7 @@ def operator_proposal_detail_view(request: HttpRequest, proposal_id: int) -> Htt
             messages.error(request, exc.message)
         except GuardrailBlockedError as exc:
             messages.error(request, f"Guardrail blocked: {exc.guardrail_message}")
+        except ProposalExecutionError as exc:
+            messages.error(request, f"Proposal execution failed: {exc}")
         return redirect(reverse("agent_runtime_pages:proposal_detail", args=[proposal.id]))
     return render(request, "agent_runtime/operator_proposal_detail.html", context)
