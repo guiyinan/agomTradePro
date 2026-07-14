@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
+from django.db import OperationalError
 from django.utils import timezone
 
 import apps.terminal.application.tui_workbench as tui_workbench_module
@@ -2203,6 +2204,55 @@ def test_tui_screen_api_returns_bounded_forbidden_error(client, tui_user):
     ]
     assert payload["trace_id"]
     assert "admin" not in str(payload).lower()
+
+
+def test_tui_action_api_returns_bounded_not_found_error(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.post(
+        "/api/tui/actions/not-published.action/run/",
+        data={"params": {}},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert set(payload) == {
+        "error_code",
+        "title",
+        "detail",
+        "recovery_actions",
+        "trace_id",
+    }
+    assert payload["error_code"] == "tui_action_not_found"
+    assert payload["title"] == "任务不存在"
+    assert payload["trace_id"]
+    assert "not-published.action" not in str(payload)
+
+
+def test_tui_action_api_returns_bounded_database_readiness_error(
+    client,
+    tui_user,
+    monkeypatch,
+):
+    client.force_login(tui_user)
+
+    def raise_schema_mismatch(*args, **kwargs):
+        raise OperationalError("no such column: secret_table.internal_name")
+
+    monkeypatch.setattr(TuiWorkbenchService, "run_action", raise_schema_mismatch)
+    response = client.post(
+        "/api/tui/actions/sample.list/run/",
+        data={"params": {}},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error_code"] == "tui_action_not_ready"
+    assert payload["title"] == "服务正在恢复"
+    assert payload["trace_id"]
+    assert "secret_table" not in str(payload)
 
 
 def test_tui_screen_payload_exposes_registry_identity(client, tui_user):
@@ -6928,6 +6978,48 @@ def test_tui_script_renders_accessible_native_dashboard_row_actions():
     assert "data-dashboard-row-action" in script
     assert "aria-label=" in script
     assert "dashboardPanelKey" in script
+
+
+def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "dashboardLayout(panels, screen)" in script
+    assert "function dashboardDesktopColumns(screen)" in script
+    assert '["self_service", "admin"].includes(journey)' in script
+    assert 'dashboardAreaTemplate(areas, desktopColumns)' in script
+    assert 'panelPriority(panel) !== "p2"' in script
+
+
+def test_tui_panel_recovery_is_contextual_and_bounded():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function boundedTuiError(error)" in script
+    assert "function renderDashboardPanelError(panel, error)" in script
+    assert "function bindDashboardPanelRecovery(root, panel)" in script
+    assert "data-panel-retry" in script
+    assert "data-panel-recovery-screen" in script
+    assert "bounded.traceId" in script
+    assert "renderPanelPlaceholder(panel, error.message)" not in script
+    assert "renderError(error.message)" not in script
+    assert "error.payload?.detail" not in script
+
+
+def test_tui_dashboard_uses_native_accessible_controls_with_visible_focus():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
+
+    assert '<article class="tui-dash-panel"' in script
+    assert 'role="button"' not in script
+    assert "data-dashboard-open" in script
+    assert "function bindDashboardPanelOpenControls(root)" in script
+    assert ".tui-dashboard-open:focus-visible" in css
+    assert ".tui-panel-retry:focus-visible" in css
+    assert "min-height: 36px" in css
 
 
 def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
