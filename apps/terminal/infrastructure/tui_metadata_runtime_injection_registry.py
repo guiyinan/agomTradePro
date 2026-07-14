@@ -26,8 +26,8 @@ from .tui_metadata_runtime_injection_cli import (
 )
 from .tui_metadata_runtime_injection_config_center import RUNTIME_CONFIG_CENTER_ACTIONS
 from .tui_metadata_runtime_injection_identity_access import (
-    RUNTIME_AI_OPS_MODULE,
     RUNTIME_AI_MY_PROVIDERS_SCREEN,
+    RUNTIME_AI_OPS_MODULE,
     RUNTIME_AI_SYSTEM_PROVIDERS_SCREEN,
     RUNTIME_AI_USER_QUOTAS_SCREEN,
     RUNTIME_IDENTITY_ACCESS_ACTIONS,
@@ -35,6 +35,12 @@ from .tui_metadata_runtime_injection_identity_access import (
     RUNTIME_MCP_SELF_SERVICE_SCREEN,
 )
 from .tui_metadata_runtime_injection_operator import RUNTIME_OPERATOR_ACTIONS
+from .tui_metadata_runtime_injection_realtime import (
+    RUNTIME_REALTIME_ACTIONS,
+    RUNTIME_REALTIME_GROUP,
+    RUNTIME_REALTIME_MODULE,
+    RUNTIME_REALTIME_SCREEN,
+)
 from .tui_metadata_runtime_injection_risk_center import (
     RUNTIME_RISK_CENTER_ACTIONS,
     RUNTIME_RISK_CENTER_MODULE,
@@ -90,6 +96,13 @@ RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] = (
         modules=(RUNTIME_RISK_CENTER_MODULE,),
         screens=(RUNTIME_RISK_CENTER_SCREEN,),
         actions=RUNTIME_RISK_CENTER_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_realtime_metadata",
+        groups=(RUNTIME_REALTIME_GROUP,),
+        modules=(RUNTIME_REALTIME_MODULE,),
+        screens=(RUNTIME_REALTIME_SCREEN,),
+        actions=RUNTIME_REALTIME_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_config_center_metadata",

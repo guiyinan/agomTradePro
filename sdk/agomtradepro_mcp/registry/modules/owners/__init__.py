@@ -24,6 +24,7 @@ OWNER_MANIFEST_MODULES: tuple[str, ...] = (
     "agomtradepro_mcp.registry.modules.owners.prompt_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.pulse_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.realtime_read_capabilities",
+    "agomtradepro_mcp.registry.modules.owners.realtime_management_capabilities",
     "agomtradepro_mcp.registry.modules.owners.regime_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.risk_center_read_capabilities",
     "agomtradepro_mcp.registry.modules.owners.rotation_read_capabilities",

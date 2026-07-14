@@ -66,6 +66,38 @@ def _sample_payload() -> dict:
     }
 
 
+def test_realtime_runtime_metadata_uses_v3_user_facing_contract() -> None:
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_realtime import (
+        RUNTIME_REALTIME_ACTIONS,
+        RUNTIME_REALTIME_GROUP,
+        RUNTIME_REALTIME_MODULE,
+        RUNTIME_REALTIME_SCREEN,
+    )
+
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "config"
+            / "tui"
+            / "schema"
+            / "tui_metadata.schema.v3.json"
+        ).read_text(encoding="utf-8")
+    )
+    from jsonschema import Draft202012Validator
+
+    Draft202012Validator(schema).validate(
+        {
+            "schema_version": "tui-metadata.v3",
+            "version": "test",
+            "default_screen": RUNTIME_REALTIME_SCREEN["key"],
+            "groups": [RUNTIME_REALTIME_GROUP],
+            "modules": [RUNTIME_REALTIME_MODULE],
+            "screens": [RUNTIME_REALTIME_SCREEN],
+            "actions": list(RUNTIME_REALTIME_ACTIONS),
+        }
+    )
+
+
 def test_api_evidence_default_collects_all_safe_records(generator_module, monkeypatch):
     records = [
         {

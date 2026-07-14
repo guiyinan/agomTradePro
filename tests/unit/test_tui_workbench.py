@@ -977,6 +977,42 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     assert "Agent Runtime" not in str(runtime_payload)
 
 
+def test_tui_realtime_monitor_exposes_one_owner_workflow(client, tui_user):
+    client.force_login(tui_user)
+
+    response = client.get("/api/tui/screens/realtime-monitor.alerts/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    screen = payload["screen"]
+    actions = {action["key"]: action for action in payload["actions"]}
+    panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
+    assert payload["module"]["key"] == "realtime-monitor"
+    assert screen["default_action_key"] == "realtime-monitor.list-alerts"
+    assert screen["user_experience"]["primary_task"]
+    assert screen["user_experience"]["primary_outcome"]
+    assert panels["active-alerts"]["user_priority"] == "p0"
+    assert panels["active-alerts"]["presentation_semantic"] == "primary_list"
+    assert {
+        "realtime-monitor.list-alerts",
+        "realtime-monitor.create-alert",
+        "realtime-monitor.update-alert",
+        "realtime-monitor.delete-alert",
+        "realtime-monitor.list-subscriptions",
+        "realtime-monitor.subscribe",
+        "realtime-monitor.unsubscribe",
+    } <= set(actions)
+    assert actions["realtime-monitor.update-alert"]["confirmation_required"] is True
+    assert actions["realtime-monitor.delete-alert"]["fields"][0]["binding"] == "path"
+    user_copy = " ".join(
+        [screen["label"], screen["summary"]]
+        + [action["label"] for action in actions.values()]
+        + [action.get("description", "") for action in actions.values()]
+    )
+    assert "/api/" not in user_copy
+    assert "<int:" not in user_copy
+
+
 def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client, tui_user):
     client.force_login(tui_user)
 

@@ -38,15 +38,18 @@ def test_build_inventory_returns_registered_tools():
     unsupported = {
         contract["contract_key"]: contract for contract in payload["unsupported_legacy_contracts"]
     }
-    assert "realtime.delete.price_alert" in unsupported
+    assert "realtime.delete.price_alert" not in unsupported
+    assert "realtime.price_subscription" not in unsupported
     assert "events.replay" in unsupported
-    assert "delete_price_alert" in unsupported["realtime.delete.price_alert"]["legacy_tool_names"]
 
     tools = {tool["tool_name"]: tool for tool in payload["tools"]}
-    assert tools["delete_price_alert"]["disposition_hint"] == "unsupported"
-    assert tools["delete_price_alert"]["legacy_disposition"] == "unsupported"
+    assert tools["delete_price_alert"]["disposition_hint"] == "legacy_compat"
+    assert tools["delete_price_alert"]["legacy_disposition"] == "legacy_compat"
     assert tools["delete_price_alert"]["disposition_rationale"]
-    assert tools["delete_price_alert"]["unsupported_contract_key"] == "realtime.delete.price_alert"
+    assert tools["delete_price_alert"]["recommended_capability_keys"] == (
+        "realtime.delete.price_alert",
+    )
+    assert tools["delete_price_alert"]["unsupported_contract_key"] is None
     assert tools["get_asset_info"]["legacy_disposition"] == "aggregate"
     assert tools["get_asset_info"]["recommended_capability_keys"] == (
         "rotation.read.asset_detail",

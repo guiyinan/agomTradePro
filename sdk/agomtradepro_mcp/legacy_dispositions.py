@@ -201,9 +201,24 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
     ),
     *_group(
         "realtime",
-        "unsupported",
-        ("list_price_alerts", "create_price_alert", "delete_price_alert"),
-        "No canonical price-alert model or API exists in the current server build.",
+        "legacy_compat",
+        ("list_price_alerts",),
+        "The governed owner-scoped alert list is the canonical replacement.",
+        ("realtime.read.alerts",),
+    ),
+    *_group(
+        "realtime",
+        "legacy_compat",
+        ("create_price_alert",),
+        "The governed confirmed alert creation workflow is the canonical replacement.",
+        ("realtime.create.price_alert",),
+    ),
+    *_group(
+        "realtime",
+        "legacy_compat",
+        ("delete_price_alert",),
+        "The governed confirmed alert deletion workflow is the canonical replacement.",
+        ("realtime.delete.price_alert",),
     ),
     *_group(
         "regime",

@@ -234,6 +234,7 @@
       "additionalProperties": false
     },
     "presentationSemantic": {
+      "$comment": "primary_list and supporting_list cover owner-scoped alert and subscription collections; user_priority defines their visual order.",
       "enum": [
         "primary_status",
         "primary_list",
