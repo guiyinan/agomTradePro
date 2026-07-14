@@ -10,6 +10,8 @@
 
 **Authoritative design:** `docs/superpowers/specs/2026-07-14-tui-capability-access-redesign.md`
 
+**Execution status (2026-07-14):** Tasks 1-7 have been implemented and verified. The checklists below are retained as the original execution script; exact automated results, browser evidence, and remaining risks are recorded in `output/playwright/tui-capability-router-audit/audit-report.md`.
+
 ---
 
 ## Task 1: Publish explicit audiences, modules, and independent journeys
