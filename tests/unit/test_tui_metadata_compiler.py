@@ -101,6 +101,26 @@ def test_realtime_runtime_metadata_uses_v3_user_facing_contract() -> None:
     )
 
 
+def test_v3_schema_requires_explicit_screen_audience() -> None:
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "config"
+            / "tui"
+            / "schema"
+            / "tui_metadata.schema.v3.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    screen_schema = schema["$defs"]["screen"]
+
+    assert "audience" in screen_schema["required"]
+    assert screen_schema["properties"]["audience"]["enum"] == [
+        "authenticated",
+        "admin",
+    ]
+
+
 def test_api_evidence_default_collects_all_safe_records(generator_module, monkeypatch):
     records = [
         {

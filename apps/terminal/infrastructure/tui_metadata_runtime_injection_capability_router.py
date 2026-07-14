@@ -5,29 +5,37 @@ from __future__ import annotations
 from typing import Any
 
 
-RUNTIME_CAPABILITY_ROUTER_MODULE: dict[str, Any] = {
-    "key": "capability-router",
-    "label": "能力路由",
+RUNTIME_CAPABILITY_ROUTER_DEBUG_MODULE: dict[str, Any] = {
+    "key": "capability-router-debug",
+    "label": "能力路由调试",
     "group": "ops",
-    "summary": "统一接入能力目录、智能路由、MCP 工具和内部能力。",
+    "summary": "管理员验证统一路由、能力目录与候选能力选择。",
 }
+
+RUNTIME_MCP_GOVERNANCE_MODULE: dict[str, Any] = {
+    "key": "mcp-governance",
+    "label": "MCP 管理",
+    "group": "ops",
+    "summary": "管理员治理 MCP 工具目录、路由开关和用户接入。",
+}
+
+RUNTIME_CAPABILITY_ROUTER_MODULE = RUNTIME_CAPABILITY_ROUTER_DEBUG_MODULE
 
 RUNTIME_CAPABILITY_ROUTER_SCREEN: dict[str, Any] = {
     "key": "capability-router.gateway",
     "label": "能力路由接入",
-    "module_key": "capability-router",
+    "module_key": "capability-router-debug",
     "group": "ops",
     "summary": "验证自然语言请求如何通过统一路由层选择能力，并检查目录覆盖状态。",
     "view_type": "detail",
+    "audience": "admin",
     "default_action_key": "capability-router.route-message",
     "workflow": {
-        "name": "能力接入流程",
-        "step": 1,
-        "total": 2,
+        "name": "能力路由调试",
         "label": "统一路由",
-        "role": "先验证统一路由与目录覆盖，再进入 MCP 接入中心处理开关与同步。",
+        "role": "验证统一路由与目录覆盖。",
         "previous": {},
-        "next": {"key": "capability-router.mcp-center", "label": "MCP 接入中心"},
+        "next": {},
     },
     "business_context": {
         "objective": "把 AI/TUI/Terminal 请求先送入统一路由层，再由后端选择 MCP、Terminal、内置能力或内部 API。",
@@ -43,18 +51,17 @@ RUNTIME_CAPABILITY_ROUTER_SCREEN: dict[str, Any] = {
 RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
     "key": "capability-router.mcp-center",
     "label": "MCP 接入中心",
-    "module_key": "capability-router",
+    "module_key": "mcp-governance",
     "group": "ops",
     "summary": "在 TUI 内查看已同步 MCP server/tool 目录，处理同步、路由开关和终端开关。",
     "view_type": "detail",
+    "audience": "admin",
     "default_action_key": "capability-router.mcp-tools-stats",
     "workflow": {
-        "name": "能力接入流程",
-        "step": 2,
-        "total": 2,
+        "name": "MCP 管理",
         "label": "MCP 治理",
         "role": "先看同步与开关统计，再处理未放行工具并回查工具详情。",
-        "previous": {"key": "capability-router.gateway", "label": "能力路由接入"},
+        "previous": {},
         "next": {},
     },
     "business_context": {
@@ -118,8 +125,9 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
         "intent": "test_capability_router_entrypoint",
         "risk": "ai",
         "screen_key": "capability-router.gateway",
-        "module_key": "capability-router",
-        "view_type": "detail",
+    "module_key": "mcp-governance",
+    "view_type": "detail",
+    "audience": "admin",
         "description": "输入自然语言，由 Capability Router 返回候选能力、选中能力、确认状态和回复。",
         "source": "approved:runtime-capability-router",
         "task_group": "01 路由验证",
@@ -451,4 +459,16 @@ RUNTIME_CAPABILITY_ROUTER_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
     },
+)
+
+RUNTIME_CAPABILITY_ROUTER_ACTIONS = tuple(
+    {
+        **action,
+        "module_key": (
+            "capability-router-debug"
+            if action["screen_key"] == "capability-router.gateway"
+            else "mcp-governance"
+        ),
+    }
+    for action in RUNTIME_CAPABILITY_ROUTER_ACTIONS
 )

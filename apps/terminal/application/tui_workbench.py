@@ -155,6 +155,8 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                     continue
                 screens = []
                 for screen in screens_by_module.get(module["key"], []):
+                    if not self._screen_is_available_for_user(screen, user=user):
+                        continue
                     screen_actions = actions_by_screen.get(screen["key"], [])
                     if not screen_actions and screen["key"] != metadata["default_screen"]:
                         continue
@@ -697,6 +699,16 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         profile = getattr(user, "account_profile", None)
         profile_role = str(getattr(profile, "rbac_role", "") or "").strip().lower()
         return profile_role == "admin"
+
+    def _screen_is_available_for_user(
+        self, screen: dict[str, Any], *, user: Any | None = None
+    ) -> bool:
+        """Return whether one published screen belongs to the user's audience."""
+
+        audience = str(screen.get("audience") or "authenticated")
+        if audience == "admin":
+            return self._is_admin_user(user)
+        return audience == "authenticated"
 
     def _visible_actions(
         self, metadata: dict[str, Any], *, user: Any | None = None

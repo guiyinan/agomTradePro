@@ -132,6 +132,7 @@ ALLOWED_TUI_SCREEN_JOURNEYS = {
     "toolbox",
     "debug",
 }
+ALLOWED_TUI_SCREEN_AUDIENCES = {"authenticated", "admin"}
 ALLOWED_TUI_PANEL_USER_PRIORITIES = {"p0", "p1", "p2"}
 ALLOWED_TUI_PRESENTATION_SEMANTICS = {
     "primary_status",
@@ -250,6 +251,11 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         if str(screen["view_type"]) not in ALLOWED_TUI_VIEW_TYPES:
             raise TuiMetadataValidationError(f"Screen has unsupported view_type: {screen['key']}")
         screen.setdefault("status", "online")
+        screen.setdefault("audience", "authenticated")
+        if str(screen["audience"]) not in ALLOWED_TUI_SCREEN_AUDIENCES:
+            raise TuiMetadataValidationError(
+                f"Screen has unsupported audience: {screen['key']}.{screen['audience']}"
+            )
         screen.setdefault("default_action_key", "")
         dashboard_panels = screen.setdefault("dashboard_panels", [])
         if not isinstance(dashboard_panels, list):

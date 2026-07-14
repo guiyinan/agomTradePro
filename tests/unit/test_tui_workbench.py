@@ -463,6 +463,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "筛选当前任务" in script
     assert "没有匹配任务" in script
     assert "F9" in script
+    assert 'grid.classList.remove("is-dashboard")' in script
     assert "可执行操作" in script
     assert "支撑检查" in script
     assert "条件查询" in script
@@ -1229,16 +1230,24 @@ def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_u
 
     assert response.status_code == 200
     payload = response.json()
-    screen_keys = {
-        screen["key"]
+    modules = {
+        module["key"]: module
         for group in payload["groups"]
         for module in group["modules"]
-        for screen in module["screens"]
+    }
+    screen_keys = {
+        screen["key"] for module in modules.values() for screen in module["screens"]
     }
 
     assert "capability-router.mcp-center" not in screen_keys
     assert "capability-router.admin-access" not in screen_keys
+    assert "capability-router.gateway" not in screen_keys
     assert "capability-router.self-service" in screen_keys
+    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
+        "capability-router.self-service"
+    ]
+    assert "mcp-governance" not in modules
+    assert "capability-router-debug" not in modules
 
 
 def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin_user):
@@ -1248,22 +1257,36 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
 
     assert response.status_code == 200
     payload = response.json()
-    screens = {
-        screen["key"]: screen
+    modules = {
+        module["key"]: module
         for group in payload["groups"]
         for module in group["modules"]
+    }
+    screens = {
+        screen["key"]: screen
+        for module in modules.values()
         for screen in module["screens"]
     }
 
     assert "capability-router.mcp-center" in screens
     assert "capability-router.admin-access" in screens
     assert "capability-router.self-service" in screens
+    assert "capability-router.gateway" in screens
+    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
+        "capability-router.self-service"
+    ]
+    assert [screen["key"] for screen in modules["mcp-governance"]["screens"]] == [
+        "capability-router.mcp-center",
+        "capability-router.admin-access",
+    ]
+    assert [screen["key"] for screen in modules["capability-router-debug"]["screens"]] == [
+        "capability-router.gateway"
+    ]
     assert screens["capability-router.mcp-center"]["default_action_key"] == (
         "capability-router.mcp-tools-stats"
     )
-    assert screens["capability-router.mcp-center"]["workflow"]["previous"]["key"] == (
-        "capability-router.gateway"
-    )
+    assert not screens["capability-router.mcp-center"]["workflow"].get("previous")
+    assert not screens["capability-router.self-service"]["workflow"].get("step")
 
 
 def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, tui_user):
@@ -2127,15 +2150,14 @@ def test_tui_catalog_registers_capability_router_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["capability-router"]["label"] == "能力路由"
-    assert modules["capability-router"]["group"] == "ops"
-    assert [screen["key"] for screen in modules["capability-router"]["screens"]] == [
-        "capability-router.gateway",
+    assert modules["mcp-access"]["label"] == "我的 MCP 接入"
+    assert modules["mcp-access"]["group"] == "ops"
+    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
         "capability-router.self-service",
     ]
     assert (
-        modules["capability-router"]["screens"][0]["default_action_key"]
-        == "capability-router.route-message"
+        modules["mcp-access"]["screens"][0]["default_action_key"]
+        == "capability-router.mcp-self-status"
     )
 
 
@@ -2580,6 +2602,20 @@ def test_tui_metadata_validator_adds_schema_and_value_type_defaults():
 
     assert validated["schema_version"] == "tui-metadata.v3"
     assert field["value_type"] == "integer"
+
+
+def test_tui_metadata_validator_rejects_unknown_screen_audience():
+    payload = _metadata_payload()
+    payload["screens"][0]["audience"] = "operator"
+
+    with pytest.raises(TuiMetadataValidationError, match="unsupported audience"):
+        validate_tui_metadata(payload)
+
+
+def test_tui_metadata_validator_defaults_screen_audience_for_legacy_payload():
+    validated = validate_tui_metadata(_metadata_payload())
+
+    assert validated["screens"][0]["audience"] == "authenticated"
 
 
 def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():

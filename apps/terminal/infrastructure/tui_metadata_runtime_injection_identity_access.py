@@ -13,13 +13,21 @@ RUNTIME_AI_OPS_MODULE: dict[str, Any] = {
     "summary": "查看 AI 服务商、提示词模板、智能任务运行时与相关治理任务。",
 }
 
+RUNTIME_MCP_ACCESS_MODULE: dict[str, Any] = {
+    "key": "mcp-access",
+    "label": "我的 MCP 接入",
+    "group": "ops",
+    "summary": "获取、复制和验证当前账号的 MCP 接入材料。",
+}
+
 RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
     "key": "capability-router.self-service",
     "label": "我的 MCP 接入",
-    "module_key": "capability-router",
+    "module_key": "mcp-access",
     "group": "ops",
     "summary": "管理自己的 MCP 接入令牌、读写级别，以及一键复制给 AI 代理的接入提示词。",
     "view_type": "detail",
+    "audience": "authenticated",
     "default_action_key": "capability-router.mcp-self-status",
     "user_experience": {
         "journey": "self_service",
@@ -30,11 +38,9 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
     },
     "workflow": {
         "name": "能力接入流程",
-        "step": 2,
-        "total": 3,
         "label": "个人接入",
         "role": "先确认自己是否已开通 MCP，再生成令牌并复制代理接入提示词。",
-        "previous": {"key": "capability-router.gateway", "label": "能力路由接入"},
+        "previous": {},
         "next": {},
     },
     "business_context": {
@@ -106,10 +112,11 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
 RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
     "key": "capability-router.admin-access",
     "label": "MCP 用户治理",
-    "module_key": "capability-router",
+    "module_key": "mcp-governance",
     "group": "ops",
     "summary": "管理员在 TUI 内管理用户 MCP 开关、令牌发放与撤销。",
     "view_type": "detail",
+    "audience": "admin",
     "default_action_key": "capability-router.mcp-admin-users",
     "user_experience": {
         "journey": "admin",
@@ -120,11 +127,9 @@ RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
     },
     "workflow": {
         "name": "能力接入流程",
-        "step": 3,
-        "total": 3,
         "label": "管理员治理",
         "role": "先筛用户，再发令牌、控读写权限并回收凭证。",
-        "previous": {"key": "capability-router.mcp-center", "label": "MCP 接入中心"},
+        "previous": {},
         "next": {},
     },
     "business_context": {
@@ -1410,4 +1415,20 @@ RUNTIME_IDENTITY_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_model": {"kind": "message"},
     },
     *RUNTIME_AI_QUOTA_ACTIONS,
+)
+
+RUNTIME_IDENTITY_ACCESS_ACTIONS = tuple(
+    {
+        **action,
+        "module_key": (
+            "mcp-access"
+            if action["screen_key"] == "capability-router.self-service"
+            else (
+                "mcp-governance"
+                if action["screen_key"] == "capability-router.admin-access"
+                else action["module_key"]
+            )
+        ),
+    }
+    for action in RUNTIME_IDENTITY_ACCESS_ACTIONS
 )

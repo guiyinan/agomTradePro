@@ -23,6 +23,7 @@ RUNTIME_REALTIME_SCREEN: dict[str, Any] = {
     "group": "ops",
     "summary": "查看触发条件，维护提醒，并选择需要持续接收价格更新的资产。",
     "view_type": "detail",
+    "audience": "authenticated",
     "default_action_key": "realtime-monitor.list-alerts",
     "user_experience": {
         "journey": "workspace",
