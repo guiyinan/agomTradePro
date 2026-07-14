@@ -139,11 +139,34 @@ RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
             "layout_area": "users",
             "target_screen": "capability-router.admin-access",
             "columns": [
+                {"key": "user_id", "label": "用户 ID"},
                 {"key": "username", "label": "用户"},
                 {"key": "rbac_role", "label": "角色"},
                 {"key": "mcp_enabled", "label": "MCP"},
                 {"key": "token_count", "label": "令牌数"},
                 {"key": "read_only_token_count", "label": "只读数"},
+            ],
+            "row_actions": [
+                {
+                    "action_key": "capability-router.mcp-admin-user-detail",
+                    "label_template": "查看 {username} 的 MCP 详情",
+                    "param_map": {"user_id": "user_id"},
+                },
+                {
+                    "action_key": "capability-router.admin-create-mcp-token",
+                    "label_template": "为 {username} 发放只读令牌",
+                    "param_map": {"user_id": "user_id"},
+                },
+                {
+                    "action_key": "capability-router.admin-toggle-user-mcp",
+                    "label_template": "切换 {username} 的 MCP 开关",
+                    "param_map": {"user_id": "user_id"},
+                },
+                {
+                    "action_key": "capability-router.admin-revoke-user-mcp-tokens",
+                    "label_template": "回收 {username} 的全部 MCP 令牌",
+                    "param_map": {"user_id": "user_id"},
+                },
             ],
             "user_priority": "p0",
             "presentation_semantic": "primary_list",

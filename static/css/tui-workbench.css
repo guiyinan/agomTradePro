@@ -1612,6 +1612,37 @@ a {
     overflow-wrap: anywhere;
 }
 
+.tui-row-actions-cell {
+    min-width: 180px;
+}
+
+.tui-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tui-row-action {
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 1px solid var(--tui-grid-strong);
+    background: var(--tui-surface);
+    color: var(--tui-text);
+    cursor: pointer;
+}
+
+.tui-row-action:hover,
+.tui-row-action:focus-visible {
+    border-color: var(--tui-accent);
+    outline: 2px solid color-mix(in srgb, var(--tui-accent) 55%, transparent);
+    outline-offset: 2px;
+}
+
+.tui-row-action:disabled {
+    cursor: wait;
+    opacity: 0.55;
+}
+
 .tui-mini-table th {
     color: var(--tui-text);
     font-weight: 700;

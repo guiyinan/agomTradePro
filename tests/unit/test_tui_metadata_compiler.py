@@ -1161,6 +1161,23 @@ def test_schema_publishes_explicit_result_field_presentation_values():
     ]
 
 
+def test_schema_publishes_dashboard_row_action_descriptor():
+    root = Path(__file__).resolve().parents[2]
+    schema = json.loads(
+        (root / "config" / "tui" / "schema" / "tui_metadata.schema.v3.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    panel_properties = schema["$defs"]["dashboardPanel"]["properties"]
+    assert panel_properties["row_actions"]["items"] == {"$ref": "#/$defs/dashboardRowAction"}
+    assert schema["$defs"]["dashboardRowAction"]["required"] == [
+        "action_key",
+        "label_template",
+        "param_map",
+    ]
+
+
 def test_generator_assigns_default_actions_to_auto_library_screens(generator_module):
     payload = {"screens": [], "actions": []}
 

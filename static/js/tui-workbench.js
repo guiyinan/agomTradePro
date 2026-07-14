@@ -2088,6 +2088,7 @@
             if (!renderDashboardRegisteredRenderer(panel, viewModel, container)) {
                 container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelBody(panel, viewModel));
                 bindCopyButtons(container);
+                bindDashboardRowActions(container, panel);
                 processHostSlot(container);
             }
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
@@ -2244,11 +2245,75 @@
         if (!rows.length || !columns.length) {
             return renderPanelPlaceholder(panel, "暂无表格数据。");
         }
+        const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);
-        return renderMiniTable(
-            headers,
-            rows.map((row) => columns.map((column) => row[column.key] ?? "-")),
-        );
+        if (rowActions.length) {
+            headers.push("操作");
+        }
+        return `
+            <table class="tui-mini-table">
+                <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                <tbody>
+                    ${rows.map((row) => `
+                        <tr>
+                            ${columns.map((column) => `<td class="${cellClass(row[column.key], column.label || column.key)}">${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
+                            ${rowActions.length ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ""}
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function renderDashboardRowActions(panel, row) {
+        const descriptors = Array.isArray(panel?.row_actions) ? panel.row_actions : [];
+        return `<div class="tui-row-actions">${descriptors.map((descriptor) => {
+            const action = currentAction(descriptor.action_key);
+            const params = Object.fromEntries(
+                Object.entries(descriptor.param_map || {}).map(([paramKey, rowKey]) => [paramKey, row?.[rowKey]]),
+            );
+            const label = interpolateRowActionLabel(descriptor.label_template, row);
+            return `
+                <button
+                    class="tui-row-action"
+                    type="button"
+                    data-dashboard-row-action
+                    data-row-action-key="${escapeHtml(descriptor.action_key)}"
+                    data-row-action-params="${escapeHtml(JSON.stringify(params))}"
+                    aria-label="${escapeHtml(label)}"
+                    title="${escapeHtml(label)}"
+                >${escapeHtml(action?.label || "操作")}</button>
+            `;
+        }).join("")}</div>`;
+    }
+
+    function interpolateRowActionLabel(template, row) {
+        return String(template || "操作").replace(/\{([^{}]+)\}/g, (_match, key) => String(row?.[key] ?? "-"));
+    }
+
+    function bindDashboardRowActions(root, panel) {
+        root.querySelectorAll("[data-dashboard-row-action]").forEach((button) => {
+            if (button.dataset.rowActionBound === "true") {
+                return;
+            }
+            button.dataset.rowActionBound = "true";
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                let params = {};
+                try {
+                    params = JSON.parse(button.dataset.rowActionParams || "{}");
+                } catch (_error) {
+                    setStatus("行操作参数不可用");
+                    return;
+                }
+                button.disabled = true;
+                await runAction(button.dataset.rowActionKey, null, {
+                    params,
+                    dashboardPanelKey: panel.key,
+                });
+            });
+        });
     }
 
     function renderPanelDetail(panel, viewModel) {
@@ -3072,8 +3137,10 @@
             closeModal();
             const controller = new AbortController();
             const requestId = startPendingRequest(controller);
-            renderActionLoadingState(action, state.screen);
-            scheduleSlowActionState(requestId, action);
+            if (!options.dashboardPanelKey) {
+                renderActionLoadingState(action, state.screen);
+                scheduleSlowActionState(requestId, action);
+            }
             const requestBody = { params, confirmed: Boolean(options.confirmed) };
             if (options.confirmation) {
                 requestBody.confirmation = options.confirmation;
@@ -3089,7 +3156,9 @@
             clearPendingRequest();
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
                 showMissingFieldsPrompt(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待补填");
@@ -3097,15 +3166,19 @@
             }
             if (result.confirmation_required) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
-                showActionConfirmation(result, actualActionKey, params);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
+                showActionConfirmation(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待确认");
                 return;
             }
             if (result.password_challenge_required) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
                 showPasswordChallenge(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待验密");
@@ -3113,6 +3186,13 @@
             }
             markActionCompleted(action);
             state.lastRaw = result.debug?.raw_response ?? null;
+            if (options.dashboardPanelKey) {
+                updateRawDrawer();
+                await refreshCurrentDashboardPanels();
+                setStatus("操作完成，列表已刷新");
+                refreshGovernanceBadges();
+                return;
+            }
             if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 renderActions(state.screen.actions || [], state.screen.screen);
             }
@@ -3129,6 +3209,13 @@
             clearPendingRequest();
             renderError(error.message);
         }
+    }
+
+    async function refreshCurrentDashboardPanels() {
+        const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
+            ? state.screen.screen.dashboard_panels
+            : [];
+        await Promise.all(panels.map((panel) => loadDashboardPanel(panel)));
     }
 
     function renderViewModel(viewModel) {
@@ -4300,7 +4387,7 @@
         form.querySelector("select, input, textarea")?.focus();
     }
 
-    function showActionConfirmation(result, actionKey, params) {
+    function showActionConfirmation(result, actionKey, params, options = {}) {
         const confirmation = result.confirmation || {};
         showModal(confirmation.title || "确认操作", `
             <div class="tui-confirmation">
@@ -4316,6 +4403,7 @@
         confirmButton.addEventListener("click", () => {
             closeModal();
             runAction(actionKey, null, {
+                ...options,
                 confirmed: true,
                 params,
                 confirmation: {

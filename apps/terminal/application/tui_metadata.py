@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+from string import Formatter
 from typing import Any
 
 try:
@@ -166,6 +167,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "user_priority",
     "presentation_semantic",
     "columns",
+    "row_actions",
     "layout_area",
     "target_screen",
 }
@@ -241,6 +243,8 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         if str(module["group"]) not in group_keys:
             raise TuiMetadataValidationError(f"Module references unknown group: {module['key']}")
         module.setdefault("status", "online")
+
+    action_by_key = {str(action["key"]): action for action in actions}
 
     for screen in screens:
         _require_fields(
@@ -411,6 +415,11 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                         f"Dashboard panel column must be an object: {screen['key']}.{panel['key']}"
                     )
                 _require_fields(column, "dashboard panel column", ("key", "label"))
+            _validate_dashboard_row_actions(
+                screen=screen,
+                panel=panel,
+                action_by_key=action_by_key,
+            )
             try:
                 panel["max_rows"] = int(panel.get("max_rows", 8))
             except (TypeError, ValueError) as exc:
@@ -453,6 +462,103 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     )
     _validate_with_json_schema(payload)
     return payload
+
+
+def _validate_dashboard_row_actions(
+    *,
+    screen: dict[str, Any],
+    panel: dict[str, Any],
+    action_by_key: dict[str, dict[str, Any]],
+) -> None:
+    """Validate row-to-action bindings before metadata reaches the browser."""
+
+    row_actions = panel.setdefault("row_actions", [])
+    screen_key = str(screen["key"])
+    panel_key = str(panel["key"])
+    if not isinstance(row_actions, list):
+        raise TuiMetadataValidationError(
+            f"Dashboard panel row_actions must be a list: {screen_key}.{panel_key}"
+        )
+    column_keys = {
+        str(column.get("key") or "")
+        for column in panel.get("columns", [])
+        if isinstance(column, dict)
+    }
+    for descriptor in row_actions:
+        if not isinstance(descriptor, dict):
+            raise TuiMetadataValidationError(
+                f"Dashboard row action must be an object: {screen_key}.{panel_key}"
+            )
+        _require_fields(
+            descriptor,
+            "dashboard row action",
+            ("action_key", "label_template", "param_map"),
+        )
+        unknown_keys = set(descriptor) - {"action_key", "label_template", "param_map"}
+        if unknown_keys:
+            names = ", ".join(sorted(unknown_keys))
+            raise TuiMetadataValidationError(
+                f"Dashboard row action has unsupported keys: {screen_key}.{panel_key}.{names}"
+            )
+        action_key = str(descriptor["action_key"])
+        action = action_by_key.get(action_key)
+        if action is None:
+            raise TuiMetadataValidationError(
+                f"Dashboard panel references unknown row action: {screen_key}.{panel_key}.{action_key}"
+            )
+        if str(action.get("screen_key") or "") != screen_key:
+            raise TuiMetadataValidationError(
+                f"Dashboard row action belongs to another screen: "
+                f"{screen_key}.{panel_key}.{action_key}"
+            )
+        param_map = descriptor["param_map"]
+        if not isinstance(param_map, dict):
+            raise TuiMetadataValidationError(
+                f"Dashboard row action param_map must be an object: {screen_key}.{panel_key}"
+            )
+        action_fields = {
+            str(field.get("key") or ""): field
+            for field in action.get("fields", [])
+            if isinstance(field, dict)
+        }
+        unknown_params = set(param_map) - set(action_fields)
+        if unknown_params:
+            names = ", ".join(sorted(unknown_params))
+            raise TuiMetadataValidationError(
+                f"Dashboard row action maps unknown parameter: {action_key}.{names}"
+            )
+        for param_key, row_field in param_map.items():
+            if not isinstance(row_field, str) or row_field not in column_keys:
+                raise TuiMetadataValidationError(
+                    f"Dashboard row action references unknown row field: "
+                    f"{action_key}.{param_key}.{row_field}"
+                )
+        missing_required = [
+            key
+            for key, field in action_fields.items()
+            if field.get("required")
+            and key not in param_map
+            and not ("default" in field and field.get("default") not in (None, ""))
+        ]
+        if missing_required:
+            names = ", ".join(sorted(missing_required))
+            raise TuiMetadataValidationError(
+                f"Dashboard row action is missing required parameter mapping: "
+                f"{action_key}.{names}"
+            )
+        label_template = str(descriptor["label_template"])
+        template_fields = {
+            field_name
+            for _, field_name, _, _ in Formatter().parse(label_template)
+            if field_name
+        }
+        unknown_template_fields = template_fields - column_keys
+        if unknown_template_fields:
+            names = ", ".join(sorted(unknown_template_fields))
+            raise TuiMetadataValidationError(
+                f"Dashboard row action label references unknown row field: "
+                f"{action_key}.{names}"
+            )
 
 
 def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:

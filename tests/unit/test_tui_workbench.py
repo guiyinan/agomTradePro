@@ -2647,6 +2647,110 @@ def test_tui_metadata_validator_rejects_unknown_result_field_presentation():
         validate_tui_metadata(payload)
 
 
+def _row_action_metadata_payload():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "sample-rows",
+            "title": "Sample Rows",
+            "kind": "datagrid",
+            "action_key": "sample.list",
+            "columns": [
+                {"key": "row_id", "label": "Row ID"},
+                {"key": "name", "label": "Name"},
+            ],
+            "row_actions": [
+                {
+                    "action_key": "sample.detail",
+                    "label_template": "View {name}",
+                    "param_map": {"row_id": "row_id"},
+                }
+            ],
+        }
+    ]
+    payload["actions"].append(
+        {
+            "key": "sample.detail",
+            "label": "Sample Detail",
+            "method": "GET",
+            "endpoint": "/api/sample/<int:row_id>/",
+            "intent": "sample_detail",
+            "screen_key": "command-center.overview",
+            "module_key": "command-center",
+            "view_type": "detail",
+            "risk": "read",
+            "fields": [
+                {
+                    "key": "row_id",
+                    "label": "Row ID",
+                    "required": True,
+                    "binding": "path",
+                }
+            ],
+            "description": "Sample detail.",
+            "source": "approved:test",
+        }
+    )
+    return payload
+
+
+def test_tui_metadata_validator_accepts_valid_dashboard_row_action():
+    payload = _row_action_metadata_payload()
+
+    validated = validate_tui_metadata(payload)
+
+    descriptor = validated["screens"][0]["dashboard_panels"][0]["row_actions"][0]
+    assert descriptor["action_key"] == "sample.detail"
+    assert descriptor["param_map"] == {"row_id": "row_id"}
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda payload: payload["screens"][0]["dashboard_panels"][0]["row_actions"][0].update(
+                action_key="missing.action"
+            ),
+            "unknown row action",
+        ),
+        (
+            lambda payload: payload["actions"][-1].update(screen_key="another.screen"),
+            "another screen",
+        ),
+        (
+            lambda payload: payload["screens"][0]["dashboard_panels"][0]["row_actions"][0].update(
+                param_map={}
+            ),
+            "required parameter",
+        ),
+        (
+            lambda payload: payload["screens"][0]["dashboard_panels"][0]["row_actions"][0].update(
+                param_map={"row_id": "missing_row_field"}
+            ),
+            "unknown row field",
+        ),
+    ],
+)
+def test_tui_metadata_validator_rejects_invalid_dashboard_row_action(mutation, message):
+    payload = _row_action_metadata_payload()
+    if message == "another screen":
+        payload["screens"].append(
+            {
+                "key": "another.screen",
+                "label": "Another",
+                "module_key": "command-center",
+                "group": "workflow",
+                "summary": "Another screen.",
+                "view_type": "detail",
+                "default_action_key": "sample.detail",
+            }
+        )
+    mutation(payload)
+
+    with pytest.raises(TuiMetadataValidationError, match=message):
+        validate_tui_metadata(payload)
+
+
 def test_tui_metadata_validator_rejects_unknown_default_action():
     payload = _metadata_payload()
     payload["screens"][0]["default_action_key"] = "missing.action"
@@ -6784,6 +6888,46 @@ def test_tui_script_uses_explicit_result_field_presentations_only():
     assert "data-secret-toggle" in script
     assert "复制完整接入包" in script
     assert 'panelPriority(panel) !== "p2"' in script
+
+
+def test_tui_mcp_governance_panels_publish_native_row_actions():
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_capability_router import (
+        RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN,
+    )
+    from apps.terminal.infrastructure.tui_metadata_runtime_injection_identity_access import (
+        RUNTIME_MCP_ADMIN_ACCESS_SCREEN,
+    )
+
+    tool_panel = next(
+        panel
+        for panel in RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["dashboard_panels"]
+        if panel["key"] == "mcp-tools-list"
+    )
+    user_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][0]
+
+    assert [item["action_key"] for item in tool_panel["row_actions"]] == [
+        "capability-router.mcp-tool-detail",
+        "capability-router.toggle-mcp-routing",
+        "capability-router.toggle-mcp-terminal",
+    ]
+    assert [item["action_key"] for item in user_panel["row_actions"]] == [
+        "capability-router.mcp-admin-user-detail",
+        "capability-router.admin-create-mcp-token",
+        "capability-router.admin-toggle-user-mcp",
+        "capability-router.admin-revoke-user-mcp-tokens",
+    ]
+
+
+def test_tui_script_renders_accessible_native_dashboard_row_actions():
+    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "function renderDashboardRowActions(panel, row)" in script
+    assert "function bindDashboardRowActions(root, panel)" in script
+    assert "data-dashboard-row-action" in script
+    assert "aria-label=" in script
+    assert "dashboardPanelKey" in script
 
 
 def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():

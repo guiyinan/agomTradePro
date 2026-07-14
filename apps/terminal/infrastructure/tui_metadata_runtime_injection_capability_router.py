@@ -97,6 +97,23 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
                 {"key": "enabled_for_routing", "label": "Routing"},
                 {"key": "enabled_for_terminal", "label": "Terminal"},
             ],
+            "row_actions": [
+                {
+                    "action_key": "capability-router.mcp-tool-detail",
+                    "label_template": "查看 {capability_key} 详情",
+                    "param_map": {"capability_key": "capability_key"},
+                },
+                {
+                    "action_key": "capability-router.toggle-mcp-routing",
+                    "label_template": "切换 {capability_key} 的 Routing 开关",
+                    "param_map": {"capability_key": "capability_key"},
+                },
+                {
+                    "action_key": "capability-router.toggle-mcp-terminal",
+                    "label_template": "切换 {capability_key} 的 Terminal 开关",
+                    "param_map": {"capability_key": "capability_key"},
+                },
+            ],
         },
         {
             "key": "mcp-tools-routing-off",
@@ -111,6 +128,18 @@ RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN: dict[str, Any] = {
                 {"key": "review_status", "label": "审核"},
                 {"key": "risk_level", "label": "风险"},
                 {"key": "summary", "label": "说明"},
+            ],
+            "row_actions": [
+                {
+                    "action_key": "capability-router.mcp-tool-detail",
+                    "label_template": "查看 {capability_key} 详情",
+                    "param_map": {"capability_key": "capability_key"},
+                },
+                {
+                    "action_key": "capability-router.toggle-mcp-routing",
+                    "label_template": "放行 {capability_key} 到 Routing",
+                    "param_map": {"capability_key": "capability_key"},
+                },
             ],
         },
     ],
