@@ -75,6 +75,8 @@ from .base import *  # noqa: E402, F403
 DEBUG = False
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
+# Keep environment-specific mutations isolated from the shared base module.
+MIDDLEWARE = list(MIDDLEWARE)
 security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
 MIDDLEWARE[security_middleware_index] = (
     "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"
