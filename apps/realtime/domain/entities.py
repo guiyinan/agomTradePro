@@ -32,6 +32,93 @@ class PriceUpdateStatus(Enum):
     SKIPPED = "skipped"         # 已跳过（如非交易时间）
 
 
+class AlertCondition(Enum):
+    """Supported price-alert comparison modes."""
+
+    ABOVE = "above"
+    BELOW = "below"
+    CROSS_UP = "cross_up"
+    CROSS_DOWN = "cross_down"
+
+
+class AlertStatus(Enum):
+    """Lifecycle state for a price alert."""
+
+    ACTIVE = "active"
+    TRIGGERED = "triggered"
+    INACTIVE = "inactive"
+
+
+def normalize_asset_code(value: str) -> str:
+    """Return a canonical asset code used by realtime boundaries."""
+
+    normalized = value.strip().upper()
+    if not normalized or len(normalized) > 32:
+        raise ValueError("asset_code must contain between 1 and 32 characters")
+    return normalized
+
+
+@dataclass(frozen=True)
+class PriceAlert:
+    """Owner-scoped durable price alert."""
+
+    owner_id: int
+    asset_code: str
+    condition: AlertCondition
+    threshold: Decimal
+    status: AlertStatus = AlertStatus.ACTIVE
+    message: str = ""
+    id: int | None = None
+    triggered_price: Decimal | None = None
+    triggered_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "asset_code", normalize_asset_code(self.asset_code))
+        if self.owner_id <= 0:
+            raise ValueError("owner_id must be positive")
+        if self.threshold <= 0:
+            raise ValueError("threshold must be positive")
+        if len(self.message) > 500:
+            raise ValueError("message must not exceed 500 characters")
+
+    def is_triggered_by(
+        self,
+        old_price: Decimal | None,
+        new_price: Decimal,
+    ) -> bool:
+        """Return whether this active alert is satisfied by a price update."""
+
+        if self.status is not AlertStatus.ACTIVE:
+            return False
+        from apps.realtime.domain.rules import should_trigger_alert
+
+        return should_trigger_alert(
+            self.condition,
+            self.threshold,
+            old_price,
+            new_price,
+        )
+
+
+@dataclass(frozen=True)
+class PriceSubscription:
+    """Durable owner-to-asset realtime subscription."""
+
+    owner_id: int
+    asset_code: str
+    is_active: bool = True
+    id: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "asset_code", normalize_asset_code(self.asset_code))
+        if self.owner_id <= 0:
+            raise ValueError("owner_id must be positive")
+
+
 @dataclass(frozen=True)
 class RealtimePrice:
     """实时价格值对象

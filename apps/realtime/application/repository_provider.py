@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from apps.realtime.application.use_cases import (
+        RealtimeAlertService,
+        RealtimeSubscriptionService,
+    )
+
 
 def get_realtime_price_repository():
     """Return the realtime price repository."""
@@ -38,3 +46,23 @@ def get_watchlist_provider():
     from apps.realtime.infrastructure.providers import DatabaseWatchlistProvider
 
     return DatabaseWatchlistProvider()
+
+
+def get_realtime_alert_service() -> RealtimeAlertService:
+    """Compose the owner-scoped realtime alert service."""
+
+    from apps.realtime.application.use_cases import RealtimeAlertService
+    from apps.realtime.infrastructure.providers import DjangoPriceAlertRepository
+
+    return RealtimeAlertService(DjangoPriceAlertRepository())
+
+
+def get_realtime_subscription_service() -> RealtimeSubscriptionService:
+    """Compose the durable subscription service."""
+
+    from apps.realtime.application.use_cases import RealtimeSubscriptionService
+    from apps.realtime.infrastructure.providers import (
+        DjangoPriceSubscriptionRepository,
+    )
+
+    return RealtimeSubscriptionService(DjangoPriceSubscriptionRepository())

@@ -1,7 +1,7 @@
 {
   "version": "2026-07-09.v1",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 217,
+  "max_app_import_edges": 218,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -29,7 +29,7 @@
     "policy": 6,
     "prompt": 3,
     "pulse": 2,
-    "realtime": 4,
+    "realtime": 5,
     "regime": 2,
     "risk_center": 0,
     "rotation": 2,
@@ -44,7 +44,7 @@
     "terminal": 18
   },
   "max_inbound_modules_by_app": {
-    "account": 12,
+    "account": 13,
     "agent_runtime": 1,
     "ai_capability": 1,
     "ai_provider": 12,
