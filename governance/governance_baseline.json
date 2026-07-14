@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-14.v129",
+  "version": "2026-07-14.v130",
   "mcp_tool_count": 375,
   "mcp_governance": {
     "default_top_level_tool_count": 7,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6785,
+  "static_test_function_count": 6790,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -72,12 +72,9 @@
     "apps/account/infrastructure/models.py": 1389,
     "apps/account/infrastructure/repositories.py": 3252,
     "apps/ai_capability/application/use_cases.py": 1224,
-    "apps/alpha/application/tasks.py": 1827,
     "apps/audit/application/use_cases.py": 1382,
     "apps/audit/domain/services.py": 1299,
     "apps/audit/infrastructure/repositories.py": 1357,
-    "apps/dashboard/application/alpha_homepage.py": 1764,
-    "apps/dashboard/interface/views.py": 1417,
     "apps/data_center/application/market_thermometer.py": 1434,
     "apps/data_center/application/use_cases.py": 2339,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
@@ -91,8 +88,188 @@
     "apps/equity/infrastructure/repositories.py": 2327,
     "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
-    "apps/strategy/interface/views.py": 1294,
-    "apps/terminal/infrastructure/tui_metadata_runtime_injection_identity_access.py": 1467
+    "apps/strategy/interface/views.py": 1294
+  },
+  "large_file_remediation": {
+    "apps/account/infrastructure/models.py": {
+      "owner": "account",
+      "kind": "orm-models",
+      "rationale": "Split identity, preference, and account persistence models by aggregate.",
+      "priority": "P2",
+      "target_non_empty_lines": 1100,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/account/infrastructure/repositories.py": {
+      "owner": "account",
+      "kind": "repository",
+      "rationale": "Separate identity, portfolio bridge, and settings repositories behind focused protocols.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/ai_capability/application/use_cases.py": {
+      "owner": "ai-capability",
+      "kind": "application-use-cases",
+      "rationale": "Split catalog synchronization, governance, and routing orchestration.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/audit/application/use_cases.py": {
+      "owner": "audit",
+      "kind": "application-use-cases",
+      "rationale": "Separate attribution, review, and audit reporting use cases.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/audit/domain/services.py": {
+      "owner": "audit",
+      "kind": "domain-services",
+      "rationale": "Split independent attribution and audit calculation policies.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/audit/infrastructure/repositories.py": {
+      "owner": "audit",
+      "kind": "repository",
+      "rationale": "Separate audit read models and persistence responsibilities.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/data_center/application/market_thermometer.py": {
+      "owner": "data-center",
+      "kind": "application-service",
+      "rationale": "Extract indicator loading, scoring, and presentation mapping collaborators.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/data_center/application/use_cases.py": {
+      "owner": "data-center",
+      "kind": "application-use-cases",
+      "rationale": "Split provider synchronization, canonical storage, and query orchestration.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/data_center/infrastructure/provider_adapters.py": {
+      "owner": "data-center",
+      "kind": "provider-adapters",
+      "rationale": "Split external provider adapters by source and data family.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/data_center/infrastructure/repositories.py": {
+      "owner": "data-center",
+      "kind": "repository",
+      "rationale": "Separate catalog, fact, and operational repositories.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/application/advisor_services.py": {
+      "owner": "decision-rhythm",
+      "kind": "application-services",
+      "rationale": "Split advisory context, recommendation mapping, and transition planning.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/application/use_cases.py": {
+      "owner": "decision-rhythm",
+      "kind": "application-use-cases",
+      "rationale": "Separate decision workflow stages into focused use cases.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/domain/entities.py": {
+      "owner": "decision-rhythm",
+      "kind": "domain-entities",
+      "rationale": "Partition decision, recommendation, and execution value objects.",
+      "priority": "P1",
+      "target_non_empty_lines": 1100,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/domain/services.py": {
+      "owner": "decision-rhythm",
+      "kind": "domain-services",
+      "rationale": "Split decision policies, gates, and sizing rules.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/infrastructure/models.py": {
+      "owner": "decision-rhythm",
+      "kind": "orm-models",
+      "rationale": "Separate recommendation, transition, and execution persistence models.",
+      "priority": "P1",
+      "target_non_empty_lines": 1100,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/decision_rhythm/infrastructure/repositories.py": {
+      "owner": "decision-rhythm",
+      "kind": "repository",
+      "rationale": "Split recommendation, transition plan, and execution repositories.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/equity/infrastructure/repositories.py": {
+      "owner": "equity",
+      "kind": "repository",
+      "rationale": "Separate security master, factor, and market-data repositories.",
+      "priority": "P1",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-09-30",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/equity/interface/views.py": {
+      "owner": "equity",
+      "kind": "interface-views",
+      "rationale": "Split page orchestration, API edges, and context builders.",
+      "priority": "P2",
+      "target_non_empty_lines": 900,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/policy/application/use_cases.py": {
+      "owner": "policy",
+      "kind": "application-use-cases",
+      "rationale": "Separate policy event commands, queries, and evaluation orchestration.",
+      "priority": "P2",
+      "target_non_empty_lines": 1000,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    },
+    "apps/strategy/interface/views.py": {
+      "owner": "strategy",
+      "kind": "interface-views",
+      "rationale": "Split HTTP entrypoints from strategy context helpers.",
+      "priority": "P2",
+      "target_non_empty_lines": 900,
+      "review_by": "2026-12-31",
+      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
+    }
   }
 }
-
