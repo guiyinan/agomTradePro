@@ -5,6 +5,22 @@ AI Capability Catalog Interface Serializers.
 from rest_framework import serializers
 
 
+class MCPAccessVerificationCheckSerializer(serializers.Serializer):
+    """One bounded MCP access readiness check."""
+
+    key = serializers.ChoiceField(choices=("token", "routing", "catalog"), read_only=True)
+    label = serializers.CharField(read_only=True)
+    status = serializers.ChoiceField(choices=("ready", "unavailable"), read_only=True)
+    detail = serializers.CharField(read_only=True)
+
+
+class MCPAccessVerificationSerializer(serializers.Serializer):
+    """Read-only current-user MCP access verification payload."""
+
+    state = serializers.ChoiceField(choices=("ready", "unavailable"), read_only=True)
+    checks = MCPAccessVerificationCheckSerializer(many=True, read_only=True)
+
+
 class RouteRequestSerializer(serializers.Serializer):
     """Serializer for routing request."""
 

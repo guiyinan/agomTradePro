@@ -91,10 +91,16 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
     modules_payload = payload["modules"]
     screens_payload = payload["screens"]
     actions_payload = payload["actions"]
-    screen_keys = {str(screen.get("key") or "") for screen in screens_payload if isinstance(screen, dict)}
-    action_keys = {str(action.get("key") or "") for action in actions_payload if isinstance(action, dict)}
+    screen_keys = {
+        str(screen.get("key") or "") for screen in screens_payload if isinstance(screen, dict)
+    }
+    action_keys = {
+        str(action.get("key") or "") for action in actions_payload if isinstance(action, dict)
+    }
 
-    group_keys = {str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)}
+    group_keys = {
+        str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)
+    }
     referenced_group_keys = {
         str(screen.get("group") or "")
         for screen in screens_payload
@@ -103,8 +109,12 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
     for group_key in sorted(referenced_group_keys - group_keys):
         groups_payload.append({"key": group_key, "label": group_key})
 
-    group_keys = {str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)}
-    module_keys = {str(module.get("key") or "") for module in modules_payload if isinstance(module, dict)}
+    group_keys = {
+        str(group.get("key") or "") for group in groups_payload if isinstance(group, dict)
+    }
+    module_keys = {
+        str(module.get("key") or "") for module in modules_payload if isinstance(module, dict)
+    }
     referenced_module_keys = {
         str(item.get("module_key") or "")
         for item in [*screens_payload, *actions_payload]
@@ -165,7 +175,10 @@ def _metadata_payload(actions=None, screens=None, modules=None, groups=None, def
             else:
                 screen["default_action_key"] = ""
         user_experience = screen.get("user_experience")
-        if isinstance(user_experience, dict) and str(user_experience.get("journey") or "") == "dashboard":
+        if (
+            isinstance(user_experience, dict)
+            and str(user_experience.get("journey") or "") == "dashboard"
+        ):
             if not screen.get("dashboard_panels"):
                 screen["user_experience"] = {**user_experience, "journey": "workspace"}
 
@@ -711,7 +724,7 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert "data-dashboard-action" in script
     assert "function activateDashboardPanel(targetScreen, actionKey)" in script
     assert "if (normalizedTarget && normalizedTarget !== currentScreenKey)" in script
-    assert 'runAction(normalizedActionKey, null, { params: {} });' in script
+    assert "runAction(normalizedActionKey, null, { params: {} });" in script
     assert "支撑检查已显示" in script
     assert "高级查询已显示" in script
     assert "主流程" in script
@@ -858,7 +871,7 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
 
     assert "function screenUserExperience(screen)" in script
     assert "function userExperienceSections(screen)" in script
-    assert "function screenEmptyStateHint(screen, fallback = \"\")" in script
+    assert 'function screenEmptyStateHint(screen, fallback = "")' in script
     assert "function renderSemanticDetailView(viewModel, semantics, options = {})" in script
     assert "function renderSemanticCopyFields(fields)" in script
     assert "function renderSemanticPromptFields(fields)" in script
@@ -868,13 +881,13 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
     assert "event.stopPropagation();" in script
     assert "navigator.clipboard.writeText" in script
     assert "loadScreen(normalizedKey, { suppressAutoAction: true })" in script
-    assert "button.addEventListener(\"click\", () => loadScreen(button.dataset.screenKey));" in script
-    assert "endpoint_list: \"地址\"" in script
-    assert "multiline_prompt: \"提示词\"" in script
+    assert 'button.addEventListener("click", () => loadScreen(button.dataset.screenKey));' in script
+    assert 'endpoint_list: "地址"' in script
+    assert 'multiline_prompt: "提示词"' in script
     assert "data-panel-priority" in script
     assert "data-panel-semantic" in script
     assert "entryState.empty_copy || screenEmptyStateHint(" in script
-    assert ".tui-dash-panel[data-panel-priority=\"p0\"]" in css
+    assert '.tui-dash-panel[data-panel-priority="p0"]' in css
     assert ".tui-panel-priority" in css
     assert ".tui-status-hero" in css
     assert ".tui-copy-block" in css
@@ -1230,14 +1243,8 @@ def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_u
 
     assert response.status_code == 200
     payload = response.json()
-    modules = {
-        module["key"]: module
-        for group in payload["groups"]
-        for module in group["modules"]
-    }
-    screen_keys = {
-        screen["key"] for module in modules.values() for screen in module["screens"]
-    }
+    modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
+    screen_keys = {screen["key"] for module in modules.values() for screen in module["screens"]}
 
     assert "capability-router.mcp-center" not in screen_keys
     assert "capability-router.admin-access" not in screen_keys
@@ -1257,16 +1264,8 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
 
     assert response.status_code == 200
     payload = response.json()
-    modules = {
-        module["key"]: module
-        for group in payload["groups"]
-        for module in group["modules"]
-    }
-    screens = {
-        screen["key"]: screen
-        for module in modules.values()
-        for screen in module["screens"]
-    }
+    modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
+    screens = {screen["key"]: screen for module in modules.values() for screen in module["screens"]}
 
     assert "capability-router.mcp-center" in screens
     assert "capability-router.admin-access" in screens
@@ -2102,9 +2101,7 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
     payload = response.json()
     assert payload["screen"]["label"] == "AI 交互终端"
     assert payload["screen"]["default_action_key"] == "terminal.agent_chat"
-    action = next(
-        action for action in payload["actions"] if action["key"] == "terminal.agent_chat"
-    )
+    action = next(action for action in payload["actions"] if action["key"] == "terminal.agent_chat")
     assert action["label"] == "发送 AI 请求"
     assert action["risk"] == "ai"
     assert action["fields"][0]["key"] == "message"
@@ -2178,9 +2175,7 @@ def test_tui_screen_api_returns_bounded_not_found_error(client, tui_user):
     }
     assert payload["error_code"] == "tui_screen_not_found"
     assert payload["title"] == "页面不存在"
-    assert payload["recovery_actions"] == [
-        {"label": "返回首页", "screen_key": "home"}
-    ]
+    assert payload["recovery_actions"] == [{"label": "返回首页", "screen_key": "home"}]
     assert payload["trace_id"]
     assert "/api/" not in str(payload)
 
@@ -2252,15 +2247,21 @@ def test_tui_mcp_self_service_screen_exposes_status_endpoint_and_prompt_panels(c
     payload = response.json()
     panels = payload["screen"]["dashboard_panels"]
     assert [panel["key"] for panel in panels] == [
-        "mcp-self-status",
-        "mcp-self-endpoints",
-        "mcp-self-prompt-guide",
+        "mcp-access-package",
+        "mcp-access-verification",
         "mcp-self-tokens",
     ]
     actions = {action["key"]: action for action in payload["actions"]}
-    assert "capability-router.mcp-self-endpoints" in actions
-    assert "capability-router.mcp-self-prompt-guide" in actions
-    assert panels[3]["columns"][1]["key"] == "display_token"
+    assert "capability-router.verify-my-mcp-access" in actions
+    assert panels[0]["user_priority"] == "p0"
+    assert panels[1]["user_priority"] == "p1"
+    assert panels[2]["user_priority"] == "p2"
+    assert [column["key"] for column in panels[2]["columns"]] == [
+        "name",
+        "preview",
+        "access_level_label",
+        "last_used_at",
+    ]
 
 
 def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
@@ -5870,9 +5871,9 @@ def test_tui_metadata_repository_prunes_redundant_capability_pk_actions_from_fil
     payload["screens"][0]["key"] = "ai-ops.capabilities"
     payload["screens"][0]["label"] = "AI Capabilities"
     payload["screens"][0]["summary"] = "Capabilities."
-    payload["screens"][0]["default_action_key"] = (
-        "param.api.get.api.ai-capability.capabilities.str.capability_key"
-    )
+    payload["screens"][0][
+        "default_action_key"
+    ] = "param.api.get.api.ai-capability.capabilities.str.capability_key"
     payload["default_screen"] = "ai-ops.capabilities"
     with TemporaryDirectory(dir=Path(__file__).resolve().parents[2]) as temp_dir:
         path = Path(temp_dir) / "published.json"
@@ -6023,7 +6024,9 @@ def test_tui_metadata_repository_skips_dashboard_patch_when_panel_actions_are_ab
     repository = PublishedTuiMetadataRepository()
 
     loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
-    screen = next(screen for screen in loaded["screens"] if screen["key"] == "command-center.overview")
+    screen = next(
+        screen for screen in loaded["screens"] if screen["key"] == "command-center.overview"
+    )
 
     assert screen.get("dashboard_panels", []) == []
     assert screen["user_experience"]["journey"] == "workspace"
@@ -6635,7 +6638,7 @@ def test_tui_ai_result_maps_provider_config_error_to_user_message():
     assert "当前账号未配置默认 AI 服务" in result["business_summary"]
 
 
-def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
+def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package():
     class FakeExecutor:
         def execute(self, **kwargs):
             return {
@@ -6663,6 +6666,14 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
                     },
                     "access_tokens": [{"id": 1}],
                     "agent_bootstrap_prompt": "请按以下信息接入 AgomTradePro：",
+                    "self_service_state": "ready",
+                    "access_package": {
+                        "token": "agtp_live_plaintext_token_value",
+                        "route_endpoint": "https://example.test/api/ai-capability/route/",
+                        "capability_catalog_endpoint": "https://example.test/api/ai-capability/capabilities/",
+                        "agent_prompt": "请按以下信息接入 AgomTradePro：",
+                        "environment_statement": "当前地址可用于此环境。",
+                    },
                 },
             }
 
@@ -6706,7 +6717,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
                         "description": "Self service.",
                         "source": "approved:test",
                     }
-                ]
+                ],
             )
         ),
         action_executor=FakeExecutor(),
@@ -6720,8 +6731,12 @@ def test_tui_mcp_self_service_status_model_prioritizes_token_and_base_url():
 
     assert result["view_model"]["kind"] == "detail"
     fields = {field["label"]: field["value"] for field in result["view_model"]["fields"]}
-    assert fields["当前令牌"] == "agtp_live_plaintext_token_value"
-    assert fields["基础地址"] == "https://example.test"
+    assert result["view_model"]["status"] == "可接入"
+    assert fields["接入令牌"] == "agtp_live_plaintext_token_value"
+    assert fields["智能路由地址"] == "https://example.test/api/ai-capability/route/"
+    assert fields["能力目录地址"] == "https://example.test/api/ai-capability/capabilities/"
+    assert fields["接入提示词"] == "请按以下信息接入 AgomTradePro："
+    assert fields["环境说明"] == "当前地址可用于此环境。"
 
 
 def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
@@ -6780,7 +6795,7 @@ def test_tui_mcp_self_service_endpoint_model_exposes_route_and_catalog_urls():
                         "description": "Endpoints.",
                         "source": "approved:test",
                     }
-                ]
+                ],
             )
         ),
         action_executor=FakeExecutor(),
@@ -6870,7 +6885,7 @@ def test_tui_mcp_self_service_create_token_model_surfaces_new_token_and_prompt()
                         "source": "approved:test",
                         "result_semantics": ["copyable_secret", "multiline_prompt"],
                     }
-                ]
+                ],
             )
         ),
         action_executor=FakeExecutor(),
@@ -6892,7 +6907,9 @@ def test_tui_mcp_self_service_create_token_model_surfaces_new_token_and_prompt()
 
 
 @pytest.mark.django_db
-def test_tui_capability_router_self_service_screen_publishes_user_facing_semantics(client, tui_user):
+def test_tui_capability_router_self_service_screen_publishes_user_facing_semantics(
+    client, tui_user
+):
     client.force_login(tui_user)
 
     response = client.get("/api/tui/screens/capability-router.self-service/")
@@ -6904,18 +6921,21 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     actions = {action["key"]: action for action in payload["actions"]}
 
     assert screen["user_experience"]["journey"] == "self_service"
-    assert panels["mcp-self-status"]["presentation_semantic"] == "copyable_secret"
-    assert panels["mcp-self-endpoints"]["presentation_semantic"] == "endpoint_list"
-    assert panels["mcp-self-prompt-guide"]["presentation_semantic"] == "multiline_prompt"
+    assert panels["mcp-access-package"]["presentation_semantic"] == "copyable_secret"
+    assert panels["mcp-access-package"]["user_priority"] == "p0"
+    assert panels["mcp-access-verification"]["presentation_semantic"] == "primary_status"
+    assert panels["mcp-access-verification"]["user_priority"] == "p1"
+    assert panels["mcp-self-tokens"]["user_priority"] == "p2"
     assert actions["capability-router.mcp-self-status"]["result_semantics"] == [
         "primary_status",
         "copyable_secret",
     ]
-    assert actions["capability-router.mcp-self-endpoints"]["result_semantics"] == [
-        "endpoint_list"
-    ]
+    assert actions["capability-router.mcp-self-endpoints"]["result_semantics"] == ["endpoint_list"]
     assert actions["capability-router.mcp-self-prompt-guide"]["result_semantics"] == [
         "multiline_prompt"
+    ]
+    assert actions["capability-router.verify-my-mcp-access"]["result_semantics"] == [
+        "primary_status"
     ]
     assert actions["capability-router.create-my-mcp-token"]["task_tier"] == "operation"
     assert actions["capability-router.revoke-my-mcp-token"]["task_tier"] == "operation"

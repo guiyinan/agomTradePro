@@ -48,6 +48,19 @@ def list_capability_summary_payloads(
     ]
 
 
+def inspect_mcp_access_readiness() -> dict[str, Any]:
+    """Read routing and catalog readiness without invoking a capability."""
+
+    stats = get_capability_repository().get_stats()
+    capability_count = int(stats.get("total") or 0)
+    enabled_count = int(stats.get("enabled") or 0)
+    return {
+        "routing_available": enabled_count > 0,
+        "catalog_available": capability_count > 0,
+        "capability_count": capability_count,
+    }
+
+
 def get_mcp_tools_page_context(
     *,
     search_query: str,
@@ -105,7 +118,9 @@ def get_mcp_tools_catalog_payload(
 def get_mcp_tools_stats_payload() -> dict[str, Any]:
     """Return aggregate MCP governance stats for TUI and JSON surfaces."""
 
-    tools = get_capability_repository().list_capabilities(source_type="mcp_tool", enabled_only=False)
+    tools = get_capability_repository().list_capabilities(
+        source_type="mcp_tool", enabled_only=False
+    )
     latest_sync = get_capability_sync_log_repository().get_latest("mcp_tool")
     total = len(tools)
     routing_enabled = sum(1 for item in tools if item.enabled_for_routing)

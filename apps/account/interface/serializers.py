@@ -663,6 +663,20 @@ class MCPAccessTokenSerializer(serializers.Serializer):
     plaintext = serializers.CharField(read_only=True, allow_blank=True, required=False)
     created_at = serializers.DateTimeField(read_only=True, allow_null=True)
     last_used_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    is_recommended = serializers.BooleanField(read_only=True, required=False)
+
+
+class MCPAccessPackageSerializer(serializers.Serializer):
+    """Canonical copy-ready MCP access package."""
+
+    token = serializers.CharField(read_only=True, allow_blank=True)
+    token_preview = serializers.CharField(read_only=True, allow_blank=True)
+    route_endpoint = serializers.CharField(read_only=True)
+    capability_catalog_endpoint = serializers.CharField(read_only=True)
+    agent_prompt = serializers.CharField(read_only=True)
+    base_url = serializers.CharField(read_only=True)
+    same_machine_only = serializers.BooleanField(read_only=True)
+    environment_statement = serializers.CharField(read_only=True)
 
 
 class MCPAgentPromptSerializer(serializers.Serializer):
@@ -684,6 +698,11 @@ class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
     rbac_role = serializers.CharField(read_only=True, allow_blank=True)
     token_plaintext_allowed = serializers.BooleanField(read_only=True)
     active_token_count = serializers.IntegerField(read_only=True)
+    self_service_state = serializers.ChoiceField(
+        choices=("disabled", "no_token", "ready", "unavailable"),
+        read_only=True,
+    )
+    recommended_token_id = serializers.IntegerField(read_only=True, allow_null=True)
     account_count = serializers.IntegerField(read_only=True)
     default_account_id = serializers.IntegerField(read_only=True, allow_null=True)
     default_account_name = serializers.CharField(read_only=True, allow_blank=True)
@@ -696,6 +715,7 @@ class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
     current_token_display = serializers.CharField(read_only=True, allow_blank=True)
     preferred_token = MCPAccessTokenSerializer(read_only=True, allow_null=True)
     access_tokens = MCPAccessTokenSerializer(many=True, read_only=True)
+    access_package = MCPAccessPackageSerializer(read_only=True)
     token_access_level_choices = MCPTokenAccessLevelChoiceSerializer(many=True, read_only=True)
 
 

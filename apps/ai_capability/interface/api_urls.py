@@ -19,6 +19,7 @@ from .api_views import (
     toggle_mcp_tool,
     web_chat,
 )
+from .mcp_access_views import MCPAccessVerificationView
 from .semantic_governance_views import (
     SemanticGovernanceApplyView,
     SemanticGovernanceAuditView,
@@ -40,6 +41,11 @@ urlpatterns = [
     path("mcp-tools/", list_mcp_tools, name="ai-capability-mcp-tools"),
     path("mcp-tools/stats/", mcp_tools_stats, name="ai-capability-mcp-tools-stats"),
     path("mcp-tools/sync/", sync_mcp_tools, name="ai-capability-mcp-tools-sync"),
+    path(
+        "mcp-access/verify/",
+        MCPAccessVerificationView.as_view(),
+        name="mcp-access-verify",
+    ),
     path(
         "mcp-tools/<str:capability_key>/toggle/<str:flag>/",
         toggle_mcp_tool,
