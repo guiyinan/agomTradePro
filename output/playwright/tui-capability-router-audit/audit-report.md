@@ -242,7 +242,7 @@
 - `pytest sdk/tests/test_sdk/test_client.py -q`：20 passed。
 - `pytest tests/unit/test_internal_ssl_redirect.py -q`：2 passed。
 - `pytest tests/unit/test_generate_mcp_tool_inventory.py tests/unit/test_price_polling_service.py -q`：3 passed。
-- `pytest tests/guardrails -q`：其余 132 项通过；唯一治理基线同步失败修正后，失败用例单独复跑 1 passed（分层、模块循环、ORM 越界均无新增违规）。
+- `pytest tests/guardrails -q`：在最终提交的隔离 worktree 中一次性 `133 passed`（分层、模块循环、ORM 越界与治理一致性均无新增违规）。
 - `node --check static/js/tui-workbench.js`：通过。
 - `python manage.py makemigrations --check --dry-run`：No changes detected。
 - `python manage.py check`：System check identified no issues。
