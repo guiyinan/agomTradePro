@@ -27,7 +27,7 @@
 
 **Interfaces:**
 - Produces: normalize_semantic_key(value: str) -> str.
-- Produces: SemanticCorrection(capability_key: str, semantic_key: str | None, action: Literal["set", "remove"]).
+- Produces: SemanticCorrection(capability_key: str, action: Literal["set", "remove"], semantic_key: str | None = None).
 - Produces: SemanticCorrectionBatch(idempotency_key: str, reason: str, corrections: tuple[SemanticCorrection, ...]).
 - Produces: canonical_batch_fingerprint(batch: SemanticCorrectionBatch) -> str.
 
