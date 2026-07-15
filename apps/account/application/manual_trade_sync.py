@@ -15,7 +15,7 @@ from apps.account.application.repository_provider import (
     get_manual_trade_sync_repository,
     get_portfolio_api_repository,
 )
-from apps.simulated_trading.application.unified_position_service import UnifiedPositionService
+from apps.account.application.simulated_trading_gateway import get_unified_position_service
 from core.integration.decision_execution_links import build_manual_trade_execution_matcher
 
 REQUIRED_COLUMNS = {"traded_at", "action", "asset_code", "shares", "price"}
@@ -162,7 +162,7 @@ class ManualTradeImportUseCase:
             or build_manual_trade_execution_matcher()
         )
         self.parser = parser or build_broker_trade_file_parser()
-        self.position_service = position_service or UnifiedPositionService.default()
+        self.position_service = position_service or get_unified_position_service()
 
     def preview(
         self,
@@ -385,7 +385,9 @@ class ManualTradeImportUseCase:
             lowered = {str(key).strip().lower(): value for key, value in raw.items()}
             missing = sorted(REQUIRED_COLUMNS - set(lowered))
             if missing:
-                errors.append({"row_number": index, "error": f"Missing columns: {', '.join(missing)}"})
+                errors.append(
+                    {"row_number": index, "error": f"Missing columns: {', '.join(missing)}"}
+                )
                 continue
             try:
                 action = str(lowered.get("action", "")).strip().lower()

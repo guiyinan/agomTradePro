@@ -7,7 +7,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ACCOUNT_ROOT = ROOT / "apps/account"
-FORBIDDEN_APPS = ("audit", "backtest", "equity", "factor", "policy")
+FORBIDDEN_APPS = (
+    "audit",
+    "backtest",
+    "equity",
+    "factor",
+    "policy",
+    "simulated_trading",
+)
 
 
 def _forbidden_imports(source: str) -> set[str]:

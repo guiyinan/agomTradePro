@@ -62,10 +62,17 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `strategy -> simulated_trading` was removed. Strategy owns its account-trading gateway; Simulated Trading registers the facade and account-trade adapters while HTTP and provider patch paths remain compatible.
 - The four resolved pair allowances and the isolated Audit/Backtest component were deleted, and all affected edge budgets were tightened in the same batch.
 
+## Completed batch 8
+
+- `account -> simulated_trading` was removed without reversing ownership. The concrete portfolio bridge moved to Simulated Trading, while Account keeps a constructor-compatible proxy and Account-owned provider registry.
+- Unified-position operations, market pricing, default trading-account provisioning, investment-account summaries, portfolio mappings, canonical account APIs, and performance compatibility views now resolve through the Account gateway registered by Simulated Trading.
+- Original Account repository imports, API routes, response payloads, and compatibility view behavior remain available. The final bidirectional-pair allowance was removed and the exact graph budgets were tightened.
+- Bidirectional pairs are now zero. A longer strongly connected component remains and must be removed before the cycle remediation is complete.
+
 ## Next batches
 
-1. Separate Account identity from the remaining Simulated Trading compatibility surface.
-2. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+1. Remove the remaining long-cycle feedback edges identified by the graph audit.
+2. Empty the cycle-component allowlist and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 
 ## Regression and rollback
 

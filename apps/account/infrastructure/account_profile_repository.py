@@ -6,6 +6,9 @@ from typing import Any
 
 from django.contrib.auth.models import User
 
+from apps.account.application.simulated_trading_gateway import (
+    list_investment_account_payloads,
+)
 from apps.account.domain.entities import (
     AccountProfile,
     RiskTolerance,
@@ -27,23 +30,7 @@ class AccountRepository:
 
     def list_investment_accounts(self, user_id: int) -> list[dict[str, Any]]:
         """返回用户投资组合账户摘要，供 Interface 层只读展示。"""
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-        accounts = (
-            SimulatedAccountModel._default_manager.filter(user_id=user_id)
-            .only("id", "account_name", "account_type", "total_value", "total_return")
-            .order_by("account_type", "-created_at")
-        )
-        return [
-            {
-                "id": account.id,
-                "account_name": account.account_name,
-                "account_type": account.account_type,
-                "total_value": float(account.total_value or 0),
-                "total_return": float(account.total_return or 0),
-            }
-            for account in accounts
-        ]
+        return list_investment_account_payloads(user_id)
 
     def get_by_user_id(self, user_id: int) -> AccountProfile | None:
         """根据用户ID获取账户配置"""

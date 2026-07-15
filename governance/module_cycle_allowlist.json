@@ -1,11 +1,11 @@
 {
-  "version": "2026-07-15.v8",
+  "version": "2026-07-15.v9",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 194,
+  "max_app_import_edges": 193,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
-    "account": 14,
+    "account": 13,
     "agent_runtime": 13,
     "ai_capability": 5,
     "ai_provider": 0,
@@ -77,17 +77,12 @@
     "setup_wizard": 0,
     "share": 1,
     "signal": 9,
-    "simulated_trading": 5,
+    "simulated_trading": 4,
     "strategy": 3,
     "task_monitor": 4,
     "terminal": 0
   },
-  "allowed_bidirectional_pairs": [
-    [
-      "account",
-      "simulated_trading"
-    ]
-  ],
+  "allowed_bidirectional_pairs": [],
   "allowed_cycle_components": [
     [
       "account",

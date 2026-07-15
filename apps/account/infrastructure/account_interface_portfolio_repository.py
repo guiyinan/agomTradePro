@@ -9,6 +9,9 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.account.application.simulated_trading_gateway import (
+    get_unified_account_id_for_portfolio,
+)
 from apps.account.infrastructure.models import (
     AssetMetadataModel,
     CapitalFlowModel,
@@ -380,18 +383,7 @@ class AccountInterfacePortfolioRepositoryMixin:
 
     def get_unified_account_id_for_portfolio(self, portfolio_id: int) -> int | None:
         """Return the unified account id mapped from one legacy portfolio id."""
-
-        from apps.simulated_trading.infrastructure.models import LedgerMigrationMapModel
-
-        return (
-            LedgerMigrationMapModel._default_manager.filter(
-                source_table="portfolio",
-                source_id=portfolio_id,
-                target_table="simulated_account",
-            )
-            .values_list("target_id", flat=True)
-            .first()
-        )
+        return get_unified_account_id_for_portfolio(portfolio_id)
 
     def get_active_observer_grant(self, *, owner_user_id: int, observer_user_id: int):
         """Return one active observer grant for the owner/observer pair."""

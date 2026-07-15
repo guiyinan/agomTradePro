@@ -11,9 +11,7 @@ from apps.account.application.repository_provider import (
     get_account_read_repository,
     get_portfolio_api_repository,
 )
-from apps.simulated_trading.application.unified_position_service import (
-    UnifiedPositionService,
-)
+from apps.account.application.simulated_trading_gateway import get_unified_position_service
 
 
 class PortfolioNotFoundError(LookupError):
@@ -114,9 +112,7 @@ def get_portfolio_positions_read_payload(
     """Return legacy portfolio positions without synchronizing the unified ledger."""
 
     context = resolve_portfolio_for_user(user_id=user_id, portfolio_id=portfolio_id)
-    payload = get_account_read_repository().list_open_legacy_position_payloads(
-        context.portfolio
-    )
+    payload = get_account_read_repository().list_open_legacy_position_payloads(context.portfolio)
     return context, payload
 
 
@@ -147,7 +143,7 @@ def create_position_payload(
         raise PositionMutationDeniedError("观察员无权创建持仓，只有账户拥有者可以执行此操作")
 
     account_id = _ensure_portfolio_ledger_synced(context.portfolio)
-    unified_model = UnifiedPositionService.default().create_position(
+    unified_model = get_unified_position_service().create_position(
         account_id=account_id,
         asset_code=validated_data["asset_code"],
         shares=float(validated_data["shares"]),
@@ -207,12 +203,14 @@ def update_position_payload(
     legacy_projection = _portfolio_api_repo().get_legacy_projection_for_unified_position(
         unified_position.id
     )
-    UnifiedPositionService.default().update_position(
+    get_unified_position_service().update_position(
         account_id=unified_position.account_id,
         asset_code=unified_position.asset_code,
         shares=float(validated_data["shares"]) if "shares" in validated_data else None,
         avg_cost=float(validated_data["avg_cost"]) if "avg_cost" in validated_data else None,
-        current_price=float(validated_data["current_price"]) if "current_price" in validated_data else None,
+        current_price=(
+            float(validated_data["current_price"]) if "current_price" in validated_data else None
+        ),
     )
     unified_model = _portfolio_api_repo().get_unified_position(unified_position.id)
     if unified_model is None:
@@ -326,7 +324,7 @@ def close_position_payload(
     if legacy_projection is not None and legacy_projection.is_closed:
         raise ValueError("该持仓已平仓")
 
-    result = UnifiedPositionService.default().close_position(
+    result = get_unified_position_service().close_position(
         account_id=unified_position.account_id,
         asset_code=unified_position.asset_code,
         close_shares=close_shares,
@@ -415,7 +413,7 @@ def _sync_unified_position_from_legacy(legacy_position):
             return unified_existing
         _portfolio_api_repo().delete_position_mapping_for_source(legacy_position.id)
 
-    unified_model = UnifiedPositionService.default().create_position(
+    unified_model = get_unified_position_service().create_position(
         account_id=_portfolio_api_repo().ensure_real_account(legacy_position.portfolio),
         asset_code=legacy_position.asset_code,
         shares=float(legacy_position.shares),

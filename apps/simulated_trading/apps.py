@@ -19,9 +19,13 @@ class SimulatedTradingConfig(AppConfig):
         from apps.simulated_trading.application.consumer_gateways import (
             register_simulated_trading_consumer_gateways,
         )
+        from apps.simulated_trading.infrastructure.account_gateway import (
+            register_account_gateway,
+        )
         from apps.simulated_trading.infrastructure.share_account_gateway import (
             register_simulated_trading_share_gateway,
         )
 
+        register_account_gateway()
         register_simulated_trading_consumer_gateways()
         register_simulated_trading_share_gateway()
