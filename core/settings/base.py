@@ -116,6 +116,8 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = env.int(
 )  # 最多1000个字段
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -154,10 +156,10 @@ INSTALLED_APPS = [
     "apps.realtime",  # 新增：实时价格监控模块
     # ========== 新模块：决策流程优化 ==========
     "apps.decision_rhythm",  # 决策频率约束模块（新增）
+    "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.events",  # 事件总线模块（新增）
     "apps.beta_gate",  # Beta 闸门模块（新增）
     "apps.risk_center",  # 集中风控中心（新增）
-    "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.alpha",  # Alpha AI 选股模块（新增）
     # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
     "apps.factor",  # 因子选股模块（新增）
@@ -203,6 +205,24 @@ MIDDLEWARE = [
 ROOT_URLCONF = "core.urls"
 
 WSGI_APPLICATION = "core.wsgi.application"
+ASGI_APPLICATION = "core.asgi.application"
+
+REALTIME_WEBSOCKET_ENABLED = env.bool(
+    "REALTIME_WEBSOCKET_ENABLED",
+    default=False,
+)
+EVENT_REPLAY_ENABLED = env.bool("EVENT_REPLAY_ENABLED", default=False)
+REDIS_URL = env("REDIS_URL", default="")
+CHANNEL_LAYERS = (
+    {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+    if REDIS_URL
+    else {}
+)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

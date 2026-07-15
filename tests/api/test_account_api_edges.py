@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.account.application import interface_services as account_interface_services
 from apps.account.infrastructure.models import (
     AccountProfileModel,
     AssetCategoryModel,
@@ -117,6 +118,178 @@ def test_account_mcp_self_contract(authenticated_client, auth_user):
     assert payload["capability_endpoint"].endswith("/api/ai-capability/capabilities/")
     assert "Capability Catalog" in payload["agent_bootstrap_prompt"]
     assert payload["token_access_level_choices"][0]["value"] == "read_only"
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_exposes_one_canonical_access_package(
+    authenticated_client,
+    auth_user,
+):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="recommended-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    response = authenticated_client.get("/api/account/mcp/self/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["self_service_state"] == "ready"
+    access_package = payload["access_package"]
+    assert access_package["token"]
+    assert access_package["route_endpoint"].endswith("/api/ai-capability/route/")
+    assert access_package["capability_catalog_endpoint"].endswith(
+        "/api/ai-capability/capabilities/"
+    )
+    assert access_package["agent_prompt"]
+    assert access_package["environment_statement"]
+    assert payload["recommended_token_id"]
+    assert sum(bool(row["is_recommended"]) for row in payload["access_tokens"]) == 1
+    for row in payload["access_tokens"]:
+        assert "plaintext" not in row
+        assert "display_token" not in row
+        assert "token" not in row
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_marks_loopback_access_as_same_machine_only(auth_user):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="local-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    payload = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="http://127.0.0.1:8000",
+    )
+
+    assert payload["access_package"]["same_machine_only"] is True
+    assert "同一台机器" in payload["access_package"]["environment_statement"]
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_uses_bounded_state_machine(auth_user):
+    no_token = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="https://example.test",
+    )
+    assert no_token["self_service_state"] == "no_token"
+
+    profile = auth_user.account_profile
+    profile.mcp_enabled = False
+    profile.save(update_fields=["mcp_enabled", "updated_at"])
+    disabled = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="https://example.test",
+    )
+    assert disabled["self_service_state"] == "disabled"
+
+    profile.mcp_enabled = True
+    profile.save(update_fields=["mcp_enabled", "updated_at"])
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="unavailable-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    unavailable = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="https://example.test",
+        routing_available=False,
+        catalog_available=True,
+    )
+    assert unavailable["self_service_state"] == "unavailable"
+
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = False
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    unavailable_without_plaintext = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="https://example.test",
+    )
+    assert unavailable_without_plaintext["self_service_state"] == "unavailable"
+    assert unavailable_without_plaintext["access_package"]["token"] == ""
+
+
+@pytest.mark.django_db
+def test_account_mcp_verify_is_read_only_and_bounded(
+    authenticated_client,
+    auth_user,
+    monkeypatch,
+):
+    _, raw_token = UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="verify-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    token_count_before = UserAccessTokenModel.objects.filter(user=auth_user).count()
+
+    monkeypatch.setattr(
+        "apps.ai_capability.application.interface_services.inspect_mcp_access_readiness",
+        lambda: {
+            "routing_available": True,
+            "catalog_available": True,
+            "capability_count": 12,
+        },
+    )
+
+    response = authenticated_client.get("/api/ai-capability/mcp-access/verify/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] in {"ready", "unavailable"}
+    assert [check["key"] for check in payload["checks"]] == [
+        "token",
+        "routing",
+        "catalog",
+    ]
+    assert all(check["status"] in {"ready", "unavailable"} for check in payload["checks"])
+    assert raw_token not in str(payload)
+    assert UserAccessTokenModel.objects.filter(user=auth_user).count() == token_count_before
+
+
+@pytest.mark.django_db
+def test_account_mcp_verify_reports_partial_readiness_without_ai_execution(
+    authenticated_client,
+    auth_user,
+    monkeypatch,
+):
+    UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="partial-readiness-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    monkeypatch.setattr(
+        "apps.ai_capability.application.interface_services.inspect_mcp_access_readiness",
+        lambda: {
+            "routing_available": False,
+            "catalog_available": True,
+            "capability_count": 12,
+        },
+    )
+
+    response = authenticated_client.get("/api/ai-capability/mcp-access/verify/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"] == "unavailable"
+    assert {item["key"]: item["status"] for item in payload["checks"]} == {
+        "token": "ready",
+        "routing": "unavailable",
+        "catalog": "ready",
+    }
 
 
 @pytest.mark.django_db

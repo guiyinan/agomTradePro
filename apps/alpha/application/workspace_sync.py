@@ -7,6 +7,9 @@ from datetime import date
 from typing import Any
 
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
+from apps.alpha.application.workspace_refresh_gateway import (
+    refresh_default_workspace_recommendations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +44,7 @@ def sync_default_workspace_after_alpha_update(
         }
 
     try:
-        from apps.decision_rhythm.application.dtos import RefreshRecommendationsRequestDTO
-        from apps.decision_rhythm.application.workspace_services import (
-            refresh_workspace_recommendations,
-        )
-
-        response = refresh_workspace_recommendations(
-            RefreshRecommendationsRequestDTO(
-                account_id="default",
-                security_codes=None,
-                force=True,
-                async_mode=False,
-            )
-        )
+        response = refresh_default_workspace_recommendations()
     except Exception as exc:
         logger.warning(
             "Failed to refresh default workspace recommendations after Alpha cache update: %s",
@@ -66,9 +57,9 @@ def sync_default_workspace_after_alpha_update(
         }
 
     return {
-        "workspace_recommendations_status": "refreshed"
-        if response.status == "COMPLETED"
-        else "failed",
+        "workspace_recommendations_status": (
+            "refreshed" if response.status == "COMPLETED" else "failed"
+        ),
         "workspace_recommendations_task_id": response.task_id,
         "workspace_recommendations_count": response.recommendations_count,
         "workspace_recommendations_conflicts_count": response.conflicts_count,

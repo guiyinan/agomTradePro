@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agomtradepro import AgomTradeProClient, UnsupportedFeatureError
+from agomtradepro import AgomTradeProClient
 
 
 @pytest.fixture
@@ -149,49 +149,60 @@ def test_get_market_summary_endpoint_and_overview_compatibility_fields(client):
     assert overview["indices"][0]["name"] == "Shanghai Index"
 
 
-@pytest.mark.parametrize(
-    ("method_name", "args"),
-    [
-        ("list_alerts", ()),
-        ("create_alert", ("000001.SH", "above", 10.0)),
-        ("get_alert", (1,)),
-        ("delete_alert", (1,)),
-    ],
-)
-def test_price_alert_methods_raise_unsupported_feature_without_http_calls(
-    client,
-    method_name,
-    args,
-):
-    with patch.object(client, "_request") as mock_request:
-        with pytest.raises(UnsupportedFeatureError) as exc_info:
-            getattr(client.realtime, method_name)(*args)
+def test_price_alert_methods_use_canonical_owner_scoped_paths(client):
+    responses = [
+        {"results": [{"id": 1, "status": "active"}], "count": 1},
+        {"id": 2, "asset_code": "510300.SH"},
+        {"id": 2, "status": "active"},
+        {"id": 2, "status": "inactive"},
+        {},
+    ]
+    with patch.object(client, "_request", side_effect=responses) as request:
+        assert client.realtime.list_alerts(status="active", limit=10) == [
+            {"id": 1, "status": "active"}
+        ]
+        client.realtime.create_alert("510300.SH", "cross_up", 3.5, "突破")
+        client.realtime.get_alert(2)
+        client.realtime.update_alert(2, status="inactive")
+        client.realtime.delete_alert(2)
 
-    assert "realtime.delete.price_alert" in str(exc_info.value)
-    assert "/api/realtime/alerts/" in str(exc_info.value)
-    assert "Do not treat this legacy SDK/MCP surface as a governed replacement candidate" in str(
-        exc_info.value
+    assert request.call_args_list[0].args == ("GET", "/api/realtime/alerts/")
+    assert request.call_args_list[1].args == ("POST", "/api/realtime/alerts/")
+    assert request.call_args_list[1].kwargs["json"] == {
+        "asset_code": "510300.SH",
+        "condition": "cross_up",
+        "threshold": "3.5",
+        "message": "突破",
+    }
+    assert request.call_args_list[2].args == ("GET", "/api/realtime/alerts/2/")
+    assert request.call_args_list[3].args == ("PATCH", "/api/realtime/alerts/2/")
+    assert request.call_args_list[3].kwargs["json"] == {"status": "inactive"}
+    assert request.call_args_list[4].args == ("DELETE", "/api/realtime/alerts/2/")
+
+
+def test_price_subscription_methods_use_canonical_paths(client):
+    responses = [
+        {"id": 1, "asset_code": "510300.SH"},
+        {"results": [{"id": 1, "asset_code": "510300.SH"}], "count": 1},
+        {},
+    ]
+    with patch.object(client, "_request", side_effect=responses) as request:
+        client.realtime.subscribe_price("510300.SH")
+        assert client.realtime.get_subscriptions() == [
+            {"id": 1, "asset_code": "510300.SH"}
+        ]
+        client.realtime.unsubscribe_price("510300.SH")
+
+    assert request.call_args_list[0].args == (
+        "POST",
+        "/api/realtime/subscriptions/",
     )
-    mock_request.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    ("method_name", "args"),
-    [
-        ("subscribe_price", ("000001.SH",)),
-        ("unsubscribe_price", ("000001.SH",)),
-        ("get_subscriptions", ()),
-    ],
-)
-def test_price_subscription_methods_fail_fast_without_placeholder_http_calls(
-    client,
-    method_name,
-    args,
-):
-    with patch.object(client, "_request") as mock_request:
-        with pytest.raises(UnsupportedFeatureError) as exc_info:
-            getattr(client.realtime, method_name)(*args)
-
-    assert "realtime.price_subscription" in str(exc_info.value)
-    assert "no WebSocket or polling execution chain" in str(exc_info.value)
-    mock_request.assert_not_called()
+    assert request.call_args_list[0].kwargs["json"] == {"asset_code": "510300.SH"}
+    assert request.call_args_list[1].args == (
+        "GET",
+        "/api/realtime/subscriptions/",
+    )
+    assert request.call_args_list[2].args == (
+        "DELETE",
+        "/api/realtime/subscriptions/510300.SH/",
+    )

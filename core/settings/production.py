@@ -71,10 +71,15 @@ SECRET_KEY = _validate_secret_key()
 
 from .base import *  # noqa: E402, F403
 
+if not env("REDIS_URL", default=""):
+    CHANNEL_LAYERS = {}
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
+# Keep environment-specific mutations isolated from the shared base module.
+MIDDLEWARE = list(MIDDLEWARE)
 security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
 MIDDLEWARE[security_middleware_index] = (
     "core.middleware.security.SelectiveSSLRedirectSecurityMiddleware"

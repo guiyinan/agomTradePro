@@ -63,7 +63,7 @@ AgomTradePro 系统已统一 API 路由格式为 `/api/{module}/{endpoint}/`，�
 |------|---------|--------------|------|
 | regime | `/api/regime/` | module-first / double-api | ✅ 完成 |
 | signal | `/api/signal/` | double-api | ✅ 完成 |
-| realtime | `/api/realtime/` | double-api | ✅ 完成 |
+| realtime | `/api/realtime/prices/` | double-api | ✅ 完成 |
 | policy | `/api/policy/events/` | module-first | ✅ 完成 |
 | macro | `/api/data-center/macro/series/` | module-first / legacy macro API removed | ✅ 完成 |
 | alpha | `/api/alpha/` | N/A | ✅ 原本符合 |

@@ -5,6 +5,7 @@ Interface层:
 - 提供REST API接口，使用DRF ViewSet组织API
 - 只做输入验证和输出格式化，禁止业务逻辑
 """
+
 import json
 import logging
 
@@ -21,7 +22,6 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.strategy.application.interface_services import (
     bind_strategy_assignment,
     build_strategy_executor,
@@ -56,6 +56,7 @@ from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
 )
+from apps.strategy.application.simulated_trading_gateway import get_simulated_trading_facade
 from apps.strategy.domain.services import (
     DecisionPolicyEngine,
     PreTradeRiskGate,
@@ -1521,5 +1522,3 @@ def test_strategy(request, strategy_id):
 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
-
-

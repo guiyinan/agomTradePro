@@ -11,14 +11,14 @@ from django.utils import timezone
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.decision_rhythm.application.exit_advisors import (
-    build_decision_rhythm_exit_advisor,
-)
 from apps.share.application.query_services import list_share_links_for_account_owner
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
+from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
+    build_decision_rhythm_exit_advisor,
+)
 from apps.simulated_trading.application.facade import get_simulated_trading_facade
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.repository_provider import (
@@ -207,7 +207,9 @@ def build_my_positions_context(user: Any, account_id: int) -> dict[str, Any] | N
         "account_type": _account_type_label(account.account_type),
         "account_type_code": account.account_type,
         "manual_trade_portfolio_id": _manual_trade_portfolio_id(account),
-        "positions": get_simulated_position_repository().list_position_models_for_account(account.id),
+        "positions": get_simulated_position_repository().list_position_models_for_account(
+            account.id
+        ),
         "user": user,
     }
 
@@ -239,7 +241,9 @@ def build_inspection_notify_context(user: Any, account_id: int) -> dict[str, Any
     if not account:
         return None
 
-    context = get_simulated_inspection_repository().get_or_create_notification_config_model(account.id)
+    context = get_simulated_inspection_repository().get_or_create_notification_config_model(
+        account.id
+    )
     if context is None:
         return None
     _, config = context

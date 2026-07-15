@@ -8,6 +8,7 @@ Events Infrastructure Models
 - 通过 to_domain() 转换为 Domain 实体
 """
 
+from django.conf import settings
 from django.db import models
 
 
@@ -135,3 +136,56 @@ class FailedEventModel(models.Model):
 
     def __str__(self):
         return f"FailedEvent({self.event_id}, {self.event_type}, {self.status})"
+
+
+class EventReplayRunModel(models.Model):
+    """Durable idempotency and business-audit record for controlled replay."""
+
+    STATUS_CHOICES = [
+        ("running", "运行中"),
+        ("completed", "已完成"),
+        ("partial", "部分完成"),
+        ("failed", "失败"),
+    ]
+
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="event_replay_runs",
+    )
+    target_key = models.CharField(max_length=128, db_index=True)
+    normalized_request = models.JSONField(default=dict)
+    request_fingerprint = models.CharField(max_length=64)
+    idempotency_key = models.CharField(max_length=128)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="running")
+    attempted = models.PositiveIntegerField(default=0)
+    succeeded = models.PositiveIntegerField(default=0)
+    skipped = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    failures = models.JSONField(default=list)
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField()
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "event_replay_run"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["requester", "idempotency_key"],
+                name="evt_replay_requester_idem_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["requester", "-created_at"],
+                name="evt_replay_req_created_idx",
+            ),
+            models.Index(
+                fields=["target_key", "status"],
+                name="evt_replay_target_status_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"EventReplayRun({self.pk}, {self.target_key}, {self.status})"

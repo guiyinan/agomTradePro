@@ -2,7 +2,28 @@
 
 from decimal import Decimal
 
-from apps.realtime.domain.entities import PriceUpdateStatus
+from apps.realtime.domain.entities import AlertCondition, PriceUpdateStatus
+
+
+def should_trigger_alert(
+    condition: AlertCondition,
+    threshold: Decimal,
+    old_price: Decimal | None,
+    new_price: Decimal,
+) -> bool:
+    """Evaluate a price-alert condition without converting Decimal values."""
+
+    if condition is AlertCondition.ABOVE:
+        return new_price >= threshold
+    if condition is AlertCondition.BELOW:
+        return new_price <= threshold
+    if old_price is None:
+        return False
+    if condition is AlertCondition.CROSS_UP:
+        return old_price < threshold <= new_price
+    if condition is AlertCondition.CROSS_DOWN:
+        return old_price > threshold >= new_price
+    return False
 
 
 def classify_price_update(

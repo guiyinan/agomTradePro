@@ -17,7 +17,7 @@ from typing import Any
 
 from django.utils import timezone
 
-from apps.simulated_trading.infrastructure.price_provider import DataCenterPriceProvider
+from apps.account.application.simulated_trading_gateway import build_market_price_provider
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +47,10 @@ class MarketPriceService:
         self.cache_ttl_minutes = cache_ttl_minutes
 
     @property
-    def provider(self) -> DataCenterPriceProvider:
+    def provider(self) -> Any:
         """延迟初始化 DataCenterPriceProvider。"""
         if self._provider is None:
-            self._provider = DataCenterPriceProvider(cache_ttl_minutes=self.cache_ttl_minutes)
+            self._provider = build_market_price_provider(self.cache_ttl_minutes)
         return self._provider
 
     def get_current_price(self, asset_code: str, trade_date: date = None) -> Decimal | None:
@@ -88,9 +88,7 @@ class MarketPriceService:
             return None
 
     def get_prices_batch(
-        self,
-        asset_codes: list[str],
-        trade_date: date = None
+        self, asset_codes: list[str], trade_date: date = None
     ) -> dict[str, Decimal | None]:
         """
         批量获取资产价格
@@ -108,9 +106,7 @@ class MarketPriceService:
         return results
 
     def get_price_with_metadata(
-        self,
-        asset_code: str,
-        trade_date: date = None
+        self, asset_code: str, trade_date: date = None
     ) -> dict[str, Any] | None:
         """
         获取资产价格及元数据
@@ -165,13 +161,13 @@ class MarketPriceService:
         # 确保后缀格式正确（如 .SZ, .SH, .BJ）
         # 如果是 6 位数字代码且没有后缀，根据规则添加
         if len(asset_code) == 6 and asset_code.isdigit():
-            if asset_code.startswith('0') or asset_code.startswith('3'):
+            if asset_code.startswith("0") or asset_code.startswith("3"):
                 # 深圳主板或创业板
                 asset_code = f"{asset_code}.SZ"
-            elif asset_code.startswith('6'):
+            elif asset_code.startswith("6"):
                 # 上海主板
                 asset_code = f"{asset_code}.SH"
-            elif asset_code.startswith('8') or asset_code.startswith('4'):
+            elif asset_code.startswith("8") or asset_code.startswith("4"):
                 # 新三板或北京交易所
                 asset_code = f"{asset_code}.BJ"
 

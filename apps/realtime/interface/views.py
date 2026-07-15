@@ -13,7 +13,10 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from django.http import JsonResponse
 from django.views import View
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,7 +24,18 @@ from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
     list_cached_top_movers_payloads,
 )
+from apps.realtime.application.repository_provider import (
+    get_realtime_alert_service,
+    get_realtime_subscription_service,
+)
+from apps.realtime.application.use_cases import SubscriptionLimitExceeded
+from apps.realtime.interface.authentication import RealtimeTokenAuthentication
 from apps.realtime.interface.serializers import (
+    PriceAlertCreateSerializer,
+    PriceAlertResponseSerializer,
+    PriceAlertUpdateSerializer,
+    PriceSubscriptionCommandSerializer,
+    PriceSubscriptionResponseSerializer,
     SectorPerformanceQuerySerializer,
     TopMoversQuerySerializer,
 )
@@ -30,6 +44,118 @@ from core.integration.realtime_sector_performance import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class RealtimeAuthenticatedAPIView(APIView):
+    """Use formal token and session identities for realtime owner APIs."""
+
+    authentication_classes = [RealtimeTokenAuthentication, SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+class PriceAlertListCreateView(RealtimeAuthenticatedAPIView):
+    """List and create alerts for the authenticated owner."""
+
+    def get(self, request: Request) -> Response:
+        """List only the authenticated owner's alerts."""
+
+        results = get_realtime_alert_service().list(int(request.user.pk))
+        payload = PriceAlertResponseSerializer(results, many=True).data
+        return Response({"results": payload, "count": len(payload)})
+
+    def post(self, request: Request) -> Response:
+        """Create an active owner-scoped price alert."""
+
+        serializer = PriceAlertCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        created = get_realtime_alert_service().create(
+            int(request.user.pk),
+            **serializer.validated_data,
+        )
+        return Response(
+            PriceAlertResponseSerializer(created).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PriceAlertDetailView(RealtimeAuthenticatedAPIView):
+    """Read, update, or delete one owner-scoped alert."""
+
+    def get(self, request: Request, alert_id: int) -> Response:
+        """Return one alert or an owner-scoped 404."""
+
+        result = get_realtime_alert_service().get(int(request.user.pk), alert_id)
+        if result is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PriceAlertResponseSerializer(result).data)
+
+    def patch(self, request: Request, alert_id: int) -> Response:
+        """Apply a bounded update to one owner-scoped alert."""
+
+        serializer = PriceAlertUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = get_realtime_alert_service().update(
+            int(request.user.pk),
+            alert_id,
+            dict(serializer.validated_data),
+        )
+        if result is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PriceAlertResponseSerializer(result).data)
+
+    def delete(self, request: Request, alert_id: int) -> Response:
+        """Delete one alert within the authenticated owner scope."""
+
+        deleted = get_realtime_alert_service().delete(int(request.user.pk), alert_id)
+        if not deleted:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PriceSubscriptionListCreateView(RealtimeAuthenticatedAPIView):
+    """List and create durable subscriptions for the authenticated owner."""
+
+    def get(self, request: Request) -> Response:
+        """List the authenticated owner's active subscriptions."""
+
+        results = get_realtime_subscription_service().list(int(request.user.pk))
+        payload = PriceSubscriptionResponseSerializer(results, many=True).data
+        return Response({"results": payload, "count": len(payload)})
+
+    def post(self, request: Request) -> Response:
+        """Create or return an idempotent durable subscription."""
+
+        serializer = PriceSubscriptionCommandSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = get_realtime_subscription_service().subscribe(
+                int(request.user.pk),
+                serializer.validated_data["asset_code"],
+            )
+        except SubscriptionLimitExceeded as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(
+            PriceSubscriptionResponseSerializer(result.subscription).data,
+            status=(status.HTTP_201_CREATED if result.created else status.HTTP_200_OK),
+        )
+
+
+class PriceSubscriptionDetailView(RealtimeAuthenticatedAPIView):
+    """Deactivate one canonical owner subscription."""
+
+    def delete(self, request: Request, asset_code: str) -> Response:
+        """Deactivate a subscription or return an owner-scoped 404."""
+
+        removed = get_realtime_subscription_service().unsubscribe(
+            int(request.user.pk),
+            asset_code,
+        )
+        if not removed:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MarketSummaryView(View):

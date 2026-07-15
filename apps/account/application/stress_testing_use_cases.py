@@ -18,26 +18,28 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StressTestScenario:
     """压力测试情景"""
-    scenario_id: str           # 情景ID
-    name: str                  # 情景名称
-    description: str           # 描述
-    start_date: date           # 开始日期
-    end_date: date             # 结束日期
+
+    scenario_id: str  # 情景ID
+    name: str  # 情景名称
+    description: str  # 描述
+    start_date: date  # 开始日期
+    end_date: date  # 结束日期
 
 
 @dataclass
 class StressTestResult:
     """压力测试结果"""
-    scenario_id: str           # 情景ID
-    scenario_name: str         # 情景名称
-    initial_value: Decimal     # 初始资产
-    final_value: Decimal       # 最终资产
-    total_return: Decimal      # 总收益率
-    max_drawdown: float        # 最大回撤
-    recovery_days: int         # 恢复天数
-    volatility: float          # 波动率
-    var_95: float              # 95% VaR
-    var_99: float              # 99% VaR
+
+    scenario_id: str  # 情景ID
+    scenario_name: str  # 情景名称
+    initial_value: Decimal  # 初始资产
+    final_value: Decimal  # 最终资产
+    total_return: Decimal  # 总收益率
+    max_drawdown: float  # 最大回撤
+    recovery_days: int  # 恢复天数
+    volatility: float  # 波动率
+    var_95: float  # 95% VaR
+    var_99: float  # 99% VaR
     recommendations: list[str]  # 改进建议
 
 
@@ -50,24 +52,24 @@ class HistoricalScenarioService:
 
     # 预定义历史情景
     SCENARIOS = {
-        '2015_crash': StressTestScenario(
-            scenario_id='2015_crash',
-            name='2015股灾',
-            description='2015年6月-8月股市暴跌',
+        "2015_crash": StressTestScenario(
+            scenario_id="2015_crash",
+            name="2015股灾",
+            description="2015年6月-8月股市暴跌",
             start_date=date(2015, 6, 12),
             end_date=date(2015, 8, 26),
         ),
-        '2020_covid': StressTestScenario(
-            scenario_id='2020_covid',
-            name='2020疫情冲击',
-            description='2020年1月-3月COVID-19疫情冲击',
+        "2020_covid": StressTestScenario(
+            scenario_id="2020_covid",
+            name="2020疫情冲击",
+            description="2020年1月-3月COVID-19疫情冲击",
             start_date=date(2020, 1, 14),
             end_date=date(2020, 3, 23),
         ),
-        '2018_trade_war': StressTestScenario(
-            scenario_id='2018_trade_war',
-            name='2018贸易战',
-            description='2018年全年中美贸易战',
+        "2018_trade_war": StressTestScenario(
+            scenario_id="2018_trade_war",
+            name="2018贸易战",
+            description="2018年全年中美贸易战",
             start_date=date(2018, 1, 2),
             end_date=date(2018, 12, 28),
         ),
@@ -195,15 +197,15 @@ class StressTestingUseCase:
             raise ValueError("无法获取场景期间的历史行情数据")
 
         # 计算指标
-        initial_value = Decimal('1000000')
+        initial_value = Decimal("1000000")
         equity_curve = [float(initial_value)]
         for r in portfolio_returns:
             equity_curve.append(equity_curve[-1] * (1 + r))
 
         final_value = Decimal(str(round(equity_curve[-1], 2)))
-        total_return = Decimal(str(round(
-            (float(final_value) - float(initial_value)) / float(initial_value), 6
-        )))
+        total_return = Decimal(
+            str(round((float(final_value) - float(initial_value)) / float(initial_value), 6))
+        )
 
         max_dd, recovery = VaRService.calculate_max_drawdown(equity_curve)
         volatility = statistics.stdev(portfolio_returns) if len(portfolio_returns) > 1 else 0.0
@@ -211,9 +213,7 @@ class StressTestingUseCase:
         var_99 = VaRService.calculate_historical_var(portfolio_returns, 0.99)
 
         # 生成建议
-        recommendations = self._generate_recommendations(
-            total_return, max_dd, volatility
-        )
+        recommendations = self._generate_recommendations(total_return, max_dd, volatility)
 
         return StressTestResult(
             scenario_id=scenario_id,
@@ -229,9 +229,7 @@ class StressTestingUseCase:
             recommendations=recommendations,
         )
 
-    def _get_portfolio_positions(
-        self, portfolio_id: int
-    ) -> list[dict]:
+    def _get_portfolio_positions(self, portfolio_id: int) -> list[dict]:
         """获取组合持仓及权重"""
         return self.position_repo.list_portfolio_position_weights(portfolio_id)
 
@@ -243,7 +241,9 @@ class StressTestingUseCase:
     ) -> list[float]:
         """模拟组合在历史场景中的收益率序列"""
         try:
-            from apps.equity.application.repository_provider import get_tushare_stock_adapter
+            from apps.account.application.business_provider_gateway import (
+                get_tushare_stock_adapter,
+            )
 
             adapter = get_tushare_stock_adapter()
         except Exception as e:
@@ -256,20 +256,22 @@ class StressTestingUseCase:
 
         for pos in positions:
             try:
-                df = adapter.fetch_daily_data(
-                    pos['asset_code'], start_date, end_date
-                )
+                df = adapter.fetch_daily_data(pos["asset_code"], start_date, end_date)
                 if df is None or df.empty:
                     continue
 
                 # 以 trade_date 为 index，pct_chg 为值
                 daily = {}
                 for _, row in df.iterrows():
-                    d = row['trade_date'].date() if hasattr(row['trade_date'], 'date') else row['trade_date']
-                    daily[d] = row['pct_chg'] / 100.0
+                    d = (
+                        row["trade_date"].date()
+                        if hasattr(row["trade_date"], "date")
+                        else row["trade_date"]
+                    )
+                    daily[d] = row["pct_chg"] / 100.0
 
                 if daily:
-                    stock_returns[pos['asset_code']] = daily
+                    stock_returns[pos["asset_code"]] = daily
                     dates_set = set(daily.keys())
                     common_dates = dates_set if common_dates is None else common_dates & dates_set
 
@@ -282,7 +284,7 @@ class StressTestingUseCase:
 
         # 按权重计算组合日收益率
         sorted_dates = sorted(common_dates)
-        weight_map = {p['asset_code']: p['weight'] for p in positions}
+        weight_map = {p["asset_code"]: p["weight"] for p in positions}
 
         portfolio_returns = []
         for d in sorted_dates:

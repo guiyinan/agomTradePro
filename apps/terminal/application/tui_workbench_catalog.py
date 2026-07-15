@@ -77,6 +77,7 @@ class TuiWorkbenchCatalogMixin:
             "group": screen["group"],
             "summary": self._operator_text(screen["summary"]),
             "view_type": screen["view_type"],
+            "audience": screen.get("audience", "authenticated"),
             "status": screen.get("status", "online"),
             "chrome_mode": str(screen.get("chrome_mode") or ""),
             "default_action_key": self._screen_default_action_key(screen, actions),

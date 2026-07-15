@@ -1131,14 +1131,111 @@
             ...requestOptions,
             headers,
         });
-        if (!response.ok) {
-            throw new Error(`业务数据读取失败 (HTTP ${response.status})`);
-        }
         const contentType = response.headers.get("content-type") || "";
+        if (!response.ok) {
+            let errorPayload = null;
+            if (contentType.includes("application/json")) {
+                try {
+                    errorPayload = await response.json();
+                } catch (parseError) {
+                    errorPayload = null;
+                }
+            }
+            const error = new Error("业务请求未完成");
+            error.status = response.status;
+            error.payload = errorPayload;
+            throw error;
+        }
         if (!contentType.includes("application/json")) {
             throw new Error("业务数据格式不可渲染");
         }
         return response.json();
+    }
+
+    function boundedTuiError(error) {
+        const statusCode = Number(error?.status || 0);
+        const payload = error?.payload && typeof error.payload === "object" ? error.payload : {};
+        const isStructured = String(payload.error_code || "").startsWith("tui_");
+        const defaults = {
+            403: ["无权访问", "当前账号不能完成这项操作。"],
+            404: ["内容不存在", "目标内容没有发布，或已被移除。"],
+            502: ["服务暂时不可用", "服务暂时无法完成请求，请稍后重试。"],
+            503: ["服务正在恢复", "服务尚未就绪，请稍后重试。"],
+        };
+        const fallback = defaults[statusCode] || ["暂时无法完成请求", "请稍后重试，或返回可用工作区。"];
+        const recoveryActions = isStructured && Array.isArray(payload.recovery_actions)
+            ? payload.recovery_actions
+                .filter((item) => item && typeof item === "object" && item.screen_key)
+                .map((item) => ({
+                    label: String(item.label || "前往可用工作区"),
+                    screenKey: String(item.screen_key),
+                }))
+            : [];
+        return {
+            title: isStructured ? String(payload.title || fallback[0]) : fallback[0],
+            detail: isStructured ? String(payload.detail || fallback[1]) : fallback[1],
+            traceId: isStructured ? String(payload.trace_id || "") : "",
+            recoveryActions,
+        };
+    }
+
+    function renderDashboardPanelError(panel, error) {
+        const bounded = boundedTuiError(error);
+        return `
+            <div class="tui-panel-error" role="status">
+                <strong>${escapeHtml(bounded.title)}</strong>
+                <p>${escapeHtml(bounded.detail)}</p>
+                ${bounded.traceId ? `<small>追踪编号：${escapeHtml(bounded.traceId)}</small>` : ""}
+                <div class="tui-panel-error-actions">
+                    <button class="tui-panel-retry" type="button" data-panel-retry>重试</button>
+                    ${bounded.recoveryActions.map((item) => `
+                        <button
+                            class="tui-panel-recovery"
+                            type="button"
+                            data-panel-recovery-screen="${escapeHtml(item.screenKey)}"
+                        >${escapeHtml(item.label)}</button>
+                    `).join("")}
+                </div>
+                ${panel.note ? `<small>${escapeHtml(panel.note)}</small>` : ""}
+            </div>
+        `;
+    }
+
+    function bindDashboardPanelRecovery(root, panel) {
+        root.querySelector("[data-panel-retry]")?.addEventListener("click", () => loadDashboardPanel(panel));
+        root.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
+            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
+        });
+    }
+
+    function renderBoundedApplicationError(error) {
+        const bounded = boundedTuiError(error);
+        els.mainTitle.textContent = bounded.title;
+        els.main.innerHTML = `
+            <section class="tui-application-error" role="alert">
+                <strong>${escapeHtml(bounded.title)}</strong>
+                <p>${escapeHtml(bounded.detail)}</p>
+                ${bounded.traceId ? `<small>追踪编号：${escapeHtml(bounded.traceId)}</small>` : ""}
+                <div class="tui-panel-error-actions">
+                    <button class="tui-panel-retry" type="button" data-application-retry>重试</button>
+                    ${bounded.recoveryActions.map((item) => `
+                        <button
+                            class="tui-panel-recovery"
+                            type="button"
+                            data-panel-recovery-screen="${escapeHtml(item.screenKey)}"
+                        >${escapeHtml(item.label)}</button>
+                    `).join("")}
+                </div>
+            </section>
+        `;
+        els.main.querySelector("[data-application-retry]")?.addEventListener("click", () => {
+            const screenKey = String(state.screen?.screen?.key || state.catalog?.default_screen || "home");
+            loadScreen(screenKey);
+        });
+        els.main.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
+            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
+        });
+        setStatus("请求未完成");
     }
 
     function clearPendingRequest(options = {}) {
@@ -1799,25 +1896,16 @@
         const actionSummary = summarizeActions(screenSpec.actions || []);
         const businessContext = screen.business_context || {};
         const experience = screenUserExperience(screen);
-        const layout = dashboardLayout(panels);
+        const layout = dashboardLayout(panels, screen);
         setWorkspaceViewKind("dashboard");
         els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
         els.main.innerHTML = `
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
             <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
-                    <section class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-dashboard-target="${escapeHtml(dashboardTargetScreen(panel))}" data-dashboard-action="${escapeHtml(panel.action_key || "")}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}" tabindex="0" role="button">
-                        <h3>
-                            <span>${escapeHtml(panel.title)}</span>
-                            <span class="tui-panel-heading-tools">
-                                <span class="tui-panel-priority">${escapeHtml(panelPriorityLabel(panelPriority(panel)))}</span>
-                                <span class="tui-panel-semantic">${escapeHtml(panelSemanticLabel(panelPresentationSemantic(panel)))}</span>
-                                <span data-panel-badge></span>
-                            </span>
-                        </h3>
-                        ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
-                        <div class="tui-loading">读取业务数据...</div>
-                    </section>
+                    <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
+                        ${renderDashboardPanelShell(panel, '<div class="tui-loading">读取业务数据...</div>')}
+                    </article>
                 `).join("")}
             </div>
         `;
@@ -1847,25 +1935,7 @@
                 },
             ],
         });
-        els.main.querySelectorAll("[data-dashboard-target]").forEach((panelElement) => {
-            const target = panelElement.dataset.dashboardTarget;
-            const actionKey = panelElement.dataset.dashboardAction;
-            if (!target && !actionKey) {
-                return;
-            }
-            panelElement.addEventListener("click", (event) => {
-                if (isInteractiveTarget(event.target)) {
-                    return;
-                }
-                activateDashboardPanel(target, actionKey);
-            });
-            panelElement.addEventListener("keydown", (event) => {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    activateDashboardPanel(target, actionKey);
-                }
-            });
-        });
+        bindDashboardPanelOpenControls(els.main);
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
@@ -1973,15 +2043,16 @@
         }));
     }
 
-    function dashboardLayout(panels) {
+    function dashboardLayout(panels, screen) {
         const areas = uniqueDashboardAreas(panels);
+        const desktopColumns = dashboardDesktopColumns(screen);
         return {
             areas,
             gridStyle: [
-                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, 3)}`,
+                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns)}`,
                 `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
                 `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
-                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, 3, "minmax(0, 1fr)")}`,
+                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, desktopColumns, "minmax(190px, auto)")}`,
                 `--tui-dashboard-rows-tablet: ${dashboardRows(areas, 2, "minmax(190px, 1fr)")}`,
                 `--tui-dashboard-rows-mobile: ${dashboardRows(areas, 1, "minmax(174px, auto)")}`,
             ].join("; "),
@@ -2046,6 +2117,7 @@
         }
         if (!panel.action_key) {
             container.innerHTML = renderDashboardPanelShell(panel, renderPanelPlaceholder(panel, "等待发布数据源。"));
+            bindDashboardPanelOpenControls(container);
             return;
         }
         try {
@@ -2077,6 +2149,8 @@
             if (!renderDashboardRegisteredRenderer(panel, viewModel, container)) {
                 container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelBody(panel, viewModel));
                 bindCopyButtons(container);
+                bindDashboardRowActions(container, panel);
+                bindDashboardPanelOpenControls(container);
                 processHostSlot(container);
             }
             if (isOperatorHomeScreen(state.screen?.screen?.key)) {
@@ -2087,23 +2161,67 @@
             }
             setLastRefresh();
         } catch (error) {
-            container.innerHTML = renderDashboardPanelShell(panel, renderPanelPlaceholder(panel, error.message));
+            container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
+            bindDashboardPanelOpenControls(container);
+            bindDashboardPanelRecovery(container, panel);
         }
     }
 
     function renderDashboardPanelShell(panel, body) {
-        return `
+        const content = `
             <h3>
                 <span>${escapeHtml(panel.title)}</span>
                 <span class="tui-panel-heading-tools">
                     <span class="tui-panel-priority">${escapeHtml(panelPriorityLabel(panelPriority(panel)))}</span>
                     <span class="tui-panel-semantic">${escapeHtml(panelSemanticLabel(panelPresentationSemantic(panel)))}</span>
                     <span data-panel-badge></span>
+                    ${dashboardPanelOpenButton(panel)}
                 </span>
             </h3>
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
             ${body}
         `;
+        if (panelPriority(panel) !== "p2") {
+            return content;
+        }
+        return `
+            <details class="tui-panel-disclosure">
+                <summary>展开${escapeHtml(panel.title)}</summary>
+                ${content}
+            </details>
+        `;
+    }
+
+    function dashboardPanelOpenButton(panel) {
+        const target = dashboardTargetScreen(panel);
+        const actionKey = String(panel?.action_key || "").trim();
+        if (!target && !actionKey) {
+            return "";
+        }
+        return `
+            <button
+                class="tui-dashboard-open"
+                type="button"
+                data-dashboard-open
+                data-dashboard-target="${escapeHtml(target)}"
+                data-dashboard-action="${escapeHtml(actionKey)}"
+                aria-label="打开${escapeHtml(panel.title || "面板")}"
+            >打开</button>
+        `;
+    }
+
+    function bindDashboardPanelOpenControls(root) {
+        root.querySelectorAll("[data-dashboard-open]").forEach((button) => {
+            if (button.dataset.dashboardOpenBound === "true") {
+                return;
+            }
+            button.dataset.dashboardOpenBound = "true";
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                activateDashboardPanel(button.dataset.dashboardTarget, button.dataset.dashboardAction);
+            });
+        });
     }
 
     function renderDashboardRegisteredRenderer(panel, viewModel, container) {
@@ -2127,10 +2245,11 @@
                 runtimeConfig,
                 escapeHtml,
             });
-        } catch (error) {
-            host.innerHTML = renderEmptyState("自定义 renderer 执行失败。", [String(error.message || error)]);
+        } catch (_error) {
+            host.innerHTML = renderEmptyState("扩展视图暂时不可用。", ["请稍后重试，或改用默认任务查看数据。"]);
         }
         bindCopyButtons(container);
+        bindDashboardPanelOpenControls(container);
         return true;
     }
 
@@ -2191,6 +2310,14 @@
         };
     }
 
+    function dashboardDesktopColumns(screen) {
+        const journey = screenUserExperience(screen).journey;
+        if (screen?.key === "capability-router.mcp-center") {
+            return 1;
+        }
+        return ["self_service", "admin"].includes(journey) ? 2 : 3;
+    }
+
     function renderRegimePanel(viewModel) {
         const fields = fieldsToMap(viewModel.fields || []);
         const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
@@ -2224,11 +2351,79 @@
         if (!rows.length || !columns.length) {
             return renderPanelPlaceholder(panel, "暂无表格数据。");
         }
+        const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);
-        return renderMiniTable(
-            headers,
-            rows.map((row) => columns.map((column) => row[column.key] ?? "-")),
-        );
+        if (rowActions.length) {
+            headers.push("操作");
+        }
+        return `
+            <table class="tui-mini-table">
+                <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                <tbody>
+                    ${rows.map((row) => `
+                        <tr>
+                            ${columns.map((column) => `<td class="${cellClass(row[column.key], column.label || column.key)}">${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
+                            ${rowActions.length ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ""}
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function renderDashboardRowActions(panel, row) {
+        const descriptors = Array.isArray(panel?.row_actions) ? panel.row_actions : [];
+        return `<div class="tui-row-actions">${descriptors.map((descriptor) => {
+            const action = currentAction(descriptor.action_key);
+            const params = Object.fromEntries(
+                Object.entries(descriptor.param_map || {}).map(([paramKey, rowKey]) => [paramKey, row?.[rowKey]]),
+            );
+            const label = interpolateRowActionLabel(descriptor.label_template, row);
+            return `
+                <button
+                    class="tui-row-action"
+                    type="button"
+                    data-dashboard-row-action
+                    data-row-action-key="${escapeHtml(descriptor.action_key)}"
+                    data-row-action-params="${escapeHtml(JSON.stringify(params))}"
+                    aria-label="${escapeHtml(label)}"
+                    title="${escapeHtml(label)}"
+                >${escapeHtml(action?.label || "操作")}</button>
+            `;
+        }).join("")}</div>`;
+    }
+
+    function interpolateRowActionLabel(template, row) {
+        return String(template || "操作").replace(/\{([^{}]+)\}/g, (_match, key) => String(row?.[key] ?? "-"));
+    }
+
+    function bindDashboardRowActions(root, panel) {
+        root.querySelectorAll("[data-dashboard-row-action]").forEach((button) => {
+            if (button.dataset.rowActionBound === "true") {
+                return;
+            }
+            button.dataset.rowActionBound = "true";
+            button.addEventListener("click", async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                let params = {};
+                try {
+                    params = JSON.parse(button.dataset.rowActionParams || "{}");
+                } catch (_error) {
+                    setStatus("行操作参数不可用");
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    await runAction(button.dataset.rowActionKey, null, {
+                        params,
+                        dashboardPanelKey: panel.key,
+                    });
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
     }
 
     function renderPanelDetail(panel, viewModel) {
@@ -2273,22 +2468,15 @@
                 </div>
             `
             : "";
-        const hasPromptSemantic = hasSemantic(semantics, "multiline_prompt");
-        const hasCopySemantic = hasSemantic(semantics, "copyable_secret") || hasSemantic(semantics, "endpoint_list");
-        const promptFields = hasPromptSemantic ? fields.filter((field) => fieldLooksLikePrompt(field)) : [];
-        const baseFields = hasPromptSemantic && promptFields.length
-            ? fields.filter((field) => !fieldLooksLikePrompt(field))
-            : fields;
-        const copyFields = hasCopySemantic ? baseFields.filter((field) => fieldLooksLikeCopyable(field)) : [];
-        const metaFields = hasCopySemantic && copyFields.length
-            ? baseFields.filter((field) => !fieldLooksLikeCopyable(field))
-            : baseFields;
+        const secretFields = fields.filter((field) => fieldPresentation(field) === "secret");
+        const copyFields = fields.filter((field) => fieldPresentation(field) === "copyable");
+        const multilineFields = fields.filter((field) => fieldPresentation(field) === "multiline");
+        const metaFields = fields.filter((field) => fieldPresentation(field) === "metadata");
         const fieldMarkup = [
-            hasCopySemantic && copyFields.length ? renderSemanticCopyFields(copyFields) : "",
+            secretFields.length ? renderSemanticSecretFields(secretFields) : "",
+            copyFields.length ? renderSemanticCopyFields(copyFields) : "",
             metaFields.length ? renderSemanticGridFields(metaFields) : "",
-            hasPromptSemantic
-                ? renderSemanticPromptFields(promptFields.length ? promptFields : (fields.length ? fields : []))
-                : "",
+            multilineFields.length ? renderSemanticMultilineFields(multilineFields) : "",
         ].filter(Boolean).join("");
         const nestedMarkup = nested.length
             ? `<div class="tui-nested-list">${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}</div>`
@@ -2316,22 +2504,41 @@
         `;
     }
 
-    function semanticFieldKey(field) {
-        return String(field?.key || "").trim().toLowerCase();
+    function fieldPresentation(field) {
+        const presentation = String(field?.presentation || "metadata").trim().toLowerCase();
+        return ["secret", "copyable", "multiline", "metadata"].includes(presentation)
+            ? presentation
+            : "metadata";
     }
 
-    function semanticFieldLabel(field) {
-        return String(field?.label || "").trim().toLowerCase();
-    }
-
-    function fieldLooksLikePrompt(field) {
-        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
-        return /prompt|提示词/.test(haystack);
-    }
-
-    function fieldLooksLikeCopyable(field) {
-        const haystack = `${semanticFieldKey(field)} ${semanticFieldLabel(field)}`;
-        return /token|令牌|endpoint|地址|url|base_url|route|web|capability|api_root/.test(haystack);
+    function renderSemanticSecretFields(fields) {
+        return `
+            <div class="tui-copy-stack">
+                ${fields.map((field) => `
+                    <div class="tui-copy-row is-secret">
+                        <div class="tui-copy-head">
+                            <span>${escapeHtml(field.label)}</span>
+                            <span class="tui-copy-controls">
+                                <button
+                                    class="tui-copy-action"
+                                    type="button"
+                                    data-secret-toggle
+                                    data-secret-visible="true"
+                                    aria-label="隐藏${escapeHtml(field.label)}"
+                                >隐藏</button>
+                                <button
+                                    class="tui-copy-action"
+                                    type="button"
+                                    data-copy-value="${escapeHtml(field.value)}"
+                                    data-copy-label="${escapeHtml(field.label)}"
+                                >复制</button>
+                            </span>
+                        </div>
+                        <code data-secret-value="${escapeHtml(field.value)}">${escapeHtml(field.value)}</code>
+                    </div>
+                `).join("")}
+            </div>
+        `;
     }
 
     function renderSemanticCopyFields(fields) {
@@ -2358,14 +2565,16 @@
         `;
     }
 
-    function renderSemanticPromptFields(fields) {
+    function renderSemanticMultilineFields(fields) {
         if (!fields.length) {
             return "";
         }
         return `
             <div class="tui-copy-stack">
-                ${fields.map((field) => `
-                    <section class="tui-copy-block-card">
+                ${fields.map((field) => {
+                    const accessPackage = String(field?.key || "") === "access_package";
+                    return `
+                    <section class="tui-copy-block-card${accessPackage ? " is-dominant" : ""}">
                         <div class="tui-copy-head">
                             <strong>${escapeHtml(field.label)}</strong>
                             <button
@@ -2373,11 +2582,12 @@
                                 type="button"
                                 data-copy-value="${escapeHtml(field.value)}"
                                 data-copy-label="${escapeHtml(field.label)}"
-                            >复制</button>
+                            >${accessPackage ? "复制完整接入包" : "复制"}</button>
                         </div>
                         <pre class="tui-copy-block">${escapeHtml(field.value)}</pre>
                     </section>
-                `).join("")}
+                `;
+                }).join("")}
             </div>
         `;
     }
@@ -2401,6 +2611,25 @@
     }
 
     function bindCopyButtons(root = document) {
+        root.querySelectorAll("[data-secret-toggle]").forEach((button) => {
+            if (button.dataset.secretBound === "true") {
+                return;
+            }
+            button.dataset.secretBound = "true";
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const code = button.closest(".tui-copy-row")?.querySelector("[data-secret-value]");
+                if (!code) {
+                    return;
+                }
+                const visible = button.dataset.secretVisible === "true";
+                button.dataset.secretVisible = visible ? "false" : "true";
+                button.textContent = visible ? "显示" : "隐藏";
+                button.setAttribute("aria-label", visible ? "显示接入令牌" : "隐藏接入令牌");
+                code.textContent = visible ? "••••••••••••" : code.dataset.secretValue;
+            });
+        });
         root.querySelectorAll("[data-copy-value]").forEach((button) => {
             if (button.dataset.copyBound === "true") {
                 return;
@@ -2992,7 +3221,7 @@
             return screenSpec;
         } catch (error) {
             resetLocationInput();
-            renderError(error.message);
+            renderBoundedApplicationError(error);
             return null;
         }
     }
@@ -3018,8 +3247,10 @@
             closeModal();
             const controller = new AbortController();
             const requestId = startPendingRequest(controller);
-            renderActionLoadingState(action, state.screen);
-            scheduleSlowActionState(requestId, action);
+            if (!options.dashboardPanelKey) {
+                renderActionLoadingState(action, state.screen);
+                scheduleSlowActionState(requestId, action);
+            }
             const requestBody = { params, confirmed: Boolean(options.confirmed) };
             if (options.confirmation) {
                 requestBody.confirmation = options.confirmation;
@@ -3035,7 +3266,9 @@
             clearPendingRequest();
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
                 showMissingFieldsPrompt(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待补填");
@@ -3043,15 +3276,19 @@
             }
             if (result.confirmation_required) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
-                showActionConfirmation(result, actualActionKey, params);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
+                showActionConfirmation(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待确认");
                 return;
             }
             if (result.password_challenge_required) {
                 state.lastRaw = null;
-                renderViewModel(result.view_model);
+                if (!options.dashboardPanelKey) {
+                    renderViewModel(result.view_model);
+                }
                 showPasswordChallenge(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待验密");
@@ -3059,6 +3296,13 @@
             }
             markActionCompleted(action);
             state.lastRaw = result.debug?.raw_response ?? null;
+            if (options.dashboardPanelKey) {
+                updateRawDrawer();
+                await refreshCurrentDashboardPanels();
+                setStatus("操作完成，列表已刷新");
+                refreshGovernanceBadges();
+                return;
+            }
             if (!isImmersiveDashboardScreen(state.screen?.screen)) {
                 renderActions(state.screen.actions || [], state.screen.screen);
             }
@@ -3073,8 +3317,35 @@
                 return;
             }
             clearPendingRequest();
-            renderError(error.message);
+            if (options.dashboardPanelKey) {
+                const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
+                    ? state.screen.screen.dashboard_panels
+                    : [];
+                const panel = panels.find((item) => item.key === options.dashboardPanelKey);
+                const container = panel
+                    ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+                    : null;
+                if (panel && container) {
+                    container.innerHTML = renderDashboardPanelShell(
+                        panel,
+                        renderDashboardPanelError(panel, error),
+                    );
+                    bindDashboardPanelOpenControls(container);
+                    bindDashboardPanelRecovery(container, panel);
+                } else {
+                    renderBoundedApplicationError(error);
+                }
+            } else {
+                renderBoundedApplicationError(error);
+            }
         }
+    }
+
+    async function refreshCurrentDashboardPanels() {
+        const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
+            ? state.screen.screen.dashboard_panels
+            : [];
+        await Promise.all(panels.map((panel) => loadDashboardPanel(panel)));
     }
 
     function renderViewModel(viewModel) {
@@ -3145,8 +3416,8 @@
                 runtimeConfig,
                 escapeHtml,
             });
-        } catch (error) {
-            host.innerHTML = renderEmptyState("自定义 renderer 执行失败。", [String(error.message || error)]);
+        } catch (_error) {
+            host.innerHTML = renderEmptyState("扩展视图暂时不可用。", ["请稍后重试，或改用默认任务查看数据。"]);
         }
         return true;
     }
@@ -4246,7 +4517,7 @@
         form.querySelector("select, input, textarea")?.focus();
     }
 
-    function showActionConfirmation(result, actionKey, params) {
+    function showActionConfirmation(result, actionKey, params, options = {}) {
         const confirmation = result.confirmation || {};
         showModal(confirmation.title || "确认操作", `
             <div class="tui-confirmation">
@@ -4262,6 +4533,7 @@
         confirmButton.addEventListener("click", () => {
             closeModal();
             runAction(actionKey, null, {
+                ...options,
                 confirmed: true,
                 params,
                 confirmation: {
@@ -4474,6 +4746,11 @@
     }
 
     function focusActions() {
+        const grid = els.main.closest(".tui-workspace-grid");
+        if (grid?.classList.contains("is-dashboard")) {
+            grid.classList.remove("is-dashboard");
+            setWorkspaceViewKind("idle");
+        }
         const actionFilter = els.actions.querySelector("[data-action-filter]");
         if (actionFilter) {
             actionFilter.focus();
@@ -5046,17 +5323,19 @@
             setStatus("启动中");
             const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
-            const initialScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
+            const isResumeAttempt = Boolean(shouldResumeOnBoot() && state.lastNonHomeScreen);
+            const initialScreen = isResumeAttempt
                 ? state.lastNonHomeScreen
                 : catalog.default_screen;
             clearResumeOnBootFlag();
             const loaded = await loadScreen(initialScreen);
-            if (!loaded && initialScreen !== catalog.default_screen) {
+            if (!loaded && isResumeAttempt) {
+                setStatus("上次工作区已不可用，已返回首页");
                 await loadScreen(catalog.default_screen);
             }
         } catch (error) {
-            els.moduleTree.innerHTML = `<div class="tui-error">${escapeHtml(error.message)}</div>`;
-            renderError(error.message);
+            els.moduleTree.innerHTML = '<div class="tui-error">导航暂时不可用</div>';
+            renderBoundedApplicationError(error);
         }
     }
 

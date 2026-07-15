@@ -62,7 +62,7 @@
     },
     "screen": {
       "type": "object",
-      "required": ["key", "label", "module_key", "group", "summary", "view_type"],
+      "required": ["key", "label", "module_key", "group", "summary", "view_type", "audience"],
       "properties": {
         "key": { "type": "string", "minLength": 1 },
         "label": { "type": "string", "minLength": 1 },
@@ -70,6 +70,7 @@
         "group": { "type": "string", "minLength": 1 },
         "summary": { "type": "string" },
         "view_type": { "$ref": "#/$defs/viewType" },
+        "audience": { "enum": ["authenticated", "admin"] },
         "status": { "enum": ["online", "planned", "hidden", "disabled"] },
         "default_action_key": { "type": "string" },
         "dashboard_panels": {
@@ -187,7 +188,24 @@
         "page_path": { "type": "string" },
         "page_size_path": { "type": "string" },
         "title_path": { "type": "string" },
-        "status_path": { "type": "string" }
+        "status_path": { "type": "string" },
+        "field_presentations": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/resultFieldPresentation" }
+        },
+        "columns": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "properties": {
+              "key": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -216,8 +234,25 @@
             "additionalProperties": false
           }
         },
+        "row_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dashboardRowAction" }
+        },
         "layout_area": { "type": "string" },
         "target_screen": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "dashboardRowAction": {
+      "type": "object",
+      "required": ["action_key", "label_template", "param_map"],
+      "properties": {
+        "action_key": { "type": "string", "minLength": 1 },
+        "label_template": { "type": "string", "minLength": 1 },
+        "param_map": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
       },
       "additionalProperties": false
     },
@@ -234,6 +269,7 @@
       "additionalProperties": false
     },
     "presentationSemantic": {
+      "$comment": "primary_list and supporting_list cover owner-scoped alert and subscription collections; user_priority defines their visual order.",
       "enum": [
         "primary_status",
         "primary_list",
@@ -245,6 +281,10 @@
         "supporting_detail",
         "debug_only"
       ]
+    },
+    "resultFieldPresentation": {
+      "$comment": "Runtime result fields use explicit presentation values. Legacy fields without one render as metadata and never gain copy controls by inference.",
+      "enum": ["secret", "copyable", "multiline", "metadata"]
     },
     "viewType": {
       "enum": ["auto", "status", "detail", "datagrid", "message", "queue_workbench", "chart", "image", "kpi_trend", "table_chart", "host_slot", "custom"]

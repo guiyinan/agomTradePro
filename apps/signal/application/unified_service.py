@@ -9,9 +9,9 @@ import logging
 from datetime import date, timedelta
 from typing import Any
 
-from apps.factor.application.repository_provider import get_factor_integration_service
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import UnifiedSignalRepository
+from core.integration.unified_signal_registry import fetch_alpha_scores, get_factor_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,17 @@ except ImportError:
 
 def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
     """Return alpha stock scores through the owning alpha application service."""
-
-    from apps.alpha.application.services import AlphaService
-
-    return AlphaService().get_stock_scores(
+    return fetch_alpha_scores(
         universe_id=universe_id,
         intended_trade_date=intended_trade_date,
         top_n=top_n,
     )
+
+
+def get_factor_integration_service():
+    """Return the registered Factor integration service."""
+
+    return get_factor_service()
 
 
 class UnifiedSignalService:

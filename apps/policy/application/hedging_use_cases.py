@@ -11,11 +11,13 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from apps.account.application.repository_provider import (
-    get_account_position_repository as _get_account_position_repository,
-)
 from apps.policy.application.repository_provider import get_hedge_position_repository
-from apps.realtime.application.repository_provider import get_realtime_price_repository
+from core.integration.policy_hedging_registry import (
+    get_position_repository as _get_account_position_repository,
+)
+from core.integration.policy_hedging_registry import (
+    get_price_repository as get_realtime_price_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -320,4 +322,3 @@ class HedgeEffectivenessAnalyzer:
         except Exception as e:
             logger.warning(f"Beta 计算失败: {e}")
             return {'beta_before': 1.0, 'beta_after': 1.0}
-

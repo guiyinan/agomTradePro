@@ -35,6 +35,8 @@ class TuiWorkbenchSpecializedResultMixin:
             "capability-router.mcp-self-prompt-guide",
         } and isinstance(payload, dict):
             return self._mcp_self_service_result_model(action, payload)
+        if action_key == "capability-router.verify-my-mcp-access" and isinstance(payload, dict):
+            return self._mcp_access_verification_result_model(payload)
         if action_key in {
             "capability-router.create-my-mcp-token",
             "capability-router.revoke-my-mcp-token",
@@ -281,7 +283,11 @@ class TuiWorkbenchSpecializedResultMixin:
                     {"label": "提示词与模型配置", "screen_key": "ai-ops.prompts"},
                 ]
             )
-        elif str(action.get("key") or "") in {"cli.chat_router", "cli.agent_chat", "cli.agent_stream"}:
+        elif str(action.get("key") or "") in {
+            "cli.chat_router",
+            "cli.agent_chat",
+            "cli.agent_stream",
+        }:
             steps.extend(
                 [
                     {"label": "打开 AI 交互终端", "screen_key": "ai-ops.terminal"},
@@ -299,7 +305,9 @@ class TuiWorkbenchSpecializedResultMixin:
         username = self._display_value(payload.get("username") or action.get("label"))
         mcp_status = "已开启" if bool(payload.get("mcp_enabled")) else "已关闭"
         preferred_token = (
-            payload.get("preferred_token") if isinstance(payload.get("preferred_token"), dict) else {}
+            payload.get("preferred_token")
+            if isinstance(payload.get("preferred_token"), dict)
+            else {}
         )
         token_name = self._display_value(
             preferred_token.get("name") or payload.get("agent_bootstrap_token_name") or "未配置"
@@ -320,12 +328,82 @@ class TuiWorkbenchSpecializedResultMixin:
         default_account = self._display_value(
             payload.get("default_account_name") or payload.get("default_account_id") or "未设置"
         )
-        prompt_ready = "已就绪" if bool(payload.get("agent_bootstrap_token_ready")) else "待生成令牌"
+        prompt_ready = (
+            "已就绪" if bool(payload.get("agent_bootstrap_token_ready")) else "待生成令牌"
+        )
         operator_hint = (
             "先创建只读令牌，再把下方智能路由地址与接入提示词交给助手。"
             if bool(payload.get("mcp_enabled"))
             else "当前账号未开通 MCP/SDK 接入，请先让管理员开启权限。"
         )
+
+        access_package = (
+            payload.get("access_package") if isinstance(payload.get("access_package"), dict) else {}
+        )
+        if action_key == "capability-router.mcp-self-status" and access_package:
+            state_labels = {
+                "disabled": "未开通",
+                "no_token": "待创建令牌",
+                "ready": "可接入",
+                "unavailable": "暂不可用",
+            }
+            state = str(payload.get("self_service_state") or "unavailable")
+            access_package_text = "\n".join(
+                [
+                    "AgomTradePro MCP 接入包",
+                    f"Token: {access_package.get('token') or '未生成'}",
+                    f"Route Endpoint: {access_package.get('route_endpoint') or '-'}",
+                    (
+                        "Capability Catalog: "
+                        f"{access_package.get('capability_catalog_endpoint') or '-'}"
+                    ),
+                    "",
+                    str(access_package.get("agent_prompt") or "未生成接入提示词"),
+                    "",
+                    str(access_package.get("environment_statement") or "-"),
+                ]
+            )
+            return {
+                "kind": "detail",
+                "title": username,
+                "status": state_labels.get(state, "暂不可用"),
+                "fields": [
+                    {
+                        "key": "access_token",
+                        "label": "接入令牌",
+                        "value": self._display_value(access_package.get("token") or "未生成"),
+                        "presentation": "secret",
+                    },
+                    {
+                        "key": "route_endpoint",
+                        "label": "智能路由地址",
+                        "value": str(access_package.get("route_endpoint") or "-"),
+                        "presentation": "copyable",
+                    },
+                    {
+                        "key": "capability_catalog_endpoint",
+                        "label": "能力目录地址",
+                        "value": str(access_package.get("capability_catalog_endpoint") or "-"),
+                        "presentation": "copyable",
+                    },
+                    {
+                        "key": "access_package",
+                        "label": "完整接入包",
+                        "value": access_package_text,
+                        "presentation": "multiline",
+                    },
+                    {
+                        "key": "environment_statement",
+                        "label": "环境说明",
+                        "value": self._display_value(
+                            access_package.get("environment_statement") or "-"
+                        ),
+                        "presentation": "metadata",
+                    },
+                ],
+                "nested": [],
+                "business_summary": f"当前接入状态：{state_labels.get(state, '暂不可用')}。",
+            }
 
         if action_key == "capability-router.mcp-self-endpoints":
             return {
@@ -333,12 +411,36 @@ class TuiWorkbenchSpecializedResultMixin:
                 "title": username,
                 "status": mcp_status,
                 "fields": [
-                    {"key": "base_url", "label": "基础地址", "value": str(payload.get("base_url") or "-")},
-                    {"key": "api_root_endpoint", "label": "系统入口", "value": str(payload.get("api_root_endpoint") or "-")},
-                    {"key": "route_endpoint", "label": "智能路由地址", "value": str(payload.get("route_endpoint") or "-")},
-                    {"key": "web_endpoint", "label": "网页对话地址", "value": str(payload.get("web_endpoint") or "-")},
-                    {"key": "capability_endpoint", "label": "能力目录地址", "value": str(payload.get("capability_endpoint") or "-")},
-                    {"key": "operator_hint", "label": "接入顺序", "value": "优先走智能路由地址；只在排障时读取能力目录或网页对话地址。"},
+                    {
+                        "key": "base_url",
+                        "label": "基础地址",
+                        "value": str(payload.get("base_url") or "-"),
+                    },
+                    {
+                        "key": "api_root_endpoint",
+                        "label": "系统入口",
+                        "value": str(payload.get("api_root_endpoint") or "-"),
+                    },
+                    {
+                        "key": "route_endpoint",
+                        "label": "智能路由地址",
+                        "value": str(payload.get("route_endpoint") or "-"),
+                    },
+                    {
+                        "key": "web_endpoint",
+                        "label": "网页对话地址",
+                        "value": str(payload.get("web_endpoint") or "-"),
+                    },
+                    {
+                        "key": "capability_endpoint",
+                        "label": "能力目录地址",
+                        "value": str(payload.get("capability_endpoint") or "-"),
+                    },
+                    {
+                        "key": "operator_hint",
+                        "label": "接入顺序",
+                        "value": "优先走智能路由地址；只在排障时读取能力目录或网页对话地址。",
+                    },
                 ],
                 "nested": [],
                 "business_summary": "已提供个人接入所需地址。",
@@ -354,7 +456,11 @@ class TuiWorkbenchSpecializedResultMixin:
                     {"key": "token_name", "label": "当前令牌", "value": token_name},
                     {"key": "token_level", "label": "令牌级别", "value": token_level},
                     {"key": "operator_hint", "label": "操作提示", "value": operator_hint},
-                    {"key": "agent_bootstrap_prompt", "label": "接入提示词", "value": self._display_value(payload.get("agent_bootstrap_prompt") or "-")},
+                    {
+                        "key": "agent_bootstrap_prompt",
+                        "label": "接入提示词",
+                        "value": self._display_value(payload.get("agent_bootstrap_prompt") or "-"),
+                    },
                 ],
                 "nested": [],
                 "business_summary": "已生成可直接交给助手的接入提示词。",
@@ -365,14 +471,30 @@ class TuiWorkbenchSpecializedResultMixin:
             "title": username,
             "status": mcp_status,
             "fields": [
-                {"key": "rbac_role", "label": "角色", "value": self._display_value(payload.get("rbac_role") or "-")},
+                {
+                    "key": "rbac_role",
+                    "label": "角色",
+                    "value": self._display_value(payload.get("rbac_role") or "-"),
+                },
                 {"key": "mcp_enabled", "label": "MCP 接入", "value": mcp_status},
-                {"key": "active_token_count", "label": "活跃令牌", "value": self._display_value(payload.get("active_token_count"))},
-                {"key": "token_plaintext_allowed", "label": "明文显示", "value": self._display_value(payload.get("token_plaintext_allowed"))},
+                {
+                    "key": "active_token_count",
+                    "label": "活跃令牌",
+                    "value": self._display_value(payload.get("active_token_count")),
+                },
+                {
+                    "key": "token_plaintext_allowed",
+                    "label": "明文显示",
+                    "value": self._display_value(payload.get("token_plaintext_allowed")),
+                },
                 {"key": "current_token", "label": "当前令牌", "value": token_display},
                 {"key": "current_token_level", "label": "当前令牌级别", "value": token_level},
                 {"key": "default_account", "label": "默认账户", "value": default_account},
-                {"key": "base_url", "label": "基础地址", "value": self._display_value(payload.get("base_url"))},
+                {
+                    "key": "base_url",
+                    "label": "基础地址",
+                    "value": self._display_value(payload.get("base_url")),
+                },
             ],
             "nested": [
                 {
@@ -382,6 +504,28 @@ class TuiWorkbenchSpecializedResultMixin:
                 }
             ],
             "business_summary": f"{mcp_status}；令牌 {self._display_value(payload.get('active_token_count'))} 个。",
+        }
+
+    def _mcp_access_verification_result_model(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Build a bounded read-only MCP access verification model."""
+
+        checks = list(payload.get("checks") or [])
+        status = "验证通过" if payload.get("state") == "ready" else "需要处理"
+        return {
+            "kind": "detail",
+            "title": "MCP 接入验证",
+            "status": status,
+            "fields": [
+                {
+                    "key": str(item.get("key") or "check"),
+                    "label": self._display_value(item.get("label") or "检查项"),
+                    "value": self._display_value(item.get("detail") or "-"),
+                }
+                for item in checks
+                if isinstance(item, dict)
+            ],
+            "nested": [],
+            "business_summary": status,
         }
 
     def _mcp_self_service_mutation_result_model(

@@ -18,7 +18,8 @@ class EventsApiRootView(APIView):
                     "query": "/api/events/query/",
                     "metrics": "/api/events/metrics/",
                     "status": "/api/events/status/",
-                    "replay": "/api/events/replay/",
+                    "replay_preview": "/api/events/replay/preview/",
+                    "replay_commit": "/api/events/replay/commit/",
                 }
             }
         )
@@ -30,5 +31,6 @@ urlpatterns = [
     path("query/", views.EventQueryView.as_view(), name="query"),
     path("metrics/", views.EventMetricsView.as_view(), name="metrics"),
     path("status/", views.EventBusStatusView.as_view(), name="status"),
-    path("replay/", views.EventReplayView.as_view(), name="replay"),
+    path("replay/preview/", views.EventReplayPreviewView.as_view(), name="replay-preview"),
+    path("replay/commit/", views.EventReplayCommitView.as_view(), name="replay-commit"),
 ]

@@ -21,8 +21,8 @@ from apps.rotation.application.use_cases import (
     GetRotationConfigsForViewUseCase,
     GetRotationSignalsForViewUseCase,
 )
-from apps.simulated_trading.application.query_services import (
-    list_active_account_models_for_user,
+from core.integration.trading_account_registry import (
+    list_active_accounts_for_user as list_active_account_models_for_user,
 )
 
 

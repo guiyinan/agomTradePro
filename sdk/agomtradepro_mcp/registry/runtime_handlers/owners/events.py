@@ -179,6 +179,38 @@ def _internal_handler_events_publish_event(
     )
 
 
+def _internal_handler_events_replay_events(
+    target_key: str,
+    event_type: str,
+    start_at: str | None = None,
+    end_at: str | None = None,
+    limit: int = 100,
+    preview_only: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    from agomtradepro import AgomTradeProClient
+
+    payload: dict[str, Any] = {
+        "target_key": target_key,
+        "event_type": event_type,
+        "limit": limit,
+    }
+    if start_at is not None:
+        payload["start_at"] = start_at
+    if end_at is not None:
+        payload["end_at"] = end_at
+    client = AgomTradeProClient()
+    if preview_only:
+        return client.events.preview_event_replay(payload)
+    normalized_idempotency_key = str(idempotency_key or "").strip()
+    if not normalized_idempotency_key:
+        raise ValueError("idempotency_key is required")
+    return client.events.commit_event_replay(
+        payload,
+        idempotency_key=normalized_idempotency_key,
+    )
+
+
 LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
     "query_events": _fallback_query_events,
     "get_event_metrics": _fallback_get_event_metrics,
@@ -187,4 +219,5 @@ LEGACY_TOOL_FALLBACKS: dict[str, Callable[..., Any]] = {
 
 GOVERNED_HANDLERS: dict[str, Callable[..., Any]] = {
     "events_publish_event": _internal_handler_events_publish_event,
+    "events_replay_events": _internal_handler_events_replay_events,
 }

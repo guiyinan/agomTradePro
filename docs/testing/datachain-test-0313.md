@@ -34,7 +34,7 @@
   - 新: `/api/regime`
 - `sdk/agomtradepro/modules/realtime.py`
   - 旧: `realtime/api`
-  - 新: `/api/realtime`
+  - 新: `/api/realtime/market-summary/`（具体资源路径示例）
 
 说明:
 

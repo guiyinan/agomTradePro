@@ -10,9 +10,11 @@ Following AgomSaaS architecture rules:
 import logging
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 import pandas as pd
 from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 
 from apps.asset_analysis.application.query_services import (
@@ -24,20 +26,236 @@ from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
 )
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
+from apps.realtime.application.simulated_trading_gateway import (
+    list_held_asset_codes as _list_held_asset_codes,
+)
 from apps.realtime.domain.entities import (
+    AlertCondition,
+    AlertStatus,
     AssetType,
+    PriceAlert,
+    PriceSubscription,
     RealtimePrice,
+    normalize_asset_code,
 )
 from apps.realtime.domain.protocols import (
     PriceDataProviderProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
-from apps.simulated_trading.application.query_services import (
-    list_held_asset_codes as _list_held_asset_codes,
-)
 
 logger = logging.getLogger(__name__)
+
+
+def _alert_to_domain(model: Any) -> PriceAlert:
+    """Map a price-alert ORM record to its domain value."""
+
+    return PriceAlert(
+        id=model.id,
+        owner_id=model.owner_id,
+        asset_code=model.asset_code,
+        condition=AlertCondition(model.condition),
+        threshold=model.threshold,
+        status=AlertStatus(model.status),
+        message=model.message,
+        triggered_price=model.triggered_price,
+        triggered_at=model.triggered_at,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+    )
+
+
+def _subscription_to_domain(model: Any) -> PriceSubscription:
+    """Map a subscription ORM record to its domain value."""
+
+    return PriceSubscription(
+        id=model.id,
+        owner_id=model.owner_id,
+        asset_code=model.asset_code,
+        is_active=model.is_active,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+    )
+
+
+class DjangoPriceAlertRepository:
+    """Django ORM repository for durable price alerts."""
+
+    def list_for_owner(self, owner_id: int) -> list[PriceAlert]:
+        """List alerts belonging to one owner."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        return [
+            _alert_to_domain(model) for model in PriceAlertModel.objects.filter(owner_id=owner_id)
+        ]
+
+    def get_for_owner(self, owner_id: int, alert_id: int) -> PriceAlert | None:
+        """Return an alert only when it belongs to the owner."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        model = PriceAlertModel.objects.filter(id=alert_id, owner_id=owner_id).first()
+        return _alert_to_domain(model) if model is not None else None
+
+    def create(self, alert: PriceAlert) -> PriceAlert:
+        """Persist a new owner-scoped alert."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        model = PriceAlertModel.objects.create(
+            owner_id=alert.owner_id,
+            asset_code=alert.asset_code,
+            condition=alert.condition.value,
+            threshold=alert.threshold,
+            status=alert.status.value,
+            message=alert.message,
+            triggered_price=alert.triggered_price,
+            triggered_at=alert.triggered_at,
+        )
+        return _alert_to_domain(model)
+
+    def update(self, alert: PriceAlert) -> PriceAlert | None:
+        """Persist an alert update within its owner scope."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        if alert.id is None:
+            return None
+        model = PriceAlertModel.objects.filter(
+            id=alert.id,
+            owner_id=alert.owner_id,
+        ).first()
+        if model is None:
+            return None
+        model.asset_code = alert.asset_code
+        model.condition = alert.condition.value
+        model.threshold = alert.threshold
+        model.status = alert.status.value
+        model.message = alert.message
+        model.triggered_price = alert.triggered_price
+        model.triggered_at = alert.triggered_at
+        model.save()
+        return _alert_to_domain(model)
+
+    def delete(self, owner_id: int, alert_id: int) -> bool:
+        """Delete an owner-scoped alert."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        deleted, _ = PriceAlertModel.objects.filter(
+            id=alert_id,
+            owner_id=owner_id,
+        ).delete()
+        return deleted > 0
+
+    def list_active_for_assets(self, asset_codes: list[str]) -> list[PriceAlert]:
+        """List active alerts for canonical assets."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        canonical = [normalize_asset_code(code) for code in asset_codes]
+        return [
+            _alert_to_domain(model)
+            for model in PriceAlertModel.objects.filter(
+                asset_code__in=canonical,
+                status=AlertStatus.ACTIVE.value,
+            )
+        ]
+
+    def claim_trigger(
+        self,
+        alert_id: int,
+        trigger_price: Decimal,
+        triggered_at: datetime,
+    ) -> PriceAlert | None:
+        """Atomically claim one active alert for notification."""
+
+        from apps.realtime.infrastructure.models import PriceAlertModel
+
+        with transaction.atomic():
+            model = (
+                PriceAlertModel.objects.select_for_update()
+                .filter(id=alert_id, status=AlertStatus.ACTIVE.value)
+                .first()
+            )
+            if model is None:
+                return None
+            model.status = AlertStatus.TRIGGERED.value
+            model.triggered_price = trigger_price
+            model.triggered_at = triggered_at
+            model.save(
+                update_fields=[
+                    "status",
+                    "triggered_price",
+                    "triggered_at",
+                    "updated_at",
+                ]
+            )
+            return _alert_to_domain(model)
+
+
+class DjangoPriceSubscriptionRepository:
+    """Django ORM repository for durable realtime subscriptions."""
+
+    def list_for_owner(self, owner_id: int) -> list[PriceSubscription]:
+        """List active subscriptions for one owner."""
+
+        from apps.realtime.infrastructure.models import PriceSubscriptionModel
+
+        return [
+            _subscription_to_domain(model)
+            for model in PriceSubscriptionModel.objects.filter(
+                owner_id=owner_id,
+                is_active=True,
+            )
+        ]
+
+    def subscribe(self, owner_id: int, asset_code: str) -> PriceSubscription:
+        """Create or reactivate a canonical owner subscription."""
+
+        from apps.realtime.infrastructure.models import PriceSubscriptionModel
+
+        model, _ = PriceSubscriptionModel.objects.update_or_create(
+            owner_id=owner_id,
+            asset_code=normalize_asset_code(asset_code),
+            defaults={"is_active": True},
+        )
+        return _subscription_to_domain(model)
+
+    def unsubscribe(self, owner_id: int, asset_code: str) -> bool:
+        """Deactivate one owner subscription."""
+
+        from apps.realtime.infrastructure.models import PriceSubscriptionModel
+
+        updated = PriceSubscriptionModel.objects.filter(
+            owner_id=owner_id,
+            asset_code=normalize_asset_code(asset_code),
+            is_active=True,
+        ).update(is_active=False, updated_at=timezone.now())
+        return updated > 0
+
+    def count_active(self, owner_id: int) -> int:
+        """Count active subscriptions for one owner."""
+
+        from apps.realtime.infrastructure.models import PriceSubscriptionModel
+
+        return PriceSubscriptionModel.objects.filter(
+            owner_id=owner_id,
+            is_active=True,
+        ).count()
+
+    def list_active_asset_codes(self) -> list[str]:
+        """List distinct active assets across all owners."""
+
+        from apps.realtime.infrastructure.models import PriceSubscriptionModel
+
+        return list(
+            PriceSubscriptionModel.objects.filter(is_active=True)
+            .values_list("asset_code", flat=True)
+            .distinct()
+            .order_by("asset_code")
+        )
 
 
 def list_held_simulated_asset_codes() -> list[str]:
@@ -65,14 +283,10 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
 
     def save_prices_batch(self, prices: list[RealtimePrice]) -> None:
         """批量保存实时价格到 Redis"""
-        cache_data = {
-            f"{self.CACHE_KEY_PREFIX}:{p.asset_code}": p.to_dict()
-            for p in prices
-        }
+        cache_data = {f"{self.CACHE_KEY_PREFIX}:{p.asset_code}": p.to_dict() for p in prices}
         # 使用 cache.set_many 批量设置
         cache.set_many(cache_data, timeout=self.CACHE_TIMEOUT)
         logger.info(f"Batch saved {len(prices)} prices to Redis")
-
 
     def get_latest_price(self, asset_code: str) -> RealtimePrice | None:
         """从 Redis 获取资产的最新价格"""
@@ -115,8 +329,10 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
             change_pct=str(data["change_pct"]) if data.get("change_pct") else None,
             volume=data.get("volume"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
-            source=data["source"]
+            source=data["source"],
         )
+
+
 class TusharePriceDataProvider(PriceDataProviderProtocol):
     """Tushare 价格数据提供者
 
@@ -161,7 +377,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
                 change_pct=None,
                 volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
                 timestamp=timezone.now(),
-                source=latest_bar.source or "data_center"
+                source=latest_bar.source or "data_center",
             )
 
         except Exception as e:
@@ -355,8 +571,12 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 if getattr(snapshot, "pre_close", None) is not None
                 else None
             ),
-            volume=float(snapshot.volume) if getattr(snapshot, "volume", None) is not None else None,
-            amount=float(snapshot.amount) if getattr(snapshot, "amount", None) is not None else None,
+            volume=(
+                float(snapshot.volume) if getattr(snapshot, "volume", None) is not None else None
+            ),
+            amount=(
+                float(snapshot.amount) if getattr(snapshot, "amount", None) is not None else None
+            ),
             bid=float(snapshot.bid) if getattr(snapshot, "bid", None) is not None else None,
             ask=float(snapshot.ask) if getattr(snapshot, "ask", None) is not None else None,
         )
@@ -742,12 +962,9 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
             ]
 
         return [
-            prices_by_code[asset_code]
-            for asset_code in asset_codes
-            if asset_code in prices_by_code
+            prices_by_code[asset_code] for asset_code in asset_codes if asset_code in prices_by_code
         ]
 
     def is_available(self) -> bool:
         """检查是否有可用的数据源"""
         return any(provider.is_available() for provider in self.providers)
-

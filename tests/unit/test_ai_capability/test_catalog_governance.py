@@ -227,3 +227,29 @@ def test_capability_sync_preserves_reviewed_governance_fields():
     assert capability.enabled_for_routing is True
     assert capability.requires_confirmation is True
     assert capability.review_status == "approved"
+
+
+@pytest.mark.django_db
+def test_catalog_save_preserves_the_collected_semantic_key():
+    model = _create_capability(
+        semantic_key="semantic.market.status",
+        collected_semantic_key="legacy.market.status",
+    )
+
+    DjangoCapabilityRepository().save(model.to_entity())
+
+    model.refresh_from_db()
+    assert model.semantic_key == "semantic.market.status"
+    assert model.collected_semantic_key == "legacy.market.status"
+
+
+@pytest.mark.django_db
+def test_catalog_model_from_entity_initializes_collected_semantic_key():
+    model = _create_capability(
+        semantic_key="semantic.market.status",
+    )
+    entity = model.to_entity()
+
+    unsaved = CapabilityCatalogModel.from_entity(entity)
+
+    assert unsaved.collected_semantic_key == "semantic.market.status"

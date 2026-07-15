@@ -3,6 +3,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.account.application.simulated_trading_gateway import get_simulated_trading_view
 from apps.account.interface import classification_api_views, mcp_api_views, sizing_views, views
 from apps.account.interface.observer_api_views import ObserverGrantViewSet
 from apps.account.interface.performance_compat_views import (
@@ -26,26 +27,23 @@ from apps.account.interface.transaction_api_views import (
     CapitalFlowViewSet,
     TransactionViewSet,
 )
-from apps.simulated_trading.interface.performance_views import (
-    AccountBackfillAPIView,
-    AccountBenchmarksAPIView,
-    AccountPerformanceReportAPIView,
-    AccountValuationSnapshotAPIView,
-    AccountValuationTimelineAPIView,
-)
-from apps.simulated_trading.interface.views import (
-    AccountBatchDeleteAPIView,
-    AccountDetailAPIView,
-    AccountListAPIView,
-    DailyInspectionReportListAPIView,
-    DailyInspectionRunAPIView,
-    EquityCurveAPIView,
-    PerformanceAPIView,
-    PositionListAPIView,
-    TradeListAPIView,
-)
 
 app_name = "account_api"
+
+AccountListAPIView = get_simulated_trading_view("account-list")
+AccountBatchDeleteAPIView = get_simulated_trading_view("account-batch-delete")
+AccountDetailAPIView = get_simulated_trading_view("account-detail")
+PositionListAPIView = get_simulated_trading_view("account-position-list")
+TradeListAPIView = get_simulated_trading_view("account-trade-list")
+PerformanceAPIView = get_simulated_trading_view("account-performance")
+AccountPerformanceReportAPIView = get_simulated_trading_view("account-performance-report")
+AccountValuationSnapshotAPIView = get_simulated_trading_view("account-valuation-snapshot")
+AccountValuationTimelineAPIView = get_simulated_trading_view("account-valuation-timeline")
+AccountBenchmarksAPIView = get_simulated_trading_view("account-benchmarks")
+AccountBackfillAPIView = get_simulated_trading_view("account-backfill")
+EquityCurveAPIView = get_simulated_trading_view("account-equity-curve")
+DailyInspectionRunAPIView = get_simulated_trading_view("account-inspection-run")
+DailyInspectionReportListAPIView = get_simulated_trading_view("account-inspection-list")
 
 router = DefaultRouter()
 router.register(r"portfolios", PortfolioViewSet, basename="portfolio_api")

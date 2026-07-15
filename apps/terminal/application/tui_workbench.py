@@ -26,6 +26,10 @@ from apps.terminal.application.tui_audit import (
     verified_reauth_evidence,
 )
 from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
+from apps.terminal.application.tui_errors import (
+    TuiScreenForbiddenError,
+    TuiScreenNotFoundError,
+)
 from apps.terminal.application.tui_workbench_result_models import (
     TuiWorkbenchResultModelMixin,
 )
@@ -155,6 +159,8 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                     continue
                 screens = []
                 for screen in screens_by_module.get(module["key"], []):
+                    if not self._screen_is_available_for_user(screen, user=user):
+                        continue
                     screen_actions = actions_by_screen.get(screen["key"], [])
                     if not screen_actions and screen["key"] != metadata["default_screen"]:
                         continue
@@ -196,10 +202,11 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         """Return a renderable screen contract from published metadata."""
 
         metadata = self._metadata()
-        screen = (
-            self._screen_by_key(metadata).get(screen_key)
-            or self._screen_by_key(metadata)[metadata["default_screen"]]
-        )
+        screen = self._screen_by_key(metadata).get(screen_key)
+        if screen is None:
+            raise TuiScreenNotFoundError(screen_key)
+        if not self._screen_is_available_for_user(screen, user=user):
+            raise TuiScreenForbiddenError(screen_key)
         module = self._module_by_key(metadata)[screen["module_key"]]
         actions = [
             action
@@ -212,6 +219,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         ]
         return {
             "version": metadata["version"],
+            "registry_key": metadata.get("registry_key", self.registry_key),
             "screen": self._screen_summary(screen, actions, user=user),
             "module": self._module_summary(module),
             "layout": {
@@ -697,6 +705,16 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         profile = getattr(user, "account_profile", None)
         profile_role = str(getattr(profile, "rbac_role", "") or "").strip().lower()
         return profile_role == "admin"
+
+    def _screen_is_available_for_user(
+        self, screen: dict[str, Any], *, user: Any | None = None
+    ) -> bool:
+        """Return whether one published screen belongs to the user's audience."""
+
+        audience = str(screen.get("audience") or "authenticated")
+        if audience == "admin":
+            return self._is_admin_user(user)
+        return audience == "authenticated"
 
     def _visible_actions(
         self, metadata: dict[str, Any], *, user: Any | None = None

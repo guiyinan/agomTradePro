@@ -51,4 +51,38 @@ class EventsModule(BaseModule):
         return self._get("status/")
 
     def replay(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._post("replay/", json=payload)
+        """Compatibility alias for a controlled replay commit."""
+
+        return self.replay_events(payload)
+
+    def preview_event_replay(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Preview a registered replay target without invoking its handler."""
+
+        return self._post("replay/preview/", json=dict(payload))
+
+    def commit_event_replay(
+        self,
+        payload: dict[str, Any],
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        """Commit one idempotent, staff-scoped controlled replay."""
+
+        request_payload = dict(payload)
+        request_payload["idempotency_key"] = idempotency_key
+        return self._post("replay/commit/", json=request_payload)
+
+    def replay_events(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Compatibility wrapper requiring target and idempotency identity."""
+
+        request_payload = dict(payload)
+        target_key = str(request_payload.get("target_key") or "").strip()
+        idempotency_key = str(request_payload.pop("idempotency_key", "") or "").strip()
+        if not target_key:
+            raise ValueError("target_key is required for controlled event replay")
+        if not idempotency_key:
+            raise ValueError("idempotency_key is required for controlled event replay")
+        return self.commit_event_replay(
+            request_payload,
+            idempotency_key=idempotency_key,
+        )

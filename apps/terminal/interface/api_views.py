@@ -3,8 +3,10 @@
 import json
 import logging
 import uuid
+from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import OperationalError, ProgrammingError
 from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -47,6 +49,7 @@ from ..application.tui_operator_services import (
     build_operator_home_section_payload,
 )
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
+from ..application.tui_errors import TuiScreenForbiddenError, TuiScreenNotFoundError
 from .permissions import IsStaffOrAdmin, IsStaffOrOperator
 from .serializers import (
     TerminalApprovalDecisionSerializer,
@@ -413,6 +416,26 @@ class TuiWorkbenchCatalogView(APIView):
         return Response(service.get_catalog(user=request.user))
 
 
+def _tui_error_payload(
+    *,
+    request: Any,
+    error_code: str,
+    title: str,
+    detail: str,
+    recovery_actions: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Build a bounded user-facing TUI error payload without exception text."""
+
+    trace_id = str(request.headers.get("X-Request-ID") or uuid.uuid4().hex)
+    return {
+        "error_code": error_code,
+        "title": title,
+        "detail": detail,
+        "recovery_actions": recovery_actions,
+        "trace_id": trace_id,
+    }
+
+
 class TuiWorkbenchScreenView(APIView):
     """Expose one renderable PC tools screen contract."""
 
@@ -422,7 +445,36 @@ class TuiWorkbenchScreenView(APIView):
         """Return a screen spec with actions and layout policy."""
 
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
-        return Response(service.get_screen(screen_key, user=request.user))
+        try:
+            payload = service.get_screen(screen_key, user=request.user)
+        except TuiScreenNotFoundError:
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_screen_not_found",
+                    title="页面不存在",
+                    detail="这个工作区没有发布，或已被移除。",
+                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except TuiScreenForbiddenError:
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_screen_forbidden",
+                    title="无权访问",
+                    detail="当前账号不能打开这个工作区。",
+                    recovery_actions=[
+                        {
+                            "label": "返回我的 MCP 接入",
+                            "screen_key": "capability-router.self-service",
+                        }
+                    ],
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(payload)
 
 
 class TuiAgentActionSearchView(APIView):
@@ -541,10 +593,54 @@ class TuiWorkbenchActionRunView(APIView):
                 reauth=request.data.get("reauth") if isinstance(request.data, dict) else None,
             )
         except KeyError:
-            return Response({"error": "Unknown TUI action"}, status=status.HTTP_404_NOT_FOUND)
-        except PermissionError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_action_not_found",
+                    title="任务不存在",
+                    detail="这个任务没有发布，或已被移除。",
+                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except PermissionError:
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_action_forbidden",
+                    title="无权执行",
+                    detail="当前账号不能执行这个任务。",
+                    recovery_actions=[
+                        {
+                            "label": "返回我的 MCP 接入",
+                            "screen_key": "capability-router.self-service",
+                        }
+                    ],
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except (OperationalError, ProgrammingError) as exc:
+            logger.exception("TUI action database readiness failed: %s", exc)
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_action_not_ready",
+                    title="服务正在恢复",
+                    detail="系统数据结构尚未就绪，请稍后重试。",
+                    recovery_actions=[],
+                ),
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except Exception as exc:
             logger.exception("TUI action failed: %s", exc)
-            return Response({"error": "TUI action failed"}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_action_unavailable",
+                    title="任务暂时不可用",
+                    detail="服务暂时无法完成这个任务，请稍后重试。",
+                    recovery_actions=[],
+                ),
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
         return Response(payload)

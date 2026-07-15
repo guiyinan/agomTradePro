@@ -82,6 +82,7 @@ def test_guardrail_governance_consistency_has_no_regressions():
         "core_integration_debt",
         "core_management_command_debt",
         "large_python_files",
+        "large_file_remediation",
     }
 
     sections = {section["name"]: section for section in report["sections"]}
@@ -156,6 +157,9 @@ def test_guardrail_governance_consistency_has_no_regressions():
     assert large_files["allowed_large_file_count"] == len(
         expected_baseline["allowed_large_python_files"]
     )
+    remediation = sections["large_file_remediation"]["data"]
+    assert remediation["allowed_path_count"] == len(expected_baseline["allowed_large_python_files"])
+    assert remediation["remediation_path_count"] == len(expected_baseline["large_file_remediation"])
 
 
 def test_large_python_file_baseline_detects_missing_growth_and_stale(monkeypatch):
@@ -187,6 +191,51 @@ def test_large_python_file_baseline_detects_missing_growth_and_stale(monkeypatch
         "large_python_file_missing_baseline",
         "large_python_file_growth",
         "large_python_file_baseline_stale",
+    }
+
+
+def test_large_file_remediation_metadata_enforces_ownership_and_review_dates():
+    module = _load_governance_script()
+    baseline = {
+        "allowed_large_python_files": {
+            "apps/stable/application/use_cases.py": 1250,
+            "apps/missing/application/use_cases.py": 1300,
+        },
+        "large_file_remediation": {
+            "apps/stable/application/use_cases.py": {
+                "owner": "",
+                "kind": "application-service",
+                "rationale": "split orchestration responsibilities",
+                "priority": "P3",
+                "target_non_empty_lines": 1201,
+                "review_by": "2026-07-13",
+                "plan_path": "docs/plans/large-file-remediation.md",
+            },
+            "apps/extra/application/use_cases.py": {
+                "owner": "platform",
+                "kind": "application-service",
+                "rationale": "legacy orchestration",
+                "priority": "P2",
+                "target_non_empty_lines": 900,
+                "review_by": "2026-12-31",
+                "plan_path": "docs/plans/large-file-remediation.md",
+            },
+        },
+    }
+
+    violations, data = module.check_large_file_remediation_metadata(
+        baseline,
+        today=module.date(2026, 7, 14),
+    )
+
+    assert data["allowed_path_count"] == 2
+    assert data["remediation_path_count"] == 2
+    assert {violation.code for violation in violations} == {
+        "large_file_remediation_path_mismatch",
+        "large_file_remediation_owner_invalid",
+        "large_file_remediation_priority_invalid",
+        "large_file_remediation_target_invalid",
+        "large_file_remediation_review_expired",
     }
 
 

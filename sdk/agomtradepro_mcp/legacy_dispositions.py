@@ -132,12 +132,6 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
         ),
     ),
     *_group(
-        "events",
-        "unsupported",
-        ("replay_events",),
-        "The canonical replay route has no real target subscriber and can report success after no-op failures.",
-    ),
-    *_group(
         "factor",
         "aggregate",
         ("what_are_the_best_value_stocks", "what_are_the_best_growth_stocks"),
@@ -198,12 +192,6 @@ LEGACY_TOOL_DISPOSITIONS: tuple[LegacyToolDisposition, ...] = (
         ("explain_pulse_dimensions",),
         "Pulse explanations belong to snapshot schemas and documentation, not a standalone operation.",
         ("pulse.read.current", "pulse.read.history"),
-    ),
-    *_group(
-        "realtime",
-        "unsupported",
-        ("list_price_alerts", "create_price_alert", "delete_price_alert"),
-        "No canonical price-alert model or API exists in the current server build.",
     ),
     *_group(
         "regime",

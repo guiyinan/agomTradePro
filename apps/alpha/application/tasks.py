@@ -5,12 +5,10 @@ Alpha 信号相关的异步任务。
 包括 Qlib 推理、训练等任务。
 """
 
-import hashlib
-import json
+# ruff: noqa: I001
+
 import logging
-import pickle
-from datetime import date, datetime, timedelta
-from pathlib import Path, PureWindowsPath
+from datetime import date, timedelta
 from typing import Any
 
 from celery import shared_task
@@ -19,233 +17,152 @@ from django.utils import timezone
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
 from apps.alpha.application.ops_use_cases import collect_portfolio_refs_for_refresh
 from apps.alpha.application.repository_provider import (
+    build_outdated_qlib_reason as _build_outdated_qlib_reason,
+)
+from apps.alpha.application.repository_provider import (
+    build_qlib_runtime_failure_reason as _build_qlib_runtime_failure_reason,
+)
+from apps.alpha.application.repository_provider import (
+    cache_is_fresh_for_trade_date as _cache_is_fresh_for_trade_date,
+)
+from apps.alpha.application.repository_provider import (
+    calculate_artifact_hash as _calculate_artifact_hash,
+)
+from apps.alpha.application.repository_provider import (
     evaluate_model_from_cache,
+)
+from apps.alpha.application.repository_provider import (
+    evaluate_model_metrics as _evaluate_model_metrics,
+)
+from apps.alpha.application.repository_provider import (
+    execute_qlib_prediction as _execute_qlib_prediction_runtime,
+)
+from apps.alpha.application.repository_provider import (
+    extract_model_filename as _extract_model_filename,
+)
+from apps.alpha.application.repository_provider import (
+    find_broader_qlib_cache_for_scope as _find_broader_qlib_cache_for_scope,
+)
+from apps.alpha.application.repository_provider import (
     get_alpha_pool_data_repository,
     get_alpha_score_cache_repository,
-    get_numpy,
-    get_pandas,
+)
+from apps.alpha.application.repository_provider import get_default_metrics as _get_default_metrics
+from apps.alpha.application.repository_provider import (
+    get_qlib_data_latest_date as _get_qlib_data_latest_date,
+)
+from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
-    normalize_qlib_symbol,
+)
+from apps.alpha.application.repository_provider import (
+    get_runtime_qlib_config as _get_runtime_qlib_config,
+)
+from apps.alpha.application.repository_provider import (
+    install_qlib_pandas_compat as _install_qlib_pandas_compat,
+)
+from apps.alpha.application.repository_provider import make_json_safe as _make_json_safe
+from apps.alpha.application.repository_provider import (
+    normalize_calendar_date as _normalize_calendar_date,
+)
+from apps.alpha.application.repository_provider import (
+    normalize_qlib_instrument_code as _normalize_qlib_instrument_code,
+)
+from apps.alpha.application.repository_provider import (
+    normalize_qlib_instrument_list as _normalize_qlib_instrument_list,
+)
+from apps.alpha.application.repository_provider import (
+    normalize_qlib_region as _normalize_qlib_region,
+)
+from apps.alpha.application.repository_provider import (
+    normalize_reused_scores as _normalize_reused_scores,
+)
+from apps.alpha.application.repository_provider import parse_universe_list as _parse_universe_list
+from apps.alpha.application.repository_provider import (
     resolve_effective_trade_date,
 )
+from apps.alpha.application.repository_provider import (
+    resolve_qlib_handler_class as _resolve_qlib_handler_class,
+)
+from apps.alpha.application.repository_provider import (
+    resolve_qlib_model_path as _resolve_qlib_model_path,
+)
+from apps.alpha.application.repository_provider import (
+    resolve_qlib_stock_list as _resolve_qlib_stock_list,
+)
+from apps.alpha.application.repository_provider import (
+    reuse_latest_qlib_cache as _reuse_latest_qlib_cache,
+)
+from apps.alpha.application.repository_provider import save_model_artifact as _save_model_artifact
+from apps.alpha.application.repository_provider import train_qlib_model as _train_qlib_model
+from apps.alpha.application.repository_provider import upsert_qlib_cache as _upsert_qlib_cache
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
 from apps.alpha.domain.entities import normalize_stock_code
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
-from core.integration.runtime_settings import get_runtime_qlib_config
+
+__all__ = [
+    "_build_outdated_qlib_reason",
+    "_build_qlib_runtime_failure_reason",
+    "_cache_is_fresh_for_trade_date",
+    "_calculate_artifact_hash",
+    "_evaluate_model_metrics",
+    "_execute_qlib_prediction",
+    "_extract_model_filename",
+    "_find_broader_qlib_cache_for_scope",
+    "_get_default_metrics",
+    "_get_qlib_data_latest_date",
+    "_get_runtime_qlib_config",
+    "_install_qlib_pandas_compat",
+    "_make_json_safe",
+    "_normalize_calendar_date",
+    "_normalize_qlib_instrument_code",
+    "_normalize_qlib_instrument_list",
+    "_normalize_qlib_region",
+    "_normalize_reused_scores",
+    "_parse_universe_list",
+    "_resolve_qlib_handler_class",
+    "_resolve_qlib_model_path",
+    "_resolve_qlib_stock_list",
+    "_reuse_latest_qlib_cache",
+    "_save_model_artifact",
+    "_train_qlib_model",
+    "_upsert_qlib_cache",
+    "qlib_daily_inference",
+    "qlib_daily_inference_alias",
+    "qlib_daily_scoped_inference",
+    "qlib_daily_scoped_inference_alias",
+    "qlib_evaluate_model",
+    "qlib_predict_scores",
+    "qlib_refresh_cache",
+    "qlib_refresh_cache_alias",
+    "qlib_refresh_runtime_data_for_codes_task",
+    "qlib_refresh_runtime_data_task",
+    "qlib_train_model",
+]
 
 logger = logging.getLogger(__name__)
 
 _resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
 
 
-def _normalize_qlib_region(region_value):
-    """Normalize runtime region values for qlib.init()."""
-    try:
-        from qlib.constant import REG_CN, REG_US
-    except Exception:
-        REG_CN = "cn"
-        REG_US = "us"
-
-    value = str(region_value or "").strip()
-    lowered = value.lower()
-    if lowered in {"", "cn", "reg_cn", "china"}:
-        return REG_CN
-    if lowered in {"us", "reg_us"}:
-        return REG_US
-    return region_value
+def _execute_qlib_prediction(*args, **kwargs):
+    """Proxy prediction runtime while preserving the legacy patch surface."""
+    kwargs.setdefault("outdated_reason_builder", _build_outdated_qlib_reason)
+    return _execute_qlib_prediction_runtime(*args, **kwargs)
 
 
-def _normalize_calendar_date(value) -> date | None:
-    """Convert qlib calendar entries to Python dates."""
-    if value is None:
-        return None
-    if hasattr(value, "date"):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    try:
-        return date.fromisoformat(str(value)[:10])
-    except ValueError:
-        return None
-
-
-def _normalize_qlib_instrument_code(raw_code: str) -> str:
-    """Convert app-level stock codes into qlib instrument ids when needed."""
-    normalized = str(raw_code or "").strip()
-    if not normalized:
-        return normalized
-    if "." in normalized:
-        return normalize_qlib_symbol(normalized)
-    if normalized[:2].upper() in {"SH", "SZ", "BJ"}:
-        return normalized.upper()
-    return normalized
-
-
-def _normalize_qlib_instrument_list(raw_codes: list[str] | tuple[str, ...]) -> list[str]:
-    """Normalize and de-duplicate qlib instrument codes while keeping order."""
-    normalized_codes: list[str] = []
-    seen: set[str] = set()
-    for raw_code in raw_codes:
-        normalized_code = _normalize_qlib_instrument_code(str(raw_code))
-        if not normalized_code or normalized_code in seen:
-            continue
-        normalized_codes.append(normalized_code)
-        seen.add(normalized_code)
-    return normalized_codes
+_execute_qlib_prediction.runtime_implementation = _execute_qlib_prediction_runtime
 
 
 def _reset_qlib_runtime_state() -> None:
     """Clear one-process qlib init markers so refreshed day data becomes visible immediately."""
-    for func in (_get_qlib_data_latest_date, _execute_qlib_prediction):
+    for func in (
+        _get_qlib_data_latest_date,
+        _execute_qlib_prediction,
+        _execute_qlib_prediction_runtime,
+    ):
         if hasattr(func, "_qlib_initialized"):
             delattr(func, "_qlib_initialized")
-
-def _install_qlib_pandas_compat() -> None:
-    """Patch known qlib+pandas MultiIndex incompatibilities used by Alpha360 on local runtime."""
-    if getattr(_install_qlib_pandas_compat, "_installed", False):
-        return
-
-    pd = get_pandas()
-    import qlib.data as qlib_data
-    import qlib.data.data as qlib_data_module
-    import qlib.data.dataset.processor as qlib_processor
-    import qlib.data.dataset.utils as qlib_dataset_utils
-    import qlib.utils.paral as qlib_paral
-    from qlib.config import C
-
-    original_datetime_groupby_apply = qlib_paral.datetime_groupby_apply
-    original_fetch_df_by_index = qlib_dataset_utils.fetch_df_by_index
-
-    def safe_datetime_groupby_apply(
-        df,
-        apply_func,
-        axis=0,
-        level="datetime",
-        resample_rule="ME",
-        n_jobs=-1,
-    ):
-        try:
-            return original_datetime_groupby_apply(
-                df,
-                apply_func,
-                axis=axis,
-                level=level,
-                resample_rule=resample_rule,
-                n_jobs=1,
-            )
-        except TypeError as exc:
-            if "DatetimeIndex" not in str(exc):
-                raise
-            if isinstance(apply_func, str):
-                return getattr(df.groupby(axis=axis, level=level, group_keys=False), apply_func)()
-            return df.groupby(level=level, group_keys=False).apply(apply_func)
-
-    def safe_fetch_df_by_index(df, selector, level, fetch_orig=True):
-        try:
-            return original_fetch_df_by_index(df, selector, level, fetch_orig=fetch_orig)
-        except KeyError as exc:
-            if "are in the [index]" not in str(exc):
-                raise
-            if level is None or isinstance(selector, pd.MultiIndex):
-                return df.loc(axis=0)[selector]
-            level_idx = qlib_dataset_utils.get_level_index(df, level)
-            level_values = df.index.get_level_values(level_idx)
-            if isinstance(selector, slice):
-                mask = pd.Series(True, index=df.index)
-                if selector.start is not None:
-                    mask &= level_values >= selector.start
-                if selector.stop is not None:
-                    mask &= level_values <= selector.stop
-                return df[mask.to_numpy()]
-            if isinstance(selector, (list, tuple, set, pd.Index)):
-                return df[level_values.isin(list(selector))]
-            return df[level_values == selector]
-
-    def safe_features(
-        instruments,
-        fields,
-        start_time=None,
-        end_time=None,
-        freq="day",
-        disk_cache=None,
-        inst_processors=None,
-    ):
-        return qlib_data_module.DatasetD.dataset(
-            instruments,
-            list(fields),
-            start_time,
-            end_time,
-            freq,
-            inst_processors=[] if inst_processors is None else inst_processors,
-        )
-
-    qlib_paral.datetime_groupby_apply = safe_datetime_groupby_apply
-    qlib_processor.datetime_groupby_apply = safe_datetime_groupby_apply
-    qlib_dataset_utils.fetch_df_by_index = safe_fetch_df_by_index
-    qlib_processor.fetch_df_by_index = safe_fetch_df_by_index
-    qlib_data.D.features = safe_features
-    C.kernels = 1
-    C.joblib_backend = "threading"
-    _install_qlib_pandas_compat._installed = True
-
-
-def _get_qlib_data_latest_date() -> date | None:
-    """Inspect the local qlib dataset and return its latest trading date."""
-    import qlib
-    from qlib.data import D
-
-    qlib_config = _get_runtime_qlib_config()
-    provider_uri = qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data")
-    region = _normalize_qlib_region(qlib_config.get("region", "CN"))
-
-    if not hasattr(_get_qlib_data_latest_date, "_qlib_initialized"):
-        qlib.init(provider_uri=provider_uri, region=region)
-        _get_qlib_data_latest_date._qlib_initialized = True
-
-    calendar = D.calendar(start_time="2000-01-01", end_time="2100-12-31")
-    if len(calendar) == 0:
-        return None
-    return _normalize_calendar_date(calendar[-1])
-
-
-def _build_outdated_qlib_reason(trade_date: date) -> str | None:
-    """Return a clear reason when local qlib data is too old for the requested trade date."""
-    latest_data_date = _get_qlib_data_latest_date()
-    if latest_data_date is None:
-        return "本地 Qlib 数据目录为空，无法执行实时推理"
-    if trade_date > latest_data_date + timedelta(days=10):
-        return (
-            f"本地 Qlib 数据最新交易日为 {latest_data_date.isoformat()}，"
-            f"早于请求交易日 {trade_date.isoformat()}，请先同步 Qlib 数据"
-        )
-    return None
-
-
-def _build_qlib_runtime_failure_reason(exc: Exception) -> str:
-    """Return a user-facing reason when local qlib runtime inspection fails."""
-    if isinstance(exc, ModuleNotFoundError) and getattr(exc, "name", None) == "qlib":
-        return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
-
-    if "No module named 'qlib'" in str(exc):
-        return "Qlib 未安装，无法检查本地数据目录，请安装 pyqlib 或复用历史缓存"
-
-    return f"读取本地 Qlib 数据状态失败: {exc}"
-
-
-def _get_runtime_qlib_config() -> dict:
-    """Return runtime qlib config through config-center owned application service."""
-
-    return get_runtime_qlib_config()
-
-
-def _parse_universe_list(raw_universes: str | list[str] | tuple[str, ...] | None) -> list[str]:
-    """Normalize scheduled universe configuration."""
-    if raw_universes is None:
-        return ["csi300"]
-    if isinstance(raw_universes, str):
-        return [item.strip().lower() for item in raw_universes.split(",") if item.strip()]
-    return [str(item).strip().lower() for item in raw_universes if str(item).strip()]
 
 
 def _refresh_qlib_runtime_data(
@@ -282,114 +199,6 @@ def _refresh_qlib_runtime_data_for_codes(
         )
     finally:
         _reset_qlib_runtime_state()
-
-
-def _cache_is_fresh_for_trade_date(cache_row: Any | None, trade_date: date) -> bool:
-    """Return whether one qlib cache row already satisfies same-day scoped inference."""
-    if cache_row is None or not getattr(cache_row, "scores", None):
-        return False
-    return (
-        getattr(cache_row, "status", "") == "available"
-        and getattr(cache_row, "asof_date", None) == trade_date
-    )
-
-
-def _extract_model_filename(model_path: str) -> str:
-    """Extract a model filename from either Windows or POSIX persisted paths."""
-    return PureWindowsPath(model_path).name or Path(model_path).name
-
-
-def _resolve_qlib_model_path(active_model, qlib_config: dict) -> Path:
-    """Resolve persisted model paths across local and container deployments."""
-    raw_model_path = str(active_model.model_path)
-    model_path = Path(raw_model_path).expanduser()
-    if model_path.exists():
-        return model_path
-
-    model_name = _extract_model_filename(raw_model_path)
-    fallback_dir = qlib_config.get("model_path")
-    if fallback_dir and model_name:
-        fallback_path = Path(str(fallback_dir)).expanduser() / model_name
-        if fallback_path.exists():
-            return fallback_path
-
-    return model_path
-
-
-def _resolve_qlib_stock_list(
-    data_api,
-    universe_id: str,
-    start_time=None,
-    end_time=None,
-) -> list[str]:
-    """Resolve a qlib universe config into a concrete instrument list."""
-    instruments = data_api.instruments(market=universe_id)
-    if not instruments:
-        raise RuntimeError(f"未找到股票池: {universe_id}")
-
-    if isinstance(instruments, dict):
-        if not hasattr(data_api, "list_instruments"):
-            raise RuntimeError(f"Qlib 数据接口不支持展开股票池: {universe_id}")
-        stock_list = data_api.list_instruments(
-            instruments,
-            start_time=start_time,
-            end_time=end_time,
-            as_list=True,
-        )
-    else:
-        stock_list = list(instruments)
-
-    normalized = [str(stock).strip() for stock in stock_list if str(stock).strip()]
-    if not normalized:
-        if start_time or end_time:
-            raise RuntimeError(
-                f"股票池 {universe_id} 在 {start_time or '起始'} ~ {end_time or '结束'} 无可用成分股"
-            )
-        raise RuntimeError(f"股票池 {universe_id} 无可用成分股")
-
-    return normalized
-
-
-def _resolve_qlib_handler_class(feature_set_id: str | None):
-    """Select the qlib data handler class that matches the model feature set."""
-    try:
-        from qlib.contrib.data.handler import Alpha158, Alpha360
-    except ModuleNotFoundError:
-        class Alpha158:  # type: ignore[no-redef]
-            """Fallback handler marker used when pyqlib is not installed."""
-
-        class Alpha360:  # type: ignore[no-redef]
-            """Fallback handler marker used when pyqlib is not installed."""
-
-    normalized = str(feature_set_id or "").strip().lower()
-    if normalized in {"alpha158", "158", "v158"}:
-        return Alpha158
-    return Alpha360
-
-
-def _make_json_safe(value):
-    """Convert pandas/numpy/date/path values into JSON-safe payloads."""
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {str(key): _make_json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_make_json_safe(item) for item in value]
-    if hasattr(value, "isoformat") and not isinstance(value, str):
-        try:
-            return value.isoformat()
-        except Exception:
-            pass
-    if hasattr(value, "item"):
-        try:
-            return value.item()
-        except Exception:
-            pass
-    return str(value)
 
 
 def _maybe_refresh_qlib_runtime_data_for_prediction(
@@ -474,8 +283,7 @@ def qlib_predict_scores(
         from ..domain.entities import AlphaPoolScope
 
         logger.info(
-            f"开始 Qlib 推理: universe={universe_id}, "
-            f"date={intended_trade_date}, top_n={top_n}"
+            f"开始 Qlib 推理: universe={universe_id}, " f"date={intended_trade_date}, top_n={top_n}"
         )
         pool_scope = AlphaPoolScope.from_dict(scope_payload) if scope_payload else None
 
@@ -518,11 +326,13 @@ def qlib_predict_scores(
             raise RuntimeError(runtime_failure_reason) from exc
 
         if latest_qlib_data_date is None or latest_qlib_data_date < trade_date:
-            latest_qlib_data_date, refresh_metadata = _maybe_refresh_qlib_runtime_data_for_prediction(
-                trade_date=trade_date,
-                universe_id=pool_scope.universe_id if pool_scope else universe_id,
-                pool_scope=pool_scope,
-                latest_qlib_data_date=latest_qlib_data_date,
+            latest_qlib_data_date, refresh_metadata = (
+                _maybe_refresh_qlib_runtime_data_for_prediction(
+                    trade_date=trade_date,
+                    universe_id=pool_scope.universe_id if pool_scope else universe_id,
+                    pool_scope=pool_scope,
+                    latest_qlib_data_date=latest_qlib_data_date,
+                )
             )
 
         outdated_reason = None
@@ -543,9 +353,9 @@ def qlib_predict_scores(
                 pool_scope=pool_scope,
                 extra_metadata={
                     **refresh_metadata,
-                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
-                    if latest_qlib_data_date
-                    else None,
+                    "qlib_data_latest_date": (
+                        latest_qlib_data_date.isoformat() if latest_qlib_data_date else None
+                    ),
                 },
             )
             if fallback_result is not None:
@@ -590,9 +400,9 @@ def qlib_predict_scores(
                 failure_reason=str(exc),
                 pool_scope=pool_scope,
                 extra_metadata={
-                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
-                    if latest_qlib_data_date
-                    else None,
+                    "qlib_data_latest_date": (
+                        latest_qlib_data_date.isoformat() if latest_qlib_data_date else None
+                    ),
                     **execution_metadata,
                 },
             )
@@ -615,9 +425,9 @@ def qlib_predict_scores(
                 failure_reason="Qlib 预测未返回任何评分",
                 pool_scope=pool_scope,
                 extra_metadata={
-                    "qlib_data_latest_date": latest_qlib_data_date.isoformat()
-                    if latest_qlib_data_date
-                    else None,
+                    "qlib_data_latest_date": (
+                        latest_qlib_data_date.isoformat() if latest_qlib_data_date else None
+                    ),
                     **execution_metadata,
                 },
             )
@@ -721,7 +531,9 @@ def qlib_train_model(
         # 解析训练配置
         universe = train_config.get("universe") or runtime_qlib.get("default_universe", "csi300")
         end_date = train_config.get("end_date")
-        model_path = train_config.get("model_path") or runtime_qlib.get("model_path", "/models/qlib")
+        model_path = train_config.get("model_path") or runtime_qlib.get(
+            "model_path", "/models/qlib"
+        )
         if "activate" in train_config:
             activate_after_train = bool(train_config.get("activate", False))
         else:
@@ -763,7 +575,7 @@ def qlib_train_model(
             artifact_hash=artifact_hash,
             model_path=model_path,
             train_config=train_config,
-            metrics=metrics
+            metrics=metrics,
         )
 
         # 6. 写入 Registry
@@ -887,8 +699,7 @@ def qlib_evaluate_model(
         )
 
         logger.info(
-            f"模型评估完成: {model_artifact_hash}, "
-            f"IC={metrics.ic}, ICIR={metrics.icir}"
+            f"模型评估完成: {model_artifact_hash}, " f"IC={metrics.ic}, ICIR={metrics.icir}"
         )
 
         return {
@@ -904,7 +715,7 @@ def qlib_evaluate_model(
 
 
 @shared_task(
-    name='alpha.qlib_refresh_cache',
+    name="alpha.qlib_refresh_cache",
     bind=True,
     max_retries=2,
     default_retry_delay=600,
@@ -953,10 +764,7 @@ def qlib_refresh_cache(
                     current_date.isoformat(),
                     top_n,
                 )
-                results.append({
-                    "date": current_date.isoformat(),
-                    "task_id": result.id
-                })
+                results.append({"date": current_date.isoformat(), "task_id": result.id})
 
             current_date += timedelta(days=1)
 
@@ -972,14 +780,11 @@ def qlib_refresh_cache(
 
     except Exception as exc:
         logger.error(f"刷新缓存失败: {exc}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(exc)
-        }
+        return {"status": "error", "error": str(exc)}
 
 
 @shared_task(
-    name='alpha.qlib_daily_inference',
+    name="alpha.qlib_daily_inference",
     bind=True,
     max_retries=2,
     default_retry_delay=600,
@@ -1001,9 +806,7 @@ def qlib_daily_inference(
     用于 Celery Beat 无参调度入口，自动使用当天日期，并先刷新本地 Qlib 日线。
     """
     trade_date_obj = (
-        date.fromisoformat(trade_date)
-        if trade_date
-        else _resolve_recent_closed_trade_date()
+        date.fromisoformat(trade_date) if trade_date else _resolve_recent_closed_trade_date()
     )
     refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
     if refresh_data:
@@ -1074,9 +877,7 @@ def qlib_daily_scoped_inference(
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 
     target_trade_date = (
-        date.fromisoformat(trade_date)
-        if trade_date
-        else _resolve_recent_closed_trade_date()
+        date.fromisoformat(trade_date) if trade_date else _resolve_recent_closed_trade_date()
     )
     active_model = get_qlib_model_registry_repository().get_active_model()
     if active_model is None:
@@ -1107,10 +908,12 @@ def qlib_daily_scoped_inference(
                 pool_mode=pool_mode,
             )
             if resolved.scope.pool_size == 0:
-                skipped.append({
-                    "portfolio_id": ref["portfolio_id"],
-                    "reason": "empty_scope",
-                })
+                skipped.append(
+                    {
+                        "portfolio_id": ref["portfolio_id"],
+                        "reason": "empty_scope",
+                    }
+                )
                 continue
             scope_key = (resolved.scope.universe_id, resolved.scope.scope_hash)
             if scope_key in seen_scope_keys:
@@ -1157,10 +960,12 @@ def qlib_daily_scoped_inference(
                 exc,
                 exc_info=True,
             )
-            skipped.append({
-                "portfolio_id": ref.get("portfolio_id"),
-                "reason": str(exc),
-            })
+            skipped.append(
+                {
+                    "portfolio_id": ref.get("portfolio_id"),
+                    "reason": str(exc),
+                }
+            )
 
     refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
     if refresh_data and scoped_codes and resolved_scopes:
@@ -1208,10 +1013,12 @@ def qlib_daily_scoped_inference(
                 exc,
                 exc_info=True,
             )
-            skipped.append({
-                "portfolio_id": ref.get("portfolio_id"),
-                "reason": str(exc),
-            })
+            skipped.append(
+                {
+                    "portfolio_id": ref.get("portfolio_id"),
+                    "reason": str(exc),
+                }
+            )
 
     status = "queued" if queued else "skipped"
     reason = None
@@ -1379,730 +1186,3 @@ def qlib_refresh_cache_alias(
 # ========================================================================
 # 辅助函数
 # ========================================================================
-
-def _upsert_qlib_cache(
-    active_model,
-    universe_id: str,
-    trade_date: date,
-    asof_date: date,
-    scores_data: list[dict],
-    status: str,
-    metrics_snapshot: dict | None = None,
-    pool_scope=None,
-):
-    """Persist a qlib cache row for the active model."""
-    return get_alpha_score_cache_repository().upsert_qlib_cache(
-        universe_id=universe_id,
-        trade_date=trade_date,
-        asof_date=asof_date,
-        active_model=active_model,
-        scores_data=_make_json_safe(scores_data),
-        status=status,
-        metrics_snapshot=_make_json_safe(metrics_snapshot),
-        pool_scope=pool_scope,
-    )
-
-
-def _normalize_reused_scores(scores_data: list[dict], top_n: int) -> list[dict]:
-    """Keep score payloads JSON-safe and re-rank after truncation."""
-    normalized_scores: list[dict] = []
-    for index, raw_score in enumerate(scores_data[:top_n], start=1):
-        score_item = dict(raw_score)
-        score_item["rank"] = index
-        score_item["source"] = "qlib"
-        normalized_scores.append(score_item)
-    return normalized_scores
-
-
-def _reuse_latest_qlib_cache(
-    active_model,
-    universe_id: str,
-    trade_date: date,
-    top_n: int,
-    failure_reason: str,
-    pool_scope=None,
-    extra_metadata: dict | None = None,
-) -> dict | None:
-    """Forward-fill the latest qlib cache into today's active model slot when fresh inference fails."""
-    cache_repository = get_alpha_score_cache_repository()
-    latest_cache = cache_repository.get_latest_qlib_cache(
-        universe_id=universe_id,
-        model_artifact_hash=active_model.artifact_hash,
-        scope_hash=getattr(pool_scope, "scope_hash", None),
-    )
-    reused_scores_data: list[dict] | None = None
-    if latest_cache is None and pool_scope is not None:
-        broader_cache_result = _find_broader_qlib_cache_for_scope(
-            active_model=active_model,
-            trade_date=trade_date,
-            top_n=top_n,
-            pool_scope=pool_scope,
-        )
-        if broader_cache_result is not None:
-            latest_cache, reused_scores_data = broader_cache_result
-    if latest_cache is None:
-        return None
-
-    scores_data = reused_scores_data or _normalize_reused_scores(latest_cache.scores or [], top_n)
-    if not scores_data:
-        return None
-
-    metrics_snapshot = dict(latest_cache.metrics_snapshot or {})
-    metrics_snapshot.update({
-        "fallback_mode": "forward_fill_latest_qlib_cache",
-        "fallback_reason": failure_reason,
-        "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
-        "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
-    })
-    if reused_scores_data is not None:
-        metrics_snapshot.update(
-            {
-                "scope_fallback": True,
-                "scope_fallback_universe_id": latest_cache.universe_id,
-                "scope_fallback_reason": (
-                    f"账户池专属 Qlib cache 缺失，已使用 {latest_cache.universe_id} "
-                    "的最近缓存并按当前账户池成分裁剪。"
-                ),
-            }
-        )
-    if extra_metadata:
-        metrics_snapshot.update(extra_metadata)
-
-    _, created = _upsert_qlib_cache(
-        active_model=active_model,
-        universe_id=universe_id,
-        trade_date=trade_date,
-        asof_date=latest_cache.asof_date,
-        scores_data=scores_data,
-        status="degraded",
-        metrics_snapshot=metrics_snapshot,
-        pool_scope=pool_scope,
-    )
-
-    return {
-        "status": "success",
-        "cache_status": "degraded",
-        "fallback_used": True,
-        "universe_id": universe_id,
-        "trade_date": trade_date.isoformat(),
-        "cache_created": created,
-        "stock_count": len(scores_data),
-        "model_artifact_hash": active_model.artifact_hash,
-        "fallback_source_trade_date": latest_cache.intended_trade_date.isoformat(),
-        "fallback_source_asof_date": latest_cache.asof_date.isoformat(),
-        "scope_fallback_universe_id": latest_cache.universe_id if reused_scores_data is not None else None,
-        **(extra_metadata or {}),
-    }
-
-
-def _find_broader_qlib_cache_for_scope(
-    *,
-    active_model,
-    trade_date: date,
-    top_n: int,
-    pool_scope,
-) -> tuple[object, list[dict]] | None:
-    """Find a broader qlib cache row and trim it to the current scoped instrument set."""
-    scope_codes = {
-        normalize_stock_code(raw_code)
-        for raw_code in getattr(pool_scope, "instrument_codes", ()) or ()
-        if normalize_stock_code(raw_code)
-    }
-    if not scope_codes:
-        return None
-
-    broader_cache_result = get_alpha_score_cache_repository().find_broader_qlib_cache_for_scope(
-        trade_date=trade_date,
-        model_artifact_hash=active_model.artifact_hash,
-        scope_hash=getattr(pool_scope, "scope_hash", None),
-        allowed_codes=scope_codes,
-    )
-    if broader_cache_result is not None:
-        broader_cache, filtered_scores = broader_cache_result
-        normalized_scores = _normalize_reused_scores(filtered_scores, top_n)
-        if normalized_scores:
-            return broader_cache, normalized_scores
-    return None
-
-def _execute_qlib_prediction(
-    active_model,
-    universe_id: str,
-    trade_date: date,
-    top_n: int,
-    pool_scope=None,
-) -> list[dict]:
-    """
-    执行 Qlib 预测
-
-    Args:
-        active_model: 激活的模型实例
-        universe_id: 股票池标识
-        trade_date: 交易日期
-        top_n: 返回前 N 只
-
-    Returns:
-        评分数据列表
-    """
-    outdated_reason = _build_outdated_qlib_reason(trade_date)
-    if outdated_reason:
-        raise RuntimeError(outdated_reason)
-
-    try:
-        # 尝试导入 Qlib
-        pd = get_pandas()
-        import qlib
-        from qlib.data import D
-        from qlib.data.dataset import DatasetH
-
-        # 获取 Qlib 配置（优先从数据库读取）
-        qlib_config = _get_runtime_qlib_config()
-
-        if not qlib_config.get('enabled'):
-            logger.warning("Qlib 未启用，跳过预测")
-            return []
-
-        _install_qlib_pandas_compat()
-
-        provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
-        region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
-
-        # 初始化 Qlib（仅初始化一次）
-        if not hasattr(_execute_qlib_prediction, '_qlib_initialized'):
-            qlib.init(provider_uri=provider_uri, region=region)
-            _execute_qlib_prediction._qlib_initialized = True
-            logger.info(f"Qlib 已初始化: provider={provider_uri}, region={region}")
-
-        # 加载模型
-        model_path = _resolve_qlib_model_path(active_model, qlib_config)
-        if not model_path.exists():
-            logger.error(f"模型文件不存在: {model_path}")
-            raise RuntimeError(f"模型文件不存在: {model_path}")
-
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-
-        if pool_scope is not None and getattr(pool_scope, "instrument_codes", None):
-            stock_list = _normalize_qlib_instrument_list(list(pool_scope.instrument_codes))
-        else:
-            stock_list = _resolve_qlib_stock_list(
-                D,
-                universe_id=universe_id,
-                start_time=f"{trade_date.year - 1}-01-01",
-                end_time=trade_date.isoformat(),
-            )
-
-        handler_cls = _resolve_qlib_handler_class(getattr(active_model, "feature_set_id", None))
-
-        # 准备预测数据
-        handler_config = {
-            "start_time": f"{trade_date.year - 1}-01-01",  # 使用过去一年的数据
-            "end_time": trade_date.isoformat(),
-            "fit_start_time": f"{trade_date.year - 1}-01-01",
-            "fit_end_time": trade_date.isoformat(),
-            "instruments": stock_list,
-        }
-
-        try:
-            # 当前 qlib 版本要求通过 DatasetH 进行预测，而不是直接将 handler 传给模型。
-            handler = handler_cls(**handler_config)
-            dataset = DatasetH(
-                handler=handler,
-                segments={"test": (pd.Timestamp(trade_date), pd.Timestamp(trade_date))},
-            )
-            prediction = model.predict(dataset)
-
-            # 处理预测结果
-            if isinstance(prediction, pd.DataFrame):
-                if prediction.empty:
-                    logger.warning(f"预测结果为空: {universe_id}@{trade_date}")
-                    raise RuntimeError(f"预测结果为空: {universe_id}@{trade_date}")
-                if isinstance(prediction.index, pd.MultiIndex):
-                    latest_date = prediction.index.get_level_values(0).max()
-                    latest_prediction = prediction.xs(latest_date, level=0)
-                    if isinstance(latest_prediction, pd.DataFrame):
-                        scores_series = latest_prediction.iloc[:, 0]
-                    else:
-                        scores_series = latest_prediction
-                else:
-                    scores_series = prediction.iloc[:, 0] if prediction.shape[1] else prediction.iloc[-1]
-            elif isinstance(prediction, pd.Series):
-                scores_series = prediction
-            elif isinstance(prediction, dict):
-                scores_series = pd.Series(prediction)
-            else:
-                logger.warning(f"不支持的预测结果类型: {type(prediction)}")
-                raise RuntimeError(f"不支持的预测结果类型: {type(prediction)}")
-
-            # 转换为评分格式
-            scores_data = []
-            for stock, pred_score in scores_series.items():
-                if pd.notna(pred_score):
-                    normalized_code = normalize_stock_code(stock) or str(stock)
-                    scores_data.append({
-                        "code": normalized_code,
-                        "score": float(pred_score),
-                        "rank": 0,  # 稍后计算
-                        "factors": {},
-                        "source": "qlib",
-                        "confidence": 0.8,
-                        "asof_date": trade_date.isoformat(),
-                        "intended_trade_date": trade_date.isoformat(),
-                        "universe_id": universe_id,
-                    })
-
-            # 按评分排序
-            scores_data.sort(key=lambda x: x["score"], reverse=True)
-
-            # 更新排名
-            for i, score in enumerate(scores_data[:top_n], 1):
-                score["rank"] = i
-
-            logger.info(f"Qlib 预测成功: {universe_id}@{trade_date}, 共 {len(scores_data)} 只股票")
-            return scores_data[:top_n]
-
-        except Exception as handler_error:
-            logger.error(f"数据处理器或预测失败: {handler_error}", exc_info=True)
-            raise RuntimeError(f"Qlib 预测失败: {handler_error}") from handler_error
-
-    except ImportError as e:
-        logger.error(f"Qlib 未安装，无法进行预测: {e}")
-        raise RuntimeError(
-            "Qlib 未安装。请安装 qlib: pip install pyqlib"
-        ) from e
-
-    except Exception as e:
-        logger.error(f"Qlib 预测失败: {e}", exc_info=True)
-        raise RuntimeError(f"Qlib 预测失败: {e}") from e
-
-
-def _calculate_artifact_hash(model_path: str) -> str:
-    """
-    计算 artifact 哈希值
-
-    Args:
-        model_path: 模型文件路径或任意稳定标识字符串
-
-    Returns:
-        SHA256 哈希值
-    """
-    sha256_hash = hashlib.sha256()
-
-    path_obj = Path(model_path)
-    if path_obj.is_file():
-        with path_obj.open("rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-    else:
-        # 训练阶段可能还没有落盘文件，回退到稳定字符串哈希
-        sha256_hash.update(str(model_path).encode("utf-8"))
-
-    return sha256_hash.hexdigest()
-
-
-def _save_model_artifact(
-    model,
-    model_name: str,
-    artifact_hash: str,
-    model_path: str,
-    train_config: dict,
-    metrics: dict
-) -> Path:
-    """
-    保存模型 artifact
-
-    Args:
-        model: 模型对象
-        model_name: 模型名称
-        artifact_hash: Artifact hash
-        model_path: 模型存储路径
-        train_config: 训练配置
-        metrics: 评估指标
-
-    Returns:
-        Artifact 目录路径
-    """
-    model_path_obj = Path(model_path)
-    artifact_dir = model_path_obj / model_name / artifact_hash
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-
-    # 保存模型
-    model_file = artifact_dir / "model.pkl"
-    with open(model_file, "wb") as f:
-        pickle.dump(model, f)
-
-    # 保存配置
-    config_file = artifact_dir / "config.json"
-    with open(config_file, "w") as f:
-        json.dump({
-            "model_name": model_name,
-            "artifact_hash": artifact_hash,
-            "train_config": train_config,
-            "created_at": timezone.now().isoformat(),
-        }, f, indent=2)
-
-    # 保存指标
-    metrics_file = artifact_dir / "metrics.json"
-    with open(metrics_file, "w") as f:
-        json.dump(metrics, f, indent=2)
-
-    # 保存特征 schema（示例）
-    feature_schema_file = artifact_dir / "feature_schema.json"
-    with open(feature_schema_file, "w") as f:
-        json.dump({
-            "features": [
-                "Ref($close, 1)",
-                "Mean($turnover, 5)",
-                "Std($volume, 10)",
-            ],
-            "label": "Ref($close, 5) / $close - 1",
-        }, f, indent=2)
-
-    # 保存数据版本
-    data_version_file = artifact_dir / "data_version.txt"
-    with open(data_version_file, "w") as f:
-        f.write(train_config.get("end_date", timezone.now().strftime("%Y-%m-%d")))
-
-    logger.info(f"模型已保存: {artifact_dir}")
-
-    return artifact_dir
-
-
-def _train_qlib_model(
-    model_type: str,
-    train_config: dict,
-    model_path: str = "/models/qlib"
-):
-    """
-    训练 Qlib 模型
-
-    Args:
-        model_type: 模型类型（LGBModel/LSTMModel/MLPModel）
-        train_config: 训练配置
-        model_path: 模型存储路径
-
-    Returns:
-        训练好的模型
-    """
-    try:
-        pd = get_pandas()
-        import qlib
-        from qlib.contrib.data.handler import Alpha158, Alpha360
-        from qlib.contrib.model.gbdt import LGBModel
-        from qlib.contrib.model.mlptron import MLPTPModel
-        from qlib.contrib.model.pytorch_gru import GRUModel
-        from qlib.contrib.model.pytorch_lstm import LSTMModel
-        from qlib.data import D
-        from qlib.data.dataset import DatasetH
-
-        # 获取 Qlib 配置（优先从数据库读取）
-        qlib_config = _get_runtime_qlib_config()
-
-        if not qlib_config.get('enabled'):
-            raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")
-
-        provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
-        region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
-
-        # 初始化 Qlib（仅初始化一次）
-        if not hasattr(_train_qlib_model, '_qlib_initialized'):
-            qlib.init(provider_uri=provider_uri, region=region)
-            _train_qlib_model._qlib_initialized = True
-            logger.info(f"Qlib 已初始化用于训练: provider={provider_uri}, region={region}")
-
-        # 解析训练配置
-        universe = train_config.get("universe", "csi300")
-        start_date = train_config.get("start_date", "2020-01-01")
-        end_date = train_config.get("end_date", pd.Timestamp.now().strftime("%Y-%m-%d"))
-
-        # 解析日期
-        if isinstance(start_date, str):
-            start_dt = pd.Timestamp(start_date)
-        else:
-            start_dt = start_date
-
-        if isinstance(end_date, str):
-            end_dt = pd.Timestamp(end_date)
-        else:
-            end_dt = end_date
-
-        # 计算训练/验证分割点（80% 训练，20% 验证）
-        train_period = (end_dt - start_dt).days
-        valid_start = start_dt + pd.Timedelta(days=int(train_period * 0.8))
-
-        stock_list = _resolve_qlib_stock_list(
-            D,
-            universe_id=universe,
-            start_time=start_dt,
-            end_time=end_dt,
-        )
-
-        logger.info(f"准备训练数据: universe={universe}, stocks={len(stock_list)}")
-        logger.info(f"训练期: {start_dt.date()} ~ {valid_start.date()}")
-        logger.info(f"验证期: {valid_start.date()} ~ {end_dt.date()}")
-
-        # 配置数据处理器
-        feature_set_id = train_config.get("feature_set_id", "alpha360")
-        handler_cls = Alpha158 if str(feature_set_id).strip().lower() in {"alpha158", "158", "v158"} else Alpha360
-        handler_config = {
-            "start_time": (start_dt.year, start_dt.month, start_dt.day),
-            "end_time": (end_dt.year, end_dt.month, end_dt.day),
-            "fit_start_time": (start_dt.year, start_dt.month, start_dt.day),
-            "fit_end_time": (valid_start.year, valid_start.month, valid_start.day),
-            "instruments": stock_list,
-        }
-
-        # 创建数据处理器
-        train_handler = handler_cls(**handler_config)
-
-        # 创建数据集
-        segments = {
-            "train": (pd.Timestamp(start_dt), pd.Timestamp(valid_start)),
-            "valid": (pd.Timestamp(valid_start), pd.Timestamp(end_dt)),
-        }
-
-        dataset = DatasetH(handler=train_handler, segments=segments)
-
-        # 模型类型映射
-        model_cls_map = {
-            'LGBModel': LGBModel,
-            'GRUModel': GRUModel,
-            'LSTMModel': LSTMModel,
-            'MLPModel': MLPTPModel,
-        }
-
-        model_cls = model_cls_map.get(model_type)
-        if model_cls is None:
-            raise ValueError(f"不支持的模型类型: {model_type}")
-
-        # 模型参数（默认值 + 覆盖）
-        default_model_params = {
-            "loss": "mse",
-            "col_sample_bytree": 0.8,
-            "learning_rate": 0.01,
-            "bagging_freq": 5,
-            "bagging_fraction": 0.85,
-            "bagging_seed": 3,
-        }
-
-        custom_params = train_config.get("model_params", {})
-        model_params = {**default_model_params, **custom_params}
-
-        # 创建模型实例
-        model = model_cls(**model_params)
-
-        # 训练模型
-        logger.info(f"开始训练 {model_type}...")
-        model.fit(dataset)
-
-        logger.info(f"{model_type} 训练完成")
-        return model
-
-    except ImportError as e:
-        # Qlib 未安装 - 这是配置错误，应抛出异常
-        logger.error(f"Qlib 未安装，无法训练模型: {e}")
-        raise RuntimeError(
-            "Qlib 未安装。请安装 qlib: pip install pyqlib"
-        ) from e
-
-    except Exception as e:
-        logger.error(f"训练 Qlib 模型失败: {e}", exc_info=True)
-        raise
-
-
-def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> dict:
-    """
-    评估模型指标
-
-    计算模型的 IC (Information Coefficient)、ICIR (IC Information Ratio)、
-    Rank IC 等关键指标。
-
-    Args:
-        model: 训练好的 Qlib 模型
-        universe: 股票池标识
-        train_config: 训练配置（包含日期范围）
-
-    Returns:
-        指标字典，包含 ic, icir, rank_ic, rank_icir
-    """
-    try:
-        np = get_numpy()
-        pd = get_pandas()
-        from qlib.contrib.data.handler import Alpha158, Alpha360
-        from qlib.data import D
-        from qlib.data.dataset import DatasetH
-        from scipy.stats import spearmanr
-
-        # 获取配置
-        train_config = train_config or {}
-        end_date = train_config.get("end_date", pd.Timestamp.now().strftime("%Y-%m-%d"))
-        start_date = train_config.get("start_date", "2020-01-01")
-
-        # 解析日期
-        if isinstance(end_date, str):
-            end_dt = pd.Timestamp(end_date)
-        else:
-            end_dt = end_date
-
-        if isinstance(start_date, str):
-            start_dt = pd.Timestamp(start_date)
-        else:
-            start_dt = start_date
-
-        # 使用验证期进行评估
-        train_period = (end_dt - start_dt).days
-        valid_start = start_dt + pd.Timedelta(days=int(train_period * 0.8))
-
-        stock_list = _resolve_qlib_stock_list(
-            D,
-            universe_id=universe,
-            start_time=start_dt,
-            end_time=end_dt,
-        )
-
-        # 配置数据处理器
-        feature_set_id = train_config.get("feature_set_id", "alpha360")
-        handler_cls = Alpha158 if str(feature_set_id).strip().lower() in {"alpha158", "158", "v158"} else Alpha360
-        handler_config = {
-            "start_time": (start_dt.year, start_dt.month, start_dt.day),
-            "end_time": (end_dt.year, end_dt.month, end_dt.day),
-            "fit_start_time": (start_dt.year, start_dt.month, start_dt.day),
-            "fit_end_time": (end_dt.year, end_dt.month, end_dt.day),
-            "instruments": stock_list,
-        }
-
-        # 创建数据集（使用验证集）
-        segments = {
-            "test": (pd.Timestamp(valid_start), pd.Timestamp(end_dt)),
-        }
-
-        handler = handler_cls(**handler_config)
-        dataset = DatasetH(handler=handler, segments=segments)
-
-        # 获取预测结果
-        pred_score = model.predict(dataset)
-
-        # 获取真实标签
-        if hasattr(dataset, "prepare") and hasattr(dataset, "fetch"):
-            # 尝试获取真实收益率
-            try:
-                # Qlib 数据集通常有 fetch 方法获取标签
-                labels = dataset.fetch(cols=["label"])
-                if not labels.empty:
-                    # 计算 IC（预测值与真实值的 Spearman 相关性）
-                    ic_values = []
-                    rank_ic_values = []
-
-                    # 按日期计算 IC
-                    for date in pred_score.index:
-                        if date in labels.index:
-                            pred = pred_score.loc[date]
-                            true = labels.loc[date]
-
-                            # 对齐股票
-                            common_stocks = pred.index.intersection(true.index)
-                            if len(common_stocks) > 10:  # 至少有 10 只股票
-                                pred_vals = pred.loc[common_stocks].values
-                                true_vals = true.loc[common_stocks].values
-
-                                # 计算 IC（Spearman 相关系数）
-                                ic, _ = spearmanr(pred_vals, true_vals, nan_policy='omit')
-                                if not np.isnan(ic):
-                                    ic_values.append(ic)
-
-                                # 计算 Rank IC（与 IC 相同，因为 Spearman 本身就是秩相关）
-                                if not np.isnan(ic):
-                                    rank_ic_values.append(ic)
-
-                    # 计算统计指标
-                    if ic_values:
-                        mean_ic = np.mean(ic_values)
-                        std_ic = np.std(ic_values)
-                        icir = mean_ic / std_ic if std_ic > 0 else 0
-                    else:
-                        mean_ic = 0
-                        icir = 0
-
-                    if rank_ic_values:
-                        mean_rank_ic = np.mean(rank_ic_values)
-                        std_rank_ic = np.std(rank_ic_values)
-                        rank_icir = mean_rank_ic / std_rank_ic if std_rank_ic > 0 else 0
-                    else:
-                        mean_rank_ic = 0
-                        rank_icir = 0
-
-                    logger.info(f"模型评估完成: IC={mean_ic:.4f}, ICIR={icir:.4f}, "
-                               f"Rank IC={mean_rank_ic:.4f}, Rank ICIR={rank_icir:.4f}")
-
-                    return {
-                        "ic": float(mean_ic),
-                        "icir": float(icir),
-                        "rank_ic": float(mean_rank_ic),
-                        "rank_icir": float(rank_icir),
-                        "ic_std": float(std_ic) if ic_values else 0,
-                        "rank_ic_std": float(std_rank_ic) if rank_ic_values else 0,
-                        "sample_count": len(ic_values),
-                    }
-            except Exception as eval_error:
-                logger.warning(f"使用完整数据集评估失败: {eval_error}")
-
-        # 简化版评估：使用预测分数的统计特性
-        if isinstance(pred_score, pd.DataFrame):
-            if not pred_score.empty:
-                # 使用预测分数的统计特性作为替代指标
-                scores = pred_score.iloc[-1] if len(pred_score) > 0 else pred_score
-
-                # 计算分数的变异系数（作为信号质量的代理）
-                mean_score = scores.mean()
-                std_score = scores.std()
-                cv = std_score / mean_score if mean_score != 0 else 0
-
-                # 模拟合理的 IC 值（基于信号质量）
-                ic = min(0.1, cv * 0.5)  # 上限 0.1
-                icir = ic * 10  # 假设 IC 稳定性
-
-                logger.info(f"模型评估完成（简化版）: IC={ic:.4f}, ICIR={icir:.4f}")
-
-                return {
-                    "ic": float(ic),
-                    "icir": float(icir),
-                    "rank_ic": float(ic * 0.9),  # 通常略低于 IC
-                    "rank_icir": float(icir * 0.9),
-                    "evaluation_method": "simplified",
-                }
-
-        # 无法计算真实指标
-        raise RuntimeError("无法计算模型指标: 数据不足或配置错误")
-
-    except ImportError as e:
-        logger.error(f"scipy 或 qlib 未安装，无法评估模型: {e}")
-        raise RuntimeError(
-            "scipy 或 qlib 未安装。请安装: pip install scipy pyqlib"
-        ) from e
-
-    except Exception as e:
-        logger.error(f"模型评估失败: {e}", exc_info=True)
-        raise RuntimeError(f"模型评估失败: {e}") from e
-
-
-def _get_default_metrics() -> dict:
-    """
-    获取默认模型指标
-
-    ⚠️ 已弃用: 此函数仅用于单元测试，    生产环境应抛出异常而不是返回默认值。
-
-    This function is deprecated and should only be used in unit tests.
-    Production code should raise exceptions instead of using default metrics.
-    """
-    import warnings
-    warnings.warn(
-        "_get_default_metrics() is deprecated and should only be used in unit tests",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return {
-        "ic": 0.05,
-        "icir": 0.8,
-        "rank_ic": 0.04,
-        "rank_icir": 0.6,
-        "evaluation_method": "default",
-    }

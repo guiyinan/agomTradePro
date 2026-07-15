@@ -2,6 +2,8 @@
 AI Capability Catalog Infrastructure ORM Models.
 """
 
+import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -76,6 +78,13 @@ class CapabilityCatalogModel(models.Model):
         default="",
         db_index=True,
         help_text="Optional semantic key for API/MCP capability de-duplication",
+    )
+    collected_semantic_key = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Semantic key collected from the source before manual override",
     )
     tags = models.JSONField(
         default=list,
@@ -239,6 +248,7 @@ class CapabilityCatalogModel(models.Model):
             route_group=entity.route_group.value,
             category=entity.category,
             semantic_key=entity.semantic_key,
+            collected_semantic_key=entity.semantic_key,
             tags=list(entity.tags),
             when_to_use=list(entity.when_to_use),
             when_not_to_use=list(entity.when_not_to_use),
@@ -374,8 +384,94 @@ class CapabilitySyncLogModel(models.Model):
         )
 
 
+class CapabilitySemanticOverrideModel(models.Model):
+    """Current operator-owned semantic-key override for one capability."""
+
+    capability_key = models.CharField(max_length=255, unique=True)
+    semantic_key = models.CharField(max_length=255)
+    reason = models.TextField()
+    is_active = models.BooleanField(default=True, db_index=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="semantic_capability_overrides",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ai_capability_semantic_override"
+        ordering = ["capability_key"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(semantic_key=""),
+                name="ai_cap_sem_override_key_nonempty",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(reason=""),
+                name="ai_cap_sem_override_reason_nonempty",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.capability_key} -> {self.semantic_key}"
+
+
+class CapabilitySemanticAuditModel(models.Model):
+    """Immutable evidence row for one semantic governance correction."""
+
+    ACTION_CHOICES = [("set", "Set"), ("remove", "Remove")]
+
+    batch_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    idempotency_key = models.CharField(max_length=255, db_index=True)
+    capability_key = models.CharField(max_length=255, db_index=True)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    old_collected_value = models.CharField(max_length=255, blank=True, default="")
+    old_effective_value = models.CharField(max_length=255, blank=True, default="")
+    new_effective_value = models.CharField(max_length=255, blank=True, default="")
+    reason = models.TextField()
+    operator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="semantic_capability_audits",
+    )
+    request_fingerprint = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "ai_capability_semantic_audit"
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["idempotency_key", "capability_key"],
+                name="ai_cap_sem_audit_idem_cap_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(action__in=["set", "remove"]),
+                name="ai_cap_sem_audit_action_valid",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(reason=""),
+                name="ai_cap_sem_audit_reason_nonempty",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["idempotency_key", "request_fingerprint"]),
+            models.Index(fields=["capability_key", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.batch_id}:{self.capability_key}:{self.action}"
+
+
 __all__ = [
     "CapabilityCatalogModel",
     "CapabilityRoutingLogModel",
+    "CapabilitySemanticAuditModel",
+    "CapabilitySemanticOverrideModel",
     "CapabilitySyncLogModel",
 ]

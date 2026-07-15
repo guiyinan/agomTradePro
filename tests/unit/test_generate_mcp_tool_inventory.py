@@ -31,22 +31,26 @@ def test_build_inventory_returns_registered_tools():
     assert summary["by_module"]["regime"] > 0
     assert summary["by_operation"]["read"] > 0
     assert payload["server_path"] == "sdk/agomtradepro_mcp/server.py"
-    assert summary["unsupported_legacy_contract_count"] >= 1
+    assert summary["unsupported_legacy_contract_count"] == 0
     assert summary["legacy_disposition_count"] > 0
     assert summary["legacy_keep_task_count"] == 0
 
     unsupported = {
         contract["contract_key"]: contract for contract in payload["unsupported_legacy_contracts"]
     }
-    assert "realtime.delete.price_alert" in unsupported
-    assert "events.replay" in unsupported
-    assert "delete_price_alert" in unsupported["realtime.delete.price_alert"]["legacy_tool_names"]
+    assert "realtime.delete.price_alert" not in unsupported
+    assert "realtime.price_subscription" not in unsupported
+    assert "events.replay" not in unsupported
 
     tools = {tool["tool_name"]: tool for tool in payload["tools"]}
-    assert tools["delete_price_alert"]["disposition_hint"] == "unsupported"
-    assert tools["delete_price_alert"]["legacy_disposition"] == "unsupported"
-    assert tools["delete_price_alert"]["disposition_rationale"]
-    assert tools["delete_price_alert"]["unsupported_contract_key"] == "realtime.delete.price_alert"
+    assert (
+        tools["delete_price_alert"]["disposition_hint"]
+        == "candidate_aggregate_or_governed"
+    )
+    assert tools["delete_price_alert"]["legacy_disposition"] is None
+    assert tools["delete_price_alert"]["disposition_rationale"] is None
+    assert tools["delete_price_alert"]["recommended_capability_keys"] == ()
+    assert tools["delete_price_alert"]["unsupported_contract_key"] is None
     assert tools["get_asset_info"]["legacy_disposition"] == "aggregate"
     assert tools["get_asset_info"]["recommended_capability_keys"] == (
         "rotation.read.asset_detail",

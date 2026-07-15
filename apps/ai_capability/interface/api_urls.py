@@ -14,10 +14,17 @@ from .api_views import (
     list_mcp_tools,
     mcp_tools_stats,
     route_message,
-    sync_mcp_tools,
     sync_capabilities,
+    sync_mcp_tools,
     toggle_mcp_tool,
     web_chat,
+)
+from .mcp_access_views import MCPAccessVerificationView
+from .semantic_governance_views import (
+    SemanticGovernanceApplyView,
+    SemanticGovernanceAuditView,
+    SemanticGovernancePreviewView,
+    SemanticGovernanceView,
 )
 
 router = DefaultRouter()
@@ -35,9 +42,34 @@ urlpatterns = [
     path("mcp-tools/stats/", mcp_tools_stats, name="ai-capability-mcp-tools-stats"),
     path("mcp-tools/sync/", sync_mcp_tools, name="ai-capability-mcp-tools-sync"),
     path(
+        "mcp-access/verify/",
+        MCPAccessVerificationView.as_view(),
+        name="mcp-access-verify",
+    ),
+    path(
         "mcp-tools/<str:capability_key>/toggle/<str:flag>/",
         toggle_mcp_tool,
         name="ai-capability-mcp-tool-toggle",
+    ),
+    path(
+        "semantic-governance/",
+        SemanticGovernanceView.as_view(),
+        name="semantic-governance",
+    ),
+    path(
+        "semantic-governance/preview/",
+        SemanticGovernancePreviewView.as_view(),
+        name="semantic-governance-preview",
+    ),
+    path(
+        "semantic-governance/apply/",
+        SemanticGovernanceApplyView.as_view(),
+        name="semantic-governance-apply",
+    ),
+    path(
+        "semantic-governance/audit/",
+        SemanticGovernanceAuditView.as_view(),
+        name="semantic-governance-audit",
     ),
 ]
 

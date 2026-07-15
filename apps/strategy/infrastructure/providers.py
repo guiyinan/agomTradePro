@@ -10,7 +10,7 @@ Infrastructure层:
 import logging
 from typing import Any
 
-from apps.simulated_trading.application.facade import get_simulated_trading_facade
+from apps.strategy.application.simulated_trading_gateway import get_simulated_trading_facade
 from apps.strategy.infrastructure.repositories import (  # noqa: F401
     DjangoStrategyExecutionLogRepository,
     DjangoStrategyGatewayRepository,
@@ -249,9 +249,7 @@ class DjangoAssetPoolProvider:
                         or {
                             "status": "degraded" if is_fallback else "available",
                             "warnings": (
-                                ["asset_pool_empty_score_cache_fallback"]
-                                if is_fallback
-                                else []
+                                ["asset_pool_empty_score_cache_fallback"] if is_fallback else []
                             ),
                         },
                     }

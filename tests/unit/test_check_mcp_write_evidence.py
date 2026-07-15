@@ -53,6 +53,7 @@ def _manifest(
         "agent_task.resume.task",
         "dashboard.refresh.alpha",
         "equity.create.valuation_quality_snapshot",
+        "events.replay.events",
     ],
 )
 def test_is_write_like_manifest_covers_governed_workflow_actions(capability_key):

@@ -24,6 +24,11 @@ from .exceptions import (
 from .exceptions import (
     TimeoutError as SDKTimeoutError,
 )
+from .realtime_stream import (
+    RealtimeEnvelope,
+    RealtimeStream,
+    RealtimeStreamClosedError,
+)
 from .types import (
     BacktestParams,
     BacktestResult,
@@ -58,6 +63,9 @@ __all__ = [
     "__version__",
     # Client
     "AgomTradeProClient",
+    "RealtimeEnvelope",
+    "RealtimeStream",
+    "RealtimeStreamClosedError",
     # Config
     "AuthConfig",
     "ClientConfig",

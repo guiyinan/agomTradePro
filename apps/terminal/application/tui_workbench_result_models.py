@@ -9,9 +9,6 @@ from math import ceil
 from typing import Any
 from urllib.parse import urlparse
 
-from apps.terminal.application.tui_workbench_result_models_specialized import (
-    TuiWorkbenchSpecializedResultMixin,
-)
 from apps.terminal.application.tui_workbench_constants import (
     ASSET_CODE_FIELDS,
     ASSET_CODE_PATTERN,
@@ -23,6 +20,9 @@ from apps.terminal.application.tui_workbench_constants import (
     ROW_IDENTIFIER_FIELDS,
     STATUS_LABELS,
     VALUE_LABELS,
+)
+from apps.terminal.application.tui_workbench_result_models_specialized import (
+    TuiWorkbenchSpecializedResultMixin,
 )
 
 
@@ -290,6 +290,25 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         model["debug_hidden_fields"] = (
             list(debug_hidden_fields) if isinstance(debug_hidden_fields, list) else []
         )
+        action_view_model = action.get("view_model")
+        field_presentations = (
+            action_view_model.get("field_presentations", {})
+            if isinstance(action_view_model, dict)
+            else {}
+        )
+        fields = model.get("fields")
+        if isinstance(fields, list):
+            normalized_fields = []
+            for field in fields:
+                if not isinstance(field, dict):
+                    continue
+                presentation = (
+                    field.get("presentation")
+                    or field_presentations.get(str(field.get("key") or ""))
+                    or "metadata"
+                )
+                normalized_fields.append({**field, "presentation": str(presentation)})
+            model["fields"] = normalized_fields
         return model
 
     def _action_title(self, action: dict[str, Any]) -> str:
@@ -363,7 +382,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
             return self._message_model(action, message_list, status_code)
         normalized_rows = [row if isinstance(row, dict) else {"value": row} for row in rows]
         normalized_rows = self._filter_rows_for_action(action, normalized_rows)
-        columns = self._columns_for_rows(normalized_rows)
+        columns = self._view_model_columns(action) or self._columns_for_rows(normalized_rows)
         asset_name_map = self._asset_name_map_for_rows(normalized_rows)
         explicit_page_size = self._int_from_path(action, envelope, "page_size_path", default=0)
         request_limit = self._int_from_params(request_params, "limit", default=0)
@@ -1018,6 +1037,21 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         if not keys and rows:
             keys = [key for key in rows[0].keys() if not str(key).startswith("__")][:6]
         return [{"key": key, "label": self._humanize(key)} for key in keys[:8]]
+
+    def _view_model_columns(self, action: dict[str, Any]) -> list[dict[str, str]]:
+        """Return explicitly published datagrid columns in their user-facing order."""
+
+        view_model = action.get("view_model") or {}
+        if not isinstance(view_model, dict):
+            return []
+        columns = view_model.get("columns")
+        if not isinstance(columns, list):
+            return []
+        return [
+            {"key": str(column["key"]), "label": str(column["label"])}
+            for column in columns
+            if isinstance(column, dict) and column.get("key") and column.get("label")
+        ][:8]
 
     def _display_value(self, value: Any) -> str:
         if value is None:

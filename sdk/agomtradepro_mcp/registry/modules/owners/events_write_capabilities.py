@@ -107,4 +107,68 @@ MANIFESTS = [
         audit_tags=("events:publish", "mcp:write"),
         legacy_tool_names=("publish_event",),
     ),
+    CapabilityManifest(
+        capability_key="events.replay.events",
+        title="Replay Stored Events",
+        summary="Preview a registered replay target, then confirm one idempotent staff-only replay.",
+        description=(
+            "Resolve only an approved target key, preview bounded stored-event candidates and "
+            "declared side effects, then require confirmation before executing and auditing "
+            "per-event outcomes through the formal Events SDK."
+        ),
+        owner_app="events",
+        risk_level="high",
+        executor_kind="internal_handler",
+        executor_ref="events_replay_events",
+        tags=("events", "replay", "recovery", "workflow", "write"),
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "target_key": {
+                    "type": "string",
+                    "enum": [
+                        "events.decision.approved",
+                        "events.decision.rejected",
+                        "events.decision.executed",
+                        "events.decision.execution_failed",
+                        "decision_rhythm.main",
+                        "decision_rhythm.quota",
+                        "decision_rhythm.cooldown",
+                        "alpha_trigger.main",
+                        "alpha_trigger.invalidation",
+                        "alpha_trigger.promotion",
+                    ],
+                },
+                "event_type": {"type": "string"},
+                "start_at": {"type": "string", "format": "date-time"},
+                "end_at": {"type": "string", "format": "date-time"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 1000},
+                "idempotency_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                },
+            },
+            "required": ["target_key", "event_type", "idempotency_key"],
+        },
+        output_schema={
+            "type": "object",
+            "properties": {
+                "outcome": {"enum": ["completed", "partial", "failed"]},
+                "attempted": {"type": "integer"},
+                "succeeded": {"type": "integer"},
+                "skipped": {"type": "integer"},
+                "failed": {"type": "integer"},
+                "failures": {"type": "array"},
+            },
+        },
+        requires_confirmation=True,
+        confirmation_preview_arguments={"preview_only": True},
+        confirmation_commit_arguments={"preview_only": False},
+        idempotency="required",
+        required_roles=("staff",),
+        audit_tags=("events:replay", "mcp:write"),
+        legacy_tool_names=("replay_events",),
+    ),
 ]

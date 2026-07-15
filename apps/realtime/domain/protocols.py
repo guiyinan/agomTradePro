@@ -9,12 +9,93 @@ Following AgomSaaS architecture rules:
 """
 
 from abc import ABC, abstractmethod
+from datetime import datetime
+from decimal import Decimal
 
 from apps.realtime.domain.entities import (
+    PriceAlert,
     PriceSnapshot,
+    PriceSubscription,
     PriceUpdate,
     RealtimePrice,
 )
+
+
+class PriceAlertRepositoryProtocol(ABC):
+    """Persistence boundary for owner-scoped price alerts."""
+
+    @abstractmethod
+    def list_for_owner(self, owner_id: int) -> list[PriceAlert]:
+        """List alerts belonging to one owner."""
+
+    @abstractmethod
+    def get_for_owner(self, owner_id: int, alert_id: int) -> PriceAlert | None:
+        """Return one alert only when it belongs to the owner."""
+
+    @abstractmethod
+    def create(self, alert: PriceAlert) -> PriceAlert:
+        """Persist a new alert."""
+
+    @abstractmethod
+    def update(self, alert: PriceAlert) -> PriceAlert | None:
+        """Persist an owner-scoped alert update."""
+
+    @abstractmethod
+    def delete(self, owner_id: int, alert_id: int) -> bool:
+        """Delete an alert belonging to the owner."""
+
+    @abstractmethod
+    def list_active_for_assets(self, asset_codes: list[str]) -> list[PriceAlert]:
+        """List active alerts for the supplied canonical assets."""
+
+    @abstractmethod
+    def claim_trigger(
+        self,
+        alert_id: int,
+        trigger_price: Decimal,
+        triggered_at: datetime,
+    ) -> PriceAlert | None:
+        """Atomically transition an active alert to triggered once."""
+
+
+class PriceSubscriptionRepositoryProtocol(ABC):
+    """Persistence boundary for owner-scoped realtime subscriptions."""
+
+    @abstractmethod
+    def list_for_owner(self, owner_id: int) -> list[PriceSubscription]:
+        """List the owner's active subscriptions."""
+
+    @abstractmethod
+    def subscribe(self, owner_id: int, asset_code: str) -> PriceSubscription:
+        """Create or reactivate a durable subscription."""
+
+    @abstractmethod
+    def unsubscribe(self, owner_id: int, asset_code: str) -> bool:
+        """Deactivate an owner-scoped subscription."""
+
+    @abstractmethod
+    def count_active(self, owner_id: int) -> int:
+        """Count active subscriptions for one owner."""
+
+    @abstractmethod
+    def list_active_asset_codes(self) -> list[str]:
+        """List distinct active asset codes across owners for polling."""
+
+
+class RealtimeChannelNotifierProtocol(ABC):
+    """Notification boundary for realtime channel delivery."""
+
+    @abstractmethod
+    def publish_price(self, price: RealtimePrice) -> None:
+        """Publish a price update to subscribers of the asset."""
+
+    @abstractmethod
+    def publish_alert(self, alert: PriceAlert) -> None:
+        """Publish a claimed alert to its owner."""
+
+    @abstractmethod
+    def subscriptions_changed(self, owner_id: int) -> None:
+        """Notify an owner's connected clients to restore groups."""
 
 
 class RealtimePriceRepositoryProtocol(ABC):

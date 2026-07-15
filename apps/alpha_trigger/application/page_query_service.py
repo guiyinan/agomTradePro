@@ -8,6 +8,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from .decision_execution_gateway import get_decision_execution_ref
 from .repository_provider import (
     get_alpha_candidate_repository,
     get_alpha_trigger_repository,
@@ -128,9 +129,9 @@ class AlphaTriggerPageQueryService:
             "source_trigger": source_trigger,
             "invalidation_conditions": self._parse_invalidation_conditions(candidate),
             "status_history": self._build_status_history(candidate),
-            "days_active": (timezone.now() - candidate.created_at).days
-            if candidate.created_at
-            else 0,
+            "days_active": (
+                (timezone.now() - candidate.created_at).days if candidate.created_at else 0
+            ),
             "execution_ref": execution_ref,
             "page_title": f"候选详情: {candidate.asset_code}",
         }
@@ -183,9 +184,7 @@ class AlphaTriggerPageQueryService:
                     "executed": executed,
                     "invalidated": invalidated,
                     "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
-                    "invalidation_rate": round(invalidated / total * 100, 1)
-                    if total > 0
-                    else 0,
+                    "invalidation_rate": round(invalidated / total * 100, 1) if total > 0 else 0,
                 }
             )
         return rows
@@ -224,12 +223,7 @@ class AlphaTriggerPageQueryService:
         if not request_id:
             return None
         try:
-            from apps.decision_rhythm.application.repository_provider import (
-                get_decision_request_repository,
-            )
-
-            decision_request = get_decision_request_repository().get_by_id(request_id)
-            return getattr(decision_request, "execution_ref", None)
+            return get_decision_execution_ref(request_id)
         except Exception:
             return None
 
@@ -281,26 +275,19 @@ class AlphaTriggerPageQueryService:
             )
             actionable_count = len([c for c in candidates if c.status == "ACTIONABLE"])
             conversion_rate = (
-                round(executed_count / total_candidates * 100, 1)
-                if total_candidates > 0
-                else 0
+                round(executed_count / total_candidates * 100, 1) if total_candidates > 0 else 0
             )
             invalidation_rate = (
-                round(invalidated_count / total_candidates * 100, 1)
-                if total_candidates > 0
-                else 0
+                round(invalidated_count / total_candidates * 100, 1) if total_candidates > 0 else 0
             )
             avg_confidence = (
-                sum(float(getattr(c, "confidence", 0) or 0) for c in candidates)
-                / total_candidates
+                sum(float(getattr(c, "confidence", 0) or 0) for c in candidates) / total_candidates
                 if total_candidates > 0
                 else 0
             )
             avg_holding_days = self._average_holding_days(candidates)
             days_active = (timezone.now() - trigger.created_at).days if trigger.created_at else 0
-            trigger_frequency = (
-                round(total_candidates / days_active, 2) if days_active > 0 else 0
-            )
+            trigger_frequency = round(total_candidates / days_active, 2) if days_active > 0 else 0
             performance_score = 0
             if total_candidates > 0:
                 performance_score = round(
@@ -381,9 +368,9 @@ class AlphaTriggerPageQueryService:
             "total_triggers": len(trigger_performance),
             "total_candidates": total_candidates,
             "total_executed": total_executed,
-            "conversion_rate": round(total_executed / total_candidates * 100, 1)
-            if total_candidates > 0
-            else 0,
+            "conversion_rate": (
+                round(total_executed / total_candidates * 100, 1) if total_candidates > 0 else 0
+            ),
         }
 
     def _build_recent_trend_data(self, days: int) -> list[dict[str, Any]]:
@@ -401,8 +388,7 @@ class AlphaTriggerPageQueryService:
             elif candidate.status in ["INVALIDATED", "EXPIRED"]:
                 stats["invalidated"] += 1
         return [
-            {"date": date_str, **daily_stats[date_str]}
-            for date_str in sorted(daily_stats.keys())
+            {"date": date_str, **daily_stats[date_str]} for date_str in sorted(daily_stats.keys())
         ]
 
     def _attach_candidate_compat(self, candidate: Any) -> None:

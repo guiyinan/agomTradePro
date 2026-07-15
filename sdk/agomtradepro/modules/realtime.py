@@ -6,8 +6,6 @@ AgomTradePro SDK - Realtime 实时价格监控模块
 
 from typing import Any
 
-from ..exceptions import UnsupportedFeatureError
-from ..unsupported_legacy_contracts import get_unsupported_legacy_contract
 from .base import BaseModule
 
 
@@ -150,7 +148,13 @@ class RealtimeModule(BaseModule):
             >>> for alert in alerts:
             ...     print(f"{alert['asset_code']}: {alert['condition']}")
         """
-        self._raise_unsupported_price_alert_contract()
+        response = self._get("alerts/")
+        results = response.get("results", response)
+        if not isinstance(results, list):
+            raise ValueError("alert response must contain a list")
+        if status is not None:
+            results = [item for item in results if item.get("status") == status]
+        return results[:limit]
 
     def create_alert(
         self,
@@ -184,7 +188,14 @@ class RealtimeModule(BaseModule):
             ... )
             >>> print(f"预警已创建: {alert['id']}")
         """
-        self._raise_unsupported_price_alert_contract()
+        payload: dict[str, Any] = {
+            "asset_code": asset_code,
+            "condition": condition,
+            "threshold": str(threshold),
+        }
+        if message is not None:
+            payload["message"] = message
+        return self._post("alerts/", json=payload)
 
     def get_alert(self, alert_id: int) -> dict[str, Any]:
         """
@@ -205,7 +216,32 @@ class RealtimeModule(BaseModule):
             >>> print(f"资产: {alert['asset_code']}")
             >>> print(f"状态: {alert['status']}")
         """
-        self._raise_unsupported_price_alert_contract()
+        return self._get(f"alerts/{alert_id}/")
+
+    def update_alert(
+        self,
+        alert_id: int,
+        *,
+        condition: str | None = None,
+        threshold: float | None = None,
+        status: str | None = None,
+        message: str | None = None,
+    ) -> dict[str, Any]:
+        """Update mutable fields on one owner-scoped price alert."""
+
+        payload = {
+            key: value
+            for key, value in {
+                "condition": condition,
+                "threshold": str(threshold) if threshold is not None else None,
+                "status": status,
+                "message": message,
+            }.items()
+            if value is not None
+        }
+        if not payload:
+            raise ValueError("At least one alert update is required")
+        return self._patch(f"alerts/{alert_id}/", json=payload)
 
     def delete_alert(self, alert_id: int) -> None:
         """
@@ -222,7 +258,7 @@ class RealtimeModule(BaseModule):
             >>> client.realtime.delete_alert(1)
             >>> print("预警已删除")
         """
-        self._raise_unsupported_price_alert_contract()
+        self._delete(f"alerts/{alert_id}/")
 
     def get_market_summary(self) -> dict[str, Any]:
         """
@@ -358,7 +394,7 @@ class RealtimeModule(BaseModule):
         Note:
             实时推送需要使用 WebSocket 连接
         """
-        self._raise_unsupported_price_subscription_contract()
+        return self._post("subscriptions/", json={"asset_code": asset_code})
 
     def unsubscribe_price(
         self,
@@ -370,7 +406,7 @@ class RealtimeModule(BaseModule):
         Args:
             asset_code: 资产代码
         """
-        self._raise_unsupported_price_subscription_contract()
+        self._delete(f"subscriptions/{asset_code.strip().upper()}/")
 
     def get_subscriptions(self) -> list[dict[str, Any]]:
         """
@@ -385,11 +421,11 @@ class RealtimeModule(BaseModule):
             >>> for sub in subs:
             ...     print(f"{sub['asset_code']}: {sub['status']}")
         """
-        self._raise_unsupported_price_subscription_contract()
-
-    def _raise_unsupported_price_subscription_contract(self) -> None:
-        contract = get_unsupported_legacy_contract("realtime.price_subscription")
-        raise UnsupportedFeatureError(contract.build_error_message())
+        response = self._get("subscriptions/")
+        results = response.get("results", response)
+        if not isinstance(results, list):
+            raise ValueError("subscription response must contain a list")
+        return results
 
     def _get_live_snapshot_prices(self) -> list[dict[str, Any]]:
         snapshot = self._post("prices/")
@@ -417,12 +453,6 @@ class RealtimeModule(BaseModule):
         normalized.setdefault("change_pct", change_pct)
         normalized.setdefault("timestamp", timestamp)
         return normalized
-
-    def _raise_unsupported_price_alert_contract(self) -> None:
-        """Fail fast for retired legacy alert CRUD endpoints."""
-
-        contract = get_unsupported_legacy_contract("realtime.delete.price_alert")
-        raise UnsupportedFeatureError(contract.build_error_message())
 
     def _numeric(self, value: Any) -> float:
         try:

@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
+from urllib.parse import urlparse
 
 from django.utils import timezone
 
@@ -240,7 +241,13 @@ def build_mcp_guide_context(user_id: int, *, base_url: str) -> dict[str, Any]:
     return _interface_repo().build_mcp_guide_context(user_id=user_id, base_url=base_url)
 
 
-def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]:
+def build_self_mcp_api_payload(
+    user_id: int,
+    *,
+    base_url: str,
+    routing_available: bool = True,
+    catalog_available: bool = True,
+) -> dict[str, Any]:
     """Build a JSON-friendly MCP self-service payload for TUI/API consumers."""
 
     context = build_mcp_guide_context(user_id=user_id, base_url=base_url)
@@ -265,6 +272,52 @@ def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]
         ),
         default_account_id=context.get("default_account_id"),
     )
+    recommended_token_id = preferred_token.get("id")
+    token_history = [
+        {
+            "id": item.get("id"),
+            "name": item.get("name") or "",
+            "preview": item.get("preview") or "",
+            "access_level": item.get("access_level") or "",
+            "access_level_label": item.get("access_level_label") or "",
+            "created_at": item.get("created_at"),
+            "last_used_at": item.get("last_used_at"),
+            "is_recommended": item.get("id") == recommended_token_id,
+        }
+        for item in access_tokens
+    ]
+    system_mcp_enabled = bool(context["system_settings"].default_mcp_enabled)
+    user_mcp_enabled = bool(profile.mcp_enabled)
+    if not system_mcp_enabled or not user_mcp_enabled:
+        self_service_state = "disabled"
+    elif not preferred_token:
+        self_service_state = "no_token"
+    elif (
+        not routing_available
+        or not catalog_available
+        or not str(preferred_token.get("plaintext") or "").strip()
+    ):
+        self_service_state = "unavailable"
+    else:
+        self_service_state = "ready"
+
+    parsed_base_url = urlparse(normalized_base_url)
+    same_machine_only = parsed_base_url.hostname in {"127.0.0.1", "localhost", "::1"}
+    environment_statement = (
+        "当前地址仅能在同一台机器上使用；如需远程接入，请先配置可访问的服务地址。"
+        if same_machine_only
+        else "当前地址可用于此环境；实际可达范围仍取决于网络和部署配置。"
+    )
+    access_package = {
+        "token": str(preferred_token.get("plaintext") or "").strip(),
+        "token_preview": str(preferred_token.get("preview") or "").strip(),
+        "route_endpoint": route_endpoint,
+        "capability_catalog_endpoint": capability_endpoint,
+        "agent_prompt": prompt_payload["agent_bootstrap_prompt"],
+        "base_url": normalized_base_url,
+        "same_machine_only": same_machine_only,
+        "environment_statement": environment_statement,
+    }
     return {
         "user_id": context["user"].id,
         "username": context["user"].username,
@@ -272,6 +325,8 @@ def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]
         "rbac_role": str(getattr(profile, "rbac_role", "") or ""),
         "token_plaintext_allowed": bool(context.get("token_plaintext_allowed")),
         "active_token_count": len(access_tokens),
+        "self_service_state": self_service_state,
+        "recommended_token_id": recommended_token_id,
         "account_count": int(context.get("account_count") or 0),
         "default_account_id": context.get("default_account_id"),
         "default_account_name": context.get("default_account_name") or "",
@@ -288,8 +343,48 @@ def build_self_mcp_api_payload(user_id: int, *, base_url: str) -> dict[str, Any]
             or ""
         ).strip(),
         "preferred_token": preferred_token or None,
-        "access_tokens": access_tokens,
+        "access_tokens": token_history,
+        "access_package": access_package,
         **prompt_payload,
+    }
+
+
+def build_mcp_access_verification_payload(
+    self_service: dict[str, Any],
+    *,
+    routing_available: bool,
+    catalog_available: bool,
+) -> dict[str, Any]:
+    """Build a read-only MCP access verification result without exposing secrets."""
+
+    token_ready = bool(
+        self_service.get("recommended_token_id")
+        and self_service.get("mcp_enabled")
+        and self_service.get("self_service_state") != "disabled"
+    )
+    checks = [
+        {
+            "key": "token",
+            "label": "当前凭证",
+            "status": "ready" if token_ready else "unavailable",
+            "detail": "当前账号已有可用凭证。" if token_ready else "当前账号还没有可用凭证。",
+        },
+        {
+            "key": "routing",
+            "label": "智能路由",
+            "status": "ready" if routing_available else "unavailable",
+            "detail": "路由服务已就绪。" if routing_available else "路由服务暂时不可用。",
+        },
+        {
+            "key": "catalog",
+            "label": "能力目录",
+            "status": "ready" if catalog_available else "unavailable",
+            "detail": "能力目录可读取。" if catalog_available else "能力目录暂时不可读取。",
+        },
+    ]
+    return {
+        "state": "ready" if all(item["status"] == "ready" for item in checks) else "unavailable",
+        "checks": checks,
     }
 
 

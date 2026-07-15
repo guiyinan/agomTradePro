@@ -16,9 +16,15 @@ from decimal import Decimal
 from django.utils import timezone
 
 from apps.realtime.application.repository_provider import (
+    get_price_alert_repository,
+    get_price_subscription_repository,
+    get_realtime_channel_notifier,
     get_realtime_price_provider,
     get_realtime_price_repository,
     get_watchlist_provider,
+)
+from apps.realtime.application.simulated_trading_gateway import (
+    get_simulated_position_repository,
 )
 from apps.realtime.domain.entities import (
     PricePollingConfig,
@@ -27,12 +33,12 @@ from apps.realtime.domain.entities import (
     PriceUpdateStatus,
 )
 from apps.realtime.domain.protocols import (
+    PriceAlertRepositoryProtocol,
     PriceDataProviderProtocol,
+    PriceSubscriptionRepositoryProtocol,
+    RealtimeChannelNotifierProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
-)
-from apps.simulated_trading.application.repository_provider import (
-    get_simulated_position_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,12 +63,18 @@ class PricePollingService:
         watchlist_provider: WatchlistProviderProtocol,
         config: PricePollingConfig | None = None,
         position_repository: object | None = None,
-    ):
+        subscription_repository: PriceSubscriptionRepositoryProtocol | None = None,
+        alert_repository: PriceAlertRepositoryProtocol | None = None,
+        notifier: RealtimeChannelNotifierProtocol | None = None,
+    ) -> None:
         self.price_repository = price_repository
         self.price_provider = price_provider
         self.watchlist_provider = watchlist_provider
         self.config = config or PricePollingConfig()
         self.position_repository = position_repository or get_simulated_position_price_updater()
+        self.subscription_repository = subscription_repository
+        self.alert_repository = alert_repository
+        self.notifier = notifier
 
     def poll_and_update_prices(self) -> PriceSnapshot:
         """执行一次价格轮询和更新
@@ -73,38 +85,93 @@ class PricePollingService:
         logger.info("Starting price polling...")
 
         # 1. 获取需要监控的资产列表
-        asset_codes = self.watchlist_provider.get_all_monitored_assets()
+        asset_codes = set(self.watchlist_provider.get_all_monitored_assets())
+        if self.subscription_repository is not None:
+            asset_codes.update(self.subscription_repository.list_active_asset_codes())
+        asset_codes = sorted(asset_codes)
         total_assets = len(asset_codes)
 
         if total_assets == 0:
             logger.warning("No assets to monitor")
             return PriceSnapshot(
-                timestamp=timezone.now(),
-                prices=[],
-                total_assets=0,
-                success_count=0,
-                failed_count=0
+                timestamp=timezone.now(), prices=[], total_assets=0, success_count=0, failed_count=0
             )
 
         logger.info(f"Monitoring {total_assets} assets")
 
-        # 2. 批量获取价格
+        # 2. Read old values before any provider fetch or persistence write.
+        old_prices = {
+            price.asset_code: price.price
+            for price in self.price_repository.get_latest_prices(asset_codes)
+        }
+
+        # 3. 批量获取价格
         prices = self.price_provider.get_realtime_prices_batch(asset_codes)
 
-        # 3. 保存价格到缓存
+        # 4. 保存价格到缓存
         if prices:
             self.price_repository.save_prices_batch(prices)
 
-        # 4. 更新持仓模型中的价格
+        # 5. 更新持仓模型中的价格
         self._update_position_prices(prices)
 
-        # 5. 统计结果
+        claimed_alerts = []
+        if prices and self.alert_repository is not None:
+            try:
+                active_alerts = self.alert_repository.list_active_for_assets(
+                    [price.asset_code for price in prices]
+                )
+            except Exception:
+                logger.exception("Loading active realtime alerts failed")
+                active_alerts = []
+            prices_by_code = {price.asset_code: price for price in prices}
+            for alert in active_alerts:
+                try:
+                    price = prices_by_code.get(alert.asset_code)
+                    if price is None or not alert.is_triggered_by(
+                        old_prices.get(alert.asset_code),
+                        price.price,
+                    ):
+                        continue
+                    if alert.id is None:
+                        continue
+                    claimed = self.alert_repository.claim_trigger(
+                        alert.id,
+                        price.price,
+                        timezone.now(),
+                    )
+                    if claimed is not None:
+                        claimed_alerts.append(claimed)
+                except Exception:
+                    logger.exception(
+                        "Realtime alert evaluation failed for %s",
+                        alert.asset_code,
+                    )
+
+        if self.notifier is not None:
+            for price in prices:
+                try:
+                    self.notifier.publish_price(price)
+                except Exception:
+                    logger.exception(
+                        "Realtime price broadcast failed for %s",
+                        price.asset_code,
+                    )
+            for alert in claimed_alerts:
+                try:
+                    self.notifier.publish_alert(alert)
+                except Exception:
+                    logger.exception(
+                        "Realtime alert broadcast failed for %s",
+                        alert.asset_code,
+                    )
+
+        # 6. 统计结果
         success_count = len(prices)
         failed_count = total_assets - success_count
 
         logger.info(
-            f"Price polling completed: "
-            f"{success_count} succeeded, {failed_count} failed"
+            f"Price polling completed: " f"{success_count} succeeded, {failed_count} failed"
         )
 
         return PriceSnapshot(
@@ -112,7 +179,7 @@ class PricePollingService:
             prices=prices,
             total_assets=total_assets,
             success_count=success_count,
-            failed_count=failed_count
+            failed_count=failed_count,
         )
 
     def poll_single_asset(self, asset_code: str) -> PriceUpdate | None:
@@ -140,7 +207,7 @@ class PricePollingService:
                 new_price=None,
                 status=PriceUpdateStatus.FAILED,
                 timestamp=timezone.now(),
-                error_message="Failed to fetch price from data provider"
+                error_message="Failed to fetch price from data provider",
             )
 
         # 保存新价格
@@ -159,7 +226,7 @@ class PricePollingService:
             old_price=Decimal(old_price.price) if old_price else None,
             new_price=Decimal(new_price.price),
             status=status,
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
         )
 
         logger.debug(
@@ -227,7 +294,10 @@ class PricePollingUseCase:
             price_repository=self.price_repository,
             price_provider=self.price_provider,
             watchlist_provider=self.watchlist_provider,
-            config=PricePollingConfig()
+            config=PricePollingConfig(),
+            subscription_repository=get_price_subscription_repository(),
+            alert_repository=get_price_alert_repository(),
+            notifier=get_realtime_channel_notifier(),
         )
 
     def execute_price_polling(self) -> dict:
@@ -290,4 +360,3 @@ class PricePollingUseCase:
             executor.shutdown(wait=False, cancel_futures=True)
 
         return is_available, health_error
-

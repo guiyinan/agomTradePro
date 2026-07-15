@@ -5,13 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 from django.utils import timezone
 
-from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+from apps.share.domain.account_gateway import EmptyShareAccountGateway, ShareAccountGateway
 from apps.share.domain.entities import ShareLevel, ShareLinkEntity, ShareStatus, ShareTheme
 from apps.share.domain.interfaces import (
-    ShareOwnedAccountSnapshot,
     ShareOwnedPositionSnapshot,
     ShareOwnedTradeSnapshot,
 )
@@ -21,13 +19,16 @@ from apps.share.infrastructure.models import (
     ShareLinkModel,
     ShareSnapshotModel,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from core.integration.share_decision_registry import list_share_decisions_for_account_assets
 
 UserModel = get_user_model()
 
 
 class ShareInterfaceRepository:
     """Read/write helpers used by share interface services."""
+
+    def __init__(self, account_gateway: ShareAccountGateway | None = None):
+        self._account_gateway = account_gateway or EmptyShareAccountGateway()
 
     def get_share_link_queryset_for_owner(self, owner_id: int):
         """Return owner-scoped share links ordered newest first."""
@@ -80,33 +81,12 @@ class ShareInterfaceRepository:
     def list_owner_accounts(self, owner_id: int):
         """Return owner accounts ordered newest first."""
 
-        return SimulatedAccountModel._default_manager.filter(user_id=owner_id).order_by(
-            "-created_at"
-        )
+        return self._account_gateway.list_owner_accounts(owner_id)
 
     def get_owned_account_for_snapshot(self, *, owner_id: int, account_id: int):
         """Return one owner account with positions/trades prefetched."""
 
-        account = SimulatedAccountModel._default_manager.filter(
-            id=account_id, user_id=owner_id
-        ).first()
-        if account is None:
-            return None
-        return ShareOwnedAccountSnapshot(
-            id=account.id,
-            account_name=account.account_name,
-            account_type=account.account_type,
-            start_date=account.start_date,
-            total_value=account.total_value,
-            current_market_value=account.current_market_value,
-            current_cash=account.current_cash,
-            total_return=account.total_return,
-            annual_return=account.annual_return,
-            max_drawdown=account.max_drawdown,
-            sharpe_ratio=account.sharpe_ratio,
-            win_rate=account.win_rate,
-            total_trades=account.total_trades,
-        )
+        return self._account_gateway.get_owned_account(owner_id=owner_id, account_id=account_id)
 
     def list_owned_account_positions_for_snapshot(
         self,
@@ -116,29 +96,7 @@ class ShareInterfaceRepository:
     ) -> list[ShareOwnedPositionSnapshot]:
         """Return ordered positions for share snapshot generation."""
 
-        account = (
-            SimulatedAccountModel._default_manager.prefetch_related("positions")
-            .filter(id=account_id, user_id=owner_id)
-            .first()
-        )
-        if account is None:
-            return []
-        return [
-            ShareOwnedPositionSnapshot(
-                asset_code=position.asset_code,
-                asset_name=position.asset_name,
-                asset_type=position.asset_type,
-                quantity=position.quantity,
-                avg_cost=position.avg_cost,
-                current_price=position.current_price,
-                market_value=position.market_value,
-                unrealized_pnl=position.unrealized_pnl,
-                unrealized_pnl_pct=position.unrealized_pnl_pct,
-                entry_reason=position.entry_reason,
-                invalidation_description=position.invalidation_description,
-            )
-            for position in account.positions.all().order_by("-market_value")
-        ]
+        return self._account_gateway.list_owned_positions(owner_id=owner_id, account_id=account_id)
 
     def list_owned_account_trades_for_snapshot(
         self,
@@ -149,34 +107,18 @@ class ShareInterfaceRepository:
     ) -> list[ShareOwnedTradeSnapshot]:
         """Return ordered trades for share snapshot generation."""
 
-        account = (
-            SimulatedAccountModel._default_manager.prefetch_related("trades")
-            .filter(id=account_id, user_id=owner_id)
-            .first()
+        return self._account_gateway.list_owned_trades(
+            owner_id=owner_id,
+            account_id=account_id,
+            limit=limit,
         )
-        if account is None:
-            return []
-        return [
-            ShareOwnedTradeSnapshot(
-                asset_code=trade.asset_code,
-                asset_name=trade.asset_name,
-                action=trade.action,
-                quantity=trade.quantity,
-                price=trade.price,
-                amount=trade.amount,
-                reason=trade.reason,
-                execution_time=trade.execution_time,
-                status=trade.status,
-            )
-            for trade in account.trades.all().order_by("-execution_date", "-execution_time")[:limit]
-        ]
 
     def account_belongs_to_owner(self, *, owner_id: int, account_id: int) -> bool:
         """Return whether an account belongs to the given owner."""
 
-        return SimulatedAccountModel._default_manager.filter(
-            id=account_id, user_id=owner_id
-        ).exists()
+        return self._account_gateway.account_belongs_to_owner(
+            owner_id=owner_id, account_id=account_id
+        )
 
     def list_decision_requests_for_account_assets(self, *, account_id: int, asset_codes: set[str]):
         """Return decision requests relevant to one account and asset set."""
@@ -184,21 +126,10 @@ class ShareInterfaceRepository:
         if not asset_codes:
             return []
 
-        return list(
-            DecisionRequestModel._default_manager.filter(asset_code__in=asset_codes)
-            .filter(
-                Q(unified_recommendation__account_id=str(account_id))
-                | Q(unified_recommendation__account_id=account_id)
-                | Q(execution_ref__account_id=account_id)
-                | Q(execution_ref__account_id=str(account_id))
-            )
-            .select_related(
-                "response",
-                "feature_snapshot",
-                "unified_recommendation",
-                "unified_recommendation__feature_snapshot",
-            )
-            .order_by("-requested_at")[:12]
+        return list_share_decisions_for_account_assets(
+            account_id=account_id,
+            asset_codes=asset_codes,
+            limit=12,
         )
 
     def get_share_disclaimer_config(self):
@@ -249,6 +180,9 @@ class ShareInterfaceRepository:
 class ShareApplicationRepository:
     """Repository implementation used by share application use cases."""
 
+    def __init__(self, account_gateway: ShareAccountGateway | None = None):
+        self._account_gateway = account_gateway or EmptyShareAccountGateway()
+
     def user_exists(self, owner_id: int) -> bool:
         """Return whether the share owner exists."""
 
@@ -257,9 +191,9 @@ class ShareApplicationRepository:
     def account_belongs_to_owner(self, *, owner_id: int, account_id: int) -> bool:
         """Return whether the target account belongs to the owner."""
 
-        return SimulatedAccountModel._default_manager.filter(
-            id=account_id, user_id=owner_id
-        ).exists()
+        return self._account_gateway.account_belongs_to_owner(
+            owner_id=owner_id, account_id=account_id
+        )
 
     def share_link_short_code_exists(self, short_code: str) -> bool:
         """Return whether one public short code already exists."""

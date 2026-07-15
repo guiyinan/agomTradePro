@@ -269,3 +269,32 @@ class TestAgomTradeProClientRequests:
 
         # 会话应该被关闭
         assert True  # 如果没有异常就通过
+
+    def test_controlled_event_replay_uses_canonical_endpoints(self, client):
+        payload = {
+            "target_key": "events.decision.approved",
+            "event_type": "decision_approved",
+            "limit": 10,
+        }
+        with patch.object(client, "_request", return_value={"success": True}) as request:
+            client.events.preview_event_replay(payload)
+            client.events.commit_event_replay(payload, idempotency_key="idem-1")
+            client.events.replay_events({**payload, "idempotency_key": "idem-2"})
+
+        assert request.call_args_list[0].args == (
+            "POST",
+            "/api/events/replay/preview/",
+        )
+        assert request.call_args_list[0].kwargs["json"] == payload
+        assert request.call_args_list[1].args == (
+            "POST",
+            "/api/events/replay/commit/",
+        )
+        assert request.call_args_list[1].kwargs["json"] == {
+            **payload,
+            "idempotency_key": "idem-1",
+        }
+        assert request.call_args_list[2].args == (
+            "POST",
+            "/api/events/replay/commit/",
+        )

@@ -11,18 +11,107 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.utils import timezone
 
-from apps.alpha_trigger.application.repository_provider import (
+from apps.events.domain.replay import ReplayRunReservation
+from core.integration.alpha_candidate_registry import (
     get_alpha_candidate_repository as _get_alpha_candidate_repository,
 )
-from apps.decision_rhythm.application.repository_provider import (
+from core.integration.decision_request_registry import (
     get_decision_request_repository as _get_decision_request_repository,
 )
 
-from .models import FailedEventModel
+from .models import EventReplayRunModel, FailedEventModel
 
 logger = logging.getLogger(__name__)
+
+
+class DjangoReplayRunRepository:
+    """Persist controlled replay reservations and final bounded results."""
+
+    model = EventReplayRunModel
+
+    def reserve(
+        self,
+        *,
+        requester_id: int,
+        target_key: str,
+        normalized_request: dict[str, Any],
+        request_fingerprint: str,
+        idempotency_key: str,
+    ) -> ReplayRunReservation:
+        """Atomically reserve a replay or return its existing state."""
+
+        try:
+            with transaction.atomic():
+                existing = (
+                    self.model.objects.select_for_update()
+                    .filter(
+                        requester_id=requester_id,
+                        idempotency_key=idempotency_key,
+                    )
+                    .first()
+                )
+                if existing is not None:
+                    return self._reservation(existing, request_fingerprint)
+                run = self.model.objects.create(
+                    requester_id=requester_id,
+                    target_key=target_key,
+                    normalized_request=normalized_request,
+                    request_fingerprint=request_fingerprint,
+                    idempotency_key=idempotency_key,
+                    status="running",
+                    started_at=timezone.now(),
+                )
+                return ReplayRunReservation("reserved", run.pk)
+        except IntegrityError:
+            existing = self.model.objects.get(
+                requester_id=requester_id,
+                idempotency_key=idempotency_key,
+            )
+            return self._reservation(existing, request_fingerprint)
+
+    def complete(self, run_id: int, result: dict[str, Any]) -> None:
+        """Persist one completed, partial, or failed business result."""
+
+        outcome = str(result.get("outcome") or "failed")
+        self.model.objects.filter(pk=run_id).update(
+            status=outcome,
+            attempted=int(result.get("attempted") or 0),
+            succeeded=int(result.get("succeeded") or 0),
+            skipped=int(result.get("skipped") or 0),
+            failed=int(result.get("failed") or 0),
+            failures=list(result.get("failures") or [])[:20],
+            result=result,
+            finished_at=timezone.now(),
+        )
+
+    def fail(self, run_id: int, message: str) -> None:
+        """Mark an infrastructure-fatal run failed with a sanitized detail."""
+
+        sanitized = " ".join(str(message).split())[:240]
+        result = {
+            "outcome": "failed",
+            "attempted": 0,
+            "succeeded": 0,
+            "skipped": 0,
+            "failed": 1,
+            "failures": [{"error_code": "infrastructure_error", "message": sanitized}],
+            "results": [],
+        }
+        self.complete(run_id, result)
+
+    @staticmethod
+    def _reservation(
+        run: EventReplayRunModel,
+        request_fingerprint: str,
+    ) -> ReplayRunReservation:
+        if run.request_fingerprint != request_fingerprint:
+            return ReplayRunReservation("conflict", run.pk)
+        if run.status == "running":
+            return ReplayRunReservation("in_progress", run.pk)
+        return ReplayRunReservation("replay", run.pk, dict(run.result or {}))
 
 
 class FailedEventRepository:
@@ -77,8 +166,7 @@ class FailedEventRepository:
         failed_event.save()
 
         logger.info(
-            f"Failed event saved: {event.event_id} "
-            f"(handler={handler_id}, id={failed_event.id})"
+            f"Failed event saved: {event.event_id} " f"(handler={handler_id}, id={failed_event.id})"
         )
 
         return failed_event.id
@@ -257,6 +345,7 @@ class FailedEventRepository:
 
 
 # 便捷函数
+
 
 def get_failed_event_repository() -> FailedEventRepository:
     """获取失败事件仓储实例"""

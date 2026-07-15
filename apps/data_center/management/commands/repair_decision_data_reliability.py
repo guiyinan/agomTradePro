@@ -8,20 +8,20 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.core.management import BaseCommand, CommandError, call_command
 
+from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.interface_services import (
     load_alpha_homepage_data,
     queue_alpha_score_prediction,
+    refresh_pulse_snapshot,
     resolve_portfolio_alpha_scope,
     run_alpha_score_prediction_now,
 )
-from apps.data_center.application.dtos import DecisionReliabilityRepairRequest, SyncQuoteRequest
 from apps.data_center.application.use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     DEFAULT_DECISION_MACRO_INDICATORS,
     RepairDecisionDataReliabilityUseCase,
     SyncQuoteUseCase,
 )
-from apps.pulse.application.use_cases import CalculatePulseUseCase
 from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
@@ -40,12 +40,6 @@ def _split_codes(raw: str | None, defaults: tuple[str, ...]) -> list[str]:
     if not raw:
         return list(defaults)
     return [item.strip() for item in raw.split(",") if item.strip()]
-
-
-def refresh_pulse_snapshot(*, target_date: date):
-    """Refresh the latest pulse snapshot through the owning pulse use case."""
-
-    return CalculatePulseUseCase().execute(as_of_date=target_date)
 
 
 class Command(BaseCommand):

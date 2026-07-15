@@ -10,30 +10,19 @@ Dashboard Interface Views
 """
 
 import logging
-from collections.abc import Mapping
-from datetime import date
 from time import perf_counter
-from types import SimpleNamespace
-from urllib.parse import urlencode
 
 from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
-from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
-from django.utils import timezone as django_timezone
 
 from apps.alpha.application.ops_locks import (
     ALPHA_REFRESH_LOCK_TTL_SECONDS,
-    resolve_dashboard_alpha_refresh_lock,
 )
 from apps.alpha.application.ops_locks import (
     acquire_dashboard_alpha_refresh_pending_lock as _acquire_dashboard_alpha_refresh_pending_lock,
-)
-from apps.alpha.application.ops_locks import (
-    build_dashboard_alpha_refresh_lock_key as _shared_build_alpha_refresh_lock_key,
 )
 from apps.alpha.application.ops_locks import (
     build_dashboard_alpha_refresh_metadata as _build_dashboard_alpha_refresh_metadata,
@@ -44,13 +33,14 @@ from apps.alpha.application.ops_locks import (
 from apps.alpha.application.ops_locks import (
     release_dashboard_alpha_refresh_lock as _release_dashboard_alpha_refresh_lock,
 )
-from apps.alpha.application.pool_resolver import (
-    ALPHA_POOL_MODE_PRICE_COVERED,
-    get_alpha_pool_mode_choices,
-    normalize_alpha_pool_mode,
+from apps.alpha.application.ops_locks import (
+    resolve_dashboard_alpha_refresh_lock as _resolve_dashboard_alpha_refresh_lock_impl,
 )
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
+)
+from apps.alpha.application.pool_resolver import (
+    get_alpha_pool_mode_choices,
 )
 from apps.alpha.application.trade_dates import (
     resolve_recent_closed_trade_date as _resolve_dashboard_alpha_trade_date,
@@ -64,29 +54,95 @@ from apps.dashboard.application.alpha_homepage import (
 from apps.dashboard.application.navigation import (
     build_decision_workspace_url as _build_decision_workspace_url,
 )
-from apps.dashboard.application.navigation import (
-    build_exit_user_action_label as _build_exit_user_action_label,
-)
-from apps.dashboard.application.navigation import (
-    normalize_exit_user_action as _normalize_exit_user_action,
-)
 from apps.dashboard.application.queries import (
-    get_alpha_decision_chain_query,
     get_alpha_homepage_query,
     get_alpha_visualization_query,
+    get_dashboard_detail_query,
     get_decision_plane_query,
 )
 from apps.dashboard.interface import (
     alpha_history_views,
-    alpha_metrics_views,
     alpha_stock_views,
-    api_v1_views,
+    dashboard_alpha_context,
     macro_views,
-    portfolio_views,
-    workflow_views,
 )
-from apps.data_center.application import interface_services as data_center_interface_services
+from apps.dashboard.interface.dashboard_alpha_context import (
+    _annotate_alpha_exit_watchlist_navigation,
+    _annotate_decision_workspace_navigation,
+    _build_alpha_decision_chain_overview,
+    _build_alpha_exit_detail_panel_context,
+    _build_alpha_readiness_contract,
+    _build_alpha_refresh_conflict_response,
+    _build_alpha_refresh_lock_key,
+    _build_dashboard_exit_detail_url,
+    _build_dashboard_exit_entry_panel_context,
+    _get_alpha_decision_chain_data,
+    _get_alpha_stock_scores_payload,
+    _get_dashboard_alpha_refresh_celery_health,
+    _get_request_user_id,
+    _log_dashboard_view_timing,
+    _mark_alpha_exit_watchlist_selection,
+    _should_render_alpha_top_candidates,
+)
+from apps.dashboard.interface.dashboard_regime_context import (
+    _build_action_recommendation_context,
+    _build_attention_items_context,
+    _build_browser_notification_context,
+    _build_market_thermometer_context,
+    _build_pulse_card_context,
+    _build_regime_status_context,
+    _load_market_thermometer_payload,
+    _load_phase1_macro_components,
+    _normalize_dashboard_alpha_pool_mode,
+    _parse_positive_int_param,
+)
 from core.integration.runtime_imports import record_pending_task
+
+__all__ = [
+    "ALPHA_SCOPE_GENERAL",
+    "ALPHA_SCOPE_PORTFOLIO",
+    "PortfolioAlphaPoolResolver",
+    "_ALPHA_REFRESH_LOCK_TTL_SECONDS",
+    "_annotate_alpha_exit_watchlist_navigation",
+    "_annotate_decision_workspace_navigation",
+    "_build_action_recommendation_context",
+    "_build_alpha_exit_detail_panel_context",
+    "_build_alpha_factor_panel",
+    "_build_alpha_readiness_contract",
+    "_build_alpha_refresh_conflict_response",
+    "_build_alpha_refresh_lock_key",
+    "_build_attention_items_context",
+    "_build_dashboard_data",
+    "_build_decision_workspace_url",
+    "_build_dashboard_exit_detail_url",
+    "_build_pulse_card_context",
+    "_build_regime_status_context",
+    "_ensure_dashboard_positions",
+    "_get_alpha_decision_chain_data",
+    "_get_alpha_stock_scores_payload",
+    "_get_dashboard_alpha_refresh_celery_health",
+    "_get_dashboard_portfolio_options",
+    "_get_request_user_id",
+    "_load_phase1_macro_components",
+    "_load_simulated_positions_fallback",
+    "_mark_alpha_exit_watchlist_selection",
+    "_normalize_dashboard_alpha_pool_mode",
+    "_parse_positive_int_param",
+    "_resolve_existing_alpha_refresh_lock",
+    "_should_render_alpha_top_candidates",
+    "acquire_dashboard_alpha_refresh_pending_lock",
+    "build_dashboard_alpha_refresh_metadata",
+    "get_alpha_homepage_query",
+    "get_alpha_visualization_query",
+    "get_alpha_pool_mode_choices",
+    "get_dashboard_detail_query",
+    "get_decision_plane_query",
+    "normalize_alpha_scope",
+    "promote_dashboard_alpha_refresh_task_lock",
+    "record_pending_task",
+    "release_dashboard_alpha_refresh_lock",
+    "resolve_dashboard_alpha_trade_date",
+]
 
 logger = logging.getLogger(__name__)
 _ALPHA_REFRESH_LOCK_TTL_SECONDS = ALPHA_REFRESH_LOCK_TTL_SECONDS
@@ -98,216 +154,6 @@ build_dashboard_alpha_refresh_metadata = _build_dashboard_alpha_refresh_metadata
 promote_dashboard_alpha_refresh_task_lock = _promote_dashboard_alpha_refresh_task_lock
 release_dashboard_alpha_refresh_lock = _release_dashboard_alpha_refresh_lock
 resolve_dashboard_alpha_trade_date = _resolve_dashboard_alpha_trade_date
-
-
-def _get_request_user_id(user) -> int | None:
-    """Return a stable numeric user identifier when available."""
-    user_id = getattr(user, "id", None)
-    if user_id in (None, ""):
-        user_id = getattr(user, "pk", None)
-    try:
-        return int(user_id) if user_id not in (None, "") else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _log_dashboard_view_timing(
-    message: str,
-    *,
-    duration_ms: int,
-    **extra_fields: object,
-) -> None:
-    """Emit structured timing logs for the dashboard page request."""
-    log_method = logger.warning if duration_ms >= _DASHBOARD_VIEW_PERF_WARNING_MS else logger.info
-    log_method(
-        message,
-        extra={
-            "event": "dashboard_view_completed",
-            "duration_ms": duration_ms,
-            **extra_fields,
-        },
-    )
-
-
-def _clone_dashboard_item(item: object) -> dict[str, object]:
-    """Normalize dashboard items from dict-like payloads or model objects."""
-
-    if isinstance(item, Mapping):
-        return dict(item)
-
-    try:
-        item_vars = vars(item)
-    except TypeError:
-        return {}
-
-    return {key: value for key, value in item_vars.items() if not key.startswith("_")}
-
-
-def _get_dashboard_alpha_refresh_celery_health() -> dict[str, object]:
-    """Return whether dashboard Alpha async refresh currently has a live Celery worker."""
-    return dashboard_interface_services.get_dashboard_alpha_refresh_celery_health()
-
-
-def _build_alpha_refresh_lock_key(
-    *,
-    alpha_scope: str,
-    target_date: date,
-    top_n: int,
-    raw_universe_id: str,
-    resolved_pool=None,
-) -> str:
-    """Build a stable lock key for one dashboard alpha refresh scope."""
-    return _shared_build_alpha_refresh_lock_key(
-        alpha_scope=alpha_scope,
-        target_date=target_date,
-        top_n=top_n,
-        raw_universe_id=raw_universe_id,
-        resolved_pool=resolved_pool,
-    )
-
-
-def _resolve_existing_alpha_refresh_lock(lock_key: str) -> dict[str, object] | None:
-    """Return active lock metadata, clearing stale async locks automatically."""
-    return resolve_dashboard_alpha_refresh_lock(lock_key, async_result_cls=AsyncResult)
-
-
-def _build_alpha_refresh_conflict_response(
-    *,
-    alpha_scope: str,
-    target_date: date,
-    top_n: int,
-    universe_id: str,
-    portfolio_id: int | None,
-    pool_mode: str,
-    lock_meta: dict[str, object],
-):
-    """Return a consistent conflict response for duplicate dashboard alpha refresh requests."""
-    task_id = lock_meta.get("task_id")
-    task_state = lock_meta.get("task_state")
-    mode = lock_meta.get("mode")
-    return JsonResponse(
-        {
-            "success": False,
-            "error": "当前 Alpha 推理仍在进行中，请等待完成后再重试。",
-            "alpha_scope": alpha_scope,
-            "task_id": task_id,
-            "task_state": task_state,
-            "universe_id": universe_id,
-            "portfolio_id": portfolio_id,
-            "pool_mode": pool_mode,
-            "requested_trade_date": target_date.isoformat(),
-            "top_n": top_n,
-            "refresh_status": "running",
-            "sync": mode == "sync",
-            "must_not_use_for_decision": True,
-            "poll_after_ms": 3000,
-        },
-        status=409,
-    )
-
-
-def _build_alpha_decision_chain_overview(
-    top_candidates: list[dict],
-    actionable_candidates: list[dict],
-    pending_requests: list[dict],
-) -> dict:
-    """Build workflow summary counts from the account-driven Alpha payload."""
-    top_ranked_count = len(top_candidates)
-    top10_actionable_count = sum(1 for item in top_candidates if item.get("stage") == "actionable")
-    top10_pending_count = sum(1 for item in top_candidates if item.get("stage") == "pending")
-    top10_rank_only_count = max(top_ranked_count - top10_actionable_count - top10_pending_count, 0)
-    actionable_outside_top10_count = max(len(actionable_candidates) - top10_actionable_count, 0)
-    pending_outside_top10_count = max(len(pending_requests) - top10_pending_count, 0)
-    actionable_total = top10_actionable_count + actionable_outside_top10_count
-    pending_total = top10_pending_count + pending_outside_top10_count
-    denominator = top_ranked_count or 1
-    return {
-        "top_ranked_count": top_ranked_count,
-        "actionable_count": actionable_total,
-        "pending_count": pending_total,
-        "top10_actionable_count": top10_actionable_count,
-        "top10_pending_count": top10_pending_count,
-        "top10_rank_only_count": top10_rank_only_count,
-        "actionable_outside_top10_count": actionable_outside_top10_count,
-        "pending_outside_top10_count": pending_outside_top10_count,
-        "actionable_conversion_pct": round((actionable_total / denominator) * 100, 2),
-        "pending_conversion_pct": round((pending_total / denominator) * 100, 2),
-    }
-
-
-def _build_alpha_readiness_contract(
-    *,
-    meta: dict,
-    top_candidates: list[dict],
-    actionable_candidates: list[dict],
-    pending_requests: list[dict],
-) -> dict:
-    """Build a decision-safety contract for dashboard Alpha payloads."""
-    refresh_status = str(meta.get("refresh_status") or "")
-    async_task_id = str(meta.get("async_task_id") or "")
-    recommendation_ready = bool(meta.get("recommendation_ready", False))
-    blocked_reason = str(meta.get("blocked_reason") or meta.get("no_recommendation_reason") or "")
-    return {
-        "alpha_scope": str(meta.get("alpha_scope") or ALPHA_SCOPE_PORTFOLIO),
-        "recommendation_ready": recommendation_ready,
-        "must_not_treat_as_recommendation": not recommendation_ready,
-        "must_not_use_for_decision": not recommendation_ready,
-        "readiness_status": str(meta.get("readiness_status") or ""),
-        "blocked_reason": blocked_reason,
-        "async_refresh_queued": DashboardModuleContract._is_async_refresh_active(
-            refresh_status=refresh_status,
-            async_task_id=async_task_id,
-        ),
-        "refresh_status": refresh_status,
-        "async_task_id": async_task_id,
-        "poll_after_ms": DashboardModuleContract._safe_int(meta.get("poll_after_ms"), default=5000),
-        "hardcoded_fallback_used": bool(meta.get("hardcoded_fallback_used", False)),
-        "no_recommendation_reason": str(meta.get("no_recommendation_reason") or ""),
-        "top_candidate_count": len(top_candidates),
-        "actionable_candidate_count": len(actionable_candidates),
-        "pending_request_count": len(pending_requests),
-        "source": str(meta.get("source") or ""),
-        "status": str(meta.get("status") or ""),
-        "scope_hash": str(meta.get("scope_hash") or ""),
-        "scope_verification_status": str(meta.get("scope_verification_status") or ""),
-        "freshness_status": str(meta.get("freshness_status") or ""),
-        "result_age_days": meta.get("result_age_days"),
-        "is_stale": bool(meta.get("is_stale", False)),
-        "latest_available_qlib_result": bool(meta.get("latest_available_qlib_result", False)),
-        "derived_from_broader_cache": bool(meta.get("derived_from_broader_cache", False)),
-        "trade_date_adjusted": bool(meta.get("trade_date_adjusted", False)),
-        "verified_scope_hash": str(meta.get("verified_scope_hash") or ""),
-        "verified_asof_date": meta.get("verified_asof_date"),
-    }
-
-
-def _should_render_alpha_top_candidates(*, meta: dict, alpha_scope: str) -> bool:
-    """Return whether Alpha top candidates may be rendered as visible rankings."""
-
-    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
-    if normalized_alpha_scope == ALPHA_SCOPE_GENERAL:
-        return True
-    return bool(meta.get("recommendation_ready", False))
-
-
-class DashboardModuleContract:
-    """Shared helpers for dashboard readiness contract formatting."""
-
-    @staticmethod
-    def _safe_int(value, default: int) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    @staticmethod
-    def _is_async_refresh_active(refresh_status: str, async_task_id: str) -> bool:
-        status = refresh_status.lower()
-        if status in {"queued", "recently_queued", "pending", "running", "started"}:
-            return True
-        if status in {"failed", "skipped", "available", "completed", "success", "done"}:
-            return False
-        return bool(async_task_id)
 
 
 def _build_dashboard_data(user_id: int):
@@ -352,766 +198,46 @@ def _get_dashboard_valuation_repair_config_summary() -> dict | None:
     return dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
 
 
-def _load_phase1_macro_components(
-    as_of_date: date | None = None,
-    *,
-    refresh_if_stale: bool = False,
-):
-    """Load navigator, pulse, and action recommendation objects for dashboard widgets."""
-    components = dashboard_interface_services.load_phase1_macro_components(
-        as_of_date=as_of_date,
-        refresh_if_stale=refresh_if_stale,
-    )
-    return components.navigator, components.pulse, components.action
-
-
-def _score_to_percent(score: float) -> int:
-    """Map a pulse score in [-1, 1] to a percentage width in [0, 100]."""
-    bounded = max(-1.0, min(1.0, score))
-    return int(round((bounded + 1.0) * 50))
-
-
-def _parse_positive_int_param(
-    raw_value,
-    *,
-    field_name: str,
-    default: int | None = None,
-) -> int | None:
-    """Parse optional positive-int query params used by HTMX/API endpoints."""
-    if raw_value in (None, ""):
-        return default
-
-    try:
-        value = int(raw_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{field_name} 必须是整数") from exc
-
-    if value <= 0:
-        raise ValueError(f"{field_name} 必须大于 0")
-
-    return value
-
-
-def _normalize_dashboard_alpha_pool_mode(raw_value: str | None) -> str:
-    """Dashboard defaults to a usable price-covered account pool."""
-
-    return normalize_alpha_pool_mode(raw_value or ALPHA_POOL_MODE_PRICE_COVERED)
-
-
-def _build_regime_status_context(navigator, pulse, action) -> dict:
-    """Build template context for the regime status bar widget."""
-    movement = getattr(navigator, "movement", None)
-    asset_guidance = getattr(navigator, "asset_guidance", None)
-    risk_budget_pct = 0.0
-
-    if action and not getattr(action, "must_not_use_for_decision", False):
-        risk_budget_pct = action.risk_budget_pct * 100
-    elif asset_guidance:
-        risk_budget_pct = asset_guidance.risk_budget_pct * 100
-
-    return {
-        "regime_name": navigator.regime_name if navigator else "Unknown",
-        "is_transitioning": bool(navigator and navigator.is_transitioning),
-        "transition_target": movement.transition_target if movement else None,
-        "confidence_pct": (navigator.confidence * 100) if navigator else 0.0,
-        "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
-        "risk_budget_pct": risk_budget_pct,
-        "transition_warning": bool(pulse and pulse.transition_warning),
-        "action_blocked": bool(action and getattr(action, "must_not_use_for_decision", False)),
-    }
-
-
-def _build_pulse_card_context(pulse) -> dict:
-    """Build template context for the Pulse dashboard widget."""
-    dimensions = {ds.dimension: ds for ds in getattr(pulse, "dimension_scores", [])}
-
-    def _dim_value(name: str, field: str, default):
-        entry = dimensions.get(name)
-        return getattr(entry, field, default) if entry else default
-
-    return {
-        "pulse_observed_at": pulse.observed_at.isoformat() if pulse else "",
-        "pulse_composite": getattr(pulse, "composite_score", 0.0),
-        "pulse_strength": getattr(pulse, "regime_strength", "moderate"),
-        "growth_score": _dim_value("growth", "score", 0.0),
-        "growth_signal": _dim_value("growth", "signal", "neutral"),
-        "growth_pct": _score_to_percent(_dim_value("growth", "score", 0.0)),
-        "inflation_score": _dim_value("inflation", "score", 0.0),
-        "inflation_signal": _dim_value("inflation", "signal", "neutral"),
-        "inflation_pct": _score_to_percent(_dim_value("inflation", "score", 0.0)),
-        "liquidity_score": _dim_value("liquidity", "score", 0.0),
-        "liquidity_signal": _dim_value("liquidity", "signal", "neutral"),
-        "liquidity_pct": _score_to_percent(_dim_value("liquidity", "score", 0.0)),
-        "sentiment_score": _dim_value("sentiment", "score", 0.0),
-        "sentiment_signal": _dim_value("sentiment", "signal", "neutral"),
-        "sentiment_pct": _score_to_percent(_dim_value("sentiment", "score", 0.0)),
-        "pulse_transition_warning": bool(pulse and pulse.transition_warning),
-        "pulse_transition_direction": getattr(pulse, "transition_direction", None),
-        "pulse_transition_reasons": getattr(pulse, "transition_reasons", []),
-        "pulse_is_reliable": bool(pulse and pulse.is_reliable),
-        "pulse_stale_count": getattr(pulse, "stale_indicator_count", 0),
-    }
-
-
-def _load_market_thermometer_payload(user_id: int | None) -> dict:
-    """Load the latest market thermometer payload via the data-center boundary."""
-
-    if user_id is None:
-        return {}
-    return data_center_interface_services.load_market_thermometer_payload(
-        user_id=user_id,
-        use_personal_thresholds=True,
-    )
-
-
-def _build_market_thermometer_context(payload: dict | None) -> dict:
-    """Build template context for the market-thermometer dashboard widget."""
-
-    payload = dict(payload or {})
-    components = list(payload.get("components") or [])
-    sorted_components = sorted(
-        components,
-        key=lambda item: float(item.get("score", 0.0)) * float(item.get("weight", 0.0)),
-        reverse=True,
-    )
-    top_reasons = list(payload.get("trigger_reasons") or [])[:3]
-    score_available = bool(payload.get("score_available", True))
-    band = str(payload.get("effective_band") or payload.get("band") or "cold")
-    if not score_available:
-        band = "unavailable"
-    change_5d = payload.get("change_5d")
-    change_20d = payload.get("change_20d")
-    return {
-        "market_temperature_observed_at": payload.get("observed_at"),
-        "market_temperature_score": (
-            float(payload.get("score", 0.0) or 0.0) if score_available else None
-        ),
-        "market_temperature_score_available": score_available,
-        "market_temperature_band": band,
-        "market_temperature_band_label": {
-            "cold": "冷",
-            "warm": "温",
-            "hot": "热",
-            "overheat": "过热",
-            "extreme": "极热",
-            "unavailable": "数据缺失",
-        }.get(band, band),
-        "market_temperature_change_5d": change_5d,
-        "market_temperature_change_20d": change_20d,
-        "market_temperature_change_5d_arrow": "↑" if (change_5d or 0) > 0 else ("↓" if (change_5d or 0) < 0 else "→"),
-        "market_temperature_change_20d_arrow": "↑" if (change_20d or 0) > 0 else ("↓" if (change_20d or 0) < 0 else "→"),
-        "market_temperature_is_hot": band in {"hot", "overheat", "extreme"},
-        "market_temperature_is_overheat": band in {"overheat", "extreme"},
-        "market_temperature_threshold_source": payload.get("threshold_source", "system"),
-        "market_temperature_components": sorted_components,
-        "market_temperature_top_reasons": top_reasons,
-        "market_temperature_degraded": bool(payload.get("must_not_use_for_decision", False)),
-        "market_temperature_blocked_reason": payload.get("blocked_reason", ""),
-    }
-
-
-def _build_action_recommendation_context(action) -> dict:
-    """Build template context for the action recommendation widget."""
-    if not action:
-        return {
-            "action_weights": {},
-            "action_risk_budget": 0.0,
-            "action_position_limit": 0.0,
-            "action_sectors": [],
-            "action_styles": [],
-            "action_hedge": None,
-            "action_regime_contribution": "",
-            "action_pulse_contribution": "",
-            "action_reasoning": "当前暂无联合行动建议，请先完成 Regime 与 Pulse 数据计算。",
-            "action_confidence": 0.0,
-            "action_blocked": False,
-            "action_blocked_reason": "",
-            "action_blocked_code": "",
-            "action_stale_indicator_codes": [],
-        }
-
-    is_blocked = bool(getattr(action, "must_not_use_for_decision", False))
-    return {
-        "action_weights": {
-            category: weight * 100 for category, weight in action.asset_weights.items()
-        },
-        "action_risk_budget": action.risk_budget_pct * 100,
-        "action_position_limit": action.position_limit_pct * 100,
-        "action_sectors": action.recommended_sectors,
-        "action_styles": action.benefiting_styles,
-        "action_hedge": action.hedge_recommendation,
-        "action_regime_contribution": action.regime_contribution,
-        "action_pulse_contribution": action.pulse_contribution,
-        "action_reasoning": action.reasoning,
-        "action_confidence": action.confidence * 100,
-        "action_blocked": is_blocked,
-        "action_blocked_reason": getattr(action, "blocked_reason", ""),
-        "action_blocked_code": getattr(action, "blocked_code", ""),
-        "action_stale_indicator_codes": list(getattr(action, "stale_indicator_codes", []) or []),
-    }
-
-
-def _build_attention_items_context(data, navigator, pulse, market_thermometer: dict | None = None) -> dict:
-    """Build template context for the dashboard attention widget."""
-    items: list[dict[str, str]] = []
-    active_signals = list(getattr(data, "active_signals", []) or [])
-
-    if active_signals:
-        first_signal = active_signals[0]
-        items.append(
-            {
-                "level": "high",
-                "title": f"{len(active_signals)} 条信号待跟进",
-                "detail": (
-                    f"优先处理 {first_signal.get('asset_code', '未知标的')}" " 的已批准信号。"
-                ),
-                "meta": "来源: signal",
-            }
-        )
-
-    if pulse and pulse.transition_warning:
-        reasons = "；".join(pulse.transition_reasons[:2]) or "多维脉搏与当前 Regime 产生冲突。"
-        items.append(
-            {
-                "level": "medium",
-                "title": f"Pulse 转向 {pulse.transition_direction or '待确认'} 预警",
-                "detail": reasons,
-                "meta": "来源: pulse",
-            }
-        )
-    elif navigator and navigator.is_transitioning:
-        items.append(
-            {
-                "level": "medium",
-                "title": f"Regime 可能转向 {navigator.movement.transition_target or '新象限'}",
-                "detail": navigator.movement.momentum_summary,
-                "meta": "来源: regime",
-            }
-        )
-
-    if getattr(data, "position_count", 0) == 0:
-        items.append(
-            {
-                "level": "low",
-                "title": "当前无持仓",
-                "detail": "可以直接进入新决策 Workflow，按 6-step funnel 完成配置决策。",
-                "meta": "来源: account",
-            }
-        )
-
-    if market_thermometer:
-        band = str(market_thermometer.get("effective_band") or market_thermometer.get("band") or "")
-        if band in {"overheat", "extreme"}:
-            items.append(
-                {
-                    "level": "high",
-                    "title": "市场温度过高",
-                    "detail": "谨慎追高，避免情绪化加仓，优先复核仓位与风控阈值。",
-                    "meta": "来源: market_thermometer",
-                }
-            )
-
-    if not items:
-        items.append(
-            {
-                "level": "low",
-                "title": "当前无紧急待办",
-                "detail": "Regime、Pulse 与持仓状态稳定，可按计划例行复核。",
-                "meta": "来源: dashboard",
-            }
-        )
-
-    return {
-        "attention_items": items[:4],
-        "attention_count": len(items[:4]),
-    }
-
-
-def _build_browser_notification_context(navigator, pulse) -> dict:
-    """Build optional browser-notification payload for dashboard alerts."""
-    payload: dict[str, str] | None = None
-
-    if pulse and pulse.transition_warning:
-        reasons = "；".join((pulse.transition_reasons or [])[:2]) or "多维脉搏与当前 Regime 产生冲突。"
-        payload = {
-            "title": f"Pulse 转向 {pulse.transition_direction or '待确认'} 预警",
-            "body": reasons,
-            "tag": f"pulse-{pulse.observed_at.isoformat()}-{pulse.transition_direction or 'warning'}",
-        }
-    elif navigator and navigator.is_transitioning:
-        payload = {
-            "title": f"Regime 可能转向 {navigator.movement.transition_target or '新象限'}",
-            "body": navigator.movement.momentum_summary,
-            "tag": f"regime-{navigator.generated_at.isoformat()}-{navigator.movement.transition_target or 'warning'}",
-        }
-
-    return {
-        "browser_notification_enabled": True,
-        "browser_notification_payload": payload,
-    }
-
-
-# ========================================
-# Alpha 可视化数据获取函数（委托至 Query Services）
-# ========================================
-
-def _get_alpha_stock_scores_payload(
-    top_n: int = 10,
-    user=None,
-    portfolio_id: int | None = None,
-    pool_mode: str | None = None,
-    alpha_scope: str | None = None,
-) -> dict:
-    """Return Alpha stock items plus reliability metadata."""
-    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
-    return dashboard_interface_services.get_alpha_stock_scores_payload(
-        top_n=top_n,
-        user=user,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=normalized_alpha_scope,
-        query_factory=get_alpha_homepage_query,
-    )
-
-
-def _get_alpha_visualization_data(top_n: int = 10, ic_days: int = 30, user=None):
-    """Return the aggregated Alpha visualization payload with a single query execution."""
-    return dashboard_interface_services.get_alpha_visualization_data(
-        top_n=top_n,
-        ic_days=ic_days,
-        user=user,
-        query_factory=get_alpha_visualization_query,
-    )
-
-
-def _get_empty_alpha_metrics_data():
-    """Return empty Alpha metrics for degraded dashboard rendering."""
-    return alpha_metrics_views.get_empty_alpha_metrics_data()
-
-
 def _get_alpha_metrics_data(ic_days: int = 30):
-    """Return Alpha dashboard metrics without reloading stock recommendations."""
-    return alpha_metrics_views.get_alpha_metrics_data(
+    """Load Alpha metrics through the legacy query-factory patch surface."""
+
+    from apps.dashboard.interface.alpha_metrics_views import get_alpha_metrics_data
+
+    return get_alpha_metrics_data(
         ic_days=ic_days,
         query_factory=get_alpha_visualization_query,
     )
 
 
-def _get_alpha_stock_scores(
-    top_n: int = 10,
-    user=None,
-    portfolio_id: int | None = None,
-    pool_mode: str | None = None,
-    alpha_scope: str | None = None,
-) -> list:
-    """
-    获取 Alpha 选股评分结果
+def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
+    """Load decision-plane data through the legacy query-factory patch surface."""
 
-    重构说明 (2026-03-11):
-    - 委托至 AlphaVisualizationQuery
-    - 隐藏跨模块导入细节
-    """
-    return _get_alpha_stock_scores_payload(
-        top_n=top_n,
-        user=user,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=alpha_scope,
-    )["items"]
-
-
-def _get_alpha_stock_scores_meta(
-    top_n: int = 10,
-    user=None,
-    portfolio_id: int | None = None,
-    pool_mode: str | None = None,
-    alpha_scope: str | None = None,
-) -> dict:
-    """Return stock-score reliability metadata for dashboard rendering."""
-    return _get_alpha_stock_scores_payload(
-        top_n=top_n,
-        user=user,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=alpha_scope,
-    )["meta"]
-
-
-def _get_alpha_provider_status(user=None) -> dict:
-    """
-    获取 Alpha Provider 状态
-
-    重构说明 (2026-03-11):
-    - 委托至 AlphaVisualizationQuery
-    """
-    return alpha_metrics_views.get_alpha_provider_status(
-        user=user,
-        query_factory=get_alpha_visualization_query,
+    from apps.dashboard.interface.dashboard_navigation_context import (
+        _empty_decision_plane_data,
     )
 
-
-def _get_alpha_coverage_metrics(user=None) -> dict:
-    """
-    获取 Alpha 覆盖率指标
-
-    重构说明 (2026-03-11):
-    - 委托至 AlphaVisualizationQuery
-    """
-    return alpha_metrics_views.get_alpha_coverage_metrics(
-        user=user,
-        query_factory=get_alpha_visualization_query,
-    )
-
-
-def _get_alpha_ic_trends_payload(days: int = 30, user=None) -> dict:
-    """
-    获取 Alpha IC/ICIR 趋势数据
-
-    重构说明 (2026-03-11):
-    - 委托至 AlphaVisualizationQuery
-    """
-    return alpha_metrics_views.get_alpha_ic_trends_payload(
-        days=days,
-        user=user,
-        query_factory=get_alpha_visualization_query,
-    )
-
-
-def _get_alpha_ic_trends(days: int = 30, user=None) -> list:
-    return alpha_metrics_views.get_alpha_ic_trends(
-        days=days,
-        user=user,
-        query_factory=get_alpha_visualization_query,
-    )
-
-
-def _get_alpha_decision_chain_data(
-    top_n: int = 10,
-    ic_days: int = 30,
-    max_candidates: int = 5,
-    max_pending: int = 10,
-    user=None,
-    alpha_visualization_data=None,
-    decision_plane_data=None,
-):
-    """Return the unified Alpha decision-chain payload."""
-    return dashboard_interface_services.get_alpha_decision_chain_data(
-        top_n=top_n,
-        ic_days=ic_days,
+    data = dashboard_interface_services.get_decision_plane_data(
         max_candidates=max_candidates,
         max_pending=max_pending,
-        user=user,
-        alpha_visualization_data=alpha_visualization_data,
-        decision_plane_data=decision_plane_data,
-        query_factory=get_alpha_decision_chain_query,
+        query_factory=get_decision_plane_query,
+    )
+    return data or _empty_decision_plane_data()
+
+
+def _resolve_existing_alpha_refresh_lock(lock_key: str):
+    """Resolve Alpha refresh locks using the legacy AsyncResult patch surface."""
+
+    return _resolve_dashboard_alpha_refresh_lock_impl(
+        lock_key,
+        async_result_cls=AsyncResult,
     )
 
 
-def _build_alpha_factor_panel(
-    stock_code: str,
-    source: str | None = None,
-    top_n: int = 10,
-    scores: list[dict] | None = None,
-    user=None,
-    portfolio_id: int | None = None,
-    pool_mode: str | None = None,
-    alpha_scope: str | None = None,
-    load_provider_factors: bool = True,
-) -> dict:
-    """Build factor panel data for a single alpha stock."""
-    normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
-    selected = None
-    payload: dict | None = None
-    if scores is not None:
-        score_items = list(scores)
-    else:
-        payload = _get_alpha_stock_scores_payload(
-            top_n=max(top_n, 10),
-            user=user,
-            portfolio_id=portfolio_id,
-            pool_mode=pool_mode,
-            alpha_scope=normalized_alpha_scope,
-        )
-        score_items = payload["items"]
-    for item in score_items:
-        if item.get("code") == stock_code:
-            selected = item
-            break
+def _build_alpha_factor_panel(*args, **kwargs) -> dict:
+    """Build factor context while honoring the legacy score-loader patch surface."""
 
-    provider = source or (selected.get("source") if selected else "unknown")
-    factors = dict(selected.get("factors") or {}) if selected else {}
-    factor_origin = "score_payload" if factors else ""
-    empty_reason = ""
-
-    if load_provider_factors and not factors and provider in {"simple", "qlib", "etf"}:
-        factors = dashboard_interface_services.load_alpha_factor_exposure(
-            stock_code,
-            provider,
-            as_of_date=django_timezone.localdate(),
-        )
-        if factors:
-            factor_origin = f"{provider}_provider"
-
-    if not factors:
-        if provider == "qlib":
-            empty_reason = "当前 Qlib 流程可展示评分与 IC/ICIR，但尚未输出可视化用的单股因子暴露。"
-        elif provider == "cache":
-            empty_reason = "当前缓存记录未包含因子明细，请等待新的带因子评分结果写入缓存。"
-        elif provider == "etf":
-            empty_reason = "ETF 兜底源只提供成份股替代结果，不提供单股因子暴露。"
-        else:
-            empty_reason = "当前股票暂无可展示的因子暴露数据。"
-
-    sorted_factors = []
-    for key, value in factors.items():
-        try:
-            numeric_value = float(value)
-        except (TypeError, ValueError):
-            continue
-        sorted_factors.append(
-            {
-                "name": key,
-                "value": numeric_value,
-                "abs_value": abs(numeric_value),
-                "bar_width": min(abs(numeric_value) * 100, 100),
-                "direction": "positive" if numeric_value >= 0 else "negative",
-            }
-        )
-    sorted_factors.sort(key=lambda item: item["abs_value"], reverse=True)
-
-    recommendation_basis = dict((selected or {}).get("recommendation_basis") or {})
-    alpha_meta = dict(payload["meta"]) if payload else {}
-    alpha_pool = dict(payload["pool"]) if payload else {}
-    if not alpha_meta and selected:
-        alpha_meta = {
-            "alpha_scope": normalized_alpha_scope,
-            "readiness_status": recommendation_basis.get("freshness_status") or "",
-            "scope_verification_status": recommendation_basis.get("scope_verification_status")
-            or "",
-            "blocked_reason": recommendation_basis.get("blocked_reason")
-            or selected.get("blocked_reason")
-            or "",
-            "must_not_use_for_decision": selected.get("must_not_use_for_decision", True),
-        }
-
-    return {
-        "stock": selected,
-        "stock_code": stock_code,
-        "provider": provider,
-        "alpha_scope": normalized_alpha_scope,
-        "alpha_meta": alpha_meta,
-        "alpha_pool": alpha_pool,
-        "recommendation_basis": recommendation_basis,
-        "factor_basis": recommendation_basis.get("factor_basis") or [],
-        "buy_reasons": (selected or {}).get("buy_reasons") or [],
-        "no_buy_reasons": (selected or {}).get("no_buy_reasons") or [],
-        "risk_snapshot": (selected or {}).get("risk_snapshot") or {},
-        "factor_origin": factor_origin,
-        "factors": sorted_factors,
-        "factor_count": len(sorted_factors),
-        "empty_reason": empty_reason,
-    }
-
-
-def _build_alpha_exit_detail_panel_context(
-    *,
-    exit_watchlist: list[dict[str, object]],
-    account_id: int | None = None,
-    asset_code: str | None = None,
-) -> dict[str, object]:
-    """Build sidebar detail context for one exit-watchlist item."""
-
-    normalized_code = str(asset_code or "").strip().upper()
-    selected = None
-    for item in exit_watchlist:
-        item_account_id = item.get("account_id")
-        item_code = str(item.get("asset_code") or "").strip().upper()
-        if normalized_code and item_code != normalized_code:
-            continue
-        if account_id is not None and item_account_id not in {account_id, str(account_id)}:
-            continue
-        selected = item
-        break
-
-    if selected is None and exit_watchlist:
-        selected = exit_watchlist[0]
-
-    if selected is None:
-        return {
-            "selected": None,
-            "recommendation": {},
-            "transition_plan": {},
-            "signal_contract": {},
-            "has_exit_watchlist": False,
-            "empty_reason": "当前没有持仓退出监控项，侧边详情面板会在出现 SELL / REDUCE / 证伪跟踪后展示。",
-        }
-
-    return {
-        "selected": selected,
-        "recommendation": dict(selected.get("recommendation_snapshot") or {}),
-        "transition_plan": dict(selected.get("transition_plan_snapshot") or {}),
-        "signal_contract": dict(selected.get("signal_contract_snapshot") or {}),
-        "has_exit_watchlist": True,
-        "empty_reason": "",
-    }
-
-
-def _mark_alpha_exit_watchlist_selection(
-    exit_watchlist: list[dict[str, object]],
-    *,
-    account_id: int | None = None,
-    asset_code: str | None = None,
-) -> list[dict[str, object]]:
-    """Annotate one exit-watchlist item as selected for cross-page deep links."""
-
-    normalized_code = str(asset_code or "").strip().upper()
-    selected_index: int | None = None
-    for index, item in enumerate(exit_watchlist):
-        item_account_id = item.get("account_id")
-        item_code = str(item.get("asset_code") or "").strip().upper()
-        if normalized_code and item_code != normalized_code:
-            continue
-        if account_id is not None and item_account_id not in {account_id, str(account_id)}:
-            continue
-        selected_index = index
-        break
-
-    if selected_index is None and exit_watchlist:
-        selected_index = 0
-
-    annotated_items: list[dict[str, object]] = []
-    for index, item in enumerate(exit_watchlist):
-        annotated_item = _clone_dashboard_item(item)
-        annotated_item["is_selected"] = selected_index is not None and index == selected_index
-        annotated_items.append(annotated_item)
-    return annotated_items
-
-
-def _build_dashboard_exit_entry_panel_context(
-    exit_watchlist: list[dict[str, object]],
-) -> dict[str, object]:
-    """Filter homepage exit-entry items after the user has already handled them."""
-
-    visible_items: list[dict[str, object]] = []
-    hidden_processed_count = 0
-
-    for item in exit_watchlist:
-        recommendation_snapshot = item.get("recommendation_snapshot") or {}
-        if not isinstance(recommendation_snapshot, dict):
-            recommendation_snapshot = {}
-
-        user_action = str(recommendation_snapshot.get("user_action") or "").strip().upper()
-        if user_action in {"ADOPTED", "IGNORED"}:
-            hidden_processed_count += 1
-            continue
-        visible_items.append(item)
-
-    summary = {
-        "total": len(visible_items),
-        "urgent_count": sum(1 for item in visible_items if int(item.get("priority_rank", 99)) == 0),
-        "sell_count": sum(1 for item in visible_items if item.get("exit_action") == "SELL"),
-        "reduce_count": sum(1 for item in visible_items if item.get("exit_action") == "REDUCE"),
-        "hold_count": sum(1 for item in visible_items if item.get("exit_action") == "HOLD"),
-    }
-
-    return {
-        "items": visible_items,
-        "summary": summary,
-        "hidden_processed_count": hidden_processed_count,
-    }
-
-def _build_dashboard_exit_detail_url(
-    *,
-    asset_code: str | None,
-    account_id: int | str | None = None,
-    alpha_scope: str = ALPHA_SCOPE_PORTFOLIO,
-    portfolio_id: int | None = None,
-) -> str:
-    """Build the canonical deep link from any exit item back to Dashboard detail."""
-
-    params: list[tuple[str, str | int]] = [("alpha_scope", alpha_scope or ALPHA_SCOPE_PORTFOLIO)]
-    if portfolio_id is not None:
-        params.append(("portfolio_id", portfolio_id))
-
-    normalized_asset_code = str(asset_code or "").strip().upper()
-    if normalized_asset_code:
-        params.append(("exit_asset_code", normalized_asset_code))
-
-    if account_id not in (None, ""):
-        params.append(("exit_account_id", int(account_id)))
-
-    query = urlencode(params, doseq=True)
-    return f"{reverse('dashboard:index')}?{query}#{_DASHBOARD_EXIT_DETAIL_ANCHOR}"
-
-
-def _annotate_decision_workspace_navigation(
-    items: list[dict[str, object]],
-    *,
-    source: str,
-    security_code_key: str,
-    view_step: int | None = None,
-    primary_step: int | None = None,
-    account_id_key: str | None = None,
-    action_key: str | None = None,
-) -> list[dict[str, object]]:
-    """Attach canonical Decision Workspace links to dashboard cards and tables."""
-
-    annotated_items: list[dict[str, object]] = []
-    primary_step_value = primary_step if primary_step is not None else view_step
-
-    for item in items:
-        annotated_item = _clone_dashboard_item(item)
-        account_id = annotated_item.get(account_id_key) if account_id_key else None
-        action = annotated_item.get(action_key) if action_key else None
-        annotated_item["decision_workspace_url"] = _build_decision_workspace_url(
-            security_code=str(annotated_item.get(security_code_key) or ""),
-            source=source,
-            step=view_step,
-            account_id=account_id,
-            action=str(action or "") if action is not None else None,
-        )
-        annotated_item["decision_workspace_primary_url"] = _build_decision_workspace_url(
-            security_code=str(annotated_item.get(security_code_key) or ""),
-            source=source,
-            step=primary_step_value,
-            account_id=account_id,
-            action=str(action or "") if action is not None else None,
-        )
-        annotated_items.append(annotated_item)
-
-    return annotated_items
-
-
-def _annotate_alpha_exit_watchlist_navigation(
-    exit_watchlist: list[dict[str, object]],
-    *,
-    alpha_scope: str = ALPHA_SCOPE_PORTFOLIO,
-    portfolio_id: int | None = None,
-) -> list[dict[str, object]]:
-    """Attach shared deep links and normalized user-action metadata to exit items."""
-
-    annotated_items: list[dict[str, object]] = []
-    normalized_scope = normalize_alpha_scope(alpha_scope)
-
-    for item in exit_watchlist:
-        annotated_item = _clone_dashboard_item(item)
-        recommendation_snapshot = annotated_item.get("recommendation_snapshot") or {}
-        if not isinstance(recommendation_snapshot, dict):
-            recommendation_snapshot = {}
-
-        user_action = _normalize_exit_user_action(recommendation_snapshot.get("user_action"))
-        annotated_item["user_action"] = user_action
-        annotated_item["user_action_label"] = _build_exit_user_action_label(user_action)
-        annotated_item["is_processed"] = user_action in {"ADOPTED", "IGNORED"}
-        annotated_item["dashboard_detail_url"] = _build_dashboard_exit_detail_url(
-            asset_code=annotated_item.get("asset_code"),
-            account_id=annotated_item.get("account_id"),
-            alpha_scope=normalized_scope,
-            portfolio_id=portfolio_id,
-        )
-        annotated_items.append(annotated_item)
-
-    return annotated_items
+    kwargs.setdefault("stock_scores_loader", _get_alpha_stock_scores_payload)
+    return dashboard_alpha_context._build_alpha_factor_panel(*args, **kwargs)
 
 
 @login_required(login_url="/account/login/")
@@ -1186,7 +312,11 @@ def dashboard_view(request):
         )
     except ValueError:
         selected_exit_account_id = None
-    if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
+    if (
+        requested_alpha_scope in (None, "")
+        and not portfolio_options
+        and selected_portfolio_id is None
+    ):
         selected_alpha_scope = ALPHA_SCOPE_GENERAL
 
     step_started_at = perf_counter()
@@ -1250,7 +380,9 @@ def dashboard_view(request):
         alpha_candidate_count=len(context.get("alpha_stock_scores", []) or []),
         alpha_actionable_count=len(context.get("alpha_actionable_candidates", []) or []),
         alpha_pending_count=len(context.get("alpha_pending_requests", []) or []),
-        workflow_actionable_count=len(getattr(decision_plane_data, "actionable_candidates", []) or []),
+        workflow_actionable_count=len(
+            getattr(decision_plane_data, "actionable_candidates", []) or []
+        ),
         workflow_pending_count=len(getattr(decision_plane_data, "pending_requests", []) or []),
     )
 
@@ -1480,149 +612,9 @@ def _build_dashboard_page_context(
 # 决策平面数据获取辅助函数（委托至 Query Services）
 # ========================================
 
-
-def _empty_decision_plane_data() -> SimpleNamespace:
-    """Return a safe fallback when decision-plane aggregation is unavailable."""
-    return SimpleNamespace(
-        beta_gate_visible_classes="-",
-        alpha_watch_count=0,
-        alpha_candidate_count=0,
-        alpha_actionable_count=0,
-        quota_total=10,
-        quota_used=0,
-        quota_remaining=10,
-        quota_usage_percent=0.0,
-        actionable_candidates=[],
-        pending_requests=[],
-    )
-
-
-def _get_beta_gate_visible_classes() -> str:
-    """
-    获取 Beta Gate 允许的可见资产类别
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data().beta_gate_visible_classes
-
-
-def _get_alpha_status_count(status: str) -> int:
-    """
-    获取 Alpha 候选状态计数
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    data = _get_decision_plane_data()
-    if status == "WATCH":
-        return data.alpha_watch_count
-    if status == "CANDIDATE":
-        return data.alpha_candidate_count
-    if status == "ACTIONABLE":
-        return data.alpha_actionable_count
-    return 0
-
-
-def _get_quota_total() -> int:
-    """
-    获取决策配额总数
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data().quota_total
-
-
-def _get_quota_used() -> int:
-    """
-    获取已使用的决策配额
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data().quota_used
-
-
-def _get_quota_remaining() -> int:
-    """
-    获取剩余决策配额
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data().quota_remaining
-
-
-def _get_quota_usage_percent() -> float:
-    """
-    获取决策配额使用百分比
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data().quota_usage_percent
-
-
-def _get_actionable_candidates():
-    """
-    首页主流程展示：可操作候选列表（含估值修复信息）
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data(max_candidates=5, max_pending=10).actionable_candidates
-
-
-def _get_pending_requests():
-    """
-    首页主流程展示：已批准但未执行/失败待重试请求
-
-    重构说明 (2026-03-11):
-    - 委托至 DecisionPlaneQuery
-    """
-    return _get_decision_plane_data(max_candidates=5, max_pending=10).pending_requests
-
-
-def _get_pending_count() -> int:
-    return len(_get_pending_requests())
-
-
-def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
-    """Return the aggregated decision-plane payload with a single query execution."""
-    data = dashboard_interface_services.get_decision_plane_data(
-        max_candidates=max_candidates,
-        max_pending=max_pending,
-        query_factory=get_decision_plane_query,
-    )
-    return data or _empty_decision_plane_data()
-
-
-workflow_refresh_candidates = workflow_views.workflow_refresh_candidates
-regime_status_htmx = macro_views.regime_status_htmx
-pulse_card_htmx = macro_views.pulse_card_htmx
-action_recommendation_htmx = macro_views.action_recommendation_htmx
-attention_items_htmx = macro_views.attention_items_htmx
-position_detail_htmx = portfolio_views.position_detail_htmx
-positions_list_htmx = portfolio_views.positions_list_htmx
-allocation_chart_htmx = portfolio_views.allocation_chart_htmx
-performance_chart_htmx = portfolio_views.performance_chart_htmx
-
-
-# ========================================
-# Alpha 可视化 HTMX 视图
-# ========================================
-
-alpha_history_page = alpha_history_views.alpha_history_page
-alpha_history_list_api = alpha_history_views.alpha_history_list_api
-alpha_history_detail_api = alpha_history_views.alpha_history_detail_api
+# Legacy public entries remain here so existing imports and monkeypatch paths keep working.
 alpha_refresh_htmx = alpha_stock_views.alpha_refresh_htmx
 alpha_stocks_htmx = alpha_stock_views.alpha_stocks_htmx
-
-
-alpha_factor_panel_htmx = alpha_stock_views.alpha_factor_panel_htmx
-dashboard_summary_v1 = api_v1_views.dashboard_summary_v1
-regime_quadrant_v1 = api_v1_views.regime_quadrant_v1
-equity_curve_v1 = api_v1_views.equity_curve_v1
-signal_status_v1 = api_v1_views.signal_status_v1
-alpha_decision_chain_v1 = api_v1_views.alpha_decision_chain_v1
+alpha_history_list_api = alpha_history_views.alpha_history_list_api
+alpha_history_detail_api = alpha_history_views.alpha_history_detail_api
+action_recommendation_htmx = macro_views.action_recommendation_htmx

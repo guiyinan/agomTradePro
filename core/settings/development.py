@@ -17,6 +17,11 @@ from core.logging_utils import normalize_log_level
 
 from .base import *  # noqa: F403
 
+if not env("REDIS_URL", default=""):
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+    }
+
 # DEBUG
 DEBUG = True
 # Development only: relax host checks for local debugging/tools.

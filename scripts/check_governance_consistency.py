@@ -18,6 +18,7 @@ import tomllib
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +70,7 @@ GOVERNANCE_BASELINE_REQUIRED_KEYS = (
     "core_management_command_orm_access_count",
     "python_file_non_empty_line_limit",
     "allowed_large_python_files",
+    "large_file_remediation",
 )
 MCP_GOVERNANCE_REQUIRED_KEYS = (
     "default_top_level_tool_count",
@@ -129,8 +131,7 @@ DYNAMIC_GOVERNANCE_DOCS = (
 
 DYNAMIC_GOVERNANCE_COUNT_COPY_PATTERNS = (
     re.compile(
-        r"(?:->|→)\s*`?\d[\d,]*\+?`?\s*"
-        r"(?:core\s+tools?|MCP\s*(?:tools?|工具))\b",
+        r"(?:->|→)\s*`?\d[\d,]*\+?`?\s*" r"(?:core\s+tools?|MCP\s*(?:tools?|工具))\b",
         re.IGNORECASE,
     ),
     re.compile(
@@ -620,16 +621,12 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
                 )
 
         replacement_count = mcp_governance.get("replacement_link_count")
-        without_replacement_count = mcp_governance.get(
-            "legacy_without_replacement_count"
-        )
+        without_replacement_count = mcp_governance.get("legacy_without_replacement_count")
         if all(
             is_non_negative_int(value)
             for value in (legacy_count, replacement_count, without_replacement_count)
         ):
-            if int(replacement_count) + int(without_replacement_count) != int(
-                legacy_count
-            ):
+            if int(replacement_count) + int(without_replacement_count) != int(legacy_count):
                 violations.append(
                     Violation(
                         "governance_baseline_mcp_replacement_partition_invalid",
@@ -650,9 +647,7 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
                 unclassified_count,
             )
         ):
-            if int(disposition_count) + int(unclassified_count) != int(
-                without_replacement_count
-            ):
+            if int(disposition_count) + int(unclassified_count) != int(without_replacement_count):
                 violations.append(
                     Violation(
                         "governance_baseline_mcp_disposition_partition_invalid",
@@ -774,12 +769,12 @@ def check_governance_baseline_health(baseline: dict) -> tuple[list[Violation], d
         "mcp_governance_required_key_count": len(MCP_GOVERNANCE_REQUIRED_KEYS),
         "mcp_governance_entry_count": len(mcp_governance),
         "module_shape_entry_count": len(shape_minimums),
-        "allowed_application_import_file_count": len(allowed_imports)
-        if isinstance(allowed_imports, dict)
-        else 0,
-        "allowed_large_file_count": len(allowed_large_files)
-        if isinstance(allowed_large_files, dict)
-        else 0,
+        "allowed_application_import_file_count": (
+            len(allowed_imports) if isinstance(allowed_imports, dict) else 0
+        ),
+        "allowed_large_file_count": (
+            len(allowed_large_files) if isinstance(allowed_large_files, dict) else 0
+        ),
     }
 
 
@@ -1424,6 +1419,112 @@ def collect_large_python_files(limit: int) -> dict[str, int]:
     return result
 
 
+def check_large_file_remediation_metadata(
+    baseline: dict,
+    *,
+    today: date | None = None,
+) -> tuple[list[Violation], dict]:
+    """Validate ownership and review metadata for every large-file allowance."""
+    violations: list[Violation] = []
+    allowed = baseline.get("allowed_large_python_files", {})
+    remediation = baseline.get("large_file_remediation", {})
+    allowed_paths = set(allowed) if isinstance(allowed, dict) else set()
+    remediation_paths = set(remediation) if isinstance(remediation, dict) else set()
+    review_date = today or date.today()
+
+    if not isinstance(remediation, dict):
+        violations.append(
+            Violation(
+                "large_file_remediation_invalid",
+                "governance/governance_baseline.json",
+                "large_file_remediation must be a JSON object keyed by allowed file path.",
+            )
+        )
+        remediation = {}
+        remediation_paths = set()
+
+    if remediation_paths != allowed_paths:
+        missing = sorted(allowed_paths - remediation_paths)
+        extra = sorted(remediation_paths - allowed_paths)
+        violations.append(
+            Violation(
+                "large_file_remediation_path_mismatch",
+                "governance/governance_baseline.json",
+                f"Remediation paths must exactly match allowances; missing={missing}, extra={extra}.",
+            )
+        )
+
+    for source_path, metadata in sorted(remediation.items()):
+        if not isinstance(metadata, dict):
+            violations.append(
+                Violation(
+                    "large_file_remediation_entry_invalid",
+                    source_path,
+                    "Remediation metadata must be a JSON object.",
+                )
+            )
+            continue
+
+        for field in ("owner", "kind", "rationale", "plan_path"):
+            value = metadata.get(field)
+            if isinstance(value, str) and value.strip():
+                continue
+            violations.append(
+                Violation(
+                    f"large_file_remediation_{field}_invalid",
+                    source_path,
+                    f"{field} must be a non-empty string.",
+                )
+            )
+
+        priority = metadata.get("priority")
+        if priority not in {"P1", "P2"}:
+            violations.append(
+                Violation(
+                    "large_file_remediation_priority_invalid",
+                    source_path,
+                    "priority must be P1 or P2.",
+                )
+            )
+
+        target = metadata.get("target_non_empty_lines")
+        if not is_non_negative_int(target) or target > 1200:
+            violations.append(
+                Violation(
+                    "large_file_remediation_target_invalid",
+                    source_path,
+                    "target_non_empty_lines must be an integer from 0 through 1200.",
+                )
+            )
+
+        raw_review_by = metadata.get("review_by")
+        try:
+            parsed_review_by = date.fromisoformat(str(raw_review_by))
+        except (TypeError, ValueError):
+            violations.append(
+                Violation(
+                    "large_file_remediation_review_date_invalid",
+                    source_path,
+                    "review_by must be an ISO date.",
+                )
+            )
+        else:
+            if parsed_review_by <= review_date:
+                violations.append(
+                    Violation(
+                        "large_file_remediation_review_expired",
+                        source_path,
+                        f"Review date {parsed_review_by.isoformat()} has been reached.",
+                    )
+                )
+
+    return violations, {
+        "allowed_path_count": len(allowed_paths),
+        "remediation_path_count": len(remediation_paths),
+        "review_date": review_date.isoformat(),
+    }
+
+
 def check_large_python_file_baseline(baseline: dict) -> tuple[list[Violation], dict]:
     violations: list[Violation] = []
     limit = int(baseline.get("python_file_non_empty_line_limit", 1200))
@@ -1496,6 +1597,10 @@ def build_report(baseline: dict) -> dict:
             lambda: check_core_management_command_debt_baseline(baseline),
         ),
         ("large_python_files", lambda: check_large_python_file_baseline(baseline)),
+        (
+            "large_file_remediation",
+            lambda: check_large_file_remediation_metadata(baseline),
+        ),
     ]:
         section_violations, data = checker()
         violations.extend(section_violations)

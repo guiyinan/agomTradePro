@@ -31,8 +31,8 @@ from apps.ai_capability.interface.views import (
 )
 from apps.terminal.interface.api_views import (
     TuiOperatorGovernanceQueueView,
-    TuiOperatorHomeView,
     TuiOperatorHomeSectionView,
+    TuiOperatorHomeView,
     TuiWorkbenchActionRunView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
@@ -503,6 +503,13 @@ module_patterns = [
         include(
             ("apps.ai_capability.interface.api_urls", "ai_capability"),
             namespace="api_ai_capability",
+        ),
+    ),
+    path(
+        "api/ai-capabilities/",
+        include(
+            ("apps.ai_capability.interface.api_urls", "ai_capabilities"),
+            namespace="api_ai_capabilities",
         ),
     ),
     # ========== 数据中台 ==========

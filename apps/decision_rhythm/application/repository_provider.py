@@ -68,3 +68,19 @@ def check_alpha_workspace_consistency_health() -> dict:
     )
 
     return _check_health()
+
+
+def list_share_decisions_for_account_assets(
+    *, account_id: int, asset_codes: set[str], limit: int = 12
+):
+    """Return Decision Rhythm rows used by Share snapshot rendering."""
+
+    from apps.decision_rhythm.infrastructure.share_query_repository import (
+        list_share_decisions_for_account_assets as _list_share_decisions,
+    )
+
+    return _list_share_decisions(
+        account_id=account_id,
+        asset_codes=asset_codes,
+        limit=limit,
+    )

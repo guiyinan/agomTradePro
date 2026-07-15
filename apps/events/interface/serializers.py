@@ -5,6 +5,8 @@ Events Interface Serializers
 """
 
 
+from typing import Any
+
 from rest_framework import serializers
 
 from apps.events.domain.entities import EventType
@@ -15,7 +17,7 @@ from apps.events.domain.entities import EventType
 class StrictFieldsSerializer(serializers.Serializer):
     """Reject request fields that are not part of the published contract."""
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Validate the request key set before normal field conversion."""
 
         if not isinstance(data, dict):
@@ -84,17 +86,43 @@ class EventQueryRequestSerializer(serializers.Serializer):
     limit = serializers.IntegerField(required=False, default=100, min_value=1, max_value=1000)
 
 
-class EventReplayRequestSerializer(serializers.Serializer):
-    """事件重放请求序列化器"""
+class _StrictReplaySerializer(serializers.Serializer):
+    """Reject undeclared replay fields, including arbitrary handler identities."""
+
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
+        unknown = sorted(set(data) - set(self.fields))
+        if unknown:
+            raise serializers.ValidationError(
+                {key: ["Unknown field."] for key in unknown}
+            )
+        return super().to_internal_value(data)
+
+
+class EventReplayPreviewRequestSerializer(_StrictReplaySerializer):
+    """Strict preview request for one registered replay target."""
+
+    target_key = serializers.CharField(max_length=128)
     event_type = serializers.ChoiceField(
         choices=[e.value for e in EventType],
-        required=False,
-        allow_null=True
+        required=True,
     )
-    since = serializers.DateTimeField(required=False, allow_null=True)
-    until = serializers.DateTimeField(required=False, allow_null=True)
-    limit = serializers.IntegerField(required=False, default=1000, min_value=1, max_value=10000)
-    target_handler_class = serializers.CharField(required=False, allow_null=True)
+    start_at = serializers.DateTimeField(required=False, allow_null=True)
+    end_at = serializers.DateTimeField(required=False, allow_null=True)
+    limit = serializers.IntegerField(
+        required=False,
+        default=100,
+        min_value=1,
+        max_value=1000,
+    )
+
+
+class EventReplayCommitRequestSerializer(EventReplayPreviewRequestSerializer):
+    """Strict commit request with an explicit idempotency key."""
+
+    idempotency_key = serializers.CharField(max_length=128)
+
+
+EventReplayRequestSerializer = EventReplayPreviewRequestSerializer
 
 
 # ========== 响应序列化器 ==========
