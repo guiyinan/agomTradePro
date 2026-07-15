@@ -12,6 +12,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Alpha Qlib Celery task definitions and aliases remain in Application. Initialization, prediction/cache, and artifact/training runtime work is delegated through the Application provider factory to Infrastructure modules.
 - Account repositories now have focused profile/classification, portfolio, position, portfolio API, registration/profile, portfolio-access, and administration owners. The original repository module remains the compatibility export surface.
 - Auto-advisor services now have focused serialization, contract, intent, execution, performance, provider, and decision-sheet owners. The original service module remains a controlled compatibility export surface.
+- Decision Rhythm application use cases now have focused quota/submission, execution, workspace approval, model-parameter, and unified-recommendation owners. The original use-case module retains compatibility exports and its repository-provider monkeypatch surface.
 - Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
 
 ## Remaining scope
@@ -30,6 +31,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
 - Account registration, profile, portfolio, position, observer grant, sizing, Dashboard dependency, and API edge contracts.
 - Auto-advisor decision-sheet, execution plan, recommendation attribution, Dashboard console, UI, weekly task, and API guardrail contracts.
+- Decision Rhythm submission, execution, quota, model-parameter, unified-recommendation, workspace API, guardrail, and end-to-end contracts.
 - The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
 - Local structure contracts preserve the tighter stage-specific file budgets and reject reverse imports from extracted modules back to their compatibility entrypoints.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.
