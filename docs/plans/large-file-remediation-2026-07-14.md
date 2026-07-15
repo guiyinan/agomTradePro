@@ -27,11 +27,13 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Dashboard API edges, market thermometer, regression guardrails, Alpha end-to-end, and Regime/Pulse integration.
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
 - The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
+- Local structure contracts preserve the tighter stage-specific file budgets and reject reverse imports from extracted modules back to their compatibility entrypoints.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.
 
 ## Risks and rollback points
 
 - Runtime imports and compatibility exports are the main risk because tests and adjacent interface modules patch legacy paths. Each original module therefore retains thin exports or aggregators.
 - Celery task registration is kept in the original module; Infrastructure modules contain implementation only.
+- Further large-file splits remain separate P1/P2 work packages. Pulling a fifth business file into this stage would exceed the agreed delivery boundary and couple its rollback to already-accepted changes.
 - Each responsibility split is independently revertible. If a regression is found, revert the corresponding split together with its baseline removal so governance remains internally consistent.
 - No database schema, route, API payload, template key, TUI key, or Celery task name changes are part of this stage.
