@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6790,
+  "static_test_function_count": 6793,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,

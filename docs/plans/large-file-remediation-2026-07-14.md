@@ -26,6 +26,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Terminal metadata composition, TUI workbench, terminal service, SDK, and SSL redirect checks.
 - Dashboard API edges, market thermometer, regression guardrails, Alpha end-to-end, and Regime/Pulse integration.
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
+- The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.
 
 ## Risks and rollback points

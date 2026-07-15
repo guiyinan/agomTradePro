@@ -1,6 +1,7 @@
 """
 Global fixtures for Playwright tests.
 """
+
 import os
 import re
 from collections.abc import Generator
@@ -12,8 +13,11 @@ from playwright.sync_api import Browser, Page
 
 from tests.playwright.config.test_config import config
 from tests.playwright.pages import AdminPage, DashboardPage, LoginPage
+from tests.playwright.runtime_compatibility import ensure_subprocess_event_loop_policy
 from tests.playwright.utils.screenshot_utils import ScreenshotUtils
 from tests.playwright.utils.ux_auditor import UXAuditor
+
+ensure_subprocess_event_loop_policy()
 
 
 def pytest_addoption(parser):
