@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-15.v4",
+  "version": "2026-07-15.v5",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 208,
+  "max_app_import_edges": 204,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -17,7 +17,7 @@
     "beta_gate": 5,
     "config_center": 1,
     "dashboard": 16,
-    "data_center": 5,
+    "data_center": 1,
     "decision_rhythm": 20,
     "equity": 8,
     "events": 0,
@@ -48,14 +48,14 @@
     "agent_runtime": 1,
     "ai_capability": 1,
     "ai_provider": 12,
-    "alpha": 5,
+    "alpha": 4,
     "alpha_trigger": 3,
     "asset_analysis": 11,
     "audit": 3,
     "backtest": 2,
     "beta_gate": 4,
     "config_center": 4,
-    "dashboard": 2,
+    "dashboard": 1,
     "data_center": 22,
     "decision_rhythm": 4,
     "equity": 7,
@@ -67,8 +67,8 @@
     "macro": 5,
     "policy": 13,
     "prompt": 4,
-    "pulse": 8,
-    "realtime": 7,
+    "pulse": 7,
+    "realtime": 6,
     "regime": 24,
     "risk_center": 3,
     "rotation": 4,
@@ -108,24 +108,8 @@
       "simulated_trading"
     ],
     [
-      "alpha",
-      "data_center"
-    ],
-    [
       "audit",
       "backtest"
-    ],
-    [
-      "dashboard",
-      "data_center"
-    ],
-    [
-      "data_center",
-      "pulse"
-    ],
-    [
-      "data_center",
-      "realtime"
     ],
     [
       "policy",
@@ -153,27 +137,23 @@
       "audit",
       "backtest",
       "beta_gate",
-      "config_center",
-      "dashboard",
-      "data_center",
       "decision_rhythm",
       "equity",
       "factor",
       "fund",
       "hedge",
-      "macro",
       "policy",
-      "prompt",
-      "pulse",
       "realtime",
-      "regime",
       "rotation",
-      "sector",
       "sentiment",
       "share",
       "signal",
       "simulated_trading",
       "strategy"
+    ],
+    [
+      "pulse",
+      "regime"
     ]
   ]
 }

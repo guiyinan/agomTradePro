@@ -33,9 +33,17 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `simulated_trading -> decision_rhythm` was removed. Simulated Trading owns the exit-advisor builder gateway and preserves the original task monkeypatch surface; Decision Rhythm registers its existing advisor implementation.
 - Events exited the remaining cycle component, and all four resolved pairs and graph budgets were tightened in the same batch.
 
+## Completed batch 4
+
+- `data_center -> alpha` was removed. Data Center owns the Alpha runtime gateway; Alpha registers scope resolution and prediction task adapters while original Celery names and test patch paths remain unchanged.
+- `data_center -> dashboard` was removed. Dashboard registers the Alpha homepage query adapter without exposing Dashboard internals to Data Center.
+- `data_center -> pulse` was removed. Pulse registers its snapshot refresher, including the management-command path.
+- `data_center -> realtime` was removed. Realtime registers latest-price fallback access, preserving the existing Data Center helper and Realtime monkeypatch surfaces.
+- The former large cycle component split: Data Center, Dashboard, Config Center, Macro, Prompt, and Sector left all cycle components; the remaining debt is one smaller main component plus the isolated `pulse <-> regime` pair.
+
 ## Next batches
 
-1. Replace Data Center reverse calls to Alpha, Dashboard, Pulse, and Realtime with provider registries or owner facades.
+1. Remove the isolated `pulse <-> regime` pair.
 2. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
 3. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 

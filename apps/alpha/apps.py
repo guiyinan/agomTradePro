@@ -18,5 +18,11 @@ class AlphaConfig(AppConfig):
         """应用就绪时的初始化"""
         import logging
 
+        from apps.alpha.application.data_center_gateway import (
+            register_alpha_data_center_runtime,
+        )
+
+        register_alpha_data_center_runtime()
+
         logger = logging.getLogger(__name__)
         logger.debug("Alpha 应用已加载")

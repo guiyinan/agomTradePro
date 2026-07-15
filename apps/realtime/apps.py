@@ -12,7 +12,10 @@ class RealtimeConfig(AppConfig):
     name = "apps.realtime"
     verbose_name = "Realtime Price Monitoring"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用启动时的初始化逻辑"""
-        # 导入信号处理（如果需要）
-        pass
+        from apps.realtime.application.data_center_gateway import (
+            register_realtime_data_center_runtime,
+        )
+
+        register_realtime_data_center_runtime()
