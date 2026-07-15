@@ -359,17 +359,23 @@ class TestEventsStatusAPI:
 
 @pytest.mark.django_db
 class TestEventsReplayAPI:
-    """Tests for /api/events/replay/ endpoint."""
+    """Tests for the controlled replay preview endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def _enable_controlled_replay(self, settings: object) -> None:
+        setattr(settings, "EVENT_REPLAY_ENABLED", True)
 
     def test_replay_endpoint_returns_json_not_501(self):
         """
-        POST /api/events/replay/ must return JSON response, not 501 placeholder.
+        POST /api/events/replay/preview/ must return JSON, not a placeholder.
         """
         client = _build_authenticated_api_client("events_replay_contract")
 
         response = client.post(
-            "/api/events/replay/",
+            "/api/events/replay/preview/",
             data=json.dumps({
+                "target_key": "events.decision.approved",
+                "event_type": "decision_approved",
                 "limit": 10,
             }),
             content_type="application/json",
@@ -388,8 +394,10 @@ class TestEventsReplayAPI:
         client = _build_authenticated_api_client("events_replay_limit")
 
         response = client.post(
-            "/api/events/replay/",
+            "/api/events/replay/preview/",
             data=json.dumps({
+                "target_key": "events.decision.approved",
+                "event_type": "decision_approved",
                 "limit": 5,
             }),
             content_type="application/json",

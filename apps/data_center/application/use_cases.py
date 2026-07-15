@@ -1667,7 +1667,7 @@ class QueryValuationsUseCase:
         end: date | None = None,
         limit: int | None = None,
     ) -> list[dict[str, object]]:
-        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end, limit)]
+        return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end)[:limit]]
 
 
 class QuerySectorConstituentsUseCase:

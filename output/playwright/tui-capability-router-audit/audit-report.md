@@ -219,7 +219,7 @@
 
 ### 真实浏览器复验
 
-环境：当前工作区代码、当前本地迁移、独立本地服务端口、1440×1000 视口。验收账号和关联回放/告警/订阅数据已在验收后删除。
+环境：整改分支最终提交、当前本地迁移、独立本地服务端口、1440×1000 视口。本轮临时创建的普通用户已在验收后删除，未创建测试令牌；数据库内既有本地账号不属于本轮清理范围。
 
 - 管理员目录：可见个人 MCP 接入、MCP 工具/用户治理和能力路由调试。
 - 普通用户目录：仅可见个人 MCP 接入；直接请求管理员 screen 得到 HTTP 403 和结构化恢复 UI。
@@ -242,7 +242,7 @@
 - `pytest sdk/tests/test_sdk/test_client.py -q`：20 passed。
 - `pytest tests/unit/test_internal_ssl_redirect.py -q`：2 passed。
 - `pytest tests/unit/test_generate_mcp_tool_inventory.py tests/unit/test_price_polling_service.py -q`：3 passed。
-- `pytest tests/guardrails -q`：其余 132 项通过；唯一治理基线同步失败修正后，失败用例单独复跑 1 passed（分层、模块循环、ORM 越界均无新增违规）。
+- `pytest tests/guardrails -q`：在最终提交的隔离 worktree 中一次性 `133 passed`（分层、模块循环、ORM 越界与治理一致性均无新增违规）。
 - `node --check static/js/tui-workbench.js`：通过。
 - `python manage.py makemigrations --check --dry-run`：No changes detected。
 - `python manage.py check`：System check identified no issues。

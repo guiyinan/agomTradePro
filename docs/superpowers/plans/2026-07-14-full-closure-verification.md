@@ -8,6 +8,8 @@
 
 **Tech Stack:** pytest, Django test runner, Channels communicator, Playwright/in-app browser, GitHub Actions, governance scripts, Git/GitHub CLI.
 
+**Execution status (2026-07-14):** Tasks 1-5 are complete. The checklist below is retained as the original execution script; the criterion-by-criterion final record is `docs/development/mcp-full-closure-evidence-2026-07-14.md`.
+
 ## Global Constraints
 
 - No required acceptance item may remain unverified.

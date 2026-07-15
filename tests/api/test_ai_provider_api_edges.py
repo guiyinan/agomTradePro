@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog, AIUserFallbackQuota
@@ -126,6 +127,7 @@ def test_ai_provider_system_list_requires_admin(authenticated_client):
 
 
 @pytest.mark.django_db
+@override_settings(AGOMTRADEPRO_ENCRYPTION_KEY="ai-provider-api-test-key")
 def test_admin_can_create_system_ai_provider(admin_client):
     response = admin_client.post(
         "/api/ai/providers/",
@@ -146,6 +148,10 @@ def test_admin_can_create_system_ai_provider(admin_client):
     assert payload["provider_type"] == "openai"
     assert payload["base_url"] == "https://example.invalid/system"
     assert payload["default_model"] == "gpt-4o-mini"
+
+    provider = AIProviderConfig.objects.get(pk=payload["id"])
+    assert provider.api_key == ""
+    assert provider.api_key_encrypted.startswith("encrypted:v1:")
 
 
 @pytest.mark.django_db
