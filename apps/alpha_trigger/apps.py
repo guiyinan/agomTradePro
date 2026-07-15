@@ -18,6 +18,7 @@ class AlphaTriggerConfig(AppConfig):
             register_alpha_candidate_repository_factory,
         )
 
+        from . import checks as _checks  # noqa: F401
         from .application.repository_provider import get_alpha_candidate_repository
 
         register_alpha_candidate_repository_factory(get_alpha_candidate_repository)

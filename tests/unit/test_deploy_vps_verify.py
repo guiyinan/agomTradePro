@@ -20,7 +20,9 @@ deploy_vps_verify = _load_module()
 
 
 def test_parse_caddy_site_address_handles_domain_line():
-    assert deploy_vps_verify.parse_caddy_site_address("demo.agomtrade.pro {") == "demo.agomtrade.pro"
+    assert (
+        deploy_vps_verify.parse_caddy_site_address("demo.agomtrade.pro {") == "demo.agomtrade.pro"
+    )
 
 
 def test_parse_caddy_site_address_handles_http_listener():
@@ -92,3 +94,67 @@ def test_build_celery_ping_command_checks_workers_from_web_container():
     command = deploy_vps_verify.build_celery_ping_command("/opt/agomtradepro")
 
     assert "exec -T web celery -A core inspect ping --timeout=8" in command
+
+
+def test_build_django_deploy_check_command_uses_running_web_container():
+    command = deploy_vps_verify.build_django_deploy_check_command("/opt/agomtradepro")
+
+    assert "exec -T web python manage.py check --deploy" in command
+
+
+def test_build_migration_check_command_rejects_unapplied_migrations():
+    command = deploy_vps_verify.build_migration_check_command("/opt/agomtradepro")
+
+    assert "exec -T web python manage.py migrate --check --noinput" in command
+
+
+def test_evaluate_runtime_command_result_accepts_empty_success_output():
+    ok, summary = deploy_vps_verify.evaluate_runtime_command_result(
+        exit_code=0,
+        stdout="",
+        stderr="",
+    )
+
+    assert ok is True
+    assert summary == "command completed successfully"
+
+
+def test_build_qlib_identity_command_checks_distribution_and_module():
+    command = deploy_vps_verify.build_qlib_identity_command("/opt/agomtradepro")
+
+    assert "exec -T web python -c" in command
+    assert "metadata.version" in command
+    assert "pyqlib" in command
+    assert "wrong_qlib" in command
+    assert "import qlib.data" in command
+    assert "qlib.__file__" in command
+
+
+def test_evaluate_qlib_identity_result_accepts_canonical_runtime():
+    ok, summary = deploy_vps_verify.evaluate_qlib_identity_result(
+        exit_code=0,
+        stdout=(
+            "pyqlib=0.9.7\n"
+            "wrong_qlib=absent\n"
+            "module=/usr/local/lib/python3.11/site-packages/qlib/__init__.py\n"
+        ),
+        stderr="",
+    )
+
+    assert ok is True
+    assert "pyqlib=0.9.7" in summary
+
+
+def test_evaluate_qlib_identity_result_rejects_wrong_distribution():
+    ok, summary = deploy_vps_verify.evaluate_qlib_identity_result(
+        exit_code=0,
+        stdout=(
+            "pyqlib=0.9.7\n"
+            "wrong_qlib=present\n"
+            "module=/usr/local/lib/python3.11/site-packages/qlib/__init__.py\n"
+        ),
+        stderr="",
+    )
+
+    assert ok is False
+    assert "wrong qlib distribution is installed" in summary

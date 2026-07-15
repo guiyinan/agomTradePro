@@ -4,12 +4,18 @@ Unit tests for health check endpoints.
 Tests the liveness and readiness probes for Kubernetes deployment.
 """
 
-import logging
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from django.test import Client
+from django.test.utils import override_settings
+
+LOCAL_MEMORY_CACHE = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
 
 
 @pytest.mark.unit
@@ -19,47 +25,53 @@ class TestHealthCheckEndpoints:
     def test_liveness_probe_returns_ok(self, db):
         """Test liveness probe returns 200 with ok status"""
         client = Client()
-        response = client.get('/api/health/')
+        response = client.get("/api/health/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] == 'ok'
-        assert 'timestamp' in data
+        assert data["status"] == "ok"
+        assert "timestamp" in data
 
-    def test_readiness_probe_with_healthy_database(self, db):
+    def test_readiness_probe_with_healthy_database(self, db, monkeypatch):
         """Test readiness probe returns 200 when database is healthy"""
-        client = Client()
-        response = client.get('/api/ready/')
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        with override_settings(
+            CACHES=LOCAL_MEMORY_CACHE,
+            CELERY_BROKER_URL=None,
+            CELERY_RESULT_BACKEND=None,
+        ):
+            client = Client()
+            response = client.get("/api/ready/")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] == 'ok'
-        assert 'timestamp' in data
-        assert 'checks' in data
-        assert data['checks']['database']['status'] == 'ok'
+        assert data["status"] == "ok"
+        assert "timestamp" in data
+        assert "checks" in data
+        assert data["checks"]["database"]["status"] == "ok"
 
     def test_readiness_probe_content_type(self, db):
         """Test health endpoints return JSON content type"""
         client = Client()
 
-        response = client.get('/api/health/')
-        assert response['Content-Type'] == 'application/json'
+        response = client.get("/api/health/")
+        assert response["Content-Type"] == "application/json"
 
-        response = client.get('/api/ready/')
-        assert response['Content-Type'] == 'application/json'
+        response = client.get("/api/ready/")
+        assert response["Content-Type"] == "application/json"
 
     def test_database_health_probe_returns_json_payload(self, db):
         """Test database health probe exposes direct dependency status."""
         client = Client()
 
-        response = client.get('/api/health/db/')
+        response = client.get("/api/health/db/")
 
         assert response.status_code == 200
-        assert response['Content-Type'] == 'application/json'
+        assert response["Content-Type"] == "application/json"
         data = response.json()
-        assert data['status'] == 'ok'
-        assert data['database']['status'] == 'ok'
-        assert 'timestamp' in data
+        assert data["status"] == "ok"
+        assert data["database"]["status"] == "ok"
+        assert "timestamp" in data
 
 
 @pytest.mark.unit
@@ -71,9 +83,9 @@ class TestHealthCheckFunctions:
         from core.health_checks import check_database
 
         result = check_database()
-        assert result['status'] == 'ok'
+        assert result["status"] == "ok"
 
-    @patch('core.health_checks.connections')
+    @patch("core.health_checks.connections")
     def test_check_database_error(self, mock_connections):
         """Test database check returns error when database fails"""
         from django.db import DatabaseError
@@ -86,27 +98,39 @@ class TestHealthCheckFunctions:
         mock_connections.__getitem__.return_value = mock_conn
 
         result = check_database()
-        assert result['status'] == 'error'
-        assert 'error' in result
+        assert result["status"] == "error"
+        assert "error" in result
 
-    def test_check_redis_with_locmem_cache(self, db):
+    def test_check_redis_with_locmem_cache(self, db, monkeypatch):
         """Test Redis check returns skipped when using LocMemCache"""
         from core.health_checks import check_redis
 
-        result = check_redis()
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        with override_settings(
+            CACHES=LOCAL_MEMORY_CACHE,
+            CELERY_BROKER_URL=None,
+            CELERY_RESULT_BACKEND=None,
+        ):
+            result = check_redis()
         # In development/test environment, LocMemCache is used
-        assert result['status'] in ('skipped', 'ok')
+        assert result["status"] in ("skipped", "ok")
 
-    def test_check_redis_skipped_when_not_configured(self, db):
+    def test_check_redis_skipped_when_not_configured(self, db, monkeypatch):
         """Test Redis check returns skipped when Redis is not configured"""
         from core.health_checks import check_redis
 
-        result = check_redis()
+        monkeypatch.delenv("REDIS_URL", raising=False)
+        with override_settings(
+            CACHES=LOCAL_MEMORY_CACHE,
+            CELERY_BROKER_URL=None,
+            CELERY_RESULT_BACKEND=None,
+        ):
+            result = check_redis()
         # Either skipped (if no Redis) or ok (if cache is working)
-        assert result['status'] in ('skipped', 'ok')
+        assert result["status"] in ("skipped", "ok")
 
-    @patch('redis.Redis.from_url')
-    @patch('core.health_checks.settings')
+    @patch("redis.Redis.from_url")
+    @patch("core.health_checks.settings")
     def test_check_redis_uses_celery_redis_url_when_cache_is_locmem(
         self,
         mock_settings,
@@ -116,39 +140,35 @@ class TestHealthCheckFunctions:
         from core.health_checks import check_redis
 
         mock_settings.CACHES = {
-            'default': {
-                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
-            }
+            "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
         }
-        mock_settings.CELERY_BROKER_URL = 'redis://localhost:6379/0'
-        mock_settings.CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+        mock_settings.CELERY_BROKER_URL = "redis://localhost:6379/0"
+        mock_settings.CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
         mock_from_url.return_value.ping.return_value = True
 
         result = check_redis()
 
-        assert result == {'status': 'ok', 'source': 'redis_url'}
+        assert result == {"status": "ok", "source": "redis_url"}
         mock_from_url.assert_called_once()
 
-    @patch('core.health_checks.cache.get', side_effect=Exception("Redis connection failed"))
-    @patch('core.health_checks.settings')
+    @patch("core.health_checks.cache.get", side_effect=Exception("Redis connection failed"))
+    @patch("core.health_checks.settings")
     def test_check_redis_error(self, mock_settings, mock_get):
         """Test Redis check returns error when cache operations fail"""
         from core.health_checks import check_redis
 
         # Mock Redis cache configuration
         mock_settings.CACHES = {
-            'default': {
-                'BACKEND': 'django.core.cache.backends.redis.RedisCache'
-            }
+            "default": {"BACKEND": "django.core.cache.backends.redis.RedisCache"}
         }
 
         result = check_redis()
-        assert result['status'] == 'error'
-        assert 'error' in result
+        assert result["status"] == "error"
+        assert "error" in result
 
-    @patch('core.health_checks.logger')
-    @patch('core.celery.app')
-    @patch('django.conf.settings')
+    @patch("core.health_checks.logger")
+    @patch("core.celery.app")
+    @patch("django.conf.settings")
     def test_check_celery_connection_error_is_debug_only(
         self,
         mock_settings,
@@ -164,7 +184,7 @@ class TestHealthCheckFunctions:
 
         result = check_celery()
 
-        assert result['status'] == 'error'
+        assert result["status"] == "error"
         mock_logger.debug.assert_called_once()
         mock_logger.warning.assert_not_called()
 
@@ -173,27 +193,21 @@ class TestHealthCheckFunctions:
         from core.health_checks import run_readiness_checks
 
         checks = run_readiness_checks()
-        assert 'database' in checks
-        assert 'redis' in checks
+        assert "database" in checks
+        assert "redis" in checks
 
     def test_is_healthy_all_ok(self, db):
         """Test is_healthy returns True when all checks are ok"""
         from core.health_checks import is_healthy
 
-        checks = {
-            'database': {'status': 'ok'},
-            'redis': {'status': 'ok'}
-        }
+        checks = {"database": {"status": "ok"}, "redis": {"status": "ok"}}
         assert is_healthy(checks) is True
 
     def test_is_healthy_with_skipped(self, db):
         """Test is_healthy returns True when checks include skipped"""
         from core.health_checks import is_healthy
 
-        checks = {
-            'database': {'status': 'ok'},
-            'redis': {'status': 'skipped'}
-        }
+        checks = {"database": {"status": "ok"}, "redis": {"status": "skipped"}}
         assert is_healthy(checks) is True
 
     def test_is_healthy_with_error(self, db):
@@ -201,8 +215,8 @@ class TestHealthCheckFunctions:
         from core.health_checks import is_healthy
 
         checks = {
-            'database': {'status': 'ok'},
-            'redis': {'status': 'error', 'error': 'Connection failed'}
+            "database": {"status": "ok"},
+            "redis": {"status": "error", "error": "Connection failed"},
         }
         assert is_healthy(checks) is False
 
@@ -214,55 +228,55 @@ class TestHealthCheckIntegration:
     def test_readiness_probe_full_response_format(self, db):
         """Test readiness probe returns complete response format"""
         client = Client()
-        response = client.get('/api/ready/')
+        response = client.get("/api/ready/")
 
         data = response.json()
 
         # Verify all expected fields are present
-        assert 'status' in data
-        assert 'timestamp' in data
-        assert 'checks' in data
-        assert 'database' in data['checks']
-        assert 'redis' in data['checks']
+        assert "status" in data
+        assert "timestamp" in data
+        assert "checks" in data
+        assert "database" in data["checks"]
+        assert "redis" in data["checks"]
 
     def test_readiness_probe_timestamp_format(self, db):
         """Test readiness probe returns ISO format timestamp"""
         client = Client()
-        response = client.get('/api/ready/')
+        response = client.get("/api/ready/")
 
         data = response.json()
-        timestamp_str = data['timestamp']
+        timestamp_str = data["timestamp"]
 
         # Verify timestamp can be parsed as ISO format datetime
         try:
-            datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
         except ValueError:
             pytest.fail(f"Timestamp {timestamp_str} is not in ISO format")
 
-    @patch('core.health_checks.check_database')
+    @patch("core.health_checks.check_database")
     def test_readiness_propagates_database_error(self, mock_check_db, db):
         """Test readiness probe returns 503 when database check fails"""
 
         # Mock database check to fail
-        mock_check_db.return_value = {'status': 'error', 'error': 'Connection failed'}
+        mock_check_db.return_value = {"status": "error", "error": "Connection failed"}
 
         client = Client()
-        response = client.get('/api/ready/')
+        response = client.get("/api/ready/")
 
         assert response.status_code == 503
         data = response.json()
-        assert data['status'] == 'error'
-        assert data['checks']['database']['status'] == 'error'
+        assert data["status"] == "error"
+        assert data["checks"]["database"]["status"] == "error"
 
-    @patch('core.views.check_database')
+    @patch("core.views.check_database")
     def test_database_health_probe_returns_503_on_failure(self, mock_check_db, db):
         """Test database health probe returns dependency failure status."""
-        mock_check_db.return_value = {'status': 'error', 'error': 'Connection failed'}
+        mock_check_db.return_value = {"status": "error", "error": "Connection failed"}
 
         client = Client()
-        response = client.get('/api/health/db/')
+        response = client.get("/api/health/db/")
 
         assert response.status_code == 503
         data = response.json()
-        assert data['status'] == 'error'
-        assert data['database']['status'] == 'error'
+        assert data["status"] == "error"
+        assert data["database"]["status"] == "error"

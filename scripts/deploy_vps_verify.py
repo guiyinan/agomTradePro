@@ -135,8 +135,8 @@ def build_health_probe_command(target: HealthProbeTarget) -> str:
         "tmp_body=$(mktemp) && "
         f"http_code=$({curl_command}) && "
         f"printf '{HTTP_CODE_MARKER}%s\\n' \"$http_code\" && "
-        "cat \"$tmp_body\" && "
-        "rm -f \"$tmp_body\""
+        'cat "$tmp_body" && '
+        'rm -f "$tmp_body"'
     )
 
 
@@ -174,6 +174,46 @@ def evaluate_health_probe_result(exit_code: int, stdout: str, stderr: str) -> tu
     return True, f"HTTP {http_code} {body_summary}"
 
 
+def evaluate_runtime_command_result(
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+) -> tuple[bool, str]:
+    """Evaluate a runtime validation where empty successful output is valid."""
+
+    if exit_code != 0:
+        detail = _summarize(stderr or stdout or "command failed")
+        return False, detail
+    return True, _summarize(stdout or stderr) or "command completed successfully"
+
+
+def evaluate_qlib_identity_result(
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+) -> tuple[bool, str]:
+    """Require pyqlib and reject the unrelated package named ``qlib``."""
+
+    if exit_code != 0:
+        detail = _summarize(stderr or stdout or "Qlib identity check failed")
+        return False, detail
+
+    values: dict[str, str] = {}
+    for line in stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            values[key.strip()] = value.strip()
+
+    if not values.get("pyqlib"):
+        return False, "pyqlib distribution is missing"
+    if values.get("wrong_qlib") != "absent":
+        return False, "wrong qlib distribution is installed"
+    if not values.get("module"):
+        return False, "qlib module path is missing"
+
+    return True, _summarize(stdout)
+
+
 def _emit_command_result(label: str, exit_code: int, stdout: str, stderr: str) -> bool:
     if exit_code != 0:
         detail = _summarize(stderr or stdout or "command failed")
@@ -206,7 +246,7 @@ def build_container_running_command(target_dir: str, service: str) -> str:
     compose_ps = build_compose_command(target_dir, "ps", "-q", service)
     return (
         f"cid=$({compose_ps}) && "
-        "[ -n \"$cid\" ] && "
+        '[ -n "$cid" ] && '
         "docker inspect -f '{{.State.Running}}' \"$cid\""
     )
 
@@ -225,6 +265,64 @@ def build_celery_ping_command(target_dir: str) -> str:
         "inspect",
         "ping",
         "--timeout=8",
+    )
+
+
+def build_django_deploy_check_command(target_dir: str) -> str:
+    """Build the Django production system-check command."""
+
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "manage.py",
+        "check",
+        "--deploy",
+    )
+
+
+def build_migration_check_command(target_dir: str) -> str:
+    """Build a command that fails while migrations remain unapplied."""
+
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "manage.py",
+        "migrate",
+        "--check",
+        "--noinput",
+    )
+
+
+def build_qlib_identity_command(target_dir: str) -> str:
+    """Build a command that reports the installed Qlib distribution identity."""
+
+    python_code = """from importlib import metadata
+import qlib
+import qlib.data
+
+print(f"pyqlib={metadata.version('pyqlib')}")
+try:
+    metadata.version("qlib")
+except metadata.PackageNotFoundError:
+    print("wrong_qlib=absent")
+else:
+    print("wrong_qlib=present")
+print(f"module={qlib.__file__}")
+"""
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "-c",
+        python_code,
     )
 
 
@@ -289,9 +387,41 @@ def main() -> int:
             'docker ps --format "table {{.Names}}\\t{{.Status}}"',
             timeout=args.timeout,
         )
-        ok = _emit_command_result(
-            "Containers", containers_code, containers_out, containers_err
-        ) and ok
+        ok = (
+            _emit_command_result("Containers", containers_code, containers_out, containers_err)
+            and ok
+        )
+
+        runtime_checks = (
+            ("Django deploy check", build_django_deploy_check_command(args.target_dir)),
+            ("Migrations", build_migration_check_command(args.target_dir)),
+        )
+        for label, command in runtime_checks:
+            command_code, command_out, command_err = _run(
+                ssh,
+                command,
+                timeout=max(args.timeout, 30),
+            )
+            command_ok, command_summary = evaluate_runtime_command_result(
+                command_code,
+                command_out,
+                command_err,
+            )
+            print(f"[{'OK' if command_ok else 'FAIL'}] {label}: {command_summary}")
+            ok = command_ok and ok
+
+        qlib_code, qlib_out, qlib_err = _run(
+            ssh,
+            build_qlib_identity_command(args.target_dir),
+            timeout=max(args.timeout, 30),
+        )
+        qlib_ok, qlib_summary = evaluate_qlib_identity_result(
+            qlib_code,
+            qlib_out,
+            qlib_err,
+        )
+        print(f"[{'OK' if qlib_ok else 'FAIL'}] Qlib identity: {qlib_summary}")
+        ok = qlib_ok and ok
 
         if args.expect_celery:
             for service in ("celery_worker", "celery_beat"):
@@ -313,9 +443,7 @@ def main() -> int:
                 build_celery_ping_command(args.target_dir),
                 timeout=max(args.timeout, 30),
             )
-            ok = _emit_command_result(
-                "Celery ping", celery_code, celery_out, celery_err
-            ) and ok
+            ok = _emit_command_result("Celery ping", celery_code, celery_out, celery_err) and ok
     finally:
         ssh.close()
 

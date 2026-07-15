@@ -146,6 +146,10 @@ if [ -z "$run_startup_migrations" ]; then
   run_startup_migrations="$is_web_command"
 fi
 
+if [ "$is_web_command" = "1" ]; then
+  python manage.py check --deploy
+fi
+
 if [ "$run_startup_migrations" = "1" ]; then
   python manage.py migrate --noinput
 fi

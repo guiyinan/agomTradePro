@@ -199,6 +199,13 @@ locally exported `AGOMTRADEPRO_*` SDK auth variables into the VPS `deploy/.env`
 and persist them in `/opt/agomtradepro/secrets.env`, so they survive a fresh
 redeploy that wipes containers/images.
 
+The one-click deploy finishes with blocking runtime verification. In addition
+to the HTTPS health probe and container checks, it runs Django's production
+system checks, rejects unapplied migrations, verifies that Microsoft Qlib is
+provided by `pyqlib` (and not the unrelated `qlib` distribution), and pings
+Celery when workers are enabled. Any failed check makes the deploy command exit
+non-zero.
+
 ## Backup and Restore (VPS)
 
 Create backup:

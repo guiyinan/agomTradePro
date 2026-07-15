@@ -15,6 +15,10 @@ from collections.abc import Callable
 from apps.events.domain.entities import EventType
 from apps.events.domain.registry import get_event_subscriber_registry
 
+from .handlers import AlphaTriggerEventHandler
+from .repository_provider import get_alpha_trigger_repository
+from .use_cases import CreateAlphaTriggerUseCase
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +37,7 @@ def register_subscribers() -> None:
             event_type=EventType.SIGNAL_CREATED,
             handler_factory=_create_alpha_trigger_handler,
             priority=80,
-            description="Auto-create alpha triggers from signals"
+            description="Auto-create alpha triggers from signals",
         )
 
         registry.register(
@@ -41,7 +45,7 @@ def register_subscribers() -> None:
             event_type=EventType.SIGNAL_APPROVED,
             handler_factory=_create_alpha_trigger_handler,
             priority=80,
-            description="Activate triggers when signals approved"
+            description="Activate triggers when signals approved",
         )
 
         registry.register(
@@ -49,7 +53,7 @@ def register_subscribers() -> None:
             event_type=EventType.REGIME_CHANGED,
             handler_factory=_create_alpha_trigger_handler,
             priority=80,
-            description="Evaluate regime-based triggers"
+            description="Evaluate regime-based triggers",
         )
 
         registry.register(
@@ -57,7 +61,7 @@ def register_subscribers() -> None:
             event_type=EventType.POLICY_LEVEL_CHANGED,
             handler_factory=_create_alpha_trigger_handler,
             priority=80,
-            description="Evaluate policy-based triggers"
+            description="Evaluate policy-based triggers",
         )
 
         # 注册候选晋升处理器 - 响应触发器发射事件
@@ -66,7 +70,7 @@ def register_subscribers() -> None:
             event_type=EventType.ALPHA_TRIGGER_FIRED,
             handler_factory=_create_candidate_promotion_handler,
             priority=70,
-            description="Promote candidates based on trigger strength"
+            description="Promote candidates based on trigger strength",
         )
 
         logger.debug("Alpha Trigger subscribers registered successfully")
@@ -78,16 +82,11 @@ def register_subscribers() -> None:
 def _create_alpha_trigger_handler():
     """创建 Alpha 触发器处理器"""
     try:
-        # 延迟导入避免循环依赖
-        from apps.alpha_trigger.application.handlers import AlphaTriggerEventHandler
-        from apps.alpha_trigger.application.use_cases import CreateTriggerUseCase
-
-        # 获取用例实例
-        create_use_case = CreateTriggerUseCase()
+        trigger_repository = get_alpha_trigger_repository()
+        create_use_case = CreateAlphaTriggerUseCase(trigger_repository)
 
         return AlphaTriggerEventHandler(
-            create_trigger_use_case=create_use_case,
-            event_bus=None  # 将被注入
+            create_trigger_use_case=create_use_case, event_bus=None  # 将被注入
         )
     except Exception as e:
         logger.error(f"Failed to create AlphaTriggerEventHandler: {e}")
@@ -106,8 +105,7 @@ def _create_candidate_promotion_handler():
         candidate_repository = get_alpha_candidate_repository()
 
         return CandidatePromotionHandler(
-            candidate_repository=candidate_repository,
-            event_bus=None  # 将被注入
+            candidate_repository=candidate_repository, event_bus=None  # 将被注入
         )
     except Exception as e:
         logger.error(f"Failed to create CandidatePromotionHandler: {e}")
