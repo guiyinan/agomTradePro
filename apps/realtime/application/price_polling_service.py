@@ -23,6 +23,9 @@ from apps.realtime.application.repository_provider import (
     get_realtime_price_repository,
     get_watchlist_provider,
 )
+from apps.realtime.application.simulated_trading_gateway import (
+    get_simulated_position_repository,
+)
 from apps.realtime.domain.entities import (
     PricePollingConfig,
     PriceSnapshot,
@@ -36,9 +39,6 @@ from apps.realtime.domain.protocols import (
     RealtimeChannelNotifierProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
-)
-from apps.simulated_trading.application.repository_provider import (
-    get_simulated_position_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,11 +94,7 @@ class PricePollingService:
         if total_assets == 0:
             logger.warning("No assets to monitor")
             return PriceSnapshot(
-                timestamp=timezone.now(),
-                prices=[],
-                total_assets=0,
-                success_count=0,
-                failed_count=0
+                timestamp=timezone.now(), prices=[], total_assets=0, success_count=0, failed_count=0
             )
 
         logger.info(f"Monitoring {total_assets} assets")
@@ -175,8 +171,7 @@ class PricePollingService:
         failed_count = total_assets - success_count
 
         logger.info(
-            f"Price polling completed: "
-            f"{success_count} succeeded, {failed_count} failed"
+            f"Price polling completed: " f"{success_count} succeeded, {failed_count} failed"
         )
 
         return PriceSnapshot(
@@ -184,7 +179,7 @@ class PricePollingService:
             prices=prices,
             total_assets=total_assets,
             success_count=success_count,
-            failed_count=failed_count
+            failed_count=failed_count,
         )
 
     def poll_single_asset(self, asset_code: str) -> PriceUpdate | None:
@@ -212,7 +207,7 @@ class PricePollingService:
                 new_price=None,
                 status=PriceUpdateStatus.FAILED,
                 timestamp=timezone.now(),
-                error_message="Failed to fetch price from data provider"
+                error_message="Failed to fetch price from data provider",
             )
 
         # 保存新价格
@@ -231,7 +226,7 @@ class PricePollingService:
             old_price=Decimal(old_price.price) if old_price else None,
             new_price=Decimal(new_price.price),
             status=status,
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
         )
 
         logger.debug(
@@ -365,4 +360,3 @@ class PricePollingUseCase:
             executor.shutdown(wait=False, cancel_futures=True)
 
         return is_available, health_error
-

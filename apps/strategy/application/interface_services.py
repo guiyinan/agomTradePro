@@ -5,15 +5,15 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.simulated_trading.application.interface_services import (
-    list_account_trade_payloads,
-)
 from apps.strategy.application.repository_provider import (
     build_strategy_executor as _build_strategy_executor,
 )
 from apps.strategy.application.repository_provider import (
     build_strategy_portfolio_provider,
     get_strategy_interface_repository,
+)
+from apps.strategy.application.simulated_trading_gateway import (
+    list_account_trade_payloads,
 )
 
 
@@ -279,9 +279,7 @@ def get_strategy_performance_payload(
         "success_rate": success_count / len(filtered) if filtered else 0.0,
         "signals_generated": signal_count,
         "average_duration_ms": sum(durations) / len(durations) if durations else 0.0,
-        "latest_execution_time": (
-            filtered[0].execution_time.isoformat() if filtered else None
-        ),
+        "latest_execution_time": (filtered[0].execution_time.isoformat() if filtered else None),
     }
 
 

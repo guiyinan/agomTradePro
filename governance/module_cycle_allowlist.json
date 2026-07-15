@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-15.v7",
+  "version": "2026-07-15.v8",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 198,
+  "max_app_import_edges": 194,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
@@ -13,7 +13,7 @@
     "alpha_trigger": 5,
     "asset_analysis": 3,
     "audit": 4,
-    "backtest": 6,
+    "backtest": 5,
     "beta_gate": 5,
     "config_center": 1,
     "dashboard": 16,
@@ -26,10 +26,10 @@
     "fund": 6,
     "hedge": 2,
     "macro": 3,
-    "policy": 6,
+    "policy": 5,
     "prompt": 2,
     "pulse": 1,
-    "realtime": 5,
+    "realtime": 4,
     "regime": 2,
     "risk_center": 0,
     "rotation": 2,
@@ -39,7 +39,7 @@
     "share": 1,
     "signal": 10,
     "simulated_trading": 13,
-    "strategy": 7,
+    "strategy": 6,
     "task_monitor": 0,
     "terminal": 18
   },
@@ -51,7 +51,7 @@
     "alpha": 4,
     "alpha_trigger": 3,
     "asset_analysis": 11,
-    "audit": 2,
+    "audit": 1,
     "backtest": 1,
     "beta_gate": 4,
     "config_center": 4,
@@ -76,8 +76,8 @@
     "sentiment": 4,
     "setup_wizard": 0,
     "share": 1,
-    "signal": 10,
-    "simulated_trading": 7,
+    "signal": 9,
+    "simulated_trading": 5,
     "strategy": 3,
     "task_monitor": 4,
     "terminal": 0
@@ -86,22 +86,6 @@
     [
       "account",
       "simulated_trading"
-    ],
-    [
-      "audit",
-      "backtest"
-    ],
-    [
-      "policy",
-      "signal"
-    ],
-    [
-      "realtime",
-      "simulated_trading"
-    ],
-    [
-      "simulated_trading",
-      "strategy"
     ]
   ],
   "allowed_cycle_components": [
@@ -124,10 +108,6 @@
       "signal",
       "simulated_trading",
       "strategy"
-    ],
-    [
-      "audit",
-      "backtest"
     ]
   ]
 }

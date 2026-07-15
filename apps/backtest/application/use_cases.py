@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from apps.audit.application.interface_services import (
+from apps.backtest.application.audit_gateway import (
     generate_attribution_report_for_backtest,
 )
 
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunBacktestRequest:
     """运行回测的请求 DTO"""
+
     name: str
     start_date: date
     end_date: date
@@ -40,6 +41,7 @@ class RunBacktestRequest:
 @dataclass
 class RunBacktestResponse:
     """运行回测的响应 DTO"""
+
     backtest_id: int | None
     status: str
     result: dict[str, Any] | None
@@ -107,14 +109,12 @@ class RunBacktestUseCase:
             backtest_id = backtest_model.id
 
             # 3. 标记为运行中
-            self.repository.update_status(backtest_id, 'running')
+            self.repository.update_status(backtest_id, "running")
 
             # 4. 创建 PIT 处理器（如果需要）
             pit_processor = None
             if request.use_pit_data:
-                pit_config = PITDataConfig(
-                    publication_lags=DEFAULT_PUBLICATION_LAGS
-                )
+                pit_config = PITDataConfig(publication_lags=DEFAULT_PUBLICATION_LAGS)
                 pit_processor = PITDataProcessor(pit_config.publication_lags)
 
             # 5. 创建并运行回测引擎
@@ -165,7 +165,7 @@ class RunBacktestUseCase:
 
             return RunBacktestResponse(
                 backtest_id=backtest_id,
-                status='completed',
+                status="completed",
                 result=result.to_summary_dict(),
                 errors=errors,
                 warnings=warnings,
@@ -179,11 +179,11 @@ class RunBacktestUseCase:
 
             # 如果已经创建了记录，标记为失败
             if backtest_id:
-                self.repository.update_status(backtest_id, 'failed', str(e))
+                self.repository.update_status(backtest_id, "failed", str(e))
 
             return RunBacktestResponse(
-                backtest_id=backtest_id if 'backtest_id' in locals() else None,
-                status='failed',
+                backtest_id=backtest_id if "backtest_id" in locals() else None,
+                status="failed",
                 result=None,
                 errors=[str(e)],
                 warnings=warnings,
@@ -194,12 +194,14 @@ class RunBacktestUseCase:
 @dataclass
 class GetBacktestResultRequest:
     """获取回测结果的请求 DTO"""
+
     backtest_id: int
 
 
 @dataclass
 class GetBacktestResultResponse:
     """获取回测结果的响应 DTO"""
+
     backtest_id: int | None
     name: str | None
     status: str | None
@@ -237,18 +239,18 @@ class GetBacktestResultUseCase:
                 name=None,
                 status=None,
                 result=None,
-                error=f"Backtest with id {request.backtest_id} not found"
+                error=f"Backtest with id {request.backtest_id} not found",
             )
 
         # 如果已完成，返回详细结果
-        if backtest.status == 'completed':
+        if backtest.status == "completed":
             domain_result = DjangoBacktestRepository.to_domain_entity(backtest)
             return GetBacktestResultResponse(
                 backtest_id=backtest.id,
                 name=backtest.name,
                 status=backtest.status,
                 result=domain_result.to_summary_dict(),
-                error=None
+                error=None,
             )
         else:
             # 返回基本信息
@@ -257,13 +259,14 @@ class GetBacktestResultUseCase:
                 name=backtest.name,
                 status=backtest.status,
                 result=None,
-                error=None
+                error=None,
             )
 
 
 @dataclass
 class ListBacktestsRequest:
     """列出回测的请求 DTO"""
+
     status: str | None = None
     limit: int | None = None
 
@@ -271,6 +274,7 @@ class ListBacktestsRequest:
 @dataclass
 class ListBacktestsResponse:
     """列出回测的响应 DTO"""
+
     backtests: list[dict[str, Any]]
     total_count: int
 
@@ -305,29 +309,31 @@ class ListBacktestsUseCase:
         return ListBacktestsResponse(
             backtests=[
                 {
-                    'id': b.id,
-                    'name': b.name,
-                    'status': b.status,
-                    'start_date': b.start_date.isoformat(),
-                    'end_date': b.end_date.isoformat(),
-                    'total_return': b.total_return,
-                    'created_at': b.created_at.isoformat(),
+                    "id": b.id,
+                    "name": b.name,
+                    "status": b.status,
+                    "start_date": b.start_date.isoformat(),
+                    "end_date": b.end_date.isoformat(),
+                    "total_return": b.total_return,
+                    "created_at": b.created_at.isoformat(),
                 }
                 for b in backtests
             ],
-            total_count=len(backtests)
+            total_count=len(backtests),
         )
 
 
 @dataclass
 class DeleteBacktestRequest:
     """删除回测的请求 DTO"""
+
     backtest_id: int
 
 
 @dataclass
 class DeleteBacktestResponse:
     """删除回测的响应 DTO"""
+
     success: bool
     error: str | None
 
@@ -358,8 +364,7 @@ class DeleteBacktestUseCase:
 
         if not success:
             return DeleteBacktestResponse(
-                success=False,
-                error=f"Backtest with id {request.backtest_id} not found"
+                success=False, error=f"Backtest with id {request.backtest_id} not found"
             )
 
         return DeleteBacktestResponse(success=True, error=None)
@@ -368,6 +373,7 @@ class DeleteBacktestUseCase:
 @dataclass
 class GetBacktestStatisticsResponse:
     """获取回测统计的响应 DTO"""
+
     total: int
     by_status: dict[str, dict]
     avg_return: float
@@ -397,9 +403,9 @@ class GetBacktestStatisticsUseCase:
         stats = self.repository.get_statistics()
 
         return GetBacktestStatisticsResponse(
-            total=stats['total'],
-            by_status=stats['by_status'],
-            avg_return=stats['avg_return'],
-            max_return=stats['max_return'],
-            min_return=stats['min_return'],
+            total=stats["total"],
+            by_status=stats["by_status"],
+            avg_return=stats["avg_return"],
+            max_return=stats["max_return"],
+            min_return=stats["min_return"],
         )

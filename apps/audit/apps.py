@@ -12,5 +12,7 @@ class AuditConfig(AppConfig):
         """Import admin module when app is ready"""
         import apps.audit.interface.admin  # noqa: F401
         from apps.audit.application.account_gateway import register_audit_account_gateway
+        from apps.audit.application.backtest_gateway import register_audit_backtest_gateway
 
         register_audit_account_gateway()
+        register_audit_backtest_gateway()

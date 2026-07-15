@@ -28,6 +28,7 @@ from .repository_provider import (
     get_rss_repository,
     get_workbench_repository,
 )
+from .signal_gateway import reevaluate_signals
 from .use_cases import GetPolicyStatusUseCase
 
 logger = logging.getLogger(__name__)
@@ -44,20 +45,11 @@ def reevaluate_signals_for_policy_change(
 ):
     """Reevaluate active signals through the owning signal use case."""
 
-    from apps.signal.application.repository_provider import get_signal_repository
-    from apps.signal.application.use_cases import (
-        ReevaluateSignalsRequest,
-        ReevaluateSignalsUseCase,
-    )
-
-    signal_repo = get_signal_repository()
-    use_case = ReevaluateSignalsUseCase(signal_repository=signal_repo)
-    request = ReevaluateSignalsRequest(
+    return reevaluate_signals(
         policy_level=policy_level,
         current_regime=current_regime,
         regime_confidence=regime_confidence,
     )
-    return use_case.execute(request)
 
 
 def _get_notification_service():
@@ -97,18 +89,14 @@ def check_policy_status_alert(self, as_of_date_str: str | None = None):
             # 获取最新事件
             latest = status.latest_event
             if latest:
-                _send_policy_alert(
-                    level=status.current_level,
-                    event=latest,
-                    status=status
-                )
+                _send_policy_alert(level=status.current_level, event=latest, status=status)
 
         logger.info(f"Policy status check completed for {as_of_date}")
 
         return {
             "status": "success",
             "level": status.current_level.value,
-            "date": as_of_date.isoformat()
+            "date": as_of_date.isoformat(),
         }
 
     except (DataFetchError, ExternalServiceError) as e:
@@ -125,11 +113,7 @@ def check_policy_status_alert(self, as_of_date_str: str | None = None):
         # Non-retryable business logic errors
         logger.error(f"Policy status check failed (non-retryable): {e}")
         record_exception(e, module="policy", is_handled=True)
-        return {
-            "status": "error",
-            "error": str(e),
-            "error_type": "business_logic"
-        }
+        return {"status": "error", "error": str(e), "error_type": "business_logic"}
     except Exception as e:
         # Unexpected error - still retry but log differently
         logger.exception(f"Policy status check failed (unexpected): {e}")
@@ -161,13 +145,15 @@ def monitor_policy_transitions():
             # 有多个事件，可能有档位变更
             changes = []
             for i in range(1, len(recent_events)):
-                if recent_events[i].level != recent_events[i-1].level:
-                    changes.append({
-                        "from": recent_events[i-1].level.value,
-                        "to": recent_events[i].level.value,
-                        "date": recent_events[i].event_date.isoformat(),
-                        "title": recent_events[i].title
-                    })
+                if recent_events[i].level != recent_events[i - 1].level:
+                    changes.append(
+                        {
+                            "from": recent_events[i - 1].level.value,
+                            "to": recent_events[i].level.value,
+                            "date": recent_events[i].event_date.isoformat(),
+                            "title": recent_events[i].title,
+                        }
+                    )
 
             if changes:
                 _send_transition_summary(changes)
@@ -177,24 +163,17 @@ def monitor_policy_transitions():
         return {
             "status": "success",
             "events_checked": len(recent_events),
-            "transitions_found": len(changes) if len(recent_events) > 1 else 0
+            "transitions_found": len(changes) if len(recent_events) > 1 else 0,
         }
 
     except (DataFetchError, DatabaseError) as e:
         logger.warning(f"Policy transition monitoring failed (data error): {e}")
         record_exception(e, module="policy", is_handled=True)
-        return {
-            "status": "error",
-            "error": str(e),
-            "error_type": "data_fetch"
-        }
+        return {"status": "error", "error": str(e), "error_type": "data_fetch"}
     except Exception as e:
         logger.exception(f"Policy transition monitoring failed (unexpected): {e}")
         record_exception(e, module="policy", is_handled=False)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @shared_task(time_limit=600, soft_time_limit=570)
@@ -217,33 +196,23 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
         return {
             "status": "success",
             "deleted_count": deleted_count,
-            "cutoff_date": cutoff_date.isoformat()
+            "cutoff_date": cutoff_date.isoformat(),
         }
 
     except DatabaseError as e:
         logger.error(f"Policy log cleanup failed (database error): {e}", exc_info=True)
         record_exception(e, module="policy", is_handled=True)
-        return {
-            "status": "error",
-            "error": str(e),
-            "error_type": "database"
-        }
+        return {"status": "error", "error": str(e), "error_type": "database"}
     except Exception as e:
         logger.exception(f"Policy log cleanup failed (unexpected): {e}")
         record_exception(e, module="policy", is_handled=False)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 # 辅助函数
 
-def _send_policy_alert(
-    level: PolicyLevel,
-    event: PolicyEvent,
-    status: Any
-):
+
+def _send_policy_alert(level: PolicyLevel, event: PolicyEvent, status: Any):
     """
     发送政策告警
 
@@ -284,6 +253,7 @@ def _send_transition_summary(changes: list):
 
 # ========== RSS 相关任务 ==========
 
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -318,13 +288,13 @@ def fetch_rss_sources(self, source_id: int | None = None):
             else:
                 logger.info("AI classifier not available, will use keyword matching only")
         except Exception as e:
-            logger.warning(f"Failed to initialize AI classifier: {e}. Will use keyword matching only.")
+            logger.warning(
+                f"Failed to initialize AI classifier: {e}. Will use keyword matching only."
+            )
             ai_classifier = None
 
         use_case = FetchRSSUseCase(
-            rss_repository=rss_repo,
-            policy_repository=policy_repo,
-            ai_classifier=ai_classifier
+            rss_repository=rss_repo, policy_repository=policy_repo, ai_classifier=ai_classifier
         )
 
         input_dto = FetchRSSInput(source_id=source_id)
@@ -345,7 +315,7 @@ def fetch_rss_sources(self, source_id: int | None = None):
             "sources_processed": output.sources_processed,
             "total_items": output.total_items,
             "new_events": output.new_policy_events,
-            "errors": output.errors
+            "errors": output.errors,
         }
 
     except Exception as e:
@@ -380,6 +350,7 @@ def cleanup_old_rss_logs(days_to_keep: int = 90):
 
 # ========== 审核相关任务 ==========
 
+
 @shared_task(time_limit=600, soft_time_limit=570)
 def auto_assign_pending_audits(max_per_user: int = 10):
     """
@@ -401,7 +372,7 @@ def auto_assign_pending_audits(max_per_user: int = 10):
 
         if not auditor_ids:
             logger.warning("No auditors found with staff privileges")
-            return {'assigned': 0, 'remaining': len(unassigned_ids)}
+            return {"assigned": 0, "remaining": len(unassigned_ids)}
 
         # 轮询分配
         assigned_per_auditor = workbench_repo.get_pending_assignment_counts(auditor_ids)
@@ -425,22 +396,17 @@ def auto_assign_pending_audits(max_per_user: int = 10):
                     assigned_count += 1
                     break
 
-        logger.info(
-            f"Auto-assigned {assigned_count} policy reviews to {auditor_count} auditors"
-        )
+        logger.info(f"Auto-assigned {assigned_count} policy reviews to {auditor_count} auditors")
 
         return {
-            'assigned': assigned_count,
-            'remaining': len(unassigned_ids) - assigned_count,
-            'auditors': auditor_count
+            "assigned": assigned_count,
+            "remaining": len(unassigned_ids) - assigned_count,
+            "auditors": auditor_count,
         }
 
     except Exception as e:
         logger.error(f"Auto-assign audits failed: {e}", exc_info=True)
-        return {
-            'assigned': 0,
-            'error': str(e)
-        }
+        return {"assigned": 0, "error": str(e)}
 
 
 @shared_task(time_limit=600, soft_time_limit=570)
@@ -486,13 +452,11 @@ def generate_daily_policy_summary():
 
     except Exception as e:
         logger.error(f"Daily policy summary generation failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 # ========== Signal 同步相关任务 ==========
+
 
 @shared_task(
     bind=True,
@@ -503,11 +467,7 @@ def generate_daily_policy_summary():
     time_limit=600,
     soft_time_limit=570,
 )
-def trigger_signal_reevaluation(
-    self,
-    new_level: int,
-    event_date: str
-) -> dict:
+def trigger_signal_reevaluation(self, new_level: int, event_date: str) -> dict:
     """
     重评所有活跃信号任务
 
@@ -545,13 +505,13 @@ def trigger_signal_reevaluation(
         )
 
         return {
-            'status': 'success',
-            'total_count': result.total_count,
-            'rejected_count': result.rejected_count,
-            'rejected_signal_ids': result.rejected_signal_ids,
-            'policy_level': f'P{new_level}',
-            'event_date': event_date,
-            'current_regime': current_regime
+            "status": "success",
+            "total_count": result.total_count,
+            "rejected_count": result.rejected_count,
+            "rejected_signal_ids": result.rejected_signal_ids,
+            "policy_level": f"P{new_level}",
+            "event_date": event_date,
+            "current_regime": current_regime,
         }
 
     except Exception as exc:
@@ -559,13 +519,11 @@ def trigger_signal_reevaluation(
         try:
             raise self.retry(exc=exc)
         except Exception:
-            return {
-                'status': 'error',
-                'error': str(exc)
-            }
+            return {"status": "error", "error": str(exc)}
 
 
 # ========== 工作台相关任务 ==========
+
 
 @shared_task(time_limit=600, soft_time_limit=570)
 def auto_assign_pending_audits_task(max_per_user: int = 10):
@@ -617,10 +575,7 @@ def monitor_sla_exceeded_task():
 
     except Exception as e:
         logger.error(f"SLA monitor failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}
 
 
 @shared_task(time_limit=600, soft_time_limit=570)
@@ -639,7 +594,7 @@ def refresh_gate_constraints_task():
         global_heat, global_sentiment = workbench_repo.get_global_heat_sentiment()
 
         # 获取闸门配置
-        gate_config = workbench_repo.get_gate_config('all')
+        gate_config = workbench_repo.get_gate_config("all")
 
         if gate_config and global_heat is not None:
             from ..domain.entities import SentimentGateThresholds
@@ -667,14 +622,8 @@ def refresh_gate_constraints_task():
                 "gate_level": gate_level.value,
             }
 
-        return {
-            "status": "success",
-            "message": "No gate config or data available"
-        }
+        return {"status": "success", "message": "No gate config or data available"}
 
     except Exception as e:
         logger.error(f"Gate constraints refresh failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
+        return {"status": "error", "error": str(e)}

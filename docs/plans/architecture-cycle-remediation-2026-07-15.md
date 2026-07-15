@@ -54,11 +54,18 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - Alpha Trigger now registers its repository before Events initializes the event bus, removing the startup-order error exposed by the stricter provider registries.
 - Five Account-centered pair allowances and their graph budgets were removed. The remaining Audit/Backtest pair split into a separate two-module component.
 
+## Completed batch 7
+
+- `backtest -> audit` was removed. Backtest owns an attribution-report gateway; Audit registers the existing report generator while the Backtest use-case monkeypatch surface remains intact.
+- `policy -> signal` was removed. Policy owns the signal-reevaluation gateway; Signal registers the repository-backed use-case adapter during startup.
+- `realtime -> simulated_trading` was removed. Realtime owns position and held-asset gateways; Simulated Trading registers the existing repository-backed providers.
+- `strategy -> simulated_trading` was removed. Strategy owns its account-trading gateway; Simulated Trading registers the facade and account-trade adapters while HTTP and provider patch paths remain compatible.
+- The four resolved pair allowances and the isolated Audit/Backtest component were deleted, and all affected edge budgets were tightened in the same batch.
+
 ## Next batches
 
-1. Remove the isolated `audit <-> backtest` pair and the remaining Policy/Signal and trading pairs.
-2. Separate Account identity from the remaining Simulated Trading compatibility surface.
-3. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+1. Separate Account identity from the remaining Simulated Trading compatibility surface.
+2. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 
 ## Regression and rollback
 

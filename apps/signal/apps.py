@@ -8,15 +8,17 @@ class SignalConfig(AppConfig):
     name = "apps.signal"
     verbose_name = "Investment Signals"
 
-    def ready(self):
+    def ready(self) -> None:
         """Import admin and tasks modules when app is ready"""
         import apps.signal.application.tasks  # noqa: F401 - Import Celery tasks
         import apps.signal.interface.admin  # noqa: F401
         from apps.signal.application.asset_analysis_gateway import (
             register_asset_analysis_signal_gateway,
         )
+        from apps.signal.application.policy_gateway import register_signal_policy_gateway
 
         register_asset_analysis_signal_gateway()
+        register_signal_policy_gateway()
 
         # Initialize domain config from database
         try:
