@@ -11,14 +11,16 @@ from apps.share.infrastructure.providers import (
     ShareInterfaceRepository,
 )
 
+from .account_gateway import get_share_account_gateway
+
 
 def get_share_application_repository() -> ShareApplicationRepositoryProtocol:
     """Return the share application repository implementation."""
 
-    return ShareApplicationRepository()
+    return ShareApplicationRepository(account_gateway=get_share_account_gateway())
 
 
 def get_share_interface_repository() -> ShareInterfaceRepositoryProtocol:
     """Return the share interface repository implementation."""
 
-    return ShareInterfaceRepository()
+    return ShareInterfaceRepository(account_gateway=get_share_account_gateway())

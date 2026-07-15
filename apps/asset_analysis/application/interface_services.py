@@ -13,12 +13,14 @@ from apps.asset_analysis.application.repository_provider import (
     get_registered_pool_screener,
     get_weight_config_repository,
 )
+from apps.asset_analysis.application.signal_context_gateway import (
+    get_signal_context_gateway,
+)
 from apps.asset_analysis.application.use_cases import GetWeightConfigsUseCase, MultiDimScreenUseCase
 from apps.asset_analysis.domain.value_objects import ScoreContext
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.sentiment.application.repository_provider import get_sentiment_index_repository
-from apps.signal.application.repository_provider import get_signal_repository
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,7 @@ def build_asset_pool_context(
     if active_signals_override is not None:
         active_signals = active_signals_override
     else:
-        active_signals = get_signal_repository().get_active_signals()
+        active_signals = get_signal_context_gateway().list_active_signals()
 
     return AssetPoolContextPayload(
         score_context=ScoreContext(

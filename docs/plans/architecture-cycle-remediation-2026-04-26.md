@@ -1,7 +1,7 @@
 # AgomTradePro 循环依赖与架构债全量整改方案
 
 > 日期: 2026-04-26  
-> 状态: 已完成  
+> 状态: 历史方案；2026-07-15 复核发现循环回流，后续执行见 `architecture-cycle-remediation-2026-07-15.md`
 > 适用范围: `apps/`, `core/`, `shared/`, `governance/`, `.github/workflows/`, `AGENTS.md`  
 > 执行策略: 全量重构、一次迁完、CI 防回流
 

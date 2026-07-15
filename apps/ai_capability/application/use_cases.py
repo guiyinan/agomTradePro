@@ -24,11 +24,6 @@ from apps.ai_provider.application.repository_provider import AIClientFactory
 from apps.policy.application.repository_provider import get_current_policy_repository
 from apps.prompt.application.runtime_provider import execute_builtin_tool
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.terminal.application.repository_provider import (
-    get_terminal_audit_repository,
-    get_terminal_command_repository,
-    get_terminal_runtime_settings_repository,
-)
 from core.health_checks import is_healthy, run_readiness_checks
 
 from ..application.dtos import (
@@ -59,19 +54,14 @@ from .mcp_catalog_projection import (
     build_legacy_mcp_capability,
     build_legacy_replacement_map,
 )
-from .mcp_runtime_gateway import (
-    call_sdk_mcp_tool as _call_sdk_mcp_tool,
-)
+from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
 from .mcp_runtime_gateway import (
     list_sdk_mcp_capability_manifests as _list_sdk_mcp_capability_manifests,
 )
-from .mcp_runtime_gateway import (
-    list_sdk_mcp_core_tool_names as _list_sdk_mcp_core_tool_names,
-)
-from .mcp_runtime_gateway import (
-    list_sdk_mcp_tools as _list_sdk_mcp_tools,
-)
+from .mcp_runtime_gateway import list_sdk_mcp_core_tool_names as _list_sdk_mcp_core_tool_names
+from .mcp_runtime_gateway import list_sdk_mcp_tools as _list_sdk_mcp_tools
 from .semantic_governance import upsert_collected_capabilities
+from .terminal_gateway import get_terminal_capability_gateway
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +144,7 @@ _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
 
 
 def _get_fallback_chat_system_prompt() -> str:
-    settings_data = get_terminal_runtime_settings_repository().get_settings()
+    settings_data = get_terminal_capability_gateway().get_runtime_settings()
     custom_prompt = str(settings_data.get("fallback_chat_system_prompt", "") or "").strip()
     return custom_prompt or _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT
 
@@ -396,42 +386,38 @@ class CapabilityExecutionDispatcher:
         request: RouteRequestDTO,
         context: RoutingContext,
     ) -> dict[str, Any]:
-        from apps.terminal.application.services import CommandExecutionService
-        from apps.terminal.application.use_cases import ExecuteCommandRequest, ExecuteCommandUseCase
-
         command_name = capability.capability_key.split(".", 1)[-1]
-        use_case = ExecuteCommandUseCase(
-            repository=get_terminal_command_repository(),
-            execution_service=CommandExecutionService(),
-            audit_repository=get_terminal_audit_repository(),
+        response = get_terminal_capability_gateway().execute_command(
+            {
+                "command_name": command_name,
+                "params": context.context.get("params", {}) or {},
+                "session_id": request.session_id,
+                "provider_name": request.provider_name,
+                "model_name": request.model,
+                "user_id": context.user_id,
+                "username": context.context.get("username", "unknown"),
+                "user_role": context.context.get("user_role", "read_only"),
+                "mcp_enabled": context.mcp_enabled,
+                "terminal_mode": context.context.get("terminal_mode", "confirm_each"),
+                "confirmation_token": context.context.get("confirmation_token"),
+            }
         )
-        response = use_case.execute(
-            ExecuteCommandRequest(
-                command_name=command_name,
-                params=context.context.get("params", {}) or {},
-                session_id=request.session_id,
-                provider_name=request.provider_name,
-                model_name=request.model,
-                user_id=context.user_id,
-                username=context.context.get("username", "unknown"),
-                user_role=context.context.get("user_role", "read_only"),
-                mcp_enabled=context.mcp_enabled,
-                terminal_mode=context.context.get("terminal_mode", "confirm_each"),
-                confirmation_token=context.context.get("confirmation_token"),
-            )
-        )
-        if response.confirmation_required:
+        if response.get("confirmation_required"):
             return {
-                "reply": response.confirmation_prompt or "",
+                "reply": response.get("confirmation_prompt") or "",
                 "confirmation_required": True,
             }
-        if response.success:
-            return {"reply": response.output, "metadata": response.metadata}
+        if response.get("success"):
+            return {
+                "reply": response.get("output", ""),
+                "metadata": response.get("metadata", {}),
+            }
+        metadata = response.get("metadata", {}) or {}
         return {
-            "reply": response.error or "Terminal command execution failed.",
+            "reply": response.get("error") or "Terminal command execution failed.",
             "missing_params": [
                 item.get("name")
-                for item in response.metadata.get("missing_params", [])
+                for item in metadata.get("missing_params", [])
                 if isinstance(item, dict) and item.get("name")
             ],
         }
@@ -1249,14 +1235,17 @@ class SyncCapabilitiesUseCase:
     def _sync_terminal_commands(self) -> list[CapabilityDefinition]:
         """Sync terminal commands."""
         capabilities = []
-        commands = get_terminal_command_repository().get_all_active()
+        commands = get_terminal_capability_gateway().list_active_commands()
 
         for cmd in commands:
-            summary = cmd.description or f"Terminal command: {cmd.name}"
-            tags = list(cmd.tags or [])
+            command_name = str(cmd.get("name", ""))
+            description = str(cmd.get("description", "") or "")
+            risk_level = str(cmd.get("risk_level", "read") or "read")
+            summary = description or f"Terminal command: {command_name}"
+            tags = list(cmd.get("tags") or [])
             when_to_use: list[str] = []
             examples: list[str] = []
-            if cmd.name == "market_temperature":
+            if command_name == "market_temperature":
                 summary = "Get the current market thermometer score, band, and overheating risk."
                 tags.extend(["market", "temperature", "heat", "overheat", "散户热度", "接盘风险"])
                 when_to_use = [
@@ -1269,15 +1258,15 @@ class SyncCapabilitiesUseCase:
                     "我会不会接盘",
                 ]
             cap = CapabilityDefinition(
-                capability_key=f"terminal_command.{cmd.name}",
+                capability_key=f"terminal_command.{command_name}",
                 source_type=SourceType.TERMINAL_COMMAND,
-                source_ref=str(cmd.id),
-                name=cmd.name,
+                source_ref=str(cmd.get("id", "")),
+                name=command_name,
                 summary=summary,
-                description=cmd.description,
+                description=description,
                 route_group=RouteGroup.TOOL,
-                category=cmd.category,
-                semantic_key=f"terminal.{cmd.name}",
+                category=str(cmd.get("category", "general") or "general"),
+                semantic_key=f"terminal.{command_name}",
                 tags=tags,
                 when_to_use=when_to_use,
                 when_not_to_use=[],
@@ -1285,12 +1274,12 @@ class SyncCapabilitiesUseCase:
                 input_schema={},
                 execution_target={
                     "type": "terminal_command",
-                    "command_id": str(cmd.pk),
+                    "command_id": str(cmd.get("pk", "")),
                 },
-                risk_level=self._map_risk_level(cmd.risk_level),
-                requires_mcp=cmd.requires_mcp,
-                requires_confirmation=cmd.risk_level in ("write_high", "admin"),
-                enabled_for_routing=cmd.enabled_in_terminal,
+                risk_level=self._map_risk_level(risk_level),
+                requires_mcp=bool(cmd.get("requires_mcp", False)),
+                requires_confirmation=risk_level in ("write_high", "admin"),
+                enabled_for_routing=bool(cmd.get("enabled_in_terminal", False)),
                 enabled_for_terminal=True,
                 enabled_for_chat=False,
                 enabled_for_agent=True,
@@ -1328,8 +1317,7 @@ class SyncCapabilitiesUseCase:
             core_tool_names = _list_sdk_mcp_core_tool_names()
             legacy_replacement_map = build_legacy_replacement_map(core_manifests)
             capabilities.extend(
-                build_governed_mcp_capability(manifest)
-                for manifest in core_manifests
+                build_governed_mcp_capability(manifest) for manifest in core_manifests
             )
 
             for tool in _list_sdk_mcp_tools(include_legacy=True):
