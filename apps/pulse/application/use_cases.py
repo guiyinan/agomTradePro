@@ -7,13 +7,13 @@ from typing import Any
 
 from apps.data_center.application.dtos import DecisionReliabilityRepairRequest
 from apps.data_center.application.interface_services import make_decision_repair_use_case
+from apps.pulse.application.regime_gateway import resolve_current_regime
 from apps.pulse.application.repository_provider import (
     get_pulse_data_provider,
     get_pulse_repository,
 )
 from apps.pulse.domain.entities import PulseSnapshot
 from apps.pulse.domain.services import calculate_pulse
-from apps.regime.application.current_regime import resolve_current_regime
 
 logger = logging.getLogger(__name__)
 DEFAULT_MAX_SNAPSHOT_AGE_DAYS = 8

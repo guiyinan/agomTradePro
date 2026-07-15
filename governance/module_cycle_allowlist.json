@@ -1,9 +1,9 @@
 {
-  "version": "2026-07-15.v5",
+  "version": "2026-07-15.v6",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 204,
+  "max_app_import_edges": 203,
   "max_outbound_modules_per_app": 20,
-  "max_inbound_modules_per_app": 24,
+  "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
     "account": 19,
     "agent_runtime": 13,
@@ -28,7 +28,7 @@
     "macro": 3,
     "policy": 6,
     "prompt": 2,
-    "pulse": 2,
+    "pulse": 1,
     "realtime": 5,
     "regime": 2,
     "risk_center": 0,
@@ -69,7 +69,7 @@
     "prompt": 4,
     "pulse": 7,
     "realtime": 6,
-    "regime": 24,
+    "regime": 23,
     "risk_center": 3,
     "rotation": 4,
     "sector": 3,
@@ -116,10 +116,6 @@
       "signal"
     ],
     [
-      "pulse",
-      "regime"
-    ],
-    [
       "realtime",
       "simulated_trading"
     ],
@@ -150,10 +146,6 @@
       "signal",
       "simulated_trading",
       "strategy"
-    ],
-    [
-      "pulse",
-      "regime"
     ]
   ]
 }

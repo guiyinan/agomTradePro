@@ -41,11 +41,16 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `data_center -> realtime` was removed. Realtime registers latest-price fallback access, preserving the existing Data Center helper and Realtime monkeypatch surfaces.
 - The former large cycle component split: Data Center, Dashboard, Config Center, Macro, Prompt, and Sector left all cycle components; the remaining debt is one smaller main component plus the isolated `pulse <-> regime` pair.
 
+## Completed batch 5
+
+- `pulse -> regime` was removed. Pulse owns a current-Regime gateway and Regime registers its existing resolver during startup, preserving the Pulse monkeypatch surface.
+- The isolated `pulse <-> regime` component and its pair allowance were deleted; only the account-centered main cycle component remains.
+- The total edge, Pulse outbound, Regime inbound, and global maximum inbound budgets were tightened together.
+
 ## Next batches
 
-1. Remove the isolated `pulse <-> regime` pair.
-2. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
-3. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+1. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
+2. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 
 ## Regression and rollback
 
