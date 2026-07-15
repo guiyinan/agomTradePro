@@ -2,7 +2,7 @@
 
 ## Stage objective
 
-This stage applies behavior-preserving refactoring to the initial four highest-risk large-file allowances and a separately accepted Account repository continuation. The machine-readable source for current allowances, ownership, priorities, targets, and review dates remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
+This stage applies behavior-preserving refactoring to the initial four highest-risk large-file allowances and separately accepted P1 continuations. The machine-readable source for current allowances, ownership, priorities, targets, and review dates remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
 
 ## Completed scope
 
@@ -11,6 +11,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Dashboard HTTP views retain page orchestration and compatibility exports; Regime/Pulse, Alpha, and navigation/empty-state context helpers live in focused modules.
 - Alpha Qlib Celery task definitions and aliases remain in Application. Initialization, prediction/cache, and artifact/training runtime work is delegated through the Application provider factory to Infrastructure modules.
 - Account repositories now have focused profile/classification, portfolio, position, portfolio API, registration/profile, portfolio-access, and administration owners. The original repository module remains the compatibility export surface.
+- Auto-advisor services now have focused serialization, contract, intent, execution, performance, provider, and decision-sheet owners. The original service module remains a controlled compatibility export surface.
 - Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
 
 ## Remaining scope
@@ -28,6 +29,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Dashboard API edges, market thermometer, regression guardrails, Alpha end-to-end, and Regime/Pulse integration.
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
 - Account registration, profile, portfolio, position, observer grant, sizing, Dashboard dependency, and API edge contracts.
+- Auto-advisor decision-sheet, execution plan, recommendation attribution, Dashboard console, UI, weekly task, and API guardrail contracts.
 - The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
 - Local structure contracts preserve the tighter stage-specific file budgets and reject reverse imports from extracted modules back to their compatibility entrypoints.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.

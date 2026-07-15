@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6797,
+  "static_test_function_count": 6800,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -78,7 +78,6 @@
     "apps/data_center/application/use_cases.py": 2339,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
-    "apps/decision_rhythm/application/advisor_services.py": 2788,
     "apps/decision_rhythm/application/use_cases.py": 2610,
     "apps/decision_rhythm/domain/entities.py": 2253,
     "apps/decision_rhythm/domain/services.py": 1563,
@@ -166,15 +165,6 @@
       "owner": "data-center",
       "kind": "repository",
       "rationale": "Separate catalog, fact, and operational repositories.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/decision_rhythm/application/advisor_services.py": {
-      "owner": "decision-rhythm",
-      "kind": "application-services",
-      "rationale": "Split advisory context, recommendation mapping, and transition planning.",
       "priority": "P1",
       "target_non_empty_lines": 1000,
       "review_by": "2026-09-30",
