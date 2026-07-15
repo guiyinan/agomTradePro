@@ -8,19 +8,13 @@ from django.apps import apps as django_apps
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
+from apps.account.application.business_provider_gateway import authoritative_rss_sources_ready
 from apps.account.infrastructure.models import (
     AssetCategoryModel,
     CurrencyModel,
     DocumentationModel,
     InvestmentRuleModel,
 )
-from apps.audit.infrastructure.models import ConfidenceConfigModel, IndicatorThresholdConfigModel
-from apps.equity.infrastructure.models import (
-    ScoringWeightConfigModel,
-    StockInfoModel,
-    StockScreeningRuleConfigModel,
-)
-from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 from apps.fund.infrastructure.models import FundTypePreferenceConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
@@ -32,6 +26,14 @@ from apps.rotation.infrastructure.models import (
 )
 from apps.sector.infrastructure.models import SectorPreferenceConfigModel
 from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
+
+ConfidenceConfigModel = django_apps.get_model("audit", "ConfidenceConfigModel")
+IndicatorThresholdConfigModel = django_apps.get_model("audit", "IndicatorThresholdConfigModel")
+ScoringWeightConfigModel = django_apps.get_model("equity", "ScoringWeightConfigModel")
+StockInfoModel = django_apps.get_model("equity", "StockInfoModel")
+StockScreeningRuleConfigModel = django_apps.get_model("equity", "StockScreeningRuleConfigModel")
+FactorDefinitionModel = django_apps.get_model("factor", "FactorDefinitionModel")
+FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioConfigModel")
 
 
 @dataclass(frozen=True)
@@ -346,25 +348,7 @@ class Command(BaseCommand):
         return expected_names.issubset(existing_names)
 
     def _authoritative_rss_sources_ready(self) -> bool:
-        from apps.policy.management.commands.init_authoritative_rss_sources import (
-            AUTHORITATIVE_RSS_SOURCES,
-        )
-
-        rsshub_config_model = django_apps.get_model("policy", "RSSHubGlobalConfig")
-        rss_source_model = django_apps.get_model("policy", "RSSSourceConfigModel")
-        config = rsshub_config_model._default_manager.filter(singleton_id=1).first()
-        if config is None or not config.enabled:
-            return False
-
-        expected_routes = {source.route_path for source in AUTHORITATIVE_RSS_SOURCES}
-        active_routes = set(
-            rss_source_model._default_manager.filter(
-                is_active=True,
-                rsshub_enabled=True,
-                rsshub_route_path__in=expected_routes,
-            ).values_list("rsshub_route_path", flat=True)
-        )
-        return expected_routes.issubset(active_routes)
+        return authoritative_rss_sources_ready()
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()

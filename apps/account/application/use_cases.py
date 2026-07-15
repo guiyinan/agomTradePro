@@ -13,6 +13,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from apps.account.application.business_provider_gateway import get_backtest_repository
 from apps.account.application.repository_provider import (
     AccountRepository,
     AssetMetadataRepository,
@@ -37,7 +38,6 @@ from apps.account.domain.services import (
     calculate_macro_multiplier,
     calculate_portfolio_drawdown,
 )
-from apps.backtest.application.repository_provider import get_backtest_repository
 from apps.data_center.application.interface_services import load_market_thermometer_payload
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import get_signal_repository

@@ -4,13 +4,15 @@ import os
 from copy import deepcopy
 from datetime import date, timedelta
 
+from django.apps import apps as django_apps
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.data_center.infrastructure.models import MacroFactModel
-from apps.equity.infrastructure.models import StockInfoModel
-from apps.factor.infrastructure.models import FactorPortfolioConfigModel
 from apps.rotation.infrastructure.models import RotationConfigModel
+
+StockInfoModel = django_apps.get_model("equity", "StockInfoModel")
+FactorPortfolioConfigModel = django_apps.get_model("factor", "FactorPortfolioConfigModel")
 
 
 class Command(BaseCommand):
@@ -55,7 +57,11 @@ class Command(BaseCommand):
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
         if settings.DEBUG:
             return
-        if "test" in settings_module or "development" in settings_module or "development_sqlite" in settings_module:
+        if (
+            "test" in settings_module
+            or "development" in settings_module
+            or "development_sqlite" in settings_module
+        ):
             return
         raise CommandError(
             "bootstrap_mcp_cold_start is dev-only and cannot run in production-like environments."
@@ -162,7 +168,9 @@ class Command(BaseCommand):
             return 0
 
         source_rows = list(
-            MacroFactModel._default_manager.filter(indicator_code="CN_PMI").order_by("-reporting_period")[:24]
+            MacroFactModel._default_manager.filter(indicator_code="CN_PMI").order_by(
+                "-reporting_period"
+            )[:24]
         )
         if not source_rows:
             self.stdout.write(self.style.WARNING("[macro] source missing: CN_PMI"))

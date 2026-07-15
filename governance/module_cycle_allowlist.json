@@ -1,11 +1,11 @@
 {
-  "version": "2026-07-15.v6",
+  "version": "2026-07-15.v7",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 203,
+  "max_app_import_edges": 198,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
-    "account": 19,
+    "account": 14,
     "agent_runtime": 13,
     "ai_capability": 5,
     "ai_provider": 0,
@@ -51,21 +51,21 @@
     "alpha": 4,
     "alpha_trigger": 3,
     "asset_analysis": 11,
-    "audit": 3,
-    "backtest": 2,
+    "audit": 2,
+    "backtest": 1,
     "beta_gate": 4,
     "config_center": 4,
     "dashboard": 1,
     "data_center": 22,
     "decision_rhythm": 4,
-    "equity": 7,
+    "equity": 6,
     "events": 5,
-    "factor": 2,
+    "factor": 1,
     "filter": 0,
     "fund": 5,
     "hedge": 2,
     "macro": 5,
-    "policy": 13,
+    "policy": 12,
     "prompt": 4,
     "pulse": 7,
     "realtime": 6,
@@ -83,26 +83,6 @@
     "terminal": 0
   },
   "allowed_bidirectional_pairs": [
-    [
-      "account",
-      "audit"
-    ],
-    [
-      "account",
-      "backtest"
-    ],
-    [
-      "account",
-      "equity"
-    ],
-    [
-      "account",
-      "factor"
-    ],
-    [
-      "account",
-      "policy"
-    ],
     [
       "account",
       "simulated_trading"
@@ -130,8 +110,6 @@
       "alpha",
       "alpha_trigger",
       "asset_analysis",
-      "audit",
-      "backtest",
       "beta_gate",
       "decision_rhythm",
       "equity",
@@ -146,6 +124,10 @@
       "signal",
       "simulated_trading",
       "strategy"
+    ],
+    [
+      "audit",
+      "backtest"
     ]
   ]
 }

@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.account.application import portfolio_api_services
-from apps.audit.application import interface_services as audit_interface_services
+from apps.account.application.business_provider_gateway import log_audit_operation
 
 from .permissions import ObserverAccessPermission
 from .serializers import (
@@ -83,7 +83,7 @@ class ObserverAuditMixin:
         try:
             import uuid
 
-            audit_interface_services.log_operation_payload(
+            log_audit_operation(
                 request_id=str(uuid.uuid4()),
                 user_id=request.user.id,
                 username=request.user.username,

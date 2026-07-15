@@ -156,10 +156,10 @@ INSTALLED_APPS = [
     "apps.realtime",  # 新增：实时价格监控模块
     # ========== 新模块：决策流程优化 ==========
     "apps.decision_rhythm",  # 决策频率约束模块（新增）
+    "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.events",  # 事件总线模块（新增）
     "apps.beta_gate",  # Beta 闸门模块（新增）
     "apps.risk_center",  # 集中风控中心（新增）
-    "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.alpha",  # Alpha AI 选股模块（新增）
     # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
     "apps.factor",  # 因子选股模块（新增）

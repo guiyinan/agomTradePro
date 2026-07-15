@@ -47,10 +47,18 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - The isolated `pulse <-> regime` component and its pair allowance were deleted; only the account-centered main cycle component remains.
 - The total edge, Pulse outbound, Regime inbound, and global maximum inbound budgets were tightened together.
 
+## Completed batch 6
+
+- Account no longer imports Audit, Backtest, Equity, Factor, or Policy implementations. Account-owned gateways receive Backtest repositories, Equity market adapters, Audit logging, and Policy readiness providers from the owning apps.
+- Cross-app cold-start model access now uses Django's app registry. Factor gained a standard `models.py` discovery bridge so its models are registered by the owning app instead of incidentally through Account imports.
+- Alpha Trigger now registers its repository before Events initializes the event bus, removing the startup-order error exposed by the stricter provider registries.
+- Five Account-centered pair allowances and their graph budgets were removed. The remaining Audit/Backtest pair split into a separate two-module component.
+
 ## Next batches
 
-1. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
-2. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+1. Remove the isolated `audit <-> backtest` pair and the remaining Policy/Signal and trading pairs.
+2. Separate Account identity from the remaining Simulated Trading compatibility surface.
+3. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 
 ## Regression and rollback
 
