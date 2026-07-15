@@ -77,6 +77,7 @@ from apps.dashboard.interface.dashboard_alpha_context import (
     _build_dashboard_exit_detail_url,
     _build_dashboard_exit_entry_panel_context,
     _get_alpha_decision_chain_data,
+    _get_alpha_stock_scores_payload,
     _get_dashboard_alpha_refresh_celery_health,
     _get_request_user_id,
     _log_dashboard_view_timing,
@@ -195,26 +196,6 @@ def _get_dashboard_portfolio_options(user_id: int) -> list[dict]:
 def _get_dashboard_valuation_repair_config_summary() -> dict | None:
     """Load valuation-repair config summary through the dashboard application boundary."""
     return dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
-
-
-def _get_alpha_stock_scores_payload(
-    top_n: int = 10,
-    user=None,
-    portfolio_id: int | None = None,
-    pool_mode: str | None = None,
-    alpha_scope: str | None = None,
-) -> dict:
-    """Preserve the legacy patch surface while delegating to the split query service."""
-
-    normalized_scope = normalize_alpha_scope(alpha_scope)
-    return dashboard_interface_services.get_alpha_stock_scores_payload(
-        top_n=top_n,
-        user=user,
-        portfolio_id=portfolio_id,
-        pool_mode=pool_mode,
-        alpha_scope=normalized_scope,
-        query_factory=get_alpha_homepage_query,
-    )
 
 
 def _get_alpha_metrics_data(ic_days: int = 30):

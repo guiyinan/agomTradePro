@@ -56,7 +56,6 @@ from apps.dashboard.application.navigation import (
 )
 from apps.dashboard.application.queries import (
     get_alpha_decision_chain_query,
-    get_alpha_homepage_query,
     get_alpha_visualization_query,
 )
 from apps.dashboard.interface import (
@@ -292,7 +291,15 @@ def _get_alpha_stock_scores_payload(
     pool_mode: str | None = None,
     alpha_scope: str | None = None,
 ) -> dict:
-    """Return Alpha stock items plus reliability metadata."""
+    """Return Alpha stock items plus reliability metadata.
+
+    Resolve the query factory through ``views`` at call time so the historical
+    ``apps.dashboard.interface.views.get_alpha_homepage_query`` monkeypatch
+    surface remains effective after this helper moved into the split context
+    module.
+    """
+    from apps.dashboard.interface import views as dashboard_views
+
     normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
     return dashboard_interface_services.get_alpha_stock_scores_payload(
         top_n=top_n,
@@ -300,7 +307,7 @@ def _get_alpha_stock_scores_payload(
         portfolio_id=portfolio_id,
         pool_mode=pool_mode,
         alpha_scope=normalized_alpha_scope,
-        query_factory=get_alpha_homepage_query,
+        query_factory=dashboard_views.get_alpha_homepage_query,
     )
 
 
