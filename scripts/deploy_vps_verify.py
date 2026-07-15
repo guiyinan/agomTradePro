@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import shlex
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -52,9 +53,36 @@ def _ssh_connect(host: str, port: int, username: str, password: str, timeout: in
 
 def _run(ssh, command: str, timeout: int) -> tuple[int, str, str]:
     _stdin, stdout, stderr = ssh.exec_command(command, timeout=timeout)
-    out = stdout.read().decode("utf-8", errors="replace")
-    err = stderr.read().decode("utf-8", errors="replace")
-    return stdout.channel.recv_exit_status(), out, err
+    channel = stdout.channel
+    deadline = time.monotonic() + timeout
+    stdout_buffer = bytearray()
+    stderr_buffer = bytearray()
+
+    while True:
+        drained = False
+        while channel.recv_ready():
+            stdout_buffer.extend(channel.recv(32768))
+            drained = True
+        while channel.recv_stderr_ready():
+            stderr_buffer.extend(channel.recv_stderr(32768))
+            drained = True
+
+        if channel.exit_status_ready():
+            exit_code = channel.recv_exit_status()
+            break
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            channel.close()
+            raise TimeoutError(f"remote command timed out after {timeout}s")
+        if not drained:
+            time.sleep(min(0.05, remaining))
+
+    return (
+        exit_code,
+        stdout_buffer.decode("utf-8", errors="replace"),
+        stderr_buffer.decode("utf-8", errors="replace"),
+    )
 
 
 def parse_caddy_site_address(first_line: str) -> str:
@@ -269,12 +297,13 @@ def build_celery_ping_command(target_dir: str) -> str:
 
 
 def build_django_deploy_check_command(target_dir: str) -> str:
-    """Build the Django production system-check command."""
+    """Build an isolated Django production system-check command."""
 
     return build_compose_command(
         target_dir,
-        "exec",
-        "-T",
+        "run",
+        "--rm",
+        "--no-deps",
         "web",
         "python",
         "manage.py",

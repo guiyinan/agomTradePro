@@ -19,6 +19,53 @@ def _load_module():
 deploy_vps_verify = _load_module()
 
 
+def test_run_drains_stdout_and_stderr_without_file_read_deadlock():
+    class FakeChannel:
+        def __init__(self):
+            self.stdout_chunks = [b"stdout\n"]
+            self.stderr_chunks = [b"stderr\n"]
+
+        def recv_ready(self):
+            return bool(self.stdout_chunks)
+
+        def recv_stderr_ready(self):
+            return bool(self.stderr_chunks)
+
+        def recv(self, _size):
+            return self.stdout_chunks.pop(0)
+
+        def recv_stderr(self, _size):
+            return self.stderr_chunks.pop(0)
+
+        def exit_status_ready(self):
+            return not self.stdout_chunks and not self.stderr_chunks
+
+        def recv_exit_status(self):
+            return 0
+
+        def close(self):
+            return None
+
+    class FakeStream:
+        def __init__(self, channel):
+            self.channel = channel
+
+        def read(self):
+            raise AssertionError("sequential stream reads can deadlock")
+
+    class FakeSSH:
+        def exec_command(self, _command, timeout):
+            assert timeout == 5
+            channel = FakeChannel()
+            return object(), FakeStream(channel), FakeStream(channel)
+
+    exit_code, stdout, stderr = deploy_vps_verify._run(FakeSSH(), "check", timeout=5)
+
+    assert exit_code == 0
+    assert stdout == "stdout\n"
+    assert stderr == "stderr\n"
+
+
 def test_parse_caddy_site_address_handles_domain_line():
     assert (
         deploy_vps_verify.parse_caddy_site_address("demo.agomtrade.pro {") == "demo.agomtrade.pro"
@@ -96,10 +143,10 @@ def test_build_celery_ping_command_checks_workers_from_web_container():
     assert "exec -T web celery -A core inspect ping --timeout=8" in command
 
 
-def test_build_django_deploy_check_command_uses_running_web_container():
+def test_build_django_deploy_check_command_uses_isolated_web_container():
     command = deploy_vps_verify.build_django_deploy_check_command("/opt/agomtradepro")
 
-    assert "exec -T web python manage.py check --deploy" in command
+    assert "run --rm --no-deps web python manage.py check --deploy" in command
 
 
 def test_build_migration_check_command_rejects_unapplied_migrations():
