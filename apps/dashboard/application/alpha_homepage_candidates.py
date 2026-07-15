@@ -6,8 +6,6 @@ import logging
 from types import SimpleNamespace
 from typing import Any
 
-from apps.account.application.use_cases import GetSizingContextUseCase
-
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +52,9 @@ class AlphaCandidateMixin:
                     ),
                 )
         try:
-            sizing_context = GetSizingContextUseCase().execute(
+            from apps.dashboard.application import alpha_homepage
+
+            sizing_context = alpha_homepage.GetSizingContextUseCase().execute(
                 portfolio_id=portfolio_id,
                 user_id=user_id,
                 refresh_pulse_if_stale=refresh_pulse_if_stale,

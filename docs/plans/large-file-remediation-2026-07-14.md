@@ -9,6 +9,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Terminal identity/access runtime metadata now uses MCP, current-user AI provider, system AI provider, and quota owner shards. The original module is a compatibility aggregator.
 - Dashboard Alpha homepage behavior is divided into exit-watch, runtime/readiness, candidate mapping, and history collaborators while `AlphaHomepageQuery` remains the public entry point.
 - Dashboard HTTP views retain page orchestration and compatibility exports; Regime/Pulse, Alpha, and navigation/empty-state context helpers live in focused modules.
+- Dashboard compatibility proxies preserve the original HTMX/history entries, query-factory and `AsyncResult` monkeypatch paths, factor-panel score loader, sizing-use-case patch surface, and decision-workspace URL helper without moving implementation back into `views.py`.
 - Alpha Qlib Celery task definitions and aliases remain in Application. Initialization, prediction/cache, and artifact/training runtime work is delegated through the Application provider factory to Infrastructure modules.
 - Account repositories now have focused profile/classification, portfolio, position, portfolio API, registration/profile, portfolio-access, and administration owners. The original repository module remains the compatibility export surface.
 - Auto-advisor services now have focused serialization, contract, intent, execution, performance, provider, and decision-sheet owners. The original service module remains a controlled compatibility export surface.
@@ -29,6 +30,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 
 - Terminal metadata composition, TUI workbench, terminal service, SDK, and SSL redirect checks.
 - Dashboard API edges, market thermometer, regression guardrails, Alpha end-to-end, and Regime/Pulse integration.
+- Dashboard Alpha view/query suites exercise the original import and monkeypatch paths after the split, including refresh locking, history APIs, readiness, factor panels, and page-level query reuse.
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
 - Account registration, profile, portfolio, position, observer grant, sizing, Dashboard dependency, and API edge contracts.
 - Auto-advisor decision-sheet, execution plan, recommendation attribution, Dashboard console, UI, weekly task, and API guardrail contracts.

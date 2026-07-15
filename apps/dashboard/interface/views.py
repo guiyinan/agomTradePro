@@ -12,6 +12,7 @@ Dashboard Interface Views
 import logging
 from time import perf_counter
 
+from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
@@ -32,6 +33,9 @@ from apps.alpha.application.ops_locks import (
 from apps.alpha.application.ops_locks import (
     release_dashboard_alpha_refresh_lock as _release_dashboard_alpha_refresh_lock,
 )
+from apps.alpha.application.ops_locks import (
+    resolve_dashboard_alpha_refresh_lock as _resolve_dashboard_alpha_refresh_lock_impl,
+)
 from apps.alpha.application.pool_resolver import (
     PortfolioAlphaPoolResolver as _PortfolioAlphaPoolResolver,
 )
@@ -47,33 +51,37 @@ from apps.dashboard.application.alpha_homepage import (
     ALPHA_SCOPE_PORTFOLIO,
     normalize_alpha_scope,
 )
+from apps.dashboard.application.navigation import (
+    build_decision_workspace_url as _build_decision_workspace_url,
+)
 from apps.dashboard.application.queries import (
     get_alpha_homepage_query,
+    get_alpha_visualization_query,
     get_dashboard_detail_query,
+    get_decision_plane_query,
+)
+from apps.dashboard.interface import (
+    alpha_history_views,
+    alpha_stock_views,
+    dashboard_alpha_context,
+    macro_views,
 )
 from apps.dashboard.interface.dashboard_alpha_context import (
     _annotate_alpha_exit_watchlist_navigation,
     _annotate_decision_workspace_navigation,
     _build_alpha_decision_chain_overview,
     _build_alpha_exit_detail_panel_context,
-    _build_alpha_factor_panel,
     _build_alpha_readiness_contract,
     _build_alpha_refresh_conflict_response,
     _build_alpha_refresh_lock_key,
     _build_dashboard_exit_detail_url,
     _build_dashboard_exit_entry_panel_context,
     _get_alpha_decision_chain_data,
-    _get_alpha_metrics_data,
-    _get_alpha_stock_scores_payload,
     _get_dashboard_alpha_refresh_celery_health,
     _get_request_user_id,
     _log_dashboard_view_timing,
     _mark_alpha_exit_watchlist_selection,
-    _resolve_existing_alpha_refresh_lock,
     _should_render_alpha_top_candidates,
-)
-from apps.dashboard.interface.dashboard_navigation_context import (
-    _get_decision_plane_data,
 )
 from apps.dashboard.interface.dashboard_regime_context import (
     _build_action_recommendation_context,
@@ -104,6 +112,7 @@ __all__ = [
     "_build_alpha_refresh_lock_key",
     "_build_attention_items_context",
     "_build_dashboard_data",
+    "_build_decision_workspace_url",
     "_build_dashboard_exit_detail_url",
     "_build_pulse_card_context",
     "_build_regime_status_context",
@@ -123,8 +132,10 @@ __all__ = [
     "acquire_dashboard_alpha_refresh_pending_lock",
     "build_dashboard_alpha_refresh_metadata",
     "get_alpha_homepage_query",
+    "get_alpha_visualization_query",
     "get_alpha_pool_mode_choices",
     "get_dashboard_detail_query",
+    "get_decision_plane_query",
     "normalize_alpha_scope",
     "promote_dashboard_alpha_refresh_task_lock",
     "record_pending_task",
@@ -184,6 +195,68 @@ def _get_dashboard_portfolio_options(user_id: int) -> list[dict]:
 def _get_dashboard_valuation_repair_config_summary() -> dict | None:
     """Load valuation-repair config summary through the dashboard application boundary."""
     return dashboard_interface_services.get_valuation_repair_config_summary(use_cache=False)
+
+
+def _get_alpha_stock_scores_payload(
+    top_n: int = 10,
+    user=None,
+    portfolio_id: int | None = None,
+    pool_mode: str | None = None,
+    alpha_scope: str | None = None,
+) -> dict:
+    """Preserve the legacy patch surface while delegating to the split query service."""
+
+    normalized_scope = normalize_alpha_scope(alpha_scope)
+    return dashboard_interface_services.get_alpha_stock_scores_payload(
+        top_n=top_n,
+        user=user,
+        portfolio_id=portfolio_id,
+        pool_mode=pool_mode,
+        alpha_scope=normalized_scope,
+        query_factory=get_alpha_homepage_query,
+    )
+
+
+def _get_alpha_metrics_data(ic_days: int = 30):
+    """Load Alpha metrics through the legacy query-factory patch surface."""
+
+    from apps.dashboard.interface.alpha_metrics_views import get_alpha_metrics_data
+
+    return get_alpha_metrics_data(
+        ic_days=ic_days,
+        query_factory=get_alpha_visualization_query,
+    )
+
+
+def _get_decision_plane_data(max_candidates: int = 5, max_pending: int = 10):
+    """Load decision-plane data through the legacy query-factory patch surface."""
+
+    from apps.dashboard.interface.dashboard_navigation_context import (
+        _empty_decision_plane_data,
+    )
+
+    data = dashboard_interface_services.get_decision_plane_data(
+        max_candidates=max_candidates,
+        max_pending=max_pending,
+        query_factory=get_decision_plane_query,
+    )
+    return data or _empty_decision_plane_data()
+
+
+def _resolve_existing_alpha_refresh_lock(lock_key: str):
+    """Resolve Alpha refresh locks using the legacy AsyncResult patch surface."""
+
+    return _resolve_dashboard_alpha_refresh_lock_impl(
+        lock_key,
+        async_result_cls=AsyncResult,
+    )
+
+
+def _build_alpha_factor_panel(*args, **kwargs) -> dict:
+    """Build factor context while honoring the legacy score-loader patch surface."""
+
+    kwargs.setdefault("stock_scores_loader", _get_alpha_stock_scores_payload)
+    return dashboard_alpha_context._build_alpha_factor_panel(*args, **kwargs)
 
 
 @login_required(login_url="/account/login/")
@@ -557,3 +630,10 @@ def _build_dashboard_page_context(
 # ========================================
 # 决策平面数据获取辅助函数（委托至 Query Services）
 # ========================================
+
+# Legacy public entries remain here so existing imports and monkeypatch paths keep working.
+alpha_refresh_htmx = alpha_stock_views.alpha_refresh_htmx
+alpha_stocks_htmx = alpha_stock_views.alpha_stocks_htmx
+alpha_history_list_api = alpha_history_views.alpha_history_list_api
+alpha_history_detail_api = alpha_history_views.alpha_history_detail_api
+action_recommendation_htmx = macro_views.action_recommendation_htmx

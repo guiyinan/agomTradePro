@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from apps.account.application.repository_provider import get_portfolio_repository
+from apps.account.application.use_cases import GetSizingContextUseCase
 from apps.alpha.application.pool_resolver import (
     ALPHA_POOL_MODE_PRICE_COVERED,
     PortfolioAlphaPoolResolver,
@@ -31,6 +32,15 @@ from apps.decision_rhythm.application.repository_provider import (
 from apps.strategy.domain.services import DecisionPolicyEngine, PreTradeRiskGate, SizingEngine
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "ALPHA_SCOPE_GENERAL",
+    "ALPHA_SCOPE_PORTFOLIO",
+    "AlphaHomepageData",
+    "AlphaHomepageQuery",
+    "GetSizingContextUseCase",
+    "normalize_alpha_scope",
+]
 
 ALPHA_SCOPE_GENERAL = "general"
 ALPHA_SCOPE_PORTFOLIO = "portfolio"

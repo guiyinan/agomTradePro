@@ -447,6 +447,7 @@ def _build_alpha_factor_panel(
     pool_mode: str | None = None,
     alpha_scope: str | None = None,
     load_provider_factors: bool = True,
+    stock_scores_loader=None,
 ) -> dict:
     """Build factor panel data for a single alpha stock."""
     normalized_alpha_scope = normalize_alpha_scope(alpha_scope)
@@ -455,7 +456,8 @@ def _build_alpha_factor_panel(
     if scores is not None:
         score_items = list(scores)
     else:
-        payload = _get_alpha_stock_scores_payload(
+        loader = stock_scores_loader or _get_alpha_stock_scores_payload
+        payload = loader(
             top_n=max(top_n, 10),
             user=user,
             portfolio_id=portfolio_id,
