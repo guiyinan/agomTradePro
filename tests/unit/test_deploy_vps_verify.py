@@ -147,6 +147,7 @@ def test_build_django_deploy_check_command_uses_isolated_web_container():
     command = deploy_vps_verify.build_django_deploy_check_command("/opt/agomtradepro")
 
     assert "run --rm --no-deps web python manage.py check --deploy" in command
+    assert deploy_vps_verify.DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS == 180
 
 
 def test_build_migration_check_command_rejects_unapplied_migrations():

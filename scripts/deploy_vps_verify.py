@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 HTTP_CODE_MARKER = "__AGOM_HTTP_CODE__="
+DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS = 180
 
 
 def _summarize(text: str, limit: int = 200) -> str:
@@ -422,14 +423,22 @@ def main() -> int:
         )
 
         runtime_checks = (
-            ("Django deploy check", build_django_deploy_check_command(args.target_dir)),
-            ("Migrations", build_migration_check_command(args.target_dir)),
+            (
+                "Django deploy check",
+                build_django_deploy_check_command(args.target_dir),
+                max(args.timeout, DJANGO_DEPLOY_CHECK_TIMEOUT_SECONDS),
+            ),
+            (
+                "Migrations",
+                build_migration_check_command(args.target_dir),
+                max(args.timeout, 30),
+            ),
         )
-        for label, command in runtime_checks:
+        for label, command, command_timeout in runtime_checks:
             command_code, command_out, command_err = _run(
                 ssh,
                 command,
-                timeout=max(args.timeout, 30),
+                timeout=command_timeout,
             )
             command_ok, command_summary = evaluate_runtime_command_result(
                 command_code,
