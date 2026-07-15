@@ -6,9 +6,6 @@ import logging
 from typing import Any
 
 from apps.ai_provider.application.client_provider import get_ai_client_factory
-from apps.strategy.application.repository_provider import (
-    build_prompt_strategy_providers,
-)
 
 from .agent_runtime import AgentRuntime
 from .context_builders import (
@@ -26,6 +23,7 @@ from .repository_provider import (
     get_execution_log_repository,
     get_prompt_repository,
 )
+from .strategy_gateway import build_prompt_strategy_providers
 from .tool_execution import create_agent_tool_registry
 from .trace_logging import AgentExecutionLogger
 from .use_cases import (

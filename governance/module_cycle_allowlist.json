@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-15.v2",
+  "version": "2026-07-15.v3",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 215,
+  "max_app_import_edges": 212,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -20,20 +20,20 @@
     "data_center": 5,
     "decision_rhythm": 20,
     "equity": 8,
-    "events": 2,
+    "events": 1,
     "factor": 4,
     "filter": 1,
     "fund": 6,
     "hedge": 2,
     "macro": 3,
     "policy": 6,
-    "prompt": 3,
+    "prompt": 2,
     "pulse": 2,
     "realtime": 5,
     "regime": 2,
     "risk_center": 0,
     "rotation": 2,
-    "sector": 3,
+    "sector": 2,
     "sentiment": 4,
     "setup_wizard": 2,
     "share": 1,
@@ -49,7 +49,7 @@
     "ai_capability": 1,
     "ai_provider": 12,
     "alpha": 5,
-    "alpha_trigger": 4,
+    "alpha_trigger": 3,
     "asset_analysis": 11,
     "audit": 3,
     "backtest": 2,
@@ -58,7 +58,7 @@
     "dashboard": 2,
     "data_center": 22,
     "decision_rhythm": 8,
-    "equity": 8,
+    "equity": 7,
     "events": 5,
     "factor": 2,
     "filter": 0,
@@ -78,7 +78,7 @@
     "share": 1,
     "signal": 10,
     "simulated_trading": 7,
-    "strategy": 4,
+    "strategy": 3,
     "task_monitor": 4,
     "terminal": 0
   },
@@ -120,10 +120,6 @@
       "decision_rhythm"
     ],
     [
-      "alpha_trigger",
-      "events"
-    ],
-    [
       "audit",
       "backtest"
     ],
@@ -148,16 +144,8 @@
       "simulated_trading"
     ],
     [
-      "equity",
-      "sector"
-    ],
-    [
       "policy",
       "signal"
-    ],
-    [
-      "prompt",
-      "strategy"
     ],
     [
       "pulse",

@@ -14,13 +14,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.alpha_trigger.application.repository_provider import (
-    get_alpha_candidate_repository as _get_alpha_candidate_repository,
-)
 from apps.decision_rhythm.application.repository_provider import (
     get_decision_request_repository as _get_decision_request_repository,
 )
 from apps.events.domain.replay import ReplayRunReservation
+from core.integration.alpha_candidate_registry import (
+    get_alpha_candidate_repository as _get_alpha_candidate_repository,
+)
 
 from .models import EventReplayRunModel, FailedEventModel
 
@@ -166,8 +166,7 @@ class FailedEventRepository:
         failed_event.save()
 
         logger.info(
-            f"Failed event saved: {event.event_id} "
-            f"(handler={handler_id}, id={failed_event.id})"
+            f"Failed event saved: {event.event_id} " f"(handler={handler_id}, id={failed_event.id})"
         )
 
         return failed_event.id
@@ -346,6 +345,7 @@ class FailedEventRepository:
 
 
 # 便捷函数
+
 
 def get_failed_event_repository() -> FailedEventRepository:
     """获取失败事件仓储实例"""

@@ -11,11 +11,11 @@ import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from apps.equity.application.query_services import fetch_index_daily_returns
 from apps.regime.application.query_services import get_latest_regime_diagnostic_payload
 
 from ..domain.entities import SectorInfo, SectorRelativeStrength, SectorScore
 from ..domain.services import SectorRotationAnalyzer
+from .market_returns_gateway import fetch_index_daily_returns
 from .repository_provider import DjangoSectorRepository
 
 logger = logging.getLogger(__name__)
@@ -34,12 +34,13 @@ class AnalyzeSectorRotationRequest:
         level: 板块级别（SW1/SW2/SW3）
         top_n: 返回前 N 个板块
     """
+
     regime: str | None = None  # 如果为 None，自动获取最新 Regime
     lookback_days: int = 20
     momentum_weight: float = 0.3
     rs_weight: float = 0.4
     regime_weight: float = 0.3
-    level: str = 'SW1'
+    level: str = "SW1"
     top_n: int = 10
 
 
@@ -54,6 +55,7 @@ class SectorRotationResult:
         top_sectors: 推荐板块列表（按评分降序）
         error: 错误信息（如果失败）
     """
+
     success: bool
     regime: str
     analysis_date: date
@@ -93,10 +95,7 @@ class AnalyzeSectorRotationUseCase:
         self.market_adapter = market_adapter
         self.analyzer = SectorRotationAnalyzer()
 
-    def execute(
-        self,
-        request: AnalyzeSectorRotationRequest
-    ) -> SectorRotationResult:
+    def execute(self, request: AnalyzeSectorRotationRequest) -> SectorRotationResult:
         """执行板块轮动分析
 
         Args:
@@ -161,14 +160,14 @@ class AnalyzeSectorRotationUseCase:
             # 4. 计算每个板块的动量和相对强弱
             sectors_data = []
             end_date = date.today()
-            start_date = end_date - timedelta(days=request.lookback_days * 2)  # 多取一些数据以确保足够
+            start_date = end_date - timedelta(
+                days=request.lookback_days * 2
+            )  # 多取一些数据以确保足够
 
             for sector_info in all_sectors:
                 # 获取板块指数数据
                 indices = self.sector_repo.get_sector_index_range(
-                    sector_code=sector_info.sector_code,
-                    start_date=start_date,
-                    end_date=end_date
+                    sector_code=sector_info.sector_code, start_date=start_date, end_date=end_date
                 )
 
                 if not indices:
@@ -182,8 +181,7 @@ class AnalyzeSectorRotationUseCase:
 
                 # 计算动量
                 momentum = self.analyzer.calculate_momentum(
-                    returns,
-                    lookback_days=min(request.lookback_days, len(returns))
+                    returns, lookback_days=min(request.lookback_days, len(returns))
                 )
 
                 # 获取大盘指数收益率（沪深300）
@@ -209,7 +207,7 @@ class AnalyzeSectorRotationUseCase:
                     trade_date=latest_index.trade_date,
                     relative_strength=relative_strength,
                     momentum=momentum,
-                    beta=None
+                    beta=None,
                 )
 
                 sectors_data.append((sector_info, latest_index, sector_rs))
@@ -233,11 +231,11 @@ class AnalyzeSectorRotationUseCase:
                 regime_weights=regime_weights,
                 momentum_weight=request.momentum_weight,
                 rs_weight=request.rs_weight,
-                regime_weight=request.regime_weight
+                regime_weight=request.regime_weight,
             )
 
             # 6. 返回前 N 个板块
-            top_sectors = sector_scores[:request.top_n]
+            top_sectors = sector_scores[: request.top_n]
 
             return SectorRotationResult(
                 success=True,
@@ -246,11 +244,7 @@ class AnalyzeSectorRotationUseCase:
                 top_sectors=top_sectors,
                 status="degraded" if market_returns_fallback else "available",
                 data_source="fallback" if market_returns_fallback else "persisted",
-                warning_message=(
-                    "market_returns_fallback"
-                    if market_returns_fallback
-                    else None
-                ),
+                warning_message=("market_returns_fallback" if market_returns_fallback else None),
                 warning_detail=(
                     "沪深300 基准收益率暂不可用，本次相对强弱采用无基准近似值；建议补齐指数行情缓存。"
                     if market_returns_fallback
@@ -261,7 +255,7 @@ class AnalyzeSectorRotationUseCase:
         except Exception as e:
             return SectorRotationResult(
                 success=False,
-                regime=regime if request.regime else '',
+                regime=regime if request.regime else "",
                 analysis_date=date.today(),
                 top_sectors=[],
                 error=str(e),
@@ -294,14 +288,14 @@ class AnalyzeSectorRotationUseCase:
         try:
             if hasattr(self.market_adapter, "get_index_daily_returns"):
                 returns_dict = self.market_adapter.get_index_daily_returns(
-                    index_code='000300.SH',
+                    index_code="000300.SH",
                     start_date=start_date,
                     end_date=end_date,
                     hydrate=False,
                 )
             elif callable(self.market_adapter):
                 returns_dict = self.market_adapter(
-                    index_code='000300.SH',
+                    index_code="000300.SH",
                     start_date=start_date,
                     end_date=end_date,
                     hydrate=False,
@@ -344,7 +338,8 @@ class UpdateSectorDataRequest:
         end_date: 结束日期
         force_update: 是否强制更新
     """
-    level: str = 'SW1'
+
+    level: str = "SW1"
     start_date: str | None = None
     end_date: str | None = None
     force_update: bool = False
@@ -359,6 +354,7 @@ class UpdateSectorDataResult:
         updated_count: 更新的记录数
         error: 错误信息
     """
+
     success: bool
     updated_count: int
     error: str | None = None
@@ -373,11 +369,7 @@ class UpdateSectorDataUseCase:
     3. 保存到数据库
     """
 
-    def __init__(
-        self,
-        sector_repo: DjangoSectorRepository,
-        adapter=None
-    ):
+    def __init__(self, sector_repo: DjangoSectorRepository, adapter=None):
         """初始化用例
 
         Args:
@@ -387,10 +379,7 @@ class UpdateSectorDataUseCase:
         self.sector_repo = sector_repo
         self.adapter = adapter
 
-    def execute(
-        self,
-        request: UpdateSectorDataRequest
-    ) -> UpdateSectorDataResult:
+    def execute(self, request: UpdateSectorDataRequest) -> UpdateSectorDataResult:
         """执行板块数据更新
 
         Args:
@@ -402,9 +391,7 @@ class UpdateSectorDataUseCase:
         try:
             if self.adapter is None:
                 return UpdateSectorDataResult(
-                    success=False,
-                    updated_count=0,
-                    error="未提供数据适配器"
+                    success=False, updated_count=0, error="未提供数据适配器"
                 )
 
             # 1. 获取板块分类
@@ -412,19 +399,17 @@ class UpdateSectorDataUseCase:
 
             if classify_df.empty:
                 return UpdateSectorDataResult(
-                    success=False,
-                    updated_count=0,
-                    error=f"获取 {request.level} 板块分类失败"
+                    success=False, updated_count=0, error=f"获取 {request.level} 板块分类失败"
                 )
 
             # 2. 保存板块分类
             saved_count = 0
             for _, row in classify_df.iterrows():
                 sector_info = SectorInfo(
-                    sector_code=row['sector_code'],
-                    sector_name=row['sector_name'],
-                    level=row['level'],
-                    parent_code=row.get('parent_code')
+                    sector_code=row["sector_code"],
+                    sector_name=row["sector_name"],
+                    level=row["level"],
+                    parent_code=row.get("parent_code"),
                 )
                 if self.sector_repo.save_sector_info(sector_info):
                     saved_count += 1
@@ -436,30 +421,23 @@ class UpdateSectorDataUseCase:
                 start_date = end_date - timedelta(days=365)
             else:
                 start_date = date.fromisoformat(request.start_date)
-                end_date = date.fromisoformat(request.end_date) if request.end_date else date.today()
+                end_date = (
+                    date.fromisoformat(request.end_date) if request.end_date else date.today()
+                )
 
-            start_str = start_date.strftime('%Y%m%d')
-            end_str = end_date.strftime('%Y%m%d')
+            start_str = start_date.strftime("%Y%m%d")
+            end_str = end_date.strftime("%Y%m%d")
 
             # 批量获取板块指数数据
-            sector_codes = classify_df['sector_code'].tolist()
+            sector_codes = classify_df["sector_code"].tolist()
             indices_df = self.adapter.fetch_all_sector_index_daily(
-                sector_codes=sector_codes,
-                start_date=start_str,
-                end_date=end_str
+                sector_codes=sector_codes, start_date=start_str, end_date=end_str
             )
 
             # 4. 保存板块指数数据
             updated_count = self.sector_repo.batch_save_sector_indices(indices_df)
 
-            return UpdateSectorDataResult(
-                success=True,
-                updated_count=updated_count + saved_count
-            )
+            return UpdateSectorDataResult(success=True, updated_count=updated_count + saved_count)
 
         except Exception as e:
-            return UpdateSectorDataResult(
-                success=False,
-                updated_count=0,
-                error=str(e)
-            )
+            return UpdateSectorDataResult(success=False, updated_count=0, error=str(e))
