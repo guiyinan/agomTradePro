@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from django.apps import apps as django_apps
 
-from apps.account.application.business_provider_gateway import (
-    register_policy_readiness_checker,
-)
 from apps.policy.management.commands.init_authoritative_rss_sources import (
     AUTHORITATIVE_RSS_SOURCES,
+)
+from core.integration.policy_readiness_registry import (
+    register_policy_readiness_checker,
 )
 
 

@@ -5,10 +5,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from core.integration.policy_readiness_registry import (
+    policy_readiness_is_satisfied,
+)
+from core.integration.policy_readiness_registry import (
+    register_policy_readiness_checker as _register_policy_readiness_checker,
+)
+
 _backtest_repository_factory: Callable[[], Any] | None = None
 _equity_market_adapter_factory: Callable[[], Any] | None = None
 _audit_operation_logger: Callable[..., Any] | None = None
-_policy_readiness_checker: Callable[[], bool] | None = None
 
 
 def register_backtest_repository_factory(factory: Callable[[], Any]) -> None:
@@ -58,17 +64,13 @@ def log_audit_operation(**payload: Any) -> Any:
 
 def register_policy_readiness_checker(checker: Callable[[], bool]) -> None:
     """Register the Policy cold-start readiness checker."""
-
-    global _policy_readiness_checker
-    _policy_readiness_checker = checker
+    _register_policy_readiness_checker(checker)
 
 
 def authoritative_rss_sources_ready() -> bool:
     """Return whether authoritative Policy RSS sources are ready."""
 
-    if _policy_readiness_checker is None:
-        return False
-    return _policy_readiness_checker()
+    return policy_readiness_is_satisfied()
 
 
 __all__ = [

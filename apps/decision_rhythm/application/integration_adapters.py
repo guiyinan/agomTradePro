@@ -41,14 +41,19 @@ def register_decision_rhythm_integrations() -> None:
     from core.integration.decision_request_registry import (
         register_decision_request_repository_factory,
     )
+    from core.integration.share_decision_registry import register_share_decision_reader
 
     from .exit_advisors import build_decision_rhythm_exit_advisor
-    from .repository_provider import get_decision_request_repository
+    from .repository_provider import (
+        get_decision_request_repository,
+        list_share_decisions_for_account_assets,
+    )
 
     register_default_workspace_refresh_provider(_refresh_default_workspace_recommendations)
     register_decision_execution_ref_provider(_get_decision_execution_ref)
     register_decision_rhythm_exit_advisor_builder(build_decision_rhythm_exit_advisor)
     register_decision_request_repository_factory(get_decision_request_repository)
+    register_share_decision_reader(list_share_decisions_for_account_assets)
 
 
 __all__ = ["register_decision_rhythm_integrations"]

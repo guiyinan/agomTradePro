@@ -69,10 +69,19 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - Original Account repository imports, API routes, response payloads, and compatibility view behavior remain available. The final bidirectional-pair allowance was removed and the exact graph budgets were tightened.
 - Bidirectional pairs are now zero. A longer strongly connected component remains and must be removed before the cycle remediation is complete.
 
-## Next batches
+## Completed batch 9
 
-1. Remove the remaining long-cycle feedback edges identified by the graph audit.
-2. Empty the cycle-component allowlist and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+- The remaining strongly connected component was analyzed as a graph rather than dismantled module by module. Seven feedback edges were sufficient to make the app graph acyclic.
+- Rotation account queries, Policy hedge inputs, Realtime account-token authentication, and Signal Alpha/Factor sources now use focused app-neutral registries whose providers are registered by the owning apps.
+- Policy readiness registration moved out of the Account import path, eliminating the provider-to-consumer edge without changing the readiness contract.
+- Share no longer queries Decision Rhythm ORM models directly. Decision Rhythm owns a focused Share snapshot query adapter and registers it through an app-neutral registry.
+- The final cycle-component allowance was deleted. The app graph now reports zero bidirectional pairs and zero strongly connected cycle components, with all seven affected edge budgets tightened.
+
+## Completion state
+
+- Both cycle allowlists are empty.
+- `check_module_cycles.py --fail-on-cycles` succeeds without an allowlist.
+- Remaining work is regression verification and compatibility cleanup; no accepted app-cycle debt remains.
 
 ## Regression and rollback
 

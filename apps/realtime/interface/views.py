@@ -20,7 +20,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.realtime.application.query_services import (
     list_cached_top_movers_payloads,
@@ -30,6 +29,7 @@ from apps.realtime.application.repository_provider import (
     get_realtime_subscription_service,
 )
 from apps.realtime.application.use_cases import SubscriptionLimitExceeded
+from apps.realtime.interface.authentication import RealtimeTokenAuthentication
 from apps.realtime.interface.serializers import (
     PriceAlertCreateSerializer,
     PriceAlertResponseSerializer,
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 class RealtimeAuthenticatedAPIView(APIView):
     """Use formal token and session identities for realtime owner APIs."""
 
-    authentication_classes = [MultiTokenAuthentication, SessionAuthentication]
+    authentication_classes = [RealtimeTokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
 

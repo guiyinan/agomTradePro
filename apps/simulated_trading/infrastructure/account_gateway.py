@@ -125,6 +125,12 @@ def register_account_gateway() -> None:
     from apps.account.application.simulated_trading_gateway import (
         configure_simulated_trading_gateway,
     )
+    from apps.simulated_trading.application.query_services import (
+        list_active_account_models_for_user,
+    )
+    from core.integration.trading_account_registry import (
+        register_active_accounts_reader,
+    )
 
     configure_simulated_trading_gateway(
         portfolio_repository_factory=_build_portfolio_api_repository,
@@ -135,6 +141,7 @@ def register_account_gateway() -> None:
         portfolio_account_resolver=_get_unified_account_id_for_portfolio,
         view_resolver=_resolve_view,
     )
+    register_active_accounts_reader(list_active_account_models_for_user)
 
 
 __all__ = ["register_account_gateway"]

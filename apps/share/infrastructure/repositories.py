@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.db.models import Q
 from django.utils import timezone
 
-from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
 from apps.share.domain.account_gateway import EmptyShareAccountGateway, ShareAccountGateway
 from apps.share.domain.entities import ShareLevel, ShareLinkEntity, ShareStatus, ShareTheme
 from apps.share.domain.interfaces import (
@@ -21,6 +19,7 @@ from apps.share.infrastructure.models import (
     ShareLinkModel,
     ShareSnapshotModel,
 )
+from core.integration.share_decision_registry import list_share_decisions_for_account_assets
 
 UserModel = get_user_model()
 
@@ -127,21 +126,10 @@ class ShareInterfaceRepository:
         if not asset_codes:
             return []
 
-        return list(
-            DecisionRequestModel._default_manager.filter(asset_code__in=asset_codes)
-            .filter(
-                Q(unified_recommendation__account_id=str(account_id))
-                | Q(unified_recommendation__account_id=account_id)
-                | Q(execution_ref__account_id=account_id)
-                | Q(execution_ref__account_id=str(account_id))
-            )
-            .select_related(
-                "response",
-                "feature_snapshot",
-                "unified_recommendation",
-                "unified_recommendation__feature_snapshot",
-            )
-            .order_by("-requested_at")[:12]
+        return list_share_decisions_for_account_assets(
+            account_id=account_id,
+            asset_codes=asset_codes,
+            limit=12,
         )
 
     def get_share_disclaimer_config(self):

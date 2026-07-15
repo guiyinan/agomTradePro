@@ -9,6 +9,11 @@ from channels.auth import BaseMiddleware
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 
+from core.integration.account_access_registry import (
+    get_active_access_token,
+    touch_access_token,
+)
+
 
 def extract_formal_token(
     headers: list[tuple[bytes, bytes]],
@@ -34,11 +39,6 @@ def extract_formal_token(
 
 def _authenticate_token(key: str) -> tuple[Any, bool] | None:
     """Resolve a formal Account token without exposing it beyond this boundary."""
-
-    from apps.account.application.interface_services import (
-        get_active_access_token,
-        touch_access_token,
-    )
 
     token = get_active_access_token(key)
     if token is None or not token.user.is_active:
