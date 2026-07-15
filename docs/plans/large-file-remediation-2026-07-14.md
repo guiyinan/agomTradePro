@@ -2,7 +2,7 @@
 
 ## Stage objective
 
-This stage applies behavior-preserving refactoring to the four highest-risk large-file allowances. The machine-readable source for current allowances, ownership, priorities, targets, and review dates remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
+This stage applies behavior-preserving refactoring to the initial four highest-risk large-file allowances and a separately accepted Account repository continuation. The machine-readable source for current allowances, ownership, priorities, targets, and review dates remains `governance/governance_baseline.json`; this document intentionally does not copy live line counts.
 
 ## Completed scope
 
@@ -10,7 +10,8 @@ This stage applies behavior-preserving refactoring to the four highest-risk larg
 - Dashboard Alpha homepage behavior is divided into exit-watch, runtime/readiness, candidate mapping, and history collaborators while `AlphaHomepageQuery` remains the public entry point.
 - Dashboard HTTP views retain page orchestration and compatibility exports; Regime/Pulse, Alpha, and navigation/empty-state context helpers live in focused modules.
 - Alpha Qlib Celery task definitions and aliases remain in Application. Initialization, prediction/cache, and artifact/training runtime work is delegated through the Application provider factory to Infrastructure modules.
-- The four remediated paths were removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
+- Account repositories now have focused profile/classification, portfolio, position, portfolio API, registration/profile, portfolio-access, and administration owners. The original repository module remains the compatibility export surface.
+- Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
 
 ## Remaining scope
 
@@ -26,6 +27,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Terminal metadata composition, TUI workbench, terminal service, SDK, and SSL redirect checks.
 - Dashboard API edges, market thermometer, regression guardrails, Alpha end-to-end, and Regime/Pulse integration.
 - Qlib prediction, cache fallback, training, integration, and Celery registration aliases.
+- Account registration, profile, portfolio, position, observer grant, sizing, Dashboard dependency, and API edge contracts.
 - The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
 - Local structure contracts preserve the tighter stage-specific file budgets and reject reverse imports from extracted modules back to their compatibility entrypoints.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.
@@ -34,6 +36,6 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 
 - Runtime imports and compatibility exports are the main risk because tests and adjacent interface modules patch legacy paths. Each original module therefore retains thin exports or aggregators.
 - Celery task registration is kept in the original module; Infrastructure modules contain implementation only.
-- Further large-file splits remain separate P1/P2 work packages. Pulling a fifth business file into this stage would exceed the agreed delivery boundary and couple its rollback to already-accepted changes.
+- Further large-file splits remain separate P1/P2 work packages and must retain independent compatibility tests and rollback points.
 - Each responsibility split is independently revertible. If a regression is found, revert the corresponding split together with its baseline removal so governance remains internally consistent.
 - No database schema, route, API payload, template key, TUI key, or Celery task name changes are part of this stage.

@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6794,
+  "static_test_function_count": 6797,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -70,7 +70,6 @@
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
     "apps/account/infrastructure/models.py": 1389,
-    "apps/account/infrastructure/repositories.py": 3252,
     "apps/ai_capability/application/use_cases.py": 1224,
     "apps/audit/application/use_cases.py": 1382,
     "apps/audit/domain/services.py": 1299,
@@ -98,15 +97,6 @@
       "priority": "P2",
       "target_non_empty_lines": 1100,
       "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/account/infrastructure/repositories.py": {
-      "owner": "account",
-      "kind": "repository",
-      "rationale": "Separate identity, portfolio bridge, and settings repositories behind focused protocols.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },
     "apps/ai_capability/application/use_cases.py": {
