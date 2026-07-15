@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-15.v131",
+  "version": "2026-07-15.v132",
   "mcp_tool_count": 375,
   "mcp_governance": {
     "default_top_level_tool_count": 7,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6803,
+  "static_test_function_count": 6806,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -78,7 +78,6 @@
     "apps/data_center/application/use_cases.py": 2339,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
-    "apps/decision_rhythm/domain/entities.py": 2253,
     "apps/decision_rhythm/domain/services.py": 1563,
     "apps/decision_rhythm/infrastructure/models.py": 2146,
     "apps/decision_rhythm/infrastructure/repositories.py": 1790,
@@ -166,15 +165,6 @@
       "rationale": "Separate catalog, fact, and operational repositories.",
       "priority": "P1",
       "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/decision_rhythm/domain/entities.py": {
-      "owner": "decision-rhythm",
-      "kind": "domain-entities",
-      "rationale": "Partition decision, recommendation, and execution value objects.",
-      "priority": "P1",
-      "target_non_empty_lines": 1100,
       "review_by": "2026-09-30",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },
