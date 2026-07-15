@@ -25,12 +25,19 @@ Eliminate the app-level bidirectional dependencies that regrew after the 2026-04
 - `events -> alpha_trigger` was removed. A `core.integration` registry holds the Alpha candidate repository factory; Alpha Trigger registers the provider during app startup and Events keeps its existing local compatibility proxy.
 - The graph baseline was tightened by three edges and the three resolved bidirectional pairs were deleted from the allowlist.
 
+## Completed batch 3
+
+- `alpha -> decision_rhythm` was removed. Alpha owns a workspace-refresh gateway; Decision Rhythm registers the default-workspace refresh adapter while the existing workspace service remains the implementation owner.
+- `alpha_trigger -> decision_rhythm` was removed. Alpha Trigger resolves execution references through its own gateway, backed by a Decision Rhythm adapter.
+- `events -> decision_rhythm` was removed. Events retains its repository compatibility proxy while an app-neutral registry receives the Decision Rhythm repository factory at startup.
+- `simulated_trading -> decision_rhythm` was removed. Simulated Trading owns the exit-advisor builder gateway and preserves the original task monkeypatch surface; Decision Rhythm registers its existing advisor implementation.
+- Events exited the remaining cycle component, and all four resolved pairs and graph budgets were tightened in the same batch.
+
 ## Next batches
 
-1. Remove event/repository reversals around Decision Rhythm.
-2. Replace Data Center reverse calls to Alpha, Dashboard, Pulse, and Realtime with provider registries or owner facades.
-3. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
-4. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
+1. Replace Data Center reverse calls to Alpha, Dashboard, Pulse, and Realtime with provider registries or owner facades.
+2. Separate account identity from portfolio/trading dependencies and remove the account-centered cycle cluster.
+3. Empty both cycle allowlists and run `check_module_cycles.py --fail-on-cycles` without an allowlist.
 
 ## Regression and rollback
 

@@ -14,12 +14,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.decision_rhythm.application.repository_provider import (
-    get_decision_request_repository as _get_decision_request_repository,
-)
 from apps.events.domain.replay import ReplayRunReservation
 from core.integration.alpha_candidate_registry import (
     get_alpha_candidate_repository as _get_alpha_candidate_repository,
+)
+from core.integration.decision_request_registry import (
+    get_decision_request_repository as _get_decision_request_repository,
 )
 
 from .models import EventReplayRunModel, FailedEventModel

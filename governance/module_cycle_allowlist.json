@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-15.v3",
+  "version": "2026-07-15.v4",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 212,
+  "max_app_import_edges": 208,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 24,
   "max_outbound_modules_by_app": {
@@ -9,8 +9,8 @@
     "agent_runtime": 13,
     "ai_capability": 5,
     "ai_provider": 0,
-    "alpha": 7,
-    "alpha_trigger": 6,
+    "alpha": 6,
+    "alpha_trigger": 5,
     "asset_analysis": 3,
     "audit": 4,
     "backtest": 6,
@@ -20,7 +20,7 @@
     "data_center": 5,
     "decision_rhythm": 20,
     "equity": 8,
-    "events": 1,
+    "events": 0,
     "factor": 4,
     "filter": 1,
     "fund": 6,
@@ -38,7 +38,7 @@
     "setup_wizard": 2,
     "share": 1,
     "signal": 10,
-    "simulated_trading": 14,
+    "simulated_trading": 13,
     "strategy": 7,
     "task_monitor": 0,
     "terminal": 18
@@ -57,7 +57,7 @@
     "config_center": 4,
     "dashboard": 2,
     "data_center": 22,
-    "decision_rhythm": 8,
+    "decision_rhythm": 4,
     "equity": 7,
     "events": 5,
     "factor": 2,
@@ -112,14 +112,6 @@
       "data_center"
     ],
     [
-      "alpha",
-      "decision_rhythm"
-    ],
-    [
-      "alpha_trigger",
-      "decision_rhythm"
-    ],
-    [
       "audit",
       "backtest"
     ],
@@ -134,14 +126,6 @@
     [
       "data_center",
       "realtime"
-    ],
-    [
-      "decision_rhythm",
-      "events"
-    ],
-    [
-      "decision_rhythm",
-      "simulated_trading"
     ],
     [
       "policy",
@@ -174,7 +158,6 @@
       "data_center",
       "decision_rhythm",
       "equity",
-      "events",
       "factor",
       "fund",
       "hedge",

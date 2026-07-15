@@ -18,14 +18,14 @@ from django.core.mail import send_mail
 
 from apps.asset_analysis.application.repository_provider import get_asset_pool_query_repository
 from apps.data_center.application.price_service import UnifiedPriceService
-from apps.decision_rhythm.application.exit_advisors import (
-    build_decision_rhythm_exit_advisor,
-)
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 from apps.signal.application.repository_provider import get_signal_repository
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
+from apps.simulated_trading.application.decision_rhythm_exit_gateway import (
+    build_decision_rhythm_exit_advisor,
+)
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.repository_provider import (
     DjangoSimulatedAccountRepository,
