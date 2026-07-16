@@ -125,8 +125,10 @@ echo "[INFO] Clearing migration seed data before importing the SQLite snapshot"
 compose run --rm --no-deps web python manage.py flush --noinput
 
 echo "[INFO] Importing data into PostgreSQL"
-compose run --rm --no-deps -e PYTHONUTF8=1 web \
-  python manage.py loaddata "$CONTAINER_FIXTURE"
+compose run --rm --no-deps \
+  -e PYTHONUTF8=1 \
+  -e AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1 \
+  web python manage.py loaddata "$CONTAINER_FIXTURE"
 
 compose run --rm --no-deps web python - "$CONTAINER_TARGET_COUNTS" <<'PY'
 import json

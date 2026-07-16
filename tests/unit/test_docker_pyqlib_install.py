@@ -104,6 +104,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "--format jsonl" in migration
     assert "PYTHONUTF8=1" in migration
     assert "manage.py flush --noinput" in migration
+    assert "AGOMTRADEPRO_DISABLE_USER_PROVISIONING_SIGNALS=1" in migration
     assert "pg_isready" in migration
     assert "PostgreSQL did not become ready within 120 seconds" in migration
     assert "dropdb --force --if-exists" in migration
