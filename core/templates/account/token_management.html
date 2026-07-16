@@ -95,21 +95,21 @@
             <tbody>
                 {% for row in rows %}
                 <tr>
-                    <td>
+                    <td data-label="用户">
                         <strong>{{ row.user.username }}</strong>
                         {% if row.user.is_superuser %}
                             <span class="badge badge-admin">管理员</span>
                         {% endif %}
                     </td>
-                    <td>{{ row.user.email|default:"-" }}</td>
-                    <td>
+                    <td data-label="邮箱">{{ row.user.email|default:"-" }}</td>
+                    <td data-label="状态">
                         {% if row.user.is_active %}
                             <span class="status-badge status-active">已激活</span>
                         {% else %}
                             <span class="status-badge status-inactive">未激活</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="MCP">
                         <div class="mcp-cell">
                             {% if row.profile and row.profile.mcp_enabled %}
                                 <span class="status-badge status-active">已开启</span>
@@ -124,7 +124,7 @@
                             </form>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="有效 Token">
                         {% if row.tokens %}
                             <div class="token-list">
                                 {% for token in row.tokens %}
@@ -132,7 +132,42 @@
                                         <div>
                                             <strong>{{ token.name }}</strong>
                                             <div class="token-meta">
-                                                <code>{{ token.preview }}</code>
+                                                {% with raw_token=token.reveal_key %}
+                                                    {% if system_settings.allow_token_plaintext_view and raw_token %}
+                                                        <span class="token-secret-wrap">
+                                                            <code
+                                                                id="tokenValue{{ token.id }}"
+                                                                class="token-secret-value"
+                                                                data-token-secret="{{ raw_token }}"
+                                                                data-token-hidden="false"
+                                                            >{{ raw_token }}</code>
+                                                            <span class="token-secret-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    class="btn btn-sm btn-secondary"
+                                                                    data-token-target="tokenValue{{ token.id }}"
+                                                                    onclick="toggleTokenVisibility(this)"
+                                                                    aria-label="隐藏 {{ token.name }} 的完整 Token"
+                                                                >隐藏</button>
+                                                                <button
+                                                                    type="button"
+                                                                    class="btn btn-sm btn-secondary"
+                                                                    data-token-target="tokenValue{{ token.id }}"
+                                                                    onclick="copyTokenValue(this)"
+                                                                >复制</button>
+                                                            </span>
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="token-preview-wrap">
+                                                            <code>{{ token.preview }}</code>
+                                                            {% if system_settings.allow_token_plaintext_view %}
+                                                                <small>历史 Token 无法恢复完整值，请重新生成。</small>
+                                                            {% else %}
+                                                                <small>系统已关闭 Token 明文查看。</small>
+                                                            {% endif %}
+                                                        </span>
+                                                    {% endif %}
+                                                {% endwith %}
                                                 <span>{{ token.get_access_level_display }}</span>
                                                 <span>{{ token.created_at|date:"Y-m-d H:i" }}</span>
                                                 {% if token.created_by %}<span>创建人: {{ token.created_by.username }}</span>{% endif %}
@@ -153,7 +188,7 @@
                             <span class="text-muted">暂无</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="创建新 Token">
                         <form method="post" action="{% url 'account:rotate_user_token' row.user.id %}" class="create-token-form">
                             {% csrf_token %}
                             <input type="text" name="token_name" class="form-control form-control-sm" placeholder="例如: claude-desktop" maxlength="100">
@@ -188,6 +223,7 @@
 .alert-warning { background: #FFF3CD; color: #856404; border: 1px solid #FFECB5; }
 .alert-info { background: #D5EDFB; color: #146698; border: 1px solid #9BC8F8; }
 .token-once-row { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.token-once-row code { max-width: 100%; overflow-wrap: anywhere; word-break: break-all; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .stat-card { background: var(--color-bg); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border); text-align: center; }
 .stat-value { font-size: 32px; font-weight: 600; color: var(--color-primary); }
@@ -198,8 +234,8 @@
 .filter-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .filter-group { display: flex; align-items: center; gap: 8px; }
 .checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
-.table-container { background: var(--color-bg); border-radius: var(--radius-md); border: 1px solid var(--color-border); overflow: hidden; }
-.data-table { width: 100%; border-collapse: collapse; }
+.table-container { background: var(--color-bg); border-radius: var(--radius-md); border: 1px solid var(--color-border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.data-table { width: 100%; min-width: 920px; border-collapse: collapse; }
 .data-table th, .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--color-border); vertical-align: top; }
 .data-table th { background: var(--color-surface); font-weight: 600; font-size: 14px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
@@ -217,11 +253,32 @@
 .token-list { display: flex; flex-direction: column; gap: 10px; }
 .token-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); }
 .token-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--color-text-secondary); }
+.token-secret-wrap, .token-preview-wrap { display: grid; gap: 6px; width: 100%; min-width: 0; }
+.token-secret-value { max-width: 100%; padding: 5px 7px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); overflow-wrap: anywhere; word-break: break-all; white-space: normal; user-select: all; }
+.token-secret-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.token-preview-wrap small { line-height: 1.45; }
 .mcp-cell { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .create-token-form { display: flex; gap: 8px; align-items: center; }
 .inline-form { margin-top: 10px; }
 @media (max-width: 960px) {
     .create-token-form, .token-item { flex-direction: column; align-items: stretch; }
+    .form-control-sm { min-width: 0; }
+}
+@media (max-width: 760px) {
+    .page-container.admin-shell--wide { width: auto; max-width: none; margin-inline: 12px; }
+    .filter-form, .filter-group { align-items: stretch; }
+    .filter-group { width: 100%; flex-direction: column; }
+    .filter-form > .btn { width: 100%; text-align: center; }
+    .table-container { overflow-x: visible; border: 0; background: transparent; }
+    .data-table, .data-table tbody { display: block; width: 100%; min-width: 0; }
+    .data-table thead { display: none; }
+    .data-table tr { display: block; margin-bottom: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); overflow: hidden; }
+    .data-table td { display: block; width: 100%; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+    .data-table td:last-child { border-bottom: 0; }
+    .data-table td::before { content: attr(data-label); display: block; margin-bottom: 7px; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; }
+    .token-item { padding: 8px; }
+    .create-token-form { width: 100%; }
+    .create-token-form .btn, .create-token-form .form-control { width: 100%; }
 }
 </style>
 
@@ -230,6 +287,27 @@ function copyNewToken() {
     const el = document.getElementById('newTokenValue');
     if (!el) return;
     navigator.clipboard.writeText(el.textContent || '').then(() => {
+        if (window.showToast) window.showToast('Token 已复制到剪贴板', 'success');
+    }).catch(() => {
+        if (window.showToast) window.showToast('复制失败，请手动复制', 'warning');
+    });
+}
+
+function toggleTokenVisibility(button) {
+    const token = document.getElementById(button.dataset.tokenTarget || '');
+    if (!token) return;
+    const hidden = token.dataset.tokenHidden === 'true';
+    token.textContent = hidden ? (token.dataset.tokenSecret || '') : '••••••••••••';
+    token.dataset.tokenHidden = hidden ? 'false' : 'true';
+    button.textContent = hidden ? '隐藏' : '显示';
+    button.setAttribute('aria-label', hidden ? '隐藏完整 Token' : '显示完整 Token');
+}
+
+function copyTokenValue(button) {
+    const token = document.getElementById(button.dataset.tokenTarget || '');
+    if (!token) return;
+    const value = token.dataset.tokenSecret || '';
+    navigator.clipboard.writeText(value).then(() => {
         if (window.showToast) window.showToast('Token 已复制到剪贴板', 'success');
     }).catch(() => {
         if (window.showToast) window.showToast('复制失败，请手动复制', 'warning');

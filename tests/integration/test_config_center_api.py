@@ -2,7 +2,12 @@
 from django.contrib.auth.models import User
 from django.test import Client
 
-from apps.account.infrastructure.models import AccountProfileModel, DocumentationModel
+from apps.account.infrastructure.models import (
+    AccountProfileModel,
+    DocumentationModel,
+    SystemSettingsModel,
+    UserAccessTokenModel,
+)
 from apps.data_center.infrastructure.models import ProviderConfigModel
 
 
@@ -321,6 +326,30 @@ def test_token_management_page_uses_admin_console_language(superuser_client):
     assert "返回管理控制台" in content
     assert "当前页面只负责 Token 与 MCP 开关" in content
     assert "用户管理" in content
+
+
+@pytest.mark.django_db
+def test_token_management_page_shows_recoverable_tokens_and_mobile_card_labels(
+    superuser_client,
+):
+    user = User.objects.get(username="config_admin")
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=user,
+        name="classic-visible-token",
+        created_by=user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+
+    response = superuser_client.get("/account/admin/tokens/")
+
+    content = _assert_html_contract(response, "classic-visible-token", raw_key)
+    assert "data-token-secret" in content
+    assert 'data-label="有效 Token"' in content
+    assert "overflow-x: auto" in content
+    assert "@media (max-width: 760px)" in content
 
 
 @pytest.mark.django_db

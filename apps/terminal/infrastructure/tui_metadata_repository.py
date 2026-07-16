@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 
@@ -59,9 +61,43 @@ class PublishedTuiMetadataRepository:
         except (OperationalError, ProgrammingError):
             model = None
         if model is not None:
-            return self._normalize_runtime_payload(validate_tui_metadata(dict(model.payload or {})))
+            raw_payload = dict(model.payload or {})
+            source_hash = str(model.source_hash or "") or self.payload_hash(raw_payload)
+            source_token = self._database_source_token(model, source_hash=source_hash)
+            cached = self._load_runtime_cache(
+                registry_key,
+                source_kind="database",
+                source_token=source_token,
+            )
+            if cached is not None:
+                return cached
+            normalized = self._normalize_runtime_payload(validate_tui_metadata(raw_payload))
+            self._store_runtime_cache(
+                registry_key=registry_key,
+                source_hash=source_hash,
+                source_kind="database",
+                source_token=source_token,
+                payload=normalized,
+            )
+            return normalized
 
-        return self._load_published_file()
+        source_token = self._file_source_token()
+        cached = self._load_runtime_cache(
+            registry_key,
+            source_kind="file",
+            source_token=source_token,
+        )
+        if cached is not None:
+            return cached
+        normalized = self._load_published_file()
+        self._store_runtime_cache(
+            registry_key=registry_key,
+            source_hash=self.payload_hash(normalized),
+            source_kind="file",
+            source_token=source_token,
+            payload=normalized,
+        )
+        return normalized
 
     def publish_payload(
         self,
@@ -97,6 +133,18 @@ class PublishedTuiMetadataRepository:
             source_hash=source_hash,
         ):
             previous_model._publish_was_noop = True
+            self._store_runtime_cache(
+                registry_key=registry_key,
+                source_hash=source_hash,
+                source_kind="database",
+                source_token=self._database_source_token(
+                    previous_model,
+                    source_hash=source_hash,
+                ),
+                payload=self._normalize_runtime_payload(
+                    validate_tui_metadata(dict(previous_model.payload or {}))
+                ),
+            )
             return previous_model
         previous_payload = dict(previous_model.payload or {}) if previous_model is not None else {}
         resolved_changed_fields = changed_fields
@@ -106,7 +154,7 @@ class PublishedTuiMetadataRepository:
             registry_key=registry_key,
             status="published",
         ).update(status="archived", updated_at=now)
-        return TuiMetadataRegistryORM._default_manager.create(
+        created = TuiMetadataRegistryORM._default_manager.create(
             registry_key=registry_key,
             version=str(validated.get("version", "tui-workbench.v2")),
             schema_version=str(validated.get("schema_version", "tui-metadata.v3")),
@@ -123,6 +171,131 @@ class PublishedTuiMetadataRepository:
             rollback_of=rollback_of,
             published_at=now,
         )
+        runtime_payload = self._normalize_runtime_payload(
+            validate_tui_metadata(dict(created.payload or {}))
+        )
+        self._store_runtime_cache(
+            registry_key=registry_key,
+            source_hash=source_hash,
+            source_kind="database",
+            source_token=self._database_source_token(created, source_hash=source_hash),
+            payload=runtime_payload,
+        )
+        return created
+
+    @staticmethod
+    def invalidate_runtime_cache(registry_key: str = "default") -> None:
+        """Invalidate the active runtime snapshot pointer for one registry."""
+
+        published_path = (
+            Path(settings.BASE_DIR)
+            / "config"
+            / "tui"
+            / "published"
+            / "tui_operation_graph.published.json"
+        )
+        cache.delete(
+            PublishedTuiMetadataRepository._runtime_pointer_key(
+                registry_key,
+                published_path=published_path,
+            )
+        )
+
+    @staticmethod
+    def _runtime_source_scope(published_path: Path) -> str:
+        resolved = str(published_path.resolve()).lower()
+        return hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12]
+
+    @staticmethod
+    def _runtime_pointer_key(registry_key: str, *, published_path: Path) -> str:
+        scope = PublishedTuiMetadataRepository._runtime_source_scope(published_path)
+        return f"terminal:tui:metadata-runtime:v2:{scope}:{registry_key}:active"
+
+    @staticmethod
+    def _runtime_payload_key(
+        registry_key: str,
+        source_hash: str,
+        *,
+        published_path: Path,
+    ) -> str:
+        scope = PublishedTuiMetadataRepository._runtime_source_scope(published_path)
+        return f"terminal:tui:metadata-runtime:v2:{scope}:{registry_key}:{source_hash}"
+
+    def _load_runtime_cache(
+        self,
+        registry_key: str,
+        *,
+        source_kind: str,
+        source_token: str,
+    ) -> dict[str, Any] | None:
+        if not bool(getattr(settings, "TUI_RUNTIME_CACHE_ENABLED", True)):
+            return None
+        pointer = cache.get(
+            self._runtime_pointer_key(registry_key, published_path=self.published_path)
+        )
+        if not isinstance(pointer, dict):
+            return None
+        if pointer.get("source_kind") != source_kind or pointer.get("source_token") != source_token:
+            return None
+        source_hash = str(pointer.get("source_hash") or "")
+        if not source_hash:
+            return None
+        payload = cache.get(
+            self._runtime_payload_key(
+                registry_key,
+                source_hash,
+                published_path=self.published_path,
+            )
+        )
+        return payload if isinstance(payload, dict) else None
+
+    def _store_runtime_cache(
+        self,
+        *,
+        registry_key: str,
+        source_hash: str,
+        source_kind: str,
+        source_token: str,
+        payload: dict[str, Any],
+    ) -> None:
+        if not bool(getattr(settings, "TUI_RUNTIME_CACHE_ENABLED", True)):
+            return
+        timeout = int(getattr(settings, "TUI_RUNTIME_CACHE_TTL_SECONDS", 300))
+        cache.set(
+            self._runtime_payload_key(
+                registry_key,
+                source_hash,
+                published_path=self.published_path,
+            ),
+            payload,
+            timeout,
+        )
+        cache.set(
+            self._runtime_pointer_key(registry_key, published_path=self.published_path),
+            {
+                "source_hash": source_hash,
+                "source_kind": source_kind,
+                "source_token": source_token,
+            },
+            timeout,
+        )
+
+    @staticmethod
+    def _database_source_token(
+        model: TuiMetadataRegistryORM,
+        *,
+        source_hash: str,
+    ) -> str:
+        updated_at = getattr(model, "updated_at", None)
+        updated_text = updated_at.isoformat() if updated_at is not None else ""
+        return f"{model.pk}:{updated_text}:{source_hash}"
+
+    def _file_source_token(self) -> str:
+        try:
+            stat = self.published_path.stat()
+        except FileNotFoundError:
+            return "missing"
+        return f"{stat.st_mtime_ns}:{stat.st_size}"
 
     @staticmethod
     def _is_same_published_payload(
@@ -273,8 +446,12 @@ class PublishedTuiMetadataRepository:
     ) -> None:
         """Keep screens valid after runtime pruning/injection mutates the action set."""
 
-        action_keys = {str(action.get("key") or "") for action in actions if isinstance(action, dict)}
-        screen_keys = {str(screen.get("key") or "") for screen in screens if isinstance(screen, dict)}
+        action_keys = {
+            str(action.get("key") or "") for action in actions if isinstance(action, dict)
+        }
+        screen_keys = {
+            str(screen.get("key") or "") for screen in screens if isinstance(screen, dict)
+        }
         actions_by_screen: dict[str, list[str]] = {}
         for action in actions:
             if not isinstance(action, dict):
@@ -408,9 +585,7 @@ class PublishedTuiMetadataRepository:
         )
 
         screen_keys = {str(screen.get("key") or "") for screen in screens}
-        action_index = {
-            str(action.get("key") or ""): index for index, action in enumerate(actions)
-        }
+        action_index = {str(action.get("key") or ""): index for index, action in enumerate(actions)}
         for action in bundle.actions:
             action_key = str(action.get("key") or "")
             screen_key = str(action.get("screen_key") or "")
@@ -518,6 +693,7 @@ class PublishedTuiMetadataRepository:
         return changes
 
 
+@lru_cache(maxsize=1)
 def get_tui_metadata_repository() -> PublishedTuiMetadataRepository:
     """Return the default published TUI metadata repository."""
 

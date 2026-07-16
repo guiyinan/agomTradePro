@@ -35,6 +35,11 @@ AUTOMATION_DEBUG_API_IP_ALLOWLIST = [
 ]
 AUTOMATION_DEBUG_API_MAX_LIMIT = env.int("AUTOMATION_DEBUG_API_MAX_LIMIT", default=1000)
 
+# TUI runtime performance flags. Both paths retain their legacy fallbacks.
+TUI_RUNTIME_CACHE_ENABLED = env.bool("TUI_RUNTIME_CACHE_ENABLED", default=True)
+TUI_RUNTIME_CACHE_TTL_SECONDS = env.int("TUI_RUNTIME_CACHE_TTL_SECONDS", default=300)
+TUI_OPTIMIZED_BOOTSTRAP_ENABLED = env.bool("TUI_OPTIMIZED_BOOTSTRAP_ENABLED", default=True)
+
 # Field-level encryption for sensitive data (API keys, etc.)
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # Set via environment variable: AGOMTRADEPRO_ENCRYPTION_KEY

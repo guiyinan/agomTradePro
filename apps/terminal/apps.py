@@ -14,5 +14,7 @@ class TerminalConfig(AppConfig):
         from .application.ai_capability_gateway import (
             register_ai_capability_terminal_gateway,
         )
+        from .infrastructure.tui_metadata_signals import register_tui_metadata_cache_signals
 
         register_ai_capability_terminal_gateway()
+        register_tui_metadata_cache_signals()

@@ -306,7 +306,10 @@ class AccountInterfaceRegistrationRepositoryMixin:
             }
             for token in access_tokens
         ]
-        preferred_token = visible_tokens[0] if visible_tokens else None
+        preferred_token = next(
+            (token for token in visible_tokens if token.get("plaintext")),
+            visible_tokens[0] if visible_tokens else None,
+        )
         preferred_token_value = (
             preferred_token["plaintext"] if preferred_token and preferred_token["plaintext"] else ""
         )

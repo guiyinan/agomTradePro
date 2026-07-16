@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any
 
@@ -10,6 +11,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.account.application.query_services import get_account_diagnostic_summary
+from apps.agent_runtime.application.repository_provider import get_operator_repository
 from apps.ai_capability.application.query_services import get_ai_capability_surface_status_payload
 from apps.ai_provider.application.use_cases import (
     GetOverallStatsUseCase,
@@ -21,7 +23,6 @@ from apps.alpha.application.repository_provider import (
     get_qlib_model_registry_repository,
     inspect_latest_trade_date,
 )
-from apps.agent_runtime.application.repository_provider import get_operator_repository
 from apps.config_center.application.query_services import has_qlib_training_runs
 from apps.data_center.application.interface_services import (
     get_decision_data_readiness_payload,
@@ -49,6 +50,7 @@ SEVERITY_ORDER = {
 DATA_TASK_DOMAINS = {"runtime", "data-center", "agent-runtime"}
 AI_CONFIG_DOMAINS = {"ai-provider", "config-center", "ai-capability"}
 OPERATOR_HOME_CACHE_TTL_SECONDS = 15
+OPERATOR_HOME_STALE_TTL_SECONDS = 120
 OPERATOR_HOME_SECTION_KEYS = (
     "decision_queue",
     "market_context",
@@ -63,22 +65,96 @@ def build_operator_home_payload(*, user: Any) -> dict[str, Any]:
     """Return the unified TUI home payload for one operator."""
 
     cache_key = _operator_home_cache_key(user=user)
-    cached = cache.get(cache_key)
-    if isinstance(cached, dict):
-        return cached
 
-    payload = {
-        section_key: build_operator_home_section_payload(user=user, section_key=section_key)
-        for section_key in OPERATOR_HOME_SECTION_KEYS
+    def build() -> dict[str, Any]:
+        payload = {
+            section_key: build_operator_home_section_payload(user=user, section_key=section_key)
+            for section_key in OPERATOR_HOME_SECTION_KEYS[:3]
+        }
+        preview_rows = _operator_home_preview_rows(
+            user=user,
+            market_context=payload["market_context"],
+        )
+        payload.update(
+            {
+                "system_exception_summary": _section_payload(preview_rows["runtime"]),
+                "data_task_summary": _section_payload(preview_rows["data-center"]),
+                "ai_config_summary": _section_payload(preview_rows["ai-provider"]),
+            }
+        )
+        navigation_rows = [row for rows in preview_rows.values() for row in rows]
+        return {
+            "status": _overall_status(
+                [
+                    list(payload[section_key].get("rows") or [])
+                    for section_key in OPERATOR_HOME_SECTION_KEYS
+                ]
+            ),
+            "navigation_badges": _navigation_badges(navigation_rows),
+            **payload,
+        }
+
+    return _cached_operator_payload(cache_key=cache_key, builder=build)
+
+
+def _operator_home_preview_rows(
+    *,
+    user: Any,
+    market_context: dict[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    """Return lightweight home summaries; full governance remains a drilldown."""
+
+    terminal_surface = get_terminal_surface_status_payload()
+    ai_surface = get_ai_capability_surface_status_payload()
+    market_rows = list(market_context.get("rows") or [])
+    market_severity = _highest_severity([str(row.get("severity") or "ok") for row in market_rows])
+    return {
+        "runtime": [
+            _governance_row(
+                severity=_surface_severity(terminal_surface),
+                domain="runtime",
+                title="Terminal/TUI 运行面状态",
+                status=str(terminal_surface.get("status") or "unknown"),
+                blocking_reason=_surface_reason(
+                    terminal_surface,
+                    "打开治理队列查看完整 readiness 详情。",
+                ),
+                next_action="查看完整运行时治理",
+                target_screen="api-library.runtime",
+                target_action_key="operator.governance.runtime_summary",
+                observed_at=timezone.now(),
+            )
+        ],
+        "data-center": [
+            _governance_row(
+                severity=market_severity,
+                domain="data-center",
+                title="数据与市场上下文预览",
+                status=str(market_context.get("status") or "unknown"),
+                blocking_reason="打开治理队列查看新鲜度、覆盖率与温度计详情。",
+                next_action="查看完整数据治理",
+                target_screen="api-library.data-center",
+                target_action_key="operator.governance.data_center_summary",
+                observed_at=timezone.now(),
+            )
+        ],
+        "ai-provider": [
+            _governance_row(
+                severity=_surface_severity(ai_surface),
+                domain="ai-provider",
+                title="AI 与能力目录预览",
+                status=str(ai_surface.get("status") or "unknown"),
+                blocking_reason=_surface_reason(
+                    ai_surface,
+                    "打开治理队列查看 Provider、配额与能力目录详情。",
+                ),
+                next_action="查看完整 AI 治理",
+                target_screen="ai-ops.providers",
+                target_action_key="operator.governance.ai_provider_summary",
+                observed_at=timezone.now(),
+            )
+        ],
     }
-    response = {
-        "status": _overall_status(
-            [list((payload[section_key].get("rows") or [])) for section_key in OPERATOR_HOME_SECTION_KEYS]
-        ),
-        **payload,
-    }
-    cache.set(cache_key, response, OPERATOR_HOME_CACHE_TTL_SECONDS)
-    return response
 
 
 def build_operator_home_section_payload(*, user: Any, section_key: str) -> dict[str, Any]:
@@ -89,14 +165,12 @@ def build_operator_home_section_payload(*, user: Any, section_key: str) -> dict[
         raise KeyError(normalized_key)
 
     cache_key = _operator_home_section_cache_key(user=user, section_key=normalized_key)
-    cached = cache.get(cache_key)
-    if isinstance(cached, dict):
-        return cached
-
-    rows = _operator_home_section_rows(user=user, section_key=normalized_key)
-    payload = _section_payload(rows)
-    cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
-    return payload
+    return _cached_operator_payload(
+        cache_key=cache_key,
+        builder=lambda: _section_payload(
+            _operator_home_section_rows(user=user, section_key=normalized_key)
+        ),
+    )
 
 
 def build_operator_governance_queue_payload(
@@ -107,44 +181,85 @@ def build_operator_governance_queue_payload(
     """Return sorted governance exceptions for TUI drilldown."""
 
     cache_key = _operator_governance_cache_key(user=user, domain=domain)
+
+    def build() -> dict[str, Any]:
+        rows = [
+            *_runtime_governance_rows(),
+            *_data_center_governance_rows(),
+            *_ai_provider_governance_rows(user=user),
+            *_agent_runtime_governance_rows(),
+            *_account_settings_governance_rows(),
+            *_config_center_governance_rows(user=user),
+        ]
+        filtered_domain = str(domain or "").strip().lower()
+        if filtered_domain:
+            rows = [row for row in rows if str(row["domain"]).lower() == filtered_domain]
+        if not rows:
+            rows = [
+                _governance_row(
+                    severity="ok",
+                    domain=filtered_domain or "runtime",
+                    title="当前没有待处理治理异常。",
+                    status="ok",
+                    blocking_reason="",
+                    next_action="继续当前工作区",
+                    target_screen=_domain_screen(filtered_domain or "runtime"),
+                    target_action_key=_domain_action(filtered_domain or "runtime"),
+                    observed_at=timezone.now(),
+                )
+            ]
+        rows.sort(key=_governance_sort_key)
+        return {
+            "status": rows[0]["severity"] if rows else "ok",
+            "items": rows,
+            "total": len(rows),
+            "summary": dict(Counter(row["severity"] for row in rows)),
+        }
+
+    return _cached_operator_payload(cache_key=cache_key, builder=build)
+
+
+def _cached_operator_payload(
+    *,
+    cache_key: str,
+    builder: Callable[[], dict[str, Any]],
+) -> dict[str, Any]:
+    """Return a fresh payload, or a stale snapshot while another worker rebuilds it."""
+
     cached = cache.get(cache_key)
     if isinstance(cached, dict):
         return cached
+    stale_key = f"{cache_key}:stale"
+    stale = cache.get(stale_key)
+    lock_key = f"{cache_key}:refresh-lock"
+    acquired = bool(cache.add(lock_key, 1, timeout=30))
+    if not acquired and isinstance(stale, dict):
+        return stale
+    try:
+        payload = builder()
+        cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
+        cache.set(stale_key, payload, OPERATOR_HOME_STALE_TTL_SECONDS)
+        return payload
+    finally:
+        if acquired:
+            cache.delete(lock_key)
 
-    rows = [
-        *_runtime_governance_rows(),
-        *_data_center_governance_rows(),
-        *_ai_provider_governance_rows(user=user),
-        *_agent_runtime_governance_rows(),
-        *_account_settings_governance_rows(),
-        *_config_center_governance_rows(user=user),
-    ]
-    filtered_domain = str(domain or "").strip().lower()
-    if filtered_domain:
-        rows = [row for row in rows if str(row["domain"]).lower() == filtered_domain]
-    if not rows:
-        rows = [
-            _governance_row(
-                severity="ok",
-                domain=filtered_domain or "runtime",
-                title="当前没有待处理治理异常。",
-                status="ok",
-                blocking_reason="",
-                next_action="继续当前工作区",
-                target_screen=_domain_screen(filtered_domain or "runtime"),
-                target_action_key=_domain_action(filtered_domain or "runtime"),
-                observed_at=timezone.now(),
-            )
-        ]
-    rows.sort(key=_governance_sort_key)
-    payload = {
-        "status": rows[0]["severity"] if rows else "ok",
-        "items": rows,
-        "total": len(rows),
-        "summary": dict(Counter(row["severity"] for row in rows)),
-    }
-    cache.set(cache_key, payload, OPERATOR_HOME_CACHE_TTL_SECONDS)
-    return payload
+
+def _navigation_badges(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build compact navigation counts without exposing full governance rows."""
+
+    counts_by_screen: dict[str, dict[str, int]] = {}
+    for row in rows:
+        severity = str(row.get("severity") or "").strip().lower()
+        screen_key = str(row.get("target_screen") or "").strip()
+        if severity not in {"blocked", "warning"} or not screen_key:
+            continue
+        counts = counts_by_screen.setdefault(
+            screen_key,
+            {"blocked_count": 0, "warning_count": 0},
+        )
+        counts[f"{severity}_count"] += 1
+    return {"counts_by_screen": counts_by_screen}
 
 
 def _operator_home_section_rows(*, user: Any, section_key: str) -> list[dict[str, Any]]:
@@ -360,10 +475,7 @@ def _runtime_governance_rows() -> list[dict[str, Any]]:
         _governance_row(
             severity=_monitor_severity(summary),
             domain="runtime",
-            title=str(
-                ((summary.get("daily_state") or {}).get("title"))
-                or "Readiness monitor"
-            ),
+            title=str(((summary.get("daily_state") or {}).get("title")) or "Readiness monitor"),
             status=str(summary.get("status") or "unknown"),
             blocking_reason=_first_text(
                 (summary.get("blocking_issues") or []),
@@ -428,7 +540,11 @@ def _data_center_governance_rows() -> list[dict[str, Any]]:
             observed_at=timezone.now(),
         ),
         _governance_row(
-            severity="warning" if thermometer_blocked or thermometer_status not in {"ok", "success"} else "ok",
+            severity=(
+                "warning"
+                if thermometer_blocked or thermometer_status not in {"ok", "success"}
+                else "ok"
+            ),
             domain="data-center",
             title="市场温度计状态",
             status=str(thermometer.get("status") or "unknown"),
@@ -548,7 +664,9 @@ def _agent_runtime_governance_rows() -> list[dict[str, Any]]:
             next_action="查看待处理任务",
             target_screen="ai-ops.agent-runtime",
             target_action_key=(
-                "agent_runtime.needs_attention" if needs_attention > 0 else "auto.api.get.api.agent-runtime.tasks"
+                "agent_runtime.needs_attention"
+                if needs_attention > 0
+                else "auto.api.get.api.agent-runtime.tasks"
             ),
             observed_at=timezone.now(),
         )
@@ -599,7 +717,11 @@ def _config_center_governance_rows(*, user: Any) -> list[dict[str, Any]]:
     enabled = bool(runtime.get("enabled"))
     rows = [
         _governance_row(
-            severity="blocked" if enabled and active_model is None else ("notice" if not enabled else "ok"),
+            severity=(
+                "blocked"
+                if enabled and active_model is None
+                else ("notice" if not enabled else "ok")
+            ),
             domain="config-center",
             title="Qlib Runtime 与当前模型",
             status="enabled" if enabled else "disabled",
@@ -644,9 +766,7 @@ def _section_rows(
         selected = [row for row in rows if row["severity"] != "ok"][:6]
     else:
         selected = [
-            row
-            for row in rows
-            if str(row["domain"]).lower() in domains and row["severity"] != "ok"
+            row for row in rows if str(row["domain"]).lower() in domains and row["severity"] != "ok"
         ][:6]
     if selected:
         return selected

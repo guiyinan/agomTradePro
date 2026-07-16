@@ -116,6 +116,18 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Verify TUI Runtime bundles
+        run: |
+          npm ci
+          npm run check:tui
+          npm run test:tui-js
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

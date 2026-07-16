@@ -157,6 +157,39 @@ def test_account_mcp_self_exposes_one_canonical_access_package(
 
 
 @pytest.mark.django_db
+def test_account_mcp_self_prefers_a_recoverable_token_over_a_newer_legacy_preview(
+    authenticated_client,
+    auth_user,
+):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    recoverable_token, recoverable_key = UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="recoverable-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    legacy_token, _ = UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="newer-legacy-preview",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    legacy_token.key_encrypted = ""
+    legacy_token.save(update_fields=["key_encrypted", "updated_at"])
+
+    response = authenticated_client.get("/api/account/mcp/self/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["self_service_state"] == "ready"
+    assert payload["recommended_token_id"] == recoverable_token.id
+    assert payload["access_package"]["token"] == recoverable_key
+    assert "..." not in payload["access_package"]["token"]
+
+
+@pytest.mark.django_db
 def test_account_mcp_self_marks_loopback_access_as_same_machine_only(auth_user):
     settings_obj = SystemSettingsModel.get_settings()
     settings_obj.allow_token_plaintext_view = True

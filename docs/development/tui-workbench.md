@@ -92,6 +92,9 @@ The current `/tui/` runtime consumes the user-facing contract end to end:
 - Empty-state copy falls back from `entry_state.empty_copy` to `screen.user_experience.empty_state_hint`.
 - Dashboard cards surface `p0/p1/p2` priority and semantic badges from published metadata.
 - Detail rendering switches on `presentation_semantic` / `result_semantics` so `copyable_secret`, `endpoint_list`, and `multiline_prompt` use dedicated views.
+- MCP self-service recommendation prefers an active token whose encrypted plaintext can be recovered; a newer legacy preview must not hide an older usable credential.
+- Dashboard grid-area templates use twelve-column expansion only on desktop. Tablet and mobile templates emit two and one real columns respectively, so responsive breakpoints do not retain implicit zero-width columns.
+- The classic Token management page shows recoverable full values only when the system plaintext switch is enabled, includes show/hide and copy controls, and converts its desktop table into labeled cards below 760px.
 - If a dashboard panel points back to the current screen, the browser must run or expand that panel's approved action in place instead of reloading the same screen.
 - Copy buttons rendered inside dashboard/detail panels must stop click bubbling so copying a token, endpoint, or prompt never triggers panel navigation.
 
@@ -391,3 +394,20 @@ Their live totals come from the generated evidence and promotion report.
 New UX work should prefer adding published metadata to the TUI workbench over creating another one-off Django page. Existing Django pages remain available as legacy/classic exits, but they are not wrapped inside a TUI shell.
 
 Do not load `static/css/tui-theme.css` or `static/js/tui-mode.js` into classic pages. Those files are legacy rollback/reference assets. New TUI work belongs in `/tui/`, `tui-workbench.css`, and `tui-workbench.js`.
+
+## Runtime 0.2 Architecture and Performance
+
+AgomTradePro is the only upstream for the browser Runtime. Host-neutral modules live under `frontend/agomtui-runtime/`; AgomTradePro-only routing and operator-home hooks live under `frontend/agomtradepro-host/`. `npm run build:tui` produces the checked-in browser bundles and `config/tui/agomtui-runtime.manifest.json`. AgOMTUI receives only the allowlisted generic sources, reference assets, and manifest through its `sync_from_agomtradepro.py` workflow; changes must never flow back automatically.
+
+The optimized browser start calls `/api/tui/bootstrap/` once for catalog plus initial screen and falls back to the legacy catalog/screen endpoints when the optimized route is disabled or absent. Operator home panels share one `/api/tui/operator/home/` request, render P0 panels first, defer P1/P2 work, debounce filtering by 120 ms, and paginate local grids above 100 rows.
+
+The backend caches a fully validated and runtime-normalized metadata snapshot by registry, source path, and payload hash. Publishing, saving, or deleting registry metadata invalidates the active pointer. `TUI_RUNTIME_CACHE_ENABLED` and `TUI_OPTIMIZED_BOOTSTRAP_ENABLED` are the rollback flags; cache freshness is controlled by `TUI_RUNTIME_CACHE_TTL_SECONDS`. Catalog, screen, bootstrap, and operator-home responses expose `Server-Timing` metrics.
+
+Before synchronizing AgOMTUI, run:
+
+```powershell
+npm ci
+npm run build:tui
+npm run check:tui
+npm run test:tui-js
+```

@@ -1,6 +1,7 @@
 (function () {
     "use strict";
 
+    const runtimeCore = window.AgomTUIRuntimeCore || {};
     const state = {
         catalog: null,
         screen: null,
@@ -35,6 +36,10 @@
         pendingRequestId: 0,
         pendingController: null,
         slowActionTimer: null,
+        clientPage: 1,
+        clientPageSize: 100,
+        operatorHomePayload: null,
+        operatorHomePromise: null,
     };
 
     const els = {
@@ -166,6 +171,12 @@
 
     const runtimeConfig = window.__AGOMTUI_RUNTIME__ || {};
     const apiBase = String(runtimeConfig.apiBase || "/api/tui").replace(/\/+$/, "");
+    const runtimeUrls = typeof runtimeCore.createRuntimeUrls === "function"
+        ? runtimeCore.createRuntimeUrls(runtimeConfig)
+        : null;
+    const runtimeHooks = typeof runtimeCore.runtimeHooks === "function"
+        ? runtimeCore.runtimeHooks(runtimeConfig)
+        : (runtimeConfig.hooks || {});
     const allowSvgDataImages = runtimeConfig.allowSvgDataImages !== false;
     const rendererRegistry = new Map();
     const builtInRendererNames = new Set([
@@ -250,76 +261,55 @@
     }
 
     function catalogUrl() {
-        return `${apiBase}/catalog/`;
+        return runtimeUrls ? runtimeUrls.catalog() : `${apiBase}/catalog/`;
     }
 
     function screenUrl(screenKey) {
-        return `${apiBase}/screens/${encodeURIComponent(screenKey)}/`;
+        return runtimeUrls ? runtimeUrls.screen(screenKey) : `${apiBase}/screens/${encodeURIComponent(screenKey)}/`;
     }
 
     function actionRunUrl(actionKey) {
-        return `${apiBase}/actions/${encodeURIComponent(actionKey)}/run/`;
+        return runtimeUrls ? runtimeUrls.action(actionKey) : `${apiBase}/actions/${encodeURIComponent(actionKey)}/run/`;
+    }
+
+    function bootstrapUrl(screenKey = "") {
+        return runtimeUrls ? runtimeUrls.bootstrap(screenKey) : "";
     }
 
     function operatorHomeUrl() {
-        return `${apiBase}/operator/home/`;
-    }
-
-    function operatorHomeSectionUrl(sectionKey) {
-        const normalizedKey = String(sectionKey || "").trim();
-        if (!normalizedKey) {
-            return "";
-        }
-        return `${operatorHomeUrl()}${encodeURIComponent(normalizedKey)}/`;
+        return String(runtimeConfig.host?.operatorHomeUrl || "");
     }
 
     function governanceQueueUrl(domain = "") {
+        const baseUrl = String(runtimeConfig.host?.governanceQueueUrl || "");
+        if (!baseUrl) {
+            return "";
+        }
         const suffix = domain ? `?domain=${encodeURIComponent(domain)}` : "";
-        return `${apiBase}/operator/governance-queue/${suffix}`;
+        return `${baseUrl}${suffix}`;
     }
 
     function isOperatorHomeScreen(screenKey) {
-        return String(screenKey || "") === "command-center.overview";
-    }
-
-    function isGovernanceWorkflow(workflow) {
-        return String(workflow?.name || "") === "系统治理流程";
-    }
-
-    function isDailyWorkflow(workflow) {
-        return String(workflow?.name || "") === "每日投研流程";
-    }
-
-    function governanceLaneStartScreen() {
-        return "api-library.runtime";
-    }
-
-    function decisionLaneStartScreen() {
-        return "macro-regime.overview";
-    }
-
-    function homeLaneStartScreen(lane = state.preferredHomeLane) {
-        return lane === "governance" ? governanceLaneStartScreen() : decisionLaneStartScreen();
+        if (typeof runtimeHooks.isOperatorHomeScreen === "function") {
+            return Boolean(runtimeHooks.isOperatorHomeScreen(screenKey));
+        }
+        return false;
     }
 
     function isHomeClientAction(actionKey) {
-        return [
-            "operator.home.continue_decision_flow",
-            "operator.home.enter_governance_flow",
-            "operator.home.resume_last_workspace",
-            "operator.home.open_cli",
-        ].includes(String(actionKey || ""));
+        return (runtimeConfig.host?.homeActionKeys || []).includes(String(actionKey || ""));
     }
 
     function operatorHomePanelSectionKey(panel) {
         const actionKey = String(panel?.action_key || "").trim();
-        if (!actionKey.startsWith("operator.home.")) {
+        const prefix = String(runtimeConfig.host?.homePanelActionPrefix || "");
+        if (!prefix || !actionKey.startsWith(prefix)) {
             return "";
         }
         if (isHomeClientAction(actionKey)) {
             return "";
         }
-        return actionKey.slice("operator.home.".length);
+        return actionKey.slice(prefix.length);
     }
 
     function escapeHtml(value) {
@@ -790,33 +780,20 @@
 
     function executeHomeAction(actionKey) {
         const normalizedKey = String(actionKey || "").trim();
-        if (normalizedKey === "operator.home.continue_decision_flow") {
-            persistPreferredHomeLane("decision");
-            loadScreen(decisionLaneStartScreen());
-            return true;
-        }
-        if (normalizedKey === "operator.home.enter_governance_flow") {
-            persistPreferredHomeLane("governance");
-            loadScreen(governanceLaneStartScreen());
-            return true;
-        }
-        if (normalizedKey === "operator.home.resume_last_workspace") {
-            return restoreLastWorkspace();
-        }
-        if (normalizedKey === "operator.home.open_cli") {
-            openCliSurface();
-            return true;
+        if (typeof runtimeHooks.runHomeAction === "function") {
+            return Boolean(runtimeHooks.runHomeAction(normalizedKey, {
+                loadScreen,
+                openCliSurface,
+                persistPreferredLane: persistPreferredHomeLane,
+                restoreLastWorkspace,
+            }));
         }
         return false;
     }
 
     function inferLaneFromScreen(screen) {
-        const workflow = screen?.workflow || {};
-        if (isGovernanceWorkflow(workflow)) {
-            return "governance";
-        }
-        if (isDailyWorkflow(workflow)) {
-            return "decision";
+        if (typeof runtimeHooks.inferHomeLane === "function") {
+            return String(runtimeHooks.inferHomeLane(screen) || "");
         }
         return "";
     }
@@ -859,9 +836,66 @@
         });
     }
 
+    function applyNavigationBadges(navigationBadges) {
+        const counts = navigationBadges?.counts_by_screen || {};
+        state.screenBadges = Object.fromEntries(
+            Object.entries(counts).map(([screenKey, value]) => [
+                screenKey,
+                {
+                    blockedCount: Number(value?.blocked_count || 0),
+                    warningCount: Number(value?.warning_count || 0),
+                },
+            ]),
+        );
+        if (state.catalog) {
+            renderCatalog(state.catalog);
+        }
+        refreshVisibleHomePanelBadges();
+    }
+
+    async function loadOperatorHomeAggregate() {
+        if (state.operatorHomePayload) {
+            return state.operatorHomePayload;
+        }
+        if (!state.operatorHomePromise) {
+            const url = operatorHomeUrl();
+            if (!url) {
+                return null;
+            }
+            state.operatorHomePromise = fetchJson(url)
+                .then((payload) => {
+                    state.operatorHomePayload = payload;
+                    applyNavigationBadges(payload?.navigation_badges);
+                    return payload;
+                })
+                .finally(() => {
+                    state.operatorHomePromise = null;
+                });
+        }
+        return state.operatorHomePromise;
+    }
+
     async function refreshGovernanceBadges() {
+        if (typeof runtimeHooks.loadNavigationBadges === "function") {
+            const navigationBadges = await runtimeHooks.loadNavigationBadges({
+                fetchJson,
+                screen: state.screen,
+            });
+            if (navigationBadges) {
+                applyNavigationBadges(navigationBadges);
+                return;
+            }
+        }
+        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
+            await loadOperatorHomeAggregate();
+            return;
+        }
+        const queueUrl = governanceQueueUrl();
+        if (!queueUrl) {
+            return;
+        }
         try {
-            const payload = await fetchJson(governanceQueueUrl());
+            const payload = await fetchJson(queueUrl);
             state.screenBadges = badgeCountsByScreen(payload.items || []);
             state.screenBadgeDrilldowns = badgeDrilldownsByScreen(payload.items || []);
             if (state.catalog) {
@@ -1277,7 +1311,7 @@
     }
 
     function scheduleSlowActionState(requestId, action) {
-        const slowTargets = new Set(["cli.chat_router", "terminal.chat_router", "capability-router.route-message"]);
+        const slowTargets = new Set(runtimeConfig.host?.slowActionKeys || []);
         if (!slowTargets.has(action.key)) {
             return;
         }
@@ -1290,18 +1324,21 @@
     }
 
     function renderSlowActionState(action) {
+        const hostedAlternatives = (runtimeConfig.host?.slowActionScreens || [])
+            .filter((item) => item?.key && item?.label)
+            .map((item) => `<button type="button" data-slow-screen="${escapeHtml(item.key)}">${escapeHtml(item.label)}</button>`)
+            .join("");
         els.main.innerHTML = `
             <section class="tui-entry-state">
                 <div class="tui-view-status">响应较慢 / ${escapeHtml(action.label || "")}</div>
                 <div class="tui-entry-copy">
-                    <strong>CLI 响应较慢，可继续等待 / 重试 / 打开 AI 交互终端 / 打开能力路由接入。</strong>
-                    <p>当前请求仍在执行中。你可以继续等待，也可以中止并切换到更直接的入口。</p>
+                    <strong>当前响应较慢，可继续等待、重试或取消。</strong>
+                    <p>当前请求仍在执行中，也可以切换到宿主提供的其他入口。</p>
                 </div>
                 <div class="tui-entry-actions">
                     <button type="button" data-slow-command="wait">继续等待</button>
                     <button type="button" data-slow-command="retry">重试</button>
-                    <button type="button" data-slow-command="ai-terminal">打开 AI 交互终端</button>
-                    <button type="button" data-slow-command="router">打开能力路由接入</button>
+                    ${hostedAlternatives}
                     <button type="button" data-slow-command="cancel">取消本次请求</button>
                 </div>
             </section>
@@ -1315,17 +1352,17 @@
                 } else if (command === "retry") {
                     clearPendingRequest({ abort: true });
                     runAction(action.key, null, { params: { ...state.lastParams } });
-                } else if (command === "ai-terminal") {
-                    clearPendingRequest({ abort: true });
-                    loadScreen("ai-ops.terminal");
-                } else if (command === "router") {
-                    clearPendingRequest({ abort: true });
-                    loadScreen("capability-router.gateway");
                 } else if (command === "cancel") {
                     clearPendingRequest({ abort: true });
                     els.main.innerHTML = renderEmptyState("已取消当前请求。", ["你可以重试，或切换到其他入口继续。"]);
                     setStatus("已取消");
                 }
+            });
+        });
+        els.main.querySelectorAll("[data-slow-screen]").forEach((button) => {
+            button.addEventListener("click", () => {
+                clearPendingRequest({ abort: true });
+                loadScreen(button.dataset.slowScreen);
             });
         });
         setStatus("响应较慢");
@@ -1834,11 +1871,25 @@
         }
         const previous = wf.previous || {};
         const next = wf.next || {};
-        const governanceTools = isGovernanceWorkflow(wf)
+        const workflowActionKeys = runtimeConfig.host?.workflowActionKeys || [];
+        const workflowActions = (
+            typeof runtimeHooks.getHomeActions === "function"
+                ? runtimeHooks.getHomeActions({
+                    lastWorkspace: state.lastNonHomeScreen,
+                    preferredLane: state.preferredHomeLane,
+                })
+                : []
+        ).filter((action) => workflowActionKeys.includes(action.key));
+        const workflowActionsLane = String(runtimeConfig.host?.workflowActionsLane || "");
+        const showWorkflowActions = workflowActions.length
+            && workflowActionsLane
+            && inferLaneFromScreen({ workflow: wf }) === workflowActionsLane;
+        const workflowTools = showWorkflowActions
             ? `
                 <div class="tui-workflow-tools">
-                    <button type="button" data-home-action-key="operator.home.resume_last_workspace">恢复上次工作区</button>
-                    <button type="button" data-home-action-key="operator.home.open_cli">打开 CLI</button>
+                    ${workflowActions.map((action) => `
+                        <button type="button" data-home-action-key="${escapeHtml(action.key)}">${escapeHtml(action.label)}</button>
+                    `).join("")}
                 </div>
             `
             : "";
@@ -1854,7 +1905,7 @@
                 ${previous.key ? `<button type="button" data-workflow-target="${escapeHtml(previous.key)}">&lt; ${escapeHtml(previous.label)}</button>` : "<span>起点</span>"}
                 ${next.key ? `<button type="button" data-workflow-target="${escapeHtml(next.key)}">${escapeHtml(next.label)} &gt;</button>` : "<span>终点</span>"}
             </div>
-            ${governanceTools}
+            ${workflowTools}
         `;
         els.workflowStrip.querySelectorAll("[data-workflow-target]").forEach((button) => {
             button.addEventListener("click", () => loadScreen(button.dataset.workflowTarget));
@@ -1865,24 +1916,23 @@
     }
 
     function renderHomeActionStrip() {
+        const actions = typeof runtimeHooks.getHomeActions === "function"
+            ? runtimeHooks.getHomeActions({
+                lastWorkspace: state.lastNonHomeScreen,
+                preferredLane: state.preferredHomeLane,
+            })
+            : [];
+        if (!Array.isArray(actions) || !actions.length) {
+            return "";
+        }
         return `
             <section class="tui-home-actions" aria-label="统一首页主动作">
-                <button type="button" class="tui-home-action${state.preferredHomeLane === "decision" ? " is-active" : ""}" data-home-action-key="operator.home.continue_decision_flow">
-                    <strong>继续今日决策流程</strong>
-                    <span>进入 15 步每日投研 workflow</span>
-                </button>
-                <button type="button" class="tui-home-action${state.preferredHomeLane === "governance" ? " is-active" : ""}" data-home-action-key="operator.home.enter_governance_flow">
-                    <strong>进入系统治理流</strong>
-                    <span>从 runtime 起点进入治理主线</span>
-                </button>
-                <button type="button" class="tui-home-action" data-home-action-key="operator.home.resume_last_workspace">
-                    <strong>恢复上次工作区</strong>
-                    <span>${escapeHtml(state.lastNonHomeScreen || "最近无可恢复工作区")}</span>
-                </button>
-                <button type="button" class="tui-home-action" data-home-action-key="operator.home.open_cli">
-                    <strong>打开 CLI</strong>
-                    <span>独立入口，不中断当前 TUI</span>
-                </button>
+                ${actions.map((action) => `
+                    <button type="button" class="tui-home-action${action.active ? " is-active" : ""}" data-home-action-key="${escapeHtml(action.key)}">
+                        <strong>${escapeHtml(action.label)}</strong>
+                        <span>${escapeHtml(action.description || "")}</span>
+                    </button>
+                `).join("")}
             </section>
         `;
     }
@@ -1939,7 +1989,15 @@
         els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
             button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
         });
-        panels.forEach((panel) => loadDashboardPanel(panel));
+        const primaryPanels = panels.filter((panel) => panelPriority(panel) === "p0");
+        const deferredPanels = panels.filter((panel) => panelPriority(panel) !== "p0");
+        primaryPanels.forEach((panel) => loadDashboardPanel(panel));
+        const loadDeferredPanels = () => deferredPanels.forEach((panel) => loadDashboardPanel(panel));
+        if (typeof window.requestIdleCallback === "function") {
+            window.requestIdleCallback(loadDeferredPanels, { timeout: 250 });
+        } else {
+            window.setTimeout(loadDeferredPanels, 0);
+        }
     }
 
     function dashboardTargetScreen(panel) {
@@ -2049,7 +2107,7 @@
         return {
             areas,
             gridStyle: [
-                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns)}`,
+                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns, true)}`,
                 `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
                 `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
                 `--tui-dashboard-rows-desktop: ${dashboardRows(areas, desktopColumns, "minmax(190px, auto)")}`,
@@ -2081,9 +2139,11 @@
         return normalized && normalized !== "none" ? normalized : "";
     }
 
-    function dashboardAreaTemplate(areas, columns) {
+    function dashboardAreaTemplate(areas, columns, expandToTwelve = false) {
         const rows = chunkDashboardAreas(areas, columns);
-        return rows.map((row) => `"${expandDashboardRow(row).join(" ")}"`).join(" ");
+        return rows
+            .map((row) => `"${(expandToTwelve ? expandDashboardRow(row) : row).join(" ")}"`)
+            .join(" ");
     }
 
     function dashboardRows(areas, columns, rowSize) {
@@ -2123,11 +2183,25 @@
         try {
             let viewModel = null;
             let panelBadge = null;
+            if (typeof runtimeHooks.loadDashboardPanel === "function") {
+                const hosted = await runtimeHooks.loadDashboardPanel(panel, {
+                    actionRunUrl,
+                    fetchJson,
+                    screen: state.screen,
+                });
+                if (hosted) {
+                    viewModel = hosted.view_model || hosted;
+                    panelBadge = hosted.badge || badgeCountsFromRows(viewModel.rows || []);
+                }
+            }
             const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
                 ? operatorHomePanelSectionKey(panel)
                 : "";
-            if (operatorSectionKey) {
-                const payload = await fetchJson(operatorHomeSectionUrl(operatorSectionKey));
+            if (viewModel) {
+                // Host hook supplied a complete panel model.
+            } else if (operatorSectionKey) {
+                const homePayload = await loadOperatorHomeAggregate();
+                const payload = homePayload?.[operatorSectionKey] || {};
                 viewModel = operatorHomePanelViewModel(panel, payload);
                 panelBadge = payload?.badge
                     ? {
@@ -2312,7 +2386,7 @@
 
     function dashboardDesktopColumns(screen) {
         const journey = screenUserExperience(screen).journey;
-        if (screen?.key === "capability-router.mcp-center") {
+        if ((runtimeConfig.host?.singleColumnScreens || []).includes(screen?.key)) {
             return 1;
         }
         return ["self_service", "admin"].includes(journey) ? 2 : 3;
@@ -3216,6 +3290,10 @@
             els.main.innerHTML = '<div class="tui-loading">正在加载工作区...</div>';
             setStatus("加载工作区");
             const screenSpec = await fetchJson(screenUrl(screenKey));
+            if (isOperatorHomeScreen(screenSpec?.screen?.key)) {
+                state.operatorHomePayload = null;
+                state.operatorHomePromise = null;
+            }
             renderScreen(screenSpec, options);
             refreshGovernanceBadges();
             return screenSpec;
@@ -3452,6 +3530,9 @@
             }
             return;
         }
+        if (announce) {
+            state.clientPage = 1;
+        }
         state.visibleRows = state.currentRows.filter(rowMatchesFilter);
         state.selectedRowIndex = Math.min(state.selectedRowIndex, Math.max(0, state.visibleRows.length - 1));
         drawDataGrid();
@@ -3463,8 +3544,14 @@
     function drawDataGrid() {
         const viewModel = state.currentViewModel;
         const columns = state.currentColumns;
-        const rows = state.visibleRows;
-        const filterSuffix = state.filterText ? ` / 筛选: ${state.filterText} (${rows.length}/${state.currentRows.length})` : "";
+        const allRows = state.visibleRows;
+        const localPage = !viewModel.pager && typeof runtimeCore.clientPage === "function"
+            ? runtimeCore.clientPage(allRows, state.clientPage, state.clientPageSize)
+            : { rows: allRows, pager: null };
+        const rows = localPage.rows;
+        const activePager = viewModel.pager || localPage.pager;
+        state.lastPager = activePager;
+        const filterSuffix = state.filterText ? ` / 筛选: ${state.filterText} (${allRows.length}/${state.currentRows.length})` : "";
         const emptyMessage = state.filterText
             ? "没有匹配的记录。"
             : (viewModel.empty_message || "暂无可显示数据。");
@@ -3494,7 +3581,7 @@
             <div class="tui-datagrid" role="grid" tabindex="0" aria-label="${escapeHtml(viewModel.title)}">
                 ${gridBody}
             </div>
-            ${renderDataGridPager(viewModel.pager)}
+            ${renderDataGridPager(activePager)}
         `;
         els.main.querySelectorAll("[data-row-index]").forEach((row) => {
             row.addEventListener("click", () => selectRow(Number(row.dataset.rowIndex || 0)));
@@ -4353,6 +4440,21 @@
     }
 
     async function pageDelta(delta) {
+        if (state.lastPager?.client_side) {
+            if (delta < 0 && !state.lastPager.has_previous) {
+                setStatus("已经是第一页");
+                return;
+            }
+            if (delta > 0 && !state.lastPager.has_next) {
+                setStatus("已经是最后一页");
+                return;
+            }
+            state.clientPage = Math.max(1, state.clientPage + delta);
+            state.selectedRowIndex = 0;
+            drawDataGrid();
+            setStatus(`第 ${state.clientPage} 页`);
+            return;
+        }
         if (!state.lastAction || !state.lastPager) {
             setStatus("当前视图不可翻页");
             return;
@@ -4908,11 +5010,10 @@
 
     function loadWorkflowStep(direction) {
         if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            executeHomeAction(
-                state.preferredHomeLane === "governance"
-                    ? "operator.home.enter_governance_flow"
-                    : "operator.home.continue_decision_flow"
-            );
+            const actionKey = runtimeConfig.host?.laneActionKeys?.[state.preferredHomeLane];
+            if (actionKey) {
+                executeHomeAction(actionKey);
+            }
             return;
         }
         const workflow = state.screen?.screen?.workflow || {};
@@ -5001,11 +5102,10 @@
 
     function runNextPrimaryAction() {
         if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            executeHomeAction(
-                state.preferredHomeLane === "governance"
-                    ? "operator.home.enter_governance_flow"
-                    : "operator.home.continue_decision_flow"
-            );
+            const actionKey = runtimeConfig.host?.laneActionKeys?.[state.preferredHomeLane];
+            if (actionKey) {
+                executeHomeAction(actionKey);
+            }
             return;
         }
         const action = nextPrimaryAction();
@@ -5196,6 +5296,9 @@
     }
 
     function bindControls() {
+        const applyFilterDebounced = typeof runtimeCore.debounce === "function"
+            ? runtimeCore.debounce(() => applyFilter(true), 120)
+            : () => applyFilter(true);
         els.actions?.addEventListener("submit", (event) => {
             const form = event.target?.closest?.("[data-action-ui-key]");
             if (!form) {
@@ -5248,7 +5351,7 @@
         els.modalClose.addEventListener("click", closeModal);
         els.filterInput.addEventListener("input", () => {
             state.filterText = els.filterInput.value;
-            applyFilter(true);
+            applyFilterDebounced();
         });
         els.filterInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
@@ -5318,9 +5421,39 @@
     }
 
     async function bootstrap() {
+        runtimeCore.mark?.("bootstrap-start");
         try {
             els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
             setStatus("启动中");
+            const requestedScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
+                ? state.lastNonHomeScreen
+                : "";
+            const optimizedUrl = bootstrapUrl(requestedScreen);
+            if (optimizedUrl) {
+                try {
+                    const payload = await fetchJson(optimizedUrl);
+                    if (payload?.contract === "tui-bootstrap.v1" && payload.catalog && payload.screen) {
+                        renderCatalog(payload.catalog);
+                        clearResumeOnBootFlag();
+                        if (isOperatorHomeScreen(payload.screen?.screen?.key)) {
+                            state.operatorHomePayload = null;
+                            state.operatorHomePromise = null;
+                        }
+                        renderScreen(payload.screen);
+                        refreshGovernanceBadges();
+                        if (requestedScreen && payload.resolved_screen !== requestedScreen) {
+                            setStatus("上次工作区已不可用，已返回首页");
+                        }
+                        runtimeCore.mark?.("p0-ready");
+                        runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
+                        return;
+                    }
+                } catch (optimizedError) {
+                    if (![0, 404, 405].includes(Number(optimizedError?.status || 0))) {
+                        throw optimizedError;
+                    }
+                }
+            }
             const catalog = await fetchJson(catalogUrl());
             renderCatalog(catalog);
             const isResumeAttempt = Boolean(shouldResumeOnBoot() && state.lastNonHomeScreen);
@@ -5333,6 +5466,8 @@
                 setStatus("上次工作区已不可用，已返回首页");
                 await loadScreen(catalog.default_screen);
             }
+            runtimeCore.mark?.("p0-ready");
+            runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
         } catch (error) {
             els.moduleTree.innerHTML = '<div class="tui-error">导航暂时不可用</div>';
             renderBoundedApplicationError(error);

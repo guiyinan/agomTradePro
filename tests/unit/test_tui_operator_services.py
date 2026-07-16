@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import apps.terminal.application.tui_operator_services as operator_services
@@ -29,6 +29,7 @@ def _governance_row(
 
 
 def test_operator_home_payload_exposes_fixed_sections_and_badges(monkeypatch):
+    operator_services.cache.clear()
     monkeypatch.setattr(
         operator_services,
         "_decision_queue_rows",
@@ -46,37 +47,38 @@ def test_operator_home_payload_exposes_fixed_sections_and_badges(monkeypatch):
     )
     monkeypatch.setattr(
         operator_services,
-        "build_operator_governance_queue_payload",
-        lambda *, user, domain="": {
-            "items": [
+        "_operator_home_preview_rows",
+        lambda *, user, market_context: {
+            "runtime": [
                 _governance_row(
                     severity="blocked",
                     domain="runtime",
                     title="runtime blocked",
                     target_screen="api-library.runtime",
                     target_action_key="operator.governance.runtime_summary",
-                    observed_at=datetime(2026, 7, 7, 9, 0, tzinfo=timezone.utc),
-                ),
+                    observed_at=datetime(2026, 7, 7, 9, 0, tzinfo=UTC),
+                )
+            ],
+            "data-center": [
                 _governance_row(
                     severity="warning",
                     domain="data-center",
                     title="freshness warning",
                     target_screen="api-library.data-center",
                     target_action_key="operator.governance.data_center_summary",
-                    observed_at=datetime(2026, 7, 7, 8, 0, tzinfo=timezone.utc),
-                ),
+                    observed_at=datetime(2026, 7, 7, 8, 0, tzinfo=UTC),
+                )
+            ],
+            "ai-provider": [
                 _governance_row(
                     severity="warning",
                     domain="ai-provider",
                     title="provider warning",
                     target_screen="ai-ops.providers",
                     target_action_key="operator.governance.ai_provider_summary",
-                    observed_at=datetime(2026, 7, 7, 7, 0, tzinfo=timezone.utc),
-                ),
+                    observed_at=datetime(2026, 7, 7, 7, 0, tzinfo=UTC),
+                )
             ],
-            "total": 3,
-            "summary": {"blocked": 1, "warning": 2},
-            "status": "blocked",
         },
     )
 
@@ -104,7 +106,7 @@ def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):
                 title="runtime older",
                 target_screen="api-library.runtime",
                 target_action_key="operator.governance.runtime_summary",
-                observed_at=datetime(2026, 7, 7, 8, 0, tzinfo=timezone.utc),
+                observed_at=datetime(2026, 7, 7, 8, 0, tzinfo=UTC),
             ),
             _governance_row(
                 severity="warning",
@@ -112,7 +114,7 @@ def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):
                 title="runtime newer",
                 target_screen="api-library.runtime",
                 target_action_key="operator.governance.runtime_summary",
-                observed_at=datetime(2026, 7, 7, 9, 0, tzinfo=timezone.utc),
+                observed_at=datetime(2026, 7, 7, 9, 0, tzinfo=UTC),
             ),
         ],
     )
@@ -126,7 +128,7 @@ def test_operator_governance_queue_sorts_by_severity_then_recent(monkeypatch):
                 title="freshness blocked",
                 target_screen="api-library.data-center",
                 target_action_key="operator.governance.data_center_summary",
-                observed_at=datetime(2026, 7, 7, 7, 0, tzinfo=timezone.utc),
+                observed_at=datetime(2026, 7, 7, 7, 0, tzinfo=UTC),
             )
         ],
     )
@@ -199,7 +201,7 @@ def test_ai_provider_governance_rows_map_provider_failures_and_quota(monkeypatch
             return [
                 SimpleNamespace(
                     provider_name="deepseek",
-                    created_at=datetime(2026, 7, 7, 10, 0, tzinfo=timezone.utc),
+                    created_at=datetime(2026, 7, 7, 10, 0, tzinfo=UTC),
                 )
             ]
 

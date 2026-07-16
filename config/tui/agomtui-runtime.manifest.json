@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "upstream_commit": "3f30d748566759929c7733c94625f91139ae013a",
+  "build_id": "agomtui-runtime-0.2.0+e5ec152a1f95",
+  "direction": "AgomTradePro -> AgOMTUI",
+  "files": {
+    "frontend/agomtui-runtime/src/api.js": "e6a2cc3e4faa21a4880bedaf749ee053adb3e3f82193ca1662529d63ec291882",
+    "frontend/agomtui-runtime/src/events.js": "ef9c95f72d9769b320b24b81a59f1835cabeac5a257dd4b0bb7f81d557406425",
+    "frontend/agomtui-runtime/src/extensions.js": "f7b032a908670f6ff5ee034588604b6c0ace948ff2baec3204ad83a96b39a241",
+    "frontend/agomtui-runtime/src/index.js": "3a9ef1d3daa305eb5e9d25d3fa28269a6c4cdbc201c9e14574cdf4902ac25b9f",
+    "frontend/agomtui-runtime/src/pagination.js": "0996c6592c0a1c4245341b3da2b36a173fdfd7f695170b61f2b592e8b9ac6478",
+    "frontend/agomtui-runtime/src/performance.js": "cde6c7474d18f48f03c2ca2bb1ca35f1cac0aa245a69686ea391cc4058933a32",
+    "frontend/agomtui-runtime/src/state.js": "253fa9b01e754a67060786d13f68cc153c5b20fbd3d0b71212946bd36075b6b7",
+    "static/js/agomtui-runtime-core.js": "156bf282cc6dd44b0bdfa7e4c6f01ac33b27bccac7950338c99b7ae5f93de118",
+    "static/js/tui-workbench.js": "80ef7ca3d39c01f3c4a64b0745f816d83f68bc83abfca9e9ca3bd9b0dfd2c226",
+    "static/css/tui-workbench.css": "cf51d8eab3399a8d6cf1da74e100b8068018283e431df537d6976f50fc676b86"
+  }
+}

@@ -2,9 +2,11 @@
 
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import OperationalError, ProgrammingError
 from django.http import StreamingHttpResponse
@@ -43,13 +45,13 @@ from ..application.repository_provider import (
     get_tui_action_executor,
     get_tui_metadata_repository,
 )
+from ..application.tui_errors import TuiScreenForbiddenError, TuiScreenNotFoundError
 from ..application.tui_operator_services import (
     build_operator_governance_queue_payload,
     build_operator_home_payload,
     build_operator_home_section_payload,
 )
 from ..application.tui_workbench import TuiWorkbenchRegistry, TuiWorkbenchService
-from ..application.tui_errors import TuiScreenForbiddenError, TuiScreenNotFoundError
 from .permissions import IsStaffOrAdmin, IsStaffOrOperator
 from .serializers import (
     TerminalApprovalDecisionSerializer,
@@ -60,6 +62,21 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _tui_timed_response(
+    payload: Any,
+    *,
+    metric: str,
+    started_at: float,
+    response_status: int = status.HTTP_200_OK,
+) -> Response:
+    """Return a TUI response with a browser-readable server timing metric."""
+
+    response = Response(payload, status=response_status)
+    duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+    response["Server-Timing"] = f"{metric};dur={duration_ms:.2f}"
+    return response
 
 
 def _get_terminal_agent_service():
@@ -96,7 +113,9 @@ def _build_terminal_agent_request(request, data) -> TerminalAgentChatRequestDTO:
         user_id=request.user.id,
         username=request.user.username,
         user_role=get_user_role(request.user),
-        user_is_admin=bool(getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)),
+        user_is_admin=bool(
+            getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)
+        ),
         mcp_enabled=_get_mcp_enabled(request.user),
         provider_ref=provider_ref,
         model=data.get("model") or None,
@@ -192,14 +211,16 @@ class TerminalChatView(APIView):
                 request,
                 serializer.validated_data,
             )
-            response_dto = RunTerminalAgentChatUseCase(
-                _get_terminal_agent_service()
-            ).execute(request_dto)
+            response_dto = RunTerminalAgentChatUseCase(_get_terminal_agent_service()).execute(
+                request_dto
+            )
             response_data = {
                 "reply": response_dto.reply,
                 "session_id": response_dto.session_id,
                 "metadata": response_dto.metadata,
-                "approval_required": bool(response_dto.metadata.get("status") == "approval_required"),
+                "approval_required": bool(
+                    response_dto.metadata.get("status") == "approval_required"
+                ),
                 "selected_capability_key": response_dto.metadata.get("capability_key"),
                 "proposal_id": response_dto.metadata.get("proposal_id"),
             }
@@ -412,8 +433,54 @@ class TuiWorkbenchCatalogView(APIView):
     def get(self, request):
         """Return grouped modules, screens, and safe actions."""
 
+        started_at = time.perf_counter()
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
-        return Response(service.get_catalog(user=request.user))
+        return _tui_timed_response(
+            service.get_catalog(user=request.user),
+            metric="tui_catalog",
+            started_at=started_at,
+        )
+
+
+class TuiWorkbenchBootstrapView(APIView):
+    """Expose catalog and initial screen from one runtime snapshot."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return the optional optimized bootstrap contract."""
+
+        if not bool(getattr(settings, "TUI_OPTIMIZED_BOOTSTRAP_ENABLED", True)):
+            return Response(
+                {"error": "Optimized TUI bootstrap is disabled"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        started_at = time.perf_counter()
+        requested_screen = str(request.query_params.get("screen_key") or "").strip()[:200]
+        service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
+        try:
+            payload = service.get_bootstrap(
+                requested_screen=requested_screen,
+                user=request.user,
+            )
+        except TuiScreenForbiddenError:
+            return _tui_timed_response(
+                _tui_error_payload(
+                    request=request,
+                    error_code="tui_screen_forbidden",
+                    title="无权访问",
+                    detail="当前账号不能打开这个工作区。",
+                    recovery_actions=[{"label": "返回首页", "screen_key": "home"}],
+                ),
+                metric="tui_bootstrap",
+                started_at=started_at,
+                response_status=status.HTTP_403_FORBIDDEN,
+            )
+        return _tui_timed_response(
+            payload,
+            metric="tui_bootstrap",
+            started_at=started_at,
+        )
 
 
 def _tui_error_payload(
@@ -444,6 +511,7 @@ class TuiWorkbenchScreenView(APIView):
     def get(self, request, screen_key: str):
         """Return a screen spec with actions and layout policy."""
 
+        started_at = time.perf_counter()
         service = TuiWorkbenchService(metadata_repository=get_tui_metadata_repository())
         try:
             payload = service.get_screen(screen_key, user=request.user)
@@ -474,7 +542,11 @@ class TuiWorkbenchScreenView(APIView):
                 ),
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return Response(payload)
+        return _tui_timed_response(
+            payload,
+            metric="tui_screen",
+            started_at=started_at,
+        )
 
 
 class TuiAgentActionSearchView(APIView):
@@ -521,7 +593,12 @@ class TuiOperatorHomeView(APIView):
     def get(self, request):
         """Return the fixed six-section home payload."""
 
-        return Response(build_operator_home_payload(user=request.user))
+        started_at = time.perf_counter()
+        return _tui_timed_response(
+            build_operator_home_payload(user=request.user),
+            metric="tui_operator_home",
+            started_at=started_at,
+        )
 
 
 class TuiOperatorHomeSectionView(APIView):

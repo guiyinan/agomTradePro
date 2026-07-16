@@ -3033,7 +3033,7 @@ a {
     }
 
     .tui-dashboard-grid {
-        grid-template-columns: minmax(250px, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         grid-template-areas: var(--tui-dashboard-areas-mobile, "panel_1");
         grid-template-rows: var(--tui-dashboard-rows-mobile, minmax(174px, auto));
         height: auto;
@@ -3275,6 +3275,25 @@ a {
 
     .tui-home-actions {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tui-copy-head {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .tui-copy-controls {
+        flex: 1 1 100%;
+    }
+
+    .tui-copy-action {
+        min-height: 36px;
+        flex: 1 1 auto;
+    }
+
+    .tui-copy-row,
+    .tui-copy-block-card {
+        padding: 8px;
     }
 }
 

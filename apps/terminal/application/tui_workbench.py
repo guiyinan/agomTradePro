@@ -25,11 +25,11 @@ from apps.terminal.application.tui_audit import (
     build_tui_audit_record,
     verified_reauth_evidence,
 )
-from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
 from apps.terminal.application.tui_errors import (
     TuiScreenForbiddenError,
     TuiScreenNotFoundError,
 )
+from apps.terminal.application.tui_workbench_catalog import TuiWorkbenchCatalogMixin
 from apps.terminal.application.tui_workbench_result_models import (
     TuiWorkbenchResultModelMixin,
 )
@@ -142,12 +142,17 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         self.require_audit_sink = require_audit_sink
         self.registry_key = registry_key
         self._account_options_cache: dict[int, list[dict[str, Any]]] = {}
+        self._metadata_snapshot: dict[str, Any] | None = None
+        self._action_index: dict[str, dict[str, Any]] | None = None
+        self._screen_index: dict[str, dict[str, Any]] | None = None
+        self._module_index: dict[str, dict[str, Any]] | None = None
+        self._action_availability_cache: dict[tuple[str, str, int, int], bool] = {}
 
     def get_catalog(self, *, user: Any | None = None) -> dict[str, Any]:
         """Return grouped modules and screens from published metadata only."""
 
         metadata = self._metadata()
-        actions = self._screen_visible_actions(metadata, user=user)
+        actions = self._catalog_visible_actions(metadata, user=user)
         actions_by_screen = self._actions_by_screen(actions)
         screens_by_module = self._screens_by_module(metadata)
         groups: list[dict[str, Any]] = []
@@ -192,6 +197,33 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "modules": [self._module_summary(module) for module in metadata["modules"]],
         }
 
+    def get_bootstrap(
+        self,
+        *,
+        requested_screen: str = "",
+        user: Any | None = None,
+    ) -> dict[str, Any]:
+        """Return catalog and the initial screen from one metadata snapshot."""
+
+        catalog = self.get_catalog(user=user)
+        requested = str(requested_screen or "").strip()
+        resolved = requested or str(catalog["default_screen"])
+        try:
+            screen = self.get_screen(resolved, user=user)
+        except TuiScreenNotFoundError:
+            resolved = str(catalog["default_screen"])
+            screen = self.get_screen(resolved, user=user)
+        return {
+            "contract": "tui-bootstrap.v1",
+            "catalog": catalog,
+            "screen": screen,
+            "requested_screen": requested,
+            "resolved_screen": resolved,
+            "restored": bool(
+                requested and requested == resolved and requested != catalog["default_screen"]
+            ),
+        }
+
     def get_screen(
         self,
         screen_key: str,
@@ -208,15 +240,14 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         if not self._screen_is_available_for_user(screen, user=user):
             raise TuiScreenForbiddenError(screen_key)
         module = self._module_by_key(metadata)[screen["module_key"]]
-        actions = [
-            action
-            for action in self._screen_visible_actions(
+        actions = list(
+            self._screen_visible_actions(
                 metadata,
                 user=user,
                 include_technical=include_technical_actions,
+                screen_key=screen["key"],
             )
-            if action["screen_key"] == screen["key"]
-        ]
+        )
         return {
             "version": metadata["version"],
             "registry_key": metadata.get("registry_key", self.registry_key),
@@ -269,9 +300,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         effective_limit = max(1, min(int(limit), 20))
         normalized_query = str(query or "").strip().lower()
         query_terms = {
-            term
-            for term in normalized_query.replace("-", " ").replace("_", " ").split()
-            if term
+            term for term in normalized_query.replace("-", " ").replace("_", " ").split() if term
         }
         matches: list[tuple[int, dict[str, Any]]] = []
         for action in self._visible_actions(self._metadata(), user=user):
@@ -297,8 +326,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
 
         matches.sort(key=lambda item: (-item[0], str(item[1].get("key") or "")))
         actions = [
-            self._agent_action_summary(action, user=user)
-            for _, action in matches[:effective_limit]
+            self._agent_action_summary(action, user=user) for _, action in matches[:effective_limit]
         ]
         return {
             "query": str(query or ""),
@@ -686,7 +714,9 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         return text
 
     def _metadata(self) -> dict[str, Any]:
-        return self.metadata_repository.load_published(self.registry_key)
+        if self._metadata_snapshot is None:
+            self._metadata_snapshot = self.metadata_repository.load_published(self.registry_key)
+        return self._metadata_snapshot
 
     def _allowed_runtime_risks(self, user: Any | None) -> set[str]:
         allowed = set(VISIBLE_RUNTIME_RISKS)
@@ -726,14 +756,40 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             and self._action_is_available_for_user(action, user=user)
         ]
 
+    def _catalog_visible_actions(
+        self,
+        metadata: dict[str, Any],
+        *,
+        user: Any | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return potential catalog actions without evaluating row-dependent providers."""
+
+        return [
+            action
+            for action in metadata["actions"]
+            if str(action.get("risk")) in self._allowed_runtime_risks(user)
+            and str(action.get("key") or "") not in USER_HIDDEN_SCREEN_ACTION_KEYS
+        ]
+
     def _screen_visible_actions(
         self,
         metadata: dict[str, Any],
         *,
         user: Any | None = None,
         include_technical: bool = False,
+        screen_key: str = "",
     ) -> list[dict[str, Any]]:
-        actions = self._visible_actions(metadata, user=user)
+        candidates = list(metadata["actions"])
+        if screen_key:
+            candidates = [
+                action for action in candidates if str(action.get("screen_key") or "") == screen_key
+            ]
+        actions = [
+            action
+            for action in candidates
+            if str(action.get("risk")) in self._allowed_runtime_risks(user)
+            and self._action_is_available_for_user(action, user=user)
+        ]
         if include_technical:
             return actions
         return [
@@ -751,14 +807,68 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         action_key = str(action.get("key") or "")
         predicate = USER_CONDITIONAL_SCREEN_ACTIONS.get(action_key)
         if predicate is not None:
-            return bool(predicate(user))
+            user_fragment = self._availability_user_fragment(user)
+            cache_key = (
+                action_key,
+                user_fragment,
+                id(predicate),
+                self._availability_provider_version(action_key),
+            )
+            if cache_key in self._action_availability_cache:
+                return self._action_availability_cache[cache_key]
+            available = bool(predicate(user))
+            self._action_availability_cache[cache_key] = available
+            return available
         return True
 
+    @staticmethod
+    def _availability_provider_version(action_key: str) -> int:
+        """Return the live provider identity so tests and hot reloads cannot reuse stale values."""
+
+        if action_key == "param.api.get.api.ai.me.providers.pk":
+            return id(has_user_personal_providers)
+        if action_key == "param.api.get.api.dashboard.alpha.history.int.run_id":
+            return id(has_dashboard_alpha_history)
+        if "decision-rhythm.quotas" in action_key:
+            return id(has_decision_quotas)
+        if "decision-rhythm.cooldowns" in action_key:
+            return id(has_active_cooldowns)
+        if "decision-rhythm.requests.pk" in action_key:
+            return id(has_recent_decision_requests)
+        if "beta-gate.configs" in action_key:
+            return id(has_beta_gate_configs)
+        if "beta-gate.decisions" in action_key:
+            return id(has_beta_gate_decisions)
+        if "beta-gate.universe" in action_key:
+            return id(has_beta_gate_universe_snapshots)
+        if "alpha-triggers.triggers" in action_key:
+            return id(has_alpha_triggers)
+        if "alpha-triggers.candidates" in action_key:
+            return id(has_alpha_candidates)
+        if action_key == "auto.api.get.api.system.statistics":
+            return id(has_recent_task_failures)
+        if action_key == "config_center.training_run_detail":
+            return id(has_qlib_training_runs)
+        return 0
+
+    def _availability_user_fragment(self, user: Any | None) -> str:
+        user_id = getattr(user, "pk", None)
+        role = str(getattr(user, "rbac_role", "") or "")
+        return (
+            f"{user_id if user_id is not None else 'anon'}:{role}:{int(self._is_admin_user(user))}"
+        )
+
     def _action_by_key(self, action_key: str, *, user: Any | None = None) -> dict[str, Any] | None:
-        for action in self._visible_actions(self._metadata(), user=user):
-            if action["key"] == action_key:
-                return action
-        return None
+        if self._action_index is None:
+            self._action_index = {
+                str(action["key"]): action for action in self._metadata()["actions"]
+            }
+        action = self._action_index.get(action_key)
+        if action is None:
+            return None
+        if str(action.get("risk")) not in self._allowed_runtime_risks(user):
+            return None
+        return action if self._action_is_available_for_user(action, user=user) else None
 
     def _requires_confirmation(self, action: dict[str, Any]) -> bool:
         if bool(action.get("confirmation_required")):
@@ -845,10 +955,14 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         return grouped
 
     def _module_by_key(self, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        return {module["key"]: module for module in metadata["modules"]}
+        if self._module_index is None:
+            self._module_index = {module["key"]: module for module in metadata["modules"]}
+        return self._module_index
 
     def _screen_by_key(self, metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        return {screen["key"]: screen for screen in metadata["screens"]}
+        if self._screen_index is None:
+            self._screen_index = {screen["key"]: screen for screen in metadata["screens"]}
+        return self._screen_index
 
     def _resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         return resolve_asset_names(codes)

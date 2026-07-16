@@ -335,7 +335,6 @@ def test_tui_workbench_uses_system_cursor_and_collapsible_sidebars():
         .joinpath("static", "js", "tui-workbench.js")
         .read_text(encoding="utf-8")
     )
-
     assert ".tui-block-cursor" not in css
     assert "cursor: none" not in css
     assert "cursor: pointer" not in css
@@ -360,14 +359,23 @@ def test_tui_workbench_script_contains_operator_home_state_and_governance_hooks(
         .joinpath("static", "js", "tui-workbench.js")
         .read_text(encoding="utf-8")
     )
+    host_adapter = (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        .joinpath("frontend", "agomtradepro-host", "src", "index.js")
+        .read_text(encoding="utf-8")
+    )
 
     assert "agom-tui-last-non-home-screen:v1" in script
     assert "agom-tui-pinned-screen-keys:v1" in script
     assert "agom-tui-preferred-home-lane:v1" in script
     assert "agom-tui-resume-on-boot:v1" in script
-    assert "/operator/governance-queue/" in script
-    assert "operator.home.enter_governance_flow" in script
-    assert "operator.home.resume_last_workspace" in script
+    assert "governanceQueueUrl()" in script
+    assert "/operator/governance-queue/" in host_adapter
+    assert "operator.home.enter_governance_flow" in host_adapter
+    assert "operator.home.resume_last_workspace" in host_adapter
+    assert "operator.home.enter_governance_flow" not in script
     assert "function resizeInspectorByKeyboard" in script
     assert "inspectorWidthStorageKey" in script
     assert "data-toggle-rail" in script
@@ -718,7 +726,7 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert '"account-positions": "execution.accounts"' not in script
     assert 'positions: "execution.accounts"' not in script
     assert "function dashboardLayout(panels, screen)" in script
-    assert "function dashboardAreaTemplate(areas, columns)" in script
+    assert "function dashboardAreaTemplate(areas, columns, expandToTwelve = false)" in script
     assert "data-toggle-support" in script
     assert "data-toggle-advanced" in script
     assert "data-dashboard-target" in script
@@ -7173,7 +7181,10 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert "dashboardLayout(panels, screen)" in script
     assert "function dashboardDesktopColumns(screen)" in script
     assert '["self_service", "admin"].includes(journey)' in script
-    assert "dashboardAreaTemplate(areas, desktopColumns)" in script
+    assert "dashboardAreaTemplate(areas, desktopColumns, true)" in script
+    assert "dashboardAreaTemplate(areas, 2)" in script
+    assert "dashboardAreaTemplate(areas, 1)" in script
+    assert "expandToTwelve ? expandDashboardRow(row) : row" in script
     assert 'panelPriority(panel) !== "p2"' in script
 
 
@@ -7181,8 +7192,12 @@ def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
     script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
         encoding="utf-8"
     )
+    host_adapter = (
+        Path(__file__).resolve().parents[2] / "frontend" / "agomtradepro-host" / "src" / "index.js"
+    ).read_text(encoding="utf-8")
 
-    assert 'screen?.key === "capability-router.mcp-center"' in script
+    assert "runtimeConfig.host?.singleColumnScreens" in script
+    assert 'singleColumnScreens: ["capability-router.mcp-center"]' in host_adapter
     assert "return 1;" in script
 
 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TUI Workbench - AgomTradePro</title>
-    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=agomtui-mcp-self-service-20260709">
+    <link rel="stylesheet" href="{% static 'css/tui-workbench.css' %}?v=agomtui-mcp-self-service-20260715">
 </head>
 <body>
     <div class="tui-app" data-tui-app tabindex="-1" aria-label="AgomTradePro TUI workbench">
@@ -147,6 +147,8 @@
         </footer>
     </div>
 
-    <script src="{% static 'js/tui-workbench.js' %}?v=agomtui-mcp-self-service-20260709"></script>
+    <script src="{% static 'js/agomtui-runtime-core.js' %}?v=agomtui-runtime-0.2.0"></script>
+    <script src="{% static 'js/tui-agomtradepro-adapter.js' %}?v=agomtui-runtime-0.2.0"></script>
+    <script src="{% static 'js/tui-workbench.js' %}?v=agomtui-runtime-0.2.0"></script>
 </body>
 </html>

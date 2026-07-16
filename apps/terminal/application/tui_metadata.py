@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+from functools import lru_cache
 from pathlib import Path
 from string import Formatter
 from typing import Any
@@ -447,10 +448,14 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             panel.setdefault("action_key", "")
             panel.setdefault(
                 "user_priority",
-                "p0" if not any(
-                    isinstance(existing, dict) and existing.get("user_priority") == "p0"
-                    for existing in screen.get("dashboard_panels", [])
-                ) else "p2",
+                (
+                    "p0"
+                    if not any(
+                        isinstance(existing, dict) and existing.get("user_priority") == "p0"
+                        for existing in screen.get("dashboard_panels", [])
+                    )
+                    else "p2"
+                ),
             )
             panel.setdefault(
                 "presentation_semantic",
@@ -566,16 +571,13 @@ def _validate_dashboard_row_actions(
             )
         label_template = str(descriptor["label_template"])
         template_fields = {
-            field_name
-            for _, field_name, _, _ in Formatter().parse(label_template)
-            if field_name
+            field_name for _, field_name, _, _ in Formatter().parse(label_template) if field_name
         }
         unknown_template_fields = template_fields - column_keys
         if unknown_template_fields:
             names = ", ".join(sorted(unknown_template_fields))
             raise TuiMetadataValidationError(
-                f"Dashboard row action label references unknown row field: "
-                f"{action_key}.{names}"
+                f"Dashboard row action label references unknown row field: " f"{action_key}.{names}"
             )
 
 
@@ -752,9 +754,10 @@ def _validate_field(action: dict[str, Any], field: dict[str, Any]) -> None:
         raise TuiMetadataValidationError(
             f"Endpoint field must use text input: {action['key']}.{field_key}"
         )
-    if presentation_semantic in {"api_token", "endpoint_url", "prompt_text"} and str(
-        field.get("value_type") or ""
-    ) != "string":
+    if (
+        presentation_semantic in {"api_token", "endpoint_url", "prompt_text"}
+        and str(field.get("value_type") or "") != "string"
+    ):
         raise TuiMetadataValidationError(
             f"Sensitive/copyable field must use string value_type: {action['key']}.{field_key}"
         )
@@ -1103,11 +1106,20 @@ def _contains_internal_contract_token(value: str) -> bool:
 def _validate_with_json_schema(payload: dict[str, Any]) -> None:
     if Draft202012Validator is None:
         return
-    schema = json.loads(TUI_METADATA_SCHEMA_PATH.read_text(encoding="utf-8"))
-    validator = Draft202012Validator(schema)
+    validator = _tui_metadata_schema_validator()
     errors = sorted(validator.iter_errors(payload), key=lambda error: list(error.path))
     if not errors:
         return
     first = errors[0]
     path = ".".join(str(part) for part in first.path) or "<root>"
     raise TuiMetadataValidationError(f"JSON Schema validation failed at {path}: {first.message}")
+
+
+@lru_cache(maxsize=1)
+def _tui_metadata_schema_validator() -> Any:
+    """Return the process-local compiled metadata schema validator."""
+
+    if Draft202012Validator is None:  # pragma: no cover - guarded by caller.
+        raise RuntimeError("jsonschema is unavailable")
+    schema = json.loads(TUI_METADATA_SCHEMA_PATH.read_text(encoding="utf-8"))
+    return Draft202012Validator(schema)
