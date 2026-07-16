@@ -1366,25 +1366,28 @@ compose ps > /tmp/agomtradepro-compose-ps.txt || true
 
 python3 - <<'PY'
 import json
+import os
 import subprocess
 from pathlib import Path
-image_tag = subprocess.check_output(
-    ["docker", "inspect", "agomtradepro-web:" + Path(".").name.replace("source-", ""), "--format", "{{.Id}}"],
+release_tag = os.environ["RELEASE_TAG"]
+image_ref = f"agomtradepro-web:{release_tag}"
+image_id = subprocess.check_output(
+    ["docker", "inspect", image_ref, "--format", "{{.Id}}"],
     text=True,
 ).strip()
 source_commit = subprocess.check_output(
-    ["docker", "inspect", "agomtradepro-web:" + Path(".").name.replace("source-", ""), "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"],
+    ["docker", "inspect", image_ref, "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"],
     text=True,
 ).strip()
 build_report_path = Path("/tmp/agomtradepro-build-report.json")
 build_report = json.loads(build_report_path.read_text(encoding="utf-8")) if build_report_path.exists() else {}
 report = {
-    "release_tag": Path(".").name.replace("source-", ""),
+    "release_tag": release_tag,
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "health_json": Path("/tmp/agomtradepro-health.json").read_text(encoding="utf-8"),
     "compose_ps": Path("/tmp/agomtradepro-compose-ps.txt").read_text(encoding="utf-8"),
-    "image_id": image_tag,
+    "image_id": image_id,
     "source_commit": source_commit,
     "build_started_at": build_report.get("build_started_at", ""),
     "build_finished_at": build_report.get("build_finished_at", ""),
