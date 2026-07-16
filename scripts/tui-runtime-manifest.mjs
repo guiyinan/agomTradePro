@@ -1,5 +1,10 @@
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 
+export function normalizeRuntimeContent(content) {
+    const text = Buffer.isBuffer(content) ? content.toString("utf8") : String(content);
+    return Buffer.from(text.replace(/\r\n/g, "\n"), "utf8");
+}
+
 export function deterministicManifestPayload(manifest) {
     return {
         version: manifest.version,

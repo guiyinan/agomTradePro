@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { assertManifestIntegrity } from "./tui-runtime-manifest.mjs";
+import { assertManifestIntegrity, normalizeRuntimeContent } from "./tui-runtime-manifest.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
@@ -64,7 +64,7 @@ for (const relative of [
     "static/js/tui-workbench.js",
     "static/css/tui-workbench.css",
 ]) {
-    const body = await readFile(resolve(root, relative));
+    const body = normalizeRuntimeContent(await readFile(resolve(root, relative)));
     files[relative] = createHash("sha256").update(body).digest("hex");
 }
 const buildHash = createHash("sha256")

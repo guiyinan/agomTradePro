@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 
 import { createRuntimeUrls } from "../src/api.js";
 import { clientPage } from "../src/pagination.js";
-import { assertManifestIntegrity } from "../../../scripts/tui-runtime-manifest.mjs";
+import {
+    assertManifestIntegrity,
+    normalizeRuntimeContent,
+} from "../../../scripts/tui-runtime-manifest.mjs";
 
 test("runtime urls support optimized bootstrap and legacy endpoints", () => {
     const urls = createRuntimeUrls({ apiBase: "/api/tui", bootstrapUrl: "/api/tui/bootstrap/" });
@@ -60,4 +63,9 @@ test("manifest integrity uses content hashes instead of the repository head", ()
         () => assertManifestIntegrity({ ...payload, upstream_commit: "b".repeat(40) }, payload, () => false),
         /not an ancestor/,
     );
+});
+
+test("manifest content normalization is independent of checkout line endings", () => {
+    assert.deepEqual(normalizeRuntimeContent("alpha\r\nbeta\r\n"), Buffer.from("alpha\nbeta\n"));
+    assert.deepEqual(normalizeRuntimeContent(Buffer.from("alpha\nbeta\n")), Buffer.from("alpha\nbeta\n"));
 });
