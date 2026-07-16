@@ -8,6 +8,7 @@ import { clientPage } from "../src/pagination.js";
 import {
     assertManifestIntegrity,
     normalizeRuntimeContent,
+    runtimeContentsEqual,
 } from "../../../scripts/tui-runtime-manifest.mjs";
 
 test("runtime urls support optimized bootstrap and legacy endpoints", () => {
@@ -68,4 +69,6 @@ test("manifest integrity uses content hashes instead of the repository head", ()
 test("manifest content normalization is independent of checkout line endings", () => {
     assert.deepEqual(normalizeRuntimeContent("alpha\r\nbeta\r\n"), Buffer.from("alpha\nbeta\n"));
     assert.deepEqual(normalizeRuntimeContent(Buffer.from("alpha\nbeta\n")), Buffer.from("alpha\nbeta\n"));
+    assert.equal(runtimeContentsEqual("bundle();\r\n", Buffer.from("bundle();\n")), true);
+    assert.equal(runtimeContentsEqual("bundle(1);\r\n", Buffer.from("bundle(2);\n")), false);
 });

@@ -5,6 +5,10 @@ export function normalizeRuntimeContent(content) {
     return Buffer.from(text.replace(/\r\n/g, "\n"), "utf8");
 }
 
+export function runtimeContentsEqual(left, right) {
+    return normalizeRuntimeContent(left).equals(normalizeRuntimeContent(right));
+}
+
 export function deterministicManifestPayload(manifest) {
     return {
         version: manifest.version,

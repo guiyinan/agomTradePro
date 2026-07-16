@@ -5,7 +5,11 @@ import { dirname, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { assertManifestIntegrity, normalizeRuntimeContent } from "./tui-runtime-manifest.mjs";
+import {
+    assertManifestIntegrity,
+    normalizeRuntimeContent,
+    runtimeContentsEqual,
+} from "./tui-runtime-manifest.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
@@ -42,7 +46,7 @@ for (const target of targets) {
     const expected = await bundle(target, false);
     if (check) {
         const current = await readFile(target.outfile).catch(() => Buffer.alloc(0));
-        if (!current.equals(expected)) {
+        if (!runtimeContentsEqual(current, expected)) {
             throw new Error(`Stale TUI bundle: ${target.outfile}`);
         }
     } else {
