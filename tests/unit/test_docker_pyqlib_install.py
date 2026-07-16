@@ -173,3 +173,15 @@ def test_config_center_initial_migration_uses_portable_boolean_default() -> None
 
     assert "bool NOT NULL DEFAULT FALSE" in migration
     assert "bool NOT NULL DEFAULT 0" not in migration
+
+
+def test_macro_source_field_accepts_existing_production_provenance() -> None:
+    model = (
+        REPO_ROOT / "apps" / "macro" / "infrastructure" / "models.py"
+    ).read_text(encoding="utf-8")
+    migration = (
+        REPO_ROOT / "apps" / "macro" / "migrations" / "0019_expand_macro_indicator_source.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'source = models.CharField(max_length=50, help_text="数据源")' in model
+    assert "max_length=50" in migration

@@ -55,7 +55,7 @@ class MacroIndicator(models.Model):
 
     published_at = models.DateField(null=True, blank=True, help_text="实际发布时间")
     publication_lag_days = models.IntegerField(default=0, help_text="发布延迟天数")
-    source = models.CharField(max_length=20, help_text="数据源")
+    source = models.CharField(max_length=50, help_text="数据源")
     revision_number = models.IntegerField(default=1, help_text="修订版本号")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
