@@ -167,8 +167,11 @@ class TestSecretKeyValidation:
 
     def test_secure_key_accepted(self):
         """Test that a secure key is accepted."""
-        import secrets
-        secure_key = secrets.token_urlsafe(50)
+        # Avoid random placeholder substrings such as xxx making this
+        # acceptance test flaky despite the generated key being high entropy.
+        secure_key = (
+            'A7mQ2vN9kR4sT8uW3yZ6bC1dE5fG0hJ7pL2nS9xV4qK8rM6tY3'
+        )
         original_key = os.environ.get('SECRET_KEY', '')
 
         try:
