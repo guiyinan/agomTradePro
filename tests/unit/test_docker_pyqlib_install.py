@@ -100,6 +100,8 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "core.asgi:application" in entrypoint
     assert "core.wsgi:application" not in entrypoint
     assert "sqlite-to-postgres.json" in migration
+    assert "pg_isready" in migration
+    assert "PostgreSQL did not become ready within 120 seconds" in migration
     assert "Critical table count mismatch" in migration
     assert ".postgres-migration-complete" in migration
     assert "check_encryption_readiness --json" in migration

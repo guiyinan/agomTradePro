@@ -27,6 +27,21 @@ chmod 700 "$FIXTURE_DIR"
 
 compose up -d runtime_ns redis postgres
 
+POSTGRES_READY=0
+for _attempt in $(seq 1 60); do
+  if compose exec -T postgres sh -eu -c \
+    'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+    POSTGRES_READY=1
+    break
+  fi
+  sleep 2
+done
+if [ "$POSTGRES_READY" != "1" ]; then
+  echo "[ERROR] PostgreSQL did not become ready within 120 seconds" >&2
+  compose logs --tail 100 postgres >&2 || true
+  exit 1
+fi
+
 if [ -f "$MARKER_FILE" ]; then
   echo "[INFO] PostgreSQL migration marker exists; applying schema migrations only"
   compose run --rm --no-deps web python manage.py migrate --noinput
