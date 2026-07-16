@@ -73,7 +73,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "org.opencontainers.image.revision=$SOURCE_COMMIT" in dockerfile
     assert '"build_started_at"' in script
     assert '"build_finished_at"' in script
-    assert '-m compileall -q /app' in script
+    assert "-m compileall -q /app" in script
     assert "WEB_MEMORY_LIMIT:-1g" in compose
     assert "CELERY_BEAT_MEMORY_LIMIT:-512m" in compose
     assert "/app/backups/database" in compose
