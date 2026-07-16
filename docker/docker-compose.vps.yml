@@ -42,6 +42,28 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agomtradepro}
+      POSTGRES_USER: ${POSTGRES_USER:-agomtradepro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agomtradepro} -d ${POSTGRES_DB:-agomtradepro}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-768m}
+    cpus: 1.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "25m"
+        max-file: "5"
+
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
@@ -50,8 +72,9 @@ services:
       DJANGO_SETTINGS_MODULE: core.settings.production
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # SQLite-first, but allow override via deploy/.env (e.g., Postgres) without editing compose.
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       AGOMTRADEPRO_BASE_URL: ${AGOMTRADEPRO_BASE_URL:-http://web:8000}
       AGOMTRADEPRO_API_TOKEN: ${AGOMTRADEPRO_API_TOKEN:-}
@@ -72,8 +95,7 @@ services:
       AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N: ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}
       MACRO_SYNC_HOUR: ${MACRO_SYNC_HOUR:-8}
       MACRO_SYNC_MINUTE: ${MACRO_SYNC_MINUTE:-5}
-      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
-      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      DAPHNE_APPLICATION_CLOSE_TIMEOUT: ${DAPHNE_APPLICATION_CLOSE_TIMEOUT:-10}
       SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-True}
       SECURE_SSL_REDIRECT_EXEMPT_HOSTS: ${SECURE_SSL_REDIRECT_EXEMPT_HOSTS:-127.0.0.1,localhost,web}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-True}
@@ -91,6 +113,8 @@ services:
       runtime_ns:
         condition: service_started
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "test \"$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/health/)\" = \"200\""]
@@ -113,7 +137,9 @@ services:
     command: ["celery", "-A", "core", "worker", "-l", "info", "-Q", "${CELERY_WORKER_QUEUES:-celery,qlib_infer,qlib_train}", "--concurrency", "${CELERY_WORKER_CONCURRENCY:-1}"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -149,6 +175,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
       web:
         condition: service_healthy
     healthcheck:
@@ -168,7 +196,9 @@ services:
     command: ["celery", "-A", "core", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -198,6 +228,8 @@ services:
       runtime_ns:
         condition: service_started
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       web:
         condition: service_healthy
@@ -253,6 +285,7 @@ services:
 
 volumes:
   sqlite_data:
+  postgres_data:
   var_data:
   redis_data:
   static_data:

@@ -16,9 +16,9 @@ fi
 
 TARGET_DIR="/opt/agomtradepro/current"
 BACKUP_DIR="/opt/agomtradepro/backups"
-SQLITE_FILE=""
+DATABASE_FILE=""
 REDIS_FILE=""
-RESTORE_SQLITE=1
+RESTORE_DATABASE=1
 RESTORE_REDIS=1
 
 while [ "$#" -gt 0 ]; do
@@ -27,12 +27,12 @@ while [ "$#" -gt 0 ]; do
       TARGET_DIR="$2"; shift 2 ;;
     --backup-dir)
       BACKUP_DIR="$2"; shift 2 ;;
-    --sqlite-file)
-      SQLITE_FILE="$2"; shift 2 ;;
+    --database-file|--sqlite-file)
+      DATABASE_FILE="$2"; shift 2 ;;
     --redis-file)
       REDIS_FILE="$2"; shift 2 ;;
-    --no-sqlite)
-      RESTORE_SQLITE=0; shift ;;
+    --no-database|--no-sqlite)
+      RESTORE_DATABASE=0; shift ;;
     --no-redis)
       RESTORE_REDIS=0; shift ;;
     *)
@@ -55,23 +55,53 @@ export COMPOSE_PROJECT_NAME=agomtradepro
 
 cd "$TARGET_DIR" || die "Target dir not found: $TARGET_DIR"
 
-$COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d redis web >/dev/null
+DATABASE_URL=$(sed -n 's/^DATABASE_URL=//p' deploy/.env | tail -n 1)
+$COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d redis >/dev/null
 
-if [ "$RESTORE_SQLITE" = "1" ]; then
-  if [ -z "$SQLITE_FILE" ]; then
-    SQLITE_FILE=$(ls -1t "$BACKUP_DIR"/sqlite/db-*.sqlite3.gz 2>/dev/null | head -n 1 || true)
-  fi
-  [ -n "$SQLITE_FILE" ] || die "No SQLite backup file found"
-  [ -f "$SQLITE_FILE" ] || die "SQLite backup file not found: $SQLITE_FILE"
+if [ "$RESTORE_DATABASE" = "1" ]; then
+  case "$DATABASE_URL" in
+    postgres://*|postgresql://*)
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d postgres >/dev/null
+      if [ -z "$DATABASE_FILE" ]; then
+        DATABASE_FILE=$(ls -1t "$BACKUP_DIR"/database/postgres-*.dump 2>/dev/null | head -n 1 || true)
+      fi
+      [ -n "$DATABASE_FILE" ] || die "No PostgreSQL backup file found"
+      [ -f "$DATABASE_FILE" ] || die "PostgreSQL backup file not found: $DATABASE_FILE"
+      log_info "Restoring PostgreSQL from $DATABASE_FILE"
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        exec -T postgres pg_restore --list < "$DATABASE_FILE" >/dev/null
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        stop web celery_worker celery_beat >/dev/null 2>&1 || true
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        exec -T postgres sh -eu <<'SH'
+psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres \
+  -v dbname="$POSTGRES_DB" \
+  -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :'dbname' AND pid <> pg_backend_pid();" >/dev/null
+dropdb --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"
+createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
+SH
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        exec -T postgres sh -eu -c \
+        'exec pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl --exit-on-error' \
+        < "$DATABASE_FILE"
+      ;;
+    *)
+      if [ -z "$DATABASE_FILE" ]; then
+        DATABASE_FILE=$(ls -1t "$BACKUP_DIR"/database/db_backup_*.sqlite3.gz "$BACKUP_DIR"/sqlite/db-*.sqlite3.gz 2>/dev/null | head -n 1 || true)
+      fi
+      [ -n "$DATABASE_FILE" ] || die "No SQLite backup file found"
+      [ -f "$DATABASE_FILE" ] || die "SQLite backup file not found: $DATABASE_FILE"
 
-  log_info "Restoring SQLite from $SQLITE_FILE"
-  tmp_sqlite=$(mktemp)
-  gzip -dc "$SQLITE_FILE" > "$tmp_sqlite"
-  web_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)
-  [ -n "$web_cid" ] || die "web container not found"
-  docker cp "$tmp_sqlite" "$web_cid:/app/data/db.sqlite3"
-  rm -f "$tmp_sqlite"
-  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env restart web >/dev/null
+      log_info "Restoring legacy SQLite from $DATABASE_FILE"
+      tmp_sqlite=$(mktemp)
+      gzip -dc "$DATABASE_FILE" > "$tmp_sqlite"
+      docker volume create agomtradepro_sqlite_data >/dev/null
+      docker run --rm -i -v agomtradepro_sqlite_data:/dest alpine:3.20 \
+        sh -c 'cat > /dest/db.sqlite3 && chown 1000:1000 /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3' \
+        < "$tmp_sqlite"
+      rm -f "$tmp_sqlite"
+      ;;
+  esac
 fi
 
 if [ "$RESTORE_REDIS" = "1" ]; then
@@ -92,4 +122,5 @@ if [ "$RESTORE_REDIS" = "1" ]; then
   $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env start redis >/dev/null
 fi
 
+$COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d >/dev/null
 log_info "Restore completed"

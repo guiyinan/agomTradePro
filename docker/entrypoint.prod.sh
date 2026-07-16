@@ -135,9 +135,10 @@ PY
 }
 
 wait_for_port "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "redis"
+wait_for_port "${POSTGRES_HOST:-postgres}" "${POSTGRES_PORT:-5432}" "postgres"
 
 is_web_command=0
-if [ "$#" -eq 0 ] || [ "$1" = "gunicorn" ]; then
+if [ "$#" -eq 0 ] || [ "$1" = "daphne" ] || [ "$1" = "gunicorn" ]; then
   is_web_command=1
 fi
 
@@ -192,10 +193,11 @@ PY
 fi
 
 if [ "$is_web_command" = "1" ]; then
-  exec gunicorn core.wsgi:application \
-    --bind 0.0.0.0:8000 \
-    --workers "${GUNICORN_WORKERS:-2}" \
-    --timeout "${GUNICORN_TIMEOUT:-120}"
+  exec daphne \
+    -b 0.0.0.0 \
+    -p 8000 \
+    --application-close-timeout "${DAPHNE_APPLICATION_CLOSE_TIMEOUT:-10}" \
+    core.asgi:application
 fi
 
 exec "$@"

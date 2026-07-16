@@ -949,6 +949,10 @@ OLD_AGOMTRADEPRO_BASE_URL=""
 OLD_AGOMTRADEPRO_API_TOKEN=""
 OLD_AGOMTRADEPRO_USERNAME=""
 OLD_AGOMTRADEPRO_PASSWORD=""
+OLD_POSTGRES_DB=""
+OLD_POSTGRES_USER=""
+OLD_POSTGRES_PASSWORD=""
+OLD_DATABASE_URL=""
 SECRETS_FILE="$TARGET_DIR/secrets.env"
 mkdir -p "$TARGET_DIR" "$TARGET_DIR/backups"
 chmod 700 "$TARGET_DIR" "$TARGET_DIR/backups"
@@ -970,6 +974,10 @@ _read_old_keys() {
   [ -z "$OLD_AGOMTRADEPRO_API_TOKEN" ] && OLD_AGOMTRADEPRO_API_TOKEN="$(get_env_kv AGOMTRADEPRO_API_TOKEN "$_src")"
   [ -z "$OLD_AGOMTRADEPRO_USERNAME" ] && OLD_AGOMTRADEPRO_USERNAME="$(get_env_kv AGOMTRADEPRO_USERNAME "$_src")"
   [ -z "$OLD_AGOMTRADEPRO_PASSWORD" ] && OLD_AGOMTRADEPRO_PASSWORD="$(get_env_kv AGOMTRADEPRO_PASSWORD "$_src")"
+  [ -z "$OLD_POSTGRES_DB" ] && OLD_POSTGRES_DB="$(get_env_kv POSTGRES_DB "$_src")"
+  [ -z "$OLD_POSTGRES_USER" ] && OLD_POSTGRES_USER="$(get_env_kv POSTGRES_USER "$_src")"
+  [ -z "$OLD_POSTGRES_PASSWORD" ] && OLD_POSTGRES_PASSWORD="$(get_env_kv POSTGRES_PASSWORD "$_src")"
+  [ -z "$OLD_DATABASE_URL" ] && OLD_DATABASE_URL="$(get_env_kv DATABASE_URL "$_src")"
   return 0
 }
 _read_old_keys "$SECRETS_FILE"
@@ -1085,6 +1093,33 @@ set_env_kv() {
     printf '\n%s=%s\n' "$key" "$value" >> deploy/.env
   fi
 }
+
+POSTGRES_DB_VALUE="$(get_env_kv POSTGRES_DB deploy/.env)"
+POSTGRES_USER_VALUE="$(get_env_kv POSTGRES_USER deploy/.env)"
+POSTGRES_PASSWORD_VALUE="$(get_env_kv POSTGRES_PASSWORD deploy/.env)"
+[ -n "$OLD_POSTGRES_DB" ] && POSTGRES_DB_VALUE="$OLD_POSTGRES_DB"
+[ -n "$OLD_POSTGRES_USER" ] && POSTGRES_USER_VALUE="$OLD_POSTGRES_USER"
+[ -n "$OLD_POSTGRES_PASSWORD" ] && POSTGRES_PASSWORD_VALUE="$OLD_POSTGRES_PASSWORD"
+[ -n "$POSTGRES_DB_VALUE" ] || POSTGRES_DB_VALUE="agomtradepro"
+[ -n "$POSTGRES_USER_VALUE" ] || POSTGRES_USER_VALUE="agomtradepro"
+case "$POSTGRES_PASSWORD_VALUE" in
+  ""|change-this-*|changeme|example|placeholder)
+    POSTGRES_PASSWORD_VALUE="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(32))
+PY
+)"
+    ;;
+esac
+DATABASE_URL_VALUE="postgresql://${POSTGRES_USER_VALUE}:${POSTGRES_PASSWORD_VALUE}@postgres:5432/${POSTGRES_DB_VALUE}"
+set_env_kv "POSTGRES_DB" "$POSTGRES_DB_VALUE"
+set_env_kv "POSTGRES_USER" "$POSTGRES_USER_VALUE"
+set_env_kv "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
+set_env_kv "DATABASE_URL" "$DATABASE_URL_VALUE"
+_persist_secrets_env "POSTGRES_DB" "$POSTGRES_DB_VALUE"
+_persist_secrets_env "POSTGRES_USER" "$POSTGRES_USER_VALUE"
+_persist_secrets_env "POSTGRES_PASSWORD" "$POSTGRES_PASSWORD_VALUE"
+_persist_secrets_env "DATABASE_URL" "$DATABASE_URL_VALUE"
 
 EFFECTIVE_DOMAIN="$DOMAIN"
 if [ -z "$EFFECTIVE_DOMAIN" ] && [ -n "$OLD_DOMAIN" ]; then
@@ -1217,6 +1252,7 @@ fi
 set_env_kv "CADDY_HTTPS_PORT" "$EFFECTIVE_HTTPS_PORT"
 set_env_kv "AGOM_BACKUP_DIR" "$TARGET_DIR/backups/database"
 mkdir -p "$TARGET_DIR/backups/database"
+chown 1000:1000 "$TARGET_DIR/backups/database"
 chmod 700 "$TARGET_DIR/backups/database"
 
 CURRENT_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS deploy/.env)"
@@ -1261,7 +1297,7 @@ if [ "$ACTION" = "fresh" ]; then
   compose down --remove-orphans || true
 fi
 
-compose up -d runtime_ns redis
+compose up -d runtime_ns redis postgres
 
 if [ "$INCLUDE_SQLITE" = "1" ]; then
   if [ ! -f backups/db.sqlite3 ]; then
@@ -1276,15 +1312,10 @@ if [ "$INCLUDE_SQLITE" = "1" ]; then
     sh -lc 'cp /src/db.sqlite3 /dest/db.sqlite3 && chown 1000:1000 /dest /dest/db.sqlite3 && chmod 664 /dest/db.sqlite3'
 fi
 
-TRIES=0
-until compose run --rm --no-deps web python manage.py migrate --noinput; do
-  TRIES=$((TRIES + 1))
-  if [ "$TRIES" -ge 10 ]; then
-    echo "[ERROR] migration failed after retries" >&2
-    exit 1
-  fi
-  sleep 5
-done
+if ! bash scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR"; then
+  echo "[ERROR] PostgreSQL initialization or SQLite migration failed" >&2
+  exit 1
+fi
 
 TUI_METADATA_PATH="config/tui/published/tui_operation_graph.published.json"
 if [ -f "$TUI_METADATA_PATH" ]; then
@@ -1327,7 +1358,7 @@ if ! compose run --rm --no-deps web python manage.py setup_macro_daily_sync --ho
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi
 
-SERVICES="runtime_ns redis web caddy"
+SERVICES="runtime_ns redis postgres web caddy"
 if [ "$ENABLE_RSSHUB" = "1" ]; then
   SERVICES="$SERVICES rsshub"
 fi

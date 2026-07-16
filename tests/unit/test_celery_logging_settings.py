@@ -36,6 +36,10 @@ def test_development_settings_define_project_local_celery_log_files() -> None:
 def test_production_settings_define_project_local_celery_log_files(monkeypatch) -> None:
     """Production settings should also route Celery worker and beat logs into logs/."""
     monkeypatch.setenv("SECRET_KEY", "a" * 50)
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://agomtradepro:test@localhost:5432/agomtradepro",
+    )
     monkeypatch.delenv("SENTRY_DSN", raising=False)
     monkeypatch.delenv("CELERY_LOG_MAX_MB", raising=False)
     monkeypatch.delenv("CELERY_LOG_BACKUP_COUNT", raising=False)

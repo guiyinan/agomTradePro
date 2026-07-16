@@ -173,9 +173,13 @@ class TestSecretKeyValidation:
             'A7mQ2vN9kR4sT8uW3yZ6bC1dE5fG0hJ7pL2nS9xV4qK8rM6tY3'
         )
         original_key = os.environ.get('SECRET_KEY', '')
+        original_database_url = os.environ.get('DATABASE_URL')
 
         try:
             os.environ['SECRET_KEY'] = secure_key
+            os.environ['DATABASE_URL'] = (
+                'postgresql://agomtradepro:test@localhost:5432/agomtradepro'
+            )
 
             if 'core.settings.production' in sys.modules:
                 del sys.modules['core.settings.production']
@@ -187,6 +191,10 @@ class TestSecretKeyValidation:
             assert result == secure_key
         finally:
             os.environ['SECRET_KEY'] = original_key
+            if original_database_url is None:
+                os.environ.pop('DATABASE_URL', None)
+            else:
+                os.environ['DATABASE_URL'] = original_database_url
             if 'core.settings.production' in sys.modules:
                 del sys.modules['core.settings.production']
 
@@ -254,10 +262,14 @@ class TestSecretKeyValidation:
     def test_exactly_50_characters_accepted(self):
         """Test that exactly 50 character key is accepted."""
         original_key = os.environ.get('SECRET_KEY', '')
+        original_database_url = os.environ.get('DATABASE_URL')
 
         try:
             # Exactly 50 characters
             os.environ['SECRET_KEY'] = 'a' * 50
+            os.environ['DATABASE_URL'] = (
+                'postgresql://agomtradepro:test@localhost:5432/agomtradepro'
+            )
 
             if 'core.settings.production' in sys.modules:
                 del sys.modules['core.settings.production']
@@ -268,5 +280,9 @@ class TestSecretKeyValidation:
             assert result == 'a' * 50
         finally:
             os.environ['SECRET_KEY'] = original_key
+            if original_database_url is None:
+                os.environ.pop('DATABASE_URL', None)
+            else:
+                os.environ['DATABASE_URL'] = original_database_url
             if 'core.settings.production' in sys.modules:
                 del sys.modules['core.settings.production']

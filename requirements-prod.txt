@@ -8,6 +8,7 @@ django-environ
 django-cors-headers
 django-jazzmin>=3.0
 whitenoise>=6.8
+psycopg[binary]>=3.2,<3.3
 
 # Celery / Redis
 celery[redis,s3]

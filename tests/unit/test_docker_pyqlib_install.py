@@ -50,13 +50,20 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
     dockerfile = (REPO_ROOT / "docker" / "Dockerfile.prod").read_text(encoding="utf-8")
     backup = (REPO_ROOT / "scripts" / "vps-backup.sh").read_text(encoding="utf-8")
+    restore = (REPO_ROOT / "scripts" / "vps-restore.sh").read_text(encoding="utf-8")
+    migration = (
+        REPO_ROOT / "scripts" / "migrate-vps-sqlite-to-postgres.sh"
+    ).read_text(encoding="utf-8")
+    entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(
+        encoding="utf-8"
+    )
 
     assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
     assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
     assert "'--timeout', \"$BuildTimeoutSeconds\"" in one_click_script
     assert "'--timeout', '15'" in one_click_script
-    assert "compose up -d runtime_ns redis" in script
-    assert 'SERVICES="runtime_ns redis web caddy"' in script
+    assert "compose up -d runtime_ns redis postgres" in script
+    assert 'SERVICES="runtime_ns redis postgres web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
     assert "celery_worker celery_beat" in script
     assert "celery -A core inspect ping --timeout=8" in script
@@ -82,6 +89,20 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "/app/backups/database" in compose
     assert "source.backup(destination)" in backup
     assert "PRAGMA integrity_check" in backup
+    assert "pg_dump" in backup
+    assert "pg_restore --list" in backup
+    assert "pg_restore" in restore
+    assert "postgres:16-alpine" in compose
+    assert "postgres_data:/var/lib/postgresql/data" in compose
+    assert "POSTGRES_PASSWORD is required" in compose
+    assert "DATABASE_URL is required" in compose
+    assert 'CMD ["daphne"]' in dockerfile
+    assert "core.asgi:application" in entrypoint
+    assert "core.wsgi:application" not in entrypoint
+    assert "sqlite-to-postgres.json" in migration
+    assert "Critical table count mismatch" in migration
+    assert ".postgres-migration-complete" in migration
+    assert "check_encryption_readiness --json" in migration
 
 
 def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:

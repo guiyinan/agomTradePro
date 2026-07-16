@@ -111,10 +111,31 @@ WHITENOISE_KEEP_ONLY_HASHED_FILES = env.bool(
     default=True,
 )
 
-# Database - PostgreSQL for production
+database_url = env("DATABASE_URL", default="").strip()
+if not database_url:
+    raise ImproperlyConfigured(
+        "DATABASE_URL is required in production and must point to PostgreSQL."
+    )
+allow_sqlite_migration = env.bool(
+    "AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION",
+    default=False,
+)
+if (
+    not database_url.startswith(("postgres://", "postgresql://"))
+    and not (
+        allow_sqlite_migration
+        and database_url.startswith("sqlite:")
+    )
+):
+    raise ImproperlyConfigured(
+        "Production DATABASE_URL must use PostgreSQL; SQLite is only supported "
+        "for development and the one-time migration source."
+    )
+
+# Database - PostgreSQL is mandatory for production concurrency.
 DATABASES = {
     'default': {
-        **env.db('DATABASE_URL', default='sqlite:///db.sqlite3'),
+        **env.db_url_config(database_url),
         'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=600),
         'CONN_HEALTH_CHECKS': True,  # Django 4.1+ auto-detect broken connections
     }

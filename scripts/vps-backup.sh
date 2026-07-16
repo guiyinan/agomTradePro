@@ -18,7 +18,7 @@ fi
 TARGET_DIR="/opt/agomtradepro/current"
 BACKUP_DIR="/opt/agomtradepro/backups"
 KEEP_DAYS=14
-DO_SQLITE=1
+DO_DATABASE=1
 DO_REDIS=1
 
 while [ "$#" -gt 0 ]; do
@@ -29,8 +29,8 @@ while [ "$#" -gt 0 ]; do
       BACKUP_DIR="$2"; shift 2 ;;
     --keep-days)
       KEEP_DAYS="$2"; shift 2 ;;
-    --no-sqlite)
-      DO_SQLITE=0; shift ;;
+    --no-database|--no-sqlite)
+      DO_DATABASE=0; shift ;;
     --no-redis)
       DO_REDIS=0; shift ;;
     *)
@@ -61,15 +61,35 @@ mkdir -p "$BACKUP_DIR/sqlite" "$BACKUP_DIR/redis" "$BACKUP_DIR/meta" "$BACKUP_DI
 chmod 700 "$BACKUP_DIR" "$BACKUP_DIR/sqlite" "$BACKUP_DIR/redis" "$BACKUP_DIR/meta" "$BACKUP_DIR/database"
 TS=$(date +%Y%m%d-%H%M%S)
 
-if [ "$DO_SQLITE" = "1" ]; then
-  log_info "Backing up SQLite"
-  web_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)
-  [ -n "$web_cid" ] || die "web container not found"
-  sqlite_file="$BACKUP_DIR/database/db_backup_$TS.sqlite3"
-  sqlite_temp="$BACKUP_DIR/database/.db_backup_$TS.sqlite3.tmp"
-  gzip_temp="$BACKUP_DIR/database/.db_backup_$TS.sqlite3.gz.tmp"
-  container_tmp="/tmp/agomtradepro-predeploy-$TS.sqlite3"
-  docker exec -i "$web_cid" python - "$container_tmp" <<'PY'
+DATABASE_URL=$(sed -n 's/^DATABASE_URL=//p' deploy/.env | tail -n 1)
+
+if [ "$DO_DATABASE" = "1" ]; then
+  case "$DATABASE_URL" in
+    postgres://*|postgresql://*)
+      log_info "Backing up PostgreSQL"
+      postgres_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q postgres)
+      [ -n "$postgres_cid" ] || die "postgres container not found"
+      postgres_temp="$BACKUP_DIR/database/.postgres-$TS.dump.tmp"
+      postgres_file="$BACKUP_DIR/database/postgres-$TS.dump"
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        exec -T postgres sh -eu -c \
+        'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-acl' \
+        > "$postgres_temp"
+      [ -s "$postgres_temp" ] || die "PostgreSQL backup is empty"
+      $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env \
+        exec -T postgres pg_restore --list < "$postgres_temp" >/dev/null
+      mv "$postgres_temp" "$postgres_file"
+      chmod 600 "$postgres_file"
+      ;;
+    *)
+      log_info "Backing up legacy SQLite"
+      web_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)
+      [ -n "$web_cid" ] || die "web container not found"
+      sqlite_file="$BACKUP_DIR/database/db_backup_$TS.sqlite3"
+      sqlite_temp="$BACKUP_DIR/database/.db_backup_$TS.sqlite3.tmp"
+      gzip_temp="$BACKUP_DIR/database/.db_backup_$TS.sqlite3.gz.tmp"
+      container_tmp="/tmp/agomtradepro-predeploy-$TS.sqlite3"
+      docker exec -i "$web_cid" python - "$container_tmp" <<'PY'
 import sqlite3
 import sys
 
@@ -84,13 +104,15 @@ finally:
     destination.close()
     source.close()
 PY
-  docker cp "$web_cid:$container_tmp" "$sqlite_temp"
-  docker exec "$web_cid" rm -f "$container_tmp"
-  gzip -c "$sqlite_temp" > "$gzip_temp"
-  gzip -t "$gzip_temp"
-  mv "$gzip_temp" "$sqlite_file.gz"
-  rm -f "$sqlite_temp"
-  chmod 600 "$sqlite_file.gz"
+      docker cp "$web_cid:$container_tmp" "$sqlite_temp"
+      docker exec "$web_cid" rm -f "$container_tmp"
+      gzip -c "$sqlite_temp" > "$gzip_temp"
+      gzip -t "$gzip_temp"
+      mv "$gzip_temp" "$sqlite_file.gz"
+      rm -f "$sqlite_temp"
+      chmod 600 "$sqlite_file.gz"
+      ;;
+  esac
 fi
 
 if [ "$DO_REDIS" = "1" ]; then
@@ -140,6 +162,6 @@ if [ "$KEEP_DAYS" -gt 0 ] 2>/dev/null; then
 fi
 
 log_info "Backup completed"
-log_info "SQLite: $BACKUP_DIR/database"
+log_info "Database: $BACKUP_DIR/database"
 log_info "Redis: $BACKUP_DIR/redis"
 log_info "Manifest: $manifest"
