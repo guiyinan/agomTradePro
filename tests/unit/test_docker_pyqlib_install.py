@@ -97,6 +97,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "postgres_data:/var/lib/postgresql/data" in compose
     assert "POSTGRES_PASSWORD is required" in compose
     assert "DATABASE_URL is required" in compose
+    assert "REALTIME_WEBSOCKET_ENABLED:-True" in compose
     assert 'CMD ["daphne"]' in dockerfile
     assert "core.asgi:application" in entrypoint
     assert "core.wsgi:application" not in entrypoint
