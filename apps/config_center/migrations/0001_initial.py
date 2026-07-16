@@ -423,7 +423,7 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql=(
                 "ALTER TABLE system_settings "
-                "ADD COLUMN qlib_allow_auto_activate bool NOT NULL DEFAULT 0"
+                "ADD COLUMN qlib_allow_auto_activate bool NOT NULL DEFAULT FALSE"
             ),
             reverse_sql=migrations.RunSQL.noop,
         ),
@@ -520,4 +520,3 @@ class Migration(migrations.Migration):
             },
         ),
     ]
-

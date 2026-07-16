@@ -161,3 +161,12 @@ def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
     assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=1" not in env_example
     assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" in entrypoint
     assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}" not in entrypoint
+
+
+def test_config_center_initial_migration_uses_portable_boolean_default() -> None:
+    migration = (
+        REPO_ROOT / "apps" / "config_center" / "migrations" / "0001_initial.py"
+    ).read_text(encoding="utf-8")
+
+    assert "bool NOT NULL DEFAULT FALSE" in migration
+    assert "bool NOT NULL DEFAULT 0" not in migration
