@@ -6,6 +6,9 @@ import logging
 from typing import Any
 
 from celery import shared_task
+from django.core.cache import cache
+
+from shared.infrastructure.operational_alert_registry import record_operational_alert
 
 from .interface_services import (
     make_calculate_market_thermometer_use_case,
@@ -15,6 +18,9 @@ from .interface_services import (
 from .market_thermometer_dates import resolve_market_thermometer_as_of_date
 
 logger = logging.getLogger(__name__)
+
+DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
+
 
 def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = ""):
     """Backward-compatible wrapper for existing tests and call sites."""
@@ -69,4 +75,40 @@ def refresh_decision_quote_snapshots_task(
         payload["synced_count"],
         payload["must_not_use_for_decision"],
     )
+    readiness = payload.get("readiness") or {}
+    thermometer = readiness.get("market_thermometer") or {}
+    degraded = bool(
+        payload.get("degraded")
+        or thermometer.get("data_source") == "degraded"
+        or readiness.get("data_source") == "degraded"
+    )
+    blocked = bool(payload.get("must_not_use_for_decision"))
+    if degraded or blocked:
+        streak = int(cache.get(DECISION_QUOTE_DEGRADED_STREAK_KEY, 0) or 0) + 1
+        cache.set(DECISION_QUOTE_DEGRADED_STREAK_KEY, streak, timeout=7 * 86400)
+        if blocked or streak == 3:
+            record_operational_alert(
+                level="critical" if blocked else "warning",
+                task_name=(
+                    "apps.data_center.application.tasks.refresh_decision_quote_snapshots_task"
+                ),
+                title=(
+                    "Decision quote data is blocked"
+                    if blocked
+                    else "Decision quote data degraded for three consecutive runs"
+                ),
+                message=(
+                    "Decision-grade quote refresh requires operator review."
+                    if blocked
+                    else "Fallback data remained active for three consecutive refreshes."
+                ),
+                metadata={
+                    "degraded_streak": streak,
+                    "must_not_use_for_decision": blocked,
+                    "asset_codes": payload.get("asset_codes") or asset_codes or [],
+                },
+            )
+    else:
+        cache.delete(DECISION_QUOTE_DEGRADED_STREAK_KEY)
+    payload["degraded"] = degraded
     return payload

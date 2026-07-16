@@ -345,13 +345,16 @@ def test_dashboard_aggregates_recent_failures_and_health(authenticated_client):
         last_check=now,
     )
 
-    with patch(
-        "apps.task_monitor.interface.views.ListTasksUseCase.execute",
-        return_value=failures,
-    ) as mock_list, patch(
-        "apps.task_monitor.interface.views.CheckCeleryHealthUseCase.execute",
-        return_value=health,
-    ) as mock_health:
+    with (
+        patch(
+            "apps.task_monitor.interface.views.ListTasksUseCase.execute",
+            return_value=failures,
+        ) as mock_list,
+        patch(
+            "apps.task_monitor.interface.views.CheckCeleryHealthUseCase.execute",
+            return_value=health,
+        ) as mock_health,
+    ):
         response = authenticated_client.get("/api/system/dashboard/")
 
     assert response.status_code == 200
@@ -396,6 +399,10 @@ def test_scheduler_console_page_renders_periodic_tasks(client, staff_user):
     assert "decision-workspace-nightly-snapshot-refresh" in content
     assert "PeriodicTask 目录" in content
     assert "Celery 运行态" in content
+    assert "最近数据库备份" in content
+    assert "最近清理数量" in content
+    assert "数据库大小" in content
+    assert "下次维护" in content
     assert "收市后 Readiness 时间" in content
     assert 'name="quote_pre_refresh_time"' in content
     assert 'name="weekly_auto_advisor_time"' in content

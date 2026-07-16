@@ -787,7 +787,7 @@ CELERY_BEAT_SCHEDULE = {
     # ========== 任务监控清理 ==========
     "task-monitor-cleanup": {
         "task": "apps.task_monitor.application.tasks.cleanup_old_task_records",
-        "schedule": crontab(hour=4, minute=0, day_of_week="sun"),  # 每周日凌晨 4:00
+        "schedule": crontab(hour=4, minute=0),  # 每天凌晨 4:00
         "options": {
             "days_to_keep": 30,  # 保留 30 天
             "expires": 3600,  # 1 小时超时
@@ -799,7 +799,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.task_monitor.application.tasks.backup_database_task",
         "schedule": crontab(hour=3, minute=0),  # 每天凌晨 3:00
         "kwargs": {
-            "keep_days": 7,  # 保留 7 天
+            "keep_days": 14,  # 保留 14 天
             "compress": True,
         },
         "options": {

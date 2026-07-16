@@ -9,7 +9,7 @@ Supports:
 
 Usage:
     python manage.py backup_database
-    python manage.py backup_database --keep 7
+    python manage.py backup_database --keep 14
     python manage.py backup_database --output /custom/path
 """
 
@@ -35,8 +35,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--keep",
             type=int,
-            default=7,
-            help="Number of backups to keep (default: 7)",
+            default=14,
+            help="Number of backup days to keep (default: 14)",
         )
         parser.add_argument(
             "--compress",
@@ -56,9 +56,7 @@ class Command(BaseCommand):
                 output_dir=output_dir,
             )
 
-            self.stdout.write(
-                self.style.SUCCESS(f"Database backup created: {result.backup_file}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"Database backup created: {result.backup_file}"))
             if result.removed_old_backups:
                 self.stdout.write(f"Cleaned up {result.removed_old_backups} old backup(s)")
 
@@ -70,9 +68,15 @@ class Command(BaseCommand):
                     "keep_days": result.keep_days,
                     "compressed": result.compressed,
                     "removed_old_backups": result.removed_old_backups,
-                }
+                },
             )
 
-        except (subprocess.CalledProcessError, FileNotFoundError, OSError, RuntimeError, ValueError) as e:
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ) as e:
             logger.error(f"Database backup failed: {e}")
             raise CommandError(f"Backup failed: {e}") from e

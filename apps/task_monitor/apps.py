@@ -18,5 +18,13 @@ class TaskMonitorConfig(AppConfig):
         """应用就绪时的初始化"""
         import logging
 
+        from apps.task_monitor.application.operational_alerts import (
+            record_operational_alert,
+        )
+        from shared.infrastructure.operational_alert_registry import (
+            register_operational_alert_handler,
+        )
+
         logger = logging.getLogger(__name__)
+        register_operational_alert_handler(record_operational_alert)
         logger.debug("Task Monitor 应用已加载")

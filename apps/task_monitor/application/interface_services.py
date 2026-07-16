@@ -8,6 +8,7 @@ from apps.task_monitor.application.readiness_monitor_service import (
 )
 from apps.task_monitor.application.repository_provider import (
     get_celery_health_checker,
+    get_maintenance_status_reader,
     get_scheduler_bootstrap_gateway,
     get_scheduler_configuration_gateway,
     get_scheduler_repository,
@@ -36,6 +37,7 @@ def get_scheduler_console_context(*, limit: int = 100) -> dict:
         "health": response.health,
         "periodic_tasks": response.periodic_tasks,
         "recent_failures": response.recent_failures,
+        "maintenance": get_maintenance_status_reader().read(),
         "readiness_schedule": GetReadinessScheduleUseCase(
             scheduler_repository=get_scheduler_repository(),
         ).execute(),

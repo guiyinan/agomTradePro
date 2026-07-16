@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase
@@ -12,11 +13,42 @@ from apps.data_center.domain.entities import IndicatorCatalog
 from apps.macro.application.tasks import (
     auto_sync_due_macro_indicators,
     check_data_freshness,
+    sync_macro_data,
 )
 
 
 class MacroAutoSyncTaskTests(SimpleTestCase):
     """Verify macro freshness checks and auto-sync use catalog metadata."""
+
+    @patch("apps.macro.application.tasks.record_operational_alert")
+    @patch("apps.macro.application.tasks.build_sync_macro_data_use_case")
+    def test_sync_macro_data_reports_one_aggregated_partial_alert(
+        self, build_use_case, record_alert
+    ):
+        build_use_case.return_value.execute.return_value = SimpleNamespace(
+            synced_count=3,
+            skipped_count=1,
+            errors=["missing: CPI", "failed: PMI"],
+        )
+
+        payload = sync_macro_data.run(source="akshare")
+
+        assert payload["status"] == "partial"
+        assert payload["error_count"] == 2
+        assert payload["failed_indicators"] == ["CPI", "PMI"]
+        assert payload["degraded"] is True
+        record_alert.assert_called_once()
+
+    @patch("apps.macro.application.tasks.build_sync_macro_data_use_case")
+    def test_sync_macro_data_rejects_zero_sync_with_errors(self, build_use_case):
+        build_use_case.return_value.execute.return_value = SimpleNamespace(
+            synced_count=0,
+            skipped_count=0,
+            errors=["failed: CPI"],
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "no usable data"):
+            sync_macro_data.run(source="akshare")
 
     @staticmethod
     def _catalog(

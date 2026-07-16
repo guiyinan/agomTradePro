@@ -29,6 +29,26 @@ def get_database_backup_service():
     return DatabaseBackupService()
 
 
+def get_operational_alert_repository():
+    """Return the operational alert persistence adapter."""
+
+    from apps.task_monitor.infrastructure.operational_alert_repository import (
+        DjangoOperationalAlertRepository,
+    )
+
+    return DjangoOperationalAlertRepository()
+
+
+def get_maintenance_status_reader():
+    """Return the read-only maintenance evidence adapter."""
+
+    from apps.task_monitor.infrastructure.maintenance_status import (
+        DjangoMaintenanceStatusReader,
+    )
+
+    return DjangoMaintenanceStatusReader()
+
+
 def get_scheduler_repository():
     """Return the default periodic task catalog repository."""
 

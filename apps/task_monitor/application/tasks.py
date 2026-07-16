@@ -381,7 +381,7 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
 )
 def backup_database_task(
     self,
-    keep_days: int = 7,
+    keep_days: int = 14,
     compress: bool = True,
     output_dir: str | None = None,
 ) -> dict:
@@ -392,7 +392,7 @@ def backup_database_task(
     支持 SQLite 和 PostgreSQL。
 
     Args:
-        keep_days: 保留最近 N 天的备份（默认 7 天）
+        keep_days: 保留最近 N 天的备份（默认 14 天）
         compress: 是否压缩备份文件（默认 True）
         output_dir: 自定义备份目录（可选）
 

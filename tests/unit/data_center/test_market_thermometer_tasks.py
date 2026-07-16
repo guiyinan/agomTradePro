@@ -16,23 +16,15 @@ from apps.data_center.application import tasks
 from apps.data_center.application.market_thermometer_dates import (
     resolve_market_thermometer_as_of_date,
 )
-from apps.data_center.management.commands import (
-    calculate_market_thermometer as calculate_command,
-)
+from apps.data_center.management.commands import calculate_market_thermometer as calculate_command
 from apps.data_center.management.commands import import_investor_accounts as import_command
-from apps.data_center.management.commands import (
-    sync_market_thermometer_inputs as sync_command,
-)
+from apps.data_center.management.commands import sync_market_thermometer_inputs as sync_command
 
 
-def test_resolve_market_thermometer_as_of_date_uses_previous_business_day_before_close(
-):
-    assert (
-        resolve_market_thermometer_as_of_date(
-            now=datetime(2026, 5, 25, 15, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
-        )
-        == date(2026, 5, 22)
-    )
+def test_resolve_market_thermometer_as_of_date_uses_previous_business_day_before_close():
+    assert resolve_market_thermometer_as_of_date(
+        now=datetime(2026, 5, 25, 15, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
+    ) == date(2026, 5, 22)
     assert tasks._resolve_market_thermometer_as_of_date("2026-05-21") == date(2026, 5, 21)
 
 
@@ -71,6 +63,56 @@ def test_refresh_market_thermometer_task_runs_sync_then_calculate(monkeypatch):
 
     assert calls == [("sync", date(2026, 5, 22)), ("calculate", date(2026, 5, 22))]
     assert payload["snapshot"]["score"] == 48.89
+
+
+def test_decision_quote_degraded_alerts_once_on_third_consecutive_run(monkeypatch):
+    values: dict[str, int] = {}
+    alerts: list[dict] = []
+    monkeypatch.setattr(
+        tasks,
+        "refresh_decision_quote_snapshots",
+        lambda **_kwargs: {
+            "status": "success",
+            "synced_count": 1,
+            "must_not_use_for_decision": False,
+            "readiness": {"data_source": "degraded"},
+        },
+    )
+    monkeypatch.setattr(tasks.cache, "get", lambda key, default=0: values.get(key, default))
+    monkeypatch.setattr(
+        tasks.cache, "set", lambda key, value, timeout: values.__setitem__(key, value)
+    )
+    monkeypatch.setattr(tasks, "record_operational_alert", lambda **kwargs: alerts.append(kwargs))
+
+    for _ in range(4):
+        payload = tasks.refresh_decision_quote_snapshots_task.run()
+
+    assert payload["degraded"] is True
+    assert values[tasks.DECISION_QUOTE_DEGRADED_STREAK_KEY] == 4
+    assert len(alerts) == 1
+    assert alerts[0]["level"] == "warning"
+
+
+def test_decision_quote_blocked_alerts_immediately(monkeypatch):
+    alerts: list[dict] = []
+    monkeypatch.setattr(
+        tasks,
+        "refresh_decision_quote_snapshots",
+        lambda **_kwargs: {
+            "status": "failure",
+            "synced_count": 0,
+            "must_not_use_for_decision": True,
+            "readiness": {},
+        },
+    )
+    monkeypatch.setattr(tasks.cache, "get", lambda *_args: 0)
+    monkeypatch.setattr(tasks.cache, "set", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(tasks, "record_operational_alert", lambda **kwargs: alerts.append(kwargs))
+
+    tasks.refresh_decision_quote_snapshots_task.run()
+
+    assert len(alerts) == 1
+    assert alerts[0]["level"] == "critical"
 
 
 def test_sync_market_thermometer_command_resolves_default_date(monkeypatch):

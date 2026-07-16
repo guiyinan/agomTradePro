@@ -10,6 +10,7 @@ import socket
 from datetime import timedelta
 from enum import Enum
 from io import StringIO
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
@@ -148,10 +149,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
             return None
 
     def list_by_task_name(
-        self,
-        task_name: str,
-        limit: int = 100,
-        status: str | None = None
+        self, task_name: str, limit: int = 100, status: str | None = None
     ) -> list[TaskExecutionRecord]:
         """根据任务名称列出记录"""
         queryset = TaskExecutionModel.objects.filter(task_name=task_name)
@@ -163,33 +161,21 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
 
         return [self._model_to_entity(m) for m in models_list]
 
-    def list_recent_failures(
-        self,
-        hours: int = 24,
-        limit: int = 50
-    ) -> list[TaskExecutionRecord]:
+    def list_recent_failures(self, hours: int = 24, limit: int = 50) -> list[TaskExecutionRecord]:
         """列出最近的失败记录"""
         since = timezone.now() - timedelta(hours=hours)
 
         queryset = TaskExecutionModel.objects.filter(
-            status__in=["failure", "timeout"],
-            created_at__gte=since
+            status__in=["failure", "timeout"], created_at__gte=since
         ).order_by("-created_at")[:limit]
 
         return [self._model_to_entity(m) for m in queryset]
 
-    def get_statistics(
-        self,
-        task_name: str,
-        days: int = 7
-    ) -> TaskStatistics | None:
+    def get_statistics(self, task_name: str, days: int = 7) -> TaskStatistics | None:
         """获取任务统计信息"""
         since = timezone.now() - timedelta(days=days)
 
-        base_qs = TaskExecutionModel.objects.filter(
-            task_name=task_name,
-            created_at__gte=since
-        )
+        base_qs = TaskExecutionModel.objects.filter(task_name=task_name, created_at__gte=since)
 
         total = base_qs.count()
         if total == 0:
@@ -218,12 +204,75 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         )
 
     def cleanup_old_records(self, days_to_keep: int = 30) -> int:
-        """清理旧记录"""
-        cutoff = timezone.now() - timedelta(days=days_to_keep)
-        count, _ = TaskExecutionModel.objects.filter(
-            created_at__lt=cutoff
-        ).delete()
-        return count
+        """Apply tiered retention in bounded batches and optimize SQLite metadata."""
+        now = timezone.now()
+        stale_active_cutoff = now - timedelta(days=7)
+        TaskExecutionModel.objects.filter(
+            status__in=["pending", "started"],
+            created_at__lt=stale_active_cutoff,
+        ).update(
+            status="timeout",
+            finished_at=now,
+            exception="Marked timeout by retention policy after 7 days",
+        )
+
+        policies = (
+            (["success", "revoked"], now - timedelta(days=days_to_keep)),
+            (["failure", "timeout", "retry"], now - timedelta(days=90)),
+        )
+        deleted = 0
+        batch_size = 2000
+        for statuses, cutoff in policies:
+            while True:
+                ids = list(
+                    TaskExecutionModel.objects.filter(
+                        status__in=statuses,
+                        created_at__lt=cutoff,
+                    )
+                    .order_by("id")
+                    .values_list("id", flat=True)[:batch_size]
+                )
+                if not ids:
+                    break
+                count, _ = TaskExecutionModel.objects.filter(id__in=ids).delete()
+                deleted += count
+
+        self._optimize_sqlite_storage(
+            allow_vacuum=now.weekday() == 6 and self._has_fresh_database_backup(now)
+        )
+        return deleted
+
+    @staticmethod
+    def _has_fresh_database_backup(now) -> bool:
+        """Only permit weekly VACUUM after a recent persistent backup."""
+
+        from django.conf import settings
+
+        backup_dir = Path(settings.BASE_DIR) / "backups" / "database"
+        cutoff = now.timestamp() - (26 * 3600)
+        return any(
+            path.is_file() and path.stat().st_mtime >= cutoff
+            for path in backup_dir.glob("db_backup_*")
+        )
+
+    @staticmethod
+    def _optimize_sqlite_storage(*, allow_vacuum: bool) -> None:
+        """Run lightweight optimization and vacuum only with meaningful free space."""
+        from django.db import connection
+
+        if connection.vendor != "sqlite":
+            return
+        with connection.cursor() as cursor:
+            cursor.execute("PRAGMA optimize")
+            if not allow_vacuum:
+                return
+            cursor.execute("PRAGMA page_count")
+            page_count = int(cursor.fetchone()[0] or 0)
+            cursor.execute("PRAGMA freelist_count")
+            free_pages = int(cursor.fetchone()[0] or 0)
+        if page_count and free_pages / page_count >= 0.20:
+            with connection.cursor() as cursor:
+                cursor.execute("VACUUM")
 
     def _model_to_entity(self, model: TaskExecutionModel) -> TaskExecutionRecord:
         """将 ORM 模型转换为领域实体"""
@@ -399,8 +448,9 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
 
     def list_periodic_tasks(self, limit: int = 100) -> list[ScheduledTaskRecord]:
         tasks = list(
-            PeriodicTask.objects.select_related("crontab", "interval", "clocked", "solar")
-            .order_by("enabled", "name")[:limit]
+            PeriodicTask.objects.select_related("crontab", "interval", "clocked", "solar").order_by(
+                "enabled", "name"
+            )[:limit]
         )
         task_paths = [task.task for task in tasks if task.task]
         latest_execution_map = self._latest_execution_map(task_paths)
@@ -439,11 +489,7 @@ class DjangoSchedulerRepository(SchedulerRepositoryProtocol):
         ]
 
     def get_crontab_task(self, task_name: str) -> ScheduledCrontabRecord:
-        task = (
-            PeriodicTask.objects.select_related("crontab")
-            .filter(name=task_name)
-            .first()
-        )
+        task = PeriodicTask.objects.select_related("crontab").filter(name=task_name).first()
         if task is None:
             return ScheduledCrontabRecord(
                 name=task_name,
@@ -540,11 +586,7 @@ class ManagementCommandSchedulerBootstrapGateway(SchedulerBootstrapGatewayProtoc
     def initialize_default_schedules(self) -> SchedulerBootstrapResult:
         buffer = StringIO()
         call_command("init_scheduler_defaults", stdout=buffer, stderr=buffer)
-        output_lines = [
-            line.strip()
-            for line in buffer.getvalue().splitlines()
-            if line.strip()
-        ]
+        output_lines = [line.strip() for line in buffer.getvalue().splitlines() if line.strip()]
         return SchedulerBootstrapResult(
             executed_commands=["init_scheduler_defaults"],
             output_lines=output_lines,
@@ -586,11 +628,7 @@ class ManagementCommandSchedulerConfigurationGateway(SchedulerConfigurationGatew
             stdout=buffer,
             stderr=buffer,
         )
-        output_lines = [
-            line.strip()
-            for line in buffer.getvalue().splitlines()
-            if line.strip()
-        ]
+        output_lines = [line.strip() for line in buffer.getvalue().splitlines() if line.strip()]
         return SchedulerBootstrapResult(
             executed_commands=[
                 "setup_decision_quote_refresh",

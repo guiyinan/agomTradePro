@@ -358,6 +358,29 @@
         </div>
     </div>
 
+    <div class="scheduler-console__grid">
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">最近数据库备份</span>
+            <div class="scheduler-console__task-name">{{ maintenance.latest_backup_status }}</div>
+            <div class="scheduler-console__subtle">{{ maintenance.latest_backup_at|date:"Y-m-d H:i"|default:"尚无记录" }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">最近清理数量</span>
+            <div class="scheduler-console__value">{{ maintenance.latest_cleanup_count }}</div>
+            <div class="scheduler-console__subtle">{{ maintenance.latest_cleanup_at|date:"Y-m-d H:i"|default:"尚无记录" }}</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">数据库大小</span>
+            <div class="scheduler-console__value">{{ maintenance.database_size_mb|default:"-" }}</div>
+            <div class="scheduler-console__subtle">MiB</div>
+        </div>
+        <div class="scheduler-console__card">
+            <span class="scheduler-console__label">下次维护</span>
+            <div class="scheduler-console__task-name">备份 {{ maintenance.backup_next_run_at|date:"m-d H:i"|default:"未调度" }}</div>
+            <div class="scheduler-console__subtle">清理 {{ maintenance.cleanup_next_run_at|date:"m-d H:i"|default:"未调度" }}</div>
+        </div>
+    </div>
+
     {{ readiness_monitor|json_script:"readiness-monitor-initial" }}
 
     <div class="scheduler-console__layout">

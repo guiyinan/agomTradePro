@@ -6,13 +6,13 @@ import gzip
 import logging
 import os
 import shutil
+import sqlite3
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
-from django.db import connection
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class DatabaseBackupService:
     def backup_database(
         self,
         *,
-        keep_days: int = 7,
+        keep_days: int = 14,
         compress: bool = True,
         output_dir: str | None = None,
     ) -> DatabaseBackupResult:
@@ -42,6 +42,7 @@ class DatabaseBackupService:
 
         output_path = Path(output_dir or self._get_default_backup_dir())
         output_path.mkdir(parents=True, exist_ok=True)
+        output_path.chmod(0o700)
 
         db_engine = settings.DATABASES["default"]["ENGINE"]
         if "sqlite" in db_engine:
@@ -76,7 +77,7 @@ class DatabaseBackupService:
         return str(base_dir / "backups" / "database")
 
     def _backup_sqlite(self, output_path: Path, compress: bool) -> Path:
-        """Backup SQLite using a file copy to avoid shell dependencies."""
+        """Create and verify a transactionally consistent SQLite online backup."""
 
         db_path = settings.DATABASES["default"]["NAME"]
         if not os.path.exists(db_path):
@@ -87,16 +88,33 @@ class DatabaseBackupService:
         if compress:
             backup_name += ".gz"
         backup_file = output_path / backup_name
+        raw_temp = output_path / f".{backup_name.removesuffix('.gz')}.tmp"
+        compressed_temp = output_path / f".{backup_name}.tmp"
+        raw_temp.unlink(missing_ok=True)
+        compressed_temp.unlink(missing_ok=True)
 
-        with connection.cursor() as cursor:
-            cursor.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        source = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
+        destination = sqlite3.connect(raw_temp)
+        try:
+            source.backup(destination)
+            result = destination.execute("PRAGMA integrity_check").fetchone()
+            if not result or result[0] != "ok":
+                raise RuntimeError(f"SQLite backup integrity check failed: {result}")
+        finally:
+            destination.close()
+            source.close()
 
-        if compress:
-            with open(db_path, "rb") as src:
-                with gzip.open(backup_file, "wb") as dst:
+        try:
+            if compress:
+                with raw_temp.open("rb") as src, gzip.open(compressed_temp, "wb") as dst:
                     shutil.copyfileobj(src, dst)
-        else:
-            shutil.copy2(db_path, backup_file)
+                os.replace(compressed_temp, backup_file)
+            else:
+                os.replace(raw_temp, backup_file)
+            backup_file.chmod(0o600)
+        finally:
+            raw_temp.unlink(missing_ok=True)
+            compressed_temp.unlink(missing_ok=True)
         return backup_file
 
     def _backup_postgresql(self, output_path: Path, compress: bool) -> Path:

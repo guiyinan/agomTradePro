@@ -32,6 +32,7 @@ from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
     build_sync_macro_data_use_case,
 )
+from shared.infrastructure.operational_alert_registry import record_operational_alert
 
 logger = get_task_logger(__name__)
 
@@ -163,10 +164,7 @@ def _collect_due_macro_indicators() -> list[dict[str, Any]]:
     soft_time_limit=850,
 )
 def sync_macro_data(
-    self,
-    source: str = 'akshare',
-    indicator: str | None = None,
-    days_back: int = 1
+    self, source: str = "akshare", indicator: str | None = None, days_back: int = 1
 ) -> dict:
     """
     同步宏观数据任务
@@ -182,7 +180,9 @@ def sync_macro_data(
         dict: 同步结果统计
     """
     try:
-        logger.info(f"Starting macro data sync from {source}, indicator={indicator}, days_back={days_back}")
+        logger.info(
+            f"Starting macro data sync from {source}, indicator={indicator}, days_back={days_back}"
+        )
 
         use_case = build_sync_macro_data_use_case(source)
 
@@ -192,23 +192,58 @@ def sync_macro_data(
 
         # 构建请求对象
         request = SyncMacroDataRequest(
-            start_date=start_date,
-            end_date=end_date,
-            indicators=[indicator] if indicator else None
+            start_date=start_date, end_date=end_date, indicators=[indicator] if indicator else None
         )
 
         # 执行同步
         result = use_case.execute(request)
 
-        logger.info(f"Macro data sync completed: {result}")
+        errors = list(result.errors or [])
+        if errors and result.synced_count <= 0:
+            raise RuntimeError(f"Macro data sync returned no usable data: {errors[:5]}")
+
+        status = "partial" if errors else "success"
+        failed_indicators = []
+        for error in errors:
+            indicator_code = str(error).rsplit(":", 1)[-1].strip()
+            if indicator_code and indicator_code not in failed_indicators:
+                failed_indicators.append(indicator_code)
+
+        if status == "partial":
+            logger.warning(
+                "Macro data sync partially completed: synced=%s skipped=%s errors=%s",
+                result.synced_count,
+                result.skipped_count,
+                len(errors),
+            )
+            record_operational_alert(
+                level="warning",
+                task_name="apps.macro.application.tasks.sync_macro_data",
+                title="Macro data sync partially completed",
+                message=(
+                    f"Synced {result.synced_count} series with {len(errors)} missing or failed "
+                    "indicators."
+                ),
+                metadata={
+                    "source": source,
+                    "error_count": len(errors),
+                    "failed_indicators": failed_indicators[:10],
+                },
+                task_id=getattr(getattr(self, "request", None), "id", "") or "",
+            )
+        else:
+            logger.info("Macro data sync completed: %s", result)
 
         return {
-            'status': 'success',
-            'source': source,
-            'indicator': indicator,
-            'synced_count': result.synced_count,
-            'skipped_count': result.skipped_count,
-            'errors': result.errors
+            "status": status,
+            "source": source,
+            "indicator": indicator,
+            "synced_count": result.synced_count,
+            "skipped_count": result.skipped_count,
+            "errors": errors,
+            "error_count": len(errors),
+            "failed_indicators": failed_indicators,
+            "degraded": bool(errors),
         }
 
     except Exception as exc:
@@ -233,19 +268,17 @@ def check_data_freshness() -> dict:
     try:
         logger.info("Checking data freshness")
         due_indicators = _collect_due_macro_indicators()
-        stale_indicators = [
-            item for item in due_indicators if item.get("reason") == "stale"
-        ]
+        stale_indicators = [item for item in due_indicators if item.get("reason") == "stale"]
 
         if due_indicators:
             send_data_freshness_alert.delay(due_indicators)
 
         return {
-            'status': 'success',
-            'checked_count': len(_list_sync_governed_indicators()),
-            'due_indicators': due_indicators,
-            'stale_indicators': stale_indicators,
-            'all_fresh': len(due_indicators) == 0
+            "status": "success",
+            "checked_count": len(_list_sync_governed_indicators()),
+            "due_indicators": due_indicators,
+            "stale_indicators": stale_indicators,
+            "all_fresh": len(due_indicators) == 0,
         }
 
     except Exception as exc:
@@ -279,10 +312,7 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
                 f"grade={item.get('decision_grade')}"
             )
 
-        return {
-            'status': 'alerted',
-            'count': len(stale_indicators)
-        }
+        return {"status": "alerted", "count": len(stale_indicators)}
 
     except Exception as exc:
         logger.error(f"Failed to send alert: {exc}")
@@ -306,9 +336,7 @@ def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> 
         due_indicators = _collect_due_macro_indicators()
         if indicator_codes:
             requested_codes = {
-                str(code).strip().upper()
-                for code in indicator_codes
-                if str(code).strip()
+                str(code).strip().upper() for code in indicator_codes if str(code).strip()
             }
             due_indicators = [
                 item
@@ -317,11 +345,11 @@ def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> 
             ]
         if not due_indicators:
             return {
-                'status': 'success',
-                'message': 'No governed stale or missing indicators to sync.',
-                'sync_runs': [],
-                'synced_indicator_count': 0,
-                'failed_indicator_count': 0,
+                "status": "success",
+                "message": "No governed stale or missing indicators to sync.",
+                "sync_runs": [],
+                "synced_indicator_count": 0,
+                "failed_indicator_count": 0,
             }
 
         sync_use_case = make_sync_macro_use_case()
@@ -342,12 +370,12 @@ def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> 
                 )
                 sync_runs.append(
                     {
-                        'indicator_code': indicator_code,
-                        'reason': item.get('reason'),
-                        'source_type': source_type,
-                        'status': 'failed',
-                        'stored_count': 0,
-                        'error_message': f'No active provider configured for source_type={source_type}',
+                        "indicator_code": indicator_code,
+                        "reason": item.get("reason"),
+                        "source_type": source_type,
+                        "status": "failed",
+                        "stored_count": 0,
+                        "error_message": f"No active provider configured for source_type={source_type}",
                     }
                 )
                 continue
@@ -368,40 +396,40 @@ def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> 
                 )
                 sync_runs.append(
                     {
-                        'indicator_code': indicator_code,
-                        'reason': item.get('reason'),
-                        'source_type': source_type,
-                        'provider_id': provider_id,
-                        'provider_name': result.provider_name,
-                        'status': result.status,
-                        'stored_count': result.stored_count,
-                        'start': start_date.isoformat(),
-                        'end': today.isoformat(),
+                        "indicator_code": indicator_code,
+                        "reason": item.get("reason"),
+                        "source_type": source_type,
+                        "provider_id": provider_id,
+                        "provider_name": result.provider_name,
+                        "status": result.status,
+                        "stored_count": result.stored_count,
+                        "start": start_date.isoformat(),
+                        "end": today.isoformat(),
                     }
                 )
             except Exception as exc:
                 logger.exception("Governed macro auto-sync failed for %s", indicator_code)
                 sync_runs.append(
                     {
-                        'indicator_code': indicator_code,
-                        'reason': item.get('reason'),
-                        'source_type': source_type,
-                        'provider_id': provider_id,
-                        'status': 'failed',
-                        'stored_count': 0,
-                        'start': start_date.isoformat(),
-                        'end': today.isoformat(),
-                        'error_message': str(exc),
+                        "indicator_code": indicator_code,
+                        "reason": item.get("reason"),
+                        "source_type": source_type,
+                        "provider_id": provider_id,
+                        "status": "failed",
+                        "stored_count": 0,
+                        "start": start_date.isoformat(),
+                        "end": today.isoformat(),
+                        "error_message": str(exc),
                     }
                 )
 
-        success_count = sum(1 for run in sync_runs if run.get('status') == 'success')
+        success_count = sum(1 for run in sync_runs if run.get("status") == "success")
         failed_count = len(sync_runs) - success_count
         return {
-            'status': 'success' if failed_count == 0 else 'partial',
-            'sync_runs': sync_runs,
-            'synced_indicator_count': success_count,
-            'failed_indicator_count': failed_count,
+            "status": "success" if failed_count == 0 else "partial",
+            "sync_runs": sync_runs,
+            "synced_indicator_count": success_count,
+            "failed_indicator_count": failed_count,
         }
     except Exception as exc:
         logger.error(f"Governed macro auto-sync failed: {exc}")
@@ -439,10 +467,10 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
             logger.info("No old records to clean up")
 
         return {
-            'status': 'success',
-            'cutoff_date': str(cutoff_date),
-            'records_found': count,
-            'records_deleted': 0  # 实际删除后更新
+            "status": "success",
+            "cutoff_date": str(cutoff_date),
+            "records_found": count,
+            "records_deleted": 0,  # 实际删除后更新
         }
 
     except Exception as exc:
@@ -451,6 +479,7 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
 
 
 # ==================== High-Frequency Data Sync Tasks ====================
+
 
 @shared_task(
     bind=True,
@@ -461,11 +490,7 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
     time_limit=900,
     soft_time_limit=850,
 )
-def sync_high_frequency_bonds(
-    self,
-    source: str = 'akshare',
-    years_back: int = 1
-) -> dict:
+def sync_high_frequency_bonds(self, source: str = "akshare", years_back: int = 1) -> dict:
     """
     同步高频债券收益率数据任务
 
@@ -480,17 +505,19 @@ def sync_high_frequency_bonds(
         dict: 同步结果统计
     """
     try:
-        logger.info(f"Starting high-frequency bond data sync from {source}, years_back={years_back}")
+        logger.info(
+            f"Starting high-frequency bond data sync from {source}, years_back={years_back}"
+        )
 
         from datetime import timedelta
 
         # 高频债券指标
         bond_indicators = [
-            'CN_BOND_10Y',
-            'CN_BOND_5Y',
-            'CN_BOND_2Y',
-            'US_BOND_10Y',
-            'CN_TERM_SPREAD_10Y2Y'
+            "CN_BOND_10Y",
+            "CN_BOND_5Y",
+            "CN_BOND_2Y",
+            "US_BOND_10Y",
+            "CN_TERM_SPREAD_10Y2Y",
         ]
 
         end_date = date.today()
@@ -499,9 +526,7 @@ def sync_high_frequency_bonds(
         use_case = build_sync_macro_data_use_case(source)
 
         request = SyncMacroDataRequest(
-            start_date=start_date,
-            end_date=end_date,
-            indicators=bond_indicators
+            start_date=start_date, end_date=end_date, indicators=bond_indicators
         )
 
         result = use_case.execute(request)
@@ -509,10 +534,10 @@ def sync_high_frequency_bonds(
         logger.info(f"High-frequency bond sync completed: {result.synced_count} records")
 
         return {
-            'status': 'success',
-            'synced_count': result.synced_count,
-            'errors': result.errors,
-            'indicators': bond_indicators
+            "status": "success",
+            "synced_count": result.synced_count,
+            "errors": result.errors,
+            "indicators": bond_indicators,
         }
 
     except Exception as exc:
@@ -529,11 +554,7 @@ def sync_high_frequency_bonds(
     time_limit=900,
     soft_time_limit=850,
 )
-def sync_high_frequency_commodities(
-    self,
-    source: str = 'akshare',
-    years_back: int = 1
-) -> dict:
+def sync_high_frequency_commodities(self, source: str = "akshare", years_back: int = 1) -> dict:
     """
     同步高频商品指数数据任务
 
@@ -552,7 +573,7 @@ def sync_high_frequency_commodities(
 
         from datetime import timedelta
 
-        commodity_indicators = ['CN_NHCI']
+        commodity_indicators = ["CN_NHCI"]
 
         end_date = date.today()
         start_date = end_date - timedelta(days=365 * years_back)
@@ -560,9 +581,7 @@ def sync_high_frequency_commodities(
         use_case = build_sync_macro_data_use_case(source)
 
         request = SyncMacroDataRequest(
-            start_date=start_date,
-            end_date=end_date,
-            indicators=commodity_indicators
+            start_date=start_date, end_date=end_date, indicators=commodity_indicators
         )
 
         result = use_case.execute(request)
@@ -570,10 +589,10 @@ def sync_high_frequency_commodities(
         logger.info(f"High-frequency commodity sync completed: {result.synced_count} records")
 
         return {
-            'status': 'success',
-            'synced_count': result.synced_count,
-            'errors': result.errors,
-            'indicators': commodity_indicators
+            "status": "success",
+            "synced_count": result.synced_count,
+            "errors": result.errors,
+            "indicators": commodity_indicators,
         }
 
     except Exception as exc:

@@ -4,6 +4,10 @@ Unit Tests for Task Monitor Module
 任务监控模块单元测试。
 """
 
+import gzip
+import os
+import sqlite3
+import stat
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock
@@ -23,7 +27,10 @@ from apps.task_monitor.domain.entities import (
     TaskPriority,
     TaskStatus,
 )
-from apps.task_monitor.infrastructure.backup_service import DatabaseBackupResult
+from apps.task_monitor.infrastructure.backup_service import (
+    DatabaseBackupResult,
+    DatabaseBackupService,
+)
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 from apps.task_monitor.infrastructure.repositories import (
     CeleryHealthChecker,
@@ -343,6 +350,33 @@ class TestDjangoTaskRecordRepository:
         # 验证旧记录已删除
         assert repository.get_by_task_id("old-record") is None
 
+    def test_cleanup_uses_tiered_retention_and_times_out_stale_active(self, repository, db):
+        now = timezone.now()
+        cases = (
+            ("old-failure", "failure", 100),
+            ("recent-failure", "failure", 60),
+            ("old-pending", "pending", 8),
+        )
+        for task_id, status, age_days in cases:
+            model = TaskExecutionModel.objects.create(
+                task_id=task_id,
+                task_name="test.retention",
+                status=status,
+                args=[],
+                kwargs={},
+            )
+            TaskExecutionModel.objects.filter(pk=model.pk).update(
+                created_at=now - timedelta(days=age_days)
+            )
+
+        repository.cleanup_old_records(days_to_keep=30)
+
+        assert not TaskExecutionModel.objects.filter(task_id="old-failure").exists()
+        assert TaskExecutionModel.objects.filter(task_id="recent-failure").exists()
+        stale = TaskExecutionModel.objects.get(task_id="old-pending")
+        assert stale.status == "timeout"
+        assert stale.finished_at is not None
+
 
 class TestCeleryHealthChecker:
     """测试 CeleryHealthChecker"""
@@ -427,6 +461,32 @@ def test_backup_database_task_uses_backup_service(monkeypatch):
     assert result["backup_file"] == "D:/tmp/backups/db_backup_20260430.sqlite3"
     assert result["removed_old_backups"] == 2
     assert result["compressed"] is False
+
+
+def test_sqlite_backup_is_online_verified_atomic_and_private(tmp_path, settings):
+    database = tmp_path / "source.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE sample (value TEXT NOT NULL)")
+        connection.execute("INSERT INTO sample VALUES ('preserved')")
+    settings.DATABASES["default"]["ENGINE"] = "django.db.backends.sqlite3"
+    settings.DATABASES["default"]["NAME"] = str(database)
+
+    result = DatabaseBackupService().backup_database(
+        output_dir=str(tmp_path / "backups"),
+        keep_days=14,
+        compress=True,
+    )
+
+    backup = tmp_path / "backups" / result.backup_file.split("/")[-1].split("\\")[-1]
+    assert backup.exists()
+    if os.name != "nt":
+        assert stat.S_IMODE(backup.stat().st_mode) == 0o600
+    restored = tmp_path / "restored.sqlite3"
+    with gzip.open(backup, "rb") as source, restored.open("wb") as destination:
+        destination.write(source.read())
+    with sqlite3.connect(restored) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert connection.execute("SELECT value FROM sample").fetchone() == ("preserved",)
 
 
 class TestGetTaskStatusUseCase:
