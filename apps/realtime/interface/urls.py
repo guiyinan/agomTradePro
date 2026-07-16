@@ -1,5 +1,16 @@
 """Realtime page URL configuration."""
 
+from django.urls import path
+from django.views.generic import RedirectView
+
 app_name = "realtime"
 
-urlpatterns: list = []
+urlpatterns = [
+    # Realtime operations live in the governed TUI workbench. Keep the legacy
+    # page entry usable instead of exposing an empty URL namespace.
+    path(
+        "",
+        RedirectView.as_view(url="/tui/", permanent=False),
+        name="home",
+    ),
+]
