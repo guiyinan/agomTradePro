@@ -7012,6 +7012,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
         "capability_catalog_endpoint": "copyable",
         "access_package": "multiline",
         "environment_statement": "metadata",
+        "blocking_reason": "metadata",
     }
 
 
@@ -7174,6 +7175,8 @@ def test_tui_script_renders_accessible_native_dashboard_row_actions():
     assert "data-dashboard-row-action" in script
     assert "aria-label=" in script
     assert "dashboardPanelKey" in script
+    assert 'const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);' in script
+    assert "refreshesDashboard" in script
 
 
 def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
@@ -7188,7 +7191,7 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert "dashboardAreaTemplate(areas, 2)" in script
     assert "dashboardAreaTemplate(areas, 1)" in script
     assert "expandToTwelve ? expandDashboardRow(row) : row" in script
-    assert 'const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)' in script
+    assert "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)" in script
     assert 'const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)"' in script
     assert 'class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}"' in script
 
@@ -7204,7 +7207,7 @@ def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
     assert "runtimeConfig.host?.singleColumnScreens" in script
     assert 'singleColumnScreens: ["capability-router.mcp-center"]' in host_adapter
     assert "return 1;" in script
-    assert 'const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)' in script
+    assert "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)" in script
 
 
 def test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe():

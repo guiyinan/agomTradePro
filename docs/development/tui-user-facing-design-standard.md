@@ -150,7 +150,8 @@ Hard rules:
 
 - Row actions render as native buttons in a dedicated action column.
 - Backend authorization, risk confirmation, and reauthentication remain authoritative; row actions do not bypass them.
-- A successful row action refreshes the affected panel so the operator can verify the new state.
+- A successful mutation row action refreshes the affected panel so the operator can verify the new state.
+- A read-only row action renders its returned detail/list result; it must not discard the result and only refresh the source panel.
 - Tool governance tables with several action controls use a full-width panel at desktop size; do not compress the actionable table beside a summary panel.
 - The operation column stays visible while a wide table scrolls horizontally.
 
