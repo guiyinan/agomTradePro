@@ -82,7 +82,9 @@ jobs:
             --cov-report=term-missing
 
       - name: Run Guardrail Tests
-        timeout-minutes: 15
+        # Guardrails exercise database-backed API paths and can exceed 15 minutes
+        # on a cold shared runner when coverage from earlier suites is appended.
+        timeout-minutes: 30
         run: |
           python -m pytest tests/guardrails/ -v \
             --cov=apps \
