@@ -287,8 +287,18 @@
                 <code id="preferredTokenValue">{{ preferred_token.plaintext }}</code>
                 <button type="button" class="btn btn-primary" data-copy-target="preferredTokenValue">复制 Token</button>
             </div>
+            {% elif token_decryption_failed %}
+            <div class="mcp-banner" style="margin-top: 12px; background: #fef2f2; border-color: #fecaca; color: #991b1b;">
+                <strong>历史 Token 无法解密。</strong>
+                当前部署使用的加密密钥与数据库不匹配。请先恢复与数据库匹配的
+                <code>AGOMTRADEPRO_ENCRYPTION_KEY</code>，不要通过重复生成 Token 掩盖该问题。
+            </div>
+            <div class="mcp-token-box">
+                <code>{{ access_tokens.0.preview }}</code>
+                <span class="mcp-status-pill is-off">密钥不匹配</span>
+            </div>
             {% elif access_tokens %}
-            <p>你已经有活跃 Token，但系统已关闭历史 Token 明文查看。若要重新复制到新 Agent，建议生成一个新 Token 并立即复制。</p>
+            <p>你已经有活跃 Token，但系统策略已关闭历史 Token 明文查看。若要重新复制到新 Agent，建议生成一个新 Token 并立即复制。</p>
             <div class="mcp-token-box">
                 <code>{{ access_tokens.0.preview }}</code>
                 <span class="mcp-status-pill {% if access_tokens.0.access_level == 'read_only' %}is-on{% else %}is-off{% endif %}">

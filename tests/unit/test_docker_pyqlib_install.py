@@ -101,6 +101,18 @@ def test_include_sqlite_fails_when_release_db_is_missing() -> None:
     assert "exit 1" in script
 
 
+def test_sqlite_restore_carries_source_encryption_key_and_checks_readiness() -> None:
+    script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+    one_click_script = (REPO_ROOT / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+
+    assert "def _resolve_sqlite_encryption_key" in script
+    assert "--include-sqlite requires the source AGOMTRADEPRO_ENCRYPTION_KEY" in script
+    assert "SQLite restore will use the source database encryption key" in script
+    assert "check_encryption_readiness --json" in script
+    assert "encrypted production data is not readable with the deployed key" in script
+    assert "overwrite DB and use source encryption key" in one_click_script
+
+
 def test_windows_start_dev_uses_python_module_celery_and_all_queues() -> None:
     script = (REPO_ROOT / "scripts" / "start-dev.ps1").read_text(encoding="utf-8")
 

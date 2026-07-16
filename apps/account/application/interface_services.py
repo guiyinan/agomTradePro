@@ -290,16 +290,28 @@ def build_self_mcp_api_payload(
     user_mcp_enabled = bool(profile.mcp_enabled)
     if not system_mcp_enabled or not user_mcp_enabled:
         self_service_state = "disabled"
+        self_service_blocking_reason = "mcp_disabled"
     elif not preferred_token:
         self_service_state = "no_token"
-    elif (
-        not routing_available
-        or not catalog_available
-        or not str(preferred_token.get("plaintext") or "").strip()
-    ):
+        self_service_blocking_reason = "no_token"
+    elif not routing_available:
         self_service_state = "unavailable"
+        self_service_blocking_reason = "routing_unavailable"
+    elif not catalog_available:
+        self_service_state = "unavailable"
+        self_service_blocking_reason = "catalog_unavailable"
+    elif not bool(context.get("token_plaintext_allowed")):
+        self_service_state = "unavailable"
+        self_service_blocking_reason = "token_plaintext_disabled"
+    elif bool(context.get("token_decryption_failed")):
+        self_service_state = "unavailable"
+        self_service_blocking_reason = "token_decryption_failed"
+    elif not str(preferred_token.get("plaintext") or "").strip():
+        self_service_state = "unavailable"
+        self_service_blocking_reason = "token_plaintext_unavailable"
     else:
         self_service_state = "ready"
+        self_service_blocking_reason = ""
 
     parsed_base_url = urlparse(normalized_base_url)
     same_machine_only = parsed_base_url.hostname in {"127.0.0.1", "localhost", "::1"}
@@ -326,6 +338,7 @@ def build_self_mcp_api_payload(
         "token_plaintext_allowed": bool(context.get("token_plaintext_allowed")),
         "active_token_count": len(access_tokens),
         "self_service_state": self_service_state,
+        "self_service_blocking_reason": self_service_blocking_reason,
         "recommended_token_id": recommended_token_id,
         "account_count": int(context.get("account_count") or 0),
         "default_account_id": context.get("default_account_id"),

@@ -306,6 +306,15 @@ class AccountInterfaceRegistrationRepositoryMixin:
             }
             for token in access_tokens
         ]
+        recoverable_token_count = sum(
+            1 for token in visible_tokens if str(token.get("plaintext") or "").strip()
+        )
+        token_decryption_failed = bool(
+            token_plaintext_allowed
+            and access_tokens
+            and recoverable_token_count == 0
+            and any(bool(token.key_encrypted) for token in access_tokens)
+        )
         preferred_token = next(
             (token for token in visible_tokens if token.get("plaintext")),
             visible_tokens[0] if visible_tokens else None,
@@ -391,6 +400,8 @@ class AccountInterfaceRegistrationRepositoryMixin:
             "visible_tokens": visible_tokens,
             "preferred_token": preferred_token,
             "token_plaintext_allowed": token_plaintext_allowed,
+            "recoverable_token_count": recoverable_token_count,
+            "token_decryption_failed": token_decryption_failed,
             "base_url": normalized_base_url,
             "api_root_endpoint": api_root_endpoint,
             "api_profile_endpoint": api_profile_endpoint,

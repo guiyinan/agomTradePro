@@ -101,3 +101,33 @@ def test_create_self_token_view_supports_next_redirect_to_mcp_guide():
         is_active=True,
         name="codex-redirect",
     ).exists()
+
+
+@pytest.mark.django_db
+def test_mcp_guide_reports_encryption_key_mismatch_instead_of_policy_shutdown():
+    user = get_user_model().objects.create_user(
+        username="mcp_key_mismatch_user",
+        email="mcp-key-mismatch@example.com",
+        password="testpass123",
+    )
+    _ensure_account_profile(user)
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    token, _ = UserAccessTokenModel.create_token(
+        user=user,
+        name="legacy-mismatch",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    token.key_encrypted = "invalid-ciphertext"
+    token.save(update_fields=["key_encrypted", "updated_at"])
+
+    client = Client()
+    client.force_login(user)
+    response = client.get("/account/mcp/")
+
+    content = response.content.decode("utf-8")
+    assert response.status_code == 200
+    assert "历史 Token 无法解密" in content
+    assert "当前部署使用的加密密钥与数据库不匹配" in content
+    assert "系统策略已关闭历史 Token 明文查看" not in content

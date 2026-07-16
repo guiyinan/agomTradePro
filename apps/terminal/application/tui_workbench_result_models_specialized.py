@@ -347,7 +347,20 @@ class TuiWorkbenchSpecializedResultMixin:
                 "ready": "可接入",
                 "unavailable": "暂不可用",
             }
+            blocking_reason_labels = {
+                "mcp_disabled": "系统或当前账号尚未开启 MCP。",
+                "no_token": "当前账号还没有有效 MCP 令牌。",
+                "routing_unavailable": "智能路由服务当前不可用。",
+                "catalog_unavailable": "能力目录服务当前不可用。",
+                "token_plaintext_disabled": "系统策略禁止恢复历史令牌明文。",
+                "token_decryption_failed": (
+                    "当前部署密钥无法解密历史令牌；请恢复与数据库匹配的加密密钥。"
+                ),
+                "token_plaintext_unavailable": "当前令牌明文不可恢复，请重新签发令牌。",
+            }
             state = str(payload.get("self_service_state") or "unavailable")
+            blocking_reason_code = str(payload.get("self_service_blocking_reason") or "")
+            blocking_reason = blocking_reason_labels.get(blocking_reason_code, "")
             access_package_text = "\n".join(
                 [
                     "AgomTradePro MCP 接入包",
@@ -400,9 +413,18 @@ class TuiWorkbenchSpecializedResultMixin:
                         ),
                         "presentation": "metadata",
                     },
+                    {
+                        "key": "blocking_reason",
+                        "label": "当前阻断",
+                        "value": self._display_value(blocking_reason or "无"),
+                        "presentation": "metadata",
+                    },
                 ],
                 "nested": [],
-                "business_summary": f"当前接入状态：{state_labels.get(state, '暂不可用')}。",
+                "blocking_reason": blocking_reason,
+                "business_summary": (
+                    f"当前接入状态：{state_labels.get(state, '暂不可用')}。" f"{blocking_reason}"
+                ),
             }
 
         if action_key == "capability-router.mcp-self-endpoints":

@@ -251,7 +251,34 @@ def test_account_mcp_self_uses_bounded_state_machine(auth_user):
         base_url="https://example.test",
     )
     assert unavailable_without_plaintext["self_service_state"] == "unavailable"
+    assert (
+        unavailable_without_plaintext["self_service_blocking_reason"] == "token_plaintext_disabled"
+    )
     assert unavailable_without_plaintext["access_package"]["token"] == ""
+
+
+@pytest.mark.django_db
+def test_account_mcp_self_reports_encryption_key_mismatch(auth_user):
+    settings_obj = SystemSettingsModel.get_settings()
+    settings_obj.allow_token_plaintext_view = True
+    settings_obj.save(update_fields=["allow_token_plaintext_view", "updated_at"])
+    token, _ = UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="mismatched-token",
+        created_by=auth_user,
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    token.key_encrypted = "not-decryptable-with-current-key"
+    token.save(update_fields=["key_encrypted", "updated_at"])
+
+    payload = account_interface_services.build_self_mcp_api_payload(
+        auth_user.id,
+        base_url="https://example.test",
+    )
+
+    assert payload["self_service_state"] == "unavailable"
+    assert payload["self_service_blocking_reason"] == "token_decryption_failed"
+    assert payload["access_package"]["token"] == ""
 
 
 @pytest.mark.django_db

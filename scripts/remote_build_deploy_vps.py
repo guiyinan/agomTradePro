@@ -71,6 +71,36 @@ def _latest_sqlite(project_root: Path) -> Path:
     return db
 
 
+def _read_env_value(path: Path, name: str) -> str:
+    """Read one value from a simple KEY=VALUE environment file."""
+
+    if not path.exists():
+        return ""
+    prefix = f"{name}="
+    for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw_line.strip()
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip().strip("\"'")
+    return ""
+
+
+def _resolve_sqlite_encryption_key(project_root: Path, explicit_key: str) -> str:
+    """Resolve the source key that must accompany a restored SQLite database."""
+
+    candidates = (
+        explicit_key,
+        os.environ.get("AGOMTRADEPRO_ENCRYPTION_KEY", ""),
+        _read_env_value(project_root / ".env", "AGOMTRADEPRO_ENCRYPTION_KEY"),
+    )
+    key = next((str(value).strip() for value in candidates if str(value).strip()), "")
+    if not key:
+        _die(
+            "--include-sqlite requires the source AGOMTRADEPRO_ENCRYPTION_KEY; "
+            "set it in the environment or project .env before restoring the database"
+        )
+    return key
+
+
 def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int):
     try:
         import paramiko  # type: ignore
@@ -1323,6 +1353,14 @@ until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomtrad
   sleep 5
 done
 
+if ! compose exec -T web python manage.py check_encryption_readiness --json \
+  >/tmp/agomtradepro-encryption-readiness.json 2>&1; then
+  echo "[ERROR] encrypted production data is not readable with the deployed key" >&2
+  cat /tmp/agomtradepro-encryption-readiness.json >&2 || true
+  exit 1
+fi
+cat /tmp/agomtradepro-encryption-readiness.json
+
 if [ "$ENABLE_CELERY" = "1" ]; then
   for service in celery_worker celery_beat; do
     cid="$(compose ps -q "$service" || true)"
@@ -1576,6 +1614,10 @@ def main() -> int:
         domain = args.domain
         allowed_hosts = args.allowed_hosts
         encryption_key = getattr(args, "encryption_key", "") or ""
+
+    if include_sqlite:
+        encryption_key = _resolve_sqlite_encryption_key(project_root, encryption_key)
+        _info("SQLite restore will use the source database encryption key")
 
     enable_rsshub = False if args.disable_rsshub else True
     enable_celery = False if args.disable_celery else True

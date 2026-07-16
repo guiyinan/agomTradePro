@@ -384,7 +384,19 @@ This is almost always `ALLOWED_HOSTS` mismatch.
 
 1. Ensure `backups/db.sqlite3` exists in bundle.
 2. Ensure `sqlite_data` volume is writable.
-3. Retry `restore-only` action.
+3. Ensure the source `AGOMTRADEPRO_ENCRYPTION_KEY` is present in the local environment or project `.env`.
+4. Never restore SQLite while preserving an unrelated VPS encryption key. MCP token, AI provider, and backup credential ciphertext belong to the database and must travel with the matching key.
+5. Retry `restore-only` action.
+
+### Encrypted data readiness fails
+
+Deploy now runs:
+
+```bash
+python manage.py check_encryption_readiness --json
+```
+
+The deployment fails and rolls back when persisted MCP tokens, AI provider credentials, or backup credentials exist but none can be decrypted with the deployed key. Back up both SQLite and `secrets.env` before changing the key. Do not generate replacement tokens or provider keys until the database/key pairing has been checked.
 
 ### Redis restore fails
 

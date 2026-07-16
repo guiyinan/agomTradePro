@@ -702,6 +702,19 @@ class MCPSelfServicePayloadSerializer(MCPAgentPromptSerializer):
         choices=("disabled", "no_token", "ready", "unavailable"),
         read_only=True,
     )
+    self_service_blocking_reason = serializers.ChoiceField(
+        choices=(
+            "",
+            "mcp_disabled",
+            "no_token",
+            "routing_unavailable",
+            "catalog_unavailable",
+            "token_plaintext_disabled",
+            "token_decryption_failed",
+            "token_plaintext_unavailable",
+        ),
+        read_only=True,
+    )
     recommended_token_id = serializers.IntegerField(read_only=True, allow_null=True)
     account_count = serializers.IntegerField(read_only=True)
     default_account_id = serializers.IntegerField(read_only=True, allow_null=True)
