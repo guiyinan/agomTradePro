@@ -5,12 +5,14 @@
     Reads all config from environment variables, creates a temp password file,
     calls the remote build/deploy script, and cleans up.
     Celery is enabled by default. Use -DisableCelery to opt out.
-    Supports optional flags: -IncludeSqlite, -DisableCelery, -Upgrade.
+    Supports optional flags: -IncludeSqlite, -DisableCelery, -Upgrade,
+    -BuildTimeoutSeconds.
 .EXAMPLE
     .\scripts\deploy-vps.ps1
     .\scripts\deploy-vps.ps1 -DisableCelery
     .\scripts\deploy-vps.ps1 -IncludeSqlite
     .\scripts\deploy-vps.ps1 -Upgrade
+    .\scripts\deploy-vps.ps1 -BuildTimeoutSeconds 5400
 #>
 param(
     [switch]$IncludeSqlite,
@@ -22,6 +24,8 @@ param(
     [double]$DecisionQuoteMaxAgeHours = 4.0,
     [switch]$DecisionRepairSkipPulse,
     [switch]$DecisionRepairSkipAlpha,
+    [ValidateRange(600, 86400)]
+    [int]$BuildTimeoutSeconds = 3600,
     [string]$GitBranch
 )
 
@@ -73,6 +77,7 @@ Write-Info "Branch:     $GitBranch"
 Write-Info "HTTP Port:  $(if ($null -ne $HttpPort) { $HttpPort } else { 'auto' })"
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (will overwrite remote DB)' } else { 'No (preserve remote data)' })"
 Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
+Write-Info "Build timeout: $BuildTimeoutSeconds seconds"
 Write-Info "Decision repair: $(if ($BootstrapDecisionRepair) { 'Enabled' } else { 'Disabled' })"
 Write-Info "================================"
 
@@ -115,7 +120,7 @@ try {
         '--git-clone',
         '--git-branch', $GitBranch,
         '--allowed-hosts', $AllowedHosts,
-        '--timeout', '1800'
+        '--timeout', "$BuildTimeoutSeconds"
     )
 
     if ($null -ne $HttpPort) { $pyArgs += @('--http-port', $HttpPort) }

@@ -80,7 +80,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --git-clone `
   --http-port $vpsHttpPort `
   --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
-  --timeout 1800
+  --timeout 3600
 
 $code = $LASTEXITCODE
 Remove-Item $passFile -Force -ErrorAction SilentlyContinue
@@ -100,7 +100,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --git-branch dev/feat-xxx `
   --http-port $vpsHttpPort `
   --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
-  --timeout 1800
+  --timeout 3600
 ```
 
 Celery is enabled by default. Disable it only when background jobs must stay off:
@@ -114,7 +114,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --wipe-docker `
   --git-clone `
   --disable-celery `
-  --timeout 1800
+  --timeout 3600
 ```
 
 ## Alternative Path: Remote Source Upload Build
@@ -139,7 +139,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --wipe-docker `
   --http-port $vpsHttpPort `
   --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
-  --timeout 1800
+  --timeout 3600
 
 $code = $LASTEXITCODE
 Remove-Item $passFile -Force -ErrorAction SilentlyContinue
@@ -158,7 +158,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --include-sqlite `
   --http-port $vpsHttpPort `
   --allowed-hosts "$vpsHost,demo.agomtrade.pro,localhost,127.0.0.1" `
-  --timeout 1800
+  --timeout 3600
 ```
 
 Celery is enabled by default. Disable it only when background scheduled jobs must stay off:
@@ -171,7 +171,7 @@ python .\scripts\remote_build_deploy_vps.py `
   --action fresh `
   --wipe-docker `
   --disable-celery `
-  --timeout 1800
+  --timeout 3600
 ```
 
 ## Fallback Path: Local Bundle Then Upload

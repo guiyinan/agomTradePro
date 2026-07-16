@@ -79,6 +79,7 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
 - `-WipeDocker`: remove existing Docker containers/images/volumes before deploy
 - `-Domain`: optional domain for Caddy
 - `-AllowedHosts`: optional Django `ALLOWED_HOSTS`
+- `-Timeout`: remote build/deploy timeout in seconds. The underlying tool defaults to `3600` (60 minutes); set `AGOM_VPS_TIMEOUT` to override that default.
 - `-EnableCelery`: enable celery services on VPS
 - `-DisableRsshub`: disable built-in RSSHub service
 - `-BuiltImageDir`: local directory for downloaded image tar
@@ -90,5 +91,6 @@ pwsh ./scripts/remote-build-deploy-vps.ps1 `
 
 - `-Host` is supported as an alias. Internally the PowerShell script avoids direct use of the built-in `$Host` variable.
 - If you omit key arguments, the underlying Python script may prompt interactively.
+- The 60-minute timeout applies to the remote build/deploy command only. Post-deploy health and Celery checks keep their shorter failure-detection timeouts.
 - The actual remote build/deploy logic lives in `remote_build_deploy_vps.py`.
 - Remote deploy now preserves the existing VPS `DOMAIN`, `ALLOWED_HOSTS`, and Caddy port mapping unless you explicitly override them.

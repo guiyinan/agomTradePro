@@ -206,6 +206,12 @@ provided by `pyqlib` (and not the unrelated `qlib` distribution), and pings
 Celery when workers are enabled. Any failed check makes the deploy command exit
 non-zero.
 
+Remote image build/deploy commands default to a 3600-second timeout. For the
+one-click entry point, override it with
+`scripts/deploy-vps.ps1 -BuildTimeoutSeconds <seconds>`; for the Python helper,
+set `AGOM_VPS_TIMEOUT` or pass `--timeout`. This does not relax the shorter
+post-deploy health, Django, migration, Qlib, or Celery verification timeouts.
+
 ## Backup and Restore (VPS)
 
 Create backup:

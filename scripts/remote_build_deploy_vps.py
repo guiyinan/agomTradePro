@@ -1329,7 +1329,7 @@ def main() -> int:
         "--skip-deploy-after-build", action="store_false", dest="deploy_after_build", default=True
     )
     ap.add_argument("--prompt-before-deploy", action="store_true", default=False)
-    ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "1800")))
+    ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "3600")))
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)

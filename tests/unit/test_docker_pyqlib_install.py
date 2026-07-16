@@ -44,9 +44,14 @@ def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
     assert 'pid: "service:web"' not in compose
 
 
-def test_vps_remote_deploy_verifies_celery_when_enabled() -> None:
+def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
+    one_click_script = (REPO_ROOT / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
 
+    assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
+    assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
+    assert "'--timeout', \"$BuildTimeoutSeconds\"" in one_click_script
+    assert "'--timeout', '15'" in one_click_script
     assert "compose up -d runtime_ns redis" in script
     assert 'SERVICES="runtime_ns redis web caddy"' in script
     assert 'if [ "$ENABLE_CELERY" = "1" ]; then' in script
@@ -88,8 +93,11 @@ def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
     env_example = (REPO_ROOT / "deploy" / ".env.vps.example").read_text(encoding="utf-8")
 
     assert "AGOMTRADEPRO_BOOTSTRAP_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" in compose
-    assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" in compose
+    assert (
+        "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START: ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}"
+        in compose
+    )
     assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=0" in env_example
     assert "AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=1" not in env_example
-    assert '${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}' in entrypoint
-    assert '${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}' not in entrypoint
+    assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-0}" in entrypoint
+    assert "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}" not in entrypoint
