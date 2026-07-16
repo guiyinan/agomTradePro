@@ -66,13 +66,14 @@ SH
 compose run --rm --no-deps web python manage.py migrate --noinput
 
 SOURCE_COUNTS="$FIXTURE_DIR/sqlite-source-counts.json"
-FIXTURE="$FIXTURE_DIR/sqlite-to-postgres.json"
+FIXTURE="$FIXTURE_DIR/sqlite-to-postgres.jsonl"
 TARGET_COUNTS="$FIXTURE_DIR/postgres-target-counts.json"
 CONTAINER_SOURCE_COUNTS="/app/backups/database/sqlite-source-counts.json"
-CONTAINER_FIXTURE="/app/backups/database/sqlite-to-postgres.json"
+CONTAINER_FIXTURE="/app/backups/database/sqlite-to-postgres.jsonl"
 CONTAINER_TARGET_COUNTS="/app/backups/database/postgres-target-counts.json"
 
 compose run --rm --no-deps \
+  -e PYTHONUTF8=1 \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
   web python - "$CONTAINER_SOURCE_COUNTS" <<'PY'
@@ -108,9 +109,11 @@ PY
 
 echo "[INFO] Exporting legacy SQLite data"
 compose run --rm --no-deps \
+  -e PYTHONUTF8=1 \
   -e DATABASE_URL=sqlite:////app/data/db.sqlite3 \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
   web python manage.py dumpdata \
+    --format jsonl \
     --natural-foreign \
     --natural-primary \
     --exclude contenttypes \
@@ -118,8 +121,12 @@ compose run --rm --no-deps \
     --exclude sessions.session \
     --output "$CONTAINER_FIXTURE"
 
+echo "[INFO] Clearing migration seed data before importing the SQLite snapshot"
+compose run --rm --no-deps web python manage.py flush --noinput
+
 echo "[INFO] Importing data into PostgreSQL"
-compose run --rm --no-deps web python manage.py loaddata "$CONTAINER_FIXTURE"
+compose run --rm --no-deps -e PYTHONUTF8=1 web \
+  python manage.py loaddata "$CONTAINER_FIXTURE"
 
 compose run --rm --no-deps web python - "$CONTAINER_TARGET_COUNTS" <<'PY'
 import json

@@ -100,7 +100,10 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert 'CMD ["daphne"]' in dockerfile
     assert "core.asgi:application" in entrypoint
     assert "core.wsgi:application" not in entrypoint
-    assert "sqlite-to-postgres.json" in migration
+    assert "sqlite-to-postgres.jsonl" in migration
+    assert "--format jsonl" in migration
+    assert "PYTHONUTF8=1" in migration
+    assert "manage.py flush --noinput" in migration
     assert "pg_isready" in migration
     assert "PostgreSQL did not become ready within 120 seconds" in migration
     assert "dropdb --force --if-exists" in migration
