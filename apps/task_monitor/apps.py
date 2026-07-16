@@ -4,17 +4,17 @@ Task Monitor App Configuration
 Django app 配置。
 """
 
-from django.apps import AppConfig
+from django.apps import AppConfig  # type: ignore[import-untyped]
 
 
-class TaskMonitorConfig(AppConfig):
+class TaskMonitorConfig(AppConfig):  # type: ignore[misc]
     """Task Monitor 应用配置"""
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.task_monitor"
     verbose_name = "任务监控"
 
-    def ready(self):
+    def ready(self) -> None:
         """应用就绪时的初始化"""
         import logging
 

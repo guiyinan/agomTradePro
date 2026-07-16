@@ -198,7 +198,7 @@ jobs:
       - name: Run mypy on changed application sources
         if: steps.targets.outputs.typecheck-count != '0'
         run: |
-          python -m mypy --config-file pyproject.toml --follow-imports=silent \
+          python scripts/check_mypy_regression.py \
             ${{ steps.targets.outputs.typecheck-targets }}
 
       - name: Run incremental domain coverage gate

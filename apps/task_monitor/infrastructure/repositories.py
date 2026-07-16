@@ -55,7 +55,7 @@ def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
     logger.info("%s preflight failed: endpoint unreachable.", channel)
 
 
-def _safe_float(value: any) -> float:
+def _safe_float(value: Any) -> float:
     """
     安全解析浮点数，处理 None、字符串等异常情况
 
@@ -243,7 +243,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
         return deleted
 
     @staticmethod
-    def _has_fresh_database_backup(now) -> bool:
+    def _has_fresh_database_backup(now: Any) -> bool:
         """Only permit weekly VACUUM after a recent persistent backup."""
 
         from django.conf import settings

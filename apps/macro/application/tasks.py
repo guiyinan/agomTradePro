@@ -164,8 +164,8 @@ def _collect_due_macro_indicators() -> list[dict[str, Any]]:
     soft_time_limit=850,
 )
 def sync_macro_data(
-    self, source: str = "akshare", indicator: str | None = None, days_back: int = 1
-) -> dict:
+    self: Any, source: str = "akshare", indicator: str | None = None, days_back: int = 1
+) -> dict[str, Any]:
     """
     同步宏观数据任务
 

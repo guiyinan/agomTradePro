@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from celery import shared_task
-from django.core.cache import cache
+from django.core.cache import cache  # type: ignore[import-untyped]
 
 from shared.infrastructure.operational_alert_registry import record_operational_alert
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 DECISION_QUOTE_DEGRADED_STREAK_KEY = "task_monitor:decision_quote_degraded_streak:v1"
 
 
-def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = ""):
+def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = "") -> Any:
     """Backward-compatible wrapper for existing tests and call sites."""
 
     return resolve_market_thermometer_as_of_date(raw_as_of_date)

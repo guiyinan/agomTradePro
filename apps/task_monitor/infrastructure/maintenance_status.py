@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from django.conf import settings
-from django_celery_beat.models import PeriodicTask
+from django.conf import settings  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
 
@@ -38,10 +39,11 @@ class DjangoMaintenanceStatusReader:
 
     @staticmethod
     def _latest_execution(task_name: str) -> TaskExecutionModel | None:
-        return (
+        return cast(
+            TaskExecutionModel | None,
             TaskExecutionModel._default_manager.filter(task_name=task_name)
             .order_by("-created_at")
-            .first()
+            .first(),
         )
 
     @staticmethod
@@ -49,8 +51,8 @@ class DjangoMaintenanceStatusReader:
         return int(result.get("deleted_count", 0)) if isinstance(result, dict) else 0
 
     @staticmethod
-    def _next_run(task_name: str):
-        from django.utils import timezone
+    def _next_run(task_name: str) -> datetime | None:
+        from django.utils import timezone  # type: ignore[import-untyped]
 
         task = PeriodicTask._default_manager.filter(task=task_name, enabled=True).first()
         if task is None:
@@ -59,4 +61,4 @@ class DjangoMaintenanceStatusReader:
         reference = task.last_run_at
         if reference is None:
             reference = timezone.now()
-        return timezone.now() + task.schedule.remaining_estimate(reference)
+        return cast(datetime, timezone.now() + task.schedule.remaining_estimate(reference))
