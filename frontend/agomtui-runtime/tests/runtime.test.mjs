@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { createRuntimeUrls } from "../src/api.js";
 import { clientPage } from "../src/pagination.js";
+import { assertManifestIntegrity } from "../../../scripts/tui-runtime-manifest.mjs";
 
 test("runtime urls support optimized bootstrap and legacy endpoints", () => {
     const urls = createRuntimeUrls({ apiBase: "/api/tui", bootstrapUrl: "/api/tui/bootstrap/" });
@@ -38,4 +39,25 @@ test("generic bundle does not contain AgomTradePro business identifiers", () => 
     ]) {
         assert.equal(bundles.some((bundle) => bundle.includes(forbidden)), false, `business identifier leaked: ${forbidden}`);
     }
+});
+
+test("manifest integrity uses content hashes instead of the repository head", () => {
+    const payload = {
+        version: "0.2.0",
+        upstream_commit: "a".repeat(40),
+        build_id: "agomtui-runtime-0.2.0+abc123",
+        direction: "AgomTradePro -> AgOMTUI",
+        files: { "runtime.js": "hash" },
+    };
+    assert.doesNotThrow(() =>
+        assertManifestIntegrity(payload, { ...payload, upstream_commit: "b".repeat(40) }, () => true),
+    );
+    assert.throws(
+        () => assertManifestIntegrity(payload, { ...payload, files: { "runtime.js": "changed" } }),
+        /content hashes are stale/,
+    );
+    assert.throws(
+        () => assertManifestIntegrity({ ...payload, upstream_commit: "b".repeat(40) }, payload, () => false),
+        /not an ancestor/,
+    );
 });

@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { assertManifestIntegrity } from "./tui-runtime-manifest.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
 const targets = [
@@ -78,18 +80,31 @@ try {
 } catch (_error) {
     // Source archives may not include Git metadata; content hashes remain authoritative.
 }
-const manifest = `${JSON.stringify({
+const manifestPayload = {
     version: "0.2.0",
     upstream_commit: upstreamCommit,
     build_id: `agomtui-runtime-0.2.0+${buildHash.slice(0, 12)}`,
     direction: "AgomTradePro -> AgOMTUI",
     files,
-}, null, 2)}\n`;
+};
 if (check) {
-    const current = await readFile(manifestPath, "utf8").catch(() => "");
-    if (current !== manifest) {
-        throw new Error(`Stale TUI manifest: ${manifestPath}`);
+    let current;
+    try {
+        current = JSON.parse(await readFile(manifestPath, "utf8"));
+    } catch (_error) {
+        throw new Error(`Invalid TUI manifest: ${manifestPath}`);
     }
+    assertManifestIntegrity(current, manifestPayload, (commit) => {
+        try {
+            execFileSync("git", ["merge-base", "--is-ancestor", commit, "HEAD"], {
+                cwd: root,
+                stdio: "ignore",
+            });
+            return true;
+        } catch (_error) {
+            return false;
+        }
+    });
 } else {
-    await writeFile(manifestPath, manifest, "utf8");
+    await writeFile(manifestPath, `${JSON.stringify(manifestPayload, null, 2)}\n`, "utf8");
 }
