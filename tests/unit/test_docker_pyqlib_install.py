@@ -47,6 +47,9 @@ def test_vps_compose_uses_neutral_pid_namespace_service() -> None:
 def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     script = (REPO_ROOT / "scripts" / "remote_build_deploy_vps.py").read_text(encoding="utf-8")
     one_click_script = (REPO_ROOT / "scripts" / "deploy-vps.ps1").read_text(encoding="utf-8")
+    compose = (REPO_ROOT / "docker" / "docker-compose.vps.yml").read_text(encoding="utf-8")
+    dockerfile = (REPO_ROOT / "docker" / "Dockerfile.prod").read_text(encoding="utf-8")
+    backup = (REPO_ROOT / "scripts" / "vps-backup.sh").read_text(encoding="utf-8")
 
     assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
     assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
@@ -59,6 +62,23 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "celery -A core inspect ping --timeout=8" in script
     assert "for attempt in $(seq 1 12)" in script
     assert "Celery worker did not respond to inspect ping after retries" in script
+    assert "SKIP_PREDEPLOY_BACKUP" in script
+    assert "AUTO_ROLLBACK" in script
+    assert "rollback_deployment" in script
+    assert "scripts/vps-backup.sh" in script
+    assert "chmod 600" in script
+    assert "if ($GlobalDockerCleanup)" in one_click_script
+    assert "npm run check:tui" in one_click_script
+    assert "--expected-commit" in one_click_script
+    assert "org.opencontainers.image.revision=$SOURCE_COMMIT" in dockerfile
+    assert '"build_started_at"' in script
+    assert '"build_finished_at"' in script
+    assert '-m compileall -q /app' in script
+    assert "WEB_MEMORY_LIMIT:-1g" in compose
+    assert "CELERY_BEAT_MEMORY_LIMIT:-512m" in compose
+    assert "/app/backups/database" in compose
+    assert "source.backup(destination)" in backup
+    assert "PRAGMA integrity_check" in backup
 
 
 def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:

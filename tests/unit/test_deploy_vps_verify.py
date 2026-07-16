@@ -89,7 +89,7 @@ def test_build_health_probe_target_uses_local_tls_with_host_header_for_domain():
     target = deploy_vps_verify.build_health_probe_target("demo.agomtrade.pro", http_port=8000)
 
     assert target.url == "https://demo.agomtrade.pro/api/health/"
-    assert target.insecure_tls is True
+    assert target.insecure_tls is False
     assert target.resolve_host == "demo.agomtrade.pro"
     assert target.resolve_port == 443
 
@@ -206,3 +206,64 @@ def test_evaluate_qlib_identity_result_rejects_wrong_distribution():
 
     assert ok is False
     assert "wrong qlib distribution is installed" in summary
+
+
+def test_release_identity_requires_git_image_and_expected_sha_to_match():
+    sha = "a" * 40
+    ok, summary = deploy_vps_verify.evaluate_release_identity_result(
+        0,
+        f"git_sha={sha}\nimage_sha={sha}\nimage_id=sha256:123\n",
+        "",
+        expected_commit=sha,
+    )
+
+    assert ok is True
+    assert "image_id=sha256:123" in summary
+
+    mismatch, mismatch_summary = deploy_vps_verify.evaluate_release_identity_result(
+        0,
+        f"git_sha={sha}\nimage_sha={'b' * 40}\nimage_id=sha256:123\n",
+        "",
+    )
+    assert mismatch is False
+    assert "does not match image label" in mismatch_summary
+
+
+def test_resource_result_warns_at_80_and_fails_at_95_or_restart():
+    ok, summary, warnings = deploy_vps_verify.evaluate_resource_result(
+        0,
+        '[{"service":"web","memory_percent":81,"oom_killed":false,"restart_count":0}]',
+        "",
+    )
+    assert ok is True
+    assert summary == "checked 1 containers"
+    assert warnings == ["web: memory=81.0%"]
+
+    failed, failure, _warnings = deploy_vps_verify.evaluate_resource_result(
+        0,
+        '[{"service":"web","memory_percent":50,"oom_killed":false,"restart_count":1}]',
+        "",
+    )
+    assert failed is False
+    assert "restarts=1" in failure
+
+
+def test_verification_commands_cover_identity_backup_resources_and_model_metadata():
+    identity = deploy_vps_verify.build_release_identity_command("/opt/agomtradepro")
+    backup = deploy_vps_verify.build_security_backup_command("/opt/agomtradepro")
+    resources = deploy_vps_verify.build_resource_command("/opt/agomtradepro")
+    freshness = deploy_vps_verify.build_data_freshness_command("/opt/agomtradepro")
+    certificate = deploy_vps_verify.build_certificate_expiry_command("demo.agomtrade.pro")
+    rollback = deploy_vps_verify.build_rollback_command(
+        "/opt/agomtradepro", 8000, expect_celery=True
+    )
+
+    assert "org.opencontainers.image.revision" in identity
+    assert "-mmin -1560" in backup
+    assert "gzip -t" in backup
+    assert "OOMKilled" in resources
+    assert "_meta.db_table" in freshness
+    assert "-checkend 1814400" in certificate
+    assert 'readlink -f "$target/previous"' in rollback
+    assert "mv -Tf" in rollback
+    assert "celery -A core inspect ping" in rollback

@@ -61,6 +61,9 @@ FROM python:3.11-slim
 WORKDIR /app
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_AGOMTRADEPRO_ENCRYPTION_KEY=QkZJTFQwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3OD0=
+ARG SOURCE_COMMIT=unknown
+
+LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \

@@ -24,6 +24,9 @@ param(
     [double]$DecisionQuoteMaxAgeHours = 4.0,
     [switch]$DecisionRepairSkipPulse,
     [switch]$DecisionRepairSkipAlpha,
+    [switch]$SkipPreDeployBackup,
+    [switch]$DisableAutoRollback,
+    [switch]$GlobalDockerCleanup,
     [ValidateRange(600, 86400)]
     [int]$BuildTimeoutSeconds = 3600,
     [string]$GitBranch
@@ -78,6 +81,9 @@ Write-Info "HTTP Port:  $(if ($null -ne $HttpPort) { $HttpPort } else { 'auto' }
 Write-Info "SQLite:     $(if ($IncludeSqlite) { 'YES (will overwrite remote DB)' } else { 'No (preserve remote data)' })"
 Write-Info "Celery:     $(if ($UseCelery) { 'Enabled (default)' } else { 'Disabled' })"
 Write-Info "Build timeout: $BuildTimeoutSeconds seconds"
+Write-Info "Pre-deploy backup: $(if ($SkipPreDeployBackup) { 'Skipped (emergency)' } else { 'Required' })"
+Write-Info "Auto rollback: $(if ($DisableAutoRollback) { 'Disabled (emergency)' } else { 'Enabled' })"
+Write-Info "Docker cleanup: $(if ($GlobalDockerCleanup) { 'GLOBAL (explicit)' } else { 'AgomTradePro project only' })"
 Write-Info "Decision repair: $(if ($BootstrapDecisionRepair) { 'Enabled' } else { 'Disabled' })"
 Write-Info "================================"
 
@@ -105,6 +111,17 @@ if ($unpushed) {
     }
 }
 
+if (Test-Path (Join-Path $ProjectRoot "package.json")) {
+    Require-Command npm
+    Write-Info "Running TUI runtime preflight..."
+    npm ci
+    if ($LASTEXITCODE -ne 0) { Throw-Err "npm ci failed." }
+    npm run check:tui
+    if ($LASTEXITCODE -ne 0) { Throw-Err "TUI runtime bundle check failed." }
+    npm run test:tui-js
+    if ($LASTEXITCODE -ne 0) { Throw-Err "TUI runtime JavaScript tests failed." }
+}
+
 $passFile = Join-Path $env:TEMP "agomtradepro_vps_pass_$([guid]::NewGuid().ToString('N').Substring(0,8)).txt"
 try {
     Set-Content -Path $passFile -Value $VpsPass -NoNewline
@@ -116,7 +133,6 @@ try {
         '--password-file', $passFile,
         '--port', $VpsPort,
         '--action', $Action,
-        '--wipe-docker',
         '--git-clone',
         '--git-branch', $GitBranch,
         '--allowed-hosts', $AllowedHosts,
@@ -131,6 +147,9 @@ try {
     if ($DecisionQuoteMaxAgeHours) { $pyArgs += @('--decision-quote-max-age-hours', "$DecisionQuoteMaxAgeHours") }
     if ($DecisionRepairSkipPulse) { $pyArgs += '--decision-repair-skip-pulse' }
     if ($DecisionRepairSkipAlpha) { $pyArgs += '--decision-repair-skip-alpha' }
+    if ($SkipPreDeployBackup) { $pyArgs += '--skip-predeploy-backup' }
+    if ($DisableAutoRollback) { $pyArgs += '--disable-auto-rollback' }
+    if ($GlobalDockerCleanup) { $pyArgs += '--wipe-docker' }
 
     $ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
     $PythonExe = if (Test-Path $ProjectPython) { $ProjectPython } else { 'python' }
@@ -142,6 +161,7 @@ try {
     if ($exitCode -eq 0) {
         Write-Info "=== Deploy succeeded ==="
         Write-Info "Verifying health..."
+        $expectedCommit = (& git -C $ProjectRoot rev-parse HEAD).Trim()
         $verifyScriptPath = Join-Path $PSScriptRoot "deploy_vps_verify.py"
         $verifyArgs = @(
             $verifyScriptPath,
@@ -150,10 +170,12 @@ try {
             '--password-file', $passFile,
             '--port', $VpsPort,
             '--target-dir', $TargetDir,
+            '--expected-commit', $expectedCommit,
             '--timeout', '15'
         )
         if ($null -ne $HttpPort) { $verifyArgs += @('--http-port', $HttpPort) }
         if ($UseCelery) { $verifyArgs += '--expect-celery' }
+        if (-not $DisableAutoRollback) { $verifyArgs += '--auto-rollback' }
         try {
             & $PythonExe @verifyArgs
             $verifyExitCode = $LASTEXITCODE

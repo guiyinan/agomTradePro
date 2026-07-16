@@ -86,6 +86,7 @@ services:
       - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
+      - ${AGOM_BACKUP_DIR:-/opt/agomtradepro/backups/database}:/app/backups/database
     depends_on:
       runtime_ns:
         condition: service_started
@@ -97,7 +98,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
-    mem_limit: 700m
+    mem_limit: ${WEB_MEMORY_LIMIT:-1g}
     cpus: 1.0
     logging:
       driver: "json-file"
@@ -142,6 +143,7 @@ services:
       - var_data:/app/var
       - static_data:/app/staticfiles
       - media_data:/app/media
+      - ${AGOM_BACKUP_DIR:-/opt/agomtradepro/backups/database}:/app/backups/database
     depends_on:
       runtime_ns:
         condition: service_started
@@ -151,7 +153,7 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    mem_limit: 1500m
+    mem_limit: ${CELERY_WORKER_MEMORY_LIMIT:-1500m}
     cpus: 1.0
     logging:
       driver: "json-file"
@@ -201,7 +203,7 @@ services:
         condition: service_healthy
     healthcheck:
       disable: true
-    mem_limit: 300m
+    mem_limit: ${CELERY_BEAT_MEMORY_LIMIT:-512m}
     cpus: 0.5
     logging:
       driver: "json-file"

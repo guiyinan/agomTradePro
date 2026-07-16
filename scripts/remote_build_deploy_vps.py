@@ -16,6 +16,7 @@ import posixpath
 import re
 import secrets
 import shlex
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -566,6 +567,10 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+SOURCE_COMMIT="${SOURCE_COMMIT:-unknown}"
+export SOURCE_COMMIT
+BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export BUILD_STARTED_AT
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
@@ -603,9 +608,14 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
   sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
 fi
 
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
+if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
+  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
+docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
+IMAGE_ID="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Id}}')"
+export IMAGE_ID
+BUILD_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export BUILD_FINISHED_AT
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
@@ -630,6 +640,10 @@ report = {
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
+    "image_id": os.environ.get("IMAGE_ID", ""),
+    "source_commit": os.environ.get("SOURCE_COMMIT", "unknown"),
+    "build_started_at": os.environ.get("BUILD_STARTED_AT", ""),
+    "build_finished_at": os.environ.get("BUILD_FINISHED_AT", ""),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
@@ -691,6 +705,8 @@ KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
+BUILD_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export BUILD_STARTED_AT
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v git >/dev/null 2>&1 || { echo "[ERROR] git is required" >&2; exit 1; }
@@ -702,6 +718,8 @@ mkdir -p "$(dirname "$RELEASE_DIR")"
 echo "[INFO] Cloning $GIT_REPO branch=$GIT_BRANCH into $RELEASE_DIR"
 git clone --depth 1 --branch "$GIT_BRANCH" "$GIT_REPO" "$RELEASE_DIR"
 cd "$RELEASE_DIR"
+SOURCE_COMMIT="$(git rev-parse HEAD)"
+export SOURCE_COMMIT
 
 if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
 if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example || true; fi
@@ -721,9 +739,14 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
 fi
 
 echo "[INFO] Building Docker image agomtradepro-web:$RELEASE_TAG"
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
+if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
+  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg "SOURCE_COMMIT=$SOURCE_COMMIT" -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
+docker run --rm --entrypoint python "agomtradepro-web:$RELEASE_TAG" -m compileall -q /app
+IMAGE_ID="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Id}}')"
+export IMAGE_ID
+BUILD_FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export BUILD_FINISHED_AT
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
@@ -748,6 +771,10 @@ report = {
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
+    "image_id": os.environ.get("IMAGE_ID", ""),
+    "source_commit": os.environ.get("SOURCE_COMMIT", "unknown"),
+    "build_started_at": os.environ.get("BUILD_STARTED_AT", ""),
+    "build_finished_at": os.environ.get("BUILD_FINISHED_AT", ""),
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
@@ -778,6 +805,8 @@ WIPE_VOLUMES="${WIPE_VOLUMES:-0}"
 INCLUDE_SQLITE="${INCLUDE_SQLITE:-0}"
 ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
 ENABLE_CELERY="${ENABLE_CELERY:-0}"
+SKIP_PREDEPLOY_BACKUP="${SKIP_PREDEPLOY_BACKUP:-0}"
+AUTO_ROLLBACK="${AUTO_ROLLBACK:-1}"
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 if docker compose version >/dev/null 2>&1; then
@@ -791,6 +820,35 @@ fi
 
 RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 [ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
+PREVIOUS_RELEASE="$(readlink -f "$TARGET_DIR/current" 2>/dev/null || true)"
+PREVIOUS_IMAGE=""
+if [ -n "$PREVIOUS_RELEASE" ] && [ -f "$PREVIOUS_RELEASE/deploy/.env" ]; then
+  PREVIOUS_IMAGE="$(grep '^WEB_IMAGE=' "$PREVIOUS_RELEASE/deploy/.env" | tail -n 1 | cut -d '=' -f2- || true)"
+fi
+ROLLBACK_READY=0
+DEPLOY_SUCCEEDED=0
+OLD_IMAGE_ARCHIVE=""
+
+rollback_deployment() {
+  exit_code="$?"
+  trap - EXIT
+  if [ "$exit_code" -ne 0 ] && [ "$DEPLOY_SUCCEEDED" != "1" ] && [ "$AUTO_ROLLBACK" = "1" ] && [ "$ROLLBACK_READY" = "1" ] && [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+    echo "[WARN] Deployment failed; restoring previous release $PREVIOUS_RELEASE" >&2
+    if [ -n "$OLD_IMAGE_ARCHIVE" ] && [ -f "$OLD_IMAGE_ARCHIVE" ]; then
+      docker load -i "$OLD_IMAGE_ARCHIVE" >/dev/null 2>&1 || true
+    fi
+    cd "$PREVIOUS_RELEASE"
+    $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env down --remove-orphans >/dev/null 2>&1 || true
+    $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env up -d >/dev/null 2>&1 || true
+    rm -f "$TARGET_DIR/.current-rollback"
+    ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.current-rollback"
+    mv -Tf "$TARGET_DIR/.current-rollback" "$TARGET_DIR/current"
+    echo "[WARN] Previous release restore attempted" >&2
+  fi
+  [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
+  exit "$exit_code"
+}
+trap rollback_deployment EXIT
 cd "$RELEASE_DIR"
 
 get_env_kv() {
@@ -862,6 +920,10 @@ OLD_AGOMTRADEPRO_API_TOKEN=""
 OLD_AGOMTRADEPRO_USERNAME=""
 OLD_AGOMTRADEPRO_PASSWORD=""
 SECRETS_FILE="$TARGET_DIR/secrets.env"
+mkdir -p "$TARGET_DIR" "$TARGET_DIR/backups"
+chmod 700 "$TARGET_DIR" "$TARGET_DIR/backups"
+touch "$SECRETS_FILE"
+chmod 600 "$SECRETS_FILE"
 _read_old_keys() {
   _src="$1"
   if [ ! -f "$_src" ]; then return; fi
@@ -886,11 +948,31 @@ if [ -n "$OLD_ENCRYPTION_KEY" ]; then
   echo "[INFO] Found existing AGOMTRADEPRO_ENCRYPTION_KEY, will reuse"
 fi
 
+if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+  rm -f "$TARGET_DIR/.previous-next"
+  ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.previous-next"
+  mv -Tf "$TARGET_DIR/.previous-next" "$TARGET_DIR/previous"
+  if [ "$SKIP_PREDEPLOY_BACKUP" = "1" ]; then
+    echo "[WARN] Pre-deploy backup skipped by explicit emergency option" >&2
+  else
+    echo "[INFO] Creating verified pre-deploy backup"
+    "$RELEASE_DIR/scripts/vps-backup.sh" \
+      --target-dir "$PREVIOUS_RELEASE" \
+      --backup-dir "$TARGET_DIR/backups" \
+      --keep-days 14
+  fi
+  ROLLBACK_READY=1
+fi
+
 if [ "$WIPE_DOCKER" = "1" ]; then
   SAVED_IMAGE=""
   if docker image inspect "agomtradepro-web:$RELEASE_TAG" >/dev/null 2>&1; then
     SAVED_IMAGE="/tmp/agomtradepro-web-saved-$RELEASE_TAG.tar"
     docker save -o "$SAVED_IMAGE" "agomtradepro-web:$RELEASE_TAG"
+  fi
+  if [ -n "$PREVIOUS_IMAGE" ] && docker image inspect "$PREVIOUS_IMAGE" >/dev/null 2>&1; then
+    OLD_IMAGE_ARCHIVE="/tmp/agomtradepro-previous-image-$RELEASE_TAG.tar"
+    docker save -o "$OLD_IMAGE_ARCHIVE" "$PREVIOUS_IMAGE"
   fi
   docker ps -aq | xargs -r docker rm -f || true
   if [ "$WIPE_VOLUMES" = "1" ]; then
@@ -959,6 +1041,7 @@ _persist_secrets_env() {
   else
     printf '%s=%s\n' "$key" "$value" >> "$SECRETS_FILE"
   fi
+  chmod 600 "$SECRETS_FILE"
 }
 _persist_secrets_env "SECRET_KEY" "$SECRET_KEY"
 _persist_secrets_env "AGOMTRADEPRO_ENCRYPTION_KEY" "$AGOM_KEY"
@@ -1102,6 +1185,9 @@ if [ -n "$EFFECTIVE_DOMAIN" ]; then
 fi
 
 set_env_kv "CADDY_HTTPS_PORT" "$EFFECTIVE_HTTPS_PORT"
+set_env_kv "AGOM_BACKUP_DIR" "$TARGET_DIR/backups/database"
+mkdir -p "$TARGET_DIR/backups/database"
+chmod 700 "$TARGET_DIR/backups/database"
 
 CURRENT_CORS_ALLOWED_ORIGINS="$(get_env_kv CORS_ALLOWED_ORIGINS deploy/.env)"
 if origin_list_is_stale "$CURRENT_CORS_ALLOWED_ORIGINS"; then
@@ -1130,6 +1216,7 @@ else
 fi
 
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
+chmod 600 deploy/.env "$SECRETS_FILE"
 
 compose() {
   $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
@@ -1220,8 +1307,9 @@ fi
 
 compose up -d $SERVICES
 
-rm -rf "$TARGET_DIR/current"
-ln -s "$RELEASE_DIR" "$TARGET_DIR/current"
+rm -f "$TARGET_DIR/.current-next"
+ln -s "$RELEASE_DIR" "$TARGET_DIR/.current-next"
+mv -Tf "$TARGET_DIR/.current-next" "$TARGET_DIR/current"
 
 TRIES=0
 until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomtradepro-health.json 2>/dev/null; do
@@ -1278,18 +1366,35 @@ compose ps > /tmp/agomtradepro-compose-ps.txt || true
 
 python3 - <<'PY'
 import json
+import subprocess
 from pathlib import Path
+image_tag = subprocess.check_output(
+    ["docker", "inspect", "agomtradepro-web:" + Path(".").name.replace("source-", ""), "--format", "{{.Id}}"],
+    text=True,
+).strip()
+source_commit = subprocess.check_output(
+    ["docker", "inspect", "agomtradepro-web:" + Path(".").name.replace("source-", ""), "--format", "{{index .Config.Labels \"org.opencontainers.image.revision\"}}"],
+    text=True,
+).strip()
+build_report_path = Path("/tmp/agomtradepro-build-report.json")
+build_report = json.loads(build_report_path.read_text(encoding="utf-8")) if build_report_path.exists() else {}
 report = {
     "release_tag": Path(".").name.replace("source-", ""),
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "health_json": Path("/tmp/agomtradepro-health.json").read_text(encoding="utf-8"),
     "compose_ps": Path("/tmp/agomtradepro-compose-ps.txt").read_text(encoding="utf-8"),
+    "image_id": image_tag,
+    "source_commit": source_commit,
+    "build_started_at": build_report.get("build_started_at", ""),
+    "build_finished_at": build_report.get("build_finished_at", ""),
     "deployed": True,
 }
 Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
 
+DEPLOY_SUCCEEDED=1
+[ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
 echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
 """
 
@@ -1318,6 +1423,8 @@ def main() -> int:
     ap.add_argument("--include-sqlite", action="store_true", default=False)
     ap.add_argument("--wipe-docker", action="store_true", default=False)
     ap.add_argument("--wipe-volumes", action="store_true", default=False)
+    ap.add_argument("--skip-predeploy-backup", action="store_true", default=False)
+    ap.add_argument("--disable-auto-rollback", action="store_true", default=False)
     ap.add_argument("--keep-remote-temp", action="store_true", default=False)
     ap.add_argument("--download-report", action="store_true", default=True)
     ap.add_argument(
@@ -1365,6 +1472,15 @@ def main() -> int:
         args.http_port = _optional_env_int("AGOM_VPS_HTTP_PORT")
 
     project_root = Path(__file__).resolve().parents[1]
+    try:
+        source_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=project_root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        source_commit = "unknown"
     host = args.host or _prompt("VPS host/IP")
     if not host:
         _die("Missing VPS host")
@@ -1506,6 +1622,7 @@ def main() -> int:
                 "EXPORT_IMAGE_TAR": _bool_env(False),
                 "REMOTE_IMAGE_TAR": remote_image_tar,
                 "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
+                "SOURCE_COMMIT": source_commit,
             }
             exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
             remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
@@ -1614,6 +1731,8 @@ def main() -> int:
                 "INCLUDE_SQLITE": _bool_env(include_sqlite),
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
+                "SKIP_PREDEPLOY_BACKUP": _bool_env(args.skip_predeploy_backup),
+                "AUTO_ROLLBACK": _bool_env(not args.disable_auto_rollback),
                 "AGOMTRADEPRO_BOOTSTRAP_WITH_DECISION_REPAIR": _bool_env(
                     args.bootstrap_decision_repair
                 ),

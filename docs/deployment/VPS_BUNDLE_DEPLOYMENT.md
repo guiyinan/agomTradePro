@@ -333,7 +333,7 @@ Restore specific files:
 bash /opt/agomtradepro/current/scripts/vps-restore.sh \
   --target-dir /opt/agomtradepro/current \
   --backup-dir /opt/agomtradepro/backups \
-  --sqlite-file /opt/agomtradepro/backups/sqlite/db-20260208-130000.sqlite3.gz \
+  --sqlite-file /opt/agomtradepro/backups/database/db_backup_20260208-130000.sqlite3.gz \
   --redis-file /opt/agomtradepro/backups/redis/dump-20260208-130000.rdb.gz
 ```
 

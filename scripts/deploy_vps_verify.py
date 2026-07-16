@@ -9,6 +9,7 @@ the endpoint always returns a non-empty body.
 from __future__ import annotations
 
 import argparse
+import json
 import shlex
 import sys
 import time
@@ -137,7 +138,9 @@ def build_health_probe_target(
 
     return HealthProbeTarget(
         url=f"{scheme}://{authority}{normalized_path}",
-        insecure_tls=(scheme == "https"),
+        # A production verification must validate the certificate chain.  The
+        # local --resolve mapping is still used so the probe reaches Caddy.
+        insecure_tls=False,
         resolve_host=hostname,
         resolve_port=port,
     )
@@ -241,6 +244,68 @@ def evaluate_qlib_identity_result(
         return False, "qlib module path is missing"
 
     return True, _summarize(stdout)
+
+
+def _parse_key_values(stdout: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            values[key.strip()] = value.strip()
+    return values
+
+
+def evaluate_release_identity_result(
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+    expected_commit: str | None = None,
+) -> tuple[bool, str]:
+    """Require the release Git SHA and image OCI revision label to agree."""
+
+    if exit_code != 0:
+        return False, _summarize(stderr or stdout or "release identity check failed")
+    values = _parse_key_values(stdout)
+    git_sha = values.get("git_sha", "")
+    image_sha = values.get("image_sha", "")
+    image_id = values.get("image_id", "")
+    if not git_sha or not image_sha or not image_id:
+        return False, "release identity output is incomplete"
+    if git_sha != image_sha:
+        return False, f"Git SHA {git_sha} does not match image label {image_sha}"
+    if expected_commit and git_sha != expected_commit:
+        return False, f"deployed SHA {git_sha} does not match expected {expected_commit}"
+    return True, f"git_sha={git_sha} image_id={image_id}"
+
+
+def evaluate_resource_result(
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+) -> tuple[bool, str, list[str]]:
+    """Fail on OOM/restarts/critical memory and warn above 80 percent."""
+
+    if exit_code != 0:
+        return False, _summarize(stderr or stdout or "resource check failed"), []
+    try:
+        rows = json.loads(stdout)
+    except (TypeError, json.JSONDecodeError):
+        return False, "invalid resource check output", []
+    warnings: list[str] = []
+    for row in rows:
+        service = str(row.get("service", "unknown"))
+        memory = float(row.get("memory_percent", 0))
+        oom = bool(row.get("oom_killed"))
+        restarts = int(row.get("restart_count", 0))
+        if oom or restarts or memory > 95:
+            return (
+                False,
+                f"{service}: memory={memory:.1f}% oom={oom} restarts={restarts}",
+                warnings,
+            )
+        if memory > 80:
+            warnings.append(f"{service}: memory={memory:.1f}%")
+    return True, f"checked {len(rows)} containers", warnings
 
 
 def _emit_command_result(label: str, exit_code: int, stdout: str, stderr: str) -> bool:
@@ -356,6 +421,118 @@ print(f"module={qlib.__file__}")
     )
 
 
+def build_release_identity_command(target_dir: str) -> str:
+    """Report source identity from the release and running web image."""
+
+    compose_ps = build_compose_command(target_dir, "ps", "-q", "web")
+    return (
+        f"cd {shlex.quote(target_dir)}/current && "
+        "git_sha=$(git rev-parse HEAD) && "
+        f"cid=$({compose_ps}) && "
+        "image_id=$(docker inspect -f '{{.Image}}' \"$cid\") && "
+        'image_sha=$(docker image inspect -f \'{{index .Config.Labels "org.opencontainers.image.revision"}}\' "$image_id") && '
+        'printf "git_sha=%s\\nimage_sha=%s\\nimage_id=%s\\n" "$git_sha" "$image_sha" "$image_id"'
+    )
+
+
+def build_security_backup_command(target_dir: str) -> str:
+    """Validate secret permissions and a fresh, readable persistent backup."""
+
+    quoted = shlex.quote(target_dir)
+    return (
+        f"target={quoted}; "
+        'test "$(stat -c %a "$target")" = 700; '
+        'test "$(stat -c %a "$target/secrets.env")" = 600; '
+        'test "$(stat -c %a "$target/current/deploy/.env")" = 600; '
+        'test "$(stat -c %a "$target/backups")" = 700; '
+        'backup=$(find "$target/backups/database" -type f -name "*.gz" -mmin -1560 '
+        '-printf "%T@ %p\\n" | sort -nr | head -1 | cut -d" " -f2-); '
+        'test -n "$backup"; gzip -t "$backup"; test "$(stat -c %a "$backup")" = 600; '
+        'printf "backup=%s\\n" "$backup"'
+    )
+
+
+def build_resource_command(target_dir: str) -> str:
+    """Return resource and restart state as JSON for web and Celery Beat."""
+
+    python_code = """import json, subprocess
+rows = []
+for service in ("web", "celery_beat"):
+    cid = subprocess.check_output(["docker", "compose", "-p", "agomtradepro", "-f", "docker/docker-compose.vps.yml", "--env-file", "deploy/.env", "ps", "-q", service], text=True).strip()
+    info = json.loads(subprocess.check_output(["docker", "inspect", cid], text=True))[0]
+    state = info["State"]
+    raw = subprocess.check_output(["docker", "stats", "--no-stream", "--format", "{{.MemPerc}}", cid], text=True).strip().rstrip("%").replace(",", ".")
+    rows.append({"service": service, "memory_percent": float(raw), "oom_killed": state.get("OOMKilled", False), "restart_count": info.get("RestartCount", 0)})
+print(json.dumps(rows))
+"""
+    return f"cd {shlex.quote(target_dir)}/current && python3 -c {shlex.quote(python_code)}"
+
+
+def build_data_freshness_command(target_dir: str) -> str:
+    """Use model metadata instead of stale hard-coded database table names."""
+
+    python_code = """from datetime import timedelta
+from django.utils import timezone
+from apps.data_center.infrastructure.models import QuoteSnapshotModel
+from apps.task_monitor.infrastructure.models import TaskExecutionModel
+quote = QuoteSnapshotModel._default_manager.order_by('-snapshot_at').values_list('snapshot_at', flat=True).first()
+task = TaskExecutionModel._default_manager.order_by('-updated_at').values_list('updated_at', flat=True).first()
+print(f'quote_table={QuoteSnapshotModel._meta.db_table} quote_latest={quote}')
+print(f'task_table={TaskExecutionModel._meta.db_table} task_latest={task}')
+if not quote: raise SystemExit('quote data is missing')
+if not task: raise SystemExit('task history is missing')
+if quote and quote < timezone.now() - timedelta(days=4): raise SystemExit('quote data is stale')
+if task and task < timezone.now() - timedelta(hours=26): raise SystemExit('task history is stale')
+"""
+    return build_compose_command(
+        target_dir, "exec", "-T", "web", "python", "manage.py", "shell", "-c", python_code
+    )
+
+
+def build_certificate_expiry_command(site_address: str) -> str | None:
+    """Require an HTTPS certificate that remains valid for at least 21 days."""
+
+    site = site_address if "://" in site_address else f"https://{site_address}"
+    parsed = urlsplit(site)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return None
+    host = parsed.hostname
+    port = parsed.port or 443
+    destination = shlex.quote(f"{host}:{port}")
+    server_name = shlex.quote(host)
+    return (
+        f"echo | openssl s_client -connect {destination} -servername {server_name} 2>/dev/null "
+        "| openssl x509 -checkend 1814400 -noout"
+    )
+
+
+def build_rollback_command(target_dir: str, http_port: int, expect_celery: bool) -> str:
+    """Atomically restore the release recorded before the current deployment."""
+
+    target = shlex.quote(target_dir)
+    celery_check = ""
+    if expect_celery:
+        celery_check = (
+            "for celery_attempt in $(seq 1 12); do "
+            "$compose exec -T web celery -A core inspect ping --timeout=8 >/dev/null && break; "
+            'test "$celery_attempt" -lt 12; sleep 3; done; '
+        )
+    return (
+        f'target={target}; previous=$(readlink -f "$target/previous"); '
+        'test -n "$previous"; test -d "$previous"; '
+        'current=$(readlink -f "$target/current"); test "$previous" != "$current"; '
+        'cd "$current"; compose="docker compose -p agomtradepro -f '
+        'docker/docker-compose.vps.yml --env-file deploy/.env"; '
+        '$compose down --remove-orphans; cd "$previous"; $compose up -d; '
+        'rm -f "$target/.current-rollback"; '
+        'ln -s "$previous" "$target/.current-rollback"; '
+        'mv -Tf "$target/.current-rollback" "$target/current"; '
+        f"for attempt in $(seq 1 20); do curl -fsS --max-time 10 http://127.0.0.1:{http_port}/api/health/ >/dev/null && break; "
+        'test "$attempt" -lt 20; sleep 3; done; '
+        f"{celery_check}printf 'restored=%s\\n' \"$previous\""
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify AgomTradePro VPS deployment.")
     parser.add_argument("--host", required=True)
@@ -366,6 +543,8 @@ def main() -> int:
     parser.add_argument("--target-dir", default="/opt/agomtradepro")
     parser.add_argument("--health-path", default="/api/health/")
     parser.add_argument("--expect-celery", action="store_true", default=False)
+    parser.add_argument("--expected-commit")
+    parser.add_argument("--auto-rollback", action="store_true", default=False)
     parser.add_argument("--timeout", type=int, default=15)
     args = parser.parse_args()
 
@@ -411,6 +590,15 @@ def main() -> int:
         else:
             print(f"[FAIL] Health: {health_summary}")
             ok = False
+
+        certificate_command = build_certificate_expiry_command(site_address)
+        if certificate_command:
+            cert_code, cert_out, cert_err = _run(
+                ssh, certificate_command, timeout=max(args.timeout, 30)
+            )
+            cert_ok, cert_summary = evaluate_runtime_command_result(cert_code, cert_out, cert_err)
+            print(f"[{'OK' if cert_ok else 'FAIL'}] TLS expiry: {cert_summary}")
+            ok = cert_ok and ok
 
         containers_code, containers_out, containers_err = _run(
             ssh,
@@ -461,6 +649,55 @@ def main() -> int:
         print(f"[{'OK' if qlib_ok else 'FAIL'}] Qlib identity: {qlib_summary}")
         ok = qlib_ok and ok
 
+        identity_code, identity_out, identity_err = _run(
+            ssh,
+            build_release_identity_command(args.target_dir),
+            timeout=max(args.timeout, 30),
+        )
+        identity_ok, identity_summary = evaluate_release_identity_result(
+            identity_code,
+            identity_out,
+            identity_err,
+            expected_commit=args.expected_commit,
+        )
+        print(f"[{'OK' if identity_ok else 'FAIL'}] Release identity: {identity_summary}")
+        ok = identity_ok and ok
+
+        security_code, security_out, security_err = _run(
+            ssh,
+            build_security_backup_command(args.target_dir),
+            timeout=max(args.timeout, 30),
+        )
+        security_ok, security_summary = evaluate_runtime_command_result(
+            security_code, security_out, security_err
+        )
+        print(f"[{'OK' if security_ok else 'FAIL'}] Secrets and backup: {security_summary}")
+        ok = security_ok and ok
+
+        resource_code, resource_out, resource_err = _run(
+            ssh,
+            build_resource_command(args.target_dir),
+            timeout=max(args.timeout, 30),
+        )
+        resource_ok, resource_summary, resource_warnings = evaluate_resource_result(
+            resource_code, resource_out, resource_err
+        )
+        print(f"[{'OK' if resource_ok else 'FAIL'}] Resources: {resource_summary}")
+        for warning in resource_warnings:
+            print(f"[WARN] Resources: {warning}")
+        ok = resource_ok and ok
+
+        freshness_code, freshness_out, freshness_err = _run(
+            ssh,
+            build_data_freshness_command(args.target_dir),
+            timeout=max(args.timeout, 30),
+        )
+        freshness_ok, freshness_summary = evaluate_runtime_command_result(
+            freshness_code, freshness_out, freshness_err
+        )
+        print(f"[{'OK' if freshness_ok else 'FAIL'}] Data freshness: {freshness_summary}")
+        ok = freshness_ok and ok
+
         if args.expect_celery:
             for service in ("celery_worker", "celery_beat"):
                 service_code, service_out, service_err = _run(
@@ -482,6 +719,17 @@ def main() -> int:
                 timeout=max(args.timeout, 30),
             )
             ok = _emit_command_result("Celery ping", celery_code, celery_out, celery_err) and ok
+        if not ok and args.auto_rollback:
+            print("[WARN] Mandatory verification failed; restoring previous release")
+            rollback_code, rollback_out, rollback_err = _run(
+                ssh,
+                build_rollback_command(args.target_dir, args.http_port, args.expect_celery),
+                timeout=max(args.timeout, 180),
+            )
+            rollback_ok, rollback_summary = evaluate_runtime_command_result(
+                rollback_code, rollback_out, rollback_err
+            )
+            print(f"[{'OK' if rollback_ok else 'FAIL'}] Automatic rollback: {rollback_summary}")
     finally:
         ssh.close()
 

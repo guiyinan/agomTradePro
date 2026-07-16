@@ -71,6 +71,7 @@ Thumbs.db
 
 # Build / download cache (local only)
 .cache/
+node_modules/
 !.cache/
 !.cache/pip-wheels/
 .cache/pip-wheels/*
