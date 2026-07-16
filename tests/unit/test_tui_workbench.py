@@ -894,7 +894,9 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
     assert 'fieldPresentation(field) === "multiline"' in script
     assert "data-secret-toggle" in script
     assert "复制完整接入包" in script
-    assert 'panelPriority(panel) !== "p2"' in script
+    assert "function dashboardPanelShouldCollapse(panel)" in script
+    assert 'panelPriority(panel) === "p2"' in script
+    assert "!isOperatorHomeScreen(state.screen?.screen?.key)" in script
     assert "tui-panel-disclosure" in script
     assert "event.stopPropagation();" in script
     assert "navigator.clipboard.writeText" in script
@@ -7026,7 +7028,8 @@ def test_tui_script_uses_explicit_result_field_presentations_only():
     assert 'fieldPresentation(field) === "multiline"' in script
     assert "data-secret-toggle" in script
     assert "复制完整接入包" in script
-    assert 'panelPriority(panel) !== "p2"' in script
+    assert "function dashboardPanelShouldCollapse(panel)" in script
+    assert "!isOperatorHomeScreen(state.screen?.screen?.key)" in script
 
 
 def test_tui_mcp_governance_panels_publish_native_row_actions():
@@ -7185,7 +7188,9 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert "dashboardAreaTemplate(areas, 2)" in script
     assert "dashboardAreaTemplate(areas, 1)" in script
     assert "expandToTwelve ? expandDashboardRow(row) : row" in script
-    assert 'panelPriority(panel) !== "p2"' in script
+    assert 'const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)' in script
+    assert 'const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)"' in script
+    assert 'class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}"' in script
 
 
 def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
@@ -7199,6 +7204,22 @@ def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
     assert "runtimeConfig.host?.singleColumnScreens" in script
     assert 'singleColumnScreens: ["capability-router.mcp-center"]' in host_adapter
     assert "return 1;" in script
+    assert 'const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)' in script
+
+
+def test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
+
+    assert "function revealModuleScreen(screenButton)" in script
+    assert 'screenButton.scrollIntoView({ block: "nearest", inline: "nearest" })' in script
+    assert "els.moduleTree.hidden = state.railCollapsed" in script
+    assert "els.moduleTree.inert = state.railCollapsed" in script
+    assert ".tui-app.is-rail-collapsed .tui-rail .tui-titlebar-text" in css
+    assert ".tui-app.is-rail-collapsed .tui-rail-body *::before" in css
+    assert ".tui-dashboard-grid.is-content-flow" in css
+    assert "align-content: start;" in css
 
 
 def test_tui_panel_recovery_is_contextual_and_bounded():

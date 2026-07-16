@@ -543,7 +543,25 @@ a {
     display: none;
 }
 
-.tui-app.is-rail-collapsed .tui-rail .tui-titlebar,
+.tui-app.is-rail-collapsed .tui-rail .tui-titlebar {
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 6px 2px;
+    border-bottom: 1px solid var(--tui-border);
+    writing-mode: horizontal-tb;
+}
+
+.tui-app.is-rail-collapsed .tui-rail .tui-titlebar-text {
+    display: none;
+}
+
+.tui-app.is-rail-collapsed .tui-rail-body *::before,
+.tui-app.is-rail-collapsed .tui-rail-body *::after {
+    content: none;
+}
+
 .tui-app.is-inspector-collapsed .tui-inspector-panel .tui-panel-title {
     flex: 1 1 auto;
     align-items: center;
@@ -1335,6 +1353,12 @@ a {
     height: 100%;
     min-height: 0;
     min-width: 0;
+}
+
+.tui-dashboard-grid.is-content-flow {
+    align-content: start;
+    height: auto;
+    min-height: 100%;
 }
 
 .tui-dash-panel {

@@ -1456,8 +1456,23 @@
     }
 
     function markActiveScreen(screenKey) {
+        let activeScreen = null;
         els.moduleTree.querySelectorAll("[data-screen-key]").forEach((button) => {
-            button.classList.toggle("is-active", button.dataset.screenKey === screenKey);
+            const isActive = button.dataset.screenKey === screenKey;
+            button.classList.toggle("is-active", isActive);
+            if (isActive) {
+                activeScreen = button;
+            }
+        });
+        revealModuleScreen(activeScreen);
+    }
+
+    function revealModuleScreen(screenButton) {
+        if (!screenButton || state.railCollapsed) {
+            return;
+        }
+        window.requestAnimationFrame(() => {
+            screenButton.scrollIntoView({ block: "nearest", inline: "nearest" });
         });
     }
 
@@ -1951,7 +1966,7 @@
         els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
         els.main.innerHTML = `
             ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
-            <div class="tui-dashboard-grid" style="${escapeHtml(layout.gridStyle)}">
+            <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
                 ${panels.map((panel, index) => `
                     <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
                         ${renderDashboardPanelShell(panel, '<div class="tui-loading">读取业务数据...</div>')}
@@ -2104,15 +2119,19 @@
     function dashboardLayout(panels, screen) {
         const areas = uniqueDashboardAreas(panels);
         const desktopColumns = dashboardDesktopColumns(screen);
+        const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key);
+        const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)";
+        const tabletRowSize = contentFlow ? "auto" : "minmax(190px, 1fr)";
         return {
             areas,
+            contentFlow,
             gridStyle: [
                 `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns, true)}`,
                 `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
                 `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
-                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, desktopColumns, "minmax(190px, auto)")}`,
-                `--tui-dashboard-rows-tablet: ${dashboardRows(areas, 2, "minmax(190px, 1fr)")}`,
-                `--tui-dashboard-rows-mobile: ${dashboardRows(areas, 1, "minmax(174px, auto)")}`,
+                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, desktopColumns, desktopRowSize)}`,
+                `--tui-dashboard-rows-tablet: ${dashboardRows(areas, 2, tabletRowSize)}`,
+                `--tui-dashboard-rows-mobile: ${dashboardRows(areas, 1, "auto")}`,
             ].join("; "),
         };
     }
@@ -2255,7 +2274,7 @@
             ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
             ${body}
         `;
-        if (panelPriority(panel) !== "p2") {
+        if (!dashboardPanelShouldCollapse(panel)) {
             return content;
         }
         return `
@@ -2264,6 +2283,11 @@
                 ${content}
             </details>
         `;
+    }
+
+    function dashboardPanelShouldCollapse(panel) {
+        return panelPriority(panel) === "p2"
+            && !isOperatorHomeScreen(state.screen?.screen?.key);
     }
 
     function dashboardPanelOpenButton(panel) {
@@ -4842,6 +4866,7 @@
         setRailCollapsed(false);
         const active = els.moduleTree.querySelector(".tui-screen-button.is-active") || els.moduleTree.querySelector(".tui-screen-button");
         if (active) {
+            revealModuleScreen(active);
             active.focus();
             setStatus("模块导航");
         }
@@ -4879,6 +4904,11 @@
     function setRailCollapsed(collapsed) {
         state.railCollapsed = Boolean(collapsed);
         els.app?.classList.toggle("is-rail-collapsed", state.railCollapsed);
+        if (els.moduleTree) {
+            els.moduleTree.hidden = state.railCollapsed;
+            els.moduleTree.inert = state.railCollapsed;
+            els.moduleTree.setAttribute("aria-hidden", String(state.railCollapsed));
+        }
         if (els.railToggle) {
             els.railToggle.setAttribute("aria-expanded", String(!state.railCollapsed));
             els.railToggle.setAttribute("aria-label", state.railCollapsed ? "展开模块导航" : "收起模块导航");
