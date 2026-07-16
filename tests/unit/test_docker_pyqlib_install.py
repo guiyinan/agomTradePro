@@ -92,6 +92,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "pg_dump" in backup
     assert "pg_restore --list" in backup
     assert "pg_restore" in restore
+    assert "dropdb --force --if-exists" in restore
     assert "postgres:16-alpine" in compose
     assert "postgres_data:/var/lib/postgresql/data" in compose
     assert "POSTGRES_PASSWORD is required" in compose
@@ -102,6 +103,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "sqlite-to-postgres.json" in migration
     assert "pg_isready" in migration
     assert "PostgreSQL did not become ready within 120 seconds" in migration
+    assert "dropdb --force --if-exists" in migration
     assert "Critical table count mismatch" in migration
     assert ".postgres-migration-complete" in migration
     assert "check_encryption_readiness --json" in migration

@@ -59,10 +59,7 @@ fi
 
 echo "[INFO] Legacy SQLite database found; rebuilding the unmarked PostgreSQL target"
 compose exec -T postgres sh -eu <<'SH'
-  psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres \
-    -v dbname="$POSTGRES_DB" \
-    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :'dbname' AND pid <> pg_backend_pid();" >/dev/null
-  dropdb --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"
+  dropdb --force --if-exists -U "$POSTGRES_USER" "$POSTGRES_DB"
   createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
 SH
 
