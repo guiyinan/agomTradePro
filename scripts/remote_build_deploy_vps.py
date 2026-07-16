@@ -956,7 +956,7 @@ if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
     echo "[WARN] Pre-deploy backup skipped by explicit emergency option" >&2
   else
     echo "[INFO] Creating verified pre-deploy backup"
-    "$RELEASE_DIR/scripts/vps-backup.sh" \
+    bash "$RELEASE_DIR/scripts/vps-backup.sh" \
       --target-dir "$PREVIOUS_RELEASE" \
       --backup-dir "$TARGET_DIR/backups" \
       --keep-days 14

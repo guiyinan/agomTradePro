@@ -65,7 +65,7 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "SKIP_PREDEPLOY_BACKUP" in script
     assert "AUTO_ROLLBACK" in script
     assert "rollback_deployment" in script
-    assert "scripts/vps-backup.sh" in script
+    assert 'bash "$RELEASE_DIR/scripts/vps-backup.sh"' in script
     assert "chmod 600" in script
     assert "if ($GlobalDockerCleanup)" in one_click_script
     assert "npm run check:tui" in one_click_script
