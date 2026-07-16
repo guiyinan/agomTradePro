@@ -10,6 +10,7 @@ from apps.realtime.interface.views import (
     PricePollingTriggerView,
     PriceSubscriptionDetailView,
     PriceSubscriptionListCreateView,
+    RealtimeApiRootView,
     RealtimePriceView,
     SectorPerformanceView,
     SingleAssetPriceView,
@@ -19,6 +20,7 @@ from apps.realtime.interface.views import (
 app_name = "realtime"
 
 urlpatterns = [
+    path("", RealtimeApiRootView.as_view(), name="api-root"),
     path("alerts/", PriceAlertListCreateView.as_view(), name="alert-list"),
     path("alerts/<int:alert_id>/", PriceAlertDetailView.as_view(), name="alert-detail"),
     path(

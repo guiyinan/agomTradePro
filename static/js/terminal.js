@@ -82,11 +82,8 @@ class AgomTerminal {
     async init() {
         this.bindEvents();
         this.initializeRichTextRenderer();
-        await Promise.all([
-            this.loadProviders(),
-            this.loadDynamicCommands(),
-            this.loadCapabilities(),
-        ]);
+        await this.loadProviders();
+        this.updateModeSelector();
         this.updateSessionInfo();
         this.autoResizeInput();
         this.updateInputState();
@@ -99,23 +96,10 @@ class AgomTerminal {
      * Load dynamic commands from backend
      */
     async loadDynamicCommands() {
-        try {
-            const response = await fetch('/api/terminal/commands/available/');
-            const data = await response.json();
-            
-            if (data.success && data.commands) {
-                this.dynamicCommands = {};
-                data.commands.forEach(cmd => {
-                    this.dynamicCommands[cmd.name] = cmd;
-                });
-                this.commandCategories = data.categories || [];
-                
-                // Update sidebar with dynamic commands
-                this.updateSidebarCommands();
-            }
-        } catch (error) {
-            console.error('Failed to load dynamic commands:', error);
-        }
+        // Legacy command catalog APIs are retired. TUI/MCP actions are routed
+        // through the agent chat path; this page keeps only its local commands.
+        this.dynamicCommands = {};
+        this.commandCategories = [];
     }
 
     /**
@@ -1122,24 +1106,10 @@ class AgomTerminal {
      * Load terminal capabilities from server
      */
     async loadCapabilities() {
-        try {
-            const response = await fetch('/api/terminal/commands/capabilities/');
-            const data = await response.json();
-
-            if (data.success) {
-                this.userCapabilities = data;
-
-                // Lock mode if needed
-                if (data.available_modes && data.available_modes.length === 1) {
-                    this.terminalMode = data.available_modes[0];
-                }
-
-                // Update mode selector if present
-                this.updateModeSelector();
-            }
-        } catch (error) {
-            console.error('Failed to load capabilities:', error);
-        }
+        // The retired command capability endpoint must not participate in page
+        // initialization. Server-side chat/MCP authorization remains authoritative.
+        this.userCapabilities = null;
+        this.updateModeSelector();
     }
 
     /**

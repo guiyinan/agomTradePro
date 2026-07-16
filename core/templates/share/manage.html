@@ -249,6 +249,7 @@
                     <div class="muted" style="margin-top:10px;">当前正在编辑这条分享链接，左侧表单内容已经切换为它的配置。</div>
                     {% endif %}
                     <div class="share-link-actions">
+                        {% if link.status == "active" %}
                         <a href="{% url 'share:public_share' link.short_code %}" class="btn btn-secondary" target="_blank">打开公开页</a>
                         <a href="{% url 'share:edit' link.id %}" class="btn btn-secondary">编辑</a>
                         <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'share:public_share' link.short_code %}')">复制链接</button>
@@ -256,11 +257,13 @@
                             {% csrf_token %}
                             <button type="submit" class="btn btn-secondary">立即同步</button>
                         </form>
-                        {% if link.status == "active" %}
                         <form method="post" action="{% url 'share:revoke' link.id %}">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-danger">撤销</button>
                         </form>
+                        {% else %}
+                        <a href="{% url 'share:edit' link.id %}" class="btn btn-secondary">查看配置</a>
+                        <span class="muted">公开访问已停用</span>
                         {% endif %}
                     </div>
                 </article>

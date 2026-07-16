@@ -37,6 +37,7 @@ from apps.terminal.interface.api_views import (
     TuiWorkbenchBootstrapView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
+    TuiWorkbenchApiRootView,
     TuiWorkbenchRegistryView,
     TuiWorkbenchScreenView,
 )
@@ -183,6 +184,7 @@ core_patterns = [
     path("terminal/", terminal_view, name="terminal"),
     path("terminal/config/", terminal_config_view, name="terminal-config"),
     path("tui/", tui_workbench_view, name="tui-workbench"),
+    path("api/tui/", TuiWorkbenchApiRootView.as_view(), name="api-tui-root"),
     path("api/tui/catalog/", TuiWorkbenchCatalogView.as_view(), name="api-tui-catalog"),
     path("api/tui/bootstrap/", TuiWorkbenchBootstrapView.as_view(), name="api-tui-bootstrap"),
     path("api/tui/operator/home/", TuiOperatorHomeView.as_view(), name="api-tui-operator-home"),

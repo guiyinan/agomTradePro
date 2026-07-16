@@ -177,6 +177,30 @@ class DeprecatedTerminalCommandViewSet(viewsets.ViewSet):
         return _deprecated_command_response()
 
 
+class TuiWorkbenchApiRootView(APIView):
+    """Discoverable root for the user-facing TUI runtime API."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """List the stable TUI runtime endpoints."""
+
+        return Response(
+            {
+                "endpoints": {
+                    "catalog": "/api/tui/catalog/",
+                    "bootstrap": "/api/tui/bootstrap/",
+                    "operator-home": "/api/tui/operator/home/",
+                    "governance-queue": "/api/tui/operator/governance-queue/",
+                    "screens": "/api/tui/screens/{screen_key}/",
+                    "actions": "/api/tui/actions/{action_key}/run/",
+                    "registry": "/api/tui/registry/",
+                    "module-snapshot": "/api/tui/modules/{module_key}/snapshot/",
+                }
+            }
+        )
+
+
 class TerminalSessionView(APIView):
     """终端会话管理"""
 

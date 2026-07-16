@@ -709,7 +709,7 @@ document.getElementById('phaseSelect').addEventListener('change', function() {
     loadRepairList();
 });
 
-// 页面加载时自动加载数据
-loadRepairList();
+// 全局 fetch/toast 工具由 base.html 在页面底部初始化，等待完整 load 后再发请求。
+window.addEventListener('load', loadRepairList, { once: true });
 </script>
 {% endblock %}

@@ -206,3 +206,38 @@ def test_wait_rsshub_exits_non_zero_on_timeout():
 
     assert 'Write-Output "RSSHub did not start"' in content
     assert "exit 1" in content
+
+
+def test_uat_frontend_regressions_remain_fixed():
+    valuation_content = Path("core/templates/equity/valuation_repair.html").read_text(
+        encoding="utf-8"
+    )
+    hedge_content = Path("core/templates/hedge/pairs.html").read_text(encoding="utf-8")
+    terminal_content = Path("static/js/terminal.js").read_text(encoding="utf-8")
+    share_content = Path("core/templates/share/manage.html").read_text(encoding="utf-8")
+
+    assert "window.addEventListener('load', loadRepairList, { once: true });" in valuation_content
+    assert "\nloadRepairList();\n</script>" not in valuation_content
+
+    assert "pairModal.hidden = false;" in hedge_content
+    assert "[DEBUG] showPairModal" not in hedge_content
+    assert "[DEBUG] pairModal.hidden" not in hedge_content
+
+    assert "/api/terminal/commands/available/" not in terminal_content
+    assert "/api/terminal/commands/capabilities/" not in terminal_content
+
+    active_actions = share_content.index('{% if link.status == "active" %}')
+    public_link = share_content.index("打开公开页")
+    inactive_branch = share_content.index("公开访问已停用")
+    assert active_actions < public_link < inactive_branch
+
+
+def test_legacy_mcp_pages_bound_mobile_width():
+    guide_content = Path("core/templates/account/mcp_guide.html").read_text(encoding="utf-8")
+    tools_content = Path("core/templates/ops/mcp_tools.html").read_text(encoding="utf-8")
+
+    assert "@media (max-width: 480px)" in guide_content
+    assert "grid-template-columns: minmax(0, 1fr);" in guide_content
+    assert "max-width: 100%;" in guide_content
+    assert "overscroll-behavior-x: contain;" in tools_content
+    assert ".admin-shell--wide," in tools_content

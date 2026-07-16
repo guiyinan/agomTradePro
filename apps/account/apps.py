@@ -12,6 +12,7 @@ class AccountConfig(AppConfig):
         """
         import apps.account.application.tasks  # noqa: F401 - Import Celery tasks
         import apps.account.infrastructure.signals  # noqa: F401
+        import apps.account.interface.openapi  # noqa: F401 - Register OpenAPI extensions
         from apps.account.application.config_summary_service import (
             configure_account_config_summary_repository,
         )

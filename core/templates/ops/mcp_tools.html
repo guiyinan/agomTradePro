@@ -57,7 +57,10 @@
     }
 
     .mcp-table-wrap {
+        width: 100%;
+        max-width: 100%;
         overflow: auto;
+        overscroll-behavior-x: contain;
     }
 
     .mcp-table {
@@ -146,6 +149,13 @@
         .mcp-filter-form select,
         .mcp-filter-form .btn {
             width: 100%;
+            min-width: 0;
+        }
+
+        .admin-shell--wide,
+        .admin-shell__surface {
+            min-width: 0;
+            max-width: 100%;
         }
     }
 </style>

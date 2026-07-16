@@ -24,6 +24,7 @@ from apps.equity.application.repository_provider import (
 from apps.equity.domain.rules import StockScreeningRule
 from apps.equity.domain.services import StockScreener
 from apps.equity.domain.services_technical import TechnicalChartService
+from core.exceptions import DataFetchError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,8 @@ RECOVERABLE_EQUITY_USE_CASE_EXCEPTIONS = (
     TimeoutError,
     TypeError,
     ValueError,
+    DataFetchError,
+    DataValidationError,
 )
 
 
@@ -402,10 +405,12 @@ class GetIntradayChartUseCase:
 
     def execute(self, request: GetIntradayChartRequest) -> GetIntradayChartResponse:
         """获取分时图数据。"""
+        stock_name = ""
         try:
             stock_info = self.stock_repo.get_stock_info(request.stock_code)
             if not stock_info:
                 raise ValueError(f"未找到股票 {request.stock_code}")
+            stock_name = stock_info.name
 
             points = self.stock_repo.get_intraday_points(request.stock_code)
             if not points:
@@ -424,7 +429,7 @@ class GetIntradayChartUseCase:
             return GetIntradayChartResponse(
                 success=True,
                 stock_code=request.stock_code,
-                stock_name=stock_info.name,
+                stock_name=stock_name,
                 points=payload,
                 latest_point=payload[-1] if payload else None,
                 session_date=points[-1].timestamp.date().isoformat() if points else None,
@@ -439,7 +444,7 @@ class GetIntradayChartUseCase:
             return GetIntradayChartResponse(
                 success=False,
                 stock_code=request.stock_code,
-                stock_name="",
+                stock_name=stock_name,
                 points=[],
                 latest_point=None,
                 session_date=None,

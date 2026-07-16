@@ -53,6 +53,28 @@ class RealtimeAuthenticatedAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
 
+class RealtimeApiRootView(RealtimeAuthenticatedAPIView):
+    """Return the discoverable realtime API surface."""
+
+    def get(self, request: Request) -> Response:
+        """List stable realtime endpoints."""
+
+        return Response(
+            {
+                "endpoints": {
+                    "alerts": "/api/realtime/alerts/",
+                    "subscriptions": "/api/realtime/subscriptions/",
+                    "prices": "/api/realtime/prices/",
+                    "sector-performance": "/api/realtime/sector-performance/",
+                    "top-movers": "/api/realtime/top-movers/",
+                    "market-summary": "/api/realtime/market-summary/",
+                    "poll": "/api/realtime/poll/",
+                    "health": "/api/realtime/health/",
+                }
+            }
+        )
+
+
 class PriceAlertListCreateView(RealtimeAuthenticatedAPIView):
     """List and create alerts for the authenticated owner."""
 

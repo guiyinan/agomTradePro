@@ -14,6 +14,7 @@ class RealtimeConfig(AppConfig):
 
     def ready(self) -> None:
         """应用启动时的初始化逻辑"""
+        import apps.realtime.interface.openapi  # noqa: F401 - Register OpenAPI extensions
         from apps.realtime.application.data_center_gateway import (
             register_realtime_data_center_runtime,
         )

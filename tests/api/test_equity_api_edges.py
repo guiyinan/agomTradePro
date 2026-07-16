@@ -23,6 +23,7 @@ from apps.equity.infrastructure.models import (
     ValuationModel,
 )
 from apps.regime.infrastructure.models import RegimeLog
+from core.exceptions import DataFetchError
 
 
 @pytest.fixture
@@ -357,6 +358,33 @@ def test_equity_intraday_chart_returns_points(authenticated_client):
     assert len(payload["points"]) == 2
     assert payload["latest_point"]["price"] == 11.0
     assert payload["session_date"] == "2026-04-03"
+
+
+@pytest.mark.django_db
+def test_equity_intraday_chart_degrades_cleanly_when_sources_fail(authenticated_client):
+    today = timezone.localdate()
+    StockInfoModel.objects.create(
+        stock_code="002709.SZ",
+        name="天赐材料",
+        sector="化工",
+        market="SZ",
+        list_date=today,
+        is_active=True,
+    )
+
+    with patch(
+        "apps.equity.infrastructure.repositories.DjangoStockRepository.get_intraday_points",
+        side_effect=DataFetchError(message="002709.SZ 分时主备数据源均不可用"),
+    ):
+        response = authenticated_client.get("/api/equity/intraday/002709.SZ/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is False
+    assert payload["stock_code"] == "002709.SZ"
+    assert payload["stock_name"] == "天赐材料"
+    assert payload["points"] == []
+    assert "主备数据源均不可用" in payload["error"]
 
 
 @pytest.mark.django_db
