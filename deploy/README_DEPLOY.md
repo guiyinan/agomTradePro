@@ -143,9 +143,10 @@ What it does:
 - upload source tarball to VPS
 - build `agomtradepro-web:<tag>` on the VPS
 - deploy in-place with `docker compose`
-- optionally restore local SQLite into the named volume before app startup
+- optionally place a local SQLite database in the legacy source volume
+- initialize PostgreSQL and perform a one-time verified SQLite-to-PostgreSQL import
+- compare critical table counts and encrypted-data readability before marking the import complete
 - run `migrate`, `bootstrap_cold_start`, and macro sync setup in one-off containers before long-running services start
-- keep `celery_worker` and `celery_beat` from competing for SQLite startup migrations
 - download a deployment report to `dist/remote-build-reports`
 - remove remote temporary upload/build files by default
 
@@ -164,6 +165,8 @@ Notes:
 
 - this path avoids transferring large image tar files from local machine
 - this path depends on the VPS having working Docker, Docker Compose, disk space, and outbound network access for Python package download during `docker build`
+- production always uses PostgreSQL; the preserved SQLite volume is only a migration source and rollback safeguard
+- the web container runs Daphne against `core.asgi:application`, so Caddy serves HTTP and Channels WebSockets through the same upstream
 - source bundle is kept locally in `dist/`
 - remote temp files are deleted unless `--keep-remote-temp` is used
 
@@ -225,6 +228,11 @@ Restore latest backup:
 ```sh
 bash scripts/vps-restore.sh --target-dir /opt/agomtradepro/current --backup-dir /opt/agomtradepro/backups
 ```
+
+The backup script detects the configured database engine. PostgreSQL backups
+use a verified custom-format `pg_dump`; legacy SQLite deployments retain the
+online backup and integrity-check path. Restore validates the selected archive
+before replacing the active database.
 
 ## What is included
 

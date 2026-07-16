@@ -26,6 +26,33 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-07-16
+
+- TUI runtime 发布链继续稳定化：运行时清单现在记录明确的源提交并做确定性校验，bundle 换行符问题已收口；Dashboard 滚动、行详情渲染和上游 runtime 性能也完成一轮修复
+- VPS 部署闭环进一步加固：补齐部署前后验证、超时与死锁防护、失败回滚、镜像身份报告、备份脚本调用，以及跨部署保持加密密钥稳定等关键维护能力
+- CI 新增增量 mypy 债务防线，并修复 guardrail/TUI manifest 检查中的不稳定因素，降低主线因环境差异产生误报的概率
+
+### 2026-07-15
+
+- App 级依赖循环完成新一轮彻底收口：当前模块图已达到 `0` 个双向依赖对、`0` 个强连通循环组件，跨 App 协作统一经 gateway、provider registry 或 application facade 维持单向所有权
+- Terminal metadata、Dashboard、Alpha Qlib、Account repository、Auto Advisor 与 Decision Rhythm 等高风险大文件已按职责拆分，同时保留原有导入、路由、Celery task 和测试 monkeypatch 兼容面
+- Nightly 集成契约与 Windows Playwright runtime 已稳定化，架构整改和文件拆分均补入聚焦回归与治理边界检查
+
+### 2026-07-14
+
+- MCP 全量治理主线完成收口：统一 capability governance、canonical access package、读写证据/确认/预览约束，并在 TUI 中补齐访问边界、可复制工件展示和治理行操作
+- Realtime 模块新增实时价格流、WebSocket 交付、告警与订阅管理能力，相关 API、认证、迁移、readiness 和集成测试同步落地
+- Events 模块新增受控事件回放；AI Capability 同步加入 semantic key 与语义治理能力，让能力目录、MCP、SDK 和 TUI 的业务语义可以统一校正和审计
+
+### 2026-07-13
+
+- MCP capability registry 完成集中治理，SDK 与 MCP 的读写契约、工具目录和运行时 handler 进一步对齐；配套 CI guardrails 已恢复稳定
+
+### 2026-07-09
+
+- Terminal 对话主链已切换到 Agents SDK，并补齐内部 MCP 调用认证、超时控制和 VPS 环境中的 SDK 凭据传递
+- TUI metadata 开始强制执行面向用户的任务语义，并新增 AI Provider / MCP 访问管理入口，减少普通用户直接面对底层 API 实现细节
+
 ### 2026-07-05
 
 - `0.8.0` 正式切版：公开版本号、文档基线、README、AGENTS 与系统说明已统一到 `0.8.0-build.20260705`
@@ -233,9 +260,11 @@ AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板�
 > 现阶段更准确的理解方式是：它正在逐步形成一个**给 AI 使用的数据基础和决策框架**，而不是已经完全冻结的成品 SaaS；公开仓库后续也会继续更新界面、交互流、监控能力和相关文档。
 
 - 核心宏观准入链路已可用：Regime / Policy / Signal / 审批 / 执行 / 审计
-- 新主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动
-- AI 原生能力已成型：**原生 MCP、Terminal CLI、Agent Runtime、Capability Catalog**
-- 仍在持续完善：更多 public demo 场景、README/文档国际化、运维自动化与后续架构减债
+- 用户工作流主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动 + TUI Operator / MCP 治理中心
+- AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
+- 实时运行能力继续扩展：价格流、WebSocket、告警订阅、受控事件回放与任务监控已进入统一治理链路
+- 架构治理保持硬约束：App 级双向依赖与循环组件当前均已清零，大文件整改由机器基线持续跟踪
+- 仍在持续完善：更多 public demo 场景、README/文档国际化、运维自动化与剩余大文件治理
 
 ---
 
