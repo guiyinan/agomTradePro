@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import io
+import ipaddress
 import json
 import os
 import posixpath
@@ -62,6 +63,40 @@ def _optional_env_int(name: str) -> int | None:
         return int(raw)
     except ValueError as exc:
         _die(f"{name} must be an integer, got {raw!r}. Error: {exc}")
+
+
+def _normalize_domain(value: str) -> str:
+    """Return a canonical DNS hostname and reject unsafe Caddy site addresses."""
+
+    candidate = value.strip().rstrip(".")
+    if not candidate:
+        return ""
+    if "://" in candidate or any(separator in candidate for separator in ("/", "\\", ":")):
+        raise ValueError("DOMAIN must be a DNS hostname without a scheme, path, or port")
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("DOMAIN must be a DNS hostname, not a bare IP address")
+
+    try:
+        ascii_domain = candidate.encode("idna").decode("ascii").lower()
+    except UnicodeError as exc:
+        raise ValueError("DOMAIN is not a valid DNS hostname") from exc
+    if len(ascii_domain) > 253:
+        raise ValueError("DOMAIN exceeds the 253-character DNS limit")
+    labels = ascii_domain.split(".")
+    if len(labels) < 2 or any(
+        not label
+        or len(label) > 63
+        or label.startswith("-")
+        or label.endswith("-")
+        or re.fullmatch(r"[a-z0-9-]+", label) is None
+        for label in labels
+    ):
+        raise ValueError("DOMAIN must be a valid fully qualified DNS hostname")
+    return ascii_domain
 
 
 def _latest_sqlite(project_root: Path) -> Path:
@@ -1645,6 +1680,11 @@ def main() -> int:
         domain = args.domain
         allowed_hosts = args.allowed_hosts
         encryption_key = getattr(args, "encryption_key", "") or ""
+
+    try:
+        domain = _normalize_domain(domain)
+    except ValueError as exc:
+        _die(str(exc))
 
     if include_sqlite:
         encryption_key = _resolve_sqlite_encryption_key(project_root, encryption_key)

@@ -167,6 +167,15 @@ if ($envText -match "DOMAIN=(.*)") {
 if ([string]::IsNullOrWhiteSpace($domain)) {
     $domain = Read-Host "Domain (blank for HTTP only)"
 }
+if (-not [string]::IsNullOrWhiteSpace($domain)) {
+    $parsedIp = $null
+    if ([System.Net.IPAddress]::TryParse($domain, [ref]$parsedIp)) {
+        throw 'DOMAIN must be a DNS hostname, not a bare IP address'
+    }
+    if ($domain -match '://|[/\\:]') {
+        throw 'DOMAIN must be a DNS hostname without a scheme, path, or port'
+    }
+}
 
 if ($envText -match "SECRET_KEY=(.*)") {
     $secret = $Matches[1].Trim()

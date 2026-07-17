@@ -49,6 +49,11 @@ The release is accepted only when all of the following hold:
   threshold;
 - Alpha and task-history freshness checks use Django model metadata and pass.
 
+The production `DOMAIN` must be a DNS hostname such as `demo.agomtrade.pro`.
+Deployment entry points reject bare IP addresses, URL schemes, paths, and ports;
+passing a VPS IP as `DOMAIN` makes Caddy enable unusable IP-based automatic
+HTTPS. Leave `DOMAIN` empty only for an explicitly HTTP-only environment.
+
 ## Rollback points and remaining risk
 
 Each release retains the previous release path, image reference, environment

@@ -209,6 +209,18 @@ domain=$(grep '^DOMAIN=' deploy/.env | cut -d '=' -f2-)
 if [ -z "$domain" ]; then
   domain=$(ask "Domain (empty for HTTP only)" "")
 fi
+if [ -n "$domain" ]; then
+  case "$domain" in
+    *://*|*/*|*\\*|*:*)
+      echo "ERROR: DOMAIN must be a DNS hostname without a scheme, path, or port" >&2
+      exit 1
+      ;;
+  esac
+  if printf '%s' "$domain" | grep -Eq '^[0-9]+(\.[0-9]+){3}$'; then
+    echo "ERROR: DOMAIN must be a DNS hostname, not a bare IP address" >&2
+    exit 1
+  fi
+fi
 
 secret_key=$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2-)
 if [ "$secret_key" = "change-this-to-a-strong-secret" ] || [ -z "$secret_key" ]; then
