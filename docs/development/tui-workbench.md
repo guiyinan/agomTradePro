@@ -35,7 +35,7 @@ The V2 catalog is read from published TUI metadata:
 - Promotion guide: `docs/development/tui-metadata-promotion-guide.md`.
 - User-facing design standard: `docs/development/tui-user-facing-design-standard.md`.
 
-Frontend runtime assets are synced from AgomTUI reference runtime. The current baseline is AgomTUI commit `781f75f` (`Improve responsive workbench layout`), with local AgomTradePro adaptations for dashboard panel routing, regime field aliases, table value coloring, and legacy `pagination_mode=limit_offset` compatibility.
+AgomTradePro is the only source owner for frontend Runtime assets. AgomTUI receives an allowlisted, one-way mirror for packaging and compatibility tests; downstream reference files must never be copied back into this repository.
 
 Runtime `/tui/` does not parse classic templates, SDK modules, MCP tools, or source code. Those sources are evidence for the compile-time skill only. The skill generates candidate JSON, validates it, and publishes it to the database only after explicit approval.
 
@@ -398,6 +398,12 @@ Do not load `static/css/tui-theme.css` or `static/js/tui-mode.js` into classic p
 ## Runtime 0.2 Architecture and Performance
 
 AgomTradePro is the only upstream for the browser Runtime. Host-neutral modules live under `frontend/agomtui-runtime/`; AgomTradePro-only routing and operator-home hooks live under `frontend/agomtradepro-host/`. `npm run build:tui` produces the checked-in browser bundles and `config/tui/agomtui-runtime.manifest.json`. AgOMTUI receives only the allowlisted generic sources, reference assets, and manifest through its `sync_from_agomtradepro.py` workflow; changes must never flow back automatically.
+
+The manifest publishes `source_owner=AgomTradePro`, the upstream schema hash, and the allowed `screen_dashboard_layouts`; integrity checks reject another owner. AgomTUI compares its compatible layout enum with this manifest contract. Dashboard column precedence is implemented only in `frontend/agomtui-runtime/src/dashboard-layout.js`: explicit `dashboard_layout`, then the bounded legacy host override, then the journey default. The workbench must call this resolver and must fail closed when the Runtime core is missing it.
+
+Schema changes to screen metadata are guarded by an explicit server projection policy. Every declared screen schema property must be classified as either a public response field or a server-derived input. Adding a property without updating that projection policy fails `tests/unit/terminal/test_tui_contract_guardrails.py`.
+
+Changes under the TUI Runtime, terminal metadata, published graph, template, or Runtime build scripts trigger the fast-feedback Chromium layout guard. The guard renders `capability-router.self-service` at 1280×720, 1440×900, and 2048×1080 and fails on panel overlap, column-width drift, document horizontal overflow, or nested content-flow panel scrolling.
 
 The optimized browser start calls `/api/tui/bootstrap/` once for catalog plus initial screen and falls back to the legacy catalog/screen endpoints when the optimized route is disabled or absent. Operator home panels share one `/api/tui/operator/home/` request, render P0 panels first, defer P1/P2 work, debounce filtering by 120 ms, and paginate local grids above 100 rows.
 

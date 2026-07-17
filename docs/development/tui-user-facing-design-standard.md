@@ -210,7 +210,9 @@ Don't:
 - Does empty state tell the user what to do next?
 - Does copy avoid endpoint/method/schema leakage?
 - Does metadata pass schema + validator without relying on prose-only conventions?
+- Does every new screen schema property have an explicit server projection policy?
 - Does the runtime replace stale published access/governance metadata by key?
 - Does an ordinary user see only the self-service journey and receive a bounded 403 on direct admin access?
 - Are task-critical datagrid states and native row actions visible at 1440 × 1000?
 - Does the happy-path browser flow complete with zero unexpected console errors or warnings?
+- Do task-flow panels pass the three-viewport browser geometry guard with no overlap or horizontal overflow?

@@ -23,6 +23,7 @@ jobs:
       base-ref: ${{ steps.refs.outputs.base-ref }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
       changed-modules: ${{ steps.modules.outputs.changed-modules }}
+      tui-changed: ${{ steps.tui-scope.outputs.changed }}
       test-paths: ${{ steps.tests.outputs.test-paths }}
       test-count: ${{ steps.tests.outputs.test-count }}
     steps:
@@ -77,6 +78,18 @@ jobs:
               | sed 's/,$//'
           )"
           echo "changed-modules=${CHANGED_MODULES:-none}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect TUI guardrail scope
+        id: tui-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --name-only "${{ steps.refs.outputs.base-ref }}...${{ steps.refs.outputs.head-ref }}" \
+            | grep -Eq '^(apps/terminal/|frontend/agomtui-runtime/|frontend/agomtradepro-host/|static/js/tui-workbench\.js$|static/css/tui-workbench\.css$|core/templates/terminal/tui_workbench\.html$|config/tui/|scripts/build-tui-runtime\.mjs$|scripts/tui-runtime-manifest\.mjs$|tests/playwright/tests/smoke/test_tui_layout_guardrail\.py$)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Select pytest targets
         id: tests
@@ -261,6 +274,35 @@ jobs:
           echo "Running ${{ needs.detect-tests.outputs.test-count }} targets"
           pytest -v --tb=short --durations=15 \
             ${{ needs.detect-tests.outputs.test-paths }}
+
+      - name: Install TUI browser runtime
+        if: needs.detect-tests.outputs.tui-changed == 'true'
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run TUI metadata projection guard
+        if: needs.detect-tests.outputs.tui-changed == 'true'
+        run: pytest tests/unit/terminal/test_tui_contract_guardrails.py -q
+
+      - name: Run TUI browser layout guard
+        if: needs.detect-tests.outputs.tui-changed == 'true'
+        env:
+          DJANGO_SETTINGS_MODULE: core.settings.development_sqlite
+          PYTEST_PLAYWRIGHT_DRIVER: chromium
+        run: |
+          python scripts/run_live_server_pytest.py \
+            --suite-name fast-tui-layout-guard \
+            --host 127.0.0.1 \
+            --port 8000 \
+            --base-url http://127.0.0.1:8000 \
+            --settings-module core.settings.development_sqlite \
+            --health-timeout 180 \
+            --min-tests 3 \
+            --junitxml reports/quality/fast-tui-layout-guard.xml \
+            --server-log reports/quality/fast-tui-layout-guard.server.log \
+            --pytest-log reports/quality/fast-tui-layout-guard.pytest.log \
+            -- \
+            tests/playwright/tests/smoke/test_tui_layout_guardrail.py -v \
+            --screenshot=only-on-failure
 
       - name: Production static sanity check
         env:
