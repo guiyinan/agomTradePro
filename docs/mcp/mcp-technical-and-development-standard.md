@@ -80,6 +80,8 @@ MCP 不得承担以下职责：
 | Tool | 用途 |
 | --- | --- |
 | `agom_bootstrap` | 返回欢迎信息、身份、权限、入口说明、推荐资源和安全规则 |
+| `agom_get_agent_contract` | 返回版本化 Agent 运行契约、校验值和结构化决策摘要 Schema |
+| `agom_get_workflow_playbook` | 返回任务 Playbook 目录或指定 Playbook |
 | `agom_capability_search` | 按自然语言、标签、模块、风险等级检索能力 |
 | `agom_capability_schema` | 返回指定 `capability_key` 的输入 schema、输出 schema、风险和示例 |
 | `agom_capability_call` | 调用指定能力，执行统一校验、确认、调度和审计 |
@@ -98,6 +100,10 @@ MCP 不得承担以下职责：
 7. Terminal Agent composition root 必须显式设置 core tools 为 enabled、legacy tools 为 disabled，不能继承父进程中用于兼容测试的 legacy-on 环境变量。
 8. initialize instructions 不得要求无条件预载资源。Regime/Policy 只在研究、信号、配置建议、风险或执行类问题中作为前置上下文；运维、配置和账户查询按用户问题读取相关资源。
 9. `scripts/check_mcp_tool_budget.py` 除顶层工具数量外，还必须校验默认 tool definitions 的序列化 UTF-8 字节预算；固定上限为 12,000 bytes。
+10. Agent 契约、工作流 Playbook 和 Prompt 正文必须来自版本化配置，不得继续散落在 `server.py` 或各工具函数中；生产可通过 `AGOMTRADEPRO_MCP_AGENT_CONTRACT_PATH` 切换独立配置。
+11. 配置必须发布 `contract_id/version/status`，运行时返回内容 SHA-256；Prompt 不得承担权限、确认、幂等或状态机职责。
+12. 不得要求、记录或返回隐藏思维链。路由与执行解释统一使用包含意图、能力、假设、缺失参数、风险、证据和下一步的 `decision_summary`。
+13. 配置加载失败只能降级到最小安全启动说明，不得关闭 RBAC、Schema 白名单、确认、模拟交易边界或审计。
 
 实现备注（2026-07-10）：
 

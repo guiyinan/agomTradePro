@@ -11,7 +11,6 @@
 - 不包含业务逻辑
 """
 
-
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -46,6 +45,7 @@ AnalyzeFundStyleUseCase = _AnalyzeFundStyleUseCase
 # 页面视图（前端）
 # ============================================================================
 
+
 @login_required(login_url="/account/login/")
 @require_http_methods(["GET"])
 def dashboard_view(request):
@@ -55,7 +55,7 @@ def dashboard_view(request):
     GET /fund/dashboard/
     """
     context = interface_services.build_dashboard_context()
-    return render(request, 'fund/dashboard.html', context)
+    return render(request, "fund/dashboard.html", context)
 
 
 class ScreenFundsView(APIView):
@@ -76,11 +76,11 @@ class ScreenFundsView(APIView):
 
         # 2. 构造请求对象
         screen_request = ScreenFundsRequest(
-            regime=data.get('regime'),
-            custom_types=data.get('custom_types'),
-            custom_styles=data.get('custom_styles'),
-            min_scale=data.get('min_scale'),
-            max_count=data.get('max_count', 30)
+            regime=data.get("regime"),
+            custom_types=data.get("custom_types"),
+            custom_styles=data.get("custom_styles"),
+            min_scale=data.get("min_scale"),
+            max_count=data.get("max_count", 30),
         )
 
         # 3. 执行用例
@@ -100,20 +100,19 @@ class AnalyzeFundStyleView(APIView):
     def get(self, request, fund_code: str) -> Response:
         """分析基金风格"""
         # 1. 验证请求
-        query_params = {**request.query_params, 'fund_code': fund_code}
+        query_params = {**request.query_params, "fund_code": fund_code}
         serializer = AnalyzeFundStyleRequestSerializer(data=query_params)
         if not serializer.is_valid():
             return Response(
-                {'success': False, 'error': '请求参数无效', 'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": "请求参数无效", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
 
         # 2. 构造请求对象
         analyze_request = AnalyzeFundStyleRequest(
-            fund_code=data['fund_code'],
-            report_date=data.get('report_date')
+            fund_code=data["fund_code"], report_date=data.get("report_date")
         )
 
         # 3. 执行用例
@@ -137,17 +136,15 @@ class CalculateFundPerformanceView(APIView):
         serializer = CalculateFundPerformanceRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {'success': False, 'error': '请求参数无效', 'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": "请求参数无效", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
 
         # 2. 构造请求对象
         perf_request = CalculateFundPerformanceRequest(
-            fund_code=data['fund_code'],
-            start_date=data['start_date'],
-            end_date=data['end_date']
+            fund_code=data["fund_code"], start_date=data["start_date"], end_date=data["end_date"]
         )
 
         # 3. 执行用例
@@ -166,6 +163,7 @@ class RankFundsView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = RankFundsQuerySerializer
 
     def get(self, request) -> Response:
         """获取基金排名"""
@@ -179,12 +177,15 @@ class RankFundsView(APIView):
 
         # 序列化响应
         serializer = FundScoreSerializer(fund_scores, many=True)
-        return Response({
-            'success': True,
-            'regime': regime,
-            'count': len(fund_scores),
-            'funds': serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "success": True,
+                "regime": regime,
+                "count": len(fund_scores),
+                "funds": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class FundScoreView(APIView):
@@ -222,17 +223,15 @@ class FundInfoView(APIView):
 
         if not fund_info:
             return Response(
-                {'success': False, 'error': f'基金 {fund_code} 不存在'},
-                status=status.HTTP_404_NOT_FOUND
+                {"success": False, "error": f"基金 {fund_code} 不存在"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         from .serializers import FundInfoSerializer
+
         serializer = FundInfoSerializer(fund_info)
 
-        return Response({
-            'success': True,
-            'fund': serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response({"success": True, "fund": serializer.data}, status=status.HTTP_200_OK)
 
 
 class FundNavView(APIView):
@@ -245,34 +244,38 @@ class FundNavView(APIView):
         """获取基金净值"""
         from datetime import datetime
 
-        start_date_str = request.query_params.get('start_date')
-        end_date_str = request.query_params.get('end_date')
+        start_date_str = request.query_params.get("start_date")
+        end_date_str = request.query_params.get("end_date")
 
         start_date = None
         end_date = None
 
         if start_date_str:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
         if end_date_str:
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
 
         nav_list = interface_services.get_fund_nav(fund_code, start_date, end_date)
 
         if not nav_list:
             return Response(
-                {'success': False, 'error': f'基金 {fund_code} 暂无净值数据'},
-                status=status.HTTP_404_NOT_FOUND
+                {"success": False, "error": f"基金 {fund_code} 暂无净值数据"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         from .serializers import FundNetValueSerializer
+
         serializer = FundNetValueSerializer(nav_list, many=True)
 
-        return Response({
-            'success': True,
-            'fund_code': fund_code,
-            'count': len(nav_list),
-            'nav_data': serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "success": True,
+                "fund_code": fund_code,
+                "count": len(nav_list),
+                "nav_data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class FundHoldingView(APIView):
@@ -285,30 +288,34 @@ class FundHoldingView(APIView):
         """获取基金持仓"""
         from datetime import datetime
 
-        report_date_str = request.query_params.get('report_date')
+        report_date_str = request.query_params.get("report_date")
         report_date = None
 
         if report_date_str:
-            report_date = datetime.strptime(report_date_str, '%Y-%m-%d').date()
+            report_date = datetime.strptime(report_date_str, "%Y-%m-%d").date()
 
         holdings = interface_services.get_fund_holdings(fund_code, report_date)
 
         if not holdings:
             return Response(
-                {'success': False, 'error': f'基金 {fund_code} 暂无持仓数据'},
-                status=status.HTTP_404_NOT_FOUND
+                {"success": False, "error": f"基金 {fund_code} 暂无持仓数据"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         from .serializers import FundHoldingSerializer
+
         serializer = FundHoldingSerializer(holdings, many=True)
 
-        return Response({
-            'success': True,
-            'fund_code': fund_code,
-            'report_date': report_date_str or '最新',
-            'count': len(holdings),
-            'holdings': serializer.data
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "success": True,
+                "fund_code": fund_code,
+                "report_date": report_date_str or "最新",
+                "count": len(holdings),
+                "holdings": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ==================== 多维度筛选 API（通用资产分析框架集成） ====================
@@ -355,21 +362,27 @@ class FundMultiDimScreenAPIView(APIView):
             result = payload["result"]
             context = payload["context"]
 
-            return Response({
-                "success": result["success"],
-                "count": result["count"],
-                "context": {
-                    "regime": context.current_regime,
-                    "policy_level": context.policy_level,
-                    "sentiment_index": context.sentiment_index,
-                    "active_signals_count": payload["active_signals_count"],
+            return Response(
+                {
+                    "success": result["success"],
+                    "count": result["count"],
+                    "context": {
+                        "regime": context.current_regime,
+                        "policy_level": context.policy_level,
+                        "sentiment_index": context.sentiment_index,
+                        "active_signals_count": payload["active_signals_count"],
+                    },
+                    "funds": result["funds"],
                 },
-                "funds": result["funds"],
-            }, status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND)
+                status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND,
+            )
 
         except Exception as e:
-            return Response({
-                "success": False,
-                "message": f"筛选失败: {str(e)}",
-                "funds": [],
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {
+                    "success": False,
+                    "message": f"筛选失败: {str(e)}",
+                    "funds": [],
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

@@ -1,11 +1,17 @@
 """AgomTradePro MCP Server."""
 
+import json
+import logging
 import os
 from collections.abc import Callable
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from agomtradepro_mcp.agent_contracts import (
+    AGENT_CONTRACT_STORE,
+    AgentContractConfigurationError,
+)
 from agomtradepro_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
@@ -72,6 +78,8 @@ from agomtradepro_mcp.tools.simulated_trading_tools import register_simulated_tr
 from agomtradepro_mcp.tools.strategy_tools import register_strategy_tools
 from agomtradepro_mcp.tools.task_monitor_tools import register_task_monitor_tools
 
+logger = logging.getLogger(__name__)
+
 
 def _build_welcome_message() -> str:
     """Build the server welcome/instructions text exposed during MCP initialize."""
@@ -81,40 +89,23 @@ def _build_welcome_message() -> str:
     )
     role = os.getenv("AGOMTRADEPRO_MCP_ROLE", "viewer")
 
-    return f"""[AgomTradePro MCP Startup Welcome]
-This welcome page is injected by the MCP server during initialize.
-Treat it as mandatory startup context for this session.
-
-AgomTradePro Terminal v2.0.0
-Role: {role}
-Backend: {base_url}
-
-Welcome to AgomTradePro.
-You are connected to a macro-environment admission system for research,
-monitoring, decision support, and simulated execution.
-
-Immediate orientation:
-- The current session should treat this welcome block as already displayed
-- Do not preload resources or the capability catalog before the user asks a question
-- Only for investment research, signal, allocation, risk, or execution questions,
-  read agomtradepro://regime/current and agomtradepro://policy/status first
-- For ops, configuration, and account lookups, retrieve only the relevant context
-- Read agomtradepro://welcome if you need the same startup guide as a resource
-- Use run_research_workflow or run_monitoring_workflow for guided flows
-- Use agom_capability_search, then agom_capability_schema, then agom_capability_call
-- If no dedicated capability matches, use terminal.search.user_actions as the bounded fallback
-
-Operating guardrails:
-- Check regime and policy before proposing investment actions
-- Treat simulated trading as the only execution path
-- Escalate to human approval for medium-or-higher risk actions
-- Avoid jumping directly to execution without context validation
-
-CLI-style quick start:
-- Type-equivalent action 1: inspect current regime
-- Type-equivalent action 2: inspect current policy status
-- Type-equivalent action 3: review available tools and workflows
-"""
+    try:
+        contract = AGENT_CONTRACT_STORE.get_contract()
+        return AGENT_CONTRACT_STORE.render_prompt(
+            "startup_welcome",
+            {
+                "role": role,
+                "base_url": base_url,
+                "contract_version": contract["version"],
+            },
+        )
+    except AgentContractConfigurationError:
+        logger.exception("Failed to load the configured MCP startup contract")
+        return (
+            "[AgomTradePro MCP Safe Startup]\n"
+            "Contract configuration is unavailable. Use capability Schema only, "
+            "do not bypass confirmation, and allow simulated execution only."
+        )
 
 
 # 创建 MCP 服务器实例
@@ -319,40 +310,52 @@ def resource_welcome() -> str:
     return _build_welcome_message()
 
 
+@server.resource(
+    "agomtradepro://agent/contract",
+    name="Agent Operating Contract",
+    description="版本化的 Agent 运行契约、路由规则和结构化决策摘要契约",
+    mime_type="application/json",
+)
+def resource_agent_contract() -> str:
+    """Return the active versioned Agent operating contract."""
+    enforce_resource_access("agomtradepro://agent/contract")
+    return json.dumps(AGENT_CONTRACT_STORE.get_contract(), ensure_ascii=False, indent=2)
+
+
+@server.resource(
+    "agomtradepro://agent/playbooks",
+    name="Agent Workflow Playbooks",
+    description="版本化的 AgomTradePro 工作流 Playbook 目录",
+    mime_type="application/json",
+)
+def resource_agent_playbooks() -> str:
+    """Return the compact catalog of configured workflow playbooks."""
+    enforce_resource_access("agomtradepro://agent/playbooks")
+    return json.dumps(AGENT_CONTRACT_STORE.list_playbooks(), ensure_ascii=False, indent=2)
+
+
+@server.prompt("agom_agent_contract")
+def prompt_agent_contract(task_type: str = "general") -> str:
+    """Load the active Agent contract and structured decision-summary rules."""
+    enforce_prompt_access("agom_agent_contract")
+    return AGENT_CONTRACT_STORE.render_agent_contract_prompt(task_type)
+
+
 @server.prompt("analyze_macro_environment")
 def prompt_analyze_macro_environment() -> str:
     """分析当前宏观环境并给出投资建议。"""
     enforce_prompt_access("analyze_macro_environment")
-    return """请分析 AgomTradePro 系统的当前宏观环境：
-
-1. 使用 get_current_regime 工具获取当前宏观象限
-2. 根据象限判断适合投资的资产类别：
-   - Recovery（复苏）：股票、商品、房地产
-   - Overheat（过热）：债券、现金
-   - Stagflation（滞胀）：商品、现金、黄金
-   - Repression（衰退）：债券、股票
-3. 使用 get_policy_status 检查当前政策档位
-4. 结合宏观象限和政策档位，给出综合投资建议
-
-请以结构化的方式呈现分析结果。"""
+    return AGENT_CONTRACT_STORE.render_prompt("analyze_macro_environment")
 
 
 @server.prompt("check_signal_eligibility")
 def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
     """检查投资信号是否符合准入条件。"""
     enforce_prompt_access("check_signal_eligibility")
-    return f"""请检查以下投资信号是否符合准入条件：
-
-资产代码：{asset_code}
-投资逻辑：{logic_desc}
-
-分析步骤：
-1. 使用 get_current_regime 获取当前宏观象限
-2. 使用 get_policy_status 获取当前政策档位
-3. 使用 check_signal_eligibility 工具检查准入条件
-4. 根据检查结果给出明确的准入/不准入建议
-
-请详细说明准入或不准入的原因。"""
+    return AGENT_CONTRACT_STORE.render_prompt(
+        "check_signal_eligibility",
+        {"asset_code": asset_code, "logic_desc": logic_desc},
+    )
 
 
 # ==========================================================================
@@ -488,112 +491,41 @@ def resource_context_ops() -> str:
 def prompt_run_research_workflow(focus: str = "macro_regime") -> str:
     """Run a research workflow: gather context, analyze, and produce findings."""
     enforce_prompt_access("run_research_workflow")
-    return f"""Execute a research workflow with focus: {focus}
-
-Steps:
-1. Read resource agomtradepro://context/research/current to understand the current environment
-2. Use start_research_task to create a tracked research task
-3. Depending on focus:
-   - macro_regime: Use get_current_regime + get_regime_history to analyze trends
-   - factor_analysis: Use get_factor_top_stocks to identify opportunities
-   - sector_scan: Use get_hot_sectors + analyze_sector to evaluate sectors
-4. Summarize findings and any recommended actions
-5. If actions are warranted, note them for a follow-up decision workflow
-
-Important: Always check regime and policy status before making recommendations."""
+    return AGENT_CONTRACT_STORE.render_prompt("run_research_workflow", {"focus": focus})
 
 
 @server.prompt("run_monitoring_workflow")
 def prompt_run_monitoring_workflow(check_type: str = "full") -> str:
     """Run a monitoring workflow: check alerts, freshness, and anomalies."""
     enforce_prompt_access("run_monitoring_workflow")
-    return f"""Execute a monitoring workflow (type: {check_type})
-
-Steps:
-1. Read resource agomtradepro://context/monitoring/current for current monitoring state
-2. Use start_monitoring_task to create a tracked monitoring task
-3. Check data freshness across all sources
-4. Review any triggered price alerts (list_price_alerts)
-5. Check sentiment gate state (get_sentiment_gate_state)
-6. If check_type is 'full', also verify:
-   - Data center provider health (get_data_center_provider_status)
-   - Alpha provider status (get_alpha_provider_status)
-7. Report any anomalies or stale data sources
-
-Escalate to human if critical alerts are found."""
+    return AGENT_CONTRACT_STORE.render_prompt(
+        "run_monitoring_workflow",
+        {"check_type": check_type},
+    )
 
 
 @server.prompt("run_decision_workflow")
 def prompt_run_decision_workflow(decision_type: str = "signal_review") -> str:
     """Run a decision workflow: evaluate signals, check quotas, propose actions."""
     enforce_prompt_access("run_decision_workflow")
-    return f"""Execute a decision workflow (type: {decision_type})
-
-Steps:
-1. Read resource agomtradepro://context/decision/current for decision context
-2. Use start_decision_task to create a tracked decision task
-3. Check decision quotas to ensure capacity exists
-4. Depending on decision_type:
-   - signal_review: List active signals, check eligibility, approve/reject
-   - rebalance: Review portfolio vs target allocation, propose rebalance
-   - position_sizing: Evaluate position rules, check risk limits
-5. For any proposed action, verify:
-   - Current regime allows the action
-   - Policy gear does not block it
-   - Beta gate passes
-6. Present proposal for human approval if risk_level >= medium
-
-CRITICAL: Never execute trades without explicit human approval."""
+    return AGENT_CONTRACT_STORE.render_prompt(
+        "run_decision_workflow",
+        {"decision_type": decision_type},
+    )
 
 
 @server.prompt("run_execution_workflow")
 def prompt_run_execution_workflow(action: str = "review_pending") -> str:
     """Run an execution workflow: execute approved proposals or review positions."""
     enforce_prompt_access("run_execution_workflow")
-    return f"""Execute an execution workflow (action: {action})
-
-Steps:
-1. Read resource agomtradepro://context/execution/current for execution context
-2. Use start_execution_task to create a tracked execution task
-3. Depending on action:
-   - review_pending: List tasks needing attention, review pending proposals
-   - execute_approved: Find approved proposals, execute via simulated trading
-   - position_check: Review open positions, check stop-loss/take-profit levels
-4. For any trade execution:
-   - Verify the proposal is still approved
-   - Check trading cost estimates
-   - Execute via simulated trading (never real trades)
-5. Record execution results
-
-CRITICAL: All executions go through simulated trading only."""
+    return AGENT_CONTRACT_STORE.render_prompt("run_execution_workflow", {"action": action})
 
 
 @server.prompt("run_ops_workflow")
 def prompt_run_ops_workflow(scope: str = "health_check") -> str:
     """Run an ops workflow: system health, data sync, or audit review."""
     enforce_prompt_access("run_ops_workflow")
-    return f"""Execute an ops workflow (scope: {scope})
-
-Steps:
-1. Read resource agomtradepro://context/ops/current for ops context
-2. Use start_ops_task to create a tracked ops task
-3. Depending on scope:
-   - health_check: Check all system components
-     * Agent task health (active, failed, needs_human counts)
-     * Event bus status
-     * AI provider availability
-     * Data freshness across all sources
-   - data_sync: Trigger data synchronization
-     * Sync macro indicators
-     * Refresh valuation data
-     * Trigger RSS fetch for news
-   - audit_review: Review recent audit records
-     * Check audit summary
-     * Run validation checks
-     * Report any compliance issues
-4. Summarize system status and any issues found
-
-Escalate to human if system components are unhealthy."""
+    return AGENT_CONTRACT_STORE.render_prompt("run_ops_workflow", {"scope": scope})
 
 
 # 注册所有工具
@@ -735,7 +667,13 @@ async def read_resource(uri: str) -> str:
     first = next(iter(contents), None)
     if first is None:
         return ""
-    return getattr(first, "text", str(first))
+    text = getattr(first, "text", None)
+    if text is not None:
+        return str(text)
+    content = getattr(first, "content", None)
+    if content is not None:
+        return str(content)
+    return str(first)
 
 
 async def list_prompts() -> list[dict[str, Any]]:

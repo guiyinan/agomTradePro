@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-16.v145",
-  "mcp_tool_count": 375,
+  "version": "2026-07-17.v146",
+  "mcp_tool_count": 377,
   "mcp_governance": {
-    "default_top_level_tool_count": 7,
+    "default_top_level_tool_count": 9,
     "governed_manifest_count": 317,
     "governed_read_capability_count": 192,
     "governed_write_like_capability_count": 125,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6854,
+  "static_test_function_count": 6894,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -70,7 +70,6 @@
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
     "apps/account/infrastructure/models.py": 1389,
-    "apps/ai_capability/application/use_cases.py": 1224,
     "apps/audit/application/use_cases.py": 1382,
     "apps/audit/domain/services.py": 1299,
     "apps/audit/infrastructure/repositories.py": 1357,
@@ -93,15 +92,6 @@
       "rationale": "Split identity, preference, and account persistence models by aggregate.",
       "priority": "P2",
       "target_non_empty_lines": 1100,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/ai_capability/application/use_cases.py": {
-      "owner": "ai-capability",
-      "kind": "application-use-cases",
-      "rationale": "Split catalog synchronization, governance, and routing orchestration.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
       "review_by": "2026-12-31",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },

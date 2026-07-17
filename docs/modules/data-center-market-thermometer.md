@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-07-01
+最后更新: 2026-07-17
 
 ## 概述
 
@@ -55,6 +55,8 @@
 - Macro 页面: `/macro/data/` 顶部同步展示市场温度计卡片，方便宏观事实浏览与市场热度同屏观察
 - Terminal 命令: `market_temperature`
 - AI capability: `terminal_command.market_temperature`
+
+当前快照与 AI capability 的结构化结果稳定包含 `score`、`band`、`effective_band`、`change_5d`、`change_20d`、`observed_at`、`threshold_source`、`overheating_risk` 和 `avoid_chasing`。其中 `overheating_risk` 在 `overheat/extreme` 为真，`avoid_chasing` 在 `hot/overheat/extreme` 为真；Terminal 文本摘要也展示数据时间和这两个风险结论。
 
 ## ETF 资金净流入同步口径
 

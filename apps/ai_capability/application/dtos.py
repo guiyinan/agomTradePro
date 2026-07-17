@@ -15,6 +15,8 @@ class RouteRequestDTO:
     session_id: str | None = None
     provider_name: str | None = None
     model: str | None = None
+    confirmation_id: str | None = None
+    approved: bool | None = None
     context: dict[str, Any] = field(default_factory=dict)
 
 
@@ -38,6 +40,8 @@ class RouteResponseDTO:
     suggested_command: str | None = None
     suggested_intent: str | None = None
     suggestion_prompt: str | None = None
+    confirmation: dict[str, Any] | None = None
+    result: Any = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +61,8 @@ class RouteResponseDTO:
             "suggested_command": self.suggested_command,
             "suggested_intent": self.suggested_intent,
             "suggestion_prompt": self.suggestion_prompt,
+            "confirmation": self.confirmation,
+            "result": self.result,
         }
 
 

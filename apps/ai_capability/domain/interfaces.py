@@ -138,3 +138,15 @@ class ApiExecutorProtocol(Protocol):
     ) -> dict[str, Any]:
         """Execute an internal API call."""
         ...
+
+
+class ConfirmationCodecProtocol(Protocol):
+    """Issue and verify tamper-resistant capability confirmation ids."""
+
+    def issue(self, payload: dict[str, Any]) -> str:
+        """Return a signed confirmation id for one locked capability call."""
+        ...
+
+    def verify(self, confirmation_id: str) -> dict[str, Any]:
+        """Return the verified confirmation payload or raise ValueError."""
+        ...

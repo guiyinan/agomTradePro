@@ -142,7 +142,9 @@ class TestCapabilityRetrievalScorer:
 
         assert len(results) == 0
 
-    def test_market_temperature_query_prefers_market_temperature_capability(self, scorer, sample_capabilities):
+    def test_market_temperature_query_prefers_market_temperature_capability(
+        self, scorer, sample_capabilities
+    ):
         results = scorer.retrieve_top_k(
             sample_capabilities,
             "市场是不是过热了，我会不会接盘",
@@ -151,6 +153,57 @@ class TestCapabilityRetrievalScorer:
 
         assert results
         assert results[0].capability.capability_key == "terminal_command.market_temperature"
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "请获取当前最新的市场温度数据，返回温度数值、等级和数据时间。",
+            "获取市场温度",
+            "获取当前市场状态、市场温度、Top 10 和数据日期",
+        ],
+    )
+    def test_market_temperature_queries_never_fall_through_to_system_status(
+        self, scorer, sample_capabilities, query
+    ):
+        results = scorer.retrieve_top_k(sample_capabilities, query, k=3)
+
+        assert results
+        assert results[0].capability.capability_key == "terminal_command.market_temperature"
+        assert all(
+            result.capability.capability_key != "builtin.system_status" for result in results
+        )
+
+    def test_system_status_requires_explicit_system_health_intent(
+        self, scorer, sample_capabilities
+    ):
+        generic_health = CapabilityDefinition(
+            capability_key="mcp_tool.alpha.read.health",
+            source_type=SourceType.MCP_TOOL,
+            source_ref="alpha.read.health",
+            name="Alpha Health",
+            summary="Read alpha provider health and status",
+            tags=["alpha", "health", "status"],
+            priority_weight=10.0,
+        )
+        market_results = scorer.retrieve_top_k(
+            [*sample_capabilities, generic_health],
+            "推荐适合当前市场状态的基金",
+            k=5,
+        )
+        system_results = scorer.retrieve_top_k(
+            sample_capabilities,
+            "检查数据库、Redis 和 Celery 系统健康状态",
+            k=5,
+        )
+
+        assert all(
+            result.capability.capability_key != "builtin.system_status" for result in market_results
+        )
+        assert all(
+            not result.capability.capability_key.endswith((".health", ".provider_status"))
+            for result in market_results
+        )
+        assert system_results[0].capability.capability_key == "builtin.system_status"
 
 
 class TestCapabilityFilter:
@@ -297,9 +350,7 @@ class TestCapabilitySemanticDeduper:
 
         result = deduper.deduplicate([api_cap, mcp_cap], entrypoint="terminal")
 
-        assert [item.capability_key for item in result] == [
-            "mcp_tool.system.read.nebula.summary"
-        ]
+        assert [item.capability_key for item in result] == ["mcp_tool.system.read.nebula.summary"]
 
     def test_terminal_prefers_governed_mcp_capability_over_legacy_wrapper(self):
         deduper = CapabilitySemanticDeduper()
@@ -326,9 +377,7 @@ class TestCapabilitySemanticDeduper:
 
         result = deduper.deduplicate([legacy, governed], entrypoint="terminal")
 
-        assert [item.capability_key for item in result] == [
-            "mcp_tool.system.read.nebula.summary"
-        ]
+        assert [item.capability_key for item in result] == ["mcp_tool.system.read.nebula.summary"]
 
 
 class TestBuiltinCapabilityRegistry:

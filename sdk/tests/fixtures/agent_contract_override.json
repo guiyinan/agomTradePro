@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "contract": {
+    "contract_id": "test.contract",
+    "version": "9.9.9",
+    "status": "active",
+    "structured_reasoning": {
+      "expose_hidden_chain_of_thought": false,
+      "decision_summary": {
+        "required": ["intent", "capability_key"]
+      }
+    }
+  },
+  "playbooks": {
+    "test_flow": {
+      "title": "Test flow",
+      "steps": ["discover", "execute"],
+      "human_approval_policy": "server_enforced"
+    }
+  },
+  "prompts": {
+    "test_prompt": {
+      "template": "Configured focus: {focus}",
+      "arguments": ["focus"]
+    }
+  }
+}

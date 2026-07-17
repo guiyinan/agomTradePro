@@ -20,6 +20,7 @@ from apps.ai_capability.application.use_cases import (
     GetCapabilityDetailUseCase,
     GetCapabilityListUseCase,
 )
+from apps.ai_capability.domain.services import CapabilityCatalogSearch
 
 
 def _derive_module_name(tool_name: str) -> str:
@@ -45,6 +46,28 @@ def list_capability_summary_payloads(
             category=category,
             enabled_only=enabled_only,
         )
+    ]
+
+
+def search_capability_summary_payloads(
+    *,
+    query: str,
+    source_type: str | None = None,
+    route_group: str | None = None,
+    category: str | None = None,
+    enabled_only: bool = True,
+) -> list[dict[str, Any]]:
+    """Return catalog summaries ranked by alias-aware relevance."""
+
+    capabilities = get_capability_repository().list_capabilities(
+        source_type=source_type,
+        route_group=route_group,
+        category=category,
+        enabled_only=enabled_only,
+    )
+    return [
+        capability.to_summary_dict()
+        for capability in CapabilityCatalogSearch().search(capabilities, query)
     ]
 
 

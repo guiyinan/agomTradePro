@@ -174,6 +174,7 @@ class CommandExecutionService:
                 "api_endpoint": command.api_endpoint,
                 "api_method": command.api_method,
                 "status_code": status_code,
+                "structured_output": data,
             },
         }
 
@@ -230,6 +231,7 @@ class CommandExecutionService:
                 "api_method": method,
                 "status_code": getattr(response, "status_code", 200),
                 "internal_dispatch": True,
+                "structured_output": payload,
             },
         }
 
@@ -289,11 +291,13 @@ class CommandExecutionService:
         lines = [
             f"市场温度分数: {float(payload.get('score', 0.0) or 0.0):.1f}",
             f"温度分段: {effective_band}",
+            f"数据时间: {payload.get('observed_at') or '-'}",
             f"阈值来源: {threshold_source}",
             f"5日变化: {payload.get('change_5d')}",
             f"20日变化: {payload.get('change_20d')}",
             f"主要升温原因: {reason_text}",
             f"是否建议避免追高: {avoid_chasing}",
+            f"过热风险: {'是' if payload.get('overheating_risk') else '否'}",
         ]
         if degraded:
             lines.append(

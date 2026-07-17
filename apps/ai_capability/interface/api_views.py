@@ -15,6 +15,7 @@ from ..application.interface_services import (
     get_mcp_tools_catalog_payload,
     get_mcp_tools_stats_payload,
     list_capability_summary_payloads,
+    search_capability_summary_payloads,
     toggle_mcp_tool_flag,
 )
 from ..application.use_cases import (
@@ -120,6 +121,8 @@ def route_message(request):
         session_id=data.get("session_id"),
         provider_name=data.get("provider_name"),
         model=data.get("model"),
+        confirmation_id=data.get("confirmation_id"),
+        approved=data.get("approved"),
         context=context,
     )
 
@@ -234,6 +237,8 @@ def web_chat(request):
                 mcp_enabled=mcp_enabled,
                 provider_name=data.get("provider_name"),
                 model=data.get("model"),
+                confirmation_id=data.get("confirmation_id"),
+                approved=data.get("approved"),
                 context=data.get("context", {}),
                 answer_chain_enabled=True,
             )
@@ -302,10 +307,13 @@ def _build_web_chat_response(routed: dict, user_is_admin: bool) -> dict:
             "answer_chain": answer_chain,
         },
         "route_confirmation_required": routed.get("requires_confirmation", False),
+        "selected_capability_key": routed.get("selected_capability_key"),
         "suggested_command": routed.get("suggested_command"),
         "suggested_intent": routed.get("suggested_intent"),
         "suggestion_prompt": routed.get("suggestion_prompt"),
         "suggested_action": suggested_action,
+        "confirmation": routed.get("confirmation"),
+        "result": routed.get("result"),
     }
 
 
@@ -361,23 +369,18 @@ def list_capabilities(request):
     source_type = request.query_params.get("source_type")
     route_group = request.query_params.get("route_group")
     category = request.query_params.get("category")
-    q = (request.query_params.get("q") or "").strip().lower()
+    q = (request.query_params.get("q") or "").strip()
     enabled_only = request.query_params.get("enabled_only", "true").lower() == "true"
 
     try:
-        capabilities = list_capability_summary_payloads(
+        query = search_capability_summary_payloads if q else list_capability_summary_payloads
+        capabilities = query(
+            **({"query": q} if q else {}),
             source_type=source_type,
             route_group=route_group,
             category=category,
             enabled_only=enabled_only,
         )
-        if q:
-            capabilities = [
-                item for item in capabilities
-                if q in (item.get("capability_key", "") or "").lower()
-                or q in (item.get("name", "") or "").lower()
-                or q in (item.get("summary", "") or "").lower()
-            ]
         serializer = CapabilitySummarySerializer(capabilities, many=True)
         return Response(serializer.data)
     except Exception as e:

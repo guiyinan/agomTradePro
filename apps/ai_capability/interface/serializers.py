@@ -44,6 +44,8 @@ class RouteRequestSerializer(serializers.Serializer):
         allow_null=True,
         help_text="AI model name",
     )
+    confirmation_id = serializers.CharField(required=False, allow_null=True)
+    approved = serializers.BooleanField(required=False, allow_null=True)
     context = serializers.DictField(
         required=False,
         default=dict,
@@ -101,6 +103,8 @@ class RouteResponseSerializer(serializers.Serializer):
         allow_null=True,
         required=False,
     )
+    confirmation = serializers.DictField(required=False, allow_null=True)
+    result = serializers.JSONField(required=False, allow_null=True)
 
 
 class CapabilityDetailSerializer(serializers.Serializer):
@@ -271,6 +275,8 @@ class WebChatRequestSerializer(serializers.Serializer):
         allow_null=True,
         help_text="AI model name",
     )
+    confirmation_id = serializers.CharField(required=False, allow_null=True)
+    approved = serializers.BooleanField(required=False, allow_null=True)
     context = serializers.DictField(
         required=False,
         default=dict,
@@ -337,3 +343,6 @@ class WebChatResponseSerializer(serializers.Serializer):
         required=False,
         help_text="Structured suggested action object",
     )
+    confirmation = serializers.DictField(required=False, allow_null=True)
+    selected_capability_key = serializers.CharField(required=False, allow_null=True)
+    result = serializers.JSONField(required=False, allow_null=True)

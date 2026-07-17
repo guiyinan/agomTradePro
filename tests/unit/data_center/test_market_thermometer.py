@@ -404,9 +404,7 @@ def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch
 
 def test_etf_timeout_override_covers_direct_eastmoney_fallback_budget():
     assert (
-        market_thermometer_module.MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES[
-            "etf_net_flow"
-        ]
+        market_thermometer_module.MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES["etf_net_flow"]
         == market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS
     )
     assert market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS >= 30.0
@@ -734,6 +732,9 @@ def test_build_current_payload_applies_user_override_band():
 
     assert payload["threshold_source"] == "user_override"
     assert payload["effective_band"] == "overheat"
+    assert payload["overheating_risk"] is True
+    assert payload["avoid_chasing"] is True
+    assert payload["observed_at"] == "2026-05-19"
     assert payload["thresholds"]["hot_threshold"] == 50.0
     assert payload["proxy_components"] == [
         {

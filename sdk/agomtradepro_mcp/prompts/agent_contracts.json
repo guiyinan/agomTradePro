@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "contract": {
+    "contract_id": "agomtradepro.agent-operating-contract",
+    "version": "1.0.0",
+    "status": "active",
+    "effective_at": "2026-07-17T00:00:00+08:00",
+    "purpose": "Guide connected agents through AgomTradePro discovery, research, decision support, confirmation and simulated execution without weakening server-side controls.",
+    "mandatory_rules": [
+      "Use agom_capability_search, then agom_capability_schema, then agom_capability_call unless a named playbook supplies an equally bounded sequence.",
+      "For investment research and recommendations, read current regime and policy context before proposing an action.",
+      "Never treat system health as market state and never use builtin.system_status as a fallback for an unmatched business request.",
+      "Do not invent required parameters, identifiers, dates, prices, security names or observations. Ask a clarification question when required input is missing.",
+      "Do not bypass confirmation. Resume only with the server-issued confirmation token or confirmation_id bound to the locked capability and normalized parameters.",
+      "All execution is simulated trading only. Never represent an MCP result as a real-market order execution.",
+      "Preserve observed_at, source, units, security code and security short name when present.",
+      "Treat Prompt guidance as advisory; permissions, schemas, risk gates and state transitions are server-enforced and take precedence."
+    ],
+    "routing_protocol": [
+      "Classify the user intent and identify whether it is research, monitoring, decision, execution, account, configuration or operations.",
+      "Search the bounded capability catalog using business terms and aliases.",
+      "Inspect the selected capability schema and use only declared parameters.",
+      "If confidence is insufficient, return no-match or one concise clarification question.",
+      "For confirmation-required operations, present the locked capability and normalized parameters, then wait for explicit approval.",
+      "Return structured results with data time, source and unresolved limitations."
+    ],
+    "server_enforced_guards": [
+      "RBAC and visibility",
+      "input Schema whitelist",
+      "risk classification",
+      "confirmation token binding and expiry",
+      "idempotency and allowed state transitions",
+      "simulated-execution boundary",
+      "audit logging"
+    ],
+    "structured_reasoning": {
+      "expose_hidden_chain_of_thought": false,
+      "instruction": "Do not request, store or expose hidden chain-of-thought. Return only a concise decision_summary with evidence and next action.",
+      "decision_summary": {
+        "type": "object",
+        "required": [
+          "intent",
+          "capability_key",
+          "assumptions",
+          "missing_params",
+          "risk_level",
+          "requires_confirmation",
+          "evidence",
+          "next_action"
+        ],
+        "properties": {
+          "intent": "Normalized user intent",
+          "capability_key": "Selected capability key or null",
+          "assumptions": "Explicit bounded assumptions",
+          "missing_params": "Required unresolved parameters",
+          "risk_level": "Capability risk level",
+          "requires_confirmation": "Whether server confirmation is required",
+          "evidence": "Short observable reasons for the selection",
+          "next_action": "Execute, clarify, confirm or no-match"
+        }
+      }
+    },
+    "failure_policy": {
+      "no_match": "Return no-match or a clarification question; do not execute system status.",
+      "stale_data": "State the latest observed_at and freshness limitation.",
+      "prompt_unavailable": "Continue under server-enforced safety rules and report the contract-loading issue.",
+      "name_resolution_failure": "Return the business result without fabricating a security short name."
+    },
+    "task_overlays": {
+      "research": [
+        "Prefer read-only capabilities and cite observed data before recommendations.",
+        "Separate evidence, interpretation and recommendation."
+      ],
+      "decision": [
+        "Check quota, regime, policy, beta gate and risk constraints before proposing action.",
+        "Use explicit invalidation logic."
+      ],
+      "execution": [
+        "Require a valid approved proposal and current confirmation.",
+        "Use simulated trading only."
+      ],
+      "ops": [
+        "System health tools are valid only for operational intent.",
+        "Do not interpret service health as market conditions."
+      ]
+    }
+  },
+  "playbooks": {
+    "market_research": {
+      "title": "Market Regime and Policy Research",
+      "summary": "Analyze market regime, policy and dated evidence before producing a research conclusion.",
+      "intent_examples": ["当前市场状态", "宏观环境分析", "市场温度与政策"],
+      "steps": [
+        "Load system.read.regime.current and system.read.policy.status.",
+        "Load the requested dated market or sentiment capability.",
+        "Separate observed facts from interpretation.",
+        "Return observed_at, sources, limitations and decision_summary."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "fund_recommendation": {
+      "title": "Fund Recommendation",
+      "summary": "Recommend funds only after regime and policy context, then rank persisted fund evidence.",
+      "intent_examples": ["推荐基金", "适合当前市场的基金", "Recovery 基金排名"],
+      "steps": [
+        "Load current regime and policy status.",
+        "Call fund.read.ranking or fund.read.catalog with Schema-approved parameters.",
+        "Keep fund_code and fund_name together for every returned fund.",
+        "State score date, limitations and invalidation conditions.",
+        "Request confirmation when the selected capability requires it."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "account_aware_fund_recommendation": {
+      "title": "Account-Aware Fund Recommendation",
+      "summary": "Review authorized account holdings before proposing diversified fund candidates.",
+      "intent_examples": ["查看持仓后推荐基金", "结合账户推荐"],
+      "steps": [
+        "Resolve an authorized account only when the target capability declares account_id.",
+        "Load account positions with security codes and short names.",
+        "Load current regime and policy status.",
+        "Run the fund recommendation playbook.",
+        "Explain overlap, concentration and invalidation conditions without executing trades."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "signal_review": {
+      "title": "Signal Eligibility Review",
+      "summary": "Review a signal against regime, policy, evidence and invalidation logic.",
+      "steps": [
+        "Load current regime and policy status.",
+        "Load the signal and its evidence.",
+        "Run the eligibility capability with declared parameters only.",
+        "Return pass or reject with concise evidence and invalidation logic."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "monitoring": {
+      "title": "Monitoring and Freshness Review",
+      "summary": "Check alerts, provider freshness and anomalies without confusing service health with market state.",
+      "steps": [
+        "Load the monitoring context requested by the user.",
+        "Check relevant freshness, alerts and provider state capabilities.",
+        "Report stale or missing evidence explicitly.",
+        "Escalate critical operational anomalies to a human."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "decision": {
+      "title": "Investment Decision Proposal",
+      "summary": "Build a bounded proposal after quota, regime, policy, beta gate and risk checks.",
+      "steps": [
+        "Load decision context and quota.",
+        "Check regime, policy, beta gate and applicable risk policy.",
+        "Construct a proposal with evidence and invalidation logic.",
+        "Request human confirmation for medium-or-higher risk action."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "execution": {
+      "title": "Approved Simulated Execution",
+      "summary": "Execute only an approved, current proposal through simulated trading.",
+      "steps": [
+        "Load the locked approved proposal.",
+        "Recheck current constraints and estimated trading cost.",
+        "Resume the server confirmation without semantic rerouting.",
+        "Execute through simulated trading only and record the result."
+      ],
+      "human_approval_policy": "server_enforced"
+    },
+    "ops": {
+      "title": "Operations Health and Audit",
+      "summary": "Inspect system health, data synchronization or audits for explicit operations intent.",
+      "steps": [
+        "Load only the relevant operations context.",
+        "Inspect readiness, workers, providers or audits requested by the user.",
+        "Report operational state without inferring market conditions.",
+        "Require confirmation for state-changing repair or synchronization."
+      ],
+      "human_approval_policy": "server_enforced"
+    }
+  },
+  "prompts": {
+    "startup_welcome": {
+      "arguments": ["role", "base_url", "contract_version"],
+      "template": "[AgomTradePro MCP Startup Welcome]\nRole: {role}\nBackend: {base_url}\nAgent contract version: {contract_version}\n\nUse agom_get_agent_contract before an AgomTradePro workflow, then use agom_capability_search, agom_capability_schema and agom_capability_call. Do not preload resources or the capability catalog before the user asks a question. Only for investment research, signal, allocation, risk or execution questions, load current regime and policy through governed capabilities first. For ops, configuration and account work, retrieve only relevant context. If no dedicated capability matches, use terminal.search.user_actions as the bounded fallback. Never use system health as market state. Never bypass confirmation. All execution is simulated trading only."
+    },
+    "analyze_macro_environment": {
+      "arguments": [],
+      "template": "Load the market_research playbook with agom_get_workflow_playbook. Read current regime and policy through governed capabilities, then load only the requested dated market evidence. Return facts, interpretation, limitations and decision_summary. Do not expose hidden chain-of-thought."
+    },
+    "check_signal_eligibility": {
+      "arguments": ["asset_code", "logic_desc"],
+      "template": "Review signal eligibility for {asset_code}. User logic: {logic_desc}. Load the signal_review playbook, inspect current regime and policy, call the governed eligibility capability, and return pass or reject with evidence, invalidation logic and decision_summary. Do not execute an order."
+    },
+    "run_research_workflow": {
+      "arguments": ["focus"],
+      "template": "Run a governed research workflow with focus {focus}. Load the Agent contract and the market_research playbook, discover the required read-only capabilities, inspect each Schema, execute only declared parameters, and return dated evidence, limitations and decision_summary."
+    },
+    "run_monitoring_workflow": {
+      "arguments": ["check_type"],
+      "template": "Run the monitoring playbook with check type {check_type}. Load only relevant monitoring context, inspect freshness and alerts, keep service health separate from market state, and escalate critical anomalies. Return decision_summary instead of hidden chain-of-thought."
+    },
+    "run_decision_workflow": {
+      "arguments": ["decision_type"],
+      "template": "Run the decision playbook for {decision_type}. Check quota, regime, policy, beta gate and risk policy, then prepare a proposal with evidence and invalidation logic. Do not bypass server confirmation or execute a trade."
+    },
+    "run_execution_workflow": {
+      "arguments": ["action"],
+      "template": "Run the execution playbook for {action}. Use only a locked approved proposal, recheck current constraints, resume the server-issued confirmation, execute through simulated trading only, and record the structured result."
+    },
+    "run_ops_workflow": {
+      "arguments": ["scope"],
+      "template": "Run the ops playbook for {scope}. Inspect only the requested readiness, provider, synchronization or audit context. Do not infer market conditions from service health. Require confirmation for state changes."
+    }
+  }
+}

@@ -27,6 +27,105 @@ def test_route_message_requires_confirmation_for_write_capability(write_capabili
 
 
 @pytest.mark.django_db
+def test_confirmation_resumes_locked_mcp_capability_across_route_and_web(api_client, staff_user):
+    capability = CapabilityCatalogModel.objects.create(
+        capability_key="mcp_tool.fund.read.ranking",
+        source_type="mcp_tool",
+        source_ref="fund.read.ranking",
+        name="Fund Ranking",
+        summary="Read the canonical fund ranking for one macro regime",
+        description="获取基金排名和基金排行",
+        route_group="tool",
+        category="fund",
+        tags=["fund", "ranking", "基金", "排名"],
+        examples=["获取基金排名", "fund.read.ranking"],
+        input_schema={
+            "type": "object",
+            "properties": {
+                "regime": {"type": "string", "default": "Recovery"},
+                "max_count": {"type": "integer", "default": 50},
+            },
+            "additionalProperties": False,
+        },
+        execution_target={
+            "type": "mcp_capability",
+            "tool_name": "agom_capability_call",
+            "capability_key": "fund.read.ranking",
+        },
+        risk_level="low",
+        requires_mcp=True,
+        requires_confirmation=True,
+        enabled_for_routing=True,
+        enabled_for_terminal=True,
+        enabled_for_chat=True,
+        enabled_for_agent=True,
+        visibility="public",
+        review_status="approved",
+    )
+    api_client.force_authenticate(user=staff_user)
+
+    first = api_client.post(
+        "/api/ai-capability/route/",
+        {
+            "message": "fund.read.ranking",
+            "entrypoint": "agent",
+            "context": {
+                "params": {"regime": "Recovery", "account_id": 365},
+            },
+        },
+        format="json",
+    )
+
+    assert first.status_code == 200
+    pending = first.json()
+    assert pending["selected_capability_key"] == capability.capability_key
+    assert pending["requires_confirmation"] is True
+    assert pending["confirmation"]["capability_key"] == capability.capability_key
+    assert pending["confirmation"]["normalized_params"] == {"regime": "Recovery"}
+
+    with (
+        patch(
+            "apps.ai_capability.application.use_cases._call_sdk_mcp_tool",
+            return_value={"regime": "Recovery", "funds": [{"fund_code": "000001"}]},
+        ) as mock_call,
+        patch(
+            "apps.ai_capability.application.result_enrichment.resolve_asset_names_read_only",
+            return_value={"000001": "华夏成长"},
+        ),
+    ):
+        resumed = api_client.post(
+            "/api/chat/web/",
+            {
+                "message": "Y",
+                "session_id": pending["session_id"],
+                "context": {
+                    "confirmation": {
+                        **pending["confirmation"],
+                        "approved": True,
+                    }
+                },
+            },
+            format="json",
+        )
+
+    assert resumed.status_code == 200
+    payload = resumed.json()
+    assert payload["route_confirmation_required"] is False
+    assert payload["selected_capability_key"] == capability.capability_key
+    assert payload["result"]["funds"][0] == {
+        "fund_code": "000001",
+        "fund_name": "华夏成长",
+    }
+    mock_call.assert_called_once_with(
+        "agom_capability_call",
+        {
+            "capability_key": "fund.read.ranking",
+            "arguments": {"regime": "Recovery"},
+        },
+    )
+
+
+@pytest.mark.django_db
 def test_web_chat_execute_action_runs_selected_capability(
     api_client, staff_user, builtin_status_capability
 ):

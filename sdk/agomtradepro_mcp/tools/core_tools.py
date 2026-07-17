@@ -7,6 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from agomtradepro_mcp.agent_contracts import AGENT_CONTRACT_STORE
 from agomtradepro_mcp.registry.dispatcher import (
     CAPABILITY_SEARCH_DEFAULT_RESULTS,
     CAPABILITY_SEARCH_MAX_RESULTS,
@@ -15,6 +16,8 @@ from agomtradepro_mcp.registry.dispatcher import (
 
 CORE_TOOL_NAMES: tuple[str, ...] = (
     "agom_bootstrap",
+    "agom_get_agent_contract",
+    "agom_get_workflow_playbook",
     "agom_capability_search",
     "agom_capability_schema",
     "agom_capability_call",
@@ -54,6 +57,7 @@ def register_core_tools(
     def agom_bootstrap() -> dict[str, Any]:
         """Return startup guidance and capability registry summary."""
         capabilities = dispatcher.list_capabilities()
+        contract = AGENT_CONTRACT_STORE.get_contract()
         domain_counts: dict[str, int] = {}
         for capability in capabilities:
             domain_counts[capability.owner_app] = domain_counts.get(capability.owner_app, 0) + 1
@@ -64,6 +68,12 @@ def register_core_tools(
             "message": "AgomTradePro MCP core tools are active.",
             "instructions": welcome_message_factory(),
             "core_tools": list(CORE_TOOL_NAMES),
+            "agent_contract": {
+                "contract_id": contract["contract_id"],
+                "version": contract["version"],
+                "content_sha256": contract["content_sha256"],
+                "resource_uri": "agomtradepro://agent/contract",
+            },
             "capability_count": len(capabilities),
             "capability_domains": [
                 {"owner_app": owner_app, "capability_count": count}
@@ -74,12 +84,51 @@ def register_core_tools(
                 "search_max_limit": CAPABILITY_SEARCH_MAX_RESULTS,
                 "query_languages": ["en", "zh-CN"],
                 "steps": [
+                    "agom_get_agent_contract",
                     "agom_capability_search",
                     "agom_capability_schema",
                     "agom_capability_call",
                 ],
             },
             "workflow_keys": sorted(_WORKFLOW_DEFINITIONS),
+        }
+
+    @server.tool()
+    def agom_get_agent_contract(task_type: str = "general") -> dict[str, Any]:
+        """Return the versioned Agent operating contract for one task type."""
+        return {
+            "ok": True,
+            "status": "completed",
+            "requested_task_type": task_type,
+            "contract": AGENT_CONTRACT_STORE.get_contract(task_type),
+            "playbook_catalog": AGENT_CONTRACT_STORE.list_playbooks(),
+        }
+
+    @server.tool()
+    def agom_get_workflow_playbook(playbook_key: str = "") -> dict[str, Any]:
+        """Return one governed playbook, or the compact catalog when key is empty."""
+        if not playbook_key:
+            return {
+                "ok": True,
+                "status": "completed",
+                **AGENT_CONTRACT_STORE.list_playbooks(),
+            }
+        try:
+            playbook = AGENT_CONTRACT_STORE.get_playbook(playbook_key)
+        except KeyError:
+            return {
+                "ok": False,
+                "status": "error",
+                "error": {
+                    "code": "playbook_not_found",
+                    "message": f"Unknown playbook_key: {playbook_key}",
+                },
+                "playbook_key": playbook_key,
+            }
+        return {
+            "ok": True,
+            "status": "completed",
+            "playbook": playbook,
         }
 
     @server.tool()
@@ -136,7 +185,7 @@ def register_core_tools(
         arguments: dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Execute one capability through the dispatcher."""
+        """Execute one capability after contract guidance, discovery and Schema inspection."""
         return dispatcher.call(
             capability_key=capability_key,
             arguments=arguments or {},

@@ -159,6 +159,8 @@ class CapabilityRoutingFacade:
         mcp_enabled: bool = True,
         provider_name: str | None = None,
         model: str | None = None,
+        confirmation_id: str | None = None,
+        approved: bool | None = None,
         context: dict[str, Any] | None = None,
         answer_chain_enabled: bool = False,
     ) -> dict[str, Any]:
@@ -168,6 +170,8 @@ class CapabilityRoutingFacade:
             session_id=session_id,
             provider_name=provider_name,
             model=model,
+            confirmation_id=confirmation_id,
+            approved=approved,
             context={
                 **(context or {}),
                 "user_id": user_id,

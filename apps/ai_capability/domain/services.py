@@ -33,15 +33,42 @@ class CapabilityRetrievalScorer:
     """
 
     FIELD_WEIGHTS = {
+        "capability_key": 20.0,
         "name": 10.0,
         "summary": 8.0,
         "tags": 6.0,
         "when_to_use": 5.0,
         "category": 4.0,
         "description": 3.0,
-        "when_not_to_use": 2.0,
         "examples": 2.0,
     }
+
+    INTENT_ALIASES = {
+        "market_temperature": (
+            "market_temperature",
+            "market temperature",
+            "market thermometer",
+            "sentiment temperature",
+            "市场温度",
+            "市场温度计",
+            "市场热度",
+            "市场过热",
+            "过热风险",
+        ),
+        "fund_ranking": (
+            "fund ranking",
+            "fund rank",
+            "fund.read.ranking",
+            "基金排名",
+            "基金排行",
+        ),
+    }
+    SYSTEM_STATUS_INTENT_RE = re.compile(
+        r"(?:系统.{0,6}(?:状态|健康|就绪|可用)|服务.{0,4}(?:状态|健康|可用)|"
+        r"数据库|redis|celery|worker|system\s+(?:status|health)|"
+        r"health\s*check|readiness)",
+        re.IGNORECASE,
+    )
 
     def score_capability(
         self,
@@ -57,20 +84,26 @@ class CapabilityRetrievalScorer:
         Returns:
             RetrievalScore with score and matched fields
         """
-        query_lower = query.lower()
+        query_lower = self._normalize_text(query)
         query_words = set(re.findall(r"\w+", query_lower))
+
+        if (
+            capability.capability_key == "builtin.system_status"
+            and not self.SYSTEM_STATUS_INTENT_RE.search(query_lower)
+        ):
+            return RetrievalScore(capability=capability, score=0.0, matched_fields=[])
 
         total_score = 0.0
         matched_fields = []
 
         field_values = {
+            "capability_key": [self._normalize_text(capability.capability_key)],
             "name": [capability.name.lower()],
             "summary": [capability.summary.lower()],
             "description": [capability.description.lower()],
             "category": [capability.category.lower()],
             "tags": [t.lower() for t in capability.tags],
             "when_to_use": [w.lower() for w in capability.when_to_use],
-            "when_not_to_use": [w.lower() for w in capability.when_not_to_use],
             "examples": [e.lower() for e in capability.examples],
         }
 
@@ -82,6 +115,18 @@ class CapabilityRetrievalScorer:
             if field_score > 0:
                 total_score += field_score * self.FIELD_WEIGHTS.get(field_name, 1.0)
                 matched_fields.append(field_name)
+
+        negative_score = sum(
+            self._compute_text_score(
+                self._normalize_text(value),
+                query_lower,
+                query_words,
+            )
+            for value in capability.when_not_to_use
+        )
+        if negative_score > 0:
+            total_score -= negative_score * 6.0
+            matched_fields.append("when_not_to_use")
 
         total_score *= capability.priority_weight
 
@@ -106,6 +151,7 @@ class CapabilityRetrievalScorer:
         """
         score = 0.0
 
+        text = self._normalize_text(text)
         if query_lower in text:
             score += 3.0
 
@@ -115,7 +161,6 @@ class CapabilityRetrievalScorer:
             score += len(overlap) * 0.5
 
         key_patterns = [
-            (r"status|状态|健康|health", "system_status"),
             (r"regime|市场环境|象限", "market_regime"),
             (r"温度|热度|过热|接盘|散户热度|市场温度|市场热度", "market_temperature"),
             (r"pmi|cpi|ppi|m2|宏观|macro", "macro"),
@@ -125,12 +170,35 @@ class CapabilityRetrievalScorer:
             (r"portfolio|持仓|账户", "portfolio"),
         ]
 
+        if self.SYSTEM_STATUS_INTENT_RE.search(query_lower) and re.search(
+            r"system|health|readiness|状态|健康|数据库|redis|celery|worker",
+            text,
+            re.IGNORECASE,
+        ):
+            score += 2.0
+
         for pattern, _category in key_patterns:
             if re.search(pattern, query_lower) and re.search(pattern, text):
                 score += 1.5
                 break
 
+        for aliases in self.INTENT_ALIASES.values():
+            if self._contains_alias(query_lower, aliases) and self._contains_alias(text, aliases):
+                score += 3.0
+
         return score
+
+    @classmethod
+    def _normalize_text(cls, value: str) -> str:
+        normalized = str(value or "").strip().lower().replace("_", " ").replace(".", " ")
+        return re.sub(r"\s+", " ", normalized)
+
+    @staticmethod
+    def _contains_alias(text: str, aliases: tuple[str, ...]) -> bool:
+        normalized_text = text.replace("_", " ").replace(".", " ")
+        return any(
+            alias.replace("_", " ").replace(".", " ") in normalized_text for alias in aliases
+        )
 
     def retrieve_top_k(
         self,
@@ -160,6 +228,84 @@ class CapabilityRetrievalScorer:
 
         scores.sort(key=lambda s: s.score, reverse=True)
         return scores[:k]
+
+
+class CapabilityCatalogSearch:
+    """Rank catalog results with phrase aliases and multi-token OR matching."""
+
+    FIELD_WEIGHTS = (8.0, 6.0, 4.0, 3.0, 2.0, 2.0)
+
+    def search(
+        self,
+        capabilities: list[CapabilityDefinition],
+        query: str,
+    ) -> list[CapabilityDefinition]:
+        """Return matching capabilities ordered by deterministic relevance."""
+
+        scorer = CapabilityRetrievalScorer()
+        normalized_query = scorer._normalize_text(query)
+        query_tokens = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{2,}", normalized_query))
+        ranked: list[tuple[float, CapabilityDefinition]] = []
+
+        for capability in capabilities:
+            fields = (
+                scorer._normalize_text(capability.capability_key),
+                scorer._normalize_text(capability.name),
+                scorer._normalize_text(capability.summary),
+                scorer._normalize_text(capability.description),
+                scorer._normalize_text(" ".join(capability.tags)),
+                scorer._normalize_text(" ".join(capability.examples)),
+            )
+            score = 0.0
+            for weight, field in zip(self.FIELD_WEIGHTS, fields, strict=True):
+                if normalized_query == field:
+                    score += weight * 10
+                elif normalized_query and normalized_query in field:
+                    score += weight * 3
+                field_tokens = set(re.findall(r"[a-z0-9]+|[\u4e00-\u9fff]{2,}", field))
+                score += weight * len(query_tokens & field_tokens)
+
+            for aliases in scorer.INTENT_ALIASES.values():
+                if scorer._contains_alias(normalized_query, aliases) and any(
+                    scorer._contains_alias(field, aliases) for field in fields
+                ):
+                    score += 100.0
+
+            if score > 0:
+                ranked.append((score, capability))
+
+        ranked.sort(key=lambda item: (-item[0], item[1].capability_key))
+        return [capability for _, capability in ranked]
+
+
+class CapabilityParameterPolicy:
+    """Normalize parameters against the selected capability contract."""
+
+    PATH_PARAM_RE = re.compile(r"<(?:[^:>]+:)?([^>]+)>")
+
+    def normalize(
+        self,
+        capability: CapabilityDefinition,
+        supplied_params: dict[str, Any] | None,
+        *,
+        default_account_id: Any = None,
+    ) -> dict[str, Any]:
+        """Filter unsupported values and apply the default account only when declared."""
+
+        params = dict(supplied_params or {})
+        schema = dict(capability.input_schema or {})
+        properties = set((schema.get("properties") or {}).keys())
+        path_params = set(
+            self.PATH_PARAM_RE.findall(str(capability.execution_target.get("path") or ""))
+        )
+        allowed = properties | path_params
+
+        if allowed or schema.get("additionalProperties") is False:
+            params = {key: value for key, value in params.items() if key in allowed}
+
+        if default_account_id is not None and "account_id" in allowed:
+            params.setdefault("account_id", default_account_id)
+        return params
 
 
 class CapabilityFilter:

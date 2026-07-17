@@ -311,6 +311,7 @@ class RoutingDecision:
     rejected_candidates: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     answer_chain: dict[str, Any] = field(default_factory=dict)
+    result: Any = None
 
     def __post_init__(self):
         if isinstance(self.decision, str):
@@ -326,4 +327,5 @@ class RoutingDecision:
             "reply": self.reply,
             "metadata": self.metadata,
             "answer_chain": self.answer_chain,
+            "result": self.result,
         }

@@ -5,8 +5,8 @@ AI Capability Catalog Application Use Cases.
 import json
 import logging
 import re
-import time
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -16,9 +16,8 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.ai_capability.application.repository_provider import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
-    DjangoSyncLogRepository,
-    build_api_capability_collector,
     get_capability_execution_support_repository,
+    get_confirmation_codec,
 )
 from apps.ai_provider.application.repository_provider import AIClientFactory
 from apps.policy.application.repository_provider import get_current_policy_repository
@@ -30,76 +29,50 @@ from ..application.dtos import (
     CapabilitySummaryDTO,
     RouteRequestDTO,
     RouteResponseDTO,
-    SyncResultDTO,
 )
 from ..domain.entities import (
     CapabilityDecision,
     CapabilityDefinition,
     CapabilityRoutingLog,
-    CapabilitySyncLog,
-    RiskLevel,
-    RouteGroup,
     RoutingContext,
     RoutingDecision,
     SourceType,
 )
+from ..domain.interfaces import ConfirmationCodecProtocol
 from ..domain.services import (
-    BuiltinCapabilityRegistry,
     CapabilityFilter,
+    CapabilityParameterPolicy,
     CapabilityRetrievalScorer,
     CapabilitySemanticDeduper,
 )
-from .mcp_catalog_projection import (
-    build_governed_mcp_capability,
-    build_legacy_mcp_capability,
-    build_legacy_replacement_map,
-)
+from . import sync_use_cases as _sync_use_cases
 from .mcp_runtime_gateway import call_sdk_mcp_tool as _call_sdk_mcp_tool
-from .mcp_runtime_gateway import (
-    list_sdk_mcp_capability_manifests as _list_sdk_mcp_capability_manifests,
-)
-from .mcp_runtime_gateway import list_sdk_mcp_core_tool_names as _list_sdk_mcp_core_tool_names
-from .mcp_runtime_gateway import list_sdk_mcp_tools as _list_sdk_mcp_tools
-from .semantic_governance import upsert_collected_capabilities
+from .result_enrichment import enrich_security_names
 from .terminal_gateway import get_terminal_capability_gateway
 
 logger = logging.getLogger(__name__)
 
-_MCP_MUTATING_KEYWORDS = (
-    "activate",
-    "add",
-    "approve",
-    "backfill",
-    "cancel",
-    "close",
-    "create",
-    "deactivate",
-    "delete",
-    "disable",
-    "enable",
-    "execute",
-    "export",
-    "fix",
-    "import",
-    "open",
-    "patch",
-    "rebalance",
-    "refresh",
-    "reject",
-    "remove",
-    "repair",
-    "reset",
-    "rollback",
-    "run",
-    "save",
-    "set",
-    "submit",
-    "sync",
-    "trade",
-    "update",
-    "upsert",
-    "write",
-)
+_list_sdk_mcp_capability_manifests = _sync_use_cases._list_sdk_mcp_capability_manifests
+_list_sdk_mcp_core_tool_names = _sync_use_cases._list_sdk_mcp_core_tool_names
+_list_sdk_mcp_tools = _sync_use_cases._list_sdk_mcp_tools
+
+
+class SyncCapabilitiesUseCase(_sync_use_cases.SyncCapabilitiesUseCase):
+    """Compatibility wrapper for tests and callers patching the legacy module path."""
+
+    def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
+        original_manifest_loader = _sync_use_cases._list_sdk_mcp_capability_manifests
+        original_core_names_loader = _sync_use_cases._list_sdk_mcp_core_tool_names
+        original_tools_loader = _sync_use_cases._list_sdk_mcp_tools
+        try:
+            _sync_use_cases._list_sdk_mcp_capability_manifests = _list_sdk_mcp_capability_manifests
+            _sync_use_cases._list_sdk_mcp_core_tool_names = _list_sdk_mcp_core_tool_names
+            _sync_use_cases._list_sdk_mcp_tools = _list_sdk_mcp_tools
+            return super()._sync_mcp_tools()
+        finally:
+            _sync_use_cases._list_sdk_mcp_capability_manifests = original_manifest_loader
+            _sync_use_cases._list_sdk_mcp_core_tool_names = original_core_names_loader
+            _sync_use_cases._list_sdk_mcp_tools = original_tools_loader
 
 
 class _CapabilityRegimeAdapter:
@@ -204,9 +177,15 @@ class CapabilityDecisionService:
 
     PATH_PARAM_RE = re.compile(r"<(?:[^:>]+:)?([^>]+)>")
 
-    def __init__(self, high_confidence: float = 0.85, suggest_confidence: float = 0.60):
+    def __init__(
+        self,
+        high_confidence: float = 0.85,
+        suggest_confidence: float = 0.60,
+        parameter_policy: CapabilityParameterPolicy | None = None,
+    ):
         self.high_confidence = high_confidence
         self.suggest_confidence = suggest_confidence
+        self.parameter_policy = parameter_policy or CapabilityParameterPolicy()
 
     def decide(
         self,
@@ -229,7 +208,12 @@ class CapabilityDecisionService:
         confidence = top_score.score / 10
         candidates = [score.capability.to_summary_dict() for score in scores]
         rejected_candidates = [score.capability.capability_key for score in scores[1:]]
-        params = context.context.get("params", {}) or {}
+        params = self.parameter_policy.normalize(
+            capability,
+            context.context.get("params", {}) or {},
+            default_account_id=context.context.get("default_account_id"),
+        )
+        context.context["params"] = params
         missing_params = self._collect_missing_params(capability, params)
 
         if missing_params:
@@ -310,12 +294,20 @@ class CapabilityExecutionDispatcher:
     PATH_PARAM_RE = re.compile(r"<(?:[^:>]+:)?([^>]+)>")
     PATH_SEGMENT_RE = re.compile(r"<(?:(?P<converter>[^:>]+):)?(?P<name>[^>]+)>")
 
+    def __init__(self, parameter_policy: CapabilityParameterPolicy | None = None):
+        self.parameter_policy = parameter_policy or CapabilityParameterPolicy()
+
     def dispatch(
         self,
         capability: CapabilityDefinition,
         request: RouteRequestDTO,
         context: RoutingContext,
     ) -> dict[str, Any]:
+        context.context["params"] = self.parameter_policy.normalize(
+            capability,
+            context.context.get("params", {}) or {},
+            default_account_id=context.context.get("default_account_id"),
+        )
         if capability.source_type == SourceType.BUILTIN:
             return self._execute_builtin(capability)
         if capability.source_type == SourceType.TERMINAL_COMMAND:
@@ -408,9 +400,11 @@ class CapabilityExecutionDispatcher:
                 "confirmation_required": True,
             }
         if response.get("success"):
+            metadata = response.get("metadata", {}) or {}
             return {
                 "reply": response.get("output", ""),
-                "metadata": response.get("metadata", {}),
+                "metadata": metadata,
+                "result": metadata.get("structured_output"),
             }
         metadata = response.get("metadata", {}) or {}
         return {
@@ -445,19 +439,26 @@ class CapabilityExecutionDispatcher:
             )
             result = execute_builtin_tool(tool_name, params)
 
+        result = enrich_security_names(result)
+
         reply = (
             json.dumps(result, indent=2, ensure_ascii=False)
             if isinstance(result, (dict, list))
             else str(result)
         )
-        return {"reply": reply}
+        return {"reply": reply, "result": result}
 
     def _execute_api(
         self,
         capability: CapabilityDefinition,
         context: RoutingContext,
     ) -> dict[str, Any]:
-        params = dict(context.context.get("params", {}) or {})
+        params = self.parameter_policy.normalize(
+            capability,
+            context.context.get("params", {}) or {},
+            default_account_id=context.context.get("default_account_id"),
+        )
+        context.context["params"] = dict(params)
         path_template = capability.execution_target.get("path", "")
         path_segments = list(self.PATH_SEGMENT_RE.finditer(path_template))
         path_params = [match.group("name") for match in path_segments]
@@ -519,6 +520,7 @@ class CapabilityExecutionDispatcher:
         payload = getattr(response, "data", None)
         if payload is None:
             payload = response.content.decode("utf-8")
+        payload = enrich_security_names(payload)
         reply = (
             json.dumps(payload, indent=2, ensure_ascii=False)
             if isinstance(payload, (dict, list))
@@ -526,6 +528,7 @@ class CapabilityExecutionDispatcher:
         )
         return {
             "reply": reply,
+            "result": payload,
             "metadata": {"status_code": getattr(response, "status_code", 200)},
         }
 
@@ -546,21 +549,27 @@ class RouteMessageUseCase:
     HIGH_CONFIDENCE_THRESHOLD = 0.85
     SUGGEST_CONFIDENCE_THRESHOLD = 0.60
     TOP_K_CANDIDATES = 5
+    APPROVAL_MESSAGES = {"y", "yes", "确认", "同意", "批准", "执行"}
+    REJECTION_MESSAGES = {"n", "no", "取消", "拒绝"}
 
     def __init__(
         self,
         capability_repo: DjangoCapabilityRepository | None = None,
         routing_log_repo: DjangoRoutingLogRepository | None = None,
+        confirmation_codec: ConfirmationCodecProtocol | None = None,
     ):
         self.capability_repo = capability_repo or DjangoCapabilityRepository()
         self.routing_log_repo = routing_log_repo or DjangoRoutingLogRepository()
         self.registry = CapabilityRegistryService(self.capability_repo)
         self.retrieval = CapabilityRetrievalService()
+        self.parameter_policy = CapabilityParameterPolicy()
         self.decision_service = CapabilityDecisionService(
             high_confidence=self.HIGH_CONFIDENCE_THRESHOLD,
             suggest_confidence=self.SUGGEST_CONFIDENCE_THRESHOLD,
+            parameter_policy=self.parameter_policy,
         )
-        self.dispatcher = CapabilityExecutionDispatcher()
+        self.dispatcher = CapabilityExecutionDispatcher(self.parameter_policy)
+        self.confirmation_codec = confirmation_codec or get_confirmation_codec()
 
     def execute(self, request: RouteRequestDTO) -> RouteResponseDTO:
         """Execute routing for a message."""
@@ -577,6 +586,16 @@ class RouteMessageUseCase:
             context=request.context,
             answer_chain_enabled=request.context.get("answer_chain_enabled", False),
         )
+
+        confirmation_id, approved = self._extract_confirmation_request(request)
+        if confirmation_id:
+            return self._resume_confirmation(
+                request=request,
+                session_id=session_id,
+                context=context,
+                confirmation_id=confirmation_id,
+                approved=approved,
+            )
 
         filtered = self.registry.get_routable_capabilities(context)
         scores = self.retrieval.retrieve(filtered, request.message, k=self.TOP_K_CANDIDATES)
@@ -632,6 +651,123 @@ class RouteMessageUseCase:
             decision=decision,
         )
 
+        return self._build_response(decision, session_id, context)
+
+    def _extract_confirmation_request(
+        self,
+        request: RouteRequestDTO,
+    ) -> tuple[str | None, bool | None]:
+        """Normalize explicit and context-carried confirmation requests."""
+
+        confirmation = request.context.get("confirmation") or {}
+        confirmation_id = request.confirmation_id
+        approved = request.approved
+        if isinstance(confirmation, dict):
+            confirmation_id = confirmation_id or confirmation.get("confirmation_id")
+            if approved is None and "approved" in confirmation:
+                approved = bool(confirmation.get("approved"))
+
+        normalized_message = request.message.strip().lower()
+        if approved is None and normalized_message in self.APPROVAL_MESSAGES:
+            approved = True
+        elif approved is None and normalized_message in self.REJECTION_MESSAGES:
+            approved = False
+        return str(confirmation_id) if confirmation_id else None, approved
+
+    def _resume_confirmation(
+        self,
+        *,
+        request: RouteRequestDTO,
+        session_id: str,
+        context: RoutingContext,
+        confirmation_id: str,
+        approved: bool | None,
+    ) -> RouteResponseDTO:
+        """Execute the signed, locked capability without semantic re-routing."""
+
+        try:
+            payload = self.confirmation_codec.verify(confirmation_id)
+        except ValueError as exc:
+            return self._build_confirmation_terminal_response(
+                session_id=session_id,
+                context=context,
+                reply=str(exc),
+                reason="Confirmation verification failed.",
+            )
+
+        if payload.get("session_id") != session_id or payload.get("user_id") != context.user_id:
+            return self._build_confirmation_terminal_response(
+                session_id=session_id,
+                context=context,
+                reply="确认上下文与当前会话或用户不匹配，请重新发起请求。",
+                reason="Confirmation context mismatch.",
+            )
+        if approved is not True:
+            reply = "已取消上一项能力执行。" if approved is False else "请确认是否执行上一项能力。"
+            return self._build_confirmation_terminal_response(
+                session_id=session_id,
+                context=context,
+                reply=reply,
+                reason="Confirmation was not approved.",
+            )
+
+        capability_key = str(payload.get("capability_key") or "")
+        capability = self.capability_repo.get_by_key(capability_key)
+        if capability is None:
+            return self._build_confirmation_terminal_response(
+                session_id=session_id,
+                context=context,
+                reply="待确认能力已不存在或已下线，请重新发起请求。",
+                reason="Confirmed capability is unavailable.",
+            )
+        if not CapabilityFilter().filter_by_context([capability], context):
+            raise PermissionError(
+                f"Capability is not available in {context.entrypoint} for this user: {capability_key}"
+            )
+
+        supplied_params = dict(payload.get("normalized_params") or {})
+        supplied_params.update(request.context.get("params", {}) or {})
+        context.context["params"] = self.parameter_policy.normalize(
+            capability,
+            supplied_params,
+            default_account_id=context.context.get("default_account_id"),
+        )
+        confirmed_capability = replace(capability, requires_confirmation=False)
+        decision = self._build_capability_decision(
+            confirmed_capability,
+            [capability.to_summary_dict()],
+            1.0,
+            request,
+            context,
+            reason="User approved the signed pending capability.",
+            rejected_candidates=[],
+        )
+        self._log_routing(
+            context=context,
+            raw_message=request.message,
+            scores=[],
+            decision=decision,
+        )
+        return self._build_response(decision, session_id, context)
+
+    def _build_confirmation_terminal_response(
+        self,
+        *,
+        session_id: str,
+        context: RoutingContext,
+        reply: str,
+        reason: str,
+    ) -> RouteResponseDTO:
+        decision = RoutingDecision(
+            decision=CapabilityDecision.CHAT,
+            reply=reply,
+            reason=reason,
+            metadata={
+                "route": "confirmation",
+                "provider": "capability-router",
+                "model": "router",
+            },
+        )
         return self._build_response(decision, session_id, context)
 
     def _handle_no_candidates(
@@ -704,8 +840,10 @@ class RouteMessageUseCase:
                 "provider": "capability-router",
                 "model": "router",
                 "capability_name": capability.name,
+                **(execution_result.get("metadata") or {}),
             },
             answer_chain=answer_chain,
+            result=execution_result.get("result"),
         )
 
     def _build_suggestion_decision(
@@ -1042,6 +1180,7 @@ class RouteMessageUseCase:
         suggested_command = None
         suggested_intent = None
         suggestion_prompt = None
+        confirmation = None
 
         if (
             decision.decision == CapabilityDecision.ASK_CONFIRMATION
@@ -1059,6 +1198,32 @@ class RouteMessageUseCase:
             )
             suggested_intent = decision.selected_capability_key.split(".")[-1]
             suggestion_prompt = f"检测到你可能想执行 {suggested_command}。输入 Y 执行，输入 N 取消，或继续输入其他内容。"
+            normalized_params = self.parameter_policy.normalize(
+                self.capability_repo.get_by_key(decision.selected_capability_key)
+                or CapabilityDefinition(
+                    capability_key=decision.selected_capability_key,
+                    source_type=SourceType.BUILTIN,
+                    source_ref="",
+                    name=decision.selected_capability_key,
+                    summary="",
+                ),
+                decision.filled_params,
+                default_account_id=context.context.get("default_account_id"),
+            )
+            confirmation_id = self.confirmation_codec.issue(
+                {
+                    "session_id": session_id,
+                    "user_id": context.user_id,
+                    "capability_key": decision.selected_capability_key,
+                    "normalized_params": normalized_params,
+                }
+            )
+            confirmation = {
+                "confirmation_id": confirmation_id,
+                "capability_key": decision.selected_capability_key,
+                "normalized_params": normalized_params,
+                "expires_in_seconds": 300,
+            }
 
         return RouteResponseDTO(
             decision=decision.decision.value,
@@ -1077,6 +1242,8 @@ class RouteMessageUseCase:
             suggested_command=suggested_command,
             suggested_intent=suggested_intent,
             suggestion_prompt=suggestion_prompt,
+            confirmation=confirmation,
+            result=decision.result,
         )
 
 
@@ -1146,205 +1313,6 @@ class GetCatalogStatsUseCase:
     def execute(self) -> dict[str, Any]:
         """Get catalog statistics."""
         return self.capability_repo.get_stats()
-
-
-class SyncCapabilitiesUseCase:
-    """Use case for synchronizing capabilities from sources."""
-
-    def __init__(
-        self,
-        capability_repo: DjangoCapabilityRepository | None = None,
-        sync_log_repo: DjangoSyncLogRepository | None = None,
-    ):
-        self.capability_repo = capability_repo or DjangoCapabilityRepository()
-        self.sync_log_repo = sync_log_repo or DjangoSyncLogRepository()
-
-    def execute(self, sync_type: str = "full", source: str | None = None) -> SyncResultDTO:
-        """Execute capability synchronization."""
-        start_time = time.time()
-        started_at = datetime.now(UTC)
-
-        total_discovered = 0
-        created_count = 0
-        updated_count = 0
-        disabled_count = 0
-        error_count, summary = 0, {}
-
-        try:
-            sources = {
-                "builtin": self._sync_builtin,
-                "terminal_command": self._sync_terminal_commands,
-                "mcp_tool": self._sync_mcp_tools,
-                "api": self._sync_apis,
-            }
-            source_names = [source] if source else list(sources.keys())
-            for source_name in source_names:
-                sync_func = sources[source_name]
-                capabilities = sync_func()
-                total_discovered += len(capabilities)
-                result = upsert_collected_capabilities(self.capability_repo, capabilities)
-                created_count += result["created"]
-                updated_count += result["updated"]
-                disabled = self.capability_repo.disable_missing(
-                    source_name,
-                    [cap.capability_key for cap in capabilities],
-                )
-                disabled_count += disabled
-                summary[source_name] = {**result, "disabled": disabled}
-
-        except Exception as e:
-            logger.exception("Capability sync failed")
-            error_count += 1
-            summary["error"] = str(e)
-
-        finished_at = datetime.now(UTC)
-        duration = time.time() - start_time
-
-        sync_log = CapabilitySyncLog(
-            sync_type=sync_type,
-            started_at=started_at,
-            finished_at=finished_at,
-            total_discovered=total_discovered,
-            created_count=created_count,
-            updated_count=updated_count,
-            disabled_count=disabled_count,
-            error_count=error_count,
-            summary_payload=summary,
-        )
-        self.sync_log_repo.save(sync_log)
-
-        return SyncResultDTO(
-            sync_type=sync_type,
-            total_discovered=total_discovered,
-            created_count=created_count,
-            updated_count=updated_count,
-            disabled_count=disabled_count,
-            error_count=error_count,
-            duration_seconds=duration,
-            summary=summary,
-        )
-
-    def _sync_builtin(self) -> list[CapabilityDefinition]:
-        """Sync builtin capabilities."""
-        capabilities = []
-        for cap_data in BuiltinCapabilityRegistry.get_all():
-            cap = CapabilityDefinition.from_dict(cap_data)
-            capabilities.append(cap)
-        return capabilities
-
-    def _sync_terminal_commands(self) -> list[CapabilityDefinition]:
-        """Sync terminal commands."""
-        capabilities = []
-        commands = get_terminal_capability_gateway().list_active_commands()
-
-        for cmd in commands:
-            command_name = str(cmd.get("name", ""))
-            description = str(cmd.get("description", "") or "")
-            risk_level = str(cmd.get("risk_level", "read") or "read")
-            summary = description or f"Terminal command: {command_name}"
-            tags = list(cmd.get("tags") or [])
-            when_to_use: list[str] = []
-            examples: list[str] = []
-            if command_name == "market_temperature":
-                summary = "Get the current market thermometer score, band, and overheating risk."
-                tags.extend(["market", "temperature", "heat", "overheat", "散户热度", "接盘风险"])
-                when_to_use = [
-                    "User asks whether the market is overheated.",
-                    "User asks about market heat, retail heat, or chasing risk.",
-                ]
-                examples = [
-                    "市场是不是过热了",
-                    "现在散户热度高吗",
-                    "我会不会接盘",
-                ]
-            cap = CapabilityDefinition(
-                capability_key=f"terminal_command.{command_name}",
-                source_type=SourceType.TERMINAL_COMMAND,
-                source_ref=str(cmd.get("id", "")),
-                name=command_name,
-                summary=summary,
-                description=description,
-                route_group=RouteGroup.TOOL,
-                category=str(cmd.get("category", "general") or "general"),
-                semantic_key=f"terminal.{command_name}",
-                tags=tags,
-                when_to_use=when_to_use,
-                when_not_to_use=[],
-                examples=examples,
-                input_schema={},
-                execution_target={
-                    "type": "terminal_command",
-                    "command_id": str(cmd.get("pk", "")),
-                },
-                risk_level=self._map_risk_level(risk_level),
-                requires_mcp=bool(cmd.get("requires_mcp", False)),
-                requires_confirmation=risk_level in ("write_high", "admin"),
-                enabled_for_routing=bool(cmd.get("enabled_in_terminal", False)),
-                enabled_for_terminal=True,
-                enabled_for_chat=False,
-                enabled_for_agent=True,
-                auto_collected=True,
-                review_status="auto",
-            )
-            capabilities.append(cap)
-
-        return capabilities
-
-    def _map_risk_level(self, terminal_risk: str) -> str:
-        """Map terminal risk level to capability risk level."""
-        mapping = {
-            "read": "safe",
-            "write_low": "low",
-            "write_high": "high",
-            "admin": "critical",
-        }
-        return mapping.get(terminal_risk, "medium")
-
-    def _classify_mcp_tool(self, tool_name: str) -> tuple[RiskLevel, bool, bool]:
-        normalized = (tool_name or "").lower()
-        tokens = set(re.findall(r"[a-z0-9]+", normalized))
-        is_mutating = any(keyword in tokens for keyword in _MCP_MUTATING_KEYWORDS)
-        if is_mutating:
-            return (RiskLevel.HIGH, True, False)
-        return (RiskLevel.LOW, True, True)
-
-    def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
-        """Sync MCP tools."""
-        capabilities = []
-
-        try:
-            core_manifests = _list_sdk_mcp_capability_manifests()
-            core_tool_names = _list_sdk_mcp_core_tool_names()
-            legacy_replacement_map = build_legacy_replacement_map(core_manifests)
-            capabilities.extend(
-                build_governed_mcp_capability(manifest) for manifest in core_manifests
-            )
-
-            for tool in _list_sdk_mcp_tools(include_legacy=True):
-                if tool.name in core_tool_names:
-                    continue
-                risk_level, requires_confirmation, enabled_for_routing = self._classify_mcp_tool(
-                    tool.name
-                )
-                replacement_capability_key = legacy_replacement_map.get(tool.name, "")
-                capabilities.append(
-                    build_legacy_mcp_capability(
-                        tool,
-                        replacement_capability_key=replacement_capability_key,
-                        risk_level=risk_level,
-                        requires_confirmation=requires_confirmation,
-                        enabled_for_routing=enabled_for_routing,
-                    )
-                )
-        except Exception as e:
-            logger.warning(f"Failed to sync MCP tools: {e}")
-
-        return capabilities
-
-    def _sync_apis(self) -> list[CapabilityDefinition]:
-        """Sync internal APIs."""
-        collector = build_api_capability_collector()
-        return collector.collect()
 
 
 __all__ = [

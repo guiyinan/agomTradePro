@@ -132,3 +132,65 @@ def test_api_dispatcher_rejects_non_integer_path_param():
 
     assert "account_id" in result["reply"]
     assert "整数" in result["reply"]
+
+
+@pytest.mark.django_db
+def test_api_dispatcher_filters_default_account_from_public_fund_ranking(regular_user):
+    dispatcher = CapabilityExecutionDispatcher()
+    capability = CapabilityCatalogModel.objects.update_or_create(
+        capability_key="api.get.api.fund.rank",
+        defaults={
+            "source_type": "api",
+            "source_ref": "GET api/fund/rank/",
+            "name": "Get Fund Rank",
+            "summary": "获取基金排名",
+            "route_group": "read_api",
+            "category": "fund",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "regime": {"type": "string"},
+                    "max_count": {"type": "integer"},
+                },
+                "additionalProperties": False,
+            },
+            "execution_target": {
+                "type": "api",
+                "method": "GET",
+                "path": "api/fund/rank/",
+            },
+            "risk_level": "safe",
+            "requires_confirmation": False,
+            "enabled_for_routing": True,
+            "enabled_for_terminal": True,
+            "enabled_for_chat": False,
+            "enabled_for_agent": True,
+            "visibility": "internal",
+        },
+    )[0].to_entity()
+    context = type(
+        "Ctx",
+        (),
+        {
+            "context": {
+                "params": {"regime": "Recovery", "account_id": 365},
+                "default_account_id": 365,
+            },
+            "user_id": regular_user.id,
+        },
+    )()
+
+    with patch(
+        "apps.fund.application.interface_services.rank_funds",
+        return_value=[],
+    ):
+        result = dispatcher._execute_api(capability, context=context)
+
+    assert result["metadata"]["status_code"] == 200
+    assert result["result"] == {
+        "success": True,
+        "regime": "Recovery",
+        "count": 0,
+        "funds": [],
+    }
+    assert context.context["params"] == {"regime": "Recovery"}

@@ -41,7 +41,19 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "regime": {"type": "string"},
-                "funds": {"type": "array"},
+                "funds": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fund_code": {"type": "string"},
+                            "fund_name": {"type": "string"},
+                            "total_score": {"type": "number"},
+                            "rank": {"type": "integer"},
+                        },
+                        "required": ["fund_code", "fund_name"],
+                    },
+                },
                 "total_count": {"type": "integer"},
             },
             "required": [],
@@ -157,7 +169,17 @@ MANIFESTS = [
             "properties": {
                 "fund_code": {"type": "string"},
                 "report_date": {"type": ["string", "null"]},
-                "holdings": {"type": "array"},
+                "holdings": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "stock_code": {"type": "string"},
+                            "stock_name": {"type": "string"},
+                        },
+                        "required": ["stock_code", "stock_name"],
+                    },
+                },
                 "total_count": {"type": "integer"},
             },
             "required": [],
@@ -193,7 +215,14 @@ MANIFESTS.append(
             "type": "object",
             "properties": {
                 "fund_code": {"type": "string"},
-                "score": {"type": "object"},
+                "score": {
+                    "type": "object",
+                    "properties": {
+                        "fund_code": {"type": "string"},
+                        "fund_name": {"type": "string"},
+                    },
+                    "required": ["fund_code", "fund_name"],
+                },
             },
             "required": ["fund_code", "score"],
         },
@@ -228,7 +257,17 @@ MANIFESTS.append(
         output_schema={
             "type": "object",
             "properties": {
-                "funds": {"type": "array"},
+                "funds": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fund_code": {"type": "string"},
+                            "fund_name": {"type": "string"},
+                        },
+                        "required": ["fund_code", "fund_name"],
+                    },
+                },
                 "total_count": {"type": "integer"},
             },
             "required": ["funds", "total_count"],

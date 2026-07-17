@@ -88,7 +88,8 @@ DEFAULT_NEWS_SOURCE_TYPES = ("akshare", "eastmoney")
 MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS = 4
 ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS = 35.0
 MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES = {
-    "new_investor_accounts": 25.0, "turnover": 12.0,
+    "new_investor_accounts": 25.0,
+    "turnover": 12.0,
     "etf_net_flow": ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS,
 }
 RECOVERABLE_THERMOMETER_EXCEPTIONS = (
@@ -375,9 +376,7 @@ class ImportInvestorAccountsUseCase:
                 "dry_run": True,
                 "parsed_count": len(facts),
                 "stored_count": 0,
-                "indicator_code": MARKET_COMPONENT_SPECS["new_investor_accounts"][
-                    "indicator_code"
-                ],
+                "indicator_code": MARKET_COMPONENT_SPECS["new_investor_accounts"]["indicator_code"],
                 "source_unit": value_unit,
                 "unit": "户",
                 "first_period": min(periods).isoformat() if periods else None,
@@ -386,6 +385,7 @@ class ImportInvestorAccountsUseCase:
             }
         stored_count = self._macro_repo.bulk_upsert(facts)
         return {"stored_count": stored_count, "parsed_count": len(facts), "warnings": warnings}
+
 
 class SyncMarketThermometerInputsUseCase:
     """Fetch and persist market thermometer input series."""
@@ -1124,6 +1124,9 @@ class CalculateMarketThermometerUseCase:
                 "observed_at": None,
                 "score": 0.0,
                 "band": "cold",
+                "effective_band": "cold",
+                "overheating_risk": False,
+                "avoid_chasing": False,
                 "threshold_source": "system",
                 "thresholds": self._config_repo.load().thresholds.to_dict(),
                 "components": [],
@@ -1160,7 +1163,18 @@ class CalculateMarketThermometerUseCase:
             overheat_threshold=thresholds.overheat_threshold,
             extreme_threshold=thresholds.extreme_threshold,
         )
-        append_component_provenance(payload, macro_repo=self._macro_repo, observed_at=snapshot.observed_at)
+        payload["overheating_risk"] = payload["effective_band"] in {
+            "overheat",
+            "extreme",
+        }
+        payload["avoid_chasing"] = payload["effective_band"] in {
+            "hot",
+            "overheat",
+            "extreme",
+        }
+        append_component_provenance(
+            payload, macro_repo=self._macro_repo, observed_at=snapshot.observed_at
+        )
         return payload
 
     @staticmethod

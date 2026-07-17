@@ -1,8 +1,8 @@
 # Shared Web Chat API 文档
 
-> **模块**: Homepage Chat / `AgomChatWidget` / AI Capability Routing  
-> **版本**: V1.0  
-> **最后更新**: 2026-03-20  
+> **模块**: Homepage Chat / `AgomChatWidget` / AI Capability Routing
+> **版本**: V1.1
+> **最后更新**: 2026-07-17
 > **主入口**: `POST /api/chat/web/`
 
 ---
@@ -97,6 +97,10 @@ POST /api/chat/web/
 | `model` | string \| null | 否 | 指定模型 |
 | `context` | object | 否 | 扩展上下文 |
 | `context.history` | array | 否 | 历史消息列表 |
+| `confirmation_id` | string \| null | 否 | 后端返回的签名确认 ID |
+| `approved` | boolean \| null | 否 | 是否批准签名确认对象 |
+| `context.params` | object | 否 | 显式能力参数；选定能力后按 `input_schema` 白名单过滤 |
+| `context.default_account_id` | integer | 否 | 默认账户候选值；仅目标能力声明 `account_id` 时补入 |
 
 ### 5.4 默认行为
 
@@ -155,6 +159,9 @@ POST /api/chat/web/
 | `suggested_intent` | string \| null | 建议意图 |
 | `suggestion_prompt` | string \| null | 建议提示文本 |
 | `suggested_action` | object \| null | 结构化建议动作 |
+| `selected_capability_key` | string \| null | 当前选定或刚执行的能力 |
+| `confirmation` | object \| null | 带签名、有效期和标准化参数的确认对象 |
+| `result` | object \| array \| null | 能力的稳定结构化结果；`reply` 继续用于人类可读展示 |
 
 ---
 
@@ -188,6 +195,12 @@ POST /api/chat/web/
   "suggested_command": "/status",
   "suggested_intent": "system_status",
   "suggestion_prompt": "检测到你可能想执行 /status。",
+  "confirmation": {
+    "confirmation_id": "signed-expiring-id",
+    "capability_key": "builtin.system_status",
+    "normalized_params": {},
+    "expires_in_seconds": 300
+  },
   "suggested_action": {
     "action_type": "execute_capability",
     "capability_key": "builtin.system_status",
@@ -214,7 +227,41 @@ POST /api/chat/web/
 
 ---
 
-## 8. 显式执行建议动作
+## 8. 确认并执行建议动作
+
+### 8.1 推荐：签名确认协议
+
+客户端应原样保存响应中的 `confirmation`，确认时提交后端签发的 `confirmation_id`。后端会直接恢复锁定的能力和标准化参数，不再对字符 `Y` 做语义路由。
+
+```json
+{
+  "message": "Y",
+  "session_id": "f2c70f3f-5711-4c28-a8de-7a2d7f2abcb8",
+  "confirmation_id": "signed-expiring-id",
+  "approved": true
+}
+```
+
+也可以将同一对象放入统一上下文；Route 与 Web Chat 的结构一致：
+
+```json
+{
+  "message": "Y",
+  "session_id": "f2c70f3f-5711-4c28-a8de-7a2d7f2abcb8",
+  "context": {
+    "confirmation": {
+      "confirmation_id": "signed-expiring-id",
+      "capability_key": "mcp_tool.fund.read.ranking",
+      "normalized_params": {"regime": "Recovery"},
+      "approved": true
+    }
+  }
+}
+```
+
+确认 ID 默认 5 分钟失效，并绑定用户与 `session_id`；能力键或参数被篡改不会改变签名载荷。
+
+### 8.2 兼容：结构化建议动作
 
 网页端点击 suggestion card 的 `Execute` 按钮时，继续调用同一个接口：
 
@@ -222,7 +269,7 @@ POST /api/chat/web/
 POST /api/chat/web/
 ```
 
-### 8.1 推荐请求结构
+#### 兼容请求结构
 
 ```json
 {
@@ -244,7 +291,7 @@ POST /api/chat/web/
 }
 ```
 
-### 8.2 兼容请求结构
+#### 旧版兼容请求结构
 
 首页当前也兼容以下旧格式：
 
@@ -261,9 +308,9 @@ POST /api/chat/web/
 
 ### 8.3 行为说明
 
-1. 后端优先识别结构化执行字段
-2. 一旦识别到 `execute_capability`，按指定 capability 直接执行
-3. 不再重复走“建议执行”确认提示
+1. 后端优先验证签名确认 ID，并恢复原能力与标准化参数
+2. 签名确认不会重新进行自然语言检索或执行 `builtin.system_status`
+3. `execute_action` 继续作为网页 suggestion card 的兼容协议
 4. 响应继续沿用统一聊天返回结构
 
 ---
@@ -446,4 +493,3 @@ GET /api/prompt/chat/models?provider=openai-main
 2. 首页和 `AgomChatWidget` 的主链路应使用 `/api/chat/web/`
 3. `execute_action` 是推荐执行格式
 4. `execute_capability + action_type` 作为兼容格式暂时保留
-

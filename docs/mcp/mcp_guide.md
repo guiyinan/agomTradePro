@@ -66,9 +66,11 @@ Tool-surface note:
 The default Agent path is intentionally layered:
 
 1. `agom_bootstrap` returns a compact owner-domain index, not a sample dump of capability manifests.
-2. `agom_capability_search` accepts English or common Chinese task terms and returns compact summaries.
-3. `agom_capability_schema` returns the full contract for only the selected capability.
-4. `agom_capability_call` executes the selected contract; governed writes continue through confirmation.
+2. `agom_get_agent_contract` returns the active versioned operating contract and decision-summary rules.
+3. `agom_get_workflow_playbook` returns the relevant workflow guide when the task matches a published playbook.
+4. `agom_capability_search` accepts English or common Chinese task terms and returns compact summaries.
+5. `agom_capability_schema` returns the full contract for only the selected capability.
+6. `agom_capability_call` executes the selected contract; governed writes continue through confirmation.
 
 Discovery safeguards:
 
@@ -973,6 +975,8 @@ MCP Resources can be automatically read by AI:
 ```
 agomtradepro://regime/current    # Current regime state
 agomtradepro://policy/status     # Current policy status
+agomtradepro://agent/contract    # Versioned Agent operating contract
+agomtradepro://agent/playbooks   # Versioned workflow playbook catalog
 agomtradepro://account/summary   # Default portfolio summary
 agomtradepro://account/positions # Default portfolio position snapshot
 agomtradepro://account/recent-transactions # Default portfolio recent trades
@@ -983,9 +987,12 @@ agomtradepro://account/recent-transactions # Default portfolio recent trades
 Built-in prompt templates for common tasks:
 
 ```
+agom_agent_contract          # Load operating rules and decision_summary schema
 analyze_macro_environment    # Analyze macro and suggest investments
 check_signal_eligibility     # Check if signal is eligible
 ```
+
+Prompt and Playbook bodies are loaded from the versioned non-code configuration documented in [MCP Agent 运行契约与工作流 Playbook](mcp-agent-contract-and-playbook.md). Hidden chain-of-thought is neither requested nor returned; agents use the structured `decision_summary` contract instead.
 
 ## Troubleshooting
 

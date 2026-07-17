@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from apps.ai_capability.infrastructure.confirmation_tokens import DjangoConfirmationCodec
 from apps.ai_capability.infrastructure.providers import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
@@ -38,6 +39,12 @@ def build_api_capability_collector():
     return ApiCapabilityCollector()
 
 
+def get_confirmation_codec() -> DjangoConfirmationCodec:
+    """Return the signed confirmation codec."""
+
+    return DjangoConfirmationCodec()
+
+
 __all__ = [
     "DjangoCapabilityRepository",
     "DjangoRoutingLogRepository",
@@ -46,5 +53,6 @@ __all__ = [
     "get_capability_repository",
     "get_capability_sync_log_repository",
     "get_capability_execution_support_repository",
+    "get_confirmation_codec",
     "get_routing_log_repository",
 ]

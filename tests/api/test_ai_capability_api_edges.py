@@ -81,12 +81,15 @@ def test_ai_capability_route_enriches_context_before_use_case(api_client, staff_
             }
         )
 
-    with patch(
-        "apps.ai_capability.interface.api_views._get_mcp_enabled",
-        return_value=True,
-    ), patch(
-        "apps.ai_capability.interface.api_views.RouteMessageUseCase.execute",
-        side_effect=_fake_execute,
+    with (
+        patch(
+            "apps.ai_capability.interface.api_views._get_mcp_enabled",
+            return_value=True,
+        ),
+        patch(
+            "apps.ai_capability.interface.api_views.RouteMessageUseCase.execute",
+            side_effect=_fake_execute,
+        ),
     ):
         response = api_client.post(
             "/api/ai-capability/route/",
@@ -177,6 +180,48 @@ def test_ai_capability_list_filters_by_category(api_client, regular_user):
     payload = response.json()
     assert "api.get.api.macro.test" in {item["capability_key"] for item in payload}
     assert all(item["category"] == "macro" for item in payload)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "query",
+    ["市场温度", "market temperature", "sentiment temperature", "temperature"],
+)
+def test_ai_capability_catalog_search_supports_market_temperature_aliases(
+    api_client, regular_user, query
+):
+    CapabilityCatalogModel.objects.update_or_create(
+        capability_key="terminal_command.market_temperature",
+        defaults={
+            "source_type": "terminal_command",
+            "source_ref": "terminal:market_temperature",
+            "name": "market_temperature",
+            "summary": "Get current market thermometer and overheating risk",
+            "description": "读取当前市场温度、市场热度和过热风险。",
+            "route_group": "tool",
+            "category": "sentiment",
+            "tags": ["market", "temperature", "heat", "overheat"],
+            "execution_target": {
+                "type": "terminal_command",
+                "command_name": "market_temperature",
+            },
+            "risk_level": "safe",
+            "enabled_for_routing": True,
+            "enabled_for_terminal": True,
+            "enabled_for_chat": True,
+            "enabled_for_agent": True,
+            "visibility": "public",
+        },
+    )
+
+    api_client.force_authenticate(user=regular_user)
+    response = api_client.get(
+        "/api/ai-capability/capabilities/",
+        {"q": query},
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["capability_key"] == "terminal_command.market_temperature"
 
 
 def test_api_capability_collector_normalizes_regex_path_names():

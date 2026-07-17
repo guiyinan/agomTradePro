@@ -3,7 +3,7 @@
 > **模块**: `apps/ai_capability/`  
 > **版本**: V1.0  
 > **创建日期**: 2026-03-19  
-> **最后更新**: 2026-07-04
+> **最后更新**: 2026-07-17
 > **状态**: 生产就绪
 
 ---
@@ -163,9 +163,21 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
   "missing_params": [],
   "suggested_command": "/status",
   "suggested_intent": "system_status",
-  "suggestion_prompt": "检测到你可能想执行 /status。输入 Y 执行，输入 N 取消，或继续输入其他内容。"
+  "suggestion_prompt": "检测到你可能想执行 /status。输入 Y 执行，输入 N 取消，或继续输入其他内容。",
+  "confirmation": {
+    "confirmation_id": "signed-expiring-id",
+    "capability_key": "builtin.system_status",
+    "normalized_params": {},
+    "expires_in_seconds": 300
+  }
 }
 ```
+
+确认请求必须回传 `confirmation_id` 和 `approved=true`，或把同一对象放入 `context.confirmation`。确认 ID 绑定用户与 `session_id`，默认 5 分钟失效；确认后直接执行锁定能力，不对 `Y` 重新做语义路由。Route 与 Web Chat 共用这一上下文结构。
+
+能力参数在选定目标后按 `input_schema.properties` 白名单标准化。`context.default_account_id` 只是候选默认账户，只有能力显式声明 `account_id` 时才会补入；公开能力不会收到无关账户参数。
+
+MCP 与内部 API 能力的结构化返回会统一补全证券简称：当结果对象包含 `asset_code`、`stock_code`、`fund_code` 或 `security_code`，且对应的 `asset_name`、`stock_name`、`fund_name` 或 `security_name` 缺失时，路由执行层会批量使用只读名称解析服务补全。已有简称不会被覆盖，未解析出的代码不会伪造名称，`provider_code` 等非证券编码不参与补全。基金排名、基金评分、基金目录和基金持仓的 MCP 输出 Schema 同时明确声明代码与简称字段。
 
 **响应 - 普通聊天**:
 
@@ -201,6 +213,8 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 |------|------|------|
 | `source_type` | string | 过滤来源类型 |
 | `route_group` | string | 过滤路由分组 |
+| `category` | string | 过滤能力分类 |
+| `q` | string | 别名感知的相关度检索，支持中英文短语与多词 OR |
 | `enabled_only` | boolean | 仅返回启用的能力 (默认 true) |
 
 **响应**:

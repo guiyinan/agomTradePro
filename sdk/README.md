@@ -127,6 +127,8 @@ You can also start MCP manually (for smoke testing):
 agomtradepro-mcp
 ```
 
+The core MCP surface includes `agom_get_agent_contract` and `agom_get_workflow_playbook`. Their versioned configuration is shipped at `agomtradepro_mcp/prompts/agent_contracts.json`; deployments may override it with `AGOMTRADEPRO_MCP_AGENT_CONTRACT_PATH`. The contract requires a structured `decision_summary` and explicitly forbids requesting or exposing hidden chain-of-thought. Server-side RBAC, Schema validation, confirmation and simulated-execution boundaries remain authoritative.
+
 Recommended:
 
 - repo `.mcp.json`: keep only `agomtradepro_local`
@@ -372,6 +374,7 @@ client.rotation.apply_template_to_account_config(updated["id"], "moderate")
 |----------|-------------|
 | [Quick Start Guide](../docs/sdk/quickstart.md) | Getting started with the SDK |
 | [MCP Guide](../docs/mcp/mcp_guide.md) | MCP server setup and usage |
+| [MCP Agent Contract](../docs/mcp/mcp-agent-contract-and-playbook.md) | Versioned Agent contract, Playbooks, rollout and rollback |
 | [Smoke Test Guide](../docs/sdk/smoke_test.md) | End-to-end local smoke checklist |
 | [API Reference](../docs/sdk/api_reference.md) | Complete API documentation |
 | [Implementation Plan](../docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |

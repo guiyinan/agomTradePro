@@ -4,6 +4,20 @@
 from .core_registry_support import *
 
 
+def test_fund_security_code_schemas_require_display_names():
+    registry = CapabilityRegistryLoader().build_registry()
+
+    ranking_items = registry["fund.read.ranking"].output_schema["properties"]["funds"]["items"]
+    holding_items = registry["fund.read.holdings"].output_schema["properties"]["holdings"]["items"]
+    score = registry["fund.read.score"].output_schema["properties"]["score"]
+    catalog_items = registry["fund.read.catalog"].output_schema["properties"]["funds"]["items"]
+
+    assert ranking_items["required"] == ["fund_code", "fund_name"]
+    assert holding_items["required"] == ["stock_code", "stock_name"]
+    assert score["required"] == ["fund_code", "fund_name"]
+    assert catalog_items["required"] == ["fund_code", "fund_name"]
+
+
 def test_fund_core_only_fallbacks_use_canonical_sdk_methods(
     monkeypatch: pytest.MonkeyPatch,
 ):
