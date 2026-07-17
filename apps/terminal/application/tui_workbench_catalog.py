@@ -13,6 +13,27 @@ from django.utils import timezone
 from apps.account.application.interface_services import list_investment_account_options
 from apps.terminal.application.tui_workbench_constants import FIELD_LABELS, FIELD_TOKEN_LABELS
 
+TUI_SCREEN_PUBLIC_SOURCE_FIELDS = frozenset(
+    {
+        "key",
+        "label",
+        "module_key",
+        "group",
+        "summary",
+        "view_type",
+        "audience",
+        "status",
+        "chrome_mode",
+        "dashboard_layout",
+        "default_action_key",
+        "dashboard_panels",
+        "workflow",
+        "user_experience",
+        "business_context",
+    }
+)
+TUI_SCREEN_DERIVED_INPUT_FIELDS = frozenset({"entry_mode", "entry_field_key"})
+
 
 class TuiWorkbenchCatalogMixin:
     """Catalog and action payload helpers shared by the TUI workbench service."""
@@ -70,7 +91,7 @@ class TuiWorkbenchCatalogMixin:
         *,
         user: Any | None = None,
     ) -> dict[str, Any]:
-        return {
+        summary = {
             "key": screen["key"],
             "label": self._operator_text(screen["label"]),
             "module_key": screen["module_key"],
@@ -89,6 +110,11 @@ class TuiWorkbenchCatalogMixin:
             "business_context": self._screen_business_context(screen, actions),
             "entry_state": self._screen_entry_state(screen, actions, user=user),
         }
+        missing_fields = TUI_SCREEN_PUBLIC_SOURCE_FIELDS.difference(summary)
+        if missing_fields:
+            missing = ", ".join(sorted(missing_fields))
+            raise RuntimeError(f"TUI screen public projection is incomplete: {missing}")
+        return summary
 
     def _screen_default_action_key(
         self, screen: dict[str, Any], actions: list[dict[str, Any]]
@@ -117,9 +143,7 @@ class TuiWorkbenchCatalogMixin:
             return str(same_view_candidates[0].get("key") or configured_key)
 
         no_input_candidates = [
-            action
-            for action in sorted_actions
-            if not self._action_requires_operator_input(action)
+            action for action in sorted_actions if not self._action_requires_operator_input(action)
         ]
         if no_input_candidates:
             return str(no_input_candidates[0].get("key") or configured_key)
@@ -154,9 +178,7 @@ class TuiWorkbenchCatalogMixin:
             return same_view
 
         return [
-            action
-            for action in panel_actions
-            if not self._action_requires_operator_input(action)
+            action for action in panel_actions if not self._action_requires_operator_input(action)
         ]
 
     def _sorted_default_actions(self, actions: list[dict[str, Any]]) -> list[dict[str, Any]]:

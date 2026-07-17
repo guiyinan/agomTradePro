@@ -57,7 +57,9 @@ for (const target of targets) {
 const manifestPath = resolve(root, "config/tui/agomtui-runtime.manifest.json");
 const files = {};
 for (const relative of [
+    "config/tui/schema/tui_metadata.schema.v3.json",
     "frontend/agomtui-runtime/src/api.js",
+    "frontend/agomtui-runtime/src/dashboard-layout.js",
     "frontend/agomtui-runtime/src/events.js",
     "frontend/agomtui-runtime/src/extensions.js",
     "frontend/agomtui-runtime/src/index.js",
@@ -74,6 +76,13 @@ for (const relative of [
 const buildHash = createHash("sha256")
     .update(Object.entries(files).map(([path, sha]) => `${path}:${sha}`).join("\n"))
     .digest("hex");
+const metadataSchema = JSON.parse(
+    await readFile(resolve(root, "config/tui/schema/tui_metadata.schema.v3.json"), "utf8"),
+);
+const screenDashboardLayouts = metadataSchema?.$defs?.screen?.properties?.dashboard_layout?.enum;
+if (!Array.isArray(screenDashboardLayouts) || !screenDashboardLayouts.length) {
+    throw new Error("TUI metadata schema must declare screen.dashboard_layout enum values");
+}
 let upstreamCommit = "unknown";
 try {
     upstreamCommit = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -86,9 +95,13 @@ try {
 }
 const manifestPayload = {
     version: "0.2.0",
+    source_owner: "AgomTradePro",
     upstream_commit: upstreamCommit,
     build_id: `agomtui-runtime-0.2.0+${buildHash.slice(0, 12)}`,
     direction: "AgomTradePro -> AgOMTUI",
+    contracts: {
+        screen_dashboard_layouts: screenDashboardLayouts,
+    },
     files,
 };
 if (check) {

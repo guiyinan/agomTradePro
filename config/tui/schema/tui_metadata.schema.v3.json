@@ -72,8 +72,11 @@
         "view_type": { "$ref": "#/$defs/viewType" },
         "audience": { "enum": ["authenticated", "admin"] },
         "status": { "enum": ["online", "planned", "hidden", "disabled"] },
+        "chrome_mode": { "enum": ["", "immersive"] },
         "default_action_key": { "type": "string" },
         "dashboard_layout": { "enum": ["adaptive_grid", "task_flow"] },
+        "entry_mode": { "enum": ["auto_run", "parameter_gate", "dashboard"] },
+        "entry_field_key": { "type": "string" },
         "dashboard_panels": {
           "type": "array",
           "items": { "$ref": "#/$defs/dashboardPanel" }

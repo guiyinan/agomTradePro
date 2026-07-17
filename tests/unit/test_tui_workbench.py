@@ -7192,15 +7192,19 @@ def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
     root = Path(__file__).resolve().parents[2]
     script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
     css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
+    layout_source = (
+        root / "frontend" / "agomtui-runtime" / "src" / "dashboard-layout.js"
+    ).read_text(encoding="utf-8")
     catalog = (root / "apps" / "terminal" / "application" / "tui_workbench_catalog.py").read_text(
         encoding="utf-8"
     )
 
     assert "dashboardLayout(panels, screen)" in script
     assert "function dashboardDesktopColumns(screen)" in script
-    assert 'screen?.dashboard_layout || "adaptive_grid"' in script
-    assert '=== "task_flow"' in script
-    assert '["self_service", "admin"].includes(journey)' in script
+    assert "runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {})" in script
+    assert "export function dashboardDesktopColumns(screen = {}, host = {})" in layout_source
+    assert 'layout === TASK_FLOW_LAYOUT' in layout_source
+    assert 'TWO_COLUMN_JOURNEYS.has(journey) ? 2 : 3' in layout_source
     assert "dashboardAreaTemplate(areas, desktopColumns, true)" in script
     assert "dashboardAreaTemplate(areas, 2)" in script
     assert "dashboardAreaTemplate(areas, 1)" in script
@@ -7214,16 +7218,19 @@ def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
 
 
 def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
     host_adapter = (
-        Path(__file__).resolve().parents[2] / "frontend" / "agomtradepro-host" / "src" / "index.js"
+        root / "frontend" / "agomtradepro-host" / "src" / "index.js"
+    ).read_text(encoding="utf-8")
+    layout_source = (
+        root / "frontend" / "agomtui-runtime" / "src" / "dashboard-layout.js"
     ).read_text(encoding="utf-8")
 
-    assert "runtimeConfig.host?.singleColumnScreens" in script
+    assert "runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {})" in script
+    assert "singleColumnScreens.includes(screenKey)" in layout_source
     assert 'singleColumnScreens: ["capability-router.mcp-center"]' in host_adapter
-    assert "return 1;" in script
+    assert "return 1;" in layout_source
     assert "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)" in script
 
 

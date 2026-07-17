@@ -1,4 +1,5 @@
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
+const RUNTIME_SOURCE_OWNER = "AgomTradePro";
 
 export function normalizeRuntimeContent(content) {
     const text = Buffer.isBuffer(content) ? content.toString("utf8") : String(content);
@@ -12,8 +13,10 @@ export function runtimeContentsEqual(left, right) {
 export function deterministicManifestPayload(manifest) {
     return {
         version: manifest.version,
+        source_owner: manifest.source_owner,
         build_id: manifest.build_id,
         direction: manifest.direction,
+        contracts: manifest.contracts,
         files: manifest.files,
     };
 }
@@ -21,6 +24,9 @@ export function deterministicManifestPayload(manifest) {
 export function assertManifestIntegrity(current, expected, isAncestor = () => true) {
     if (!current || typeof current !== "object") {
         throw new Error("TUI manifest must be a JSON object");
+    }
+    if (current.source_owner !== RUNTIME_SOURCE_OWNER) {
+        throw new Error(`TUI manifest source_owner must be ${RUNTIME_SOURCE_OWNER}`);
     }
     const actualPayload = deterministicManifestPayload(current);
     const expectedPayload = deterministicManifestPayload(expected);

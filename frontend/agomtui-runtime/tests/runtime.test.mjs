@@ -4,6 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createRuntimeUrls } from "../src/api.js";
+import { dashboardDesktopColumns } from "../src/dashboard-layout.js";
 import { clientPage } from "../src/pagination.js";
 import {
     assertManifestIntegrity,
@@ -27,6 +28,55 @@ test("client pagination activates only above the configured page size", () => {
     assert.equal(clientPage(rows.slice(0, 10), 1, 100).pager, null);
 });
 
+test("dashboard layout precedence is explicit metadata then host fallback then journey", () => {
+    const host = { singleColumnScreens: ["legacy.single-column"] };
+
+    assert.equal(
+        dashboardDesktopColumns(
+            {
+                key: "legacy.single-column",
+                dashboard_layout: "task_flow",
+                user_experience: { journey: "workspace" },
+            },
+            host,
+        ),
+        1,
+    );
+    assert.equal(
+        dashboardDesktopColumns(
+            {
+                key: "legacy.single-column",
+                dashboard_layout: "adaptive_grid",
+                user_experience: { journey: "workspace" },
+            },
+            host,
+        ),
+        1,
+    );
+    assert.equal(
+        dashboardDesktopColumns(
+            {
+                key: "self-service",
+                dashboard_layout: "adaptive_grid",
+                user_experience: { journey: "self_service" },
+            },
+            host,
+        ),
+        2,
+    );
+    assert.equal(
+        dashboardDesktopColumns(
+            {
+                key: "workspace",
+                dashboard_layout: "adaptive_grid",
+                user_experience: { journey: "workspace" },
+            },
+            host,
+        ),
+        3,
+    );
+});
+
 test("generic bundle does not contain AgomTradePro business identifiers", () => {
     const bundles = [
         "../../../static/js/agomtui-runtime-core.js",
@@ -48,9 +98,11 @@ test("generic bundle does not contain AgomTradePro business identifiers", () => 
 test("manifest integrity uses content hashes instead of the repository head", () => {
     const payload = {
         version: "0.2.0",
+        source_owner: "AgomTradePro",
         upstream_commit: "a".repeat(40),
         build_id: "agomtui-runtime-0.2.0+abc123",
         direction: "AgomTradePro -> AgOMTUI",
+        contracts: { screen_dashboard_layouts: ["adaptive_grid", "task_flow"] },
         files: { "runtime.js": "hash" },
     };
     assert.doesNotThrow(() =>
@@ -63,6 +115,10 @@ test("manifest integrity uses content hashes instead of the repository head", ()
     assert.throws(
         () => assertManifestIntegrity({ ...payload, upstream_commit: "b".repeat(40) }, payload, () => false),
         /not an ancestor/,
+    );
+    assert.throws(
+        () => assertManifestIntegrity({ ...payload, source_owner: "downstream" }, payload),
+        /source_owner must be AgomTradePro/,
     );
 });
 

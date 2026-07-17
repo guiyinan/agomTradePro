@@ -2409,14 +2409,10 @@
     }
 
     function dashboardDesktopColumns(screen) {
-        if (String(screen?.dashboard_layout || "adaptive_grid").trim() === "task_flow") {
-            return 1;
+        if (typeof runtimeCore.dashboardDesktopColumns === "function") {
+            return runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {});
         }
-        const journey = screenUserExperience(screen).journey;
-        if ((runtimeConfig.host?.singleColumnScreens || []).includes(screen?.key)) {
-            return 1;
-        }
-        return ["self_service", "admin"].includes(journey) ? 2 : 3;
+        throw new Error("AgomTUI Runtime core is missing dashboardDesktopColumns");
     }
 
     function renderRegimePanel(viewModel) {
