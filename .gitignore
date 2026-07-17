@@ -98,6 +98,7 @@ doc/passwords.md
 sqlite-backup.json
 sqlite-backup-utf8.json
 /backups/vps-secrets/
+/backups/vps-postgres/
 /docs/deployment/docker命令.txt
 
 # Celery beat schedule files

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgomTradePro PostgreSQL Backup"
+  short_description: "Back up VPS PostgreSQL and download verified archives"
+  default_prompt: "Use $backup-vps-postgres to create a verified PostgreSQL backup on the AgomTradePro VPS and download it locally."

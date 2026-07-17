@@ -219,6 +219,20 @@ post-deploy health, Django, migration, Qlib, or Celery verification timeouts.
 
 ## Backup and Restore (VPS)
 
+Create a PostgreSQL backup on the VPS and download the verified archive to a
+Windows workstation in one command:
+
+```powershell
+.\scripts\backup-vps-postgres.ps1
+```
+
+The command reads `AGOM_VPS_HOST`, `AGOM_VPS_USER`, `AGOM_VPS_PASS`, and
+`AGOM_VPS_PORT`, keeps the remote archive under
+`/opt/agomtradepro/backups/database`, and downloads it to the Git-ignored
+`backups/vps-postgres` directory. Both the remote archive and local download
+must pass SHA-256 verification. Use `-DownloadLatest` to fetch the newest
+existing archive without creating another dump.
+
 Create backup:
 
 ```sh
