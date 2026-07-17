@@ -1161,6 +1161,18 @@ def test_schema_publishes_explicit_result_field_presentation_values():
     ]
 
 
+def test_schema_publishes_dashboard_layout_modes():
+    root = Path(__file__).resolve().parents[2]
+    schema = json.loads(
+        (root / "config" / "tui" / "schema" / "tui_metadata.schema.v3.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    screen_properties = schema["$defs"]["screen"]["properties"]
+    assert screen_properties["dashboard_layout"]["enum"] == ["adaptive_grid", "task_flow"]
+
+
 def test_schema_publishes_dashboard_row_action_descriptor():
     root = Path(__file__).resolve().parents[2]
     schema = json.loads(

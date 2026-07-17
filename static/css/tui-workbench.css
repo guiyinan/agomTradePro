@@ -1365,12 +1365,18 @@ a {
     min-height: 0;
     min-width: 0;
     max-width: 100%;
-    overflow: visible;
+    overflow: auto;
+    scrollbar-gutter: stable;
     border: 2px double var(--tui-border);
     background: var(--tui-panel);
     color: var(--tui-text);
     padding: 7px 9px;
     box-shadow: none;
+}
+
+.tui-dashboard-grid.is-content-flow .tui-dash-panel {
+    overflow: visible;
+    scrollbar-gutter: auto;
 }
 
 .tui-dash-panel[data-panel-priority="p0"] {

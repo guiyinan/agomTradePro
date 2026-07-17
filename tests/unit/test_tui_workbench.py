@@ -2864,6 +2864,14 @@ def test_tui_metadata_validator_defaults_screen_audience_for_legacy_payload():
     assert validated["screens"][0]["audience"] == "authenticated"
 
 
+def test_tui_metadata_validator_rejects_unknown_dashboard_layout():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_layout"] = "masonry"
+
+    with pytest.raises(TuiMetadataValidationError, match="unsupported dashboard_layout"):
+        validate_tui_metadata(payload)
+
+
 def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     payload = _metadata_payload()
     payload["field_aliases"] = {"company.keyword": ["keyword", "company_name"]}
@@ -7156,6 +7164,7 @@ def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
     )
 
     screen = next(item for item in screens if item["key"] == "capability-router.self-service")
+    assert screen["dashboard_layout"] == "task_flow"
     assert [panel["key"] for panel in screen["dashboard_panels"]] == [
         "mcp-access-package",
         "mcp-access-verification",
@@ -7179,13 +7188,18 @@ def test_tui_script_renders_accessible_native_dashboard_row_actions():
     assert "refreshesDashboard" in script
 
 
-def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
+def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
+    root = Path(__file__).resolve().parents[2]
+    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
+    catalog = (root / "apps" / "terminal" / "application" / "tui_workbench_catalog.py").read_text(
         encoding="utf-8"
     )
 
     assert "dashboardLayout(panels, screen)" in script
     assert "function dashboardDesktopColumns(screen)" in script
+    assert 'screen?.dashboard_layout || "adaptive_grid"' in script
+    assert '=== "task_flow"' in script
     assert '["self_service", "admin"].includes(journey)' in script
     assert "dashboardAreaTemplate(areas, desktopColumns, true)" in script
     assert "dashboardAreaTemplate(areas, 2)" in script
@@ -7194,6 +7208,9 @@ def test_tui_self_service_dashboard_uses_bounded_two_column_layout():
     assert "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)" in script
     assert 'const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)"' in script
     assert 'class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}"' in script
+    assert ".tui-dashboard-grid.is-content-flow .tui-dash-panel" in css
+    assert "overflow: auto;" in css
+    assert '"dashboard_layout": str(screen.get("dashboard_layout") or "adaptive_grid")' in catalog
 
 
 def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
@@ -7437,6 +7454,7 @@ def test_tui_capability_router_self_service_screen_publishes_user_facing_semanti
     actions = {action["key"]: action for action in payload["actions"]}
 
     assert screen["user_experience"]["journey"] == "self_service"
+    assert screen["dashboard_layout"] == "task_flow"
     assert panels["mcp-access-package"]["presentation_semantic"] == "copyable_secret"
     assert panels["mcp-access-package"]["user_priority"] == "p0"
     assert panels["mcp-access-verification"]["presentation_semantic"] == "primary_status"

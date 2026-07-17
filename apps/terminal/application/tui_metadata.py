@@ -138,6 +138,7 @@ ALLOWED_TUI_SCREEN_JOURNEYS = {
     "debug",
 }
 ALLOWED_TUI_SCREEN_AUDIENCES = {"authenticated", "admin"}
+ALLOWED_TUI_DASHBOARD_LAYOUTS = {"adaptive_grid", "task_flow"}
 ALLOWED_TUI_PANEL_USER_PRIORITIES = {"p0", "p1", "p2"}
 ALLOWED_TUI_PRESENTATION_SEMANTICS = {
     "primary_status",
@@ -263,6 +264,11 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         if str(screen["audience"]) not in ALLOWED_TUI_SCREEN_AUDIENCES:
             raise TuiMetadataValidationError(
                 f"Screen has unsupported audience: {screen['key']}.{screen['audience']}"
+            )
+        dashboard_layout = str(screen.get("dashboard_layout") or "adaptive_grid")
+        if dashboard_layout not in ALLOWED_TUI_DASHBOARD_LAYOUTS:
+            raise TuiMetadataValidationError(
+                f"Screen has unsupported dashboard_layout: {screen['key']}.{dashboard_layout}"
             )
         screen.setdefault("default_action_key", "")
         dashboard_panels = screen.setdefault("dashboard_panels", [])

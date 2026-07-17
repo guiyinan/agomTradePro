@@ -24,6 +24,7 @@ The executable contract lives in:
 New user-facing semantics:
 
 - `screen.user_experience`
+- `screen.dashboard_layout`
 - `dashboard_panels[].user_priority`
 - `dashboard_panels[].presentation_semantic`
 - `actions[].result_semantics`
@@ -180,6 +181,7 @@ Hard rules:
 ## Layout And Interaction
 
 - Self-service and admin dashboards use at most two columns at a 1440px desktop viewport; actionable MCP tool governance uses one full-width column.
+- Screens whose P0 artifact has variable multiline height use `dashboard_layout: task_flow`; panels then follow one content-driven column and the main work area owns vertical scrolling. Use `adaptive_grid` for bounded summary cards.
 - P2 supporting panels are collapsed initially.
 - New controls use native interactive elements, visible `:focus-visible` treatment, and practical pointer/keyboard hit targets.
 - Status meaning uses text in addition to color.

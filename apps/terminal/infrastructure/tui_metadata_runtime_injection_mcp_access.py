@@ -19,6 +19,7 @@ RUNTIME_MCP_SELF_SERVICE_SCREEN: dict[str, Any] = {
     "summary": "管理自己的 MCP 接入令牌、读写级别，以及一键复制给 AI 代理的接入提示词。",
     "view_type": "detail",
     "audience": "authenticated",
+    "dashboard_layout": "task_flow",
     "default_action_key": "capability-router.mcp-self-status",
     "user_experience": {
         "journey": "self_service",

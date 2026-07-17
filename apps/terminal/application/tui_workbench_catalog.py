@@ -80,6 +80,7 @@ class TuiWorkbenchCatalogMixin:
             "audience": screen.get("audience", "authenticated"),
             "status": screen.get("status", "online"),
             "chrome_mode": str(screen.get("chrome_mode") or ""),
+            "dashboard_layout": str(screen.get("dashboard_layout") or "adaptive_grid"),
             "default_action_key": self._screen_default_action_key(screen, actions),
             "action_count": len(actions),
             "dashboard_panels": list(screen.get("dashboard_panels") or []),

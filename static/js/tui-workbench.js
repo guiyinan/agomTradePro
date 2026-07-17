@@ -2409,6 +2409,9 @@
     }
 
     function dashboardDesktopColumns(screen) {
+        if (String(screen?.dashboard_layout || "adaptive_grid").trim() === "task_flow") {
+            return 1;
+        }
         const journey = screenUserExperience(screen).journey;
         if ((runtimeConfig.host?.singleColumnScreens || []).includes(screen?.key)) {
             return 1;

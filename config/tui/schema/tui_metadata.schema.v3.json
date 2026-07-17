@@ -73,6 +73,7 @@
         "audience": { "enum": ["authenticated", "admin"] },
         "status": { "enum": ["online", "planned", "hidden", "disabled"] },
         "default_action_key": { "type": "string" },
+        "dashboard_layout": { "enum": ["adaptive_grid", "task_flow"] },
         "dashboard_panels": {
           "type": "array",
           "items": { "$ref": "#/$defs/dashboardPanel" }
