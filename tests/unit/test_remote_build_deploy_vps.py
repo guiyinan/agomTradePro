@@ -21,6 +21,53 @@ def _load_module():
 remote_build_deploy_vps = _load_module()
 
 
+def test_run_drains_stdout_and_stderr_without_sequential_read_deadlock():
+    class FakeChannel:
+        def __init__(self):
+            self.stdout_chunks = [b"stdout\n"]
+            self.stderr_chunks = [b"stderr\n"]
+
+        def recv_ready(self):
+            return bool(self.stdout_chunks)
+
+        def recv_stderr_ready(self):
+            return bool(self.stderr_chunks)
+
+        def recv(self, _size):
+            return self.stdout_chunks.pop(0)
+
+        def recv_stderr(self, _size):
+            return self.stderr_chunks.pop(0)
+
+        def exit_status_ready(self):
+            return not self.stdout_chunks and not self.stderr_chunks
+
+        def recv_exit_status(self):
+            return 0
+
+        def close(self):
+            return None
+
+    class FakeStream:
+        def __init__(self, channel):
+            self.channel = channel
+
+        def read(self):
+            raise AssertionError("sequential stream reads can deadlock")
+
+    class FakeSSH:
+        def exec_command(self, _command, timeout):
+            assert timeout == 5
+            channel = FakeChannel()
+            return object(), FakeStream(channel), FakeStream(channel)
+
+    exit_code, stdout, stderr = remote_build_deploy_vps._run(FakeSSH(), "check", timeout=5)
+
+    assert exit_code == 0
+    assert stdout == "stdout\n"
+    assert stderr == "stderr\n"
+
+
 @pytest.mark.parametrize(
     "value",
     [
