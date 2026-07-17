@@ -166,6 +166,8 @@ Notes:
 - this path avoids transferring large image tar files from local machine
 - this path depends on the VPS having working Docker, Docker Compose, disk space, and outbound network access for Python package download during `docker build`
 - production always uses PostgreSQL; the preserved SQLite volume is only a migration source and rollback safeguard
+- every app that stores ORM classes in `infrastructure/models.py` must expose a top-level `models.py` discovery bridge; otherwise Django `dumpdata` omits that app
+- the one-time SQLite import compares row counts for every discovered managed model table (except the explicitly regenerated permission/content-type/session tables), not only a small critical-table sample
 - the web container runs Daphne against `core.asgi:application`, so Caddy serves HTTP and Channels WebSockets through the same upstream
 - source bundle is kept locally in `dist/`
 - remote temp files are deleted unless `--keep-remote-temp` is used

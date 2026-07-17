@@ -78,29 +78,31 @@ compose run --rm --no-deps \
   -e AGOMTRADEPRO_ALLOW_PRODUCTION_SQLITE_MIGRATION=1 \
   web python - "$CONTAINER_SOURCE_COUNTS" <<'PY'
 import json
-import sqlite3
 import sys
 
-tables = (
-    "auth_user",
-    "django_celery_beat_periodictask",
-    "task_monitor_taskexecutionmodel",
-)
-connection = sqlite3.connect("/app/data/db.sqlite3")
-try:
-    available = {
-        row[0]
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
-    }
-    counts = {
-        table: connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-        for table in tables
-        if table in available
-    }
-finally:
-    connection.close()
+import django
+
+django.setup()
+from django.apps import apps
+from django.db import connection
+
+excluded_models = {
+    "auth.permission",
+    "contenttypes.contenttype",
+    "sessions.session",
+}
+available = set(connection.introspection.table_names())
+counts = {}
+with connection.cursor() as cursor:
+    for model in apps.get_models():
+        options = model._meta
+        if not options.managed or options.proxy or options.label_lower in excluded_models:
+            continue
+        table = options.db_table
+        if table not in available:
+            continue
+        cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
+        counts[table] = cursor.fetchone()[0]
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:
     json.dump(counts, handle, sort_keys=True)
@@ -138,17 +140,22 @@ import sys
 import django
 
 django.setup()
+from django.apps import apps
 from django.db import connection
 
-tables = (
-    "auth_user",
-    "django_celery_beat_periodictask",
-    "task_monitor_taskexecutionmodel",
-)
+excluded_models = {
+    "auth.permission",
+    "contenttypes.contenttype",
+    "sessions.session",
+}
 available = set(connection.introspection.table_names())
 counts = {}
 with connection.cursor() as cursor:
-    for table in tables:
+    for model in apps.get_models():
+        options = model._meta
+        if not options.managed or options.proxy or options.label_lower in excluded_models:
+            continue
+        table = options.db_table
         if table not in available:
             continue
         cursor.execute(f'SELECT COUNT(*) FROM "{table}"')

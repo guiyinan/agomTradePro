@@ -110,8 +110,24 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     assert "PostgreSQL did not become ready within 120 seconds" in migration
     assert "dropdb --force --if-exists" in migration
     assert "Critical table count mismatch" in migration
+    assert "for model in apps.get_models()" in migration
+    assert '"auth.permission"' in migration
     assert ".postgres-migration-complete" in migration
     assert "check_encryption_readiness --json" in migration
+
+
+def test_apps_with_infrastructure_models_have_django_discovery_bridge() -> None:
+    """Every infrastructure model module must be discoverable by Django commands."""
+
+    missing = []
+    for infrastructure_model in sorted(
+        (REPO_ROOT / "apps").glob("*/infrastructure/models.py")
+    ):
+        bridge = infrastructure_model.parents[1] / "models.py"
+        if not bridge.exists():
+            missing.append(str(bridge.relative_to(REPO_ROOT)))
+
+    assert missing == []
 
 
 def test_git_clone_include_sqlite_uploads_local_db_before_deploy() -> None:
