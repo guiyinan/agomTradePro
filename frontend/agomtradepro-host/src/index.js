@@ -9,21 +9,15 @@ runtime.hooks = {
         return String(screenKey || "") === "command-center.overview";
     },
     inferHomeLane(screen) {
-        const workflowName = String(screen?.workflow?.name || "");
-        if (workflowName === "系统治理流程") {
-            return "governance";
-        }
-        if (workflowName === "每日投研流程") {
-            return "decision";
-        }
-        return "";
+        const lane = String(screen?.workflow?.lane || "");
+        return ["decision", "governance"].includes(lane) ? lane : "";
     },
     getHomeActions(context = {}) {
         return [
             {
                 key: "operator.home.continue_decision_flow",
                 label: "继续今日决策流程",
-                description: "进入15步每日投研 workflow",
+                description: "进入每日投研主流程",
                 active: context.preferredLane === "decision",
             },
             {

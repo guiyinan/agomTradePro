@@ -82,7 +82,7 @@
           "items": { "$ref": "#/$defs/dashboardPanel" }
         },
         "user_experience": { "$ref": "#/$defs/userExperience" },
-        "workflow": { "type": "object" },
+        "workflow": { "$ref": "#/$defs/workflow" },
         "business_context": { "type": "object" }
       },
       "additionalProperties": true
@@ -115,7 +115,8 @@
         "sensitive_level": { "enum": ["none", "low", "medium", "high", "critical"] },
         "executor": { "type": "string" },
         "task_group": { "type": "string" },
-        "task_tier": { "enum": ["", "primary", "support", "advanced", "operation"] },
+        "task_tier": { "enum": ["primary", "support", "advanced", "operation"] },
+        "submit_label": { "type": "string", "minLength": 1 },
         "sequence": { "type": "integer" },
         "result_semantics": {
           "type": "array",
@@ -247,6 +248,20 @@
         "target_screen": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "lane": { "enum": ["decision", "governance"] },
+        "step": { "type": "integer", "minimum": 1 },
+        "total": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string" },
+        "role": { "type": "string" },
+        "previous": { "type": "object" },
+        "next": { "type": "object" }
+      },
+      "additionalProperties": true
     },
     "dashboardRowAction": {
       "type": "object",

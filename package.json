@@ -16,7 +16,7 @@
   "scripts": {
     "build:tui": "node scripts/build-tui-runtime.mjs",
     "check:tui": "node scripts/build-tui-runtime.mjs --check",
-    "test:tui-js": "node --test frontend/agomtui-runtime/tests/*.test.mjs"
+    "test:tui-js": "node --test --test-concurrency=1 frontend/agomtui-runtime/tests/*.test.mjs frontend/agomtradepro-host/tests/*.test.mjs frontend/tui-workbench/tests/*.test.mjs"
   },
   "repository": {
     "type": "git",

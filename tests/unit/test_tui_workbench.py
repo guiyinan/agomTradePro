@@ -31,6 +31,24 @@ from apps.terminal.infrastructure.tui_metadata_repository import (
     PublishedTuiMetadataRepository,
 )
 
+TUI_WORKBENCH_SOURCE_SEGMENTS = (
+    "00-runtime.js",
+    "10-navigation.js",
+    "20-dashboard.js",
+    "30-actions.js",
+    "40-views.js",
+    "50-shell.js",
+)
+
+
+def _tui_workbench_source() -> str:
+    """Return the maintained workbench sources in browser declaration order."""
+    source_root = Path(__file__).resolve().parents[2] / "frontend" / "tui-workbench" / "src"
+    return "\n\n".join(
+        (source_root / name).read_text(encoding="utf-8")
+        for name in TUI_WORKBENCH_SOURCE_SEGMENTS
+    )
+
 
 def _metadata_payload(actions=None, screens=None, modules=None, groups=None, default_screen=None):
     payload = {
@@ -328,13 +346,7 @@ def test_tui_workbench_uses_system_cursor_and_collapsible_sidebars():
         .joinpath("static", "css", "tui-workbench.css")
         .read_text(encoding="utf-8")
     )
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
     assert ".tui-block-cursor" not in css
     assert "cursor: none" not in css
     assert "cursor: pointer" not in css
@@ -342,6 +354,9 @@ def test_tui_workbench_uses_system_cursor_and_collapsible_sidebars():
     assert "function toggleRail" in script
     assert "function toggleInspector" in script
     assert "function beginInspectorResize" in script
+    assert "function requiredShellElementsAvailable" in script
+    assert "function initializeWorkbench" in script
+    assert "工作台页面结构不完整" in script
 
 
 def test_tui_workbench_script_contains_operator_home_state_and_governance_hooks():
@@ -352,13 +367,7 @@ def test_tui_workbench_script_contains_operator_home_state_and_governance_hooks(
         .joinpath("static", "css", "tui-workbench.css")
         .read_text(encoding="utf-8")
     )
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
     host_adapter = (
         Path(__file__)
         .resolve()
@@ -388,13 +397,7 @@ def test_tui_workbench_script_contains_operator_home_state_and_governance_hooks(
 
 
 def test_tui_workbench_star_marks_favorites_without_reordering_catalog():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert "收藏工作区" in script
     assert "取消收藏工作区" in script
@@ -403,13 +406,7 @@ def test_tui_workbench_star_marks_favorites_without_reordering_catalog():
 
 
 def test_tui_workbench_supports_runtime_theme_switching():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert 'const THEME_SEQUENCE = ["A", "B", "C"]' in script
     assert "const THEME_TOKENS = {" in script
@@ -421,12 +418,12 @@ def test_tui_workbench_supports_runtime_theme_switching():
     assert "root.dataset.tuiTheme = resolvedThemeKey" in script
     assert "function cycleTheme()" in script
     assert "function showThemeStatus()" in script
-    assert "window.localStorage?.setItem(themeStorageKey, resolvedThemeKey)" in script
+    assert 'safeStorageSet("localStorage", themeStorageKey, resolvedThemeKey)' in script
     assert "const HOTKEY_COMMANDS = {" in script
     assert 'F10: "toggle-inspector"' in script
     assert "function keyboardCommandForEvent(event)" in script
     assert 'event.altKey && !event.ctrlKey && !event.shiftKey && lowerKey === "t"' in script
-    assert 'event.ctrlKey && !event.altKey && !event.shiftKey && lowerKey === "t"' in script
+    assert 'event.altKey && !event.ctrlKey && event.shiftKey && lowerKey === "t"' in script
     assert "els.themeIndicatorCode.textContent = `T:${resolvedThemeKey}`" in script
     assert "els.themeStatus.textContent = `STYLE: ${resolvedThemeKey}`" in script
     assert "setStatus(`主题已切换: ${nextKey}`)" in script
@@ -443,13 +440,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
         .joinpath("static", "css", "tui-workbench.css")
         .read_text(encoding="utf-8")
     )
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert "action.endpoint}</span>" not in script
     assert "${escapeHtml(action.method)} ${escapeHtml(action.endpoint)}" not in script
@@ -488,7 +479,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert 'grid.classList.remove("is-dashboard")' in script
     assert "可执行操作" in script
     assert "支撑检查" in script
-    assert "条件查询" in script
+    assert "return String(action.submit_label || \"执行\")" in script
     assert (
         "${escapeHtml(riskLabel(action.risk))} / ${escapeHtml(viewLabel(action.view_type))}"
         not in script
@@ -534,7 +525,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "button.disabled = !enabled" in script
     assert (
         "applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });"
-        in script
+        not in script
     )
     assert "function triggerActionForm(form)" in script
     assert "state.lastFormTriggerRef" in script
@@ -563,23 +554,17 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
     assert "return rowResourceBase === targetResourceBase;" in script
     assert "form.elements.namedItem" in script
     assert "function rowFieldCandidates" in script
-    assert "const builtInFieldAliases" in script
+    assert "const builtInFieldAliases" not in script
     assert "function fieldAliasRegistry" in script
     assert "field.semantic" in script
     assert "field.aliases" in script
-    assert (
-        'from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"]'
-        in script
-    )
-    assert (
-        'to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"]'
-        in script
-    )
-    assert 'report_id: ["report_id", "report.id"]' in script
-    assert 'validation_id: ["validation_id", "validation.id"]' in script
-    assert 'summary_id: ["summary_id", "summary.id"]' in script
-    assert 'request_id: ["request_id", "request.id"]' in script
-    assert 'asset_class: ["asset_class", "code", "category", "name"]' in script
+    assert 'from_code: ["from_code", "from_currency_code"' not in script
+    assert 'to_code: ["to_code", "to_currency_code"' not in script
+    assert 'report_id: ["report_id", "report.id"]' not in script
+    assert 'validation_id: ["validation_id", "validation.id"]' not in script
+    assert 'summary_id: ["summary_id", "summary.id"]' not in script
+    assert 'request_id: ["request_id", "request.id"]' not in script
+    assert 'asset_class: ["asset_class", "code", "category", "name"]' not in script
     assert "const rawKey = `__raw_${key}`" in script
     assert 'if (key.startsWith("__")) {' in script
     assert "function actionsAvailableForRow" in script
@@ -625,13 +610,7 @@ def test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons():
 
 
 def test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert (
         '["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]' in script
@@ -644,13 +623,7 @@ def test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe():
 
 
 def test_tui_workbench_javascript_supports_limit_offset_pagination():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert 'pagerMode === "limit_offset" ? "offset" : pagerMode' in script
     assert (
@@ -672,13 +645,7 @@ def test_tui_workbench_javascript_supports_image_and_file_runtime_contracts():
         .joinpath("static", "css", "tui-workbench.css")
         .read_text(encoding="utf-8")
     )
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert '"image"' in script
     assert "function renderImage(viewModel)" in script
@@ -692,13 +659,7 @@ def test_tui_workbench_javascript_supports_image_and_file_runtime_contracts():
 
 
 def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert "selectedRowContext: null" in script
     assert "function selectedRowForActions()" in script
@@ -718,7 +679,7 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
     assert "页 -/- | 0 行" in script
     assert "function groupActions" in script
     assert "tui-action-group-title" in script
-    assert "function isAdvancedAction" in script
+    assert "function isAdvancedAction" not in script
     assert "function actionTier" in script
     assert "function dashboardTargetScreen" in script
     assert 'return String(panel.target_screen || panel.screen_key || "");' in script
@@ -740,13 +701,7 @@ def test_tui_workbench_preserves_selected_row_context_for_follow_up_actions():
 
 
 def test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert (
         'const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : "");'
@@ -766,13 +721,7 @@ def test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source():
 
 
 def test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert 'if (segments[0] === "auto" || segments[0] === "param") {' in script
     assert 'if (segments[0] === "api" && segments[2] === "api") {' in script
@@ -781,13 +730,7 @@ def test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_ro
 
 
 def test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses():
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert "if (rows.length) {" in script
     assert (
@@ -870,13 +813,7 @@ def test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contr
         .joinpath("static", "css", "tui-workbench.css")
         .read_text(encoding="utf-8")
     )
-    script = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
-        .joinpath("static", "js", "tui-workbench.js")
-        .read_text(encoding="utf-8")
-    )
+    script = _tui_workbench_source()
 
     assert "function screenUserExperience(screen)" in script
     assert "function userExperienceSections(screen)" in script
@@ -2277,9 +2214,7 @@ def test_tui_screen_payload_exposes_registry_identity(client, tui_user):
 
 
 def test_tui_bootstrap_only_falls_back_for_stale_resume_state():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    script = _tui_workbench_source()
 
     assert "const isResumeAttempt" in script
     assert "if (!loaded && isResumeAttempt)" in script
@@ -3033,6 +2968,12 @@ def test_tui_metadata_validator_adds_user_facing_design_defaults():
     assert validated["screens"][0]["user_experience"]["journey"] == "workspace"
     assert validated["actions"][0]["result_semantics"] == []
     assert validated["actions"][0]["fields"] == []
+    assert validated["actions"][0]["task_tier"] == "primary"
+    assert validated["actions"][0]["submit_label"] == "执行查询"
+    assert validated["field_aliases"]["from_code"][:2] == [
+        "from_code",
+        "from_currency_code",
+    ]
 
 
 def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
@@ -3050,6 +2991,8 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert "audit_required" not in action
     assert "sensitive_level" not in action
     assert "executor" not in action
+    assert "task_tier" not in action
+    assert "submit_label" not in action
     assert "module_key" not in action
 
     restored = validate_tui_metadata(compacted)
@@ -3064,6 +3007,8 @@ def test_tui_metadata_compact_payload_round_trips_runtime_defaults():
     assert restored_action["audit_required"] is False
     assert restored_action["sensitive_level"] == "none"
     assert restored_action["executor"] == ""
+    assert restored_action["task_tier"] == "primary"
+    assert restored_action["submit_label"] == "执行查询"
     assert restored_action["module_key"] == "command-center"
 
 
@@ -7062,9 +7007,7 @@ def test_tui_mcp_self_service_status_model_prioritizes_canonical_access_package(
 
 
 def test_tui_script_uses_explicit_result_field_presentations_only():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    script = _tui_workbench_source()
 
     assert "fieldLooksLikeCopyable" not in script
     assert "fieldLooksLikePrompt" not in script
@@ -7119,9 +7062,7 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
     assert {item["refresh_panel_key"] for item in user_panel["row_actions"][1:]} == {
         "mcp-admin-users"
     }
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    script = _tui_workbench_source()
     css = (Path(__file__).resolve().parents[2] / "static" / "css" / "tui-workbench.css").read_text(
         encoding="utf-8"
     )
@@ -7223,9 +7164,7 @@ def test_tui_runtime_injection_replaces_stale_mcp_screen_and_action_contracts():
 
 
 def test_tui_script_renders_accessible_native_dashboard_row_actions():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    script = _tui_workbench_source()
 
     assert "function renderDashboardRowActions(panel, row)" in script
     assert "function bindDashboardRowActions(root, panel)" in script
@@ -7243,7 +7182,7 @@ def test_tui_script_renders_accessible_native_dashboard_row_actions():
 
 def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
     root = Path(__file__).resolve().parents[2]
-    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    script = _tui_workbench_source()
     css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
     layout_source = (
         root / "frontend" / "agomtui-runtime" / "src" / "dashboard-layout.js"
@@ -7272,7 +7211,7 @@ def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
 
 def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
     root = Path(__file__).resolve().parents[2]
-    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    script = _tui_workbench_source()
     host_adapter = (root / "frontend" / "agomtradepro-host" / "src" / "index.js").read_text(
         encoding="utf-8"
     )
@@ -7289,7 +7228,7 @@ def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
 
 def test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe():
     root = Path(__file__).resolve().parents[2]
-    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    script = _tui_workbench_source()
     css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
 
     assert "function revealModuleScreen(screenButton)" in script
@@ -7303,9 +7242,7 @@ def test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe
 
 
 def test_tui_panel_recovery_is_contextual_and_bounded():
-    script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
-        encoding="utf-8"
-    )
+    script = _tui_workbench_source()
 
     assert "function boundedTuiError(error)" in script
     assert "function renderDashboardPanelError(panel, error)" in script
@@ -7320,7 +7257,7 @@ def test_tui_panel_recovery_is_contextual_and_bounded():
 
 def test_tui_dashboard_uses_native_accessible_controls_with_visible_focus():
     root = Path(__file__).resolve().parents[2]
-    script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
+    script = _tui_workbench_source()
     css = (root / "static" / "css" / "tui-workbench.css").read_text(encoding="utf-8")
 
     assert '<article class="tui-dash-panel"' in script

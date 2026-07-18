@@ -202,6 +202,67 @@ HIGH_REVIEW_FIELD_TOKENS = (
 )
 GOVERNED_TUI_RISKS = {"write", "admin"}
 
+DEFAULT_TUI_FIELD_ALIASES: dict[str, list[str]] = {
+    "company.keyword": [
+        "keyword",
+        "name",
+        "companyName",
+        "company_name",
+        "creditCode",
+        "credit_code",
+        "统一社会信用代码",
+    ],
+    "company.id": ["id", "cid", "companyId", "company_id"],
+    "company.credit_code": ["creditCode", "credit_code", "统一社会信用代码"],
+    "pk": ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
+    "id": ["id", "pk", "ID", "记录ID", "cid", "companyId", "company_id"],
+    "keyword": ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code"],
+    "company_id": ["company_id", "companyId", "cid", "id", "pk"],
+    "company_name": ["company_name", "companyName", "name", "keyword"],
+    "credit_code": ["credit_code", "creditCode", "统一社会信用代码"],
+    "account_id": ["account_id", "account.id", "account", "账户ID", "id", "pk"],
+    "portfolio_id": ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
+    "asset_class": ["asset_class", "code", "category", "name"],
+    "asset_code": ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
+    "asset_codes": ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
+    "fund_code": ["fund_code", "code", "symbol", "基金代码", "代码"],
+    "indicator_code": ["indicator_code", "code", "指标代码", "代码"],
+    "capability_key": ["capability_key", "key", "id", "pk"],
+    "short_code": ["short_code", "code", "shortCode", "短码"],
+    "snapshot_id": ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
+    "event_id": ["event_id", "event.id", "id", "pk"],
+    "decision_id": ["decision_id", "id", "pk"],
+    "report_id": ["report_id", "report.id"],
+    "run_id": ["run_id", "id", "pk"],
+    "validation_id": ["validation_id", "validation.id"],
+    "summary_id": ["summary_id", "summary.id"],
+    "log_id": ["log_id", "log.id", "id", "pk"],
+    "request_id": ["request_id", "request.id"],
+    "task_id": ["task_id", "task.id", "id", "pk"],
+    "provider_id": ["provider_id", "provider.id", "id", "pk"],
+    "from_code": [
+        "from_code",
+        "from_currency_code",
+        "from_currency",
+        "base_currency_code",
+        "base_currency",
+        "code",
+    ],
+    "strategy_id": ["strategy_id", "strategy.id", "strategy", "id", "pk"],
+    "sector_code": ["sector_code", "code", "symbol", "板块代码", "代码"],
+    "task_name": ["task_name", "name", "title"],
+    "to_code": [
+        "to_code",
+        "to_currency_code",
+        "to_currency",
+        "target_currency_code",
+        "target_currency",
+        "quote_currency_code",
+        "quote_currency",
+    ],
+    "period": ["period", "period_type", "type", "name"],
+}
+
 
 class TuiMetadataValidationError(ValueError):
     """Raised when TUI metadata cannot be safely published."""
@@ -240,6 +301,7 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
     default_screen = str(payload["default_screen"])
     if default_screen not in screen_keys:
         raise TuiMetadataValidationError(f"default_screen does not exist: {default_screen}")
+    payload.setdefault("field_aliases", copy.deepcopy(DEFAULT_TUI_FIELD_ALIASES))
     _validate_field_alias_registry(payload.get("field_aliases"))
 
     for module in modules:
@@ -386,7 +448,10 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
         action.setdefault("sensitive_level", _default_sensitive_level(action))
         action.setdefault("executor", "")
         action.setdefault("task_group", "")
-        action.setdefault("task_tier", "")
+        action.setdefault("task_tier", "primary")
+        if not str(action.get("task_tier") or "").strip():
+            action["task_tier"] = "primary"
+        action.setdefault("submit_label", _default_action_submit_label(action))
         action.setdefault("sequence", 999)
         action["result_semantics"] = _normalize_result_semantics(action)
         if "pagination" in action:
@@ -679,8 +744,10 @@ def compact_tui_metadata_payload(payload: dict[str, Any]) -> dict[str, Any]:
             action.pop("executor", None)
         if action.get("task_group") == "":
             action.pop("task_group", None)
-        if action.get("task_tier") == "":
+        if action.get("task_tier") == "primary":
             action.pop("task_tier", None)
+        if action.get("submit_label") == _default_action_submit_label(action):
+            action.pop("submit_label", None)
         if action.get("sequence") == 999:
             action.pop("sequence", None)
         if action.get("module_key") == screen_module_by_key.get(str(action.get("screen_key"))):
@@ -851,13 +918,16 @@ def _validate_governance_contract(action: dict[str, Any]) -> None:
     if not isinstance(action.get("task_group"), str):
         raise TuiMetadataValidationError(f"Action task_group must be a string: {action['key']}")
     if str(action.get("task_tier") or "") not in {
-        "",
         "primary",
         "support",
         "advanced",
         "operation",
     }:
         raise TuiMetadataValidationError(f"Action has unsupported task_tier: {action['key']}")
+    if not isinstance(action.get("submit_label"), str) or not str(
+        action.get("submit_label") or ""
+    ).strip():
+        raise TuiMetadataValidationError(f"Action submit_label must be non-empty: {action['key']}")
     try:
         action["sequence"] = int(action.get("sequence", 999))
     except (TypeError, ValueError) as exc:
@@ -893,6 +963,17 @@ def _default_sensitive_level(action: dict[str, Any]) -> str:
     if risk == "ai":
         return "medium"
     return "none"
+
+
+def _default_action_submit_label(action: dict[str, Any]) -> str:
+    """Return a stable operator label without guessing from translated action text."""
+
+    risk = str(action.get("risk") or "read").strip().lower()
+    if risk in {"write", "admin", "unsafe"}:
+        return "提交变更"
+    if risk == "ai":
+        return "启动分析"
+    return "执行查询"
 
 
 def _validate_confirmed_operation_contract(action: dict[str, Any]) -> None:

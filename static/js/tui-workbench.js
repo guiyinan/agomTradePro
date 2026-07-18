@@ -1,5658 +1,702 @@
-(function () {
-    "use strict";
-
-    const runtimeCore = window.AgomTUIRuntimeCore || {};
-    const state = {
-        catalog: null,
-        screen: null,
-        screenBadges: {},
-        screenBadgeDrilldowns: {},
-        homePanelBadges: {},
-        lastAction: null,
-        lastParams: {},
-        lastRaw: null,
-        lastPager: null,
-        currentViewModel: null,
-        currentColumns: [],
-        currentRows: [],
-        visibleRows: [],
-        selectedRowContext: null,
-        filterText: "",
-        selectedRowIndex: 0,
-        activeMenu: null,
-        lastFormTriggerRef: "",
-        lastFormTriggerAt: 0,
-        showSupportTasks: false,
-        showAdvancedQueries: false,
-        actionFilterText: "",
-        completedActionsByScreen: {},
-        railCollapsed: false,
-        inspectorCollapsed: false,
-        inspectorWidth: null,
-        themeKey: "B",
-        pinnedScreenKeys: new Set(),
-        preferredHomeLane: "decision",
-        lastNonHomeScreen: "",
-        pendingRequestId: 0,
-        pendingController: null,
-        slowActionTimer: null,
-        clientPage: 1,
-        clientPageSize: 100,
-        operatorHomePayload: null,
-        operatorHomePromise: null,
-    };
-
-    const els = {
-        app: document.querySelector("[data-tui-app]"),
-        railPanel: document.querySelector("[data-rail-panel]"),
-        moduleTree: document.querySelector("[data-module-tree]"),
-        screenTitle: document.querySelector("[data-screen-title]"),
-        screenStatus: document.querySelector("[data-screen-status]"),
-        actions: document.querySelector("[data-actions-panel]"),
-        mainTitle: document.querySelector("[data-main-title]"),
-        main: document.querySelector("[data-main-panel]"),
-        workflowStrip: document.querySelector("[data-workflow-strip]"),
-        inspector: document.querySelector("[data-inspector-panel]"),
-        rawDrawer: document.querySelector("[data-raw-drawer]"),
-        rawPanel: document.querySelector("[data-raw-panel]"),
-        rawToggle: document.querySelector("[data-raw-toggle]"),
-        rawClose: document.querySelector("[data-raw-close]"),
-        pager: document.querySelector("[data-pager-status]"),
-        clock: document.querySelector("[data-tui-clock]"),
-        menuPopover: document.querySelector("[data-menu-popover]"),
-        filterBar: document.querySelector("[data-filter-bar]"),
-        filterInput: document.querySelector("[data-filter-input]"),
-        filterClear: document.querySelector("[data-filter-clear]"),
-        modal: document.querySelector("[data-tui-modal]"),
-        modalTitle: document.querySelector("[data-modal-title]"),
-        modalBody: document.querySelector("[data-modal-body]"),
-        modalClose: document.querySelector("[data-modal-close]"),
-        status: document.querySelector("[data-workbench-status]"),
-        lastRefresh: document.querySelector("[data-last-refresh]"),
-        currentLocation: document.querySelector("[data-current-location]"),
-        railToggle: document.querySelector("[data-toggle-rail]"),
-        inspectorShell: document.querySelector("[data-inspector-panel-shell]"),
-        inspectorToggle: document.querySelector("[data-toggle-inspector]"),
-        inspectorResizeHandle: document.querySelector("[data-inspector-resize-handle]"),
-        themeStatus: document.querySelector("[data-theme-status]"),
-        themeIndicatorCode: document.querySelector("[data-theme-indicator-code]"),
-    };
-
-    const menuItems = {
-        file: [
-            ["refresh", "刷新当前视图", "F5"],
-            ["export", "导出当前表格", "F8"],
-        ],
-        module: [
-            ["toggle-rail", "展开/收起模块导航", "F2"],
-            ["previous-workflow", "上一个流程屏", "F3"],
-            ["next-workflow", "下一个流程屏", "F4"],
-        ],
-        action: [
-            ["run-next-primary", "执行下一主流程", "F6"],
-            ["focus-actions", "定位任务区", "F9"],
-            ["row-detail", "打开选中行", "Enter"],
-        ],
-        view: [
-            ["filter", "筛选表格", "F7"],
-            ["export", "导出当前表格", "F8"],
-            ["toggle-inspector", "展开/收起说明栏", "F10"],
-            ["raw", "原始响应", "菜单"],
-        ],
-        help: [
-            ["help", "键盘帮助", "F1"],
-        ],
-    };
-
-    const HOTKEY_COMMANDS = {
-        F1: "help",
-        F2: "toggle-rail",
-        F3: "previous-workflow",
-        F4: "next-workflow",
-        F5: "refresh",
-        F6: "run-next-primary",
-        F7: "filter",
-        F8: "export",
-        F9: "focus-actions",
-        F10: "toggle-inspector",
-    };
-
-    const progressStorageKey = "agom-tui-primary-progress:v1";
-    const themeStorageKey = "agom-tui-theme:v1";
-    const inspectorWidthStorageKey = "agom-tui-inspector-width:v1";
-    const lastNonHomeScreenStorageKey = "agom-tui-last-non-home-screen:v1";
-    const pinnedScreensStorageKey = "agom-tui-pinned-screen-keys:v1";
-    const preferredHomeLaneStorageKey = "agom-tui-preferred-home-lane:v1";
-    const resumeOnBootStorageKey = "agom-tui-resume-on-boot:v1";
-    const inspectorWidthMin = 220;
-    const inspectorWidthMax = 640;
-    const THEME_SEQUENCE = ["A", "B", "C"];
-    const THEME_TOKENS = {
-        A: {
-            background: "#001A8D",
-            panelBackground: "#000B55",
-            primaryText: "#FFFFFF",
-            secondaryText: "#C0C0C0",
-            border: "#00FFFF",
-            highlight: "#FFFF00",
-            accent: "#C0C0C0",
-            success: "#00FF80",
-            warning: "#FFFF00",
-            error: "#FF4040",
-            grid: "#002070",
-        },
-        B: {
-            background: "#07090F",
-            panelBackground: "#101827",
-            primaryText: "#E8EEF8",
-            secondaryText: "#AAB6C5",
-            border: "#58708F",
-            highlight: "#F7C948",
-            accent: "#38BDF8",
-            success: "#2EE59D",
-            warning: "#F7C948",
-            error: "#FF5A5F",
-            grid: "#263449",
-        },
-        C: {
-            background: "#02060A",
-            panelBackground: "#071018",
-            primaryText: "#BFFFE0",
-            secondaryText: "#6FAF93",
-            border: "#123B33",
-            highlight: "#39FF88",
-            accent: "#2DE2E6",
-            success: "#39FF88",
-            warning: "#FFCC66",
-            error: "#FF3B3B",
-            grid: "#0E2A24",
-        },
-    };
-
-    const runtimeConfig = window.__AGOMTUI_RUNTIME__ || {};
-    const apiBase = String(runtimeConfig.apiBase || "/api/tui").replace(/\/+$/, "");
-    const runtimeUrls = typeof runtimeCore.createRuntimeUrls === "function"
-        ? runtimeCore.createRuntimeUrls(runtimeConfig)
-        : null;
-    const runtimeHooks = typeof runtimeCore.runtimeHooks === "function"
-        ? runtimeCore.runtimeHooks(runtimeConfig)
-        : (runtimeConfig.hooks || {});
-    const allowSvgDataImages = runtimeConfig.allowSvgDataImages !== false;
-    const rendererRegistry = new Map();
-    const builtInRendererNames = new Set([
-        "datagrid",
-        "detail",
-        "message",
-        "chart",
-        "image",
-        "line",
-        "bar",
-        "pie",
-        "kpi-trend",
-        "kpi_trend",
-        "table-chart",
-        "table_chart",
-        "host-slot",
-        "host_slot",
-    ]);
-    const builtInFieldAliases = {
-        "company.keyword": ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code", "统一社会信用代码"],
-        "company.id": ["id", "cid", "companyId", "company_id"],
-        "company.credit_code": ["creditCode", "credit_code", "统一社会信用代码"],
-        pk: ["pk", "id", "ID", "记录ID", "config_id", "decision_id", "snapshot_id"],
-        id: ["id", "pk", "ID", "记录ID", "cid", "companyId", "company_id"],
-        keyword: ["keyword", "name", "companyName", "company_name", "creditCode", "credit_code"],
-        company_id: ["company_id", "companyId", "cid", "id", "pk"],
-        company_name: ["company_name", "companyName", "name", "keyword"],
-        credit_code: ["credit_code", "creditCode", "统一社会信用代码"],
-        account_id: ["account_id", "account.id", "account", "账户ID", "id", "pk"],
-        portfolio_id: ["portfolio_id", "portfolio.id", "portfolio", "组合ID", "id", "pk"],
-        asset_class: ["asset_class", "code", "category", "name"],
-        asset_code: ["asset_code", "asset.code", "code", "symbol", "标的代码", "代码"],
-        asset_codes: ["asset_codes", "asset_code", "code", "symbol", "标的代码", "代码"],
-        fund_code: ["fund_code", "code", "symbol", "基金代码", "代码"],
-        indicator_code: ["indicator_code", "code", "指标代码", "代码"],
-        capability_key: ["capability_key", "key", "id", "pk"],
-        short_code: ["short_code", "code", "shortCode", "短码"],
-        snapshot_id: ["snapshot_id", "valuation_snapshot_id", "snapshot.id", "id", "pk"],
-        event_id: ["event_id", "event.id", "id", "pk"],
-        decision_id: ["decision_id", "id", "pk"],
-        report_id: ["report_id", "report.id"],
-        run_id: ["run_id", "id", "pk"],
-        validation_id: ["validation_id", "validation.id"],
-        summary_id: ["summary_id", "summary.id"],
-        log_id: ["log_id", "log.id", "id", "pk"],
-        request_id: ["request_id", "request.id"],
-        task_id: ["task_id", "task.id", "id", "pk"],
-        provider_id: ["provider_id", "provider.id", "id", "pk"],
-        from_code: ["from_code", "from_currency_code", "from_currency", "base_currency_code", "base_currency", "code"],
-        strategy_id: ["strategy_id", "strategy.id", "strategy", "id", "pk"],
-        sector_code: ["sector_code", "code", "symbol", "板块代码", "代码"],
-        task_name: ["task_name", "name", "title"],
-        to_code: ["to_code", "to_currency_code", "to_currency", "target_currency_code", "target_currency", "quote_currency_code", "quote_currency"],
-        period: ["period", "period_type", "type", "name"],
-    };
-
-    function registerRenderer(name, rendererFn) {
-        const rendererName = String(name || "").trim();
-        if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(rendererName) || typeof rendererFn !== "function") {
-            return false;
-        }
-        rendererRegistry.set(rendererName, rendererFn);
-        return true;
-    }
-
-    const previousRendererApi = window.AgomTUIRenderers || {};
-    window.AgomTUIRenderers = {
-        register: registerRenderer,
-        get(name) {
-            return rendererRegistry.get(String(name || "").trim()) || null;
-        },
-        has(name) {
-            return rendererRegistry.has(String(name || "").trim());
-        },
-    };
-    if (Array.isArray(previousRendererApi.pending)) {
-        previousRendererApi.pending.forEach((item) => {
-            if (Array.isArray(item)) {
-                registerRenderer(item[0], item[1]);
-            }
-        });
-    }
-
-    function catalogUrl() {
-        return runtimeUrls ? runtimeUrls.catalog() : `${apiBase}/catalog/`;
-    }
-
-    function screenUrl(screenKey) {
-        return runtimeUrls ? runtimeUrls.screen(screenKey) : `${apiBase}/screens/${encodeURIComponent(screenKey)}/`;
-    }
-
-    function actionRunUrl(actionKey) {
-        return runtimeUrls ? runtimeUrls.action(actionKey) : `${apiBase}/actions/${encodeURIComponent(actionKey)}/run/`;
-    }
-
-    function bootstrapUrl(screenKey = "") {
-        return runtimeUrls ? runtimeUrls.bootstrap(screenKey) : "";
-    }
-
-    function operatorHomeUrl() {
-        return String(runtimeConfig.host?.operatorHomeUrl || "");
-    }
-
-    function governanceQueueUrl(domain = "") {
-        const baseUrl = String(runtimeConfig.host?.governanceQueueUrl || "");
-        if (!baseUrl) {
-            return "";
-        }
-        const suffix = domain ? `?domain=${encodeURIComponent(domain)}` : "";
-        return `${baseUrl}${suffix}`;
-    }
-
-    function isOperatorHomeScreen(screenKey) {
-        if (typeof runtimeHooks.isOperatorHomeScreen === "function") {
-            return Boolean(runtimeHooks.isOperatorHomeScreen(screenKey));
-        }
-        return false;
-    }
-
-    function isHomeClientAction(actionKey) {
-        return (runtimeConfig.host?.homeActionKeys || []).includes(String(actionKey || ""));
-    }
-
-    function operatorHomePanelSectionKey(panel) {
-        const actionKey = String(panel?.action_key || "").trim();
-        const prefix = String(runtimeConfig.host?.homePanelActionPrefix || "");
-        if (!prefix || !actionKey.startsWith(prefix)) {
-            return "";
-        }
-        if (isHomeClientAction(actionKey)) {
-            return "";
-        }
-        return actionKey.slice(prefix.length);
-    }
-
-    function escapeHtml(value) {
-        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-        }[char]));
-    }
-
-    function badgeCountsFromRows(rows) {
-        return (rows || []).reduce((counts, row) => {
-            const severity = String(row?.severity || "").trim().toLowerCase();
-            if (severity === "blocked") {
-                counts.blockedCount += 1;
-            } else if (severity === "warning") {
-                counts.warningCount += 1;
-            }
-            return counts;
-        }, { blockedCount: 0, warningCount: 0 });
-    }
-
-    function hasBadgeCounts(badge) {
-        return Number(badge?.blockedCount || 0) > 0 || Number(badge?.warningCount || 0) > 0;
-    }
-
-    function badgeMarkup(badge, options = {}) {
-        if (!hasBadgeCounts(badge)) {
-            return "";
-        }
-        const blockedCount = Number(badge?.blockedCount || 0);
-        const warningCount = Number(badge?.warningCount || 0);
-        const severity = blockedCount > 0 ? "blocked" : "warning";
-        const count = blockedCount > 0 ? blockedCount : warningCount;
-        const label = blockedCount > 0 ? "阻断" : "预警";
-        const extraClass = options.compact ? " tui-badge--compact" : "";
-        return `<span class="tui-badge tui-badge--${escapeHtml(severity)}${extraClass}" aria-label="${escapeHtml(label)} ${count}">${escapeHtml(count)}</span>`;
-    }
-
-    function badgeSeverityRank(severity) {
-        if (severity === "blocked") {
-            return 0;
-        }
-        if (severity === "warning") {
-            return 1;
-        }
-        return 2;
-    }
-
-    function badgeDrilldownsByScreen(items) {
-        return (items || []).reduce((next, item) => {
-            const severity = String(item?.severity || "").trim().toLowerCase();
-            const screenKey = String(item?.target_screen || "").trim();
-            const actionKey = String(item?.target_action_key || "").trim();
-            if (!["blocked", "warning"].includes(severity) || !screenKey || !actionKey) {
-                return next;
-            }
-            const candidate = {
-                screenKey,
-                actionKey,
-                severity,
-                title: String(item?.title || "").trim(),
-                nextAction: String(item?.next_action || "").trim(),
-            };
-            const existing = next[screenKey];
-            if (!existing || badgeSeverityRank(severity) < badgeSeverityRank(existing.severity)) {
-                next[screenKey] = candidate;
-            }
-            return next;
-        }, {});
-    }
-
-    function badgeDrilldownForScreen(screenKey) {
-        return state.screenBadgeDrilldowns[String(screenKey || "").trim()] || null;
-    }
-
-    function actionFormElement(action) {
-        if (!action) {
-            return null;
-        }
-        return els.actions.querySelector(
-            `[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`
-        );
-    }
-
-    function screenBadgeMarkup(screenKey) {
-        const badge = state.screenBadges[screenKey];
-        if (!hasBadgeCounts(badge)) {
-            return "";
-        }
-        const drilldown = badgeDrilldownForScreen(screenKey);
-        const badgeHtml = badgeMarkup(badge, { compact: true });
-        if (!drilldown?.actionKey) {
-            return badgeHtml;
-        }
-        const title = drilldown.title || drilldown.nextAction || "查看治理摘要";
-        return `
+(function(){"use strict";const v=window.AgomTUIRuntimeCore||{},o={catalog:null,screen:null,screenBadges:{},screenBadgeDrilldowns:{},homePanelBadges:{},lastAction:null,lastParams:{},lastRaw:null,lastPager:null,currentViewModel:null,currentColumns:[],currentRows:[],visibleRows:[],selectedRowContext:null,filterText:"",selectedRowIndex:0,activeMenu:null,lastFormTriggerRef:"",lastFormTriggerAt:0,showSupportTasks:!1,showAdvancedQueries:!1,actionFilterText:"",completedActionsByScreen:{},railCollapsed:!1,inspectorCollapsed:!1,inspectorWidth:null,themeKey:"B",pinnedScreenKeys:new Set,preferredHomeLane:"decision",lastNonHomeScreen:"",pendingRequestId:0,latestRequestId:0,pendingController:null,slowActionTimer:null,clientPage:1,clientPageSize:100,operatorHomePayload:null,operatorHomePromise:null,modalReturnFocus:null},i={app:document.querySelector("[data-tui-app]"),railPanel:document.querySelector("[data-rail-panel]"),moduleTree:document.querySelector("[data-module-tree]"),screenTitle:document.querySelector("[data-screen-title]"),screenStatus:document.querySelector("[data-screen-status]"),actions:document.querySelector("[data-actions-panel]"),mainTitle:document.querySelector("[data-main-title]"),main:document.querySelector("[data-main-panel]"),workflowStrip:document.querySelector("[data-workflow-strip]"),inspector:document.querySelector("[data-inspector-panel]"),rawDrawer:document.querySelector("[data-raw-drawer]"),rawPanel:document.querySelector("[data-raw-panel]"),rawToggle:document.querySelector("[data-raw-toggle]"),rawClose:document.querySelector("[data-raw-close]"),pager:document.querySelector("[data-pager-status]"),clock:document.querySelector("[data-tui-clock]"),menuPopover:document.querySelector("[data-menu-popover]"),filterBar:document.querySelector("[data-filter-bar]"),filterInput:document.querySelector("[data-filter-input]"),filterClear:document.querySelector("[data-filter-clear]"),modal:document.querySelector("[data-tui-modal]"),modalTitle:document.querySelector("[data-modal-title]"),modalBody:document.querySelector("[data-modal-body]"),modalClose:document.querySelector("[data-modal-close]"),status:document.querySelector("[data-workbench-status]"),lastRefresh:document.querySelector("[data-last-refresh]"),currentLocation:document.querySelector("[data-current-location]"),railToggle:document.querySelector("[data-toggle-rail]"),inspectorShell:document.querySelector("[data-inspector-panel-shell]"),inspectorToggle:document.querySelector("[data-toggle-inspector]"),inspectorResizeHandle:document.querySelector("[data-inspector-resize-handle]"),themeStatus:document.querySelector("[data-theme-status]"),themeIndicatorCode:document.querySelector("[data-theme-indicator-code]")},Yn={file:[["refresh","\u5237\u65B0\u5F53\u524D\u89C6\u56FE","F5"],["export","\u5BFC\u51FA\u5F53\u524D\u8868\u683C","F8"]],module:[["toggle-rail","\u5C55\u5F00/\u6536\u8D77\u6A21\u5757\u5BFC\u822A","F2"],["previous-workflow","\u4E0A\u4E00\u4E2A\u6D41\u7A0B\u5C4F","F3"],["next-workflow","\u4E0B\u4E00\u4E2A\u6D41\u7A0B\u5C4F","F4"]],action:[["run-next-primary","\u6267\u884C\u4E0B\u4E00\u4E3B\u6D41\u7A0B","F6"],["focus-actions","\u5B9A\u4F4D\u4EFB\u52A1\u533A","F9"],["row-detail","\u6253\u5F00\u9009\u4E2D\u884C","Enter"]],view:[["filter","\u7B5B\u9009\u8868\u683C","F7"],["filter-actions","\u7B5B\u9009\u5F53\u524D\u4EFB\u52A1","\u83DC\u5355"],["toggle-inspector","\u5C55\u5F00/\u6536\u8D77\u8BF4\u660E\u680F","F10"],["reset-progress","\u91CD\u7F6E\u672C\u5C4F\u8FDB\u5EA6","\u83DC\u5355"],["raw","\u539F\u59CB\u54CD\u5E94","\u83DC\u5355"]],help:[["help","\u952E\u76D8\u5E2E\u52A9","F1"]]},kt={F1:"help",F2:"toggle-rail",F3:"previous-workflow",F4:"next-workflow",F5:"refresh",F6:"run-next-primary",F7:"filter",F8:"export",F9:"focus-actions",F10:"toggle-inspector"},$t="agom-tui-primary-progress:v1",vt="agom-tui-theme:v1",_t="agom-tui-inspector-width:v1",Fe="agom-tui-last-non-home-screen:v1",xt="agom-tui-pinned-screen-keys:v1",At="agom-tui-preferred-home-lane:v1",me="agom-tui-resume-on-boot:v1",He=220,Ct=640,Zn=980,Xn=.56,er=250,tr=120,nr=250,rr=15e3,ar=2*1024*1024,ge=["A","B","C"],or={A:{background:"#001A8D",panelBackground:"#000B55",primaryText:"#FFFFFF",secondaryText:"#C0C0C0",border:"#00FFFF",highlight:"#FFFF00",accent:"#C0C0C0",success:"#00FF80",warning:"#FFFF00",error:"#FF4040",grid:"#002070"},B:{background:"#07090F",panelBackground:"#101827",primaryText:"#E8EEF8",secondaryText:"#AAB6C5",border:"#58708F",highlight:"#F7C948",accent:"#38BDF8",success:"#2EE59D",warning:"#F7C948",error:"#FF5A5F",grid:"#263449"},C:{background:"#02060A",panelBackground:"#071018",primaryText:"#BFFFE0",secondaryText:"#6FAF93",border:"#123B33",highlight:"#39FF88",accent:"#2DE2E6",success:"#39FF88",warning:"#FFCC66",error:"#FF3B3B",grid:"#0E2A24"}},w=window.__AGOMTUI_RUNTIME__||{},Be=String(w.apiBase||"/api/tui").replace(/\/+$/,""),F=typeof v.createRuntimeUrls=="function"?v.createRuntimeUrls(w):null,C=typeof v.runtimeHooks=="function"?v.runtimeHooks(w):w.hooks||{},sr=w.allowSvgDataImages!==!1,J=new Map;function Ie(e){try{return window[e]||null}catch{return null}}function I(e,t,n=null){try{return Ie(e)?.getItem(t)??n}catch{return n}}function D(e,t,n){try{Ie(e)?.setItem(t,n)}catch{}}function De(e,t){try{Ie(e)?.removeItem(t)}catch{}}const Ke=new Set(["datagrid","detail","message","chart","image","line","bar","pie","kpi-trend","kpi_trend","table-chart","table_chart","host-slot","host_slot"]);function Tt(e,t){const n=String(e||"").trim();return!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(n)||typeof t!="function"?!1:(J.set(n,t),!0)}const Lt=window.AgomTUIRenderers||{};window.AgomTUIRenderers={register:Tt,get(e){return J.get(String(e||"").trim())||null},has(e){return J.has(String(e||"").trim())}},Array.isArray(Lt.pending)&&Lt.pending.forEach(e=>{Array.isArray(e)&&Tt(e[0],e[1])});function ir(){return F?F.catalog():`${Be}/catalog/`}function cr(e){return F?F.screen(e):`${Be}/screens/${encodeURIComponent(e)}/`}function je(e){return F?F.action(e):`${Be}/actions/${encodeURIComponent(e)}/run/`}function lr(e=""){return F?F.bootstrap(e):""}function ur(){return String(w.host?.operatorHomeUrl||"")}function dr(e=""){const t=String(w.host?.governanceQueueUrl||"");if(!t)return"";const n=e?`?domain=${encodeURIComponent(e)}`:"";return`${t}${n}`}function _(e){return typeof C.isOperatorHomeScreen=="function"?!!C.isOperatorHomeScreen(e):!1}function Pt(e){return(w.host?.homeActionKeys||[]).includes(String(e||""))}function pr(e){const t=String(e?.action_key||"").trim(),n=String(w.host?.homePanelActionPrefix||"");return!n||!t.startsWith(n)||Pt(t)?"":t.slice(n.length)}function c(e){return String(e??"").replace(/[&<>"']/g,t=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[t])}function Ne(e){return(e||[]).reduce((t,n)=>{const r=String(n?.severity||"").trim().toLowerCase();return r==="blocked"?t.blockedCount+=1:r==="warning"&&(t.warningCount+=1),t},{blockedCount:0,warningCount:0})}function fr(e){return(e||[]).reduce((t,n)=>(t.blockedCount+=Number(n?.blockedCount||0),t.warningCount+=Number(n?.warningCount||0),t),{blockedCount:0,warningCount:0})}function Rt(e){return fr((e||[]).map(t=>o.screenBadges[t]||{}))}function Et(e){return Number(e?.blockedCount||0)>0||Number(e?.warningCount||0)>0}function Q(e,t={}){if(!Et(e))return"";const n=Number(e?.blockedCount||0),r=Number(e?.warningCount||0),a=n>0?"blocked":"warning",s=n>0?n:r,l=n>0?"\u963B\u65AD":"\u9884\u8B66",u=t.compact?" tui-badge--compact":"";return`<span class="tui-badge tui-badge--${c(a)}${u}" aria-label="${c(l)} ${s}">${c(s)}</span>`}function qt(e){return e==="blocked"?0:e==="warning"?1:2}function mr(e){return(e||[]).reduce((t,n)=>{const r=String(n?.severity||"").trim().toLowerCase(),a=String(n?.target_screen||"").trim(),s=String(n?.target_action_key||"").trim();if(!["blocked","warning"].includes(r)||!a||!s)return t;const l={screenKey:a,actionKey:s,severity:r,title:String(n?.title||"").trim(),nextAction:String(n?.next_action||"").trim()},u=t[a];return(!u||qt(r)<qt(u.severity))&&(t[a]=l),t},{})}function Ft(e){return o.screenBadgeDrilldowns[String(e||"").trim()]||null}function gr(e){return e?i.actions.querySelector(`[data-action-ui-key="${CSS.escape(K(e))}"]`):null}function Ht(e){const t=o.screenBadges[e];if(!Et(t))return"";const n=Ft(e),r=Q(t,{compact:!0});if(!n?.actionKey)return r;const a=n.title||n.nextAction||"\u67E5\u770B\u6CBB\u7406\u6458\u8981";return`
             <button
                 class="tui-badge-button"
                 type="button"
-                data-badge-screen-key="${escapeHtml(screenKey)}"
-                title="${escapeHtml(title)}"
-                aria-label="${escapeHtml(title)}"
-            >${badgeHtml}</button>
-        `;
-    }
-
-    async function openScreenFromCatalog(screenKey) {
-        const normalizedKey = String(screenKey || "").trim();
-        if (!normalizedKey) {
-            return null;
-        }
-        const drilldown = badgeDrilldownForScreen(normalizedKey);
-        if (!drilldown?.actionKey) {
-            return loadScreen(normalizedKey);
-        }
-        const screenSpec = await loadScreen(normalizedKey, { suppressAutoAction: true });
-        if (!screenSpec) {
-            return screenSpec;
-        }
-        const action = currentAction(drilldown.actionKey);
-        if (!action) {
-            return screenSpec;
-        }
-        await runAction(action.key, actionFormElement(action));
-        return screenSpec;
-    }
-
-    function getCookie(name) {
-        const cookies = document.cookie ? document.cookie.split(";") : [];
-        for (const cookie of cookies) {
-            const [rawKey, ...rawValue] = cookie.trim().split("=");
-            if (rawKey === name) {
-                return decodeURIComponent(rawValue.join("="));
-            }
-        }
-        return "";
-    }
-
-    function setStatus(message) {
-        if (els.status) {
-            els.status.textContent = message;
-        }
-    }
-
-    function normalizeThemeKey(themeKey) {
-        return THEME_SEQUENCE.includes(themeKey) ? themeKey : "B";
-    }
-
-    function hexToRgb(hex) {
-        const normalized = String(hex || "").replace("#", "");
-        if (!/^[0-9a-f]{6}$/i.test(normalized)) {
-            return null;
-        }
-        return {
-            r: Number.parseInt(normalized.slice(0, 2), 16),
-            g: Number.parseInt(normalized.slice(2, 4), 16),
-            b: Number.parseInt(normalized.slice(4, 6), 16),
-        };
-    }
-
-    function rgbaFromHex(hex, alpha) {
-        const rgb = hexToRgb(hex);
-        if (!rgb) {
-            return `rgba(0, 0, 0, ${alpha})`;
-        }
-        return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-    }
-
-    function svgArrowDataUrl(direction, color) {
-        const fill = encodeURIComponent(String(color || "#ffffff"));
-        const paths = {
-            up: "M8 4 L3 11 H13 Z",
-            down: "M3 6 H13 L8 13 Z",
-            left: "M4 8 L11 3 V13 Z",
-            right: "M6 3 L13 8 L6 13 Z",
-        };
-        return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cpath d='${paths[direction]}' fill='${fill}'/%3E%3C/svg%3E")`;
-    }
-
-    function applyTheme(themeKey, options = {}) {
-        const resolvedThemeKey = normalizeThemeKey(themeKey);
-        const theme = THEME_TOKENS[resolvedThemeKey];
-        const root = document.documentElement;
-        const variables = {
-            "--tui-bg": theme.background,
-            "--tui-bg-deep": theme.background,
-            "--tui-panel": theme.panelBackground,
-            "--tui-panel-strong": theme.border,
-            "--tui-border": theme.border,
-            "--tui-border-dim": theme.grid,
-            "--tui-text": theme.primaryText,
-            "--tui-muted": theme.secondaryText,
-            "--tui-inverse": theme.background,
-            "--tui-command": theme.background,
-            "--tui-accent": theme.highlight,
-            "--tui-accent-strong": theme.accent,
-            "--tui-warn": theme.warning,
-            "--tui-danger": theme.error,
-            "--tui-green": theme.success,
-            "--tui-scroll-face": theme.border,
-            "--tui-scroll-light": theme.primaryText,
-            "--tui-scroll-track": theme.grid,
-            "--tui-scroll-shadow": theme.background,
-            "--tui-scroll-dark": theme.background,
-            "--tui-menubar-bg": theme.grid,
-            "--tui-menubar-text": theme.primaryText,
-            "--tui-footer-bg": theme.grid,
-            "--tui-footer-text": theme.primaryText,
-            "--tui-footer-divider": theme.border,
-            "--tui-footer-hotkey": theme.highlight,
-            "--tui-footer-emphasis": theme.warning,
-            "--tui-system-source-accent": theme.accent,
-            "--tui-grid-strong": rgbaFromHex(theme.primaryText, 0.66),
-            "--tui-overlay": rgbaFromHex(theme.background, 0.82),
-            "--tui-scroll-arrow-up": svgArrowDataUrl("up", theme.primaryText),
-            "--tui-scroll-arrow-down": svgArrowDataUrl("down", theme.primaryText),
-            "--tui-scroll-arrow-left": svgArrowDataUrl("left", theme.primaryText),
-            "--tui-scroll-arrow-right": svgArrowDataUrl("right", theme.primaryText),
-        };
-        Object.entries(variables).forEach(([name, value]) => {
-            root.style.setProperty(name, value);
-        });
-        root.dataset.tuiTheme = resolvedThemeKey;
-        state.themeKey = resolvedThemeKey;
-        if (els.themeStatus) {
-            els.themeStatus.textContent = `STYLE: ${resolvedThemeKey}`;
-        }
-        if (els.themeIndicatorCode) {
-            els.themeIndicatorCode.textContent = `T:${resolvedThemeKey}`;
-        }
-        if (!options.silent) {
-            try {
-                window.localStorage?.setItem(themeStorageKey, resolvedThemeKey);
-            } catch (error) {
-                // Ignore storage failures; theme switching should still work for this session.
-            }
-        }
-        return resolvedThemeKey;
-    }
-
-    function loadStoredTheme() {
-        try {
-            return normalizeThemeKey(window.localStorage?.getItem(themeStorageKey));
-        } catch (error) {
-            return "B";
-        }
-    }
-
-    function cycleTheme() {
-        const currentIndex = THEME_SEQUENCE.indexOf(normalizeThemeKey(state.themeKey));
-        const nextKey = THEME_SEQUENCE[(currentIndex + 1) % THEME_SEQUENCE.length];
-        applyTheme(nextKey);
-        setStatus(`主题已切换: ${nextKey}`);
-    }
-
-    function twoDigits(value) {
-        return String(value).padStart(2, "0");
-    }
-
-    function currentDateTime() {
-        const now = new Date();
-        return [
-            now.getFullYear(),
-            twoDigits(now.getMonth() + 1),
-            twoDigits(now.getDate()),
-        ].join("-") + " " + [
-            twoDigits(now.getHours()),
-            twoDigits(now.getMinutes()),
-            twoDigits(now.getSeconds()),
-        ].join(":");
-    }
-
-    function setLastRefresh() {
-        if (els.lastRefresh) {
-            els.lastRefresh.textContent = currentDateTime();
-        }
-    }
-
-    function setCurrentLocation(action) {
-        if (!els.currentLocation) {
-            return;
-        }
-        const screen = state.screen?.screen || {};
-        const module = state.screen?.module || {};
-        const screenKey = screen.key || "boot";
-        const address = action?.key
-            ? `screen:${screenKey} action:${action.key}`
-            : `screen:${screenKey}`;
-        const labelPath = [
-            module.label,
-            screen.label,
-            action?.label,
-        ].filter(Boolean).join(" / ");
-        if (els.currentLocation.value !== address) {
-            els.currentLocation.value = address;
-        }
-        els.currentLocation.dataset.currentAddress = address;
-        els.currentLocation.title = labelPath ? `${labelPath} | ${address}` : address;
-    }
-
-    function screenKeyFromLocationInput(value) {
-        const rawValue = String(value || "").trim();
-        if (!rawValue) {
-            return "";
-        }
-        const screenMatch = rawValue.match(/^screen:([^\s]+)(?:\s+action:.+)?$/i);
-        if (screenMatch) {
-            return screenMatch[1];
-        }
-        if (/^[a-z0-9][a-z0-9._-]*$/i.test(rawValue)) {
-            return rawValue;
-        }
-        return "";
-    }
-
-    function resetLocationInput() {
-        if (!els.currentLocation) {
-            return;
-        }
-        els.currentLocation.value = els.currentLocation.dataset.currentAddress || `screen:${state.screen?.screen?.key || "boot"}`;
-    }
-
-    function submitLocationInput() {
-        if (!els.currentLocation) {
-            return;
-        }
-        const screenKey = screenKeyFromLocationInput(els.currentLocation.value);
-        if (!screenKey) {
-            resetLocationInput();
-            setStatus("位置格式无效");
-            return;
-        }
-        els.currentLocation.blur();
-        loadScreen(screenKey);
-    }
-
-    function loadStoredProgress() {
-        try {
-            const raw = window.sessionStorage?.getItem(progressStorageKey);
-            if (!raw) {
-                return;
-            }
-            const parsed = JSON.parse(raw);
-            Object.entries(parsed || {}).forEach(([screenKey, actionKeys]) => {
-                if (Array.isArray(actionKeys)) {
-                    state.completedActionsByScreen[screenKey] = new Set(actionKeys.filter(Boolean));
-                }
-            });
-        } catch (error) {
-            state.completedActionsByScreen = {};
-        }
-    }
-
-    function loadStoredOperatorState() {
-        state.lastNonHomeScreen = String(
-            window.localStorage?.getItem(lastNonHomeScreenStorageKey) || ""
-        ).trim();
-        const storedLane = String(
-            window.localStorage?.getItem(preferredHomeLaneStorageKey) || "decision"
-        ).trim();
-        state.preferredHomeLane = storedLane === "governance" ? "governance" : "decision";
-        try {
-            const rawPinned = window.localStorage?.getItem(pinnedScreensStorageKey);
-            const parsed = rawPinned ? JSON.parse(rawPinned) : [];
-            state.pinnedScreenKeys = new Set(
-                Array.isArray(parsed)
-                    ? parsed.map((value) => String(value || "").trim()).filter(Boolean)
-                    : []
-            );
-        } catch (_error) {
-            state.pinnedScreenKeys = new Set();
-        }
-    }
-
-    function persistProgress() {
-        try {
-            const serializable = {};
-            Object.entries(state.completedActionsByScreen || {}).forEach(([screenKey, actionSet]) => {
-                if (actionSet && actionSet.size) {
-                    serializable[screenKey] = Array.from(actionSet);
-                }
-            });
-            window.sessionStorage?.setItem(progressStorageKey, JSON.stringify(serializable));
-        } catch (error) {
-            // Session progress is a UI convenience; ignore storage failures.
-        }
-    }
-
-    function persistLastNonHomeScreen(screenKey) {
-        const normalizedKey = String(screenKey || "").trim();
-        state.lastNonHomeScreen = normalizedKey;
-        try {
-            if (normalizedKey) {
-                window.localStorage?.setItem(lastNonHomeScreenStorageKey, normalizedKey);
-            } else {
-                window.localStorage?.removeItem(lastNonHomeScreenStorageKey);
-            }
-        } catch (_error) {
-            return;
-        }
-    }
-
-    function persistPreferredHomeLane(lane) {
-        state.preferredHomeLane = lane === "governance" ? "governance" : "decision";
-        try {
-            window.localStorage?.setItem(preferredHomeLaneStorageKey, state.preferredHomeLane);
-        } catch (_error) {
-            return;
-        }
-    }
-
-    function persistPinnedScreens() {
-        try {
-            window.localStorage?.setItem(
-                pinnedScreensStorageKey,
-                JSON.stringify(Array.from(state.pinnedScreenKeys))
-            );
-        } catch (_error) {
-            return;
-        }
-    }
-
-    function shouldResumeOnBoot() {
-        try {
-            return window.sessionStorage?.getItem(resumeOnBootStorageKey) === "1";
-        } catch (_error) {
-            return false;
-        }
-    }
-
-    function clearResumeOnBootFlag() {
-        try {
-            window.sessionStorage?.removeItem(resumeOnBootStorageKey);
-        } catch (_error) {
-            return;
-        }
-    }
-
-    function markResumeOnBoot() {
-        try {
-            if (state.screen?.screen?.key && !isOperatorHomeScreen(state.screen.screen.key)) {
-                window.sessionStorage?.setItem(resumeOnBootStorageKey, "1");
-            } else {
-                window.sessionStorage?.removeItem(resumeOnBootStorageKey);
-            }
-        } catch (_error) {
-            return;
-        }
-    }
-
-    function openCliSurface() {
-        window.open("/terminal/", "_blank", "noopener,noreferrer");
-        setStatus("CLI 已在新标签页打开");
-    }
-
-    function restoreLastWorkspace() {
-        const target = String(state.lastNonHomeScreen || "").trim();
-        if (!target) {
-            setStatus("没有可恢复的最近工作区");
-            return false;
-        }
-        loadScreen(target);
-        return true;
-    }
-
-    function executeHomeAction(actionKey) {
-        const normalizedKey = String(actionKey || "").trim();
-        if (typeof runtimeHooks.runHomeAction === "function") {
-            return Boolean(runtimeHooks.runHomeAction(normalizedKey, {
-                loadScreen,
-                openCliSurface,
-                persistPreferredLane: persistPreferredHomeLane,
-                restoreLastWorkspace,
-            }));
-        }
-        return false;
-    }
-
-    function inferLaneFromScreen(screen) {
-        if (typeof runtimeHooks.inferHomeLane === "function") {
-            return String(runtimeHooks.inferHomeLane(screen) || "");
-        }
-        return "";
-    }
-
-    function badgeCountsByScreen(items) {
-        const next = {};
-        (items || []).forEach((item) => {
-            const severity = String(item?.severity || "").trim().toLowerCase();
-            if (!["blocked", "warning"].includes(severity)) {
-                return;
-            }
-            const screenKey = String(item?.target_screen || "").trim();
-            if (!screenKey) {
-                return;
-            }
-            if (!next[screenKey]) {
-                next[screenKey] = { blockedCount: 0, warningCount: 0 };
-            }
-            if (severity === "blocked") {
-                next[screenKey].blockedCount += 1;
-            } else {
-                next[screenKey].warningCount += 1;
-            }
-        });
-        return next;
-    }
-
-    function refreshVisibleHomePanelBadges() {
-        if (!isOperatorHomeScreen(state.screen?.screen?.key) || !els.main) {
-            return;
-        }
-        els.main.querySelectorAll("[data-dashboard-panel]").forEach((panelElement) => {
-            const panelKey = panelElement.dataset.dashboardPanel;
-            const badge = state.homePanelBadges[panelKey];
-            const badgeHost = panelElement.querySelector("[data-panel-badge]");
-            if (!badgeHost) {
-                return;
-            }
-            badgeHost.innerHTML = badgeMarkup(badge, { compact: true });
-        });
-    }
-
-    function applyNavigationBadges(navigationBadges) {
-        const counts = navigationBadges?.counts_by_screen || {};
-        state.screenBadges = Object.fromEntries(
-            Object.entries(counts).map(([screenKey, value]) => [
-                screenKey,
-                {
-                    blockedCount: Number(value?.blocked_count || 0),
-                    warningCount: Number(value?.warning_count || 0),
-                },
-            ]),
-        );
-        if (state.catalog) {
-            renderCatalog(state.catalog);
-        }
-        refreshVisibleHomePanelBadges();
-    }
-
-    async function loadOperatorHomeAggregate() {
-        if (state.operatorHomePayload) {
-            return state.operatorHomePayload;
-        }
-        if (!state.operatorHomePromise) {
-            const url = operatorHomeUrl();
-            if (!url) {
-                return null;
-            }
-            state.operatorHomePromise = fetchJson(url)
-                .then((payload) => {
-                    state.operatorHomePayload = payload;
-                    applyNavigationBadges(payload?.navigation_badges);
-                    return payload;
-                })
-                .finally(() => {
-                    state.operatorHomePromise = null;
-                });
-        }
-        return state.operatorHomePromise;
-    }
-
-    async function refreshGovernanceBadges() {
-        if (typeof runtimeHooks.loadNavigationBadges === "function") {
-            const navigationBadges = await runtimeHooks.loadNavigationBadges({
-                fetchJson,
-                screen: state.screen,
-            });
-            if (navigationBadges) {
-                applyNavigationBadges(navigationBadges);
-                return;
-            }
-        }
-        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            await loadOperatorHomeAggregate();
-            return;
-        }
-        const queueUrl = governanceQueueUrl();
-        if (!queueUrl) {
-            return;
-        }
-        try {
-            const payload = await fetchJson(queueUrl);
-            state.screenBadges = badgeCountsByScreen(payload.items || []);
-            state.screenBadgeDrilldowns = badgeDrilldownsByScreen(payload.items || []);
-            if (state.catalog) {
-                renderCatalog(state.catalog);
-            }
-            refreshVisibleHomePanelBadges();
-        } catch (_error) {
-            state.screenBadges = {};
-            state.screenBadgeDrilldowns = {};
-            if (state.catalog) {
-                renderCatalog(state.catalog);
-            }
-        }
-    }
-
-    function inspectorGrid() {
-        return els.inspectorShell?.closest?.(".tui-workspace-grid") || null;
-    }
-
-    function inspectorWidthBounds() {
-        const grid = inspectorGrid();
-        if (!grid || window.matchMedia?.("(max-width: 980px)")?.matches) {
-            return null;
-        }
-        const gridWidth = grid.getBoundingClientRect().width || window.innerWidth;
-        const max = Math.max(inspectorWidthMin, Math.min(inspectorWidthMax, Math.round(gridWidth * 0.56)));
-        return { min: inspectorWidthMin, max };
-    }
-
-    function clampInspectorWidth(width) {
-        const bounds = inspectorWidthBounds();
-        if (!bounds) {
-            return null;
-        }
-        return Math.round(Math.min(bounds.max, Math.max(bounds.min, Number(width) || bounds.min)));
-    }
-
-    function applyInspectorWidth(width, options = {}) {
-        const grid = inspectorGrid();
-        const nextWidth = clampInspectorWidth(width);
-        if (!grid || !nextWidth) {
-            return null;
-        }
-        state.inspectorWidth = nextWidth;
-        grid.style.setProperty("--tui-inspector-user-width", `${nextWidth}px`);
-        if (els.inspectorResizeHandle) {
-            const bounds = inspectorWidthBounds();
-            els.inspectorResizeHandle.setAttribute("aria-valuemin", String(bounds?.min || inspectorWidthMin));
-            els.inspectorResizeHandle.setAttribute("aria-valuemax", String(bounds?.max || inspectorWidthMax));
-            els.inspectorResizeHandle.setAttribute("aria-valuenow", String(nextWidth));
-        }
-        if (options.persist) {
-            try {
-                window.localStorage?.setItem(inspectorWidthStorageKey, String(nextWidth));
-            } catch (error) {
-                // Width persistence is a convenience; ignore storage failures.
-            }
-        }
-        return nextWidth;
-    }
-
-    function loadStoredInspectorWidth() {
-        try {
-            const storedWidth = Number(window.localStorage?.getItem(inspectorWidthStorageKey));
-            if (Number.isFinite(storedWidth)) {
-                applyInspectorWidth(storedWidth);
-            }
-        } catch (error) {
-            state.inspectorWidth = null;
-        }
-    }
-
-    function riskLabel(risk) {
-        const labels = {
-            read: "立即打开",
-            ai: "AI 协助",
-            write: "提交确认",
-            unsafe: "受限工具",
-            admin: "管理工具",
-        };
-        return labels[String(risk || "").toLowerCase()] || "任务";
-    }
-
-    function actionVerbLabel(action) {
-        const risk = String(action.risk || "read").toLowerCase();
-        const intent = String(action.intent || "").toLowerCase();
-        const label = String(action.label || "").toLowerCase();
-        if (risk === "write") {
-            return "提交变更";
-        }
-        if (risk === "admin") {
-            return action.method === "GET" ? "打开管理视图" : "提交管理变更";
-        }
-        if (risk === "ai") {
-            return "发起问答";
-        }
-        if ((action.fields || []).some((field) => field.input_type !== "hidden")) {
-            return "按条件查询";
-        }
-        if (intent.includes("health") || intent.includes("status") || label.includes("检查")) {
-            return "运行检查";
-        }
-        if (action.view_type === "datagrid") {
-            return "打开清单";
-        }
-        if (action.view_type === "detail" || action.view_type === "status") {
-            return "查看详情";
-        }
-        return "生成视图";
-    }
-
-    function actionRoleLabel(action) {
-        const tier = actionTier(action);
-        const risk = String(action.risk || "read").toLowerCase();
-        if (tier === "operation") {
-            if (risk === "ai") {
-                return "AI 操作";
-            }
-            if (risk === "write") {
-                return "可执行操作";
-            }
-            if (risk === "admin") {
-                return "管理操作";
-            }
-            return "操作";
-        }
-        if (tier === "primary") {
-            return "主流程";
-        }
-        if (tier === "advanced") {
-            return "条件查询";
-        }
-        return "支撑检查";
-    }
-
-    function actionMetaLabel(action, completed) {
-        const parts = [];
-        if (completed) {
-            parts.push("已完成");
-        }
-        parts.push(actionRoleLabel(action));
-        parts.push(actionVerbLabel(action));
-        const visibleFields = (action.fields || []).filter((field) => field.input_type !== "hidden").length;
-        if (visibleFields) {
-            parts.push(`${visibleFields} 项参数`);
-        }
-        if (action.confirmation_required) {
-            parts.push("执行前确认");
-        }
-        return parts.join(" / ");
-    }
-
-    function viewLabel(viewType) {
-        const labels = {
-            status: "状态",
-            detail: "详情",
-            datagrid: "表格",
-            message: "说明",
-            queue_workbench: "队列",
-            auto: "自动",
-        };
-        return labels[String(viewType || "").toLowerCase()] || "工作区";
-    }
-
-    function operatorText(value) {
-        return String(value ?? "")
-            .replace(/自动批准的只读/g, "已发布的")
-            .replace(/只读详情工具/g, "详情工具")
-            .replace(/只读/g, "可查看")
-            .replace(/读取业务视图/g, "打开业务视图")
-            .replace(/直接读取/g, "直接打开");
-    }
-
-    function humanizeRowKey(key) {
-        const labels = {
-            account_id: "账户ID",
-            asset_code: "标的代码",
-            asset_codes: "资产代码",
-            fund_code: "基金代码",
-            id: "ID",
-            pk: "记录ID",
-            portfolio_id: "组合ID",
-            provider_id: "数据源ID",
-            risk_level: "风险等级",
-            short_code: "短码",
-            task_id: "任务ID",
-        };
-        const normalized = String(key || "");
-        if (labels[normalized]) {
-            return labels[normalized];
-        }
-        return normalized
-            .replace(/[_-]+/g, " ")
-            .replace(/\b\w/g, (char) => char.toUpperCase())
-            .replace(/\bId\b/g, "ID")
-            .replace(/\bPct\b/g, "比例")
-            .replace(/\bAt\b/g, "时间");
-    }
-
-    function rowLabelForKey(key) {
-        const column = state.currentColumns.find((item) => item.key === key);
-        return column?.label || humanizeRowKey(key);
-    }
-
-    function rowDisplayRows(row, limit = Infinity) {
-        if (!row) {
-            return [];
-        }
-        const orderedKeys = [];
-        state.currentColumns.forEach((column) => {
-            if (Object.prototype.hasOwnProperty.call(row, column.key)) {
-                orderedKeys.push(column.key);
-            }
-        });
-        Object.keys(row).forEach((key) => {
-            if (key.startsWith("__")) {
-                return;
-            }
-            if (!orderedKeys.includes(key)) {
-                orderedKeys.push(key);
-            }
-        });
-        return orderedKeys.slice(0, limit).map((key) => [rowLabelForKey(key), row[key]]);
-    }
-
-    function actionUiKey(action) {
-        return action.ui_key || action.key;
-    }
-
-    function currentAction(actionRef) {
-        return ((state.screen && state.screen.actions) || [])
-            .find((action) => action.key === actionRef || actionUiKey(action) === actionRef) || null;
-    }
-
-    function actionRefFromForm(form) {
-        return form?.dataset?.actionUiKey || form?.dataset?.actionKey || "";
-    }
-
-    function triggerActionForm(form) {
-        const actionRef = actionRefFromForm(form);
-        if (!actionRef) {
-            setStatus("任务未找到");
-            return;
-        }
-        const now = Date.now();
-        if (state.lastFormTriggerRef === actionRef && now - state.lastFormTriggerAt < 250) {
-            return;
-        }
-        state.lastFormTriggerRef = actionRef;
-        state.lastFormTriggerAt = now;
-        runAction(actionRef, form);
-    }
-
-    async function fetchJson(url, options) {
-        const requestOptions = options || {};
-        const method = (requestOptions.method || "GET").toUpperCase();
-        const headers = {
-            "Accept": "application/json",
-            ...(requestOptions.headers || {}),
-        };
-        if (method !== "GET") {
-            headers["Content-Type"] = "application/json";
-            headers["X-CSRFToken"] = getCookie("csrftoken");
-        }
-        const response = await fetch(url, {
-            credentials: "same-origin",
-            ...requestOptions,
-            headers,
-        });
-        const contentType = response.headers.get("content-type") || "";
-        if (!response.ok) {
-            let errorPayload = null;
-            if (contentType.includes("application/json")) {
-                try {
-                    errorPayload = await response.json();
-                } catch (parseError) {
-                    errorPayload = null;
-                }
-            }
-            const error = new Error("业务请求未完成");
-            error.status = response.status;
-            error.payload = errorPayload;
-            throw error;
-        }
-        if (!contentType.includes("application/json")) {
-            throw new Error("业务数据格式不可渲染");
-        }
-        return response.json();
-    }
-
-    function boundedTuiError(error) {
-        const statusCode = Number(error?.status || 0);
-        const payload = error?.payload && typeof error.payload === "object" ? error.payload : {};
-        const isStructured = String(payload.error_code || "").startsWith("tui_");
-        const defaults = {
-            403: ["无权访问", "当前账号不能完成这项操作。"],
-            404: ["内容不存在", "目标内容没有发布，或已被移除。"],
-            502: ["服务暂时不可用", "服务暂时无法完成请求，请稍后重试。"],
-            503: ["服务正在恢复", "服务尚未就绪，请稍后重试。"],
-        };
-        const fallback = defaults[statusCode] || ["暂时无法完成请求", "请稍后重试，或返回可用工作区。"];
-        const recoveryActions = isStructured && Array.isArray(payload.recovery_actions)
-            ? payload.recovery_actions
-                .filter((item) => item && typeof item === "object" && item.screen_key)
-                .map((item) => ({
-                    label: String(item.label || "前往可用工作区"),
-                    screenKey: String(item.screen_key),
-                }))
-            : [];
-        return {
-            title: isStructured ? String(payload.title || fallback[0]) : fallback[0],
-            detail: isStructured ? String(payload.detail || fallback[1]) : fallback[1],
-            traceId: isStructured ? String(payload.trace_id || "") : "",
-            recoveryActions,
-        };
-    }
-
-    function renderDashboardPanelError(panel, error) {
-        const bounded = boundedTuiError(error);
-        return `
+                data-badge-screen-key="${c(e)}"
+                title="${c(a)}"
+                aria-label="${c(a)}"
+            >${r}</button>
+        `}async function yr(e){const t=String(e||"").trim();if(!t)return null;const n=Ft(t);if(!n?.actionKey)return S(t);const r=await S(t,{suppressAutoAction:!0});if(!r)return r;const a=$(n.actionKey);return a&&await k(a.key,gr(a)),r}function hr(e){const t=document.cookie?document.cookie.split(";"):[];for(const n of t){const[r,...a]=n.trim().split("=");if(r===e)return decodeURIComponent(a.join("="))}return""}function f(e){i.status&&(i.status.textContent=e)}function Oe(e){return ge.includes(e)?e:"B"}function br(e){const t=String(e||"").replace("#","");return/^[0-9a-f]{6}$/i.test(t)?{r:Number.parseInt(t.slice(0,2),16),g:Number.parseInt(t.slice(2,4),16),b:Number.parseInt(t.slice(4,6),16)}:null}function Bt(e,t){const n=br(e);return n?`rgba(${n.r}, ${n.g}, ${n.b}, ${t})`:`rgba(0, 0, 0, ${t})`}function ye(e,t){const n=encodeURIComponent(String(t||"#ffffff"));return`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cpath d='${{up:"M8 4 L3 11 H13 Z",down:"M3 6 H13 L8 13 Z",left:"M4 8 L11 3 V13 Z",right:"M6 3 L13 8 L6 13 Z"}[e]}' fill='${n}'/%3E%3C/svg%3E")`}function It(e,t={}){const n=Oe(e),r=or[n],a=document.documentElement,s={"--tui-bg":r.background,"--tui-bg-deep":r.background,"--tui-panel":r.panelBackground,"--tui-panel-strong":r.border,"--tui-border":r.border,"--tui-border-dim":r.grid,"--tui-text":r.primaryText,"--tui-muted":r.secondaryText,"--tui-inverse":r.background,"--tui-command":r.background,"--tui-accent":r.highlight,"--tui-accent-strong":r.accent,"--tui-warn":r.warning,"--tui-danger":r.error,"--tui-green":r.success,"--tui-scroll-face":r.border,"--tui-scroll-light":r.primaryText,"--tui-scroll-track":r.grid,"--tui-scroll-shadow":r.background,"--tui-scroll-dark":r.background,"--tui-menubar-bg":r.grid,"--tui-menubar-text":r.primaryText,"--tui-footer-bg":r.grid,"--tui-footer-text":r.primaryText,"--tui-footer-divider":r.border,"--tui-footer-hotkey":r.highlight,"--tui-footer-emphasis":r.warning,"--tui-system-source-accent":r.accent,"--tui-grid-strong":Bt(r.primaryText,.66),"--tui-overlay":Bt(r.background,.82),"--tui-scroll-arrow-up":ye("up",r.primaryText),"--tui-scroll-arrow-down":ye("down",r.primaryText),"--tui-scroll-arrow-left":ye("left",r.primaryText),"--tui-scroll-arrow-right":ye("right",r.primaryText)};return Object.entries(s).forEach(([l,u])=>{a.style.setProperty(l,u)}),a.dataset.tuiTheme=n,o.themeKey=n,i.themeStatus&&(i.themeStatus.textContent=`STYLE: ${n}`),i.themeIndicatorCode&&(i.themeIndicatorCode.textContent=`T:${n}`),t.silent||D("localStorage",vt,n),n}function wr(){return Oe(I("localStorage",vt,"B"))}function Sr(){const e=ge.indexOf(Oe(o.themeKey)),t=ge[(e+1)%ge.length];It(t),f(`\u4E3B\u9898\u5DF2\u5207\u6362: ${t}`)}function Y(e){return String(e).padStart(2,"0")}function Dt(){const e=new Date;return[e.getFullYear(),Y(e.getMonth()+1),Y(e.getDate())].join("-")+" "+[Y(e.getHours()),Y(e.getMinutes()),Y(e.getSeconds())].join(":")}function ze(){i.lastRefresh&&(i.lastRefresh.textContent=Dt())}function Kt(e){if(!i.currentLocation)return;const t=o.screen?.screen||{},n=o.screen?.module||{},r=t.key||"boot",a=e?.key?`screen:${r} action:${e.key}`:`screen:${r}`,s=[n.label,t.label,e?.label].filter(Boolean).join(" / ");i.currentLocation.value!==a&&(i.currentLocation.value=a),i.currentLocation.dataset.currentAddress=a,i.currentLocation.title=s?`${s} | ${a}`:a}function kr(e){const t=String(e||"").trim();if(!t)return"";const n=t.match(/^screen:([^\s]+)(?:\s+action:.+)?$/i);return n?n[1]:/^[a-z0-9][a-z0-9._-]*$/i.test(t)?t:""}function Me(){i.currentLocation&&(i.currentLocation.value=i.currentLocation.dataset.currentAddress||`screen:${o.screen?.screen?.key||"boot"}`)}function $r(){if(!i.currentLocation)return;const e=kr(i.currentLocation.value);if(!e){Me(),f("\u4F4D\u7F6E\u683C\u5F0F\u65E0\u6548");return}i.currentLocation.blur(),S(e)}function vr(){try{const e=I("sessionStorage",$t);if(!e)return;const t=JSON.parse(e);Object.entries(t||{}).forEach(([n,r])=>{Array.isArray(r)&&(o.completedActionsByScreen[n]=new Set(r.filter(Boolean)))})}catch{o.completedActionsByScreen={}}}function _r(){try{o.lastNonHomeScreen=String(I("localStorage",Fe,"")).trim();const e=String(I("localStorage",At,"decision")).trim();o.preferredHomeLane=e==="governance"?"governance":"decision";const t=I("localStorage",xt),n=t?JSON.parse(t):[];o.pinnedScreenKeys=new Set(Array.isArray(n)?n.map(r=>String(r||"").trim()).filter(Boolean):[])}catch{o.lastNonHomeScreen="",o.preferredHomeLane="decision",o.pinnedScreenKeys=new Set}}function jt(){try{const e={};Object.entries(o.completedActionsByScreen||{}).forEach(([t,n])=>{n&&n.size&&(e[t]=Array.from(n))}),D("sessionStorage",$t,JSON.stringify(e))}catch{}}function xr(e){const t=String(e||"").trim();o.lastNonHomeScreen=t,t?D("localStorage",Fe,t):De("localStorage",Fe)}function Nt(e){o.preferredHomeLane=e==="governance"?"governance":"decision",D("localStorage",At,o.preferredHomeLane)}function Ar(){D("localStorage",xt,JSON.stringify(Array.from(o.pinnedScreenKeys)))}function Ot(){return I("sessionStorage",me)==="1"}function zt(){De("sessionStorage",me)}function Cr(){o.screen?.screen?.key&&!_(o.screen.screen.key)?D("sessionStorage",me,"1"):De("sessionStorage",me)}function Tr(){window.open("/terminal/","_blank","noopener,noreferrer"),f("CLI \u5DF2\u5728\u65B0\u6807\u7B7E\u9875\u6253\u5F00")}function Lr(){const e=String(o.lastNonHomeScreen||"").trim();return e?(S(e),!0):(f("\u6CA1\u6709\u53EF\u6062\u590D\u7684\u6700\u8FD1\u5DE5\u4F5C\u533A"),!1)}function Z(e){const t=String(e||"").trim();return typeof C.runHomeAction=="function"?!!C.runHomeAction(t,{loadScreen:S,openCliSurface:Tr,persistPreferredLane:Nt,restoreLastWorkspace:Lr}):!1}function Mt(e){return typeof C.inferHomeLane=="function"?String(C.inferHomeLane(e)||""):""}function Pr(e){const t={};return(e||[]).forEach(n=>{const r=String(n?.severity||"").trim().toLowerCase();if(!["blocked","warning"].includes(r))return;const a=String(n?.target_screen||"").trim();a&&(t[a]||(t[a]={blockedCount:0,warningCount:0}),r==="blocked"?t[a].blockedCount+=1:t[a].warningCount+=1)}),t}function Ut(){!_(o.screen?.screen?.key)||!i.main||i.main.querySelectorAll("[data-dashboard-panel]").forEach(e=>{const t=e.dataset.dashboardPanel,n=o.homePanelBadges[t],r=e.querySelector("[data-panel-badge]");r&&(r.innerHTML=Q(n,{compact:!0}))})}function Vt(e){const t=e?.counts_by_screen||{};o.screenBadges=Object.fromEntries(Object.entries(t).map(([n,r])=>[n,{blockedCount:Number(r?.blocked_count||0),warningCount:Number(r?.warning_count||0)}])),o.catalog&&Ye(),Ut()}async function Wt(){if(o.operatorHomePayload)return o.operatorHomePayload;if(!o.operatorHomePromise){const e=ur();if(!e)return null;o.operatorHomePromise=E(e).then(t=>(o.operatorHomePayload=t,Vt(t?.navigation_badges),t)).finally(()=>{o.operatorHomePromise=null})}return o.operatorHomePromise}async function X(){try{if(typeof C.loadNavigationBadges=="function"){const t=await C.loadNavigationBadges({fetchJson:E,screen:o.screen});if(t){Vt(t);return}}if(_(o.screen?.screen?.key)){await Wt();return}}catch{return}const e=dr();if(e)try{const t=await E(e);o.screenBadges=Pr(t.items||[]),o.screenBadgeDrilldowns=mr(t.items||[]),o.catalog&&Ye(),Ut()}catch{o.screenBadges={},o.screenBadgeDrilldowns={},o.catalog&&Ye()}}function Ue(){return i.inspectorShell?.closest?.(".tui-workspace-grid")||null}function he(){const e=Ue();if(!e||window.matchMedia?.(`(max-width: ${Zn}px)`)?.matches)return null;const t=e.getBoundingClientRect().width||window.innerWidth,n=Math.max(He,Math.min(Ct,Math.round(t*Xn)));return{min:He,max:n}}function Rr(e){const t=he();return t?Math.round(Math.min(t.max,Math.max(t.min,Number(e)||t.min))):null}function ee(e,t={}){const n=Ue(),r=Rr(e);if(!n||!r)return null;if(o.inspectorWidth=r,n.style.setProperty("--tui-inspector-user-width",`${r}px`),i.inspectorResizeHandle){const a=he();i.inspectorResizeHandle.setAttribute("aria-valuemin",String(a?.min||He)),i.inspectorResizeHandle.setAttribute("aria-valuemax",String(a?.max||Ct)),i.inspectorResizeHandle.setAttribute("aria-valuenow",String(r))}return t.persist&&D("localStorage",_t,String(r)),r}function Er(){const e=I("localStorage",_t);if(e==null)return;const t=Number(e);Number.isFinite(t)&&ee(t)}function Bo(e){return{read:"\u7ACB\u5373\u6253\u5F00",ai:"AI \u534F\u52A9",write:"\u63D0\u4EA4\u786E\u8BA4",unsafe:"\u53D7\u9650\u5DE5\u5177",admin:"\u7BA1\u7406\u5DE5\u5177"}[String(e||"").toLowerCase()]||"\u4EFB\u52A1"}function te(e){const t=String(e.risk||"read").toLowerCase(),n=String(e.intent||"").toLowerCase(),r=String(e.label||"").toLowerCase();return t==="write"?"\u63D0\u4EA4\u53D8\u66F4":t==="admin"?e.method==="GET"?"\u6253\u5F00\u7BA1\u7406\u89C6\u56FE":"\u63D0\u4EA4\u7BA1\u7406\u53D8\u66F4":t==="ai"?"\u53D1\u8D77\u95EE\u7B54":(e.fields||[]).some(a=>a.input_type!=="hidden")?"\u6309\u6761\u4EF6\u67E5\u8BE2":n.includes("health")||n.includes("status")||r.includes("\u68C0\u67E5")?"\u8FD0\u884C\u68C0\u67E5":e.view_type==="datagrid"?"\u6253\u5F00\u6E05\u5355":e.view_type==="detail"||e.view_type==="status"?"\u67E5\u770B\u8BE6\u60C5":"\u751F\u6210\u89C6\u56FE"}function Gt(e){const t=A(e),n=String(e.risk||"read").toLowerCase();return t==="operation"?n==="ai"?"AI \u64CD\u4F5C":n==="write"?"\u53EF\u6267\u884C\u64CD\u4F5C":n==="admin"?"\u7BA1\u7406\u64CD\u4F5C":"\u64CD\u4F5C":t==="primary"?"\u4E3B\u6D41\u7A0B":t==="advanced"?"\u6761\u4EF6\u67E5\u8BE2":"\u652F\u6491\u68C0\u67E5"}function Jt(e,t){const n=[];t&&n.push("\u5DF2\u5B8C\u6210"),n.push(Gt(e)),n.push(te(e));const r=(e.fields||[]).filter(a=>a.input_type!=="hidden").length;return r&&n.push(`${r} \u9879\u53C2\u6570`),e.confirmation_required&&n.push("\u6267\u884C\u524D\u786E\u8BA4"),n.join(" / ")}function Qt(e){return{status:"\u72B6\u6001",detail:"\u8BE6\u60C5",datagrid:"\u8868\u683C",message:"\u8BF4\u660E",queue_workbench:"\u961F\u5217",auto:"\u81EA\u52A8"}[String(e||"").toLowerCase()]||"\u5DE5\u4F5C\u533A"}function x(e){return String(e??"").replace(/自动批准的只读/g,"\u5DF2\u53D1\u5E03\u7684").replace(/只读详情工具/g,"\u8BE6\u60C5\u5DE5\u5177").replace(/只读/g,"\u53EF\u67E5\u770B").replace(/读取业务视图/g,"\u6253\u5F00\u4E1A\u52A1\u89C6\u56FE").replace(/直接读取/g,"\u76F4\u63A5\u6253\u5F00")}function qr(e){const t={account_id:"\u8D26\u6237ID",asset_code:"\u6807\u7684\u4EE3\u7801",asset_codes:"\u8D44\u4EA7\u4EE3\u7801",fund_code:"\u57FA\u91D1\u4EE3\u7801",id:"ID",pk:"\u8BB0\u5F55ID",portfolio_id:"\u7EC4\u5408ID",provider_id:"\u6570\u636E\u6E90ID",risk_level:"\u98CE\u9669\u7B49\u7EA7",short_code:"\u77ED\u7801",task_id:"\u4EFB\u52A1ID"},n=String(e||"");return t[n]?t[n]:n.replace(/[_-]+/g," ").replace(/\b\w/g,r=>r.toUpperCase()).replace(/\bId\b/g,"ID").replace(/\bPct\b/g,"\u6BD4\u4F8B").replace(/\bAt\b/g,"\u65F6\u95F4")}function Fr(e){return o.currentColumns.find(n=>n.key===e)?.label||qr(e)}function Yt(e,t=1/0){if(!e)return[];const n=[];return o.currentColumns.forEach(r=>{Object.prototype.hasOwnProperty.call(e,r.key)&&n.push(r.key)}),Object.keys(e).forEach(r=>{r.startsWith("__")||n.includes(r)||n.push(r)}),n.slice(0,t).map(r=>[Fr(r),e[r]])}function K(e){return e.ui_key||e.key}function $(e){return(o.screen&&o.screen.actions||[]).find(t=>t.key===e||K(t)===e)||null}function be(e){return e?.dataset?.actionUiKey||e?.dataset?.actionKey||""}function we(e){const t=be(e);if(!t){f("\u4EFB\u52A1\u672A\u627E\u5230");return}const n=Date.now();o.lastFormTriggerRef===t&&n-o.lastFormTriggerAt<er||(o.lastFormTriggerRef=t,o.lastFormTriggerAt=n,k(t,e))}async function E(e,t){const n=t||{},r=(n.method||"GET").toUpperCase(),a={Accept:"application/json",...n.headers||{}};r!=="GET"&&(a["Content-Type"]="application/json",a["X-CSRFToken"]=hr("csrftoken"));const s=await fetch(e,{credentials:"same-origin",...n,headers:a}),l=s.headers.get("content-type")||"";if(!s.ok){let u=null;if(l.includes("application/json"))try{u=await s.json()}catch{u=null}const d=new Error("\u4E1A\u52A1\u8BF7\u6C42\u672A\u5B8C\u6210");throw d.status=s.status,d.payload=u,d}if(!l.includes("application/json"))throw new Error("\u4E1A\u52A1\u6570\u636E\u683C\u5F0F\u4E0D\u53EF\u6E32\u67D3");return s.json()}function Zt(e){const t=Number(e?.status||0),n=e?.payload&&typeof e.payload=="object"?e.payload:{},r=String(n.error_code||"").startsWith("tui_"),s={403:["\u65E0\u6743\u8BBF\u95EE","\u5F53\u524D\u8D26\u53F7\u4E0D\u80FD\u5B8C\u6210\u8FD9\u9879\u64CD\u4F5C\u3002"],404:["\u5185\u5BB9\u4E0D\u5B58\u5728","\u76EE\u6807\u5185\u5BB9\u6CA1\u6709\u53D1\u5E03\uFF0C\u6216\u5DF2\u88AB\u79FB\u9664\u3002"],502:["\u670D\u52A1\u6682\u65F6\u4E0D\u53EF\u7528","\u670D\u52A1\u6682\u65F6\u65E0\u6CD5\u5B8C\u6210\u8BF7\u6C42\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002"],503:["\u670D\u52A1\u6B63\u5728\u6062\u590D","\u670D\u52A1\u5C1A\u672A\u5C31\u7EEA\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002"]}[t]||["\u6682\u65F6\u65E0\u6CD5\u5B8C\u6210\u8BF7\u6C42","\u8BF7\u7A0D\u540E\u91CD\u8BD5\uFF0C\u6216\u8FD4\u56DE\u53EF\u7528\u5DE5\u4F5C\u533A\u3002"],l=r&&Array.isArray(n.recovery_actions)?n.recovery_actions.filter(u=>u&&typeof u=="object"&&u.screen_key).map(u=>({label:String(u.label||"\u524D\u5F80\u53EF\u7528\u5DE5\u4F5C\u533A"),screenKey:String(u.screen_key)})):[];return{title:r?String(n.title||s[0]):s[0],detail:r?String(n.detail||s[1]):s[1],traceId:r?String(n.trace_id||""):"",recoveryActions:l}}function Ve(e,t){const n=Zt(t);return`
             <div class="tui-panel-error" role="status">
-                <strong>${escapeHtml(bounded.title)}</strong>
-                <p>${escapeHtml(bounded.detail)}</p>
-                ${bounded.traceId ? `<small>追踪编号：${escapeHtml(bounded.traceId)}</small>` : ""}
+                <strong>${c(n.title)}</strong>
+                <p>${c(n.detail)}</p>
+                ${n.traceId?`<small>\u8FFD\u8E2A\u7F16\u53F7\uFF1A${c(n.traceId)}</small>`:""}
                 <div class="tui-panel-error-actions">
-                    <button class="tui-panel-retry" type="button" data-panel-retry>重试</button>
-                    ${bounded.recoveryActions.map((item) => `
+                    <button class="tui-panel-retry" type="button" data-panel-retry>\u91CD\u8BD5</button>
+                    ${n.recoveryActions.map(r=>`
                         <button
                             class="tui-panel-recovery"
                             type="button"
-                            data-panel-recovery-screen="${escapeHtml(item.screenKey)}"
-                        >${escapeHtml(item.label)}</button>
+                            data-panel-recovery-screen="${c(r.screenKey)}"
+                        >${c(r.label)}</button>
                     `).join("")}
                 </div>
-                ${panel.note ? `<small>${escapeHtml(panel.note)}</small>` : ""}
+                ${e.note?`<small>${c(e.note)}</small>`:""}
             </div>
-        `;
-    }
-
-    function bindDashboardPanelRecovery(root, panel) {
-        root.querySelector("[data-panel-retry]")?.addEventListener("click", () => loadDashboardPanel(panel));
-        root.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
-        });
-    }
-
-    function renderBoundedApplicationError(error) {
-        const bounded = boundedTuiError(error);
-        els.mainTitle.textContent = bounded.title;
-        els.main.innerHTML = `
+        `}function We(e,t){e.querySelector("[data-panel-retry]")?.addEventListener("click",()=>ie(t)),e.querySelectorAll("[data-panel-recovery-screen]").forEach(n=>{n.addEventListener("click",()=>S(n.dataset.panelRecoveryScreen))})}function ne(e,t={}){w.debug===!0&&window.console?.error&&window.console.error("TUI request failed",e);const n=Zt(e);i.mainTitle.textContent=n.title,i.main.innerHTML=`
             <section class="tui-application-error" role="alert">
-                <strong>${escapeHtml(bounded.title)}</strong>
-                <p>${escapeHtml(bounded.detail)}</p>
-                ${bounded.traceId ? `<small>追踪编号：${escapeHtml(bounded.traceId)}</small>` : ""}
+                <strong>${c(n.title)}</strong>
+                <p>${c(n.detail)}</p>
+                ${n.traceId?`<small>\u8FFD\u8E2A\u7F16\u53F7\uFF1A${c(n.traceId)}</small>`:""}
                 <div class="tui-panel-error-actions">
-                    <button class="tui-panel-retry" type="button" data-application-retry>重试</button>
-                    ${bounded.recoveryActions.map((item) => `
+                    <button class="tui-panel-retry" type="button" data-application-retry>\u91CD\u8BD5</button>
+                    ${n.recoveryActions.map(r=>`
                         <button
                             class="tui-panel-recovery"
                             type="button"
-                            data-panel-recovery-screen="${escapeHtml(item.screenKey)}"
-                        >${escapeHtml(item.label)}</button>
+                            data-panel-recovery-screen="${c(r.screenKey)}"
+                        >${c(r.label)}</button>
                     `).join("")}
                 </div>
             </section>
-        `;
-        els.main.querySelector("[data-application-retry]")?.addEventListener("click", () => {
-            const screenKey = String(state.screen?.screen?.key || state.catalog?.default_screen || "home");
-            loadScreen(screenKey);
-        });
-        els.main.querySelectorAll("[data-panel-recovery-screen]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.panelRecoveryScreen));
-        });
-        setStatus("请求未完成");
-    }
-
-    function clearPendingRequest(options = {}) {
-        const { abort = false } = options;
-        if (state.slowActionTimer) {
-            window.clearTimeout(state.slowActionTimer);
-            state.slowActionTimer = null;
-        }
-        if (abort && state.pendingController) {
-            try {
-                state.pendingController.abort();
-            } catch (error) {
-                // Ignore abort races on already-settled requests.
-            }
-        }
-        state.pendingController = null;
-        state.pendingRequestId = 0;
-    }
-
-    function startPendingRequest(controller) {
-        clearPendingRequest();
-        state.pendingRequestId = Date.now();
-        state.pendingController = controller;
-        return state.pendingRequestId;
-    }
-
-    function renderActionLoadingState(action, screenSpec, options = {}) {
-        const waitingCopy = options.waitingCopy || "正在读取业务数据...";
-        els.main.innerHTML = `
+        `,i.main.querySelector("[data-application-retry]")?.addEventListener("click",()=>{const r=String(t.retryScreenKey||o.screen?.screen?.key||o.catalog?.default_screen||"home");S(r)}),i.main.querySelectorAll("[data-panel-recovery-screen]").forEach(r=>{r.addEventListener("click",()=>S(r.dataset.panelRecoveryScreen))}),f("\u8BF7\u6C42\u672A\u5B8C\u6210")}let Ge=0;function H(e={}){const{abort:t=!1}=e;if(o.slowActionTimer&&(window.clearTimeout(o.slowActionTimer),o.slowActionTimer=null),t&&o.pendingController)try{o.pendingController.abort()}catch{}o.pendingController=null,o.pendingRequestId=0}function Xt(e){return H({abort:!0}),Ge+=1,o.pendingRequestId=Ge,o.latestRequestId=Ge,o.pendingController=e,o.pendingRequestId}function re(e){return e===o.latestRequestId}function Je(e,t,n={}){const r=n.waitingCopy||"\u6B63\u5728\u8BFB\u53D6\u4E1A\u52A1\u6570\u636E...";i.main.innerHTML=`
             <section class="tui-entry-state">
-                <div class="tui-view-status">加载中 / ${escapeHtml(action.label || "默认任务")}</div>
+                <div class="tui-view-status">\u52A0\u8F7D\u4E2D / ${c(e.label||"\u9ED8\u8BA4\u4EFB\u52A1")}</div>
                 <div class="tui-entry-copy">
-                    <strong>${escapeHtml(waitingCopy)}</strong>
-                    <p>${escapeHtml(screenSpec?.screen?.summary || "系统正在准备默认结果。")}</p>
+                    <strong>${c(r)}</strong>
+                    <p>${c(t?.screen?.summary||"\u7CFB\u7EDF\u6B63\u5728\u51C6\u5907\u9ED8\u8BA4\u7ED3\u679C\u3002")}</p>
                 </div>
             </section>
-        `;
-        setStatus("读取数据");
-    }
-
-    function scheduleSlowActionState(requestId, action) {
-        const slowTargets = new Set(runtimeConfig.host?.slowActionKeys || []);
-        if (!slowTargets.has(action.key)) {
-            return;
-        }
-        state.slowActionTimer = window.setTimeout(() => {
-            if (state.pendingRequestId !== requestId) {
-                return;
-            }
-            renderSlowActionState(action);
-        }, 15000);
-    }
-
-    function renderSlowActionState(action) {
-        const hostedAlternatives = (runtimeConfig.host?.slowActionScreens || [])
-            .filter((item) => item?.key && item?.label)
-            .map((item) => `<button type="button" data-slow-screen="${escapeHtml(item.key)}">${escapeHtml(item.label)}</button>`)
-            .join("");
-        els.main.innerHTML = `
+        `,f("\u8BFB\u53D6\u6570\u636E")}function en(e,t){new Set(w.host?.slowActionKeys||[]).has(t.key)&&(o.slowActionTimer=window.setTimeout(()=>{o.pendingRequestId===e&&Hr(t)},rr))}function Hr(e){const t=(w.host?.slowActionScreens||[]).filter(n=>n?.key&&n?.label).map(n=>`<button type="button" data-slow-screen="${c(n.key)}">${c(n.label)}</button>`).join("");i.main.innerHTML=`
             <section class="tui-entry-state">
-                <div class="tui-view-status">响应较慢 / ${escapeHtml(action.label || "")}</div>
+                <div class="tui-view-status">\u54CD\u5E94\u8F83\u6162 / ${c(e.label||"")}</div>
                 <div class="tui-entry-copy">
-                    <strong>当前响应较慢，可继续等待、重试或取消。</strong>
-                    <p>当前请求仍在执行中，也可以切换到宿主提供的其他入口。</p>
+                    <strong>\u5F53\u524D\u54CD\u5E94\u8F83\u6162\uFF0C\u53EF\u7EE7\u7EED\u7B49\u5F85\u3001\u91CD\u8BD5\u6216\u53D6\u6D88\u3002</strong>
+                    <p>\u5F53\u524D\u8BF7\u6C42\u4ECD\u5728\u6267\u884C\u4E2D\uFF0C\u4E5F\u53EF\u4EE5\u5207\u6362\u5230\u5BBF\u4E3B\u63D0\u4F9B\u7684\u5176\u4ED6\u5165\u53E3\u3002</p>
                 </div>
                 <div class="tui-entry-actions">
-                    <button type="button" data-slow-command="wait">继续等待</button>
-                    <button type="button" data-slow-command="retry">重试</button>
-                    ${hostedAlternatives}
-                    <button type="button" data-slow-command="cancel">取消本次请求</button>
+                    <button type="button" data-slow-command="wait">\u7EE7\u7EED\u7B49\u5F85</button>
+                    <button type="button" data-slow-command="retry">\u91CD\u8BD5</button>
+                    ${t}
+                    <button type="button" data-slow-command="cancel">\u53D6\u6D88\u672C\u6B21\u8BF7\u6C42</button>
                 </div>
             </section>
-        `;
-        els.main.querySelectorAll("[data-slow-command]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const command = button.dataset.slowCommand;
-                if (command === "wait") {
-                    renderActionLoadingState(action, state.screen, { waitingCopy: "继续等待远端响应..." });
-                    scheduleSlowActionState(state.pendingRequestId, action);
-                } else if (command === "retry") {
-                    clearPendingRequest({ abort: true });
-                    runAction(action.key, null, { params: { ...state.lastParams } });
-                } else if (command === "cancel") {
-                    clearPendingRequest({ abort: true });
-                    els.main.innerHTML = renderEmptyState("已取消当前请求。", ["你可以重试，或切换到其他入口继续。"]);
-                    setStatus("已取消");
-                }
-            });
-        });
-        els.main.querySelectorAll("[data-slow-screen]").forEach((button) => {
-            button.addEventListener("click", () => {
-                clearPendingRequest({ abort: true });
-                loadScreen(button.dataset.slowScreen);
-            });
-        });
-        setStatus("响应较慢");
-    }
-
-    function focusActionForm(actionKey) {
-        const action = currentAction(actionKey);
-        if (!action) {
-            setStatus("默认任务未找到");
-            return;
-        }
-        const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
-        form?.scrollIntoView({ block: "nearest" });
-        form?.querySelector("input:not([type='hidden']),select,textarea,button")?.focus();
-        setStatus(`已定位到 ${action.label}`);
-    }
-
-    function renderCatalog(catalog) {
-        state.catalog = catalog;
-        const groups = catalog.groups || [];
-        let screenIndex = 0;
-        els.moduleTree.innerHTML = groups.map((group) => `
+        `,i.main.querySelectorAll("[data-slow-command]").forEach(n=>{n.addEventListener("click",()=>{const r=n.dataset.slowCommand;r==="wait"?(Je(e,o.screen,{waitingCopy:"\u7EE7\u7EED\u7B49\u5F85\u8FDC\u7AEF\u54CD\u5E94..."}),en(o.pendingRequestId,e)):r==="retry"?(H({abort:!0}),k(e.key,null,{params:{...o.lastParams}})):r==="cancel"&&(H({abort:!0}),i.main.innerHTML=T("\u5DF2\u53D6\u6D88\u5F53\u524D\u8BF7\u6C42\u3002",["\u4F60\u53EF\u4EE5\u91CD\u8BD5\uFF0C\u6216\u5207\u6362\u5230\u5176\u4ED6\u5165\u53E3\u7EE7\u7EED\u3002"]),f("\u5DF2\u53D6\u6D88"))})}),i.main.querySelectorAll("[data-slow-screen]").forEach(n=>{n.addEventListener("click",()=>{H({abort:!0}),S(n.dataset.slowScreen)})}),f("\u54CD\u5E94\u8F83\u6162")}function Br(e){const t=$(e);if(!t){f("\u9ED8\u8BA4\u4EFB\u52A1\u672A\u627E\u5230");return}const n=i.actions.querySelector(`[data-action-ui-key="${CSS.escape(K(t))}"]`);n?.scrollIntoView({block:"nearest"}),n?.querySelector("input:not([type='hidden']),select,textarea,button")?.focus(),f(`\u5DF2\u5B9A\u4F4D\u5230 ${t.label}`)}function Qe(e){o.catalog=e;const t=e.groups||[];let n=0;const r=document.activeElement?.closest?.("[data-screen-key]")?.dataset?.screenKey||"",a=i.moduleTree.scrollTop;i.moduleTree.innerHTML=t.map(s=>`
             <section class="tui-group">
-                <div class="tui-group-title">${escapeHtml(group.label)}</div>
-                ${(group.modules || []).map((module) => `
+                <div class="tui-group-title">${c(s.label)}</div>
+                ${(s.modules||[]).map(l=>`
                     <div class="tui-tree-module">
                         <div class="tui-tree-module-title">
-                            <span>${escapeHtml(module.label)}</span>
+                            <span>${c(l.label)}</span>
                             <div class="tui-tree-module-meta">
-                                ${badgeMarkup((module.screens || []).reduce((counts, screen) => {
-                                    const badge = state.screenBadges[screen.key] || {};
-                                    counts.blockedCount += Number(badge.blockedCount || 0);
-                                    counts.warningCount += Number(badge.warningCount || 0);
-                                    return counts;
-                                }, { blockedCount: 0, warningCount: 0 }), { compact: true })}
-                                <small>${escapeHtml(module.action_count || 0)}</small>
+                                <span data-module-badge-screens="${c((l.screens||[]).map(u=>u.key).join(","))}">${Q(Rt((l.screens||[]).map(u=>u.key)),{compact:!0})}</span>
+                                <small>${c(l.action_count||0)}</small>
                             </div>
                         </div>
-                        ${(module.screens || []).map((screen) => `
+                        ${(l.screens||[]).map(u=>`
                             <div class="tui-screen-row">
-                                <button class="tui-screen-button" type="button" data-screen-key="${escapeHtml(screen.key)}">
-                                    <span>${++screenIndex} ${escapeHtml(screen.label)}</span>
-                                    <small>${escapeHtml(viewLabel(screen.view_type))} / ${escapeHtml(screen.action_count)} 项</small>
+                                <button class="tui-screen-button" type="button" data-screen-key="${c(u.key)}">
+                                    <span>${++n} ${c(u.label)}</span>
+                                    <small>${c(Qt(u.view_type))} / ${c(u.action_count)} \u9879</small>
                                 </button>
                                 <div class="tui-screen-tools">
-                                    ${screenBadgeMarkup(screen.key)}
+                                    <span data-screen-badge-host="${c(u.key)}">${Ht(u.key)}</span>
                                     <button
-                                        class="tui-screen-pin${state.pinnedScreenKeys.has(screen.key) ? " is-active" : ""}"
+                                        class="tui-screen-pin${o.pinnedScreenKeys.has(u.key)?" is-active":""}"
                                         type="button"
-                                        data-pin-screen-key="${escapeHtml(screen.key)}"
-                                        aria-label="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
-                                        title="${escapeHtml(state.pinnedScreenKeys.has(screen.key) ? "取消收藏工作区" : "收藏工作区")}"
-                                    >${state.pinnedScreenKeys.has(screen.key) ? "★" : "☆"}</button>
+                                        data-pin-screen-key="${c(u.key)}"
+                                        aria-label="${c(o.pinnedScreenKeys.has(u.key)?"\u53D6\u6D88\u6536\u85CF\u5DE5\u4F5C\u533A":"\u6536\u85CF\u5DE5\u4F5C\u533A")}"
+                                        title="${c(o.pinnedScreenKeys.has(u.key)?"\u53D6\u6D88\u6536\u85CF\u5DE5\u4F5C\u533A":"\u6536\u85CF\u5DE5\u4F5C\u533A")}"
+                                    >${o.pinnedScreenKeys.has(u.key)?"\u2605":"\u2606"}</button>
                                 </div>
                             </div>
                         `).join("")}
                     </div>
                 `).join("")}
             </section>
-        `).join("");
-        els.moduleTree.querySelectorAll("[data-screen-key]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.screenKey));
-        });
-        els.moduleTree.querySelectorAll("[data-badge-screen-key]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openScreenFromCatalog(button.dataset.badgeScreenKey);
-            });
-        });
-        els.moduleTree.querySelectorAll("[data-pin-screen-key]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const screenKey = String(button.dataset.pinScreenKey || "").trim();
-                if (!screenKey) {
-                    return;
-                }
-                if (state.pinnedScreenKeys.has(screenKey)) {
-                    state.pinnedScreenKeys.delete(screenKey);
-                } else {
-                    state.pinnedScreenKeys.add(screenKey);
-                }
-                persistPinnedScreens();
-                renderCatalog(state.catalog);
-            });
-        });
-        if (state.screen?.screen?.key) {
-            markActiveScreen(state.screen.screen.key);
-        }
-    }
-
-    function markActiveScreen(screenKey) {
-        let activeScreen = null;
-        els.moduleTree.querySelectorAll("[data-screen-key]").forEach((button) => {
-            const isActive = button.dataset.screenKey === screenKey;
-            button.classList.toggle("is-active", isActive);
-            if (isActive) {
-                activeScreen = button;
-            }
-        });
-        revealModuleScreen(activeScreen);
-    }
-
-    function revealModuleScreen(screenButton) {
-        if (!screenButton || state.railCollapsed) {
-            return;
-        }
-        window.requestAnimationFrame(() => {
-            screenButton.scrollIntoView({ block: "nearest", inline: "nearest" });
-        });
-    }
-
-    function renderField(action, field) {
-        const id = `tui-${action.key}-${field.key}`;
-        const value = field.default || "";
-        const required = field.required ? "required" : "";
-        if (field.input_type === "hidden") {
-            return `<input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="hidden" value="${escapeHtml(value)}">`;
-        }
-        if (field.input_type === "select") {
-            const options = field.options || [];
-            return `
-                <label class="tui-field" for="${escapeHtml(id)}">
-                    <span>${escapeHtml(field.label)}</span>
-                    <select id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" ${required}>
-                        ${options.map((option) => {
-                            const optionValue = typeof option === "string" ? option : option.value;
-                            const optionLabel = typeof option === "string" ? option : option.label;
-                            return `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value) ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`;
-                        }).join("")}
+        `).join(""),i.moduleTree.querySelectorAll("[data-screen-key]").forEach(s=>{s.addEventListener("click",()=>S(s.dataset.screenKey))}),tn(),i.moduleTree.querySelectorAll("[data-pin-screen-key]").forEach(s=>{s.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation();const u=String(s.dataset.pinScreenKey||"").trim();u&&(o.pinnedScreenKeys.has(u)?o.pinnedScreenKeys.delete(u):o.pinnedScreenKeys.add(u),Ar(),Qe(o.catalog))})}),i.moduleTree.scrollTop=a,r&&i.moduleTree.querySelector(`[data-screen-key="${CSS.escape(r)}"]`)?.focus(),o.screen?.screen?.key&&nn(o.screen.screen.key)}function tn(){i.moduleTree.querySelectorAll("[data-badge-screen-key]").forEach(e=>{e.dataset.badgeBound!=="true"&&(e.dataset.badgeBound="true",e.addEventListener("click",t=>{t.preventDefault(),t.stopPropagation(),yr(e.dataset.badgeScreenKey)}))})}function Ye(){!o.catalog||!i.moduleTree||(i.moduleTree.querySelectorAll("[data-screen-badge-host]").forEach(e=>{e.innerHTML=Ht(e.dataset.screenBadgeHost)}),i.moduleTree.querySelectorAll("[data-module-badge-screens]").forEach(e=>{const t=Rt(String(e.dataset.moduleBadgeScreens||"").split(",").filter(Boolean));e.innerHTML=Q(t,{compact:!0})}),tn())}function nn(e){let t=null;i.moduleTree.querySelectorAll("[data-screen-key]").forEach(n=>{const r=n.dataset.screenKey===e;n.classList.toggle("is-active",r),r&&(t=n)}),rn(t)}function rn(e){!e||o.railCollapsed||window.requestAnimationFrame(()=>{const t=i.moduleTree.getBoundingClientRect(),n=e.getBoundingClientRect();n.top>=t.top&&n.bottom<=t.bottom||e.scrollIntoView({block:"nearest",inline:"nearest"})})}function an(e,t){const n=`tui-${e.key}-${t.key}`,r=t.default??"",a=t.required?"required":"";if(t.input_type==="hidden")return`<input id="${c(n)}" name="${c(t.key)}" type="hidden" value="${c(r)}">`;if(t.input_type==="select"){const s=t.options||[],l=!t.required&&r===""?'<option value=""></option>':"";return`
+                <label class="tui-field" for="${c(n)}">
+                    <span>${c(t.label)}</span>
+                    <select id="${c(n)}" name="${c(t.key)}" ${a}>
+                        ${l}${s.map(u=>{const d=typeof u=="string"?u:u.value,p=typeof u=="string"?u:u.label;return`<option value="${c(d)}" ${String(d)===String(r)?"selected":""}>${c(p)}</option>`}).join("")}
                     </select>
                 </label>
-            `;
-        }
-        if (field.input_type === "checkbox") {
-            const checked = value === true || String(value).toLowerCase() === "true" || String(value) === "1";
-            return `
-                <label class="tui-field tui-field-checkbox" for="${escapeHtml(id)}">
-                    <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="checkbox" value="true" ${checked ? "checked" : ""}>
-                    <span>${escapeHtml(field.label)}</span>
+            `}if(t.input_type==="checkbox"){const s=r===!0||String(r).toLowerCase()==="true"||String(r)==="1";return`
+                <label class="tui-field tui-field-checkbox" for="${c(n)}">
+                    <input id="${c(n)}" name="${c(t.key)}" type="checkbox" value="true" ${s?"checked":""}>
+                    <span>${c(t.label)}</span>
                 </label>
-            `;
-        }
-        if (field.input_type === "textarea") {
-            return `
-                <label class="tui-field" for="${escapeHtml(id)}">
-                    <span>${escapeHtml(field.label)}</span>
-                    <textarea id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" rows="3" ${required} placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(value)}</textarea>
+            `}return t.input_type==="textarea"?`
+                <label class="tui-field" for="${c(n)}">
+                    <span>${c(t.label)}</span>
+                    <textarea id="${c(n)}" name="${c(t.key)}" rows="3" ${a} placeholder="${c(t.placeholder||"")}">${c(r)}</textarea>
                 </label>
-            `;
-        }
-        if (field.input_type === "file") {
-            return `
-                <label class="tui-field tui-field-file" for="${escapeHtml(id)}">
-                    <span>${escapeHtml(field.label)}</span>
-                    <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="file" ${required} accept="${escapeHtml(field.accept || "")}">
+            `:t.input_type==="file"?`
+                <label class="tui-field tui-field-file" for="${c(n)}">
+                    <span>${c(t.label)}</span>
+                    <input id="${c(n)}" name="${c(t.key)}" type="file" ${a} accept="${c(t.accept||"")}">
                 </label>
-            `;
-        }
-        return `
-            <label class="tui-field" for="${escapeHtml(id)}">
-                <span>${escapeHtml(field.label)}</span>
-                <input id="${escapeHtml(id)}" name="${escapeHtml(field.key)}" type="${escapeHtml(field.input_type || "text")}" value="${escapeHtml(value)}" ${required} placeholder="${escapeHtml(field.placeholder || "")}">
+            `:`
+            <label class="tui-field" for="${c(n)}">
+                <span>${c(t.label)}</span>
+                <input id="${c(n)}" name="${c(t.key)}" type="${c(t.input_type||"text")}" value="${c(r)}" ${a} placeholder="${c(t.placeholder||"")}">
             </label>
-        `;
-    }
-
-    function coerceFieldValue(field, value, checked) {
-        const valueType = String(field.value_type || field.input_type || "text").toLowerCase();
-        if (field.input_type === "checkbox" || valueType === "boolean") {
-            return Boolean(checked);
-        }
-        const text = String(value ?? "").trim();
-        if (text === "") {
-            return "";
-        }
-        if (valueType === "integer" || valueType === "int" || field.input_type === "number") {
-            const parsed = Number(text);
-            return Number.isFinite(parsed) ? parsed : text;
-        }
-        if (valueType === "float") {
-            const parsed = Number.parseFloat(text);
-            return Number.isFinite(parsed) ? parsed : text;
-        }
-        if (valueType === "list") {
-            if (text.startsWith("[") && text.endsWith("]")) {
-                try {
-                    const parsed = JSON.parse(text);
-                    return Array.isArray(parsed) ? parsed : text;
-                } catch (error) {
-                    return text.split(",").map((item) => item.trim()).filter(Boolean);
-                }
-            }
-            return text.split(",").map((item) => item.trim()).filter(Boolean);
-        }
-        if (valueType === "json" || valueType === "object") {
-            try {
-                return JSON.parse(text);
-            } catch (error) {
-                return text;
-            }
-        }
-        return text;
-    }
-
-    function resetGridState(options = {}) {
-        const preserveRowContext = Boolean(options.preserveRowContext);
-        state.currentViewModel = null;
-        state.currentColumns = [];
-        state.currentRows = [];
-        state.visibleRows = [];
-        state.selectedRowIndex = 0;
-        if (!preserveRowContext) {
-            state.selectedRowContext = null;
-        }
-        state.filterText = "";
-        if (els.filterInput) {
-            els.filterInput.value = "";
-        }
-        hideFilterBar();
-    }
-
-    function setWorkspaceViewKind(kind) {
-        const grid = els.main.closest(".tui-workspace-grid");
-        if (!grid) {
-            return;
-        }
-        if (!kind) {
-            delete grid.dataset.viewKind;
-            return;
-        }
-        grid.dataset.viewKind = String(kind);
-    }
-
-    function renderScreen(screenSpec, options = {}) {
-        state.screen = screenSpec;
-        state.lastRaw = null;
-        state.lastPager = null;
-        state.homePanelBadges = {};
-        resetGridState();
-        const screen = screenSpec.screen;
-        const inferredLane = inferLaneFromScreen(screen);
-        if (inferredLane) {
-            persistPreferredHomeLane(inferredLane);
-        }
-        if (!isOperatorHomeScreen(screen.key)) {
-            persistLastNonHomeScreen(screen.key);
-        }
-        markResumeOnBoot();
-        els.screenTitle.textContent = screen.label.toUpperCase();
-        els.screenStatus.textContent = screen.status.toUpperCase();
-        els.mainTitle.textContent = screen.label.toUpperCase();
-        setCurrentLocation(null);
-        markActiveScreen(screen.key);
-        renderWorkflowStrip(screen.workflow || {});
-        const dashboardScreen = hasDashboardPanels(screen) && (screen.entry_state?.mode !== "parameter_gate");
-        const immersiveDashboard = isImmersiveDashboardScreen(screen);
-        els.actions.closest(".tui-panel").hidden = immersiveDashboard;
-        els.inspector.closest(".tui-panel").hidden = immersiveDashboard;
-        els.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard", dashboardScreen);
-        setWorkspaceViewKind(dashboardScreen ? "dashboard" : "idle");
-        state.showSupportTasks = false;
-        state.showAdvancedQueries = false;
-        state.actionFilterText = "";
-        if (dashboardScreen && !immersiveDashboard) {
-            renderActions(screenSpec.actions || [], screen);
-        }
-        if (dashboardScreen) {
-            renderDashboardHome(screenSpec);
-            updatePager(null);
-            updateRawDrawer();
-            setLastRefresh();
-            setStatus(immersiveDashboard ? "系统首页" : "概览已加载");
-            return;
-        }
-        renderActions(screenSpec.actions || [], screen);
-        const actionSummary = summarizeActions(screenSpec.actions || []);
-        const businessContext = screen.business_context || {};
-        const experience = screenUserExperience(screen);
-        renderInspector({
-            title: screen.label,
-            body: screenPrimaryBody(screen),
-            rows: [
-                ["主任务", experience.primaryTask],
-                ["目标结果", experience.primaryOutcome],
-                ["工作区", screenSpec.module.label],
-                ["视图", viewLabel(screen.view_type)],
-                ["主流程", actionSummary.primary],
-                ["支撑检查", actionSummary.support],
-                ["高级查询", actionSummary.advanced],
-                ["可执行操作", actionSummary.operation],
-                ["需确认", actionSummary.write],
-                ["AI 交互", actionSummary.ai],
-            ],
-            sections: [
-                ...userExperienceSections(screen),
-                ...businessContextSections(businessContext),
-                {
-                    title: "操作提示",
-                    body: [
-                        actionSummary.operation
-                            ? "本工作区包含提交或 AI 协助动作，已置顶显示；提交前会按策略要求确认。"
-                            : "本工作区当前提供打开、查询和检查任务；结果按业务视图呈现，不展示内部接口。"
-                    ],
-                    rows: [],
-                },
-            ],
-        });
-        updatePager(null);
-        updateRawDrawer();
-        const entryState = screen.entry_state || {};
-        const defaultAction = resolveDefaultAction(screenSpec);
-        if (entryState.mode === "parameter_gate" && defaultAction) {
-            renderEntryState(screenSpec, defaultAction, entryState);
-            setStatus("等待选择");
-        } else if (defaultAction && !options.suppressAutoAction) {
-            const defaultForm = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(defaultAction))}"]`);
-            renderActionLoadingState(defaultAction, screenSpec, { waitingCopy: entryState.empty_copy });
-            runAction(defaultAction.key, defaultForm);
-        } else {
-            els.main.innerHTML = `<div class="tui-empty-state">${escapeHtml(entryState.empty_copy || screenEmptyStateHint(screen, screen.summary))}<br>请选择左侧任务或按 F6 执行下一主流程。</div>`;
-            setStatus("工作区就绪");
-        }
-    }
-
-    function resolveDefaultAction(screenSpec) {
-        const actions = screenSpec.actions || [];
-        if (!actions.length) {
-            return null;
-        }
-        const screen = screenSpec.screen || {};
-        const entryState = screen.entry_state || {};
-        if (entryState.mode === "dashboard") {
-            return null;
-        }
-        const preferred = actions.find((action) => action.key === screen.default_action_key);
-        const candidate = preferred || actions[0];
-        if (!candidate) {
-            return null;
-        }
-        if (entryState.mode === "parameter_gate") {
-            return candidate;
-        }
-        const requiredFields = unresolvedRequiredFields(candidate);
-        if (requiredFields.length) {
-            return null;
-        }
-        return candidate;
-    }
-
-    function unresolvedRequiredFields(action) {
-        return (action?.fields || [])
-            .filter((field) => field.required && field.input_type !== "hidden")
-            .filter((field) => field.default === undefined || field.default === null || field.default === "");
-    }
-
-    function renderEntryState(screenSpec, action, entryState) {
-        const fieldKey = String(entryState.field_key || "");
-        const field = (action.fields || []).find((item) => item.key === fieldKey) || unresolvedRequiredFields(action)[0];
-        if (!field) {
-            els.main.innerHTML = renderEmptyState(
-                entryState.empty_copy || screenEmptyStateHint(screenSpec.screen, screenSpec.screen.summary),
-                entryState.help_steps || ["请选择左侧任务继续。"],
-            );
-            return;
-        }
-        const inputType = String(field.input_type || "").toLowerCase();
-        if (inputType === "select" && Array.isArray(field.options) && field.options.length) {
-            renderSelectorEntryState(screenSpec, action, entryState, field);
-            return;
-        }
-        renderTaskStartEntryState(screenSpec, action, entryState, field);
-    }
-
-    function renderSelectorEntryState(screenSpec, action, entryState, field) {
-        const options = (field.options || []).filter((option) => {
-            if (option && typeof option === "object") {
-                return String(option.value ?? "").trim() !== "";
-            }
-            return String(option ?? "").trim() !== "";
-        });
-        const cards = options.map((option, index) => {
-            const optionValue = typeof option === "object" ? option.value : option;
-            const optionLabel = typeof option === "object" ? option.label : option;
-            const optionSummary = typeof option === "object"
-                ? [option.account_name, option.account_type, option.summary].filter(Boolean).join(" / ")
-                : "";
-            return `
-                <button type="button" class="tui-entry-card" data-entry-option-index="${index}" data-entry-option-value="${escapeHtml(optionValue)}">
-                    <strong>${escapeHtml(optionLabel)}</strong>
-                    <span>${escapeHtml(optionSummary || "选择后自动进入默认结果。")}</span>
-                    <small>${escapeHtml(action.label)}</small>
+        `}function on(e,t,n){const r=String(e.value_type||e.input_type||"text").toLowerCase();if(e.input_type==="checkbox"||r==="boolean")return!!n;const a=String(t??"").trim();if(a==="")return"";if(r==="integer"||r==="int"||e.input_type==="number"){const s=Number(a);return Number.isFinite(s)?s:a}if(r==="float"){const s=Number.parseFloat(a);return Number.isFinite(s)?s:a}if(r==="list"){if(a.startsWith("[")&&a.endsWith("]"))try{const s=JSON.parse(a);return Array.isArray(s)?s:a}catch{return a.split(",").map(l=>l.trim()).filter(Boolean)}return a.split(",").map(s=>s.trim()).filter(Boolean)}if(r==="json"||r==="object")try{return JSON.parse(a)}catch{return a}return a}function Ze(e={}){const t=!!e.preserveRowContext;o.currentViewModel=null,o.currentColumns=[],o.currentRows=[],o.visibleRows=[],o.lastPager=null,o.selectedRowIndex=0,t||(o.selectedRowContext=null),o.filterText="",i.filterInput&&(i.filterInput.value=""),ht()}function Se(e){const t=i.main.closest(".tui-workspace-grid");if(t){if(!e){delete t.dataset.viewKind;return}t.dataset.viewKind=String(e)}}function sn(e,t={}){o.screen=e,o.lastRaw=null,o.lastPager=null,o.homePanelBadges={},Ze();const n=e.screen,r=Mt(n);r&&Nt(r),_(n.key)||xr(n.key),Cr(),i.screenTitle.textContent=n.label.toUpperCase(),i.screenStatus.textContent=n.status.toUpperCase(),i.mainTitle.textContent=n.label.toUpperCase(),Kt(null),nn(n.key),Nr(n.workflow||{});const a=un(n)&&n.entry_state?.mode!=="parameter_gate",s=$e(n);if(i.actions.closest(".tui-panel").hidden=s,i.inspector.closest(".tui-panel").hidden=s,i.main.closest(".tui-workspace-grid").classList.toggle("is-dashboard",a),Se(a?"dashboard":"idle"),o.showSupportTasks=!1,o.showAdvancedQueries=!1,o.actionFilterText="",a&&!s&&bn(e.actions||[],n),a){zr(e),pe(null),B(),ze(),f(s?"\u7CFB\u7EDF\u9996\u9875":"\u6982\u89C8\u5DF2\u52A0\u8F7D");return}bn(e.actions||[],n);const l=le(e.actions||[]),u=n.business_context||{},d=ae(n);W({title:n.label,body:cn(n),rows:[["\u4E3B\u4EFB\u52A1",d.primaryTask],["\u76EE\u6807\u7ED3\u679C",d.primaryOutcome],["\u5DE5\u4F5C\u533A",e.module.label],["\u89C6\u56FE",Qt(n.view_type)],["\u4E3B\u6D41\u7A0B",l.primary],["\u652F\u6491\u68C0\u67E5",l.support],["\u9AD8\u7EA7\u67E5\u8BE2",l.advanced],["\u53EF\u6267\u884C\u64CD\u4F5C",l.operation],["\u9700\u786E\u8BA4",l.write],["AI \u4EA4\u4E92",l.ai]],sections:[...ln(n),...et(u),{title:"\u64CD\u4F5C\u63D0\u793A",body:[l.operation?"\u672C\u5DE5\u4F5C\u533A\u5305\u542B\u63D0\u4EA4\u6216 AI \u534F\u52A9\u52A8\u4F5C\uFF0C\u5DF2\u7F6E\u9876\u663E\u793A\uFF1B\u63D0\u4EA4\u524D\u4F1A\u6309\u7B56\u7565\u8981\u6C42\u786E\u8BA4\u3002":"\u672C\u5DE5\u4F5C\u533A\u5F53\u524D\u63D0\u4F9B\u6253\u5F00\u3001\u67E5\u8BE2\u548C\u68C0\u67E5\u4EFB\u52A1\uFF1B\u7ED3\u679C\u6309\u4E1A\u52A1\u89C6\u56FE\u5448\u73B0\uFF0C\u4E0D\u5C55\u793A\u5185\u90E8\u63A5\u53E3\u3002"],rows:[]}]}),pe(null),B();const p=n.entry_state||{},m=Ir(e);if(p.mode==="parameter_gate"&&m)Dr(e,m,p),f("\u7B49\u5F85\u9009\u62E9");else if(m&&!t.suppressAutoAction){const g=i.actions.querySelector(`[data-action-ui-key="${CSS.escape(K(m))}"]`);Je(m,e,{waitingCopy:p.empty_copy}),k(m.key,g)}else i.main.innerHTML=`<div class="tui-empty-state">${c(p.empty_copy||ke(n,n.summary))}<br>\u8BF7\u9009\u62E9\u5DE6\u4FA7\u4EFB\u52A1\u6216\u6309 F6 \u6267\u884C\u4E0B\u4E00\u4E3B\u6D41\u7A0B\u3002</div>`,f("\u5DE5\u4F5C\u533A\u5C31\u7EEA")}function Ir(e){const t=e.actions||[];if(!t.length)return null;const n=e.screen||{},r=n.entry_state||{};if(r.mode==="dashboard")return null;const s=t.find(u=>u.key===n.default_action_key)||t[0];return s?r.mode==="parameter_gate"?s:Xe(s).length?null:s:null}function Xe(e){return(e?.fields||[]).filter(t=>t.required&&t.input_type!=="hidden").filter(t=>t.default===void 0||t.default===null||t.default==="")}function Dr(e,t,n){const r=String(n.field_key||""),a=(t.fields||[]).find(l=>l.key===r)||Xe(t)[0];if(!a){i.main.innerHTML=T(n.empty_copy||ke(e.screen,e.screen.summary),n.help_steps||["\u8BF7\u9009\u62E9\u5DE6\u4FA7\u4EFB\u52A1\u7EE7\u7EED\u3002"]);return}if(String(a.input_type||"").toLowerCase()==="select"&&Array.isArray(a.options)&&a.options.length){Kr(e,t,n,a);return}jr(e,t,n,a)}function Kr(e,t,n,r){const a=(r.options||[]).filter(l=>l&&typeof l=="object"?String(l.value??"").trim()!=="":String(l??"").trim()!==""),s=a.map((l,u)=>{const d=typeof l=="object"?l.value:l,p=typeof l=="object"?l.label:l,m=typeof l=="object"?[l.account_name,l.account_type,l.summary].filter(Boolean).join(" / "):"";return`
+                <button type="button" class="tui-entry-card" data-entry-option-index="${u}" data-entry-option-value="${c(d)}">
+                    <strong>${c(p)}</strong>
+                    <span>${c(m||"\u9009\u62E9\u540E\u81EA\u52A8\u8FDB\u5165\u9ED8\u8BA4\u7ED3\u679C\u3002")}</span>
+                    <small>${c(t.label)}</small>
                 </button>
-            `;
-        }).join("");
-        els.main.innerHTML = `
+            `}).join("");i.main.innerHTML=`
             <section class="tui-entry-state">
-                <div class="tui-view-status">入口选择 / ${escapeHtml(screenSpec.screen.label)}</div>
+                <div class="tui-view-status">\u5165\u53E3\u9009\u62E9 / ${c(e.screen.label)}</div>
                 <div class="tui-entry-copy">
-                    <strong>${escapeHtml(entryState.empty_copy || screenEmptyStateHint(screenSpec.screen, `先选择${field.label}`))}</strong>
-                    ${(entryState.help_steps || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+                    <strong>${c(n.empty_copy||ke(e.screen,`\u5148\u9009\u62E9${r.label}`))}</strong>
+                    ${(n.help_steps||[]).map(l=>`<p>${c(l)}</p>`).join("")}
                 </div>
-                <div class="tui-entry-grid">${cards}</div>
+                <div class="tui-entry-grid">${s}</div>
             </section>
-        `;
-        els.main.querySelectorAll("[data-entry-option-index]").forEach((button, index) => {
-            button.addEventListener("click", () => {
-                const option = options[index];
-                const value = typeof option === "object" ? option.value : option;
-                runAction(action.key, null, { params: { [field.key]: value } });
-            });
-        });
-    }
-
-    function renderTaskStartEntryState(screenSpec, action, entryState, field) {
-        els.main.innerHTML = `
+        `,i.main.querySelectorAll("[data-entry-option-index]").forEach((l,u)=>{l.addEventListener("click",()=>{const d=a[u],p=typeof d=="object"?d.value:d;k(t.key,null,{params:{[r.key]:p}})})})}function jr(e,t,n,r){i.main.innerHTML=`
             <section class="tui-entry-state">
-                <div class="tui-view-status">任务起步 / ${escapeHtml(screenSpec.screen.label)}</div>
+                <div class="tui-view-status">\u4EFB\u52A1\u8D77\u6B65 / ${c(e.screen.label)}</div>
                 <div class="tui-entry-copy">
-                    <strong>${escapeHtml(entryState.empty_copy || screenEmptyStateHint(screenSpec.screen, `先补充${field.label}`))}</strong>
-                    ${(entryState.help_steps || []).map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+                    <strong>${c(n.empty_copy||ke(e.screen,`\u5148\u8865\u5145${r.label}`))}</strong>
+                    ${(n.help_steps||[]).map(a=>`<p>${c(a)}</p>`).join("")}
                 </div>
                 <div class="tui-entry-actions">
-                    <button type="button" data-focus-default-action>打开默认任务</button>
+                    <button type="button" data-focus-default-action>\u6253\u5F00\u9ED8\u8BA4\u4EFB\u52A1</button>
                 </div>
             </section>
-        `;
-        els.main.querySelector("[data-focus-default-action]")?.addEventListener("click", () => {
-            focusActionForm(action.key);
-        });
-    }
-
-    function screenUserExperience(screen) {
-        const experience = screen && typeof screen.user_experience === "object"
-            ? screen.user_experience
-            : {};
-        return {
-            journey: String(experience.journey || "").trim(),
-            primaryTask: operatorText(experience.primary_task || screen?.summary || screen?.label || ""),
-            primaryOutcome: operatorText(experience.primary_outcome || screen?.summary || screen?.label || ""),
-            emptyStateHint: operatorText(
-                experience.empty_state_hint || screen?.summary || "先运行本屏主任务，必要时补充参数。"
-            ),
-            nextStepHint: operatorText(
-                experience.next_step_hint || "根据结果继续下一项主流程，或进入可执行操作。"
-            ),
-        };
-    }
-
-    function screenPrimaryBody(screen) {
-        const experience = screenUserExperience(screen);
-        return uniqueNonEmpty([
-            experience.primaryTask,
-            experience.primaryOutcome !== experience.primaryTask ? experience.primaryOutcome : "",
-        ]).join("\n");
-    }
-
-    function screenEmptyStateHint(screen, fallback = "") {
-        const experience = screenUserExperience(screen);
-        return experience.emptyStateHint || operatorText(fallback || screen?.summary || "先运行本屏主任务。");
-    }
-
-    function userExperienceSections(screen) {
-        const experience = screenUserExperience(screen);
-        const rows = [
-            ["主任务", experience.primaryTask],
-            ["目标结果", experience.primaryOutcome],
-        ];
-        const body = uniqueNonEmpty([experience.emptyStateHint, experience.nextStepHint]);
-        return [{
-            title: "用户任务",
-            rows,
-            body,
-        }];
-    }
-
-    function hasDashboardPanels(screen) {
-        return Array.isArray(screen?.dashboard_panels) && screen.dashboard_panels.length > 0;
-    }
-
-    function isImmersiveDashboardScreen(screen) {
-        return hasDashboardPanels(screen) && String(screen?.chrome_mode || "").toLowerCase() === "immersive";
-    }
-
-    function businessContextSections(context) {
-        if (!context || (!context.objective && !context.decision_output && !(context.checkpoints || []).length)) {
-            return [];
-        }
-        const rows = [];
-        if (context.objective) {
-            rows.push({ label: "目标", value: operatorText(context.objective) });
-        }
-        if (context.decision_output) {
-            rows.push({ label: "产出", value: operatorText(context.decision_output) });
-        }
-        const body = (context.checkpoints || []).map((item, index) => `${index + 1}. ${operatorText(item)}`);
-        return [
-            {
-                title: "业务目标",
-                rows,
-                body,
-            },
-        ];
-    }
-
-    function renderWorkflowStrip(workflow) {
-        if (!els.workflowStrip) {
-            return;
-        }
-        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            els.workflowStrip.hidden = true;
-            els.workflowStrip.innerHTML = "";
-            return;
-        }
-        const wf = workflow || {};
-        if (!wf.name) {
-            els.workflowStrip.hidden = true;
-            els.workflowStrip.innerHTML = "";
-            return;
-        }
-        const previous = wf.previous || {};
-        const next = wf.next || {};
-        const workflowActionKeys = runtimeConfig.host?.workflowActionKeys || [];
-        const workflowActions = (
-            typeof runtimeHooks.getHomeActions === "function"
-                ? runtimeHooks.getHomeActions({
-                    lastWorkspace: state.lastNonHomeScreen,
-                    preferredLane: state.preferredHomeLane,
-                })
-                : []
-        ).filter((action) => workflowActionKeys.includes(action.key));
-        const workflowActionsLane = String(runtimeConfig.host?.workflowActionsLane || "");
-        const showWorkflowActions = workflowActions.length
-            && workflowActionsLane
-            && inferLaneFromScreen({ workflow: wf }) === workflowActionsLane;
-        const workflowTools = showWorkflowActions
-            ? `
+        `,i.main.querySelector("[data-focus-default-action]")?.addEventListener("click",()=>{Br(t.key)})}function ae(e){const t=e&&typeof e.user_experience=="object"?e.user_experience:{};return{journey:String(t.journey||"").trim(),primaryTask:x(t.primary_task||e?.summary||e?.label||""),primaryOutcome:x(t.primary_outcome||e?.summary||e?.label||""),emptyStateHint:x(t.empty_state_hint||e?.summary||"\u5148\u8FD0\u884C\u672C\u5C4F\u4E3B\u4EFB\u52A1\uFF0C\u5FC5\u8981\u65F6\u8865\u5145\u53C2\u6570\u3002"),nextStepHint:x(t.next_step_hint||"\u6839\u636E\u7ED3\u679C\u7EE7\u7EED\u4E0B\u4E00\u9879\u4E3B\u6D41\u7A0B\uFF0C\u6216\u8FDB\u5165\u53EF\u6267\u884C\u64CD\u4F5C\u3002")}}function cn(e){const t=ae(e);return ct([t.primaryTask,t.primaryOutcome!==t.primaryTask?t.primaryOutcome:""]).join(`
+`)}function ke(e,t=""){return ae(e).emptyStateHint||x(t||e?.summary||"\u5148\u8FD0\u884C\u672C\u5C4F\u4E3B\u4EFB\u52A1\u3002")}function ln(e){const t=ae(e),n=[["\u4E3B\u4EFB\u52A1",t.primaryTask],["\u76EE\u6807\u7ED3\u679C",t.primaryOutcome]],r=ct([t.emptyStateHint,t.nextStepHint]);return[{title:"\u7528\u6237\u4EFB\u52A1",rows:n,body:r}]}function un(e){return Array.isArray(e?.dashboard_panels)&&e.dashboard_panels.length>0}function $e(e){return un(e)&&String(e?.chrome_mode||"").toLowerCase()==="immersive"}function et(e){if(!e||!e.objective&&!e.decision_output&&!(e.checkpoints||[]).length)return[];const t=[];e.objective&&t.push({label:"\u76EE\u6807",value:x(e.objective)}),e.decision_output&&t.push({label:"\u4EA7\u51FA",value:x(e.decision_output)});const n=(e.checkpoints||[]).map((r,a)=>`${a+1}. ${x(r)}`);return[{title:"\u4E1A\u52A1\u76EE\u6807",rows:t,body:n}]}function Nr(e){if(!i.workflowStrip)return;if(_(o.screen?.screen?.key)){i.workflowStrip.hidden=!0,i.workflowStrip.innerHTML="";return}const t=e||{};if(!t.name){i.workflowStrip.hidden=!0,i.workflowStrip.innerHTML="";return}const n=t.previous||{},r=t.next||{},a=w.host?.workflowActionKeys||[],s=(typeof C.getHomeActions=="function"?C.getHomeActions({lastWorkspace:o.lastNonHomeScreen,preferredLane:o.preferredHomeLane}):[]).filter(p=>a.includes(p.key)),l=String(w.host?.workflowActionsLane||""),d=s.length&&l&&Mt({workflow:t})===l?`
                 <div class="tui-workflow-tools">
-                    ${workflowActions.map((action) => `
-                        <button type="button" data-home-action-key="${escapeHtml(action.key)}">${escapeHtml(action.label)}</button>
+                    ${s.map(p=>`
+                        <button type="button" data-home-action-key="${c(p.key)}">${c(p.label)}</button>
                     `).join("")}
                 </div>
-            `
-            : "";
-        els.workflowStrip.hidden = false;
-        els.workflowStrip.innerHTML = `
+            `:"";i.workflowStrip.hidden=!1,i.workflowStrip.innerHTML=`
             <div class="tui-workflow-main">
-                <span>${escapeHtml(wf.name)}</span>
-                <strong>${escapeHtml(String(wf.step || "-").padStart(2, "0"))}/${escapeHtml(wf.total || "-")}</strong>
-                <span>${escapeHtml(wf.label || "")}</span>
+                <span>${c(t.name)}</span>
+                <strong>${c(String(t.step||"-").padStart(2,"0"))}/${c(t.total||"-")}</strong>
+                <span>${c(t.label||"")}</span>
             </div>
-            <div class="tui-workflow-role">${escapeHtml(wf.role || "")}</div>
+            <div class="tui-workflow-role">${c(t.role||"")}</div>
             <div class="tui-workflow-nav">
-                ${previous.key ? `<button type="button" data-workflow-target="${escapeHtml(previous.key)}">&lt; ${escapeHtml(previous.label)}</button>` : "<span>起点</span>"}
-                ${next.key ? `<button type="button" data-workflow-target="${escapeHtml(next.key)}">${escapeHtml(next.label)} &gt;</button>` : "<span>终点</span>"}
+                ${n.key?`<button type="button" data-workflow-target="${c(n.key)}">&lt; ${c(n.label)}</button>`:"<span>\u8D77\u70B9</span>"}
+                ${r.key?`<button type="button" data-workflow-target="${c(r.key)}">${c(r.label)} &gt;</button>`:"<span>\u7EC8\u70B9</span>"}
             </div>
-            ${workflowTools}
-        `;
-        els.workflowStrip.querySelectorAll("[data-workflow-target]").forEach((button) => {
-            button.addEventListener("click", () => loadScreen(button.dataset.workflowTarget));
-        });
-        els.workflowStrip.querySelectorAll("[data-home-action-key]").forEach((button) => {
-            button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
-        });
-    }
-
-    function renderHomeActionStrip() {
-        const actions = typeof runtimeHooks.getHomeActions === "function"
-            ? runtimeHooks.getHomeActions({
-                lastWorkspace: state.lastNonHomeScreen,
-                preferredLane: state.preferredHomeLane,
-            })
-            : [];
-        if (!Array.isArray(actions) || !actions.length) {
-            return "";
-        }
-        return `
-            <section class="tui-home-actions" aria-label="统一首页主动作">
-                ${actions.map((action) => `
-                    <button type="button" class="tui-home-action${action.active ? " is-active" : ""}" data-home-action-key="${escapeHtml(action.key)}">
-                        <strong>${escapeHtml(action.label)}</strong>
-                        <span>${escapeHtml(action.description || "")}</span>
+            ${d}
+        `,i.workflowStrip.querySelectorAll("[data-workflow-target]").forEach(p=>{p.addEventListener("click",()=>S(p.dataset.workflowTarget))}),i.workflowStrip.querySelectorAll("[data-home-action-key]").forEach(p=>{p.addEventListener("click",()=>Z(p.dataset.homeActionKey))})}function Or(){const e=typeof C.getHomeActions=="function"?C.getHomeActions({lastWorkspace:o.lastNonHomeScreen,preferredLane:o.preferredHomeLane}):[];return!Array.isArray(e)||!e.length?"":`
+            <section class="tui-home-actions" aria-label="\u7EDF\u4E00\u9996\u9875\u4E3B\u52A8\u4F5C">
+                ${e.map(t=>`
+                    <button type="button" class="tui-home-action${t.active?" is-active":""}" data-home-action-key="${c(t.key)}">
+                        <strong>${c(t.label)}</strong>
+                        <span>${c(t.description||"")}</span>
                     </button>
                 `).join("")}
             </section>
-        `;
-    }
-
-    function renderDashboardHome(screenSpec) {
-        const screen = screenSpec.screen;
-        const panels = screen.dashboard_panels && screen.dashboard_panels.length
-            ? screen.dashboard_panels
-            : defaultDashboardPanels(screenSpec.actions || []);
-        const immersiveDashboard = isImmersiveDashboardScreen(screen);
-        const actionSummary = summarizeActions(screenSpec.actions || []);
-        const businessContext = screen.business_context || {};
-        const experience = screenUserExperience(screen);
-        const layout = dashboardLayout(panels, screen);
-        setWorkspaceViewKind("dashboard");
-        els.mainTitle.textContent = immersiveDashboard ? "系统首页" : `${screen.label} 概览`;
-        els.main.innerHTML = `
-            ${isOperatorHomeScreen(screen.key) ? renderHomeActionStrip() : ""}
-            <div class="tui-dashboard-grid${layout.contentFlow ? " is-content-flow" : ""}" style="${escapeHtml(layout.gridStyle)}">
-                ${panels.map((panel, index) => `
-                    <article class="tui-dash-panel" style="grid-area: ${escapeHtml(layout.areas[index])};" data-dashboard-panel="${escapeHtml(panel.key)}" data-panel-priority="${escapeHtml(panelPriority(panel))}" data-panel-semantic="${escapeHtml(panelPresentationSemantic(panel))}">
-                        ${renderDashboardPanelShell(panel, '<div class="tui-loading">读取业务数据...</div>')}
+        `}function zr(e){const t=e.screen,n=t.dashboard_panels||[],r=$e(t),a=le(e.actions||[]),s=t.business_context||{},l=ae(t),u=Qr(n,t);Se("dashboard"),i.mainTitle.textContent=r?"\u7CFB\u7EDF\u9996\u9875":`${t.label} \u6982\u89C8`,i.main.innerHTML=`
+            ${_(t.key)?Or():""}
+            <div class="tui-dashboard-grid${u.contentFlow?" is-content-flow":""}" style="${c(u.gridStyle)}">
+                ${n.map((g,y)=>`
+                    <article class="tui-dash-panel" style="grid-area: ${c(u.areas[y])};" data-dashboard-panel="${c(g.key)}" data-panel-priority="${c(oe(g))}" data-panel-semantic="${c(tt(g))}">
+                        ${P(g,'<div class="tui-loading">\u8BFB\u53D6\u4E1A\u52A1\u6570\u636E...</div>')}
                     </article>
                 `).join("")}
             </div>
-        `;
-        renderInspector({
-            title: screen.label,
-            body: screenPrimaryBody(screen),
-            rows: [
-                ["主任务", experience.primaryTask],
-                ["目标结果", experience.primaryOutcome],
-                ["工作区", screenSpec.module.label],
-                ["布局", immersiveDashboard ? "系统首页总控台" : "业务概览面板"],
-                ["主流程", actionSummary.primary],
-                ["支撑检查", actionSummary.support],
-                ["任务", screen.action_count],
-            ],
-            sections: [
-                ...userExperienceSections(screen),
-                ...businessContextSections(businessContext),
-                {
-                    title: "操作提示",
-                    body: [
-                        immersiveDashboard
-                            ? "总览面板来自已审核 action；点击面板可进入对应业务屏继续处理。"
-                            : "概览面板用于先看全局摘要；左侧任务区可以继续打开明细或执行补充查询。",
-                    ],
-                    rows: [],
-                },
-            ],
-        });
-        bindDashboardPanelOpenControls(els.main);
-        els.main.querySelectorAll("[data-home-action-key]").forEach((button) => {
-            button.addEventListener("click", () => executeHomeAction(button.dataset.homeActionKey));
-        });
-        const primaryPanels = panels.filter((panel) => panelPriority(panel) === "p0");
-        const deferredPanels = panels.filter((panel) => panelPriority(panel) !== "p0");
-        primaryPanels.forEach((panel) => loadDashboardPanel(panel));
-        const loadDeferredPanels = () => deferredPanels.forEach((panel) => loadDashboardPanel(panel));
-        if (typeof window.requestIdleCallback === "function") {
-            window.requestIdleCallback(loadDeferredPanels, { timeout: 250 });
-        } else {
-            window.setTimeout(loadDeferredPanels, 0);
-        }
-    }
-
-    function dashboardTargetScreen(panel) {
-        return String(panel.target_screen || panel.screen_key || "");
-    }
-
-    function activateDashboardPanel(targetScreen, actionKey) {
-        const normalizedTarget = String(targetScreen || "").trim();
-        const normalizedActionKey = String(actionKey || "").trim();
-        const currentScreenKey = String(state.screen?.screen?.key || "").trim();
-        if (normalizedTarget && normalizedTarget !== currentScreenKey) {
-            loadScreen(normalizedTarget);
-            return;
-        }
-        if (normalizedActionKey) {
-            runAction(normalizedActionKey, null, { params: {} });
-            return;
-        }
-    }
-
-    function actionResultSemantics(actionRef) {
-        const action = currentAction(actionRef);
-        if (!action || !Array.isArray(action.result_semantics)) {
-            return [];
-        }
-        return action.result_semantics
-            .map((semantic) => String(semantic || "").trim())
-            .filter(Boolean);
-    }
-
-    function panelPriority(panel) {
-        return String(panel?.user_priority || "p2").trim().toLowerCase() || "p2";
-    }
-
-    function panelPresentationSemantic(panel) {
-        const explicit = String(panel?.presentation_semantic || "").trim();
-        if (explicit) {
-            return explicit;
-        }
-        const semantics = actionResultSemantics(panel?.action_key);
-        return semantics[0] || "";
-    }
-
-    function panelPriorityLabel(priority) {
-        const normalized = String(priority || "").trim().toLowerCase();
-        if (normalized === "p0") {
-            return "P0";
-        }
-        if (normalized === "p1") {
-            return "P1";
-        }
-        return "P2";
-    }
-
-    function panelSemanticLabel(semantic) {
-        const labels = {
-            primary_status: "状态",
-            primary_list: "主任务",
-            supporting_list: "支撑列表",
-            copyable_secret: "凭证",
-            endpoint_list: "地址",
-            multiline_prompt: "提示词",
-            next_step: "下一步",
-            supporting_detail: "摘要",
-            debug_only: "调试",
-        };
-        return labels[String(semantic || "").trim()] || "概览";
-    }
-
-    function hasSemantic(semantics, value) {
-        return (semantics || []).includes(value);
-    }
-
-    function uniqueSemantics(values) {
-        const seen = new Set();
-        return (values || []).filter((value) => {
-            const text = String(value || "").trim();
-            if (!text || seen.has(text)) {
-                return false;
-            }
-            seen.add(text);
-            return true;
-        });
-    }
-
-    function panelEffectiveSemantics(panel) {
-        return uniqueSemantics([
-            panelPresentationSemantic(panel),
-            ...actionResultSemantics(panel?.action_key),
-        ]);
-    }
-
-    function defaultDashboardPanels(actions) {
-        return actions.slice(0, 5).map((action, index) => ({
-            key: action.key || `panel-${index + 1}`,
-            title: action.label || `面板 ${index + 1}`,
-            kind: action.view_type === "datagrid" ? "datagrid" : "detail",
-            action_key: action.key,
-            max_rows: 8,
-            columns: [],
-        }));
-    }
-
-    function dashboardLayout(panels, screen) {
-        const areas = uniqueDashboardAreas(panels);
-        const desktopColumns = dashboardDesktopColumns(screen);
-        const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key);
-        const desktopRowSize = contentFlow ? "auto" : "minmax(190px, auto)";
-        const tabletRowSize = contentFlow ? "auto" : "minmax(190px, 1fr)";
-        return {
-            areas,
-            contentFlow,
-            gridStyle: [
-                `--tui-dashboard-areas-desktop: ${dashboardAreaTemplate(areas, desktopColumns, true)}`,
-                `--tui-dashboard-areas-tablet: ${dashboardAreaTemplate(areas, 2)}`,
-                `--tui-dashboard-areas-mobile: ${dashboardAreaTemplate(areas, 1)}`,
-                `--tui-dashboard-rows-desktop: ${dashboardRows(areas, desktopColumns, desktopRowSize)}`,
-                `--tui-dashboard-rows-tablet: ${dashboardRows(areas, 2, tabletRowSize)}`,
-                `--tui-dashboard-rows-mobile: ${dashboardRows(areas, 1, "auto")}`,
-            ].join("; "),
-        };
-    }
-
-    function uniqueDashboardAreas(panels) {
-        const counts = new Map();
-        return panels.map((panel, index) => {
-            const source = panel.layout_area || panel.key || `panel-${index + 1}`;
-            const base = sanitizeDashboardArea(source) || `panel_${index + 1}`;
-            const count = counts.get(base) || 0;
-            counts.set(base, count + 1);
-            return count ? `${base}_${count + 1}` : base;
-        });
-    }
-
-    function sanitizeDashboardArea(value) {
-        const normalized = String(value || "")
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9_-]+/g, "_")
-            .replace(/^[-0-9]+/, "")
-            .replace(/_+/g, "_")
-            .replace(/^_+|_+$/g, "");
-        return normalized && normalized !== "none" ? normalized : "";
-    }
-
-    function dashboardAreaTemplate(areas, columns, expandToTwelve = false) {
-        const rows = chunkDashboardAreas(areas, columns);
-        return rows
-            .map((row) => `"${(expandToTwelve ? expandDashboardRow(row) : row).join(" ")}"`)
-            .join(" ");
-    }
-
-    function dashboardRows(areas, columns, rowSize) {
-        const rowCount = Math.max(1, chunkDashboardAreas(areas, columns).length);
-        return Array.from({ length: rowCount }, () => rowSize).join(" ");
-    }
-
-    function chunkDashboardAreas(areas, columns) {
-        const safeAreas = areas.length ? areas : ["panel_1"];
-        const rows = [];
-        for (let index = 0; index < safeAreas.length; index += columns) {
-            rows.push(safeAreas.slice(index, index + columns));
-        }
-        return rows;
-    }
-
-    function expandDashboardRow(row) {
-        const baseSpan = Math.floor(12 / row.length);
-        let remainder = 12 - baseSpan * row.length;
-        return row.flatMap((area) => {
-            const span = baseSpan + (remainder > 0 ? 1 : 0);
-            remainder -= 1;
-            return Array.from({ length: span }, () => area);
-        });
-    }
-
-    async function loadDashboardPanel(panel) {
-        const container = els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`);
-        if (!container) {
-            return;
-        }
-        if (!panel.action_key) {
-            container.innerHTML = renderDashboardPanelShell(
-                panel,
-                renderPanelPlaceholder(panel, panel.empty_message || "等待发布数据源。"),
-            );
-            bindDashboardPanelOpenControls(container);
-            return;
-        }
-        try {
-            let viewModel = null;
-            let panelBadge = null;
-            if (typeof runtimeHooks.loadDashboardPanel === "function") {
-                const hosted = await runtimeHooks.loadDashboardPanel(panel, {
-                    actionRunUrl,
-                    fetchJson,
-                    screen: state.screen,
-                });
-                if (hosted) {
-                    viewModel = hosted.view_model || hosted;
-                    panelBadge = hosted.badge || badgeCountsFromRows(viewModel.rows || []);
-                }
-            }
-            const operatorSectionKey = isOperatorHomeScreen(state.screen?.screen?.key)
-                ? operatorHomePanelSectionKey(panel)
-                : "";
-            if (viewModel) {
-                // Host hook supplied a complete panel model.
-            } else if (operatorSectionKey) {
-                const homePayload = await loadOperatorHomeAggregate();
-                const payload = homePayload?.[operatorSectionKey] || {};
-                viewModel = operatorHomePanelViewModel(panel, payload);
-                panelBadge = payload?.badge
-                    ? {
-                        blockedCount: Number(payload.badge.blocked_count || 0),
-                        warningCount: Number(payload.badge.warning_count || 0),
-                    }
-                    : badgeCountsFromRows(viewModel.rows || []);
-            } else {
-                const result = await fetchJson(actionRunUrl(panel.action_key), {
-                    method: "POST",
-                    body: JSON.stringify({ params: {} }),
-                });
-                viewModel = result.view_model;
-                panelBadge = badgeCountsFromRows(Array.isArray(viewModel?.rows) ? viewModel.rows : []);
-            }
-            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-                state.homePanelBadges[panel.key] = panelBadge;
-            }
-            if (!renderDashboardRegisteredRenderer(panel, viewModel, container)) {
-                container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelBody(panel, viewModel));
-                bindCopyButtons(container);
-                bindDashboardRowActions(container, panel);
-                bindDashboardPanelOpenControls(container);
-                processHostSlot(container);
-            }
-            if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-                const badgeHost = container.querySelector("[data-panel-badge]");
-                if (badgeHost) {
-                    badgeHost.innerHTML = badgeMarkup(state.homePanelBadges[panel.key], { compact: true });
-                }
-            }
-            setLastRefresh();
-        } catch (error) {
-            container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
-            bindDashboardPanelOpenControls(container);
-            bindDashboardPanelRecovery(container, panel);
-        }
-    }
-
-    function renderDashboardPanelShell(panel, body) {
-        const content = `
+        `,W({title:t.label,body:cn(t),rows:[["\u4E3B\u4EFB\u52A1",l.primaryTask],["\u76EE\u6807\u7ED3\u679C",l.primaryOutcome],["\u5DE5\u4F5C\u533A",e.module.label],["\u5E03\u5C40",r?"\u7CFB\u7EDF\u9996\u9875\u603B\u63A7\u53F0":"\u4E1A\u52A1\u6982\u89C8\u9762\u677F"],["\u4E3B\u6D41\u7A0B",a.primary],["\u652F\u6491\u68C0\u67E5",a.support],["\u4EFB\u52A1",t.action_count]],sections:[...ln(t),...et(s),{title:"\u64CD\u4F5C\u63D0\u793A",body:[r?"\u603B\u89C8\u9762\u677F\u6765\u81EA\u5DF2\u5BA1\u6838 action\uFF1B\u70B9\u51FB\u9762\u677F\u53EF\u8FDB\u5165\u5BF9\u5E94\u4E1A\u52A1\u5C4F\u7EE7\u7EED\u5904\u7406\u3002":"\u6982\u89C8\u9762\u677F\u7528\u4E8E\u5148\u770B\u5168\u5C40\u6458\u8981\uFF1B\u5DE6\u4FA7\u4EFB\u52A1\u533A\u53EF\u4EE5\u7EE7\u7EED\u6253\u5F00\u660E\u7EC6\u6216\u6267\u884C\u8865\u5145\u67E5\u8BE2\u3002"],rows:[]}]}),R(i.main),i.main.querySelectorAll("[data-home-action-key]").forEach(g=>{g.addEventListener("click",()=>Z(g.dataset.homeActionKey))});const d=n.filter(g=>oe(g)==="p0"),p=n.filter(g=>oe(g)!=="p0");d.forEach(g=>ie(g));const m=()=>p.forEach(g=>ie(g));typeof window.requestIdleCallback=="function"?window.requestIdleCallback(m,{timeout:nr}):window.setTimeout(m,0)}function Mr(e){return String(e.target_screen||e.screen_key||"")}function Ur(e,t){const n=String(e||"").trim(),r=String(t||"").trim(),a=String(o.screen?.screen?.key||"").trim();if(n&&n!==a){S(n);return}if(r){k(r,null,{params:{}});return}}function ve(e){const t=$(e);return!t||!Array.isArray(t.result_semantics)?[]:t.result_semantics.map(n=>String(n||"").trim()).filter(Boolean)}function oe(e){return String(e?.user_priority||"p2").trim().toLowerCase()||"p2"}function tt(e){const t=String(e?.presentation_semantic||"").trim();return t||ve(e?.action_key)[0]||""}function Vr(e){const t=String(e||"").trim().toLowerCase();return t==="p0"?"P0":t==="p1"?"P1":"P2"}function Wr(e){return{primary_status:"\u72B6\u6001",primary_list:"\u4E3B\u4EFB\u52A1",supporting_list:"\u652F\u6491\u5217\u8868",copyable_secret:"\u51ED\u8BC1",endpoint_list:"\u5730\u5740",multiline_prompt:"\u63D0\u793A\u8BCD",next_step:"\u4E0B\u4E00\u6B65",supporting_detail:"\u6458\u8981",debug_only:"\u8C03\u8BD5"}[String(e||"").trim()]||"\u6982\u89C8"}function se(e,t){return(e||[]).includes(t)}function Gr(e){const t=new Set;return(e||[]).filter(n=>{const r=String(n||"").trim();return!r||t.has(r)?!1:(t.add(r),!0)})}function Jr(e){return Gr([tt(e),...ve(e?.action_key)])}function Qr(e,t){const n=Yr(e),r=oa(t),a=r===1||_(t?.key),s=a?"auto":"minmax(190px, auto)",l=a?"auto":"minmax(190px, 1fr)";return{areas:n,contentFlow:a,gridStyle:[`--tui-dashboard-areas-desktop: ${nt(n,r,!0)}`,`--tui-dashboard-areas-tablet: ${nt(n,2)}`,`--tui-dashboard-areas-mobile: ${nt(n,1)}`,`--tui-dashboard-rows-desktop: ${rt(n,r,s)}`,`--tui-dashboard-rows-tablet: ${rt(n,2,l)}`,`--tui-dashboard-rows-mobile: ${rt(n,1,"auto")}`].join("; ")}}function Yr(e){const t=new Map;return e.map((n,r)=>{const a=n.layout_area||n.key||`panel-${r+1}`,s=Zr(a)||`panel_${r+1}`,l=t.get(s)||0;return t.set(s,l+1),l?`${s}_${l+1}`:s})}function Zr(e){const t=String(e||"").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"_").replace(/^[-0-9]+/,"").replace(/_+/g,"_").replace(/^_+|_+$/g,"");return t&&t!=="none"?t:""}function nt(e,t,n=!1){return dn(e,t).map(a=>`"${(n?Xr(a):a).join(" ")}"`).join(" ")}function rt(e,t,n){const r=Math.max(1,dn(e,t).length);return Array.from({length:r},()=>n).join(" ")}function dn(e,t){const n=e.length?e:["panel_1"],r=[];for(let a=0;a<n.length;a+=t)r.push(n.slice(a,a+t));return r}function Xr(e){const t=Math.floor(12/e.length);let n=12-t*e.length;return e.flatMap(r=>{const a=t+(n>0?1:0);return n-=1,Array.from({length:a},()=>r)})}function ea(e){if(!e)return!1;const t=String(e.method||"GET").trim().toUpperCase(),n=String(e.risk||"read").trim().toLowerCase();return["GET","HEAD","OPTIONS"].includes(t)&&n==="read"&&Xe(e).length===0}async function ie(e){const t=i.main.querySelector(`[data-dashboard-panel="${CSS.escape(e.key)}"]`);if(!t)return;if(!e.action_key){t.innerHTML=P(e,z(e,e.empty_message||"\u7B49\u5F85\u53D1\u5E03\u6570\u636E\u6E90\u3002")),R(t);return}const n=_(o.screen?.screen?.key)?pr(e):"",r=$(e.action_key);if(!n&&!ea(r)){t.innerHTML=P(e,z(e,"\u8BE5\u9762\u677F\u9700\u8981\u586B\u5199\u53C2\u6570\u6216\u786E\u8BA4\u64CD\u4F5C\uFF0C\u8BF7\u70B9\u51FB\u201C\u6253\u5F00\u201D\u7EE7\u7EED\u3002")),R(t);return}try{let a=null,s=null;if(typeof C.loadDashboardPanel=="function"){const l=await C.loadDashboardPanel(e,{actionRunUrl:je,fetchJson:E,screen:o.screen});l&&(a=l.view_model||l,s=l.badge||Ne(a.rows||[]))}if(!a)if(n){const u=(await Wt())?.[n]||{};a=aa(e,u),s=u?.badge?{blockedCount:Number(u.badge.blocked_count||0),warningCount:Number(u.badge.warning_count||0)}:Ne(a.rows||[])}else a=(await E(je(e.action_key),{method:"POST",body:JSON.stringify({params:{}})})).view_model,s=Ne(Array.isArray(a?.rows)?a.rows:[]);if(_(o.screen?.screen?.key)&&(o.homePanelBadges[e.key]=s),ra(e,a,t)||(t.innerHTML=P(e,pn(e,a)),ce(t),at(t,e),R(t),Te(t)),_(o.screen?.screen?.key)){const l=t.querySelector("[data-panel-badge]");l&&(l.innerHTML=Q(o.homePanelBadges[e.key],{compact:!0}))}ze()}catch(a){t.innerHTML=P(e,Ve(e,a)),R(t),We(t,e)}}function P(e,t){const n=`
             <h3>
-                <span>${escapeHtml(panel.title)}</span>
+                <span>${c(e.title)}</span>
                 <span class="tui-panel-heading-tools">
-                    <span class="tui-panel-priority">${escapeHtml(panelPriorityLabel(panelPriority(panel)))}</span>
-                    <span class="tui-panel-semantic">${escapeHtml(panelSemanticLabel(panelPresentationSemantic(panel)))}</span>
+                    <span class="tui-panel-priority">${c(Vr(oe(e)))}</span>
+                    <span class="tui-panel-semantic">${c(Wr(tt(e)))}</span>
                     <span data-panel-badge></span>
-                    ${dashboardPanelOpenButton(panel)}
+                    ${na(e)}
                 </span>
             </h3>
-            ${panel.note ? `<div class="tui-panel-caption">${escapeHtml(panel.note)}</div>` : ""}
-            ${body}
-        `;
-        if (!dashboardPanelShouldCollapse(panel)) {
-            return content;
-        }
-        return `
+            ${e.note?`<div class="tui-panel-caption">${c(e.note)}</div>`:""}
+            ${t}
+        `;return ta(e)?`
             <details class="tui-panel-disclosure">
-                <summary>展开${escapeHtml(panel.title)}</summary>
-                ${content}
+                <summary>\u5C55\u5F00${c(e.title)}</summary>
+                ${n}
             </details>
-        `;
-    }
-
-    function dashboardPanelShouldCollapse(panel) {
-        return panelPriority(panel) === "p2"
-            && !isOperatorHomeScreen(state.screen?.screen?.key);
-    }
-
-    function dashboardPanelOpenButton(panel) {
-        const target = dashboardTargetScreen(panel);
-        const actionKey = String(panel?.action_key || "").trim();
-        if (!target && !actionKey) {
-            return "";
-        }
-        return `
+        `:n}function ta(e){return oe(e)==="p2"&&!_(o.screen?.screen?.key)}function na(e){const t=Mr(e),n=String(e?.action_key||"").trim();return!t&&!n?"":`
             <button
                 class="tui-dashboard-open"
                 type="button"
                 data-dashboard-open
-                data-dashboard-target="${escapeHtml(target)}"
-                data-dashboard-action="${escapeHtml(actionKey)}"
-                aria-label="打开${escapeHtml(panel.title || "面板")}"
-            >打开</button>
-        `;
-    }
-
-    function bindDashboardPanelOpenControls(root) {
-        root.querySelectorAll("[data-dashboard-open]").forEach((button) => {
-            if (button.dataset.dashboardOpenBound === "true") {
-                return;
-            }
-            button.dataset.dashboardOpenBound = "true";
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                activateDashboardPanel(button.dataset.dashboardTarget, button.dataset.dashboardAction);
-            });
-        });
-    }
-
-    function renderDashboardRegisteredRenderer(panel, viewModel, container) {
-        const rendererName = String(viewModel?.renderer || "").trim();
-        if (!rendererName || builtInRendererNames.has(rendererName)) {
-            return false;
-        }
-        const renderer = rendererRegistry.get(rendererName);
-        if (!renderer) {
-            return false;
-        }
-        container.innerHTML = renderDashboardPanelShell(
-            panel,
-            `<div class="tui-extension-host is-dashboard" data-renderer="${escapeHtml(rendererName)}"></div>`,
-        );
-        const host = container.querySelector(".tui-extension-host");
-        try {
-            renderer({
-                viewModel,
-                container: host,
-                runtimeConfig,
-                escapeHtml,
-            });
-        } catch (_error) {
-            host.innerHTML = renderEmptyState("扩展视图暂时不可用。", ["请稍后重试，或改用默认任务查看数据。"]);
-        }
-        bindCopyButtons(container);
-        bindDashboardPanelOpenControls(container);
-        return true;
-    }
-
-    function renderDashboardPanelBody(panel, viewModel) {
-        if (!viewModel) {
-            return renderPanelPlaceholder(panel, "暂无可显示数据。");
-        }
-        if (requiresMissingRendererFallback(viewModel)) {
-            return renderExtensionFallback(viewModel);
-        }
-        if (panel.kind === "regime_quadrant") {
-            return renderRegimePanel(viewModel);
-        }
-        if (viewModel.kind === "chart") {
-            return renderChartMarkup(viewModel, { compact: true });
-        }
-        if (viewModel.kind === "image") {
-            return renderImageMarkup(viewModel, { compact: true });
-        }
-        if (viewModel.kind === "kpi_trend") {
-            return renderKpiTrendMarkup(viewModel, { compact: true });
-        }
-        if (viewModel.kind === "table_chart") {
-            return renderTableChartMarkup(viewModel, { compact: true });
-        }
-        if (viewModel.kind === "host_slot") {
-            return renderHostSlotMarkup(viewModel, { compact: true });
-        }
-        if (viewModel.kind === "custom") {
-            return renderExtensionFallback(viewModel);
-        }
-        if (viewModel.kind === "datagrid") {
-            return renderPanelDataGrid(panel, viewModel);
-        }
-        if (viewModel.kind === "detail") {
-            return renderPanelDetail(panel, viewModel);
-        }
-        return `<div class="tui-message">${escapeHtml(viewModel.message || viewModel.status || "正常")}</div>`;
-    }
-
-    function operatorHomePanelViewModel(panel, payload) {
-        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
-        const columns = (Array.isArray(panel?.columns) ? panel.columns : [])
-            .map((column) => ({
-                key: String(column?.key || "").trim(),
-                label: String(column?.label || column?.key || "").trim(),
-            }))
-            .filter((column) => column.key);
-        return {
-            kind: "datagrid",
-            title: panel?.title || "",
-            status: String(payload?.status || "ok"),
-            columns,
-            rows,
-            total: Number(payload?.total || rows.length || 0),
-            empty_message: "暂无数据",
-            empty_guidance: [],
-        };
-    }
-
-    function dashboardDesktopColumns(screen) {
-        if (typeof runtimeCore.dashboardDesktopColumns === "function") {
-            return runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {});
-        }
-        throw new Error("AgomTUI Runtime core is missing dashboardDesktopColumns");
-    }
-
-    function renderRegimePanel(viewModel) {
-        const fields = fieldsToMap(viewModel.fields || []);
-        const regime = pickField(fields, ["current_regime", "dominant_regime", "regime", "regime_name", "state", "name"]) || "UNKNOWN";
-        const confidence = pickField(fields, ["confidence", "regime_confidence", "confidence_pct"]) || "-";
-        const trend = pickField(fields, ["trend", "movement", "transition_target", "status"]) || "-";
-        const warning = pickField(fields, ["warning", "transition_warning", "risk", "alerts"]) || "-";
-        return `
+                data-dashboard-target="${c(t)}"
+                data-dashboard-action="${c(n)}"
+                aria-label="\u6253\u5F00${c(e.title||"\u9762\u677F")}"
+            >\u6253\u5F00</button>
+        `}function R(e){e.querySelectorAll("[data-dashboard-open]").forEach(t=>{t.dataset.dashboardOpenBound!=="true"&&(t.dataset.dashboardOpenBound="true",t.addEventListener("click",n=>{n.preventDefault(),n.stopPropagation(),Ur(t.dataset.dashboardTarget,t.dataset.dashboardAction)}))})}function ra(e,t,n){const r=String(t?.renderer||"").trim();if(!r||Ke.has(r))return!1;const a=J.get(r);if(!a)return!1;n.innerHTML=P(e,`<div class="tui-extension-host is-dashboard" data-renderer="${c(r)}"></div>`);const s=n.querySelector(".tui-extension-host");try{a({viewModel:t,container:s,runtimeConfig:w,escapeHtml:c})}catch{s.innerHTML=T("\u6269\u5C55\u89C6\u56FE\u6682\u65F6\u4E0D\u53EF\u7528\u3002",["\u8BF7\u7A0D\u540E\u91CD\u8BD5\uFF0C\u6216\u6539\u7528\u9ED8\u8BA4\u4EFB\u52A1\u67E5\u770B\u6570\u636E\u3002"])}return ce(n),R(n),!0}function pn(e,t){return t?$n(t)?pt(t):e.kind==="regime_quadrant"?ia(t):t.kind==="chart"?dt(t,{compact:!0}):t.kind==="image"?xn(t,{compact:!0}):t.kind==="kpi_trend"?Cn(t,{compact:!0}):t.kind==="table_chart"?Tn(t,{compact:!0}):t.kind==="host_slot"?Ln(t,{compact:!0}):t.kind==="custom"?pt(t):t.kind==="datagrid"?fn(e,t):t.kind==="detail"?ua(e,t):`<div class="tui-message">${c(t.message||t.status||"\u6B63\u5E38")}</div>`:z(e,"\u6682\u65E0\u53EF\u663E\u793A\u6570\u636E\u3002")}function aa(e,t){const n=Array.isArray(t?.rows)?t.rows:[],r=(Array.isArray(e?.columns)?e.columns:[]).map(a=>({key:String(a?.key||"").trim(),label:String(a?.label||a?.key||"").trim()})).filter(a=>a.key);return{kind:"datagrid",title:e?.title||"",status:String(t?.status||"ok"),columns:r,rows:n,total:Number(t?.total||n.length||0),empty_message:"\u6682\u65E0\u6570\u636E",empty_guidance:[]}}function oa(e){if(typeof v.dashboardDesktopColumns=="function")return v.dashboardDesktopColumns(e,w.host||{});throw new Error("AgomTUI Runtime core is missing dashboardDesktopColumns")}function sa(e){const t=String(e||"").trim().toLowerCase();return[{aliases:["recovery","\u590D\u82CF"],left:"25%",top:"25%",label:"\u590D\u82CF\u8C61\u9650"},{aliases:["overheat","\u8FC7\u70ED"],left:"75%",top:"25%",label:"\u8FC7\u70ED\u8C61\u9650"},{aliases:["deflation","recession","\u901A\u7F29","\u8870\u9000"],left:"25%",top:"75%",label:"\u901A\u7F29\u8C61\u9650"},{aliases:["stagflation","\u6EDE\u80C0"],left:"75%",top:"75%",label:"\u6EDE\u80C0\u8C61\u9650"}].find(r=>r.aliases.some(a=>t.includes(a)))||null}function ia(e){const t=ya(e.fields||[]),n=xe(t,["current_regime","dominant_regime","regime","regime_name","state","name"])||"UNKNOWN",r=xe(t,["confidence","regime_confidence","confidence_pct"])||"-",a=xe(t,["trend","movement","transition_target","status"])||"-",s=xe(t,["warning","transition_warning","risk","alerts"])||"-",l=sa(n);return`
             <div class="tui-quadrant">
-                <div class="q q-recovery">复苏<br><strong>RECOVERY</strong></div>
-                <div class="q q-overheat">过热<br><strong>OVERHEAT</strong></div>
-                <div class="q q-recession">衰退<br><strong>RECESSION</strong></div>
-                <div class="q q-stagflation">滞胀<br><strong>STAGFLATION</strong></div>
+                <div class="q q-recovery">\u590D\u82CF<br><strong>RECOVERY</strong></div>
+                <div class="q q-overheat">\u8FC7\u70ED<br><strong>OVERHEAT</strong></div>
+                <div class="q q-recession">\u8870\u9000<br><strong>RECESSION</strong></div>
+                <div class="q q-stagflation">\u6EDE\u80C0<br><strong>STAGFLATION</strong></div>
                 <div class="q-axis-x"></div>
                 <div class="q-axis-y"></div>
-                <div class="q-marker">◆</div>
+                ${l?`<div class="q-marker" style="left:${l.left};top:${l.top}" role="img" aria-label="${c(l.label)}">\u25C6</div>`:""}
             </div>
             <div class="tui-dash-lines">
-                <div>当前判断: <strong class="tui-green">${escapeHtml(regime)}</strong></div>
-                <div>置信度: <strong>${escapeHtml(confidence)}</strong>　趋势: <strong class="tui-green">${escapeHtml(trend)}</strong></div>
-                <div>拐点预警: ${escapeHtml(warning)}</div>
+                <div>\u5F53\u524D\u5224\u65AD: <strong class="tui-green">${c(n)}</strong></div>
+                <div>\u7F6E\u4FE1\u5EA6: <strong>${c(r)}</strong>\u3000\u8D8B\u52BF: <strong class="tui-green">${c(a)}</strong></div>
+                <div>\u62D0\u70B9\u9884\u8B66: ${c(s)}</div>
             </div>
-        `;
-    }
-
-    function renderPanelDataGrid(panel, viewModel) {
-        const rows = (viewModel.rows || []).slice(0, Number(panel.max_rows || 8));
-        const panelColumns = Array.isArray(panel.columns) ? panel.columns : [];
-        const preferredColumns = panelColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key)));
-        const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
-        const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, 6);
-        if (!rows.length || !columns.length) {
-            return renderPanelPlaceholder(panel, "暂无表格数据。");
-        }
-        const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
-        const headers = columns.map((column) => column.label || column.key);
-        if (rowActions.length) {
-            headers.push("操作");
-        }
-        return `
+        `}function fn(e,t){const n=(t.rows||[]).slice(0,Number(e.max_rows||8)),a=(Array.isArray(e.columns)?e.columns:[]).filter(p=>n.some(m=>Object.prototype.hasOwnProperty.call(m,p.key))),l=(a.length?a:t.columns||[]).filter(p=>n.some(m=>Object.prototype.hasOwnProperty.call(m,p.key))).slice(0,6);if(!n.length||!l.length)return z(e,"\u6682\u65E0\u8868\u683C\u6570\u636E\u3002");const u=Array.isArray(e.row_actions)?e.row_actions:[],d=l.map(p=>p.label||p.key);return u.length&&d.push("\u64CD\u4F5C"),`
             <table class="tui-mini-table">
-                <thead><tr>${headers.map((header, index) => `<th class="${rowActions.length && index === headers.length - 1 ? "tui-row-actions-header" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                <thead><tr>${d.map((p,m)=>`<th class="${u.length&&m===d.length-1?"tui-row-actions-header":""}">${c(p)}</th>`).join("")}</tr></thead>
                 <tbody>
-                    ${rows.map((row) => `
+                    ${n.map(p=>`
                         <tr>
-                            ${columns.map((column) => `<td class="${cellClass(row[column.key], column.label || column.key)}">${escapeHtml(row[column.key] ?? "-")}</td>`).join("")}
-                            ${rowActions.length ? `<td class="tui-row-actions-cell">${renderDashboardRowActions(panel, row)}</td>` : ""}
+                            ${l.map(m=>`<td class="${hn(p[m.key],m.label||m.key)}">${c(p[m.key]??"-")}</td>`).join("")}
+                            ${u.length?`<td class="tui-row-actions-cell">${ca(e,p)}</td>`:""}
                         </tr>
                     `).join("")}
                 </tbody>
             </table>
-        `;
-    }
-
-    function renderDashboardRowActions(panel, row) {
-        const descriptors = Array.isArray(panel?.row_actions) ? panel.row_actions : [];
-        return `<div class="tui-row-actions">${descriptors.map((descriptor) => {
-            const action = currentAction(descriptor.action_key);
-            const params = Object.fromEntries(
-                Object.entries(descriptor.param_map || {}).map(([paramKey, rowKey]) => [paramKey, row?.[rowKey]]),
-            );
-            const label = interpolateRowActionLabel(descriptor.label_template, row);
-            return `
+        `}function ca(e,t){return`<div class="tui-row-actions">${(Array.isArray(e?.row_actions)?e.row_actions:[]).map(r=>{const a=$(r.action_key),s=Object.fromEntries(Object.entries(r.param_map||{}).map(([u,d])=>[u,t?.[d]])),l=la(r.label_template,t);return`
                 <button
                     class="tui-row-action"
                     type="button"
                     data-dashboard-row-action
-                    data-row-action-key="${escapeHtml(descriptor.action_key)}"
-                    data-row-action-params="${escapeHtml(JSON.stringify(params))}"
-                    aria-label="${escapeHtml(label)}"
-                    title="${escapeHtml(label)}"
-                >${escapeHtml(action?.label || "操作")}</button>
-            `;
-        }).join("")}</div>`;
-    }
-
-    function interpolateRowActionLabel(template, row) {
-        return String(template || "操作").replace(/\{([^{}]+)\}/g, (_match, key) => String(row?.[key] ?? "-"));
-    }
-
-    function bindDashboardRowActions(root, panel) {
-        root.querySelectorAll("[data-dashboard-row-action]").forEach((button) => {
-            if (button.dataset.rowActionBound === "true") {
-                return;
-            }
-            button.dataset.rowActionBound = "true";
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                let params = {};
-                try {
-                    params = JSON.parse(button.dataset.rowActionParams || "{}");
-                } catch (_error) {
-                    setStatus("行操作参数不可用");
-                    return;
-                }
-                button.disabled = true;
-                try {
-                    const action = currentAction(button.dataset.rowActionKey);
-                    const method = String(action?.method || "GET").trim().toUpperCase();
-                    const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);
-                    const descriptor = (panel.row_actions || []).find(
-                        (item) => item.action_key === button.dataset.rowActionKey,
-                    ) || {};
-                    const resultPanelKey = String(descriptor.result_panel_key || "").trim();
-                    const refreshPanelKey = String(descriptor.refresh_panel_key || "").trim();
-                    if (resultPanelKey || refreshPanelKey) {
-                        await runAction(button.dataset.rowActionKey, null, {
-                            params,
-                            dashboardResultPanelKey: resultPanelKey,
-                            dashboardRefreshPanelKey: refreshPanelKey,
-                        });
-                        return;
-                    }
-                    await runAction(
-                        button.dataset.rowActionKey,
-                        null,
-                        refreshesDashboard
-                            ? { params, dashboardPanelKey: panel.key }
-                            : { params },
-                    );
-                } finally {
-                    button.disabled = false;
-                }
-            });
-        });
-    }
-
-    function renderPanelDetail(panel, viewModel) {
-        const semantics = panelEffectiveSemantics(panel);
-        if (semantics.length) {
-            return renderSemanticDetailView(viewModel, semantics, { compact: true, panel });
-        }
-        const fields = (viewModel.fields || []).slice(0, Number(panel.max_rows || 8));
-        if (!fields.length) {
-            const nested = (viewModel.nested || []).slice(0, Number(panel.max_rows || 8));
-            if (nested.length) {
-                return renderMiniTable(["项目", "数量"], nested.map((item) => [item.label, item.count]));
-            }
-            return renderPanelPlaceholder(panel, "暂无摘要数据。");
-        }
-        return `
-            ${renderMiniTable(["项目", "值"], fields.map((field) => [field.label, field.value]))}
-            ${panel.note ? `<div class="tui-panel-note">${escapeHtml(panel.note)}</div>` : ""}
-        `;
-    }
-
-    function currentActionSemantics() {
-        return actionResultSemantics(state.lastAction);
-    }
-
-    function renderSemanticDetailView(viewModel, semantics, options = {}) {
-        const fields = (viewModel.fields || []).slice(0, Number(options.panel?.max_rows || 12));
-        const nested = (viewModel.nested || []).slice(0, Number(options.panel?.max_rows || 12));
-        const classes = [
-            "tui-semantic-detail",
-            options.compact ? "is-compact" : "",
-            hasSemantic(semantics, "primary_status") ? "is-primary-status" : "",
-            hasSemantic(semantics, "copyable_secret") ? "is-copyable-secret" : "",
-            hasSemantic(semantics, "endpoint_list") ? "is-endpoint-list" : "",
-            hasSemantic(semantics, "multiline_prompt") ? "is-multiline-prompt" : "",
-        ].filter(Boolean).join(" ");
-        const statusHero = hasSemantic(semantics, "primary_status")
-            ? `
+                    data-row-action-key="${c(r.action_key)}"
+                    data-row-action-params="${c(JSON.stringify(s))}"
+                    aria-label="${c(l)}"
+                    title="${c(l)}"
+                >${c(a?.label||"\u64CD\u4F5C")}</button>
+            `}).join("")}</div>`}function la(e,t){return String(e||"\u64CD\u4F5C").replace(/\{([^{}]+)\}/g,(n,r)=>String(t?.[r]??"-"))}function at(e,t){e.querySelectorAll("[data-dashboard-row-action]").forEach(n=>{n.dataset.rowActionBound!=="true"&&(n.dataset.rowActionBound="true",n.addEventListener("click",async r=>{r.preventDefault(),r.stopPropagation();let a={};try{a=JSON.parse(n.dataset.rowActionParams||"{}")}catch{f("\u884C\u64CD\u4F5C\u53C2\u6570\u4E0D\u53EF\u7528");return}n.disabled=!0;try{const s=$(n.dataset.rowActionKey),l=String(s?.method||"GET").trim().toUpperCase(),u=!["GET","HEAD","OPTIONS"].includes(l),d=(t.row_actions||[]).find(g=>g.action_key===n.dataset.rowActionKey)||{},p=String(d.result_panel_key||"").trim(),m=String(d.refresh_panel_key||"").trim();if(p||m){await k(n.dataset.rowActionKey,null,{params:a,dashboardResultPanelKey:p,dashboardRefreshPanelKey:m});return}await k(n.dataset.rowActionKey,null,u?{params:a,dashboardPanelKey:t.key}:{params:a})}finally{n.disabled=!1}}))})}function ua(e,t){const n=Jr(e);if(n.length)return mn(t,n,{compact:!0,panel:e});const r=(t.fields||[]).slice(0,Number(e.max_rows||8));if(!r.length){const a=(t.nested||[]).slice(0,Number(e.max_rows||8));return a.length?yn(["\u9879\u76EE","\u6570\u91CF"],a.map(s=>[s.label,s.count])):z(e,"\u6682\u65E0\u6458\u8981\u6570\u636E\u3002")}return`
+            ${yn(["\u9879\u76EE","\u503C"],r.map(a=>[a.label,a.value]))}
+            ${e.note?`<div class="tui-panel-note">${c(e.note)}</div>`:""}
+        `}function da(){return ve(o.lastAction)}function mn(e,t,n={}){const r=(e.fields||[]).slice(0,Number(n.panel?.max_rows||12)),a=(e.nested||[]).slice(0,Number(n.panel?.max_rows||12)),s=["tui-semantic-detail",n.compact?"is-compact":"",se(t,"primary_status")?"is-primary-status":"",se(t,"copyable_secret")?"is-copyable-secret":"",se(t,"endpoint_list")?"is-endpoint-list":"",se(t,"multiline_prompt")?"is-multiline-prompt":""].filter(Boolean).join(" "),l=se(t,"primary_status")?`
                 <div class="tui-status-hero">
-                    <strong>${escapeHtml(viewModel.title || "状态")}</strong>
-                    <span class="tui-status-pill">${escapeHtml(viewModel.status || "正常")}</span>
+                    <strong>${c(e.title||"\u72B6\u6001")}</strong>
+                    <span class="tui-status-pill">${c(e.status||"\u6B63\u5E38")}</span>
                 </div>
-            `
-            : "";
-        const secretFields = fields.filter((field) => fieldPresentation(field) === "secret");
-        const copyFields = fields.filter((field) => fieldPresentation(field) === "copyable");
-        const multilineFields = fields.filter((field) => fieldPresentation(field) === "multiline");
-        const metaFields = fields.filter((field) => fieldPresentation(field) === "metadata");
-        const fieldMarkup = [
-            secretFields.length ? renderSemanticSecretFields(secretFields) : "",
-            copyFields.length ? renderSemanticCopyFields(copyFields) : "",
-            metaFields.length ? renderSemanticGridFields(metaFields) : "",
-            multilineFields.length ? renderSemanticMultilineFields(multilineFields) : "",
-        ].filter(Boolean).join("");
-        const nestedMarkup = nested.length
-            ? `<div class="tui-nested-list">${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}</div>`
-            : "";
-        return `
-            <section class="${classes}">
-                ${statusHero}
-                ${fieldMarkup || renderPanelPlaceholder(options.panel || {}, "暂无摘要数据。")}
-                ${nestedMarkup}
+            `:"",u=r.filter(h=>_e(h)==="secret"),d=r.filter(h=>_e(h)==="copyable"),p=r.filter(h=>_e(h)==="multiline"),m=r.filter(h=>_e(h)==="metadata"),g=[u.length?pa(u):"",d.length?fa(d):"",m.length?gn(m):"",p.length?ma(p):""].filter(Boolean).join(""),y=a.length?`<div class="tui-nested-list">${a.map(h=>`<span>${c(h.label)}: ${c(h.count)} \u884C</span>`).join("")}</div>`:"";return`
+            <section class="${s}">
+                ${l}
+                ${g||z(n.panel||{},"\u6682\u65E0\u6458\u8981\u6570\u636E\u3002")}
+                ${y}
             </section>
-        `;
-    }
-
-    function renderSemanticGridFields(fields) {
-        if (!fields.length) {
-            return "";
-        }
-        return `
+        `}function gn(e){return e.length?`
             <dl class="tui-detail-grid">
-                ${fields.map((field) => `
-                    <dt>${escapeHtml(field.label)}</dt>
-                    <dd>${escapeHtml(field.value)}</dd>
+                ${e.map(t=>`
+                    <dt>${c(t.label)}</dt>
+                    <dd>${c(t.value)}</dd>
                 `).join("")}
             </dl>
-        `;
-    }
-
-    function fieldPresentation(field) {
-        const presentation = String(field?.presentation || "metadata").trim().toLowerCase();
-        return ["secret", "copyable", "multiline", "metadata"].includes(presentation)
-            ? presentation
-            : "metadata";
-    }
-
-    function renderSemanticSecretFields(fields) {
-        return `
+        `:""}function _e(e){const t=String(e?.presentation||"metadata").trim().toLowerCase();return["secret","copyable","multiline","metadata"].includes(t)?t:"metadata"}function pa(e){return`
             <div class="tui-copy-stack">
-                ${fields.map((field) => `
+                ${e.map(t=>`
                     <div class="tui-copy-row is-secret">
                         <div class="tui-copy-head">
-                            <span>${escapeHtml(field.label)}</span>
+                            <span>${c(t.label)}</span>
                             <span class="tui-copy-controls">
                                 <button
                                     class="tui-copy-action"
                                     type="button"
                                     data-secret-toggle
                                     data-secret-visible="true"
-                                    aria-label="隐藏${escapeHtml(field.label)}"
-                                >隐藏</button>
+                                    aria-label="\u9690\u85CF${c(t.label)}"
+                                >\u9690\u85CF</button>
                                 <button
                                     class="tui-copy-action"
                                     type="button"
-                                    data-copy-value="${escapeHtml(field.value)}"
-                                    data-copy-label="${escapeHtml(field.label)}"
-                                >复制</button>
+                                    data-copy-value="${c(t.value)}"
+                                    data-copy-label="${c(t.label)}"
+                                >\u590D\u5236</button>
                             </span>
                         </div>
-                        <code data-secret-value="${escapeHtml(field.value)}">${escapeHtml(field.value)}</code>
+                        <code data-secret-value="${c(t.value)}">${c(t.value)}</code>
                     </div>
                 `).join("")}
             </div>
-        `;
-    }
-
-    function renderSemanticCopyFields(fields) {
-        if (!fields.length) {
-            return "";
-        }
-        return `
+        `}function fa(e){return e.length?`
             <div class="tui-copy-stack">
-                ${fields.map((field) => `
+                ${e.map(t=>`
                     <div class="tui-copy-row">
                         <div class="tui-copy-head">
-                            <span>${escapeHtml(field.label)}</span>
+                            <span>${c(t.label)}</span>
                             <button
                                 class="tui-copy-action"
                                 type="button"
-                                data-copy-value="${escapeHtml(field.value)}"
-                                data-copy-label="${escapeHtml(field.label)}"
-                            >复制</button>
+                                data-copy-value="${c(t.value)}"
+                                data-copy-label="${c(t.label)}"
+                            >\u590D\u5236</button>
                         </div>
-                        <code>${escapeHtml(field.value)}</code>
+                        <code>${c(t.value)}</code>
                     </div>
                 `).join("")}
             </div>
-        `;
-    }
-
-    function renderSemanticMultilineFields(fields) {
-        if (!fields.length) {
-            return "";
-        }
-        return `
+        `:""}function ma(e){return e.length?`
             <div class="tui-copy-stack">
-                ${fields.map((field) => {
-                    const accessPackage = String(field?.key || "") === "access_package";
-                    return `
-                    <section class="tui-copy-block-card${accessPackage ? " is-dominant" : ""}">
+                ${e.map(t=>{const n=String(t?.key||"")==="access_package";return`
+                    <section class="tui-copy-block-card${n?" is-dominant":""}">
                         <div class="tui-copy-head">
-                            <strong>${escapeHtml(field.label)}</strong>
+                            <strong>${c(t.label)}</strong>
                             <button
                                 class="tui-copy-action"
                                 type="button"
-                                data-copy-value="${escapeHtml(field.value)}"
-                                data-copy-label="${escapeHtml(field.label)}"
-                            >${accessPackage ? "复制完整接入包" : "复制"}</button>
+                                data-copy-value="${c(t.value)}"
+                                data-copy-label="${c(t.label)}"
+                            >${n?"\u590D\u5236\u5B8C\u6574\u63A5\u5165\u5305":"\u590D\u5236"}</button>
                         </div>
-                        <pre class="tui-copy-block">${escapeHtml(field.value)}</pre>
+                        <pre class="tui-copy-block">${c(t.value)}</pre>
                     </section>
-                `;
-                }).join("")}
+                `}).join("")}
             </div>
-        `;
-    }
-
-    async function writeClipboardText(value) {
-        const text = String(value ?? "");
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-            await navigator.clipboard.writeText(text);
-            return;
-        }
-        const helper = document.createElement("textarea");
-        helper.value = text;
-        helper.setAttribute("readonly", "readonly");
-        helper.style.position = "fixed";
-        helper.style.opacity = "0";
-        helper.style.pointerEvents = "none";
-        document.body.appendChild(helper);
-        helper.select();
-        document.execCommand("copy");
-        document.body.removeChild(helper);
-    }
-
-    function bindCopyButtons(root = document) {
-        root.querySelectorAll("[data-secret-toggle]").forEach((button) => {
-            if (button.dataset.secretBound === "true") {
-                return;
-            }
-            button.dataset.secretBound = "true";
-            button.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const code = button.closest(".tui-copy-row")?.querySelector("[data-secret-value]");
-                if (!code) {
-                    return;
-                }
-                const visible = button.dataset.secretVisible === "true";
-                button.dataset.secretVisible = visible ? "false" : "true";
-                button.textContent = visible ? "显示" : "隐藏";
-                button.setAttribute("aria-label", visible ? "显示接入令牌" : "隐藏接入令牌");
-                code.textContent = visible ? "••••••••••••" : code.dataset.secretValue;
-            });
-        });
-        root.querySelectorAll("[data-copy-value]").forEach((button) => {
-            if (button.dataset.copyBound === "true") {
-                return;
-            }
-            button.dataset.copyBound = "true";
-            button.addEventListener("click", async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const label = String(button.dataset.copyLabel || "内容").trim();
-                const originalText = button.textContent;
-                try {
-                    await writeClipboardText(button.dataset.copyValue || "");
-                    button.textContent = "已复制";
-                    setStatus(`${label}已复制`);
-                } catch (_error) {
-                    button.textContent = "复制失败";
-                    setStatus(`${label}复制失败`);
-                }
-                window.setTimeout(() => {
-                    button.textContent = originalText;
-                }, 1200);
-            });
-        });
-    }
-
-    function fieldsToMap(fields) {
-        return fields.reduce((result, field) => {
-            result[String(field.key || field.label || "").toLowerCase()] = field.value;
-            result[String(field.label || "").toLowerCase()] = field.value;
-            return result;
-        }, {});
-    }
-
-    function pickField(fields, keys) {
-        for (const key of keys) {
-            const value = fields[String(key).toLowerCase()];
-            if (value !== undefined && value !== null && value !== "") {
-                return value;
-            }
-        }
-        return "";
-    }
-
-    function renderPanelPlaceholder(panel, message) {
-        return `
+        `:""}async function ga(e){const t=String(e??"");if(navigator.clipboard&&typeof navigator.clipboard.writeText=="function"){await navigator.clipboard.writeText(t);return}const n=document.createElement("textarea");n.value=t,n.setAttribute("readonly","readonly"),n.style.position="fixed",n.style.opacity="0",n.style.pointerEvents="none",document.body.appendChild(n),n.select(),document.execCommand("copy"),document.body.removeChild(n)}function ce(e=document){e.querySelectorAll("[data-secret-toggle]").forEach(t=>{t.dataset.secretBound!=="true"&&(t.dataset.secretBound="true",t.addEventListener("click",n=>{n.preventDefault(),n.stopPropagation();const r=t.closest(".tui-copy-row")?.querySelector("[data-secret-value]");if(!r)return;const a=t.dataset.secretVisible==="true";t.dataset.secretVisible=a?"false":"true",t.textContent=a?"\u663E\u793A":"\u9690\u85CF",t.setAttribute("aria-label",a?"\u663E\u793A\u63A5\u5165\u4EE4\u724C":"\u9690\u85CF\u63A5\u5165\u4EE4\u724C"),r.textContent=a?"\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022":r.dataset.secretValue}))}),e.querySelectorAll("[data-copy-value]").forEach(t=>{t.dataset.copyBound!=="true"&&(t.dataset.copyBound="true",t.addEventListener("click",async n=>{n.preventDefault(),n.stopPropagation();const r=String(t.dataset.copyLabel||"\u5185\u5BB9").trim(),a=t.textContent;try{await ga(t.dataset.copyValue||""),t.textContent="\u5DF2\u590D\u5236",f(`${r}\u5DF2\u590D\u5236`)}catch{t.textContent="\u590D\u5236\u5931\u8D25",f(`${r}\u590D\u5236\u5931\u8D25`)}window.setTimeout(()=>{t.textContent=a},1200)}))})}function ya(e){return e.reduce((t,n)=>(t[String(n.key||n.label||"").toLowerCase()]=n.value,t[String(n.label||"").toLowerCase()]=n.value,t),{})}function xe(e,t){for(const n of t){const r=e[String(n).toLowerCase()];if(r!=null&&r!=="")return r}return""}function z(e,t){return`
             <div class="tui-panel-placeholder">
-                <div>${escapeHtml(message)}</div>
-                ${panel.note ? `<small>${escapeHtml(panel.note)}</small>` : ""}
+                <div>${c(t)}</div>
+                ${e.note?`<small>${c(e.note)}</small>`:""}
             </div>
-        `;
-    }
-
-    function renderMiniTable(headers, rows, selectedIndex) {
-        return `
+        `}function yn(e,t,n){return`
             <table class="tui-mini-table">
-                <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                <thead><tr>${e.map(r=>`<th>${c(r)}</th>`).join("")}</tr></thead>
                 <tbody>
-                    ${rows.map((row, index) => `
-                        <tr class="${index === selectedIndex ? "is-hot" : ""}">
-                            ${row.map((cell, cellIndex) => `<td class="${cellClass(cell, headers[cellIndex])}">${escapeHtml(cell)}</td>`).join("")}
+                    ${t.map((r,a)=>`
+                        <tr class="${a===n?"is-hot":""}">
+                            ${r.map((s,l)=>`<td class="${hn(s,e[l])}">${c(s)}</td>`).join("")}
                         </tr>
                     `).join("")}
                 </tbody>
             </table>
-        `;
-    }
-
-    function cellClass(value, header = "") {
-        const text = String(value);
-        const headerText = String(header || "");
-        if (["标的", "代码", "名称", "股票", "资产", "证券"].some((item) => headerText.includes(item))) {
-            return "";
-        }
-        if (/^-\d+(?:\.\d+)?%?$/.test(text.trim()) || text.includes("暂停") || text.includes("触发")) {
-            return "is-red";
-        }
-        if (text.includes("观察") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)) {
-            return "is-yellow";
-        }
-        if (text.includes("正常") || text.includes("运行") || text.includes("成功") || text.includes("%")) {
-            return "is-green";
-        }
-        return "";
-    }
-
-    function actionTier(action) {
-        const tier = String(action.task_tier || "").toLowerCase();
-        if (["primary", "support", "advanced", "operation"].includes(tier)) {
-            return tier;
-        }
-        if (isAdvancedAction(action)) {
-            return "advanced";
-        }
-        const risk = String(action.risk || "").toLowerCase();
-        if (risk === "write" || risk === "ai") {
-            return "operation";
-        }
-        const group = String(action.task_group || "");
-        return group.startsWith("01 ") || group.startsWith("02 ") || group.startsWith("03 ")
-            ? "primary"
-            : "support";
-    }
-
-    function summarizeActions(actions) {
-        return actions.reduce((summary, action) => {
-            const tier = actionTier(action);
-            if (tier === "advanced") {
-                summary.advanced += 1;
-            } else if (tier === "support") {
-                summary.support += 1;
-            } else if (tier === "operation") {
-                summary.operation += 1;
-            } else {
-                summary.primary += 1;
-            }
-            const risk = String(action.risk || "").toLowerCase();
-            if (risk === "write") {
-                summary.write += 1;
-            }
-            if (risk === "ai") {
-                summary.ai += 1;
-            }
-            return summary;
-        }, { primary: 0, support: 0, advanced: 0, operation: 0, write: 0, ai: 0 });
-    }
-
-    function isAdvancedAction(action) {
-        const group = String(action.task_group || "");
-        const key = String(action.key || "");
-        return group.includes("条件查询") || key.startsWith("param.");
-    }
-
-    function renderActions(actions, screen) {
-        if (!actions.length) {
-            els.actions.innerHTML = '<div class="tui-empty-state">当前工作区暂无可执行任务。</div>';
-            return;
-        }
-        const primaryActions = actions.filter((action) => actionTier(action) === "primary");
-        const supportActions = actions.filter((action) => actionTier(action) === "support");
-        const operationActions = actions.filter((action) => actionTier(action) === "operation");
-        const advancedActions = actions.filter((action) => actionTier(action) === "advanced");
-        const hasPrimary = primaryActions.length > 0;
-        const filterNeedle = state.actionFilterText.trim().toLowerCase();
-        const visibleActions = filterNeedle
-            ? actions.filter((action) => actionMatchesFilter(action, filterNeedle))
-            : hasPrimary
-            ? operationActions
-                .concat(primaryActions)
-                .concat(state.showSupportTasks ? supportActions : [])
-                .concat(state.showAdvancedQueries ? advancedActions : [])
-            : operationActions.concat(supportActions).concat(advancedActions);
-        const summary = summarizeActions(actions);
-        const progress = screenProgress(actions);
-        const groups = groupActions(visibleActions);
-        els.actions.innerHTML = `
+        `}function hn(e,t=""){const n=String(e),r=String(t||"");return["\u6807\u7684","\u4EE3\u7801","\u540D\u79F0","\u80A1\u7968","\u8D44\u4EA7","\u8BC1\u5238"].some(a=>r.includes(a))?"":/^-\d+(?:\.\d+)?%?$/.test(n.trim())||n.includes("\u6682\u505C")||n.includes("\u89E6\u53D1")||n.includes("\u5931\u8D25")||n.includes("\u672A\u8FD0\u884C")?"is-red":n.includes("\u89C2\u5BDF")||/(进行中|运行中|处理中|同步中|排队中)/.test(n)?"is-yellow":n.includes("\u6B63\u5E38")||n.includes("\u8FD0\u884C")||n.includes("\u6210\u529F")||n.includes("%")?"is-green":""}function A(e){const t=String(e.task_tier||"").toLowerCase();return["primary","support","advanced","operation"].includes(t)?t:"support"}function le(e){return e.reduce((t,n)=>{const r=A(n);r==="advanced"?t.advanced+=1:r==="support"?t.support+=1:r==="operation"?t.operation+=1:t.primary+=1;const a=String(n.risk||"").toLowerCase();return a==="write"&&(t.write+=1),a==="ai"&&(t.ai+=1),t},{primary:0,support:0,advanced:0,operation:0,write:0,ai:0})}function bn(e,t){if(!e.length){i.actions.innerHTML='<div class="tui-empty-state">\u5F53\u524D\u5DE5\u4F5C\u533A\u6682\u65E0\u53EF\u6267\u884C\u4EFB\u52A1\u3002</div>';return}const n=e.filter(g=>A(g)==="primary"),r=e.filter(g=>A(g)==="support"),a=e.filter(g=>A(g)==="advanced"),s=n.length>0,l=le(e),u=Re(e),d=Sa(e);i.actions.innerHTML=`
             <div class="tui-action-brief">
                 <div>
-                    <strong>${escapeHtml((screen && screen.label) || "当前工作区")}</strong>
-                    <span>主流程 ${progress.completed}/${progress.total} / 操作 ${summary.operation} / 支撑 ${summary.support} / 高级 ${summary.advanced}${filterNeedle ? ` / 匹配 ${visibleActions.length}` : ""}</span>
+                    <strong>${c(t&&t.label||"\u5F53\u524D\u5DE5\u4F5C\u533A")}</strong>
+                    <span data-action-summary>\u4E3B\u6D41\u7A0B ${u.completed}/${u.total} / \u64CD\u4F5C ${l.operation} / \u652F\u6491 ${l.support} / \u9AD8\u7EA7 ${l.advanced}</span>
                 </div>
                 <label class="tui-action-filter">
-                    <span>任务</span>
-                    <input type="search" value="${escapeHtml(state.actionFilterText)}" placeholder="输入业务词" data-action-filter>
-                    ${state.actionFilterText ? '<button type="button" data-clear-action-filter>清</button>' : ""}
+                    <span>\u4EFB\u52A1</span>
+                    <input type="search" value="${c(o.actionFilterText)}" placeholder="\u8F93\u5165\u4E1A\u52A1\u8BCD" data-action-filter>
+                    <button type="button" data-clear-action-filter ${o.actionFilterText?"":"hidden"}>\u6E05</button>
                 </label>
-                ${supportActions.length ? `
+                ${r.length?`
                     <button class="tui-action-toggle" type="button" data-toggle-support>
-                        ${state.showSupportTasks || !hasPrimary ? "隐藏支撑" : "显示支撑"}
+                        ${o.showSupportTasks||!s?"\u9690\u85CF\u652F\u6491":"\u663E\u793A\u652F\u6491"}
                     </button>
-                ` : ""}
-                ${advancedActions.length ? `
+                `:""}
+                ${a.length?`
                     <button class="tui-action-toggle" type="button" data-toggle-advanced>
-                        ${state.showAdvancedQueries || !hasPrimary ? "隐藏高级" : "显示高级"}
+                        ${o.showAdvancedQueries||!s?"\u9690\u85CF\u9AD8\u7EA7":"\u663E\u793A\u9AD8\u7EA7"}
                     </button>
-                ` : ""}
+                `:""}
             </div>
-            ${groups.length ? groups.map((group) => `
-                <section class="tui-action-group tui-action-group-${escapeHtml(group.tier)}">
-                    <div class="tui-action-group-title">${escapeHtml(group.label)}</div>
-                    ${group.actions.map((action) => renderActionForm(action)).join("")}
+            ${d.map(g=>`
+                <section class="tui-action-group tui-action-group-${c(g.tier)}">
+                    <div class="tui-action-group-title">${c(g.label)}</div>
+                    ${g.actions.map(y=>ka(y)).join("")}
                 </section>
-            `).join("") : `<div class="tui-empty-state">没有匹配任务。清空筛选后查看全部。</div>`}
-        `;
-        const actionFilter = els.actions.querySelector("[data-action-filter]");
-        actionFilter?.addEventListener("input", () => {
-            state.actionFilterText = actionFilter.value;
-            renderActions(actions, screen);
-            const nextFilter = els.actions.querySelector("[data-action-filter]");
-            if (nextFilter) {
-                nextFilter.focus();
-                nextFilter.setSelectionRange(nextFilter.value.length, nextFilter.value.length);
-            }
-        });
-        els.actions.querySelector("[data-clear-action-filter]")?.addEventListener("click", () => {
-            state.actionFilterText = "";
-            renderActions(actions, screen);
-            setStatus("任务筛选已清除");
-        });
-        els.actions.querySelector("[data-toggle-support]")?.addEventListener("click", () => {
-            state.showSupportTasks = !state.showSupportTasks;
-            renderActions(actions, screen);
-            setStatus(state.showSupportTasks ? "支撑检查已显示" : "支撑检查已隐藏");
-        });
-        els.actions.querySelector("[data-toggle-advanced]")?.addEventListener("click", () => {
-            state.showAdvancedQueries = !state.showAdvancedQueries;
-            renderActions(actions, screen);
-            setStatus(state.showAdvancedQueries ? "高级查询已显示" : "高级查询已隐藏");
-        });
-        bindRenderedActionForms();
-        refreshRowFillButtons();
-    }
-
-    function bindRenderedActionForms() {
-        els.actions.querySelectorAll("[data-action-ui-key]").forEach((form) => {
-            form.addEventListener("submit", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                triggerActionForm(form);
-            });
-            const actionButton = form.querySelector(".tui-action-button");
-            actionButton?.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                triggerActionForm(form);
-            });
-            const fillButton = form.querySelector("[data-fill-from-row]");
-            fillButton?.addEventListener("click", (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                fillActionFromSelectedRow(form);
-            });
-        });
-    }
-
-    function actionMatchesFilter(action, needle) {
-        const haystack = [
-            action.label,
-            action.description,
-            action.task_group,
-            actionRoleLabel(action),
-            actionVerbLabel(action),
-            ...(action.fields || []).map((field) => `${field.label} ${field.key}`),
-        ].join(" ").toLowerCase();
-        return haystack.includes(needle);
-    }
-
-    function groupActions(actions) {
-        const groups = [];
-        const byLabel = new Map();
-        actions.forEach((action) => {
-            const tier = actionTier(action);
-            const label = tier === "operation" ? "00 可执行操作" : (action.task_group || "核心任务");
-            if (!byLabel.has(label)) {
-                const group = {
-                    label,
-                    tier,
-                    actions: [],
-                    sequence: tier === "operation" ? -100 : Number(action.sequence || 999),
-                };
-                byLabel.set(label, group);
-                groups.push(group);
-            }
-            const group = byLabel.get(label);
-            group.sequence = Math.min(
-                group.sequence,
-                tier === "operation" ? -100 : Number(action.sequence || 999)
-            );
-            group.actions.push(action);
-        });
-        groups.sort((left, right) => left.sequence - right.sequence);
-        groups.forEach((group) => {
-            group.actions.sort((left, right) => Number(left.sequence || 999) - Number(right.sequence || 999));
-        });
-        return groups;
-    }
-
-    function renderActionForm(action) {
-        const hasVisibleFields = (action.fields || []).some((field) => field.input_type !== "hidden");
-        const completed = isActionCompleted(action.key);
-        const description = operatorText(action.description || "");
-        const submitLabel = actionSubmitLabel(action);
-        return `
-            <form class="tui-action-form tui-action-risk-${escapeHtml(action.risk || "read")} ${completed ? "is-completed" : ""}" data-action-ui-key="${escapeHtml(actionUiKey(action))}" novalidate>
+            `).join("")}
+            <div class="tui-empty-state" data-action-filter-empty hidden>\u6CA1\u6709\u5339\u914D\u4EFB\u52A1\u3002\u6E05\u7A7A\u7B5B\u9009\u540E\u67E5\u770B\u5168\u90E8\u3002</div>
+        `,i.actions.dataset.renderedScreenKey=t&&t.key||"";const p=i.actions.querySelector("[data-action-filter]"),m=()=>{o.actionFilterText=p?p.value:o.actionFilterText,j(e,t)};p?.addEventListener("input",g=>{g.isComposing||m()}),p?.addEventListener("compositionend",m),i.actions.querySelector("[data-clear-action-filter]")?.addEventListener("click",()=>{o.actionFilterText="",p.value="",j(e,t),p.focus(),f("\u4EFB\u52A1\u7B5B\u9009\u5DF2\u6E05\u9664")}),i.actions.querySelector("[data-toggle-support]")?.addEventListener("click",()=>{o.showSupportTasks=!o.showSupportTasks,j(e,t),f(o.showSupportTasks?"\u652F\u6491\u68C0\u67E5\u5DF2\u663E\u793A":"\u652F\u6491\u68C0\u67E5\u5DF2\u9690\u85CF")}),i.actions.querySelector("[data-toggle-advanced]")?.addEventListener("click",()=>{o.showAdvancedQueries=!o.showAdvancedQueries,j(e,t),f(o.showAdvancedQueries?"\u9AD8\u7EA7\u67E5\u8BE2\u5DF2\u663E\u793A":"\u9AD8\u7EA7\u67E5\u8BE2\u5DF2\u9690\u85CF")}),ba(),j(e,t),Ae()}function ha(e,t,n){if(n)return wa(e,n);if(!t)return!0;const r=A(e);return r==="operation"||r==="primary"?!0:r==="support"?o.showSupportTasks:r==="advanced"?o.showAdvancedQueries:!1}function j(e,t){const n=e.some(y=>A(y)==="primary"),r=o.actionFilterText.trim().toLowerCase();let a=0;i.actions.querySelectorAll("[data-action-ui-key]").forEach(y=>{const h=$(be(y)),b=!!(h&&ha(h,n,r));if(y.hidden=!b,b&&(a+=1),h){const q=Pe(h.key);y.classList.toggle("is-completed",q);const O=y.querySelector("[data-action-meta]");O&&(O.textContent=Jt(h,q))}}),i.actions.querySelectorAll(".tui-action-group").forEach(y=>{y.hidden=!y.querySelector("[data-action-ui-key]:not([hidden])")});const s=le(e),l=Re(e),u=i.actions.querySelector("[data-action-summary]");u&&(u.textContent=`\u4E3B\u6D41\u7A0B ${l.completed}/${l.total} / \u64CD\u4F5C ${s.operation} / \u652F\u6491 ${s.support} / \u9AD8\u7EA7 ${s.advanced}${r?` / \u5339\u914D ${a}`:""}`);const d=i.actions.querySelector("[data-action-filter-empty]");d&&(d.hidden=a>0);const p=i.actions.querySelector("[data-clear-action-filter]");p&&(p.hidden=!r);const m=i.actions.querySelector("[data-toggle-support]");m&&(m.textContent=o.showSupportTasks||!n?"\u9690\u85CF\u652F\u6491":"\u663E\u793A\u652F\u6491");const g=i.actions.querySelector("[data-toggle-advanced]");g&&(g.textContent=o.showAdvancedQueries||!n?"\u9690\u85CF\u9AD8\u7EA7":"\u663E\u793A\u9AD8\u7EA7")}function ba(){i.actions.querySelectorAll("[data-action-ui-key]").forEach(e=>{e.addEventListener("submit",r=>{r.preventDefault(),r.stopPropagation(),we(e)}),e.querySelector(".tui-action-button")?.addEventListener("click",r=>{r.preventDefault(),r.stopPropagation(),we(e)}),e.querySelector("[data-fill-from-row]")?.addEventListener("click",r=>{r.preventDefault(),r.stopPropagation(),ot(e)})})}function wa(e,t){return[e.label,e.description,e.task_group,Gt(e),te(e),...(e.fields||[]).map(r=>`${r.label} ${r.key}`)].join(" ").toLowerCase().includes(t)}function Sa(e){const t=[],n=new Map;return e.forEach(r=>{const a=A(r),s=a==="operation"?"00 \u53EF\u6267\u884C\u64CD\u4F5C":r.task_group||"\u6838\u5FC3\u4EFB\u52A1";if(!n.has(s)){const u={label:s,tier:a,actions:[],sequence:a==="operation"?-100:Number(r.sequence||999)};n.set(s,u),t.push(u)}const l=n.get(s);l.sequence=Math.min(l.sequence,a==="operation"?-100:Number(r.sequence||999)),l.actions.push(r)}),t.sort((r,a)=>r.sequence-a.sequence),t.forEach(r=>{r.actions.sort((a,s)=>Number(a.sequence||999)-Number(s.sequence||999))}),t}function ka(e){const t=(e.fields||[]).some(s=>s.input_type!=="hidden"),n=Pe(e.key),r=x(e.description||""),a=$a(e);return`
+            <form class="tui-action-form tui-action-risk-${c(e.risk||"read")} ${n?"is-completed":""}" data-action-ui-key="${c(K(e))}" novalidate>
                 <button class="tui-action-button" type="button">
                     <span>
-                        ${escapeHtml(action.label)}
-                        <span class="tui-action-meta">${escapeHtml(actionMetaLabel(action, completed))}</span>
+                        ${c(e.label)}
+                        <span class="tui-action-meta" data-action-meta>${c(Jt(e,n))}</span>
                     </span>
                 </button>
-                ${hasVisibleFields ? '<button class="tui-row-fill-button" type="button" data-fill-from-row>从选中行填充</button>' : ""}
-                ${action.confirmation_required ? '<div class="tui-action-confirm">提交前会要求确认</div>' : ""}
-                ${description ? `<div class="tui-action-desc">${escapeHtml(description)}</div>` : ""}
-                ${(action.fields || []).map((field) => renderField(action, field)).join("")}
-                <button class="tui-action-submit" type="submit">${escapeHtml(submitLabel)}</button>
+                ${t?'<button class="tui-row-fill-button" type="button" data-fill-from-row>\u4ECE\u9009\u4E2D\u884C\u586B\u5145</button>':""}
+                ${e.confirmation_required?'<div class="tui-action-confirm">\u63D0\u4EA4\u524D\u4F1A\u8981\u6C42\u786E\u8BA4</div>':""}
+                ${r?`<div class="tui-action-desc">${c(r)}</div>`:""}
+                ${(e.fields||[]).map(s=>an(e,s)).join("")}
+                <button class="tui-action-submit" type="submit">${c(a)}</button>
             </form>
-        `;
-    }
-
-    function actionSubmitLabel(action) {
-        const text = `${action.label || ""} ${action.intent || ""} ${action.key || ""}`.toLowerCase();
-        if (action.risk === "write" || action.risk === "admin" || /save|submit|update|create|delete|保存|提交|变更|更新|创建|删除/.test(text)) {
-            return "提交变更";
-        }
-        if (/check|validate|verify|inspect|检查|校验|验证|诊断/.test(text)) {
-            return "运行检查";
-        }
-        if (/query|search|list|find|lookup|查询|搜索|检索|列表/.test(text)) {
-            return "按条件查询";
-        }
-        return "执行";
-    }
-
-    function actionResourceBase(actionKey) {
-        let segments = String(actionKey || "")
-            .split(".")
-            .filter(Boolean);
-        const dynamicSegments = new Set(["pk", "id", "int", "str", "uuid", "slug", "path", "bool", "float", "decimal", "date", "datetime"]);
-        const collected = [];
-        if (segments[0] === "auto" || segments[0] === "param") {
-            segments = segments.slice(1);
-        }
-        if (segments[0] === "api" && segments[2] === "api") {
-            segments = segments.slice(3);
-        }
-        for (const segment of segments) {
-            if (dynamicSegments.has(segment)) {
-                break;
-            }
-            collected.push(segment);
-        }
-        return collected.join(".");
-    }
-
-    function rowContextWithSource(row) {
-        if (!row) {
-            return null;
-        }
-        const sourceAction = currentAction(state.lastAction);
-        return {
-            ...row,
-            __tui_source_action_key: sourceAction ? sourceAction.key : "",
-            __tui_source_resource_base: actionResourceBase(sourceAction ? sourceAction.key : ""),
-        };
-    }
-
-    function actionCompatibleWithRowSource(action, row, fieldKey) {
-        const key = String(fieldKey || "");
-        if (!["pk", "id"].includes(key)) {
-            return true;
-        }
-        const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : "");
-        const targetResourceBase = actionResourceBase(action && action.key);
-        if (!rowResourceBase || !targetResourceBase) {
-            return true;
-        }
-        return rowResourceBase === targetResourceBase;
-    }
-
-    function actionCanFillFromRow(action, row) {
-        if (!action || !row) {
-            return false;
-        }
-        const fields = (action.fields || []).filter((field) => field.input_type !== "hidden");
-        if (!fields.length) {
-            return false;
-        }
-        return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
-    }
-
-    async function collectParams(form, action) {
-        const params = {};
-        if (!form) {
-            return params;
-        }
-        const fields = (action && action.fields) || [];
-        for (const field of fields) {
-            const element = formFieldElement(form, field.key);
-            if (!element) {
-                continue;
-            }
-            if (field.input_type === "file") {
-                if (element.files && element.files.length) {
-                    params[field.key] = await readTextFile(element.files[0]);
-                }
-                continue;
-            }
-            const value = coerceFieldValue(field, element.value, element.checked);
-            if (field.input_type === "checkbox" || value !== "") {
-                params[field.key] = value;
-            }
-        }
-        return params;
-    }
-
-    function readTextFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.addEventListener("load", () => resolve(String(reader.result || "")));
-            reader.addEventListener("error", () => reject(reader.error || new Error("文件读取失败")));
-            reader.readAsText(file, "utf-8");
-        });
-    }
-
-    function applySelectedRowToActionForm(form, options = {}) {
-        const { onlyIfEmpty = false, silent = false, focus = false } = options;
-        if (!form) {
-            if (!silent) {
-                setStatus("没有可填充的任务");
-            }
-            return false;
-        }
-        const row = selectedRowForActions();
-        if (!row) {
-            if (!silent) {
-                setStatus("先在表格中选择一行");
-            }
-            return false;
-        }
-        const action = currentAction(actionRefFromForm(form));
-        if (!action) {
-            if (!silent) {
-                setStatus("任务未找到");
-            }
-            return false;
-        }
-        const params = paramsFromRowForAction(row, action);
-        const fields = (action.fields || []);
-        let filled = 0;
-        fields.forEach((field) => {
-            if (field.input_type === "hidden") {
-                return;
-            }
-            const element = formFieldElement(form, field.key);
-            if (!element) {
-                return;
-            }
-            if (onlyIfEmpty) {
-                if (element.type === "checkbox" && element.checked) {
-                    return;
-                }
-                if (element.type !== "checkbox" && String(element.value || "").trim() !== "") {
-                    return;
-                }
-            }
-            const value = params[field.key];
-            if (value === undefined || value === null || value === "") {
-                return;
-            }
-            if (element.type === "checkbox") {
-                element.checked = Boolean(value);
-            } else {
-                element.value = String(value);
-            }
-            filled += 1;
-        });
-        if (filled) {
-            if (!silent) {
-                setStatus(`已从选中行填充 ${filled} 项`);
-            }
-            if (focus) {
-                form.querySelector("input:not([type='hidden']),select,textarea")?.focus();
-            }
-            return true;
-        }
-        if (!silent) {
-            setStatus("选中行没有可匹配字段");
-        }
-        return false;
-    }
-
-    function fillActionFromSelectedRow(form) {
-        return applySelectedRowToActionForm(form, { focus: true });
-    }
-
-    function rowValueForField(row, fieldOrKey, action) {
-        const fieldKey = typeof fieldOrKey === "object" && fieldOrKey ? fieldOrKey.key : fieldOrKey;
-        if (!actionCompatibleWithRowSource(action, row, fieldKey)) {
-            return undefined;
-        }
-        for (const key of rowFieldCandidates(fieldOrKey, action)) {
-            const rawKey = `__raw_${key}`;
-            if (Object.prototype.hasOwnProperty.call(row, rawKey) && row[rawKey] !== undefined && row[rawKey] !== null && row[rawKey] !== "") {
-                return row[rawKey];
-            }
-            if (Object.prototype.hasOwnProperty.call(row, key) && row[key] !== undefined && row[key] !== null && row[key] !== "") {
-                return row[key];
-            }
-        }
-        return undefined;
-    }
-
-    function formFieldElement(form, fieldKey) {
-        if (!form || !form.elements) {
-            return null;
-        }
-        const byName = typeof form.elements.namedItem === "function"
-            ? form.elements.namedItem(fieldKey)
-            : null;
-        if (byName) {
-            if (typeof byName.length === "number" && !byName.tagName) {
-                return byName[0] || null;
-            }
-            return byName;
-        }
-        return form.querySelector(`[name="${CSS.escape(fieldKey)}"]`);
-    }
-
-    function selectedRowForActions() {
-        const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);
-        if (row) {
-            return row;
-        }
-        if (state.currentViewModel && state.currentViewModel.kind === "datagrid") {
-            return null;
-        }
-        return state.selectedRowContext;
-    }
-
-    function refreshRowFillButtons() {
-        const row = selectedRowForActions();
-        els.actions.querySelectorAll("[data-action-ui-key]").forEach((form) => {
-            const button = form.querySelector("[data-fill-from-row]");
-            if (!button) {
-                return;
-            }
-            const action = currentAction(actionRefFromForm(form));
-            const enabled = actionCanFillFromRow(action, row);
-            button.disabled = !enabled;
-            button.title = enabled ? "从当前选中行填充可匹配参数" : "当前选中行没有可匹配字段";
-            if (enabled) {
-                applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });
-            }
-        });
-    }
-
-    function rowFieldCandidates(fieldOrKey, action) {
-        const field = typeof fieldOrKey === "object" && fieldOrKey
-            ? fieldOrKey
-            : ((action && action.fields) || []).find((candidate) => candidate.key === fieldOrKey) || { key: fieldOrKey };
-        const key = String(field.key || "");
-        const semantic = String(field.semantic || "").trim();
-        const candidates = [];
-        candidates.push(key);
-        if (semantic) {
-            candidates.push(semantic);
-            candidates.push(...aliasesForSemantic(semantic));
-        }
-        if (Array.isArray(field.aliases)) {
-            candidates.push(...field.aliases);
-        }
-        candidates.push(...aliasesForSemantic(key));
-        return uniqueNonEmpty(candidates);
-    }
-
-    function aliasesForSemantic(name) {
-        const key = String(name || "");
-        const registry = {
-            ...builtInFieldAliases,
-            ...fieldAliasRegistry(),
-        };
-        return Array.isArray(registry[key]) ? registry[key] : [];
-    }
-
-    function fieldAliasRegistry() {
-        return {
-            ...(runtimeConfig.field_aliases || runtimeConfig.fieldAliases || {}),
-            ...((state.catalog && state.catalog.field_aliases) || {}),
-            ...((state.screen && state.screen.field_aliases) || {}),
-        };
-    }
-
-    function uniqueNonEmpty(values) {
-        return values.filter((value, index, array) => {
-            const text = String(value || "").trim();
-            return text && array.indexOf(value) === index;
-        });
-    }
-
-    async function loadScreen(screenKey, options = {}) {
-        try {
-            clearPendingRequest({ abort: true });
-            closeMenu();
-            closeModal();
-            els.main.innerHTML = '<div class="tui-loading">正在加载工作区...</div>';
-            setStatus("加载工作区");
-            const screenSpec = await fetchJson(screenUrl(screenKey));
-            if (isOperatorHomeScreen(screenSpec?.screen?.key)) {
-                state.operatorHomePayload = null;
-                state.operatorHomePromise = null;
-            }
-            renderScreen(screenSpec, options);
-            refreshGovernanceBadges();
-            return screenSpec;
-        } catch (error) {
-            resetLocationInput();
-            renderBoundedApplicationError(error);
-            return null;
-        }
-    }
-
-    async function runAction(actionKey, form, options = {}) {
-        const action = currentAction(actionKey);
-        if (!action) {
-            setStatus("任务未找到");
-            return;
-        }
-        const actualActionKey = action.key;
-        if (isHomeClientAction(actualActionKey)) {
-            executeHomeAction(actualActionKey);
-            return;
-        }
-        try {
-            const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
-            const dashboardRefreshPanelKey = String(options.dashboardRefreshPanelKey || "").trim();
-            const hasDashboardResultTarget = Boolean(dashboardResultPanelKey);
-            const hasDashboardRefreshTarget = Boolean(dashboardRefreshPanelKey);
-            const isTargetedDashboardAction = hasDashboardResultTarget || hasDashboardRefreshTarget;
-            const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : { ...state.lastParams });
-            state.lastAction = actualActionKey;
-            state.lastParams = params;
-            state.selectedRowIndex = 0;
-            setCurrentLocation(action);
-            closeMenu();
-            closeModal();
-            const controller = new AbortController();
-            const requestId = startPendingRequest(controller);
-            if (hasDashboardResultTarget) {
-                if (!Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
-                    options.dashboardResultPanelMarkup = dashboardPanelMarkup(dashboardResultPanelKey);
-                }
-                renderDashboardActionLoading(dashboardResultPanelKey, action);
-            } else if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
-                renderActionLoadingState(action, state.screen);
-                scheduleSlowActionState(requestId, action);
-            }
-            const requestBody = { params, confirmed: Boolean(options.confirmed) };
-            if (options.confirmation) {
-                requestBody.confirmation = options.confirmation;
-            }
-            if (options.reauth) {
-                requestBody.reauth = options.reauth;
-            }
-            const result = await fetchJson(actionRunUrl(actualActionKey), {
-                method: "POST",
-                body: JSON.stringify(requestBody),
-                signal: controller.signal,
-            });
-            clearPendingRequest();
-            if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
-                state.lastRaw = null;
-                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
-                    renderViewModel(result.view_model);
-                }
-                restoreDashboardActionPanel(options);
-                showMissingFieldsPrompt(result, actualActionKey, params, options);
-                updateRawDrawer();
-                setStatus("等待补填");
-                return;
-            }
-            if (result.confirmation_required) {
-                state.lastRaw = null;
-                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
-                    renderViewModel(result.view_model);
-                }
-                restoreDashboardActionPanel(options);
-                showActionConfirmation(result, actualActionKey, params, options);
-                updateRawDrawer();
-                setStatus("等待确认");
-                return;
-            }
-            if (result.password_challenge_required) {
-                state.lastRaw = null;
-                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
-                    renderViewModel(result.view_model);
-                }
-                restoreDashboardActionPanel(options);
-                showPasswordChallenge(result, actualActionKey, params, options);
-                updateRawDrawer();
-                setStatus("等待验密");
-                return;
-            }
-            markActionCompleted(action);
-            state.lastRaw = result.debug?.raw_response ?? null;
-            if (isTargetedDashboardAction) {
-                if (hasDashboardResultTarget) {
-                    renderDashboardActionResult(dashboardResultPanelKey, result.view_model, action);
-                }
-                if (hasDashboardRefreshTarget && dashboardRefreshPanelKey !== dashboardResultPanelKey) {
-                    await refreshDashboardPanel(dashboardRefreshPanelKey);
-                }
-                updateRawDrawer();
-                setStatus(hasDashboardRefreshTarget ? "操作完成，治理工作区已更新" : "详情已在当前页面打开");
-                refreshGovernanceBadges();
-                return;
-            }
-            if (options.dashboardPanelKey) {
-                updateRawDrawer();
-                await refreshCurrentDashboardPanels();
-                setStatus("操作完成，列表已刷新");
-                refreshGovernanceBadges();
-                return;
-            }
-            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
-                renderActions(state.screen.actions || [], state.screen.screen);
-            }
-            renderViewModel(result.view_model);
-            renderResultInspector(result, result.view_model);
-            updateRawDrawer();
-            setStatus("读取完成");
-            refreshGovernanceBadges();
-        } catch (error) {
-            if (error?.name === "AbortError") {
-                setStatus("请求已取消");
-                return;
-            }
-            clearPendingRequest();
-            const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
-            if (dashboardResultPanelKey) {
-                renderDashboardActionError(dashboardResultPanelKey, error);
-                return;
-            }
-            if (options.dashboardPanelKey) {
-                const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
-                    ? state.screen.screen.dashboard_panels
-                    : [];
-                const panel = panels.find((item) => item.key === options.dashboardPanelKey);
-                const container = panel
-                    ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-                    : null;
-                if (panel && container) {
-                    container.innerHTML = renderDashboardPanelShell(
-                        panel,
-                        renderDashboardPanelError(panel, error),
-                    );
-                    bindDashboardPanelOpenControls(container);
-                    bindDashboardPanelRecovery(container, panel);
-                } else {
-                    renderBoundedApplicationError(error);
-                }
-            } else {
-                renderBoundedApplicationError(error);
-            }
-        }
-    }
-
-    async function refreshCurrentDashboardPanels() {
-        const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
-            ? state.screen.screen.dashboard_panels
-            : [];
-        await Promise.all(panels.map((panel) => loadDashboardPanel(panel)));
-    }
-
-    function currentDashboardPanel(panelKey) {
-        const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
-            ? state.screen.screen.dashboard_panels
-            : [];
-        return panels.find((panel) => panel.key === panelKey) || null;
-    }
-
-    async function refreshDashboardPanel(panelKey) {
-        const panel = currentDashboardPanel(panelKey);
-        if (panel) {
-            await loadDashboardPanel(panel);
-        }
-    }
-
-    function dashboardPanelMarkup(panelKey) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        return container?.innerHTML || "";
-    }
-
-    function restoreDashboardActionPanel(options = {}) {
-        const panelKey = String(options.dashboardResultPanelKey || "").trim();
-        if (!panelKey || !Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
-            return;
-        }
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        container.innerHTML = options.dashboardResultPanelMarkup;
-        bindCopyButtons(container);
-        bindDashboardRowActions(container, panel);
-        bindDashboardPanelOpenControls(container);
-        processHostSlot(container);
-    }
-
-    function renderDashboardActionLoading(panelKey, action) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        container.innerHTML = renderDashboardPanelShell(
-            panel,
-            `<div class="tui-loading">正在执行${escapeHtml(action.label || "当前操作")}...</div>`,
-        );
-    }
-
-    function renderDashboardActionResult(panelKey, viewModel, action) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            return;
-        }
-        const actionSemantics = actionResultSemantics(action.key);
-        const resultPanel = {
-            ...panel,
-            action_key: action.key,
-            presentation_semantic: actionSemantics[0] || panel.presentation_semantic,
-        };
-        container.innerHTML = renderDashboardPanelShell(
-            panel,
-            renderDashboardPanelBody(resultPanel, viewModel),
-        );
-        bindCopyButtons(container);
-        bindDashboardPanelOpenControls(container);
-        processHostSlot(container);
-    }
-
-    function renderDashboardActionError(panelKey, error) {
-        const panel = currentDashboardPanel(panelKey);
-        const container = panel
-            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
-            : null;
-        if (!panel || !container) {
-            renderBoundedApplicationError(error);
-            return;
-        }
-        container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
-        bindDashboardPanelOpenControls(container);
-        bindDashboardPanelRecovery(container, panel);
-    }
-
-    function renderViewModel(viewModel) {
-        if (!viewModel) {
-            renderError("没有返回可渲染的业务视图。");
-            return;
-        }
-        state.currentViewModel = viewModel;
-        setWorkspaceViewKind(viewModel.kind || "message");
-        els.mainTitle.textContent = (viewModel.title || "视图").toUpperCase();
-        if (renderRegisteredRenderer(viewModel, els.main)) {
-            resetGridState({ preserveRowContext: true });
-        } else if (requiresMissingRendererFallback(viewModel)) {
-            resetGridState({ preserveRowContext: true });
-            renderCustomFallback(viewModel);
-        } else if (viewModel.kind === "datagrid") {
-            renderDataGrid(viewModel);
-        } else if (viewModel.kind === "detail") {
-            resetGridState({ preserveRowContext: true });
-            renderDetail(viewModel);
-        } else if (viewModel.kind === "chart") {
-            resetGridState({ preserveRowContext: true });
-            renderChart(viewModel);
-        } else if (viewModel.kind === "image") {
-            resetGridState({ preserveRowContext: true });
-            renderImage(viewModel);
-        } else if (viewModel.kind === "kpi_trend") {
-            resetGridState({ preserveRowContext: true });
-            renderKpiTrend(viewModel);
-        } else if (viewModel.kind === "table_chart") {
-            resetGridState({ preserveRowContext: true });
-            renderTableChart(viewModel);
-        } else if (viewModel.kind === "host_slot") {
-            resetGridState({ preserveRowContext: true });
-            renderHostSlot(viewModel);
-        } else if (viewModel.kind === "custom") {
-            resetGridState({ preserveRowContext: true });
-            renderCustomFallback(viewModel);
-        } else {
-            resetGridState({ preserveRowContext: true });
-            renderMessage(viewModel);
-        }
-        bindDecisionCueActions();
-        bindCopyButtons(els.main);
-        updatePager(viewModel.pager || null);
-        refreshRowFillButtons();
-    }
-
-    function renderRegisteredRenderer(viewModel, container) {
-        const rendererName = String(viewModel.renderer || "").trim();
-        if (!rendererName || builtInRendererNames.has(rendererName)) {
-            return false;
-        }
-        const renderer = rendererRegistry.get(rendererName);
-        if (!renderer) {
-            return false;
-        }
-        container.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || rendererName)}</div>
-            ${renderDecisionCue(viewModel)}
-            <div class="tui-extension-host" data-renderer="${escapeHtml(rendererName)}"></div>
-        `;
-        const host = container.querySelector(".tui-extension-host");
-        try {
-            renderer({
-                viewModel,
-                container: host,
-                runtimeConfig,
-                escapeHtml,
-            });
-        } catch (_error) {
-            host.innerHTML = renderEmptyState("扩展视图暂时不可用。", ["请稍后重试，或改用默认任务查看数据。"]);
-        }
-        return true;
-    }
-
-    function requiresMissingRendererFallback(viewModel) {
-        const rendererName = String(viewModel.renderer || "").trim();
-        if (!rendererName || builtInRendererNames.has(rendererName)) {
-            return false;
-        }
-        return ["chart", "kpi_trend", "table_chart", "host_slot", "custom"].includes(viewModel.kind);
-    }
-
-    function renderDataGrid(viewModel) {
-        state.currentViewModel = viewModel;
-        state.currentColumns = viewModel.columns || [];
-        state.currentRows = viewModel.rows || [];
-        applyFilter(false);
-    }
-
-    function rowMatchesFilter(row) {
-        const needle = state.filterText.trim().toLowerCase();
-        if (!needle) {
-            return true;
-        }
-        return Object.values(row || {}).some((value) => String(value ?? "").toLowerCase().includes(needle));
-    }
-
-    function applyFilter(announce) {
-        if (!state.currentViewModel || state.currentViewModel.kind !== "datagrid") {
-            if (announce) {
-                setStatus("当前视图不可筛选");
-            }
-            return;
-        }
-        if (announce) {
-            state.clientPage = 1;
-        }
-        state.visibleRows = state.currentRows.filter(rowMatchesFilter);
-        state.selectedRowIndex = Math.min(state.selectedRowIndex, Math.max(0, state.visibleRows.length - 1));
-        drawDataGrid();
-        if (announce) {
-            setStatus(state.filterText ? `筛选 ${state.visibleRows.length}/${state.currentRows.length}` : "筛选已清除");
-        }
-    }
-
-    function drawDataGrid() {
-        const viewModel = state.currentViewModel;
-        const columns = state.currentColumns;
-        const allRows = state.visibleRows;
-        const localPage = !viewModel.pager && typeof runtimeCore.clientPage === "function"
-            ? runtimeCore.clientPage(allRows, state.clientPage, state.clientPageSize)
-            : { rows: allRows, pager: null };
-        const rows = localPage.rows;
-        const activePager = viewModel.pager || localPage.pager;
-        state.lastPager = activePager;
-        const filterSuffix = state.filterText ? ` / 筛选: ${state.filterText} (${allRows.length}/${state.currentRows.length})` : "";
-        const emptyMessage = state.filterText
-            ? "没有匹配的记录。"
-            : (viewModel.empty_message || "暂无可显示数据。");
-        const gridBody = rows.length && columns.length
-            ? `
+        `}function $a(e){return String(e.submit_label||"\u6267\u884C")}function wn(e){let t=String(e||"").split(".").filter(Boolean);const n=new Set(["pk","id","int","str","uuid","slug","path","bool","float","decimal","date","datetime"]),r=[];(t[0]==="auto"||t[0]==="param")&&(t=t.slice(1)),t[0]==="api"&&t[2]==="api"&&(t=t.slice(3));for(const a of t){if(n.has(a))break;r.push(a)}return r.join(".")}function M(e){if(!e)return null;const t=$(o.lastAction);return{...e,__tui_source_action_key:t?t.key:"",__tui_source_resource_base:wn(t?t.key:"")}}function va(e,t,n){const r=String(n||"");if(!["pk","id"].includes(r))return!0;const a=String(t&&t.__tui_source_resource_base?t.__tui_source_resource_base:""),s=wn(e&&e.key);return!a||!s?!0:a===s}function _a(e,t){if(!e||!t)return!1;const n=(e.fields||[]).filter(r=>r.input_type!=="hidden");return n.length?n.some(r=>st(t,r.key,e)!==void 0):!1}async function xa(e,t){const n={};if(!e)return n;const r=t&&t.fields||[];for(const a of r){const s=it(e,a.key);if(!s)continue;if(a.input_type==="file"){s.files&&s.files.length&&(n[a.key]=await Aa(s.files[0]));continue}const l=on(a,s.value,s.checked);(a.input_type==="checkbox"||l!=="")&&(n[a.key]=l)}return n}function Aa(e){return new Promise((t,n)=>{if(e&&Number(e.size)>ar){n(new Error("\u6587\u4EF6\u8D85\u8FC7 2MB\uFF0C\u8BF7\u6539\u7528\u66F4\u5C0F\u7684\u6587\u672C\u6587\u4EF6"));return}const r=new FileReader;r.addEventListener("load",()=>t(String(r.result||""))),r.addEventListener("error",()=>n(r.error||new Error("\u6587\u4EF6\u8BFB\u53D6\u5931\u8D25"))),r.readAsText(e,"utf-8")})}function Ca(e,t={}){const{onlyIfEmpty:n=!1,silent:r=!1,focus:a=!1}=t;if(!e)return r||f("\u6CA1\u6709\u53EF\u586B\u5145\u7684\u4EFB\u52A1"),!1;const s=Sn();if(!s)return r||f("\u5148\u5728\u8868\u683C\u4E2D\u9009\u62E9\u4E00\u884C"),!1;const l=$(be(e));if(!l)return r||f("\u4EFB\u52A1\u672A\u627E\u5230"),!1;const u=Bn(s,l),d=l.fields||[];let p=0;return d.forEach(m=>{if(m.input_type==="hidden")return;const g=it(e,m.key);if(!g||n&&(g.type==="checkbox"&&g.checked||g.type!=="checkbox"&&String(g.value||"").trim()!==""))return;const y=u[m.key];y==null||y===""||(g.type==="checkbox"?g.checked=!!y:g.value=String(y),p+=1)}),p?(r||f(`\u5DF2\u4ECE\u9009\u4E2D\u884C\u586B\u5145 ${p} \u9879`),a&&e.querySelector("input:not([type='hidden']),select,textarea")?.focus(),!0):(r||f("\u9009\u4E2D\u884C\u6CA1\u6709\u53EF\u5339\u914D\u5B57\u6BB5"),!1)}function ot(e){return Ca(e,{focus:!0})}function st(e,t,n){const r=typeof t=="object"&&t?t.key:t;if(va(n,e,r))for(const a of Ta(t,n)){const s=`__raw_${a}`;if(Object.prototype.hasOwnProperty.call(e,s)&&e[s]!==void 0&&e[s]!==null&&e[s]!=="")return e[s];if(Object.prototype.hasOwnProperty.call(e,a)&&e[a]!==void 0&&e[a]!==null&&e[a]!=="")return e[a]}}function it(e,t){if(!e||!e.elements)return null;const n=typeof e.elements.namedItem=="function"?e.elements.namedItem(t):null;return n?typeof n.length=="number"&&!n.tagName?n[0]||null:n:e.querySelector(`[name="${CSS.escape(t)}"]`)}function Sn(){const e=M(o.visibleRows[o.selectedRowIndex]);return e||(o.currentViewModel&&o.currentViewModel.kind==="datagrid"?null:o.selectedRowContext)}function Ae(){const e=Sn();i.actions.querySelectorAll("[data-action-ui-key]").forEach(t=>{const n=t.querySelector("[data-fill-from-row]");if(!n)return;const r=$(be(t)),a=_a(r,e);n.disabled=!a,n.title=a?"\u4ECE\u5F53\u524D\u9009\u4E2D\u884C\u586B\u5145\u53EF\u5339\u914D\u53C2\u6570":"\u5F53\u524D\u9009\u4E2D\u884C\u6CA1\u6709\u53EF\u5339\u914D\u5B57\u6BB5"})}function Ta(e,t){const n=typeof e=="object"&&e?e:(t&&t.fields||[]).find(l=>l.key===e)||{key:e},r=String(n.key||""),a=String(n.semantic||"").trim(),s=[];return s.push(r),a&&(s.push(a),s.push(...kn(a))),Array.isArray(n.aliases)&&s.push(...n.aliases),s.push(...kn(r)),ct(s)}function kn(e){const t=String(e||""),n=La();return Array.isArray(n[t])?n[t]:[]}function La(){return{...w.field_aliases||w.fieldAliases||{},...o.catalog&&o.catalog.field_aliases||{},...o.screen&&o.screen.field_aliases||{}}}function ct(e){return e.filter((t,n,r)=>String(t||"").trim()&&r.indexOf(t)===n)}async function S(e,t={}){const n=new AbortController,r=Xt(n);try{G(),L(),i.main.innerHTML='<div class="tui-loading">\u6B63\u5728\u52A0\u8F7D\u5DE5\u4F5C\u533A...</div>',f("\u52A0\u8F7D\u5DE5\u4F5C\u533A");const a=await E(cr(e),{signal:n.signal});return re(r)?(H(),_(a?.screen?.key)&&(o.operatorHomePayload=null,o.operatorHomePromise=null),sn(a,t),X(),a):null}catch(a){return!re(r)||a?.name==="AbortError"||(H(),Me(),ne(a,{retryScreenKey:e})),null}}async function k(e,t,n={}){const r=$(e);if(!r){f("\u4EFB\u52A1\u672A\u627E\u5230");return}const a=r.key;if(Pt(a)){Z(a);return}const s=new AbortController,l=Xt(s);try{const u=String(n.dashboardResultPanelKey||"").trim(),d=String(n.dashboardRefreshPanelKey||"").trim(),p=!!u,m=!!d,g=p||m,y=n.params?{...n.params}:t?await xa(t,r):{};if(!re(l))return;o.lastAction=a,o.lastParams=y,o.selectedRowIndex=0,Kt(r),G(),L(),p?(Object.prototype.hasOwnProperty.call(n,"dashboardResultPanelMarkup")||(n.dashboardResultPanelMarkup=Ea(u)),qa(u,r)):!n.dashboardPanelKey&&!g&&(Je(r,o.screen),en(l,r));const h={params:y,confirmed:!!n.confirmed};n.confirmation&&(h.confirmation=n.confirmation),n.reauth&&(h.reauth=n.reauth);const b=await E(je(a),{method:"POST",body:JSON.stringify(h),signal:s.signal});if(!re(l))return;if(H(),Array.isArray(b.missing_fields)&&b.missing_fields.length){o.lastRaw=null,!n.dashboardPanelKey&&!g&&ue(b.view_model),lt(n),uo(b,a,y,n),B(),f("\u7B49\u5F85\u8865\u586B");return}if(b.confirmation_required){o.lastRaw=null,!n.dashboardPanelKey&&!g&&ue(b.view_model),lt(n),po(b,a,y,n),B(),f("\u7B49\u5F85\u786E\u8BA4");return}if(b.password_challenge_required){o.lastRaw=null,!n.dashboardPanelKey&&!g&&ue(b.view_model),lt(n),fo(b,a,y,n),B(),f("\u7B49\u5F85\u9A8C\u5BC6");return}if(To(r),o.lastRaw=b.debug?.raw_response??null,g){p&&Fa(u,b.view_model,r),m&&d!==u&&await Ra(d),B(),f(m?"\u64CD\u4F5C\u5B8C\u6210\uFF0C\u6CBB\u7406\u5DE5\u4F5C\u533A\u5DF2\u66F4\u65B0":"\u8BE6\u60C5\u5DF2\u5728\u5F53\u524D\u9875\u9762\u6253\u5F00"),X();return}if(n.dashboardPanelKey){B(),await Pa(),f("\u64CD\u4F5C\u5B8C\u6210\uFF0C\u5217\u8868\u5DF2\u5237\u65B0"),X();return}$e(o.screen?.screen)||j(o.screen.actions||[],o.screen.screen),ue(b.view_model),to(b,b.view_model),B(),f("\u8BFB\u53D6\u5B8C\u6210"),X()}catch(u){if(!re(l))return;if(u?.name==="AbortError"){f("\u8BF7\u6C42\u5DF2\u53D6\u6D88");return}H();const d=String(n.dashboardResultPanelKey||"").trim();if(d){Ha(d,u);return}if(n.dashboardPanelKey){const m=(Array.isArray(o.screen?.screen?.dashboard_panels)?o.screen.screen.dashboard_panels:[]).find(y=>y.key===n.dashboardPanelKey),g=m?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(m.key)}"]`):null;m&&g?(g.innerHTML=P(m,Ve(m,u)),R(g),We(g,m)):ne(u)}else ne(u)}}async function Pa(){const e=Array.isArray(o.screen?.screen?.dashboard_panels)?o.screen.screen.dashboard_panels:[];await Promise.all(e.map(t=>ie(t)))}function U(e){return(Array.isArray(o.screen?.screen?.dashboard_panels)?o.screen.screen.dashboard_panels:[]).find(n=>n.key===e)||null}async function Ra(e){const t=U(e);t&&await ie(t)}function Ea(e){const t=U(e);return(t?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(t.key)}"]`):null)?.innerHTML||""}function lt(e={}){const t=String(e.dashboardResultPanelKey||"").trim();if(!t||!Object.prototype.hasOwnProperty.call(e,"dashboardResultPanelMarkup"))return;const n=U(t),r=n?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(n.key)}"]`):null;!n||!r||(r.innerHTML=e.dashboardResultPanelMarkup,ce(r),at(r,n),R(r),Te(r))}function qa(e,t){const n=U(e),r=n?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(n.key)}"]`):null;!n||!r||(r.innerHTML=P(n,`<div class="tui-loading">\u6B63\u5728\u6267\u884C${c(t.label||"\u5F53\u524D\u64CD\u4F5C")}...</div>`))}function Fa(e,t,n){const r=U(e),a=r?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(r.key)}"]`):null;if(!r||!a)return;const s=ve(n.key),l={...r,action_key:n.key,presentation_semantic:s[0]||r.presentation_semantic};a.innerHTML=P(r,pn(l,t)),ce(a),R(a),at(a,l),Te(a)}function Ha(e,t){const n=U(e),r=n?i.main.querySelector(`[data-dashboard-panel="${CSS.escape(n.key)}"]`):null;if(!n||!r){ne(t);return}r.innerHTML=P(n,Ve(n,t)),R(r),We(r,n)}function ue(e){if(!e){no("\u6CA1\u6709\u8FD4\u56DE\u53EF\u6E32\u67D3\u7684\u4E1A\u52A1\u89C6\u56FE\u3002");return}o.currentViewModel=e,Se(e.kind||"message"),i.mainTitle.textContent=(e.title||"\u89C6\u56FE").toUpperCase(),Ia(e,i.main)?Ze({preserveRowContext:!0}):e.kind==="datagrid"?Da(e):(Ze({preserveRowContext:!0}),Ba(e)),Za(),ce(i.main),e.kind!=="datagrid"&&pe(e.pager||null),Ae()}function Ba(e){if($n(e)){_n(e);return}({detail:Ya,chart:Oa,image:za,kpi_trend:Ma,table_chart:Ua,host_slot:Va,custom:_n,message:qn}[e.kind]||qn)(e)}function Ia(e,t){const n=String(e.renderer||"").trim();if(!n||Ke.has(n))return!1;const r=J.get(n);if(!r)return!1;t.innerHTML=`
+            <div class="tui-view-status">${c(e.status||"\u6B63\u5E38")} / ${c(e.title||n)}</div>
+            ${de(e)}
+            <div class="tui-extension-host" data-renderer="${c(n)}"></div>
+        `;const a=t.querySelector(".tui-extension-host");try{r({viewModel:e,container:a,runtimeConfig:w,escapeHtml:c})}catch{a.innerHTML=T("\u6269\u5C55\u89C6\u56FE\u6682\u65F6\u4E0D\u53EF\u7528\u3002",["\u8BF7\u7A0D\u540E\u91CD\u8BD5\uFF0C\u6216\u6539\u7528\u9ED8\u8BA4\u4EFB\u52A1\u67E5\u770B\u6570\u636E\u3002"])}return!0}function $n(e){const t=String(e.renderer||"").trim();return!t||Ke.has(t)?!1:["chart","kpi_trend","table_chart","host_slot","custom"].includes(e.kind)}function Da(e){o.currentViewModel=e,o.currentColumns=e.columns||[],o.currentRows=e.rows||[],o.clientPage=1,Ce(!1)}function Ka(e){const t=o.filterText.trim().toLowerCase();return t?Object.values(e||{}).some(n=>String(n??"").toLowerCase().includes(t)):!0}function Ce(e){if(!o.currentViewModel||o.currentViewModel.kind!=="datagrid"){e&&f("\u5F53\u524D\u89C6\u56FE\u4E0D\u53EF\u7B5B\u9009");return}e&&(o.clientPage=1),o.visibleRows=o.currentRows.filter(Ka),o.selectedRowIndex=Math.min(o.selectedRowIndex,Math.max(0,o.visibleRows.length-1)),vn(),e&&f(o.filterText?`\u7B5B\u9009 ${o.visibleRows.length}/${o.currentRows.length}`:"\u7B5B\u9009\u5DF2\u6E05\u9664")}function vn(){const e=o.currentViewModel,t=o.currentColumns,n=o.visibleRows,r=!e.pager&&typeof v.clientPage=="function"?v.clientPage(n,o.clientPage,o.clientPageSize):{rows:n,pager:null},a=r.rows,s=e.pager||r.pager;o.lastPager=s;const l=r.pager?(r.pager.page-1)*o.clientPageSize:0,u=o.filterText?` / \u7B5B\u9009: ${o.filterText} (${n.length}/${o.currentRows.length})`:"",d=o.filterText?"\u6CA1\u6709\u5339\u914D\u7684\u8BB0\u5F55\u3002":e.empty_message||"\u6682\u65E0\u53EF\u663E\u793A\u6570\u636E\u3002",p=a.length&&t.length?`
                 <table>
                     <thead>
-                        <tr>${columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr>
+                        <tr>${t.map(m=>`<th>${c(m.label)}</th>`).join("")}</tr>
                     </thead>
                     <tbody>
-                        ${rows.map((row, rowIndex) => `
-                            <tr data-row-index="${rowIndex}" class="${rowIndex === state.selectedRowIndex ? "is-selected" : ""}">
-                                ${columns.map((column) => `<td title="${escapeHtml(row[column.key])}">${escapeHtml(row[column.key])}</td>`).join("")}
+                        ${a.map((m,g)=>{const y=l+g;return`
+                            <tr data-row-index="${y}" class="${y===o.selectedRowIndex?"is-selected":""}">
+                                ${t.map(h=>`<td title="${c(m[h.key])}">${c(m[h.key])}</td>`).join("")}
                             </tr>
-                        `).join("")}
+                        `}).join("")}
                     </tbody>
                 </table>
-            `
-            : renderEmptyState(
-                emptyMessage,
-                state.filterText ? ["清空筛选后查看全部记录。"] : viewModel.empty_guidance,
-                state.filterText ? [] : viewModel.next_steps,
-            );
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}${escapeHtml(filterSuffix)}</div>
-            ${renderDecisionCue(viewModel)}
-            <div class="tui-datagrid" role="grid" tabindex="0" aria-label="${escapeHtml(viewModel.title)}">
-                ${gridBody}
+            `:T(d,o.filterText?["\u6E05\u7A7A\u7B5B\u9009\u540E\u67E5\u770B\u5168\u90E8\u8BB0\u5F55\u3002"]:e.empty_guidance,o.filterText?[]:e.next_steps);i.main.innerHTML=`
+            <div class="tui-view-status">${c(e.status)} / ${c(e.title)}${c(u)}</div>
+            ${de(e)}
+            <div class="tui-datagrid" role="grid" tabindex="0" aria-label="${c(e.title)}">
+                ${p}
             </div>
-            ${renderDataGridPager(activePager)}
-        `;
-        els.main.querySelectorAll("[data-row-index]").forEach((row) => {
-            row.addEventListener("click", () => selectRow(Number(row.dataset.rowIndex || 0)));
-            row.addEventListener("dblclick", () => openSelectedRowDetail());
-        });
-        els.main.querySelectorAll("[data-page-delta]").forEach((button) => {
-            button.addEventListener("click", () => pageDelta(Number(button.dataset.pageDelta || 0)));
-        });
-        bindNextStepButtons(els.main, viewModel.next_steps);
-        if (rows.length) {
-            state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);
-        } else {
-            state.selectedRowContext = null;
-        }
-        renderSelectedRowInspector();
-        refreshRowFillButtons();
-    }
-
-    function renderDataGridPager(pager) {
-        if (!pager) {
-            return "";
-        }
-        const page = pager.page ?? "-";
-        const totalPages = pager.total_pages ?? "-";
-        const totalRows = pager.total_rows ?? 0;
-        return `
-            <div class="tui-datagrid-pager" aria-label="分页">
-                <button type="button" data-page-delta="-1" ${pager.has_previous ? "" : "disabled"}>上一页</button>
-                <span>第 ${escapeHtml(page)} / ${escapeHtml(totalPages)} 页</span>
-                <span>共 ${escapeHtml(totalRows)} 行</span>
-                <button type="button" data-page-delta="1" ${pager.has_next ? "" : "disabled"}>下一页</button>
+            ${ja(s)}
+        `,i.main.querySelectorAll("[data-row-index]").forEach(m=>{m.addEventListener("click",()=>Hn(Number(m.dataset.rowIndex||0))),m.addEventListener("dblclick",()=>yt())}),i.main.querySelectorAll("[data-page-delta]").forEach(m=>{m.addEventListener("click",()=>gt(Number(m.dataset.pageDelta||0)))}),ut(i.main,e.next_steps),a.length?((o.selectedRowIndex<l||o.selectedRowIndex>=l+a.length)&&(o.selectedRowIndex=l),l===0?o.selectedRowContext=M(a[o.selectedRowIndex]):o.selectedRowContext=M(o.visibleRows[o.selectedRowIndex])):o.selectedRowContext=null,pe(s),mt(),Ae()}function ja(e){if(!e)return"";const t=e.page??"-",n=e.total_pages??"-",r=e.total_rows??0;return`
+            <div class="tui-datagrid-pager" aria-label="\u5206\u9875">
+                <button type="button" data-page-delta="-1" ${e.has_previous?"":"disabled"}>\u4E0A\u4E00\u9875</button>
+                <span>\u7B2C ${c(t)} / ${c(n)} \u9875</span>
+                <span>\u5171 ${c(r)} \u884C</span>
+                <button type="button" data-page-delta="1" ${e.has_next?"":"disabled"}>\u4E0B\u4E00\u9875</button>
             </div>
-        `;
-    }
-
-    function renderEmptyState(message, guidance, nextSteps = []) {
-        const lines = (guidance || []).filter(Boolean);
-        const steps = Array.isArray(nextSteps) ? nextSteps : [];
-        return `
+        `}function T(e,t,n=[]){const r=(t||[]).filter(Boolean),a=Array.isArray(n)?n:[];return`
             <div class="tui-empty-state tui-empty-guidance">
-                <strong>${escapeHtml(message)}</strong>
-                ${lines.length ? `
+                <strong>${c(e)}</strong>
+                ${r.length?`
                     <ul>
-                        ${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
+                        ${r.map(s=>`<li>${c(s)}</li>`).join("")}
                     </ul>
-                ` : ""}
-                ${steps.length ? `
+                `:""}
+                ${a.length?`
                     <div class="tui-entry-actions">
-                        ${steps.map((step, index) => `
-                            <button type="button" data-next-step-index="${index}">
-                                ${escapeHtml(step.label || "继续")}
+                        ${a.map((s,l)=>`
+                            <button type="button" data-next-step-index="${l}">
+                                ${c(s.label||"\u7EE7\u7EED")}
                             </button>
                         `).join("")}
                     </div>
-                ` : ""}
+                `:""}
             </div>
-        `;
-    }
-
-    function bindNextStepButtons(container, nextSteps) {
-        container.querySelectorAll("[data-next-step-index]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const index = Number(button.dataset.nextStepIndex || 0);
-                executeNextStep((nextSteps || [])[index]);
-            });
-        });
-    }
-
-    function executeNextStep(step) {
-        if (!step) {
-            return;
-        }
-        if (step.action_key) {
-            const params = step.params && typeof step.params === "object" ? step.params : { ...state.lastParams };
-            runAction(step.action_key, null, { params });
-            return;
-        }
-        if (step.screen_key) {
-            loadScreen(step.screen_key);
-            return;
-        }
-        setStatus(step.hint || "已记录下一步");
-    }
-
-    function renderChart(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "图表")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderChartMarkup(viewModel)}
-        `;
-    }
-
-    function renderImage(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "图片")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderImageMarkup(viewModel)}
-        `;
-    }
-
-    function renderKpiTrend(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "指标趋势")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderKpiTrendMarkup(viewModel)}
-        `;
-    }
-
-    function renderTableChart(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "表格图表")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderTableChartMarkup(viewModel)}
-        `;
-    }
-
-    function renderHostSlot(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "宿主插槽")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderHostSlotMarkup(viewModel)}
-        `;
-        processHostSlot(els.main);
-    }
-
-    function renderCustomFallback(viewModel) {
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "自定义视图")}</div>
-            ${renderDecisionCue(viewModel)}
-            ${renderExtensionFallback(viewModel)}
-        `;
-    }
-
-    function renderChartMarkup(viewModel, options = {}) {
-        const compact = Boolean(options.compact);
-        const chartType = String(viewModel.chart_type || viewModel.renderer || "line").toLowerCase();
-        const points = chartPoints(viewModel);
-        if (!points.length) {
-            return renderEmptyState(viewModel.empty_message || "暂无图表数据。", []);
-        }
-        const svg = chartType === "pie"
-            ? renderPieSvg(points)
-            : chartType === "bar"
-                ? renderBarSvg(points)
-                : renderLineSvg(points);
-        return `
-            <section class="tui-rich-view tui-chart-view ${compact ? "is-compact" : ""}">
+        `}function ut(e,t){e.querySelectorAll("[data-next-step-index]").forEach(n=>{n.addEventListener("click",()=>{const r=Number(n.dataset.nextStepIndex||0);Na((t||[])[r])})})}function Na(e){if(e){if(e.action_key){const t=e.params&&typeof e.params=="object"?{...e.params}:{};k(e.action_key,null,{params:t});return}if(e.screen_key){S(e.screen_key);return}f(e.hint||"\u5DF2\u8BB0\u5F55\u4E0B\u4E00\u6B65")}}function Oa(e){V(e,"\u56FE\u8868",dt)}function za(e){V(e,"\u56FE\u7247",xn)}function Ma(e){V(e,"\u6307\u6807\u8D8B\u52BF",Cn)}function Ua(e){V(e,"\u8868\u683C\u56FE\u8868",Tn)}function Va(e){V(e,"\u5BBF\u4E3B\u63D2\u69FD",Ln),Te(i.main)}function _n(e){V(e,"\u81EA\u5B9A\u4E49\u89C6\u56FE",pt)}function V(e,t,n){i.main.innerHTML=`
+            <div class="tui-view-status">${c(e.status||"\u6B63\u5E38")} / ${c(e.title||t)}</div>
+            ${de(e)}
+            ${n(e)}
+        `}function dt(e,t={}){const n=!!t.compact,r=String(e.chart_type||e.renderer||"line").toLowerCase(),a=Pn(e);if(!a.length)return T(e.empty_message||"\u6682\u65E0\u56FE\u8868\u6570\u636E\u3002",[]);const s=r==="pie"?Qa(a):r==="bar"?Ja(a):En(a);return`
+            <section class="tui-rich-view tui-chart-view ${n?"is-compact":""}">
                 <div class="tui-rich-header">
-                    <strong>${escapeHtml(viewModel.title || "Chart")}</strong>
-                    <span>${escapeHtml(chartType.toUpperCase())}</span>
+                    <strong>${c(e.title||"Chart")}</strong>
+                    <span>${c(r.toUpperCase())}</span>
                 </div>
-                ${svg}
+                ${s}
                 <div class="tui-chart-legend">
-                    ${points.slice(0, compact ? 4 : 8).map((point) => `
-                        <span><i></i>${escapeHtml(point.label)} ${escapeHtml(formatNumber(point.value))}</span>
+                    ${a.slice(0,n?4:8).map(l=>`
+                        <span><i></i>${c(l.label)} ${c(ft(l.value))}</span>
                     `).join("")}
                 </div>
             </section>
-        `;
-    }
-
-    function renderImageMarkup(viewModel, options = {}) {
-        const source = imageSourceFromViewModel(viewModel);
-        if (!source) {
-            return renderEmptyState(viewModel.empty_message || "暂无图片链接。", []);
-        }
-        const alt = String(viewModel.alt || viewModel.caption || viewModel.title || "Image");
-        const caption = String(viewModel.caption || "");
-        const title = String(viewModel.title || "Image");
-        return `
-            <figure class="tui-rich-view tui-image-view ${options.compact ? "is-compact" : ""}">
+        `}function xn(e,t={}){const n=Wa(e);if(!n)return T(e.empty_message||"\u6682\u65E0\u56FE\u7247\u94FE\u63A5\u3002",[]);const r=String(e.alt||e.caption||e.title||"Image"),a=String(e.caption||""),s=String(e.title||"Image");return`
+            <figure class="tui-rich-view tui-image-view ${t.compact?"is-compact":""}">
                 <div class="tui-rich-header">
-                    <strong>${escapeHtml(title)}</strong>
+                    <strong>${c(s)}</strong>
                     <span>IMAGE</span>
                 </div>
                 <button class="tui-image-frame" type="button"
                         data-image-preview
-                        data-image-src="${escapeHtml(source)}"
-                        data-image-alt="${escapeHtml(alt)}"
-                        data-image-caption="${escapeHtml(caption)}"
-                        data-image-title="${escapeHtml(title)}">
-                    <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">
+                        data-image-src="${c(n)}"
+                        data-image-alt="${c(r)}"
+                        data-image-caption="${c(a)}"
+                        data-image-title="${c(s)}">
+                    <img src="${c(n)}" alt="${c(r)}" loading="lazy" decoding="async">
                 </button>
-                ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
+                ${a?`<figcaption>${c(a)}</figcaption>`:""}
             </figure>
-        `;
-    }
-
-    function imageSourceFromViewModel(viewModel) {
-        const candidates = [
-            viewModel.url,
-            viewModel.src,
-            viewModel.image_url,
-            viewModel.imageUrl,
-            viewModel.href,
-        ];
-        for (const candidate of candidates) {
-            const source = normalizeImageSource(candidate);
-            if (source) {
-                return source;
-            }
-        }
-        return "";
-    }
-
-    function normalizeImageSource(value) {
-        const raw = String(value || "").trim();
-        if (!raw) {
-            return "";
-        }
-        try {
-            const url = new URL(raw, window.location.href);
-            if (url.protocol === "http:" || url.protocol === "https:") {
-                return raw;
-            }
-            if (url.protocol === "data:" && /^data:image\/(?:apng|avif|gif|jpe?g|png|webp);/i.test(raw)) {
-                return raw;
-            }
-            if (url.protocol === "data:" && allowSvgDataImages && /^data:image\/svg\+xml(?:[;,]|$)/i.test(raw)) {
-                return raw;
-            }
-        } catch (_error) {
-            return "";
-        }
-        return "";
-    }
-
-    function renderKpiTrendMarkup(viewModel, options = {}) {
-        const points = (viewModel.trend || []).map(normalizePoint).filter(Boolean);
-        const values = points.map((point) => point.value);
-        const first = values[0] || 0;
-        const last = values.length ? values[values.length - 1] : Number.parseFloat(viewModel.value) || 0;
-        const delta = last - first;
-        const directionClass = delta >= 0 ? "is-up" : "is-down";
-        return `
-            <section class="tui-rich-view tui-kpi-view ${options.compact ? "is-compact" : ""}">
+        `}function Wa(e){const t=[e.url,e.src,e.image_url,e.imageUrl,e.href];for(const n of t){const r=An(n);if(r)return r}return""}function An(e){const t=String(e||"").trim();if(!t)return"";try{const n=new URL(t,window.location.href);if(n.protocol==="http:"||n.protocol==="https:"||n.protocol==="data:"&&/^data:image\/(?:apng|avif|gif|jpe?g|png|webp);/i.test(t)||n.protocol==="data:"&&sr&&/^data:image\/svg\+xml(?:[;,]|$)/i.test(t))return t}catch{return""}return""}function Cn(e,t={}){const n=(e.trend||[]).map(Rn).filter(Boolean),r=n.map(d=>d.value),a=r[0]||0,s=r.length?r[r.length-1]:Number.parseFloat(e.value)||0,l=s-a,u=l>=0?"is-up":"is-down";return`
+            <section class="tui-rich-view tui-kpi-view ${t.compact?"is-compact":""}">
                 <div class="tui-kpi-main">
-                    <span>${escapeHtml(viewModel.label || viewModel.title || "KPI")}</span>
-                    <strong>${escapeHtml(viewModel.value || formatNumber(last))}</strong>
-                    <em class="${directionClass}">${delta >= 0 ? "+" : ""}${escapeHtml(formatNumber(delta))}</em>
+                    <span>${c(e.label||e.title||"KPI")}</span>
+                    <strong>${c(e.value||ft(s))}</strong>
+                    <em class="${u}">${l>=0?"+":""}${c(ft(l))}</em>
                 </div>
-                ${points.length ? `<div class="tui-kpi-spark">${renderLineSvg(points, { spark: true })}</div>` : ""}
+                ${n.length?`<div class="tui-kpi-spark">${En(n,{spark:!0})}</div>`:""}
             </section>
-        `;
-    }
-
-    function renderTableChartMarkup(viewModel, options = {}) {
-        const chart = viewModel.chart || {};
-        const table = viewModel.table || {};
-        return `
-            <section class="tui-rich-view tui-table-chart-view ${options.compact ? "is-compact" : ""}">
-                ${renderChartMarkup({ ...chart, title: chart.title || viewModel.title }, { compact: options.compact })}
+        `}function Tn(e,t={}){const n=e.chart||{},r=e.table||{};return`
+            <section class="tui-rich-view tui-table-chart-view ${t.compact?"is-compact":""}">
+                ${dt({...n,title:n.title||e.title},{compact:t.compact})}
                 <div class="tui-table-chart-grid">
-                    ${renderPanelDataGrid({ max_rows: options.compact ? 4 : 10, columns: table.columns || [] }, table)}
+                    ${fn({max_rows:t.compact?4:10,columns:r.columns||[]},r)}
                 </div>
             </section>
-        `;
-    }
-
-    function renderHostSlotMarkup(viewModel, options = {}) {
-        const allowHostHtml = Boolean(runtimeConfig.allowHostHtmlSlots);
-        const html = String(viewModel.partial_html || "");
-        const message = viewModel.fallback_message || "宿主插槽内容由宿主应用控制。";
-        if (!allowHostHtml || !html) {
-            return `
-                <section class="tui-rich-view tui-host-slot ${options.compact ? "is-compact" : ""}">
+        `}function Ln(e,t={}){const n=!!w.allowHostHtmlSlots,r=String(e.partial_html||""),a=e.fallback_message||"\u5BBF\u4E3B\u63D2\u69FD\u5185\u5BB9\u7531\u5BBF\u4E3B\u5E94\u7528\u63A7\u5236\u3002";return!n||!r?`
+                <section class="tui-rich-view tui-host-slot ${t.compact?"is-compact":""}">
                     <div class="tui-rich-header">
-                        <strong>${escapeHtml(viewModel.slot_key || viewModel.title || "host-slot")}</strong>
+                        <strong>${c(e.slot_key||e.title||"host-slot")}</strong>
                         <span>HOST SLOT</span>
                     </div>
-                    ${renderEmptyState(message, allowHostHtml ? [] : ["当前 runtime 未开启 allowHostHtmlSlots。"])}
+                    ${T(a,n?[]:["\u5F53\u524D runtime \u672A\u5F00\u542F allowHostHtmlSlots\u3002"])}
                 </section>
-            `;
-        }
-        return `
-            <section class="tui-rich-view tui-host-slot ${options.compact ? "is-compact" : ""}" data-host-slot="${escapeHtml(viewModel.slot_key || "")}">
-                ${html}
+            `:`
+            <section class="tui-rich-view tui-host-slot ${t.compact?"is-compact":""}" data-host-slot="${c(e.slot_key||"")}">
+                ${r}
             </section>
-        `;
-    }
-
-    function processHostSlot(container) {
-        if (runtimeConfig.allowHostHtmlSlots && window.htmx && typeof window.htmx.process === "function") {
-            container.querySelectorAll(".tui-host-slot").forEach((slot) => window.htmx.process(slot));
-        }
-    }
-
-    function renderExtensionFallback(viewModel) {
-        const rendererName = String(viewModel.renderer || "").trim() || "custom";
-        return renderEmptyState(
-            viewModel.fallback_message || `没有注册 renderer: ${rendererName}`,
-            ["宿主可以通过 window.AgomTUIRenderers.register(name, rendererFn) 注册扩展。"],
-        );
-    }
-
-    function chartPoints(viewModel) {
-        const series = Array.isArray(viewModel.series) ? viewModel.series : [];
-        const firstSeries = series.find((item) => Array.isArray(item?.points));
-        const points = firstSeries ? firstSeries.points : (Array.isArray(viewModel.points) ? viewModel.points : []);
-        return points.map(normalizePoint).filter(Boolean);
-    }
-
-    function normalizePoint(point, index = 0) {
-        if (point === null || point === undefined) {
-            return null;
-        }
-        if (typeof point === "number") {
-            return { label: String(index + 1), value: point };
-        }
-        const value = Number.parseFloat(point.value ?? point.y ?? point.count ?? point.total);
-        if (!Number.isFinite(value)) {
-            return null;
-        }
-        return {
-            label: String(point.label ?? point.x ?? point.name ?? index + 1),
-            value,
-        };
-    }
-
-    function chartScale(points, width, height, padding) {
-        const values = points.map((point) => point.value);
-        const min = Math.min(0, ...values);
-        const max = Math.max(1, ...values);
-        const span = max - min || 1;
-        return {
-            x(index) {
-                if (points.length <= 1) {
-                    return width / 2;
-                }
-                return padding + (index / (points.length - 1)) * (width - padding * 2);
-            },
-            y(value) {
-                return height - padding - ((value - min) / span) * (height - padding * 2);
-            },
-        };
-    }
-
-    function renderLineSvg(points, options = {}) {
-        const width = options.spark ? 240 : 640;
-        const height = options.spark ? 72 : 220;
-        const padding = options.spark ? 8 : 28;
-        const scale = chartScale(points, width, height, padding);
-        const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${scale.x(index).toFixed(1)} ${scale.y(point.value).toFixed(1)}`).join(" ");
-        return `
-            <svg class="tui-chart-svg ${options.spark ? "is-spark" : ""}" viewBox="0 0 ${width} ${height}" role="img">
-                <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
-                <path class="tui-chart-line" d="${escapeHtml(path)}"></path>
-                ${points.map((point, index) => `<circle class="tui-chart-point" cx="${scale.x(index).toFixed(1)}" cy="${scale.y(point.value).toFixed(1)}" r="${options.spark ? 2 : 3}"></circle>`).join("")}
+        `}function Te(e){w.allowHostHtmlSlots&&window.htmx&&typeof window.htmx.process=="function"&&e.querySelectorAll(".tui-host-slot").forEach(t=>window.htmx.process(t))}function pt(e){const t=String(e.renderer||"").trim()||"custom";return T(e.fallback_message||`\u6CA1\u6709\u6CE8\u518C renderer: ${t}`,["\u5BBF\u4E3B\u53EF\u4EE5\u901A\u8FC7 window.AgomTUIRenderers.register(name, rendererFn) \u6CE8\u518C\u6269\u5C55\u3002"])}function Pn(e){const n=(Array.isArray(e.series)?e.series:[]).find(a=>Array.isArray(a?.points));return(n?n.points:Array.isArray(e.points)?e.points:[]).map(Rn).filter(Boolean)}function Rn(e,t=0){if(e==null)return null;if(typeof e=="number")return{label:String(t+1),value:e};const n=Number.parseFloat(e.value??e.y??e.count??e.total);return Number.isFinite(n)?{label:String(e.label??e.x??e.name??t+1),value:n}:null}function Ga(e,t,n,r){const a=e.map(d=>d.value),s=Math.min(0,...a),u=Math.max(1,...a)-s||1;return{x(d){return e.length<=1?t/2:r+d/(e.length-1)*(t-r*2)},y(d){return n-r-(d-s)/u*(n-r*2)}}}function En(e,t={}){const n=t.spark?240:640,r=t.spark?72:220,a=t.spark?8:28,s=Ga(e,n,r,a),l=e.map((u,d)=>`${d===0?"M":"L"}${s.x(d).toFixed(1)} ${s.y(u.value).toFixed(1)}`).join(" ");return`
+            <svg class="tui-chart-svg ${t.spark?"is-spark":""}" viewBox="0 0 ${n} ${r}" role="img">
+                <path class="tui-chart-gridline" d="M${a} ${r-a}H${n-a}"></path>
+                <path class="tui-chart-line" d="${c(l)}"></path>
+                ${e.map((u,d)=>`<circle class="tui-chart-point" cx="${s.x(d).toFixed(1)}" cy="${s.y(u.value).toFixed(1)}" r="${t.spark?2:3}"></circle>`).join("")}
             </svg>
-        `;
-    }
-
-    function renderBarSvg(points) {
-        const width = 640;
-        const height = 220;
-        const padding = 28;
-        const max = Math.max(1, ...points.map((point) => point.value));
-        const barGap = 8;
-        const barWidth = Math.max(8, (width - padding * 2 - barGap * (points.length - 1)) / points.length);
-        return `
-            <svg class="tui-chart-svg" viewBox="0 0 ${width} ${height}" role="img">
-                <path class="tui-chart-gridline" d="M${padding} ${height - padding}H${width - padding}"></path>
-                ${points.map((point, index) => {
-                    const x = padding + index * (barWidth + barGap);
-                    const barHeight = Math.max(2, (point.value / max) * (height - padding * 2));
-                    const y = height - padding - barHeight;
-                    return `<rect class="tui-chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}"></rect>`;
-                }).join("")}
+        `}function Ja(e){const a=e.map(y=>y.value),s=Math.max(0,...a),l=Math.min(0,...a),u=s-l||1,d=y=>192-(y-l)/u*164,p=d(0),m=8,g=Math.max(8,(584-m*(e.length-1))/e.length);return`
+            <svg class="tui-chart-svg" viewBox="0 0 640 220" role="img">
+                <path class="tui-chart-gridline" d="M28 ${p.toFixed(1)}H612"></path>
+                ${e.map((y,h)=>{const b=28+h*(g+m),q=d(y.value),O=Math.min(p,q),qe=Math.max(2,Math.abs(q-p));return`<rect class="tui-chart-bar" x="${b.toFixed(1)}" y="${O.toFixed(1)}" width="${g.toFixed(1)}" height="${qe.toFixed(1)}"></rect>`}).join("")}
             </svg>
-        `;
-    }
-
-    function renderPieSvg(points) {
-        const total = points.reduce((sum, point) => sum + Math.max(0, point.value), 0) || 1;
-        let offset = 0;
-        const slices = points.map((point, index) => {
-            const value = Math.max(0, point.value);
-            const dash = (value / total) * 100;
-            const slice = `<circle class="tui-chart-pie-slice slice-${index % 6}" r="70" cx="100" cy="100" pathLength="100" stroke-dasharray="${dash} ${100 - dash}" stroke-dashoffset="${-offset}"></circle>`;
-            offset += dash;
-            return slice;
-        }).join("");
-        return `
+        `}function Qa(e){const t=e.reduce((a,s)=>a+Math.max(0,s.value),0)||1;let n=0;return`
             <svg class="tui-chart-svg tui-chart-pie" viewBox="0 0 200 200" role="img">
-                ${slices}
+                ${e.map((a,s)=>{const u=Math.max(0,a.value)/t*100,d=`<circle class="tui-chart-pie-slice slice-${s%6}" r="70" cx="100" cy="100" pathLength="100" stroke-dasharray="${u} ${100-u}" stroke-dashoffset="${-n}"></circle>`;return n+=u,d}).join("")}
                 <circle class="tui-chart-pie-hole" r="38" cx="100" cy="100"></circle>
             </svg>
-        `;
-    }
-
-    function formatNumber(value) {
-        const number = Number(value);
-        if (!Number.isFinite(number)) {
-            return String(value ?? "-");
-        }
-        return Math.abs(number) >= 100 ? number.toFixed(0) : number.toFixed(2).replace(/\.00$/, "");
-    }
-
-    function renderDetail(viewModel) {
-        const semantics = currentActionSemantics();
-        const detailBody = semantics.length
-            ? renderSemanticDetailView(viewModel, semantics)
-            : renderSemanticGridFields(viewModel.fields || []);
-        const nested = semantics.length ? [] : (viewModel.nested || []);
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status)} / ${escapeHtml(viewModel.title)}</div>
-            ${renderDecisionCue(viewModel)}
-            ${detailBody || renderEmptyState("暂无摘要数据。", [])}
-            ${nested.length ? `
+        `}function ft(e){const t=Number(e);return Number.isFinite(t)?Math.abs(t)>=100?t.toFixed(0):t.toFixed(2).replace(/\.00$/,""):String(e??"-")}function Ya(e){const t=da(),n=t.length?mn(e,t):gn(e.fields||[]),r=t.length?[]:e.nested||[];i.main.innerHTML=`
+            <div class="tui-view-status">${c(e.status)} / ${c(e.title)}</div>
+            ${de(e)}
+            ${n||T("\u6682\u65E0\u6458\u8981\u6570\u636E\u3002",[])}
+            ${r.length?`
                 <div class="tui-nested-list">
-                    ${nested.map((item) => `<span>${escapeHtml(item.label)}: ${escapeHtml(item.count)} 行</span>`).join("")}
+                    ${r.map(a=>`<span>${c(a.label)}: ${c(a.count)} \u884C</span>`).join("")}
                 </div>
-            ` : ""}
-            ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
-        `;
-        bindNextStepButtons(els.main, viewModel.next_steps);
-    }
-
-    function renderMessage(viewModel) {
-        const sections = Array.isArray(viewModel.sections) ? viewModel.sections : [];
-        const body = sections.length
-            ? sections.map((section) => `
+            `:""}
+            ${Array.isArray(e.next_steps)&&e.next_steps.length?T("\u5EFA\u8BAE\u4E0B\u4E00\u6B65",[],e.next_steps):""}
+        `,ut(i.main,e.next_steps)}function qn(e){const t=Array.isArray(e.sections)?e.sections:[],n=t.length?t.map(r=>`
                 <section class="tui-message-section">
-                    <h4>${escapeHtml(section.title || "摘要")}</h4>
-                    ${(section.body || []).map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
-                    ${(section.rows || []).length ? `
+                    <h4>${c(r.title||"\u6458\u8981")}</h4>
+                    ${(r.body||[]).map(a=>`<p>${c(a)}</p>`).join("")}
+                    ${(r.rows||[]).length?`
                         <dl class="tui-message-fields">
-                            ${section.rows.map((row) => `
-                                <dt>${escapeHtml(row.label)}</dt>
-                                <dd>${escapeHtml(row.value)}</dd>
+                            ${r.rows.map(a=>`
+                                <dt>${c(a.label)}</dt>
+                                <dd>${c(a.value)}</dd>
                             `).join("")}
                         </dl>
-                    ` : ""}
+                    `:""}
                 </section>
-            `).join("")
-            : `<div class="tui-message">${escapeHtml(viewModel.message || "")}</div>`;
-        els.main.innerHTML = `
-            <div class="tui-view-status">${escapeHtml(viewModel.status || "正常")} / ${escapeHtml(viewModel.title || "消息")}</div>
-            ${renderDecisionCue(viewModel)}
-            <div class="tui-message-list">${body}</div>
-            ${Array.isArray(viewModel.next_steps) && viewModel.next_steps.length ? renderEmptyState("建议下一步", [], viewModel.next_steps) : ""}
-        `;
-        bindNextStepButtons(els.main, viewModel.next_steps);
-    }
-
-    function renderDecisionCue(viewModel) {
-        const screen = state.screen?.screen || {};
-        const context = screen.business_context || {};
-        if (!context.decision_output && !context.objective && !viewModel?.business_summary) {
-            return "";
-        }
-        const workflow = screen.workflow || {};
-        const next = workflow.next || {};
-        const actions = (state.screen && state.screen.actions) || [];
-        const summary = summarizeActions(actions);
-        const evidence = resultEvidenceLabel(viewModel);
-        const businessSummary = String(viewModel?.business_summary || "").trim();
-        const rows = [
-            ["判断产出", businessSummary || context.decision_output || context.objective],
-            ["当前证据", evidence],
-        ];
-        if (viewModel?.blocking_reason) {
-            rows.push(["当前阻断", viewModel.blocking_reason]);
-        }
-        const cueActions = [];
-        if (summary.operation) {
-            rows.push(["可执行操作", `${summary.operation} 项，提交前确认`]);
-        }
-        const progress = screenProgress(actions);
-        if (progress.total) {
-            rows.push(["本屏进度", `${progress.completed}/${progress.total}`]);
-        }
-        const nextPrimary = nextPrimaryAction();
-        if (nextPrimary) {
-            rows.push(["本屏下一项", nextPrimary.label]);
-            cueActions.push({
-                command: "next-primary",
-                label: nextPrimary.label,
-                key: "F6",
-                title: "运行下一主流程",
-            });
-        }
-        if (next.label) {
-            rows.push(["下一步", next.label]);
-            cueActions.push({
-                command: "workflow-next",
-                label: next.label,
-                key: "F4",
-                title: "进入流程下一屏",
-            });
-        }
-        return `
+            `).join(""):`<div class="tui-message">${c(e.message||"")}</div>`;i.main.innerHTML=`
+            <div class="tui-view-status">${c(e.status||"\u6B63\u5E38")} / ${c(e.title||"\u6D88\u606F")}</div>
+            ${de(e)}
+            <div class="tui-message-list">${n}</div>
+            ${Array.isArray(e.next_steps)&&e.next_steps.length?T("\u5EFA\u8BAE\u4E0B\u4E00\u6B65",[],e.next_steps):""}
+        `,ut(i.main,e.next_steps)}function de(e){const t=o.screen?.screen||{},n=t.business_context||{};if(!n.decision_output&&!n.objective&&!e?.business_summary)return"";const a=(t.workflow||{}).next||{},s=o.screen&&o.screen.actions||[],l=le(s),u=Xa(e),p=[["\u5224\u65AD\u4EA7\u51FA",String(e?.business_summary||"").trim()||n.decision_output||n.objective],["\u5F53\u524D\u8BC1\u636E",u]];e?.blocking_reason&&p.push(["\u5F53\u524D\u963B\u65AD",e.blocking_reason]);const m=[];l.operation&&p.push(["\u53EF\u6267\u884C\u64CD\u4F5C",`${l.operation} \u9879\uFF0C\u63D0\u4EA4\u524D\u786E\u8BA4`]);const g=Re(s);g.total&&p.push(["\u672C\u5C4F\u8FDB\u5EA6",`${g.completed}/${g.total}`]);const y=wt();return y&&(p.push(["\u672C\u5C4F\u4E0B\u4E00\u9879",y.label]),m.push({command:"next-primary",label:y.label,key:"F6",title:"\u8FD0\u884C\u4E0B\u4E00\u4E3B\u6D41\u7A0B"})),a.label&&(p.push(["\u4E0B\u4E00\u6B65",a.label]),m.push({command:"workflow-next",label:a.label,key:"F4",title:"\u8FDB\u5165\u6D41\u7A0B\u4E0B\u4E00\u5C4F"})),`
             <section class="tui-decision-cue">
-                ${rows.map(([label, value]) => `
+                ${p.map(([h,b])=>`
                     <div>
-                        <span>${escapeHtml(label)}</span>
-                        <strong>${escapeHtml(value)}</strong>
+                        <span>${c(h)}</span>
+                        <strong>${c(b)}</strong>
                     </div>
                 `).join("")}
-                ${cueActions.length ? `
+                ${m.length?`
                     <div class="tui-decision-actions">
-                        <span>继续</span>
+                        <span>\u7EE7\u7EED</span>
                         <strong>
-                            ${cueActions.map((action) => `
-                                <button type="button" data-decision-action="${escapeHtml(action.command)}">
-                                    ${escapeHtml(action.title)}: ${escapeHtml(action.label)}
-                                    <kbd>${escapeHtml(action.key)}</kbd>
+                            ${m.map(h=>`
+                                <button type="button" data-decision-action="${c(h.command)}">
+                                    ${c(h.title)}: ${c(h.label)}
+                                    <kbd>${c(h.key)}</kbd>
                                 </button>
                             `).join("")}
                         </strong>
                     </div>
-                ` : ""}
+                `:""}
             </section>
-        `;
-    }
-
-    function bindDecisionCueActions() {
-        els.main.querySelectorAll("[data-decision-action]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const command = button.dataset.decisionAction;
-                if (command === "next-primary") {
-                    runNextPrimaryAction();
-                } else if (command === "workflow-next") {
-                    loadWorkflowStep(1);
-                }
-            });
-        });
-    }
-
-    function resultEvidenceLabel(viewModel) {
-        if (!viewModel) {
-            return "尚未返回业务视图";
-        }
-        if (viewModel.kind === "datagrid") {
-            const total = viewModel.pager?.total_rows ?? state.currentRows.length;
-            if (state.filterText) {
-                return `筛选后 ${state.visibleRows.length}/${state.currentRows.length} 行`;
-            }
-            return `表格 ${state.currentRows.length}/${total} 行`;
-        }
-        if (viewModel.kind === "detail") {
-            const fields = (viewModel.fields || []).length;
-            const nested = (viewModel.nested || []).reduce((count, item) => count + Number(item.count || 0), 0);
-            return nested ? `详情 ${fields} 项，关联 ${nested} 行` : `详情 ${fields} 项`;
-        }
-        if (viewModel.kind === "chart") {
-            const points = chartPoints(viewModel).length;
-            return `图表 ${points} 点`;
-        }
-        if (viewModel.kind === "kpi_trend") {
-            const points = (viewModel.trend || []).length;
-            return points ? `指标趋势 ${points} 点` : "指标趋势";
-        }
-        if (viewModel.kind === "table_chart") {
-            const rows = viewModel.table?.rows?.length || 0;
-            return `图表表格 ${rows} 行`;
-        }
-        if (viewModel.kind === "host_slot") {
-            return "宿主插槽";
-        }
-        if (viewModel.kind === "custom") {
-            return `自定义 ${viewModel.renderer || "renderer"}`;
-        }
-        const sections = (viewModel.sections || []).length;
-        return sections ? `消息 ${sections} 段` : "消息结果";
-    }
-
-    function renderInspector(info) {
-        const sections = Array.isArray(info.sections) ? info.sections : [];
-        const rows = normalizeInspectorRows(info.rows || []);
-        const bodyLines = operatorText(info.body || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
-        const rowsTitle = operatorText(info.rowsTitle || "流程状态");
-        els.inspector.innerHTML = `
+        `}function Za(){i.main.querySelectorAll("[data-decision-action]").forEach(e=>{e.addEventListener("click",()=>{const t=e.dataset.decisionAction;t==="next-primary"?Vn():t==="workflow-next"&&bt(1)})})}function Xa(e){if(!e)return"\u5C1A\u672A\u8FD4\u56DE\u4E1A\u52A1\u89C6\u56FE";if(e.kind==="datagrid"){const n=e.pager?.total_rows??o.currentRows.length;return o.filterText?`\u7B5B\u9009\u540E ${o.visibleRows.length}/${o.currentRows.length} \u884C`:`\u8868\u683C ${o.currentRows.length}/${n} \u884C`}if(e.kind==="detail"){const n=(e.fields||[]).length,r=(e.nested||[]).reduce((a,s)=>a+Number(s.count||0),0);return r?`\u8BE6\u60C5 ${n} \u9879\uFF0C\u5173\u8054 ${r} \u884C`:`\u8BE6\u60C5 ${n} \u9879`}if(e.kind==="chart")return`\u56FE\u8868 ${Pn(e).length} \u70B9`;if(e.kind==="kpi_trend"){const n=(e.trend||[]).length;return n?`\u6307\u6807\u8D8B\u52BF ${n} \u70B9`:"\u6307\u6807\u8D8B\u52BF"}if(e.kind==="table_chart")return`\u56FE\u8868\u8868\u683C ${e.table?.rows?.length||0} \u884C`;if(e.kind==="host_slot")return"\u5BBF\u4E3B\u63D2\u69FD";if(e.kind==="custom")return`\u81EA\u5B9A\u4E49 ${e.renderer||"renderer"}`;const t=(e.sections||[]).length;return t?`\u6D88\u606F ${t} \u6BB5`:"\u6D88\u606F\u7ED3\u679C"}function W(e){const t=Array.isArray(e.sections)?e.sections:[],n=Fn(e.rows||[]),r=x(e.body||"").split(/\n+/).map(s=>s.trim()).filter(Boolean),a=x(e.rowsTitle||"\u6D41\u7A0B\u72B6\u6001");i.inspector.innerHTML=`
             <section class="tui-inspector-card tui-inspector-summary">
-                <div class="tui-inspector-title">${escapeHtml(info.title || "说明")}</div>
-                ${bodyLines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}
+                <div class="tui-inspector-title">${c(e.title||"\u8BF4\u660E")}</div>
+                ${r.map(s=>`<p>${c(s)}</p>`).join("")}
             </section>
-            ${rows.length ? `
+            ${n.length?`
                 <section class="tui-inspector-card">
-                    <div class="tui-inspector-title">${escapeHtml(rowsTitle)}</div>
+                    <div class="tui-inspector-title">${c(a)}</div>
                     <dl class="tui-inspector-grid">
-                        ${rows.map((row) => `
-                            <dt>${escapeHtml(row.label)}</dt>
-                            <dd>${escapeHtml(row.value)}</dd>
+                        ${n.map(s=>`
+                            <dt>${c(s.label)}</dt>
+                            <dd>${c(s.value)}</dd>
                         `).join("")}
                     </dl>
                 </section>
-            ` : ""}
-            ${sections.length ? `
+            `:""}
+            ${t.length?`
                 <div class="tui-inspector-sections">
-                    ${sections.map((section) => `
+                    ${t.map(s=>`
                         <section class="tui-message-section">
-                            <h4>${escapeHtml(operatorText(section.title || "摘要"))}</h4>
-                            ${(section.body || []).map((line) => `<p>${escapeHtml(operatorText(line))}</p>`).join("")}
-                            ${(section.actions || []).length ? `
+                            <h4>${c(x(s.title||"\u6458\u8981"))}</h4>
+                            ${(s.body||[]).map(l=>`<p>${c(x(l))}</p>`).join("")}
+                            ${(s.actions||[]).length?`
                                 <div class="tui-inspector-actions">
-                                    ${section.actions.map((action) => `
-                                        <button type="button" data-inspector-action="${escapeHtml(action.ui_key)}">
-                                            <span>${escapeHtml(action.label)}</span>
-                                            <kbd>${escapeHtml(action.verb)}</kbd>
+                                    ${s.actions.map(l=>`
+                                        <button type="button" data-inspector-action="${c(l.ui_key)}">
+                                            <span>${c(l.label)}</span>
+                                            <kbd>${c(l.verb)}</kbd>
                                         </button>
                                     `).join("")}
                                 </div>
-                            ` : ""}
-                            ${(section.rows || []).length ? `
+                            `:""}
+                            ${(s.rows||[]).length?`
                                 <dl class="tui-message-fields">
-                                    ${normalizeInspectorRows(section.rows).map((row) => `
-                                        <dt>${escapeHtml(row.label)}</dt>
-                                        <dd>${escapeHtml(row.value)}</dd>
+                                    ${Fn(s.rows).map(l=>`
+                                        <dt>${c(l.label)}</dt>
+                                        <dd>${c(l.value)}</dd>
                                     `).join("")}
                                 </dl>
-                            ` : ""}
+                            `:""}
                         </section>
                     `).join("")}
                 </div>
-            ` : ""}
-        `;
-        els.inspector.querySelectorAll("[data-inspector-action]").forEach((button) => {
-            button.addEventListener("click", () => runInspectorAction(button.dataset.inspectorAction));
-        });
-    }
-
-    function normalizeInspectorRows(rows) {
-        return (rows || []).map((row) => {
-            if (Array.isArray(row)) {
-                return { label: row[0], value: row[1] };
-            }
-            return { label: row.label, value: row.value };
-        }).filter((row) => row.label !== undefined && row.value !== undefined)
-            .map((row) => ({
-                label: operatorText(row.label),
-                value: operatorText(row.value),
-            }));
-    }
-
-    function inspectorFlowRows(result) {
-        const progress = screenProgress();
-        const nextAction = nextPrimaryAction();
-        const operationCount = ((state.screen && state.screen.actions) || [])
-            .filter((action) => actionTier(action) === "operation")
-            .length;
-        const rows = [
-            ["操作方式", actionVerbLabel(result.action)],
-            ["本屏进度", `${progress.completed}/${progress.total}`],
-        ];
-        if (nextAction && nextAction.key !== result.action.key) {
-            rows.push(["下一项", nextAction.label]);
-        }
-        if (operationCount) {
-            rows.push(["可执行操作", `${operationCount} 项`]);
-        }
-        if (result.action.confirmation_required) {
-            rows.push(["确认策略", "提交前会要求确认"]);
-        }
-        return rows;
-    }
-
-    function renderResultInspector(result, viewModel) {
-        const businessContext = state.screen?.screen?.business_context || {};
-        const contextSections = businessContextSections(businessContext);
-        const operationActions = ((state.screen && state.screen.actions) || [])
-            .filter((action) => actionTier(action) === "operation")
-            .slice(0, 5)
-            .map((action) => `${action.label} / ${actionVerbLabel(action)}`);
-        const actionRows = inspectorFlowRows(result);
-        const sections = [
-            ...contextSections,
-            ...(operationActions.length ? [{
-                title: "后续动作",
-                body: operationActions,
-                rows: [],
-            }] : []),
-        ];
-        if (!viewModel) {
-            renderInspector({
-                title: result.action.label,
-                body: result.action.description || "",
-                rows: actionRows,
-                sections,
-            });
-            return;
-        }
-        if (viewModel.kind === "detail") {
-            renderInspector({
-                title: "操作说明",
-                body: result.action.description || "中间主面板显示完整业务明细，右栏只保留流程、证据与后续动作。",
-                rowsTitle: "流程状态",
-                rows: actionRows,
-                sections: [
-                    {
-                        title: "阅读提示",
-                        body: ["完整业务明细已在中间主面板显示。右栏不再重复渲染同一对象。"],
-                        rows: [],
-                    },
-                    ...sections,
-                ],
-            });
-            return;
-        }
-        if (viewModel.kind === "message") {
-            renderInspector({
-                title: "操作说明",
-                body: result.action.description || "中间主面板显示当前结果说明，右栏保留导航与后续动作。",
-                rowsTitle: "流程状态",
-                rows: actionRows,
-                sections: [
-                    {
-                        title: "阅读提示",
-                        body: ["结果说明已在中间主面板显示。右栏保留流程导航、业务目标与后续动作。"],
-                        rows: [],
-                    },
-                    ...sections,
-                ],
-            });
-            return;
-        }
-        renderSelectedRowInspector([
-            ...actionRows,
-            ...operationActions.slice(0, 3).map((label, index) => [`可执行动作 ${index + 1}`, label]),
-        ]);
-    }
-
-    function renderError(message) {
-        els.main.innerHTML = `<div class="tui-error">${escapeHtml(message)}</div>`;
-        updatePager(null);
-        setStatus("错误");
-    }
-
-    function updatePager(pager) {
-        state.lastPager = pager;
-        if (!pager) {
-            els.pager.textContent = "页 -/- | 0 行";
-            return;
-        }
-        els.pager.textContent = `页 ${pager.page}/${pager.total_pages} | ${pager.total_rows} 行 | ${pager.has_previous ? "PgUp" : "--"} / ${pager.has_next ? "PgDn" : "--"}`;
-    }
-
-    function updateRawDrawer() {
-        els.rawPanel.textContent = state.lastRaw === null ? "尚未加载原始响应。" : JSON.stringify(state.lastRaw, null, 2);
-    }
-
-    function toggleRawDrawer(show) {
-        els.rawDrawer.hidden = typeof show === "boolean" ? !show : !els.rawDrawer.hidden;
-        setStatus(els.rawDrawer.hidden ? "原始响应关闭" : "原始响应打开");
-    }
-
-    function selectRow(index) {
-        state.selectedRowIndex = index;
-        els.main.querySelectorAll("[data-row-index]").forEach((row) => {
-            row.classList.toggle("is-selected", Number(row.dataset.rowIndex || 0) === index);
-        });
-        const row = state.visibleRows[index];
-        state.selectedRowContext = rowContextWithSource(row);
-        if (row) {
-            setStatus(`行 ${index + 1}/${state.visibleRows.length}`);
-            renderSelectedRowInspector();
-        }
-        refreshRowFillButtons();
-    }
-
-    function renderSelectedRowInspector(prefixRows = []) {
-        if (!state.currentViewModel || state.currentViewModel.kind !== "datagrid") {
-            return;
-        }
-        const row = state.visibleRows[state.selectedRowIndex];
-        const rows = row
-            ? rowDisplayRows(row, 14)
-            : [["状态", state.filterText ? "没有匹配记录" : "暂无记录"]];
-        const rowContext = rowContextWithSource(row);
-        const rowActions = rowContext ? actionsAvailableForRow(rowContext) : [];
-        const sections = [];
-        if (rowActions.length) {
-            sections.push({
-                title: "选中行可做",
-                body: ["直接使用选中记录填入参数。"],
-                actions: rowActions.map((action) => ({
-                    ui_key: actionUiKey(action),
-                    label: action.label,
-                    verb: actionVerbLabel(action),
-                })),
-                rows: [],
-            });
-        }
-        sections.push({
-            title: "键盘操作",
-            body: ["方向键移动，Enter 打开详情，F7 筛选，F9 进入任务区，F8 导出。"],
-            rows: [],
-        });
-        renderInspector({
-            title: row ? `选中记录 ${state.selectedRowIndex + 1}/${state.visibleRows.length}` : "表格状态",
-            body: state.currentViewModel.title || "",
-            rows: [...prefixRows, ...rows],
-            sections,
-        });
-    }
-
-    function actionsAvailableForRow(row) {
-        const actions = (state.screen && state.screen.actions) || [];
-        return actions
-            .filter((action) => {
-                const fields = (action.fields || []).filter((field) => field.input_type !== "hidden");
-                if (!fields.length) {
-                    return false;
-                }
-                return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);
-            })
-            .sort((left, right) => {
-                const tierRank = { operation: 0, advanced: 1, primary: 2, support: 3 };
-                return (tierRank[actionTier(left)] ?? 9) - (tierRank[actionTier(right)] ?? 9)
-                    || Number(left.sequence || 999) - Number(right.sequence || 999);
-            })
-            .slice(0, 5);
-    }
-
-    function paramsFromRowForAction(row, action) {
-        const params = {};
-        const fields = (action && action.fields) || [];
-        fields.forEach((field) => {
-            if (field.input_type === "hidden") {
-                return;
-            }
-            const value = rowValueForField(row, field.key, action);
-            if (value !== undefined && value !== null && value !== "") {
-                params[field.key] = value;
-            }
-        });
-        return params;
-    }
-
-    function runInspectorAction(actionRef) {
-        const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);
-        const action = currentAction(actionRef);
-        if (!row || !action) {
-            setStatus("没有可执行的选中行任务");
-            return;
-        }
-        const params = paramsFromRowForAction(row, action);
-        const missing = (action.fields || [])
-            .filter((field) => field.required && !field.default && field.input_type !== "hidden")
-            .filter((field) => params[field.key] === undefined || params[field.key] === null || String(params[field.key]).trim() === "");
-        if (missing.length) {
-            setStatus(`选中行缺少参数: ${missing.map((field) => field.label).join(", ")}`);
-            return;
-        }
-        runAction(action.key, null, { params });
-    }
-
-    function moveRow(delta) {
-        const rows = els.main.querySelectorAll("[data-row-index]");
-        if (!rows.length) {
-            return;
-        }
-        const next = Math.max(0, Math.min(rows.length - 1, state.selectedRowIndex + delta));
-        selectRow(next);
-        rows[next].scrollIntoView({ block: "nearest" });
-    }
-
-    async function pageDelta(delta) {
-        if (state.lastPager?.client_side) {
-            if (delta < 0 && !state.lastPager.has_previous) {
-                setStatus("已经是第一页");
-                return;
-            }
-            if (delta > 0 && !state.lastPager.has_next) {
-                setStatus("已经是最后一页");
-                return;
-            }
-            state.clientPage = Math.max(1, state.clientPage + delta);
-            state.selectedRowIndex = 0;
-            drawDataGrid();
-            setStatus(`第 ${state.clientPage} 页`);
-            return;
-        }
-        if (!state.lastAction || !state.lastPager) {
-            setStatus("当前视图不可翻页");
-            return;
-        }
-        const action = currentAction(state.lastAction);
-        if (!action) {
-            setStatus("任务未找到");
-            return;
-        }
-        if (delta < 0 && !state.lastPager.has_previous) {
-            setStatus("已经是第一页");
-            return;
-        }
-        if (delta > 0 && !state.lastPager.has_next) {
-            setStatus("已经是最后一页");
-            return;
-        }
-        const patch = paginationParamPatch(action, state.lastPager, state.lastParams, delta);
-        if (!patch) {
-            setStatus("当前分页参数不可推断");
-            return;
-        }
-        state.lastParams = { ...state.lastParams, ...patch };
-        await runAction(state.lastAction, null);
-    }
-
-    function paginationParamPatch(action, pager, params, delta) {
-        const pagination = action.pagination || {};
-        const pagerMode = String(pager.pagination_mode || pager.mode || "");
-        const mode = pagination.mode || (pagerMode === "limit_offset" ? "offset" : pagerMode) || inferPaginationMode(action);
-        if (mode === "cursor") {
-            const cursorParam = pagination.cursor_param || firstFieldKey(action, ["cursor", "nextCursor", "next_cursor"]);
-            const cursor = delta > 0
-                ? valueAtPath(pager, pagination.next_cursor_path || "next_cursor")
-                : valueAtPath(pager, pagination.previous_cursor_path || "previous_cursor");
-            return cursorParam && cursor ? { [cursorParam]: cursor } : null;
-        }
-        if (mode === "offset") {
-            const offsetParam = pagination.offset_param || firstFieldKey(action, ["offset", "start"]);
-            const limitParam = pagination.limit_param || firstFieldKey(action, ["limit", "pageSize", "page_size"]);
-            const limit = Number(params[limitParam] || pager.page_size || pager.limit || 10);
-            const current = Number(params[offsetParam] || pager.offset || 0);
-            if (!offsetParam || !Number.isFinite(limit) || !Number.isFinite(current)) {
-                return null;
-            }
-            const nextOffset = Math.max(0, current + (delta * limit));
-            return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };
-        }
-        const pageParam = pagination.page_param || firstFieldKey(action, ["page", "pageNum", "page_num", "pageNo", "page_no"]);
-        const pageSizeParam = pagination.page_size_param || firstFieldKey(action, ["page_size", "pageSize", "page_size", "limit", "size"]);
-        const current = Number(params[pageParam] || pager.page || 1);
-        if (!pageParam || !Number.isFinite(current)) {
-            return null;
-        }
-        const next = Math.max(1, current + delta);
-        const patch = { [pageParam]: next };
-        const pageSize = Number(params[pageSizeParam] || pager.page_size || pager.pageSize || 0);
-        if (pageSizeParam && Number.isFinite(pageSize) && pageSize > 0) {
-            patch[pageSizeParam] = pageSize;
-        }
-        return patch;
-    }
-
-    function inferPaginationMode(action) {
-        const fields = (action.fields || []).map((field) => String(field.key || ""));
-        if (fields.some((key) => ["cursor", "nextCursor", "next_cursor"].includes(key))) {
-            return "cursor";
-        }
-        if (fields.some((key) => ["offset", "start"].includes(key))) {
-            return "offset";
-        }
-        return "page";
-    }
-
-    function firstFieldKey(action, candidates) {
-        const fields = (action.fields || []).map((field) => String(field.key || ""));
-        return candidates.find((candidate) => fields.includes(candidate)) || candidates[0] || "";
-    }
-
-    function valueAtPath(value, path) {
-        if (!path) {
-            return undefined;
-        }
-        return String(path).split(".").reduce((current, key) => {
-            if (current && Object.prototype.hasOwnProperty.call(current, key)) {
-                return current[key];
-            }
-            return undefined;
-        }, value);
-    }
-
-    function showModal(title, bodyHtml, options = {}) {
-        els.modalTitle.textContent = title;
-        els.modalBody.innerHTML = bodyHtml;
-        els.modal.classList.remove("is-image-preview");
-        if (options.className) {
-            els.modal.classList.add(options.className);
-        }
-        els.modal.hidden = false;
-        els.modalClose.focus();
-    }
-
-    function showImagePreview(trigger) {
-        const source = normalizeImageSource(trigger.dataset.imageSrc || "");
-        if (!source) {
-            setStatus("图片链接不可用");
-            return;
-        }
-        const title = trigger.dataset.imageTitle || "图片预览";
-        const alt = trigger.dataset.imageAlt || title;
-        const caption = trigger.dataset.imageCaption || "";
-        showModal(title, `
+            `:""}
+        `,i.inspector.querySelectorAll("[data-inspector-action]").forEach(s=>{s.addEventListener("click",()=>ao(s.dataset.inspectorAction))})}function Fn(e){return(e||[]).map(t=>Array.isArray(t)?{label:t[0],value:t[1]}:{label:t.label,value:t.value}).filter(t=>t.label!==void 0&&t.value!==void 0).map(t=>({label:x(t.label),value:x(t.value)}))}function eo(e){const t=Re(),n=wt(),r=(o.screen&&o.screen.actions||[]).filter(s=>A(s)==="operation").length,a=[["\u64CD\u4F5C\u65B9\u5F0F",te(e.action)],["\u672C\u5C4F\u8FDB\u5EA6",`${t.completed}/${t.total}`]];return n&&n.key!==e.action.key&&a.push(["\u4E0B\u4E00\u9879",n.label]),r&&a.push(["\u53EF\u6267\u884C\u64CD\u4F5C",`${r} \u9879`]),e.action.confirmation_required&&a.push(["\u786E\u8BA4\u7B56\u7565","\u63D0\u4EA4\u524D\u4F1A\u8981\u6C42\u786E\u8BA4"]),a}function to(e,t){const n=o.screen?.screen?.business_context||{},r=et(n),a=(o.screen&&o.screen.actions||[]).filter(u=>A(u)==="operation").slice(0,5).map(u=>`${u.label} / ${te(u)}`),s=eo(e),l=[...r,...a.length?[{title:"\u540E\u7EED\u52A8\u4F5C",body:a,rows:[]}]:[]];if(!t){W({title:e.action.label,body:e.action.description||"",rows:s,sections:l});return}if(t.kind==="detail"){W({title:"\u64CD\u4F5C\u8BF4\u660E",body:e.action.description||"\u4E2D\u95F4\u4E3B\u9762\u677F\u663E\u793A\u5B8C\u6574\u4E1A\u52A1\u660E\u7EC6\uFF0C\u53F3\u680F\u53EA\u4FDD\u7559\u6D41\u7A0B\u3001\u8BC1\u636E\u4E0E\u540E\u7EED\u52A8\u4F5C\u3002",rowsTitle:"\u6D41\u7A0B\u72B6\u6001",rows:s,sections:[{title:"\u9605\u8BFB\u63D0\u793A",body:["\u5B8C\u6574\u4E1A\u52A1\u660E\u7EC6\u5DF2\u5728\u4E2D\u95F4\u4E3B\u9762\u677F\u663E\u793A\u3002\u53F3\u680F\u4E0D\u518D\u91CD\u590D\u6E32\u67D3\u540C\u4E00\u5BF9\u8C61\u3002"],rows:[]},...l]});return}if(t.kind==="message"){W({title:"\u64CD\u4F5C\u8BF4\u660E",body:e.action.description||"\u4E2D\u95F4\u4E3B\u9762\u677F\u663E\u793A\u5F53\u524D\u7ED3\u679C\u8BF4\u660E\uFF0C\u53F3\u680F\u4FDD\u7559\u5BFC\u822A\u4E0E\u540E\u7EED\u52A8\u4F5C\u3002",rowsTitle:"\u6D41\u7A0B\u72B6\u6001",rows:s,sections:[{title:"\u9605\u8BFB\u63D0\u793A",body:["\u7ED3\u679C\u8BF4\u660E\u5DF2\u5728\u4E2D\u95F4\u4E3B\u9762\u677F\u663E\u793A\u3002\u53F3\u680F\u4FDD\u7559\u6D41\u7A0B\u5BFC\u822A\u3001\u4E1A\u52A1\u76EE\u6807\u4E0E\u540E\u7EED\u52A8\u4F5C\u3002"],rows:[]},...l]});return}mt([...s,...a.slice(0,3).map((u,d)=>[`\u53EF\u6267\u884C\u52A8\u4F5C ${d+1}`,u])])}function no(e){i.main.innerHTML=`<div class="tui-error">${c(e)}</div>`,pe(null),f("\u9519\u8BEF")}function pe(e){if(o.lastPager=e,!e){i.pager.textContent="\u9875 -/- | 0 \u884C";return}i.pager.textContent=`\u9875 ${e.page}/${e.total_pages} | ${e.total_rows} \u884C | ${e.has_previous?"PgUp":"--"} / ${e.has_next?"PgDn":"--"}`}function B(){i.rawPanel.textContent=o.lastRaw===null?"\u5C1A\u672A\u52A0\u8F7D\u539F\u59CB\u54CD\u5E94\u3002":JSON.stringify(o.lastRaw,null,2)}function Le(e){i.rawDrawer.hidden=typeof e=="boolean"?!e:!i.rawDrawer.hidden,f(i.rawDrawer.hidden?"\u539F\u59CB\u54CD\u5E94\u5173\u95ED":"\u539F\u59CB\u54CD\u5E94\u6253\u5F00")}function Hn(e){o.selectedRowIndex=e,i.main.querySelectorAll("[data-row-index]").forEach(n=>{n.classList.toggle("is-selected",Number(n.dataset.rowIndex||0)===e)});const t=o.visibleRows[e];o.selectedRowContext=M(t),t&&(f(`\u884C ${e+1}/${o.visibleRows.length}`),mt()),Ae()}function mt(e=[]){if(!o.currentViewModel||o.currentViewModel.kind!=="datagrid")return;const t=o.visibleRows[o.selectedRowIndex],n=t?Yt(t,14):[["\u72B6\u6001",o.filterText?"\u6CA1\u6709\u5339\u914D\u8BB0\u5F55":"\u6682\u65E0\u8BB0\u5F55"]],r=M(t),a=r?ro(r):[],s=[];a.length&&s.push({title:"\u9009\u4E2D\u884C\u53EF\u505A",body:["\u76F4\u63A5\u4F7F\u7528\u9009\u4E2D\u8BB0\u5F55\u586B\u5165\u53C2\u6570\u3002"],actions:a.map(l=>({ui_key:K(l),label:l.label,verb:te(l)})),rows:[]}),s.push({title:"\u952E\u76D8\u64CD\u4F5C",body:["\u65B9\u5411\u952E\u79FB\u52A8\uFF0CEnter \u6253\u5F00\u8BE6\u60C5\uFF0CF7 \u7B5B\u9009\uFF0CF9 \u8FDB\u5165\u4EFB\u52A1\u533A\uFF0CF8 \u5BFC\u51FA\u3002"],rows:[]}),W({title:t?`\u9009\u4E2D\u8BB0\u5F55 ${o.selectedRowIndex+1}/${o.visibleRows.length}`:"\u8868\u683C\u72B6\u6001",body:o.currentViewModel.title||"",rows:[...e,...n],sections:s})}function ro(e){return(o.screen&&o.screen.actions||[]).filter(n=>{const r=(n.fields||[]).filter(a=>a.input_type!=="hidden");return r.length?r.some(a=>st(e,a.key,n)!==void 0):!1}).sort((n,r)=>{const a={operation:0,advanced:1,primary:2,support:3};return(a[A(n)]??9)-(a[A(r)]??9)||Number(n.sequence||999)-Number(r.sequence||999)}).slice(0,5)}function Bn(e,t){const n={};return(t&&t.fields||[]).forEach(a=>{if(a.input_type==="hidden")return;const s=st(e,a.key,t);s!=null&&s!==""&&(n[a.key]=s)}),n}function ao(e){const t=M(o.visibleRows[o.selectedRowIndex]),n=$(e);if(!t||!n){f("\u6CA1\u6709\u53EF\u6267\u884C\u7684\u9009\u4E2D\u884C\u4EFB\u52A1");return}const r=Bn(t,n),a=(n.fields||[]).filter(s=>s.required&&!s.default&&s.input_type!=="hidden").filter(s=>r[s.key]===void 0||r[s.key]===null||String(r[s.key]).trim()==="");if(a.length){f(`\u9009\u4E2D\u884C\u7F3A\u5C11\u53C2\u6570: ${a.map(s=>s.label).join(", ")}`);return}k(n.key,null,{params:r})}function In(e){const t=i.main.querySelectorAll("[data-row-index]");if(!t.length)return;const n=Number(t[0].dataset.rowIndex||0),r=Number(t[t.length-1].dataset.rowIndex||0),a=Math.max(n,Math.min(r,o.selectedRowIndex+e));Hn(a),i.main.querySelector(`[data-row-index="${a}"]`)?.scrollIntoView({block:"nearest"})}async function gt(e){if(o.lastPager?.client_side){if(e<0&&!o.lastPager.has_previous){f("\u5DF2\u7ECF\u662F\u7B2C\u4E00\u9875");return}if(e>0&&!o.lastPager.has_next){f("\u5DF2\u7ECF\u662F\u6700\u540E\u4E00\u9875");return}o.clientPage=Math.max(1,o.clientPage+e),o.selectedRowIndex=(o.clientPage-1)*o.clientPageSize,vn(),f(`\u7B2C ${o.clientPage} \u9875`);return}if(o.pendingController){f("\u7FFB\u9875\u4E2D\uFF0C\u8BF7\u7A0D\u5019");return}if(!o.lastAction||!o.lastPager){f("\u5F53\u524D\u89C6\u56FE\u4E0D\u53EF\u7FFB\u9875");return}const t=$(o.lastAction);if(!t){f("\u4EFB\u52A1\u672A\u627E\u5230");return}if(e<0&&!o.lastPager.has_previous){f("\u5DF2\u7ECF\u662F\u7B2C\u4E00\u9875");return}if(e>0&&!o.lastPager.has_next){f("\u5DF2\u7ECF\u662F\u6700\u540E\u4E00\u9875");return}const n=oo(t,o.lastPager,o.lastParams,e);if(!n){f("\u5F53\u524D\u5206\u9875\u53C2\u6570\u4E0D\u53EF\u63A8\u65AD");return}await k(o.lastAction,null,{params:{...o.lastParams,...n}})}function oo(e,t,n,r){const a=e.pagination||{},s=String(t.pagination_mode||t.mode||""),l=a.mode||(s==="limit_offset"?"offset":s)||so(e);if(l==="cursor"){const h=a.cursor_param||fe(e,["cursor","nextCursor","next_cursor"]),b=r>0?Dn(t,a.next_cursor_path||"next_cursor"):Dn(t,a.previous_cursor_path||"previous_cursor");return h&&b?{[h]:b}:null}if(l==="offset"){const h=a.offset_param||fe(e,["offset","start"]),b=a.limit_param||fe(e,["limit","pageSize","page_size"]),q=Number(n[b]||t.page_size||t.limit||10),O=Number(n[h]||t.offset||0);if(!h||!Number.isFinite(q)||!Number.isFinite(O))return null;const qe=Math.max(0,O+r*q);return b?{[h]:qe,[b]:q}:{[h]:qe}}const u=a.page_param||fe(e,["page","pageNum","page_num","pageNo","page_no"]),d=a.page_size_param||fe(e,["page_size","pageSize","limit","size"]),p=Number(n[u]||t.page||1);if(!u||!Number.isFinite(p))return null;const m=Math.max(1,p+r),g={[u]:m},y=Number(n[d]||t.page_size||t.pageSize||0);return d&&Number.isFinite(y)&&y>0&&(g[d]=y),g}function so(e){const t=(e.fields||[]).map(n=>String(n.key||""));return t.some(n=>["cursor","nextCursor","next_cursor"].includes(n))?"cursor":t.some(n=>["offset","start"].includes(n))?"offset":"page"}function fe(e,t){const n=(e.fields||[]).map(r=>String(r.key||""));return t.find(r=>n.includes(r))||t[0]||""}function Dn(e,t){if(t)return String(t).split(".").reduce((n,r)=>{if(n&&Object.prototype.hasOwnProperty.call(n,r))return n[r]},e)}function N(e,t,n={}){o.modalReturnFocus=document.activeElement instanceof HTMLElement?document.activeElement:null,i.modalTitle.textContent=e,i.modalBody.innerHTML=t,i.modal.classList.remove("is-image-preview");const r=i.modal.dataset.modalClass||"";r&&i.modal.classList.remove(r),n.className&&i.modal.classList.add(n.className),i.modal.dataset.modalClass=n.className||"",i.modal.hidden=!1,i.modalClose.focus()}function io(){return!i.modal||i.modal.hidden?[]:Array.from(i.modal.querySelectorAll("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")).filter(e=>!e.hidden&&e.getAttribute("aria-hidden")!=="true")}function co(e){if(e.key!=="Tab"||i.modal.hidden)return!1;const t=io();if(!t.length)return e.preventDefault(),i.modalClose.focus(),!0;const n=t[0],r=t[t.length-1];return e.shiftKey&&(document.activeElement===n||!i.modal.contains(document.activeElement))?(e.preventDefault(),r.focus(),!0):!e.shiftKey&&(document.activeElement===r||!i.modal.contains(document.activeElement))?(e.preventDefault(),n.focus(),!0):!1}function lo(e){const t=An(e.dataset.imageSrc||"");if(!t){f("\u56FE\u7247\u94FE\u63A5\u4E0D\u53EF\u7528");return}const n=e.dataset.imageTitle||"\u56FE\u7247\u9884\u89C8",r=e.dataset.imageAlt||n,a=e.dataset.imageCaption||"";N(n,`
             <figure class="tui-image-lightbox">
                 <div class="tui-image-lightbox-frame">
-                    <img src="${escapeHtml(source)}" alt="${escapeHtml(alt)}" loading="eager" decoding="async">
+                    <img src="${c(t)}" alt="${c(r)}" loading="eager" decoding="async">
                 </div>
                 <figcaption>
-                    ${caption ? `<span>${escapeHtml(caption)}</span>` : ""}
-                    <a href="${escapeHtml(source)}" target="_blank" rel="noopener noreferrer">打开原图</a>
+                    ${a?`<span>${c(a)}</span>`:""}
+                    <a href="${c(t)}" target="_blank" rel="noopener noreferrer">\u6253\u5F00\u539F\u56FE</a>
                 </figcaption>
             </figure>
-        `, { className: "is-image-preview" });
-        setStatus("图片预览");
-    }
-
-    function showMissingFieldsPrompt(result, actionKey, params, options = {}) {
-        const fields = result.missing_fields || [];
-        const promptAction = result.action || currentAction(actionKey) || { key: actionKey || "missing-fields" };
-        showModal("补填参数", `
+        `,{className:"is-image-preview"}),f("\u56FE\u7247\u9884\u89C8")}function uo(e,t,n,r={}){const a=e.missing_fields||[],s=e.action||$(t)||{key:t||"missing-fields"};N("\u8865\u586B\u53C2\u6570",`
             <form class="tui-confirmation tui-missing-fields" data-missing-fields-form>
-                <p>${escapeHtml(result.view_model?.message || "补齐参数后继续执行。")}</p>
+                <p>${c(e.view_model?.message||"\u8865\u9F50\u53C2\u6570\u540E\u7EE7\u7EED\u6267\u884C\u3002")}</p>
                 <div class="tui-missing-fields-list">
-                    ${fields.map((field) => renderField(promptAction, {
-                        ...field,
-                        default: params[field.key] ?? field.default ?? "",
-                    })).join("")}
+                    ${a.map(d=>an(s,{...d,default:n[d.key]??d.default??""})).join("")}
                 </div>
                 <div class="tui-confirmation-actions">
-                    <button class="tui-confirm-button" type="submit">继续</button>
-                    <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
+                    <button class="tui-confirm-button" type="submit">\u7EE7\u7EED</button>
+                    <button class="tui-confirm-button" type="button" data-cancel-action>\u53D6\u6D88</button>
                 </div>
             </form>
-        `);
-        const form = els.modalBody.querySelector("[data-missing-fields-form]");
-        const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
-        form.addEventListener("submit", (event) => {
-            event.preventDefault();
-            const completed = { ...params };
-            fields.forEach((field) => {
-                const input = form.querySelector(`[name="${CSS.escape(field.key)}"]`);
-                if (input) {
-                    completed[field.key] = coerceFieldValue(field, input.value, input.checked);
-                }
-            });
-            closeModal();
-            runAction(actionKey, null, { ...options, params: completed });
-        });
-        cancelButton.addEventListener("click", () => {
-            closeModal();
-            setStatus("已取消");
-        });
-        form.querySelector("select, input, textarea")?.focus();
-    }
-
-    function showActionConfirmation(result, actionKey, params, options = {}) {
-        const confirmation = result.confirmation || {};
-        showModal(confirmation.title || "确认操作", `
+        `);const l=i.modalBody.querySelector("[data-missing-fields-form]"),u=i.modalBody.querySelector("[data-cancel-action]");l.addEventListener("submit",d=>{d.preventDefault();const p={...n};a.forEach(m=>{const g=l.querySelector(`[name="${CSS.escape(m.key)}"]`);g&&(p[m.key]=on(m,g.value,g.checked))}),L(),k(t,null,{...r,params:p})}),u.addEventListener("click",()=>{L(),f("\u5DF2\u53D6\u6D88")}),l.querySelector("select, input, textarea")?.focus()}function po(e,t,n,r={}){const a=e.confirmation||{};N(a.title||"\u786E\u8BA4\u64CD\u4F5C",`
             <div class="tui-confirmation">
-                <p>${escapeHtml(confirmation.message || "确认后执行此操作。")}</p>
+                <p>${c(a.message||"\u786E\u8BA4\u540E\u6267\u884C\u6B64\u64CD\u4F5C\u3002")}</p>
                 <div class="tui-confirmation-actions">
-                    <button class="tui-confirm-button" type="button" data-confirm-action>${escapeHtml(confirmation.confirm_label || "确认执行")}</button>
-                    <button class="tui-confirm-button" type="button" data-cancel-action>${escapeHtml(confirmation.cancel_label || "取消")}</button>
+                    <button class="tui-confirm-button" type="button" data-confirm-action>${c(a.confirm_label||"\u786E\u8BA4\u6267\u884C")}</button>
+                    <button class="tui-confirm-button" type="button" data-cancel-action>${c(a.cancel_label||"\u53D6\u6D88")}</button>
                 </div>
             </div>
-        `);
-        const confirmButton = els.modalBody.querySelector("[data-confirm-action]");
-        const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
-        confirmButton.addEventListener("click", () => {
-            closeModal();
-            runAction(actionKey, null, {
-                ...options,
-                confirmed: true,
-                params,
-                confirmation: {
-                    confirmed: true,
-                    confirmed_at: new Date().toISOString(),
-                    message: confirmation.message || "",
-                },
-            });
-        });
-        cancelButton.addEventListener("click", () => {
-            closeModal();
-            setStatus("已取消");
-        });
-        confirmButton.focus();
-    }
-
-    function showPasswordChallenge(result, actionKey, params, options = {}) {
-        const challenge = result.password_challenge || {};
-        showModal("重新验证身份", `
+        `);const s=i.modalBody.querySelector("[data-confirm-action]"),l=i.modalBody.querySelector("[data-cancel-action]");s.addEventListener("click",()=>{L(),k(t,null,{...r,confirmed:!0,params:n,confirmation:{confirmed:!0,confirmed_at:new Date().toISOString(),message:a.message||""}})}),l.addEventListener("click",()=>{L(),f("\u5DF2\u53D6\u6D88")}),s.focus()}function fo(e,t,n,r={}){const a=e.password_challenge||{};N("\u91CD\u65B0\u9A8C\u8BC1\u8EAB\u4EFD",`
             <form class="tui-confirmation" data-password-challenge-form>
-                <p>${escapeHtml(challenge.message || "该操作需要重新验证身份。")}</p>
+                <p>${c(a.message||"\u8BE5\u64CD\u4F5C\u9700\u8981\u91CD\u65B0\u9A8C\u8BC1\u8EAB\u4EFD\u3002")}</p>
                 <label class="tui-field">
-                    <span>密码</span>
+                    <span>\u5BC6\u7801</span>
                     <input name="password" type="password" autocomplete="current-password" required>
                 </label>
                 <div class="tui-confirmation-actions">
-                    <button class="tui-confirm-button" type="submit">验证并继续</button>
-                    <button class="tui-confirm-button" type="button" data-cancel-action>取消</button>
+                    <button class="tui-confirm-button" type="submit">\u9A8C\u8BC1\u5E76\u7EE7\u7EED</button>
+                    <button class="tui-confirm-button" type="button" data-cancel-action>\u53D6\u6D88</button>
                 </div>
             </form>
-        `);
-        const form = els.modalBody.querySelector("[data-password-challenge-form]");
-        const cancelButton = els.modalBody.querySelector("[data-cancel-action]");
-        form.addEventListener("submit", (event) => {
-            event.preventDefault();
-            const password = form.querySelector("[name='password']")?.value || "";
-            closeModal();
-            runAction(actionKey, null, {
-                ...options,
-                params,
-                reauth: {
-                    method: "password",
-                    credential: password,
-                    challenge_id: challenge.challenge_id || "",
-                    submitted_at: new Date().toISOString(),
-                },
-            });
-        });
-        cancelButton.addEventListener("click", () => {
-            closeModal();
-            setStatus("已取消");
-        });
-        form.querySelector("input")?.focus();
-    }
-
-    function closeModal() {
-        if (els.modal) {
-            els.modal.hidden = true;
-            els.modal.classList.remove("is-image-preview");
-        }
-    }
-
-    function openSelectedRowDetail() {
-        const row = state.visibleRows[state.selectedRowIndex];
-        if (!row) {
-            setStatus("未选择行");
-            return;
-        }
-        const rows = rowDisplayRows(row).map(([key, value]) => `
-            <dt>${escapeHtml(key)}</dt>
-            <dd>${escapeHtml(value)}</dd>
-        `).join("");
-        const targetScreen = String(row?.target_screen || "").trim();
-        const targetActionKey = String(row?.target_action_key || "").trim();
-        const canDrillDown = Boolean(targetScreen || targetActionKey);
-        showModal(
-            `第 ${state.selectedRowIndex + 1} 行`,
-            `
-                <dl class="tui-detail-grid">${rows}</dl>
-                ${canDrillDown ? `
+        `);const s=i.modalBody.querySelector("[data-password-challenge-form]"),l=i.modalBody.querySelector("[data-cancel-action]");s.addEventListener("submit",u=>{u.preventDefault();const d=s.querySelector("[name='password']")?.value||"";L(),k(t,null,{...r,params:n,reauth:{method:"password",credential:d,challenge_id:a.challenge_id||"",submitted_at:new Date().toISOString()}})}),l.addEventListener("click",()=>{L(),f("\u5DF2\u53D6\u6D88")}),s.querySelector("input")?.focus()}function L(){if(i.modal){const e=!i.modal.hidden;i.modal.hidden=!0,i.modal.classList.remove("is-image-preview"),i.modalBody.innerHTML="",e&&o.modalReturnFocus&&document.contains(o.modalReturnFocus)&&o.modalReturnFocus.focus(),o.modalReturnFocus=null}}function yt(){const e=o.visibleRows[o.selectedRowIndex];if(!e){f("\u672A\u9009\u62E9\u884C");return}const t=Yt(e).map(([s,l])=>`
+            <dt>${c(s)}</dt>
+            <dd>${c(l)}</dd>
+        `).join(""),n=String(e?.target_screen||"").trim(),r=String(e?.target_action_key||"").trim(),a=!!(n||r);N(`\u7B2C ${o.selectedRowIndex+1} \u884C`,`
+                <dl class="tui-detail-grid">${t}</dl>
+                ${a?`
                     <div class="tui-modal-actions">
-                        <button type="button" data-row-target-screen="${escapeHtml(targetScreen)}" data-row-target-action="${escapeHtml(targetActionKey)}">进入处理屏</button>
+                        <button type="button" data-row-target-screen="${c(n)}" data-row-target-action="${c(r)}">\u8FDB\u5165\u5904\u7406\u5C4F</button>
                     </div>
-                ` : ""}
-            `,
-        );
-        els.modalBody?.querySelector("[data-row-target-screen], [data-row-target-action]")?.addEventListener("click", async () => {
-            closeModal();
-            const nextScreen = targetScreen || state.screen?.screen?.key || "";
-            if (!nextScreen) {
-                return;
-            }
-            await loadScreen(nextScreen);
-            if (targetActionKey && currentAction(targetActionKey)) {
-                runAction(targetActionKey, null, { params: {} });
-            }
-        });
-        setStatus("行详情");
-    }
-
-    function showHelp() {
-        showModal("帮助", `
+                `:""}
+            `),i.modalBody?.querySelector("[data-row-target-screen], [data-row-target-action]")?.addEventListener("click",async()=>{L();const s=n||o.screen?.screen?.key||"";s&&(await S(s),r&&$(r)&&k(r,null,{params:{}}))}),f("\u884C\u8BE6\u60C5")}function mo(){N("\u5E2E\u52A9",`
             <div class="tui-help-grid">
-                <span>F1</span><span>打开帮助</span>
-                <span>F2</span><span>展开或收起模块导航</span>
-                <span>F3</span><span>进入流程上一屏</span>
-                <span>F4</span><span>进入流程下一屏</span>
-                <span>F5</span><span>刷新当前工作区或任务</span>
-                <span>F6</span><span>执行本屏下一主流程任务</span>
-                <span>F7</span><span>筛选当前表格</span>
-                <span>F8</span><span>导出当前表格 CSV</span>
-                <span>F9</span><span>定位任务区</span>
-                <span>F10</span><span>展开或收起说明栏</span>
-                <span>Alt+T</span><span>循环切换主题 A / B / C</span>
-                <span>Ctrl+T</span><span>查看当前主题与三套风格</span>
-                <span>方向键</span><span>移动表格选中行</span>
-                <span>Enter</span><span>打开选中行详情</span>
-                <span>PgUp/PgDn</span><span>存在分页时翻页</span>
-                <span>Esc</span><span>关闭菜单、筛选、调试抽屉或弹窗</span>
+                <span>F1</span><span>\u6253\u5F00\u5E2E\u52A9</span>
+                <span>F2</span><span>\u5C55\u5F00\u6216\u6536\u8D77\u6A21\u5757\u5BFC\u822A</span>
+                <span>F3</span><span>\u8FDB\u5165\u6D41\u7A0B\u4E0A\u4E00\u5C4F</span>
+                <span>F4</span><span>\u8FDB\u5165\u6D41\u7A0B\u4E0B\u4E00\u5C4F</span>
+                <span>F5</span><span>\u5237\u65B0\u5F53\u524D\u5DE5\u4F5C\u533A\u6216\u4EFB\u52A1</span>
+                <span>F6</span><span>\u6267\u884C\u672C\u5C4F\u4E0B\u4E00\u4E3B\u6D41\u7A0B\u4EFB\u52A1</span>
+                <span>F7</span><span>\u7B5B\u9009\u5F53\u524D\u8868\u683C</span>
+                <span>F8</span><span>\u5BFC\u51FA\u5F53\u524D\u8868\u683C CSV</span>
+                <span>F9</span><span>\u5B9A\u4F4D\u4EFB\u52A1\u533A</span>
+                <span>F10</span><span>\u5C55\u5F00\u6216\u6536\u8D77\u8BF4\u660E\u680F</span>
+                <span>Alt+T</span><span>\u5FAA\u73AF\u5207\u6362\u4E3B\u9898 A / B / C</span>
+                <span>Alt+S/M/R/V/H</span><span>\u6253\u5F00\u9876\u90E8\u5BF9\u5E94\u83DC\u5355</span>
+                <span>Alt+Shift+T</span><span>\u67E5\u770B\u5F53\u524D\u4E3B\u9898\u4E0E\u4E09\u5957\u98CE\u683C</span>
+                <span>\u65B9\u5411\u952E</span><span>\u79FB\u52A8\u8868\u683C\u9009\u4E2D\u884C</span>
+                <span>Enter</span><span>\u6253\u5F00\u9009\u4E2D\u884C\u8BE6\u60C5</span>
+                <span>PgUp/PgDn</span><span>\u5B58\u5728\u5206\u9875\u65F6\u7FFB\u9875</span>
+                <span>Esc</span><span>\u5173\u95ED\u83DC\u5355\u3001\u7B5B\u9009\u3001\u8C03\u8BD5\u62BD\u5C49\u6216\u5F39\u7A97</span>
             </div>
-        `);
-        setStatus("帮助");
-    }
-
-    function showThemeStatus() {
-        showModal("主题", `
+        `),f("\u5E2E\u52A9")}function go(){N("\u4E3B\u9898",`
             <div class="tui-help-grid">
-                <span>当前</span><span>STYLE: ${escapeHtml(state.themeKey)}</span>
-                <span>A</span><span>Norton PCTOOLS 蓝底黄字风格</span>
-                <span>B</span><span>中性金融专业终端风格</span>
-                <span>C</span><span>风控 / 控制台风格</span>
-                <span>Alt+T</span><span>循环切换，不刷新页面，不丢失当前状态</span>
+                <span>\u5F53\u524D</span><span>STYLE: ${c(o.themeKey)}</span>
+                <span>A</span><span>Norton PCTOOLS \u84DD\u5E95\u9EC4\u5B57\u98CE\u683C</span>
+                <span>B</span><span>\u4E2D\u6027\u91D1\u878D\u4E13\u4E1A\u7EC8\u7AEF\u98CE\u683C</span>
+                <span>C</span><span>\u98CE\u63A7 / \u63A7\u5236\u53F0\u98CE\u683C</span>
+                <span>Alt+T</span><span>\u5FAA\u73AF\u5207\u6362\uFF0C\u4E0D\u5237\u65B0\u9875\u9762\uFF0C\u4E0D\u4E22\u5931\u5F53\u524D\u72B6\u6001</span>
             </div>
-        `);
-        setStatus(`当前主题: ${state.themeKey}`);
-    }
-
-    function showFilterBar() {
-        if (!state.currentViewModel || state.currentViewModel.kind !== "datagrid") {
-            setStatus("当前视图不可筛选");
-            return;
-        }
-        els.filterBar.hidden = false;
-        els.filterInput.value = state.filterText;
-        els.filterInput.focus();
-        els.filterInput.select();
-        setStatus("筛选就绪");
-    }
-
-    function hideFilterBar() {
-        if (els.filterBar) {
-            els.filterBar.hidden = true;
-        }
-    }
-
-    function clearFilter() {
-        state.filterText = "";
-        if (els.filterInput) {
-            els.filterInput.value = "";
-        }
-        applyFilter(true);
-    }
-
-    function csvEscape(value) {
-        const text = String(value ?? "");
-        return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-    }
-
-    function exportGrid() {
-        if (!state.currentViewModel || state.currentViewModel.kind !== "datagrid") {
-            setStatus("当前视图不可导出");
-            return;
-        }
-        const columns = state.currentColumns;
-        const rows = state.visibleRows;
-        const csv = [
-            columns.map((column) => csvEscape(column.label)).join(","),
-            ...rows.map((row) => columns.map((column) => csvEscape(row[column.key])).join(",")),
-        ].join("\r\n");
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        const title = (state.currentViewModel.title || "tui-grid").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "tui-grid";
-        link.href = url;
-        link.download = `${title}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-        setStatus(`已导出 ${rows.length} 行`);
-    }
-
-    async function refreshCurrent() {
-        if (state.lastAction) {
-            await runAction(state.lastAction, null);
-        } else if (state.screen?.screen?.key) {
-            await loadScreen(state.screen.screen.key);
-        } else {
-            await bootstrap();
-        }
-    }
-
-    function focusModules() {
-        setRailCollapsed(false);
-        const active = els.moduleTree.querySelector(".tui-screen-button.is-active") || els.moduleTree.querySelector(".tui-screen-button");
-        if (active) {
-            revealModuleScreen(active);
-            active.focus();
-            setStatus("模块导航");
-        }
-    }
-
-    function focusActions() {
-        const grid = els.main.closest(".tui-workspace-grid");
-        if (grid?.classList.contains("is-dashboard")) {
-            grid.classList.remove("is-dashboard");
-            setWorkspaceViewKind("idle");
-        }
-        const actionFilter = els.actions.querySelector("[data-action-filter]");
-        if (actionFilter) {
-            actionFilter.focus();
-            actionFilter.select();
-            setStatus("任务区");
-            return;
-        }
-        const firstAction = els.actions.querySelector(".tui-action-button");
-        if (firstAction) {
-            firstAction.focus();
-            setStatus("任务区");
-        }
-    }
-
-    function focusInspector() {
-        setInspectorCollapsed(false);
-        const target = els.inspector.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])") || els.inspectorShell;
-        if (target) {
-            target.focus();
-            setStatus("说明栏");
-        }
-    }
-
-    function setRailCollapsed(collapsed) {
-        state.railCollapsed = Boolean(collapsed);
-        els.app?.classList.toggle("is-rail-collapsed", state.railCollapsed);
-        if (els.moduleTree) {
-            els.moduleTree.hidden = state.railCollapsed;
-            els.moduleTree.inert = state.railCollapsed;
-            els.moduleTree.setAttribute("aria-hidden", String(state.railCollapsed));
-        }
-        if (els.railToggle) {
-            els.railToggle.setAttribute("aria-expanded", String(!state.railCollapsed));
-            els.railToggle.setAttribute("aria-label", state.railCollapsed ? "展开模块导航" : "收起模块导航");
-            els.railToggle.textContent = state.railCollapsed ? "►" : "◄";
-        }
-        if (state.railCollapsed && els.railPanel?.contains(document.activeElement)) {
-            els.main.querySelector(".tui-datagrid")?.focus();
-        }
-    }
-
-    function toggleRail() {
-        setRailCollapsed(!state.railCollapsed);
-        if (!state.railCollapsed) {
-            focusModules();
-        } else {
-            setStatus("模块导航已收起");
-        }
-    }
-
-    function setInspectorCollapsed(collapsed) {
-        state.inspectorCollapsed = Boolean(collapsed);
-        els.app?.classList.toggle("is-inspector-collapsed", state.inspectorCollapsed);
-        if (els.inspectorToggle) {
-            els.inspectorToggle.setAttribute("aria-expanded", String(!state.inspectorCollapsed));
-            els.inspectorToggle.setAttribute("aria-label", state.inspectorCollapsed ? "展开说明栏" : "收起说明栏");
-            els.inspectorToggle.textContent = state.inspectorCollapsed ? "◄" : "►";
-        }
-        if (state.inspectorCollapsed && els.inspectorShell?.contains(document.activeElement)) {
-            els.main.querySelector(".tui-datagrid")?.focus();
-        }
-    }
-
-    function toggleInspector() {
-        setInspectorCollapsed(!state.inspectorCollapsed);
-        if (!state.inspectorCollapsed) {
-            focusInspector();
-        } else {
-            setStatus("说明栏已收起");
-        }
-    }
-
-    function widthFromInspectorResizePointer(event) {
-        const grid = inspectorGrid();
-        if (!grid) {
-            return null;
-        }
-        const rect = grid.getBoundingClientRect();
-        return rect.right - event.clientX;
-    }
-
-    function beginInspectorResize(event) {
-        if (state.inspectorCollapsed || event.button !== 0 || !inspectorWidthBounds()) {
-            return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        els.app?.classList.add("is-inspector-resizing");
-        els.inspectorResizeHandle?.setPointerCapture?.(event.pointerId);
-        applyInspectorWidth(widthFromInspectorResizePointer(event));
-
-        const onPointerMove = (moveEvent) => {
-            moveEvent.preventDefault();
-            applyInspectorWidth(widthFromInspectorResizePointer(moveEvent));
-        };
-        const onPointerUp = (upEvent) => {
-            upEvent.preventDefault();
-            els.app?.classList.remove("is-inspector-resizing");
-            els.inspectorResizeHandle?.releasePointerCapture?.(event.pointerId);
-            els.inspectorResizeHandle?.removeEventListener("pointermove", onPointerMove);
-            els.inspectorResizeHandle?.removeEventListener("pointerup", onPointerUp);
-            els.inspectorResizeHandle?.removeEventListener("pointercancel", onPointerUp);
-            applyInspectorWidth(state.inspectorWidth, { persist: true });
-            setStatus(`说明栏宽度 ${state.inspectorWidth}px`);
-        };
-
-        els.inspectorResizeHandle?.addEventListener("pointermove", onPointerMove);
-        els.inspectorResizeHandle?.addEventListener("pointerup", onPointerUp);
-        els.inspectorResizeHandle?.addEventListener("pointercancel", onPointerUp);
-    }
-
-    function resizeInspectorByKeyboard(event) {
-        if (state.inspectorCollapsed) {
-            return;
-        }
-        const bounds = inspectorWidthBounds();
-        if (!bounds) {
-            return;
-        }
-        const currentWidth = state.inspectorWidth || els.inspectorShell?.getBoundingClientRect().width || bounds.min;
-        let nextWidth = null;
-        if (event.key === "ArrowLeft") {
-            nextWidth = currentWidth + (event.shiftKey ? 48 : 16);
-        } else if (event.key === "ArrowRight") {
-            nextWidth = currentWidth - (event.shiftKey ? 48 : 16);
-        } else if (event.key === "Home") {
-            nextWidth = bounds.min;
-        } else if (event.key === "End") {
-            nextWidth = bounds.max;
-        }
-        if (nextWidth === null) {
-            return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        const appliedWidth = applyInspectorWidth(nextWidth, { persist: true });
-        if (appliedWidth) {
-            setStatus(`说明栏宽度 ${appliedWidth}px`);
-        }
-    }
-
-    function focusActionFilter() {
-        const input = els.actions.querySelector("[data-action-filter]");
-        if (input) {
-            input.focus();
-            input.select();
-            setStatus("筛选当前任务");
-        }
-    }
-
-    function loadAdjacentScreen(delta) {
-        const buttons = Array.from(els.moduleTree.querySelectorAll("[data-screen-key]"));
-        if (!buttons.length) {
-            return;
-        }
-        const currentIndex = Math.max(0, buttons.findIndex((button) => button.classList.contains("is-active")));
-        const nextIndex = (currentIndex + delta + buttons.length) % buttons.length;
-        loadScreen(buttons[nextIndex].dataset.screenKey);
-    }
-
-    function loadWorkflowStep(direction) {
-        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            const actionKey = runtimeConfig.host?.laneActionKeys?.[state.preferredHomeLane];
-            if (actionKey) {
-                executeHomeAction(actionKey);
-            }
-            return;
-        }
-        const workflow = state.screen?.screen?.workflow || {};
-        const target = direction < 0 ? workflow.previous : workflow.next;
-        if (target && target.key) {
-            loadScreen(target.key);
-            return;
-        }
-        loadAdjacentScreen(direction);
-    }
-
-    function runFirstAction() {
-        const firstAction = els.actions.querySelector("[data-action-ui-key]");
-        if (firstAction) {
-            runAction(actionRefFromForm(firstAction), firstAction);
-        } else {
-            setStatus("没有可执行任务");
-        }
-    }
-
-    function primaryTaskActions() {
-        const actions = (state.screen && state.screen.actions) || [];
-        return actions
-            .map((action, index) => ({ action, index }))
-            .filter((item) => actionTier(item.action) === "primary")
-            .sort((left, right) => {
-                const sequenceDelta = Number(left.action.sequence || 999) - Number(right.action.sequence || 999);
-                return sequenceDelta || left.index - right.index;
-            })
-            .map((item) => item.action);
-    }
-
-    function nextPrimaryAction() {
-        const primaryActions = primaryTaskActions();
-        if (!primaryActions.length) {
-            return null;
-        }
-        return primaryActions.find((action) => !isActionCompleted(action.key)) || null;
-    }
-
-    function screenCompletedSet(screenKey = state.screen?.screen?.key) {
-        const key = screenKey || "";
-        if (!key) {
-            return new Set();
-        }
-        if (!state.completedActionsByScreen[key]) {
-            state.completedActionsByScreen[key] = new Set();
-        }
-        return state.completedActionsByScreen[key];
-    }
-
-    function isActionCompleted(actionKey) {
-        return screenCompletedSet().has(actionKey);
-    }
-
-    function markActionCompleted(action) {
-        if (!action || actionTier(action) !== "primary") {
-            return;
-        }
-        screenCompletedSet(action.screen_key).add(action.key);
-        persistProgress();
-    }
-
-    function screenProgress(actions = (state.screen && state.screen.actions) || []) {
-        const primaryActions = actions.filter((action) => actionTier(action) === "primary");
-        const completed = primaryActions.filter((action) => isActionCompleted(action.key)).length;
-        return { completed, total: primaryActions.length };
-    }
-
-    function resetCurrentScreenProgress() {
-        const screenKey = state.screen?.screen?.key;
-        if (!screenKey) {
-            setStatus("没有可重置的工作区");
-            return;
-        }
-        state.completedActionsByScreen[screenKey] = new Set();
-        persistProgress();
-        if (!isImmersiveDashboardScreen(state.screen?.screen)) {
-            renderActions(state.screen.actions || [], state.screen.screen);
-        }
-        if (state.currentViewModel) {
-            renderViewModel(state.currentViewModel);
-        }
-        setStatus("本屏进度已重置");
-    }
-
-    function runNextPrimaryAction() {
-        if (isOperatorHomeScreen(state.screen?.screen?.key)) {
-            const actionKey = runtimeConfig.host?.laneActionKeys?.[state.preferredHomeLane];
-            if (actionKey) {
-                executeHomeAction(actionKey);
-            }
-            return;
-        }
-        const action = nextPrimaryAction();
-        if (!action) {
-            setStatus("本屏主流程已完成");
-            return;
-        }
-        const form = els.actions.querySelector(`[data-action-ui-key="${CSS.escape(actionUiKey(action))}"]`);
-        const requiredFields = (action.fields || []).filter((field) => field.required && !field.default);
-        if (requiredFields.length && form) {
-            fillActionFromSelectedRow(form);
-            const missing = requiredFields.filter((field) => {
-                const element = formFieldElement(form, field.key);
-                return !element || (!element.checked && String(element.value || "").trim() === "");
-            });
-            if (missing.length) {
-                form.scrollIntoView({ block: "nearest" });
-                form.querySelector("input:not([type='hidden']),select,textarea")?.focus();
-                setStatus(`下一项需要参数: ${missing.map((field) => field.label).join(", ")}`);
-                return;
-            }
-        }
-        runAction(action.key, form);
-    }
-
-    function openMenu(menuName, sourceButton) {
-        const items = menuItems[menuName] || [];
-        state.activeMenu = menuName;
-        els.menuPopover.innerHTML = `
-            <div class="tui-menu-title">${escapeHtml(menuName.toUpperCase())}</div>
-            ${items.map(([command, label, key]) => `
-                <button type="button" data-menu-action="${escapeHtml(command)}">
-                    <span>${escapeHtml(label)}</span>
-                    <kbd>${escapeHtml(key)}</kbd>
+        `),f(`\u5F53\u524D\u4E3B\u9898: ${o.themeKey}`)}function yo(){if(!o.currentViewModel||o.currentViewModel.kind!=="datagrid"){f("\u5F53\u524D\u89C6\u56FE\u4E0D\u53EF\u7B5B\u9009");return}i.filterBar.hidden=!1,i.filterInput.value=o.filterText,i.filterInput.focus(),i.filterInput.select(),f("\u7B5B\u9009\u5C31\u7EEA")}function ht(){i.filterBar&&(i.filterBar.hidden=!0)}function ho(){o.filterText="",i.filterInput&&(i.filterInput.value=""),Ce(!0)}function Kn(e){let t=String(e??"");return/^[=+\-@]/.test(t)&&(t=`'${t}`),/[",\n\r]/.test(t)?`"${t.replace(/"/g,'""')}"`:t}function bo(){if(!o.currentViewModel||o.currentViewModel.kind!=="datagrid"){f("\u5F53\u524D\u89C6\u56FE\u4E0D\u53EF\u5BFC\u51FA");return}const e=o.currentColumns,t=o.visibleRows,n=[e.map(u=>Kn(u.label)).join(","),...t.map(u=>e.map(d=>Kn(u[d.key])).join(","))].join(`\r
+`),r=new Blob(["\uFEFF"+n],{type:"text/csv;charset=utf-8"}),a=URL.createObjectURL(r),s=document.createElement("a"),l=(o.currentViewModel.title||"tui-grid").toLowerCase().replace(/[^a-z0-9一-龥]+/g,"-").replace(/^-|-$/g,"")||"tui-grid";s.href=a,s.download=`${l}.csv`,document.body.appendChild(s),s.click(),s.remove(),URL.revokeObjectURL(a),f(`\u5DF2\u5BFC\u51FA ${t.length} \u884C`)}async function wo(){const e=o.lastAction?$(o.lastAction):null,t=["write","admin"].includes(String(e?.risk||"").toLowerCase());e&&!t?await k(o.lastAction,null,{params:{...o.lastParams}}):o.screen?.screen?.key?await S(o.screen.screen.key):await Qn()}function So(){jn(!1);const e=i.moduleTree.querySelector(".tui-screen-button.is-active")||i.moduleTree.querySelector(".tui-screen-button");e&&(rn(e),e.focus(),f("\u6A21\u5757\u5BFC\u822A"))}function ko(){const e=i.main.closest(".tui-workspace-grid");e?.classList.contains("is-dashboard")&&(e.classList.remove("is-dashboard"),Se("idle"));const t=i.actions.querySelector("[data-action-filter]");if(t){t.focus(),t.select(),f("\u4EFB\u52A1\u533A");return}const n=i.actions.querySelector(".tui-action-button");n&&(n.focus(),f("\u4EFB\u52A1\u533A"))}function $o(){On(!1);const e=i.inspector.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")||i.inspectorShell;e&&(e.focus(),f("\u8BF4\u660E\u680F"))}function jn(e){o.railCollapsed=!!e,i.app?.classList.toggle("is-rail-collapsed",o.railCollapsed),i.moduleTree&&(i.moduleTree.hidden=o.railCollapsed,i.moduleTree.inert=o.railCollapsed,i.moduleTree.setAttribute("aria-hidden",String(o.railCollapsed))),i.railToggle&&(i.railToggle.setAttribute("aria-expanded",String(!o.railCollapsed)),i.railToggle.setAttribute("aria-label",o.railCollapsed?"\u5C55\u5F00\u6A21\u5757\u5BFC\u822A":"\u6536\u8D77\u6A21\u5757\u5BFC\u822A"),i.railToggle.textContent=o.railCollapsed?"\u25BA":"\u25C4"),o.railCollapsed&&i.railPanel?.contains(document.activeElement)&&i.main.querySelector(".tui-datagrid")?.focus()}function Nn(){jn(!o.railCollapsed),o.railCollapsed?f("\u6A21\u5757\u5BFC\u822A\u5DF2\u6536\u8D77"):So()}function On(e){o.inspectorCollapsed=!!e,i.app?.classList.toggle("is-inspector-collapsed",o.inspectorCollapsed),i.inspectorToggle&&(i.inspectorToggle.setAttribute("aria-expanded",String(!o.inspectorCollapsed)),i.inspectorToggle.setAttribute("aria-label",o.inspectorCollapsed?"\u5C55\u5F00\u8BF4\u660E\u680F":"\u6536\u8D77\u8BF4\u660E\u680F"),i.inspectorToggle.textContent=o.inspectorCollapsed?"\u25C4":"\u25BA"),o.inspectorCollapsed&&i.inspectorShell?.contains(document.activeElement)&&i.main.querySelector(".tui-datagrid")?.focus()}function zn(){On(!o.inspectorCollapsed),o.inspectorCollapsed?f("\u8BF4\u660E\u680F\u5DF2\u6536\u8D77"):$o()}function Mn(e){const t=Ue();return t?t.getBoundingClientRect().right-e.clientX:null}function vo(e){if(o.inspectorCollapsed||e.button!==0||!he())return;e.preventDefault(),e.stopPropagation(),i.app?.classList.add("is-inspector-resizing"),i.inspectorResizeHandle?.setPointerCapture?.(e.pointerId),ee(Mn(e));const t=r=>{r.preventDefault(),ee(Mn(r))},n=r=>{r.preventDefault(),i.app?.classList.remove("is-inspector-resizing"),i.inspectorResizeHandle?.releasePointerCapture?.(e.pointerId),i.inspectorResizeHandle?.removeEventListener("pointermove",t),i.inspectorResizeHandle?.removeEventListener("pointerup",n),i.inspectorResizeHandle?.removeEventListener("pointercancel",n),ee(o.inspectorWidth,{persist:!0}),f(`\u8BF4\u660E\u680F\u5BBD\u5EA6 ${o.inspectorWidth}px`)};i.inspectorResizeHandle?.addEventListener("pointermove",t),i.inspectorResizeHandle?.addEventListener("pointerup",n),i.inspectorResizeHandle?.addEventListener("pointercancel",n)}function _o(e){if(o.inspectorCollapsed)return;const t=he();if(!t)return;const n=o.inspectorWidth||i.inspectorShell?.getBoundingClientRect().width||t.min;let r=null;if(e.key==="ArrowLeft"?r=n+(e.shiftKey?48:16):e.key==="ArrowRight"?r=n-(e.shiftKey?48:16):e.key==="Home"?r=t.min:e.key==="End"&&(r=t.max),r===null)return;e.preventDefault(),e.stopPropagation();const a=ee(r,{persist:!0});a&&f(`\u8BF4\u660E\u680F\u5BBD\u5EA6 ${a}px`)}function xo(){const e=i.actions.querySelector("[data-action-filter]");e&&(e.focus(),e.select(),f("\u7B5B\u9009\u5F53\u524D\u4EFB\u52A1"))}function Ao(e){const t=Array.from(i.moduleTree.querySelectorAll("[data-screen-key]"));if(!t.length)return;const r=(Math.max(0,t.findIndex(a=>a.classList.contains("is-active")))+e+t.length)%t.length;S(t[r].dataset.screenKey)}function bt(e){if(_(o.screen?.screen?.key)){const r=w.host?.laneActionKeys?.[o.preferredHomeLane];r&&Z(r);return}const t=o.screen?.screen?.workflow||{},n=e<0?t.previous:t.next;if(n&&n.key){S(n.key);return}Ao(e)}function Co(){return(o.screen&&o.screen.actions||[]).map((t,n)=>({action:t,index:n})).filter(t=>A(t.action)==="primary").sort((t,n)=>Number(t.action.sequence||999)-Number(n.action.sequence||999)||t.index-n.index).map(t=>t.action)}function wt(){const e=Co();return e.length&&e.find(t=>!Pe(t.key))||null}function Un(e=o.screen?.screen?.key){const t=e||"";return t?(o.completedActionsByScreen[t]||(o.completedActionsByScreen[t]=new Set),o.completedActionsByScreen[t]):new Set}function Pe(e){return Un().has(e)}function To(e){!e||A(e)!=="primary"||(Un(e.screen_key).add(e.key),jt())}function Re(e=o.screen&&o.screen.actions||[]){const t=e.filter(r=>A(r)==="primary");return{completed:t.filter(r=>Pe(r.key)).length,total:t.length}}function Lo(){const e=o.screen?.screen?.key;if(!e){f("\u6CA1\u6709\u53EF\u91CD\u7F6E\u7684\u5DE5\u4F5C\u533A");return}o.completedActionsByScreen[e]=new Set,jt(),$e(o.screen?.screen)||j(o.screen.actions||[],o.screen.screen),o.currentViewModel&&ue(o.currentViewModel),f("\u672C\u5C4F\u8FDB\u5EA6\u5DF2\u91CD\u7F6E")}function Vn(){if(_(o.screen?.screen?.key)){const r=w.host?.laneActionKeys?.[o.preferredHomeLane];r&&Z(r);return}const e=wt();if(!e){f("\u672C\u5C4F\u4E3B\u6D41\u7A0B\u5DF2\u5B8C\u6210");return}const t=i.actions.querySelector(`[data-action-ui-key="${CSS.escape(K(e))}"]`),n=(e.fields||[]).filter(r=>r.required&&!r.default);if(n.length&&t){ot(t);const r=n.filter(a=>{const s=it(t,a.key);return!s||!s.checked&&String(s.value||"").trim()===""});if(r.length){t.scrollIntoView({block:"nearest"}),t.querySelector("input:not([type='hidden']),select,textarea")?.focus(),f(`\u4E0B\u4E00\u9879\u9700\u8981\u53C2\u6570: ${r.map(a=>a.label).join(", ")}`);return}}k(e.key,t)}function Wn(e,t){const n=Yn[e]||[];o.activeMenu=e,i.menuPopover.innerHTML=`
+            <div class="tui-menu-title">${c(e.toUpperCase())}</div>
+            ${n.map(([s,l,u])=>`
+                <button type="button" data-menu-action="${c(s)}">
+                    <span>${c(l)}</span>
+                    <kbd>${c(u)}</kbd>
                 </button>
             `).join("")}
-        `;
-        const rect = sourceButton.getBoundingClientRect();
-        els.menuPopover.style.left = `${Math.max(4, rect.left)}px`;
-        els.menuPopover.style.top = `${rect.bottom + 2}px`;
-        els.menuPopover.hidden = false;
-        const first = els.menuPopover.querySelector("button");
-        if (first) {
-            first.focus();
-        }
-    }
-
-    function closeMenu() {
-        state.activeMenu = null;
-        if (els.menuPopover) {
-            els.menuPopover.hidden = true;
-            els.menuPopover.innerHTML = "";
-        }
-    }
-
-    async function runCommand(command) {
-        closeMenu();
-        if (command === "refresh") {
-            setLastRefresh();
-            await refreshCurrent();
-        } else if (command === "export") {
-            exportGrid();
-        } else if (command === "report") {
-            setStatus("报表生成已加入队列");
-        } else if (command === "layout") {
-            loadAdjacentScreen(1);
-        } else if (command === "toggle-rail") {
-            toggleRail();
-        } else if (command === "focus-modules") {
-            focusModules();
-        } else if (command === "focus-actions") {
-            focusActions();
-        } else if (command === "previous-workflow") {
-            loadWorkflowStep(-1);
-        } else if (command === "next-workflow") {
-            loadWorkflowStep(1);
-        } else if (command === "next-screen") {
-            loadAdjacentScreen(1);
-        } else if (command === "run-first-action") {
-            runFirstAction();
-        } else if (command === "run-next-primary") {
-            runNextPrimaryAction();
-        } else if (command === "filter-actions") {
-            focusActionFilter();
-        } else if (command === "row-detail") {
-            openSelectedRowDetail();
-        } else if (command === "filter") {
-            showFilterBar();
-        } else if (command === "fill-from-row") {
-            fillFocusedOrFirstActionFromRow();
-        } else if (command === "reset-progress") {
-            resetCurrentScreenProgress();
-        } else if (command === "toggle-support") {
-            state.showSupportTasks = !state.showSupportTasks;
-            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
-                renderActions(state.screen.actions || [], state.screen.screen);
-            }
-            setStatus(state.showSupportTasks ? "支撑检查已显示" : "支撑检查已隐藏");
-        } else if (command === "toggle-advanced") {
-            state.showAdvancedQueries = !state.showAdvancedQueries;
-            if (!isImmersiveDashboardScreen(state.screen?.screen)) {
-                renderActions(state.screen.actions || [], state.screen.screen);
-            }
-            setStatus(state.showAdvancedQueries ? "高级查询已显示" : "高级查询已隐藏");
-        } else if (command === "toggle-inspector") {
-            toggleInspector();
-        } else if (command === "raw") {
-            toggleRawDrawer();
-        } else if (command === "help") {
-            showHelp();
-        }
-    }
-
-    function fillFocusedOrFirstActionFromRow() {
-        const focusedForm = document.activeElement?.closest?.("[data-action-ui-key]");
-        if (focusedForm && fillActionFromSelectedRow(focusedForm)) {
-            return;
-        }
-        const firstVisibleFieldForm = Array.from(els.actions.querySelectorAll("[data-action-ui-key]"))
-            .find((form) => form.querySelector("input:not([type='hidden']),select,textarea"));
-        fillActionFromSelectedRow(firstVisibleFieldForm);
-    }
-
-    function isEditableTarget(target) {
-        return Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']"));
-    }
-
-    function isInteractiveTarget(target) {
-        return Boolean(target?.closest?.("button, a, input, textarea, select, summary, [role='button'], [role='separator'], [contenteditable='true']"));
-    }
-
-    function closeTopLayer() {
-        if (!els.modal.hidden) {
-            closeModal();
-            return true;
-        }
-        if (!els.filterBar.hidden) {
-            hideFilterBar();
-            return true;
-        }
-        if (!els.menuPopover.hidden) {
-            closeMenu();
-            return true;
-        }
-        if (!els.rawDrawer.hidden) {
-            toggleRawDrawer(false);
-            return true;
-        }
-        return false;
-    }
-
-    function keyboardCommandForEvent(event) {
-        const key = String(event.key || "");
-        const lowerKey = key.toLowerCase();
-        if (event.altKey && !event.ctrlKey && !event.shiftKey && lowerKey === "t") {
-            return "cycle-theme";
-        }
-        if (event.ctrlKey && !event.altKey && !event.shiftKey && lowerKey === "t") {
-            return "theme-status";
-        }
-        if (!event.altKey && !event.ctrlKey && !event.metaKey && HOTKEY_COMMANDS[key]) {
-            return HOTKEY_COMMANDS[key];
-        }
-        if (event.ctrlKey && !event.altKey && !event.metaKey && key === "Enter") {
-            return "run-next-primary";
-        }
-        return "";
-    }
-
-    function handleGlobalShortcut(event) {
-        if (event.isComposing || event.metaKey) {
-            return false;
-        }
-        const command = keyboardCommandForEvent(event);
-        if (!command) {
-            return false;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        if (command === "cycle-theme") {
-            cycleTheme();
-        } else if (command === "theme-status") {
-            showThemeStatus();
-        } else {
-            runCommand(command);
-        }
-        return true;
-    }
-
-    function bindControls() {
-        const applyFilterDebounced = typeof runtimeCore.debounce === "function"
-            ? runtimeCore.debounce(() => applyFilter(true), 120)
-            : () => applyFilter(true);
-        els.actions?.addEventListener("submit", (event) => {
-            const form = event.target?.closest?.("[data-action-ui-key]");
-            if (!form) {
-                return;
-            }
-            event.preventDefault();
-            triggerActionForm(form);
-        });
-        els.actions?.addEventListener("click", (event) => {
-            const fillButton = event.target?.closest?.("[data-fill-from-row]");
-            if (fillButton) {
-                event.preventDefault();
-                fillActionFromSelectedRow(fillButton.closest("[data-action-ui-key]"));
-                return;
-            }
-            const actionButton = event.target?.closest?.(".tui-action-button");
-            if (!actionButton) {
-                return;
-            }
-            const form = actionButton.closest("[data-action-ui-key]");
-            if (!form) {
-                return;
-            }
-            event.preventDefault();
-            triggerActionForm(form);
-        });
-        els.main?.addEventListener("click", (event) => {
-            const imagePreview = event.target?.closest?.("[data-image-preview]");
-            if (!imagePreview) {
-                return;
-            }
-            event.preventDefault();
-            showImagePreview(imagePreview);
-        });
-        els.currentLocation?.addEventListener("focus", () => {
-            els.currentLocation.select();
-        });
-        els.currentLocation?.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                submitLocationInput();
-            } else if (event.key === "Escape") {
-                event.preventDefault();
-                resetLocationInput();
-                els.currentLocation.blur();
-            }
-        });
-        els.rawToggle.addEventListener("click", () => toggleRawDrawer());
-        els.rawClose.addEventListener("click", () => toggleRawDrawer(false));
-        els.modalClose.addEventListener("click", closeModal);
-        els.filterInput.addEventListener("input", () => {
-            state.filterText = els.filterInput.value;
-            applyFilterDebounced();
-        });
-        els.filterInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                hideFilterBar();
-                els.main.querySelector(".tui-datagrid")?.focus();
-            }
-        });
-        els.filterClear.addEventListener("click", clearFilter);
-        els.railToggle?.addEventListener("click", toggleRail);
-        els.inspectorToggle?.addEventListener("click", toggleInspector);
-        els.inspectorResizeHandle?.addEventListener("pointerdown", beginInspectorResize);
-        els.inspectorResizeHandle?.addEventListener("keydown", resizeInspectorByKeyboard);
-        document.querySelectorAll("[data-menu-command]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const name = button.dataset.menuCommand;
-                if (state.activeMenu === name && !els.menuPopover.hidden) {
-                    closeMenu();
-                } else {
-                    openMenu(name, button);
-                }
-            });
-        });
-        els.menuPopover.addEventListener("click", (event) => {
-            const action = event.target.closest("[data-menu-action]");
-            if (action) {
-                runCommand(action.dataset.menuAction);
-            }
-        });
-        document.addEventListener("click", (event) => {
-            if (!els.menuPopover.hidden && !event.target.closest("[data-menu-popover]") && !event.target.closest("[data-menu-command]")) {
-                closeMenu();
-            }
-        });
-        document.addEventListener("keydown", (event) => {
-            if (handleGlobalShortcut(event)) {
-                return;
-            }
-            if (event.key === "Escape") {
-                event.preventDefault();
-                closeTopLayer();
-            } else if (event.key === "Enter" && !isInteractiveTarget(event.target)) {
-                event.preventDefault();
-                openSelectedRowDetail();
-            } else if (event.key === "ArrowDown" && !isEditableTarget(event.target) && !isInteractiveTarget(event.target)) {
-                event.preventDefault();
-                moveRow(1);
-            } else if (event.key === "ArrowUp" && !isEditableTarget(event.target) && !isInteractiveTarget(event.target)) {
-                event.preventDefault();
-                moveRow(-1);
-            } else if (event.key === "PageDown" && !isEditableTarget(event.target)) {
-                event.preventDefault();
-                pageDelta(1);
-            } else if (event.key === "PageUp" && !isEditableTarget(event.target)) {
-                event.preventDefault();
-                pageDelta(-1);
-            }
-        }, { capture: true });
-    }
-
-    function updateClock() {
-        if (!els.clock) {
-            return;
-        }
-        els.clock.textContent = currentDateTime();
-    }
-
-    async function bootstrap() {
-        runtimeCore.mark?.("bootstrap-start");
-        try {
-            els.moduleTree.innerHTML = '<div class="tui-loading">正在加载目录...</div>';
-            setStatus("启动中");
-            const requestedScreen = shouldResumeOnBoot() && state.lastNonHomeScreen
-                ? state.lastNonHomeScreen
-                : "";
-            const optimizedUrl = bootstrapUrl(requestedScreen);
-            if (optimizedUrl) {
-                try {
-                    const payload = await fetchJson(optimizedUrl);
-                    if (payload?.contract === "tui-bootstrap.v1" && payload.catalog && payload.screen) {
-                        renderCatalog(payload.catalog);
-                        clearResumeOnBootFlag();
-                        if (isOperatorHomeScreen(payload.screen?.screen?.key)) {
-                            state.operatorHomePayload = null;
-                            state.operatorHomePromise = null;
-                        }
-                        renderScreen(payload.screen);
-                        refreshGovernanceBadges();
-                        if (requestedScreen && payload.resolved_screen !== requestedScreen) {
-                            setStatus("上次工作区已不可用，已返回首页");
-                        }
-                        runtimeCore.mark?.("p0-ready");
-                        runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
-                        return;
-                    }
-                } catch (optimizedError) {
-                    if (![0, 404, 405].includes(Number(optimizedError?.status || 0))) {
-                        throw optimizedError;
-                    }
-                }
-            }
-            const catalog = await fetchJson(catalogUrl());
-            renderCatalog(catalog);
-            const isResumeAttempt = Boolean(shouldResumeOnBoot() && state.lastNonHomeScreen);
-            const initialScreen = isResumeAttempt
-                ? state.lastNonHomeScreen
-                : catalog.default_screen;
-            clearResumeOnBootFlag();
-            const loaded = await loadScreen(initialScreen);
-            if (!loaded && isResumeAttempt) {
-                setStatus("上次工作区已不可用，已返回首页");
-                await loadScreen(catalog.default_screen);
-            }
-            runtimeCore.mark?.("p0-ready");
-            runtimeCore.measure?.("bootstrap-to-p0", "bootstrap-start", "p0-ready");
-        } catch (error) {
-            els.moduleTree.innerHTML = '<div class="tui-error">导航暂时不可用</div>';
-            renderBoundedApplicationError(error);
-        }
-    }
-
-    loadStoredProgress();
-    loadStoredOperatorState();
-    applyTheme(loadStoredTheme(), { silent: true });
-    loadStoredInspectorWidth();
-    bindControls();
-    updateClock();
-    window.setInterval(updateClock, 1000);
-    bootstrap();
-})();
+        `;const r=t.getBoundingClientRect();i.menuPopover.style.left=`${Math.max(4,r.left)}px`,i.menuPopover.style.top=`${r.bottom+2}px`,i.menuPopover.hidden=!1;const a=i.menuPopover.querySelector("button");a&&a.focus()}function G(){o.activeMenu=null,i.menuPopover&&(i.menuPopover.hidden=!0,i.menuPopover.innerHTML="")}async function Gn(e){G(),e==="refresh"?(ze(),await wo()):e==="export"?bo():e==="toggle-rail"?Nn():e==="focus-actions"?ko():e==="previous-workflow"?bt(-1):e==="next-workflow"?bt(1):e==="run-next-primary"?Vn():e==="filter-actions"?xo():e==="row-detail"?yt():e==="filter"?yo():e==="reset-progress"?Lo():e==="toggle-inspector"?zn():e==="raw"?Le():e==="help"&&mo()}function Ee(e){return!!e?.closest?.("input, textarea, select, [contenteditable='true']")}function St(e){return!!e?.closest?.("button, a, input, textarea, select, summary, [role='button'], [role='separator'], [contenteditable='true']")}function Po(){return i.modal.hidden?i.filterBar.hidden?i.menuPopover.hidden?i.rawDrawer.hidden?!1:(Le(!1),!0):(G(),!0):(ht(),!0):(L(),!0)}function Ro(e){const t=String(e.key||""),n=t.toLowerCase();if(e.altKey&&!e.ctrlKey&&!e.shiftKey&&n==="t")return"cycle-theme";if(e.altKey&&!e.ctrlKey&&e.shiftKey&&n==="t")return"theme-status";if(e.altKey&&!e.ctrlKey&&!e.shiftKey){const r={s:"file",m:"module",r:"action",v:"view",h:"help"};if(r[n])return`open-menu:${r[n]}`}return!e.altKey&&!e.ctrlKey&&!e.metaKey&&kt[t]?kt[t]:e.ctrlKey&&!e.altKey&&!e.metaKey&&t==="Enter"?"run-next-primary":""}function Eo(e){if(e.isComposing||e.metaKey||!i.modal.hidden)return!1;const t=Ro(e);if(!t)return!1;if(e.preventDefault(),e.stopPropagation(),t.startsWith("open-menu:")){const n=t.slice(10),r=document.querySelector(`[data-menu-command="${CSS.escape(n)}"]`);r&&Wn(n,r)}else t==="cycle-theme"?Sr():t==="theme-status"?go():Gn(t);return!0}function qo(){const e=typeof v.debounce=="function"?v.debounce(()=>Ce(!0),tr):()=>Ce(!0);i.actions?.addEventListener("submit",t=>{const n=t.target?.closest?.("[data-action-ui-key]");n&&(t.preventDefault(),we(n))}),i.actions?.addEventListener("click",t=>{const n=t.target?.closest?.("[data-fill-from-row]");if(n){t.preventDefault(),ot(n.closest("[data-action-ui-key]"));return}const r=t.target?.closest?.(".tui-action-button");if(!r)return;const a=r.closest("[data-action-ui-key]");a&&(t.preventDefault(),we(a))}),i.main?.addEventListener("click",t=>{const n=t.target?.closest?.("[data-image-preview]");n&&(t.preventDefault(),lo(n))}),i.currentLocation?.addEventListener("focus",()=>{i.currentLocation.select()}),i.currentLocation?.addEventListener("keydown",t=>{t.key==="Enter"?(t.preventDefault(),$r()):t.key==="Escape"&&(t.preventDefault(),Me(),i.currentLocation.blur())}),i.rawToggle.addEventListener("click",()=>Le()),i.rawClose.addEventListener("click",()=>Le(!1)),i.modalClose.addEventListener("click",L),i.filterInput.addEventListener("input",()=>{o.filterText=i.filterInput.value,e()}),i.filterInput.addEventListener("keydown",t=>{t.key==="Enter"&&(t.preventDefault(),ht(),i.main.querySelector(".tui-datagrid")?.focus())}),i.filterClear.addEventListener("click",ho),i.railToggle?.addEventListener("click",Nn),i.inspectorToggle?.addEventListener("click",zn),i.inspectorResizeHandle?.addEventListener("pointerdown",vo),i.inspectorResizeHandle?.addEventListener("keydown",_o),document.querySelectorAll("[data-menu-command]").forEach(t=>{t.addEventListener("click",n=>{n.stopPropagation();const r=t.dataset.menuCommand;o.activeMenu===r&&!i.menuPopover.hidden?G():Wn(r,t)})}),i.menuPopover.addEventListener("click",t=>{const n=t.target.closest("[data-menu-action]");n&&Gn(n.dataset.menuAction)}),document.addEventListener("click",t=>{!i.menuPopover.hidden&&!t.target.closest("[data-menu-popover]")&&!t.target.closest("[data-menu-command]")&&G()}),document.addEventListener("keydown",t=>{co(t)||Eo(t)||(t.key==="Escape"?Po()&&t.preventDefault():t.key==="Enter"&&!St(t.target)?(t.preventDefault(),yt()):t.key==="ArrowDown"&&!Ee(t.target)&&!St(t.target)?(t.preventDefault(),In(1)):t.key==="ArrowUp"&&!Ee(t.target)&&!St(t.target)?(t.preventDefault(),In(-1)):t.key==="PageDown"&&!Ee(t.target)?o.lastPager&&(t.preventDefault(),gt(1)):t.key==="PageUp"&&!Ee(t.target)&&o.lastPager&&(t.preventDefault(),gt(-1)))},{capture:!0})}function Jn(){i.clock&&(i.clock.textContent=Dt())}async function Qn(){v.mark?.("bootstrap-start");try{i.moduleTree.innerHTML='<div class="tui-loading">\u6B63\u5728\u52A0\u8F7D\u76EE\u5F55...</div>',f("\u542F\u52A8\u4E2D");const e=Ot()&&o.lastNonHomeScreen?o.lastNonHomeScreen:"",t=lr(e);if(t)try{const l=await E(t);if(l?.contract==="tui-bootstrap.v1"&&l.catalog&&l.screen){Qe(l.catalog),zt(),_(l.screen?.screen?.key)&&(o.operatorHomePayload=null,o.operatorHomePromise=null),sn(l.screen),X(),e&&l.resolved_screen!==e&&f("\u4E0A\u6B21\u5DE5\u4F5C\u533A\u5DF2\u4E0D\u53EF\u7528\uFF0C\u5DF2\u8FD4\u56DE\u9996\u9875"),v.mark?.("p0-ready"),v.measure?.("bootstrap-to-p0","bootstrap-start","p0-ready");return}}catch(l){if(![0,404,405].includes(Number(l?.status||0)))throw l}const n=await E(ir());Qe(n);const r=!!(Ot()&&o.lastNonHomeScreen),a=r?o.lastNonHomeScreen:n.default_screen;zt(),!await S(a)&&r&&(f("\u4E0A\u6B21\u5DE5\u4F5C\u533A\u5DF2\u4E0D\u53EF\u7528\uFF0C\u5DF2\u8FD4\u56DE\u9996\u9875"),await S(n.default_screen)),v.mark?.("p0-ready"),v.measure?.("bootstrap-to-p0","bootstrap-start","p0-ready")}catch(e){i.moduleTree.innerHTML='<div class="tui-error">\u5BFC\u822A\u6682\u65F6\u4E0D\u53EF\u7528</div>',ne(e)}}function Fo(){return["app","moduleTree","screenTitle","screenStatus","actions","mainTitle","main","inspector","rawDrawer","rawPanel","rawToggle","rawClose","pager","menuPopover","filterBar","filterInput","filterClear","modal","modalTitle","modalBody","modalClose","status"].filter(n=>!i[n]).length?(document.body.innerHTML=`
+            <main class="tui-error" role="alert">
+                \u5DE5\u4F5C\u53F0\u9875\u9762\u7ED3\u6784\u4E0D\u5B8C\u6574\uFF0C\u8BF7\u5237\u65B0\u9875\u9762\u6216\u8054\u7CFB\u7CFB\u7EDF\u7BA1\u7406\u5458\u3002
+            </main>
+        `,!1):!0}function Ho(){Fo()&&(vr(),_r(),It(wr(),{silent:!0}),Er(),qo(),Jn(),window.setInterval(Jn,1e3),Qn())}Ho()})();

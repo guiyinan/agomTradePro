@@ -358,13 +358,6 @@ class TuiWorkbenchCatalogMixin:
         tier = str(action.get("task_tier") or "").lower()
         if tier in {"primary", "support", "advanced", "operation"}:
             return tier
-        risk = str(action.get("risk") or "read").lower()
-        if risk in {"write", "ai", "admin"}:
-            return "operation"
-        key = str(action.get("key") or "")
-        group = str(action.get("task_group") or "")
-        if key.startswith("param.") or "条件查询" in group:
-            return "advanced"
         return "primary"
 
     def _action_payload(
@@ -389,7 +382,8 @@ class TuiWorkbenchCatalogMixin:
             ],
             "description": self._operator_text(action.get("description", "")),
             "task_group": self._operator_text(action.get("task_group", "")),
-            "task_tier": action.get("task_tier", ""),
+            "task_tier": action.get("task_tier", "primary"),
+            "submit_label": self._operator_text(action.get("submit_label", "执行")),
             "result_semantics": list(action.get("result_semantics") or []),
             "sequence": int(action.get("sequence", 999)),
         }

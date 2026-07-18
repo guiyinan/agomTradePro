@@ -30,6 +30,7 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 5,
             "total": 6,
             "label": "执行参数",

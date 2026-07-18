@@ -1,4 +1,4 @@
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -23,6 +23,15 @@ const targets = [
         outfile: resolve(root, "static/js/tui-agomtradepro-adapter.js"),
     },
 ];
+const workbenchSegments = [
+    "frontend/tui-workbench/src/00-runtime.js",
+    "frontend/tui-workbench/src/10-navigation.js",
+    "frontend/tui-workbench/src/20-dashboard.js",
+    "frontend/tui-workbench/src/30-actions.js",
+    "frontend/tui-workbench/src/40-views.js",
+    "frontend/tui-workbench/src/50-shell.js",
+];
+const workbenchOutfile = resolve(root, "static/js/tui-workbench.js");
 
 async function bundle(target, write) {
     const result = await build({
@@ -54,6 +63,29 @@ for (const target of targets) {
     }
 }
 
+async function buildWorkbenchBundle() {
+    const body = (await Promise.all(
+        workbenchSegments.map((relative) => readFile(resolve(root, relative), "utf8")),
+    )).map((content) => content.trimEnd()).join("\n\n");
+    const wrapped = `(function () {\n    "use strict";\n${body}\n})();\n`;
+    const result = await transform(wrapped, {
+        loader: "js",
+        minify: true,
+        target: "es2020",
+    });
+    return Buffer.from(result.code, "utf8");
+}
+
+const expectedWorkbench = await buildWorkbenchBundle();
+if (check) {
+    const currentWorkbench = await readFile(workbenchOutfile).catch(() => Buffer.alloc(0));
+    if (!runtimeContentsEqual(currentWorkbench, expectedWorkbench)) {
+        throw new Error(`Stale TUI bundle: ${workbenchOutfile}`);
+    }
+} else {
+    await writeFile(workbenchOutfile, expectedWorkbench);
+}
+
 const manifestPath = resolve(root, "config/tui/agomtui-runtime.manifest.json");
 const files = {};
 for (const relative of [
@@ -66,6 +98,7 @@ for (const relative of [
     "frontend/agomtui-runtime/src/pagination.js",
     "frontend/agomtui-runtime/src/performance.js",
     "frontend/agomtui-runtime/src/state.js",
+    ...workbenchSegments,
     "static/js/agomtui-runtime-core.js",
     "static/js/tui-workbench.js",
     "static/css/tui-workbench.css",

@@ -1585,10 +1585,10 @@ a {
 
 .q-marker {
     position: absolute;
-    left: 38%;
-    top: 34%;
     color: var(--tui-green);
     font-size: 22px;
+    transform: translate(-50%, -50%);
+    transition: left 160ms ease, top 160ms ease;
 }
 
 .q-recovery strong,

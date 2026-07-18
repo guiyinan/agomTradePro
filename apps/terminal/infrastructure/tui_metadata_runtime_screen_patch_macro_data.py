@@ -110,6 +110,7 @@ RUNTIME_SCREEN_PATCHES_MACRO_DATA: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 2,
             "total": 6,
             "label": "数据治理",

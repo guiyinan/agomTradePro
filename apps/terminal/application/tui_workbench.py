@@ -192,6 +192,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             ),
             "default_screen": metadata["default_screen"],
             "principles": metadata.get("principles", []),
+            "field_aliases": dict(metadata.get("field_aliases") or {}),
             "stats": self._catalog_stats(metadata, actions),
             "groups": groups,
             "modules": [self._module_summary(module) for module in metadata["modules"]],

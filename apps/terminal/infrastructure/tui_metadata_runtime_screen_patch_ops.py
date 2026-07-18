@@ -17,6 +17,7 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 1,
             "total": 6,
             "label": "运行时治理",
@@ -85,6 +86,7 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 3,
             "total": 6,
             "label": "AI 服务商治理",
@@ -155,6 +157,7 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 4,
             "total": 6,
             "label": "智能任务运行时治理",
@@ -225,6 +228,7 @@ RUNTIME_SCREEN_PATCHES_OPS: dict[str, dict[str, Any]] = {
         },
         "workflow": {
             "name": "系统治理流程",
+            "lane": "governance",
             "step": 6,
             "total": 6,
             "label": "配置中心治理",
