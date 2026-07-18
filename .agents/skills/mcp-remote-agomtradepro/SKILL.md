@@ -146,6 +146,12 @@ When wiring the local SDK/MCP runtime to a remote VPS, keep these environment va
 }
 ```
 
+The MCP audit client derives `/api/audit/internal/operation-logs/` from
+`AGOMTRADEPRO_BASE_URL` and authenticates the audit write with the same user
+access token. `AGOMTRADEPRO_AUDIT_URL` remains available only when audit ingest
+is hosted at a different origin. Do not distribute `AUDIT_INTERNAL_SECRET_KEY`
+to remote user clients; it is reserved for trusted service-to-service HMAC.
+
 ## Contract Notes
 
 - Use `/api/signal/`, not legacy `/api/signals/`.

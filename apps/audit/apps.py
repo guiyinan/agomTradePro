@@ -11,6 +11,7 @@ class AuditConfig(AppConfig):
     def ready(self) -> None:
         """Import admin module when app is ready"""
         import apps.audit.interface.admin  # noqa: F401
+        import apps.audit.interface.openapi  # noqa: F401 - Register OpenAPI extensions
         from apps.audit.application.account_gateway import register_audit_account_gateway
         from apps.audit.application.backtest_gateway import register_audit_backtest_gateway
 

@@ -22,6 +22,21 @@ logger = logging.getLogger(__name__)
 MAX_RESPONSE_TEXT_LENGTH = 200000
 
 
+def _default_audit_backend_url() -> str:
+    """Resolve audit ingest beside the configured AgomTradePro API."""
+
+    explicit_url = os.getenv("AGOMTRADEPRO_AUDIT_URL", "").strip()
+    if explicit_url:
+        return explicit_url
+
+    base_url = (
+        os.getenv("AGOMTRADEPRO_BASE_URL")
+        or os.getenv("AGOMTRADEPRO_API_BASE_URL")
+        or "http://127.0.0.1:8000"
+    )
+    return f"{base_url.rstrip('/')}/api/audit/internal/operation-logs/"
+
+
 @dataclass
 class AuditContext:
     """审计上下文，用于收集审计信息"""
@@ -79,10 +94,7 @@ class AuditLogger:
             backend_url: 后端审计 API URL，默认从环境变量读取
             secret_key: 签名密钥，默认从环境变量读取
         """
-        self.backend_url = backend_url or os.getenv(
-            'AGOMTRADEPRO_AUDIT_URL',
-            'http://127.0.0.1:8000/api/audit/internal/operation-logs/'
-        )
+        self.backend_url = backend_url or _default_audit_backend_url()
         self.secret_key = secret_key or os.getenv(
             'AGOMTRADEPRO_AUDIT_SECRET_KEY',
             os.getenv('AUDIT_INTERNAL_SECRET_KEY', '')
@@ -389,6 +401,9 @@ class AuditLogger:
                 'X-Audit-Timestamp': timestamp,
                 'X-Audit-Signature': signature,
             }
+            api_token = os.getenv("AGOMTRADEPRO_API_TOKEN", "").strip()
+            if api_token:
+                headers["Authorization"] = f"Token {api_token}"
 
             response = requests.post(
                 self.backend_url,

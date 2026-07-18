@@ -3,6 +3,39 @@ from unittest.mock import Mock
 from agomtradepro_mcp.audit import AuditContext, AuditLogger
 
 
+def test_default_backend_url_follows_remote_api_base(monkeypatch) -> None:
+    monkeypatch.delenv("AGOMTRADEPRO_AUDIT_URL", raising=False)
+    monkeypatch.setenv("AGOMTRADEPRO_BASE_URL", "https://demo.example.com/")
+
+    logger = AuditLogger(secret_key="k")
+
+    assert logger.backend_url == "https://demo.example.com/api/audit/internal/operation-logs/"
+
+
+def test_send_audit_log_forwards_user_access_token(monkeypatch) -> None:
+    monkeypatch.setenv("AGOMTRADEPRO_API_TOKEN", "user-access-token")
+    logger = AuditLogger(
+        backend_url="https://demo.example.com/api/audit/internal/operation-logs/",
+        secret_key="",
+    )
+
+    class FakeResponse:
+        status_code = 201
+        text = '{"success": true, "log_id": "log-1"}'
+
+        @staticmethod
+        def json() -> dict[str, object]:
+            return {"success": True, "log_id": "log-1"}
+
+    fake_requests = Mock()
+    fake_requests.post.return_value = FakeResponse()
+    monkeypatch.setitem(__import__("sys").modules, "requests", fake_requests)
+
+    assert logger._send_audit_log({"request_id": "r-token"}) == "log-1"
+    headers = fake_requests.post.call_args.kwargs["headers"]
+    assert headers["Authorization"] == "Token user-access-token"
+
+
 def test_mask_sensitive_params_recursive() -> None:
     params = {
         "password": "secret",

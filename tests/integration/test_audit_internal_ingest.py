@@ -6,11 +6,14 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import override_settings
 from rest_framework.test import APIClient
 
+from apps.account.infrastructure.models import UserAccessTokenModel
 from apps.audit.infrastructure.models import OperationLogModel
 from apps.audit.interface.views import OperationLogIngestView
 
@@ -80,6 +83,39 @@ class TestAuditInternalIngest:
         """Signed internal audit traffic must not consume the public anon bucket."""
 
         assert OperationLogIngestView.throttle_classes == []
+
+    def test_read_only_token_ingest_uses_authenticated_identity(self) -> None:
+        """Remote read-only MCP clients may persist only their own audit identity."""
+
+        user = User.objects.create_user(username=f"audit_mcp_{uuid.uuid4().hex[:8]}")
+        _, raw_key = UserAccessTokenModel.create_token(
+            user=user,
+            name="remote-audit",
+            access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+        )
+        payload = {
+            "request_id": "req-token-001",
+            "user_id": user.id + 999,
+            "username": "forged-user",
+            "source": "MCP",
+            "operation_type": "MCP_CALL",
+            "module": "regime",
+            "action": "READ",
+            "mcp_tool_name": "agom_capability_call",
+            "response_status": 200,
+        }
+
+        response = APIClient().post(
+            "/api/audit/internal/operation-logs/",
+            data=payload,
+            format="json",
+            HTTP_AUTHORIZATION=f"Token {raw_key}",
+        )
+
+        assert response.status_code == 201
+        log = OperationLogModel._default_manager.get(request_id="req-token-001")
+        assert log.user_id == user.id
+        assert log.username == user.username
 
     def test_ingest_with_invalid_signature_rejected(self):
         client = APIClient()

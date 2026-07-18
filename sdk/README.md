@@ -121,6 +121,12 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
 }
 ```
 
+MCP audit writes automatically use the same `AGOMTRADEPRO_BASE_URL` origin and
+`AGOMTRADEPRO_API_TOKEN`. A `read_only` token may write only its own audit
+metadata; the backend binds `user_id` and `username` to the authenticated token.
+Set `AGOMTRADEPRO_AUDIT_URL` only when audit ingest is hosted separately. Keep
+`AUDIT_INTERNAL_SECRET_KEY` private to trusted service-to-service deployments.
+
 You can also start MCP manually (for smoke testing):
 
 ```bash

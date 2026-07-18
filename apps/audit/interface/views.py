@@ -43,6 +43,7 @@ from apps.audit.application.interface_services import (
     reset_audit_failure_counter,
 )
 
+from .authentication import AuditIngestTokenAuthentication
 from .permissions import (
     HasInternalAuditSignature,
     IsAuditAdmin,
@@ -776,19 +777,22 @@ class OperationLogStatsView(APIView):
 
 
 class OperationLogIngestView(APIView):
-    """操作日志内部写入 API"""
+    """操作日志受信写入 API"""
 
-    permission_classes = [HasInternalAuditSignature]
+    permission_classes = [HasInternalAuditSignature | IsAuthenticated]
     parser_classes = [JSONParser]
-    authentication_classes = []  # 不需要用户认证，使用签名验证
-    # MCP/SDK 每次能力调用都会写入一条审计记录。该端点没有 DRF 用户，若继承
-    # 全局匿名限流会共享 anon bucket，并在正常高频调用下错误返回 429。
-    # 请求仍须先通过 HasInternalAuditSignature 的 HMAC 与时效校验。
+    authentication_classes = [AuditIngestTokenAuthentication]
+    # MCP/SDK 每次能力调用都会写入一条审计记录。HMAC 服务请求没有 DRF 用户，
+    # 若继承全局匿名限流会共享 anon bucket，并在正常高频调用下错误返回 429。
+    # 请求仍须通过内部 HMAC 或用户 Token 之一的校验。
     throttle_classes = []
 
     @extend_schema(
         summary="内部写入操作日志",
-        description="MCP/SDK 服务调用此接口写入操作日志。需要 X-Audit-Signature 和 X-Audit-Timestamp 头。",
+        description=(
+            "MCP/SDK 调用此接口写入操作日志。支持内部 HMAC 签名或用户访问 Token；"
+            "Token 模式下用户身份由服务端强制绑定。"
+        ),
         request=OperationLogIngestSerializer,
         responses={
             201: OpenApiTypes.OBJECT,
@@ -806,11 +810,18 @@ class OperationLogIngestView(APIView):
             )
 
         data = serializer.validated_data
+        authenticated_user = (
+            request.user if request.user and request.user.is_authenticated else None
+        )
 
         response = log_operation_payload(
             request_id=data.get("request_id", ""),
-            user_id=data.get("user_id"),
-            username=data.get("username", "anonymous"),
+            user_id=(authenticated_user.id if authenticated_user else data.get("user_id")),
+            username=(
+                authenticated_user.get_username()
+                if authenticated_user
+                else data.get("username", "anonymous")
+            ),
             source=data.get("source", "MCP"),
             operation_type=data.get("operation_type", "MCP_CALL"),
             module=data.get("module", ""),
