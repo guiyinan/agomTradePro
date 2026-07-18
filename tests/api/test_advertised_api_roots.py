@@ -32,4 +32,4 @@ def test_realtime_page_entry_redirects_to_governed_workbench(
     response = authenticated_client.get("/realtime/")
 
     assert response.status_code == 302
-    assert response["Location"] == "/tui/"
+    assert response["Location"] == "/tui/#/realtime-monitor.alerts"
