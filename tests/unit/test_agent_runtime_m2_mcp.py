@@ -82,10 +82,11 @@ class TestServerWelcomeMetadata:
 
         assert server.instructions is not None
         assert "[AgomTradePro MCP Startup Welcome]" in server.instructions
-        assert "injected by the MCP server during initialize" in server.instructions
-        assert "Treat it as mandatory startup context for this session." in server.instructions
-        assert "Immediate orientation:" in server.instructions
-        assert "agomtradepro://welcome" in server.instructions
+        assert "Agent contract version:" in server.instructions
+        assert "agom_get_agent_contract" in server.instructions
+        assert "agom_capability_search" in server.instructions
+        assert "Never bypass confirmation." in server.instructions
+        assert "All execution is simulated trading only." in server.instructions
 
 
 class TestWorkflowPromptRegistration:
