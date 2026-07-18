@@ -133,7 +133,7 @@ class Remote:
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    def __enter__(self) -> "Remote":
+    def __enter__(self) -> Remote:
         self.client.connect(
             hostname=self.config.host,
             port=self.config.port,
@@ -205,10 +205,11 @@ def build_remote_update_command(
         )
         lines.extend(
             [
-                "for i in $(seq 1 30); do",
+                "for i in $(seq 1 60); do",
                 f"  if docker exec {q(config.container)} curl -fsS http://127.0.0.1:8000{q(config.health_path)} >/tmp/agom_web_health.out 2>/tmp/agom_web_health.err; then break; fi",
                 "  sleep 2",
                 "done",
+                f"docker exec {q(config.container)} curl -fsS http://127.0.0.1:8000{q(config.health_path)} >/dev/null",
             ]
         )
 
@@ -276,7 +277,11 @@ def main() -> int:
             backup_lines.extend(
                 [
                     f"mkdir -p {q(posixpath.join(backup_dir, posixpath.dirname(rel)))}",
-                    f"cp -a {q(rel)} {q(posixpath.join(backup_dir, rel))}",
+                    (
+                        f"if [ -e {q(rel)} ]; then "
+                        f"cp -a {q(rel)} {q(posixpath.join(backup_dir, rel))}; "
+                        f"else printf 'backup_skip_missing %s\\n' {q(rel)}; fi"
+                    ),
                 ]
             )
         remote.run("\n".join(backup_lines))

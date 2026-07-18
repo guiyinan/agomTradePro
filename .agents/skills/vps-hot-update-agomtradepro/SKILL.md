@@ -7,6 +7,11 @@ description: Hot update selected AgomTradePro files on the production VPS withou
 
 Use this skill for small, code-only VPS patches where a full `vps-deploy-agomtradepro` rebuild is unnecessary. The workflow uploads selected local files to `/opt/agomtradepro/current`, backs up the remote originals, copies changed files into the running `web` container, refreshes the collected static volume for `static/...` files, restarts only `web` by default, and verifies HTTPS health.
 
+New code files are supported: when no remote original exists, the script records
+`backup_skip_missing` and continues while still backing up every existing file.
+Web restarts wait up to 120 seconds and require an in-container health response
+before release markers and public HTTPS are verified.
+
 ## Boundaries
 
 - Do not use this for dependency changes, migrations, Dockerfile/compose changes, database restore, or broad deploys. Use `vps-deploy-agomtradepro` instead.
