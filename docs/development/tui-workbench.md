@@ -393,7 +393,7 @@ Their live totals come from the generated evidence and promotion report.
 
 New UX work should prefer adding published metadata to the TUI workbench over creating another one-off Django page. Existing Django pages remain available as legacy/classic exits, but they are not wrapped inside a TUI shell.
 
-Do not load `static/css/tui-theme.css` or `static/js/tui-mode.js` into classic pages. Those files are legacy rollback/reference assets. New TUI work belongs in `/tui/`, `tui-workbench.css`, and `tui-workbench.js`.
+Do not load `static/css/tui-theme.css` into classic pages. The conflicting legacy `static/js/tui-mode.js` runtime has been removed; new TUI behavior belongs in the maintained `frontend/tui-workbench/src/` segments and is generated into `static/js/tui-workbench.js`.
 
 ## Runtime 0.2 Architecture and Performance
 
