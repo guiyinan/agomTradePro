@@ -74,11 +74,9 @@
     "apps/audit/domain/services.py": 1299,
     "apps/audit/infrastructure/repositories.py": 1357,
     "apps/data_center/application/market_thermometer.py": 1434,
-    "apps/data_center/application/use_cases.py": 2339,
     "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
     "apps/decision_rhythm/domain/services.py": 1563,
-    "apps/decision_rhythm/infrastructure/models.py": 2146,
     "apps/decision_rhythm/infrastructure/repositories.py": 1790,
     "apps/equity/infrastructure/repositories.py": 2327,
     "apps/equity/interface/views.py": 1309,
@@ -131,15 +129,6 @@
       "review_by": "2026-12-31",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },
-    "apps/data_center/application/use_cases.py": {
-      "owner": "data-center",
-      "kind": "application-use-cases",
-      "rationale": "Split provider synchronization, canonical storage, and query orchestration.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
     "apps/data_center/infrastructure/provider_adapters.py": {
       "owner": "data-center",
       "kind": "provider-adapters",
@@ -164,15 +153,6 @@
       "rationale": "Split decision policies, gates, and sizing rules.",
       "priority": "P1",
       "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/decision_rhythm/infrastructure/models.py": {
-      "owner": "decision-rhythm",
-      "kind": "orm-models",
-      "rationale": "Separate recommendation, transition, and execution persistence models.",
-      "priority": "P1",
-      "target_non_empty_lines": 1100,
       "review_by": "2026-09-30",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },

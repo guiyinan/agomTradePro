@@ -15,6 +15,8 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Auto-advisor services now have focused serialization, contract, intent, execution, performance, provider, and decision-sheet owners. The original service module remains a controlled compatibility export surface.
 - Decision Rhythm application use cases now have focused quota/submission, execution, workspace approval, model-parameter, and unified-recommendation owners. The original use-case module retains compatibility exports and its repository-provider monkeypatch surface.
 - Decision Rhythm domain entities now have focused rhythm/quota, valuation/approval, portfolio-transition, unified-recommendation, and model-parameter owners. The original entity module remains the stable import surface.
+- Decision Rhythm ORM models now have focused rhythm/request, valuation/approval, portfolio-transition, unified-recommendation/execution-link, and model-parameter owners. The original model module remains the stable Django import and patch surface, with no schema migration.
+- Data Center application use cases now have focused provider/catalog, read-query, decision-reliability, fact-query, macro-governance, and provider-sync owners. The original use-case module is an explicit compatibility aggregator with bounded exports.
 - Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
 
 ## Remaining scope
@@ -36,6 +38,8 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Auto-advisor decision-sheet, execution plan, recommendation attribution, Dashboard console, UI, weekly task, and API guardrail contracts.
 - Decision Rhythm submission, execution, quota, model-parameter, unified-recommendation, workspace API, guardrail, and end-to-end contracts.
 - Decision Rhythm entity construction, transition planning, approval chains, recommendation models, today queue ordering, and domain-service contracts.
+- Decision Rhythm model registration, legacy imports, repositories, model-parameter initialization, transition persistence, and migration-state checks.
+- Data Center provider/catalog management, canonical macro queries, quote freshness, decision-data repair, fact queries, macro governance, and all provider synchronization families.
 - The managed live-server Playwright smoke suite runs against Chromium. A test-only Windows runtime guard ensures Playwright uses a subprocess-capable event-loop policy before pytest session fixtures start.
 - Local structure contracts preserve the tighter stage-specific file budgets and reject reverse imports from extracted modules back to their compatibility entrypoints.
 - Architecture rules, module cycles, governance consistency, formatting, import sorting, and test collection.
@@ -47,3 +51,34 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Further large-file splits remain separate P1/P2 work packages and must retain independent compatibility tests and rollback points.
 - Each responsibility split is independently revertible. If a regression is found, revert the corresponding split together with its baseline removal so governance remains internally consistent.
 - No database schema, route, API payload, template key, TUI key, or Celery task name changes are part of this stage.
+
+## 2026-07-18 P1 closure evidence
+
+### Completed
+
+- Split `apps/data_center/application/use_cases.py` into six focused Application owners while preserving the original import surface and public symbol identity.
+- Split `apps/decision_rhythm/infrastructure/models.py` into five focused ORM owners while preserving Django app/model registration, table metadata, repository imports, and patch paths.
+- Added one-way dependency and non-empty-line budget contracts for both compatibility aggregators and all new owner modules.
+- Removed both remediated paths from `allowed_large_python_files` and `large_file_remediation` in the machine baseline.
+
+### Remaining
+
+- Data Center provider-adapter convergence, legacy Macro adapter retirement, and the remaining Data Center/Decision Rhythm P1 allowances are separate work packages.
+- Shared numeric parsing, dependency-source convergence, repository hygiene, documentation alignment, and mypy-debt reduction remain outside this large-file-only batch.
+
+### Verified
+
+- `ruff check` passed for all new aggregators, owner modules, and structure contracts.
+- Python compilation passed for the affected Application and Infrastructure packages.
+- Data Center focused behavior and structure regression: `38 passed`.
+- Data Center unit, reverse-dependency, architecture, and governance run: `293 passed`; the only failure was the unrelated shared-worktree static test-count baseline mismatch described below.
+- Decision Rhythm model/repository regression: `31 passed`.
+- Decision Rhythm broader domain, application, persistence, API-edge, and guardrail regression: `101 passed`.
+- `python manage.py makemigrations decision_rhythm --check --dry-run` reported no changes.
+- Required minimum regression package passed: TUI workbench `218`, terminal agent service `11`, SDK client `22`, internal SSL redirect `2`.
+
+### Unverified risks and rollback
+
+- The full repository test suite and strict mypy run were not executed in this batch.
+- Governance consistency currently sees `6921` static test functions while the shared baseline records `6903`. This batch added only two structure-test functions; the other concurrent uncommitted tests belong to the existing TUI/MCP worktree, so the baseline was deliberately not rebased here.
+- Roll back either split by reverting its aggregator and owner modules together, restoring its two machine-baseline entries, and rerunning the corresponding focused regression set.
