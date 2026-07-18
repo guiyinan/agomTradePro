@@ -97,6 +97,7 @@ RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
     "summary": "管理员在 TUI 内管理用户 MCP 开关、令牌发放与撤销。",
     "view_type": "detail",
     "audience": "admin",
+    "dashboard_layout": "task_flow",
     "default_action_key": "capability-router.mcp-admin-users",
     "user_experience": {
         "journey": "admin",
@@ -143,26 +144,44 @@ RUNTIME_MCP_ADMIN_ACCESS_SCREEN: dict[str, Any] = {
                     "action_key": "capability-router.mcp-admin-user-detail",
                     "label_template": "查看 {username} 的 MCP 详情",
                     "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "mcp-admin-user-workspace",
                 },
                 {
                     "action_key": "capability-router.admin-create-mcp-token",
                     "label_template": "为 {username} 发放只读令牌",
                     "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "mcp-admin-user-workspace",
+                    "refresh_panel_key": "mcp-admin-users",
                 },
                 {
                     "action_key": "capability-router.admin-toggle-user-mcp",
                     "label_template": "切换 {username} 的 MCP 开关",
                     "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "mcp-admin-user-workspace",
+                    "refresh_panel_key": "mcp-admin-users",
                 },
                 {
                     "action_key": "capability-router.admin-revoke-user-mcp-tokens",
                     "label_template": "回收 {username} 的全部 MCP 令牌",
                     "param_map": {"user_id": "user_id"},
+                    "result_panel_key": "mcp-admin-user-workspace",
+                    "refresh_panel_key": "mcp-admin-users",
                 },
             ],
             "user_priority": "p0",
             "presentation_semantic": "primary_list",
-        }
+        },
+        {
+            "key": "mcp-admin-user-workspace",
+            "title": "二、当前用户与操作结果",
+            "kind": "detail",
+            "max_rows": 12,
+            "layout_area": "user-workspace",
+            "note": "查看、发放、启停和回收的结果都保留在这里，用户列表不会离开当前页面。",
+            "empty_message": "从上方用户列表选择一项操作；查看结果或治理回执会显示在这里。",
+            "user_priority": "p1",
+            "presentation_semantic": "supporting_detail",
+        },
     ],
 }
 
@@ -416,6 +435,7 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
         "view_model": {"kind": "detail", "title_path": "username", "status_path": "mcp_enabled"},
+        "result_semantics": ["supporting_detail"],
     },
     {
         "key": "capability-router.admin-create-mcp-token",
@@ -462,6 +482,7 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
             },
         ],
         "view_model": {"kind": "detail", "title_path": "message"},
+        "result_semantics": ["copyable_secret", "multiline_prompt"],
     },
     {
         "key": "capability-router.admin-toggle-user-mcp",
@@ -489,6 +510,7 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
         "view_model": {"kind": "detail", "title_path": "message"},
+        "result_semantics": ["primary_status"],
     },
     {
         "key": "capability-router.admin-revoke-user-mcp-tokens",
@@ -516,6 +538,7 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
         "view_model": {"kind": "detail", "title_path": "message"},
+        "result_semantics": ["primary_status"],
     },
     {
         "key": "capability-router.admin-revoke-mcp-token",
@@ -543,5 +566,6 @@ RUNTIME_MCP_ACCESS_ACTIONS: tuple[dict[str, Any], ...] = (
             }
         ],
         "view_model": {"kind": "detail", "title_path": "message"},
+        "result_semantics": ["primary_status"],
     },
 )

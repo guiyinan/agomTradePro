@@ -166,6 +166,7 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "action_key",
     "status",
     "note",
+    "empty_message",
     "max_rows",
     "user_priority",
     "presentation_semantic",
@@ -523,7 +524,13 @@ def _validate_dashboard_row_actions(
             "dashboard row action",
             ("action_key", "label_template", "param_map"),
         )
-        unknown_keys = set(descriptor) - {"action_key", "label_template", "param_map"}
+        unknown_keys = set(descriptor) - {
+            "action_key",
+            "label_template",
+            "param_map",
+            "result_panel_key",
+            "refresh_panel_key",
+        }
         if unknown_keys:
             names = ", ".join(sorted(unknown_keys))
             raise TuiMetadataValidationError(
@@ -540,6 +547,18 @@ def _validate_dashboard_row_actions(
                 f"Dashboard row action belongs to another screen: "
                 f"{screen_key}.{panel_key}.{action_key}"
             )
+        screen_panel_keys = {
+            str(item.get("key") or "")
+            for item in screen.get("dashboard_panels", [])
+            if isinstance(item, dict)
+        }
+        for target_key in ("result_panel_key", "refresh_panel_key"):
+            target_panel_key = str(descriptor.get(target_key) or "").strip()
+            if target_panel_key and target_panel_key not in screen_panel_keys:
+                raise TuiMetadataValidationError(
+                    f"Dashboard row action references unknown {target_key}: "
+                    f"{screen_key}.{panel_key}.{action_key}.{target_panel_key}"
+                )
         param_map = descriptor["param_map"]
         if not isinstance(param_map, dict):
             raise TuiMetadataValidationError(

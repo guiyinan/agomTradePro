@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-07-14
+> Last updated: 2026-07-18
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -32,6 +32,8 @@ New user-facing semantics:
 - `actions[].view_model.field_presentations`
 - `actions[].view_model.columns`
 - `dashboard_panels[].row_actions`
+- `dashboard_panels[].row_actions[].result_panel_key`
+- `dashboard_panels[].row_actions[].refresh_panel_key`
 
 ## Screen Rules
 
@@ -147,12 +149,16 @@ Token history is supporting information. It shows only name, preview, level, cre
 
 Actionable governance rows publish validated `row_actions` metadata. Each descriptor must reference an action on the same screen, map every required action parameter from a published row column, and use an accessible row-specific label.
 
+CRUD-style governance screens use a master-list workbench: the P0 table remains visible, while row reads and mutation receipts render into a declared same-screen result panel. `result_panel_key` identifies that result panel; `refresh_panel_key` identifies the data panel that must be reloaded after a mutation. A result-only panel may omit `action_key` and publish `empty_message` to guide the initial selection.
+
 Hard rules:
 
 - Row actions render as native buttons in a dedicated action column.
 - Backend authorization, risk confirmation, and reauthentication remain authoritative; row actions do not bypass them.
 - A successful mutation row action refreshes the affected panel so the operator can verify the new state.
 - A read-only row action renders its returned detail/list result; it must not discard the result and only refresh the source panel.
+- Row actions with `result_panel_key` must keep navigation, filters, and the source table in place; they must not replace the entire work area.
+- Mutation actions should declare both `result_panel_key` and `refresh_panel_key`; the receipt remains visible while only the affected data panel refreshes.
 - Tool governance tables with several action controls use a full-width panel at desktop size; do not compress the actionable table beside a summary panel.
 - The operation column stays visible while a wide table scrolls horizontally.
 

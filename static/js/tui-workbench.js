@@ -2195,7 +2195,10 @@
             return;
         }
         if (!panel.action_key) {
-            container.innerHTML = renderDashboardPanelShell(panel, renderPanelPlaceholder(panel, "等待发布数据源。"));
+            container.innerHTML = renderDashboardPanelShell(
+                panel,
+                renderPanelPlaceholder(panel, panel.empty_message || "等待发布数据源。"),
+            );
             bindDashboardPanelOpenControls(container);
             return;
         }
@@ -2515,6 +2518,19 @@
                     const action = currentAction(button.dataset.rowActionKey);
                     const method = String(action?.method || "GET").trim().toUpperCase();
                     const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);
+                    const descriptor = (panel.row_actions || []).find(
+                        (item) => item.action_key === button.dataset.rowActionKey,
+                    ) || {};
+                    const resultPanelKey = String(descriptor.result_panel_key || "").trim();
+                    const refreshPanelKey = String(descriptor.refresh_panel_key || "").trim();
+                    if (resultPanelKey || refreshPanelKey) {
+                        await runAction(button.dataset.rowActionKey, null, {
+                            params,
+                            dashboardResultPanelKey: resultPanelKey,
+                            dashboardRefreshPanelKey: refreshPanelKey,
+                        });
+                        return;
+                    }
                     await runAction(
                         button.dataset.rowActionKey,
                         null,
@@ -3345,6 +3361,11 @@
             return;
         }
         try {
+            const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
+            const dashboardRefreshPanelKey = String(options.dashboardRefreshPanelKey || "").trim();
+            const hasDashboardResultTarget = Boolean(dashboardResultPanelKey);
+            const hasDashboardRefreshTarget = Boolean(dashboardRefreshPanelKey);
+            const isTargetedDashboardAction = hasDashboardResultTarget || hasDashboardRefreshTarget;
             const params = options.params ? { ...options.params } : (form ? await collectParams(form, action) : { ...state.lastParams });
             state.lastAction = actualActionKey;
             state.lastParams = params;
@@ -3354,7 +3375,12 @@
             closeModal();
             const controller = new AbortController();
             const requestId = startPendingRequest(controller);
-            if (!options.dashboardPanelKey) {
+            if (hasDashboardResultTarget) {
+                if (!Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
+                    options.dashboardResultPanelMarkup = dashboardPanelMarkup(dashboardResultPanelKey);
+                }
+                renderDashboardActionLoading(dashboardResultPanelKey, action);
+            } else if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                 renderActionLoadingState(action, state.screen);
                 scheduleSlowActionState(requestId, action);
             }
@@ -3373,9 +3399,10 @@
             clearPendingRequest();
             if (Array.isArray(result.missing_fields) && result.missing_fields.length) {
                 state.lastRaw = null;
-                if (!options.dashboardPanelKey) {
+                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
+                restoreDashboardActionPanel(options);
                 showMissingFieldsPrompt(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待补填");
@@ -3383,9 +3410,10 @@
             }
             if (result.confirmation_required) {
                 state.lastRaw = null;
-                if (!options.dashboardPanelKey) {
+                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
+                restoreDashboardActionPanel(options);
                 showActionConfirmation(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待确认");
@@ -3393,9 +3421,10 @@
             }
             if (result.password_challenge_required) {
                 state.lastRaw = null;
-                if (!options.dashboardPanelKey) {
+                if (!options.dashboardPanelKey && !isTargetedDashboardAction) {
                     renderViewModel(result.view_model);
                 }
+                restoreDashboardActionPanel(options);
                 showPasswordChallenge(result, actualActionKey, params, options);
                 updateRawDrawer();
                 setStatus("等待验密");
@@ -3403,6 +3432,18 @@
             }
             markActionCompleted(action);
             state.lastRaw = result.debug?.raw_response ?? null;
+            if (isTargetedDashboardAction) {
+                if (hasDashboardResultTarget) {
+                    renderDashboardActionResult(dashboardResultPanelKey, result.view_model, action);
+                }
+                if (hasDashboardRefreshTarget && dashboardRefreshPanelKey !== dashboardResultPanelKey) {
+                    await refreshDashboardPanel(dashboardRefreshPanelKey);
+                }
+                updateRawDrawer();
+                setStatus(hasDashboardRefreshTarget ? "操作完成，治理工作区已更新" : "详情已在当前页面打开");
+                refreshGovernanceBadges();
+                return;
+            }
             if (options.dashboardPanelKey) {
                 updateRawDrawer();
                 await refreshCurrentDashboardPanels();
@@ -3424,6 +3465,11 @@
                 return;
             }
             clearPendingRequest();
+            const dashboardResultPanelKey = String(options.dashboardResultPanelKey || "").trim();
+            if (dashboardResultPanelKey) {
+                renderDashboardActionError(dashboardResultPanelKey, error);
+                return;
+            }
             if (options.dashboardPanelKey) {
                 const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
                     ? state.screen.screen.dashboard_panels
@@ -3453,6 +3499,98 @@
             ? state.screen.screen.dashboard_panels
             : [];
         await Promise.all(panels.map((panel) => loadDashboardPanel(panel)));
+    }
+
+    function currentDashboardPanel(panelKey) {
+        const panels = Array.isArray(state.screen?.screen?.dashboard_panels)
+            ? state.screen.screen.dashboard_panels
+            : [];
+        return panels.find((panel) => panel.key === panelKey) || null;
+    }
+
+    async function refreshDashboardPanel(panelKey) {
+        const panel = currentDashboardPanel(panelKey);
+        if (panel) {
+            await loadDashboardPanel(panel);
+        }
+    }
+
+    function dashboardPanelMarkup(panelKey) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        return container?.innerHTML || "";
+    }
+
+    function restoreDashboardActionPanel(options = {}) {
+        const panelKey = String(options.dashboardResultPanelKey || "").trim();
+        if (!panelKey || !Object.prototype.hasOwnProperty.call(options, "dashboardResultPanelMarkup")) {
+            return;
+        }
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            return;
+        }
+        container.innerHTML = options.dashboardResultPanelMarkup;
+        bindCopyButtons(container);
+        bindDashboardRowActions(container, panel);
+        bindDashboardPanelOpenControls(container);
+        processHostSlot(container);
+    }
+
+    function renderDashboardActionLoading(panelKey, action) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            return;
+        }
+        container.innerHTML = renderDashboardPanelShell(
+            panel,
+            `<div class="tui-loading">正在执行${escapeHtml(action.label || "当前操作")}...</div>`,
+        );
+    }
+
+    function renderDashboardActionResult(panelKey, viewModel, action) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            return;
+        }
+        const actionSemantics = actionResultSemantics(action.key);
+        const resultPanel = {
+            ...panel,
+            action_key: action.key,
+            presentation_semantic: actionSemantics[0] || panel.presentation_semantic,
+        };
+        container.innerHTML = renderDashboardPanelShell(
+            panel,
+            renderDashboardPanelBody(resultPanel, viewModel),
+        );
+        bindCopyButtons(container);
+        bindDashboardPanelOpenControls(container);
+        processHostSlot(container);
+    }
+
+    function renderDashboardActionError(panelKey, error) {
+        const panel = currentDashboardPanel(panelKey);
+        const container = panel
+            ? els.main.querySelector(`[data-dashboard-panel="${CSS.escape(panel.key)}"]`)
+            : null;
+        if (!panel || !container) {
+            renderBoundedApplicationError(error);
+            return;
+        }
+        container.innerHTML = renderDashboardPanelShell(panel, renderDashboardPanelError(panel, error));
+        bindDashboardPanelOpenControls(container);
+        bindDashboardPanelRecovery(container, panel);
     }
 
     function renderViewModel(viewModel) {

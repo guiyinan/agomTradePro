@@ -697,11 +697,14 @@ def test_write_like_candidate_detection_ignores_resource_nouns_but_blocks_operat
     assert generator_module._is_write_like_candidate(alpha_trigger_read) is False
     assert generator_module._is_write_like_candidate(agent_runtime_cancel) is True
     assert generator_module._is_write_like_candidate(alpha_trigger_update) is True
-    assert generator_module._is_write_like_candidate(
-        {
-            "endpoint": "/api/rotation/generate-signal/",
-        }
-    ) is True
+    assert (
+        generator_module._is_write_like_candidate(
+            {
+                "endpoint": "/api/rotation/generate-signal/",
+            }
+        )
+        is True
+    )
 
 
 def test_safe_api_actions_include_agent_runtime_and_alpha_trigger_reads(generator_module):
@@ -937,21 +940,34 @@ def test_promoter_routes_decision_rhythm_before_generic_decision(promoter_module
 
 
 def test_promoter_routes_classic_page_clusters_to_business_screens(promoter_module):
-    assert promoter_module._promoted_screen_for("auto.api.get.api.account.positions") == "execution.trading-ledger"
+    assert (
+        promoter_module._promoted_screen_for("auto.api.get.api.account.positions")
+        == "execution.trading-ledger"
+    )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.account.trading-cost-configs")
         == "execution.account-settings"
     )
-    assert promoter_module._promoted_screen_for("auto.api.get.api.fund.rank") == "research.fund-sector"
+    assert (
+        promoter_module._promoted_screen_for("auto.api.get.api.fund.rank") == "research.fund-sector"
+    )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.filter.indicators")
         == "research.screening-sentiment"
     )
-    assert promoter_module._promoted_screen_for("auto.api.get.api.beta-gate") == "macro-regime.beta-gate"
-    assert promoter_module._promoted_screen_for("auto.api.get.api.hedge.alerts.active") == "macro-regime.hedge"
+    assert (
+        promoter_module._promoted_screen_for("auto.api.get.api.beta-gate")
+        == "macro-regime.beta-gate"
+    )
+    assert (
+        promoter_module._promoted_screen_for("auto.api.get.api.hedge.alerts.active")
+        == "macro-regime.hedge"
+    )
 
 
-def test_promoter_routes_portfolio_pk_and_valuation_snapshot_to_row_compatible_screens(promoter_module):
+def test_promoter_routes_portfolio_pk_and_valuation_snapshot_to_row_compatible_screens(
+    promoter_module,
+):
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.account.portfolios.pk")
         == "execution.portfolio-performance"
@@ -972,7 +988,9 @@ def test_promoter_routes_portfolio_pk_and_valuation_snapshot_to_row_compatible_s
 
 def test_promoter_routes_alpha_trigger_and_agent_runtime_to_operator_screens(promoter_module):
     assert (
-        promoter_module._promoted_screen_for("auto.api.get.api.alpha-triggers.candidates.actionable")
+        promoter_module._promoted_screen_for(
+            "auto.api.get.api.alpha-triggers.candidates.actionable"
+        )
         == "research.alpha-triggers"
     )
     assert (
@@ -1061,12 +1079,21 @@ def test_promoter_merges_data_center_selector_reads(promoter_module):
 
     assert merged >= 3
     actions = {action["key"]: action for action in payload["actions"]}
-    assert actions["auto.api.get.api.data-center.indicators"]["endpoint"] == "/api/data-center/indicators/"
+    assert (
+        actions["auto.api.get.api.data-center.indicators"]["endpoint"]
+        == "/api/data-center/indicators/"
+    )
     assert actions["auto.api.get.api.data-center.indicators"]["risk"] == "read"
     assert actions["auto.api.get.api.data-center.indicators"]["task_group"] == "02 指标目录"
-    assert actions["auto.api.get.api.data-center.providers"]["endpoint"] == "/api/data-center/providers/"
+    assert (
+        actions["auto.api.get.api.data-center.providers"]["endpoint"]
+        == "/api/data-center/providers/"
+    )
     assert actions["auto.api.get.api.data-center.providers"]["task_group"] == "04 服务商"
-    assert actions["auto.api.get.api.data-center.publishers"]["endpoint"] == "/api/data-center/publishers/"
+    assert (
+        actions["auto.api.get.api.data-center.publishers"]["endpoint"]
+        == "/api/data-center/publishers/"
+    )
     assert actions["auto.api.get.api.data-center.publishers"]["task_group"] == "05 发布机构"
     assert actions["auto.api.get.api.data-center.indicators"]["module_key"] == "api-library"
 
@@ -1183,11 +1210,15 @@ def test_schema_publishes_dashboard_row_action_descriptor():
 
     panel_properties = schema["$defs"]["dashboardPanel"]["properties"]
     assert panel_properties["row_actions"]["items"] == {"$ref": "#/$defs/dashboardRowAction"}
+    assert panel_properties["empty_message"] == {"type": "string"}
     assert schema["$defs"]["dashboardRowAction"]["required"] == [
         "action_key",
         "label_template",
         "param_map",
     ]
+    row_action_properties = schema["$defs"]["dashboardRowAction"]["properties"]
+    assert row_action_properties["result_panel_key"] == {"type": "string", "minLength": 1}
+    assert row_action_properties["refresh_panel_key"] == {"type": "string", "minLength": 1}
 
 
 def test_generator_assigns_default_actions_to_auto_library_screens(generator_module):
@@ -1199,7 +1230,9 @@ def test_generator_assigns_default_actions_to_auto_library_screens(generator_mod
             "key": "auto.workflow.detail",
             "screen_key": "api-library.workflow",
             "view_type": "detail",
-            "fields": [{"key": "account_id", "required": True, "default": "", "input_type": "text"}],
+            "fields": [
+                {"key": "account_id", "required": True, "default": "", "input_type": "text"}
+            ],
             "sequence": 200,
         },
         {
@@ -1229,7 +1262,10 @@ def test_generator_assigns_default_actions_to_auto_library_screens(generator_mod
 def test_smoke_prune_marks_auto_promoted_failures_as_prunable(smoke_module):
     assert smoke_module._should_prune_failed_action({"source": "api-collector:candidate"}) is True
     assert smoke_module._should_prune_failed_action({"source": "approved:smoke-promoted"}) is True
-    assert smoke_module._should_prune_failed_action({"source": "approved:parameterized-promoted"}) is True
+    assert (
+        smoke_module._should_prune_failed_action({"source": "approved:parameterized-promoted"})
+        is True
+    )
     assert smoke_module._should_prune_failed_action({"source": "approved:operation"}) is False
     assert smoke_module._should_prune_failed_action({"source": "approved:admin"}) is False
 
@@ -1247,7 +1283,14 @@ def test_promoter_prunes_empty_toolbox_screens(promoter_module):
                 "summary": "",
                 "view_type": "detail",
                 "status": "online",
-                "dashboard_panels": [{"key": "panel", "title": "Panel", "kind": "detail", "action_key": "existing.safe"}],
+                "dashboard_panels": [
+                    {
+                        "key": "panel",
+                        "title": "Panel",
+                        "kind": "detail",
+                        "action_key": "existing.safe",
+                    }
+                ],
             },
             {
                 "key": "api-library.safe-read",
@@ -1631,7 +1674,5 @@ def test_promoter_directory_root_detection_ignores_normal_collection_lists(promo
         },
     ]
 
-    assert (
-        promoter_module._is_directory_root_action(screen_actions[0], screen_actions) is False
-    )
+    assert promoter_module._is_directory_root_action(screen_actions[0], screen_actions) is False
     assert promoter_module._is_directory_root_action(screen_actions[2], screen_actions) is True

@@ -2726,7 +2726,13 @@ def _row_action_metadata_payload():
                     "param_map": {"row_id": "row_id"},
                 }
             ],
-        }
+        },
+        {
+            "key": "sample-result",
+            "title": "Sample Result",
+            "kind": "detail",
+            "empty_message": "Choose a row.",
+        },
     ]
     payload["actions"].append(
         {
@@ -2756,12 +2762,18 @@ def _row_action_metadata_payload():
 
 def test_tui_metadata_validator_accepts_valid_dashboard_row_action():
     payload = _row_action_metadata_payload()
+    payload["screens"][0]["dashboard_panels"][0]["row_actions"][0].update(
+        result_panel_key="sample-result",
+        refresh_panel_key="sample-rows",
+    )
 
     validated = validate_tui_metadata(payload)
 
     descriptor = validated["screens"][0]["dashboard_panels"][0]["row_actions"][0]
     assert descriptor["action_key"] == "sample.detail"
     assert descriptor["param_map"] == {"row_id": "row_id"}
+    assert descriptor["result_panel_key"] == "sample-result"
+    assert descriptor["refresh_panel_key"] == "sample-rows"
 
 
 @pytest.mark.parametrize(
@@ -2788,6 +2800,12 @@ def test_tui_metadata_validator_accepts_valid_dashboard_row_action():
                 param_map={"row_id": "missing_row_field"}
             ),
             "unknown row field",
+        ),
+        (
+            lambda payload: payload["screens"][0]["dashboard_panels"][0]["row_actions"][0].update(
+                result_panel_key="missing-panel"
+            ),
+            "unknown result_panel_key",
         ),
     ],
 )
@@ -7055,6 +7073,7 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
         if panel["key"] == "mcp-tools-list"
     )
     user_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][0]
+    user_result_panel = RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_panels"][1]
 
     assert RUNTIME_CAPABILITY_ROUTER_MCP_SCREEN["user_experience"]["journey"] == "admin"
     assert [
@@ -7071,6 +7090,16 @@ def test_tui_mcp_governance_panels_publish_native_row_actions():
         "capability-router.admin-toggle-user-mcp",
         "capability-router.admin-revoke-user-mcp-tokens",
     ]
+    assert RUNTIME_MCP_ADMIN_ACCESS_SCREEN["dashboard_layout"] == "task_flow"
+    assert user_result_panel["key"] == "mcp-admin-user-workspace"
+    assert user_result_panel["empty_message"]
+    assert {item["result_panel_key"] for item in user_panel["row_actions"]} == {
+        "mcp-admin-user-workspace"
+    }
+    assert user_panel["row_actions"][0].get("refresh_panel_key") is None
+    assert {item["refresh_panel_key"] for item in user_panel["row_actions"][1:]} == {
+        "mcp-admin-users"
+    }
     script = (Path(__file__).resolve().parents[2] / "static" / "js" / "tui-workbench.js").read_text(
         encoding="utf-8"
     )
@@ -7186,6 +7215,11 @@ def test_tui_script_renders_accessible_native_dashboard_row_actions():
     assert "dashboardPanelKey" in script
     assert 'const refreshesDashboard = !["GET", "HEAD", "OPTIONS"].includes(method);' in script
     assert "refreshesDashboard" in script
+    assert "dashboardResultPanelKey" in script
+    assert "dashboardRefreshPanelKey" in script
+    assert "function renderDashboardActionResult(panelKey, viewModel, action)" in script
+    assert "function refreshDashboardPanel(panelKey)" in script
+    assert "function restoreDashboardActionPanel(options = {})" in script
 
 
 def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
@@ -7203,8 +7237,8 @@ def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
     assert "function dashboardDesktopColumns(screen)" in script
     assert "runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {})" in script
     assert "export function dashboardDesktopColumns(screen = {}, host = {})" in layout_source
-    assert 'layout === TASK_FLOW_LAYOUT' in layout_source
-    assert 'TWO_COLUMN_JOURNEYS.has(journey) ? 2 : 3' in layout_source
+    assert "layout === TASK_FLOW_LAYOUT" in layout_source
+    assert "TWO_COLUMN_JOURNEYS.has(journey) ? 2 : 3" in layout_source
     assert "dashboardAreaTemplate(areas, desktopColumns, true)" in script
     assert "dashboardAreaTemplate(areas, 2)" in script
     assert "dashboardAreaTemplate(areas, 1)" in script
@@ -7220,9 +7254,9 @@ def test_tui_self_service_dashboard_uses_content_driven_task_flow_layout():
 def test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables():
     root = Path(__file__).resolve().parents[2]
     script = (root / "static" / "js" / "tui-workbench.js").read_text(encoding="utf-8")
-    host_adapter = (
-        root / "frontend" / "agomtradepro-host" / "src" / "index.js"
-    ).read_text(encoding="utf-8")
+    host_adapter = (root / "frontend" / "agomtradepro-host" / "src" / "index.js").read_text(
+        encoding="utf-8"
+    )
     layout_source = (
         root / "frontend" / "agomtui-runtime" / "src" / "dashboard-layout.js"
     ).read_text(encoding="utf-8")

@@ -223,6 +223,7 @@
         "action_key": { "type": "string" },
         "status": { "type": "string" },
         "note": { "type": "string" },
+        "empty_message": { "type": "string" },
         "max_rows": { "type": "integer" },
         "user_priority": { "enum": ["p0", "p1", "p2"] },
         "presentation_semantic": { "$ref": "#/$defs/presentationSemantic" },
@@ -256,7 +257,9 @@
         "param_map": {
           "type": "object",
           "additionalProperties": { "type": "string", "minLength": 1 }
-        }
+        },
+        "result_panel_key": { "type": "string", "minLength": 1 },
+        "refresh_panel_key": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     },
