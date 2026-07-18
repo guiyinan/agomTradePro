@@ -1,7 +1,8 @@
 # Terminal 模块指南
 
-> **模块版本**: 1.0
+> **模块版本**: 1.1
 > **创建日期**: 2026-03-17
+> **最后更新**: 2026-07-18
 > **依赖模块**: ai_provider（AI 客户端）, prompt（可选模板关联）
 
 ---
@@ -118,6 +119,19 @@ curl -N -X POST /api/terminal/chat/stream/ \
 |------|------|
 | `/terminal/` | 终端主页面 |
 | `/terminal/config/` | 命令配置管理页面 |
+
+### AI 服务商选择器首屏约束
+
+- `/terminal/` 的页面上下文必须直接包含当前可用服务商、默认服务商和模型列表，首屏不得再依赖额外接口请求才能结束 `Loading...` 状态。
+- `/api/prompt/chat/providers` 同时返回每个服务商的 `models`，作为无首屏快照时的兼容回退；回退请求必须有超时和明确失败状态。
+- Mermaid 运行库体积较大，只能在 AI 回复实际包含 Mermaid 代码块时按需加载，不得阻塞终端初始化、服务商选择器或输入区可用性。
+
+### Agent MCP 工具路由约束
+
+- Agent 只直接调用 MCP 会话实际发布的核心工具，例如 `agom_capability_search`、`agom_capability_schema` 和 `agom_capability_call`。
+- `terminal.search.user_actions` 等带点号名称是能力键，不是可直接调用的工具名；内部 `executor_ref` 也不得写入提示词作为工具调用目标。
+- 能力检索、Schema 读取和执行必须通过上述核心工具完成，由 MCP dispatcher 再路由到内部执行器。
+- Agents SDK 使用 `tool_not_found_behavior="return_error_to_model"`，使旧会话或模型生成的过期工具名能够返回模型纠正，而不是直接终止整轮终端对话。
 
 ## 数据模型
 

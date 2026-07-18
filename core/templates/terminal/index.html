@@ -197,8 +197,13 @@ window.csrfToken = (function() {
     return '';
 })();
 </script>
+{{ provider_selector_bootstrap|json_script:"terminal-provider-bootstrap" }}
+<script>
+window.AGOM_TERMINAL_CONFIG = Object.freeze({
+    mermaidScriptUrl: "{% static 'js/mermaid.min.js' %}",
+});
+</script>
 <script src="{% static 'js/marked.min.js' %}"></script>
-<script src="{% static 'js/mermaid.min.js' %}"></script>
 <script src="{% static 'js/terminal.js' %}"></script>
 </body>
 </html>

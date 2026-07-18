@@ -161,6 +161,9 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                     starting_agent=agent,
                     input=request.message,
                     session=session,
+                    run_config=sdk["RunConfig"](
+                        tool_not_found_behavior="return_error_to_model",
+                    ),
                 )
                 async for event in streamed.stream_events():
                     result_events.extend(self._map_stream_event(event))
@@ -209,6 +212,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
 
         from agents import (
             Agent,
+            RunConfig,
             Runner,
             set_default_openai_api,
             set_default_openai_client,
@@ -234,6 +238,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         set_tracing_disabled(True)
         return {
             "Agent": Agent,
+            "RunConfig": RunConfig,
             "Runner": Runner,
             "MCPServerStdio": MCPServerStdio,
             "AsyncOpenAI": AsyncOpenAI,
@@ -331,7 +336,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 "command": sys.executable,
                 "args": ["-m", "agomtradepro_mcp.server"],
                 "env": env,
-            }
+            },
         )
 
     def _build_tool_filter(self, allowed_tool_names: frozenset[str]):
@@ -381,9 +386,11 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             "For governed capabilities, use agom_capability_search with a narrow query, "
             "inspect the selected capability with agom_capability_schema, then execute it "
             "with agom_capability_call. Do not request the full capability catalog.\n"
-            "If no dedicated capability matches, use terminal.search.user_actions as the "
-            "bounded fallback, inspect one action schema, then use its read or confirmed "
-            "execution bridge.\n"
+            "If no dedicated capability matches, search for terminal.search.user_actions "
+            "with agom_capability_search, inspect it with agom_capability_schema, and "
+            "execute it only through agom_capability_call. Capability keys are identifiers, "
+            "not callable tool names. Never call internal executor names or construct "
+            "server-prefixed tool names yourself.\n"
             "For a gated action, call agom_capability_call once with complete arguments "
             "to obtain its preview and confirmation requirement; never call "
             "agom_confirmation_resume yourself. The Terminal will persist the approval request.\n"
@@ -583,7 +590,9 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 gated[display_name] = payload
 
         allowed_tool_names = (
-            TERMINAL_AGENT_CORE_MCP_TOOLS if has_governed_capabilities else frozenset(raw_tool_names)
+            TERMINAL_AGENT_CORE_MCP_TOOLS
+            if has_governed_capabilities
+            else frozenset(raw_tool_names)
         )
         return _ToolAccessSnapshot(
             auto_allowed=auto_allowed,
@@ -701,8 +710,12 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     def _move_provider_to_front(self, providers: list[Any], provider_id: int) -> list[Any]:
         """Return a copy with the chosen provider moved to the front."""
 
-        selected = [provider for provider in providers if getattr(provider, "id", None) == provider_id]
-        others = [provider for provider in providers if getattr(provider, "id", None) != provider_id]
+        selected = [
+            provider for provider in providers if getattr(provider, "id", None) == provider_id
+        ]
+        others = [
+            provider for provider in providers if getattr(provider, "id", None) != provider_id
+        ]
         return selected + others
 
     def _provider_budget_allows(self, provider: Any) -> bool:
@@ -711,9 +724,11 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
         budget = self._usage_repo.check_budget_limits(
             provider.id,
             float(provider.daily_budget_limit) if provider.daily_budget_limit is not None else None,
-            float(provider.monthly_budget_limit)
-            if provider.monthly_budget_limit is not None
-            else None,
+            (
+                float(provider.monthly_budget_limit)
+                if provider.monthly_budget_limit is not None
+                else None
+            ),
         )
         return not budget["daily"]["exceeded"] and not budget["monthly"]["exceeded"]
 
@@ -791,9 +806,7 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
                 or self._dig(item, "raw_item", "name")
             )
             arguments = self._stringify(
-                getattr(item, "arguments", None)
-                or self._dig(item, "raw_item", "arguments")
-                or ""
+                getattr(item, "arguments", None) or self._dig(item, "raw_item", "arguments") or ""
             )
             mapped.append(
                 TerminalAgentEventDTO(
@@ -889,7 +902,9 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
     ) -> None:
         """Persist usage after the async run finishes and ORM is safe to touch."""
 
-        final_event = next((event for event in reversed(events) if event.event_type == "final"), None)
+        final_event = next(
+            (event for event in reversed(events) if event.event_type == "final"), None
+        )
         if final_event is not None:
             metadata = dict(final_event.data.get("metadata") or {})
             self._log_usage(
@@ -905,7 +920,9 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
             )
             return
 
-        error_event = next((event for event in reversed(events) if event.event_type == "error"), None)
+        error_event = next(
+            (event for event in reversed(events) if event.event_type == "error"), None
+        )
         if error_event is not None:
             self._log_usage(
                 resolved_provider=resolved_provider,

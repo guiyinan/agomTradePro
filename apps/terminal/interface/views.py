@@ -10,23 +10,28 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from apps.terminal.application.interface_services import get_terminal_config_page_context
+from apps.terminal.application.interface_services import (
+    get_terminal_config_page_context,
+    get_terminal_page_context,
+)
 from core.ui_modes import UI_MODE_TUI, set_ui_mode_cookie
 
 
 def _staff_required(view_func):
     """Decorator: login_required + staff/superuser check."""
+
     @login_required
     def wrapper(request, *args, **kwargs):
         if not (request.user.is_staff or request.user.is_superuser):
             return HttpResponseForbidden("Staff access required.")
         return view_func(request, *args, **kwargs)
+
     wrapper.__name__ = view_func.__name__
     wrapper.__doc__ = view_func.__doc__
     return wrapper
 
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(login_required, name="dispatch")
 class TerminalView(View):
     """
     终端页面视图
@@ -35,14 +40,10 @@ class TerminalView(View):
     """
 
     def get(self, request):
-        context = {
-            'page_title': 'Terminal',
-            'page_description': 'AI CLI Interface',
-        }
-        return render(request, 'terminal/index.html', context)
+        return render(request, "terminal/index.html", get_terminal_page_context())
 
 
-@method_decorator(_staff_required, name='dispatch')
+@method_decorator(_staff_required, name="dispatch")
 class TerminalConfigView(View):
     """
     终端命令配置页面视图（仅 staff/admin）
@@ -51,10 +52,10 @@ class TerminalConfigView(View):
     """
 
     def get(self, request):
-        return render(request, 'terminal/config.html', get_terminal_config_page_context())
+        return render(request, "terminal/config.html", get_terminal_config_page_context())
 
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(login_required, name="dispatch")
 class TuiWorkbenchView(View):
     """
     Standalone TUI workbench page.
@@ -64,10 +65,10 @@ class TuiWorkbenchView(View):
 
     def get(self, request):
         context = {
-            'page_title': 'TUI Workbench',
-            'page_description': 'API-native PC tools interface',
+            "page_title": "TUI Workbench",
+            "page_description": "API-native PC tools interface",
         }
-        response = render(request, 'terminal/tui_workbench.html', context)
+        response = render(request, "terminal/tui_workbench.html", context)
         return set_ui_mode_cookie(response, mode=UI_MODE_TUI)
 
 

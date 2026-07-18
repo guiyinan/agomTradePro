@@ -301,3 +301,25 @@ def test_prompt_chat_models_uses_supported_models_from_extra_config(authenticate
 
     assert response.status_code == 200
     assert response.json()["models"] == ["gpt-4.1", "gpt-4.1-mini"]
+
+
+@pytest.mark.django_db
+def test_prompt_chat_providers_embeds_models_for_initial_selector(authenticated_client):
+    AIProviderConfig.objects.create(
+        name="openai-main",
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        default_model="gpt-4.1",
+        extra_config={"supported_models": ["gpt-4.1", "gpt-4.1-mini"]},
+    )
+
+    response = authenticated_client.get("/api/prompt/chat/providers")
+
+    assert response.status_code == 200
+    assert response.json()["providers"][0]["models"] == [
+        "gpt-4.1",
+        "gpt-4.1-mini",
+    ]

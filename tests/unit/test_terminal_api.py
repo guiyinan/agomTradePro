@@ -10,6 +10,7 @@ from apps.agent_runtime.infrastructure.models import (
     AgentExecutionRecordModel,
     AgentProposalModel,
 )
+from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.terminal.infrastructure.models import TerminalAuditLogORM
 
 
@@ -56,6 +57,39 @@ class TestDeprecatedCommandEndpoints:
         response = getattr(api_client, method)(path, {}, format="json")
         assert response.status_code == 410
         assert "retired" in response.json()["error"].lower()
+
+
+@pytest.mark.django_db
+def test_terminal_page_bootstraps_provider_selector(client, regular_user):
+    AIProviderConfig.objects.create(
+        name="terminal-provider",
+        provider_type="openai",
+        is_active=True,
+        priority=1,
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        default_model="gpt-4.1",
+        extra_config={"supported_models": ["gpt-4.1", "gpt-4.1-mini"]},
+    )
+    client.force_login(regular_user)
+
+    response = client.get("/terminal/")
+
+    assert response.status_code == 200
+    assert response.context["provider_selector_bootstrap"] == {
+        "providers": [
+            {
+                "name": "terminal-provider",
+                "provider_type": "openai",
+                "default_model": "gpt-4.1",
+                "models": ["gpt-4.1", "gpt-4.1-mini"],
+                "is_active": True,
+                "priority": 1,
+                "display_label": "terminal-provider (gpt-4.1)",
+            }
+        ],
+        "default_provider": "terminal-provider",
+    }
 
 
 @pytest.mark.django_db
@@ -157,9 +191,7 @@ class TestTerminalChatEndpoint:
 class TestTerminalApprovalDecisionEndpoint:
     """Tests for the Terminal MCP approval decision endpoint."""
 
-    def test_approval_decision_requires_operator_permission(
-        self, api_client, regular_user
-    ):
+    def test_approval_decision_requires_operator_permission(self, api_client, regular_user):
         api_client.force_authenticate(user=regular_user)
 
         response = api_client.post(
@@ -170,9 +202,7 @@ class TestTerminalApprovalDecisionEndpoint:
 
         assert response.status_code == 403
 
-    def test_staff_can_approve_and_execute_persisted_mcp_proposal(
-        self, api_client, staff_user
-    ):
+    def test_staff_can_approve_and_execute_persisted_mcp_proposal(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
         approved = Mock(request_id="apr-1", proposal=Mock(id=41))
         executed = Mock(
@@ -209,9 +239,7 @@ class TestTerminalApprovalDecisionEndpoint:
         approve.assert_called_once()
         execute.assert_called_once()
 
-    def test_approval_executes_real_mcp_flow_for_standalone_proposal(
-        self, api_client, staff_user
-    ):
+    def test_approval_executes_real_mcp_flow_for_standalone_proposal(self, api_client, staff_user):
         proposal = AgentProposalModel._default_manager.create(
             request_id="apr_terminal_real_1",
             proposal_type="terminal_mcp_capability",

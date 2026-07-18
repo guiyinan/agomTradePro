@@ -1,5 +1,6 @@
 """Unit tests for the refactored terminal agent service."""
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -275,9 +276,58 @@ def test_build_agent_instructions_use_compact_governed_discovery_summary():
     assert "agom_capability_schema" in instructions
     assert "agom_capability_call" in instructions
     assert "terminal.search.user_actions" in instructions
+    assert "execute it only through agom_capability_call" in instructions
+    assert "Never call internal executor names" in instructions
     assert "account.read.capability_199" not in instructions
     assert "strategy.update.capability_99" not in instructions
     assert len(instructions) < 1_200
+
+
+def test_collect_events_returns_unknown_tools_to_model_for_self_correction():
+    captured = {}
+
+    class FakeRunConfig:
+        def __init__(self, *, tool_not_found_behavior):
+            self.tool_not_found_behavior = tool_not_found_behavior
+
+    class FakeStreamed:
+        final_output = "System is healthy"
+
+        async def stream_events(self):
+            if False:
+                yield None
+
+    class FakeRunner:
+        @staticmethod
+        def run_streamed(**kwargs):
+            captured.update(kwargs)
+            return FakeStreamed()
+
+    class FakeMCPServer:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+    service = OpenAIAgentsTerminalService()
+    sdk = {"Runner": FakeRunner, "RunConfig": FakeRunConfig}
+    resolved_provider = SimpleNamespace(provider=SimpleNamespace(), model="test-model")
+    tool_access = SimpleNamespace(auto_allowed={}, gated={}, allowed_tool_names=frozenset())
+
+    with (
+        patch.object(service, "_import_agents_sdk", return_value=sdk),
+        patch.object(service, "_build_agent_session", return_value=None),
+        patch.object(service, "_build_mcp_server", return_value=FakeMCPServer()),
+        patch.object(service, "_build_agent", return_value="agent"),
+        patch.object(service, "_extract_usage", return_value={}),
+        patch.object(service, "_build_final_metadata", return_value={}),
+    ):
+        events = asyncio.run(service._collect_events(_request(), resolved_provider, tool_access))
+
+    assert captured["run_config"].tool_not_found_behavior == "return_error_to_model"
+    assert events[-1].event_type == "final"
+    assert events[-1].data["reply"] == "System is healthy"
 
 
 def test_match_gated_tool_returns_high_confidence_match():

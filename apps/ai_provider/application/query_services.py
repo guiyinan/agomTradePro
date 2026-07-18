@@ -16,6 +16,7 @@ def list_active_provider_summaries() -> list[dict[str, Any]]:
             "name": provider.name,
             "provider_type": provider.provider_type,
             "default_model": provider.default_model,
+            "models": _supported_models(provider),
             "is_active": provider.is_active,
             "priority": provider.priority,
             "display_label": f"{provider.name} ({provider.default_model})",
@@ -42,13 +43,7 @@ def list_supported_models(provider_name: str | None = None) -> list[str]:
     if normalized_name:
         provider = provider_repo.get_by_name(normalized_name)
         if provider:
-            extra = provider.extra_config or {}
-            models = extra.get("supported_models")
-            if models:
-                return list(models)
-            if provider.default_model:
-                return [provider.default_model]
-            return []
+            return _supported_models(provider)
 
         providers = provider_repo.get_by_type(normalized_name)
         if providers:
@@ -64,6 +59,20 @@ def list_supported_models(provider_name: str | None = None) -> list[str]:
             provider.default_model for provider in active_providers if provider.default_model
         )
     )
+
+
+def _supported_models(provider: Any) -> list[str]:
+    """Return a normalized model list for one provider configuration."""
+
+    extra = provider.extra_config or {}
+    configured = extra.get("supported_models")
+    if isinstance(configured, (list, tuple)):
+        models = [str(model).strip() for model in configured if str(model).strip()]
+        if models:
+            return list(dict.fromkeys(models))
+    if provider.default_model:
+        return [provider.default_model]
+    return []
 
 
 def get_primary_system_provider_payload() -> dict[str, Any] | None:

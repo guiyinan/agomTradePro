@@ -20,6 +20,11 @@ class AgomTerminal {
         this.isLoading = false;
         this.maxInputChars = 12000;
         this.largePasteThreshold = 1200;
+        this.providerFetchTimeoutMs = 5000;
+        this.providerBootstrap = this.readProviderBootstrap();
+        this.mermaidScriptUrl = window.AGOM_TERMINAL_CONFIG?.mermaidScriptUrl || '';
+        this.mermaidLoadPromise = null;
+        this.mermaidInitialized = false;
         
         // Save original prompt (username@agomTradePro:~$)
         this.originalPrompt = document.getElementById('terminal-prompt')?.textContent || 'guest@agomTradePro:~$';
@@ -1915,17 +1920,18 @@ class AgomTerminal {
      */
     async loadProviders() {
         try {
-            const response = await fetch('/api/prompt/chat/providers');
-            const data = await response.json();
-            
+            const data = this.providerBootstrap || await this.fetchJsonWithTimeout(
+                '/api/prompt/chat/providers'
+            );
+            this.providerBootstrap = null;
             this.providers = data.providers || [];
-            
+
             // Update select
             if (this.providers.length > 0) {
-                this.elements.providerSelect.innerHTML = this.providers.map(p => 
+                this.elements.providerSelect.innerHTML = this.providers.map(p =>
                     `<option value="${p.name}">${p.display_label}</option>`
                 ).join('');
-                
+
                 // Set default
                 if (data.default_provider) {
                     this.currentProvider = data.default_provider;
@@ -1933,16 +1939,51 @@ class AgomTerminal {
                 } else {
                     this.currentProvider = this.providers[0].name;
                 }
-                
+
                 await this.loadModels(this.currentProvider);
             } else {
                 this.elements.providerSelect.innerHTML = '<option value="">No providers available</option>';
+                this.elements.modelSelect.innerHTML = '<option value="">No models available</option>';
             }
-            
+
             this.updateBadges();
         } catch (error) {
             console.error('Failed to load providers:', error);
-            this.elements.providerSelect.innerHTML = '<option value="">Failed to load</option>';
+            const message = error?.name === 'AbortError' ? 'Load timed out' : 'Provider unavailable';
+            this.elements.providerSelect.innerHTML = `<option value="">${message}</option>`;
+            this.elements.modelSelect.innerHTML = '<option value="">Model unavailable</option>';
+            this.updateBadges();
+        }
+    }
+
+    /**
+     * Read the server-rendered provider selector snapshot.
+     */
+    readProviderBootstrap() {
+        const element = document.getElementById('terminal-provider-bootstrap');
+        if (!element) return null;
+        try {
+            return JSON.parse(element.textContent || '{}');
+        } catch (error) {
+            console.error('Invalid terminal provider bootstrap:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Fetch JSON without allowing a selector request to wait forever.
+     */
+    async fetchJsonWithTimeout(url, timeoutMs = this.providerFetchTimeoutMs) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(url, { signal: controller.signal });
+            if (!response.ok) {
+                throw new Error(`Request failed with status ${response.status}`);
+            }
+            return await response.json();
+        } finally {
+            window.clearTimeout(timeoutId);
         }
     }
 
@@ -1951,26 +1992,22 @@ class AgomTerminal {
      */
     async loadModels(providerName) {
         if (!providerName) return;
-        
+
+        const provider = this.providers.find(item => item.name === providerName);
+        const embeddedModels = Array.isArray(provider?.models) ? provider.models : [];
+        if (embeddedModels.length > 0) {
+            this.applyModels(provider, embeddedModels);
+            return;
+        }
+
         try {
-            const response = await fetch(`/api/prompt/chat/models?provider=${providerName}`);
-            const data = await response.json();
-            
+            const data = await this.fetchJsonWithTimeout(
+                `/api/prompt/chat/models?provider=${encodeURIComponent(providerName)}`
+            );
             this.models = data.models || [];
-            
+
             if (this.models.length > 0) {
-                this.elements.modelSelect.innerHTML = this.models.map(m => 
-                    `<option value="${m}">${m}</option>`
-                ).join('');
-                
-                // Set default model
-                const provider = this.providers.find(p => p.name === providerName);
-                if (provider?.default_model && this.models.includes(provider.default_model)) {
-                    this.currentModel = provider.default_model;
-                    this.elements.modelSelect.value = provider.default_model;
-                } else {
-                    this.currentModel = this.models[0];
-                }
+                this.applyModels(provider, this.models);
             } else {
                 this.elements.modelSelect.innerHTML = '<option value="">No models available</option>';
                 this.currentModel = null;
@@ -1979,7 +2016,28 @@ class AgomTerminal {
             this.updateBadges();
         } catch (error) {
             console.error('Failed to load models:', error);
+            this.elements.modelSelect.innerHTML = '<option value="">Model unavailable</option>';
+            this.currentModel = null;
+            this.updateBadges();
         }
+    }
+
+    /**
+     * Apply a provider's model list to the selector.
+     */
+    applyModels(provider, models) {
+        this.models = [...new Set(models.filter(Boolean))];
+        this.elements.modelSelect.innerHTML = this.models.map(model =>
+            `<option value="${model}">${model}</option>`
+        ).join('');
+
+        if (provider?.default_model && this.models.includes(provider.default_model)) {
+            this.currentModel = provider.default_model;
+            this.elements.modelSelect.value = provider.default_model;
+        } else {
+            this.currentModel = this.models[0] || null;
+        }
+        this.updateBadges();
     }
 
     /**
@@ -2112,13 +2170,55 @@ class AgomTerminal {
             });
         }
 
-        if (window.mermaid?.initialize) {
-            window.mermaid.initialize({
-                startOnLoad: false,
-                securityLevel: 'strict',
-                theme: 'dark',
+        this.initializeMermaidRenderer();
+    }
+
+    /**
+     * Configure Mermaid once it is available.
+     */
+    initializeMermaidRenderer() {
+        if (this.mermaidInitialized || !window.mermaid?.initialize) return;
+        window.mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: 'strict',
+            theme: 'dark',
+        });
+        this.mermaidInitialized = true;
+    }
+
+    /**
+     * Load the large Mermaid runtime only when a response contains a diagram.
+     */
+    async ensureMermaidRenderer() {
+        if (window.mermaid?.render) {
+            this.initializeMermaidRenderer();
+            return window.mermaid;
+        }
+        if (!this.mermaidScriptUrl) {
+            throw new Error('Mermaid script URL is not configured');
+        }
+        if (!this.mermaidLoadPromise) {
+            this.mermaidLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = this.mermaidScriptUrl;
+                script.async = true;
+                script.dataset.terminalMermaid = 'true';
+                script.addEventListener('load', resolve, { once: true });
+                script.addEventListener(
+                    'error',
+                    () => reject(new Error('Unable to load Mermaid renderer')),
+                    { once: true }
+                );
+                document.head.appendChild(script);
+            }).then(() => {
+                this.initializeMermaidRenderer();
+                if (!window.mermaid?.render) {
+                    throw new Error('Mermaid renderer is unavailable');
+                }
+                return window.mermaid;
             });
         }
+        return this.mermaidLoadPromise;
     }
 
     /**
@@ -2244,11 +2344,16 @@ class AgomTerminal {
             code.classList.add('terminal-inline-code');
         });
 
-        if (!window.mermaid?.render) {
+        const mermaidBlocks = container.querySelectorAll('pre code.language-mermaid');
+        if (mermaidBlocks.length === 0) return;
+
+        try {
+            await this.ensureMermaidRenderer();
+        } catch (error) {
+            console.error('Failed to initialize Mermaid:', error);
             return;
         }
 
-        const mermaidBlocks = container.querySelectorAll('pre code.language-mermaid');
         for (const block of mermaidBlocks) {
             const pre = block.closest('pre');
             if (!pre) continue;

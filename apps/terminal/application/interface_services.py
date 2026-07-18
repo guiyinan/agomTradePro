@@ -5,10 +5,25 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any
 
+from apps.ai_provider.application.query_services import list_active_provider_summaries
 from apps.terminal.application.repository_provider import (
     get_terminal_command_repository,
     get_terminal_runtime_settings_repository,
 )
+
+
+def get_terminal_page_context() -> dict[str, Any]:
+    """Build the terminal page context with an immediate provider selector snapshot."""
+
+    providers = list_active_provider_summaries()
+    return {
+        "page_title": "Terminal",
+        "page_description": "AI CLI Interface",
+        "provider_selector_bootstrap": {
+            "providers": providers,
+            "default_provider": providers[0]["name"] if providers else None,
+        },
+    }
 
 
 def get_terminal_config_page_context() -> dict[str, Any]:
