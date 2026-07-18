@@ -37,6 +37,10 @@
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">Regime 判定</span>
                 </a>
+                <a href="#pulse-overview" class="nav-item">
+                    <span class="nav-icon">💓</span>
+                    <span class="nav-text">Pulse 脉搏监测</span>
+                </a>
                 <a href="{% url 'policy:workbench' %}" class="nav-item">
                     <span class="nav-icon">📰</span>
                     <span class="nav-text">政策/情绪/热点工作台</span>
@@ -74,7 +78,7 @@
                 </a>
                 <a href="{% url 'filter:dashboard' %}" class="nav-item">
                     <span class="nav-icon">🔍</span>
-                    <span class="nav-text">股票筛选</span>
+                    <span class="nav-text">趋势滤波</span>
                 </a>
             </div>
 
@@ -103,6 +107,43 @@
                 </a>
             </div>
 
+            {% if user.is_staff %}
+            <!-- 运行与风控 -->
+            <div class="nav-section">
+                <div class="nav-section-title">运行与风控</div>
+                <a href="{% url 'risk_center:console' %}" class="nav-item">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-text">集中风控中心</span>
+                </a>
+                <a href="{% url 'realtime:home' %}" class="nav-item">
+                    <span class="nav-icon">📡</span>
+                    <span class="nav-text">实时监控工作台</span>
+                </a>
+                <a href="{% url 'agent_runtime_pages:task_list' %}" class="nav-item">
+                    <span class="nav-icon">🤖</span>
+                    <span class="nav-text">Agent 任务中心</span>
+                </a>
+                <a href="{% url 'agent_runtime_pages:proposal_list' %}" class="nav-item">
+                    <span class="nav-icon">✅</span>
+                    <span class="nav-text">Agent 提案审批</span>
+                </a>
+                <a href="{% url 'config_center_pages:qlib-center' %}" class="nav-item">
+                    <span class="nav-icon">🧠</span>
+                    <span class="nav-text">Qlib 配置与训练</span>
+                </a>
+                {% if user.is_superuser %}
+                <a href="{% url 'task_monitor_pages:readiness_monitor_page' %}" class="nav-item">
+                    <span class="nav-icon">🩺</span>
+                    <span class="nav-text">生产就绪监视器</span>
+                </a>
+                <a href="{% url 'task_monitor_pages:scheduler_console' %}" class="nav-item">
+                    <span class="nav-icon">⏱️</span>
+                    <span class="nav-text">计划任务中心</span>
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <!-- 系统设置 -->
             <div class="nav-section">
                 <div class="nav-section-title">系统</div>
@@ -118,10 +159,12 @@
                     <span class="nav-icon">🧭</span>
                     <span class="nav-text">能力路由接入</span>
                 </a>
+                {% if user.is_staff %}
                 <a href="{% url 'settings-mcp-tools' %}" class="nav-item">
                     <span class="nav-icon">🧩</span>
                     <span class="nav-text">MCP 工具目录</span>
                 </a>
+                {% endif %}
                 <a href="{% url 'account:mcp_guide' %}" class="nav-item">
                     <span class="nav-icon">🔌</span>
                     <span class="nav-text">MCP 接入说明</span>
@@ -178,7 +221,7 @@
             {% include "components/action_recommendation.html" %}
         </div>
 
-        <div style="margin-bottom: var(--gap);">
+        <div id="pulse-overview" style="margin-bottom: var(--gap); scroll-margin-top: 88px;">
             {% include "components/pulse_card.html" %}
         </div>
 

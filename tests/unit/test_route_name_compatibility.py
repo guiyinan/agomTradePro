@@ -183,6 +183,51 @@ def test_mcp_guide_entry_is_exposed_in_dashboard_and_global_navigation():
     assert reverse("settings-capability-gateway") == "/settings/capability-gateway/"
 
 
+def test_classic_navigation_exposes_recent_operational_surfaces():
+    template_dir = Path("core/templates")
+
+    dashboard_template = (template_dir / "dashboard/index.html").read_text(encoding="utf-8")
+    base_template = (template_dir / "base.html").read_text(encoding="utf-8")
+
+    expected_routes = {
+        "{% url 'risk_center:console' %}": "/risk-center/",
+        "{% url 'realtime:home' %}": "/realtime/",
+        "{% url 'agent_runtime_pages:task_list' %}": "/settings/agent-runtime/",
+        "{% url 'agent_runtime_pages:proposal_list' %}": "/settings/agent-runtime/proposals/",
+        "{% url 'config_center_pages:qlib-center' %}": "/settings/config-center/qlib/",
+    }
+    for template_route, resolved_path in expected_routes.items():
+        assert template_route in base_template
+        assert template_route in dashboard_template
+        assert resolve(resolved_path)
+
+    assert 'id="pulse-overview"' in dashboard_template
+    assert "Pulse 脉搏监测" in base_template
+    assert "趋势滤波" in dashboard_template
+    assert "股票筛选" not in dashboard_template
+
+
+def test_classic_dashboard_keeps_admin_only_entries_permission_scoped():
+    dashboard_template = Path("core/templates/dashboard/index.html").read_text(encoding="utf-8")
+
+    risk_entry = dashboard_template.index("{% url 'risk_center:console' %}")
+    risk_staff_guard = dashboard_template.rfind("{% if user.is_staff %}", 0, risk_entry)
+    risk_staff_end = dashboard_template.index("{% endif %}", risk_entry)
+    mcp_entry = dashboard_template.index("{% url 'settings-mcp-tools' %}")
+    mcp_staff_guard = dashboard_template.rfind("{% if user.is_staff %}", 0, mcp_entry)
+    mcp_staff_end = dashboard_template.index("{% endif %}", mcp_entry)
+
+    assert risk_staff_guard < risk_entry < risk_staff_end
+    assert mcp_staff_guard < mcp_entry < mcp_staff_end
+
+
+def test_realtime_classic_entry_redirects_to_the_realtime_tui_screen():
+    response = Client().get(reverse("realtime:home"), follow=False)
+
+    assert response.status_code == 302
+    assert response["Location"] == "/tui/#/realtime-monitor.alerts"
+
+
 def test_manual_trade_review_entry_is_exposed_in_account_execution_navigation():
     base_template = Path("core/templates/base.html").read_text(encoding="utf-8")
 

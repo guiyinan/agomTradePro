@@ -75,6 +75,11 @@
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">宏观环境</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'regime:dashboard' %}" class="dropdown-item">Regime判定</a>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'dashboard:index' %}#pulse-overview" class="dropdown-item">
+                            <i class="bi bi-activity"></i> Pulse 脉搏监测
+                        </a>
+                        {% endif %}
                         <a href="{% url 'policy:workbench' %}" class="dropdown-item">政策/情绪/热点工作台</a>
                         {% if user.is_staff %}
                         <a href="{% url 'policy:rss-manage' %}" class="dropdown-item">RSS源管理</a>
@@ -110,6 +115,14 @@
                             <i class="bi bi-file-earmark-spreadsheet"></i> 手动交易复盘
                         </a>
                         {% if user.is_staff %}
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">风险与监控</div>
+                        <a href="{% url 'risk_center:console' %}" class="dropdown-item">
+                            <i class="bi bi-shield-check"></i> 集中风控中心
+                        </a>
+                        <a href="{% url 'realtime:home' %}" class="dropdown-item">
+                            <i class="bi bi-broadcast-pin"></i> 实时监控工作台
+                        </a>
                         <a href="{% url 'audit:reports' %}" class="dropdown-item">
                             <i class="bi bi-clipboard-data"></i> 审计归因报告
                         </a>
@@ -220,6 +233,15 @@
                         <a href="{% url 'settings-mcp-tools' %}" class="dropdown-item">MCP 工具</a>
                         <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
                         <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>
+                        <a href="{% url 'agent_runtime_pages:task_list' %}" class="dropdown-item">
+                            <i class="bi bi-robot"></i> Agent 任务中心
+                        </a>
+                        <a href="{% url 'agent_runtime_pages:proposal_list' %}" class="dropdown-item">
+                            <i class="bi bi-check2-square"></i> Agent 提案审批
+                        </a>
+                        <a href="{% url 'config_center_pages:qlib-center' %}" class="dropdown-item">
+                            <i class="bi bi-cpu"></i> Qlib 配置与训练
+                        </a>
                         <div class="dropdown-divider"></div>
                         <div class="dropdown-section-title">运行校验</div>
                         <a href="{% url 'audit:indicator_performance' %}" class="dropdown-item">指标表现校验</a>

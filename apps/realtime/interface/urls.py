@@ -10,7 +10,7 @@ urlpatterns = [
     # page entry usable instead of exposing an empty URL namespace.
     path(
         "",
-        RedirectView.as_view(url="/tui/", permanent=False),
+        RedirectView.as_view(url="/tui/#/realtime-monitor.alerts", permanent=False),
         name="home",
     ),
 ]

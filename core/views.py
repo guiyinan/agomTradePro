@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from apps.account.application.documentation_use_cases import (
     DocumentationNotFound,
@@ -512,8 +513,11 @@ def settings_center_view(request):
         "capability_gateway",
         "mcp_guide",
         "trading_cost",
+        "risk_center",
+        "agent_runtime_operator",
         "system_settings",
         "qlib_runtime",
+        "ai_provider",
         "data_center_providers",
         "data_center_runtime",
     ]
@@ -561,6 +565,41 @@ def admin_console_view(request):
             ],
         },
         {
+            "title": "风险、Agent 与治理",
+            "items": [
+                {
+                    "name": "集中风控中心",
+                    "description": "维护全局底线、风险模板、账户策略、例外和风控日报。",
+                    "summary": "交易前、投后与日报统一入口",
+                    "url": reverse("risk_center:console"),
+                },
+                {
+                    "name": "Agent 任务中心",
+                    "description": "查看 AI-native 任务队列、执行状态、失败原因和恢复入口。",
+                    "summary": "任务观测与恢复",
+                    "url": reverse("agent_runtime_pages:task_list"),
+                },
+                {
+                    "name": "Agent 提案审批",
+                    "description": "审核 Agent 提案的风险、证据与动作，并执行受控操作。",
+                    "summary": "提案审批与执行记录",
+                    "url": reverse("agent_runtime_pages:proposal_list"),
+                },
+                {
+                    "name": "能力路由接入",
+                    "description": "检查 AI、MCP、Terminal 与 TUI 的能力目录、路由和接入状态。",
+                    "summary": "能力治理与接入自检",
+                    "url": reverse("settings-capability-gateway"),
+                },
+                {
+                    "name": "Qlib 配置与训练",
+                    "description": "维护 Qlib Runtime、universe、训练模板并查看训练记录。",
+                    "summary": "配置、训练与运行记录",
+                    "url": reverse("config_center_pages:qlib-center"),
+                },
+            ],
+        },
+        {
             "title": "运维与内容",
             "items": [
                 {
@@ -574,6 +613,18 @@ def admin_console_view(request):
                     "description": "检查本地 Qlib 数据目录状态，并手动投递 universe 或 scoped codes 刷新。",
                     "summary": "Qlib runtime data 运维入口",
                     "url": "/alpha/ops/qlib-data/",
+                },
+                {
+                    "name": "生产就绪监视器",
+                    "description": "查看 readiness 证据、验收窗口和需要人工处理的阻塞项。",
+                    "summary": "生产验收与证据闭环",
+                    "url": reverse("task_monitor_pages:readiness_monitor_page"),
+                },
+                {
+                    "name": "计划任务中心",
+                    "description": "查看 Celery Beat 计划任务、最近执行状态和调度配置。",
+                    "summary": "调度与周期任务值守",
+                    "url": reverse("task_monitor_pages:scheduler_console"),
                 },
                 {
                     "name": "服务器日志",

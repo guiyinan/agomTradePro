@@ -254,9 +254,27 @@ def test_admin_console_page_renders_key_admin_entries(superuser_client):
         "Token 管理",
         "Alpha 推理管理",
         "Qlib 基础数据管理",
+        "集中风控中心",
+        "Agent 任务中心",
+        "Agent 提案审批",
+        "能力路由接入",
+        "Qlib 配置与训练",
+        "生产就绪监视器",
+        "计划任务中心",
         "服务器日志",
         "Django Admin",
     )
+
+
+@pytest.mark.django_db
+def test_settings_center_features_recent_staff_surfaces(staff_client):
+    response = staff_client.get("/settings/")
+
+    assert response.status_code == 200
+    featured_keys = [item["key"] for item in response.context["featured_items"]]
+    assert "risk_center" in featured_keys
+    assert "agent_runtime_operator" in featured_keys
+    assert "ai_provider" in featured_keys
 
 
 @pytest.mark.django_db
@@ -288,6 +306,26 @@ def test_base_navigation_exposes_alpha_ops_for_staff(staff_client):
         "Alpha 推理管理",
         "Qlib 基础数据管理",
     )
+
+
+@pytest.mark.django_db
+def test_base_navigation_exposes_recent_operations_only_to_staff(staff_client, normal_client):
+    staff_response = staff_client.get("/settings/")
+    normal_response = normal_client.get("/settings/")
+
+    staff_content = _assert_html_contract(
+        staff_response,
+        "集中风控中心",
+        "实时监控工作台",
+        "Agent 任务中心",
+        "Agent 提案审批",
+        "Qlib 配置与训练",
+    )
+    normal_content = _response_text(normal_response)
+
+    assert "集中风控中心" in staff_content
+    assert "集中风控中心" not in normal_content
+    assert 'href="/settings/mcp-tools/"' not in normal_content
 
 
 @pytest.mark.django_db
