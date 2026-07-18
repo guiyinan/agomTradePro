@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from agomtradepro_mcp.audit import AuditContext, AuditLogger
+from agomtradepro_mcp.audit import AuditContext, AuditLogger, use_audit_sink
 
 
 def test_default_backend_url_follows_remote_api_base(monkeypatch) -> None:
@@ -34,6 +34,23 @@ def test_send_audit_log_forwards_user_access_token(monkeypatch) -> None:
     assert logger._send_audit_log({"request_id": "r-token"}) == "log-1"
     headers = fake_requests.post.call_args.kwargs["headers"]
     assert headers["Authorization"] == "Token user-access-token"
+    assert fake_requests.post.call_args.kwargs["timeout"] == 1.0
+
+
+def test_scoped_audit_sink_bypasses_backend_http(monkeypatch) -> None:
+    """Embedded MCP hosts may persist audit events without self-HTTP."""
+
+    audit = AuditLogger()
+    sink = Mock(return_value="local-log-id")
+    request = Mock()
+    monkeypatch.setattr("requests.post", request)
+
+    with use_audit_sink(sink):
+        log_id = audit._send_audit_log({"request_id": "req-local"})
+
+    assert log_id == "local-log-id"
+    sink.assert_called_once_with({"request_id": "req-local"})
+    request.assert_not_called()
 
 
 def test_mask_sensitive_params_recursive() -> None:

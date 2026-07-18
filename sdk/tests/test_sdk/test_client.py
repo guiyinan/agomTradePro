@@ -15,6 +15,7 @@ from agomtradepro.exceptions import (
     ConfigurationError,
     ValidationError,
 )
+from agomtradepro.transport import use_request_transport
 
 
 class TestAgomTradeProClient:
@@ -212,6 +213,44 @@ class TestAgomTradeProClientRequests:
             result = client.post("/test/create", json={"name": "test"})
 
             assert result == {"id": 123}
+
+    def test_scoped_transport_bypasses_http_session(self):
+        """An embedded host may route SDK calls without opening a socket."""
+
+        transport = Mock()
+        transport.request.return_value = Mock(
+            status_code=200,
+            json=lambda: {"success": True, "data": {"result": "local"}},
+        )
+
+        with use_request_transport(transport):
+            client = AgomTradeProClient(
+                base_url="http://test.com",
+                api_token="test_token",
+            )
+            with patch.object(client._session, "request") as http_request:
+                result = client.get("/test/local")
+
+        assert result == {"result": "local"}
+        http_request.assert_not_called()
+        transport.request.assert_called_once()
+
+    def test_scoped_transport_skips_username_password_login(self, monkeypatch):
+        """A local transport owns authentication and must not self-call login."""
+
+        monkeypatch.delenv("AGOMTRADEPRO_API_TOKEN", raising=False)
+        transport = Mock()
+        with use_request_transport(transport), patch.object(
+            AgomTradeProClient,
+            "_authenticate_with_session",
+        ) as authenticate:
+            AgomTradeProClient(
+                base_url="http://test.com",
+                username="tester",
+                password="secret",
+            )
+
+        authenticate.assert_not_called()
 
     def test_request_with_auth_error(self, client):
         """测试认证失败请求"""

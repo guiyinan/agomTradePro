@@ -2946,6 +2946,25 @@ def test_tui_metadata_validator_accepts_agomtui_runtime_contract_extensions():
     )
 
 
+def test_tui_metadata_validator_adds_dashboard_panel_runtime_defaults():
+    payload = _metadata_payload()
+    payload["screens"][0]["dashboard_panels"] = [
+        {
+            "key": "summary",
+            "title": "Summary",
+            "kind": "detail",
+            "user_priority": "p0",
+            "action_key": "sample.list",
+        }
+    ]
+
+    panel = validate_tui_metadata(payload)["screens"][0]["dashboard_panels"][0]
+
+    assert panel["status"] == ""
+    assert panel["note"] == ""
+    assert panel["layout_area"] == ""
+
+
 def test_tui_metadata_validator_rejects_unknown_dashboard_target_screen():
     payload = _metadata_payload()
     payload["screens"][0]["dashboard_panels"] = [

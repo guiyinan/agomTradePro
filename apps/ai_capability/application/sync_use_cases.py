@@ -99,15 +99,15 @@ class SyncCapabilitiesUseCase:
         disabled_count = 0
         error_count, summary = 0, {}
 
-        try:
-            sources = {
-                "builtin": self._sync_builtin,
-                "terminal_command": self._sync_terminal_commands,
-                "mcp_tool": self._sync_mcp_tools,
-                "api": self._sync_apis,
-            }
-            source_names = [source] if source else list(sources.keys())
-            for source_name in source_names:
+        sources = {
+            "builtin": self._sync_builtin,
+            "terminal_command": self._sync_terminal_commands,
+            "mcp_tool": self._sync_mcp_tools,
+            "api": self._sync_apis,
+        }
+        source_names = [source] if source else list(sources.keys())
+        for source_name in source_names:
+            try:
                 sync_func = sources[source_name]
                 capabilities = sync_func()
                 total_discovered += len(capabilities)
@@ -120,11 +120,10 @@ class SyncCapabilitiesUseCase:
                 )
                 disabled_count += disabled
                 summary[source_name] = {**result, "disabled": disabled}
-
-        except Exception as exc:
-            logger.exception("Capability sync failed")
-            error_count += 1
-            summary["error"] = str(exc)
+            except Exception as exc:
+                logger.exception("Capability source sync failed: %s", source_name)
+                error_count += 1
+                summary[source_name] = {"error": str(exc)}
 
         finished_at = datetime.now(UTC)
         duration = time.time() - start_time
@@ -239,34 +238,27 @@ class SyncCapabilitiesUseCase:
 
     def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
         """Sync MCP tools."""
-        capabilities = []
+        core_manifests = _list_sdk_mcp_capability_manifests()
+        core_tool_names = _list_sdk_mcp_core_tool_names()
+        legacy_replacement_map = build_legacy_replacement_map(core_manifests)
+        capabilities = [build_governed_mcp_capability(manifest) for manifest in core_manifests]
 
-        try:
-            core_manifests = _list_sdk_mcp_capability_manifests()
-            core_tool_names = _list_sdk_mcp_core_tool_names()
-            legacy_replacement_map = build_legacy_replacement_map(core_manifests)
-            capabilities.extend(
-                build_governed_mcp_capability(manifest) for manifest in core_manifests
+        for tool in _list_sdk_mcp_tools(include_legacy=True):
+            if tool.name in core_tool_names:
+                continue
+            risk_level, requires_confirmation, enabled_for_routing = self._classify_mcp_tool(
+                tool.name
             )
-
-            for tool in _list_sdk_mcp_tools(include_legacy=True):
-                if tool.name in core_tool_names:
-                    continue
-                risk_level, requires_confirmation, enabled_for_routing = self._classify_mcp_tool(
-                    tool.name
+            replacement_capability_key = legacy_replacement_map.get(tool.name, "")
+            capabilities.append(
+                build_legacy_mcp_capability(
+                    tool,
+                    replacement_capability_key=replacement_capability_key,
+                    risk_level=risk_level,
+                    requires_confirmation=requires_confirmation,
+                    enabled_for_routing=enabled_for_routing,
                 )
-                replacement_capability_key = legacy_replacement_map.get(tool.name, "")
-                capabilities.append(
-                    build_legacy_mcp_capability(
-                        tool,
-                        replacement_capability_key=replacement_capability_key,
-                        risk_level=risk_level,
-                        requires_confirmation=requires_confirmation,
-                        enabled_for_routing=enabled_for_routing,
-                    )
-                )
-        except Exception as exc:
-            logger.warning("Failed to sync MCP tools: %s", exc)
+            )
 
         return capabilities
 

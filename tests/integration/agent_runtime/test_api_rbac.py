@@ -17,6 +17,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from apps.agent_runtime.infrastructure.models import AgentTaskModel
+
 
 @pytest.mark.django_db
 class TestAPIRBAC:
@@ -65,11 +67,15 @@ class TestAPIRBAC:
     def test_unauthenticated_user_cannot_create_task(self, api_client):
         """Test that unauthenticated users cannot create tasks."""
         url = reverse("agent_runtime:task-list")
-        response = api_client.post(url, {
-            "task_domain": "research",
-            "task_type": "test",
-            "input_payload": {},
-        }, format="json")
+        response = api_client.post(
+            url,
+            {
+                "task_domain": "research",
+                "task_type": "test",
+                "input_payload": {},
+            },
+            format="json",
+        )
 
         assert response.status_code in [
             status.HTTP_401_UNAUTHORIZED,
@@ -154,6 +160,89 @@ class TestAPIRBAC:
 
 
 @pytest.mark.django_db
+class TestRealRepositoryAssembly:
+    """Cover mutating APIs with their production repository composition."""
+
+    @pytest.fixture
+    def authenticated_client(self, django_user_model):
+        user = django_user_model.objects.create_user(
+            username="agent-runtime-real-repo",
+            password="test-only-password",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client, user
+
+    def test_resume_api_updates_task_with_real_repository(self, authenticated_client):
+        client, user = authenticated_client
+        task = AgentTaskModel._default_manager.create(
+            request_id="atr_real_resume",
+            task_domain="research",
+            task_type="real_repository_resume",
+            status="failed",
+            input_payload={},
+            created_by=user,
+        )
+
+        response = client.post(
+            reverse("agent_runtime:task-resume", kwargs={"pk": task.pk}),
+            {"target_status": "draft", "reason": "issue fixed"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        task.refresh_from_db()
+        assert task.status == "draft"
+
+    def test_cancel_api_updates_task_with_real_repository(self, authenticated_client):
+        client, user = authenticated_client
+        task = AgentTaskModel._default_manager.create(
+            request_id="atr_real_cancel",
+            task_domain="monitoring",
+            task_type="real_repository_cancel",
+            status="draft",
+            input_payload={},
+            created_by=user,
+        )
+
+        response = client.post(
+            reverse("agent_runtime:task-cancel", kwargs={"pk": task.pk}),
+            {"reason": "no longer needed"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        task.refresh_from_db()
+        assert task.status == "cancelled"
+
+    def test_create_proposal_validates_task_with_real_repository(self, authenticated_client):
+        client, user = authenticated_client
+        task = AgentTaskModel._default_manager.create(
+            request_id="atr_real_proposal",
+            task_domain="decision",
+            task_type="real_repository_proposal",
+            status="draft",
+            input_payload={},
+            created_by=user,
+        )
+
+        response = client.post(
+            reverse("agent_runtime:proposal-list"),
+            {
+                "task_id": task.pk,
+                "proposal_type": "signal_create",
+                "risk_level": "medium",
+                "approval_required": True,
+                "proposal_payload": {"asset_code": "000001.SH"},
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["proposal"]["task_id"] == task.pk
+
+
+@pytest.mark.django_db
 class TestAuditTrail:
     """Tests for audit trail on mutating operations."""
 
@@ -226,11 +315,15 @@ class TestAuditTrail:
             mock_get.return_value = mock_model
 
             url = reverse("agent_runtime:task-list")
-            response = api_client.post(url, {
-                "task_domain": "research",
-                "task_type": "test",
-                "input_payload": {},
-            }, format="json")
+            response = api_client.post(
+                url,
+                {
+                    "task_domain": "research",
+                    "task_type": "test",
+                    "input_payload": {},
+                },
+                format="json",
+            )
 
         # Response should succeed
         assert response.status_code == status.HTTP_201_CREATED
@@ -383,11 +476,15 @@ class TestErrorResponses:
         api_client.force_authenticate(user=mock_user)
 
         url = reverse("agent_runtime:task-list")
-        response = api_client.post(url, {
-            "task_domain": "invalid_domain",
-            "task_type": "test",
-            "input_payload": {},
-        }, format="json")
+        response = api_client.post(
+            url,
+            {
+                "task_domain": "invalid_domain",
+                "task_type": "test",
+                "input_payload": {},
+            },
+            format="json",
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 

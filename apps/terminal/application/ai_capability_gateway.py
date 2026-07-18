@@ -27,7 +27,7 @@ class DjangoTerminalCapabilityGateway:
         return [
             {
                 "id": str(command.id),
-                "pk": str(command.pk),
+                "pk": str(command.id),
                 "name": command.name,
                 "description": command.description,
                 "category": command.category,

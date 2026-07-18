@@ -1,6 +1,6 @@
-import agomtradepro
 import pytest
 
+import agomtradepro
 from agomtradepro_mcp import rbac
 
 
@@ -19,9 +19,32 @@ def test_audit_identity_uses_user_fields_not_profile_primary_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(agomtradepro, "AgomTradeProClient", _ProfileClient)
+    monkeypatch.setattr(rbac, "_BACKEND_PROFILE_CACHE", None)
 
     assert rbac._get_user_id() == 42
     assert rbac._get_username() == "mcp-operator"
+
+
+def test_backend_profile_is_fetched_once_for_role_and_audit_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+
+    class CountingProfileClient:
+        def get(self, endpoint: str) -> dict[str, object]:
+            nonlocal calls
+            calls += 1
+            assert endpoint == "api/account/profile/"
+            return {"user_id": 42, "username": "cached-user", "rbac_role": "trader"}
+
+    monkeypatch.setattr(agomtradepro, "AgomTradeProClient", CountingProfileClient)
+    monkeypatch.setattr(rbac, "_BACKEND_PROFILE_CACHE", None)
+    monkeypatch.setattr(rbac, "_BACKEND_ROLE_CACHE", None)
+
+    assert rbac._get_role_from_backend() == "trader"
+    assert rbac._get_user_id() == 42
+    assert rbac._get_username() == "cached-user"
+    assert calls == 1
 
 
 @pytest.mark.parametrize(

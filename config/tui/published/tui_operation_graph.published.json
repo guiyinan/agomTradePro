@@ -9625,7 +9625,6 @@
     ],
     "deferred_examples": [
       "/api/dashboard/attention-items/ returns HTMX HTML, not a business view model.",
-      "/api/data-center/market-thermometer/history/ currently raises NameError in the API view.",
       "Account and portfolio endpoints need explicit field metadata and permission UX before promotion.",
       "Parameterized endpoints need TUI field controls before promotion."
     ]

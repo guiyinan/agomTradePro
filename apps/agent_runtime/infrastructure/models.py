@@ -5,8 +5,7 @@ FROZEN: Model names and field names must not change.
 See: docs/plans/ai-native/schema-contract.md
 """
 
-
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.db import models
 
 from apps.agent_runtime.domain.entities import (
@@ -30,28 +29,18 @@ class AgentTaskModel(models.Model):
 
     # Primary fields
     request_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="Stable request trace id"
+        max_length=64, unique=True, db_index=True, help_text="Stable request trace id"
     )
-    schema_version = models.CharField(
-        max_length=16,
-        default="v1",
-        help_text="Schema version"
-    )
+    schema_version = models.CharField(max_length=16, default="v1", help_text="Schema version")
 
     # Task classification
     task_domain = models.CharField(
         max_length=20,
         choices=[(d.value, d.name) for d in TaskDomain],
         db_index=True,
-        help_text="Task domain: research/monitoring/decision/execution/ops"
+        help_text="Task domain: research/monitoring/decision/execution/ops",
     )
-    task_type = models.CharField(
-        max_length=100,
-        help_text="Task subtype"
-    )
+    task_type = models.CharField(max_length=100, help_text="Task subtype")
 
     # Task state
     status = models.CharField(
@@ -59,40 +48,29 @@ class AgentTaskModel(models.Model):
         choices=[(s.value, s.name) for s in TaskStatus],
         default=TaskStatus.DRAFT.value,
         db_index=True,
-        help_text="Current task status"
+        help_text="Current task status",
     )
 
     # Task data
-    input_payload = models.JSONField(
-        default=dict,
-        help_text="JSON input payload"
-    )
+    input_payload = models.JSONField(default=dict, help_text="JSON input payload")
     current_step = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        help_text="Current step key"
+        max_length=100, null=True, blank=True, help_text="Current step key"
     )
-    last_error = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Structured error payload"
-    )
+    last_error = models.JSONField(null=True, blank=True, help_text="Structured error payload")
 
     # Human intervention flag
     requires_human = models.BooleanField(
-        default=False,
-        help_text="Whether human intervention is needed"
+        default=False, help_text="Whether human intervention is needed"
     )
 
     # User association
     created_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='agent_tasks',
-        help_text="User id if authenticated"
+        related_name="agent_tasks",
+        help_text="User id if authenticated",
     )
 
     # Timestamps
@@ -100,14 +78,14 @@ class AgentTaskModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'agent_task'
-        ordering = ['-created_at']
+        db_table = "agent_task"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['status']),
-            models.Index(fields=['task_domain']),
-            models.Index(fields=['task_domain', 'status']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["task_domain"]),
+            models.Index(fields=["task_domain", "status"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
@@ -116,6 +94,7 @@ class AgentTaskModel(models.Model):
     def to_domain_entity(self):
         """Convert to domain entity."""
         from apps.agent_runtime.domain.entities import AgentTask
+
         return AgentTask(
             id=self.id,
             request_id=self.request_id,
@@ -136,62 +115,26 @@ class AgentTaskModel(models.Model):
 class AgentTaskStepModel(models.Model):
     """AgentTaskStep ORM Model - represents a step in task execution."""
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
-        AgentTaskModel,
-        on_delete=models.CASCADE,
-        related_name='steps',
-        help_text="Linked task"
+        AgentTaskModel, on_delete=models.CASCADE, related_name="steps", help_text="Linked task"
     )
-    step_key = models.CharField(
-        max_length=100,
-        help_text="Step identifier"
-    )
-    step_name = models.CharField(
-        max_length=200,
-        help_text="Human readable step name"
-    )
-    step_index = models.IntegerField(
-        default=0,
-        help_text="Order index"
-    )
-    status = models.CharField(
-        max_length=20,
-        default='pending',
-        help_text="Step status"
-    )
-    started_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Step start time"
-    )
-    completed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Step completion time"
-    )
-    error_message = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Error if failed"
-    )
-    output_data = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Step output"
-    )
+    step_key = models.CharField(max_length=100, help_text="Step identifier")
+    step_name = models.CharField(max_length=200, help_text="Human readable step name")
+    step_index = models.IntegerField(default=0, help_text="Order index")
+    status = models.CharField(max_length=20, default="pending", help_text="Step status")
+    started_at = models.DateTimeField(null=True, blank=True, help_text="Step start time")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="Step completion time")
+    error_message = models.TextField(null=True, blank=True, help_text="Error if failed")
+    output_data = models.JSONField(null=True, blank=True, help_text="Step output")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_task_step'
-        ordering = ['step_index']
+        db_table = "agent_task_step"
+        ordering = ["step_index"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task', 'step_index']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task", "step_index"]),
         ]
 
     def __str__(self):
@@ -201,43 +144,26 @@ class AgentTaskStepModel(models.Model):
 class AgentContextSnapshotModel(models.Model):
     """AgentContextSnapshot ORM Model - context aggregation for tasks."""
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.OneToOneField(
         AgentTaskModel,
         on_delete=models.CASCADE,
-        related_name='context_snapshot',
-        help_text="Linked task"
+        related_name="context_snapshot",
+        help_text="Linked task",
     )
     domain = models.CharField(
-        max_length=20,
-        choices=[(d.value, d.name) for d in TaskDomain],
-        help_text="Task domain"
+        max_length=20, choices=[(d.value, d.name) for d in TaskDomain], help_text="Task domain"
     )
-    snapshot_data = models.JSONField(
-        default=dict,
-        help_text="Aggregated context data"
-    )
-    generated_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Snapshot generation time"
-    )
-    data_freshness = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Data freshness metrics"
-    )
+    snapshot_data = models.JSONField(default=dict, help_text="Aggregated context data")
+    generated_at = models.DateTimeField(null=True, blank=True, help_text="Snapshot generation time")
+    data_freshness = models.JSONField(null=True, blank=True, help_text="Data freshness metrics")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_context_snapshot'
+        db_table = "agent_context_snapshot"
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['domain']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["domain"]),
         ]
 
     def __str__(self):
@@ -252,17 +178,8 @@ class AgentProposalModel(models.Model):
     """
 
     # Primary fields
-    request_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="Trace id"
-    )
-    schema_version = models.CharField(
-        max_length=16,
-        default="v1",
-        help_text="Schema version"
-    )
+    request_id = models.CharField(max_length=64, unique=True, db_index=True, help_text="Trace id")
+    schema_version = models.CharField(max_length=16, default="v1", help_text="Schema version")
 
     # Task linkage
     task = models.ForeignKey(
@@ -270,14 +187,13 @@ class AgentProposalModel(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='proposals',
-        help_text="Linked task"
+        related_name="proposals",
+        help_text="Linked task",
     )
 
     # Proposal classification
     proposal_type = models.CharField(
-        max_length=50,
-        help_text="Type of proposal (e.g., rebalance, signal_write)"
+        max_length=50, help_text="Type of proposal (e.g., rebalance, signal_write)"
     )
 
     # Proposal state
@@ -286,46 +202,38 @@ class AgentProposalModel(models.Model):
         choices=[(s.value, s.name) for s in ProposalStatus],
         default=ProposalStatus.DRAFT.value,
         db_index=True,
-        help_text="Proposal status"
+        help_text="Proposal status",
     )
     risk_level = models.CharField(
         max_length=20,
         choices=[(r.value, r.name) for r in RiskLevel],
         default=RiskLevel.MEDIUM.value,
-        help_text="Risk level assessment"
+        help_text="Risk level assessment",
     )
 
     # Approval workflow
     approval_required = models.BooleanField(
-        default=True,
-        help_text="Server-evaluated approval requirement"
+        default=True, help_text="Server-evaluated approval requirement"
     )
     approval_status = models.CharField(
         max_length=20,
         choices=[(a.value, a.name) for a in ApprovalStatus],
         default=ApprovalStatus.PENDING.value,
-        help_text="Current approval status"
+        help_text="Current approval status",
     )
-    approval_reason = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Human/system explanation"
-    )
+    approval_reason = models.TextField(null=True, blank=True, help_text="Human/system explanation")
 
     # Proposal data
-    proposal_payload = models.JSONField(
-        default=dict,
-        help_text="Execution payload"
-    )
+    proposal_payload = models.JSONField(default=dict, help_text="Execution payload")
 
     # User association
     created_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='agent_proposals',
-        help_text="User id"
+        related_name="agent_proposals",
+        help_text="User id",
     )
 
     # Timestamps
@@ -333,13 +241,13 @@ class AgentProposalModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'agent_proposal'
-        ordering = ['-created_at']
+        db_table = "agent_proposal"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['status']),
-            models.Index(fields=['approval_status']),
-            models.Index(fields=['task']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["approval_status"]),
+            models.Index(fields=["task"]),
         ]
 
     def __str__(self):
@@ -348,6 +256,7 @@ class AgentProposalModel(models.Model):
     def to_domain_entity(self):
         """Convert to domain entity."""
         from apps.agent_runtime.domain.entities import AgentProposal
+
         return AgentProposal(
             id=self.id,
             request_id=self.request_id,
@@ -369,61 +278,41 @@ class AgentProposalModel(models.Model):
 class AgentExecutionRecordModel(models.Model):
     """AgentExecutionRecord ORM Model - records execution results."""
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
         AgentTaskModel,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name='execution_records',
-        help_text="Linked task (optional for standalone approved capabilities)"
+        related_name="execution_records",
+        help_text="Linked task (optional for standalone approved capabilities)",
     )
     proposal = models.ForeignKey(
         AgentProposalModel,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='execution_records',
-        help_text="Linked proposal"
+        related_name="execution_records",
+        help_text="Linked proposal",
     )
     execution_status = models.CharField(
-        max_length=20,
-        default='pending',
-        help_text="Execution result status"
+        max_length=20, default="pending", help_text="Execution result status"
     )
-    execution_output = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Execution output data"
-    )
-    started_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Execution start time"
-    )
+    execution_output = models.JSONField(null=True, blank=True, help_text="Execution output data")
+    started_at = models.DateTimeField(null=True, blank=True, help_text="Execution start time")
     completed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Execution completion time"
+        null=True, blank=True, help_text="Execution completion time"
     )
-    error_details = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Error details if failed"
-    )
+    error_details = models.JSONField(null=True, blank=True, help_text="Error details if failed")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_execution_record'
-        ordering = ['-created_at']
+        db_table = "agent_execution_record"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task']),
-            models.Index(fields=['proposal']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task"]),
+            models.Index(fields=["proposal"]),
         ]
 
     def __str__(self):
@@ -433,50 +322,28 @@ class AgentExecutionRecordModel(models.Model):
 class AgentArtifactModel(models.Model):
     """AgentArtifact ORM Model - stores task artifacts."""
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
-        AgentTaskModel,
-        on_delete=models.CASCADE,
-        related_name='artifacts',
-        help_text="Linked task"
+        AgentTaskModel, on_delete=models.CASCADE, related_name="artifacts", help_text="Linked task"
     )
-    artifact_type = models.CharField(
-        max_length=50,
-        help_text="Type of artifact"
-    )
-    artifact_name = models.CharField(
-        max_length=200,
-        help_text="Artifact name"
-    )
-    artifact_data = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Artifact content"
-    )
+    artifact_type = models.CharField(max_length=50, help_text="Type of artifact")
+    artifact_name = models.CharField(max_length=200, help_text="Artifact name")
+    artifact_data = models.JSONField(null=True, blank=True, help_text="Artifact content")
     file_path = models.CharField(
-        max_length=500,
-        null=True,
-        blank=True,
-        help_text="Path to file if stored externally"
+        max_length=500, null=True, blank=True, help_text="Path to file if stored externally"
     )
     content_type = models.CharField(
-        max_length=100,
-        default='application/json',
-        help_text="MIME type"
+        max_length=100, default="application/json", help_text="MIME type"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_artifact'
-        ordering = ['-created_at']
+        db_table = "agent_artifact"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task']),
-            models.Index(fields=['artifact_type']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task"]),
+            models.Index(fields=["artifact_type"]),
         ]
 
     def __str__(self):
@@ -490,55 +357,44 @@ class AgentTimelineEventModel(models.Model):
     Records all task lifecycle events for audit trail.
     """
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
         AgentTaskModel,
         on_delete=models.CASCADE,
-        related_name='timeline_events',
-        help_text="Linked task"
+        related_name="timeline_events",
+        help_text="Linked task",
     )
     proposal = models.ForeignKey(
         AgentProposalModel,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='timeline_events',
-        help_text="Linked proposal (optional)"
+        related_name="timeline_events",
+        help_text="Linked proposal (optional)",
     )
     event_type = models.CharField(
         max_length=30,
         choices=[(e.value, e.name) for e in TimelineEventType],
-        help_text="Event type from frozen enum"
+        help_text="Event type from frozen enum",
     )
     event_source = models.CharField(
         max_length=20,
         choices=[(s.value, s.name) for s in EventSource],
         default=EventSource.SYSTEM.value,
-        help_text="Source of event (api/sdk/mcp/system/human)"
+        help_text="Source of event (api/sdk/mcp/system/human)",
     )
-    step_index = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="Step sequence number"
-    )
-    event_payload = models.JSONField(
-        default=dict,
-        help_text="Event details"
-    )
+    step_index = models.IntegerField(null=True, blank=True, help_text="Step sequence number")
+    event_payload = models.JSONField(default=dict, help_text="Event details")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_timeline_event'
-        ordering = ['created_at']
+        db_table = "agent_timeline_event"
+        ordering = ["created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task']),
-            models.Index(fields=['event_type']),
-            models.Index(fields=['created_at']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task"]),
+            models.Index(fields=["event_type"]),
+            models.Index(fields=["created_at"]),
         ]
 
     def __str__(self):
@@ -547,6 +403,7 @@ class AgentTimelineEventModel(models.Model):
     def to_domain_entity(self):
         """Convert to domain entity."""
         from apps.agent_runtime.domain.entities import AgentTimelineEvent
+
         return AgentTimelineEvent(
             id=self.id,
             request_id=self.request_id,
@@ -563,46 +420,25 @@ class AgentTimelineEventModel(models.Model):
 class AgentHandoffModel(models.Model):
     """AgentHandoff ORM Model - records task handoffs between agents/humans."""
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
-        AgentTaskModel,
-        on_delete=models.CASCADE,
-        related_name='handoffs',
-        help_text="Linked task"
+        AgentTaskModel, on_delete=models.CASCADE, related_name="handoffs", help_text="Linked task"
     )
-    from_agent = models.CharField(
-        max_length=100,
-        help_text="Source agent identifier"
-    )
-    to_agent = models.CharField(
-        max_length=100,
-        help_text="Target agent identifier"
-    )
-    handoff_reason = models.TextField(
-        help_text="Reason for handoff"
-    )
+    from_agent = models.CharField(max_length=100, help_text="Source agent identifier")
+    to_agent = models.CharField(max_length=100, help_text="Target agent identifier")
+    handoff_reason = models.TextField(help_text="Reason for handoff")
     handoff_payload = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Context payload for handoff"
+        null=True, blank=True, help_text="Context payload for handoff"
     )
-    handoff_status = models.CharField(
-        max_length=20,
-        default='pending',
-        help_text="Handoff status"
-    )
+    handoff_status = models.CharField(max_length=20, default="pending", help_text="Handoff status")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_handoff'
-        ordering = ['-created_at']
+        db_table = "agent_handoff"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task"]),
         ]
 
     def __str__(self):
@@ -616,58 +452,43 @@ class AgentGuardrailDecisionModel(models.Model):
     Records guardrail decisions for proposals.
     """
 
-    request_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="Trace id"
-    )
+    request_id = models.CharField(max_length=64, db_index=True, help_text="Trace id")
     task = models.ForeignKey(
         AgentTaskModel,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='guardrail_decisions',
-        help_text="Linked task (optional)"
+        related_name="guardrail_decisions",
+        help_text="Linked task (optional)",
     )
     proposal = models.ForeignKey(
         AgentProposalModel,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='guardrail_decisions',
-        help_text="Linked proposal (optional)"
+        related_name="guardrail_decisions",
+        help_text="Linked proposal (optional)",
     )
     decision = models.CharField(
         max_length=20,
         choices=[(d.value, d.name) for d in GuardrailDecision],
         default=GuardrailDecision.ALLOWED.value,
-        help_text="Guardrail decision"
+        help_text="Guardrail decision",
     )
-    reason_code = models.CharField(
-        max_length=50,
-        help_text="Stable machine-readable reason"
-    )
-    message = models.TextField(
-        help_text="Human-readable summary"
-    )
-    evidence = models.JSONField(
-        default=dict,
-        help_text="Supporting data"
-    )
-    requires_human = models.BooleanField(
-        default=False,
-        help_text="Convenience flag"
-    )
+    reason_code = models.CharField(max_length=50, help_text="Stable machine-readable reason")
+    message = models.TextField(help_text="Human-readable summary")
+    evidence = models.JSONField(default=dict, help_text="Supporting data")
+    requires_human = models.BooleanField(default=False, help_text="Convenience flag")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'agent_guardrail_decision'
-        ordering = ['-created_at']
+        db_table = "agent_guardrail_decision"
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['request_id']),
-            models.Index(fields=['task']),
-            models.Index(fields=['proposal']),
-            models.Index(fields=['decision']),
+            models.Index(fields=["request_id"]),
+            models.Index(fields=["task"]),
+            models.Index(fields=["proposal"]),
+            models.Index(fields=["decision"]),
         ]
 
     def __str__(self):
@@ -676,6 +497,7 @@ class AgentGuardrailDecisionModel(models.Model):
     def to_domain_entity(self):
         """Convert to domain entity."""
         from apps.agent_runtime.domain.entities import AgentGuardrailDecision
+
         return AgentGuardrailDecision(
             id=self.id,
             request_id=self.request_id,

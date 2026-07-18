@@ -119,7 +119,9 @@ class CapabilityDispatcher:
             score = 1
             if query_tokens:
                 score = sum(3 for token in query_tokens if token in haystack)
-                score += sum(1 for token in query_tokens if token in manifest.capability_key.lower())
+                score += sum(
+                    1 for token in query_tokens if token in manifest.capability_key.lower()
+                )
                 if score <= 0:
                     continue
             matches.append((score, manifest))
@@ -344,7 +346,10 @@ class CapabilityDispatcher:
         if pending is None:
             return self._error_envelope(
                 code="confirmation_not_found",
-                message="Unknown or expired confirmation token.",
+                message=(
+                    "Unknown or expired confirmation token. Resume it in the same MCP "
+                    "server process that staged the confirmation."
+                ),
                 confirmation_token=confirmation_token,
             )
         pending_context = dict(pending.get("context") or {})
@@ -608,9 +613,7 @@ class CapabilityDispatcher:
         if stored_arguments != arguments:
             return self._error_envelope(
                 code="idempotency_key_conflict",
-                message=(
-                    "The provided idempotency key was already used with different arguments."
-                ),
+                message=("The provided idempotency key was already used with different arguments."),
                 capability_key=manifest.capability_key,
             )
 
@@ -666,9 +669,7 @@ class CapabilityDispatcher:
         if not normalized:
             return set()
         tokens = {
-            token
-            for token in normalized.replace("-", " ").replace("_", " ").split()
-            if token
+            token for token in normalized.replace("-", " ").replace("_", " ").split() if token
         }
         for alias, expanded_tokens in CAPABILITY_SEARCH_QUERY_ALIASES.items():
             if alias in normalized:
@@ -701,7 +702,9 @@ class CapabilityDispatcher:
         response: dict[str, Any],
         idempotency_key: str | None,
     ) -> None:
-        error_code = (((response.get("error") or {}) if isinstance(response, dict) else {}) or {}).get("code")
+        error_code = (
+            ((response.get("error") or {}) if isinstance(response, dict) else {}) or {}
+        ).get("code")
         if error_code == "idempotency_key_conflict":
             self._audit_capability_event(
                 manifest=manifest,

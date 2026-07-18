@@ -4,6 +4,66 @@
 from .core_registry_support import *
 
 
+def test_agent_task_create_capability_commits_without_legacy_tools(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The governed task path must not delegate to disabled raw tools."""
+
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENABLE_LEGACY_TOOLS", "false")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", "admin")
+    audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
+    captured_calls = []
+
+    class _FakeAgentRuntimeModule:
+        @staticmethod
+        def create_task(task_domain, task_type, input_payload):
+            captured_calls.append(
+                {
+                    "task_domain": task_domain,
+                    "task_type": task_type,
+                    "input_payload": input_payload,
+                }
+            )
+            return {"success": True, "task": {"id": 51, "status": "draft"}}
+
+    class _FakeClient:
+        agent_runtime = _FakeAgentRuntimeModule()
+
+    monkeypatch.setattr("agomtradepro.AgomTradeProClient", lambda: _FakeClient())
+
+    staged = server_module.CORE_DISPATCHER.call(
+        capability_key="agent_task.create.task",
+        arguments={
+            "task_domain": "research",
+            "task_type": "macro_review",
+            "input_payload": {"portfolio_id": 8},
+            "idempotency_key": "idem-agent-task-create",
+        },
+    )
+
+    assert staged["status"] == "confirmation_required"
+    assert staged["preview_result"]["preview_only"] is True
+    assert captured_calls == []
+
+    resumed = server_module.CORE_DISPATCHER.resume_confirmation(
+        confirmation_token=staged["confirmation_token"],
+        approve=True,
+    )
+
+    assert resumed["status"] == "completed"
+    assert resumed["result"]["task"]["id"] == 51
+    assert captured_calls == [
+        {
+            "task_domain": "research",
+            "task_type": "macro_review",
+            "input_payload": {"portfolio_id": 8},
+        }
+    ]
+    assert audit_events[-1]["event_type"] == "confirmation_completed"
+
+
 def test_agent_proposal_create_capability_runs_internal_preview_before_commit(
     monkeypatch: pytest.MonkeyPatch,
 ):

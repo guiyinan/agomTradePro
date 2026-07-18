@@ -61,6 +61,7 @@ from .modules.signal import SignalModule
 from .modules.simulated_trading import SimulatedTradingModule
 from .modules.strategy import StrategyModule
 from .modules.task_monitor import TaskMonitorModule
+from .transport import get_request_transport
 
 
 class AgomTradeProClient:
@@ -216,6 +217,8 @@ class AgomTradeProClient:
 
     def _uses_session_auth(self) -> bool:
         return bool(
+            get_request_transport() is None
+            and
             not self._config.auth.api_token
             and not self._uses_internal_auth()
             and self._config.auth.username
@@ -359,16 +362,29 @@ class AgomTradeProClient:
             if files is not None:
                 headers.pop("Content-Type", None)
 
-            response = self._session.request(
-                method=method,
-                url=url,
-                headers=headers,
-                params=params,
-                data=data,
-                json=json,
-                files=files,
-                timeout=self._config.timeout,
-            )
+            transport = get_request_transport()
+            if transport is None:
+                response = self._session.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    params=params,
+                    data=data,
+                    json=json,
+                    files=files,
+                    timeout=self._config.timeout,
+                )
+            else:
+                response = transport.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    params=params,
+                    data=data,
+                    json=json,
+                    files=files,
+                    timeout=self._config.timeout,
+                )
 
             # 尝试解析 JSON 响应
             try:

@@ -117,29 +117,56 @@ def test_approved_executor_rejects_mcp_failure_envelope(mock_call):
 @patch(
     "apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool"
 )
-def test_approved_executor_uses_staff_role_only_during_mcp_execution(mock_call):
+def test_approved_executor_uses_staff_role_only_during_mcp_execution(
+    mock_call, monkeypatch
+):
     """The trusted approval actor role is scoped to the guarded MCP call."""
 
-    observed_roles = []
+    observed_contexts = []
 
     def _call(_tool_name, _params):
-        observed_roles.append(os.environ.get("AGOMTRADEPRO_MCP_ROLE"))
+        from agomtradepro.transport import get_request_transport
+        from agomtradepro_mcp.audit import get_audit_sink
+
+        observed_contexts.append(
+            {
+                "role": os.environ.get("AGOMTRADEPRO_MCP_ROLE"),
+                "user_id": os.environ.get("AGOMTRADEPRO_INTERNAL_USER_ID"),
+                "username": os.environ.get("AGOMTRADEPRO_INTERNAL_USERNAME"),
+                "source": os.environ.get("AGOMTRADEPRO_INTERNAL_SOURCE"),
+                "has_local_transport": get_request_transport() is not None,
+                "has_local_audit_sink": get_audit_sink() is not None,
+            }
+        )
         return {"ok": True, "status": "completed", "result": {}}
 
     mock_call.side_effect = _call
-    previous = os.environ.pop("AGOMTRADEPRO_MCP_ROLE", None)
-    try:
-        ApprovedMcpCapabilityExecutor().execute(
-            proposal=_approved_proposal(),
-            actor={"user_id": 1, "is_staff": True},
-            context={},
-        )
+    for key in (
+        "AGOMTRADEPRO_MCP_ROLE",
+        "AGOMTRADEPRO_INTERNAL_USER_ID",
+        "AGOMTRADEPRO_INTERNAL_USERNAME",
+        "AGOMTRADEPRO_INTERNAL_SOURCE",
+    ):
+        monkeypatch.delenv(key, raising=False)
 
-        assert observed_roles == ["admin"]
-        assert "AGOMTRADEPRO_MCP_ROLE" not in os.environ
-    finally:
-        if previous is not None:
-            os.environ["AGOMTRADEPRO_MCP_ROLE"] = previous
+    ApprovedMcpCapabilityExecutor().execute(
+        proposal=_approved_proposal(),
+        actor={"user_id": 1, "username": "approver", "is_staff": True},
+        context={},
+    )
+
+    assert observed_contexts == [
+        {
+            "role": "admin",
+            "user_id": "1",
+            "username": "approver",
+            "source": "terminal_approval",
+            "has_local_transport": True,
+            "has_local_audit_sink": True,
+        }
+    ]
+    assert "AGOMTRADEPRO_MCP_ROLE" not in os.environ
+    assert "AGOMTRADEPRO_INTERNAL_USER_ID" not in os.environ
 
 
 def test_execute_use_case_records_real_mcp_result_before_marking_executed():

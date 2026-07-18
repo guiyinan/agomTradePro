@@ -14,12 +14,35 @@ import os
 import time
 import traceback
 import uuid
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 MAX_RESPONSE_TEXT_LENGTH = 200000
+DEFAULT_AUDIT_TIMEOUT_SECONDS = 1.0
+AuditSink = Callable[[dict[str, Any]], str | None]
+_AUDIT_SINK: ContextVar[AuditSink | None] = ContextVar("agom_mcp_audit_sink", default=None)
+
+
+def get_audit_sink() -> AuditSink | None:
+    """Return the audit sink scoped to the current execution context."""
+
+    return _AUDIT_SINK.get()
+
+
+@contextmanager
+def use_audit_sink(sink: AuditSink) -> Iterator[None]:
+    """Persist audit events through ``sink`` for the current context only."""
+
+    token = _AUDIT_SINK.set(sink)
+    try:
+        yield
+    finally:
+        _AUDIT_SINK.reset(token)
 
 
 def _default_audit_backend_url() -> str:
@@ -40,6 +63,7 @@ def _default_audit_backend_url() -> str:
 @dataclass
 class AuditContext:
     """审计上下文，用于收集审计信息"""
+
     request_id: str
     user_id: int | None = None
     username: str = "anonymous"
@@ -54,14 +78,14 @@ class AuditContext:
     def create(cls, **kwargs) -> AuditContext:
         """创建审计上下文"""
         return cls(
-            request_id=kwargs.get('request_id') or str(uuid.uuid4()),
-            user_id=kwargs.get('user_id'),
-            username=kwargs.get('username', 'anonymous'),
-            ip_address=kwargs.get('ip_address'),
-            user_agent=kwargs.get('user_agent', ''),
-            client_id=kwargs.get('client_id', ''),
-            mcp_role=kwargs.get('mcp_role', ''),
-            sdk_version=kwargs.get('sdk_version', ''),
+            request_id=kwargs.get("request_id") or str(uuid.uuid4()),
+            user_id=kwargs.get("user_id"),
+            username=kwargs.get("username", "anonymous"),
+            ip_address=kwargs.get("ip_address"),
+            user_agent=kwargs.get("user_agent", ""),
+            client_id=kwargs.get("client_id", ""),
+            mcp_role=kwargs.get("mcp_role", ""),
+            sdk_version=kwargs.get("sdk_version", ""),
         )
 
 
@@ -96,10 +120,13 @@ class AuditLogger:
         """
         self.backend_url = backend_url or _default_audit_backend_url()
         self.secret_key = secret_key or os.getenv(
-            'AGOMTRADEPRO_AUDIT_SECRET_KEY',
-            os.getenv('AUDIT_INTERNAL_SECRET_KEY', '')
+            "AGOMTRADEPRO_AUDIT_SECRET_KEY", os.getenv("AUDIT_INTERNAL_SECRET_KEY", "")
         )
-        self.enabled = os.getenv('AGOMTRADEPRO_AUDIT_ENABLED', 'true').lower() in ('true', '1', 'yes')
+        self.enabled = os.getenv("AGOMTRADEPRO_AUDIT_ENABLED", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
 
     def log_mcp_call(
         self,
@@ -164,32 +191,32 @@ class AuditLogger:
 
         # 构建审计日志数据
         audit_data = {
-            'request_id': context.request_id,
-            'user_id': context.user_id,
-            'username': context.username,
-            'source': 'MCP',
-            'operation_type': 'MCP_CALL',
-            'module': module,
-            'action': action,
-            'mcp_tool_name': tool_name,
-            'request_params': masked_params,
-            'response_payload': response_payload,
-            'response_text': response_text,
-            'response_status': response_status,
-            'response_message': response_message,
-            'error_code': error_code,
-            'exception_traceback': exception_traceback,
-            'duration_ms': duration_ms,
-            'ip_address': context.ip_address,
-            'user_agent': context.user_agent,
-            'client_id': context.client_id,
-            'resource_type': resource_type,
-            'resource_id': resource_id,
-            'mcp_client_id': context.client_id,
-            'mcp_role': context.mcp_role,
-            'sdk_version': context.sdk_version,
-            'request_method': 'MCP',
-            'request_path': f'/mcp/tools/{tool_name}',
+            "request_id": context.request_id,
+            "user_id": context.user_id,
+            "username": context.username,
+            "source": "MCP",
+            "operation_type": "MCP_CALL",
+            "module": module,
+            "action": action,
+            "mcp_tool_name": tool_name,
+            "request_params": masked_params,
+            "response_payload": response_payload,
+            "response_text": response_text,
+            "response_status": response_status,
+            "response_message": response_message,
+            "error_code": error_code,
+            "exception_traceback": exception_traceback,
+            "duration_ms": duration_ms,
+            "ip_address": context.ip_address,
+            "user_agent": context.user_agent,
+            "client_id": context.client_id,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "mcp_client_id": context.client_id,
+            "mcp_role": context.mcp_role,
+            "sdk_version": context.sdk_version,
+            "request_method": "MCP",
+            "request_path": f"/mcp/tools/{tool_name}",
         }
 
         return self._send_audit_log(audit_data)
@@ -308,19 +335,19 @@ class AuditLogger:
 
         # 推断动作
         action_map = {
-            'GET': 'READ',
-            'POST': 'CREATE',
-            'PUT': 'UPDATE',
-            'PATCH': 'UPDATE',
-            'DELETE': 'DELETE',
+            "GET": "READ",
+            "POST": "CREATE",
+            "PUT": "UPDATE",
+            "PATCH": "UPDATE",
+            "DELETE": "DELETE",
         }
-        action = action_map.get(method.upper(), 'READ')
+        action = action_map.get(method.upper(), "READ")
 
         # 确定操作类型
-        if action in ('CREATE', 'UPDATE', 'DELETE'):
-            operation_type = 'DATA_MODIFY'
+        if action in ("CREATE", "UPDATE", "DELETE"):
+            operation_type = "DATA_MODIFY"
         else:
-            operation_type = 'API_ACCESS'
+            operation_type = "API_ACCESS"
 
         # 确定响应状态
         if error:
@@ -347,32 +374,32 @@ class AuditLogger:
 
         # 构建审计日志数据
         audit_data = {
-            'request_id': context.request_id,
-            'user_id': context.user_id,
-            'username': context.username,
-            'source': 'SDK',
-            'operation_type': operation_type,
-            'module': module,
-            'action': action,
-            'mcp_tool_name': None,
-            'request_params': masked_params,
-            'response_payload': response_payload,
-            'response_text': response_text,
-            'response_status': response_status,
-            'response_message': response_message,
-            'error_code': error_code,
-            'exception_traceback': exception_traceback,
-            'duration_ms': duration_ms,
-            'ip_address': context.ip_address,
-            'user_agent': context.user_agent,
-            'client_id': context.client_id,
-            'resource_type': '',
-            'resource_id': None,
-            'mcp_client_id': '',
-            'mcp_role': '',
-            'sdk_version': context.sdk_version,
-            'request_method': method,
-            'request_path': path,
+            "request_id": context.request_id,
+            "user_id": context.user_id,
+            "username": context.username,
+            "source": "SDK",
+            "operation_type": operation_type,
+            "module": module,
+            "action": action,
+            "mcp_tool_name": None,
+            "request_params": masked_params,
+            "response_payload": response_payload,
+            "response_text": response_text,
+            "response_status": response_status,
+            "response_message": response_message,
+            "error_code": error_code,
+            "exception_traceback": exception_traceback,
+            "duration_ms": duration_ms,
+            "ip_address": context.ip_address,
+            "user_agent": context.user_agent,
+            "client_id": context.client_id,
+            "resource_type": "",
+            "resource_id": None,
+            "mcp_client_id": "",
+            "mcp_role": "",
+            "sdk_version": context.sdk_version,
+            "request_method": method,
+            "request_path": path,
         }
 
         return self._send_audit_log(audit_data)
@@ -387,6 +414,15 @@ class AuditLogger:
         Returns:
             Optional[str]: 日志 ID，失败时返回 None
         """
+        audit_sink = get_audit_sink()
+        if audit_sink is not None:
+            try:
+                return audit_sink(data)
+            except Exception as exc:
+                logger.error("本地审计日志写入失败: %s", exc, exc_info=True)
+                self._failure_count += 1
+                return None
+
         try:
             import requests
 
@@ -397,31 +433,41 @@ class AuditLogger:
             signature = self._compute_signature(timestamp, data)
 
             headers = {
-                'Content-Type': 'application/json',
-                'X-Audit-Timestamp': timestamp,
-                'X-Audit-Signature': signature,
+                "Content-Type": "application/json",
+                "X-Audit-Timestamp": timestamp,
+                "X-Audit-Signature": signature,
             }
             api_token = os.getenv("AGOMTRADEPRO_API_TOKEN", "").strip()
             if api_token:
                 headers["Authorization"] = f"Token {api_token}"
 
+            try:
+                timeout = max(
+                    0.1,
+                    float(
+                        os.getenv(
+                            "AGOMTRADEPRO_AUDIT_TIMEOUT_SECONDS",
+                            str(DEFAULT_AUDIT_TIMEOUT_SECONDS),
+                        )
+                    ),
+                )
+            except ValueError:
+                timeout = DEFAULT_AUDIT_TIMEOUT_SECONDS
+
             response = requests.post(
                 self.backend_url,
                 json=data,
                 headers=headers,
-                timeout=5,  # 5 秒超时
+                timeout=timeout,
             )
 
             if response.status_code in (200, 201):
                 result = response.json()
-                if isinstance(result, dict) and result.get('success') is False:
-                    logger.warning(
-                        "审计日志写入被后端拒绝: "
-                        f"response={str(result)[:200]}"
-                    )
+                if isinstance(result, dict) and result.get("success") is False:
+                    logger.warning("审计日志写入被后端拒绝: " f"response={str(result)[:200]}")
                     self._failure_count += 1
                     return None
-                log_id = result.get('log_id')
+                log_id = result.get("log_id")
                 logger.debug(f"审计日志已记录: log_id={log_id}")
                 return log_id
             else:
@@ -454,9 +500,7 @@ class AuditLogger:
         body = json.dumps(data, sort_keys=True, ensure_ascii=False)
         sign_content = f"{timestamp}:{body}"
         return hmac.new(
-            self.secret_key.encode('utf-8'),
-            sign_content.encode('utf-8'),
-            hashlib.sha256
+            self.secret_key.encode("utf-8"), sign_content.encode("utf-8"), hashlib.sha256
         ).hexdigest()
 
     @staticmethod
@@ -504,11 +548,19 @@ class AuditLogger:
 
         if name_lower.startswith("create_") or name_lower.startswith("add_"):
             return "CREATE"
-        elif name_lower.startswith("update_") or name_lower.startswith("modify_") or name_lower.startswith("edit_"):
+        elif (
+            name_lower.startswith("update_")
+            or name_lower.startswith("modify_")
+            or name_lower.startswith("edit_")
+        ):
             return "UPDATE"
         elif name_lower.startswith("delete_") or name_lower.startswith("remove_"):
             return "DELETE"
-        elif name_lower.startswith("execute_") or name_lower.startswith("run_") or name_lower.startswith("submit_"):
+        elif (
+            name_lower.startswith("execute_")
+            or name_lower.startswith("run_")
+            or name_lower.startswith("submit_")
+        ):
             return "EXECUTE"
         else:
             return "READ"
@@ -537,11 +589,22 @@ class AuditLogger:
     @staticmethod
     def _mask_sensitive_params(params: Any, mask: str = "***") -> Any:
         """脱敏敏感参数"""
-        sensitive_keywords = frozenset([
-            "password", "token", "secret", "api_key", "apikey",
-            "authorization", "cookie", "session", "credential",
-            "private_key", "access_key", "secret_key",
-        ])
+        sensitive_keywords = frozenset(
+            [
+                "password",
+                "token",
+                "secret",
+                "api_key",
+                "apikey",
+                "authorization",
+                "cookie",
+                "session",
+                "credential",
+                "private_key",
+                "access_key",
+                "secret_key",
+            ]
+        )
 
         if isinstance(params, dict):
             masked = {}

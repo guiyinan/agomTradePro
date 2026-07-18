@@ -468,6 +468,9 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
                 "presentation_semantic",
                 _default_panel_presentation_semantic(panel),
             )
+            panel.setdefault("status", "")
+            panel.setdefault("note", "")
+            panel.setdefault("layout_area", "")
             _validate_dashboard_panel(screen, panel)
         if screen.get("dashboard_panels") and not any(
             isinstance(panel, dict) and panel.get("user_priority") == "p0"
@@ -476,9 +479,6 @@ def validate_tui_metadata(payload: dict[str, Any]) -> dict[str, Any]:
             raise TuiMetadataValidationError(
                 f"Dashboard screen must expose a p0 panel: {screen['key']}"
             )
-            panel.setdefault("status", "")
-            panel.setdefault("note", "")
-            panel.setdefault("layout_area", "")
 
     payload.setdefault("registry_key", "default")
     payload.setdefault("interaction_model", "published-metadata-to-pc-tools")

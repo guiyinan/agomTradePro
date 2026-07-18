@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -27,6 +26,7 @@ from apps.ai_provider.infrastructure.repositories import (
     AIUsageRepository,
     AIUserFallbackQuotaRepository,
 )
+from shared.infrastructure.async_runtime import run_awaitable_sync
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,9 @@ class OpenAIAgentsTerminalService(TerminalAgentService):
 
         tool_access = self._build_tool_access_snapshot(request)
         resolved_provider = self._resolve_provider(request)
-        events = asyncio.run(self._collect_events(request, resolved_provider, tool_access))
+        events = run_awaitable_sync(
+            lambda: self._collect_events(request, resolved_provider, tool_access)
+        )
         self._log_terminal_run(
             request=request,
             resolved_provider=resolved_provider,

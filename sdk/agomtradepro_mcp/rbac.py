@@ -14,7 +14,12 @@ def _split_csv_env(name: str) -> set[str]:
 
 
 def _rbac_enabled() -> bool:
-    return os.getenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "false").strip().lower() in {"1", "true", "yes", "on"}
+    return os.getenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _normalize_role(raw: str | None) -> str:
@@ -44,6 +49,26 @@ def _normalize_role(raw: str | None) -> str:
 
 
 _BACKEND_ROLE_CACHE: str | None = None
+_BACKEND_PROFILE_CACHE: dict[str, object] | None = None
+
+
+def _get_backend_profile() -> dict[str, object] | None:
+    """Return the backend identity profile once per MCP process."""
+
+    global _BACKEND_PROFILE_CACHE
+    if _BACKEND_PROFILE_CACHE is not None:
+        return _BACKEND_PROFILE_CACHE
+
+    try:
+        from agomtradepro import AgomTradeProClient
+
+        payload = AgomTradeProClient().get("api/account/profile/")
+        if isinstance(payload, dict):
+            _BACKEND_PROFILE_CACHE = dict(payload)
+            return _BACKEND_PROFILE_CACHE
+    except Exception:
+        return None
+    return None
 
 
 def _get_role_from_backend() -> str | None:
@@ -52,10 +77,7 @@ def _get_role_from_backend() -> str | None:
         return _BACKEND_ROLE_CACHE
 
     try:
-        from agomtradepro import AgomTradeProClient
-
-        client = AgomTradeProClient()
-        payload = client.get("api/account/profile/")
+        payload = _get_backend_profile()
         role = _normalize_role(payload.get("rbac_role") if isinstance(payload, dict) else None)
         _BACKEND_ROLE_CACHE = role
         return role
@@ -290,8 +312,15 @@ def enforce_resource_access(resource_uri: str) -> None:
     if role == "admin":
         return
     # account resources include sensitive portfolio details
-    if resource_uri.startswith("agomtradepro://account/") and role not in {"owner", "investment_manager", "trader", "risk"}:
-        raise PermissionError(f"RBAC deny: role '{role}' cannot access account resource '{resource_uri}'")
+    if resource_uri.startswith("agomtradepro://account/") and role not in {
+        "owner",
+        "investment_manager",
+        "trader",
+        "risk",
+    }:
+        raise PermissionError(
+            f"RBAC deny: role '{role}' cannot access account resource '{resource_uri}'"
+        )
 
 
 def enforce_prompt_access(prompt_name: str) -> None:
@@ -337,6 +366,7 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
     Returns:
         Wrapped function with RBAC and audit logging
     """
+
     def _wrapped(*args, **kwargs):
         from .audit import AuditContext, get_audit_logger
 
@@ -381,6 +411,7 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
             except Exception as audit_error:
                 # 审计失败不阻塞主流程
                 import logging
+
                 logging.warning(f"审计日志记录失败: {audit_error}")
 
     return _wrapped
@@ -388,27 +419,17 @@ def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
 
 def _get_user_id() -> int | None:
     """获取当前用户 ID（从后端 API 获取）"""
-    try:
-        from agomtradepro import AgomTradeProClient
-        client = AgomTradeProClient()
-        payload = client.get("api/account/profile/")
-        if isinstance(payload, dict):
-            user_id = payload.get("user_id")
-            return user_id if isinstance(user_id, int) else None
-    except Exception:
-        pass
+    payload = _get_backend_profile()
+    if isinstance(payload, dict):
+        user_id = payload.get("user_id")
+        return user_id if isinstance(user_id, int) else None
     return None
 
 
 def _get_username() -> str:
     """获取当前用户名（从后端 API 获取）"""
-    try:
-        from agomtradepro import AgomTradeProClient
-        client = AgomTradeProClient()
-        payload = client.get("api/account/profile/")
-        if isinstance(payload, dict):
-            username = payload.get("username")
-            return username if isinstance(username, str) and username else "anonymous"
-    except Exception:
-        pass
+    payload = _get_backend_profile()
+    if isinstance(payload, dict):
+        username = payload.get("username")
+        return username if isinstance(username, str) and username else "anonymous"
     return "anonymous"

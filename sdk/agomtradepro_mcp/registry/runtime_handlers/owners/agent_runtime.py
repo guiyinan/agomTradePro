@@ -257,9 +257,12 @@ def _internal_handler_agent_task_create_task(
             "input_payload_keys": sorted(payload),
             "message": "Preview generated. Confirm to create the Agent task.",
         }
-    return _call_registered_tool(
-        f"start_{task_domain}_task",
-        {"task_type": task_type, "input_payload": payload},
+    from agomtradepro import AgomTradeProClient
+
+    return AgomTradeProClient().agent_runtime.create_task(
+        task_domain=task_domain,
+        task_type=task_type,
+        input_payload=payload,
     )
 
 
@@ -282,9 +285,10 @@ def _internal_handler_agent_task_resume_task(
             "target_status": target_status,
             "reason": reason,
         }
-    return _call_registered_tool(
-        "resume_agent_task",
-        {"task_id": task_id, "target_status": target_status, "reason": reason},
+    return AgomTradeProClient().agent_runtime.resume_task(
+        task_id=task_id,
+        target_status=target_status,
+        reason=reason,
     )
 
 
@@ -306,9 +310,9 @@ def _internal_handler_agent_task_cancel_task(
             "target_status": "cancelled",
             "reason": reason,
         }
-    return _call_registered_tool(
-        "cancel_agent_task",
-        {"task_id": task_id, "reason": reason},
+    return AgomTradeProClient().agent_runtime.cancel_task(
+        task_id=task_id,
+        reason=reason,
     )
 
 

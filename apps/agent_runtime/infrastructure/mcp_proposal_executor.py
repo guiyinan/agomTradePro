@@ -2,71 +2,73 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 import os
-import sys
 from contextlib import contextmanager
-from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from apps.agent_runtime.domain.entities import AgentProposal
+from django.conf import settings
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_SDK_ROOT = _REPO_ROOT / "sdk"
-_MCP_CONFIG_PATH = _REPO_ROOT / ".mcp.json"
+from apps.agent_runtime.domain.entities import AgentProposal
+from shared.infrastructure.async_runtime import run_sync_compatible
+from shared.infrastructure.django_sdk_transport import DjangoSdkTransport
+from shared.infrastructure.mcp_runtime import call_sdk_mcp_tool, ensure_sdk_on_path
+
 _MCP_ROLE_LOCK = RLock()
 
 
-def _ensure_sdk_on_path() -> None:
-    """Put this repository's SDK ahead of unrelated installed checkouts."""
-
-    sdk_path = str(_SDK_ROOT)
-    if sdk_path in sys.path:
-        sys.path.remove(sdk_path)
-    sys.path.insert(0, sdk_path)
-
-
-def _load_mcp_env_from_repo_config() -> None:
-    """Load non-secret MCP process settings from the repository config."""
-
-    if not _MCP_CONFIG_PATH.exists():
-        return
-    payload = json.loads(_MCP_CONFIG_PATH.read_text(encoding="utf-8"))
-    server_conf = (payload.get("mcpServers") or {}).get("agomtradepro_local") or {}
-    for key, value in (server_conf.get("env") or {}).items():
-        if value is not None:
-            os.environ.setdefault(str(key), str(value))
-
-
-def call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
-    """Call one core tool through the local SDK MCP server contract."""
-
-    _ensure_sdk_on_path()
-    _load_mcp_env_from_repo_config()
-    from agomtradepro_mcp.server import server
-
-    result = asyncio.run(server.call_tool(tool_name, params))
-    if isinstance(result, tuple) and len(result) == 2:
-        return result[1]
-    return result
-
-
 @contextmanager
-def _trusted_mcp_role(role: str):
-    """Scope a server-derived role across one stage-and-resume execution."""
+def _trusted_mcp_context(role: str, actor: dict[str, Any]):
+    """Scope trusted role and internal auth across one stage/resume execution."""
 
     with _MCP_ROLE_LOCK:
-        previous = os.environ.get("AGOMTRADEPRO_MCP_ROLE")
-        os.environ["AGOMTRADEPRO_MCP_ROLE"] = role
+        overrides = {
+            "AGOMTRADEPRO_MCP_ROLE": role,
+            "AGOMTRADEPRO_INTERNAL_AUTH_SECRET": getattr(
+                settings,
+                "AGOMTRADEPRO_INTERNAL_AUTH_SECRET",
+                "",
+            ),
+            "AGOMTRADEPRO_INTERNAL_USER_ID": str(actor.get("user_id") or ""),
+            "AGOMTRADEPRO_INTERNAL_USERNAME": str(actor.get("username") or "terminal_approver"),
+            "AGOMTRADEPRO_INTERNAL_SOURCE": "terminal_approval",
+        }
+        previous = {key: os.environ.get(key) for key in overrides}
+        os.environ.update(overrides)
         try:
             yield
         finally:
-            if previous is None:
-                os.environ.pop("AGOMTRADEPRO_MCP_ROLE", None)
-            else:
-                os.environ["AGOMTRADEPRO_MCP_ROLE"] = previous
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+
+def _persist_local_audit_log(payload: dict[str, Any]) -> str | None:
+    """Persist an embedded MCP audit event through the Audit application facade."""
+
+    from apps.audit.application.interface_services import log_operation_payload
+
+    result = run_sync_compatible(lambda: log_operation_payload(**payload))
+    if not result.get("success"):
+        raise RuntimeError(str(result.get("error") or "Local MCP audit write failed"))
+    log_id = result.get("log_id")
+    return str(log_id) if log_id is not None else None
+
+
+@contextmanager
+def _local_mcp_io(actor: dict[str, Any]):
+    """Scope socket-free SDK transport and local audit persistence."""
+
+    ensure_sdk_on_path()
+    from agomtradepro.transport import use_request_transport
+    from agomtradepro_mcp.audit import use_audit_sink
+
+    with use_request_transport(DjangoSdkTransport(actor=actor)), use_audit_sink(
+        _persist_local_audit_log
+    ):
+        yield
 
 
 class ApprovedMcpCapabilityExecutor:
@@ -97,7 +99,7 @@ class ApprovedMcpCapabilityExecutor:
             "client_id": "terminal_approval",
         }
         trusted_role = "admin" if bool((actor or {}).get("is_staff")) else "read_only"
-        with _trusted_mcp_role(trusted_role):
+        with _trusted_mcp_context(trusted_role, actor or {}), _local_mcp_io(actor or {}):
             staged = call_sdk_mcp_tool(
                 "agom_capability_call",
                 {

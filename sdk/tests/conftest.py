@@ -3,8 +3,16 @@ Pytest configuration for AgomTradePro SDK tests
 """
 
 import os
+import sys
+from pathlib import Path
 
 import pytest
+
+SDK_ROOT = Path(__file__).resolve().parents[1]
+sdk_path = str(SDK_ROOT)
+if sdk_path in sys.path:
+    sys.path.remove(sdk_path)
+sys.path.insert(0, sdk_path)
 
 
 @pytest.fixture

@@ -35,16 +35,17 @@ class DjangoContextSnapshotRepository:
         """Fetch current regime state."""
 
         try:
-            from apps.regime.infrastructure.models import RegimeRecord
+            from apps.regime.infrastructure.models import RegimeLog
 
-            latest = RegimeRecord.objects.order_by("-observed_at").first()
+            latest = RegimeLog._default_manager.order_by("-observed_at").first()
             if latest is None:
                 return {"status": "no_data", "message": "No regime records found"}
             return {
                 "status": "ok",
                 "dominant_regime": latest.dominant_regime,
-                "growth_level": latest.growth_level,
-                "inflation_level": latest.inflation_level,
+                "growth_momentum_z": latest.growth_momentum_z,
+                "inflation_momentum_z": latest.inflation_momentum_z,
+                "distribution": latest.distribution,
                 "observed_at": str(latest.observed_at),
             }
         except Exception as e:
@@ -55,14 +56,14 @@ class DjangoContextSnapshotRepository:
         """Fetch current policy gear status."""
 
         try:
-            from apps.policy.infrastructure.models import PolicyEvent
+            from apps.policy.infrastructure.models import PolicyLog
 
-            latest = PolicyEvent.objects.order_by("-event_date").first()
+            latest = PolicyLog._default_manager.order_by("-event_date").first()
             if latest is None:
                 return {"status": "no_data", "message": "No policy events found"}
             return {
                 "status": "ok",
-                "current_gear": getattr(latest, "gear", None),
+                "current_gear": latest.level,
                 "event_date": str(latest.event_date),
                 "description": getattr(latest, "description", ""),
             }
@@ -74,12 +75,12 @@ class DjangoContextSnapshotRepository:
         """Fetch portfolio overview."""
 
         try:
-            from apps.account.infrastructure.models import Portfolio, Position
+            from apps.account.infrastructure.models import PortfolioModel, PositionModel
 
-            portfolio = Portfolio.objects.first()
+            portfolio = PortfolioModel._default_manager.filter(is_active=True).first()
             if portfolio is None:
                 return {"status": "no_data", "message": "No portfolio found"}
-            open_positions = Position.objects.filter(
+            open_positions = PositionModel._default_manager.filter(
                 portfolio=portfolio,
                 is_closed=False,
             ).count()
@@ -97,15 +98,18 @@ class DjangoContextSnapshotRepository:
         """Fetch active investment signals summary."""
 
         try:
-            from apps.signal.infrastructure.models import InvestmentSignal
+            from apps.signal.infrastructure.models import InvestmentSignalModel
 
-            active_qs = InvestmentSignal.objects.filter(is_active=True)
+            active_qs = InvestmentSignalModel._default_manager.filter(
+                status__in=("pending", "approved")
+            )
             total = active_qs.count()
             recent = list(
                 active_qs.order_by("-created_at")[:5].values(
                     "id",
                     "asset_code",
-                    "signal_type",
+                    "direction",
+                    "status",
                     "created_at",
                 )
             )
@@ -125,9 +129,11 @@ class DjangoContextSnapshotRepository:
         """Fetch open decision requests summary."""
 
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionRequest
+            from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
 
-            pending = DecisionRequest.objects.filter(status="pending").count()
+            pending = DecisionRequestModel._default_manager.filter(
+                execution_status="pending"
+            ).count()
             return {
                 "status": "ok",
                 "pending_count": pending,
@@ -140,9 +146,9 @@ class DjangoContextSnapshotRepository:
         """Fetch risk-related alerts."""
 
         try:
-            from apps.beta_gate.infrastructure.models import BetaGateConfig
+            from apps.beta_gate.infrastructure.models import GateConfigModel
 
-            active_gates = BetaGateConfig.objects.filter(is_active=True).count()
+            active_gates = GateConfigModel._default_manager.filter(is_active=True).count()
             return {
                 "status": "ok",
                 "active_beta_gates": active_gates,
@@ -165,12 +171,8 @@ class DjangoContextSnapshotRepository:
                     TaskStatus.CANCELLED.value,
                 ]
             ).count()
-            needs_human = AgentTaskModel._default_manager.filter(
-                requires_human=True
-            ).count()
-            failed = AgentTaskModel._default_manager.filter(
-                status=TaskStatus.FAILED.value
-            ).count()
+            needs_human = AgentTaskModel._default_manager.filter(requires_human=True).count()
+            failed = AgentTaskModel._default_manager.filter(status=TaskStatus.FAILED.value).count()
             return {
                 "status": "ok",
                 "total_tasks": total,
@@ -187,21 +189,23 @@ class DjangoContextSnapshotRepository:
 
         freshness: dict[str, Any] = {"status": "ok", "sources": {}}
         try:
-            from apps.regime.infrastructure.models import RegimeRecord
+            from apps.regime.infrastructure.models import RegimeLog
 
-            latest = RegimeRecord.objects.order_by("-observed_at").first()
+            latest = RegimeLog._default_manager.order_by("-observed_at").first()
             if latest:
                 freshness["sources"]["regime"] = str(latest.observed_at)
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to fetch regime freshness: %s", e)
             freshness["sources"]["regime"] = "unavailable"
 
         try:
-            from apps.macro.infrastructure.models import MacroDataPoint
+            from apps.macro.infrastructure.models import MacroIndicator
 
-            latest = MacroDataPoint.objects.order_by("-data_date").first()
+            latest = MacroIndicator._default_manager.order_by("-published_at").first()
             if latest:
-                freshness["sources"]["macro"] = str(latest.data_date)
-        except Exception:
+                freshness["sources"]["macro"] = str(latest.published_at)
+        except Exception as e:
+            logger.warning("Failed to fetch macro freshness: %s", e)
             freshness["sources"]["macro"] = "unavailable"
 
         return freshness
@@ -210,11 +214,11 @@ class DjangoContextSnapshotRepository:
         """Fetch event bus metrics used by ops-facing facades."""
 
         try:
-            from apps.events.infrastructure.models import EventRecord
+            from apps.events.infrastructure.event_store import StoredEventModel
 
             return {
                 "status": "ok",
-                "total_event_records": EventRecord.objects.count(),
+                "total_event_records": StoredEventModel._default_manager.count(),
             }
         except Exception as e:
             logger.warning("Failed to fetch event bus summary: %s", e)
@@ -224,11 +228,13 @@ class DjangoContextSnapshotRepository:
         """Fetch AI provider availability metrics."""
 
         try:
-            from apps.ai_provider.infrastructure.models import AIProvider
+            from apps.ai_provider.infrastructure.models import AIProviderConfig
 
             return {
                 "status": "ok",
-                "ai_providers_active": AIProvider.objects.filter(is_active=True).count(),
+                "ai_providers_active": AIProviderConfig._default_manager.filter(
+                    is_active=True
+                ).count(),
             }
         except Exception as e:
             logger.warning("Failed to fetch AI provider summary: %s", e)
@@ -238,14 +244,14 @@ class DjangoContextSnapshotRepository:
         """Fetch latest audit activity timestamp."""
 
         try:
-            from apps.audit.infrastructure.models import AuditRecord
+            from apps.audit.infrastructure.models import OperationLogModel
 
-            latest_audit = AuditRecord.objects.order_by("-created_at").first()
+            latest_audit = OperationLogModel._default_manager.order_by("-timestamp").first()
             if latest_audit is None:
                 return {"status": "no_data"}
             return {
                 "status": "ok",
-                "audit": latest_audit.created_at.isoformat(),
+                "audit": latest_audit.timestamp.isoformat(),
             }
         except Exception as e:
             logger.warning("Failed to fetch audit freshness summary: %s", e)
@@ -255,21 +261,15 @@ class DjangoContextSnapshotRepository:
         """Fetch realtime price alert counts."""
 
         try:
-            from apps.realtime.infrastructure import models as realtime_models
-
-            price_alert_model = getattr(realtime_models, "PriceAlert", None)
-            if price_alert_model is None:
-                return _unsupported(
-                    "realtime",
-                    "PriceAlert is not implemented in the current realtime server build.",
-                )
+            from apps.realtime.infrastructure.models import PriceAlertModel
 
             return {
                 "status": "ok",
-                "active_price_alerts": price_alert_model.objects.filter(is_active=True).count(),
-                "triggered_price_alerts": price_alert_model.objects.filter(
-                    is_active=True,
-                    is_triggered=True,
+                "active_price_alerts": PriceAlertModel._default_manager.filter(
+                    status="active"
+                ).count(),
+                "triggered_price_alerts": PriceAlertModel._default_manager.filter(
+                    status="triggered"
                 ).count(),
             }
         except Exception as e:
@@ -280,9 +280,9 @@ class DjangoContextSnapshotRepository:
         """Fetch latest sentiment update timestamp."""
 
         try:
-            from apps.sentiment.infrastructure.models import SentimentRecord
+            from apps.sentiment.infrastructure.models import SentimentIndexModel
 
-            latest = SentimentRecord.objects.order_by("-created_at").first()
+            latest = SentimentIndexModel._default_manager.order_by("-created_at").first()
             if latest is None:
                 return {"status": "no_data"}
             return {"status": "ok", "sentiment": latest.created_at.isoformat()}
@@ -294,15 +294,16 @@ class DjangoContextSnapshotRepository:
         """Fetch decision quota overview."""
 
         try:
-            from apps.decision_rhythm.infrastructure.models import DecisionQuota
+            from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
 
             return {
                 "status": "ok",
                 "quotas": list(
-                    DecisionQuota.objects.values(
-                        "decision_type",
-                        "max_count",
-                        "current_count",
+                    DecisionQuotaModel._default_manager.values(
+                        "quota_id",
+                        "period",
+                        "max_decisions",
+                        "used_decisions",
                     )[:10]
                 ),
             }
@@ -314,13 +315,12 @@ class DjangoContextSnapshotRepository:
         """Fetch pending approval signal counts."""
 
         try:
-            from apps.signal.infrastructure.models import InvestmentSignal
+            from apps.signal.infrastructure.models import InvestmentSignalModel
 
             return {
                 "status": "ok",
-                "pending_approval": InvestmentSignal.objects.filter(
-                    is_active=True,
-                    status="pending_approval",
+                "pending_approval": InvestmentSignalModel._default_manager.filter(
+                    status="pending",
                 ).count(),
             }
         except Exception as e:
@@ -331,12 +331,12 @@ class DjangoContextSnapshotRepository:
         """Fetch top open positions for a portfolio."""
 
         try:
-            from apps.account.infrastructure.models import Position
+            from apps.account.infrastructure.models import PositionModel
 
             return {
                 "status": "ok",
                 "top_positions": list(
-                    Position.objects.filter(
+                    PositionModel._default_manager.filter(
                         portfolio_id=portfolio_id,
                         is_closed=False,
                     ).values("asset_code", "shares", "avg_cost")[:10]
@@ -350,11 +350,11 @@ class DjangoContextSnapshotRepository:
         """Fetch active simulated trading account counts."""
 
         try:
-            from apps.simulated_trading.infrastructure.models import SimulatedAccount
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
             return {
                 "status": "ok",
-                "active_simulated_accounts": SimulatedAccount.objects.filter(
+                "active_simulated_accounts": SimulatedAccountModel._default_manager.filter(
                     is_active=True
                 ).count(),
             }
@@ -366,11 +366,11 @@ class DjangoContextSnapshotRepository:
         """Fetch regime history counts for research context."""
 
         try:
-            from apps.regime.infrastructure.models import RegimeRecord
+            from apps.regime.infrastructure.models import RegimeLog
 
             return {
                 "status": "ok",
-                "history_records": RegimeRecord.objects.count(),
+                "history_records": RegimeLog._default_manager.count(),
             }
         except Exception as e:
             logger.warning("Failed to fetch regime history summary: %s", e)
@@ -380,13 +380,15 @@ class DjangoContextSnapshotRepository:
         """Fetch counts of signals carrying invalidation logic."""
 
         try:
-            from apps.signal.infrastructure.models import InvestmentSignal
+            from apps.signal.infrastructure.models import InvestmentSignalModel
 
             return {
                 "status": "ok",
-                "with_invalidation_logic": InvestmentSignal.objects.filter(
-                    is_active=True,
-                ).exclude(invalidation_logic="").count(),
+                "with_invalidation_logic": InvestmentSignalModel._default_manager.filter(
+                    status__in=("pending", "approved")
+                )
+                .exclude(invalidation_logic="")
+                .count(),
             }
         except Exception as e:
             logger.warning("Failed to fetch signal invalidation summary: %s", e)

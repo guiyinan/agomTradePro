@@ -695,6 +695,7 @@ def test_account_update_macro_sizing_config_capability_previews_before_version_w
 ):
     import agomtradepro_mcp.server as server_module
 
+    monkeypatch.setattr(server_module.CORE_DISPATCHER, "_role_provider", lambda: "staff")
     captured_calls = []
     audit_events = _capture_governed_audit_events(monkeypatch, server_module.CORE_DISPATCHER)
 
