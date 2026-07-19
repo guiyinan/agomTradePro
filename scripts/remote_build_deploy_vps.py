@@ -1416,6 +1416,11 @@ if ! compose run --rm --no-deps web sh -lc "$BOOTSTRAP_CMD"; then
   exit 1
 fi
 
+if ! compose run --rm --no-deps web sh -lc "python manage.py init_macro_indicator_governance --check && python manage.py normalize_macro_fact_units --check"; then
+  echo "[ERROR] macro data-governance drift check failed" >&2
+  exit 1
+fi
+
 if ! compose run --rm --no-deps web python manage.py setup_macro_daily_sync --hour "${MACRO_SYNC_HOUR:-8}" --minute "${MACRO_SYNC_MINUTE:-5}"; then
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi

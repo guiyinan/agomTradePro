@@ -1,6 +1,6 @@
 # Macro Data Center Cutover
 
-更新时间: 2026-07-18
+更新时间: 2026-07-19
 
 ## 目标
 
@@ -29,6 +29,21 @@
 - 市场站点客户端统一称为 internal market gateway，并使用 `MarketGatewayProtocol`，与外部数据 provider 注册机制明确分层。
 - `build_sync_macro_data_use_case()` 不再组装旧 adapter 字典，改为委托 `SyncMacroBatchUseCase`；管理命令也走同一 canonical 同步入口。
 - 结构测试固定检查旧路径不得恢复，运行回归覆盖 provider registry、macro source、同步、fact projection 及跨模块消费者。
+
+## 2026-07-19 MacroFact 治理闭环
+
+- `MacroFactGovernanceNormalizer` 是事实写入前的统一治理入口，负责 catalog 存在性、单位规则、canonical value/unit、source、original/display unit、dimension、multiplier、matched rule、period type 与 publication lag。
+- `SyncMacroUseCase`、市场温度计同步、市场新闻派生指标、ETF 多源共识和投资者账户导入均走该入口；`MacroFactRepository` 会拒绝缺少治理元数据的旁路写入。
+- Equity 指数行情只写 `PriceBar`，不再把指数点位重复镜像为未登记的宏观指标。
+- 迁移 `0033_close_macro_fact_governance_gaps` 补齐晚于治理迁移创建的 ETF 指标元数据，统一期限利差为 BP，并批量回填历史事实治理字段；期限利差旧 `%` 标签只改为 `BP`，不改变已存数值。
+- 冷启动会修复 indicator metadata；VPS 发布在切换版本前执行以下只读漂移门禁，任一不为零即中止发布：
+
+```bash
+python manage.py init_macro_indicator_governance --check
+python manage.py normalize_macro_fact_units --check
+```
+
+- `normalize_macro_fact_units` 已改为预加载规则和批量更新，避免逐事实查询和逐行保存。
 
 ## 2026-04-30 量纲修复补充
 

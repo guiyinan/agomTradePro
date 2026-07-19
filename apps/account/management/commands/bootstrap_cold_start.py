@@ -168,6 +168,11 @@ class Command(BaseCommand):
                 run=lambda: self._run_command("init_authoritative_rss_sources"),
             ),
             BootstrapStep(
+                name="macro_indicator_governance",
+                check=self._macro_indicator_governance_ready,
+                run=lambda: self._run_command("init_macro_indicator_governance"),
+            ),
+            BootstrapStep(
                 name="rotation_config",
                 check=lambda: AssetClassModel._default_manager.exists()
                 and RotationConfigModel._default_manager.exists()
@@ -349,6 +354,13 @@ class Command(BaseCommand):
 
     def _authoritative_rss_sources_ready(self) -> bool:
         return authoritative_rss_sources_ready()
+
+    def _macro_indicator_governance_ready(self) -> bool:
+        try:
+            self._run_command("init_macro_indicator_governance", check=True)
+        except CommandError:
+            return False
+        return True
 
     def _mcp_cold_start_ready(self) -> bool:
         rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()

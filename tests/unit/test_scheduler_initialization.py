@@ -277,9 +277,7 @@ def test_get_readiness_schedule_includes_weekly_auto_advisor_time():
             }
             return schedules[task_name]
 
-    response = GetReadinessScheduleUseCase(
-        scheduler_repository=_Repository()
-    ).execute()
+    response = GetReadinessScheduleUseCase(scheduler_repository=_Repository()).execute()
 
     assert response.quote_pre_refresh_time == "15:35"
     assert response.daily_evidence_time == "16:10"
@@ -365,9 +363,7 @@ def test_management_gateway_configures_weekly_auto_advisor_schedule():
         weekly_auto_advisor_minute=45,
     )
 
-    weekly_task = PeriodicTask.objects.get(
-        name="dashboard-auto-advisor-weekly-report"
-    )
+    weekly_task = PeriodicTask.objects.get(name="dashboard-auto-advisor-weekly-report")
     assert "setup_auto_advisor_weekly_report" in result.executed_commands
     assert weekly_task.task == "dashboard.generate_auto_advisor_weekly_reports"
     assert weekly_task.enabled is True
@@ -463,3 +459,26 @@ def test_bootstrap_cold_start_detects_authoritative_rss_sources_ready(monkeypatc
     command = BootstrapColdStartCommand()
 
     assert command._authoritative_rss_sources_ready() is True
+
+
+def test_bootstrap_cold_start_macro_governance_readiness_uses_check_mode(monkeypatch):
+    command = BootstrapColdStartCommand()
+    calls = []
+    monkeypatch.setattr(
+        command, "_run_command", lambda name, **kwargs: calls.append((name, kwargs))
+    )
+
+    assert command._macro_indicator_governance_ready() is True
+    assert calls == [("init_macro_indicator_governance", {"check": True})]
+
+
+def test_bootstrap_cold_start_macro_governance_readiness_detects_drift(monkeypatch):
+    command = BootstrapColdStartCommand()
+
+    def _raise_drift(name, **kwargs):
+        del name, kwargs
+        raise CommandError("governance drift")
+
+    monkeypatch.setattr(command, "_run_command", _raise_drift)
+
+    assert command._macro_indicator_governance_ready() is False

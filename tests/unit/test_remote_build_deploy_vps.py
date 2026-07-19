@@ -85,10 +85,19 @@ def test_normalize_domain_rejects_values_that_caddy_cannot_certify_safely(value:
 
 def test_normalize_domain_accepts_and_canonicalizes_dns_hostname():
     assert (
-        remote_build_deploy_vps._normalize_domain(" Demo.AgomTrade.Pro. ")
-        == "demo.agomtrade.pro"
+        remote_build_deploy_vps._normalize_domain(" Demo.AgomTrade.Pro. ") == "demo.agomtrade.pro"
     )
 
 
 def test_normalize_domain_keeps_blank_http_only_mode():
     assert remote_build_deploy_vps._normalize_domain("  ") == ""
+
+
+def test_remote_deploy_blocks_release_on_macro_governance_drift():
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert "python manage.py init_macro_indicator_governance --check" in script
+    assert "python manage.py normalize_macro_fact_units --check" in script
+    assert "macro data-governance drift check failed" in script
