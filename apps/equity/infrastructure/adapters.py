@@ -16,10 +16,8 @@ from apps.account.application.config_summary_service import (
 )
 from apps.data_center.composition import (
     get_akshare_module,
-    get_macro_fact_repository,
     get_price_bar_repository,
 )
-from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.entities import PriceBar as DataCenterPriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 
@@ -220,7 +218,6 @@ class MarketDataRepositoryAdapter(MarketDataPort):
     """
 
     def __init__(self):
-        self._macro_fact_repo = get_macro_fact_repository()
         self._bar_repo = get_price_bar_repository()
         self._default_index_code = get_runtime_benchmark_code("equity_default_index")
 
@@ -235,22 +232,7 @@ class MarketDataRepositoryAdapter(MarketDataPort):
                 self._bar_repo.get_bars(index_code, start=start_date, end=end_date, limit=5000)
             )
         )
-        if bars:
-            return [(bar.bar_date, float(bar.close)) for bar in bars if bar.close and bar.close > 0]
-
-        queryset = reversed(
-            self._macro_fact_repo.get_series(
-                index_code,
-                start=start_date,
-                end=end_date,
-                limit=5000,
-            )
-        )
-        return [
-            (item.reporting_period, float(item.value))
-            for item in queryset
-            if item.value and item.value > 0
-        ]
+        return [(bar.bar_date, float(bar.close)) for bar in bars if bar.close and bar.close > 0]
 
     @staticmethod
     def _to_akshare_symbol(index_code: str) -> str | None:
@@ -318,21 +300,6 @@ class MarketDataRepositoryAdapter(MarketDataPort):
             for trade_date, close_price in data_points
         ]
         self._bar_repo.bulk_upsert(bars)
-
-        self._macro_fact_repo.bulk_upsert(
-            [
-                MacroFact(
-                    indicator_code=index_code,
-                    reporting_period=trade_date,
-                    value=close_price,
-                    unit="点",
-                    source=source,
-                    revision_number=1,
-                    published_at=trade_date,
-                )
-                for trade_date, close_price in data_points
-            ]
-        )
 
     def _load_remote_index_points(
         self,

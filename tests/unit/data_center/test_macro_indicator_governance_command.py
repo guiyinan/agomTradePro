@@ -91,3 +91,26 @@ def test_init_macro_indicator_governance_strict_fails_for_unmapped_active_indica
 
     with pytest.raises(CommandError):
         call_command("init_macro_indicator_governance", strict=True)
+
+
+@pytest.mark.django_db
+def test_init_macro_indicator_governance_check_detects_and_then_clears_drift():
+    pmi = IndicatorCatalogModel.objects.get(code="CN_PMI")
+    pmi.extra = {}
+    pmi.save(update_fields=["extra"])
+
+    with pytest.raises(CommandError, match="updated=1"):
+        call_command(
+            "init_macro_indicator_governance",
+            indicator_codes="CN_PMI",
+            check=True,
+        )
+    pmi.refresh_from_db()
+    assert pmi.extra == {}
+
+    call_command("init_macro_indicator_governance", indicator_codes="CN_PMI")
+    call_command(
+        "init_macro_indicator_governance",
+        indicator_codes="CN_PMI",
+        check=True,
+    )

@@ -44,10 +44,18 @@ class Command(BaseCommand):
             default=False,
             help="Fail if any active indicator in scope still lacks explicit series_semantics.",
         )
+        parser.add_argument(
+            "--check",
+            dest="check",
+            action="store_true",
+            default=False,
+            help="Exit non-zero if applying governance would change any row.",
+        )
 
     def handle(self, *args, **options):
         indicator_codes = set(_split_codes(options.get("indicator_codes")))
-        dry_run = bool(options.get("dry_run"))
+        check = bool(options.get("check"))
+        dry_run = bool(options.get("dry_run")) or check
         strict = bool(options.get("strict"))
 
         target_updates = {
@@ -133,6 +141,8 @@ class Command(BaseCommand):
             f"missing_catalog={len(missing_catalog_codes)}, uncovered={len(uncovered_codes)}, "
             f"dry_run={dry_run}"
         )
+        if check and (updated_count or missing_catalog_codes or uncovered_codes):
+            raise CommandError(summary)
         if strict and uncovered_codes:
             raise CommandError(summary)
 

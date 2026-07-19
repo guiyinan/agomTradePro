@@ -1,7 +1,7 @@
 from io import StringIO
 
 import pytest
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
@@ -58,5 +58,56 @@ def test_normalize_macro_fact_units_repairs_legacy_currency_row():
     assert fact.extra["dimension_key"] == "currency"
     assert fact.extra["multiplier_to_storage"] == 100000000.0
     assert fact.extra["matched_rule_id"] == rule.id
+    assert fact.extra["period_type"] == "M"
     assert fact.extra["publication_lag_days"] == 15
     assert "updated=1" in stdout.getvalue()
+
+
+@pytest.mark.django_db
+def test_normalize_macro_fact_units_check_fails_without_mutating_drift():
+    IndicatorCatalogModel.objects.update_or_create(
+        code="TMP_MACRO_CHECK",
+        defaults={
+            "name_cn": "治理门禁测试",
+            "default_unit": "%",
+            "default_period_type": "M",
+            "is_active": True,
+        },
+    )
+    IndicatorUnitRuleModel.objects.update_or_create(
+        indicator_code="TMP_MACRO_CHECK",
+        source_type="",
+        original_unit="%",
+        defaults={
+            "dimension_key": "rate",
+            "storage_unit": "%",
+            "display_unit": "%",
+            "multiplier_to_storage": 1,
+            "is_active": True,
+            "priority": 0,
+        },
+    )
+    fact = MacroFactModel.objects.create(
+        indicator_code="TMP_MACRO_CHECK",
+        reporting_period="2026-06-01",
+        value="1.000000",
+        unit="%",
+        source="manual_import",
+        extra={},
+    )
+
+    with pytest.raises(CommandError, match="updated=1"):
+        call_command(
+            "normalize_macro_fact_units",
+            indicator_codes="TMP_MACRO_CHECK",
+            check=True,
+        )
+    fact.refresh_from_db()
+    assert fact.extra == {}
+
+    call_command("normalize_macro_fact_units", indicator_codes="TMP_MACRO_CHECK")
+    call_command(
+        "normalize_macro_fact_units",
+        indicator_codes="TMP_MACRO_CHECK",
+        check=True,
+    )

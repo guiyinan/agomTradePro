@@ -39,6 +39,18 @@ from apps.data_center.infrastructure.repositories import (
 )
 
 
+def _governed_extra(*, source: str = "akshare") -> dict[str, object]:
+    return {
+        "source_type": source,
+        "original_unit": "%",
+        "display_unit": "%",
+        "dimension_key": "rate",
+        "multiplier_to_storage": 1.0,
+        "matched_rule_id": 1,
+        "period_type": "D",
+    }
+
+
 @pytest.mark.django_db
 def test_macro_fact_repository_returns_latest_first_series():
     MacroFactModel.objects.create(
@@ -98,6 +110,7 @@ def test_macro_fact_repository_retries_transient_sqlite_lock(monkeypatch):
                 unit="%",
                 source="akshare",
                 quality=DataQualityStatus.VALID,
+                extra=_governed_extra(),
             )
         ]
     )
@@ -128,11 +141,33 @@ def test_macro_fact_repository_does_not_retry_non_lock_operational_error(monkeyp
                     unit="%",
                     source="akshare",
                     quality=DataQualityStatus.VALID,
+                    extra=_governed_extra(),
                 )
             ]
         )
 
     assert attempts == 1
+
+
+def test_macro_fact_repository_rejects_ungoverned_write(monkeypatch):
+    monkeypatch.setattr(
+        MacroFactModel.objects,
+        "update_or_create",
+        lambda **kwargs: (object(), True),
+    )
+
+    with pytest.raises(ValueError, match="missing governance metadata"):
+        MacroFactRepository().bulk_upsert(
+            [
+                MacroFact(
+                    indicator_code="CN_UNGOVERNED",
+                    reporting_period=date(2026, 7, 19),
+                    value=1.0,
+                    unit="%",
+                    source="akshare",
+                )
+            ]
+        )
 
 
 @pytest.mark.django_db
@@ -441,9 +476,7 @@ def test_a_share_universe_sync_loads_rows_from_json_file(tmp_path):
         encoding="utf-8",
     )
 
-    report = AShareUniverseSyncService(
-        provider=JsonFileAshareCodeNameProvider(input_file)
-    ).sync()
+    report = AShareUniverseSyncService(provider=JsonFileAshareCodeNameProvider(input_file)).sync()
 
     assert report.source == "json_file:a_share_universe.json"
     assert report.active_count == 2

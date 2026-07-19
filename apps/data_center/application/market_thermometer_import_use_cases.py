@@ -16,14 +16,20 @@ from .investor_account_import import (
     build_investor_account_import_warnings,
     normalize_investor_account_import_value,
 )
+from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .market_thermometer_specs import MARKET_COMPONENT_SPECS
 
 
 class ImportInvestorAccountsUseCase:
     """Import investor-account time series rows into canonical MacroFact storage."""
 
-    def __init__(self, macro_repo: MacroFactRepositoryProtocol) -> None:
+    def __init__(
+        self,
+        macro_repo: MacroFactRepositoryProtocol,
+        macro_normalizer: MacroFactGovernanceNormalizer,
+    ) -> None:
         self._macro_repo = macro_repo
+        self._macro_normalizer = macro_normalizer
 
     def execute(
         self,
@@ -93,5 +99,10 @@ class ImportInvestorAccountsUseCase:
                 "last_period": max(periods).isoformat() if periods else None,
                 "warnings": warnings,
             }
-        stored_count = self._macro_repo.bulk_upsert(facts)
+        normalized = self._macro_normalizer.normalize_many(
+            facts,
+            source_type=source,
+            provider_name=source,
+        )
+        stored_count = self._macro_repo.bulk_upsert(normalized)
         return {"stored_count": stored_count, "parsed_count": len(facts), "warnings": warnings}

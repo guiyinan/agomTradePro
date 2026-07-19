@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 
 from apps.data_center.application import market_thermometer as market_thermometer_module
@@ -81,6 +81,20 @@ class _FakeMacroRepo:
     def bulk_upsert(self, facts: list[MacroFact]) -> int:
         self.stored.extend(facts)
         return len(facts)
+
+
+class _FakeMacroNormalizer:
+    def normalize(self, fact, *, source_type=None, provider_name=None):
+        extra = dict(fact.extra or {})
+        source = source_type or fact.source
+        extra.update({"source_type": source, "provider_name": provider_name or source})
+        return replace(fact, source=source, extra=extra)
+
+    def normalize_many(self, facts, *, source_type=None, provider_name=None):
+        return [
+            self.normalize(fact, source_type=source_type, provider_name=provider_name)
+            for fact in facts
+        ]
 
 
 @dataclass
@@ -278,6 +292,7 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -312,6 +327,7 @@ def test_sync_market_thermometer_inputs_continues_after_provider_unavailable():
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -351,6 +367,7 @@ def test_sync_market_thermometer_inputs_times_out_slow_provider_and_continues(mo
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -380,6 +397,7 @@ def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 6, 8))
@@ -418,6 +436,7 @@ def test_sync_market_thermometer_inputs_marks_market_news_no_data_when_nothing_i
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -444,6 +463,7 @@ def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_w
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -474,6 +494,7 @@ def test_sync_market_thermometer_inputs_fetches_turnover_and_margin_with_recent_
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 6, 20))
@@ -498,6 +519,7 @@ def test_sync_market_thermometer_inputs_fetches_etf_net_flow_with_recent_window(
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     use_case.execute(as_of_date=date(2026, 6, 8))
@@ -528,6 +550,7 @@ def test_sync_etf_net_flow_stores_consensus_when_sources_match():
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -578,6 +601,7 @@ def test_sync_etf_net_flow_rejects_mismatched_sources():
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -613,6 +637,7 @@ def test_sync_etf_net_flow_marks_single_source_when_only_one_provider_returns_da
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -651,6 +676,7 @@ def test_sync_etf_net_flow_falls_back_to_size_flow_proxy():
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
+        macro_normalizer=_FakeMacroNormalizer(),
     )
 
     payload = use_case.execute(as_of_date=date(2026, 5, 19))
@@ -1097,7 +1123,7 @@ def test_build_current_payload_recalculates_when_latest_snapshot_is_stale(monkey
 
 def test_import_investor_accounts_use_case_parses_csv_rows():
     macro_repo = _FakeMacroRepo(series_map={})
-    use_case = ImportInvestorAccountsUseCase(macro_repo)
+    use_case = ImportInvestorAccountsUseCase(macro_repo, _FakeMacroNormalizer())
 
     result = use_case.execute(
         "reporting_period,value\n2026-03-31,99.59\n2026-04-30,120.5\n",
@@ -1116,7 +1142,7 @@ def test_import_investor_accounts_use_case_parses_csv_rows():
 
 def test_import_investor_accounts_use_case_dry_run_does_not_store_rows():
     macro_repo = _FakeMacroRepo(series_map={})
-    use_case = ImportInvestorAccountsUseCase(macro_repo)
+    use_case = ImportInvestorAccountsUseCase(macro_repo, _FakeMacroNormalizer())
 
     result = use_case.execute(
         "reporting_period,value\n2026-03-31,99.59\n2026-04-30,120.5\n",

@@ -109,9 +109,7 @@ class _IndicatorUnitRuleRepo:
         original_unit: str | None = None,
     ):
         candidates = [
-            rule
-            for rule in self._rules
-            if rule.indicator_code == indicator_code and rule.is_active
+            rule for rule in self._rules if rule.indicator_code == indicator_code and rule.is_active
         ]
         if original_unit is not None:
             candidates = [rule for rule in candidates if rule.original_unit == original_unit]
@@ -149,6 +147,7 @@ class _Provider:
                 value=5.2,
                 unit="%",
                 source="provider-main",
+                published_at=date(2025, 3, 3),
             )
         ]
 
@@ -267,6 +266,17 @@ def test_sync_macro_use_case_stores_facts_and_audit():
     assert fact_repo.saved[0].source == "tushare"
     assert fact_repo.saved[0].extra["provider_name"] == "provider-main"
     assert fact_repo.saved[0].extra["source_type"] == "tushare"
+    assert fact_repo.saved[0].extra == {
+        "source_type": "tushare",
+        "provider_name": "provider-main",
+        "original_unit": "%",
+        "display_unit": "%",
+        "dimension_key": "rate",
+        "multiplier_to_storage": 1.0,
+        "matched_rule_id": 1,
+        "period_type": "M",
+        "publication_lag_days": 2,
+    }
     assert len(raw_repo.items) == 1
     assert raw_repo.items[0].capability == "macro"
     assert raw_repo.items[0].status == "ok"

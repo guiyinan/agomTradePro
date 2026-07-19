@@ -431,19 +431,32 @@ def make_calculate_market_thermometer_use_case() -> CalculateMarketThermometerUs
 def make_sync_market_thermometer_inputs_use_case() -> SyncMarketThermometerInputsUseCase:
     """Build the market-thermometer input sync use case."""
 
+    from .macro_fact_governance import MacroFactGovernanceNormalizer
+
+    catalog_repo = IndicatorCatalogRepository()
+    unit_rule_repo = IndicatorUnitRuleRepository()
     return SyncMarketThermometerInputsUseCase(
         provider_repo=ProviderConfigRepository(),
         provider_registry=get_provider_registry(),
         macro_repo=MacroFactRepository(),
         news_repo=NewsRepository(),
         raw_audit_repo=RawAuditRepository(),
+        macro_normalizer=MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo),
     )
 
 
 def make_import_investor_accounts_use_case() -> ImportInvestorAccountsUseCase:
     """Build the investor-account import use case."""
 
-    return ImportInvestorAccountsUseCase(MacroFactRepository())
+    from .macro_fact_governance import MacroFactGovernanceNormalizer
+
+    return ImportInvestorAccountsUseCase(
+        MacroFactRepository(),
+        MacroFactGovernanceNormalizer(
+            IndicatorCatalogRepository(),
+            IndicatorUnitRuleRepository(),
+        ),
+    )
 
 
 def load_market_thermometer_payload(

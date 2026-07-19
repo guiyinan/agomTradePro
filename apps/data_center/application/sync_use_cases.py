@@ -40,6 +40,8 @@ from apps.data_center.domain.protocols import (
     ValuationFactRepositoryProtocol,
 )
 
+from .macro_fact_governance import MacroFactGovernanceNormalizer
+
 RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     AttributeError,
     ConnectionError,
@@ -50,6 +52,7 @@ RECOVERABLE_DATA_CENTER_EXCEPTIONS = (
     TypeError,
     ValueError,
 )
+
 
 def _build_sync_audit(
     provider_name: str,
@@ -214,8 +217,7 @@ class SyncMacroUseCase(_BaseSyncUseCase):
     ) -> None:
         super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
-        self._catalog = catalog_repo
-        self._unit_rules = unit_rule_repo
+        self._normalizer = MacroFactGovernanceNormalizer(catalog_repo, unit_rule_repo)
 
     def _normalize_macro_facts(
         self,
@@ -225,44 +227,13 @@ class SyncMacroUseCase(_BaseSyncUseCase):
         provider_name: str,
         facts: list,
     ) -> list:
-        if self._catalog.get_by_code(indicator_code) is None:
-            raise ValueError(f"Indicator catalog missing for {indicator_code}")
-
-        normalized = []
-        for fact in facts:
-            extra = dict(getattr(fact, "extra", {}) or {})
-            original_unit = str(extra.get("original_unit") or fact.unit or "")
-            rule = self._unit_rules.resolve_active_rule(
-                indicator_code,
-                source_type=source_type,
-                original_unit=original_unit,
-            )
-            if rule is None:
-                raise ValueError(
-                    f"Indicator unit rule missing for {indicator_code}@{source_type} unit={original_unit!r}"
-                )
-
-            extra.update(
-                {
-                    "source_type": source_type,
-                    "provider_name": provider_name,
-                    "original_unit": original_unit,
-                    "display_unit": rule.display_unit,
-                    "dimension_key": rule.dimension_key,
-                    "multiplier_to_storage": rule.multiplier_to_storage,
-                    "matched_rule_id": rule.id,
-                }
-            )
-            normalized.append(
-                dataclasses.replace(
-                    fact,
-                    value=float(fact.value) * float(rule.multiplier_to_storage),
-                    source=source_type,
-                    unit=rule.storage_unit,
-                    extra=extra,
-                )
-            )
-        return normalized
+        if any(fact.indicator_code != indicator_code for fact in facts):
+            raise ValueError(f"Provider returned a mismatched indicator for {indicator_code}")
+        return self._normalizer.normalize_many(
+            facts,
+            source_type=source_type,
+            provider_name=provider_name,
+        )
 
     def execute(self, request: SyncMacroRequest) -> SyncResult:
         config, provider = self._get_provider(request.provider_id)
@@ -831,6 +802,7 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
                 )
             )
             raise
+
 
 __all__ = [
     "RECOVERABLE_DATA_CENTER_EXCEPTIONS",

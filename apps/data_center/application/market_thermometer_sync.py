@@ -24,6 +24,7 @@ from ._market_thermometer_runtime import (
     provider_timeout_seconds,
     resolve_as_of_date,
 )
+from .macro_fact_governance import MacroFactGovernanceNormalizer
 from .market_thermometer_specs import (
     DEFAULT_MARKET_DATA_SOURCE_TYPES,
     DEFAULT_NEWS_SOURCE_TYPES,
@@ -113,12 +114,14 @@ class SyncMarketThermometerInputsUseCase:
         macro_repo: MacroFactRepositoryProtocol,
         news_repo: NewsRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
+        macro_normalizer: MacroFactGovernanceNormalizer,
     ) -> None:
         self._provider_repo = provider_repo
         self._provider_registry = provider_registry
         self._macro_repo = macro_repo
         self._news_repo = news_repo
         self._raw_audit_repo = raw_audit_repo
+        self._macro_normalizer = macro_normalizer
 
     def execute(self, *, as_of_date: date | None = None) -> dict[str, Any]:
         """Sync daily market-heat inputs for the requested date."""
@@ -162,18 +165,11 @@ class SyncMarketThermometerInputsUseCase:
                         capability=f"{component_key}_macro_sync",
                         timeout_seconds=timeout_seconds,
                     )
-                    normalized = [
-                        dataclasses.replace(
-                            fact,
-                            source=config.source_type,
-                            extra={
-                                **dict(getattr(fact, "extra", {}) or {}),
-                                "source_type": config.source_type,
-                                "provider_name": provider_name,
-                            },
-                        )
-                        for fact in facts
-                    ]
+                    normalized = self._macro_normalizer.normalize_many(
+                        facts,
+                        source_type=config.source_type,
+                        provider_name=provider_name,
+                    )
                     if not normalized:
                         self._raw_audit_repo.log(
                             _build_market_audit(
@@ -324,7 +320,12 @@ class SyncMarketThermometerInputsUseCase:
                                 },
                             )
                         )
-                stored_metrics = self._macro_repo.bulk_upsert(macro_facts)
+                normalized_metrics = self._macro_normalizer.normalize_many(
+                    macro_facts,
+                    source_type=config.source_type,
+                    provider_name=provider_name,
+                )
+                stored_metrics = self._macro_repo.bulk_upsert(normalized_metrics)
                 total_stored = stored_news + stored_metrics
                 result_status = "success" if total_stored > 0 else "no_data"
                 self._raw_audit_repo.log(
@@ -453,18 +454,11 @@ class SyncMarketThermometerInputsUseCase:
                     capability=f"{component_key}_verified_sync",
                     timeout_seconds=timeout_seconds,
                 )
-                normalized = [
-                    dataclasses.replace(
-                        fact,
-                        source=config.source_type,
-                        extra={
-                            **dict(getattr(fact, "extra", {}) or {}),
-                            "source_type": config.source_type,
-                            "provider_name": provider_name,
-                        },
-                    )
-                    for fact in facts
-                ]
+                normalized = self._macro_normalizer.normalize_many(
+                    facts,
+                    source_type=config.source_type,
+                    provider_name=provider_name,
+                )
                 if not normalized:
                     self._raw_audit_repo.log(
                         _build_market_audit(
@@ -590,7 +584,12 @@ class SyncMarketThermometerInputsUseCase:
             )
             return results
 
-        stored_count = self._macro_repo.bulk_upsert([consensus])
+        normalized_consensus = self._macro_normalizer.normalize(
+            consensus,
+            source_type=MARKET_THERMOMETER_CONSENSUS_SOURCE,
+            provider_name=MARKET_THERMOMETER_CONSENSUS_SOURCE,
+        )
+        stored_count = self._macro_repo.bulk_upsert([normalized_consensus])
         self._raw_audit_repo.log(
             _build_market_audit(
                 provider_name=MARKET_THERMOMETER_CONSENSUS_SOURCE,

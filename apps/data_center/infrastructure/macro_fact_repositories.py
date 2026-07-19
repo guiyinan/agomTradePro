@@ -12,9 +12,9 @@ from django.db.models import Count, Max
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure._repository_helpers import _coerce_bool
-from apps.data_center.infrastructure.catalog_repositories import IndicatorUnitRuleRepository
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
+    IndicatorUnitRuleModel,
     MacroFactModel,
     ProviderConfigModel,
 )
@@ -23,6 +23,18 @@ from apps.data_center.infrastructure.orm_retry import retry_macro_fact_upsert
 
 class MacroFactRepository:
     """ORM-backed repository for macro-economic fact time-series."""
+
+    REQUIRED_GOVERNANCE_FIELDS = frozenset(
+        {
+            "source_type",
+            "original_unit",
+            "display_unit",
+            "dimension_key",
+            "multiplier_to_storage",
+            "matched_rule_id",
+            "period_type",
+        }
+    )
 
     @staticmethod
     def _from_model(m: MacroFactModel) -> MacroFact:
@@ -61,9 +73,30 @@ class MacroFactRepository:
         )
         return self._from_model(m) if m else None
 
+    @classmethod
+    def _validate_governance(cls, fact: MacroFact) -> None:
+        """Reject writes that bypass canonical macro governance normalization."""
+
+        extra = dict(fact.extra or {})
+        missing = sorted(
+            key for key in cls.REQUIRED_GOVERNANCE_FIELDS if key not in extra or extra[key] is None
+        )
+        if fact.published_at is not None and "publication_lag_days" not in extra:
+            missing.append("publication_lag_days")
+        if missing:
+            raise ValueError(
+                f"MacroFact {fact.indicator_code} is missing governance metadata: "
+                + ", ".join(missing)
+            )
+        if str(extra["source_type"]).strip() != fact.source:
+            raise ValueError(
+                f"MacroFact {fact.indicator_code} source does not match extra.source_type"
+            )
+
     def bulk_upsert(self, facts: list[MacroFact]) -> int:
         count = 0
         for f in facts:
+            self._validate_governance(f)
             retry_macro_fact_upsert(MacroFactModel.objects, f)
             count += 1
         return count
@@ -290,26 +323,45 @@ class MacroGovernanceRepository:
         }
 
     @staticmethod
+    def _resolve_preloaded_rule(
+        rules: list[IndicatorUnitRuleModel],
+        *,
+        source_type: str,
+        original_unit: str,
+    ) -> IndicatorUnitRuleModel | None:
+        """Resolve one rule from a preloaded indicator rule set."""
+
+        exact = [rule for rule in rules if rule.original_unit == original_unit]
+        for candidates in (exact, rules):
+            if source_type:
+                scoped = [rule for rule in candidates if rule.source_type == source_type]
+                if scoped:
+                    return sorted(scoped, key=lambda item: (-item.priority, item.id))[0]
+            fallback = [rule for rule in candidates if rule.source_type == ""]
+            if fallback:
+                return sorted(fallback, key=lambda item: (-item.priority, item.id))[0]
+        return None
+
+    @staticmethod
     def _normalize_macro_fact(
         fact: MacroFactModel,
-        rule_repo: IndicatorUnitRuleRepository,
+        rules: list[IndicatorUnitRuleModel],
         *,
         dry_run: bool,
+        period_type: str,
+        provider_lookup: dict[str, str],
     ) -> tuple[str, str | None]:
         extra = dict(fact.extra or {})
-        source_type = str(extra.get("source_type") or "")
+        source_type = str(
+            extra.get("source_type") or provider_lookup.get(fact.source, fact.source) or ""
+        ).strip()
         raw_unit = str(extra.get("original_unit") or fact.unit or "")
 
-        rule = rule_repo.resolve_active_rule(
-            fact.indicator_code,
+        rule = MacroGovernanceRepository._resolve_preloaded_rule(
+            rules,
             source_type=source_type,
-            original_unit=raw_unit or None,
+            original_unit=raw_unit,
         )
-        if rule is None:
-            rule = rule_repo.resolve_active_rule(
-                fact.indicator_code,
-                source_type=source_type,
-            )
         if rule is None:
             return (
                 "skipped",
@@ -346,6 +398,7 @@ class MacroGovernanceRepository:
             "multiplier_to_storage": float(rule.multiplier_to_storage),
             "matched_rule_id": rule.id,
             "source_type": source_type,
+            "period_type": str(extra.get("period_type") or period_type),
         }
         if publication_lag_days is not None:
             normalized_extra["publication_lag_days"] = publication_lag_days
@@ -363,7 +416,6 @@ class MacroGovernanceRepository:
             fact.value = normalized_value
             fact.unit = normalized_unit
             fact.extra = normalized_extra
-            fact.save(update_fields=["value", "unit", "extra"])
 
         return (
             "updated",
@@ -380,24 +432,59 @@ class MacroGovernanceRepository:
         indicator_codes: list[str] | None = None,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        rule_repo = IndicatorUnitRuleRepository()
         queryset = MacroFactModel.objects.all().order_by("indicator_code", "reporting_period", "id")
         if indicator_codes:
             queryset = queryset.filter(indicator_code__in=indicator_codes)
+
+        target_codes = set(queryset.values_list("indicator_code", flat=True).distinct())
+        rules_by_code: dict[str, list[IndicatorUnitRuleModel]] = {code: [] for code in target_codes}
+        for rule in IndicatorUnitRuleModel.objects.filter(
+            indicator_code__in=target_codes,
+            is_active=True,
+        ).only(
+            "id",
+            "indicator_code",
+            "source_type",
+            "dimension_key",
+            "original_unit",
+            "storage_unit",
+            "display_unit",
+            "multiplier_to_storage",
+            "priority",
+        ):
+            rules_by_code.setdefault(rule.indicator_code, []).append(rule)
+        period_types = dict(
+            IndicatorCatalogModel.objects.filter(code__in=target_codes).values_list(
+                "code", "default_period_type"
+            )
+        )
+        provider_lookup = self._build_provider_source_lookup()
 
         updated_count = 0
         skipped_count = 0
         unchanged_count = 0
         messages: list[str] = []
+        pending: list[MacroFactModel] = []
 
-        for fact in queryset.iterator():
+        for fact in queryset.iterator(chunk_size=1000):
             action, message = self._normalize_macro_fact(
                 fact,
-                rule_repo,
+                rules_by_code.get(fact.indicator_code, []),
                 dry_run=dry_run,
+                period_type=period_types.get(fact.indicator_code, ""),
+                provider_lookup=provider_lookup,
             )
             if action == "updated":
                 updated_count += 1
+                if not dry_run:
+                    pending.append(fact)
+                    if len(pending) >= 500:
+                        MacroFactModel.objects.bulk_update(
+                            pending,
+                            ["value", "unit", "extra"],
+                            batch_size=500,
+                        )
+                        pending.clear()
             elif action == "skipped":
                 skipped_count += 1
             else:
@@ -405,8 +492,12 @@ class MacroGovernanceRepository:
             if message:
                 messages.append(message)
 
-        if dry_run:
-            transaction.set_rollback(True)
+        if pending:
+            MacroFactModel.objects.bulk_update(
+                pending,
+                ["value", "unit", "extra"],
+                batch_size=500,
+            )
 
         return {
             "updated_count": updated_count,
