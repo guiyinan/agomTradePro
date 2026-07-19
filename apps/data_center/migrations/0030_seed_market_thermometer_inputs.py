@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from django.db import migrations
 
-
 CHART_POLICY_BY_SEMANTICS = {
     "balance_level": "continuous_line",
     "flow_level": "period_bar",
