@@ -140,6 +140,7 @@ jobs:
       - name: Verify TUI Runtime bundles
         run: |
           npm ci
+          npx playwright install --with-deps chromium
           npm run check:tui
           npm run test:tui-js
 
@@ -307,6 +308,7 @@ jobs:
       - name: Production static sanity check
         env:
           DJANGO_SETTINGS_MODULE: core.settings.production
+          DATABASE_URL: postgresql://agomtradepro:test@localhost:5432/agomtradepro
         run: |
           python manage.py check
           python manage.py collectstatic --noinput -v 0

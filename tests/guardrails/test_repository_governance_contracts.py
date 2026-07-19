@@ -76,3 +76,34 @@ def test_mypy_debt_budgets_only_shrink() -> None:
     assert baseline_error_count == 0
     assert error_baseline == {}
     assert "apps/task_monitor/application/interface_services.py" not in error_baseline
+
+
+def test_fast_feedback_installs_node_playwright_browser() -> None:
+    """Keep Node browser tests runnable on a clean GitHub Actions runner."""
+
+    workflow_text = (
+        REPO_ROOT / ".github" / "workflows" / "ci-fast-feedback.yml"
+    ).read_text(encoding="utf-8")
+    verify_step = workflow_text.split(
+        "- name: Verify TUI Runtime bundles", maxsplit=1
+    )[1].split("- name:", maxsplit=1)[0]
+
+    install_position = verify_step.index(
+        "npx playwright install --with-deps chromium"
+    )
+    test_position = verify_step.index("npm run test:tui-js")
+    assert install_position < test_position
+
+
+def test_fast_feedback_production_check_has_postgres_configuration() -> None:
+    """Keep production checks aligned with the mandatory PostgreSQL policy."""
+
+    workflow_text = (
+        REPO_ROOT / ".github" / "workflows" / "ci-fast-feedback.yml"
+    ).read_text(encoding="utf-8")
+    production_step = workflow_text.split(
+        "- name: Production static sanity check", maxsplit=1
+    )[1]
+
+    assert "DJANGO_SETTINGS_MODULE: core.settings.production" in production_step
+    assert "DATABASE_URL: postgresql://" in production_step

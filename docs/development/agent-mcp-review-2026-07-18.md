@@ -35,7 +35,7 @@
 | # | 级别 | 问题 | 影响面 | 状态 |
 |---|------|------|--------|------|
 | 1 | **Critical** | Terminal Agent 子进程禁用 legacy tools 后，`agent_task.*` governed capability 执行必炸 | Terminal Agent → MCP 创建/恢复/取消任务 | 已 live 复现 |
-| 2 | **High** | `AgentTaskRepository` 缺 `update_task_state`/`task_exists`（错放到 `AgentTimelineRepository`) | `POST /tasks/{id}/resume/`、`/cancel/`、`POST /proposals/` 三个 API 500 | 已 live 复现 |
+| 2 | **High** | `AgentTaskRepository` 缺 `update_task_state`/`task_exists`（错放到 `AgentTimelineRepository`) | `POST /api/agent-runtime/tasks/{id}/resume/`、`POST /api/agent-runtime/tasks/{id}/cancel/`、`POST /api/agent-runtime/proposals/` 三个 API 500 | 已 live 复现 |
 | 3 | **High** | `DjangoTerminalCapabilityGateway.list_active_commands` 读取不存在的 `command.pk`，并中断 capability 全量同步 | AI capability catalog 同步（mcp_tool/api source 被静默跳过） | 已 live 复现 |
 | 4 | Medium | 进程内 MCP 调用做同步 HTTP 自调用（审计 + 会话登录），带 urllib3 默认重试 | 审批链路延迟、Daphne 线程池饿死风险 | 已 dry-run 实测 |
 | 5 | Medium | MCP RBAC 每次工具调用都重新拉取 `api/account/profile/`，无缓存 | 每次 MCP 调用增加 1-3 次自调用 HTTP 开销 | 代码走查 + dry-run 佐证 |
