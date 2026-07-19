@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from django.db import models, transaction
 from django.utils import timezone
@@ -533,7 +533,7 @@ class WorkbenchRepository:
         config.save()
         return config
 
-    def get_gate_config(self, asset_class: str = "all") -> Optional[SentimentGateConfig]:
+    def get_gate_config(self, asset_class: str = "all") -> SentimentGateConfig | None:
         """获取闸门配置"""
         return self._gate_config_model.objects.filter(asset_class=asset_class, enabled=True).first()
 

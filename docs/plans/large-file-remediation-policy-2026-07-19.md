@@ -17,7 +17,7 @@
 
 - The remediated path must be removed from `allowed_large_python_files` and `large_file_remediation` in `governance/governance_baseline.json`; the machine-baseline update is handled centrally by the main agent, not by this batch.
 - The shared static test-function count baseline needs a +2 rebase for the new structure contract tests (also handled centrally).
-- Pre-existing Ruff findings inside `apps/policy/infrastructure/` (8 `F401` in `repositories.py`, 1 `UP045` in `workbench_repositories.py`) are unrelated to this application-layer split and were intentionally left untouched.
+- ~~Pre-existing Ruff findings inside `apps/policy/infrastructure/` (8 `F401` in `repositories.py`, 1 `UP045` in `workbench_repositories.py`)~~ **Closed 2026-07-19** by the dedicated lint batch: `repositories.py` now declares an explicit 7-name `__all__` re-export contract consumed via the `providers.py` star import, dead imports were removed, and the surface is locked by `tests/unit/test_policy_repositories_export_contract.py`.
 - Policy P1/P2 hardening beyond file size (e.g. the generic-repository fallback branch in `GetPolicyHistoryUseCase`) remains outside this large-file-only batch.
 
 ## Regression scope

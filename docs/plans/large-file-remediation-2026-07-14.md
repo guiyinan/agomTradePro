@@ -145,7 +145,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 
 ### Remaining and unverified risks
 
-- `apps/policy/infrastructure/repositories.py` retains 9 pre-existing ruff findings (8 F401 re-export names consumed via `providers.py` star import, 1 UP045); removing them requires adding an explicit `__all__`/noqa contract first and is deferred to a dedicated lint-debt batch.
+- ~~`apps/policy/infrastructure/repositories.py` retains 9 pre-existing ruff findings~~ **Closed 2026-07-19** by the dedicated lint batch (explicit `__all__` re-export contract + export contract test).
 - `apps/audit/infrastructure/metrics.py` pre-existing I001 fixed as whitespace-only.
 - Full repository test suite and strict mypy were not run in this batch.
 - Roll back each module split together with its structure contract, plan doc, and paired baseline entries.
