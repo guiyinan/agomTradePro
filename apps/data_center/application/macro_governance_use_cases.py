@@ -161,7 +161,10 @@ class RunMacroGovernanceActionUseCase:
         providers.sort(key=lambda provider: provider.priority)
         if not providers:
             raise ValueError(f"No active macro provider configured for source_type={source_type}")
-        return int(providers[0].id)
+        provider_id = providers[0].id
+        if provider_id is None:
+            raise ValueError(f"Macro provider has no persisted id for source_type={source_type}")
+        return provider_id
 
 
 __all__ = ["RunMacroGovernanceActionUseCase"]

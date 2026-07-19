@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from django.core.exceptions import ValidationError
-from django.db import models
+from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
+from django.db import models  # type: ignore[import-untyped]
 
 from ..domain.entities import (
     CooldownPeriod,
@@ -19,7 +20,7 @@ from ..domain.entities import (
 )
 
 
-class DecisionQuotaModel(models.Model):
+class DecisionQuotaModel(models.Model):  # type: ignore[misc]
     """
     决策配额 ORM 模型
 
@@ -93,10 +94,10 @@ class DecisionQuotaModel(models.Model):
             models.Index(fields=["period_end"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DecisionQuota({self.account_id}/{self.period}, {self.used_decisions}/{self.max_decisions})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
@@ -156,7 +157,7 @@ class DecisionQuotaModel(models.Model):
         )
 
 
-class CooldownPeriodModel(models.Model):
+class CooldownPeriodModel(models.Model):  # type: ignore[misc]
     """
     冷却期 ORM 模型
 
@@ -202,7 +203,7 @@ class CooldownPeriodModel(models.Model):
             models.Index(fields=["asset_code"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"CooldownPeriod({self.asset_code})"
 
     def to_domain(self) -> CooldownPeriod:
@@ -244,7 +245,7 @@ class CooldownPeriodModel(models.Model):
         )
 
 
-class DecisionRequestModel(models.Model):
+class DecisionRequestModel(models.Model):  # type: ignore[misc]
     """
     决策请求 ORM 模型
 
@@ -386,10 +387,10 @@ class DecisionRequestModel(models.Model):
             models.Index(fields=["unified_recommendation"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DecisionRequest({self.request_id}, {self.asset_code}, {self.priority})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
@@ -474,7 +475,7 @@ class DecisionRequestModel(models.Model):
         )
 
 
-class DecisionResponseModel(models.Model):
+class DecisionResponseModel(models.Model):  # type: ignore[misc]
     """
     决策响应 ORM 模型
 
@@ -536,11 +537,11 @@ class DecisionResponseModel(models.Model):
             models.Index(fields=["approved", "-responded_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         status = "APPROVED" if self.approved else "REJECTED"
         return f"DecisionResponse({self.request_id}, {status})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.response_id:
             self.response_id = f"response_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
-from django.db import models
-from django.utils import timezone
+from django.db import models  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from ..domain.entities import ModelParamAuditLog, ModelParamConfig
 
 
-class DecisionModelParamConfigModel(models.Model):
+class DecisionModelParamConfigModel(models.Model):  # type: ignore[misc]
     """
     决策模型参数配置 ORM 模型
 
@@ -85,10 +86,10 @@ class DecisionModelParamConfigModel(models.Model):
             models.Index(fields=["param_key", "env", "-version"], name="idx_param_key_env_version"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"ModelParamConfig({self.param_key}={self.param_value}, env={self.env})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.config_id:
             self.config_id = f"mpc_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)
@@ -127,7 +128,7 @@ class DecisionModelParamConfigModel(models.Model):
         )
 
 
-class DecisionModelParamAuditLogModel(models.Model):
+class DecisionModelParamAuditLogModel(models.Model):  # type: ignore[misc]
     """
     决策模型参数审计日志 ORM 模型
 
@@ -180,10 +181,10 @@ class DecisionModelParamAuditLogModel(models.Model):
             models.Index(fields=["env", "-changed_at"], name="idx_audit_env_time"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"ModelParamAuditLog({self.param_key}, {self.old_value} -> {self.new_value})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.log_id:
             self.log_id = f"mpal_{uuid.uuid4().hex[:12]}"
         if not self.changed_at:

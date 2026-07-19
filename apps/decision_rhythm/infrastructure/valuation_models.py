@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.utils import timezone
+from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
+from django.db import models  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from ..domain.entities import (
     ExecutionApprovalRequest,
@@ -16,7 +17,7 @@ from ..domain.entities import (
 )
 
 
-class ValuationSnapshotModel(models.Model):
+class ValuationSnapshotModel(models.Model):  # type: ignore[misc]
     """
     估值快照 ORM 模型
 
@@ -100,12 +101,12 @@ class ValuationSnapshotModel(models.Model):
             models.Index(fields=["valuation_method"], name="idx_val_method"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"ValuationSnapshot({self.security_code}, {self.valuation_method}, {self.fair_value})"
         )
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.snapshot_id:
             self.snapshot_id = f"vs_{uuid.uuid4().hex[:12]}"
         if not self.calculated_at:
@@ -164,7 +165,7 @@ class ValuationSnapshotModel(models.Model):
         )
 
 
-class InvestmentRecommendationModel(models.Model):
+class InvestmentRecommendationModel(models.Model):  # type: ignore[misc]
     """
     投资建议 ORM 模型
 
@@ -282,10 +283,10 @@ class InvestmentRecommendationModel(models.Model):
             models.Index(fields=["status", "-created_at"], name="idx_rec_status_created"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"InvestmentRecommendation({self.security_code}, {self.side}, {self.confidence:.2f})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.recommendation_id:
             self.recommendation_id = f"rec_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)
@@ -356,7 +357,7 @@ class InvestmentRecommendationModel(models.Model):
         )
 
 
-class ExecutionApprovalRequestModel(models.Model):
+class ExecutionApprovalRequestModel(models.Model):  # type: ignore[misc]
     """
     执行审批请求 ORM 模型
 
@@ -494,17 +495,17 @@ class ExecutionApprovalRequestModel(models.Model):
             ),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"ExecutionApprovalRequest({self.security_code}, {self.side}, {self.approval_status})"
         )
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.request_id:
             self.request_id = f"apr_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 

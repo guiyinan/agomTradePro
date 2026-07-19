@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.utils import timezone
+from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
+from django.db import models  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from ..domain.entities import (
     DecisionFeatureSnapshot,
@@ -17,7 +18,7 @@ from ..domain.entities import (
 )
 
 
-class DecisionFeatureSnapshotModel(models.Model):
+class DecisionFeatureSnapshotModel(models.Model):  # type: ignore[misc]
     """
     决策特征快照 ORM 模型
 
@@ -82,10 +83,10 @@ class DecisionFeatureSnapshotModel(models.Model):
             models.Index(fields=["security_code", "-snapshot_time"], name="idx_fsn_sec_time"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"DecisionFeatureSnapshot({self.snapshot_id}, {self.security_code})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.snapshot_id:
             self.snapshot_id = f"fsn_{uuid.uuid4().hex[:12]}"
         if not self.snapshot_time:
@@ -131,7 +132,7 @@ class DecisionFeatureSnapshotModel(models.Model):
         )
 
 
-class UnifiedRecommendationModel(models.Model):
+class UnifiedRecommendationModel(models.Model):  # type: ignore[misc]
     """
     统一推荐对象 ORM 模型
 
@@ -332,15 +333,15 @@ class UnifiedRecommendationModel(models.Model):
             ),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"UnifiedRecommendation({self.recommendation_id}, {self.account_id}/{self.security_code}/{self.side})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.recommendation_id:
             self.recommendation_id = f"urec_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
@@ -436,7 +437,7 @@ class UnifiedRecommendationModel(models.Model):
         )
 
 
-class DecisionExecutionLinkModel(models.Model):
+class DecisionExecutionLinkModel(models.Model):  # type: ignore[misc]
     """Link a manual account transaction to the system recommendation it followed."""
 
     TRANSACTION_SOURCE_CHOICES = [
@@ -498,7 +499,7 @@ class DecisionExecutionLinkModel(models.Model):
             models.Index(fields=["match_method", "-created_at"], name="idx_exec_link_method_time"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         target = self.recommendation_id or "manual_only"
         return f"{self.transaction_id} -> {target}"
 

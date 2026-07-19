@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
-from django.db import models
-from django.utils import timezone
+from django.db import models  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from ..domain.entities import (
     PortfolioTransitionPlan,
@@ -15,7 +16,7 @@ from ..domain.entities import (
 )
 
 
-class PortfolioTransitionPlanModel(models.Model):
+class PortfolioTransitionPlanModel(models.Model):  # type: ignore[misc]
     """账户级调仓计划 ORM 模型。"""
 
     STATUS_CHOICES = [
@@ -64,10 +65,10 @@ class PortfolioTransitionPlanModel(models.Model):
             models.Index(fields=["status", "-created_at"], name="idx_plan_status_created"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"PortfolioTransitionPlan({self.plan_id}, {self.account_id}, {self.status})"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self.plan_id:
             self.plan_id = f"plan_{uuid.uuid4().hex[:12]}"
         if not self.as_of:
