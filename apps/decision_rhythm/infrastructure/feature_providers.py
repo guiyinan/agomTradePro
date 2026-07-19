@@ -13,6 +13,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.utils import timezone
+
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 
 from ..application.use_cases import (

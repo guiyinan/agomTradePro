@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from apps.decision_rhythm.application.repository_provider import (
-    get_quota_repository,
     get_cooldown_repository,
     get_decision_request_repository,
+    get_quota_repository,
 )
 
 
