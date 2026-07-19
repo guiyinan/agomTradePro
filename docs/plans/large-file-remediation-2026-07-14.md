@@ -102,3 +102,25 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 ### Rollback
 
 - Revert the facade, three owner modules, structural contract, and the paired baseline removal together. No model, migration, API, or task contract changed.
+
+## 2026-07-19 P1/P2 closure evidence (equity, decision rhythm, data center)
+
+### Completed
+
+- Split `apps/equity/infrastructure/repositories.py` into eight focused owners (stock info, fundamentals, market data, intraday, asset, config, valuation repair, composition) and `apps/equity/interface/views.py` into six focused owners (page views, analysis actions, pool actions, valuation actions, multidim screen, valuation config); both originals stay bounded compatibility facades with explicit `__all__` and preserved patch surfaces. Details: `docs/plans/large-file-remediation-equity-2026-07-19.md`.
+- Split `apps/decision_rhythm/domain/services.py` into four focused owners (rhythm, workflow, valuation, unified); the original module stays a pure-Python compatibility facade. Details: `docs/plans/large-file-remediation-decision-rhythm-2026-07-19.md`.
+- Split `apps/data_center/infrastructure/repositories.py` into eight focused owners (catalog, macro fact, fundamental fact, market data, market breadth, provider state, thermometer, helpers) and `apps/data_center/application/market_thermometer.py` into six focused owners (specs, config, import, sync, calculate, runtime bridge). The macro-fact projection repository read/write split was evaluated and rejected (46 non-empty lines; split would add indirection without reducing complexity). Details: `docs/plans/large-file-remediation-data-center-2026-07-19.md`.
+- Added structure contracts: `tests/unit/test_equity_structure.py`, `tests/unit/test_data_center_repositories_structure.py`, and domain-services assertions in `tests/unit/test_decision_rhythm_repositories_structure.py`.
+- Removed all five remediated paths from `allowed_large_python_files` and `large_file_remediation` in the machine baseline.
+
+### Verified
+
+- Structure contracts: equity `4 passed`, data center `4 passed`, decision rhythm `2 passed`.
+- Focused regressions: equity unit `177 passed`, equity integration/API `91 passed`, architecture guardrails `22 passed`; decision rhythm `48 passed` plus `29 passed`; data center `266 passed` plus reverse-dependency/architecture/patch-surface `40 passed` and thermometer API `7 passed`.
+- `makemigrations --check --dry-run` for equity, decision_rhythm, data_center: no changes.
+- `ruff check` passes for all three modules (two pre-existing I001 in decision_rhythm and one in a data_center migration fixed as whitespace-only).
+
+### Unverified risks
+
+- Full repository test suite and strict mypy were not run in this batch.
+- Roll back each module split together with its structure contract, plan doc, and paired baseline entries.

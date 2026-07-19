@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6971,
+  "static_test_function_count": 6980,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -73,11 +73,6 @@
     "apps/audit/application/use_cases.py": 1382,
     "apps/audit/domain/services.py": 1299,
     "apps/audit/infrastructure/repositories.py": 1357,
-    "apps/data_center/application/market_thermometer.py": 1434,
-    "apps/data_center/infrastructure/repositories.py": 1529,
-    "apps/decision_rhythm/domain/services.py": 1563,
-    "apps/equity/infrastructure/repositories.py": 2327,
-    "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
     "apps/strategy/interface/views.py": 1294
   },
@@ -115,51 +110,6 @@
       "rationale": "Separate audit read models and persistence responsibilities.",
       "priority": "P2",
       "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/data_center/application/market_thermometer.py": {
-      "owner": "data-center",
-      "kind": "application-service",
-      "rationale": "Extract indicator loading, scoring, and presentation mapping collaborators.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/data_center/infrastructure/repositories.py": {
-      "owner": "data-center",
-      "kind": "repository",
-      "rationale": "Separate catalog, fact, and operational repositories.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/decision_rhythm/domain/services.py": {
-      "owner": "decision-rhythm",
-      "kind": "domain-services",
-      "rationale": "Split decision policies, gates, and sizing rules.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/equity/infrastructure/repositories.py": {
-      "owner": "equity",
-      "kind": "repository",
-      "rationale": "Separate security master, factor, and market-data repositories.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/equity/interface/views.py": {
-      "owner": "equity",
-      "kind": "interface-views",
-      "rationale": "Split page orchestration, API edges, and context builders.",
-      "priority": "P2",
-      "target_non_empty_lines": 900,
       "review_by": "2026-12-31",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },
