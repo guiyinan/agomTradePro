@@ -938,7 +938,7 @@ def _resolve_current_macro_sync_resolution(*, target_date: str) -> dict[str, Any
 
     try:
         dtos = import_module("apps.data_center.application.dtos")
-        repository_provider = import_module("apps.data_center.application.repository_provider")
+        repository_provider = import_module("apps.data_center.composition")
         use_cases = import_module("apps.data_center.application.use_cases")
         MacroSeriesRequest = dtos.MacroSeriesRequest
         IndicatorCatalogRepository = repository_provider.IndicatorCatalogRepository

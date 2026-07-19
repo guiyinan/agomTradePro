@@ -1,43 +1,5 @@
 {
-  "version": "2026-07-16.v1",
-  "rationale": "Legacy whole-file mypy debt exposed by incremental checks; counts may decrease but must not grow.",
-  "modules": {
-    "apps/data_center/application/tasks.py": {
-      "misc": 2
-    },
-    "apps/macro/application/tasks.py": {
-      "misc": 7,
-      "no-untyped-call": 1,
-      "no-untyped-def": 2,
-      "type-arg": 7
-    },
-    "apps/task_monitor/application/interface_services.py": {
-      "type-arg": 5
-    },
-    "apps/task_monitor/application/tasks.py": {
-      "import-untyped": 1,
-      "list-item": 1,
-      "misc": 9,
-      "no-untyped-call": 6,
-      "no-untyped-def": 8,
-      "type-arg": 7
-    },
-    "apps/task_monitor/infrastructure/backup_service.py": {
-      "import-untyped": 1
-    },
-    "apps/task_monitor/infrastructure/repositories.py": {
-      "import-untyped": 7,
-      "no-untyped-def": 1,
-      "var-annotated": 1
-    },
-    "apps/task_monitor/management/commands/backup_database.py": {
-      "import-untyped": 1,
-      "misc": 1,
-      "no-untyped-def": 2
-    },
-    "core/settings/base.py": {
-      "import-untyped": 2,
-      "var-annotated": 1
-    }
-  }
+  "version": "2026-07-19.v6",
+  "rationale": "Legacy incremental mypy debt is closed; third-party untyped boundaries use precise line-level ignores.",
+  "modules": {}
 }

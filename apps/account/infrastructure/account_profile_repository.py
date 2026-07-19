@@ -131,7 +131,7 @@ class AccountRepository:
 class AccountClassificationRepository:
     """Classification and FX persistence helpers for interface/application layers."""
 
-    def list_active_asset_categories(self):
+    def list_active_asset_categories(self) -> Any:
         """Return active asset categories with related parent/children loaded."""
 
         return (
@@ -141,12 +141,12 @@ class AccountClassificationRepository:
             .order_by("path", "sort_order")
         )
 
-    def list_root_asset_categories(self):
+    def list_root_asset_categories(self) -> Any:
         """Return active root-level asset categories."""
 
         return self.list_active_asset_categories().filter(level=1)
 
-    def list_tree_root_asset_categories(self):
+    def list_tree_root_asset_categories(self) -> Any:
         """Return active root categories without parents."""
 
         return self.list_active_asset_categories().filter(level=1, parent__isnull=True)
@@ -160,7 +160,7 @@ class AccountClassificationRepository:
             .order_by("sort_order")
         )
 
-    def create_asset_category(self, **validated_data):
+    def create_asset_category(self, **validated_data: Any) -> Any:
         """Create one asset category."""
 
         return AssetCategoryModel._default_manager.create(**validated_data)
@@ -179,12 +179,12 @@ class AccountClassificationRepository:
 
         AssetCategoryModel._default_manager.filter(id=category_id).delete()
 
-    def list_active_currencies(self):
+    def list_active_currencies(self) -> Any:
         """Return active currencies."""
 
         return CurrencyModel._default_manager.filter(is_active=True).order_by("-is_base", "code")
 
-    def get_base_currency(self):
+    def get_base_currency(self) -> Any:
         """Return the configured base currency."""
 
         return (
@@ -192,7 +192,7 @@ class AccountClassificationRepository:
             or self.list_active_currencies().filter(code="CNY").first()
         )
 
-    def list_exchange_rates(self):
+    def list_exchange_rates(self) -> Any:
         """Return exchange rates with currency relations loaded."""
 
         return (
@@ -201,7 +201,7 @@ class AccountClassificationRepository:
             .order_by("-effective_date")
         )
 
-    def create_exchange_rate(self, **validated_data):
+    def create_exchange_rate(self, **validated_data: Any) -> Any:
         """Create one exchange rate."""
 
         return ExchangeRateModel._default_manager.create(**validated_data)

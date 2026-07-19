@@ -15,11 +15,11 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
-from django.core.management import call_command
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Avg, Count
-from django.utils import timezone
-from django_celery_beat.models import PeriodicTask
+from django.core.management import call_command  # type: ignore[import-untyped]
+from django.core.serializers.json import DjangoJSONEncoder  # type: ignore[import-untyped]
+from django.db.models import Avg, Count  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
+from django_celery_beat.models import PeriodicTask  # type: ignore[import-untyped]
 
 from apps.task_monitor.domain.entities import (
     CeleryHealthStatus,
@@ -40,6 +40,7 @@ from apps.task_monitor.domain.interfaces import (
     TaskRecordRepositoryProtocol,
 )
 from apps.task_monitor.infrastructure.models import TaskExecutionModel
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 _PREFLIGHT_UNREACHABLE_CACHE: set[str] = set()
@@ -53,24 +54,6 @@ def _log_preflight_unreachable_once(channel: str, endpoint: str | None) -> None:
         return
     _PREFLIGHT_UNREACHABLE_CACHE.add(cache_key)
     logger.info("%s preflight failed: endpoint unreachable.", channel)
-
-
-def _safe_float(value: Any) -> float:
-    """
-    安全解析浮点数，处理 None、字符串等异常情况
-
-    Args:
-        value: 任意值
-
-    Returns:
-        float: 解析后的浮点数，失败返回 0.0
-    """
-    if value is None:
-        return 0.0
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return 0.0
 
 
 def _to_json_compatible(value: Any) -> Any:
@@ -186,9 +169,9 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
 
         avg_runtime_qs = base_qs.filter(runtime_seconds__isnull=False)
         avg_runtime_result = avg_runtime_qs.aggregate(avg=Avg("runtime_seconds"))
-        average_runtime = _safe_float(avg_runtime_result["avg"])
+        average_runtime = safe_float(avg_runtime_result["avg"], default=0.0)
 
-        success_rate = _safe_float(successful / total) if total > 0 else 0.0
+        success_rate = safe_float(successful / total, default=0.0) if total > 0 else 0.0
 
         latest = base_qs.order_by("-created_at").first()
 
@@ -246,7 +229,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
     def _has_fresh_database_backup(now: Any) -> bool:
         """Only permit weekly VACUUM after a recent persistent backup."""
 
-        from django.conf import settings
+        from django.conf import settings  # type: ignore[import-untyped]
 
         backup_dir = Path(settings.BASE_DIR) / "backups" / "database"
         cutoff = now.timestamp() - (26 * 3600)
@@ -258,7 +241,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
     @staticmethod
     def _optimize_sqlite_storage(*, allow_vacuum: bool) -> None:
         """Run lightweight optimization and vacuum only with meaningful free space."""
-        from django.db import connection
+        from django.db import connection  # type: ignore[import-untyped]
 
         if connection.vendor != "sqlite":
             return
@@ -298,7 +281,7 @@ class DjangoTaskRecordRepository(TaskRecordRepositoryProtocol):
 class CeleryHealthChecker(CeleryHealthCheckerProtocol):
     """Celery 健康检查实现"""
 
-    def __init__(self, celery_app):
+    def __init__(self, celery_app: Any) -> None:
         """
         初始化健康检查器
 
@@ -312,7 +295,7 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
         is_healthy = True
         broker_reachable = False
         backend_reachable = False
-        active_workers = []
+        active_workers: list[str] = []
         active_tasks_count = 0
         pending_tasks_count = 0
         scheduled_tasks_count = 0

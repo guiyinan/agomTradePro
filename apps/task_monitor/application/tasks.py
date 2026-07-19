@@ -17,7 +17,7 @@ from celery.signals import (
     task_retry,
     task_revoked,
 )
-from django.utils import timezone
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from apps.task_monitor.application.repository_provider import (
     get_database_backup_service,
@@ -29,6 +29,7 @@ from apps.task_monitor.domain.entities import (
     TaskPriority,
     TaskStatus,
 )
+from apps.task_monitor.domain.interfaces import TaskRecordRepositoryProtocol
 from apps.task_monitor.management.commands.run_personal_readiness_daily import (
     _parse_date,
     _validate_target_date_is_closed,
@@ -40,10 +41,10 @@ from shared.infrastructure.alert_service import create_default_alert_service
 logger = logging.getLogger(__name__)
 
 # 全局仓储实例
-_repository = None
+_repository: TaskRecordRepositoryProtocol | None = None
 
 
-def get_repository():
+def get_repository() -> TaskRecordRepositoryProtocol:
     """获取仓储实例（延迟初始化）"""
     global _repository
     if _repository is None:
@@ -69,14 +70,14 @@ def get_use_case() -> RecordTaskExecutionUseCase:
 # ========== Celery 信号处理 ==========
 
 
-@task_prerun.connect
+@task_prerun.connect  # type: ignore[misc]
 def task_prerun_handler(
-    sender=None,
+    sender: Any = None,
     task_id: str | None = None,
     task: Task | None = None,
-    args: tuple | None = None,
-    kwargs: dict | None = None,
-    **kwds,
+    args: tuple[Any, ...] | None = None,
+    kwargs: dict[str, Any] | None = None,
+    **kwds: Any,
 ) -> None:
     """任务开始前记录"""
     if not task_id or not task:
@@ -108,16 +109,16 @@ def task_prerun_handler(
         logger.error(f"Failed to record task start: {e}")
 
 
-@task_postrun.connect
+@task_postrun.connect  # type: ignore[misc]
 def task_postrun_handler(
-    sender=None,
+    sender: Any = None,
     task_id: str | None = None,
     task: Task | None = None,
-    args: tuple | None = None,
-    kwargs: dict | None = None,
+    args: tuple[Any, ...] | None = None,
+    kwargs: dict[str, Any] | None = None,
     retval: Any | None = None,
     state: str | None = None,
-    **kwds,
+    **kwds: Any,
 ) -> None:
     """任务完成后记录"""
     if not task_id or not task:
@@ -178,14 +179,14 @@ def task_postrun_handler(
         logger.error(f"Failed to record task completion: {e}")
 
 
-@task_failure.connect
+@task_failure.connect  # type: ignore[misc]
 def task_failure_handler(
-    sender=None,
+    sender: Any = None,
     task_id: str | None = None,
     exception: Exception | None = None,
     traceback: str | None = None,
     einfo: Any | None = None,
-    **kwds,
+    **kwds: Any,
 ) -> None:
     """任务失败记录"""
     if not task_id:
@@ -238,14 +239,14 @@ def task_failure_handler(
         logger.error(f"Failed to record task failure: {e}")
 
 
-@task_retry.connect
+@task_retry.connect  # type: ignore[misc]
 def task_retry_handler(
-    sender=None,
+    sender: Any = None,
     task_id: str | None = None,
     request: Any | None = None,
     reason: str | None = None,
     einfo: Any | None = None,
-    **kwds,
+    **kwds: Any,
 ) -> None:
     """任务重试记录"""
     if not task_id:
@@ -283,14 +284,14 @@ def task_retry_handler(
         logger.error(f"Failed to record task retry: {e}")
 
 
-@task_revoked.connect
+@task_revoked.connect  # type: ignore[misc]
 def task_revoked_handler(
-    sender=None,
+    sender: Any = None,
     task_id: str | None = None,
     signum: int | None = None,
     terminated: bool | None = None,
     expired: bool | None = None,
-    **kwds,
+    **kwds: Any,
 ) -> None:
     """任务撤销记录"""
     if not task_id:
@@ -337,8 +338,8 @@ def task_revoked_handler(
 from celery import shared_task  # noqa: E402
 
 
-@shared_task(time_limit=300, soft_time_limit=280)
-def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
+@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
+def cleanup_old_task_records(days_to_keep: int = 30) -> dict[str, Any]:
     """
     清理旧的任务记录
 
@@ -372,7 +373,7 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
 # ========== P1-2: 数据库备份任务 ==========
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5 minutes
@@ -380,11 +381,11 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
     soft_time_limit=280,
 )
 def backup_database_task(
-    self,
+    self: Any,
     keep_days: int = 14,
     compress: bool = True,
     output_dir: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     P1-2: 数据库备份 Celery 任务
 
@@ -438,8 +439,8 @@ def backup_database_task(
         raise
 
 
-@shared_task(time_limit=300, soft_time_limit=280)
-def verify_backup_task(backup_file: str) -> dict:
+@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
+def verify_backup_task(backup_file: str) -> dict[str, Any]:
     """
     验证备份文件完整性
 
@@ -497,14 +498,14 @@ def verify_backup_task(backup_file: str) -> dict:
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     name="apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
     time_limit=3600,
     soft_time_limit=3300,
 )
 def run_personal_readiness_daily_task(
-    self,
+    self: Any,
     target_date: str | None = None,
     user_id: int | None = None,
     account_id: int | None = None,

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from django.conf import settings
+from django.conf import settings  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

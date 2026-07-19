@@ -6,9 +6,9 @@ import os
 import sys
 from pathlib import Path
 
-import environ
+import environ  # type: ignore[import-untyped]
 from celery.schedules import crontab
-from kombu import Queue
+from kombu import Queue  # type: ignore[import-untyped]
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -103,7 +103,7 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-this-in-productio
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list[str] = []
 FORMS_URLFIELD_ASSUME_HTTPS = True
 
 # Application definition

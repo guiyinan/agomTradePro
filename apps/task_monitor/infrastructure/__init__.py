@@ -6,7 +6,6 @@ from apps.task_monitor.infrastructure.models import TaskAlertModel, TaskExecutio
 from apps.task_monitor.infrastructure.repositories import (
     CeleryHealthChecker,
     DjangoTaskRecordRepository,
-    _safe_float,
 )
 
 __all__ = [
@@ -14,5 +13,4 @@ __all__ = [
     "TaskAlertModel",
     "DjangoTaskRecordRepository",
     "CeleryHealthChecker",
-    "_safe_float",
 ]

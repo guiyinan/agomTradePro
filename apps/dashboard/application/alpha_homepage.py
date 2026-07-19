@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, Protocol
 
 from apps.account.application.repository_provider import get_portfolio_repository
 from apps.account.application.use_cases import GetSizingContextUseCase
@@ -45,6 +45,12 @@ __all__ = [
 ALPHA_SCOPE_GENERAL = "general"
 ALPHA_SCOPE_PORTFOLIO = "portfolio"
 ALPHA_SCOPE_CHOICES = {ALPHA_SCOPE_GENERAL, ALPHA_SCOPE_PORTFOLIO}
+
+
+class DashboardUser(Protocol):
+    """Minimal authenticated-user shape required by the homepage query."""
+
+    id: int
 
 
 def normalize_alpha_scope(raw_value: str | None) -> str:
@@ -97,7 +103,7 @@ class AlphaHomepageQuery(
     def execute(
         self,
         *,
-        user,
+        user: DashboardUser,
         top_n: int = 10,
         portfolio_id: int | None = None,
         pool_mode: str | None = None,
@@ -226,7 +232,9 @@ class AlphaHomepageQuery(
             history_run_id=history_run_id,
         )
 
-    def _execute_general(self, *, user, top_n: int, trade_date: date) -> AlphaHomepageData:
+    def _execute_general(
+        self, *, user: DashboardUser, top_n: int, trade_date: date
+    ) -> AlphaHomepageData:
         """Build a broad-universe research-only Alpha ranking payload."""
         alpha_result = self._fetch_general_alpha_result(
             user=user,

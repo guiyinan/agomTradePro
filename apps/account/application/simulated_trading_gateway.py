@@ -12,7 +12,7 @@ _price_provider_factory: Callable[[int], Any] | None = None
 _default_accounts_provisioner: Callable[[Any, Decimal], None] | None = None
 _investment_accounts_reader: Callable[[int], list[dict[str, Any]]] | None = None
 _portfolio_account_resolver: Callable[[int], int | None] | None = None
-_view_resolver: Callable[[str], type] | None = None
+_view_resolver: Callable[[str], Any] | None = None
 
 
 def configure_simulated_trading_gateway(
@@ -23,7 +23,7 @@ def configure_simulated_trading_gateway(
     default_accounts_provisioner: Callable[[Any, Decimal], None],
     investment_accounts_reader: Callable[[int], list[dict[str, Any]]],
     portfolio_account_resolver: Callable[[int], int | None],
-    view_resolver: Callable[[str], type],
+    view_resolver: Callable[[str], Any],
 ) -> None:
     """Register Simulated Trading implementations for Account consumers."""
 
@@ -91,7 +91,7 @@ def get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
     return provider(portfolio_id)
 
 
-def get_simulated_trading_view(view_key: str) -> type:
+def get_simulated_trading_view(view_key: str) -> Any:
     """Resolve a canonical trading API view without importing its owner."""
 
     provider = _require(_view_resolver, "view_resolver")

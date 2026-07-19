@@ -4,12 +4,12 @@ import logging
 from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
-from django.db import transaction
-from django.db.models import Q
-from django.db.utils import OperationalError, ProgrammingError
-from django.utils import timezone
+from django.db import transaction  # type: ignore[import-untyped]
+from django.db.models import Q  # type: ignore[import-untyped]
+from django.db.utils import OperationalError, ProgrammingError  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from apps.account.domain.entities import (
     DrawdownTier,
@@ -37,7 +37,6 @@ from apps.account.infrastructure.models import (
     PositionModel,
     StopLossConfigModel,
     StopLossTriggerModel,
-    SystemSettingsModel,
     TakeProfitConfigModel,
     TransactionCostConfigModel,
     TransactionModel,
@@ -49,6 +48,7 @@ from apps.account.infrastructure.portfolio_repository import (
     PortfolioRepository as PortfolioRepository,
 )
 from apps.account.infrastructure.position_repository import PositionRepository as PositionRepository
+from apps.config_center.infrastructure.models import SystemSettingsModel
 
 logger = logging.getLogger(__name__)
 
@@ -179,13 +179,16 @@ class TransactionRepository:
 class ManualTradeSyncRepository:
     """Persistence operations for manual broker trade imports."""
 
-    def get_owned_portfolio(self, *, user_id: int, portfolio_id: int):
-        return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()
+    def get_owned_portfolio(self, *, user_id: int, portfolio_id: int) -> PortfolioModel | None:
+        result = PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()
+        return cast(PortfolioModel | None, result)
 
     def broker_trade_key_exists(self, broker_trade_key: str) -> bool:
-        return TransactionModel._default_manager.filter(
-            broker_trade_key=broker_trade_key,
-        ).exists()
+        return bool(
+            TransactionModel._default_manager.filter(
+                broker_trade_key=broker_trade_key,
+            ).exists()
+        )
 
     def create_import_batch(
         self,
@@ -197,7 +200,7 @@ class ManualTradeSyncRepository:
         file_hash: str,
         total_rows: int,
         preview_rows: list[dict[str, Any]],
-    ):
+    ) -> BrokerTradeImportBatchModel:
         batch, _ = BrokerTradeImportBatchModel._default_manager.update_or_create(
             user_id=user_id,
             portfolio_id=portfolio_id,
@@ -214,17 +217,17 @@ class ManualTradeSyncRepository:
                 "preview_rows": preview_rows,
             },
         )
-        return batch
+        return cast(BrokerTradeImportBatchModel, batch)
 
     def update_import_batch_result(
         self,
-        batch,
+        batch: BrokerTradeImportBatchModel,
         *,
         imported_rows: int,
         skipped_rows: int,
         error_rows: int,
         errors: list[dict[str, Any]],
-    ):
+    ) -> BrokerTradeImportBatchModel:
         batch.imported_rows = imported_rows
         batch.skipped_rows = skipped_rows
         batch.error_rows = error_rows
@@ -250,8 +253,8 @@ class ManualTradeSyncRepository:
     def create_imported_transaction(
         self,
         *,
-        portfolio,
-        position=None,
+        portfolio: PortfolioModel,
+        position: PositionModel | None = None,
         action: str,
         asset_code: str,
         shares: float,
@@ -265,9 +268,9 @@ class ManualTradeSyncRepository:
         external_trade_id: str,
         broker_trade_key: str,
         raw_payload: dict[str, Any],
-        import_batch,
-    ):
-        return TransactionModel._default_manager.create(
+        import_batch: BrokerTradeImportBatchModel,
+    ) -> TransactionModel:
+        result = TransactionModel._default_manager.create(
             portfolio=portfolio,
             position=position,
             action=action,
@@ -286,15 +289,20 @@ class ManualTradeSyncRepository:
             raw_payload=raw_payload,
             import_batch=import_batch,
         )
+        return cast(TransactionModel, result)
 
-    def list_recent_import_batches(self, *, user_id: int, limit: int = 20):
+    def list_recent_import_batches(
+        self, *, user_id: int, limit: int = 20
+    ) -> list[BrokerTradeImportBatchModel]:
         return list(
             BrokerTradeImportBatchModel._default_manager.filter(user_id=user_id)
             .select_related("portfolio")
             .order_by("-created_at")[:limit]
         )
 
-    def list_imported_transactions(self, *, user_id: int, limit: int = 50):
+    def list_imported_transactions(
+        self, *, user_id: int, limit: int = 50
+    ) -> list[TransactionModel]:
         return list(
             TransactionModel._default_manager.filter(
                 portfolio__user_id=user_id,
@@ -311,7 +319,7 @@ class ManualTradeSyncRepository:
         portfolio_id: int,
         start_date: date,
         end_date: date,
-    ):
+    ) -> list[TransactionModel]:
         return list(
             TransactionModel._default_manager.filter(
                 portfolio_id=portfolio_id,
@@ -329,8 +337,13 @@ class AssetMetadataRepository:
     """资产元数据仓储"""
 
     def get_or_create_asset(
-        self, asset_code: str, name: str, asset_class: str = "equity", region: str = "CN", **kwargs
-    ) -> dict:
+        self,
+        asset_code: str,
+        name: str,
+        asset_class: str = "equity",
+        region: str = "CN",
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """获取或创建资产元数据"""
         asset, created = AssetMetadataModel._default_manager.get_or_create(
             asset_code=asset_code,
@@ -350,7 +363,7 @@ class AssetMetadataRepository:
         query: str,
         asset_class: str | None = None,
         region: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """搜索资产"""
         queryset = AssetMetadataModel._default_manager.all()
 
@@ -789,15 +802,15 @@ class TransactionCostConfigRepository:
 class SystemSettingsRepository:
     """系统设置仓储。"""
 
-    def get_settings(self):
+    def get_settings(self) -> SystemSettingsModel:
         """返回系统设置模型实例。"""
 
-        return SystemSettingsModel.get_settings()
+        return cast(SystemSettingsModel, SystemSettingsModel.get_settings())
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """获取运行时资产代理代码。"""
 
-        return SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, default)
+        return str(SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, default))
 
 
 class MacroSizingConfigRepository:
@@ -888,11 +901,12 @@ class MacroSizingConfigRepository:
 
     def _get_active_model(self) -> MacroSizingConfigModel | None:
         try:
-            return (
+            result = (
                 MacroSizingConfigModel._default_manager.filter(is_active=True)
                 .order_by("-version")
                 .first()
             )
+            return cast(MacroSizingConfigModel | None, result)
         except (OperationalError, ProgrammingError):
             logger.warning("MacroSizingConfigModel table unavailable; using default sizing config")
             return None

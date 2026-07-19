@@ -400,6 +400,11 @@ class MultiChannelAlertService:
 
         return success_count > 0
 
+    def is_available(self) -> bool:
+        """Return whether at least one configured channel can send alerts."""
+
+        return any(channel.is_available() for channel in self.channels)
+
     def add_channel(self, channel: AlertChannel) -> None:
         """添加告警渠道"""
         self.channels.append(channel)

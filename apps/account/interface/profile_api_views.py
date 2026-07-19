@@ -1,5 +1,7 @@
 """Account profile and reference data API views."""
 
+from typing import Any
+
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -21,7 +23,7 @@ from .serializers import (
 )
 
 
-class AccountProfileView(APIView):
+class AccountProfileView(APIView):  # type: ignore[misc]
     """
     账户配置 API
 
@@ -31,13 +33,13 @@ class AccountProfileView(APIView):
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """获取当前用户的账户配置"""
         profile = interface_services.get_api_profile(request.user.id)
         serializer = AccountProfileSerializer(profile)
         return Response(serializer.data)
 
-    def put(self, request):
+    def put(self, request: Any) -> Any:
         """更新当前用户的账户配置"""
         serializer = AccountProfileUpdateSerializer(data=request.data, partial=True)
 
@@ -51,7 +53,7 @@ class AccountProfileView(APIView):
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MacroSizingConfigView(APIView):
+class MacroSizingConfigView(APIView):  # type: ignore[misc]
     """
     宏观仓位系数配置 API
 
@@ -60,16 +62,16 @@ class MacroSizingConfigView(APIView):
     - PUT /api/account/macro-sizing-config/ - 创建新的生效版本
     """
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[Any]:
         if self.request.method == "GET":
             return [IsAuthenticated(), GeneralPermission()]
         return [IsAuthenticated(), IsAdminUser()]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         payload = interface_services.get_macro_sizing_config_payload()
         return Response(MacroSizingConfigSerializer(payload).data)
 
-    def put(self, request):
+    def put(self, request: Any) -> Any:
         serializer = MacroSizingConfigUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = interface_services.save_macro_sizing_config_payload(
@@ -77,7 +79,7 @@ class MacroSizingConfigView(APIView):
         )
         return Response(MacroSizingConfigSerializer(payload).data)
 
-    def patch(self, request):
+    def patch(self, request: Any) -> Any:
         serializer = MacroSizingConfigUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         payload = interface_services.save_macro_sizing_config_payload(
@@ -86,7 +88,7 @@ class MacroSizingConfigView(APIView):
         return Response(MacroSizingConfigSerializer(payload).data)
 
 
-class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
+class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[misc]
     """
     资产元数据 API ViewSet (只读)
 
@@ -98,13 +100,17 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AssetMetadataSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """Return the asset metadata queryset via application service."""
 
         return interface_services.get_asset_metadata_queryset()
 
-    @action(detail=False, methods=["get"], url_path="by-class/(?P<asset_class>[^/]+)")
-    def by_class(self, request, asset_class=None):
+    @action(  # type: ignore[misc]
+        detail=False,
+        methods=["get"],
+        url_path="by-class/(?P<asset_class>[^/]+)",
+    )
+    def by_class(self, request: Any, asset_class: str | None = None) -> Any:
         """
         按资产类别查询
 
@@ -115,17 +121,17 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"success": True, "count": assets.count(), "data": serializer.data})
 
 
-class AccountHealthView(APIView):
+class AccountHealthView(APIView):  # type: ignore[misc]
     """Account 服务健康检查"""
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """检查 Account 服务健康状态"""
         return Response(interface_services.get_account_health_payload(request.user.id))
 
 
-class UserSearchView(APIView):
+class UserSearchView(APIView):  # type: ignore[misc]
     """
     用户搜索 API
 
@@ -136,7 +142,7 @@ class UserSearchView(APIView):
 
     permission_classes = [IsAuthenticated, GeneralPermission]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         """
         搜索用户
 
@@ -159,7 +165,7 @@ class UserSearchView(APIView):
         )
 
 
-class TradingCostConfigViewSet(viewsets.ModelViewSet):
+class TradingCostConfigViewSet(viewsets.ModelViewSet):  # type: ignore[misc]
     """
     交易费率配置 API ViewSet
 
@@ -174,16 +180,16 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated, TradingPermission]
 
-    def get_queryset(self):
+    def get_queryset(self) -> Any:
         """只返回当前用户投资组合的费率配置"""
         return interface_services.get_trading_cost_config_queryset(self.request.user.id)
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Any:
         if self.action in ["create", "update", "partial_update"]:
             return TradingCostConfigCreateSerializer
         return TradingCostConfigSerializer
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Any) -> None:
         """创建时验证投资组合归属"""
         portfolio = serializer.validated_data["portfolio"]
         if portfolio.user != self.request.user:
@@ -202,7 +208,7 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
             },
         )
 
-    def perform_update(self, serializer):
+    def perform_update(self, serializer: Any) -> None:
         """更新时禁止越权修改配置归属"""
         portfolio = serializer.validated_data.get("portfolio", serializer.instance.portfolio)
         if portfolio.user != self.request.user:
@@ -231,8 +237,8 @@ class TradingCostConfigViewSet(viewsets.ModelViewSet):
             },
         )
 
-    @action(detail=True, methods=["post"])
-    def calculate(self, request, pk=None):
+    @action(detail=True, methods=["post"])  # type: ignore[misc]
+    def calculate(self, request: Any, pk: Any = None) -> Any:
         """
         计算交易费用
 

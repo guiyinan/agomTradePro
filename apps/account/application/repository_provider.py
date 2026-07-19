@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
     AccountDiagnosticRepository,
@@ -85,7 +87,7 @@ def build_broker_trade_file_parser():
     return BrokerTradeFileParser()
 
 
-def build_market_price_service():
+def build_market_price_service() -> Any:
     """Build the default market price service lazily."""
 
     from apps.account.infrastructure.market_price_service import MarketPriceService

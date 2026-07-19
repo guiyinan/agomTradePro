@@ -11,13 +11,14 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any, cast
 
 from cryptography.fernet import Fernet, InvalidToken
-from django.conf import settings
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models import Sum
+from django.conf import settings  # type: ignore[import-untyped]
+from django.contrib.auth.models import User  # type: ignore[import-untyped]
+from django.core.exceptions import ValidationError  # type: ignore[import-untyped]
+from django.db import models  # type: ignore[import-untyped]
+from django.db.models import Sum  # type: ignore[import-untyped]
 
 from apps.account.application.rbac import ROLE_CHOICES
 from apps.config_center.infrastructure.models import SystemSettingsModel  # noqa: F401
@@ -32,12 +33,10 @@ def _build_app_fernet() -> Fernet:
     return Fernet(key)
 
 
-# ============================================================
 # 资产元数据模型
-# ============================================================
 
 
-class AssetMetadataModel(models.Model):
+class AssetMetadataModel(models.Model):  # type: ignore[misc]
     """
     资产元数据表
 
@@ -118,16 +117,14 @@ class AssetMetadataModel(models.Model):
             models.Index(fields=["asset_class", "region"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.asset_code} - {self.name}"
 
 
-# ============================================================
 # 账户与组合模型
-# ============================================================
 
 
-class AccountProfileModel(models.Model):
+class AccountProfileModel(models.Model):  # type: ignore[misc]
     """
     用户账户配置表
 
@@ -226,11 +223,11 @@ class AccountProfileModel(models.Model):
         verbose_name = "账户配置"
         verbose_name_plural = "账户配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} - {self.display_name}"
 
 
-class PortfolioModel(models.Model):
+class PortfolioModel(models.Model):  # type: ignore[misc]
     """
     投资组合表
 
@@ -262,53 +259,51 @@ class PortfolioModel(models.Model):
         verbose_name_plural = "投资组合"
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} - {self.name}"
 
     @property
-    def total_value(self):
+    def total_value(self) -> Decimal:
         """总市值"""
         from django.db.models import Sum
 
         result = self.positions.filter(is_closed=False).aggregate(total=Sum("market_value"))[
             "total"
         ]
-        return result or Decimal("0")
+        return Decimal(str(result or 0))
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> Decimal:
         """总成本"""
         from django.db.models import DecimalField, F
 
         result = self.positions.filter(is_closed=False).aggregate(
             total=Sum(F("shares") * F("avg_cost"), output_field=DecimalField())
         )["total"]
-        return result or Decimal("0")
+        return Decimal(str(result or 0))
 
     @property
-    def total_pnl(self):
+    def total_pnl(self) -> Decimal:
         """总盈亏"""
         return self.total_value - self.total_cost
 
     @property
-    def total_pnl_pct(self):
+    def total_pnl_pct(self) -> float:
         """总盈亏百分比"""
         if self.total_cost > 0:
             return float((self.total_pnl / self.total_cost) * 100)
         return 0.0
 
     @property
-    def position_count(self):
+    def position_count(self) -> int:
         """持仓数量"""
-        return self.positions.filter(is_closed=False).count()
+        return int(self.positions.filter(is_closed=False).count())
 
 
-# ============================================================
 # 持仓与交易模型
-# ============================================================
 
 
-class PositionModel(models.Model):
+class PositionModel(models.Model):  # type: ignore[misc]
     """
     持仓记录表
 
@@ -398,11 +393,11 @@ class PositionModel(models.Model):
             models.Index(fields=["is_closed"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.portfolio.name} - {self.asset_code} - {self.shares}股"
 
 
-class TransactionModel(models.Model):
+class TransactionModel(models.Model):  # type: ignore[misc]
     """
     交易记录表
 
@@ -509,11 +504,11 @@ class TransactionModel(models.Model):
             models.Index(fields=["broker_name", "external_trade_id"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.action.upper()} {self.asset_code} {self.shares}@{self.price}"
 
 
-class BrokerTradeImportBatchModel(models.Model):
+class BrokerTradeImportBatchModel(models.Model):  # type: ignore[misc]
     """One manual broker trade import attempt."""
 
     STATUS_CHOICES = [
@@ -536,7 +531,9 @@ class BrokerTradeImportBatchModel(models.Model):
         verbose_name="投资组合",
     )
     broker_name = models.CharField(max_length=64, default="manual", verbose_name="券商名称")
-    source_filename = models.CharField(max_length=255, blank=True, default="", verbose_name="文件名")
+    source_filename = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="文件名"
+    )
     file_hash = models.CharField(max_length=64, db_index=True, verbose_name="文件哈希")
     status = models.CharField(
         max_length=32,
@@ -570,16 +567,14 @@ class BrokerTradeImportBatchModel(models.Model):
             models.Index(fields=["portfolio", "-created_at"], name="idx_broker_import_pf_time"),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.broker_name} {self.source_filename} ({self.status})"
 
 
-# ============================================================
 # 信号扩展（关联到持仓）
-# ============================================================
 
 
-class PositionSignalLogModel(models.Model):
+class PositionSignalLogModel(models.Model):  # type: ignore[misc]
     """
     持仓信号关联表
 
@@ -600,7 +595,7 @@ class PositionSignalLogModel(models.Model):
         verbose_name_plural = "持仓信号日志"
 
 
-class PortfolioDailySnapshotModel(models.Model):
+class PortfolioDailySnapshotModel(models.Model):  # type: ignore[misc]
     """
     投资组合日快照表
 
@@ -640,11 +635,11 @@ class PortfolioDailySnapshotModel(models.Model):
         verbose_name = "投资组合日快照"
         verbose_name_plural = "投资组合日快照"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.portfolio.name} @ {self.snapshot_date}: ¥{self.total_value}"
 
 
-class InvestmentRuleModel(models.Model):
+class InvestmentRuleModel(models.Model):  # type: ignore[misc]
     """
     投资规则配置表
 
@@ -714,11 +709,11 @@ class InvestmentRuleModel(models.Model):
             models.Index(fields=["user", "rule_type", "is_active"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({self.get_rule_type_display()})"
 
 
-class CapitalFlowModel(models.Model):
+class CapitalFlowModel(models.Model):  # type: ignore[misc]
     """
     资金流水表
 
@@ -763,11 +758,11 @@ class CapitalFlowModel(models.Model):
             models.Index(fields=["user", "flow_type", "-flow_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.get_flow_type_display()} {self.amount} ({self.flow_date})"
 
 
-class DocumentationModel(models.Model):
+class DocumentationModel(models.Model):  # type: ignore[misc]
     """
     文档表
 
@@ -805,16 +800,14 @@ class DocumentationModel(models.Model):
             models.Index(fields=["category", "is_published"]),
         ]
 
-    def __str__(self):
-        return self.title
+    def __str__(self) -> str:
+        return str(self.title)
 
 
-# ============================================================
 # 资产分类体系（多级分类）
-# ============================================================
 
 
-class AssetCategoryModel(models.Model):
+class AssetCategoryModel(models.Model):  # type: ignore[misc]
     """
     资产分类模型
 
@@ -862,16 +855,17 @@ class AssetCategoryModel(models.Model):
             models.Index(fields=["level"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.path} - {self.name}"
 
-    def get_ancestors(self):
+    def get_ancestors(self) -> list["AssetCategoryModel"]:
         """获取所有父级分类"""
         if self.parent:
-            return self.parent.get_ancestors() + [self.parent]
+            parent = cast("AssetCategoryModel", self.parent)
+            return parent.get_ancestors() + [parent]
         return []
 
-    def get_full_path(self):
+    def get_full_path(self) -> str:
         """获取完整分类路径"""
         ancestors = self.get_ancestors()
         path_parts = [a.name for a in ancestors]
@@ -879,12 +873,10 @@ class AssetCategoryModel(models.Model):
         return " / ".join(path_parts)
 
 
-# ============================================================
 # 币种模型
-# ============================================================
 
 
-class CurrencyModel(models.Model):
+class CurrencyModel(models.Model):  # type: ignore[misc]
     """
     币种模型
 
@@ -912,21 +904,20 @@ class CurrencyModel(models.Model):
         verbose_name_plural = "币种"
         ordering = ["-is_base", "code"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.code} - {self.name} ({self.symbol})"
 
     @classmethod
-    def get_base_currency(cls):
+    def get_base_currency(cls) -> "CurrencyModel | None":
         """获取基准货币"""
-        return cls.objects.filter(is_base=True).first() or cls.objects.filter(code="CNY").first()
+        result = cls.objects.filter(is_base=True).first() or cls.objects.filter(code="CNY").first()
+        return cast("CurrencyModel | None", result)
 
 
-# ============================================================
 # 汇率模型
-# ============================================================
 
 
-class ExchangeRateModel(models.Model):
+class ExchangeRateModel(models.Model):  # type: ignore[misc]
     """
     汇率模型
 
@@ -955,24 +946,31 @@ class ExchangeRateModel(models.Model):
             models.Index(fields=["from_currency", "to_currency", "effective_date"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.from_currency.code} -> {self.to_currency.code}: {self.rate} ({self.effective_date})"
 
     def convert(self, amount: Decimal) -> Decimal:
         """将金额从源币种转换为目标币种"""
-        return amount * self.rate
+        return amount * Decimal(str(self.rate))
 
     @classmethod
-    def get_latest_rate(cls, from_code: str, to_code: str) -> "ExchangeRateModel":
+    def get_latest_rate(cls, from_code: str, to_code: str) -> "ExchangeRateModel | None":
         """获取最新汇率"""
-        return (
+        result = (
             cls.objects.filter(from_currency__code=from_code, to_currency__code=to_code)
             .order_by("-effective_date")
             .first()
         )
+        return cast("ExchangeRateModel | None", result)
 
     @classmethod
-    def convert_amount(cls, amount: Decimal, from_code: str, to_code: str, date=None) -> Decimal:
+    def convert_amount(
+        cls,
+        amount: Decimal,
+        from_code: str,
+        to_code: str,
+        date: Any = None,
+    ) -> Decimal:
         """
         转换金额
 
@@ -995,7 +993,7 @@ class ExchangeRateModel(models.Model):
         else:
             queryset = queryset.order_by("-effective_date")
 
-        rate = queryset.first()
+        rate = cast("ExchangeRateModel | None", queryset.first())
         if not rate:
             raise ValueError(f"No exchange rate found for {from_code} -> {to_code}")
 
@@ -1007,7 +1005,7 @@ class ExchangeRateModel(models.Model):
 # ============================================================
 
 
-class TradingCostConfigModel(models.Model):
+class TradingCostConfigModel(models.Model):  # type: ignore[misc]
     """
     交易费率配置表
 
@@ -1045,10 +1043,10 @@ class TradingCostConfigModel(models.Model):
         verbose_name = "交易费率配置"
         verbose_name_plural = "交易费率配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.portfolio.name} - 佣金{self.commission_rate:.5%}"
 
-    def to_domain(self):
+    def to_domain(self) -> Any:
         """转换为Domain实体"""
         from apps.account.domain.entities import TradingCostConfig
 
@@ -1063,7 +1061,7 @@ class TradingCostConfigModel(models.Model):
         )
 
 
-class StopLossConfigModel(models.Model):
+class StopLossConfigModel(models.Model):  # type: ignore[misc]
     """
     止损配置表
 
@@ -1133,11 +1131,11 @@ class StopLossConfigModel(models.Model):
             models.Index(fields=["position", "status"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.position.asset_code} - {self.get_stop_loss_type_display()} ({self.stop_loss_pct:.2%})"
 
 
-class TakeProfitConfigModel(models.Model):
+class TakeProfitConfigModel(models.Model):  # type: ignore[misc]
     """
     止盈配置表
 
@@ -1175,11 +1173,11 @@ class TakeProfitConfigModel(models.Model):
             models.Index(fields=["position", "is_active"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.position.asset_code} - 止盈 {self.take_profit_pct:.2%}"
 
 
-class StopLossTriggerModel(models.Model):
+class StopLossTriggerModel(models.Model):  # type: ignore[misc]
     """
     止损触发记录表
 
@@ -1223,13 +1221,13 @@ class StopLossTriggerModel(models.Model):
             models.Index(fields=["trigger_type"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.position.asset_code} - {self.get_trigger_type_display()} @ {self.trigger_price}"
         )
 
 
-class UserAccessTokenModel(models.Model):
+class UserAccessTokenModel(models.Model):  # type: ignore[misc]
     """支持多 Token 的 MCP/SDK 访问凭证。"""
 
     ACCESS_LEVEL_READ_ONLY = "read_only"
@@ -1311,7 +1309,7 @@ class UserAccessTokenModel(models.Model):
             models.Index(fields=["key"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username}:{self.name}"
 
     @property
@@ -1332,7 +1330,7 @@ class UserAccessTokenModel(models.Model):
         name: str,
         created_by: User | None = None,
         access_level: str = ACCESS_LEVEL_READ_WRITE,
-    ):
+    ) -> tuple["UserAccessTokenModel", str]:
         raw_name = (name or "").strip() or f"token-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
         raw_key = cls.generate_key()
         token = cls._default_manager.create(
@@ -1347,17 +1345,19 @@ class UserAccessTokenModel(models.Model):
 
     @property
     def allows_write(self) -> bool:
-        return self.access_level == self.ACCESS_LEVEL_READ_WRITE
+        return bool(self.access_level == self.ACCESS_LEVEL_READ_WRITE)
 
     def reveal_key(self) -> str:
         if not self.key_encrypted:
             return ""
         try:
-            return _build_app_fernet().decrypt(self.key_encrypted.encode("utf-8")).decode("utf-8")
+            return str(
+                _build_app_fernet().decrypt(self.key_encrypted.encode("utf-8")).decode("utf-8")
+            )
         except (InvalidToken, ValueError, TypeError):
             return ""
 
-    def revoke(self):
+    def revoke(self) -> None:
         self.is_active = False
         self.revoked_at = datetime.now(UTC)
         self.save(update_fields=["is_active", "revoked_at", "updated_at"])
@@ -1368,7 +1368,7 @@ class UserAccessTokenModel(models.Model):
 # ============================================================
 
 
-class PortfolioObserverGrantModel(models.Model):
+class PortfolioObserverGrantModel(models.Model):  # type: ignore[misc]
     """
     投资组合观察员授权表
 
@@ -1446,10 +1446,10 @@ class PortfolioObserverGrantModel(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.owner_user_id.username} -> {self.observer_user_id.username} ({self.get_status_display()})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证约束条件"""
         # 不能授权给自己
         if self.owner_user_id == self.observer_user_id:
@@ -1472,7 +1472,7 @@ class PortfolioObserverGrantModel(models.Model):
                     }
                 )
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         self._skip_duplicate_active_validation = True
         try:
             self.full_clean(validate_constraints=False)
@@ -1480,7 +1480,7 @@ class PortfolioObserverGrantModel(models.Model):
             self._skip_duplicate_active_validation = False
         super().save(*args, **kwargs)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """检查授权是否有效"""
         if self.status != "active":
             return False
@@ -1488,13 +1488,13 @@ class PortfolioObserverGrantModel(models.Model):
             return False
         return True
 
-    def is_expired(self):
+    def is_expired(self) -> bool:
         """检查授权是否已过期"""
         if self.expires_at is None:
             return False
-        return self.expires_at < datetime.now(UTC)
+        return bool(self.expires_at < datetime.now(UTC))
 
-    def revoke(self, revoked_by_user):
+    def revoke(self, revoked_by_user: Any) -> None:
         """撤销授权"""
         self.status = "revoked"
         self.revoked_at = datetime.now(UTC)
@@ -1507,7 +1507,7 @@ class PortfolioObserverGrantModel(models.Model):
 # ============================================================
 
 
-class MacroSizingConfigModel(models.Model):
+class MacroSizingConfigModel(models.Model):  # type: ignore[misc]
     """
     宏观感知仓位系数配置持久化模型。
     支持多版本配置，is_active=True 且 version 最大的一条为生效配置。
@@ -1568,7 +1568,7 @@ class MacroSizingConfigModel(models.Model):
 # Shared configuration models repatriated from shared.infrastructure.models
 
 
-class TransactionCostConfigModel(models.Model):
+class TransactionCostConfigModel(models.Model):  # type: ignore[misc]
     """
     交易成本配置表
 
@@ -1648,7 +1648,7 @@ class TransactionCostConfigModel(models.Model):
             models.Index(fields=["is_active"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.get_market_display()} - {self.get_asset_class_display()}"
 
     def calculate_total_cost(
@@ -1695,5 +1695,5 @@ class TransactionCostConfigModel(models.Model):
             "stamp_duty": stamp_duty,
             "transfer_fee": transfer_fee,
             "total_cost": total_cost,
-            "cost_ratio": float(total_cost) / trade_value_float if trade_value_float > 0 else 0,
+            "cost_ratio": total_cost / trade_value if trade_value > 0 else Decimal("0"),
         }

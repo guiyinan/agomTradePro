@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from apps.task_monitor.application.readiness_monitor_service import (
     get_personal_readiness_monitor_placeholder,
     get_personal_readiness_monitor_summary,
@@ -22,7 +24,7 @@ from apps.task_monitor.application.use_cases import (
 )
 
 
-def get_scheduler_console_context(*, limit: int = 100) -> dict:
+def get_scheduler_console_context(*, limit: int = 100) -> dict[str, Any]:
     """Return template context for the scheduler console page."""
 
     response = GetSchedulerConsoleUseCase(
@@ -48,7 +50,7 @@ def get_scheduler_console_context(*, limit: int = 100) -> dict:
     }
 
 
-def get_readiness_monitor_page_context() -> dict:
+def get_readiness_monitor_page_context() -> dict[str, Any]:
     """Return lightweight template context for the readiness monitor page."""
 
     return {
@@ -61,13 +63,13 @@ def get_readiness_monitor_page_context() -> dict:
     }
 
 
-def get_readiness_monitor_context(*, strict_runtime: bool = False) -> dict:
+def get_readiness_monitor_context(*, strict_runtime: bool = False) -> dict[str, Any]:
     """Return the daily readiness monitor payload for page JSON refreshes."""
 
     return get_personal_readiness_monitor_summary(strict_runtime=strict_runtime)
 
 
-def bootstrap_scheduler_defaults() -> dict:
+def bootstrap_scheduler_defaults() -> dict[str, Any]:
     """Initialize default scheduler tasks and return a UI-friendly payload."""
 
     response = BootstrapDefaultSchedulesUseCase(
@@ -84,7 +86,7 @@ def configure_readiness_schedule(
     quote_pre_refresh_time: str,
     daily_evidence_time: str,
     weekly_auto_advisor_time: str,
-) -> dict:
+) -> dict[str, Any]:
     """Configure post-close readiness schedule times from the console page."""
 
     response = ConfigureReadinessScheduleUseCase(

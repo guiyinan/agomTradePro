@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any
 from urllib.parse import urlparse
 
-from django.utils import timezone
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from apps.account.application.rbac import ROLE_CHOICES
 from apps.account.application.repository_provider import (
@@ -66,7 +66,7 @@ TOKEN_ACCESS_LEVEL_CHOICES = (
 )
 
 
-def get_system_settings():
+def get_system_settings() -> Any:
     """Return the singleton system settings model."""
 
     return _interface_repo().get_system_settings()
@@ -78,13 +78,13 @@ def has_system_settings_singleton() -> bool:
     return _interface_repo().has_system_settings_singleton()
 
 
-def get_existing_system_settings():
+def get_existing_system_settings() -> Any:
     """Return the existing singleton settings row without creating one."""
 
     return _interface_repo().get_existing_system_settings()
 
 
-def get_active_access_token(key: str):
+def get_active_access_token(key: str) -> Any:
     """Return one active access token when available."""
 
     return _interface_repo().get_active_access_token(key)
@@ -114,7 +114,7 @@ def list_investment_account_options(user_id: int) -> list[dict[str, Any]]:
     return options
 
 
-def touch_access_token(token) -> None:
+def touch_access_token(token: Any) -> None:
     """Persist last-used metadata for one access token."""
 
     _interface_repo().touch_access_token(token)
@@ -160,9 +160,9 @@ def get_token_access_level_choices() -> tuple[tuple[str, str], ...]:
 
 def provision_registered_user(
     *,
-    user,
+    user: Any,
     display_name: str,
-    system_settings,
+    system_settings: Any,
     client_ip: str | None,
     approval_status: str,
     rbac_role: str,
@@ -519,7 +519,7 @@ def build_mcp_agent_prompt_payload(
     }
 
 
-def get_active_portfolio_for_user(user_id: int):
+def get_active_portfolio_for_user(user_id: int) -> Any:
     """Return the user's active portfolio when available."""
 
     return _interface_repo().get_active_portfolio_for_user(user_id)
@@ -600,7 +600,7 @@ def save_macro_sizing_config_payload(*, validated_data: Mapping[str, Any]) -> di
     return _macro_sizing_repo().save_active_config_payload(validated_data=validated_data)
 
 
-def get_api_profile(user_id: int):
+def get_api_profile(user_id: int) -> Any:
     """Return the account profile model for API serialization."""
 
     return _interface_repo().get_api_profile(user_id)
@@ -611,7 +611,7 @@ def update_api_profile(
     *,
     profile_data: Mapping[str, Any],
     email: str | None = None,
-):
+) -> Any:
     """Persist API profile updates and return the refreshed profile model."""
 
     return _interface_repo().update_api_profile(
@@ -621,37 +621,37 @@ def update_api_profile(
     )
 
 
-def get_asset_category_queryset():
+def get_asset_category_queryset() -> Any:
     """Return active asset categories for API listing/retrieval."""
 
     return _classification_repo().list_active_asset_categories()
 
 
-def get_asset_category_roots():
+def get_asset_category_roots() -> Any:
     """Return active root-level asset categories."""
 
     return _classification_repo().list_root_asset_categories()
 
 
-def get_asset_category_tree_roots():
+def get_asset_category_tree_roots() -> Any:
     """Return active tree root categories."""
 
     return _classification_repo().list_tree_root_asset_categories()
 
 
-def get_asset_category_children(*, category_id: int):
+def get_asset_category_children(*, category_id: int) -> Any:
     """Return active child categories for one category."""
 
     return _classification_repo().list_child_asset_categories(category_id)
 
 
-def create_asset_category(*, validated_data: Mapping[str, Any]):
+def create_asset_category(*, validated_data: Mapping[str, Any]) -> Any:
     """Create one asset category from serializer-validated data."""
 
     return _classification_repo().create_asset_category(**dict(validated_data))
 
 
-def update_asset_category(*, category_id: int, validated_data: Mapping[str, Any]):
+def update_asset_category(*, category_id: int, validated_data: Mapping[str, Any]) -> Any:
     """Update one asset category from serializer-validated data."""
 
     return _classification_repo().update_asset_category(
@@ -666,31 +666,31 @@ def delete_asset_category(*, category_id: int) -> None:
     _classification_repo().delete_asset_category(category_id=category_id)
 
 
-def get_currency_queryset():
+def get_currency_queryset() -> Any:
     """Return active currencies for API listing/retrieval."""
 
     return _classification_repo().list_active_currencies()
 
 
-def get_base_currency():
+def get_base_currency() -> Any:
     """Return the configured base currency model."""
 
     return _classification_repo().get_base_currency()
 
 
-def get_exchange_rate_queryset():
+def get_exchange_rate_queryset() -> Any:
     """Return exchange rates for API listing/retrieval."""
 
     return _classification_repo().list_exchange_rates()
 
 
-def create_exchange_rate(*, validated_data: Mapping[str, Any]):
+def create_exchange_rate(*, validated_data: Mapping[str, Any]) -> Any:
     """Create one exchange rate from serializer-validated data."""
 
     return _classification_repo().create_exchange_rate(**dict(validated_data))
 
 
-def update_exchange_rate(*, exchange_rate_id: int, validated_data: Mapping[str, Any]):
+def update_exchange_rate(*, exchange_rate_id: int, validated_data: Mapping[str, Any]) -> Any:
     """Update one exchange rate from serializer-validated data."""
 
     return _classification_repo().update_exchange_rate(
@@ -705,7 +705,7 @@ def delete_exchange_rate(*, exchange_rate_id: int) -> None:
     _classification_repo().delete_exchange_rate(exchange_rate_id=exchange_rate_id)
 
 
-def get_latest_exchange_rate(*, from_code: str, to_code: str):
+def get_latest_exchange_rate(*, from_code: str, to_code: str) -> Any:
     """Return the latest exchange rate model for one pair."""
 
     return _classification_repo().get_latest_exchange_rate(from_code=from_code, to_code=to_code)
@@ -716,7 +716,7 @@ def convert_currency_amount(
     amount: Decimal,
     from_currency: str,
     to_currency: str,
-    date_value=None,
+    date_value: Any = None,
 ) -> dict[str, Any]:
     """Convert one amount and return the rate metadata used."""
 
@@ -886,7 +886,7 @@ def create_capital_flow(
     *,
     flow_type: str,
     amount: Decimal,
-    flow_date,
+    flow_date: Any,
     notes: str,
 ) -> FlashOutcome:
     """Create a capital flow entry for the current user."""
@@ -1105,13 +1105,13 @@ def build_observer_portal_context(user_id: int) -> dict[str, Any]:
     }
 
 
-def find_user_by_username(username: str):
+def find_user_by_username(username: str) -> Any:
     """Return one user by username when available."""
 
     return _interface_repo().find_user_by_username(username)
 
 
-def find_user_by_id(user_id: int):
+def find_user_by_id(user_id: int) -> Any:
     """Return one user by id when available."""
 
     return _interface_repo().find_user_by_id(user_id)
@@ -1123,7 +1123,7 @@ def get_unified_account_id_for_portfolio(portfolio_id: int) -> int | None:
     return _interface_repo().get_unified_account_id_for_portfolio(portfolio_id)
 
 
-def get_active_observer_grant(*, owner_user_id: int, observer_user_id: int):
+def get_active_observer_grant(*, owner_user_id: int, observer_user_id: int) -> Any:
     """Return one active observer grant for the owner/observer pair."""
 
     return _interface_repo().get_active_observer_grant(
@@ -1143,8 +1143,8 @@ def create_observer_grant_record(
     owner_user_id: int,
     observer_user_id: int,
     created_by_user_id: int,
-    expires_at,
-):
+    expires_at: Any,
+) -> Any:
     """Create one observer grant record."""
 
     return _interface_repo().create_observer_grant(
@@ -1164,31 +1164,31 @@ def has_active_observer_access(*, owner_user_id: int, observer_user_id: int) -> 
     )
 
 
-def get_accessible_portfolios_queryset(user_id: int):
+def get_accessible_portfolios_queryset(user_id: int) -> Any:
     """Return the portfolio queryset accessible to the given user."""
 
     return _interface_repo().get_accessible_portfolios_queryset(user_id)
 
 
-def get_asset_metadata_queryset():
+def get_asset_metadata_queryset() -> Any:
     """Return the asset metadata queryset for API listing/retrieval."""
 
     return _interface_repo().get_asset_metadata_queryset()
 
 
-def get_user_transaction_queryset(user_id: int):
+def get_user_transaction_queryset(user_id: int) -> Any:
     """Return transactions scoped to portfolios owned by the user."""
 
     return _interface_repo().get_user_transaction_queryset(user_id)
 
 
-def get_user_capital_flow_queryset(user_id: int):
+def get_user_capital_flow_queryset(user_id: int) -> Any:
     """Return capital flows scoped to portfolios owned by the user."""
 
     return _interface_repo().get_user_capital_flow_queryset(user_id)
 
 
-def get_user_portfolio(*, user_id: int, portfolio_id: int):
+def get_user_portfolio(*, user_id: int, portfolio_id: int) -> Any:
     """Return one owned portfolio when available."""
 
     return _interface_repo().get_user_portfolio(
@@ -1212,7 +1212,7 @@ def search_observer_candidates(*, owner_user_id: int, query: str) -> list[dict[s
     )
 
 
-def get_trading_cost_config_queryset(user_id: int):
+def get_trading_cost_config_queryset(user_id: int) -> Any:
     """Return trading cost configs for portfolios owned by the user."""
 
     return _interface_repo().get_trading_cost_config_queryset(user_id)
@@ -1223,7 +1223,7 @@ def save_api_trading_cost_config(
     actor_user_id: int,
     portfolio_id: int,
     validated_data: Mapping[str, Any],
-):
+) -> Any:
     """Create or update one trading cost config from validated API data."""
 
     return _interface_repo().save_api_trading_cost_config(
@@ -1242,7 +1242,7 @@ def list_observer_grants_queryset(
     user_id: int,
     as_observer: bool,
     status_filter: str | None = None,
-):
+) -> Any:
     """Return observer grants scoped to the current owner or observer view."""
 
     return _interface_repo().list_observer_grants_queryset(
@@ -1252,7 +1252,7 @@ def list_observer_grants_queryset(
     )
 
 
-def get_observer_grant_by_id(grant_id):
+def get_observer_grant_by_id(grant_id: Any) -> Any:
     """Return one observer grant with related users when available."""
 
     return _interface_repo().get_observer_grant_by_id(grant_id)
@@ -1264,7 +1264,7 @@ def build_observer_positions_payload(owner_user_id: int) -> dict[str, Any]:
     return _interface_repo().build_observer_positions_payload(owner_user_id)
 
 
-def update_observer_grant(*, grant_id, expires_at):
+def update_observer_grant(*, grant_id: Any, expires_at: Any) -> Any:
     """Persist a grant expiry update and return the refreshed model."""
 
     return _interface_repo().update_observer_grant(
@@ -1273,7 +1273,7 @@ def update_observer_grant(*, grant_id, expires_at):
     )
 
 
-def revoke_observer_grant(*, grant_id, revoked_by_user_id: int):
+def revoke_observer_grant(*, grant_id: Any, revoked_by_user_id: int) -> Any:
     """Revoke one observer grant and return the refreshed model."""
 
     return _interface_repo().revoke_observer_grant(

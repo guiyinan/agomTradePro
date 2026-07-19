@@ -9,9 +9,9 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
-from django.utils import timezone
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from apps.account.application.business_provider_gateway import get_backtest_repository
 from apps.account.application.repository_provider import (
@@ -45,6 +45,24 @@ from apps.signal.application.repository_provider import get_signal_repository
 logger = logging.getLogger(__name__)
 
 
+class MarketPriceServiceProtocol(Protocol):
+    """Price lookup boundary required by account position use cases."""
+
+    def get_price_with_metadata(self, asset_code: str) -> dict[str, Any] | None: ...
+
+
+class SignalSnapshotRepositoryProtocol(Protocol):
+    """Signal snapshot lookup boundary required by account use cases."""
+
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, Any] | None: ...
+
+
+class BacktestRepositoryProtocol(Protocol):
+    """Backtest lookup boundary required by account import use cases."""
+
+    def get_backtest_by_id(self, backtest_id: int) -> Any: ...
+
+
 @dataclass
 class CreatePositionInput:
     """创建持仓输入"""
@@ -73,7 +91,7 @@ class RegimeAnalysisOutput:
     regime_date: date
     match_analysis: RegimeMatchAnalysis
     asset_allocation: list[AssetAllocation]
-    risk_assessment: dict[str, any]
+    risk_assessment: dict[str, Any]
 
 
 class CreatePositionUseCase:
@@ -84,8 +102,8 @@ class CreatePositionUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
-        market_price_service: Any | None = None,
-    ):
+        market_price_service: MarketPriceServiceProtocol | None = None,
+    ) -> None:
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
@@ -171,7 +189,7 @@ class CreatePositionUseCase:
                 f"从行情接口获取价格: {asset_code} = {price_metadata['price']} "
                 f"(来源: {price_metadata['source']})"
             )
-            return price_metadata["price"]
+            return Decimal(str(price_metadata["price"]))
 
         logger.warning(f"无法从行情接口获取价格: {asset_code}")
         return None
@@ -184,9 +202,9 @@ class CreatePositionFromSignalUseCase:
         self,
         position_repo: PositionRepository,
         account_repo: AccountRepository,
-        market_price_service: Any | None = None,
-        signal_repo: object = None,
-    ):
+        market_price_service: MarketPriceServiceProtocol | None = None,
+        signal_repo: SignalSnapshotRepositoryProtocol | None = None,
+    ) -> None:
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.market_price_service = market_price_service or build_market_price_service()
@@ -360,7 +378,7 @@ class UpdatePositionPricesUseCase:
         self.position_repo = position_repo
         self.asset_meta_repo = asset_meta_repo
 
-    def execute(self, user_id: int) -> dict[str, any]:
+    def execute(self, user_id: int) -> dict[str, Any]:
         """
         批量更新用户持仓价格
 
@@ -411,10 +429,10 @@ class CreatePositionFromBacktestUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
-        market_price_service: Any | None = None,
-        backtest_repo: object = None,
-        settings_repo: SystemSettingsRepository = None,
-    ):
+        market_price_service: MarketPriceServiceProtocol | None = None,
+        backtest_repo: BacktestRepositoryProtocol | None = None,
+        settings_repo: SystemSettingsRepository | None = None,
+    ) -> None:
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
@@ -456,7 +474,7 @@ class CreatePositionFromBacktestUseCase:
         portfolio_id = self.account_repo.get_or_create_default_portfolio(input.user_id)
 
         # 4. 为每个资产创建持仓
-        positions_created = []
+        positions_created: list[Position] = []
         total_value = 0.0
 
         for holding in final_holdings:
@@ -469,8 +487,8 @@ class CreatePositionFromBacktestUseCase:
             self.asset_meta_repo.get_or_create_asset(
                 asset_code=asset_code,
                 name=asset_class,  # 使用大类名称作为显示名称
-                asset_class=self._infer_asset_class_type(asset_class),
-                region=self._infer_region(asset_class),
+                asset_class=self._infer_asset_class_type(asset_class).value,
+                region=self._infer_region(asset_class).value,
             )
 
             # 获取当前价格（优先使用行情接口，否则使用回测价格）
@@ -507,8 +525,10 @@ class CreatePositionFromBacktestUseCase:
         )
 
     def _extract_final_holdings_from_trades(
-        self, trades: list[dict], scale_factor: float = 1.0
-    ) -> list[dict]:
+        self,
+        trades: list[dict[str, Any]],
+        scale_factor: float = 1.0,
+    ) -> list[dict[str, Any]]:
         """
         从交易记录中提取最终持仓
 
@@ -517,10 +537,12 @@ class CreatePositionFromBacktestUseCase:
         2. 逐笔更新持仓状态
         3. 返回最终持仓（shares > 0）
         """
-        holdings: dict[str, dict] = {}  # asset_class -> {shares, last_price}
+        holdings: dict[str, dict[str, Any]] = {}  # asset_class -> {shares, last_price}
 
         for trade in trades:
-            asset_class = trade.get("asset_class")
+            asset_class = str(trade.get("asset_class") or "").strip()
+            if not asset_class:
+                continue
             action = trade.get("action")
             shares = trade.get("shares", 0)
             price = trade.get("price", 100)
@@ -547,7 +569,7 @@ class CreatePositionFromBacktestUseCase:
                     holdings[asset_class]["price"] = price
 
         # 过滤掉零持仓，应用缩放因子
-        final_holdings = []
+        final_holdings: list[dict[str, Any]] = []
         for asset_class, data in holdings.items():
             if data["shares"] > 0:
                 final_holdings.append(

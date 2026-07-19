@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class AccountInterfaceRegistrationRepositoryMixin:
     """Persist registration and user-facing account profile workflows."""
 
-    def get_system_settings(self):
+    def get_system_settings(self) -> Any:
         """Return the singleton system settings model."""
 
         return SystemSettingsModel.get_settings()
@@ -62,7 +62,7 @@ class AccountInterfaceRegistrationRepositoryMixin:
 
         return SystemSettingsModel._default_manager.exists()
 
-    def get_existing_system_settings(self):
+    def get_existing_system_settings(self) -> Any:
         """Return the existing singleton settings row without creating one."""
 
         return SystemSettingsModel._default_manager.first()

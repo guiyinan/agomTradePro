@@ -15,18 +15,20 @@ Usage:
 
 import logging
 import subprocess
+from argparse import ArgumentParser
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError  # type: ignore[import-untyped]
 
 from apps.task_monitor.application.repository_provider import get_database_backup_service
 
 logger = logging.getLogger(__name__)
 
 
-class Command(BaseCommand):
+class Command(BaseCommand):  # type: ignore[misc]
     help = "Backup the database (supports SQLite and PostgreSQL)"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--output",
             type=str,
@@ -44,7 +46,7 @@ class Command(BaseCommand):
             help="Compress the backup file (gzip)",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         output_dir = options.get("output")
         keep_days = options["keep"]
         compress = options["compress"]

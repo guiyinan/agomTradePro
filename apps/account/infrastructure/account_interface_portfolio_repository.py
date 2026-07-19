@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class AccountInterfacePortfolioRepositoryMixin:
     """Persist portfolio access, observer grants, and related account data."""
 
-    def get_asset_metadata_queryset(self):
+    def get_asset_metadata_queryset(self) -> Any:
         """Return the asset metadata queryset for API listing/retrieval."""
 
         return AssetMetadataModel._default_manager.order_by("asset_code", "id")
@@ -171,7 +171,7 @@ class AccountInterfacePortfolioRepositoryMixin:
             queryset = queryset.filter(status=status_filter)
         return queryset.order_by("-created_at")
 
-    def get_observer_grant_by_id(self, grant_id):
+    def get_observer_grant_by_id(self, grant_id: Any) -> Any:
         """Return one observer grant with related users when available."""
 
         return (
@@ -242,7 +242,7 @@ class AccountInterfacePortfolioRepositoryMixin:
             },
         }
 
-    def update_observer_grant(self, *, grant_id, expires_at):
+    def update_observer_grant(self, *, grant_id: Any, expires_at: Any) -> Any:
         """Persist a grant expiry update and return the refreshed model."""
 
         grant = self.get_observer_grant_by_id(grant_id)

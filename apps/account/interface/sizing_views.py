@@ -1,6 +1,8 @@
 """Account sizing context API views."""
 
-from django.utils import timezone
+from typing import Any
+
+from django.utils import timezone  # type: ignore[import-untyped]
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,12 +11,12 @@ from rest_framework.views import APIView
 from apps.account.application.use_cases import GetSizingContextUseCase
 
 
-class SizingContextView(APIView):
+class SizingContextView(APIView):  # type: ignore[misc]
     """返回当前用户投资组合的宏观仓位系数上下文。"""
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request: Any) -> Any:
         portfolio_id = request.query_params.get("portfolio_id")
         if portfolio_id is None:
             portfolio = request.user.portfolios.filter(is_active=True).first()
