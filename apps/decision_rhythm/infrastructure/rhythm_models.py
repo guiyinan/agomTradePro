@@ -47,68 +47,34 @@ class DecisionQuotaModel(models.Model):
 
     # 字段定义
     quota_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="配额唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="配额唯一标识符"
     )
 
     account_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        default="default",
-        help_text="关联账户 ID，不同账户独立配额"
+        max_length=64, db_index=True, default="default", help_text="关联账户 ID，不同账户独立配额"
     )
 
     period = models.CharField(
-        max_length=16,
-        choices=PERIOD_CHOICES,
-        db_index=True,
-        help_text="配额周期"
+        max_length=16, choices=PERIOD_CHOICES, db_index=True, help_text="配额周期"
     )
 
-    max_decisions = models.IntegerField(
-        default=10,
-        help_text="最大决策次数"
-    )
+    max_decisions = models.IntegerField(default=10, help_text="最大决策次数")
 
-    max_execution_count = models.IntegerField(
-        default=5,
-        help_text="最大执行次数"
-    )
+    max_execution_count = models.IntegerField(default=5, help_text="最大执行次数")
 
-    used_decisions = models.IntegerField(
-        default=0,
-        help_text="已使用决策次数"
-    )
+    used_decisions = models.IntegerField(default=0, help_text="已使用决策次数")
 
-    used_executions = models.IntegerField(
-        default=0,
-        help_text="已使用执行次数"
-    )
+    used_executions = models.IntegerField(default=0, help_text="已使用执行次数")
 
-    period_start = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="周期开始时间"
-    )
+    period_start = models.DateTimeField(null=True, blank=True, help_text="周期开始时间")
 
     period_end = models.DateTimeField(
-        null=True,
-        blank=True,
-        db_index=True,
-        help_text="周期结束时间"
+        null=True, blank=True, db_index=True, help_text="周期结束时间"
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -209,49 +175,22 @@ class CooldownPeriodModel(models.Model):
 
     # 字段定义
     cooldown_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="冷却期唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="冷却期唯一标识符"
     )
 
-    asset_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="资产代码"
-    )
+    asset_code = models.CharField(max_length=32, db_index=True, help_text="资产代码")
 
-    last_decision_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="最后决策时间"
-    )
+    last_decision_at = models.DateTimeField(null=True, blank=True, help_text="最后决策时间")
 
-    last_execution_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="最后执行时间"
-    )
+    last_execution_at = models.DateTimeField(null=True, blank=True, help_text="最后执行时间")
 
-    min_decision_interval_hours = models.IntegerField(
-        default=24,
-        help_text="最小决策间隔（小时）"
-    )
+    min_decision_interval_hours = models.IntegerField(default=24, help_text="最小决策间隔（小时）")
 
-    min_execution_interval_hours = models.IntegerField(
-        default=48,
-        help_text="最小执行间隔（小时）"
-    )
+    min_execution_interval_hours = models.IntegerField(default=48, help_text="最小执行间隔（小时）")
 
-    same_asset_cooldown_hours = models.IntegerField(
-        default=72,
-        help_text="同资产冷却期（小时）"
-    )
+    same_asset_cooldown_hours = models.IntegerField(default=72, help_text="同资产冷却期（小时）")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -357,89 +296,46 @@ class DecisionRequestModel(models.Model):
 
     # 字段定义
     request_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="请求唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="请求唯一标识符"
     )
 
-    asset_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="资产代码"
-    )
+    asset_code = models.CharField(max_length=32, db_index=True, help_text="资产代码")
 
-    asset_class = models.CharField(
-        max_length=64,
-        help_text="资产类别"
-    )
+    asset_class = models.CharField(max_length=64, help_text="资产类别")
 
-    direction = models.CharField(
-        max_length=8,
-        help_text="方向"
-    )
+    direction = models.CharField(max_length=8, help_text="方向")
 
     priority = models.CharField(
         max_length=16,
         choices=PRIORITY_CHOICES,
         default=DecisionPriority.MEDIUM.value,
-        help_text="优先级"
+        help_text="优先级",
     )
 
-    trigger_id = models.CharField(
-        max_length=64,
-        blank=True,
-        db_index=True,
-        help_text="触发器 ID"
-    )
+    trigger_id = models.CharField(max_length=64, blank=True, db_index=True, help_text="触发器 ID")
 
-    reason = models.TextField(
-        blank=True,
-        help_text="原因"
-    )
+    reason = models.TextField(blank=True, help_text="原因")
 
-    expected_confidence = models.FloatField(
-        default=0.0,
-        help_text="预期置信度"
-    )
+    expected_confidence = models.FloatField(default=0.0, help_text="预期置信度")
 
-    quantity = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="数量"
-    )
+    quantity = models.IntegerField(null=True, blank=True, help_text="数量")
 
-    notional = models.FloatField(
-        null=True,
-        blank=True,
-        help_text="名义金额"
-    )
+    notional = models.FloatField(null=True, blank=True, help_text="名义金额")
 
-    requested_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="请求时间"
-    )
+    requested_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="请求时间")
 
-    expires_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="过期时间"
-    )
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="过期时间")
 
     # 新增字段：首页主流程闭环改造
     candidate_id = models.CharField(
-        max_length=64,
-        blank=True,
-        db_index=True,
-        help_text="关联的候选 ID"
+        max_length=64, blank=True, db_index=True, help_text="关联的候选 ID"
     )
 
     execution_target = models.CharField(
         max_length=16,
         choices=EXECUTION_TARGET_CHOICES,
         default=ExecutionTarget.NONE.value,
-        help_text="执行目标"
+        help_text="执行目标",
     )
 
     execution_status = models.CharField(
@@ -447,19 +343,13 @@ class DecisionRequestModel(models.Model):
         choices=EXECUTION_STATUS_CHOICES,
         default=ExecutionStatus.PENDING.value,
         db_index=True,
-        help_text="执行状态"
+        help_text="执行状态",
     )
 
-    executed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="执行时间"
-    )
+    executed_at = models.DateTimeField(null=True, blank=True, help_text="执行时间")
 
     execution_ref = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="执行引用（如 trade_id, position_id 等）"
+        null=True, blank=True, help_text="执行引用（如 trade_id, position_id 等）"
     )
 
     # 统一推荐关联字段（M1 新增）
@@ -469,7 +359,7 @@ class DecisionRequestModel(models.Model):
         null=True,
         blank=True,
         related_name="decision_requests",
-        help_text="关联的统一推荐"
+        help_text="关联的统一推荐",
     )
 
     feature_snapshot = models.ForeignKey(
@@ -478,7 +368,7 @@ class DecisionRequestModel(models.Model):
         null=True,
         blank=True,
         related_name="decision_requests",
-        help_text="关联的特征快照"
+        help_text="关联的特征快照",
     )
 
     class Meta:
@@ -518,15 +408,11 @@ class DecisionRequestModel(models.Model):
         # 验证执行状态一致性
         # EXECUTED 状态必须有 executed_at
         if self.execution_status == ExecutionStatus.EXECUTED.value and self.executed_at is None:
-            raise ValidationError({
-                "executed_at": "执行状态为 EXECUTED 时，执行时间不能为空"
-            })
+            raise ValidationError({"executed_at": "执行状态为 EXECUTED 时，执行时间不能为空"})
 
         # NONE 目标不应该有 execution_ref
         if self.execution_target == ExecutionTarget.NONE.value and self.execution_ref is not None:
-            raise ValidationError({
-                "execution_ref": "执行目标为 NONE 时，执行引用应为空"
-            })
+            raise ValidationError({"execution_ref": "执行目标为 NONE 时，执行引用应为空"})
 
     def to_domain(self) -> DecisionRequest:
         """
@@ -610,74 +496,35 @@ class DecisionResponseModel(models.Model):
 
     # 字段定义
     response_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="响应唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="响应唯一标识符"
     )
 
     request = models.OneToOneField(
         DecisionRequestModel,
         on_delete=models.CASCADE,
         related_name="response",
-        help_text="关联的决策请求"
+        help_text="关联的决策请求",
     )
 
-    approved = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="是否批准"
-    )
+    approved = models.BooleanField(default=False, db_index=True, help_text="是否批准")
 
-    approval_reason = models.TextField(
-        blank=True,
-        help_text="批准原因"
-    )
+    approval_reason = models.TextField(blank=True, help_text="批准原因")
 
-    scheduled_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="调度时间"
-    )
+    scheduled_at = models.DateTimeField(null=True, blank=True, help_text="调度时间")
 
-    estimated_execution_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="预计执行时间"
-    )
+    estimated_execution_at = models.DateTimeField(null=True, blank=True, help_text="预计执行时间")
 
-    rejection_reason = models.TextField(
-        blank=True,
-        help_text="拒绝原因"
-    )
+    rejection_reason = models.TextField(blank=True, help_text="拒绝原因")
 
-    wait_until = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="等待直到"
-    )
+    wait_until = models.DateTimeField(null=True, blank=True, help_text="等待直到")
 
-    quota_status = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="配额状态"
-    )
+    quota_status = models.JSONField(null=True, blank=True, help_text="配额状态")
 
-    cooldown_status = models.TextField(
-        blank=True,
-        help_text="冷却状态"
-    )
+    cooldown_status = models.TextField(blank=True, help_text="冷却状态")
 
-    alternative_suggestions = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="替代建议"
-    )
+    alternative_suggestions = models.JSONField(null=True, blank=True, help_text="替代建议")
 
-    responded_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="响应时间"
-    )
+    responded_at = models.DateTimeField(auto_now_add=True, help_text="响应时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -718,6 +565,7 @@ class DecisionResponseModel(models.Model):
             cooldown_status=self.cooldown_status,
             responded_at=self.responded_at,
         )
+
 
 __all__ = [
     "CooldownPeriodModel",

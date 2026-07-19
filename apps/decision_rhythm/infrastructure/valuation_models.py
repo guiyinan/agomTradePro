@@ -52,84 +52,42 @@ class ValuationSnapshotModel(models.Model):
     ]
 
     snapshot_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="快照唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="快照唯一标识符"
     )
 
-    security_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="证券代码"
-    )
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
 
     valuation_method = models.CharField(
-        max_length=16,
-        choices=VALUATION_METHOD_CHOICES,
-        help_text="估值方法"
+        max_length=16, choices=VALUATION_METHOD_CHOICES, help_text="估值方法"
     )
 
-    fair_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="公允价值"
-    )
+    fair_value = models.DecimalField(max_digits=12, decimal_places=4, help_text="公允价值")
 
-    entry_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="入场价格下限"
-    )
+    entry_price_low = models.DecimalField(max_digits=12, decimal_places=4, help_text="入场价格下限")
 
     entry_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="入场价格上限"
+        max_digits=12, decimal_places=4, help_text="入场价格上限"
     )
 
     target_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="目标价格下限"
+        max_digits=12, decimal_places=4, help_text="目标价格下限"
     )
 
     target_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="目标价格上限"
+        max_digits=12, decimal_places=4, help_text="目标价格上限"
     )
 
-    stop_loss_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="止损价格"
-    )
+    stop_loss_price = models.DecimalField(max_digits=12, decimal_places=4, help_text="止损价格")
 
-    calculated_at = models.DateTimeField(
-        db_index=True,
-        help_text="计算时间"
-    )
+    calculated_at = models.DateTimeField(db_index=True, help_text="计算时间")
 
-    input_parameters = models.JSONField(
-        default=dict,
-        help_text="输入参数"
-    )
+    input_parameters = models.JSONField(default=dict, help_text="输入参数")
 
-    version = models.IntegerField(
-        default=1,
-        help_text="版本号"
-    )
+    version = models.IntegerField(default=1, help_text="版本号")
 
-    is_legacy = models.BooleanField(
-        default=False,
-        help_text="是否为历史数据迁移"
-    )
+    is_legacy = models.BooleanField(default=False, help_text="是否为历史数据迁移")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -143,7 +101,9 @@ class ValuationSnapshotModel(models.Model):
         ]
 
     def __str__(self):
-        return f"ValuationSnapshot({self.security_code}, {self.valuation_method}, {self.fair_value})"
+        return (
+            f"ValuationSnapshot({self.security_code}, {self.valuation_method}, {self.fair_value})"
+        )
 
     def save(self, *args, **kwargs):
         if not self.snapshot_id:
@@ -248,98 +208,48 @@ class InvestmentRecommendationModel(models.Model):
     ]
 
     recommendation_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="建议唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="建议唯一标识符"
     )
 
-    security_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="证券代码"
-    )
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
 
     account_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        default="default",
-        help_text="账户 ID"
+        max_length=64, db_index=True, default="default", help_text="账户 ID"
     )
 
-    side = models.CharField(
-        max_length=8,
-        choices=SIDE_CHOICES,
-        help_text="方向"
-    )
+    side = models.CharField(max_length=8, choices=SIDE_CHOICES, help_text="方向")
 
-    confidence = models.FloatField(
-        default=0.0,
-        help_text="置信度 (0-1)"
-    )
+    confidence = models.FloatField(default=0.0, help_text="置信度 (0-1)")
 
-    valuation_method = models.CharField(
-        max_length=16,
-        help_text="估值方法"
-    )
+    valuation_method = models.CharField(max_length=16, help_text="估值方法")
 
-    fair_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="公允价值"
-    )
+    fair_value = models.DecimalField(max_digits=12, decimal_places=4, help_text="公允价值")
 
-    entry_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="入场价格下限"
-    )
+    entry_price_low = models.DecimalField(max_digits=12, decimal_places=4, help_text="入场价格下限")
 
     entry_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="入场价格上限"
+        max_digits=12, decimal_places=4, help_text="入场价格上限"
     )
 
     target_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="目标价格下限"
+        max_digits=12, decimal_places=4, help_text="目标价格下限"
     )
 
     target_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="目标价格上限"
+        max_digits=12, decimal_places=4, help_text="目标价格上限"
     )
 
-    stop_loss_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="止损价格"
-    )
+    stop_loss_price = models.DecimalField(max_digits=12, decimal_places=4, help_text="止损价格")
 
-    position_size_pct = models.FloatField(
-        default=5.0,
-        help_text="建议仓位比例"
-    )
+    position_size_pct = models.FloatField(default=5.0, help_text="建议仓位比例")
 
     max_capital = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        default=50000,
-        help_text="最大资金量"
+        max_digits=15, decimal_places=2, default=50000, help_text="最大资金量"
     )
 
-    reason_codes = models.JSONField(
-        default=list,
-        help_text="原因代码列表"
-    )
+    reason_codes = models.JSONField(default=list, help_text="原因代码列表")
 
-    human_readable_rationale = models.TextField(
-        blank=True,
-        help_text="人类可读的理由"
-    )
+    human_readable_rationale = models.TextField(blank=True, help_text="人类可读的理由")
 
     valuation_snapshot = models.ForeignKey(
         ValuationSnapshotModel,
@@ -347,27 +257,16 @@ class InvestmentRecommendationModel(models.Model):
         null=True,
         blank=True,
         related_name="recommendations",
-        help_text="关联的估值快照"
+        help_text="关联的估值快照",
     )
 
-    source_recommendation_ids = models.JSONField(
-        default=list,
-        help_text="来源建议 ID 列表"
-    )
+    source_recommendation_ids = models.JSONField(default=list, help_text="来源建议 ID 列表")
 
     status = models.CharField(
-        max_length=16,
-        choices=STATUS_CHOICES,
-        default="ACTIVE",
-        db_index=True,
-        help_text="建议状态"
+        max_length=16, choices=STATUS_CHOICES, default="ACTIVE", db_index=True, help_text="建议状态"
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -376,7 +275,10 @@ class InvestmentRecommendationModel(models.Model):
         verbose_name_plural = "投资建议"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["account_id", "security_code", "side", "-created_at"], name="idx_rec_acc_sec_side_created"),
+            models.Index(
+                fields=["account_id", "security_code", "side", "-created_at"],
+                name="idx_rec_acc_sec_side_created",
+            ),
             models.Index(fields=["status", "-created_at"], name="idx_rec_status_created"),
         ]
 
@@ -413,7 +315,9 @@ class InvestmentRecommendationModel(models.Model):
             reason_codes=self.reason_codes or [],
             human_readable_rationale=self.human_readable_rationale,
             account_id=self.account_id,
-            valuation_snapshot_id=self.valuation_snapshot.snapshot_id if self.valuation_snapshot else "",
+            valuation_snapshot_id=(
+                self.valuation_snapshot.snapshot_id if self.valuation_snapshot else ""
+            ),
             source_recommendation_ids=self.source_recommendation_ids or [],
             created_at=self.created_at,
             status=self.status,
@@ -450,6 +354,7 @@ class InvestmentRecommendationModel(models.Model):
             source_recommendation_ids=recommendation.source_recommendation_ids,
             status=recommendation.status,
         )
+
 
 class ExecutionApprovalRequestModel(models.Model):
     """
@@ -494,10 +399,7 @@ class ExecutionApprovalRequestModel(models.Model):
     ]
 
     request_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="请求唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="请求唯一标识符"
     )
 
     recommendation = models.ForeignKey(
@@ -506,98 +408,48 @@ class ExecutionApprovalRequestModel(models.Model):
         related_name="approval_requests",
         null=True,
         blank=True,
-        help_text="关联的投资建议（legacy，unified 路径可为空）"
+        help_text="关联的投资建议（legacy，unified 路径可为空）",
     )
 
-    account_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="账户 ID"
-    )
+    account_id = models.CharField(max_length=64, db_index=True, help_text="账户 ID")
 
-    security_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="证券代码"
-    )
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
 
-    side = models.CharField(
-        max_length=8,
-        choices=SIDE_CHOICES,
-        help_text="方向"
-    )
+    side = models.CharField(max_length=8, choices=SIDE_CHOICES, help_text="方向")
 
     approval_status = models.CharField(
         max_length=16,
         choices=APPROVAL_STATUS_CHOICES,
         default="PENDING",
         db_index=True,
-        help_text="审批状态"
+        help_text="审批状态",
     )
 
-    suggested_quantity = models.IntegerField(
-        help_text="建议数量"
-    )
+    suggested_quantity = models.IntegerField(help_text="建议数量")
 
     market_price_at_review = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="审批时的市场价格"
+        max_digits=12, decimal_places=4, null=True, blank=True, help_text="审批时的市场价格"
     )
 
-    price_range_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="价格区间下限"
-    )
+    price_range_low = models.DecimalField(max_digits=12, decimal_places=4, help_text="价格区间下限")
 
     price_range_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="价格区间上限"
+        max_digits=12, decimal_places=4, help_text="价格区间上限"
     )
 
-    stop_loss_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        help_text="止损价格"
-    )
+    stop_loss_price = models.DecimalField(max_digits=12, decimal_places=4, help_text="止损价格")
 
-    risk_check_results = models.JSONField(
-        default=dict,
-        help_text="风控检查结果"
-    )
+    risk_check_results = models.JSONField(default=dict, help_text="风控检查结果")
 
-    reviewer_comments = models.TextField(
-        blank=True,
-        help_text="审批评论"
-    )
+    reviewer_comments = models.TextField(blank=True, help_text="审批评论")
 
-    regime_source = models.CharField(
-        max_length=64,
-        default="UNKNOWN",
-        help_text="Regime 来源标识"
-    )
+    regime_source = models.CharField(max_length=64, default="UNKNOWN", help_text="Regime 来源标识")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
-    reviewed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="审批时间"
-    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, help_text="审批时间")
 
-    executed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="执行时间"
-    )
+    executed_at = models.DateTimeField(null=True, blank=True, help_text="执行时间")
 
     # 统一推荐关联字段（M1 新增）
     unified_recommendation = models.ForeignKey(
@@ -606,7 +458,7 @@ class ExecutionApprovalRequestModel(models.Model):
         null=True,
         blank=True,
         related_name="approval_requests_v2",
-        help_text="关联的统一推荐"
+        help_text="关联的统一推荐",
     )
 
     transition_plan = models.ForeignKey(
@@ -619,10 +471,7 @@ class ExecutionApprovalRequestModel(models.Model):
     )
 
     execution_params_json = models.JSONField(
-        null=True,
-        blank=True,
-        default=dict,
-        help_text="执行参数 JSON（价格区间、仓位等）"
+        null=True, blank=True, default=dict, help_text="执行参数 JSON（价格区间、仓位等）"
     )
 
     class Meta:
@@ -632,7 +481,10 @@ class ExecutionApprovalRequestModel(models.Model):
         verbose_name_plural = "执行审批请求"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["account_id", "security_code", "side", "-created_at"], name="idx_apr_acc_sec_side_created"),
+            models.Index(
+                fields=["account_id", "security_code", "side", "-created_at"],
+                name="idx_apr_acc_sec_side_created",
+            ),
             models.Index(fields=["approval_status", "-created_at"], name="idx_apr_status_created"),
             models.Index(fields=["regime_source"], name="idx_apr_regime_source"),
             models.Index(
@@ -643,7 +495,9 @@ class ExecutionApprovalRequestModel(models.Model):
         ]
 
     def __str__(self):
-        return f"ExecutionApprovalRequest({self.security_code}, {self.side}, {self.approval_status})"
+        return (
+            f"ExecutionApprovalRequest({self.security_code}, {self.side}, {self.approval_status})"
+        )
 
     def save(self, *args, **kwargs):
         if not self.request_id:
@@ -689,7 +543,9 @@ class ExecutionApprovalRequestModel(models.Model):
             side=self.side,
             approval_status=ApprovalStatus(self.approval_status),
             suggested_quantity=self.suggested_quantity,
-            market_price_at_review=Decimal(str(self.market_price_at_review)) if self.market_price_at_review else None,
+            market_price_at_review=(
+                Decimal(str(self.market_price_at_review)) if self.market_price_at_review else None
+            ),
             price_range_low=Decimal(str(self.price_range_low)),
             price_range_high=Decimal(str(self.price_range_high)),
             stop_loss_price=Decimal(str(self.stop_loss_price)),
@@ -702,7 +558,9 @@ class ExecutionApprovalRequestModel(models.Model):
         )
 
     @classmethod
-    def from_domain(cls, approval: ExecutionApprovalRequest, recommendation_model: InvestmentRecommendationModel) -> ExecutionApprovalRequestModel:
+    def from_domain(
+        cls, approval: ExecutionApprovalRequest, recommendation_model: InvestmentRecommendationModel
+    ) -> ExecutionApprovalRequestModel:
         """
         从 Domain 层实体创建
 
@@ -732,6 +590,7 @@ class ExecutionApprovalRequestModel(models.Model):
             reviewed_at=approval.reviewed_at,
             executed_at=approval.executed_at,
         )
+
 
 __all__ = [
     "ExecutionApprovalRequestModel",

@@ -33,6 +33,7 @@ from apps.data_center.domain.protocols import (
 
 logger = logging.getLogger(__name__)
 
+
 def _config_to_response(config: ProviderConfig) -> ProviderResponse:
     return ProviderResponse(
         id=config.id,
@@ -95,6 +96,7 @@ def _unit_rule_to_response(rule: IndicatorUnitRule) -> IndicatorUnitRuleResponse
         priority=rule.priority,
         description=rule.description,
     )
+
 
 class ManageProviderConfigUseCase:
     """CRUD operations for provider configurations.
@@ -408,6 +410,7 @@ class ManageIndicatorUnitRuleUseCase:
             return False
         self._repo.delete(rule_id)
         return True
+
 
 __all__ = [
     "ManageIndicatorCatalogUseCase",

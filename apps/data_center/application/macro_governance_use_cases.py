@@ -16,6 +16,7 @@ from apps.data_center.domain.protocols import (
 
 _SOURCE_TYPE_CAPABILITIES = SOURCE_TYPE_CAPABILITIES
 
+
 class RunMacroGovernanceActionUseCase:
     """Execute macro governance repair actions through governed repositories/use cases."""
 
@@ -161,5 +162,6 @@ class RunMacroGovernanceActionUseCase:
         if not providers:
             raise ValueError(f"No active macro provider configured for source_type={source_type}")
         return int(providers[0].id)
+
 
 __all__ = ["RunMacroGovernanceActionUseCase"]

@@ -45,73 +45,34 @@ class DecisionModelParamConfigModel(models.Model):
     ]
 
     config_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="配置唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="配置唯一标识符"
     )
 
-    param_key = models.CharField(
-        max_length=128,
-        db_index=True,
-        help_text="参数键"
-    )
+    param_key = models.CharField(max_length=128, db_index=True, help_text="参数键")
 
-    param_value = models.TextField(
-        help_text="参数值"
-    )
+    param_value = models.TextField(help_text="参数值")
 
     param_type = models.CharField(
-        max_length=16,
-        choices=PARAM_TYPE_CHOICES,
-        default="float",
-        help_text="参数类型"
+        max_length=16, choices=PARAM_TYPE_CHOICES, default="float", help_text="参数类型"
     )
 
     env = models.CharField(
-        max_length=16,
-        choices=ENV_CHOICES,
-        default="dev",
-        db_index=True,
-        help_text="环境"
+        max_length=16, choices=ENV_CHOICES, default="dev", db_index=True, help_text="环境"
     )
 
-    version = models.IntegerField(
-        default=1,
-        help_text="版本号"
-    )
+    version = models.IntegerField(default=1, help_text="版本号")
 
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="是否激活"
-    )
+    is_active = models.BooleanField(default=True, db_index=True, help_text="是否激活")
 
-    description = models.TextField(
-        blank=True,
-        help_text="参数描述"
-    )
+    description = models.TextField(blank=True, help_text="参数描述")
 
-    updated_by = models.CharField(
-        max_length=128,
-        default="",
-        help_text="最后修改人"
-    )
+    updated_by = models.CharField(max_length=128, default="", help_text="最后修改人")
 
-    updated_reason = models.TextField(
-        blank=True,
-        help_text="变更说明"
-    )
+    updated_reason = models.TextField(blank=True, help_text="变更说明")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -190,50 +151,23 @@ class DecisionModelParamAuditLogModel(models.Model):
         ("prod", "生产环境"),
     ]
 
-    log_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="日志唯一标识符"
-    )
+    log_id = models.CharField(max_length=64, unique=True, db_index=True, help_text="日志唯一标识符")
 
-    param_key = models.CharField(
-        max_length=128,
-        db_index=True,
-        help_text="参数键"
-    )
+    param_key = models.CharField(max_length=128, db_index=True, help_text="参数键")
 
-    old_value = models.TextField(
-        help_text="旧值"
-    )
+    old_value = models.TextField(help_text="旧值")
 
-    new_value = models.TextField(
-        help_text="新值"
-    )
+    new_value = models.TextField(help_text="新值")
 
     env = models.CharField(
-        max_length=16,
-        choices=ENV_CHOICES,
-        default="dev",
-        db_index=True,
-        help_text="环境"
+        max_length=16, choices=ENV_CHOICES, default="dev", db_index=True, help_text="环境"
     )
 
-    changed_by = models.CharField(
-        max_length=128,
-        default="",
-        help_text="变更人"
-    )
+    changed_by = models.CharField(max_length=128, default="", help_text="变更人")
 
-    change_reason = models.TextField(
-        blank=True,
-        help_text="变更原因"
-    )
+    change_reason = models.TextField(blank=True, help_text="变更原因")
 
-    changed_at = models.DateTimeField(
-        db_index=True,
-        help_text="变更时间"
-    )
+    changed_at = models.DateTimeField(db_index=True, help_text="变更时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -282,6 +216,7 @@ class DecisionModelParamAuditLogModel(models.Model):
             change_reason=log.change_reason,
             changed_at=log.changed_at,
         )
+
 
 __all__ = [
     "DecisionModelParamAuditLogModel",

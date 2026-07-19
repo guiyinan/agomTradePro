@@ -107,6 +107,7 @@ class QueryCapitalFlowsUseCase:
     ) -> list[dict[str, object]]:
         return [fact.to_dict() for fact in self._repo.get_series(asset_code, start, end, limit)]
 
+
 __all__ = [
     "QueryCapitalFlowsUseCase",
     "QueryFinancialsUseCase",

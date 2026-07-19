@@ -29,7 +29,9 @@ class PortfolioTransitionPlanModel(models.Model):
         (TransitionPlanStatus.CANCELLED.value, "已取消"),
     ]
 
-    plan_id = models.CharField(max_length=64, unique=True, db_index=True, help_text="计划唯一标识符")
+    plan_id = models.CharField(
+        max_length=64, unique=True, db_index=True, help_text="计划唯一标识符"
+    )
     account_id = models.CharField(max_length=64, db_index=True, help_text="账户 ID")
     source_recommendation_ids = models.JSONField(default=list, help_text="来源推荐 ID 列表")
     current_positions_snapshot = models.JSONField(default=list, help_text="当前持仓快照")
@@ -44,7 +46,9 @@ class PortfolioTransitionPlanModel(models.Model):
         db_index=True,
         help_text="计划状态",
     )
-    approval_request_id = models.CharField(max_length=64, blank=True, default="", help_text="关联审批请求 ID")
+    approval_request_id = models.CharField(
+        max_length=64, blank=True, default="", help_text="关联审批请求 ID"
+    )
     as_of = models.DateTimeField(db_index=True, help_text="计划快照时间")
     created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
     updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
@@ -144,5 +148,6 @@ class PortfolioTransitionPlanModel(models.Model):
             approval_request_id=plan.approval_request_id or "",
             as_of=plan.as_of,
         )
+
 
 __all__ = ["PortfolioTransitionPlanModel"]

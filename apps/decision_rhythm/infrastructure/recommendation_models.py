@@ -40,82 +40,37 @@ class DecisionFeatureSnapshotModel(models.Model):
     """
 
     snapshot_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="快照唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="快照唯一标识符"
     )
 
-    security_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="证券代码"
-    )
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
 
-    snapshot_time = models.DateTimeField(
-        db_index=True,
-        help_text="快照时间"
-    )
+    snapshot_time = models.DateTimeField(db_index=True, help_text="快照时间")
 
     # Top-down 特征
-    regime = models.CharField(
-        max_length=64,
-        default="",
-        help_text="当前 Regime 状态"
-    )
+    regime = models.CharField(max_length=64, default="", help_text="当前 Regime 状态")
 
-    regime_confidence = models.FloatField(
-        default=0.0,
-        help_text="Regime 置信度"
-    )
+    regime_confidence = models.FloatField(default=0.0, help_text="Regime 置信度")
 
-    policy_level = models.CharField(
-        max_length=32,
-        default="",
-        help_text="政策档位"
-    )
+    policy_level = models.CharField(max_length=32, default="", help_text="政策档位")
 
-    beta_gate_passed = models.BooleanField(
-        default=False,
-        help_text="Beta Gate 是否通过"
-    )
+    beta_gate_passed = models.BooleanField(default=False, help_text="Beta Gate 是否通过")
 
     # Bottom-up 特征
-    sentiment_score = models.FloatField(
-        default=0.0,
-        help_text="舆情分数"
-    )
+    sentiment_score = models.FloatField(default=0.0, help_text="舆情分数")
 
-    flow_score = models.FloatField(
-        default=0.0,
-        help_text="资金流向分数"
-    )
+    flow_score = models.FloatField(default=0.0, help_text="资金流向分数")
 
-    technical_score = models.FloatField(
-        default=0.0,
-        help_text="技术面分数"
-    )
+    technical_score = models.FloatField(default=0.0, help_text="技术面分数")
 
-    fundamental_score = models.FloatField(
-        default=0.0,
-        help_text="基本面分数"
-    )
+    fundamental_score = models.FloatField(default=0.0, help_text="基本面分数")
 
-    alpha_model_score = models.FloatField(
-        default=0.0,
-        help_text="Alpha 模型分数"
-    )
+    alpha_model_score = models.FloatField(default=0.0, help_text="Alpha 模型分数")
 
     # 额外特征
-    extra_features = models.JSONField(
-        default=dict,
-        help_text="额外特征"
-    )
+    extra_features = models.JSONField(default=dict, help_text="额外特征")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -241,172 +196,83 @@ class UnifiedRecommendationModel(models.Model):
     ]
 
     recommendation_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="推荐唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="推荐唯一标识符"
     )
 
-    account_id = models.CharField(
-        max_length=64,
-        db_index=True,
-        help_text="账户 ID"
-    )
+    account_id = models.CharField(max_length=64, db_index=True, help_text="账户 ID")
 
-    security_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="证券代码"
-    )
+    security_code = models.CharField(max_length=32, db_index=True, help_text="证券代码")
 
-    side = models.CharField(
-        max_length=8,
-        choices=SIDE_CHOICES,
-        help_text="方向"
-    )
+    side = models.CharField(max_length=8, choices=SIDE_CHOICES, help_text="方向")
 
     # Top-down 特征
-    regime = models.CharField(
-        max_length=64,
-        default="",
-        help_text="当前 Regime 状态"
-    )
+    regime = models.CharField(max_length=64, default="", help_text="当前 Regime 状态")
 
-    regime_confidence = models.FloatField(
-        default=0.0,
-        help_text="Regime 置信度"
-    )
+    regime_confidence = models.FloatField(default=0.0, help_text="Regime 置信度")
 
-    policy_level = models.CharField(
-        max_length=32,
-        default="",
-        help_text="政策档位"
-    )
+    policy_level = models.CharField(max_length=32, default="", help_text="政策档位")
 
     beta_gate_passed = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Beta Gate 是否通过"
+        default=False, db_index=True, help_text="Beta Gate 是否通过"
     )
 
     # Bottom-up 特征
-    sentiment_score = models.FloatField(
-        default=0.0,
-        help_text="舆情分数"
-    )
+    sentiment_score = models.FloatField(default=0.0, help_text="舆情分数")
 
-    flow_score = models.FloatField(
-        default=0.0,
-        help_text="资金流向分数"
-    )
+    flow_score = models.FloatField(default=0.0, help_text="资金流向分数")
 
-    technical_score = models.FloatField(
-        default=0.0,
-        help_text="技术面分数"
-    )
+    technical_score = models.FloatField(default=0.0, help_text="技术面分数")
 
-    fundamental_score = models.FloatField(
-        default=0.0,
-        help_text="基本面分数"
-    )
+    fundamental_score = models.FloatField(default=0.0, help_text="基本面分数")
 
-    alpha_model_score = models.FloatField(
-        default=0.0,
-        help_text="Alpha 模型分数"
-    )
+    alpha_model_score = models.FloatField(default=0.0, help_text="Alpha 模型分数")
 
     # 综合分数
-    composite_score = models.FloatField(
-        default=0.0,
-        db_index=True,
-        help_text="综合分数"
-    )
+    composite_score = models.FloatField(default=0.0, db_index=True, help_text="综合分数")
 
-    confidence = models.FloatField(
-        default=0.0,
-        help_text="置信度"
-    )
+    confidence = models.FloatField(default=0.0, help_text="置信度")
 
-    reason_codes = models.JSONField(
-        default=list,
-        help_text="原因代码列表"
-    )
+    reason_codes = models.JSONField(default=list, help_text="原因代码列表")
 
-    human_rationale = models.TextField(
-        blank=True,
-        help_text="人类可读理由"
-    )
+    human_rationale = models.TextField(blank=True, help_text="人类可读理由")
 
     # 交易参数
     fair_value = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="公允价值"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="公允价值"
     )
 
     entry_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="入场价格下限"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="入场价格下限"
     )
 
     entry_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="入场价格上限"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="入场价格上限"
     )
 
     target_price_low = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="目标价格下限"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="目标价格下限"
     )
 
     target_price_high = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="目标价格上限"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="目标价格上限"
     )
 
     stop_loss_price = models.DecimalField(
-        max_digits=12,
-        decimal_places=4,
-        default=Decimal("0"),
-        help_text="止损价格"
+        max_digits=12, decimal_places=4, default=Decimal("0"), help_text="止损价格"
     )
 
-    position_pct = models.FloatField(
-        default=5.0,
-        help_text="建议仓位比例"
-    )
+    position_pct = models.FloatField(default=5.0, help_text="建议仓位比例")
 
-    suggested_quantity = models.IntegerField(
-        default=0,
-        help_text="建议数量"
-    )
+    suggested_quantity = models.IntegerField(default=0, help_text="建议数量")
 
     max_capital = models.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        default=Decimal("50000"),
-        help_text="最大资金量"
+        max_digits=15, decimal_places=2, default=Decimal("50000"), help_text="最大资金量"
     )
 
     # 溯源
-    source_signal_ids = models.JSONField(
-        default=list,
-        help_text="来源信号 ID 列表"
-    )
+    source_signal_ids = models.JSONField(default=list, help_text="来源信号 ID 列表")
 
-    source_candidate_ids = models.JSONField(
-        default=list,
-        help_text="来源候选 ID 列表"
-    )
+    source_candidate_ids = models.JSONField(default=list, help_text="来源候选 ID 列表")
 
     feature_snapshot = models.ForeignKey(
         DecisionFeatureSnapshotModel,
@@ -414,7 +280,7 @@ class UnifiedRecommendationModel(models.Model):
         null=True,
         blank=True,
         related_name="unified_recommendations",
-        help_text="关联的特征快照"
+        help_text="关联的特征快照",
     )
 
     # 状态
@@ -423,7 +289,7 @@ class UnifiedRecommendationModel(models.Model):
         choices=STATUS_CHOICES,
         default=RecommendationStatus.NEW.value,
         db_index=True,
-        help_text="推荐状态"
+        help_text="推荐状态",
     )
 
     user_action = models.CharField(
@@ -431,30 +297,16 @@ class UnifiedRecommendationModel(models.Model):
         choices=USER_ACTION_CHOICES,
         default=UserDecisionAction.PENDING.value,
         db_index=True,
-        help_text="用户决策动作"
+        help_text="用户决策动作",
     )
 
-    user_action_note = models.TextField(
-        blank=True,
-        help_text="用户决策备注"
-    )
+    user_action_note = models.TextField(blank=True, help_text="用户决策备注")
 
-    user_action_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="用户动作时间"
-    )
+    user_action_at = models.DateTimeField(null=True, blank=True, help_text="用户动作时间")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
     class Meta:
         app_label = "decision_rhythm"
@@ -463,12 +315,21 @@ class UnifiedRecommendationModel(models.Model):
         verbose_name_plural = "统一推荐"
         ordering = ["-composite_score", "-created_at"]
         indexes = [
-            models.Index(fields=["account_id", "security_code", "side", "-created_at"], name="idx_urec_acc_sec_side"),
+            models.Index(
+                fields=["account_id", "security_code", "side", "-created_at"],
+                name="idx_urec_acc_sec_side",
+            ),
             models.Index(fields=["status", "-composite_score"], name="idx_urec_status_score"),
             models.Index(fields=["beta_gate_passed", "status"], name="idx_urec_gate_status"),
             # 复合索引：优化按账户+状态过滤 + 综合分排序的查询（M4 新增）
-            models.Index(fields=["account_id", "status", "-composite_score"], name="idx_urec_acc_status_score"),
-            models.Index(fields=["account_id", "user_action", "-created_at"], name="idx_urec_acc_uaction_time"),
+            models.Index(
+                fields=["account_id", "status", "-composite_score"],
+                name="idx_urec_acc_status_score",
+            ),
+            models.Index(
+                fields=["account_id", "user_action", "-created_at"],
+                name="idx_urec_acc_uaction_time",
+            ),
         ]
 
     def __str__(self):
@@ -532,7 +393,11 @@ class UnifiedRecommendationModel(models.Model):
         )
 
     @classmethod
-    def from_domain(cls, recommendation: UnifiedRecommendation, snapshot_model: DecisionFeatureSnapshotModel | None = None) -> UnifiedRecommendationModel:
+    def from_domain(
+        cls,
+        recommendation: UnifiedRecommendation,
+        snapshot_model: DecisionFeatureSnapshotModel | None = None,
+    ) -> UnifiedRecommendationModel:
         """从 Domain 层实体创建"""
         return cls(
             recommendation_id=recommendation.recommendation_id,
@@ -636,6 +501,7 @@ class DecisionExecutionLinkModel(models.Model):
     def __str__(self):
         target = self.recommendation_id or "manual_only"
         return f"{self.transaction_id} -> {target}"
+
 
 __all__ = [
     "DecisionExecutionLinkModel",
