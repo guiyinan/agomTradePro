@@ -16,7 +16,7 @@ def test_adapter_imports():
     """Test that all adapters can be imported"""
     print("Testing adapter imports...")
     try:
-        from apps.macro.infrastructure.adapters import (
+        from apps.data_center.infrastructure.macro_sources import (
             PUBLICATION_LAGS,
             AKShareAdapter,
             FailoverAdapter,
@@ -35,7 +35,7 @@ def test_adapter_imports():
 def test_publication_lags():
     """Test publication lag configuration"""
     print("\nTesting publication lag configuration...")
-    from apps.macro.infrastructure.adapters import PUBLICATION_LAGS
+    from apps.data_center.infrastructure.macro_sources import PUBLICATION_LAGS
 
     expected_indicators = ["CN_PMI", "CN_CPI", "SHIBOR", "000001.SH"]
     all_found = True
@@ -52,7 +52,7 @@ def test_publication_lags():
 def test_data_point():
     """Test MacroDataPoint creation"""
     print("\nTesting MacroDataPoint creation...")
-    from apps.macro.infrastructure.adapters import MacroDataPoint
+    from apps.data_center.infrastructure.macro_sources import MacroDataPoint
 
     point = MacroDataPoint(
         code="CN_PMI",
@@ -72,7 +72,7 @@ def test_adapter_supports():
     print("\nTesting adapter support checks...")
 
     # Mock adapter for testing
-    from apps.macro.infrastructure.adapters.base import BaseMacroAdapter
+    from apps.data_center.infrastructure.macro_sources.base import BaseMacroAdapter
 
     class TestAdapter(BaseMacroAdapter):
         source_name = "test"
@@ -108,7 +108,7 @@ def test_failover_adapter():
     """Test FailoverAdapter creation"""
     print("\nTesting FailoverAdapter...")
 
-    from apps.macro.infrastructure.adapters import BaseMacroAdapter, FailoverAdapter
+    from apps.data_center.infrastructure.macro_sources import BaseMacroAdapter, FailoverAdapter
 
     # Create mock adapters
     class MockAdapter(BaseMacroAdapter):

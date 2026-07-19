@@ -1,5 +1,5 @@
 """
-Tushare Data Adapter.
+Tushare macro-source adapter.
 
 Infrastructure layer - fetches data from Tushare Pro API.
 """

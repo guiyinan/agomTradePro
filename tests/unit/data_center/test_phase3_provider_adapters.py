@@ -9,13 +9,13 @@ import pandas as pd
 import requests
 
 from apps.data_center.domain.entities import ProviderConfig
+from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
 from apps.data_center.infrastructure.provider_adapters import (
     AkshareUnifiedProviderAdapter,
     FredUnifiedProviderAdapter,
     TushareUnifiedProviderAdapter,
     build_unified_provider_adapter,
 )
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
 
 
 def _config(source_type: str, name: str | None = None) -> ProviderConfig:
@@ -60,7 +60,10 @@ def test_fred_unified_provider_adapter_parses_observations(monkeypatch):
     def _fake_get(*args, **kwargs):
         return _Response()
 
-    monkeypatch.setattr("apps.data_center.infrastructure.provider_adapters.requests.get", _fake_get)
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_specialized.requests.get",
+        _fake_get,
+    )
 
     adapter = FredUnifiedProviderAdapter(_config("fred"))
     facts = adapter.fetch_macro_series("US_FED_FUNDS_RATE", date(2025, 1, 1), date(2025, 3, 1))
@@ -80,7 +83,7 @@ def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatc
             raise DataSourceUnavailableError("Response ended prematurely")
 
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.build_akshare_macro_adapter",
+        "apps.data_center.infrastructure._provider_adapter_akshare.AKShareAdapter",
         lambda: _BrokenMacroAdapter(),
     )
 
@@ -232,7 +235,7 @@ def test_akshare_etf_net_flow_falls_back_to_eastmoney_direct(monkeypatch):
         lambda: _BrokenAkshare(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        "apps.data_center.infrastructure._provider_adapter_akshare.requests.get",
         lambda *args, **kwargs: _Response(),
     )
 
@@ -285,11 +288,12 @@ def test_akshare_etf_net_flow_retries_eastmoney_direct(monkeypatch):
         lambda: _BrokenAkshare(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        "apps.data_center.infrastructure._provider_adapter_akshare.requests.get",
         _flaky_get,
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.sleep", lambda delay: None
+        "apps.data_center.infrastructure._provider_adapter_akshare.sleep",
+        lambda delay: None,
     )
 
     adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
@@ -321,11 +325,11 @@ def test_akshare_etf_net_flow_permission_denied_fast_fails(monkeypatch):
         lambda: _BrokenAkshare(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.get",
+        "apps.data_center.infrastructure._provider_adapter_akshare.requests.get",
         _blocked_get,
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.sleep",
+        "apps.data_center.infrastructure._provider_adapter_akshare.sleep",
         lambda delay: calls.__setitem__("sleep_count", calls["sleep_count"] + 1),
     )
 
@@ -592,7 +596,7 @@ def test_akshare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_mark
         lambda: _NoOpContext(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        "apps.data_center.infrastructure._provider_adapter_base.requests.Session",
         _FakeSession,
     )
 
@@ -645,7 +649,7 @@ def test_akshare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocke
         lambda: _NoOpContext(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        "apps.data_center.infrastructure._provider_adapter_base.requests.Session",
         _BlockedSession,
     )
     monkeypatch.setattr(
@@ -887,7 +891,7 @@ def test_tushare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_mark
         lambda: _NoOpContext(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        "apps.data_center.infrastructure._provider_adapter_base.requests.Session",
         _FakeSession,
     )
 
@@ -935,7 +939,7 @@ def test_tushare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocke
         lambda: _NoOpContext(),
     )
     monkeypatch.setattr(
-        "apps.data_center.infrastructure.provider_adapters.requests.Session",
+        "apps.data_center.infrastructure._provider_adapter_base.requests.Session",
         _BlockedSession,
     )
     monkeypatch.setattr(

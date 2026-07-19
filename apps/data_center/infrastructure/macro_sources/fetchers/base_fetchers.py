@@ -1,5 +1,5 @@
 """
-基础指标数据获取器。
+Data Center 基础指标数据获取器。
 
 包含 PMI、CPI、PPI、M2 等核心宏观经济指标的获取逻辑。
 """
@@ -12,7 +12,7 @@ from datetime import date
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import resolve_indicator_units, safe_float
+from .common import parse_required_float, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
@@ -416,7 +416,7 @@ class BaseIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_NON_MAN_PMI",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,

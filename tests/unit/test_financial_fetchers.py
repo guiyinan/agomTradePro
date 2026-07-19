@@ -4,13 +4,13 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from apps.macro.infrastructure.adapters.fetchers.financial_fetchers import FinancialIndicatorFetcher
+from apps.data_center.infrastructure.macro_sources.fetchers.financial_fetchers import FinancialIndicatorFetcher
 
 
 @pytest.fixture(autouse=True)
 def _stub_runtime_macro_metadata(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {
             "CN_DR007": {"default_unit": "%", "governance_scope": "macro_console"},
             "CN_LPR": {"default_unit": "%", "governance_scope": "macro_console"},

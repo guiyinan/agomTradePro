@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import pytest
 
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -33,7 +33,7 @@ class TestRegimeCalculationWorkflow:
         4. 验证主导 Regime 识别
         """
         # 1. 准备测试数据（30个月的数据）
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         base_date = date(2022, 1, 1)
 
         # 生成 PMI 数据（增长指标）
@@ -134,7 +134,7 @@ class TestRegimeCalculationWorkflow:
         3. confidence 计算正确
         """
         # 1. 准备数据
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         regime_repo = DjangoRegimeRepository()
         base_date = date(2022, 1, 1)
 
@@ -224,7 +224,7 @@ class TestRegimeCalculationWorkflow:
         3. 告警级别正确
         """
         # 1. 准备数据和仓储
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         regime_repo = DjangoRegimeRepository()
         alert_channel = ConsoleAlertChannel()
         base_date = date(2022, 1, 1)
@@ -332,7 +332,7 @@ class TestRegimeCalculationWorkflow:
         2. 使用降级方案（如果有历史 Regime）
         3. 返回适当的错误信息
         """
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         regime_repo = DjangoRegimeRepository()
         base_date = date(2022, 1, 1)
 
@@ -411,7 +411,7 @@ class TestRegimeCalculationWorkflow:
         1. 只使用截止日期前已发布的数据
         2. 正确处理数据延迟
         """
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         regime_repo = DjangoRegimeRepository()
         base_date = date(2022, 1, 1)
 
@@ -477,7 +477,7 @@ class TestRegimeCalculationWorkflow:
 
         验证可以批量计算多个日期的 Regime
         """
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         regime_repo = DjangoRegimeRepository()
         base_date = date(2022, 1, 1)
 

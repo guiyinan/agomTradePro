@@ -22,7 +22,7 @@ from apps.data_center.infrastructure.models import (
     MacroFactModel,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.domain.entities import InvestmentSignal, SignalStatus
@@ -72,8 +72,8 @@ def _seed_indicator_rule(
 
 
 @pytest.mark.django_db
-class TestDjangoMacroRepository:
-    """测试 DjangoMacroRepository"""
+class TestDataCenterMacroRepository:
+    """测试 DataCenterMacroRepository"""
 
     def test_save_and_retrieve_indicator(self):
         """测试保存和检索宏观指标"""
@@ -82,7 +82,7 @@ class TestDjangoMacroRepository:
             original_unit="指数",
             default_period_type="M",
         )
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.5,
@@ -114,7 +114,7 @@ class TestDjangoMacroRepository:
 
     def test_save_indicators_batch(self):
         """测试批量保存指标"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         for i in range(5):
             _seed_indicator_rule(
                 code=f"TEST_IND_{i}",
@@ -144,7 +144,7 @@ class TestDjangoMacroRepository:
             original_unit="%",
             default_period_type="D",
         )
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="CN_BOND_10Y",
             value=2.31,
@@ -169,7 +169,7 @@ class TestDjangoMacroRepository:
 
     def test_get_series_with_filters(self):
         """测试带过滤条件的时序查询"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         _seed_indicator_rule(code="TEST_SERIES", original_unit="指数")
 
         # 创建测试数据
@@ -204,7 +204,7 @@ class TestDjangoMacroRepository:
 
     def test_get_latest_observation(self):
         """测试获取最新观测值"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         test_code = "TEST_LATEST_OBS"
         _seed_indicator_rule(code=test_code, original_unit="指数", default_period_type="M")
 
@@ -243,7 +243,7 @@ class TestDjangoMacroRepository:
             multiplier_to_storage=1000000000000.0,
             default_period_type="M",
         )
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="TEST_INDICATOR",
             value=123.45,
@@ -268,7 +268,7 @@ class TestDjangoMacroRepository:
 
     def test_get_growth_and_inflation_series(self):
         """测试获取增长和通胀指标序列"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         _seed_indicator_rule(code="CN_PMI", original_unit="指数", default_period_type="M")
 
         # 创建 PMI 数据
@@ -296,7 +296,7 @@ class TestDjangoMacroRepository:
 
     def test_delete_operations(self):
         """测试删除操作"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         _seed_indicator_rule(code="TO_DELETE", original_unit="指数")
 
         indicator = MacroIndicator(
@@ -321,7 +321,7 @@ class TestDjangoMacroRepository:
 
     def test_statistics(self):
         """测试统计信息"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         before = repository.get_statistics()
 
         # 创建不同指标的数据
@@ -871,7 +871,7 @@ class TestRepositoryErrorHandling:
 
     def test_get_nonexistent_indicator(self):
         """测试获取不存在的指标"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         result = repository.get_by_code_and_date("NONEXISTENT", date(2024, 1, 1))
         assert result is None
 
@@ -895,7 +895,7 @@ class TestRepositoryErrorHandling:
 
     def test_save_existing_indicator(self):
         """测试保存已存在的指标（更新）"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.0,

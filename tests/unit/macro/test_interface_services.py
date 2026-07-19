@@ -8,18 +8,6 @@ from apps.macro.application.interface_services import (
 )
 
 
-class _FakeAdapter:
-    SUPPORTED_INDICATORS = {
-        "CN_GDP": "GDP",
-        "CN_M2": "M2",
-    }
-
-
-class _FakeSyncUseCase:
-    def __init__(self):
-        self.adapters = {"akshare": _FakeAdapter()}
-
-
 class _FakeCatalog:
     def __init__(
         self,
@@ -184,8 +172,30 @@ def _patch_macro_overview_helpers(monkeypatch) -> None:
 
 def test_get_supported_macro_indicators_prefers_indicator_metadata(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.application.interface_services.build_sync_macro_data_use_case",
-        lambda source="akshare": _FakeSyncUseCase(),
+        "apps.macro.application.interface_services.load_macro_governance_payload",
+        lambda: {
+            "supported_sync_codes": ["CN_GDP", "CN_M2", "CN_OTHER"],
+            "indicator_rows": [
+                {
+                    "code": "CN_GDP",
+                    "name_cn": "GDP",
+                    "sync_supported": True,
+                    "sync_source_type": "akshare",
+                },
+                {
+                    "code": "CN_M2",
+                    "name_cn": "M2",
+                    "sync_supported": True,
+                    "sync_source_type": "akshare",
+                },
+                {
+                    "code": "CN_OTHER",
+                    "name_cn": "Other",
+                    "sync_supported": True,
+                    "sync_source_type": "tushare",
+                },
+            ],
+        },
     )
     monkeypatch.setattr(
         "apps.macro.application.interface_services.IndicatorService.get_indicator_metadata_map",

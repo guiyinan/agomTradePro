@@ -6,8 +6,8 @@ from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 from apps.data_center.infrastructure.alpha_price_coverage_sync import (
     AlphaPriceCoverageSyncService,
 )
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.models import AssetMasterModel, PriceBarModel
 
 
@@ -50,7 +50,7 @@ def test_alpha_price_coverage_sync_service_backfills_assets_and_prices(mocker):
         "apps.data_center.infrastructure.asset_master_backfill.AssetMasterBackfillService._fetch_remote_name",
         return_value="平安银行",
     )
-    class EmptyGateway(GatewayProviderProtocol):
+    class EmptyGateway(MarketGatewayProtocol):
         def provider_name(self) -> str:
             return "empty"
 
@@ -60,7 +60,7 @@ def test_alpha_price_coverage_sync_service_backfills_assets_and_prices(mocker):
         def get_historical_prices(self, asset_code: str, start_date: str, end_date: str):
             return []
 
-    class TencentTestGateway(GatewayProviderProtocol):
+    class TencentTestGateway(MarketGatewayProtocol):
         def provider_name(self) -> str:
             return "tencent"
 

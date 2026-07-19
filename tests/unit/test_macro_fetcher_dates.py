@@ -1,5 +1,5 @@
-from apps.macro.infrastructure.adapters.fetchers.base_fetchers import parse_chinese_date
-from apps.macro.infrastructure.adapters.fetchers.financial_fetchers import (
+from apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers import parse_chinese_date
+from apps.data_center.infrastructure.macro_sources.fetchers.financial_fetchers import (
     parse_chinese_date as parse_financial_chinese_date,
 )
 

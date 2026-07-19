@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 
 from apps.data_center.application.dtos import (
+    SyncMacroBatchRequest,
     SyncMacroRequest,
     SyncNewsRequest,
 )
 from apps.data_center.application.use_cases import (
+    SyncMacroBatchUseCase,
     SyncMacroUseCase,
     SyncNewsUseCase,
 )
@@ -20,6 +22,8 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
     RawAudit,
 )
+from apps.data_center.domain.enums import DataCapability, ProviderHealthStatus
+from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 
 
 def _provider_config() -> ProviderConfig:
@@ -45,6 +49,9 @@ class _ProviderRepo:
     def get_by_id(self, provider_id: int):
         return _provider_config() if provider_id == 1 else None
 
+    def list_all(self):
+        return [_provider_config()]
+
     def save(self, config: ProviderConfig):
         self.saved.append(config)
         return config
@@ -56,6 +63,12 @@ class _ProviderFactory:
 
     def get_by_id(self, provider_id: int):
         return self._provider if provider_id == 1 else None
+
+    def record_success(self, provider_name, capability, latency_ms):
+        return None
+
+    def record_failure(self, provider_name, capability):
+        return None
 
 
 class _RawAuditRepo:
@@ -125,6 +138,9 @@ class _Provider:
     def provider_name(self) -> str:
         return "provider-main"
 
+    def supports(self, capability: DataCapability) -> bool:
+        return capability in {DataCapability.MACRO, DataCapability.NEWS}
+
     def fetch_macro_series(self, indicator_code: str, start_date: date, end_date: date):
         return [
             MacroFact(
@@ -147,6 +163,45 @@ class _Provider:
                 external_id="news-1",
             )
         ]
+
+
+class _RecordingMacroSyncUseCase:
+    def __init__(self):
+        self.requests = []
+
+    def execute(self, request):
+        self.requests.append(request)
+        from apps.data_center.application.dtos import SyncResult
+
+        return SyncResult("macro", "provider-main", 2, "success")
+
+
+def test_sync_macro_batch_selects_provider_through_canonical_registry():
+    provider = _Provider()
+    provider_registry = ProviderRegistry()
+    provider_registry.register(provider, priority=1, provider_id=1)
+    sync_use_case = _RecordingMacroSyncUseCase()
+    use_case = SyncMacroBatchUseCase(
+        provider_repo=_ProviderRepo(),
+        provider_registry=provider_registry,
+        sync_use_case=sync_use_case,
+    )
+
+    result = use_case.execute(
+        SyncMacroBatchRequest(
+            indicator_codes=["CN_PMI", "CN_CPI"],
+            start=date(2025, 1, 1),
+            end=date(2025, 3, 31),
+            source="tushare",
+        )
+    )
+
+    assert result.provider_name == "provider-main"
+    assert result.stored_count == 4
+    assert [request.indicator_code for request in sync_use_case.requests] == [
+        "CN_PMI",
+        "CN_CPI",
+    ]
 
 
 def test_sync_macro_use_case_stores_facts_and_audit():
@@ -186,9 +241,11 @@ def test_sync_macro_use_case_stores_facts_and_audit():
             )
         ]
     )
+    provider_registry = ProviderRegistry()
+    provider_registry.register(provider, priority=1, provider_id=1)
     use_case = SyncMacroUseCase(
         provider_repo=provider_repo,
-        provider_factory=_ProviderFactory(provider),
+        provider_registry=provider_registry,
         fact_repo=fact_repo,
         catalog_repo=catalog_repo,
         unit_rule_repo=unit_rule_repo,
@@ -215,6 +272,13 @@ def test_sync_macro_use_case_stores_facts_and_audit():
     assert raw_repo.items[0].status == "ok"
     assert provider_repo.saved
     assert provider_repo.saved[-1].extra_config["health_metrics"]["macro"]["last_success_at"]
+    macro_status = next(
+        item
+        for item in provider_registry.get_all_statuses()
+        if item.capability == DataCapability.MACRO
+    )
+    assert macro_status.status == ProviderHealthStatus.HEALTHY
+    assert macro_status.last_success_at is not None
 
 
 def test_sync_news_use_case_stores_articles_and_audit():
@@ -224,7 +288,7 @@ def test_sync_news_use_case_stores_articles_and_audit():
     news_repo = _NewsRepo()
     use_case = SyncNewsUseCase(
         provider_repo=provider_repo,
-        provider_factory=_ProviderFactory(provider),
+        provider_registry=_ProviderFactory(provider),
         fact_repo=news_repo,
         raw_audit_repo=raw_repo,
     )

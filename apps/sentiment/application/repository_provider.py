@@ -14,7 +14,7 @@ from apps.sentiment.infrastructure.providers import (
 def get_market_news_for_sentiment(target_date, limit: int = 50):
     """Return market-wide news for sentiment calculation via data_center."""
 
-    from apps.data_center.application.repository_provider import get_news_repository
+    from apps.data_center.composition import get_news_repository
 
     return get_news_repository().list_market_news_for_date(target_date, limit=limit)
 

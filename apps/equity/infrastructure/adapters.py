@@ -14,7 +14,7 @@ import pandas as pd
 from apps.account.application.config_summary_service import (
     get_account_config_summary_service,
 )
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     get_akshare_module,
     get_macro_fact_repository,
     get_price_bar_repository,

@@ -129,10 +129,13 @@ class UnifiedDataProviderProtocol(ProviderProtocol, Protocol):
 
 
 @runtime_checkable
-class RegistryProtocol(Protocol):
-    """Contract for the unified source registry."""
+class ProviderRegistryProtocol(Protocol):
+    """Canonical construction, lookup, routing, and health contract."""
 
     def register(self, provider: ProviderProtocol, priority: int = 100) -> None: ...
+
+    def get_by_id(self, provider_id: int) -> UnifiedDataProviderProtocol | None: ...
+    def get_by_name(self, provider_name: str) -> UnifiedDataProviderProtocol | None: ...
 
     def get_provider(
         self, capability: DataCapability

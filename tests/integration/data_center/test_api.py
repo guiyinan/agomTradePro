@@ -134,9 +134,15 @@ class _StubProvider:
         ]
 
 
-class _StubFactory:
+class _StubRegistry:
     def get_by_id(self, provider_id):
         return _StubProvider()
+
+    def record_success(self, provider_name, capability, latency_ms):
+        return None
+
+    def record_failure(self, provider_name, capability):
+        return None
 
 
 @pytest.mark.django_db
@@ -148,8 +154,8 @@ def test_sync_macro_endpoint_persists_fact_and_raw_audit(admin_client, mocker):
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.application.interface_services._make_provider_factory",
-        return_value=_StubFactory(),
+        "apps.data_center.application.interface_services._get_provider_registry",
+        return_value=_StubRegistry(),
     )
 
     response = admin_client.post(
@@ -180,8 +186,8 @@ def test_sync_quotes_endpoint_persists_snapshot_and_raw_audit(admin_client, mock
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.application.interface_services._make_provider_factory",
-        return_value=_StubFactory(),
+        "apps.data_center.application.interface_services._get_provider_registry",
+        return_value=_StubRegistry(),
     )
 
     response = admin_client.post(
@@ -204,8 +210,8 @@ def test_sync_fund_nav_endpoint_persists_fact_and_raw_audit(admin_client, mocker
         priority=1,
     )
     mocker.patch(
-        "apps.data_center.application.interface_services._make_provider_factory",
-        return_value=_StubFactory(),
+        "apps.data_center.application.interface_services._get_provider_registry",
+        return_value=_StubRegistry(),
     )
 
     response = admin_client.post(

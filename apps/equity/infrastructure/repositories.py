@@ -18,7 +18,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.data_center.application.interface_services import make_on_demand_data_center_service
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     fetch_akshare_eastmoney_historical_prices,
     fetch_tushare_historical_prices,
     get_akshare_module,

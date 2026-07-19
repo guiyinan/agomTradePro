@@ -1,5 +1,5 @@
 """
-金融指标数据获取器。
+Data Center 金融指标数据获取器。
 
 包含外汇储备、LPR、SHIBOR、存款准备金率、信贷数据等金融指标的获取逻辑。
 """
@@ -10,6 +10,8 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 import pandas as pd
+
+from shared.numeric import safe_float
 
 from ..base import DataValidationError, MacroDataPoint
 from .common import resolve_indicator_units
@@ -40,21 +42,9 @@ def parse_chinese_full_date(date_str: str) -> str:
     return date_str
 
 
-def _safe_float(value, default=0.0):
-    """安全地将值转换为 float，处理 None、空字符串、非数字值。"""
-    if value in (None, ""):
-        return default
-    try:
-        if isinstance(value, str):
-            value = value.replace(',', '').replace('%', '').strip()
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
 def _safe_percent_point(value, default=0.0):
     """Return rate-like values in percentage points when the unit is '%'."""
-    return _safe_float(value, default=default)
+    return safe_float(value, default=default, strip_chars=",%")
 
 
 class FinancialIndicatorFetcher:
@@ -99,7 +89,9 @@ class FinancialIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_FX_RESERVES",
-                        value=_safe_float(row['value']),
+                        value=safe_float(
+                            row['value'], default=0.0, strip_chars=",%"
+                        ),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -286,7 +278,7 @@ class FinancialIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     # 原始数据已经是亿元
-                    value = _safe_float(row['value'])
+                    value = safe_float(row['value'], default=0.0, strip_chars=",%")
                     point = MacroDataPoint(
                         code="CN_NEW_CREDIT",
                         value=value,
@@ -471,7 +463,7 @@ class FinancialIndicatorFetcher:
             unit, original_unit = resolve_indicator_units("CN_DR007")
             for _, row in df.iterrows():
                 try:
-                    value = _safe_float(row['value'])
+                    value = safe_float(row['value'], default=0.0, strip_chars=",%")
                     value_decimal = _safe_percent_point(value)
                     point = MacroDataPoint(
                         code="CN_DR007",
@@ -527,7 +519,7 @@ class FinancialIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     value_str = str(row['value']).replace('亿', '').replace('元', '').replace(',', '')
-                    value = _safe_float(value_str)
+                    value = safe_float(value_str, default=0.0, strip_chars=",%")
 
                     point = MacroDataPoint(
                         code="CN_PBOC_NET_INJECTION",

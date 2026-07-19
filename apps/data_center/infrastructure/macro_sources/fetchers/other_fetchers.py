@@ -1,5 +1,5 @@
 """
-其他指标数据获取器。
+Data Center 其他指标数据获取器。
 
 包含就业、房产、价格等其他指标的获取逻辑。
 """
@@ -11,7 +11,7 @@ from datetime import date
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import pick_column, resolve_indicator_units, safe_float
+from .common import parse_required_float, pick_column, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _safe_percent_point(value, default=0.0):
     """Return percentage-style source values in percentage points."""
     try:
-        return safe_float(value)
+        return parse_required_float(value)
     except ValueError:
         return default
 
@@ -127,7 +127,7 @@ class OtherIndicatorFetcher:
             unit, original_unit = resolve_indicator_units("CN_NEW_HOUSE_PRICE")
             for _, row in df_filtered.iterrows():
                 try:
-                    value_yoy = safe_float(row['value']) - 100.0
+                    value_yoy = parse_required_float(row['value']) - 100.0
                     point = MacroDataPoint(
                         code="CN_NEW_HOUSE_PRICE",
                         value=value_yoy,

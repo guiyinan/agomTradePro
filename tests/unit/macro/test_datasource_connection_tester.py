@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure.connection_tester import run_connection_test
-from apps.macro.infrastructure.adapters.base import MacroDataPoint
+from apps.data_center.infrastructure.macro_sources.base import MacroDataPoint
 
 
 def _tushare_config() -> ProviderConfig:
@@ -24,7 +24,7 @@ def _tushare_config() -> ProviderConfig:
 
 def test_run_connection_test_tushare_uses_adapter_fetch_to_validate_parse_path():
     with patch(
-        "apps.macro.infrastructure.adapters.tushare_adapter.TushareAdapter.fetch",
+        "apps.data_center.infrastructure.macro_sources.tushare_adapter.TushareAdapter.fetch",
         return_value=[
             MacroDataPoint(
                 code="SHIBOR",

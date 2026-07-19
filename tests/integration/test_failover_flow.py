@@ -19,7 +19,7 @@ class TestDataSourceFailover(TestCase):
 
     def test_tushare_failure_triggers_akshare_fallback(self):
         """When Tushare raises, the system should try AKShare."""
-        from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
+        from apps.data_center.infrastructure.macro_sources.akshare_adapter import AKShareAdapter
 
         adapter = AKShareAdapter()
         # Verify the adapter exists and has the expected interface

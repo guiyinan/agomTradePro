@@ -17,7 +17,6 @@ from decimal import Decimal, InvalidOperation
 import pandas as pd
 import requests
 
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.market_gateway_entities import (
     CapitalFlowSnapshot,
@@ -27,12 +26,14 @@ from apps.data_center.infrastructure.market_gateway_entities import (
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.parsers.eastmoney_capital_flow_parser import (
     parse_akshare_capital_flow_row,
 )
 from apps.data_center.infrastructure.parsers.eastmoney_news_parser import (
     parse_akshare_news_rows,
 )
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -136,11 +137,6 @@ def _safe_decimal(value: object, scale: int = 1) -> Decimal | None:
         return None
 
 
-def _safe_float(value: object, scale: int = 1) -> float | None:
-    decimal_value = _safe_decimal(value, scale=scale)
-    return float(decimal_value) if decimal_value is not None else None
-
-
 def _safe_int(value: object) -> int | None:
     if value in (None, ""):
         return None
@@ -150,7 +146,7 @@ def _safe_int(value: object) -> int | None:
         return None
 
 
-class AKShareEastMoneyGateway(GatewayProviderProtocol):
+class AKShareEastMoneyGateway(MarketGatewayProtocol):
     """通过 AKShare 封装访问东方财富的 Provider
 
     职责：
@@ -516,7 +512,7 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
                         low=float(row.get("最低", 0)),
                         close=float(row.get("收盘", 0)),
                         volume=_safe_int(row.get("成交量")),
-                        amount=_safe_float(row.get("成交额")),
+                        amount=safe_float(row.get("成交额")),
                         source=source,
                     )
                 )
@@ -609,11 +605,11 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             stock_code=stock_code,
             price=price,
             change=_safe_decimal(data.get("f169"), scale=100),
-            change_pct=_safe_float(data.get("f170"), scale=100),
+            change_pct=safe_float(data.get("f170"), scale=100),
             volume=_safe_int(data.get("f47")),
             amount=_safe_decimal(data.get("f48")),
-            turnover_rate=_safe_float(data.get("f168"), scale=100),
-            volume_ratio=_safe_float(data.get("f50"), scale=100),
+            turnover_rate=safe_float(data.get("f168"), scale=100),
+            volume_ratio=safe_float(data.get("f50"), scale=100),
             high=_safe_decimal(data.get("f44"), scale=100),
             low=_safe_decimal(data.get("f45"), scale=100),
             open=_safe_decimal(data.get("f46"), scale=100),
@@ -693,11 +689,11 @@ class AKShareEastMoneyGateway(GatewayProviderProtocol):
             stock_code=stock_code,
             price=price,
             change=_safe_decimal(row.get("f4")),
-            change_pct=_safe_float(row.get("f3")),
+            change_pct=safe_float(row.get("f3")),
             volume=_safe_int(row.get("f5")),
             amount=_safe_decimal(row.get("f6")),
-            turnover_rate=_safe_float(row.get("f8")),
-            volume_ratio=_safe_float(row.get("f10")),
+            turnover_rate=safe_float(row.get("f8")),
+            volume_ratio=safe_float(row.get("f10")),
             high=_safe_decimal(row.get("f15")),
             low=_safe_decimal(row.get("f16")),
             open=_safe_decimal(row.get("f17")),

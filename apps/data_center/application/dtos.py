@@ -570,6 +570,25 @@ class SyncMacroRequest:
 
 
 @dataclass
+class SyncMacroBatchRequest:
+    """Synchronize several macro indicators through one configured provider."""
+
+    indicator_codes: list[str]
+    start: date
+    end: date
+    source: str | None = None
+
+
+@dataclass
+class SyncMacroBatchResult:
+    """Aggregate result for a canonical macro synchronization batch."""
+
+    provider_name: str
+    stored_count: int
+    errors: list[str]
+
+
+@dataclass
 class SyncPriceRequest:
     provider_id: int
     asset_code: str

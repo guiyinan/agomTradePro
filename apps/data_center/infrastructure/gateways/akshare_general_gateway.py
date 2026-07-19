@@ -1,21 +1,22 @@
 """
 AKShare 通用 Gateway
 
-将现有 AKShare 通用行情能力包装为 GatewayProviderProtocol。
+将现有 AKShare 通用行情能力包装为 MarketGatewayProtocol。
 与 AKShareEastMoneyGateway 的区别：这里是通用 AKShare 能力，
 不绑定东方财富特定接口。
 
-作为东方财富的备用数据源注册到 SourceRegistry。
+作为统一 provider adapter 的底层行情客户端。
 """
 
 import logging
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot, TechnicalSnapshot
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +30,6 @@ def _safe_decimal(value: object) -> Decimal | None:
         d = Decimal(str(value))
         return None if d != d else d
     except (InvalidOperation, ValueError, TypeError):
-        return None
-
-
-def _safe_float(value: object) -> float | None:
-    if value is None:
-        return None
-    try:
-        f = float(value)
-        return None if f != f else f
-    except (ValueError, TypeError):
         return None
 
 
@@ -70,7 +61,7 @@ def _to_tushare_code(ak_code: str) -> str:
     return f"{code}.SZ"
 
 
-class AKShareGeneralGateway(GatewayProviderProtocol):
+class AKShareGeneralGateway(MarketGatewayProtocol):
     """AKShare 通用数据源 Provider
 
     使用 ak.stock_zh_a_spot_em() 获取全量 A 股实时行情。
@@ -118,11 +109,11 @@ class AKShareGeneralGateway(GatewayProviderProtocol):
                         stock_code=ts_code,
                         price=price,
                         change=_safe_decimal(row.get("涨跌额")),
-                        change_pct=_safe_float(row.get("涨跌幅")),
+                        change_pct=safe_float(row.get("涨跌幅")),
                         volume=_safe_int(row.get("成交量")),
                         amount=_safe_decimal(row.get("成交额")),
-                        turnover_rate=_safe_float(row.get("换手率")),
-                        volume_ratio=_safe_float(row.get("量比")),
+                        turnover_rate=safe_float(row.get("换手率")),
+                        volume_ratio=safe_float(row.get("量比")),
                         high=_safe_decimal(row.get("最高")),
                         low=_safe_decimal(row.get("最低")),
                         open=_safe_decimal(row.get("今开")),

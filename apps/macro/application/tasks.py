@@ -24,7 +24,7 @@ from apps.data_center.application.interface_services import (
     make_query_macro_series_use_case,
     make_sync_macro_use_case,
 )
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     get_indicator_catalog_repository,
 )
 from apps.macro.application.repository_provider import get_macro_repository
@@ -152,7 +152,7 @@ def _collect_due_macro_indicators() -> list[dict[str, Any]]:
     return due_items
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5 minutes
@@ -255,8 +255,8 @@ def sync_macro_data(
 # 使用 regime 模块的编排函数来协调 macro 同步和 regime 计算
 
 
-@shared_task(time_limit=300, soft_time_limit=280)
-def check_data_freshness() -> dict:
+@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
+def check_data_freshness() -> dict[str, Any]:
     """
     检查数据新鲜度任务
 
@@ -286,8 +286,10 @@ def check_data_freshness() -> dict:
         raise
 
 
-@shared_task(time_limit=300, soft_time_limit=280)
-def send_data_freshness_alert(stale_indicators: list) -> dict:
+@shared_task(time_limit=300, soft_time_limit=280)  # type: ignore[misc]
+def send_data_freshness_alert(
+    stale_indicators: list[dict[str, Any]],
+) -> dict[str, Any]:
     """
     发送数据新鲜度告警
 
@@ -319,8 +321,10 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
         raise
 
 
-@shared_task(time_limit=1800, soft_time_limit=1700)
-def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> dict:
+@shared_task(time_limit=1800, soft_time_limit=1700)  # type: ignore[misc]
+def auto_sync_due_macro_indicators(
+    indicator_codes: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Automatically sync governed macro indicators whose series are missing or stale.
 
@@ -436,8 +440,8 @@ def auto_sync_due_macro_indicators(indicator_codes: list[str] | None = None) -> 
         raise
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
-def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
+@shared_task(time_limit=900, soft_time_limit=850)  # type: ignore[misc]
+def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict[str, Any]:
     """
     清理旧数据任务
 
@@ -481,7 +485,7 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
 # ==================== High-Frequency Data Sync Tasks ====================
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -490,7 +494,11 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
     time_limit=900,
     soft_time_limit=850,
 )
-def sync_high_frequency_bonds(self, source: str = "akshare", years_back: int = 1) -> dict:
+def sync_high_frequency_bonds(
+    self: Any,
+    source: str = "akshare",
+    years_back: int = 1,
+) -> dict[str, Any]:
     """
     同步高频债券收益率数据任务
 
@@ -545,7 +553,7 @@ def sync_high_frequency_bonds(self, source: str = "akshare", years_back: int = 1
         raise
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     bind=True,
     max_retries=3,
     default_retry_delay=300,
@@ -554,7 +562,11 @@ def sync_high_frequency_bonds(self, source: str = "akshare", years_back: int = 1
     time_limit=900,
     soft_time_limit=850,
 )
-def sync_high_frequency_commodities(self, source: str = "akshare", years_back: int = 1) -> dict:
+def sync_high_frequency_commodities(
+    self: Any,
+    source: str = "akshare",
+    years_back: int = 1,
+) -> dict[str, Any]:
     """
     同步高频商品指数数据任务
 

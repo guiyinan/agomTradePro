@@ -23,7 +23,7 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
+from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
 
 
 @dataclass
@@ -269,7 +269,7 @@ def test_sync_market_thermometer_inputs_falls_back_to_next_real_provider():
                 _provider_config(2, "tushare", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _NoDataProvider(),
                 2: _RealDataProvider(),
@@ -303,7 +303,7 @@ def test_sync_market_thermometer_inputs_continues_after_provider_unavailable():
                 _provider_config(2, "tushare", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _UnavailableProvider(),
                 2: _RealDataProvider(name="Tushare Pro"),
@@ -342,7 +342,7 @@ def test_sync_market_thermometer_inputs_times_out_slow_provider_and_continues(mo
                 _provider_config(2, "tushare", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _SlowProvider(),
                 2: _RealDataProvider(name="Tushare Pro"),
@@ -376,7 +376,7 @@ def test_sync_market_thermometer_inputs_applies_etf_timeout_override(monkeypatch
     macro_repo = _FakeMacroRepo(series_map={})
     use_case = SyncMarketThermometerInputsUseCase(
         provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
-        provider_factory=_FakeProviderFactory(providers={1: _SlowEtfProvider()}),
+        provider_registry=_FakeProviderFactory(providers={1: _SlowEtfProvider()}),
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
@@ -414,7 +414,7 @@ def test_sync_market_thermometer_inputs_marks_market_news_no_data_when_nothing_i
     macro_repo = _FakeMacroRepo(series_map={})
     use_case = SyncMarketThermometerInputsUseCase(
         provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
-        provider_factory=_FakeProviderFactory(providers={1: _NoDataProvider()}),
+        provider_registry=_FakeProviderFactory(providers={1: _NoDataProvider()}),
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
@@ -440,7 +440,7 @@ def test_sync_market_thermometer_inputs_fetches_investor_accounts_with_monthly_w
     provider = _WindowAwareProvider()
     use_case = SyncMarketThermometerInputsUseCase(
         provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
-        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        provider_registry=_FakeProviderFactory(providers={1: provider}),
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
@@ -470,7 +470,7 @@ def test_sync_market_thermometer_inputs_fetches_turnover_and_margin_with_recent_
     provider = _WindowAwareProvider()
     use_case = SyncMarketThermometerInputsUseCase(
         provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
-        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        provider_registry=_FakeProviderFactory(providers={1: provider}),
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
@@ -494,7 +494,7 @@ def test_sync_market_thermometer_inputs_fetches_etf_net_flow_with_recent_window(
     provider = _WindowAwareProvider()
     use_case = SyncMarketThermometerInputsUseCase(
         provider_repo=_FakeProviderRepo(providers=[_provider_config(1, "akshare", 1)]),
-        provider_factory=_FakeProviderFactory(providers={1: provider}),
+        provider_registry=_FakeProviderFactory(providers={1: provider}),
         macro_repo=macro_repo,
         news_repo=_FakeNewsRepo(),
         raw_audit_repo=_FakeRawAuditRepo(),
@@ -519,7 +519,7 @@ def test_sync_etf_net_flow_stores_consensus_when_sources_match():
                 _provider_config(2, "eastmoney", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
                 2: _SelectiveProvider("EastMoney", {"CN_A_ETF_NET_FLOW_MAIN": 100.5}),
@@ -569,7 +569,7 @@ def test_sync_etf_net_flow_rejects_mismatched_sources():
                 _provider_config(2, "eastmoney", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
                 2: _SelectiveProvider("EastMoney", {"CN_A_ETF_NET_FLOW_MAIN": 130.0}),
@@ -604,7 +604,7 @@ def test_sync_etf_net_flow_marks_single_source_when_only_one_provider_returns_da
                 _provider_config(2, "eastmoney", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _SelectiveProvider("AKShare Public", {"CN_A_ETF_NET_FLOW_MAIN": 100.0}),
                 2: _NoDataProvider(),
@@ -642,7 +642,7 @@ def test_sync_etf_net_flow_falls_back_to_size_flow_proxy():
                 _provider_config(2, "tushare", 1),
             ]
         ),
-        provider_factory=_FakeProviderFactory(
+        provider_registry=_FakeProviderFactory(
             providers={
                 1: _NoDataProvider(),
                 2: _SelectiveProvider("Tushare Pro", {"CN_A_ETF_SIZE_FLOW": 88.0}),

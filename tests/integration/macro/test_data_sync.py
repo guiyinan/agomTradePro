@@ -12,6 +12,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
+from apps.data_center.infrastructure.macro_sources.failover_adapter import FailoverAdapter
 from apps.data_center.infrastructure.models import MacroFactModel
 from apps.macro.application.use_cases import (
     MacroDataPoint,
@@ -19,9 +21,7 @@ from apps.macro.application.use_cases import (
     SyncMacroDataUseCase,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
-from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from tests.integration.support.macro_rules import seed_indicator_rule
 
 
@@ -67,7 +67,7 @@ class TestMacroDataSyncWorkflow:
         mock_adapter.fetch = Mock(return_value=test_data_points)
 
         # 2. 创建 Use Case
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"test": mock_adapter}
@@ -133,7 +133,7 @@ class TestMacroDataSyncWorkflow:
             multiplier_to_storage=1000000000000,
         )
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"test": mock_adapter}
@@ -191,7 +191,7 @@ class TestMacroDataSyncWorkflow:
         ]
         mock_adapter.fetch = Mock(side_effect=[test_data_points[:1], test_data_points[1:]])
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"test": mock_adapter}
@@ -246,7 +246,7 @@ class TestMacroDataSyncWorkflow:
         ]
         mock_adapter.fetch = Mock(return_value=test_data_points)
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"test": mock_adapter}
@@ -314,7 +314,7 @@ class TestFailoverMechanism:
             validate_consistency=False
         )
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"failover": failover_adapter}
@@ -385,7 +385,7 @@ class TestFailoverMechanism:
             tolerance=0.01  # 1% 容差
         )
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"failover": failover_adapter}
@@ -426,7 +426,7 @@ class TestFailoverMechanism:
             adapters=[primary_adapter, secondary_adapter]
         )
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
             repository=repository,
             adapters={"failover": failover_adapter}
@@ -454,7 +454,7 @@ class TestPitDataHandling:
 
         验证在指定日期只能看到该日期前已发布的数据
         """
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         test_code = "CN_PMI_PIT_TEST"
         seed_indicator_rule(code=test_code, original_unit="指数")
 
@@ -513,7 +513,7 @@ class TestPitDataHandling:
 
         验证同一数据点的多次修订能正确保存和查询
         """
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
 
         # 第一次发布（修订版 1）
         repository.save_indicator(
@@ -588,7 +588,7 @@ class TestPitDataHandling:
 
     def test_pit_mode_in_series_query(self):
         """测试 PIT 模式下的时序查询"""
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
 
         # 准备测试数据：三个观测期，每期有修订
         # 1 月数据

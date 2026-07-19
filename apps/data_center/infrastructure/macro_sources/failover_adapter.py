@@ -1,5 +1,5 @@
 """
-Failover Data Adapter.
+Failover macro-source adapter.
 
 Infrastructure layer - provides automatic failover between multiple data sources.
 """
@@ -262,7 +262,7 @@ def create_default_adapter(
 
         if settings.configured:
             django.setup()
-            from apps.data_center.application.repository_provider import (
+            from apps.data_center.composition import (
                 load_data_provider_settings,
             )
 

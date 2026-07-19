@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from apps.macro.infrastructure.adapters.base import DataSourceUnavailableError
-from apps.macro.infrastructure.adapters.tushare_adapter import TushareAdapter
+from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
+from apps.data_center.infrastructure.macro_sources.tushare_adapter import TushareAdapter
 
 
 def test_fetch_shibor_accepts_lowercase_tenor_column():
@@ -69,7 +69,7 @@ def test_fetch_cpi_national_yoy_uses_cn_cpi_monthly_data():
 
 def test_supported_indicators_include_runtime_macro_index_codes(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.tushare_adapter.get_runtime_macro_index_codes",
+        "apps.data_center.infrastructure.macro_sources.tushare_adapter.get_runtime_macro_index_codes",
         lambda: ["000300.SH", "000905.SH"],
     )
 

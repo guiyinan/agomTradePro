@@ -393,13 +393,13 @@ class SyncMarketThermometerInputsUseCase:
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry,
         macro_repo: MacroFactRepositoryProtocol,
         news_repo: NewsRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
         self._provider_repo = provider_repo
-        self._provider_factory = provider_factory
+        self._provider_registry = provider_registry
         self._macro_repo = macro_repo
         self._news_repo = news_repo
         self._raw_audit_repo = raw_audit_repo
@@ -973,7 +973,7 @@ class SyncMarketThermometerInputsUseCase:
         providers.sort(key=lambda item: (source_types.index(item.source_type), item.priority))
         resolved = []
         for config in providers:
-            provider = self._provider_factory.get_by_id(int(config.id or 0))
+            provider = self._provider_registry.get_by_id(int(config.id or 0))
             if provider is not None:
                 resolved.append((config, provider))
         return resolved

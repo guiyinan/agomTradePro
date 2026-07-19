@@ -4,7 +4,7 @@ Interface Views for Regime Calculation.
 DRF Views and page views for regime calculation.
 
 重构说明 (2026-03-11):
-- 使用 MacroRepositoryAdapter 替代直接导入 DjangoMacroRepository
+- 使用 MacroRepositoryAdapter 替代直接导入 DataCenterMacroRepository
 - 使用 DjangoDataSourceConfig 替代直接导入 macro 模块的 DataSourceConfig
 - 保持 API 完全兼容
 """

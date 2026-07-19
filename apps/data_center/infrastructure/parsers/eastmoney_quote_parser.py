@@ -11,6 +11,7 @@ from decimal import Decimal, InvalidOperation
 import pandas
 
 from apps.data_center.infrastructure.market_gateway_entities import QuoteSnapshot
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +26,6 @@ def _safe_decimal(value: object) -> Decimal | None:
             return None
         return d
     except (InvalidOperation, ValueError, TypeError):
-        return None
-
-
-def _safe_float(value: object) -> float | None:
-    """安全地将值转换为 float"""
-    if value is None:
-        return None
-    try:
-        f = float(value)
-        if f != f:  # NaN check
-            return None
-        return f
-    except (ValueError, TypeError):
         return None
 
 
@@ -76,11 +64,11 @@ def parse_akshare_spot_row(
             stock_code=stock_code_tushare,
             price=price,
             change=_safe_decimal(row.get("涨跌额")),
-            change_pct=_safe_float(row.get("涨跌幅")),
+            change_pct=safe_float(row.get("涨跌幅")),
             volume=_safe_int(row.get("成交量")),
             amount=_safe_decimal(row.get("成交额")),
-            turnover_rate=_safe_float(row.get("换手率")),
-            volume_ratio=_safe_float(row.get("量比")),
+            turnover_rate=safe_float(row.get("换手率")),
+            volume_ratio=safe_float(row.get("量比")),
             high=_safe_decimal(row.get("最高")),
             low=_safe_decimal(row.get("最低")),
             open=_safe_decimal(row.get("今开")),

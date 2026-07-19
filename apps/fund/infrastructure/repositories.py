@@ -16,7 +16,7 @@ from django.db.models import Max
 
 from apps.data_center.application.dtos import SyncFundNavRequest
 from apps.data_center.application.use_cases import SyncFundNavUseCase
-from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
+from apps.data_center.infrastructure.provider_registry import ProviderRegistry
 from apps.data_center.infrastructure.repositories import (
     FundNavRepository as DataCenterFundNavRepository,
 )
@@ -152,7 +152,7 @@ class DjangoFundRepository:
         self.akshare_adapter = AkShareFundAdapter()
         self._dc_fund_nav_repo = DataCenterFundNavRepository()
         self._provider_repo = ProviderConfigRepository()
-        self._provider_factory = UnifiedProviderFactory(self._provider_repo)
+        self._provider_registry = ProviderRegistry.from_repository(self._provider_repo)
         self._raw_audit_repo = RawAuditRepository()
         self._perf_calculator = FundPerformanceCalculator()
 
@@ -821,7 +821,7 @@ class DjangoFundRepository:
             try:
                 use_case = SyncFundNavUseCase(
                     provider_repo=self._provider_repo,
-                    provider_factory=self._provider_factory,
+                    provider_registry=self._provider_registry,
                     fact_repo=self._dc_fund_nav_repo,
                     raw_audit_repo=self._raw_audit_repo,
                 )

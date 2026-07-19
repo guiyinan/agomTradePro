@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from apps.data_center.application.repository_provider import get_valuation_fact_repository
+from apps.data_center.composition import get_valuation_fact_repository
 from apps.equity.domain.entities import ValuationMetrics
 from apps.equity.infrastructure.repositories import compute_valuation_quality_flag
 

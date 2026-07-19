@@ -72,7 +72,7 @@ class RepairDecisionDataReliabilityUseCase:
         self,
         *,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry,
         macro_fact_repo: MacroFactRepositoryProtocol,
         indicator_catalog_repo: IndicatorCatalogRepositoryProtocol,
         indicator_unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
@@ -84,7 +84,7 @@ class RepairDecisionDataReliabilityUseCase:
         alpha_status_reader: Callable[[date, int | None], dict[str, Any]] | None = None,
     ) -> None:
         self._provider_repo = provider_repo
-        self._provider_factory = provider_factory
+        self._provider_registry = provider_registry
         self._macro_fact_repo = macro_fact_repo
         self._indicator_catalog_repo = indicator_catalog_repo
         self._indicator_unit_rule_repo = indicator_unit_rule_repo
@@ -226,7 +226,7 @@ class RepairDecisionDataReliabilityUseCase:
             try:
                 sync_result = SyncMacroUseCase(
                     provider_repo=self._provider_repo,
-                    provider_factory=self._provider_factory,
+                    provider_registry=self._provider_registry,
                     fact_repo=self._macro_fact_repo,
                     catalog_repo=self._indicator_catalog_repo,
                     unit_rule_repo=self._indicator_unit_rule_repo,
@@ -300,7 +300,7 @@ class RepairDecisionDataReliabilityUseCase:
             try:
                 sync_result = SyncQuoteUseCase(
                     provider_repo=self._provider_repo,
-                    provider_factory=self._provider_factory,
+                    provider_registry=self._provider_registry,
                     fact_repo=self._quote_snapshot_repo,
                     raw_audit_repo=self._raw_audit_repo,
                 ).execute(
@@ -329,7 +329,7 @@ class RepairDecisionDataReliabilityUseCase:
                 try:
                     sync_result = SyncPriceUseCase(
                         provider_repo=self._provider_repo,
-                        provider_factory=self._provider_factory,
+                        provider_registry=self._provider_registry,
                         fact_repo=self._price_bar_repo,
                         raw_audit_repo=self._raw_audit_repo,
                     ).execute(
@@ -616,4 +616,3 @@ __all__ = [
     "RepairDecisionDataReliabilityUseCase",
     "TUSHARE_CPI_INDICATORS",
 ]
-

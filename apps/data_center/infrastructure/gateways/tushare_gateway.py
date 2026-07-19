@@ -1,23 +1,24 @@
 """
 Tushare Gateway
 
-将现有 Tushare 适配器包装为统一的 GatewayProviderProtocol。
+将现有 Tushare 适配器包装为统一的 MarketGatewayProtocol。
 支持 REALTIME_QUOTE 和 TECHNICAL_FACTORS 能力。
-作为东方财富的备用数据源注册到 SourceRegistry。
+作为统一 provider adapter 的底层行情客户端。
 """
 
 import logging
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from core.integration.data_center_business_sources import build_tushare_stock_adapter
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +39,6 @@ def _safe_decimal(value: object) -> Decimal | None:
         return None
 
 
-def _safe_float(value: object) -> float | None:
-    if value is None:
-        return None
-    try:
-        f = float(value)
-        return None if f != f else f
-    except (ValueError, TypeError):
-        return None
-
-
 def _safe_int(value: object) -> int | None:
     if value is None:
         return None
@@ -57,7 +48,7 @@ def _safe_int(value: object) -> int | None:
         return None
 
 
-class TushareGateway(GatewayProviderProtocol):
+class TushareGateway(MarketGatewayProtocol):
     """Tushare 数据源 Provider
 
     注意：Tushare 免费版只能获取日线收盘数据，非真实时行情。
@@ -114,7 +105,7 @@ class TushareGateway(GatewayProviderProtocol):
                             change_pct=change_pct,
                             volume=_safe_int(latest.get("vol")),
                             amount=_safe_decimal(latest.get("amount")),
-                            turnover_rate=_safe_float(latest.get("turnover_rate")),
+                            turnover_rate=safe_float(latest.get("turnover_rate")),
                             high=_safe_decimal(latest.get("high")),
                             low=_safe_decimal(latest.get("low")),
                             open=_safe_decimal(latest.get("open")),
@@ -207,7 +198,7 @@ class TushareGateway(GatewayProviderProtocol):
                         low=float(row.get("low", 0)),
                         close=float(row.get("close", 0)),
                         volume=_safe_int(row.get("vol")),
-                        amount=_safe_float(row.get("amount")),
+                        amount=safe_float(row.get("amount")),
                         source="tushare",
                     ))
                 except (ValueError, TypeError):

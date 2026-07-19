@@ -10,6 +10,8 @@ from apps.data_center.application.dtos import (
     SyncCapitalFlowRequest,
     SyncFinancialRequest,
     SyncFundNavRequest,
+    SyncMacroBatchRequest,
+    SyncMacroBatchResult,
     SyncMacroRequest,
     SyncNewsRequest,
     SyncPriceRequest,
@@ -19,6 +21,7 @@ from apps.data_center.application.dtos import (
     SyncValuationRequest,
 )
 from apps.data_center.domain.entities import ProviderConfig, RawAudit
+from apps.data_center.domain.enums import DataCapability
 from apps.data_center.domain.protocols import (
     CapitalFlowRepositoryProtocol,
     FinancialFactRepositoryProtocol,
@@ -29,6 +32,7 @@ from apps.data_center.domain.protocols import (
     NewsRepositoryProtocol,
     PriceBarRepositoryProtocol,
     ProviderConfigRepositoryProtocol,
+    ProviderRegistryProtocol,
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
     SectorMembershipRepositoryProtocol,
@@ -72,18 +76,18 @@ class _BaseSyncUseCase:
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
         self._provider_repo = provider_repo
-        self._provider_factory = provider_factory
+        self._provider_registry = provider_registry
         self._raw_audit_repo = raw_audit_repo
 
     def _get_provider(self, provider_id: int) -> tuple[ProviderConfig, UnifiedDataProviderProtocol]:
         config = self._provider_repo.get_by_id(provider_id)
         if config is None:
             raise ValueError(f"Provider not found: {provider_id}")
-        provider = self._provider_factory.get_by_id(provider_id)
+        provider = self._provider_registry.get_by_id(provider_id)
         if provider is None:
             raise ValueError(f"Provider adapter unavailable: {provider_id}")
         return config, provider
@@ -184,19 +188,31 @@ class _BaseSyncUseCase:
         capability_metrics[capability] = metric
         extra_config["health_metrics"] = capability_metrics
         self._provider_repo.save(dataclasses.replace(config, extra_config=extra_config))
+        try:
+            runtime_capability = DataCapability(capability)
+        except ValueError:
+            return
+        if success:
+            self._provider_registry.record_success(
+                config.name,
+                runtime_capability,
+                latency_ms,
+            )
+        else:
+            self._provider_registry.record_failure(config.name, runtime_capability)
 
 
 class SyncMacroUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: MacroFactRepositoryProtocol,
         catalog_repo: IndicatorCatalogRepositoryProtocol,
         unit_rule_repo: IndicatorUnitRuleRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
         self._catalog = catalog_repo
         self._unit_rules = unit_rule_repo
@@ -309,15 +325,74 @@ class SyncMacroUseCase(_BaseSyncUseCase):
             raise
 
 
+class SyncMacroBatchUseCase:
+    """Select one configured macro provider and synchronize an indicator batch."""
+
+    def __init__(
+        self,
+        provider_repo: ProviderConfigRepositoryProtocol,
+        provider_registry: ProviderRegistryProtocol,
+        sync_use_case: SyncMacroUseCase,
+    ) -> None:
+        self._provider_repo = provider_repo
+        self._provider_registry = provider_registry
+        self._sync_use_case = sync_use_case
+
+    def execute(self, request: SyncMacroBatchRequest) -> SyncMacroBatchResult:
+        config = self._select_provider(request.source)
+        if config.id is None:
+            raise ValueError(f"Provider has no persistent id: {config.name}")
+
+        stored_count = 0
+        errors: list[str] = []
+        for indicator_code in request.indicator_codes:
+            try:
+                result = self._sync_use_case.execute(
+                    SyncMacroRequest(
+                        provider_id=config.id,
+                        indicator_code=indicator_code,
+                        start=request.start,
+                        end=request.end,
+                    )
+                )
+            except RECOVERABLE_DATA_CENTER_EXCEPTIONS as exc:
+                errors.append(f"{indicator_code}: {exc}")
+                continue
+            stored_count += result.stored_count
+
+        return SyncMacroBatchResult(
+            provider_name=config.name,
+            stored_count=stored_count,
+            errors=errors,
+        )
+
+    def _select_provider(self, source: str | None) -> ProviderConfig:
+        requested = source.strip().lower() if source else ""
+        configs = sorted(
+            (config for config in self._provider_repo.list_all() if config.is_active),
+            key=lambda config: config.priority,
+        )
+        for config in configs:
+            if requested and requested not in {config.name.lower(), config.source_type.lower()}:
+                continue
+            if config.id is None:
+                continue
+            provider = self._provider_registry.get_by_id(config.id)
+            if provider is not None and provider.supports(DataCapability.MACRO):
+                return config
+        suffix = f" for source {source!r}" if source else ""
+        raise ValueError(f"No active macro provider configured{suffix}")
+
+
 class SyncPriceUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: PriceBarRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncPriceRequest) -> SyncResult:
@@ -384,11 +459,11 @@ class SyncQuoteUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: QuoteSnapshotRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncQuoteRequest) -> SyncResult:
@@ -447,11 +522,11 @@ class SyncFundNavUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: FundNavRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncFundNavRequest) -> SyncResult:
@@ -505,11 +580,11 @@ class SyncFinancialUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: FinancialFactRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncFinancialRequest) -> SyncResult:
@@ -555,11 +630,11 @@ class SyncValuationUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: ValuationFactRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncValuationRequest) -> SyncResult:
@@ -613,11 +688,11 @@ class SyncSectorMembershipUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: SectorMembershipRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncSectorMembershipRequest) -> SyncResult:
@@ -676,11 +751,11 @@ class SyncNewsUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: NewsRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncNewsRequest) -> SyncResult:
@@ -716,11 +791,11 @@ class SyncCapitalFlowUseCase(_BaseSyncUseCase):
     def __init__(
         self,
         provider_repo: ProviderConfigRepositoryProtocol,
-        provider_factory,
+        provider_registry: ProviderRegistryProtocol,
         fact_repo: CapitalFlowRepositoryProtocol,
         raw_audit_repo: RawAuditRepositoryProtocol,
     ) -> None:
-        super().__init__(provider_repo, provider_factory, raw_audit_repo)
+        super().__init__(provider_repo, provider_registry, raw_audit_repo)
         self._facts = fact_repo
 
     def execute(self, request: SyncCapitalFlowRequest) -> SyncResult:
@@ -769,4 +844,3 @@ __all__ = [
     "SyncSectorMembershipUseCase",
     "SyncValuationUseCase",
 ]
-

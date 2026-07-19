@@ -16,10 +16,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from apps.data_center.domain.entities import ConnectionTestResult, ProviderConfig
-from core.integration.data_center_business_sources import (
-    build_akshare_macro_adapter,
-    build_tushare_macro_adapter,
-)
+from apps.data_center.infrastructure.macro_sources import AKShareAdapter, TushareAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +47,7 @@ def _probe_tushare(config: ProviderConfig, logs: list[str]) -> ConnectionTestRes
     if http_url:
         _log(logs, f"[INFO] Custom HTTP URL: {http_url}")
 
-    adapter = build_tushare_macro_adapter(token=token, http_url=http_url)
+    adapter = TushareAdapter(token=token, http_url=http_url)
     end = date.today()
     start = end - timedelta(days=7)
     _log(logs, f"[INFO] SHIBOR probe window: {start} → {end}")
@@ -68,7 +65,7 @@ def _probe_tushare(config: ProviderConfig, logs: list[str]) -> ConnectionTestRes
 def _probe_akshare(config: ProviderConfig, logs: list[str]) -> ConnectionTestResult:
     """Test AKShare via a CN_PMI fetch."""
     _log(logs, "[INFO] AKShare is a public source — no token required.")
-    adapter = build_akshare_macro_adapter()
+    adapter = AKShareAdapter()
     end = date.today()
     start = end - timedelta(days=400)
     _log(logs, f"[INFO] CN_PMI probe window: {start} → {end}")

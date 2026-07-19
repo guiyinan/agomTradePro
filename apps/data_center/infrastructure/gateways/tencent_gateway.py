@@ -11,12 +11,13 @@ from zoneinfo import ZoneInfo
 import requests
 
 from apps.data_center.domain.rules import normalize_asset_code
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def _request_error_is_permission_denied(exc: requests.RequestException) -> bool:
     return False
 
 
-class TencentGateway(GatewayProviderProtocol):
+class TencentGateway(MarketGatewayProtocol):
     """Fetch historical bars from Tencent's public qfq kline endpoint."""
 
     _URL = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
@@ -213,7 +214,7 @@ class TencentGateway(GatewayProviderProtocol):
             stock_code=normalize_asset_code(asset_code, "tencent"),
             price=price,
             change=_safe_decimal(fields[31] if len(fields) > 31 else None),
-            change_pct=_safe_float(fields[32] if len(fields) > 32 else None),
+            change_pct=safe_float(fields[32] if len(fields) > 32 else None),
             volume=_safe_int(fields[36] if len(fields) > 36 else fields[6]),
             amount=amount,
             high=_safe_decimal(fields[33] if len(fields) > 33 else None),
@@ -232,11 +233,6 @@ def _safe_decimal(value: object) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError, TypeError):
         return None
-
-
-def _safe_float(value: object) -> float | None:
-    decimal_value = _safe_decimal(value)
-    return float(decimal_value) if decimal_value is not None else None
 
 
 def _safe_int(value: object) -> int | None:

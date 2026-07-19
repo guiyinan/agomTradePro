@@ -8,7 +8,7 @@ django.setup()
 
 from datetime import date
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
 from apps.regime.domain.services import RegimeCalculator
 
@@ -25,7 +25,7 @@ calculator = RegimeCalculator(
     use_absolute_inflation_momentum=True  # 关键参数
 )
 
-repository = DjangoMacroRepository()
+repository = DataCenterMacroRepository()
 use_case = CalculateRegimeUseCase(
     repository=repository,
     regime_repository=None,

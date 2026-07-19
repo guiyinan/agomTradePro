@@ -9,12 +9,22 @@ from apps.dashboard.application.integration_gateways import (
     build_dashboard_application_gateway,
 )
 from apps.dashboard.infrastructure.providers import (
-    AlphaRecommendationHistoryRepository,
-    AutoAdvisorReportRepository,
-    DashboardAIInsightClient,
-    DashboardAlphaContextRepository,
-    DashboardOverviewRepository,
-    DashboardQueryRepository,
+    AlphaRecommendationHistoryRepository as AlphaRecommendationHistoryRepository,
+)
+from apps.dashboard.infrastructure.providers import (
+    AutoAdvisorReportRepository as AutoAdvisorReportRepository,
+)
+from apps.dashboard.infrastructure.providers import (
+    DashboardAIInsightClient as DashboardAIInsightClient,
+)
+from apps.dashboard.infrastructure.providers import (
+    DashboardAlphaContextRepository as DashboardAlphaContextRepository,
+)
+from apps.dashboard.infrastructure.providers import (
+    DashboardOverviewRepository as DashboardOverviewRepository,
+)
+from apps.dashboard.infrastructure.providers import (
+    DashboardQueryRepository as DashboardQueryRepository,
 )
 from apps.regime.application.repository_provider import get_regime_repository  # noqa: F401
 from apps.signal.application.repository_provider import get_signal_repository  # noqa: F401

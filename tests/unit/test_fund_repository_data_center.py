@@ -19,7 +19,7 @@ def _make_repo() -> DjangoFundRepository:
     repo._dc_fund_nav_repo.get_series.return_value = []
     repo._provider_repo = Mock()
     repo._provider_repo.get_active_by_type.return_value = []
-    repo._provider_factory = Mock()
+    repo._provider_registry = Mock()
     repo._raw_audit_repo = Mock()
     repo._perf_calculator = FundPerformanceCalculator()
     return repo

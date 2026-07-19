@@ -26,8 +26,8 @@ import django
 django.setup()
 
 from apps.macro.domain.entities import MacroIndicator
-from apps.macro.infrastructure.adapters import PUBLICATION_LAGS, create_default_adapter
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.data_center.infrastructure.macro_sources import PUBLICATION_LAGS, create_default_adapter
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 
 # Configure logging
 logging.basicConfig(
@@ -77,7 +77,7 @@ def seed_indicator(
     indicator_code: str,
     start_date: date,
     end_date: date,
-    repository: DjangoMacroRepository,
+    repository: DataCenterMacroRepository,
     adapter,
     force_refresh: bool = False
 ) -> dict:
@@ -213,7 +213,7 @@ def seed_all_indicators(
     Returns:
         List[dict]: 所有指标的导入结果
     """
-    repository = DjangoMacroRepository()
+    repository = DataCenterMacroRepository()
     adapter = create_default_adapter()
 
     results = []
@@ -288,7 +288,7 @@ def check_database():
     logger.info("数据库数据检查")
     logger.info(f"{'='*60}")
 
-    repository = DjangoMacroRepository()
+    repository = DataCenterMacroRepository()
 
     for code in DEFAULT_INDICATORS:
         count = repository.get_indicator_count(code)
@@ -394,7 +394,7 @@ def main():
             logger.info("使用 --list 查看所有可用指标")
             return 1
 
-        repository = DjangoMacroRepository()
+        repository = DataCenterMacroRepository()
         adapter = create_default_adapter()
 
         result = seed_indicator(

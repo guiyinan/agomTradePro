@@ -7,6 +7,9 @@ Application layer orchestrating the workflow of syncing macro data from various 
 from dataclasses import dataclass
 from datetime import date
 
+from apps.data_center.application.dtos import SyncMacroBatchRequest
+from apps.data_center.application.sync_use_cases import SyncMacroBatchUseCase
+
 from ..domain.entities import MacroIndicator
 
 
@@ -227,7 +230,8 @@ class SyncMacroDataUseCase:
             or existing.period_type != incoming.period_type
         )
 
-    def _get_default_indicators(self) -> list[str]:
+    @staticmethod
+    def _get_default_indicators() -> list[str]:
         """
         获取默认支持的指标列表
 
@@ -351,24 +355,44 @@ class GetLatestMacroDataUseCase:
         )
 
 
+class CanonicalMacroSyncUseCase:
+    """Macro-facing facade over the canonical Data Center sync pipeline."""
+
+    def __init__(
+        self,
+        batch_use_case: SyncMacroBatchUseCase,
+        source: str | None = None,
+    ) -> None:
+        self._batch_use_case = batch_use_case
+        self._source = source
+
+    def execute(self, request: SyncMacroDataRequest) -> SyncMacroDataResponse:
+        result = self._batch_use_case.execute(
+            SyncMacroBatchRequest(
+                indicator_codes=request.indicators
+                or SyncMacroDataUseCase._get_default_indicators(),
+                start=request.start_date,
+                end=request.end_date or date.today(),
+                source=self._source,
+            )
+        )
+        return SyncMacroDataResponse(
+            success=not result.errors,
+            synced_count=result.stored_count,
+            skipped_count=0,
+            errors=list(result.errors),
+        )
+
+
 def build_sync_macro_data_use_case(
     source: str | None = None,
-) -> SyncMacroDataUseCase:
-    """Build a sync use case pre-wired with the configured macro adapters."""
-    from apps.macro.application.repository_provider import (
-        build_akshare_macro_adapter,
-        build_default_macro_adapter,
-        build_tushare_macro_adapter,
-        get_macro_repository,
+) -> CanonicalMacroSyncUseCase:
+    """Build the Macro facade over Data Center's canonical provider registry."""
+    from apps.data_center.application.interface_services import (
+        make_sync_macro_batch_use_case,
     )
 
-    repository = get_macro_repository()
-
-    if source == "akshare":
-        adapters: dict[str, object] = {"akshare": build_akshare_macro_adapter()}
-    elif source == "tushare":
-        adapters = {"tushare": build_tushare_macro_adapter()}
-    else:
-        adapters = {"default": build_default_macro_adapter()}
-
-    return SyncMacroDataUseCase(repository=repository, adapters=adapters)
+    return CanonicalMacroSyncUseCase(
+        batch_use_case=make_sync_macro_batch_use_case(),
+        source=source,
+    )

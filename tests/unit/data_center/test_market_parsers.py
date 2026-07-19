@@ -19,10 +19,10 @@ from apps.data_center.infrastructure.parsers.eastmoney_news_parser import (
 )
 from apps.data_center.infrastructure.parsers.eastmoney_quote_parser import (
     _safe_decimal,
-    _safe_float,
     _safe_int,
     parse_akshare_spot_row,
 )
+from shared.numeric import safe_float
 
 
 class TestSafeConversions:
@@ -42,14 +42,14 @@ class TestSafeConversions:
         assert _safe_decimal("abc") is None
 
     def test_safe_float_valid(self):
-        assert _safe_float("1.5") == 1.5
-        assert _safe_float(1.5) == 1.5
+        assert safe_float("1.5") == 1.5
+        assert safe_float(1.5) == 1.5
 
     def test_safe_float_none(self):
-        assert _safe_float(None) is None
+        assert safe_float(None) is None
 
     def test_safe_float_nan(self):
-        assert _safe_float(float("nan")) is None
+        assert safe_float(float("nan")) is None
 
     def test_safe_int_valid(self):
         assert _safe_int("100") == 100

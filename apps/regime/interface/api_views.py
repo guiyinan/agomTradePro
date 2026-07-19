@@ -4,7 +4,7 @@ DRF API Views for Regime Calculation.
 提供 RESTful API 接口用于 Regime 判定。
 
 重构说明 (2026-03-11):
-- 使用 MacroRepositoryAdapter 替代直接导入 DjangoMacroRepository
+- 使用 MacroRepositoryAdapter 替代直接导入 DataCenterMacroRepository
 - 保持 API 完全兼容
 """
 

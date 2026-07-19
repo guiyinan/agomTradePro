@@ -1,5 +1,5 @@
 """
-Weekly Indicators Data Fetchers（Regime 滞后性改进 Phase 2）
+Data Center Weekly Indicators Data Fetchers（Regime 滞后性改进 Phase 2）
 
 包含周度级别的工业活动指标获取逻辑：
 - 发电量 (CN_POWER_GEN) - 月度用电量数据

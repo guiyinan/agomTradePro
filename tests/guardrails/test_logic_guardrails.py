@@ -6,7 +6,7 @@ import pytest
 
 from apps.data_center.application.interface_services import load_macro_governance_payload
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
-from apps.macro.infrastructure.adapters.fetchers.common import resolve_indicator_units
+from apps.data_center.infrastructure.macro_sources.fetchers.common import resolve_indicator_units
 from apps.policy.application.use_cases import FetchRSSUseCase
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel, RSSItem
 from apps.policy.infrastructure.models import PolicyLog, RSSSourceConfigModel
@@ -248,7 +248,7 @@ def test_guardrail_macro_governance_no_local_fallback_constants():
     """
     forbidden_markers = {
         "apps/macro/application/data_management.py": ["DEFAULT_INDICATOR_SCHEDULES"],
-        "apps/macro/infrastructure/adapters/base.py": [
+        "apps/data_center/infrastructure/macro_sources/base.py": [
             "BASE_PUBLICATION_LAGS",
             "PUBLICATION_LAGS",
         ],
@@ -324,11 +324,11 @@ def test_guardrail_governed_macro_units_do_not_silently_fallback(monkeypatch):
             return None
 
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {"TEST.GOV": {"governance_scope": "macro_console"}},
     )
     monkeypatch.setattr(
-        "apps.data_center.application.repository_provider.get_indicator_unit_rule_repository",
+        "apps.data_center.composition.get_indicator_unit_rule_repository",
         lambda: _EmptyRuleRepo(),
     )
 

@@ -407,7 +407,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
     """
     Django ORM 实现的宏观数据提供者
 
-    通过延迟导入 DjangoMacroRepository 访问 macro 模块数据。
+    通过延迟导入 DataCenterMacroRepository 访问 macro 模块数据。
     这是 regime 模块访问宏观数据的唯一入口点。
 
     Example:

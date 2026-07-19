@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from apps.data_center.application.repository_provider import get_financial_fact_repository
+from apps.data_center.composition import get_financial_fact_repository
 from apps.data_center.domain.entities import FinancialFact
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +86,12 @@ class _BaseFinancialGateway:
                     net_profit=self._safe_decimal(
                         metric_map.get("net_profit").value if metric_map.get("net_profit") else 0
                     ),
-                    revenue_growth=self._safe_float(
+                    revenue_growth=safe_float(
                         metric_map.get("revenue_growth").value
                         if metric_map.get("revenue_growth")
                         else None
                     ),
-                    net_profit_growth=self._safe_float(
+                    net_profit_growth=safe_float(
                         metric_map.get("net_profit_growth").value
                         if metric_map.get("net_profit_growth")
                         else None
@@ -108,14 +109,14 @@ class _BaseFinancialGateway:
                     equity=self._safe_decimal(
                         metric_map.get("equity").value if metric_map.get("equity") else 0
                     ),
-                    roe=self._safe_float(
+                    roe=safe_float(
                         metric_map.get("roe").value if metric_map.get("roe") else 0
                     )
                     or 0.0,
-                    roa=self._safe_float(
+                    roa=safe_float(
                         metric_map.get("roa").value if metric_map.get("roa") else None
                     ),
-                    debt_ratio=self._safe_float(
+                    debt_ratio=safe_float(
                         metric_map.get("debt_ratio").value if metric_map.get("debt_ratio") else 0
                     )
                     or 0.0,
@@ -129,15 +130,6 @@ class _BaseFinancialGateway:
             stock_code=stock_code,
             records=records,
         )
-
-    @staticmethod
-    def _safe_float(value) -> float | None:
-        try:
-            if value in (None, ""):
-                return None
-            return float(value)
-        except (TypeError, ValueError):
-            return None
 
     @staticmethod
     def _safe_decimal(value) -> Decimal:

@@ -1,5 +1,5 @@
 """
-经济活动指标数据获取器。
+Data Center 经济活动指标数据获取器。
 
 包含工业增加值、社会消费品零售总额、GDP 等经济活动指标的获取逻辑。
 """
@@ -11,7 +11,7 @@ from datetime import date
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import pick_column, resolve_indicator_units, safe_float
+from .common import parse_required_float, pick_column, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_GDP",
-                        value=safe_float(row['value']),  # 保持原始值（亿元）
+                        value=parse_required_float(row['value']),  # 保持原始值（亿元）
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -291,7 +291,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_GDP_YOY",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -341,7 +341,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_FIXED_INVESTMENT",
-                        value=safe_float(row["value"]),
+                        value=parse_required_float(row["value"]),
                         observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
@@ -410,7 +410,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_FAI_YOY",
-                        value=safe_float(row["value"]),
+                        value=parse_required_float(row["value"]),
                         observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
@@ -459,7 +459,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_SOCIAL_FINANCING",
-                        value=safe_float(row["value"]),
+                        value=parse_required_float(row["value"]),
                         observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,
@@ -521,7 +521,7 @@ class EconomicIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_SOCIAL_FINANCING_YOY",
-                        value=safe_float(row["value"]),
+                        value=parse_required_float(row["value"]),
                         observed_at=row["observed_at"].date(),
                         source=self.source_name,
                         unit=unit,

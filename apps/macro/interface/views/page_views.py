@@ -1,33 +1,27 @@
 """Page views for macro data management."""
 
-from decimal import InvalidOperation
-from typing import Any
+from typing import Any, TypedDict
 
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.http import HttpRequest, HttpResponse  # type: ignore[import-untyped]
+from django.shortcuts import redirect, render  # type: ignore[import-untyped]
 
 from apps.macro.application.interface_services import (
     get_macro_data_page_snapshot,
 )
+from shared.numeric import safe_float
 
 
-def safe_float(value: Any) -> float | None:
-    """Safely convert a value to float, handling invalid numeric inputs."""
+class CategoryDefinition(TypedDict):
+    """One macro indicator category used by the page classifier."""
 
-    if value is None:
-        return None
-    try:
-        converted = float(value)
-        if not (converted == converted):
-            return None
-        if abs(converted) == float("inf"):
-            return None
-        return converted
-    except (InvalidOperation, ValueError, TypeError):
-        return None
+    id: str
+    icon: str
+    name: str
+    keywords: list[str]
+    code_prefixes: list[str]
 
 
-CATEGORY_DEFINITIONS = [
+CATEGORY_DEFINITIONS: list[CategoryDefinition] = [
     {
         "id": "growth",
         "icon": "📈",

@@ -19,6 +19,7 @@ from apps.regime.application.repository_provider import (
 )
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from shared.infrastructure.cache_service import CacheService
+from shared.numeric import safe_float
 
 
 def get_available_regime_sources() -> list[Any]:
@@ -177,16 +178,10 @@ def get_regime_dashboard_payload(
         growth_tail = growth_series[-12:]
         inflation_tail = inflation_series[-12:]
 
-        def _safe_float(value: Any, default: float = 0.0) -> float:
-            if value in (None, ""):
-                return default
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return default
-
-        growth_values = [_safe_float(item.get("value")) for item in growth_tail]
-        inflation_values = [_safe_float(item.get("value")) for item in inflation_tail]
+        growth_values = [safe_float(item.get("value"), default=0.0) for item in growth_tail]
+        inflation_values = [
+            safe_float(item.get("value"), default=0.0) for item in inflation_tail
+        ]
 
         def _trend(values: list[float]) -> str:
             if len(values) < 2:

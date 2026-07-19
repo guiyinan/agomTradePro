@@ -1,5 +1,5 @@
 """
-External API Adapters for Macro Data.
+Data Center macro-source adapters.
 
 Exports:
     - TushareAdapter: Tushare Pro 数据源

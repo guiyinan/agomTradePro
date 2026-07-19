@@ -32,7 +32,7 @@ class _DataCenterMacroGateway:
     """Compatibility gateway that reads macro facts from data_center."""
 
     def __init__(self) -> None:
-        from apps.data_center.application.repository_provider import get_macro_fact_repository
+        from apps.data_center.composition import get_macro_fact_repository
 
         self._repo = get_macro_fact_repository()
 

@@ -6,22 +6,6 @@ from datetime import date
 from typing import Any
 
 
-def build_tushare_macro_adapter(*, token: str, http_url: str | None = None):
-    from apps.macro.application.repository_provider import (
-        build_tushare_macro_adapter as _build_tushare_macro_adapter,
-    )
-
-    return _build_tushare_macro_adapter(token=token, http_url=http_url)
-
-
-def build_akshare_macro_adapter():
-    from apps.macro.application.repository_provider import (
-        build_akshare_macro_adapter as _build_akshare_macro_adapter,
-    )
-
-    return _build_akshare_macro_adapter()
-
-
 def get_legacy_macro_series(*, code: str, start_date: date | None, end_date: date | None, source: str | None):
     from apps.macro.application.query_services import (
         get_legacy_macro_series as _get_legacy_macro_series,

@@ -5,7 +5,7 @@ Macro Data Source Secrets Loader
 """
 
 
-from apps.data_center.application.repository_provider import list_active_provider_configs
+from apps.data_center.composition import list_active_provider_configs
 from shared.domain.interfaces import DataSourceSecretsDTO
 
 

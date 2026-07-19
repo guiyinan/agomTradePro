@@ -35,6 +35,7 @@ from apps.backtest.application.repository_provider import (
 )
 from apps.regime.application.repository_provider import get_regime_repository
 from core.exceptions import DataValidationError, InsufficientDataError
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -537,25 +538,19 @@ class GenerateAttributionReportUseCase:
         # trades 字段是 JSONField，直接是列表
         trades = model.trades if model.trades else []
 
-        def _safe_float(value, default=0.0):
-            """安全转换为浮点数，处理脏数据"""
-            if value is None or value == "" or value in ("N/A", "NA", "-", "null", "None"):
-                return default
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return default
+        def _model_float(field: str) -> float:
+            return safe_float(getattr(model, field, 0.0), default=0.0)
 
         return {
             "id": model.id,
             "name": model.name,
             "start_date": model.start_date,
             "end_date": model.end_date,
-            "initial_capital": _safe_float(getattr(model, "initial_capital", 0.0)),
-            "total_return": _safe_float(getattr(model, "total_return", 0.0)),
-            "sharpe_ratio": _safe_float(getattr(model, "sharpe_ratio", 0.0)),
-            "max_drawdown": _safe_float(getattr(model, "max_drawdown", 0.0)),
-            "annualized_return": _safe_float(getattr(model, "annualized_return", 0.0)),
+            "initial_capital": _model_float("initial_capital"),
+            "total_return": _model_float("total_return"),
+            "sharpe_ratio": _model_float("sharpe_ratio"),
+            "max_drawdown": _model_float("max_drawdown"),
+            "annualized_return": _model_float("annualized_return"),
             "equity_curve": equity_curve,
             "trades": trades,
             "regime_history": regime_history if regime_history else [],

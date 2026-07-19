@@ -11,6 +11,7 @@ import requests
 
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ def _fetch_akshare_investor_accounts(
         observed_at = _month_end_date(_first_present(row, "数据日期", "date", "month"))
         if observed_at is None or observed_at < start_date or observed_at > end_date:
             continue
-        value_wan = _safe_float(
+        value_wan = safe_float(
             _first_present(row, "新增投资者-数量", "新增投资者数量", "new_investors", "new_accounts")
         )
         if value_wan is None:
@@ -140,7 +141,7 @@ def fetch_sse_account_opening_fallback(
                 or observed_at in seen_periods
             ):
                 continue
-            total_wan = _safe_float(row.get("TOTAL"))
+            total_wan = safe_float(row.get("TOTAL"))
             if total_wan is None or total_wan <= 0:
                 continue
             seen_periods.add(observed_at)
@@ -186,16 +187,6 @@ def _month_end_date(value: Any) -> date | None:
         parsed_month.month,
         monthrange(parsed_month.year, parsed_month.month)[1],
     )
-
-
-def _safe_float(value: Any) -> float | None:
-    if value in (None, ""):
-        return None
-    try:
-        number = float(value)
-        return None if number != number else number
-    except (TypeError, ValueError):
-        return None
 
 
 def _first_present(row: dict[str, Any], *keys: str) -> Any:

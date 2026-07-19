@@ -10,7 +10,7 @@ from typing import Any
 
 from django.utils import timezone
 
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     get_indicator_catalog_repository,
     get_indicator_unit_rule_repository,
 )

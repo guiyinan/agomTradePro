@@ -8,11 +8,11 @@ django.setup()
 
 import json
 
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.domain.services import calculate_absolute_momentum, calculate_rolling_zscore
 
 # 获取 CPI 数据
-repo = DjangoMacroRepository()
+repo = DataCenterMacroRepository()
 cpi_data = repo.get_inflation_series_full(
     indicator_code="CPI",
     end_date=None,

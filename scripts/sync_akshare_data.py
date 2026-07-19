@@ -28,8 +28,8 @@ import django
 django.setup()
 
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.data_center.infrastructure.macro_sources.akshare_adapter import AKShareAdapter
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 
 
 def sync_data(
@@ -37,7 +37,7 @@ def sync_data(
     start_date: date,
     end_date: date,
     adapter: AKShareAdapter,
-    repository: DjangoMacroRepository
+    repository: DataCenterMacroRepository
 ):
     """
     同步单个指标数据
@@ -104,7 +104,7 @@ def main():
 
     # 初始化适配器和仓储
     adapter = AKShareAdapter()
-    repository = DjangoMacroRepository()
+    repository = DataCenterMacroRepository()
 
     # 设置日期范围（最近 10 年）
     end_date = date.today()

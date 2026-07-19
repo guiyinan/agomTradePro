@@ -7,6 +7,32 @@ from typing import Any
 
 from apps.data_center.application.dtos import LatestQuoteRequest, SyncQuoteRequest
 from apps.data_center.application.on_demand import OnDemandDataCenterService
+from apps.data_center.composition import (
+    AssetRepository,
+    CapitalFlowRepository,
+    DataProviderSettingsRepository,
+    FinancialFactRepository,
+    FundNavRepository,
+    IndicatorCatalogRepository,
+    IndicatorUnitRuleRepository,
+    MacroFactRepository,
+    MacroGovernanceRepository,
+    MarketThermometerConfigRepository,
+    MarketThermometerSnapshotRepository,
+    MarketThermometerUserOverrideRepository,
+    NewsRepository,
+    PriceBarRepository,
+    ProductionCoverageUniverseConfigRepository,
+    ProviderConfigRepository,
+    PublisherCatalogRepository,
+    QuoteSnapshotRepository,
+    RawAuditRepository,
+    SectorMembershipRepository,
+    ValuationFactRepository,
+    build_provider_registry_for_repo,
+    get_provider_registry,
+    run_data_center_connection_test,
+)
 from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProductionCoverageUniverseConfig,
@@ -32,32 +58,6 @@ from .market_thermometer import (
     build_market_thermometer_override_payload,
 )
 from .provider_connection_workflow import RunProviderConnectionTestUseCase
-from .repository_provider import (
-    AssetRepository,
-    CapitalFlowRepository,
-    DataProviderSettingsRepository,
-    FinancialFactRepository,
-    FundNavRepository,
-    IndicatorCatalogRepository,
-    IndicatorUnitRuleRepository,
-    MacroFactRepository,
-    MacroGovernanceRepository,
-    MarketThermometerConfigRepository,
-    MarketThermometerSnapshotRepository,
-    MarketThermometerUserOverrideRepository,
-    NewsRepository,
-    PriceBarRepository,
-    ProductionCoverageUniverseConfigRepository,
-    ProviderConfigRepository,
-    PublisherCatalogRepository,
-    QuoteSnapshotRepository,
-    RawAuditRepository,
-    SectorMembershipRepository,
-    ValuationFactRepository,
-    build_unified_provider_factory,
-    build_unified_provider_factory_for_repo,
-    run_data_center_connection_test,
-)
 from .use_cases import (
     DEFAULT_DECISION_ASSET_CODES,
     ManageIndicatorCatalogUseCase,
@@ -79,6 +79,7 @@ from .use_cases import (
     SyncCapitalFlowUseCase,
     SyncFinancialUseCase,
     SyncFundNavUseCase,
+    SyncMacroBatchUseCase,
     SyncMacroUseCase,
     SyncNewsUseCase,
     SyncPriceUseCase,
@@ -157,8 +158,8 @@ def _make_provider_repo() -> ProviderConfigRepository:
     return ProviderConfigRepository()
 
 
-def _make_provider_factory():
-    return build_unified_provider_factory()
+def _get_provider_registry():
+    return get_provider_registry()
 
 
 def _make_raw_audit_repo() -> RawAuditRepository:
@@ -432,7 +433,7 @@ def make_sync_market_thermometer_inputs_use_case() -> SyncMarketThermometerInput
 
     return SyncMarketThermometerInputsUseCase(
         provider_repo=ProviderConfigRepository(),
-        provider_factory=build_unified_provider_factory(),
+        provider_registry=get_provider_registry(),
         macro_repo=MacroFactRepository(),
         news_repo=NewsRepository(),
         raw_audit_repo=RawAuditRepository(),
@@ -564,7 +565,7 @@ def _sync_scope_quotes(asset_codes: list[str]) -> dict[str, Any]:
     try:
         result = SyncQuoteUseCase(
             provider_repo=provider_repo,
-            provider_factory=build_unified_provider_factory_for_repo(provider_repo),
+            provider_registry=build_provider_registry_for_repo(provider_repo),
             fact_repo=QuoteSnapshotRepository(),
             raw_audit_repo=RawAuditRepository(),
         ).execute(
@@ -763,7 +764,7 @@ def make_decision_repair_use_case(user) -> RepairDecisionDataReliabilityUseCase:
 
     return RepairDecisionDataReliabilityUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         macro_fact_repo=MacroFactRepository(),
         indicator_catalog_repo=_make_indicator_catalog_repo(),
         indicator_unit_rule_repo=_make_indicator_unit_rule_repo(),
@@ -781,11 +782,31 @@ def make_sync_macro_use_case() -> SyncMacroUseCase:
 
     return SyncMacroUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=MacroFactRepository(),
         catalog_repo=_make_indicator_catalog_repo(),
         unit_rule_repo=_make_indicator_unit_rule_repo(),
         raw_audit_repo=_make_raw_audit_repo(),
+    )
+
+
+def make_sync_macro_batch_use_case() -> SyncMacroBatchUseCase:
+    """Build the canonical provider-selected macro batch sync use case."""
+
+    provider_repo = _make_provider_repo()
+    provider_registry = _get_provider_registry()
+    sync_use_case = SyncMacroUseCase(
+        provider_repo=provider_repo,
+        provider_registry=provider_registry,
+        fact_repo=MacroFactRepository(),
+        catalog_repo=_make_indicator_catalog_repo(),
+        unit_rule_repo=_make_indicator_unit_rule_repo(),
+        raw_audit_repo=_make_raw_audit_repo(),
+    )
+    return SyncMacroBatchUseCase(
+        provider_repo=provider_repo,
+        provider_registry=provider_registry,
+        sync_use_case=sync_use_case,
     )
 
 
@@ -794,7 +815,7 @@ def make_sync_price_use_case() -> SyncPriceUseCase:
 
     return SyncPriceUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=PriceBarRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -805,7 +826,7 @@ def make_sync_quote_use_case() -> SyncQuoteUseCase:
 
     return SyncQuoteUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=QuoteSnapshotRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -816,7 +837,7 @@ def make_sync_fund_nav_use_case() -> SyncFundNavUseCase:
 
     return SyncFundNavUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=FundNavRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -827,7 +848,7 @@ def make_sync_financial_use_case() -> SyncFinancialUseCase:
 
     return SyncFinancialUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=FinancialFactRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -847,7 +868,7 @@ def make_sync_valuation_use_case() -> SyncValuationUseCase:
 
     return SyncValuationUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=ValuationFactRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -858,7 +879,7 @@ def make_sync_sector_membership_use_case() -> SyncSectorMembershipUseCase:
 
     return SyncSectorMembershipUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=SectorMembershipRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -885,7 +906,7 @@ def make_sync_news_use_case() -> SyncNewsUseCase:
 
     return SyncNewsUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=NewsRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )
@@ -896,7 +917,7 @@ def make_sync_capital_flow_use_case() -> SyncCapitalFlowUseCase:
 
     return SyncCapitalFlowUseCase(
         provider_repo=_make_provider_repo(),
-        provider_factory=_make_provider_factory(),
+        provider_registry=_get_provider_registry(),
         fact_repo=CapitalFlowRepository(),
         raw_audit_repo=_make_raw_audit_repo(),
     )

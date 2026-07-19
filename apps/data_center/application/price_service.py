@@ -9,13 +9,13 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     FundNavRepository as DataCenterFundNavRepository,
 )
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     PriceBarRepository as DataCenterPriceBarRepository,
 )
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     QuoteSnapshotRepository as DataCenterQuoteSnapshotRepository,
 )
 from core.exceptions import DataFetchError

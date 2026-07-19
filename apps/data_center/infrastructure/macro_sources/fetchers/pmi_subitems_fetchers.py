@@ -1,5 +1,5 @@
 """
-PMI Sub-items Data Fetcher（Regime 滞后性改进 Phase 3）
+Data Center PMI Sub-items Data Fetcher（Regime 滞后性改进 Phase 3）
 
 从手动维护的数据文件获取 PMI 分项指标：
 - 新订单指数 (CN_PMI_NEW_ORDER)

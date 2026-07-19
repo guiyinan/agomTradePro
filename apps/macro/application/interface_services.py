@@ -14,7 +14,7 @@ from apps.data_center.application.interface_services import (
     make_calculate_market_thermometer_use_case,
     make_query_macro_series_use_case,
 )
-from apps.data_center.application.repository_provider import get_indicator_catalog_repository
+from apps.data_center.composition import get_indicator_catalog_repository
 from apps.macro.application.data_management import (
     GetDataManagementSummaryUseCase,
     ScheduleDataFetchUseCase,
@@ -24,7 +24,6 @@ from apps.macro.application.repository_provider import (
     get_macro_read_repository,
     get_macro_repository,
 )
-from apps.macro.application.use_cases import build_sync_macro_data_use_case
 
 TABLE_SORT_FIELDS = {
     "code": "code",
@@ -83,7 +82,7 @@ def _select_default_indicator_code(indicator_map: dict[str, dict[str, Any]]) -> 
     with_data = [item for item in indicator_map.values() if item.get("has_data")]
     if with_data:
         with_data.sort(key=lambda item: (-int(item.get("display_priority", 0)), item["code"]))
-        return with_data[0]["code"]
+        return str(with_data[0]["code"])
     return next(iter(indicator_map), "")
 
 
@@ -141,7 +140,7 @@ def _safe_iso_date(value: Any) -> str:
     """Return an ISO date string for date-like values."""
 
     if hasattr(value, "isoformat"):
-        return value.isoformat()
+        return str(value.isoformat())
     return str(value or "")
 
 
@@ -323,21 +322,28 @@ def _build_macro_risk_timeline(*, days: int = 180) -> dict[str, Any]:
 def get_supported_macro_indicators(*, source: str = "akshare") -> list[dict[str, Any]]:
     """Return the supported macro indicator definitions for the requested source."""
 
-    sync_use_case = build_sync_macro_data_use_case(source=source)
+    governance = load_macro_governance_payload()
     metadata_map = IndicatorService.get_indicator_metadata_map()
-    for adapter in sync_use_case.adapters.values():
-        supported_indicators = getattr(adapter, "SUPPORTED_INDICATORS", None)
-        if isinstance(supported_indicators, dict):
-            indicators = [
-                {
-                    "code": code,
-                    "name": metadata_map.get(code, {}).get("name", name),
-                }
-                for code, name in supported_indicators.items()
-            ]
-            indicators.sort(key=lambda item: item["code"])
-            return indicators
-    return []
+    normalized_source = source.strip().lower()
+    indicators: list[dict[str, Any]] = []
+    for row in governance.get("indicator_rows") or []:
+        if not isinstance(row, dict) or not row.get("sync_supported"):
+            continue
+        source_type = str(row.get("sync_source_type") or "").strip().lower()
+        if source_type != normalized_source:
+            continue
+        code = str(row.get("code") or "").strip()
+        if not code:
+            continue
+        fallback_name = str(row.get("name_cn") or code)
+        indicators.append(
+            {
+                "code": code,
+                "name": str(metadata_map.get(code, {}).get("name") or fallback_name),
+            }
+        )
+    indicators.sort(key=lambda item: item["code"])
+    return indicators
 
 
 def _format_indicator_row_for_display(row: dict[str, Any]) -> dict[str, Any]:
@@ -427,9 +433,11 @@ def get_macro_data_page_snapshot(
     synced_codes = set(read_repository.list_distinct_codes())
     refresh_provider_id = _resolve_manual_refresh_provider_id()
     refresh_end_date = date.today()
-    latest_by_code = {
-        code: read_repository.get_latest_indicator(code) for code in sorted(synced_codes)
-    }
+    latest_by_code: dict[str, dict[str, Any]] = {}
+    for code in sorted(synced_codes):
+        latest = read_repository.get_latest_indicator(code)
+        if latest is not None:
+            latest_by_code[code] = latest
 
     indicator_map = {
         catalog.code: {
@@ -445,12 +453,12 @@ def get_macro_data_page_snapshot(
                         "display_value", latest_by_code[catalog.code]["value"]
                     )
                 )
-                if latest_by_code.get(catalog.code)
+                if catalog.code in latest_by_code
                 else None
             ),
             "unit": (
                 (latest_by_code[catalog.code].get("display_unit") or "")
-                if latest_by_code.get(catalog.code)
+                if catalog.code in latest_by_code
                 else (metadata_map.get(catalog.code, {}).get("unit") or catalog.default_unit or "-")
             ),
             "series_semantics": metadata_map.get(catalog.code, {}).get(
@@ -482,7 +490,7 @@ def get_macro_data_page_snapshot(
                 period_type=getattr(catalog, "default_period_type", "") or "",
                 latest_reporting_period=(
                     latest_by_code[catalog.code]["reporting_period"]
-                    if latest_by_code.get(catalog.code)
+                    if catalog.code in latest_by_code
                     else None
                 ),
                 today=refresh_end_date,
@@ -494,7 +502,7 @@ def get_macro_data_page_snapshot(
                     latest_by_code[catalog.code]["reporting_period"],
                     str(latest_by_code[catalog.code].get("period_type") or ""),
                 )
-                if latest_by_code.get(catalog.code)
+                if catalog.code in latest_by_code
                 else ""
             ),
         }

@@ -22,7 +22,9 @@ from apps.data_center.application.use_cases import (
     RepairDecisionDataReliabilityUseCase,
     SyncQuoteUseCase,
 )
-from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
+from apps.data_center.composition import (
+    build_provider_registry_for_repo,
+)
 from apps.data_center.infrastructure.repositories import (
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
@@ -84,7 +86,7 @@ class Command(BaseCommand):
         provider_repo = ProviderConfigRepository()
         use_case = RepairDecisionDataReliabilityUseCase(
             provider_repo=provider_repo,
-            provider_factory=UnifiedProviderFactory(provider_repo),
+            provider_registry=build_provider_registry_for_repo(provider_repo),
             macro_fact_repo=MacroFactRepository(),
             indicator_catalog_repo=IndicatorCatalogRepository(),
             indicator_unit_rule_repo=IndicatorUnitRuleRepository(),
@@ -234,7 +236,7 @@ class Command(BaseCommand):
         try:
             result = SyncQuoteUseCase(
                 provider_repo=provider_repo,
-                provider_factory=UnifiedProviderFactory(provider_repo),
+                provider_registry=build_provider_registry_for_repo(provider_repo),
                 fact_repo=QuoteSnapshotRepository(),
                 raw_audit_repo=RawAuditRepository(),
             ).execute(

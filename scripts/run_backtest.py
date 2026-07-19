@@ -31,8 +31,8 @@ from apps.backtest.domain.services import (
     PITDataProcessor,
     RebalanceFrequency,
 )
-from apps.macro.infrastructure.adapters import PUBLICATION_LAGS
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.data_center.infrastructure.macro_sources import PUBLICATION_LAGS
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.application.use_cases import CalculateRegimeUseCase
 from apps.regime.domain.services import RegimeCalculator
 
@@ -90,7 +90,7 @@ def get_regime_for_date(as_of_date: date) -> dict:
     Returns:
         dict: Regime 信息
     """
-    repository = DjangoMacroRepository()
+    repository = DataCenterMacroRepository()
 
     # 获取增长和通胀数据
     try:

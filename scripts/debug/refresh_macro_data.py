@@ -17,9 +17,9 @@ django.setup()
 from datetime import date, timedelta
 
 from apps.macro.application.use_cases import SyncMacroDataRequest, SyncMacroDataUseCase
-from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
+from apps.data_center.infrastructure.macro_sources.akshare_adapter import AKShareAdapter
 from apps.macro.infrastructure.models import MacroIndicator
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
 
     # Create adapter and repository
     adapter = AKShareAdapter()
-    repository = DjangoMacroRepository()
+    repository = DataCenterMacroRepository()
     sync_use_case = SyncMacroDataUseCase(repository, adapters={'akshare': adapter})
 
     # Set sync parameters (last 5 years)

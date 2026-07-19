@@ -22,9 +22,9 @@ from apps.data_center.domain.protocols import (
     IndicatorUnitRuleRepositoryProtocol,
     MacroFactRepositoryProtocol,
     PriceBarRepositoryProtocol,
+    ProviderRegistryProtocol,
     PublisherCatalogRepositoryProtocol,
     QuoteSnapshotRepositoryProtocol,
-    RegistryProtocol,
 )
 from apps.data_center.domain.rules import (
     convert_currency_value,
@@ -108,10 +108,10 @@ class GetProviderStatusUseCase:
     """Query live health snapshots from the runtime registry.
 
     Args:
-        registry: Injected RegistryProtocol implementation.
+        registry: Injected ProviderRegistryProtocol implementation.
     """
 
-    def __init__(self, registry: RegistryProtocol) -> None:
+    def __init__(self, registry: ProviderRegistryProtocol) -> None:
         self._registry = registry
 
     def execute(self) -> list[ProviderHealthSnapshot]:
@@ -612,4 +612,3 @@ __all__ = [
     "QueryPriceHistoryUseCase",
     "ResolveAssetUseCase",
 ]
-

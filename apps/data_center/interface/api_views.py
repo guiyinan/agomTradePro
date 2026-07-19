@@ -94,7 +94,6 @@ from apps.data_center.application.interface_services import (
     save_provider_settings_payload,
 )
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
-from apps.data_center.application.registry_factory import get_registry, refresh_registry
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
     RepairDecisionDataReliabilityUseCase,
@@ -124,6 +123,7 @@ from apps.data_center.interface.serializers import (
     SyncSectorMembershipRequestSerializer,
     SyncValuationRequestSerializer,
 )
+from apps.data_center.provider_runtime import get_registry, refresh_registry
 
 logger = logging.getLogger(__name__)
 

@@ -264,6 +264,12 @@ class _ProviderFactory:
     def get_by_id(self, provider_id: int):
         return self._provider
 
+    def record_success(self, provider_name, capability, latency_ms):
+        return None
+
+    def record_failure(self, provider_name, capability):
+        return None
+
 
 class _DecisionRepairProvider:
     def __init__(
@@ -991,7 +997,7 @@ class TestRepairDecisionDataReliabilityUseCase:
         )
         return RepairDecisionDataReliabilityUseCase(
             provider_repo=repo,
-            provider_factory=_ProviderFactory(provider),
+            provider_registry=_ProviderFactory(provider),
             macro_fact_repo=_MacroFactRepo(),
             indicator_catalog_repo=_IndicatorCatalogRepo(
                 IndicatorCatalog(

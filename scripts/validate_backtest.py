@@ -27,7 +27,7 @@ import logging
 
 from apps.audit.domain.services import AttributionAnalyzer
 from apps.backtest.domain.services import BacktestConfig, BacktestEngine
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.domain.services import RegimeCalculator
 from scripts.run_backtest import get_regime_for_date, get_simulated_asset_price
 
@@ -42,7 +42,7 @@ class RegimeAccuracyValidator:
     """Regime 准确率验证器"""
 
     def __init__(self):
-        self.repository = DjangoMacroRepository()
+        self.repository = DataCenterMacroRepository()
         self.calculator = RegimeCalculator()
 
     def calculate_accuracy(

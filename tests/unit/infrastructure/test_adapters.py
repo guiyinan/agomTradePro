@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from apps.macro.infrastructure.adapters.base import (
+from apps.data_center.infrastructure.macro_sources.base import (
     BaseMacroAdapter,
     DataSourceUnavailableError,
     DataValidationError,
@@ -22,13 +22,13 @@ from apps.macro.infrastructure.adapters.base import (
     MacroDataPoint,
     get_publication_lags,
 )
-from apps.macro.infrastructure.adapters.failover_adapter import FailoverAdapter, MultiSourceAdapter
+from apps.data_center.infrastructure.macro_sources.failover_adapter import FailoverAdapter, MultiSourceAdapter
 
 
 @pytest.fixture(autouse=True)
 def _stub_runtime_publication_lags(monkeypatch):
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.base.get_runtime_macro_publication_lags",
+        "apps.data_center.infrastructure.macro_sources.base.get_runtime_macro_publication_lags",
         lambda: {
             "CN_PMI": {"days": 1, "description": "T+1"},
             "CN_CPI": {"days": 10, "description": "T+10"},

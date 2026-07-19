@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import pytest
 
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.policy.domain.entities import PolicyEvent, PolicyLevel
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.signal.application.use_cases import (
@@ -89,7 +89,7 @@ class TestSignalCompleteWorkflow:
         assert saved_signal.status == SignalStatus.APPROVED
 
         # 5. 模拟宏观数据变化（PMI 跌破 50）
-        macro_repo = DjangoMacroRepository()
+        macro_repo = DataCenterMacroRepository()
         base_date = date(2024, 1, 1)
 
         # 前两个月：PMI > 50

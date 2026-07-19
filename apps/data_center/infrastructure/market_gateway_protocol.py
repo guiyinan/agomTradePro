@@ -1,7 +1,7 @@
 """
-Data Center 网关层协议
+Data Center 市场网关客户端协议
 
-定义统一的网关 Provider 协议。
+定义统一 provider adapter 内部使用的低层市场网关协议。
 业务模块只依赖这些协议，不依赖任何具体数据源实现。
 """
 
@@ -17,11 +17,11 @@ from apps.data_center.infrastructure.market_gateway_entities import (
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
 
 
-class GatewayProviderProtocol(ABC):
-    """统一网关 Provider 协议
+class MarketGatewayProtocol(ABC):
+    """统一市场网关客户端协议
 
     每个 provider 通过 supports() 声明自己支持的能力，
-    SourceRegistry 按能力分发请求。
+    统一 provider adapter 按能力调用具体市场网关客户端。
     """
 
     @abstractmethod
@@ -42,7 +42,6 @@ class GatewayProviderProtocol(ABC):
         默认返回空列表，子类按需覆盖。
         """
         return []
-
     def get_capital_flows(
         self, stock_code: str, period: str = "5d"
     ) -> list[CapitalFlowSnapshot]:

@@ -1,5 +1,5 @@
 """
-AKShare Data Adapter.
+AKShare macro-source adapter.
 
 Infrastructure layer - fetches China macro data from AKShare.
 

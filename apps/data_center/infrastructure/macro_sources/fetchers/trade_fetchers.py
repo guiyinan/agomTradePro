@@ -1,5 +1,5 @@
 """
-贸易指标数据获取器。
+Data Center 贸易指标数据获取器。
 
 包含出口、进口、贸易差额等贸易指标的获取逻辑。
 """
@@ -11,7 +11,7 @@ from datetime import date
 import pandas as pd
 
 from ..base import DataValidationError, MacroDataPoint
-from .common import pick_column, resolve_indicator_units, safe_float
+from .common import parse_required_float, pick_column, resolve_indicator_units
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class TradeIndicatorFetcher:
             df = df[['date', value_col]].dropna()
             df.columns = ['observed_at', 'raw_value']
             # AKShare 当前原始值量级需换算到“亿美元”后才与海关月度规模相符。
-            df['value'] = df['raw_value'].apply(safe_float) / 100000.0
+            df['value'] = df['raw_value'].apply(parse_required_float) / 100000.0
             df = df[
                 (df['observed_at'].dt.date >= start_date) &
                 (df['observed_at'].dt.date <= end_date)
@@ -66,7 +66,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_EXPORTS",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -112,7 +112,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_EXPORT_YOY",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -147,7 +147,7 @@ class TradeIndicatorFetcher:
             df['date'] = pd.to_datetime(df[date_col].apply(parse_trade_month), format='mixed', errors='coerce')
             df = df[['date', value_col]].dropna()
             df.columns = ['observed_at', 'raw_value']
-            df['value'] = df['raw_value'].apply(safe_float) / 100000.0
+            df['value'] = df['raw_value'].apply(parse_required_float) / 100000.0
             df = df[
                 (df['observed_at'].dt.date >= start_date) &
                 (df['observed_at'].dt.date <= end_date)
@@ -159,7 +159,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_IMPORTS",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -205,7 +205,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_IMPORT_YOY",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,
@@ -251,7 +251,7 @@ class TradeIndicatorFetcher:
                 try:
                     point = MacroDataPoint(
                         code="CN_TRADE_BALANCE",
-                        value=safe_float(row['value']),
+                        value=parse_required_float(row['value']),
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
                         unit=unit,

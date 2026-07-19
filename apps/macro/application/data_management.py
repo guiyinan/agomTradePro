@@ -15,6 +15,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
+from apps.macro.application.repository_provider import MacroRepositoryProtocol
 from core.integration.runtime_settings import get_runtime_macro_index_metadata_map
 
 logger = logging.getLogger(__name__)
@@ -94,7 +95,7 @@ class RunDataSourceConnectionTestUseCase:
 
     @staticmethod
     def _default_probe_runner(config: Any) -> dict[str, Any]:
-        from apps.data_center.application.repository_provider import (
+        from apps.data_center.composition import (
             run_data_center_connection_test,
         )
 
@@ -199,7 +200,7 @@ class DeleteDataUseCase:
     支持按条件删除数据
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository: MacroRepositoryProtocol) -> None:
         """
         Args:
             repository: 数据仓储
@@ -242,7 +243,7 @@ class GetDataManagementSummaryUseCase:
     获取数据管理概览用例
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository: MacroRepositoryProtocol) -> None:
         """
         Args:
             repository: 数据仓储
@@ -272,9 +273,9 @@ class GetDataManagementSummaryUseCase:
             recent_syncs=recent_syncs,
         )
 
-    def _build_data_source_status(self, stats: dict) -> list[DataSourceStatus]:
+    def _build_data_source_status(self, stats: dict[str, Any]) -> list[DataSourceStatus]:
         """构建数据源状态列表"""
-        sources = []
+        sources: list[DataSourceStatus] = []
 
         for source_info in stats.get("sources", []):
             sources.append(
@@ -297,7 +298,7 @@ class ScheduleDataFetchUseCase:
     配置定时任务规则
     """
 
-    def __init__(self, repository):
+    def __init__(self, repository: MacroRepositoryProtocol) -> None:
         """
         Args:
             repository: 数据仓储
@@ -331,7 +332,7 @@ class ScheduleDataFetchUseCase:
 
         return schedules
 
-    def get_scheduled_indicators(self) -> dict[str, dict]:
+    def get_scheduled_indicators(self) -> dict[str, dict[str, Any]]:
         """
         获取所有可定时抓取的指标配置
 
@@ -351,7 +352,7 @@ class ScheduleDataFetchUseCase:
             List[str]: 需要抓取的指标代码列表
         """
         check_date = as_of_date or date.today()
-        due_indicators = []
+        due_indicators: list[str] = []
 
         for indicator, schedule in self.get_scheduled_indicators().items():
             if self._is_indicator_due(indicator, schedule, check_date):
@@ -359,7 +360,12 @@ class ScheduleDataFetchUseCase:
 
         return due_indicators
 
-    def _is_indicator_due(self, indicator: str, schedule: dict, check_date: date) -> bool:
+    def _is_indicator_due(
+        self,
+        indicator: str,
+        schedule: dict[str, Any],
+        check_date: date,
+    ) -> bool:
         """
         判断指标是否到期需要抓取
 

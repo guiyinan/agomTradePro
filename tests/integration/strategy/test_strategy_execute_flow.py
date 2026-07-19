@@ -16,10 +16,9 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase
 
 from apps.account.infrastructure.models import AccountProfileModel
-from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-from apps.asset_analysis.infrastructure.models import AssetScoreCache
+from apps.asset_analysis.infrastructure.models import AssetPoolEntry, AssetScoreCache
 from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.regime.infrastructure.models import RegimeLog
 from apps.simulated_trading.infrastructure.models import (
     FeeConfigModel,
@@ -79,7 +78,7 @@ class TestStrategyExecuteFlow(TestCase):
             default_period_type="M",
             category="growth",
         )
-        DjangoMacroRepository().save_indicator(
+        DataCenterMacroRepository().save_indicator(
             MacroIndicator(
                 code="CN_PMI_MANUFACTURING",
                 value=50.8,

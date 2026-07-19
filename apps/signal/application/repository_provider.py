@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from apps.signal.infrastructure.providers import (
     DjangoSignalRepository,  # noqa: F401
     SignalDiagnosticRepository,  # noqa: F401
@@ -13,7 +15,7 @@ from apps.signal.infrastructure.providers import (
 )
 
 
-def get_signal_repository():
+def get_signal_repository() -> Any:
     """Return the default signal repository."""
 
     return build_signal_repository()

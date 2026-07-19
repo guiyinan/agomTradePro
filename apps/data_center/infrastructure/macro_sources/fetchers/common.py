@@ -1,4 +1,4 @@
-"""Shared parsing helpers for macro fetchers."""
+"""Shared parsing helpers for Data Center macro fetchers."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def pick_column(
     return df.columns[fallback_index]
 
 
-def safe_float(value: object) -> float:
+def parse_required_float(value: object) -> float:
     """Parse a numeric value from AKShare payloads."""
     if value is None or pd.isna(value):
         raise ValueError("empty numeric value")
@@ -45,7 +45,7 @@ def _load_indicator_metadata(indicator_code: str) -> dict[str, Any]:
         return metadata
 
     try:
-        from apps.data_center.application.repository_provider import (
+        from apps.data_center.composition import (
             get_indicator_catalog_repository,
         )
 
@@ -81,7 +81,7 @@ def resolve_indicator_units(indicator_code: str) -> tuple[str, str]:
 
     if not original_unit:
         try:
-            from apps.data_center.application.repository_provider import (
+            from apps.data_center.composition import (
                 get_indicator_unit_rule_repository,
             )
 

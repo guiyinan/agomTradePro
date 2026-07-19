@@ -32,7 +32,7 @@ from apps.account.infrastructure.models import (
 from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.models import MacroIndicator
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.use_cases import CalculateRegimeUseCase
@@ -156,7 +156,7 @@ class DataConnectionTester:
         print("="*60)
 
         try:
-            repo = DjangoMacroRepository()
+            repo = DataCenterMacroRepository()
 
             # Check latest data dates
             latest_pmi = repo.get_latest_indicator_data('PMI')

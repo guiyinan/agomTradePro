@@ -1,7 +1,7 @@
 """
 QMT Gateway
 
-通过 XtQuant/QMT 本地行情接口接入统一 GatewayProviderProtocol。
+通过 XtQuant/QMT 本地行情接口接入统一 MarketGatewayProtocol。
 当前仅覆盖行情、技术快照和日线历史 K 线，不涉及交易能力。
 """
 
@@ -13,13 +13,14 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.market_gateway_entities import (
     HistoricalPriceBar,
     QuoteSnapshot,
     TechnicalSnapshot,
 )
 from apps.data_center.infrastructure.market_gateway_enums import DataCapability
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +39,6 @@ def _safe_decimal(value: object) -> Decimal | None:
         return None if decimal_value != decimal_value else decimal_value
     except (InvalidOperation, ValueError, TypeError):
         return None
-
-
-def _safe_float(value: object) -> float | None:
-    decimal_value = _safe_decimal(value)
-    return float(decimal_value) if decimal_value is not None else None
 
 
 def _safe_int(value: object) -> int | None:
@@ -70,7 +66,7 @@ def _normalize_provider_name(source_name: str | None) -> str:
     return f"qmt:{normalized}"
 
 
-class QMTGateway(GatewayProviderProtocol):
+class QMTGateway(MarketGatewayProtocol):
     """QMT/XtQuant 行情 Provider。"""
 
     def __init__(
@@ -112,7 +108,7 @@ class QMTGateway(GatewayProviderProtocol):
                     _pick_value(raw, "lastClose", "last_close", "preClose", "pre_close")
                 )
                 change = _safe_decimal(_pick_value(raw, "change", "priceChange"))
-                change_pct = _safe_float(
+                change_pct = safe_float(
                     _pick_value(raw, "changePercent", "change_pct", "pctChg")
                 )
                 if change is None and pre_close is not None:
@@ -128,10 +124,10 @@ class QMTGateway(GatewayProviderProtocol):
                         change_pct=change_pct,
                         volume=_safe_int(_pick_value(raw, "volume", "vol")),
                         amount=_safe_decimal(_pick_value(raw, "amount", "amt")),
-                        turnover_rate=_safe_float(
+                        turnover_rate=safe_float(
                             _pick_value(raw, "turnoverRate", "turnover_rate")
                         ),
-                        volume_ratio=_safe_float(
+                        volume_ratio=safe_float(
                             _pick_value(raw, "volumeRatio", "volume_ratio")
                         ),
                         high=_safe_decimal(_pick_value(raw, "high", "highPrice")),
@@ -208,7 +204,7 @@ class QMTGateway(GatewayProviderProtocol):
                             low=float(row.get("low", 0)),
                             close=float(row.get("close", 0)),
                             volume=_safe_int(row.get("volume")),
-                            amount=_safe_float(row.get("amount")),
+                            amount=safe_float(row.get("amount")),
                             source="qmt",
                         )
                     )

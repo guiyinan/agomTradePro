@@ -135,8 +135,8 @@ class DataConnectionTester:
         print("="*60)
 
         try:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-            repo = DjangoMacroRepository()
+            from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
+            repo = DataCenterMacroRepository()
 
             # Check PMI data
             latest_pmi = repo.get_latest_indicator_data('PMI')

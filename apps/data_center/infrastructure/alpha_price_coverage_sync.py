@@ -10,11 +10,11 @@ from apps.data_center.domain.entities import PriceBar
 from apps.data_center.domain.enums import PriceAdjustment
 from apps.data_center.domain.rules import normalize_asset_code
 from apps.data_center.infrastructure.asset_master_backfill import AssetMasterBackfillService
-from apps.data_center.infrastructure.gateway_protocols import GatewayProviderProtocol
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
 from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
+from apps.data_center.infrastructure.market_gateway_protocol import MarketGatewayProtocol
 from apps.data_center.infrastructure.models import PriceBarModel
 from apps.data_center.infrastructure.repositories import PriceBarRepository
 from core.integration.alpha_cache import (
@@ -57,7 +57,7 @@ class AlphaPriceCoverageSyncService:
         self,
         *,
         backfill_service: AssetMasterBackfillService | None = None,
-        gateways: Iterable[GatewayProviderProtocol] | None = None,
+        gateways: Iterable[MarketGatewayProtocol] | None = None,
         price_repo: PriceBarRepository | None = None,
     ) -> None:
         self._backfill_service = backfill_service or AssetMasterBackfillService()
@@ -185,7 +185,7 @@ class AlphaPriceCoverageSyncService:
         return normalized_codes
 
     @staticmethod
-    def _build_default_gateways() -> list[GatewayProviderProtocol]:
+    def _build_default_gateways() -> list[MarketGatewayProtocol]:
         return [
             TushareGateway(),
             AKShareEastMoneyGateway(request_interval_sec=0.8),

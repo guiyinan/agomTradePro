@@ -1,5 +1,5 @@
 """
-Base Protocol and Exceptions for Macro Data Adapters.
+Base protocol and exceptions for Data Center macro-source adapters.
 
 Infrastructure layer - defines the interface that all adapters must implement.
 """

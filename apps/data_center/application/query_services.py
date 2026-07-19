@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from apps.data_center.application.repository_provider import (
+from apps.data_center.composition import (
     get_data_center_diagnostic_repository,
     get_macro_fact_cache_warmup_repository,
     get_macro_fact_repository,

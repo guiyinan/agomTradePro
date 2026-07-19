@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from apps.data_center.application import registry_factory
+from apps.data_center import provider_runtime
 
 
 class DataCenterConfigSummaryRepository(Protocol):
@@ -32,7 +32,10 @@ class DataCenterConfigSummaryService:
         """Return data-provider runtime status summary."""
 
         configured = self.repository.list_active_provider_names()
-        snapshots = [snapshot.to_dict() for snapshot in registry_factory.get_registry().get_all_statuses()]
+        snapshots = [
+            snapshot.to_dict()
+            for snapshot in provider_runtime.get_registry().get_all_statuses()
+        ]
         unique_providers = sorted({snap["provider_name"] for snap in snapshots})
         circuit_open_count = sum(1 for snap in snapshots if snap["status"] == "circuit_open")
         degraded_count = sum(1 for snap in snapshots if snap["status"] == "degraded")

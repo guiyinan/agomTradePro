@@ -3,15 +3,21 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from apps.macro.infrastructure.adapters.base import MacroDataPoint
-from apps.macro.infrastructure.adapters.fetchers.base_fetchers import BaseIndicatorFetcher
-from apps.macro.infrastructure.adapters.fetchers.common import resolve_indicator_units
-from apps.macro.infrastructure.adapters.fetchers.economic_fetchers import (
+from apps.data_center.infrastructure.macro_sources.base import MacroDataPoint
+from apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers import (
+    BaseIndicatorFetcher,
+)
+from apps.data_center.infrastructure.macro_sources.fetchers.common import resolve_indicator_units
+from apps.data_center.infrastructure.macro_sources.fetchers.economic_fetchers import (
     EconomicIndicatorFetcher,
     parse_chinese_quarter,
 )
-from apps.macro.infrastructure.adapters.fetchers.other_fetchers import OtherIndicatorFetcher
-from apps.macro.infrastructure.adapters.fetchers.trade_fetchers import TradeIndicatorFetcher
+from apps.data_center.infrastructure.macro_sources.fetchers.other_fetchers import (
+    OtherIndicatorFetcher,
+)
+from apps.data_center.infrastructure.macro_sources.fetchers.trade_fetchers import (
+    TradeIndicatorFetcher,
+)
 
 
 class _NoOpAK:
@@ -134,7 +140,7 @@ def _sort(points):
 @pytest.fixture(autouse=True)
 def governed_macro_runtime_metadata(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {
             "CN_GDP": {"default_unit": "亿元", "governance_scope": "macro_console"},
             "CN_GDP_YOY": {"default_unit": "%", "governance_scope": "macro_console"},
@@ -175,7 +181,7 @@ def test_parse_chinese_quarter_supports_cumulative_quarter_labels() -> None:
 
 def test_resolve_indicator_units_prefers_runtime_metadata(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {"TEST.RUNTIME": {"default_unit": "亿千瓦时"}},
     )
 
@@ -191,11 +197,11 @@ def test_resolve_indicator_units_blocks_governed_fallback_without_metadata_or_ru
             return None
 
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {"TEST.GOV": {"governance_scope": "macro_console"}},
     )
     monkeypatch.setattr(
-        "apps.data_center.application.repository_provider.get_indicator_unit_rule_repository",
+        "apps.data_center.composition.get_indicator_unit_rule_repository",
         lambda: _EmptyRuleRepo(),
     )
 
@@ -207,7 +213,7 @@ def test_resolve_indicator_units_blocks_ungoverned_missing_metadata_without_fall
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.common.get_runtime_macro_index_metadata_map",
+        "apps.data_center.infrastructure.macro_sources.fetchers.common.get_runtime_macro_index_metadata_map",
         lambda: {},
     )
 
@@ -217,7 +223,7 @@ def test_resolve_indicator_units_blocks_ungoverned_missing_metadata_without_fall
 
 def test_macro_data_point_published_at_prefers_runtime_publication_lags(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.base.get_runtime_macro_publication_lags",
+        "apps.data_center.infrastructure.macro_sources.base.get_runtime_macro_publication_lags",
         lambda: {"TEST.RUNTIME": {"days": 7, "description": "T+7"}},
     )
 
@@ -243,7 +249,7 @@ def test_fetch_gdp_uses_named_absolute_value_column() -> None:
 
 def test_fetch_gdp_uses_resolved_units(monkeypatch) -> None:
     monkeypatch.setattr(
-        "apps.macro.infrastructure.adapters.fetchers.economic_fetchers.resolve_indicator_units",
+        "apps.data_center.infrastructure.macro_sources.fetchers.economic_fetchers.resolve_indicator_units",
         lambda indicator_code: ("测试单位", "测试单位"),
     )
     fetcher = EconomicIndicatorFetcher(_NoOpAK(), "akshare", _validate, _sort)
@@ -409,7 +415,7 @@ def test_fetch_social_financing_yoy_skips_non_positive_prior_flow_base() -> None
 
 
 def test_fetch_fx_reserves_keeps_catalog_unit_in_hundred_million_usd() -> None:
-    from apps.macro.infrastructure.adapters.fetchers.financial_fetchers import (
+    from apps.data_center.infrastructure.macro_sources.fetchers.financial_fetchers import (
         FinancialIndicatorFetcher,
     )
 

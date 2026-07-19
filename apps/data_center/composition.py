@@ -1,4 +1,4 @@
-"""Data center repository providers for application consumers."""
+"""Data Center composition root for repositories and provider runtime."""
 
 from __future__ import annotations
 
@@ -8,17 +8,19 @@ from apps.data_center.domain.entities import (
     DataProviderSettings,
     ProviderConfig,
 )
-from apps.data_center.infrastructure.provider_factory import UnifiedProviderFactory
-from apps.data_center.infrastructure.providers import (
+from apps.data_center.infrastructure.cache_warmup_queries import (
+    MacroFactCacheWarmupRepository,
+)
+from apps.data_center.infrastructure.diagnostic_queries import DataCenterDiagnosticRepository
+from apps.data_center.infrastructure.provider_registry import ProviderRegistry
+from apps.data_center.infrastructure.repositories import (
     AssetRepository,
     CapitalFlowRepository,
-    DataCenterDiagnosticRepository,
     DataProviderSettingsRepository,
     FinancialFactRepository,
     FundNavRepository,
     IndicatorCatalogRepository,
     IndicatorUnitRuleRepository,
-    MacroFactCacheWarmupRepository,
     MacroFactRepository,
     MacroGovernanceRepository,  # noqa: F401
     MarketThermometerConfigRepository,
@@ -34,7 +36,6 @@ from apps.data_center.infrastructure.providers import (
     SectorMembershipRepository,
     ValuationFactRepository,
 )
-from apps.data_center.infrastructure.registries.source_registry import SourceRegistry
 
 
 def get_macro_fact_repository() -> MacroFactRepository:
@@ -185,32 +186,26 @@ def fetch_akshare_eastmoney_historical_prices(
     )
 
 
-def build_unified_provider_factory() -> UnifiedProviderFactory:
-    """Build the default unified provider factory."""
+def get_provider_registry() -> ProviderRegistry:
+    """Return the canonical configured provider registry."""
 
-    return UnifiedProviderFactory(get_provider_config_repository())
-
-
-def build_unified_provider_factory_for_repo(
-    provider_repo: ProviderConfigRepository,
-) -> UnifiedProviderFactory:
-    """Build a unified provider factory bound to a provided repository instance."""
-
-    return UnifiedProviderFactory(provider_repo)
-
-
-def get_source_registry() -> SourceRegistry:
-    """Return the module-level source registry."""
-
-    from apps.data_center.application.registry_factory import get_registry
+    from apps.data_center.provider_runtime import get_registry
 
     return get_registry()
 
 
-def refresh_source_registry() -> SourceRegistry:
-    """Refresh and return the module-level source registry."""
+def build_provider_registry_for_repo(
+    provider_repo: ProviderConfigRepository,
+) -> ProviderRegistry:
+    """Build an isolated provider registry for an explicit repository."""
 
-    from apps.data_center.application.registry_factory import refresh_registry
+    return ProviderRegistry.from_repository(provider_repo)
+
+
+def refresh_provider_registry() -> ProviderRegistry:
+    """Refresh and return the process-wide canonical provider registry."""
+
+    from apps.data_center.provider_runtime import refresh_registry
 
     return refresh_registry()
 

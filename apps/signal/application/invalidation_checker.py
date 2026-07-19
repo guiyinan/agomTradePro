@@ -61,7 +61,7 @@ class _DataCenterMacroRepository:
     """Minimal macro read facade for signal invalidation checks."""
 
     def __init__(self) -> None:
-        from apps.data_center.application.repository_provider import get_macro_fact_repository
+        from apps.data_center.composition import get_macro_fact_repository
 
         self._repository = get_macro_fact_repository()
 

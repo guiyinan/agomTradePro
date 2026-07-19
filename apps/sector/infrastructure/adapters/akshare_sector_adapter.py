@@ -7,7 +7,7 @@ from datetime import date
 
 import pandas as pd
 
-from apps.data_center.application.repository_provider import get_akshare_module
+from apps.data_center.composition import get_akshare_module
 from apps.sector.infrastructure.models import (
     SectorConstituentModel,
     SectorIndexModel,

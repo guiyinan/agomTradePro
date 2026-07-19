@@ -10,21 +10,9 @@ from datetime import date, datetime
 import pandas
 
 from apps.data_center.infrastructure.market_gateway_entities import CapitalFlowSnapshot
+from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_float(value: object) -> float:
-    """安全地将值转换为 float，失败返回 0.0"""
-    if value is None:
-        return 0.0
-    try:
-        f = float(value)
-        if f != f:  # NaN
-            return 0.0
-        return f
-    except (ValueError, TypeError):
-        return 0.0
 
 
 def _parse_date(value: object) -> date | None:
@@ -72,12 +60,14 @@ def parse_akshare_capital_flow_row(
         return CapitalFlowSnapshot(
             stock_code=stock_code,
             trade_date=trade_date,
-            main_net_inflow=_safe_float(row.get("主力净流入-净额")),
-            main_net_ratio=_safe_float(row.get("主力净流入-净占比")),
-            super_large_net_inflow=_safe_float(row.get("超大单净流入-净额")),
-            large_net_inflow=_safe_float(row.get("大单净流入-净额")),
-            medium_net_inflow=_safe_float(row.get("中单净流入-净额")),
-            small_net_inflow=_safe_float(row.get("小单净流入-净额")),
+            main_net_inflow=safe_float(row.get("主力净流入-净额"), default=0.0),
+            main_net_ratio=safe_float(row.get("主力净流入-净占比"), default=0.0),
+            super_large_net_inflow=safe_float(
+                row.get("超大单净流入-净额"), default=0.0
+            ),
+            large_net_inflow=safe_float(row.get("大单净流入-净额"), default=0.0),
+            medium_net_inflow=safe_float(row.get("中单净流入-净额"), default=0.0),
+            small_net_inflow=safe_float(row.get("小单净流入-净额"), default=0.0),
             source="eastmoney",
         )
     except Exception:

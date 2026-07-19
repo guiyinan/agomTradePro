@@ -1,9 +1,8 @@
-"""Compatibility repositories that proxy macro reads/writes to data_center facts."""
+"""Macro-domain projections backed by canonical Data Center fact models."""
 
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 from typing import Any
 
 from django.db import transaction
@@ -17,6 +16,7 @@ from apps.data_center.infrastructure.models import (
     RawAuditModel,
 )
 from apps.macro.domain.entities import MacroIndicator, PeriodType
+from shared.numeric import safe_float
 
 
 def _get_period_type_display(period_type: str) -> str:
@@ -39,12 +39,6 @@ def _get_period_type_display(period_type: str) -> str:
         "30Y": "30年期",
     }
     return period_labels.get(period_type, period_type)
-
-
-def _safe_float(value: Any) -> float:
-    if isinstance(value, Decimal):
-        return float(value)
-    return float(value or 0.0)
 
 
 def _get_indicator_catalog(code: str) -> IndicatorCatalogModel | None:
@@ -196,7 +190,7 @@ def _resolve_display_fields(
             except (TypeError, ValueError):
                 multiplier_to_storage = 1.0
 
-    display_value = _safe_float(fact.value)
+    display_value = safe_float(fact.value, default=0.0)
     converted_value, converted_unit = convert_currency_value(
         display_value,
         fact.unit or "",
@@ -223,7 +217,7 @@ def _serialize_fact_row(
     return {
         "id": fact.id,
         "code": fact.indicator_code,
-        "value": _safe_float(fact.value),
+        "value": safe_float(fact.value, default=0.0),
         "unit": fact.unit or (resolved_catalog.default_unit if resolved_catalog else ""),
         "display_value": display_value,
         "display_unit": display_unit,
@@ -246,7 +240,7 @@ def _fact_to_entity(fact: MacroFactModel) -> MacroIndicator:
     original_unit = _resolve_original_unit_from_fact(fact, catalog)
     return MacroIndicator(
         code=fact.indicator_code,
-        value=_safe_float(fact.value),
+        value=safe_float(fact.value, default=0.0),
         reporting_period=fact.reporting_period,
         period_type=_resolve_period_type(fact, catalog),
         unit=fact.unit or "",
@@ -289,8 +283,8 @@ def _sort_rows(rows: list[dict[str, Any]], sort_field: str) -> list[dict[str, An
     )
 
 
-class DjangoMacroRepository:
-    """Compatibility write repository backed by data_center macro facts."""
+class DataCenterMacroRepository:
+    """Macro write repository backed by canonical Data Center macro facts."""
 
     GROWTH_INDICATORS = {
         "PMI": "CN_PMI",
@@ -671,7 +665,7 @@ class DjangoMacroRepository:
                 original_unit=next_original_unit or None,
             )
             next_original_unit = str(rule["original_unit"] or next_original_unit)
-            next_value = float(updates.get("value", _safe_float(fact.value)))
+            next_value = float(updates.get("value", safe_float(fact.value, default=0.0)))
             fact.value = next_value * float(rule["multiplier_to_storage"])
             fact.unit = str(rule["storage_unit"] or "")
             extra = dict(fact.extra or {})
@@ -784,7 +778,7 @@ class DjangoMacroRepository:
         ]
 
 
-class MacroIndicatorReadRepository:
+class DataCenterMacroReadRepository:
     """Compatibility read repository backed by data_center macro facts."""
 
     def get_indicator_unit_config(

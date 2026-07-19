@@ -28,7 +28,7 @@ def _resolve_market_thermometer_as_of_date(raw_as_of_date: str = "") -> Any:
     return resolve_market_thermometer_as_of_date(raw_as_of_date)
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     name="apps.data_center.application.tasks.refresh_market_thermometer_task",
     time_limit=1800,
     soft_time_limit=1700,
@@ -54,7 +54,7 @@ def refresh_market_thermometer_task(as_of_date: str = "") -> dict[str, Any]:
     }
 
 
-@shared_task(
+@shared_task(  # type: ignore[misc]
     name="apps.data_center.application.tasks.refresh_decision_quote_snapshots_task",
     time_limit=900,
     soft_time_limit=840,
