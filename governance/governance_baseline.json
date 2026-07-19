@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6980,
+  "static_test_function_count": 6993,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -69,67 +69,7 @@
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
   "allowed_large_python_files": {
-    "apps/account/infrastructure/models.py": 1389,
-    "apps/audit/application/use_cases.py": 1382,
-    "apps/audit/domain/services.py": 1299,
-    "apps/audit/infrastructure/repositories.py": 1357,
-    "apps/policy/application/use_cases.py": 1567,
-    "apps/strategy/interface/views.py": 1294
   },
   "large_file_remediation": {
-    "apps/account/infrastructure/models.py": {
-      "owner": "account",
-      "kind": "orm-models",
-      "rationale": "Split identity, preference, and account persistence models by aggregate.",
-      "priority": "P2",
-      "target_non_empty_lines": 1100,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/audit/application/use_cases.py": {
-      "owner": "audit",
-      "kind": "application-use-cases",
-      "rationale": "Separate attribution, review, and audit reporting use cases.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/audit/domain/services.py": {
-      "owner": "audit",
-      "kind": "domain-services",
-      "rationale": "Split independent attribution and audit calculation policies.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/audit/infrastructure/repositories.py": {
-      "owner": "audit",
-      "kind": "repository",
-      "rationale": "Separate audit read models and persistence responsibilities.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/policy/application/use_cases.py": {
-      "owner": "policy",
-      "kind": "application-use-cases",
-      "rationale": "Separate policy event commands, queries, and evaluation orchestration.",
-      "priority": "P2",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/strategy/interface/views.py": {
-      "owner": "strategy",
-      "kind": "interface-views",
-      "rationale": "Split HTTP entrypoints from strategy context helpers.",
-      "priority": "P2",
-      "target_non_empty_lines": 900,
-      "review_by": "2026-12-31",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    }
   }
 }
