@@ -805,6 +805,13 @@ def test_akshare_unified_provider_adapter_falls_back_to_sse_account_openings(mon
 
 def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     class _FakePro:
+        def trade_cal(self, exchange, start_date, end_date, is_open):
+            assert exchange == ""
+            assert start_date == "20260519"
+            assert end_date == "20260519"
+            assert is_open == "1"
+            return pd.DataFrame([{"cal_date": "20260519", "is_open": 1}])
+
         def daily(self, trade_date):
             assert trade_date == "20260519"
             return pd.DataFrame(
@@ -823,8 +830,8 @@ def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
     assert len(facts) == 1
-    assert facts[0].value == 300_000.0
-    assert facts[0].unit == "元"
+    assert facts[0].value == 300.0
+    assert facts[0].unit == "千元"
     assert facts[0].extra["aggregation"] == "tushare_a_share_daily_amount_sum"
     assert facts[0].extra["original_unit"] == "千元"
 

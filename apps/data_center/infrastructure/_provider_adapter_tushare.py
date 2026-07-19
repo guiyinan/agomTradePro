@@ -106,11 +106,23 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             pro = create_tushare_pro_client(
                 token=self._config.api_key, http_url=self._config.http_url
             )
-            current_date = start_date
-            while current_date <= end_date:
+            calendar = pro.trade_cal(
+                exchange="",
+                start_date=start_date.strftime("%Y%m%d"),
+                end_date=end_date.strftime("%Y%m%d"),
+                is_open="1",
+            )
+            trading_dates = sorted(
+                observed_at
+                for observed_at in (
+                    _safe_date(_first_present(row, "cal_date", "trade_date", "date"))
+                    for row in (calendar.to_dict("records") if calendar is not None else [])
+                )
+                if observed_at is not None
+            )
+            for current_date in trading_dates:
                 df = pro.daily(trade_date=current_date.strftime("%Y%m%d"))
                 if df is None or df.empty:
-                    current_date += timedelta(days=1)
                     continue
                 for row in df.to_dict("records"):
                     observed_at = _safe_date(_first_present(row, "trade_date", "date"))
@@ -119,8 +131,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     amount = safe_float(_first_present(row, "amount"))
                     if amount is None:
                         continue
-                    rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount * 1000.0
-                current_date += timedelta(days=1)
+                    rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount
         except Exception as exc:
             logger.warning("Tushare full-market turnover fetch failed closed: %s", exc)
             return []
@@ -133,7 +144,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 indicator_code="CN_A_TOTAL_TURNOVER",
                 reporting_period=observed_at,
                 value=value,
-                unit="元",
+                unit="千元",
                 source=self.provider_source(),
                 published_at=observed_at,
                 quality=DataQualityStatus.VALID,

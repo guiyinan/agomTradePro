@@ -258,7 +258,7 @@ python manage.py normalize_macro_fact_units --check
   - 超过容差立即返回不可用，不再跨来源拼接时间序列。
 - failover 一致性比较改为对称相对误差，`0` 对 `非 0` 也会失败，不再因除零保护被静默跳过。
 - `CN_A_TOTAL_TURNOVER` 原实现把上证综指与深证成指成交额之和当作“全市场成交额”，指标名称与代理口径不一致。现改为：
-  - Tushare：按交易日汇总全部 A 股日线 `amount`；
+  - Tushare：按交易日汇总全部 A 股日线原始 `amount`（千元），由 `IndicatorUnitRule` 统一转换成元；
   - AKShare：汇总上交所主板 A/科创板与深交所 A 股官方市场概况；
   - 指数成交额 fallback 因语义不等价而 fail closed；
   - `IndicatorCatalog.extra.decision_source_type=tushare` 作为决策读取真源。
