@@ -27,9 +27,9 @@
 Data Center 结构契约与行为测试混跑时的顺序敏感污染已定位并修复，验收口径不再要求拆成两个独立 pytest 调用。
 
 - 根因：`tests/unit/data_center/test_phase3_provider_adapters.py` 多个用例 `monkeypatch.setattr("apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module", ...)`；`apps/data_center/infrastructure/_provider_adapter_akshare.py` 在方法内延迟导入 `akshare_eastmoney_gateway` / `akshare_general_gateway`，而这两个 gateway 模块顶层以 `from ...legacy_sdk_bridge import get_akshare_module` 绑定该名称。若 gateway 模块的进程内首次导入恰好落在 monkeypatch 窗口内，就会永久绑定假 callable（模块进入 `sys.modules` 缓存），此后所有依赖真实绑定的用例按顺序随机失败，失败用例随测试排序漂移。
-- 修复：新增 `tests/unit/data_center/conftest.py`，以 session 级 autouse fixture 在任何测试运行前抢先导入上述两个 gateway 模块，把真实绑定钉在 patch 窗口之外。纯测试侧改动，未改 `apps/` 代码，未删测、未 skip、未降断言。
+- 修复：新增 session 级 autouse fixture（初始位于 `tests/unit/data_center/conftest.py`，同日上移至顶层 `tests/conftest.py`，见下），在任何测试运行前抢先导入上述两个 gateway 模块，把真实绑定钉在 patch 窗口之外。纯测试侧改动，未改 `apps/` 代码，未删测、未 skip、未降断言。
 - 验证：修复前以随机排序复现失败（种子 6/8 失败 `test_capital_flow_uses_bj_market_for_bj_stocks`，且"投毒用例 + 受害者"配对正向必败、反向通过）；修复后 12 个随机种子混跑全部 311 项通过，混合命令连续 3 次（含一次 `-p no:randomly`）通过，`tests/unit/data_center` 单独运行通过，4 个结构契约文件回归通过。
-- 遗留说明：`provider_runtime._global_registry` 进程级单例与"monkeypatch 窗口内首次延迟导入"这一通用模式仍为潜在隔离风险；本套件 12 种子混扫未发现第二个污染源，如未来在其他套件复现同型问题，应按同一模式（会话级预热导入或改延迟绑定）处理。
+- 通用化收口（2026-07-19 后续）："monkeypatch 窗口内首次延迟导入"的 seam 预热 fixture 已上移至顶层 `tests/conftest.py`（`tests/unit/equity/test_market_data_repository_adapter.py` patch 同一 seam，曾面临同型风险）；`provider_runtime._global_registry` 进程级单例改由顶层 conftest 的函数级 autouse fixture 在每个测试前后调用 `reset_registry()` 隔离，治理台 admin_client 在测试库上构建的 registry 不再跨测试泄漏。验证：`tests/unit/data_center` + 结构契约 268 项、含 equity 的混合批次 430 项、registry 直接引用套件（api/integration/events/provider abstraction）66 项全部通过。
 
 ## 回滚边界
 

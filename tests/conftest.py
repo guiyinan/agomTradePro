@@ -155,3 +155,47 @@ def pytest_collection_modifyitems(config, items):
         skip_qlib = pytest.mark.skip(reason=status.reason)
         for item in qlib_items:
             item.add_marker(skip_qlib)
+
+
+# ---------------------------------------------------------------------------
+# Test-isolation guards for the Data Center provider runtime.
+#
+# 1) Akshare seam pinning: several suites monkeypatch
+#    ``apps.data_center.infrastructure.legacy_sdk_bridge.get_akshare_module``.
+#    The gateway modules below bind that name at import time and are imported
+#    lazily inside application code. If such a module is imported for the
+#    first time while a monkeypatch is active, it captures the fake callable
+#    permanently (the module stays in ``sys.modules``) and every later test
+#    that needs the real binding fails in an order-dependent way. Importing
+#    the modules once, before any test runs, pins the real binding.
+#
+# 2) Provider-registry reset: ``apps.data_center.provider_runtime`` holds a
+#    process-wide ``_global_registry`` singleton built lazily from database
+#    configuration. A registry built on one test's database would otherwise
+#    leak into later tests running on a different test database, so it is
+#    reset around every test.
+# ---------------------------------------------------------------------------
+
+_PATCHABLE_AKSHARE_SEAM_MODULES = (
+    "apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway",
+    "apps.data_center.infrastructure.gateways.akshare_general_gateway",
+)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _pin_akshare_seam_modules_before_patching() -> None:
+    """Eagerly import modules that bind the patchable akshare seam."""
+    import importlib
+
+    for module_name in _PATCHABLE_AKSHARE_SEAM_MODULES:
+        importlib.import_module(module_name)
+
+
+@pytest.fixture(autouse=True)
+def _reset_data_center_provider_registry():
+    """Isolate the process-wide provider registry between tests."""
+    from apps.data_center.provider_runtime import reset_registry
+
+    reset_registry()
+    yield
+    reset_registry()
