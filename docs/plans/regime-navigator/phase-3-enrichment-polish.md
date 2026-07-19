@@ -13,7 +13,7 @@
 
 DR007（银行间质押式回购加权利率 7 天）是中国银行间市场最核心的利率指标，比 SHIBOR 更真实地反映短期流动性松紧。
 
-**文件**: `apps/macro/infrastructure/adapters/fetchers/financial_fetchers.py`（追加方法）
+**文件**: `apps/data_center/infrastructure/macro_sources/fetchers/financial_fetchers.py`（追加方法）
 
 ```python
 def fetch_dr007(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
@@ -35,7 +35,7 @@ def fetch_dr007(self, start_date: date, end_date: date) -> list[MacroDataPoint]:
 
 央行每日逆回购操作的净投放/回笼是最直接的政策意图信号。
 
-**文件**: `apps/macro/infrastructure/adapters/fetchers/financial_fetchers.py`（追加方法）
+**文件**: `apps/data_center/infrastructure/macro_sources/fetchers/financial_fetchers.py`（追加方法）
 
 ```python
 def fetch_pboc_open_market(self, start_date: date, end_date: date) -> list[MacroDataPoint]:

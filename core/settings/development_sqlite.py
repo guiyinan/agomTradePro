@@ -1,5 +1,6 @@
 
 import os
+import tempfile
 
 from .base import *  # noqa: F403
 
@@ -7,7 +8,9 @@ DEBUG = True
 # Development only: relax host checks for local debugging/tools.
 ALLOWED_HOSTS = ['*']
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-TEST_DB_NAME = os.path.join(BASE_DIR, f'test_db_{os.getpid()}.sqlite3')
+TEST_DB_DIR = os.path.join(tempfile.gettempdir(), 'agomtradepro-test-databases')
+os.makedirs(TEST_DB_DIR, exist_ok=True)
+TEST_DB_NAME = os.path.join(TEST_DB_DIR, f'test_db_{os.getpid()}.sqlite3')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',

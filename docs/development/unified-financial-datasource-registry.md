@@ -66,7 +66,7 @@
 核心实现：
 
 - `apps.data_center.infrastructure.registries.source_registry.SourceRegistry`
-- `apps.data_center.application.registry_factory`
+- `apps.data_center.provider_runtime`
 
 ---
 
@@ -448,7 +448,7 @@ QMT 现在只接入了“行情 provider”这一层，不接交易。
 
 运行时层：
 
-- `apps.data_center.application.registry_factory`
+- `apps.data_center.provider_runtime`
 - `apps.data_center.infrastructure.registries.source_registry`
 - `apps.data_center.domain.protocols.ProviderProtocol`
 

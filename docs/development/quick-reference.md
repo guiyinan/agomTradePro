@@ -1,4 +1,4 @@
-﻿# AgomTradePro 开发快速参考
+# AgomTradePro 开发快速参考
 
 > **文档版本**: V2.0
 > **更新日期**: 2026-07-18
@@ -128,7 +128,9 @@ agomtradepro/Scripts/python manage.py list_models
 - 市场温度计 `new_investor_accounts` 默认先走 AKShare，近月缺口会自动回退到上交所月报账户新开户表并写入 proxy 审计字段。若两个在线源都不可用或需要人工补历史月份，再生成模板并 dry-run：`python manage.py import_investor_accounts --print-template`，`python manage.py import_investor_accounts --file <csv_path> --dry-run --json --fail-on-warning`。若源 CSV 是“万户”口径，显式加 `--value-unit 万户`，系统会换算成 canonical `户` 并保留原始单位审计字段。
 - 管理端也可通过 `POST /api/data-center/market-thermometer/import/investor-accounts/` 补数，支持 `csv_text` / 文件上传、`dry_run`、`value_unit`、`fail_on_warning`，与 CLI 走同一 use case。
 - Windows 下如通过环境变量覆盖 `DJANGO_LOG_LEVEL`，启动链路会自动清理首尾空格，避免日志配置导致启动失败。
-- `install.bat` 默认只安装本地最小运行依赖（`requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
+- `install.bat` 默认只安装本地最小运行依赖（由 `pyproject.toml` 生成的 `requirements-prod.txt`），不会再强制拉起 Playwright / pytest 等开发工具；如需完整开发栈，显式使用 `install.bat --dev`。
+- `pyproject.toml` 是依赖声明唯一真源；修改依赖后运行 `python scripts/sync_dependency_projections.py` 更新 pip 兼容投影，再用 `pip-compile requirements-prod.txt -o requirements-prod.lock` 刷新生产锁。CI 可用 `python scripts/sync_dependency_projections.py --check` 检查漂移。
+- 清理本地测试数据库、TUI 日志、crash dump 与 `tmp/` 缓存：`powershell -ExecutionPolicy Bypass -File scripts/clean-workspace-artifacts.ps1`；先预览可加 `-WhatIf`。
 - `scripts/dev.bat` 现在会先执行 `manage.py bootstrap_local_env`，自动创建 `.env` 并补齐 `SECRET_KEY` / `AGOMTRADEPRO_ENCRYPTION_KEY`，避免首次启动出现密钥缺失 warning。
 - 开发环境默认强制使用本地内存缓存；即使 `.env` 里保留了 `REDIS_URL`，也不会把登录和页面 API 绑死到 Redis。只有显式设置 `USE_REDIS_CACHE=true` 才会启用开发态 Redis 缓存。
 - 使用 `start.bat` 选项 `2` / `scripts/docker-dev.bat --sqlite` 启动 Celery 时，worker 会同时监听 `celery,qlib_infer,qlib_train` 三个队列；否则 `apps.alpha.application.tasks.qlib_predict_scores` 会堆积在 `qlib_infer` 队列，首页 Alpha 无法自动刷新。
@@ -927,8 +929,8 @@ pip install -r requirements.txt
 ### Q: 如何添加新的宏观数据指标？
 
 1. 在 `apps/macro/domain/entities.py` 添加指标定义
-2. 在 `apps/macro/infrastructure/adapters/fetchers/` 添加 fetcher
-3. 在 `apps/macro/infrastructure/adapters/akshare_adapter.py` 注册 fetcher
+2. 在 `apps/data_center/infrastructure/macro_sources/fetchers/` 添加 fetcher
+3. 在 `apps/data_center/infrastructure/macro_sources/akshare_adapter.py` 注册 fetcher
 4. 运行 `python manage.py init_indicators` 初始化配置
 
 ### Q: 如何修改 Regime 计算参数？

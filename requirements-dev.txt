@@ -1,7 +1,6 @@
-# Development and CI requirements
+# Generated from pyproject.toml [project.optional-dependencies].dev; do not edit manually.
+# Regenerate with: python scripts/sync_dependency_projections.py
 -r requirements-prod.txt
-
-# Testing
 pytest
 pytest-django
 pytest-cov
@@ -14,14 +13,10 @@ pytest-timeout>=2.3
 factory-boy>=3.3
 faker>=20.0
 playwright>=1.53
-
-# Code quality
 black>=26.3.1
 isort
 ruff
 mypy==1.14.1
 pre-commit
-
-# Developer tooling
 ipython
 ipdb

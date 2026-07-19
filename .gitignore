@@ -131,6 +131,8 @@ docs/DEV_DIARY.md
 /logs
 cookies.txt
 /tmp
+/.codex_tmp/
 /debug
+*.stackdump
 docs/xiaohongshu-draft-2026-04-24.md
 .playwright-cli/

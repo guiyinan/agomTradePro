@@ -280,7 +280,7 @@ Pulse 在区间内微调：`weight = lower + (upper - lower) * (composite_score 
 | `CalculateRegimeV2UseCase` | `apps/regime/application/use_cases.py` | **被调用**，Navigator 用例依赖它 |
 | `MacroDataProviderProtocol` | `apps/regime/domain/protocols.py` | **复用协议**，Pulse 也通过此协议读数据 |
 | `HighFrequencySignalUseCase` | `apps/regime/application/use_cases.py` | **重构**：评估逻辑迁移到 Pulse，regime 保留冲突解决 |
-| `HighFrequencyIndicatorFetcher` | `apps/macro/infrastructure/adapters/fetchers/high_frequency_fetchers.py` | **原样复用**，Pulse 读已入库的数据 |
+| `HighFrequencyIndicatorFetcher` | `apps/data_center/infrastructure/macro_sources/fetchers/high_frequency_fetchers.py` | **原样复用**，Pulse 读已入库的数据 |
 | `RegimeBasedRotationEngine` | `apps/rotation/domain/services.py` | **增强**：接入 ActionRecommendation 的资产权重 |
 | `RegimeConstraint` (Beta Gate) | `apps/beta_gate/domain/entities.py` | **复用**：决策模式中仓位约束步骤调用 |
 | `DashboardData` DTO | `apps/dashboard/application/use_cases.py` | **扩展**：新增 pulse_snapshot、action_recommendation 字段 |

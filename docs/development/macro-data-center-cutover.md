@@ -1,6 +1,6 @@
 # Macro Data Center Cutover
 
-更新时间: 2026-05-07
+更新时间: 2026-07-18
 
 ## 目标
 
@@ -13,13 +13,22 @@
 
 ## 当前状态
 
-- `apps/macro/application/repository_provider.py` 仍保留原 provider 入口
-- `apps/macro/infrastructure/providers.py` 已切换为 `data_center` 兼容仓储
-- `apps/macro/infrastructure/repositories.py` 已改为 `data_center_compat` shim，不再落回旧 ORM 仓储
+- Macro 的生产同步入口仅保留 Application facade，实际批量同步由 Data Center 的 canonical `ProviderRegistry` 选择 provider
+- Tushare / AKShare / failover 宏观采集实现已迁入 `apps/data_center/infrastructure/macro_sources/`
+- `apps/macro/infrastructure/adapters.py`、`adapters/`、`providers.py`、`repositories.py` 与 `data_center_compat.py` 已退役
+- Macro 对 canonical fact 的领域映射集中在 `data_center_fact_repository.py`，不再存在多层 re-export shim
 - `apps/data_center/application/use_cases.py` 的宏观同步、查询与 repair 链路已移除 legacy fallback
 - `apps/data_center/migrations/0007_expand_macro_indicator_catalog_coverage.py` 补齐了宏观 catalog 主指标覆盖，并统一 `CN_FX_RESERVES`
 - `apps/data_center/migrations/0008_indicator_unit_rules.py` / `0009_rename_indicator_unit_rule_indexes.py` 已落地量纲规则表和索引修正
 - `apps/macro/migrations/0018_drop_indicator_unit_config.py` 已删除旧 `IndicatorUnitConfig` 表
+
+## 2026-07-18 provider / adapter 抽象收敛
+
+- `ProviderRegistry` 成为 provider 构造、ID/名称查找、能力路由、failover、熔断和运行时健康状态的唯一 owner。
+- 删除 Data Center 的 `provider_factory.py`、`providers.py` 与 `registries/source_registry.py`；Application composition 不再维护伪 provider 或重复 capability 映射。
+- 市场站点客户端统一称为 internal market gateway，并使用 `MarketGatewayProtocol`，与外部数据 provider 注册机制明确分层。
+- `build_sync_macro_data_use_case()` 不再组装旧 adapter 字典，改为委托 `SyncMacroBatchUseCase`；管理命令也走同一 canonical 同步入口。
+- 结构测试固定检查旧路径不得恢复，运行回归覆盖 provider registry、macro source、同步、fact projection 及跨模块消费者。
 
 ## 2026-04-30 量纲修复补充
 
@@ -63,10 +72,10 @@
   - `domain_period_type_override`
 - `ScheduleDataFetchUseCase` 的宏观调度口径现完全读取 catalog runtime metadata，本地已不再维护独立同步日历表。
 - `sync_macro_data` 的 period_type 解析现完全读取 catalog period override / source payload，本地已不再维护 legacy period override 表。
-- `apps/macro/infrastructure/adapters/fetchers/*` 现优先读取 runtime metadata / unit rule 解析 source unit。
+- `apps/data_center/infrastructure/macro_sources/fetchers/*` 现优先读取 runtime metadata / unit rule 解析 source unit。
 - 对所有宏观指标，若 runtime metadata 与 active unit rule 都缺失，则 fetcher 现在一律 fail-closed。
 - 本地 `INDICATOR_UNITS` / `allow_fetcher_unit_fallback` 已退出运行时，不再允许任何白名单 fallback。
-- `apps/macro/infrastructure/adapters/base.py` 的发布时间 lag 现完全读取 runtime publication lag metadata，本地已不再维护发布日期 lag 常量表。
+- `apps/data_center/infrastructure/macro_sources/base.py` 的发布时间 lag 现完全读取 runtime publication lag metadata，本地已不再维护发布日期 lag 常量表。
 - 季度调度已补上真实判定逻辑，不再出现配置了 `quarterly` 但运行时永远不触发的情况。
 - 宏观治理台巡检范围也已下沉到 `IndicatorCatalog.extra`：
   - `governance_scope`

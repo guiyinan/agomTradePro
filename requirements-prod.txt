@@ -1,7 +1,6 @@
-# Runtime dependencies for production image/container
-
-# Django
-Django>=5.2.11,<6.0
+# Generated from pyproject.toml [project].dependencies; do not edit manually.
+# Regenerate with: python scripts/sync_dependency_projections.py
+django>=5.2.11,<6.0
 djangorestframework
 django-filter
 django-environ
@@ -9,8 +8,6 @@ django-cors-headers
 django-jazzmin>=3.0
 whitenoise>=6.8
 psycopg[binary]>=3.2,<3.3
-
-# Celery / Redis
 celery[redis,s3]
 redis
 django-celery-beat
@@ -19,51 +16,29 @@ channels>=4.3.2,<4.4
 channels-redis>=4.3,<4.4
 daphne>=4.2.2,<4.3
 websockets>=16,<17
-
-# AI / ML
 openai>=1.0
 openai-agents>=0.18,<0.19
-
-# Microsoft Qlib is installed separately in Dockerfile for Linux compatibility.
-# Important: the PyPI distribution is `pyqlib`; `qlib` is a different package.
-# pyqlib==0.9.7
-
-# Data processing
+mcp>=1.20,<2
 pandas>=2.0
 openpyxl>=3.1
 numpy>=1.24
 statsmodels
 scipy>=1.10
 scikit-learn>=1.3
-
-# Data sources
 tushare
 akshare==1.18.22
 feedparser
-
-# HTTP
+drf-spectacular
 requests>=2.33.0
 urllib3>=2.6.3
-
-# MCP server runtime
-mcp>=1.20,<2
-
-# Dashboard / docs / metrics
 streamlit>=1.54.0
 plotly>=5.24
-drf-spectacular
 prometheus-client>=0.19.0
 django-prometheus>=2.3.1
 gunicorn>=21.2
-
-# App runtime utility
-RestrictedPython
 python-dateutil>=2.8
 pytz>=2023.3
 typing-extensions>=4.9
-
-# Error tracking
+RestrictedPython
 sentry-sdk[django,celery]>=2.0
-
-# Security / Encryption
 cryptography>=46.0.6

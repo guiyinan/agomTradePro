@@ -183,7 +183,7 @@ ak.fx_spot_quote(symbol="USD/CNY")  # 美元兑人民币
 
 #### 实现内容
 
-1. **WeeklyIndicatorFetcher 类** (`apps/macro/infrastructure/adapters/fetchers/weekly_indicators_fetchers.py`)
+1. **WeeklyIndicatorFetcher 类** (`apps/data_center/infrastructure/macro_sources/fetchers/weekly_indicators_fetchers.py`)
    - fetch_power_generation(): 获取全社会用电量数据（月度）
    - fetch_blast_furnace_utilization(): 获取钢铁指数数据（周聚合）
    - fetch_ccfi(): 获取BDI航运指数数据（周聚合）
@@ -226,7 +226,7 @@ ak.fx_spot_quote(symbol="USD/CNY")  # 美元兑人民币
    - 包含 6 个 PMI 分项指标
    - 初始数据：2024年10月-2025年1月（4个月）
 
-2. **PMISubitemsFetcher 类** (`apps/macro/infrastructure/adapters/fetchers/pmi_subitems_fetchers.py`)
+2. **PMISubitemsFetcher 类** (`apps/data_center/infrastructure/macro_sources/fetchers/pmi_subitems_fetchers.py`)
    - 从手动维护文件读取数据
    - 如果文件不存在或为空，返回空列表（系统可正常运行）
    - 支持 6 个 PMI 分项指标
@@ -271,7 +271,7 @@ ak.fx_spot_quote(symbol="USD/CNY")  # 美元兑人民币
 #### 实现内容
 
 创建了 `PMISubitemsFetcher` 类框架，待数据源可用后可实现：
-- `apps/macro/infrastructure/adapters/fetchers/pmi_subitems_fetchers.py`
+- `apps/data_center/infrastructure/macro_sources/fetchers/pmi_subitems_fetchers.py`
 
 ### 3.5 Phase 4: 概率置信度模型
 
@@ -1728,9 +1728,9 @@ celery -A core beat -l info
 - `core/settings/base.py` - 更新CELERY_BEAT_SCHEDULE配置
 - `tests/unit/test_high_frequency_indicators.py` - 新增31个测试用例
 - `tests/unit/test_confidence_model.py` - 新增25个Phase 4测试用例
-- `apps/macro/infrastructure/adapters/fetchers/high_frequency_fetchers.py` - 高频数据获取器
-- `apps/macro/infrastructure/adapters/fetchers/weekly_indicators_fetchers.py` - 周度数据获取器
-- `apps/macro/infrastructure/adapters/fetchers/pmi_subitems_fetchers.py` - PMI分项数据获取器
+- `apps/data_center/infrastructure/macro_sources/fetchers/high_frequency_fetchers.py` - 高频数据获取器
+- `apps/data_center/infrastructure/macro_sources/fetchers/weekly_indicators_fetchers.py` - 周度数据获取器
+- `apps/data_center/infrastructure/macro_sources/fetchers/pmi_subitems_fetchers.py` - PMI分项数据获取器
 - `apps/macro/management/commands/sync_macro_data.py` - 支持period_type_override
 - `apps/macro/infrastructure/repositories.py` - period_type_override支持
 - `apps/macro/data/pmi_subitems_manual.json` - PMI分项手动数据文件

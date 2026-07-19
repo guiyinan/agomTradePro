@@ -141,6 +141,8 @@ AgomTradePro/
 │   ├── simulated_trading/    # 模拟盘自动交易
 │   ├── realtime/             # 实时价格监控
 │   ├── data_center/          # 数据中台
+│   ├── config_center/        # 全局运行时配置中心
+│   ├── risk_center/          # 风险规则与风险状态中心
 │   ├── strategy/             # 策略系统
 │   ├── ai_provider/          # AI 服务商管理
 │   ├── prompt/               # AI Prompt 模板
@@ -647,7 +649,8 @@ ak.macro_china_money_supply()
 - ✅ Hedge 模块（对冲策略）
 - ✅ Terminal 模块（终端 CLI，AI 交互界面）
 - ✅ Agent Runtime 模块（Terminal AI 后端）
-- ✅ Market Data 模块（市场数据统一接口）
+- ✅ Config Center 模块（全局运行时配置统一入口）
+- ✅ Risk Center 模块（风险规则、检查与状态统一入口）
 - ✅ Share 模块（决策分享）
 - ✅ Task Monitor 模块（任务监控）
 - ✅ Pulse 模块（脉搏层，战术指标聚合与转折预警）
@@ -684,6 +687,7 @@ ak.macro_china_money_supply()
     - 未完成项
     - 已验证测试
     - 未验证风险
+14. **依赖唯一真源**：运行与开发依赖只在 `pyproject.toml` 声明；`requirements-prod.txt`、`requirements-dev.txt` 是生成投影，禁止手工编辑，使用 `python scripts/sync_dependency_projections.py` 更新
 
 ## 外包团队必读规则
 
@@ -692,7 +696,7 @@ ak.macro_china_money_supply()
 
 ### 关键改进点
 
-1. **数据解析健壮性**: 所有从外部获取的数值必须使用 `_safe_float()` 等安全解析函数
+1. **数据解析健壮性**: 所有从外部获取的数值统一使用 `from shared.numeric import safe_float`；缺失值默认返回 `None`，需要业务默认值、去格式字符或缩放时显式传入 `default`、`strip_chars`、`scale`
 2. **错误处理规范**: 使用 `core/exceptions.py` 中的异常类，禁止裸 `Exception`
 3. **测试驱动**: 任何修复必须配合测试用例，测试覆盖率要求 Domain ≥ 90%
 4. **文档同步**: 代码修改后必须更新相关文档

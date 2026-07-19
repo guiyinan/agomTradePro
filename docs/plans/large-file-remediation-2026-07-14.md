@@ -16,6 +16,7 @@ This stage applies behavior-preserving refactoring to the initial four highest-r
 - Decision Rhythm application use cases now have focused quota/submission, execution, workspace approval, model-parameter, and unified-recommendation owners. The original use-case module retains compatibility exports and its repository-provider monkeypatch surface.
 - Decision Rhythm domain entities now have focused rhythm/quota, valuation/approval, portfolio-transition, unified-recommendation, and model-parameter owners. The original entity module remains the stable import surface.
 - Decision Rhythm ORM models now have focused rhythm/request, valuation/approval, portfolio-transition, unified-recommendation/execution-link, and model-parameter owners. The original model module remains the stable Django import and patch surface, with no schema migration.
+- Decision Rhythm repositories now have focused quota/request, valuation/recommendation/approval, and unified-recommendation/model-parameter owners. The original repository module is a thin stable import surface.
 - Data Center application use cases now have focused provider/catalog, read-query, decision-reliability, fact-query, macro-governance, and provider-sync owners. The original use-case module is an explicit compatibility aggregator with bounded exports.
 - Every remediated path was removed from both the allowance and remediation maps. Every remaining allowance has an owner, rationale, priority, target, review date, and this plan path.
 
@@ -60,6 +61,7 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 - Split `apps/decision_rhythm/infrastructure/models.py` into five focused ORM owners while preserving Django app/model registration, table metadata, repository imports, and patch paths.
 - Added one-way dependency and non-empty-line budget contracts for both compatibility aggregators and all new owner modules.
 - Removed both remediated paths from `allowed_large_python_files` and `large_file_remediation` in the machine baseline.
+- Split `apps/data_center/infrastructure/provider_adapters.py` into four bounded implementation owners behind a 26-line stable facade, added a structural size contract, and removed its P1 large-file exemption.
 
 ### Remaining
 
@@ -80,5 +82,23 @@ The remaining allowances are not refactored in this stage. Their authoritative b
 ### Unverified risks and rollback
 
 - The full repository test suite and strict mypy run were not executed in this batch.
-- Governance consistency currently sees `6921` static test functions while the shared baseline records `6903`. This batch added only two structure-test functions; the other concurrent uncommitted tests belong to the existing TUI/MCP worktree, so the baseline was deliberately not rebased here.
+- This batch initially left the concurrent static-test count untouched; the later 2026-07-19 repository-governance batch audited the full working tree and rebased the shared count to `6969`.
 - Roll back either split by reverting its aggregator and owner modules together, restoring its two machine-baseline entries, and rerunning the corresponding focused regression set.
+
+## 2026-07-19 Decision Rhythm repository closure
+
+### Completed
+
+- Split `apps/decision_rhythm/infrastructure/repositories.py` into three responsibility owners behind a 50-non-empty-line compatibility facade.
+- Preserved every existing repository class and convenience-factory import from the legacy module.
+- Added one-way dependency, symbol-identity, and owner-size contracts; removed the remediated path from both machine-baseline maps.
+
+### Verified
+
+- Python compilation and Ruff passed for the facade and all three owners.
+- Decision Rhythm model, repository, parameter, unified-recommendation, workspace, and execution-approval regression: `52 passed`.
+- Fixed minimum regression package: TUI workbench, terminal agent service, SDK client, and SSL redirect, `253 passed`.
+
+### Rollback
+
+- Revert the facade, three owner modules, structural contract, and the paired baseline removal together. No model, migration, API, or task contract changed.

@@ -572,7 +572,7 @@ class InvestmentSignal:
 **故障转移架构**：
 
 ```python
-# apps/macro/infrastructure/adapters/base.py
+# apps/data_center/infrastructure/macro_sources/base.py
 from abc import ABC, abstractmethod
 from typing import List, Optional
 import logging
@@ -785,7 +785,7 @@ class DataReconciliator:
 **增强版 Failover 适配器**：
 
 ```python
-# apps/macro/infrastructure/adapters/failover.py
+# apps/data_center/infrastructure/macro_sources/failover.py
 
 class ReconciliationFailedError(Exception):
     """数据一致性校验失败"""
@@ -1254,7 +1254,7 @@ def get_secrets() -> AppSecrets:
 **适配器中的正确用法**：
 
 ```python
-# apps/macro/infrastructure/adapters/tushare_adapter.py
+# apps/data_center/infrastructure/macro_sources/tushare_adapter.py
 from shared.config.secrets import get_secrets
 
 class TushareAdapter:
@@ -1446,7 +1446,7 @@ def validate_invalidation_logic(signal: InvestmentSignal) -> tuple[bool, str]:
 ### 6.3 Infrastructure 层适配器示例
 
 ```python
-# apps/macro/infrastructure/adapters/tushare_adapter.py
+# apps/data_center/infrastructure/macro_sources/tushare_adapter.py
 from typing import List, Optional
 from datetime import date
 import tushare as ts
@@ -1501,7 +1501,7 @@ class TushareAdapter:
 ```
 
 ```python
-# apps/macro/infrastructure/adapters/akshare_adapter.py
+# apps/data_center/infrastructure/macro_sources/akshare_adapter.py
 from typing import List
 from datetime import date
 import akshare as ak

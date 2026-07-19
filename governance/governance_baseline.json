@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-18.v147",
+  "version": "2026-07-19.v150",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -17,7 +17,7 @@
     "raw_tool_file_count": 36
   },
   "business_module_count": 37,
-  "static_test_function_count": 6903,
+  "static_test_function_count": 6971,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -74,10 +74,8 @@
     "apps/audit/domain/services.py": 1299,
     "apps/audit/infrastructure/repositories.py": 1357,
     "apps/data_center/application/market_thermometer.py": 1434,
-    "apps/data_center/infrastructure/provider_adapters.py": 1564,
     "apps/data_center/infrastructure/repositories.py": 1529,
     "apps/decision_rhythm/domain/services.py": 1563,
-    "apps/decision_rhythm/infrastructure/repositories.py": 1790,
     "apps/equity/infrastructure/repositories.py": 2327,
     "apps/equity/interface/views.py": 1309,
     "apps/policy/application/use_cases.py": 1567,
@@ -129,15 +127,6 @@
       "review_by": "2026-12-31",
       "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
     },
-    "apps/data_center/infrastructure/provider_adapters.py": {
-      "owner": "data-center",
-      "kind": "provider-adapters",
-      "rationale": "Split external provider adapters by source and data family.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
     "apps/data_center/infrastructure/repositories.py": {
       "owner": "data-center",
       "kind": "repository",
@@ -151,15 +140,6 @@
       "owner": "decision-rhythm",
       "kind": "domain-services",
       "rationale": "Split decision policies, gates, and sizing rules.",
-      "priority": "P1",
-      "target_non_empty_lines": 1000,
-      "review_by": "2026-09-30",
-      "plan_path": "docs/plans/large-file-remediation-2026-07-14.md"
-    },
-    "apps/decision_rhythm/infrastructure/repositories.py": {
-      "owner": "decision-rhythm",
-      "kind": "repository",
-      "rationale": "Split recommendation, transition plan, and execution repositories.",
       "priority": "P1",
       "target_non_empty_lines": 1000,
       "review_by": "2026-09-30",

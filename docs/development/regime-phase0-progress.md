@@ -44,7 +44,7 @@ python manage.py init_indicator_thresholds
 
 ### 2. 高频数据获取器 ✅
 
-**文件**: `apps/macro/infrastructure/adapters/fetchers/high_frequency_fetchers.py`
+**文件**: `apps/data_center/infrastructure/macro_sources/fetchers/high_frequency_fetchers.py`
 
 **实现的方法**:
 

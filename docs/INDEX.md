@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
 > **AgomTradePro 0.8.0** - 个人投研平台
-> **最后更新**: 2026-07-08
+> **最后更新**: 2026-07-19
 > **项目状态**: 生产就绪
 > **版本管理**: [VERSION.md](VERSION.md)
 
@@ -150,6 +150,7 @@
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [architecture-cycle-remediation-2026-04-26.md](plans/architecture-cycle-remediation-2026-04-26.md) | **循环依赖与架构债历史整改方案（CI + AGENTS + 模块归属）** | 历史方案 |
 | [architecture-cycle-remediation-2026-07-15.md](plans/architecture-cycle-remediation-2026-07-15.md) | **循环依赖回流整改与零循环收口计划** | 进行中 |
+| [repository-debt-remediation-closure-2026-07-19.md](plans/repository-debt-remediation-closure-2026-07-19.md) | **仓库架构与治理债务总收口（大文件 / provider / 依赖 / 卫生 / 类型）** | ✅ 2026-07-19 已完成 |
 | [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
 | [phase-1-regime-navigator-pulse-mvp.md](plans/regime-navigator/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
 | [phase-2-decision-funnel.md](plans/regime-navigator/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |
