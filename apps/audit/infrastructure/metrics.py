@@ -25,7 +25,7 @@ Audit Module Prometheus Metrics
 
 import logging
 
-from prometheus_client import CollectorRegistry, REGISTRY, Counter, Histogram, generate_latest
+from prometheus_client import REGISTRY, CollectorRegistry, Counter, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
