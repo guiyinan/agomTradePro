@@ -44,6 +44,7 @@ def retry_macro_fact_upsert(manager: Any, fact: Any) -> Any:
                 "unit": fact.unit,
                 "published_at": fact.published_at,
                 "quality": fact.quality.value,
+                "fetched_at": fact.fetched_at,
                 "extra": fact.extra,
             },
         )

@@ -549,11 +549,11 @@ class TestAdapterErrorHandling:
             validate_consistency=True,
             tolerance=0.01
         )
-        result = adapter.fetch("TEST", date(2024, 1, 1), date(2024, 1, 31))
+        primary_data = primary.fetch.return_value
+        secondary_data = secondary.fetch.return_value
 
-        # 主值为零时，应跳过该点的校验
-        assert len(result) == 1
-        assert result[0].source == "primary"
+        # 零与非零的分歧必须被识别，不能因除零保护而静默跳过。
+        assert adapter._validate_consistency(primary_data, secondary_data) is False
 
     def test_no_common_data_points(self):
         """测试无共同数据点时的一致性校验"""

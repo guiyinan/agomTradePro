@@ -1,5 +1,8 @@
+from datetime import date
+
 import pytest
 
+from apps.data_center.infrastructure.models import MacroFactModel
 from apps.regime.infrastructure.macro_data_provider import DataCenterMacroRepositoryAdapter
 
 
@@ -68,3 +71,38 @@ def test_regime_adapter_converts_legacy_cpi_index_from_base_100() -> None:
     normalized = DataCenterMacroRepositoryAdapter._normalize_cpi_value("CN_CPI", 100.1)
 
     assert normalized == pytest.approx(0.1)
+
+
+@pytest.mark.django_db
+def test_regime_adapter_prefers_canonical_fact_over_legacy_revision() -> None:
+    """A canonical refresh must not be masked by a stale legacy revision-1 row."""
+    common = {
+        "indicator_code": "CN_CPI_NATIONAL_YOY",
+        "reporting_period": date(2026, 6, 30),
+        "unit": "%",
+        "source": "akshare",
+        "quality": "valid",
+    }
+    MacroFactModel.objects.create(
+        **common,
+        value="10.000000",
+        revision_number=1,
+        extra={"period_type": "M", "source_type": "akshare"},
+    )
+    MacroFactModel.objects.create(
+        **common,
+        value="1.000000",
+        revision_number=0,
+        extra={
+            "period_type": "M",
+            "source_type": "akshare",
+            "provider_name": "AKShare Public",
+        },
+    )
+
+    rows = DataCenterMacroRepositoryAdapter().get_series(
+        "CN_CPI_NATIONAL_YOY",
+        source="akshare",
+    )
+
+    assert [row.value for row in rows] == pytest.approx([1.0])

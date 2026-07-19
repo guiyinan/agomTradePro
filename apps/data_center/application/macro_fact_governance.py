@@ -44,11 +44,13 @@ class MacroFactGovernanceNormalizer:
             original_unit=original_unit,
         )
         if rule is None:
-            rule = self._unit_rule_repo.resolve_active_rule(
+            storage_candidate = self._unit_rule_repo.resolve_active_rule(
                 fact.indicator_code,
                 source_type=canonical_source,
                 original_unit=None,
             )
+            if storage_candidate is not None and original_unit == storage_candidate.storage_unit:
+                rule = storage_candidate
         if rule is None:
             raise ValueError(
                 "Indicator unit rule missing for "

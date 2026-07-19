@@ -7,8 +7,13 @@ from typing import Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Min
+from django.utils import timezone
 
 from apps.data_center.domain.rules import convert_currency_value
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
@@ -43,6 +48,25 @@ def _get_period_type_display(period_type: str) -> str:
 
 def _get_indicator_catalog(code: str) -> IndicatorCatalogModel | None:
     return IndicatorCatalogModel.objects.filter(code=code).first()
+
+
+def _select_governed_facts(
+    code: str,
+    facts: list[MacroFactModel],
+    *,
+    preferred_source: str = "",
+) -> list[MacroFactModel]:
+    """Select one canonical, internally consistent fact series for consumers."""
+
+    catalog = _get_indicator_catalog(code)
+    selection = select_macro_fact_series(
+        facts,
+        preferred_source=(
+            preferred_source
+            or configured_macro_source(catalog.extra if catalog else {})
+        ),
+    )
+    return selection.facts if selection.is_consistent else []
 
 
 def _get_indicator_unit_rule(
@@ -327,6 +351,7 @@ class DataCenterMacroRepository:
             "value": storage_value,
             "unit": storage_unit or indicator.unit,
             "published_at": indicator.published_at,
+            "fetched_at": timezone.now(),
             "quality": "valid",
             "extra": {
                 "original_unit": original_unit,
@@ -371,9 +396,10 @@ class DataCenterMacroRepository:
         )
         if revision_number is not None:
             queryset = queryset.filter(revision_number=revision_number)
-        else:
-            queryset = queryset.order_by("-revision_number", "-id")
-        fact = queryset.first()
+            fact = queryset.order_by("-id").first()
+            return _fact_to_entity(fact) if fact else None
+        facts = _select_governed_facts(code, list(queryset.order_by("id")))
+        fact = facts[-1] if facts else None
         return _fact_to_entity(fact) if fact else None
 
     def get_series(
@@ -391,20 +417,12 @@ class DataCenterMacroRepository:
             queryset = queryset.filter(reporting_period__lte=end_date)
         if source:
             queryset = queryset.filter(source=source)
-        if use_pit:
-            # data_center facts are already revision-aware; keep latest revision per period.
-            rows: list[MacroIndicator] = []
-            seen_periods: set[date] = set()
-            for fact in queryset.order_by("-reporting_period", "-revision_number", "-id"):
-                if fact.reporting_period in seen_periods:
-                    continue
-                seen_periods.add(fact.reporting_period)
-                rows.append(_fact_to_entity(fact))
-            return list(reversed(rows))
-        return [
-            _fact_to_entity(fact)
-            for fact in queryset.order_by("reporting_period", "revision_number")
-        ]
+        facts = _select_governed_facts(
+            code,
+            list(queryset.order_by("reporting_period", "id")),
+            preferred_source=source or "",
+        )
+        return [_fact_to_entity(fact) for fact in facts]
 
     @staticmethod
     def _normalize_cpi_value(code: str, value: float) -> float:
@@ -526,8 +544,8 @@ class DataCenterMacroRepository:
         queryset = MacroFactModel.objects.filter(indicator_code=code)
         if as_of_date:
             queryset = queryset.filter(published_at__lte=as_of_date)
-        fact = queryset.order_by("-reporting_period", "-revision_number").first()
-        return fact.reporting_period if fact else None
+        facts = _select_governed_facts(code, list(queryset.order_by("reporting_period", "id")))
+        return facts[-1].reporting_period if facts else None
 
     def get_latest_observation(
         self,
@@ -537,8 +555,8 @@ class DataCenterMacroRepository:
         queryset = MacroFactModel.objects.filter(indicator_code=code)
         if before_date:
             queryset = queryset.filter(reporting_period__lt=before_date)
-        fact = queryset.order_by("-reporting_period", "-revision_number").first()
-        return _fact_to_entity(fact) if fact else None
+        facts = _select_governed_facts(code, list(queryset.order_by("reporting_period", "id")))
+        return _fact_to_entity(facts[-1]) if facts else None
 
     def get_available_dates(
         self,
@@ -934,14 +952,17 @@ class DataCenterMacroReadRepository:
         return rows[offset : offset + limit]
 
     def get_latest_indicator(self, code: str) -> dict[str, Any] | None:
-        fact = (
-            MacroFactModel._default_manager.filter(indicator_code=code)
-            .order_by("-reporting_period", "-revision_number", "-id")
-            .first()
+        facts = _select_governed_facts(
+            code,
+            list(
+                MacroFactModel._default_manager.filter(indicator_code=code).order_by(
+                    "reporting_period", "id"
+                )
+            ),
         )
-        if fact is None:
+        if not facts:
             return None
-        return _serialize_fact_row(fact)
+        return _serialize_fact_row(facts[-1])
 
     def get_indicator_stats(self, code: str, start_date: date) -> dict[str, float | None]:
         stats = MacroFactModel._default_manager.filter(

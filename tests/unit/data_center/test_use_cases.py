@@ -491,6 +491,57 @@ class TestRunProviderConnectionTestUseCase:
 
 
 class TestQueryMacroSeriesUseCase:
+    def test_deduplicates_legacy_and_canonical_facts_per_source_period(self):
+        reporting_period = date(2026, 6, 30)
+        legacy = MacroFact(
+            indicator_code="CN_CPI_NATIONAL_YOY",
+            reporting_period=reporting_period,
+            value=10.0,
+            unit="%",
+            source="akshare",
+            revision_number=1,
+            published_at=date(2026, 7, 10),
+            quality=DataQualityStatus.VALID,
+            fetched_at=datetime(2026, 7, 9, tzinfo=UTC),
+            extra={"source_type": "akshare"},
+        )
+        canonical = MacroFact(
+            indicator_code="CN_CPI_NATIONAL_YOY",
+            reporting_period=reporting_period,
+            value=1.0,
+            unit="%",
+            source="akshare",
+            revision_number=0,
+            published_at=date(2026, 7, 10),
+            quality=DataQualityStatus.VALID,
+            fetched_at=datetime(2026, 7, 19, tzinfo=UTC),
+            extra={"source_type": "akshare", "provider_name": "AKShare Public"},
+        )
+        tushare = MacroFact(
+            indicator_code="CN_CPI_NATIONAL_YOY",
+            reporting_period=reporting_period,
+            value=1.0,
+            unit="%",
+            source="tushare",
+            revision_number=0,
+            published_at=reporting_period,
+            quality=DataQualityStatus.VALID,
+            fetched_at=datetime(2026, 7, 17, tzinfo=UTC),
+            extra={"source_type": "tushare", "provider_name": "Tushare Pro"},
+        )
+
+        result = QueryMacroSeriesUseCase(
+            _MacroFactRepo([legacy, canonical, tushare]),
+            _IndicatorCatalogRepo(),
+            _IndicatorUnitRuleRepo(),
+        ).execute(MacroSeriesRequest(indicator_code="CN_CPI_NATIONAL_YOY"))
+
+        assert result.total == 2
+        assert [(point.source, point.value) for point in result.data] == [
+            ("akshare", 1.0),
+            ("tushare", 1.0),
+        ]
+
     def test_preserves_repository_latest_first_order_for_api_consumers(self):
         older_fact = MacroFact(
             indicator_code="CN_IMPORT_YOY",

@@ -97,7 +97,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
-        """Fetch broad A-share turnover from Tushare index daily amount fields."""
+        """Fetch full-market A-share turnover by summing stock daily amounts."""
 
         from shared.infrastructure.tushare_client import create_tushare_pro_client
 
@@ -106,13 +106,11 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
             pro = create_tushare_pro_client(
                 token=self._config.api_key, http_url=self._config.http_url
             )
-            for ts_code in ("000001.SH", "399001.SZ"):
-                df = pro.index_daily(
-                    ts_code=ts_code,
-                    start_date=start_date.strftime("%Y%m%d"),
-                    end_date=end_date.strftime("%Y%m%d"),
-                )
+            current_date = start_date
+            while current_date <= end_date:
+                df = pro.daily(trade_date=current_date.strftime("%Y%m%d"))
                 if df is None or df.empty:
+                    current_date += timedelta(days=1)
                     continue
                 for row in df.to_dict("records"):
                     observed_at = _safe_date(_first_present(row, "trade_date", "date"))
@@ -122,34 +120,13 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                     if amount is None:
                         continue
                     rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount * 1000.0
+                current_date += timedelta(days=1)
         except Exception as exc:
-            logger.warning("Tushare turnover fetch failed, trying direct quote fallback: %s", exc)
-            try:
-                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
-            except ConnectionError as blocked_exc:
-                logger.warning(
-                    "Tushare turnover fast-failed because fallback quotes were blocked locally: %s",
-                    blocked_exc,
-                )
-                return []
-            if fallback:
-                return fallback
-            return self._fetch_market_turnover_from_tencent(start_date, end_date)
+            logger.warning("Tushare full-market turnover fetch failed closed: %s", exc)
+            return []
 
         if not rows_by_date:
-            try:
-                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
-            except ConnectionError as blocked_exc:
-                logger.warning(
-                    "Tushare turnover fast-failed because fallback quotes were blocked locally: %s",
-                    blocked_exc,
-                )
-                return []
-            if fallback:
-                return fallback
-            fallback = self._fetch_market_turnover_from_tencent(start_date, end_date)
-            if fallback:
-                return fallback
+            return []
 
         return [
             MacroFact(
@@ -162,7 +139,7 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 quality=DataQualityStatus.VALID,
                 extra=self._provider_extra(
                     {
-                        "proxy": "tushare_index_daily_sh000001_plus_sz399001",
+                        "aggregation": "tushare_a_share_daily_amount_sum",
                         "original_unit": "千元",
                     }
                 ),

@@ -7,6 +7,8 @@ Infrastructure layer - provides automatic failover between multiple data sources
 import logging
 from datetime import date
 
+from apps.data_center.domain.rules import macro_series_are_consistent
+
 from .base import (
     DataSourceUnavailableError,
     MacroAdapterProtocol,
@@ -147,21 +149,15 @@ class FailoverAdapter(MacroAdapterProtocol):
         if not common_keys:
             return True
 
-        max_diff_ratio = 0.0
-        for key in common_keys:
-            primary_value = primary_dict[key]
-            backup_value = backup_dict[key]
-
-            if primary_value == 0:
-                continue
-
-            diff_ratio = abs(backup_value - primary_value) / abs(primary_value)
-            max_diff_ratio = max(max_diff_ratio, diff_ratio)
-
-        if max_diff_ratio > self.tolerance:
+        is_consistent, max_diff_ratio = macro_series_are_consistent(
+            {key: primary_dict[key] for key in common_keys},
+            {key: backup_dict[key] for key in common_keys},
+            tolerance=self.tolerance,
+        )
+        if not is_consistent:
             logger.warning(
                 f"数据一致性校验失败: "
-                f"最大差异比例 {max_diff_ratio*100:.2f}% "
+                f"最大差异比例 {(max_diff_ratio or 0.0)*100:.2f}% "
                 f"> 容差 {self.tolerance*100:.2f}%"
             )
             return False

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from apps.data_center.domain.entities import DataQualityStatus, MacroFact
-from apps.data_center.infrastructure.models import MacroFactModel
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 
 
 class MacroFactCacheWarmupRepository:
@@ -36,11 +40,25 @@ class MacroFactCacheWarmupRepository:
         )
         latest_facts: list[MacroFact] = []
         for indicator_code in indicator_codes:
-            model = (
+            latest_period = (
                 MacroFactModel.objects.filter(indicator_code=indicator_code)
-                .order_by("-reporting_period", "-revision_number")
+                .order_by("-reporting_period")
+                .values_list("reporting_period", flat=True)
                 .first()
             )
-            if model is not None:
-                latest_facts.append(self._from_model(model))
+            if latest_period is None:
+                continue
+            models = list(
+                MacroFactModel.objects.filter(
+                    indicator_code=indicator_code,
+                    reporting_period=latest_period,
+                )
+            )
+            catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
+            selection = select_macro_fact_series(
+                models,
+                preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+            )
+            if selection.is_consistent and selection.facts:
+                latest_facts.append(self._from_model(selection.facts[-1]))
         return latest_facts

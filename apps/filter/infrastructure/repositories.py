@@ -10,6 +10,10 @@ from typing import Protocol
 
 from django.db import transaction
 
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
 from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
 from apps.filter.domain.entities import (
     FilterResult,
@@ -232,14 +236,22 @@ class DjangoFilterRepository:
         if end_date:
             queryset = queryset.filter(reporting_period__lte=end_date)
 
-        queryset = queryset.order_by('-reporting_period')[:limit]
+        facts = list(queryset.order_by('-reporting_period', '-id')[: max(limit * 4, limit)])
+        catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only('extra').first()
+        selection = select_macro_fact_series(
+            facts,
+            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+        )
+        if not selection.is_consistent:
+            return []
+        selected = selection.facts[-limit:]
 
         return [
             {
                 'date': item.reporting_period,
                 'value': float(item.value),
             }
-            for item in reversed(queryset)
+            for item in selected
         ]
 
     def get_available_indicators(self) -> list[dict]:

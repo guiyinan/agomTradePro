@@ -170,10 +170,7 @@ class BaseIndicatorFetcher:
             for _, row in df.iterrows():
                 try:
                     value_raw = row['value']
-                    if isinstance(value_raw, str):
-                        value = float(value_raw.replace('%', '')) / 100
-                    else:
-                        value = float(value_raw)
+                    value = parse_required_float(value_raw)
 
                     point = MacroDataPoint(
                         code=indicator_code,

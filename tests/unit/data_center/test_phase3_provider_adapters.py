@@ -10,6 +10,9 @@ import requests
 
 from apps.data_center.domain.entities import ProviderConfig
 from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
+from apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers import (
+    BaseIndicatorFetcher,
+)
 from apps.data_center.infrastructure.provider_adapters import (
     AkshareUnifiedProviderAdapter,
     FredUnifiedProviderAdapter,
@@ -95,6 +98,32 @@ def test_akshare_macro_source_failure_is_recoverable_connection_error(monkeypatc
         assert "Response ended prematurely" in str(exc)
     else:
         raise AssertionError("Expected ConnectionError")
+
+
+def test_cpi_detailed_string_and_numeric_percentages_have_identical_scale(monkeypatch):
+    columns = [f"column_{index}" for index in range(12)]
+
+    def fetch(value):
+        row = ["2026年6月", 0, value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ak = SimpleNamespace(macro_china_cpi=lambda: pd.DataFrame([row], columns=columns))
+        fetcher = BaseIndicatorFetcher(
+            ak,
+            "akshare",
+            validate_fn=lambda point: None,
+            sort_dedup_fn=lambda points: points,
+        )
+        return fetcher.fetch_cpi_detailed(
+            date(2026, 6, 1),
+            date(2026, 6, 30),
+            "CN_CPI_NATIONAL_YOY",
+        )[0]
+
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure.macro_sources.fetchers.base_fetchers.resolve_indicator_units",
+        lambda code: ("%", "%"),
+    )
+
+    assert fetch("1.0%").value == fetch(1.0).value == 1.0
 
 
 def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
@@ -469,13 +498,20 @@ def test_akshare_unified_provider_adapter_fetches_financial_facts(monkeypatch):
 
 def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     class _FakeAkshare:
-        def stock_zh_index_daily_em(self, symbol):
-            if symbol == "sh000001":
-                return pd.DataFrame(
-                    [{"date": "2026-05-19", "amount": 100.0}],
-                )
+        def stock_sse_deal_daily(self, date):
+            assert date == "20260519"
             return pd.DataFrame(
-                [{"date": "2026-05-19", "amount": 200.0}],
+                [{"单日情况": "成交金额", "主板A": 100.0, "科创板": 50.0}],
+            )
+
+        def stock_szse_summary(self, date):
+            assert date == "20260519"
+            return pd.DataFrame(
+                [
+                    {"证券类别": "主板A股", "成交金额": 20_000_000_000.0},
+                    {"证券类别": "创业板A股", "成交金额": 10_000_000_000.0},
+                    {"证券类别": "主板B股", "成交金额": 999.0},
+                ],
             )
 
     monkeypatch.setattr(
@@ -487,12 +523,12 @@ def test_akshare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
     assert len(facts) == 1
-    assert facts[0].value == 300.0
+    assert facts[0].value == 45_000_000_000.0
     assert facts[0].unit == "元"
-    assert facts[0].extra["proxy"] == "sh_index_plus_sz_index"
+    assert facts[0].extra["aggregation"] == "sse_a_share_plus_szse_a_share_official_summary"
 
 
-def test_akshare_unified_provider_adapter_falls_back_to_tencent_for_market_turnover(
+def test_akshare_unified_provider_adapter_rejects_tencent_index_proxy_for_turnover(
     monkeypatch,
 ):
     class _FakeAkshare:
@@ -539,13 +575,10 @@ def test_akshare_unified_provider_adapter_falls_back_to_tencent_for_market_turno
     adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
-    assert len(facts) == 1
-    assert facts[0].value == 3000.0
-    assert facts[0].extra["proxy"] == "tencent_index_history_sh000001_plus_sz399001"
-    assert facts[0].extra["fallback_provider"] == "tencent"
+    assert facts == []
 
 
-def test_akshare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_market_turnover(
+def test_akshare_unified_provider_adapter_rejects_eastmoney_index_proxy_for_turnover(
     monkeypatch,
 ):
     class _FakeAkshare:
@@ -603,12 +636,7 @@ def test_akshare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_mark
     adapter = AkshareUnifiedProviderAdapter(_config("akshare", "AKShare Public"))
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
-    assert len(facts) == 1
-    assert facts[0].value == 3000.0
-    assert facts[0].reporting_period == date(2026, 5, 19)
-    assert facts[0].extra["proxy"] == "eastmoney_quote_sh000001_plus_sz399001"
-    assert facts[0].extra["fallback_provider"] == "eastmoney_direct_quote"
-    assert facts[0].extra["successful_index_count"] == 2
+    assert facts == []
 
 
 def test_akshare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocked(
@@ -777,12 +805,14 @@ def test_akshare_unified_provider_adapter_falls_back_to_sse_account_openings(mon
 
 def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     class _FakePro:
-        def index_daily(self, ts_code, start_date, end_date):
-            assert start_date == "20260519"
-            assert end_date == "20260519"
-            if ts_code == "000001.SH":
-                return pd.DataFrame([{"trade_date": "20260519", "amount": 100.0}])
-            return pd.DataFrame([{"trade_date": "20260519", "amount": 200.0}])
+        def daily(self, trade_date):
+            assert trade_date == "20260519"
+            return pd.DataFrame(
+                [
+                    {"trade_date": "20260519", "ts_code": "600000.SH", "amount": 100.0},
+                    {"trade_date": "20260519", "ts_code": "000001.SZ", "amount": 200.0},
+                ]
+            )
 
     monkeypatch.setattr(
         "shared.infrastructure.tushare_client.create_tushare_pro_client",
@@ -795,11 +825,11 @@ def test_tushare_unified_provider_adapter_fetches_market_turnover(monkeypatch):
     assert len(facts) == 1
     assert facts[0].value == 300_000.0
     assert facts[0].unit == "元"
-    assert facts[0].extra["proxy"] == "tushare_index_daily_sh000001_plus_sz399001"
+    assert facts[0].extra["aggregation"] == "tushare_a_share_daily_amount_sum"
     assert facts[0].extra["original_unit"] == "千元"
 
 
-def test_tushare_unified_provider_adapter_falls_back_to_tencent_for_market_turnover(
+def test_tushare_unified_provider_adapter_rejects_tencent_index_proxy_for_turnover(
     monkeypatch,
 ):
     class _FakeTencentGateway:
@@ -840,13 +870,10 @@ def test_tushare_unified_provider_adapter_falls_back_to_tencent_for_market_turno
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
-    assert len(facts) == 1
-    assert facts[0].value == 4000.0
-    assert facts[0].extra["proxy"] == "tencent_index_history_sh000001_plus_sz399001"
-    assert facts[0].extra["fallback_provider"] == "tencent"
+    assert facts == []
 
 
-def test_tushare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_market_turnover(
+def test_tushare_unified_provider_adapter_rejects_eastmoney_index_proxy_for_turnover(
     monkeypatch,
 ):
     class _FakeResponse:
@@ -898,12 +925,7 @@ def test_tushare_unified_provider_adapter_falls_back_to_eastmoney_quote_for_mark
     adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Pro"))
     facts = adapter.fetch_macro_series("CN_A_TOTAL_TURNOVER", date(2026, 5, 19), date(2026, 5, 19))
 
-    assert len(facts) == 1
-    assert facts[0].value == 4000.0
-    assert facts[0].reporting_period == date(2026, 5, 19)
-    assert facts[0].extra["proxy"] == "eastmoney_quote_sh000001_plus_sz399001"
-    assert facts[0].extra["fallback_provider"] == "eastmoney_direct_quote"
-    assert facts[0].extra["successful_index_count"] == 2
+    assert facts == []
 
 
 def test_tushare_unified_provider_adapter_fast_fails_turnover_when_quotes_blocked(

@@ -7,16 +7,19 @@ Tests cover:
   - is_stale
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
 from apps.data_center.domain.rules import (
+    deduplicate_macro_facts,
     convert_currency_value,
     is_stale,
+    macro_series_are_consistent,
     normalize_asset_code,
     normalize_currency_unit,
 )
+from apps.data_center.domain.entities import MacroFact
 
 # ---------------------------------------------------------------------------
 # normalize_currency_unit
@@ -73,6 +76,66 @@ class TestNormalizeCurrencyUnit:
         value, unit = convert_currency_value(3152200000000.0, "元", "亿元")
         assert value == pytest.approx(31522.0)
         assert unit == "亿元"
+
+
+class TestMacroFactSelectionRules:
+    def test_canonical_fact_wins_over_stale_legacy_revision(self):
+        period = date(2026, 6, 30)
+        legacy = MacroFact(
+            indicator_code="CN_CPI_NATIONAL_YOY",
+            reporting_period=period,
+            value=10.0,
+            unit="%",
+            source="akshare",
+            revision_number=1,
+            fetched_at=datetime(2026, 7, 9, tzinfo=UTC),
+        )
+        canonical = MacroFact(
+            indicator_code="CN_CPI_NATIONAL_YOY",
+            reporting_period=period,
+            value=1.0,
+            unit="%",
+            source="akshare",
+            revision_number=0,
+            fetched_at=datetime(2026, 7, 19, tzinfo=UTC),
+            extra={"provider_name": "AKShare Public"},
+        )
+
+        selected = deduplicate_macro_facts([legacy, canonical], by_source=True)
+
+        assert selected == [canonical]
+
+    def test_deduplication_keeps_distinct_sources(self):
+        period = date(2026, 6, 30)
+        akshare = MacroFact(
+            indicator_code="CN_PMI",
+            reporting_period=period,
+            value=50.3,
+            unit="指数",
+            source="akshare",
+        )
+        tushare = MacroFact(
+            indicator_code="CN_PMI",
+            reporting_period=period,
+            value=50.3,
+            unit="指数",
+            source="tushare",
+        )
+
+        assert deduplicate_macro_facts([akshare, tushare], by_source=True) == [
+            akshare,
+            tushare,
+        ]
+
+    def test_consistency_guard_detects_large_difference_and_zero_boundary(self):
+        is_consistent, max_difference = macro_series_are_consistent(
+            {date(2026, 7, 1): 0.0, date(2026, 7, 2): 100.0},
+            {date(2026, 7, 1): 1.0, date(2026, 7, 2): 120.0},
+            tolerance=0.01,
+        )
+
+        assert is_consistent is False
+        assert max_difference == pytest.approx(1.0)
 
 
 # ---------------------------------------------------------------------------

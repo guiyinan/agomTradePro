@@ -61,6 +61,10 @@ python manage.py normalize_macro_fact_units --check
 - Regime current API 现在透传 V2 计算得到的 PMI/CPI 当前值及方向，MCP/SDK 不再用 `neutral` 和空值填补缺失字段。
 - `regime.compute.calculate` 已由 Regime ViewSet 显式标记为 persisted-only read action，因此只读 Token 可以调用该 POST transport；未显式标记的 POST 仍按写操作拒绝。
 - 生产刷新顺序固定为：同步 `CN_PMI` 与 `CN_CPI_NATIONAL_YOY`、清除 Regime 缓存、用 MCP 同时核对 canonical macro series 与 Regime raw data。
+- `MacroFactRepository.bulk_upsert` 在更新已有自然键时必须同步写入本次 provider fetch 的 `fetched_at`；否则值虽已刷新，新鲜度与审计读取仍会错误沿用首次入库时间。
+- 旧宏观仓储的 `save_indicator` 更新路径同样必须推进 `fetched_at`，避免兼容入口形成另一条时间戳滞留路径。
+- 切换前的宏观仓储曾把首条记录写成 revision 1，而 canonical Data Center 从 revision 0 开始；Regime 去重时优先选择带 `provider_name` 治理元数据的 canonical fact，防止旧 revision 遮住本次刷新值。
+- Data Center 宏观序列查询按 `reporting_period + source` 去重，保留多来源可审计性，但同一来源同一期只返回一个 canonical fact。
 
 ## 2026-05-03 宏观治理台与口径补齐
 
@@ -241,3 +245,27 @@ python manage.py normalize_macro_fact_units --check
 - 回测训练数据集本身
 
 需要时只做数据刷新、快照重算和页面缓存失效，不做模型重训。
+
+## 2026-07-20 数值一致性根因与护栏
+
+- CPI 明细抓取不再按 Python 值类型分支缩放：字符串 `"1.0%"` 与数值 `1.0` 统一解析为 `1.0` 个百分点，避免上游 DataFrame dtype 变化造成 100 倍漂移。
+- 单位治理只允许“原始单位精确匹配”或“原始单位等于存储单位”的规则；未知原始单位不再猜测套用其他倍率规则。
+- canonical 事实以 `extra.provider_name` 标记优先于切换前 legacy revision；revision 只在同一写入体系内表示修订顺序，不能跨体系覆盖 canonical 数据。
+- Regime、Pulse、Filter、Data Center 查询仓储、缓存预热以及 legacy macro projection 统一走同一个事实选择器：
+  - 同一来源同一报告期先去重；
+  - 有 `governance_sync_source_type` / `decision_source_type` 时只读治理来源；
+  - 未配置来源时，重叠数据必须在 1% 容差内一致；
+  - 超过容差立即返回不可用，不再跨来源拼接时间序列。
+- failover 一致性比较改为对称相对误差，`0` 对 `非 0` 也会失败，不再因除零保护被静默跳过。
+- `CN_A_TOTAL_TURNOVER` 原实现把上证综指与深证成指成交额之和当作“全市场成交额”，指标名称与代理口径不一致。现改为：
+  - Tushare：按交易日汇总全部 A 股日线 `amount`；
+  - AKShare：汇总上交所主板 A/科创板与深交所 A 股官方市场概况；
+  - 指数成交额 fallback 因语义不等价而 fail closed；
+  - `IndicatorCatalog.extra.decision_source_type=tushare` 作为决策读取真源。
+- 新增部署/巡检命令：
+
+```bash
+python manage.py audit_macro_fact_consistency --strict
+```
+
+命令同时报告 legacy/canonical 值冲突、跨来源差异和治理来源缺失；`--strict` 会阻断未配置来源的跨源冲突以及治理来源缺失。正常的同源数据修订不会被误报为 legacy/canonical 冲突。

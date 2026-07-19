@@ -12,6 +12,10 @@ from django.db.models import Count, Max
 from apps.data_center.domain.entities import MacroFact
 from apps.data_center.domain.enums import DataQualityStatus
 from apps.data_center.infrastructure._repository_helpers import _coerce_bool
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
 from apps.data_center.infrastructure.models import (
     IndicatorCatalogModel,
     IndicatorUnitRuleModel,
@@ -63,15 +67,37 @@ class MacroFactRepository:
             qs = qs.filter(reporting_period__gte=start)
         if end:
             qs = qs.filter(reporting_period__lte=end)
-        return [self._from_model(m) for m in qs.order_by("-reporting_period")[:limit]]
+        models = list(qs.order_by("-reporting_period", "-id")[: max(limit * 4, limit)])
+        catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
+        selection = select_macro_fact_series(
+            models,
+            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+        )
+        if not selection.is_consistent:
+            return []
+        return [self._from_model(m) for m in reversed(selection.facts[-limit:])]
 
     def get_latest(self, indicator_code: str) -> MacroFact | None:
-        m = (
+        latest_period = (
             MacroFactModel.objects.filter(indicator_code=indicator_code)
-            .order_by("-reporting_period", "-revision_number")
+            .order_by("-reporting_period")
+            .values_list("reporting_period", flat=True)
             .first()
         )
-        return self._from_model(m) if m else None
+        if latest_period is None:
+            return None
+        models = list(
+            MacroFactModel.objects.filter(
+                indicator_code=indicator_code,
+                reporting_period=latest_period,
+            )
+        )
+        catalog = IndicatorCatalogModel.objects.filter(code=indicator_code).only("extra").first()
+        selection = select_macro_fact_series(
+            models,
+            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+        )
+        return self._from_model(selection.facts[-1]) if selection.is_consistent and selection.facts else None
 
     @classmethod
     def _validate_governance(cls, fact: MacroFact) -> None:

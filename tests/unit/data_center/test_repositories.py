@@ -82,6 +82,43 @@ def test_macro_fact_repository_returns_latest_first_series():
     ]
 
 
+@pytest.mark.django_db
+def test_macro_fact_repository_refreshes_fetched_at_on_existing_fact() -> None:
+    """Refreshing an existing observation must advance its ingestion timestamp."""
+    old_fetched_at = datetime(2026, 6, 1, tzinfo=UTC)
+    refreshed_at = datetime(2026, 7, 19, 15, 30, tzinfo=UTC)
+    existing = MacroFactModel.objects.create(
+        indicator_code="CN_REFRESH_TEST",
+        reporting_period=date(2026, 6, 30),
+        value="1.000000",
+        unit="%",
+        source="akshare",
+        revision_number=0,
+        quality="valid",
+        extra=_governed_extra(),
+    )
+    MacroFactModel.objects.filter(pk=existing.pk).update(fetched_at=old_fetched_at)
+
+    MacroFactRepository().bulk_upsert(
+        [
+            MacroFact(
+                indicator_code="CN_REFRESH_TEST",
+                reporting_period=date(2026, 6, 30),
+                value=1.1,
+                unit="%",
+                source="akshare",
+                revision_number=0,
+                fetched_at=refreshed_at,
+                extra=_governed_extra(),
+            )
+        ]
+    )
+
+    existing.refresh_from_db()
+    assert float(existing.value) == pytest.approx(1.1)
+    assert existing.fetched_at == refreshed_at
+
+
 def test_macro_fact_repository_retries_transient_sqlite_lock(monkeypatch):
     attempts: list[dict] = []
     sleeps: list[float] = []

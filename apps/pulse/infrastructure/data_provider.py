@@ -10,6 +10,10 @@ import math
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
     is_direct_consumer_input_allowed,
 )
@@ -278,18 +282,24 @@ class DjangoPulseDataProvider:
 
         from apps.data_center.infrastructure.models import MacroFactModel
 
-        rows = (
+        facts = list(
             MacroFactModel.objects.filter(
                 indicator_code=code,
                 reporting_period__gte=lookback,
                 reporting_period__lte=as_of_date,
             )
-            .order_by("reporting_period", "revision_number")
-            .values_list("reporting_period", "value", "published_at")
+            .order_by("reporting_period", "id")
         )
+        selection = select_macro_fact_series(
+            facts,
+            preferred_source=configured_macro_source(self._get_indicator_extra(code)),
+        )
+        if not selection.is_consistent:
+            logger.error("Blocked Pulse macro input %s: %s", code, selection.blocked_reason)
+            return []
         return [
-            (reporting_period, float(value), published_at)
-            for reporting_period, value, published_at in rows
+            (fact.reporting_period, float(fact.value), fact.published_at)
+            for fact in selection.facts
         ]
 
     def _get_indicator_extra(self, code: str) -> dict:

@@ -955,3 +955,35 @@ class TestRepositoryErrorHandling:
         )
         saved = repository.save_indicator(updated)
         assert saved.value == 51.0  # 应该是更新后的值
+
+    def test_save_existing_indicator_advances_fetched_at(self):
+        """Refreshing an existing legacy projection records the new fetch time."""
+        repository = DataCenterMacroRepository()
+        indicator = MacroIndicator(
+            code="CN_PMI",
+            value=50.0,
+            reporting_period=date(2024, 1, 1),
+            period_type=PeriodType.MONTH,
+            unit="指数",
+            original_unit="指数",
+            published_at=date(2024, 1, 2),
+            source="test",
+        )
+        repository.save_indicator(indicator)
+        stale_at = timezone.now() - timedelta(days=7)
+        MacroFactModel.objects.filter(
+            indicator_code="CN_PMI",
+            reporting_period=date(2024, 1, 1),
+            source="test",
+            revision_number=1,
+        ).update(fetched_at=stale_at)
+
+        repository.save_indicator(indicator)
+
+        refreshed_at = MacroFactModel.objects.get(
+            indicator_code="CN_PMI",
+            reporting_period=date(2024, 1, 1),
+            source="test",
+            revision_number=1,
+        ).fetched_at
+        assert refreshed_at > stale_at

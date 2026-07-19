@@ -28,6 +28,7 @@ from apps.data_center.domain.protocols import (
 )
 from apps.data_center.domain.rules import (
     convert_currency_value,
+    deduplicate_macro_facts,
     get_macro_age_days,
     is_macro_observation_stale,
     normalize_asset_code,
@@ -40,6 +41,7 @@ CN_MARKET_TZ = timezone(timedelta(hours=8))
 CN_MARKET_OPEN = time(9, 30)
 CN_MARKET_CLOSE = time(15, 0)
 DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS = 4.0
+
 
 def _previous_weekday(target_date: date) -> date:
     """Return the latest weekday before ``target_date``."""
@@ -70,6 +72,7 @@ def _is_cn_listed_asset(asset_code: str) -> bool:
 
     normalized = asset_code.strip().upper()
     return normalized.endswith((".SH", ".SZ", ".BJ"))
+
 
 def _storage_value_to_display_value(
     value: float,
@@ -103,6 +106,7 @@ def _dedupe_string_list(values: list[str]) -> list[str]:
         seen.add(key)
         result.append(normalized)
     return result
+
 
 class GetProviderStatusUseCase:
     """Query live health snapshots from the runtime registry.
@@ -177,10 +181,11 @@ class QueryMacroSeriesUseCase:
             indicator_code=request.indicator_code,
             start=request.start,
             end=request.end,
-            limit=request.limit,
+            limit=max(request.limit * 4, request.limit),
         )
         if request.source:
             facts = [f for f in facts if f.source == request.source]
+        facts = self._dedupe_facts_by_source_period(facts)[: request.limit]
 
         catalog = self._catalog.get_by_code(request.indicator_code)
         name_cn = catalog.name_cn if catalog else request.indicator_code
@@ -296,6 +301,18 @@ class QueryMacroSeriesUseCase:
             upstream_indicator_codes=upstream_indicator_codes,
             is_derived=is_derived,
         )
+
+    @staticmethod
+    def _dedupe_facts_by_source_period(facts: list[Any]) -> list[Any]:
+        """Keep one governed fact per source and reporting period.
+
+        The pre-cutover macro writer used revision 1 for first observations,
+        while canonical Data Center ingestion starts at revision 0. Prefer the
+        canonical row marked with provider governance metadata so a stale
+        legacy projection cannot duplicate or mask a refreshed fact. Different
+        sources remain visible when the caller does not request one source.
+        """
+        return deduplicate_macro_facts(facts, by_source=True)
 
     def _build_macro_data_point(
         self,
@@ -603,6 +620,7 @@ class QueryLatestQuoteUseCase:
             source=quote.source,
             max_age_hours=request.max_age_hours,
         )
+
 
 __all__ = [
     "DEFAULT_LATEST_QUOTE_MAX_AGE_HOURS",

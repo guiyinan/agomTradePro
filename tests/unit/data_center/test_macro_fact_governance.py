@@ -117,3 +117,18 @@ def test_normalizer_rejects_missing_catalog_or_rule():
         MacroFactGovernanceNormalizer(_CatalogRepo(None), _RuleRepo(_rule())).normalize(fact)
     with pytest.raises(ValueError, match="unit rule missing"):
         MacroFactGovernanceNormalizer(_CatalogRepo(_catalog()), _RuleRepo(None)).normalize(fact)
+
+
+def test_normalizer_rejects_unrecognized_raw_unit_instead_of_guessing_rule():
+    normalizer = MacroFactGovernanceNormalizer(_CatalogRepo(_catalog()), _RuleRepo(_rule()))
+
+    with pytest.raises(ValueError, match="unit rule missing"):
+        normalizer.normalize(
+            MacroFact(
+                indicator_code="CN_TEST_CURRENCY",
+                reporting_period=date(2026, 5, 31),
+                value=1.5,
+                unit="万元",
+                source="akshare",
+            )
+        )

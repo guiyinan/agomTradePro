@@ -7,7 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from time import sleep
 from typing import Any
 
@@ -106,59 +106,50 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         start_date: date,
         end_date: date,
     ) -> list[MacroFact]:
-        """Approximate total A-share turnover by summing SH/SZ broad-index amounts."""
-
-        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
-            _eastmoney_direct_network,
-        )
+        """Fetch official SH/SZ A-share turnover totals through AKShare."""
         from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
 
         rows_by_date: dict[date, float] = {}
         try:
             ak = get_akshare_module()
-            index_symbols = ("sh000001", "sz399001")
+            current_date = start_date
+            while current_date <= end_date:
+                date_text = current_date.strftime("%Y%m%d")
+                sh_df = ak.stock_sse_deal_daily(date=date_text)
+                sz_df = ak.stock_szse_summary(date=date_text)
 
-            for symbol in index_symbols:
-                with _eastmoney_direct_network():
-                    df = ak.stock_zh_index_daily_em(symbol=symbol)
-                if df is None or df.empty:
-                    continue
-                for row in df.to_dict("records"):
-                    observed_at = _safe_date(_first_present(row, "date", "日期"))
-                    if observed_at is None or observed_at < start_date or observed_at > end_date:
-                        continue
-                    amount = safe_float(_first_present(row, "amount", "成交额"))
-                    if amount is None:
-                        continue
-                    rows_by_date[observed_at] = rows_by_date.get(observed_at, 0.0) + amount
+                sh_amount = 0.0
+                if sh_df is not None and not sh_df.empty:
+                    amount_rows = sh_df[sh_df["单日情况"].astype(str) == "成交金额"]
+                    if not amount_rows.empty:
+                        amount_row = amount_rows.iloc[0]
+                        sh_amount = sum(
+                            value or 0.0
+                            for value in (
+                                safe_float(amount_row.get("主板A")),
+                                safe_float(amount_row.get("科创板")),
+                            )
+                        ) * 100_000_000.0
+
+                sz_amount = 0.0
+                if sz_df is not None and not sz_df.empty:
+                    for row in sz_df.to_dict("records"):
+                        category = str(row.get("证券类别") or "")
+                        if "A股" not in category and category != "中小板":
+                            continue
+                        amount = safe_float(row.get("成交金额"))
+                        if amount is not None:
+                            sz_amount += amount
+
+                if sh_amount > 0.0 and sz_amount > 0.0:
+                    rows_by_date[current_date] = sh_amount + sz_amount
+                current_date += timedelta(days=1)
         except Exception as exc:
-            logger.warning("AKShare turnover fetch failed, trying direct quote fallback: %s", exc)
-            try:
-                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
-            except ConnectionError as blocked_exc:
-                logger.warning(
-                    "AKShare turnover fast-failed because fallback quotes were blocked locally: %s",
-                    blocked_exc,
-                )
-                return []
-            if fallback:
-                return fallback
-            return self._fetch_market_turnover_from_tencent(start_date, end_date)
+            logger.warning("AKShare official-market turnover fetch failed closed: %s", exc)
+            return []
 
         if not rows_by_date:
-            try:
-                fallback = self._fetch_market_turnover_from_eastmoney_quote(end_date)
-            except ConnectionError as blocked_exc:
-                logger.warning(
-                    "AKShare turnover fast-failed because fallback quotes were blocked locally: %s",
-                    blocked_exc,
-                )
-                return []
-            if fallback:
-                return fallback
-            fallback = self._fetch_market_turnover_from_tencent(start_date, end_date)
-            if fallback:
-                return fallback
+            return []
 
         return [
             MacroFact(
@@ -168,7 +159,12 @@ class AkshareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 unit="元",
                 source=self.provider_source(),
                 quality=DataQualityStatus.VALID,
-                extra=self._provider_extra({"proxy": "sh_index_plus_sz_index"}),
+                extra=self._provider_extra(
+                    {
+                        "aggregation": "sse_a_share_plus_szse_a_share_official_summary",
+                        "original_unit": "元",
+                    }
+                ),
             )
             for observed_at, value in sorted(rows_by_date.items())
         ]

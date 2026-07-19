@@ -16,6 +16,10 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
 from apps.data_center.infrastructure.seed_data.macro_indicator_governance import (
     is_direct_consumer_input_allowed,
 )
@@ -178,21 +182,32 @@ class DataCenterMacroRepositoryAdapter:
             )
         return queryset
 
-    def _dedupe_latest_by_period(self, queryset, descending: bool = False) -> list:
-        rows = list(
-            queryset.order_by(
-                "reporting_period",
-                "revision_number",
-                "published_at",
-                "fetched_at",
-                "source",
-            )
+    def _dedupe_latest_by_period(
+        self,
+        queryset,
+        descending: bool = False,
+        preferred_source: str | None = None,
+    ) -> list:
+        rows = list(queryset.order_by("reporting_period", "id"))
+        if not rows:
+            return []
+        governed_source = preferred_source or configured_macro_source(
+            self._get_catalog_extra(rows[0].indicator_code)
         )
-        by_period = {}
-        for row in rows:
-            by_period[row.reporting_period] = row
-        ordered_dates = sorted(by_period.keys(), reverse=descending)
-        return [self._to_macro_indicator(by_period[dt]) for dt in ordered_dates]
+        selection = select_macro_fact_series(rows, preferred_source=governed_source)
+        if not selection.is_consistent:
+            logger.error(
+                "Blocked Regime macro input %s: %s",
+                rows[0].indicator_code,
+                selection.blocked_reason,
+            )
+            return []
+        selected = sorted(
+            selection.facts,
+            key=lambda fact: fact.reporting_period,
+            reverse=descending,
+        )
+        return [self._to_macro_indicator(fact) for fact in selected]
 
     def get_series(
         self,
@@ -209,7 +224,11 @@ class DataCenterMacroRepositoryAdapter:
             source=source,
             use_pit=use_pit,
         )
-        observations = self._dedupe_latest_by_period(queryset, descending=False)
+        observations = self._dedupe_latest_by_period(
+            queryset,
+            descending=False,
+            preferred_source=source,
+        )
         return observations
 
     def get_observations_for_period(

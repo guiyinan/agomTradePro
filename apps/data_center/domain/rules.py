@@ -8,7 +8,94 @@ No Django, no ORM, no external libraries — only stdlib.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
+from typing import Protocol, TypeVar
+
+
+class MacroFactPreferenceCandidate(Protocol):
+    """Minimum fact fields needed by canonical selection rules."""
+
+    indicator_code: str
+    reporting_period: date
+    value: float
+    source: str
+    revision_number: int
+    published_at: date | None
+    fetched_at: datetime
+    extra: Mapping[str, object]
+
+
+MacroFactCandidateT = TypeVar("MacroFactCandidateT", bound=MacroFactPreferenceCandidate)
+
+
+def _aware_timestamp(value: datetime | None) -> float:
+    if value is None:
+        return float("-inf")
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.timestamp()
+
+
+def macro_fact_preference_key(fact: MacroFactPreferenceCandidate) -> tuple[object, ...]:
+    """Rank governed canonical facts ahead of pre-cutover legacy revisions."""
+
+    extra = dict(fact.extra or {})
+    return (
+        bool(str(extra.get("provider_name") or "").strip()),
+        int(fact.revision_number),
+        fact.published_at or date.min,
+        _aware_timestamp(fact.fetched_at),
+        str(fact.source or ""),
+    )
+
+
+def deduplicate_macro_facts(
+    facts: Iterable[MacroFactCandidateT],
+    *,
+    by_source: bool,
+) -> list[MacroFactCandidateT]:
+    """Select one preferred fact per period, optionally retaining each source."""
+
+    selected: dict[tuple[object, ...], MacroFactCandidateT] = {}
+    key_order: list[tuple[object, ...]] = []
+    for fact in facts:
+        key: tuple[object, ...] = (
+            fact.indicator_code,
+            fact.reporting_period,
+            *((str(fact.source or ""),) if by_source else ()),
+        )
+        current = selected.get(key)
+        if current is None:
+            selected[key] = fact
+            key_order.append(key)
+        elif macro_fact_preference_key(fact) > macro_fact_preference_key(current):
+            selected[key] = fact
+    return [selected[key] for key in key_order]
+
+
+def macro_series_are_consistent(
+    primary: Mapping[date, float],
+    backup: Mapping[date, float],
+    *,
+    tolerance: float,
+) -> tuple[bool, float | None]:
+    """Compare overlapping source observations with a symmetric relative error."""
+
+    common_dates = set(primary) & set(backup)
+    if not common_dates:
+        return True, None
+
+    max_difference = 0.0
+    for observed_at in common_dates:
+        primary_value = float(primary[observed_at])
+        backup_value = float(backup[observed_at])
+        scale = max(abs(primary_value), abs(backup_value), 1e-12)
+        max_difference = max(
+            max_difference,
+            abs(backup_value - primary_value) / scale,
+        )
+    return max_difference <= tolerance, max_difference
 
 # ---------------------------------------------------------------------------
 # Unit-normalisation (migrated from macro.domain.entities)

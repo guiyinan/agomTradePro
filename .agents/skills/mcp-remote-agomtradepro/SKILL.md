@@ -33,7 +33,7 @@ export AGOM_REMOTE_API_TOKEN="<UserAccessTokenModel.key>"
 export AGOM_REMOTE_BASE_URL="http://your-vps-ip:8000"
 ```
 
-- Read-only tokens may call `GET/HEAD/OPTIONS` only. Write APIs require a read-write token and still pass normal role checks.
+- Read-only tokens may call `GET/HEAD/OPTIONS` and explicitly declared persisted-only read actions. The current explicit POST exception is Regime pure calculation; write APIs require a read-write token and still pass normal role checks.
 
 ## Canonical Endpoints
 
