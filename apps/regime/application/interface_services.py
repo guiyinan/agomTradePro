@@ -42,6 +42,12 @@ def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, A
             "inflation_momentum_z": 0.0,
             "distribution": latest.distribution or {},
             "source": latest.data_source,
+            "growth_level": latest.growth_level,
+            "inflation_level": latest.inflation_level,
+            "growth_indicator": latest.growth_indicator,
+            "inflation_indicator": latest.inflation_indicator,
+            "growth_value": latest.growth_value,
+            "inflation_value": latest.inflation_value,
             "is_fallback": latest.is_fallback,
             "warnings": latest.warnings,
         },
@@ -179,9 +185,7 @@ def get_regime_dashboard_payload(
         inflation_tail = inflation_series[-12:]
 
         growth_values = [safe_float(item.get("value"), default=0.0) for item in growth_tail]
-        inflation_values = [
-            safe_float(item.get("value"), default=0.0) for item in inflation_tail
-        ]
+        inflation_values = [safe_float(item.get("value"), default=0.0) for item in inflation_tail]
 
         def _trend(values: list[float]) -> str:
             if len(values) < 2:
@@ -200,9 +204,13 @@ def get_regime_dashboard_payload(
             "cpi_value": round(float(result_v2.inflation_level), 2),
             "pmi_trend": _trend(growth_values),
             "cpi_trend": _trend(inflation_values),
-            "growth_dates": json.dumps([item.get("date") for item in growth_tail], ensure_ascii=False),
+            "growth_dates": json.dumps(
+                [item.get("date") for item in growth_tail], ensure_ascii=False
+            ),
             "growth_values": json.dumps(growth_values, ensure_ascii=False),
-            "inflation_dates": json.dumps([item.get("date") for item in inflation_tail], ensure_ascii=False),
+            "inflation_dates": json.dumps(
+                [item.get("date") for item in inflation_tail], ensure_ascii=False
+            ),
             "inflation_values": json.dumps(inflation_values, ensure_ascii=False),
         }
 
@@ -216,7 +224,9 @@ def get_regime_dashboard_payload(
         "raw_data": response.raw_data if response and response.success else None,
         "raw_data_json": raw_data_json,
         "current_source": data_source,
-        "current_source_provider_id": get_active_provider_id_by_source(data_source) if data_source else None,
+        "current_source_provider_id": (
+            get_active_provider_id_by_source(data_source) if data_source else None
+        ),
         "available_sources": available_sources,
     }
 

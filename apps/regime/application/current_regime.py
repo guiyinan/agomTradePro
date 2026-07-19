@@ -33,6 +33,12 @@ class CurrentRegimeResult:
     warnings: list[str]
     distribution: dict[str, float] | None = None
     is_fallback: bool = False
+    growth_level: str = "neutral"
+    inflation_level: str = "neutral"
+    growth_indicator: str = "PMI"
+    inflation_indicator: str = "CPI"
+    growth_value: float | None = None
+    inflation_value: float | None = None
 
 
 # 全局提供者 (延迟初始化)
@@ -119,6 +125,10 @@ def resolve_current_regime(
     )
 
     if response.success and response.result:
+        trend_directions = {
+            trend.indicator_code.upper(): trend.direction
+            for trend in response.result.trend_indicators
+        }
         return CurrentRegimeResult(
             dominant_regime=response.result.regime.value,
             confidence=float(response.result.confidence),
@@ -127,6 +137,10 @@ def resolve_current_regime(
             warnings=list(response.warnings or []),
             distribution=dict(response.result.distribution or {}),
             is_fallback=False,
+            growth_level=trend_directions.get("PMI", "neutral"),
+            inflation_level=trend_directions.get("CPI", "neutral"),
+            growth_value=float(response.result.growth_level),
+            inflation_value=float(response.result.inflation_level),
         )
 
     latest = get_regime_repository().get_latest_snapshot()

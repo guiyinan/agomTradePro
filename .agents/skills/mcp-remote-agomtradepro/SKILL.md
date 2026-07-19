@@ -80,7 +80,7 @@ curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   "$AGOM_REMOTE_BASE_URL/api/data-center/indicators/"
 
 curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
-  "$AGOM_REMOTE_BASE_URL/api/data-center/macro/series/?indicator_code=china_pmi"
+  "$AGOM_REMOTE_BASE_URL/api/data-center/macro/series/?indicator_code=CN_PMI"
 
 curl -s -H "Authorization: Token $AGOM_REMOTE_API_TOKEN" \
   "$AGOM_REMOTE_BASE_URL/api/data-center/prices/quotes/?asset_code=510300.SH"

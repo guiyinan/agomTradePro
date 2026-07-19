@@ -1,3 +1,5 @@
+import pytest
+
 from apps.regime.infrastructure.macro_data_provider import DataCenterMacroRepositoryAdapter
 
 
@@ -49,3 +51,20 @@ def test_regime_macro_repository_blocks_cumulative_level_inflation_inputs(monkey
 
     assert result == []
     assert called["count"] == 0
+
+
+@pytest.mark.parametrize("value", [0.1, -0.1, 0.0, 1.0])
+def test_regime_adapter_preserves_canonical_cpi_yoy_percentage_points(value: float) -> None:
+    """The V2 Regime adapter must not guess a second scale for canonical facts."""
+    normalized = DataCenterMacroRepositoryAdapter._normalize_cpi_value(
+        "CN_CPI_NATIONAL_YOY",
+        value,
+    )
+
+    assert normalized == pytest.approx(value)
+
+
+def test_regime_adapter_converts_legacy_cpi_index_from_base_100() -> None:
+    normalized = DataCenterMacroRepositoryAdapter._normalize_cpi_value("CN_CPI", 100.1)
+
+    assert normalized == pytest.approx(0.1)

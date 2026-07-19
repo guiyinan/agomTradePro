@@ -88,7 +88,7 @@ def test_macro_repository_adapter_and_regime_use_case_run_on_data_center() -> No
         MacroFactModel.objects.create(
             indicator_code="CN_CPI_NATIONAL_YOY",
             reporting_period=reporting_period,
-            value=0.012 + (offset * 0.0004),
+            value=1.2 + (offset * 0.04),
             unit="%",
             source="tushare",
             published_at=reporting_period + timedelta(days=10),

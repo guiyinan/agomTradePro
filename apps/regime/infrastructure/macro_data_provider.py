@@ -87,15 +87,12 @@ class DataCenterMacroRepositoryAdapter:
         Normalize CPI readings to percentage points.
 
         - `CN_CPI` is index-style (e.g. 100.8) and should become `0.8`
-        - `CN_CPI_NATIONAL_YOY` may be ratio-style (`0.008`) or pct-style (`0.8`)
+        - `CN_CPI_NATIONAL_YOY` is canonicalized on ingestion and already uses
+          percentage points; source-specific scaling belongs in Data Center unit
+          rules, never in this consumer adapter.
         """
         if code == "CN_CPI":
             return float(value) - 100.0
-        if code == "CN_CPI_NATIONAL_YOY":
-            normalized = float(value)
-            if -0.2 < normalized < 0.2:
-                return normalized * 100.0
-            return normalized
         return float(value)
 
     def __init__(self) -> None:
@@ -437,9 +434,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         return self._repository
 
     def get_indicator_value(
-        self,
-        indicator_code: str,
-        as_of_date: date | None = None
+        self, indicator_code: str, as_of_date: date | None = None
     ) -> MacroIndicatorValue | None:
         """
         获取指定指标的值
@@ -457,9 +452,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
             # 获取最新或指定日期的数据
             if as_of_date:
                 observations = repo.get_observations_for_period(
-                    indicator_code=indicator_code,
-                    start_date=as_of_date,
-                    end_date=as_of_date
+                    indicator_code=indicator_code, start_date=as_of_date, end_date=as_of_date
                 )
                 if observations:
                     obs = observations[0]
@@ -468,7 +461,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
                         value=float(obs.value),
                         observed_at=obs.observed_at,
                         published_at=obs.published_at,
-                        unit=getattr(obs, 'unit', None)
+                        unit=getattr(obs, "unit", None),
                     )
             else:
                 # 获取最新值
@@ -479,7 +472,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
                         value=float(obs.value),
                         observed_at=obs.observed_at,
                         published_at=obs.published_at,
-                        unit=getattr(obs, 'unit', None)
+                        unit=getattr(obs, "unit", None),
                     )
 
             return None
@@ -489,10 +482,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
             return None
 
     def get_indicator_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> IndicatorSeries | None:
         """
         获取指标的历史序列
@@ -523,21 +513,14 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
                 values.append(float(obs.value))
                 dates.append(obs.observed_at)
 
-            return IndicatorSeries(
-                indicator_code=indicator_code,
-                values=values,
-                dates=dates
-            )
+            return IndicatorSeries(indicator_code=indicator_code, values=values, dates=dates)
 
         except Exception as e:
             logger.error(f"Error getting indicator series for {indicator_code}: {e}")
             return None
 
     def get_growth_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> list[float]:
         """
         获取增长指标序列
@@ -554,10 +537,7 @@ class DjangoMacroDataProvider(MacroDataProviderProtocol):
         return series.values if series else []
 
     def get_inflation_series(
-        self,
-        indicator_code: str,
-        end_date: date,
-        lookback_periods: int = 24
+        self, indicator_code: str, end_date: date, lookback_periods: int = 24
     ) -> list[float]:
         """
         获取通胀指标序列
@@ -633,6 +613,7 @@ def get_default_data_source_config() -> DjangoDataSourceConfig:
 # Repository Adapter
 # ============================================================================
 
+
 class MacroRepositoryAdapter:
     """
     宏观数据仓库适配器
@@ -677,10 +658,7 @@ class MacroRepositoryAdapter:
         return self._repository
 
     def get_observations_for_period(
-        self,
-        indicator_code: str,
-        start_date: date,
-        end_date: date
+        self, indicator_code: str, start_date: date, end_date: date
     ) -> list:
         """
         获取指定时间段的观测数据
@@ -708,11 +686,7 @@ class MacroRepositoryAdapter:
             before_date=before_date,
         )
 
-    def get_recent_observations(
-        self,
-        indicator_code: str,
-        limit: int = 24
-    ) -> list:
+    def get_recent_observations(self, indicator_code: str, limit: int = 24) -> list:
         """
         获取最近的观测数据序列
 

@@ -408,12 +408,15 @@ class DataCenterMacroRepository:
 
     @staticmethod
     def _normalize_cpi_value(code: str, value: float) -> float:
+        """Return CPI as percentage points for the regime calculation chain.
+
+        ``CN_CPI_NATIONAL_YOY`` is canonicalized on ingestion and already stores
+        percentage points. Only the legacy ``CN_CPI`` index uses a base of 100
+        and therefore needs conversion.
+        """
         if code == "CN_CPI":
             return float(value) - 100.0
-        normalized = float(value)
-        if code == "CN_CPI_NATIONAL_YOY" and -0.2 < normalized < 0.2:
-            return normalized * 100.0
-        return normalized
+        return float(value)
 
     def get_growth_series(
         self,

@@ -91,7 +91,7 @@ class TestDataCenterMacroRepository:
             unit="指数",
             original_unit="指数",
             published_at=date(2024, 1, 2),
-            source="test"
+            source="test",
         )
 
         # 保存指标
@@ -129,7 +129,7 @@ class TestDataCenterMacroRepository:
                 unit="指数",
                 original_unit="指数",
                 published_at=date(2024, 1, i + 1),
-                source="test"
+                source="test",
             )
             for i in range(5)
         ]
@@ -182,7 +182,7 @@ class TestDataCenterMacroRepository:
                 unit="指数",
                 original_unit="指数",
                 published_at=date(2024, 1, i + 1),
-                source="test"
+                source="test",
             )
             repository.save_indicator(indicator)
 
@@ -192,9 +192,7 @@ class TestDataCenterMacroRepository:
 
         # 查询日期范围
         filtered = repository.get_series(
-            "TEST_SERIES",
-            start_date=date(2024, 1, 3),
-            end_date=date(2024, 1, 7)
+            "TEST_SERIES", start_date=date(2024, 1, 3), end_date=date(2024, 1, 7)
         )
         assert len(filtered) == 5  # 1/3 - 1/7
 
@@ -218,7 +216,7 @@ class TestDataCenterMacroRepository:
                 unit="指数",
                 original_unit="指数",
                 published_at=date(2024, 1, i * 7 + 2),
-                source="test"
+                source="test",
             )
             repository.save_indicator(indicator)
 
@@ -252,7 +250,7 @@ class TestDataCenterMacroRepository:
             unit="万亿元",
             original_unit="万亿元",
             published_at=date(2024, 6, 16),
-            source="test_source"
+            source="test_source",
         )
 
         saved = repository.save_indicator(indicator)
@@ -281,7 +279,7 @@ class TestDataCenterMacroRepository:
                 unit="指数",
                 original_unit="指数",
                 published_at=date(2024, i + 1, 2),
-                source="test"
+                source="test",
             )
             repository.save_indicator(indicator)
 
@@ -293,6 +291,48 @@ class TestDataCenterMacroRepository:
         growth_full = repository.get_growth_series_full("PMI", source="test")
         assert len(growth_full) == 12
         assert all(isinstance(g, MacroIndicator) for g in growth_full)
+
+    @pytest.mark.parametrize("value", [0.1, -0.1, 0.0, 1.0])
+    def test_canonical_cpi_yoy_preserves_percentage_points(self, value: float) -> None:
+        """Canonical CPI YoY facts are already stored as percentage points."""
+        normalized = DataCenterMacroRepository._normalize_cpi_value(
+            "CN_CPI_NATIONAL_YOY",
+            value,
+        )
+
+        assert normalized == pytest.approx(value)
+
+    def test_legacy_cpi_index_is_converted_from_base_100(self) -> None:
+        """Legacy CPI index facts still need base-100 conversion."""
+        normalized = DataCenterMacroRepository._normalize_cpi_value("CN_CPI", 100.1)
+
+        assert normalized == pytest.approx(0.1)
+
+    def test_inflation_series_preserves_canonical_small_yoy_values(self) -> None:
+        """The regime repository projection must not rescale canonical CPI facts."""
+        _seed_indicator_rule(
+            code="CN_CPI_NATIONAL_YOY",
+            original_unit="%",
+            default_period_type="M",
+        )
+        repository = DataCenterMacroRepository()
+        for month, value in ((1, 0.1), (2, -0.1)):
+            repository.save_indicator(
+                MacroIndicator(
+                    code="CN_CPI_NATIONAL_YOY",
+                    value=value,
+                    reporting_period=date(2025, month, 28),
+                    period_type=PeriodType.MONTH,
+                    unit="%",
+                    original_unit="%",
+                    published_at=date(2025, month, 28),
+                    source="test",
+                )
+            )
+
+        values = repository.get_inflation_series("CPI", source="test")
+
+        assert values == pytest.approx([0.1, -0.1])
 
     def test_delete_operations(self):
         """测试删除操作"""
@@ -307,7 +347,7 @@ class TestDataCenterMacroRepository:
             unit="指数",
             original_unit="指数",
             published_at=date(2024, 1, 1),
-            source="test"
+            source="test",
         )
         repository.save_indicator(indicator)
 
@@ -336,14 +376,14 @@ class TestDataCenterMacroRepository:
                     unit="指数",
                     original_unit="指数",
                     published_at=date(2024, 1, i + 1),
-                    source="test_source"
+                    source="test_source",
                 )
                 repository.save_indicator(indicator)
 
         stats = repository.get_statistics()
-        assert stats['total_indicators'] - before['total_indicators'] == 3
-        assert stats['total_records'] - before['total_records'] == 15
-        assert len(stats['sources']) > 0
+        assert stats["total_indicators"] - before["total_indicators"] == 3
+        assert stats["total_records"] - before["total_records"] == 15
+        assert len(stats["sources"]) > 0
 
 
 @pytest.mark.django_db
@@ -359,7 +399,7 @@ class TestDjangoRegimeRepository:
             distribution={"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
             dominant_regime="Recovery",
             confidence=0.6,
-            observed_at=date(2024, 1, 1)
+            observed_at=date(2024, 1, 1),
         )
 
         # 保存快照
@@ -379,7 +419,7 @@ class TestDjangoRegimeRepository:
                 distribution={"Recovery": 1.0},
                 dominant_regime="Recovery",
                 confidence=0.5,
-                observed_at=date(2024, 1, i * 7 + 1)
+                observed_at=date(2024, 1, i * 7 + 1),
             )
             repository.save_snapshot(snapshot)
 
@@ -398,7 +438,7 @@ class TestDjangoRegimeRepository:
             distribution={"Recovery": 0.6},
             dominant_regime="Recovery",
             confidence=0.6,
-            observed_at=date(2024, 6, 15)
+            observed_at=date(2024, 6, 15),
         )
         repository.save_snapshot(snapshot)
 
@@ -424,7 +464,7 @@ class TestDjangoRegimeRepository:
                 distribution={regime: 1.0},
                 dominant_regime=regime,
                 confidence=0.5,
-                observed_at=date(2024, 1, i + 1)
+                observed_at=date(2024, 1, i + 1),
             )
             repository.save_snapshot(snapshot)
 
@@ -445,14 +485,13 @@ class TestDjangoRegimeRepository:
                 distribution={"Recovery": 1.0},
                 dominant_regime="Recovery",
                 confidence=0.5,
-                observed_at=date(2024, 1, i + 1)
+                observed_at=date(2024, 1, i + 1),
             )
             repository.save_snapshot(snapshot)
 
         # 获取范围内的快照
         snapshots = repository.get_snapshots_in_range(
-            start_date=date(2024, 1, 3),
-            end_date=date(2024, 1, 7)
+            start_date=date(2024, 1, 3), end_date=date(2024, 1, 7)
         )
         assert len(snapshots) == 5  # 1/3 - 1/7
 
@@ -471,18 +510,18 @@ class TestDjangoRegimeRepository:
                     distribution={regime: 1.0},
                     dominant_regime=regime,
                     confidence=0.5,
-                    observed_at=date(2024, 1, day_offset + 1)
+                    observed_at=date(2024, 1, day_offset + 1),
                 )
                 repository.save_snapshot(snapshot)
                 day_offset += 1
 
         # 获取统计
         stats = repository.get_regime_distribution_stats()
-        assert stats['total'] == 10
-        assert 'by_regime' in stats
+        assert stats["total"] == 10
+        assert "by_regime" in stats
         # 验证各 Regime 的计数
-        assert stats['by_regime']['Recovery']['count'] == 5
-        assert stats['by_regime']['Overheat']['count'] == 3
+        assert stats["by_regime"]["Recovery"]["count"] == 5
+        assert stats["by_regime"]["Overheat"]["count"] == 3
 
 
 @pytest.mark.django_db
@@ -503,7 +542,7 @@ class TestDjangoSignalRepository:
             target_regime="Recovery",
             created_at=date(2024, 1, 1),
             status=SignalStatus.PENDING,
-            rejection_reason=""
+            rejection_reason="",
         )
 
         saved = repository.save_signal(signal)
@@ -527,7 +566,7 @@ class TestDjangoSignalRepository:
                 target_regime="Recovery",
                 created_at=date(2024, 1, 1),
                 status=status,
-                rejection_reason=""
+                rejection_reason="",
             )
             repository.save_signal(signal)
 
@@ -554,15 +593,12 @@ class TestDjangoSignalRepository:
             target_regime="Recovery",
             created_at=date(2024, 1, 1),
             status=SignalStatus.PENDING,
-            rejection_reason=""
+            rejection_reason="",
         )
         saved = repository.save_signal(signal)
 
         # 更新状态
-        success = repository.update_signal_status(
-            saved.id,
-            SignalStatus.APPROVED
-        )
+        success = repository.update_signal_status(saved.id, SignalStatus.APPROVED)
         assert success
 
         # 验证更新
@@ -571,9 +607,7 @@ class TestDjangoSignalRepository:
 
         # 拒绝信号
         success = repository.update_signal_status(
-            saved.id,
-            SignalStatus.REJECTED,
-            rejection_reason="测试拒绝原因"
+            saved.id, SignalStatus.REJECTED, rejection_reason="测试拒绝原因"
         )
         assert success
 
@@ -598,7 +632,7 @@ class TestDjangoSignalRepository:
                 target_regime="Recovery",
                 created_at=date(2024, 1, 1),
                 status=SignalStatus.APPROVED,
-                rejection_reason=""
+                rejection_reason="",
             )
             repository.save_signal(signal)
 
@@ -624,7 +658,7 @@ class TestDjangoSignalRepository:
                 target_regime=regime,
                 created_at=date(2024, 1, 1),
                 status=SignalStatus.APPROVED,
-                rejection_reason=""
+                rejection_reason="",
             )
             repository.save_signal(signal)
 
@@ -641,7 +675,7 @@ class TestDjangoSignalRepository:
         status_counts = {
             SignalStatus.PENDING: 3,
             SignalStatus.APPROVED: 5,
-            SignalStatus.REJECTED: 2
+            SignalStatus.REJECTED: 2,
         }
         for status, count in status_counts.items():
             for _i in range(count):
@@ -656,15 +690,15 @@ class TestDjangoSignalRepository:
                     target_regime="Recovery",
                     created_at=date(2024, 1, 1),
                     status=status,
-                    rejection_reason=""
+                    rejection_reason="",
                 )
                 repository.save_signal(signal)
 
         stats = repository.get_statistics()
-        assert stats['total'] == 10
-        assert stats['by_status']['pending']['count'] == 3
-        assert stats['by_status']['approved']['count'] == 5
-        assert stats['by_status']['rejected']['count'] == 2
+        assert stats["total"] == 10
+        assert stats["by_status"]["pending"]["count"] == 3
+        assert stats["by_status"]["approved"]["count"] == 5
+        assert stats["by_status"]["rejected"]["count"] == 2
 
     def test_get_signals_created_between_uses_user_id_field(self):
         """摘要查询应返回真实存在的 user_id 字段，避免 daily summary 失败。"""
@@ -712,7 +746,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         model = repository.create_backtest("测试回测", config)
@@ -729,7 +763,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         model = repository.create_backtest("测试回测", config)
@@ -749,7 +783,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         model = repository.create_backtest("测试回测", config)
@@ -778,7 +812,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         model = repository.create_backtest("测试回测", config)
@@ -801,7 +835,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         # 创建多个回测
@@ -825,7 +859,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         # 创建不同状态的回测
@@ -850,7 +884,7 @@ class TestDjangoBacktestRepository:
             initial_capital=100000.0,
             rebalance_frequency="monthly",
             use_pit_data=False,
-            transaction_cost_bps=10.0
+            transaction_cost_bps=10.0,
         )
 
         # 创建多个回测
@@ -860,9 +894,9 @@ class TestDjangoBacktestRepository:
                 repository.update_status(model.id, "completed")
 
         stats = repository.get_statistics()
-        assert stats['total'] >= 5
+        assert stats["total"] >= 5
         # by_status 是字典，包含 count 和 percentage
-        assert isinstance(stats['by_status']['completed'], dict)
+        assert isinstance(stats["by_status"]["completed"], dict)
 
 
 @pytest.mark.django_db
@@ -904,7 +938,7 @@ class TestRepositoryErrorHandling:
             unit="指数",
             original_unit="指数",
             published_at=date(2024, 1, 2),
-            source="test"
+            source="test",
         )
         repository.save_indicator(indicator)
 
@@ -917,7 +951,7 @@ class TestRepositoryErrorHandling:
             unit="指数",
             original_unit="指数",
             published_at=date(2024, 1, 3),
-            source="test"
+            source="test",
         )
         saved = repository.save_indicator(updated)
         assert saved.value == 51.0  # 应该是更新后的值
