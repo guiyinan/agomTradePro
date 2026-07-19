@@ -146,4 +146,3 @@ class PortfolioTransitionPlanModel(models.Model):
         )
 
 __all__ = ["PortfolioTransitionPlanModel"]
-

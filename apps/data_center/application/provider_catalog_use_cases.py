@@ -415,4 +415,3 @@ __all__ = [
     "ManageProviderConfigUseCase",
     "ManagePublisherCatalogUseCase",
 ]
-

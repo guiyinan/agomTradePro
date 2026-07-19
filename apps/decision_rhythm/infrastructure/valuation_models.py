@@ -738,4 +738,3 @@ __all__ = [
     "InvestmentRecommendationModel",
     "ValuationSnapshotModel",
 ]
-

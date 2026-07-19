@@ -163,4 +163,3 @@ class RunMacroGovernanceActionUseCase:
         return int(providers[0].id)
 
 __all__ = ["RunMacroGovernanceActionUseCase"]
-
