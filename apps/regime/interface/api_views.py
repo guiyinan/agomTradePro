@@ -41,7 +41,9 @@ class RegimeViewSet(viewsets.ViewSet):
     - GET /api/regime/history/ - 获取历史记录
     """
 
-    @action(detail=False, methods=['get'])
+    read_only_actions = frozenset({"calculate"})
+
+    @action(detail=False, methods=["get"])
     def current(self, request):
         """
         获取当前 Regime 状态
@@ -52,12 +54,11 @@ class RegimeViewSet(viewsets.ViewSet):
             return Response(get_regime_current_payload(as_of_date=date.today()))
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @action(detail=False, methods=['post'])
+    @action(detail=False, methods=["post"])
     def calculate(self, request):
         """
         计算 Regime 判定
@@ -77,7 +78,7 @@ class RegimeViewSet(viewsets.ViewSet):
         response_serializer = RegimeCalculateResponseSerializer(payload)
         return Response(response_serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def history(self, request):
         """
         获取 Regime 历史记录
@@ -105,12 +106,11 @@ class RegimeViewSet(viewsets.ViewSet):
             )
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def distribution(self, request):
         """
         获取 Regime 分布统计
@@ -125,10 +125,9 @@ class RegimeViewSet(viewsets.ViewSet):
             return Response(payload)
 
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class RegimeHealthView(APIView):
@@ -140,11 +139,10 @@ class RegimeHealthView(APIView):
             return Response(get_regime_health_payload(), status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({
-                'status': 'unhealthy',
-                'service': 'regime',
-                'error': str(e)
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {"status": "unhealthy", "service": "regime", "error": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class RegimeNavigatorView(APIView):
@@ -159,9 +157,7 @@ class RegimeNavigatorView(APIView):
 
             as_of_date_str = request.query_params.get("as_of_date")
             try:
-                as_of_date = (
-                    date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
-                )
+                as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
             except ValueError:
                 return Response(
                     {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},
@@ -238,9 +234,7 @@ class RegimeActionView(APIView):
 
             as_of_date_str = request.query_params.get("as_of_date")
             try:
-                as_of_date = (
-                    date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
-                )
+                as_of_date = date.fromisoformat(as_of_date_str) if as_of_date_str else date.today()
             except ValueError:
                 return Response(
                     {"success": False, "error": f"Invalid as_of_date: {as_of_date_str}"},

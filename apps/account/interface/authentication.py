@@ -16,6 +16,21 @@ def _account_interface_repository():
     return get_account_interface_repository()
 
 
+def _is_explicit_read_only_operation(request) -> bool:
+    """Return whether a non-safe transport action is explicitly read-only.
+
+    Some persisted-only calculations use POST because their structured inputs
+    belong in a request body. The owning DRF view must opt in action by action;
+    unclassified POST requests remain writes for token authorization purposes.
+    """
+
+    parser_context = getattr(request, "parser_context", None) or {}
+    view = parser_context.get("view")
+    action = getattr(view, "action", None)
+    read_only_actions = getattr(view, "read_only_actions", frozenset())
+    return bool(action and action in read_only_actions)
+
+
 class MultiTokenAuthentication(authentication.TokenAuthentication):
     keyword = "Token"
 
@@ -25,8 +40,13 @@ class MultiTokenAuthentication(authentication.TokenAuthentication):
             return None
 
         user, token = result
-        if request.method not in SAFE_METHODS and not getattr(token, "allows_write", True):
-            raise exceptions.PermissionDenied("This token is read-only and cannot perform write operations.")
+        read_only_operation = request.method in SAFE_METHODS or _is_explicit_read_only_operation(
+            request
+        )
+        if not read_only_operation and not getattr(token, "allows_write", True):
+            raise exceptions.PermissionDenied(
+                "This token is read-only and cannot perform write operations."
+            )
         return user, token
 
     def authenticate_credentials(self, key):
