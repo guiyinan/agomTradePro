@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
@@ -167,7 +167,7 @@ def test_config_center_snapshot_includes_data_center_runtime_summary(staff_clien
             return [_Snapshot("eastmoney-main", "degraded"), _Snapshot("tushare-main", "healthy")]
 
     monkeypatch.setattr(
-        "apps.data_center.application.registry_factory.get_registry", lambda: _Registry()
+        "apps.data_center.provider_runtime.get_registry", lambda: _Registry()
     )
 
     response = staff_client.get("/api/system/config-center/")
