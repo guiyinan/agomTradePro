@@ -56,6 +56,7 @@ python manage.py normalize_macro_fact_units --check
 ## 2026-07-19 Regime CPI 读取口径修复
 
 - `CN_CPI_NATIONAL_YOY` 的 canonical storage unit 是 `%`，数值直接表示百分比点；例如 `0.1` 表示 `0.1%`，读取链不得再按数值大小猜测口径并乘以 100。
+- 同一约束同时覆盖 `apps/macro` 的 Data Center fact repository projection 与 `apps/regime` 的 V2 macro adapter；两条读取链都必须有小正值、小负值和 legacy base-100 回归测试，防止兼容层重复缩放。
 - 只有 legacy `CN_CPI` 基准指数需要执行 `value - 100` 转换。来源若返回小数比例，必须在 Data Center unit rule 中显式配置 multiplier，不得在 Regime 投影层做启发式缩放。
 - Regime current API 现在透传 V2 计算得到的 PMI/CPI 当前值及方向，MCP/SDK 不再用 `neutral` 和空值填补缺失字段。
 - `regime.compute.calculate` 已由 Regime ViewSet 显式标记为 persisted-only read action，因此只读 Token 可以调用该 POST transport；未显式标记的 POST 仍按写操作拒绝。
