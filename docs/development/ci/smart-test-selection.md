@@ -116,7 +116,7 @@ pytest tests/guardrails/test_api_contract_minimal.py -v
 
 ## 相关文件
 
-- `.github/workflows/logic-guardrails.yml` - PR Gate 工作流
+- `.github/workflows/ci-fast-feedback.yml` - PR Gate 工作流
 - `scripts/select_tests.py` - 智能测试选择脚本
 - `tests/unit/ci/test_select_tests.py` - 测试选择单元测试
 - `tests/guardrails/test_api_contract_minimal.py` - API 合同最小集测试

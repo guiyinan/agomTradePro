@@ -240,10 +240,14 @@ jobs:
           PY
 
   fast-feedback:
-    name: Fast feedback (Python 3.11)
+    name: Fast feedback (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     needs: detect-tests
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13']
+      fail-fast: false
     env:
       SECRET_KEY: ci-fast-feedback-secret-key-123456789012345678901234567890
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver
@@ -254,7 +258,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -275,6 +279,18 @@ jobs:
           echo "Running ${{ needs.detect-tests.outputs.test-count }} targets"
           pytest -v --tb=short --durations=15 \
             ${{ needs.detect-tests.outputs.test-paths }}
+
+      - name: Check RTM key requirements
+        run: |
+          # 验证关键 RTM 项的测试存在
+          echo "Checking RTM requirements..."
+          test -f tests/guardrails/test_architecture_boundaries.py || exit 1
+          test -f tests/guardrails/test_logic_guardrails.py || exit 1
+          test -f tests/guardrails/test_alpha_workspace_consistency_guardrail.py || exit 1
+          test -f tests/guardrails/test_no_501_on_primary_paths.py || exit 1
+          test -f tests/integration/signal/test_signal_workflow.py || exit 1
+          test -f tests/integration/audit/test_api_endpoints.py || exit 1
+          echo "RTM key requirements: PASSED"
 
       - name: Install TUI browser runtime
         if: needs.detect-tests.outputs.tui-changed == 'true'

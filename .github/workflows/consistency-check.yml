@@ -10,6 +10,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -51,6 +52,7 @@ jobs:
   mcp-governance-guards:
     name: MCP governance guards
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       SECRET_KEY: ci-mcp-governance-secret-key-123456789012345678901234567890
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver

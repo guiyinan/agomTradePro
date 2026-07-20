@@ -132,7 +132,6 @@ python scripts/scaffold_application_providers.py \
 3. 对“配置生效”与“失败兜底”必须有回归测试。
 4. 诊断类测试（guardrails）默认纳入 CI，不允许长期 `xfail` 漂移。
 5. 当前 CI 工作流：
-   - `.github/workflows/logic-guardrails.yml`
    - `.github/workflows/architecture-layer-guard.yml`
    - `.github/workflows/ci-fast-feedback.yml`
 6. `scripts/select_tests.py` 的全量回退与模块映射，必须覆盖 `apps/*/tests/` 下的 app-local tests，不得只跑 `tests/unit|integration|guardrails`。

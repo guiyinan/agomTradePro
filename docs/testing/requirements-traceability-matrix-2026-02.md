@@ -109,7 +109,7 @@
   - `test_guardrail_no_mock_responses_in_primary_apis` - 检查无硬编码 mock 响应
   - `test_guardrail_dashboard_multidim_screen_not_501` - Dashboard 模块回归防护
   - `test_guardrail_primary_endpoints_have_complete_implementation` - 关键端点完整性
-- **更新**: CI 配置 `.github/workflows/logic-guardrails.yml`
+- **更新**: CI 配置 `.github/workflows/ci-fast-feedback.yml`
   - 添加新守护测试到 PR 门禁
   - 新增 RTM 关键项检查步骤
 - **更新**: RTM 文档
