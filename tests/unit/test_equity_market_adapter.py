@@ -2,29 +2,29 @@ from datetime import date
 
 import pytest
 
-from apps.data_center.infrastructure.models import MacroFactModel
+from apps.data_center.infrastructure.models import PriceBarModel
 from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
 
 
 @pytest.mark.django_db
 def test_market_data_repository_adapter_uses_reporting_period_for_index_returns():
-    MacroFactModel.objects.create(
-        indicator_code="000300.SH",
-        reporting_period=date(2026, 3, 19),
-        revision_number=1,
-        value=100.0,
-        unit="点",
+    PriceBarModel.objects.create(
+        asset_code="000300.SH",
+        bar_date=date(2026, 3, 19),
+        open=100.0,
+        high=100.0,
+        low=100.0,
+        close=100.0,
         source="test",
-        extra={"period_type": "D", "original_unit": "点"},
     )
-    MacroFactModel.objects.create(
-        indicator_code="000300.SH",
-        reporting_period=date(2026, 3, 20),
-        revision_number=1,
-        value=102.0,
-        unit="点",
+    PriceBarModel.objects.create(
+        asset_code="000300.SH",
+        bar_date=date(2026, 3, 20),
+        open=102.0,
+        high=102.0,
+        low=102.0,
+        close=102.0,
         source="test",
-        extra={"period_type": "D", "original_unit": "点"},
     )
 
     adapter = MarketDataRepositoryAdapter()

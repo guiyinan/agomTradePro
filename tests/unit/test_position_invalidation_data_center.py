@@ -17,7 +17,7 @@ def test_position_invalidation_gateway_reads_macro_facts_from_data_center():
         reporting_period=date(2026, 3, 31),
         value=50.5,
         unit="%",
-        source="tushare-main",
+        source="akshare",
         revision_number=0,
         quality="valid",
     )
@@ -26,7 +26,7 @@ def test_position_invalidation_gateway_reads_macro_facts_from_data_center():
         reporting_period=date(2026, 2, 28),
         value=50.1,
         unit="%",
-        source="tushare-main",
+        source="akshare",
         revision_number=0,
         quality="valid",
     )

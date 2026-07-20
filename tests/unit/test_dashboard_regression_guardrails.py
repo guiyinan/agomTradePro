@@ -116,7 +116,10 @@ def test_dashboard_renders_pending_queue_from_real_decision_request_models():
     content = _assert_dashboard_html_contract(response)
     assert "待执行队列 (1)" in content
     assert "000003.SH" in content
-    assert "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5" in content
+    assert (
+        "/decision/workspace/?source=dashboard-pending&amp;security_code=000003.SH&amp;step=5"
+        in content
+    )
 
 
 @pytest.mark.django_db
@@ -228,11 +231,7 @@ def test_dashboard_ai_insights_uses_ai_provider_config_model(settings, monkeypat
 
         @staticmethod
         def json():
-            return {
-                "choices": [
-                    {"message": {"content": "1. 保持均衡配置\n2. 关注政策变化"}}
-                ]
-            }
+            return {"choices": [{"message": {"content": "1. 保持均衡配置\n2. 关注政策变化"}}]}
 
     def fake_post(url, headers, json, timeout):
         assert url == "https://example.test/v1/chat/completions"
@@ -363,11 +362,7 @@ def test_dashboard_ai_insights_skips_invalid_provider_when_later_provider_is_usa
 
         @staticmethod
         def json():
-            return {
-                "choices": [
-                    {"message": {"content": "1. 保持均衡配置\n2. 维持纪律执行"}}
-                ]
-            }
+            return {"choices": [{"message": {"content": "1. 保持均衡配置\n2. 维持纪律执行"}}]}
 
     def fake_post(url, headers, json, timeout):
         assert url == "https://valid.example.test/v1/chat/completions"
@@ -502,15 +497,15 @@ def test_dashboard_macro_values_read_from_data_center():
         reporting_period=date(2025, 2, 1),
         value=50.6,
         unit="指数",
-        source="tushare",
+        source="akshare",
         published_at=date(2025, 2, 3),
     )
     MacroFactModel.objects.create(
         indicator_code="CN_CPI_NATIONAL_YOY",
         reporting_period=date(2025, 2, 1),
-        value=0.014,
+        value=1.4,
         unit="%",
-        source="tushare",
+        source="akshare",
         published_at=date(2025, 2, 10),
     )
 

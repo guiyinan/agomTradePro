@@ -1,12 +1,14 @@
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
 from django.core.management import CommandError
 from kombu.exceptions import OperationalError as KombuOperationalError
 
 from apps.data_center.management.commands import repair_decision_data_reliability as command_module
 
 
+@pytest.mark.django_db
 def test_command_builds_repair_use_case_with_unit_rule_repository(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -76,7 +78,7 @@ def test_alpha_refresher_skips_qlib_rebuild_when_check_passes(monkeypatch):
                     universe_id="portfolio-1-scope",
                     scope_hash="scope",
                     to_dict=lambda: {"scope_hash": "scope"},
-                )
+                ),
             )
 
     class FakeTask:

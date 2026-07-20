@@ -22,7 +22,7 @@ def test_prompt_macro_adapter_reads_data_center() -> None:
         reporting_period=date(2025, 1, 1),
         value=51.1,
         unit="指数",
-        source="tushare",
+        source="akshare",
         published_at=date(2025, 1, 3),
     )
 

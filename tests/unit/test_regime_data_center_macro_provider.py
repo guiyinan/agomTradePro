@@ -37,7 +37,7 @@ def test_django_macro_data_provider_reads_data_center_facts() -> None:
         reporting_period=date(2025, 1, 1),
         value=50.8,
         unit="指数",
-        source="tushare",
+        source="akshare",
         published_at=date(2025, 1, 3),
     )
 

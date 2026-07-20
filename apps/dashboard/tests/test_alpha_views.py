@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.test import RequestFactory
+from rest_framework.authentication import SessionAuthentication
 
 from apps.dashboard.interface import alpha_stock_views, views
 from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
@@ -16,12 +17,37 @@ from apps.task_monitor.application.repository_provider import get_task_record_re
 from apps.task_monitor.domain.entities import TaskStatus
 
 
+@pytest.fixture(autouse=True)
+def _disable_session_csrf_enforcement(monkeypatch):
+    """Direct view invocations bypass middleware; skip DRF session CSRF checks.
+
+    Production browser POSTs carry the CSRF token injected by ``base.html``;
+    these unit tests call the view callable directly, so the DRF
+    ``SessionAuthentication.enforce_csrf`` check is disabled here.
+    """
+
+    monkeypatch.setattr(SessionAuthentication, "enforce_csrf", lambda self, request: None)
+
+
 def _pin_dashboard_alpha_trade_date(monkeypatch, target_date: date | None = None) -> date:
     """Keep dashboard Alpha tests deterministic regardless of wall-clock time."""
 
     resolved_date = target_date or date.today()
     monkeypatch.setattr(views, "resolve_dashboard_alpha_trade_date", lambda: resolved_date)
     return resolved_date
+
+
+def _response_json_payload(response) -> dict:
+    """Parse JSON payload from responses returned by DRF-wrapped views.
+
+    DRF ``Response`` objects are lazily rendered; when tests call the view
+    callable directly (bypassing middleware), the response must be rendered
+    explicitly before accessing ``content``.
+    """
+
+    if hasattr(response, "render") and not getattr(response, "is_rendered", True):
+        response.render()
+    return json.loads(response.content)
 
 
 @pytest.mark.django_db
@@ -42,9 +68,9 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
 
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
-        {"top_n": 12, "universe_id": "csi300"},
+        {"top_n": 12, "universe_id": "csi300", "alpha_scope": "general"},
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
     monkeypatch.setattr(
@@ -54,10 +80,10 @@ def test_alpha_refresh_htmx_triggers_qlib_task(monkeypatch):
     )
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
-            alpha_scope="portfolio",
+            alpha_scope="general",
             target_date=target_date,
             top_n=12,
             raw_universe_id="csi300",
@@ -86,9 +112,9 @@ def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
 
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
-        {"top_n": 12, "universe_id": "csi300"},
+        {"top_n": 12, "universe_id": "csi300", "alpha_scope": "general"},
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
     monkeypatch.setattr(
@@ -98,10 +124,10 @@ def test_alpha_refresh_htmx_records_pending_task_immediately(monkeypatch):
     )
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
-            alpha_scope="portfolio",
+            alpha_scope="general",
             target_date=target_date,
             top_n=12,
             raw_universe_id="csi300",
@@ -152,7 +178,9 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
         "/api/dashboard/alpha/refresh/",
         {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered"},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeApplyAsyncWrapper)
     monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
@@ -163,7 +191,7 @@ def test_alpha_refresh_htmx_passes_pool_mode_to_resolver(monkeypatch):
     )
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
@@ -197,9 +225,9 @@ def test_alpha_refresh_htmx_uses_recent_closed_trade_date_for_requested_trade_da
 
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
-        {"top_n": 12, "universe_id": "csi300"},
+        {"top_n": 12, "universe_id": "csi300", "alpha_scope": "general"},
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeDelayWrapper)
     monkeypatch.setattr(
@@ -210,10 +238,10 @@ def test_alpha_refresh_htmx_uses_recent_closed_trade_date_for_requested_trade_da
     monkeypatch.setattr(views, "record_pending_task", lambda **kwargs: None)
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
-            alpha_scope="portfolio",
+            alpha_scope="general",
             target_date=target_date,
             top_n=12,
             raw_universe_id="csi300",
@@ -270,13 +298,15 @@ def test_alpha_refresh_htmx_sync_portfolio_scope_runs_inline_task(monkeypatch):
         "/api/dashboard/alpha/refresh/",
         {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered", "sync": "1"},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeTask)
     monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
@@ -323,7 +353,7 @@ def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch
         "/api/dashboard/alpha/refresh/",
         {"top_n": 10, "universe_id": "csi300", "alpha_scope": "general"},
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     monkeypatch.setattr("apps.alpha.application.tasks.qlib_predict_scores", FakeTask)
     monkeypatch.setattr(
@@ -333,7 +363,7 @@ def test_alpha_refresh_htmx_falls_back_to_sync_when_no_celery_worker(monkeypatch
     )
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     cache.delete(
         views._build_alpha_refresh_lock_key(
             alpha_scope="portfolio",
@@ -357,12 +387,12 @@ def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
     target_date = _pin_dashboard_alpha_trade_date(monkeypatch)
     request = RequestFactory().post(
         "/api/dashboard/alpha/refresh/",
-        {"top_n": 12, "universe_id": "csi300"},
+        {"top_n": 12, "universe_id": "csi300", "alpha_scope": "general"},
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     lock_key = views._build_alpha_refresh_lock_key(
-        alpha_scope="portfolio",
+        alpha_scope="general",
         target_date=target_date,
         top_n=12,
         raw_universe_id="csi300",
@@ -379,7 +409,7 @@ def test_alpha_refresh_htmx_rejects_duplicate_async_request(monkeypatch):
     monkeypatch.setattr(views, "AsyncResult", lambda task_id: FakeAsyncResult())
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     cache.delete(lock_key)
 
@@ -413,7 +443,9 @@ def test_alpha_refresh_htmx_rejects_duplicate_sync_request(monkeypatch):
         "/api/dashboard/alpha/refresh/",
         {"top_n": 10, "portfolio_id": 9, "pool_mode": "price_covered", "sync": "1"},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     lock_key = views._build_alpha_refresh_lock_key(
         alpha_scope="portfolio",
@@ -426,7 +458,7 @@ def test_alpha_refresh_htmx_rejects_duplicate_sync_request(monkeypatch):
     monkeypatch.setattr(views, "PortfolioAlphaPoolResolver", FakeResolver)
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     cache.delete(lock_key)
 
@@ -441,10 +473,12 @@ def test_alpha_refresh_portfolio_scope_requires_portfolio_id():
         "/api/dashboard/alpha/refresh/",
         {"top_n": 10, "alpha_scope": "portfolio", "pool_mode": "price_covered"},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     response = views.alpha_refresh_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert response.status_code == 400
     assert payload["success"] is False
@@ -455,7 +489,9 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
     captured: dict[str, object] = {}
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             captured["top_n"] = top_n
             captured["user"] = user
             captured["portfolio_id"] = portfolio_id
@@ -522,12 +558,14 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
         "/api/dashboard/alpha/stocks/",
         {"format": "json", "top_n": 1, "portfolio_id": 9, "pool_mode": "market"},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_stocks_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert captured["user"] is request.user
     assert captured["top_n"] == 1
@@ -546,7 +584,9 @@ def test_alpha_stocks_htmx_passes_request_user_to_query(monkeypatch):
 
 def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -584,12 +624,14 @@ def test_alpha_stocks_htmx_json_includes_readiness_contract(monkeypatch):
             )
 
     request = RequestFactory().get("/api/dashboard/alpha/stocks/", {"format": "json", "top_n": 1})
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_stocks_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
@@ -608,7 +650,9 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
     captured: dict[str, object] = {}
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             captured["alpha_scope"] = alpha_scope
             captured["portfolio_id"] = portfolio_id
             return SimpleNamespace(
@@ -644,12 +688,14 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
         "/api/dashboard/alpha/stocks/",
         {"format": "json", "top_n": 1, "alpha_scope": "general", "portfolio_id": 9},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_stocks_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
@@ -665,7 +711,9 @@ def test_alpha_stocks_htmx_general_scope_is_research_only(monkeypatch):
 
 def test_alpha_stocks_htmx_json_contract_exposes_trade_date_adjustment(monkeypatch):
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -705,12 +753,14 @@ def test_alpha_stocks_htmx_json_contract_exposes_trade_date_adjustment(monkeypat
             )
 
     request = RequestFactory().get("/api/dashboard/alpha/stocks/", {"format": "json", "top_n": 1})
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_stocks_htmx(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
     contract = payload["data"]["contract"]
 
     assert response.status_code == 200
@@ -732,10 +782,12 @@ def test_alpha_stocks_htmx_renders_compact_scrollable_table(monkeypatch):
         {"top_n": 1},
         HTTP_HX_REQUEST="true",
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -831,10 +883,12 @@ def test_alpha_stocks_htmx_portfolio_scope_hides_blocked_cached_rankings(monkeyp
         {"top_n": 1},
         HTTP_HX_REQUEST="true",
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -886,10 +940,12 @@ def test_alpha_stocks_htmx_general_scope_keeps_research_rankings_visible(monkeyp
         {"top_n": 1, "alpha_scope": "general"},
         HTTP_HX_REQUEST="true",
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     class FakeQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             return SimpleNamespace(
                 top_candidates=[
                     {
@@ -998,7 +1054,7 @@ def test_alpha_stocks_partial_renders_inline_refresh_button():
 
 def test_alpha_stocks_partial_renders_exit_watchlist():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
     content = render_to_string(
         "dashboard/partials/alpha_stocks_table.html",
         {
@@ -1070,13 +1126,16 @@ def test_alpha_stocks_partial_renders_exit_watchlist():
     assert "SELL 1" in content
     assert "本轮评估" in content
     assert "/api/dashboard/alpha/exit-panel/" in content
-    assert "hx-trigger=\"load\"" in content
+    assert 'hx-trigger="load"' in content
     assert "alpha-list-item alpha-list-item-exit alpha-list-item-exit-sell is-selected" in content
     assert "处理状态 已采纳" in content
     assert "/simulated-trading/my-accounts/21/" in content
     assert "/api/decision/workspace/recommendations/?recommendation_id=urec_101" in content
     assert "/api/decision/workspace/plans/plan_101/" in content
-    assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
+    assert (
+        "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit"
+        in content
+    )
     assert "security_code=000001.SZ" in content
     assert "account_id=21" in content
     assert "step=5" in content
@@ -1094,7 +1153,9 @@ def test_alpha_exit_panel_htmx_renders_recommendation_and_plan_detail(monkeypatc
         },
         HTTP_HX_REQUEST="true",
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(
         views,
@@ -1178,7 +1239,7 @@ def test_action_recommendation_partial_blocks_unreliable_pulse(monkeypatch):
         "/api/dashboard/action-recommendation/",
         HTTP_HX_REQUEST="true",
     )
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     blocked_action = RegimeActionRecommendation(
         asset_weights={},
@@ -1215,7 +1276,7 @@ def test_action_recommendation_partial_blocks_unreliable_pulse(monkeypatch):
 
 def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
     captured: dict[str, object] = {}
-    user = SimpleNamespace(is_authenticated=True, username="admin")
+    user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     def fake_get_alpha_stock_scores_payload(
         top_n: int = 10,
@@ -1261,7 +1322,9 @@ def test_build_alpha_factor_panel_uses_user_scoped_scores(monkeypatch):
             "history_run_id": None,
         }
 
-    monkeypatch.setattr(views, "_get_alpha_stock_scores_payload", fake_get_alpha_stock_scores_payload)
+    monkeypatch.setattr(
+        views, "_get_alpha_stock_scores_payload", fake_get_alpha_stock_scores_payload
+    )
 
     panel = views._build_alpha_factor_panel(
         stock_code="000001.SZ",
@@ -1389,7 +1452,9 @@ def test_alpha_factor_panel_renders_score_explanation_contract():
             "no_buy_reasons": [{"text": "当前结果来自 broader-scope cache 映射。"}],
             "risk_snapshot": {"policy_gate_level": "P1", "regime_name": "Recovery"},
             "factor_origin": "score_payload",
-            "factors": [{"name": "momentum", "value": 0.91, "bar_width": 91, "direction": "positive"}],
+            "factors": [
+                {"name": "momentum", "value": 0.91, "bar_width": 91, "direction": "positive"}
+            ],
             "factor_count": 1,
             "empty_reason": "",
         },
@@ -1435,12 +1500,14 @@ def test_alpha_history_list_api_returns_filtered_runs(monkeypatch):
             "trade_date": "2026-04-16",
         },
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_history_list_api(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert response.status_code == 200
     assert payload["success"] is True
@@ -1471,12 +1538,14 @@ def test_alpha_history_detail_api_returns_snapshot_detail(monkeypatch):
             }
 
     request = RequestFactory().get("/api/dashboard/alpha/history/5/")
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(views, "get_alpha_homepage_query", lambda: FakeQuery())
 
     response = views.alpha_history_detail_api(request, run_id=5)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert response.status_code == 200
     assert payload["success"] is True
@@ -1491,7 +1560,9 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
         "decision_calls": 0,
     }
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+    request.user = SimpleNamespace(
+        id=7, pk=7, username="admin", is_authenticated=True, is_active=True
+    )
 
     dashboard_data = SimpleNamespace(
         display_name="Admin",
@@ -1544,7 +1615,9 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
             )
 
     class FakeHomepageQuery:
-        def execute(self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None):
+        def execute(
+            self, top_n: int, user=None, portfolio_id=None, pool_mode=None, alpha_scope=None
+        ):
             captured["homepage_calls"] += 1
             return SimpleNamespace(
                 top_candidates=[
@@ -1658,7 +1731,9 @@ def test_dashboard_view_loads_homepage_alpha_payload_and_keeps_workflow_candidat
 @pytest.mark.django_db
 def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypatch):
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+    request.user = SimpleNamespace(
+        id=7, pk=7, username="admin", is_authenticated=True, is_active=True
+    )
 
     dashboard_data = SimpleNamespace(
         display_name="Admin",
@@ -1781,7 +1856,9 @@ def test_dashboard_view_does_not_load_verified_top_rankings_on_homepage(monkeypa
     assert rendered["context"]["alpha_stock_scores"][0]["decision_workspace_primary_url"].endswith(
         "security_code=000001.SZ&step=4"
     )
-    assert rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
+    assert (
+        rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
+    )
     assert rendered["context"]["alpha_pool"]["portfolio_id"] == 21
 
 
@@ -1794,7 +1871,9 @@ def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkey
             "portfolio_id": "21",
         },
     )
-    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+    request.user = SimpleNamespace(
+        id=7, pk=7, username="admin", is_authenticated=True, is_active=True
+    )
 
     dashboard_data = SimpleNamespace(
         display_name="Admin",
@@ -1914,8 +1993,13 @@ def test_dashboard_view_does_not_load_unverified_top_rankings_on_homepage(monkey
 
     assert len(rendered["context"]["alpha_stock_scores"]) == 1
     assert rendered["context"]["alpha_stock_scores"][0]["code"] == "000001.SZ"
-    assert rendered["context"]["alpha_stock_scores_meta"]["blocked_reason"] == "当前结果来自 broader-scope cache 映射。"
-    assert rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
+    assert (
+        rendered["context"]["alpha_stock_scores_meta"]["blocked_reason"]
+        == "当前结果来自 broader-scope cache 映射。"
+    )
+    assert (
+        rendered["context"]["alpha_research_rankings"] == rendered["context"]["alpha_stock_scores"]
+    )
     assert rendered["context"]["alpha_pool"]["portfolio_id"] == 21
 
 
@@ -1931,7 +2015,9 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
             "exit_account_id": "9",
         },
     )
-    request.user = SimpleNamespace(id=7, username="admin", is_authenticated=True)
+    request.user = SimpleNamespace(
+        id=7, pk=7, username="admin", is_authenticated=True, is_active=True
+    )
 
     dashboard_data = SimpleNamespace(
         username="admin",
@@ -1951,7 +2037,9 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
         "_get_decision_plane_data",
         lambda max_candidates, max_pending: decision_plane_data,
     )
-    monkeypatch.setattr(views, "_get_alpha_metrics_data", lambda ic_days=30: {"provider_status": {}})
+    monkeypatch.setattr(
+        views, "_get_alpha_metrics_data", lambda ic_days=30: {"provider_status": {}}
+    )
     monkeypatch.setattr(views, "_get_dashboard_accounts", lambda user: [{"id": 9}, {"id": 10}])
     monkeypatch.setattr(
         views,
@@ -1974,7 +2062,9 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
         response = views.dashboard_view(request)
 
     assert response.status_code == 200
-    records = [record for record in caplog.records if record.message == "Dashboard page request completed"]
+    records = [
+        record for record in caplog.records if record.message == "Dashboard page request completed"
+    ]
     assert records
 
     record = records[-1]
@@ -1999,7 +2089,7 @@ def test_dashboard_view_logs_timing_breakdown(monkeypatch, caplog):
 
 def test_main_workflow_panel_renders_candidate_asset_name():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2053,7 +2143,7 @@ def test_main_workflow_panel_renders_candidate_asset_name():
 
 def test_main_workflow_panel_renders_alpha_recommendations_without_actionable_candidates():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2116,7 +2206,9 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
         "/dashboard/alpha/ranking/",
         {"alpha_scope": "portfolio", "portfolio_id": 9, "pool_mode": "price_covered", "top_n": 200},
     )
-    request.user = SimpleNamespace(id=7, is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(
+        id=7, pk=7, is_authenticated=True, is_active=True, username="admin"
+    )
 
     monkeypatch.setattr(
         views,
@@ -2183,7 +2275,7 @@ def test_alpha_ranking_page_renders_full_ranking_entry(monkeypatch):
 
 def test_main_workflow_panel_renders_exit_chain_entry_links():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2241,7 +2333,10 @@ def test_main_workflow_panel_renders_exit_chain_entry_links():
     assert "查看右侧详情" in content
     assert "不会离开当前页" in content
     assert "立即退出" in content
-    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
+    assert (
+        "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail"
+        in content
+    )
 
 
 def test_dashboard_exit_entry_panel_context_hides_processed_items():
@@ -2287,7 +2382,10 @@ def test_build_dashboard_exit_detail_url_uses_shared_anchor():
         portfolio_id=9,
     )
 
-    assert url == "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail"
+    assert (
+        url
+        == "/dashboard/?alpha_scope=portfolio&portfolio_id=9&exit_asset_code=000001.SZ&exit_account_id=21#alpha-exit-detail"
+    )
 
 
 def test_build_decision_workspace_url_uses_canonical_query_order():
@@ -2333,7 +2431,9 @@ def test_annotate_decision_workspace_navigation_accepts_model_instances():
 @pytest.mark.django_db
 def test_dashboard_view_accepts_pending_request_models(monkeypatch):
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin", id=1)
+    request.user = SimpleNamespace(
+        is_authenticated=True, is_active=True, username="admin", id=1, pk=1
+    )
 
     dashboard_data = SimpleNamespace(
         display_name="Admin",
@@ -2453,7 +2553,7 @@ def test_dashboard_view_accepts_pending_request_models(monkeypatch):
 
 def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendations():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2508,7 +2608,7 @@ def test_main_workflow_panel_does_not_use_pending_assets_as_alpha_recommendation
 
 def test_main_workflow_panel_shows_blocked_alpha_reason_in_empty_state():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2556,7 +2656,7 @@ def test_main_workflow_panel_shows_blocked_alpha_reason_in_empty_state():
 
 def test_main_workflow_panel_exit_entry_uses_right_panel_detail_language():
     request = RequestFactory().get("/dashboard/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/main_workflow_panel.html",
@@ -2620,7 +2720,7 @@ def test_main_workflow_panel_exit_entry_uses_right_panel_detail_language():
 
 def test_alpha_history_page_template_renders_detail_controls():
     request = RequestFactory().get("/dashboard/alpha/history/")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "dashboard/alpha_history.html",
@@ -2680,12 +2780,17 @@ def test_alpha_history_page_template_renders_detail_controls():
     assert "/api/dashboard/alpha/history/5/" in content
     assert "当前持仓退出链路" in content
     assert "在 Dashboard 右侧查看" in content
-    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
+    assert (
+        "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail"
+        in content
+    )
 
 
 def test_decision_workspace_template_renders_exit_chain_sidebar():
-    request = RequestFactory().get("/decision/workspace/?account_id=21&security_code=000001.SZ&step=5")
-    request.user = SimpleNamespace(is_authenticated=True, username="admin")
+    request = RequestFactory().get(
+        "/decision/workspace/?account_id=21&security_code=000001.SZ&step=5"
+    )
+    request.user = SimpleNamespace(pk=1, is_authenticated=True, is_active=True, username="admin")
 
     content = render_to_string(
         "decision/workspace.html",
@@ -2734,8 +2839,14 @@ def test_decision_workspace_template_renders_exit_chain_sidebar():
     assert "统一退出建议、调仓计划与信号契约" in content
     assert "在 Workspace 中定位" in content
     assert "回到 Dashboard 右侧详情" in content
-    assert "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit" in content
-    assert "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail" in content
+    assert (
+        "/decision/workspace/?security_code=000001.SZ&amp;step=5&amp;account_id=21&amp;action=SELL&amp;source=dashboard-exit"
+        in content
+    )
+    assert (
+        "/dashboard/?alpha_scope=portfolio&amp;portfolio_id=9&amp;exit_asset_code=000001.SZ&amp;exit_account_id=21#alpha-exit-detail"
+        in content
+    )
 
 
 def test_dashboard_api_root_exposes_docs_and_mcp_entries():
@@ -2743,7 +2854,7 @@ def test_dashboard_api_root_exposes_docs_and_mcp_entries():
 
     request = RequestFactory().get("/api/dashboard/")
     response = dashboard_api_root(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert response.status_code == 200
     assert payload["endpoints"]["ai_capability"] == "/api/ai-capability/"
@@ -2756,7 +2867,7 @@ def test_global_api_root_exposes_ai_capability_and_mcp_entries():
 
     request = RequestFactory().get("/api/")
     response = api_root_view(request)
-    payload = json.loads(response.content)
+    payload = _response_json_payload(response)
 
     assert response.status_code == 200
     assert payload["endpoints"]["ai-capability"] == "/api/ai-capability/"
