@@ -28,7 +28,13 @@ def test_mirror_dockerfile_installs_pyqlib_distribution() -> None:
 def test_production_images_include_postgresql_backup_client() -> None:
     for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
         dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
-        assert "postgresql-client" in dockerfile, relative_path
+        instructions = "\n".join(
+            line for line in dockerfile.splitlines() if not line.lstrip().startswith("#")
+        )
+        assert "ARG POSTGRESQL_CLIENT_MAJOR=16" in instructions, relative_path
+        assert '"postgresql-client-${POSTGRESQL_CLIENT_MAJOR}"' in instructions, relative_path
+        assert "pg_dump --version" in instructions, relative_path
+        assert "postgresql-client \\" not in instructions, relative_path
 
 
 def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:

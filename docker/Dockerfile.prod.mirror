@@ -43,19 +43,29 @@ FROM docker.1ms.run/library/python:3.11-slim
 
 WORKDIR /app
 ARG DEBIAN_FRONTEND=noninteractive
+ARG POSTGRESQL_CLIENT_MAJOR=16
 ARG BUILD_AGOMTRADEPRO_ENCRYPTION_KEY=QkZJTFQwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3OD0=
 ARG SOURCE_COMMIT=unknown
 
 LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    postgresql-client \
-    libgomp1 \
-    curl \
-    procps \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl; \
+    install -d /usr/share/postgresql-common/pgdg; \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc; \
+    . /etc/os-release; \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+      > /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      libpq5 \
+      "postgresql-client-${POSTGRESQL_CLIENT_MAJOR}" \
+      libgomp1 \
+      procps; \
+    pg_dump --version | grep -E "^pg_dump \(PostgreSQL\) ${POSTGRESQL_CLIENT_MAJOR}\."; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local /usr/local
 
