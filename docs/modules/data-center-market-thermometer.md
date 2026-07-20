@@ -1,6 +1,6 @@
 # Data Center 市场温度计
 
-最后更新: 2026-07-17
+最后更新: 2026-07-20
 
 ## 概述
 
@@ -68,7 +68,8 @@
 - Infrastructure provider 只负责取数：
   - AKShare `fund_etf_spot_em`
   - EastMoney `clist/get` 直连回退，读取 `f62` 主力净流入和 `f297` 数据日期
-  - Tushare 协议兼容源通过 `trade_cal` 找最近交易日，再用 `etf_share_size` 汇总沪深 ETF 总规模，计算当日规模变化
+- Tushare 协议兼容源通过 `trade_cal` 找最近交易日，再用 `etf_share_size` 汇总沪深 ETF 总规模，计算当日规模变化
+- Tushare ETF 规模代理按短日期区间分别批量拉取 SSE/SZSE，再按交易日聚合；任一交易所当日数据缺失时整日 fail closed，禁止把单市场规模误当全市场。
 - Application `SyncMarketThermometerInputsUseCase` 会采集所有 active market providers，不再首个成功即停止。
 - 对 `CN_A_ETF_NET_FLOW_MAIN` 多个同口径渠道返回同一日期数据时，按 1% 容差做一致性校验。
 - 校验通过后只写入一条 `source=data_center_consensus` 的 canonical fact，`extra.candidates` 保留各渠道原始候选值。
@@ -192,6 +193,9 @@ reporting_period,value
 - 任务流程: 先执行 `sync_market_thermometer_inputs`，再执行 `calculate_market_thermometer`
 - 正式 Celery 调度保留 `must_not_use_for_decision=True` 快照写入语义，用于审计真实调度失败；该行为不同于手工命令的默认 blocked 写入保护
 - `sync_market_thermometer_inputs` 现在对单个 provider 调用施加超时保护；超时或临时网络错误会记录到 raw audit，并继续尝试下一个可用源，而不是整条链路卡死
+- 日频 freshness 统一按工作日年龄计算，周末不消耗 stale 预算；月频仍按自然日计算。该规则同时用于市场温度计、Pulse 日频输入和决策可靠性价格检查。
+- 成交额的 provider timeout 以“交易日历 + 最近 5 个交易日全市场聚合”的生产耗时为基准设置；ETF 规模代理改成沪深两次区间批量请求，避免逐日逐市场调用天然越过 timeout。
+- AKShare 新增开户的原始“万户”通过精确单位规则转换为 canonical“户”；规则缺失或单位不匹配仍 fail closed。
 - `etf_net_flow` 的 verified sync 现在也会应用组件级超时 override，不再误用全局默认 `4s`
 - 当本地环境因 `WinError 10013` 等权限限制直接阻断外网套接字时，ETF 的 EastMoney 直连 fallback 会快速失败并降级，不再在多轮重试里卡成超时
 - 同样的本地权限拒绝语义现在也覆盖了 turnover / Tencent 历史行情 / 市场新闻链路：检测到 `WinError 10013` 时会跳过多轮重试和跨源空转，直接进入降级结果

@@ -174,16 +174,22 @@ def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(m
                 ]
             )
 
-        def etf_share_size(self, trade_date, exchange):
+        def etf_share_size(self, start_date, end_date, exchange):
+            assert start_date == "20260529"
+            assert end_date == "20260601"
             values = {
-                ("20260529", "SSE"): [100.0, 200.0],
-                ("20260529", "SZSE"): [50.0],
-                ("20260601", "SSE"): [110.0, 220.0],
-                ("20260601", "SZSE"): [70.0],
+                "SSE": [
+                    {"trade_date": "20260529", "total_size": 100.0},
+                    {"trade_date": "20260529", "total_size": 200.0},
+                    {"trade_date": "20260601", "total_size": 110.0},
+                    {"trade_date": "20260601", "total_size": 220.0},
+                ],
+                "SZSE": [
+                    {"trade_date": "20260529", "total_size": 50.0},
+                    {"trade_date": "20260601", "total_size": 70.0},
+                ],
             }
-            return pd.DataFrame(
-                [{"total_size": value} for value in values.get((trade_date, exchange), [])]
-            )
+            return pd.DataFrame(values.get(exchange, []))
 
     monkeypatch.setattr(
         "shared.infrastructure.tushare_client.create_tushare_pro_client",
@@ -204,6 +210,46 @@ def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(m
     assert facts[0].unit == "元"
     assert facts[0].extra["proxy"] == "tushare_etf_share_size_delta"
     assert facts[0].extra["flow_method"] == "etf_size_delta"
+
+
+def test_tushare_etf_size_flow_fails_closed_when_one_exchange_is_missing(monkeypatch):
+    """A partial exchange snapshot must never masquerade as total ETF size."""
+
+    class _FakePro:
+        def trade_cal(self, exchange, start_date, end_date):
+            return pd.DataFrame(
+                [
+                    {"cal_date": "20260529", "is_open": 1},
+                    {"cal_date": "20260601", "is_open": 1},
+                ]
+            )
+
+        def etf_share_size(self, start_date, end_date, exchange):
+            del start_date, end_date
+            if exchange == "SZSE":
+                return pd.DataFrame()
+            return pd.DataFrame(
+                [
+                    {"trade_date": "20260529", "total_size": 100.0},
+                    {"trade_date": "20260601", "total_size": 110.0},
+                ]
+            )
+
+    monkeypatch.setattr(
+        "shared.infrastructure.tushare_client.create_tushare_pro_client",
+        lambda token=None, http_url=None: _FakePro(),
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "Tushare Proxy"))
+
+    assert (
+        adapter.fetch_macro_series(
+            "CN_A_ETF_SIZE_FLOW",
+            date(2026, 6, 1),
+            date(2026, 6, 1),
+        )
+        == []
+    )
 
 
 def test_akshare_unified_provider_adapter_maps_capital_flows(monkeypatch):
@@ -728,9 +774,7 @@ def test_akshare_unified_provider_adapter_fetches_new_investor_accounts(monkeypa
 def test_akshare_unified_provider_adapter_falls_back_to_sse_account_openings(monkeypatch):
     class _FakeAkshare:
         def stock_account_statistics_em(self):
-            return pd.DataFrame(
-                [{"数据日期": "2023-08", "新增投资者-数量": 99.59}]
-            )
+            return pd.DataFrame([{"数据日期": "2023-08", "新增投资者-数量": 99.59}])
 
     class _NoOpContext:
         def __enter__(self):

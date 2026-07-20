@@ -41,6 +41,7 @@ from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
 
+
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
     """Standardized Tushare provider wrapper."""
 
@@ -215,13 +216,19 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
 
         pro = create_tushare_pro_client(token=self._config.api_key, http_url=self._config.http_url)
         trade_dates = self._fetch_tushare_open_dates(pro, start_date, end_date)
-        if len(trade_dates) < 2:
+        requested_dates = [item for item in trade_dates if item >= start_date]
+        if not requested_dates:
             return []
+        earlier_dates = [item for item in trade_dates if item < requested_dates[0]]
+        if not earlier_dates:
+            return []
+        flow_dates = [earlier_dates[-1], *requested_dates]
+        totals_by_date = self._fetch_tushare_etf_total_sizes(pro, flow_dates)
 
         facts: list[MacroFact] = []
-        for previous_date, current_date in zip(trade_dates, trade_dates[1:], strict=False):
-            previous_size = self._fetch_tushare_etf_total_size(pro, previous_date)
-            current_size = self._fetch_tushare_etf_total_size(pro, current_date)
+        for previous_date, current_date in zip(flow_dates, flow_dates[1:], strict=False):
+            previous_size = totals_by_date.get(previous_date)
+            current_size = totals_by_date.get(current_date)
             if previous_size is None or current_size is None:
                 continue
             facts.append(
@@ -266,23 +273,41 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 dates.append(trade_date)
         return sorted(set(dates))
 
-    def _fetch_tushare_etf_total_size(self, pro: Any, trade_date: date) -> float | None:
-        total_size = 0.0
-        seen_rows = 0
+    def _fetch_tushare_etf_total_sizes(
+        self,
+        pro: Any,
+        trade_dates: list[date],
+    ) -> dict[date, float]:
+        """Fetch complete SSE+SZSE ETF sizes for a short date range in two calls."""
+
+        if not trade_dates:
+            return {}
+        totals_by_exchange: dict[str, dict[date, float]] = {}
         for exchange in ("SSE", "SZSE"):
             df = pro.etf_share_size(
-                trade_date=trade_date.strftime("%Y%m%d"),
+                start_date=min(trade_dates).strftime("%Y%m%d"),
+                end_date=max(trade_dates).strftime("%Y%m%d"),
                 exchange=exchange,
             )
             if df is None or df.empty:
-                continue
+                return {}
+            exchange_totals: dict[date, float] = {}
             for row in df.to_dict("records"):
+                observed_at = _safe_date(_first_present(row, "trade_date", "date"))
                 value = safe_float(_first_present(row, "total_size"))
-                if value is None:
+                if observed_at is None or observed_at not in trade_dates or value is None:
                     continue
-                total_size += value
-                seen_rows += 1
-        return total_size if seen_rows else None
+                exchange_totals[observed_at] = exchange_totals.get(observed_at, 0.0) + value
+            totals_by_exchange[exchange] = exchange_totals
+
+        complete_totals: dict[date, float] = {}
+        for trade_date in trade_dates:
+            if not all(trade_date in totals_by_exchange[item] for item in ("SSE", "SZSE")):
+                continue
+            complete_totals[trade_date] = sum(
+                totals_by_exchange[item][trade_date] for item in ("SSE", "SZSE")
+            )
+        return complete_totals
 
     def fetch_price_history(
         self,

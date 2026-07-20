@@ -6,6 +6,12 @@ and the cross-module read wrappers (macro facts, regime logs).
 
 from datetime import date
 
+from apps.data_center.infrastructure.macro_fact_selection import (
+    configured_macro_source,
+    select_macro_fact_series,
+)
+from apps.data_center.infrastructure.models import IndicatorCatalogModel, MacroFactModel
+
 from .models import (
     IndicatorPerformanceModel,
     IndicatorThresholdConfigModel,
@@ -313,15 +319,18 @@ class IndicatorRepositoryMixin:
         Returns:
             List[tuple]: (reporting_period, value) 元组列表
         """
-        from apps.data_center.infrastructure.models import MacroFactModel
-
         queryset = MacroFactModel._default_manager.filter(
             indicator_code=indicator_code,
             reporting_period__gte=start_date,
             reporting_period__lte=end_date,
-        ).order_by('reporting_period')
+        ).order_by('reporting_period', 'id')
+        catalog = IndicatorCatalogModel._default_manager.filter(code=indicator_code).first()
+        selection = select_macro_fact_series(
+            list(queryset),
+            preferred_source=configured_macro_source(catalog.extra if catalog else {}),
+        )
 
-        return list(queryset.values_list('reporting_period', 'value'))
+        return [(fact.reporting_period, fact.value) for fact in selection.facts]
 
     def get_regime_log_values(
         self,

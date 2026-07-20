@@ -39,6 +39,7 @@ from apps.data_center.domain.protocols import (
     QuoteSnapshotRepositoryProtocol,
     RawAuditRepositoryProtocol,
 )
+from shared.date_utils import business_day_age
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ TUSHARE_CPI_INDICATORS = frozenset(
     }
 )
 _SOURCE_TYPE_CAPABILITIES = SOURCE_TYPE_CAPABILITIES
+
 
 class RepairDecisionDataReliabilityUseCase:
     """Repair and re-check the data chain required for actionable decisions."""
@@ -378,7 +380,7 @@ class RepairDecisionDataReliabilityUseCase:
             if latest_bar is None:
                 blocked_reasons.append(f"{asset_code}: 无可用历史价格。")
             elif latest_bar.bar_date < target_date:
-                lag_days = (target_date - latest_bar.bar_date).days
+                lag_days = business_day_age(latest_bar.bar_date, target_date)
                 price_details["lag_days"] = lag_days
                 if lag_days <= 3:
                     price_details["freshness_status"] = "latest_completed_session"
@@ -608,6 +610,7 @@ class RepairDecisionDataReliabilityUseCase:
                 normalized.append(item)
                 seen.add(item)
         return normalized
+
 
 __all__ = [
     "AKSHARE_MACRO_INDICATORS",

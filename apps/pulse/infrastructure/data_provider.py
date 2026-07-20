@@ -18,6 +18,7 @@ from apps.data_center.infrastructure.seed_data.macro_indicator_governance import
     is_direct_consumer_input_allowed,
 )
 from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
+from shared.date_utils import business_day_age
 
 logger = logging.getLogger(__name__)
 
@@ -218,13 +219,16 @@ class DjangoPulseDataProvider:
 
             observed_date, current_value, published_at = series[-1]
             freshness_anchor = published_at or observed_date
-            data_age = (as_of_date - freshness_anchor).days
-
             # 判断是否过期
             stale_days = (
                 self.config.daily_stale_days
                 if ind_def.frequency == "daily"
                 else self.config.monthly_stale_days
+            )
+            data_age = (
+                business_day_age(freshness_anchor, as_of_date)
+                if ind_def.frequency == "daily"
+                else max((as_of_date - freshness_anchor).days, 0)
             )
             is_stale = data_age > stale_days
 
@@ -287,8 +291,7 @@ class DjangoPulseDataProvider:
                 indicator_code=code,
                 reporting_period__gte=lookback,
                 reporting_period__lte=as_of_date,
-            )
-            .order_by("reporting_period", "id")
+            ).order_by("reporting_period", "id")
         )
         selection = select_macro_fact_series(
             facts,

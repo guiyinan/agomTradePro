@@ -97,6 +97,7 @@ def macro_series_are_consistent(
         )
     return max_difference <= tolerance, max_difference
 
+
 # ---------------------------------------------------------------------------
 # Unit-normalisation (migrated from macro.domain.entities)
 # ---------------------------------------------------------------------------
@@ -385,7 +386,9 @@ def compute_percentile_score(values: list[float], current_value: float | None) -
     return clamp_score_0_100(((rank - 1) / (len(ordered) - 1)) * 100.0)
 
 
-def compute_rate_of_change(current_value: float | None, previous_value: float | None) -> float | None:
+def compute_rate_of_change(
+    current_value: float | None, previous_value: float | None
+) -> float | None:
     """Return fractional rate of change ``(current / previous) - 1``."""
 
     if current_value is None or previous_value in (None, 0):
@@ -401,7 +404,13 @@ def market_indicator_is_stale(
     daily_stale_days: int = 3,
     monthly_stale_days: int = 45,
 ) -> tuple[bool, int | None]:
-    """Return stale flag and age for market thermometer inputs."""
+    """Return stale flag and age for market thermometer inputs.
+
+    Daily inputs use weekday age so weekends do not consume their freshness
+    budget. Monthly publication lags remain calendar-day based.
+    """
+
+    from shared.date_utils import business_day_age
 
     if observed_at is None:
         return (True, None)
@@ -409,6 +418,7 @@ def market_indicator_is_stale(
     age_days = max(0, (target_date - observed_at).days)
     if str(frequency).upper() == "M":
         return (age_days > monthly_stale_days, age_days)
+    age_days = business_day_age(observed_at, target_date)
     return (age_days > daily_stale_days, age_days)
 
 

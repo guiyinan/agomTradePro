@@ -33,9 +33,14 @@ def test_pulse_data_provider_reads_data_center_macro_facts():
             value=value,
             unit="bp",
             reporting_period=date(2026, 3, idx),
-            source="manual",
+            source="akshare",
             published_at=date(2026, 3, idx),
-            extra={"original_unit": "bp", "period_type": "D"},
+            extra={
+                "original_unit": "bp",
+                "period_type": "D",
+                "source_type": "akshare",
+                "provider_name": "AKShare Public",
+            },
         )
 
     readings = DjangoPulseDataProvider().get_all_readings(date(2026, 3, 3))
@@ -66,10 +71,15 @@ def test_pulse_data_provider_reads_latest_data_center_macro_fact():
             reporting_period=date(2026, 4, day),
             value=value,
             unit="指数",
-            source="AKShare Public",
+            source="akshare",
             published_at=date(2026, 4, day),
             quality="valid",
-            extra={"original_unit": "指数", "period_type": "M"},
+            extra={
+                "original_unit": "指数",
+                "period_type": "M",
+                "source_type": "akshare",
+                "provider_name": "AKShare Public",
+            },
         )
 
     readings = DjangoPulseDataProvider().get_all_readings(date(2026, 4, 21))
@@ -110,6 +120,38 @@ def test_pulse_data_provider_reads_asset_code_from_data_center_price_bars():
     assert len(readings) == 1
     assert readings[0].code == "000300.SH"
     assert readings[0].value == 3925.5
+
+
+@pytest.mark.django_db
+def test_pulse_daily_freshness_does_not_count_weekend_days():
+    PulseIndicatorConfigModel.objects.create(
+        indicator_code="000300.SH",
+        indicator_name="沪深300",
+        dimension="sentiment",
+        frequency="daily",
+        weight=1.0,
+        signal_type="level",
+        bullish_threshold=4100.0,
+        bearish_threshold=3500.0,
+        neutral_band=0.5,
+        signal_multiplier=0.4,
+        is_active=True,
+    )
+    PriceBarModel.objects.create(
+        asset_code="000300.SH",
+        bar_date=date(2026, 7, 15),
+        open=3800.0,
+        high=3950.0,
+        low=3790.0,
+        close=3925.5,
+        source="Tushare Pro",
+    )
+
+    readings = DjangoPulseDataProvider().get_all_readings(date(2026, 7, 20))
+
+    assert len(readings) == 1
+    assert readings[0].data_age_days == 3
+    assert readings[0].is_stale is False
 
 
 def test_default_pulse_indicators_use_m2_yoy_not_balance_level():

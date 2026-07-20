@@ -34,6 +34,7 @@
 
 - `MacroFactGovernanceNormalizer` 是事实写入前的统一治理入口，负责 catalog 存在性、单位规则、canonical value/unit、source、original/display unit、dimension、multiplier、matched rule、period type 与 publication lag。
 - `SyncMacroUseCase`、市场温度计同步、市场新闻派生指标、ETF 多源共识和投资者账户导入均走该入口；`MacroFactRepository` 会拒绝缺少治理元数据的旁路写入。
+- 所有决策型读取（Regime、Pulse、Filter、Macro 投影、缓存预热、市场温度计与 Audit 指标评估）必须经过 `select_macro_fact_series`；管理命令中面向原始行的治理诊断可以直接枚举 ORM，但不得把原始行结果回流为业务信号。
 - Equity 指数行情只写 `PriceBar`，不再把指数点位重复镜像为未登记的宏观指标。
 - 迁移 `0033_close_macro_fact_governance_gaps` 补齐晚于治理迁移创建的 ETF 指标元数据，统一期限利差为 BP，并批量回填历史事实治理字段；期限利差旧 `%` 标签只改为 `BP`，不改变已存数值。
 - 冷启动会修复 indicator metadata；VPS 发布在切换版本前执行以下只读漂移门禁，任一不为零即中止发布：

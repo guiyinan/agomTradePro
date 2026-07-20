@@ -45,7 +45,9 @@ MARKET_THERMOMETER_PROVIDER_TIMEOUT_SECONDS = 4
 ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS = 35.0
 MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES = {
     "new_investor_accounts": 25.0,
-    "turnover": 12.0,
+    # Five daily full-market calls plus the trading calendar take 20-40s on
+    # production Tushare-compatible endpoints. Keep a bounded but realistic budget.
+    "turnover": 45.0,
     "etf_net_flow": ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS,
 }
 RECOVERABLE_THERMOMETER_EXCEPTIONS = (

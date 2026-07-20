@@ -23,7 +23,36 @@ from apps.data_center.domain.entities import (
     ProviderConfig,
 )
 from apps.data_center.domain.enums import DataQualityStatus
+from apps.data_center.domain.rules import market_indicator_is_stale
 from apps.data_center.infrastructure.macro_sources.base import DataSourceUnavailableError
+
+
+def test_daily_market_indicator_staleness_counts_business_days() -> None:
+    """Weekend days must not consume the daily freshness budget."""
+
+    is_stale, age_days = market_indicator_is_stale(
+        date(2026, 7, 15),
+        frequency="D",
+        as_of_date=date(2026, 7, 20),
+        daily_stale_days=3,
+    )
+
+    assert is_stale is False
+    assert age_days == 3
+
+
+def test_monthly_market_indicator_staleness_keeps_calendar_days() -> None:
+    """Monthly publication freshness remains calendar based."""
+
+    is_stale, age_days = market_indicator_is_stale(
+        date(2026, 7, 15),
+        frequency="M",
+        as_of_date=date(2026, 7, 20),
+        monthly_stale_days=3,
+    )
+
+    assert is_stale is True
+    assert age_days == 5
 
 
 @dataclass
@@ -426,6 +455,10 @@ def test_etf_timeout_override_covers_direct_eastmoney_fallback_budget():
         == market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS
     )
     assert market_thermometer_module.ETF_NET_FLOW_PROVIDER_TIMEOUT_SECONDS >= 30.0
+
+
+def test_turnover_timeout_covers_full_market_daily_aggregation_budget():
+    assert market_thermometer_module.MARKET_THERMOMETER_PROVIDER_TIMEOUT_OVERRIDES["turnover"] >= 30
 
 
 def test_sync_market_thermometer_inputs_marks_market_news_no_data_when_nothing_is_stored():

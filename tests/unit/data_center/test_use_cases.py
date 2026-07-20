@@ -1153,6 +1153,29 @@ class TestRepairDecisionDataReliabilityUseCase:
         assert price_contract["lag_days"] == 1
         assert payload["must_not_use_for_decision"] is False
 
+    def test_accepts_weekend_price_age_in_business_days(self):
+        target_date = date(2026, 7, 20)
+        use_case = self._make_use_case(
+            target_date=target_date,
+            price_date=date(2026, 7, 15),
+        )
+
+        report = use_case.execute(
+            DecisionReliabilityRepairRequest(
+                target_date=target_date,
+                asset_codes=["510300.SH"],
+                macro_indicator_codes=["CN_PMI"],
+                repair_pulse=False,
+                repair_alpha=False,
+            )
+        )
+
+        payload = report.to_dict()
+        price_contract = payload["quote_status"]["details"]["prices"]["510300.SH"]
+        assert price_contract["freshness_status"] == "latest_completed_session"
+        assert price_contract["lag_days"] == 3
+        assert payload["must_not_use_for_decision"] is False
+
     def test_existing_inactive_akshare_is_not_overwritten(self):
         repo = _InMemoryRepo()
         repo.save(
