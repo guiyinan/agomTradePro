@@ -160,6 +160,7 @@ INSTALLED_APPS = [
     "apps.strategy",  # 新增：投资组合策略系统
     "apps.realtime",  # 新增：实时价格监控模块
     # ========== 新模块：决策流程优化 ==========
+    "apps.valuation",  # 独立估值引擎 owner（R3-lite）
     "apps.decision_rhythm",  # 决策频率约束模块（新增）
     "apps.alpha_trigger",  # Alpha 离散触发模块（新增）
     "apps.events",  # 事件总线模块（新增）

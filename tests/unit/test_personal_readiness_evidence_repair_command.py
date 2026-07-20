@@ -218,9 +218,12 @@ def test_repair_personal_readiness_evidence_archives_and_rewrites(monkeypatch, t
     assert archived_json.exists()
     assert archived_markdown.exists()
     assert manifest_path.exists()
-    assert json.loads(archived_json.read_text(encoding="utf-8"))["system"]["checks"][
-        "alpha_workspace_consistency"
-    ]["status"] == "warning"
+    assert (
+        json.loads(archived_json.read_text(encoding="utf-8"))["system"]["checks"][
+            "alpha_workspace_consistency"
+        ]["status"]
+        == "warning"
+    )
     repaired = json.loads(json_path.read_text(encoding="utf-8"))
     assert repaired["operation_context"]["trigger_source"] == "repair"
     assert repaired["repair_context"]["reason"] == "alpha_workspace_fix"
@@ -304,7 +307,9 @@ def test_inspect_personal_readiness_evidence_suggests_historical_repair(tmp_path
         encoding="utf-8",
     )
 
-    from apps.task_monitor.management.commands import inspect_personal_readiness_evidence as inspect_module
+    from apps.task_monitor.management.commands import (
+        inspect_personal_readiness_evidence as inspect_module,
+    )
 
     payload = inspect_module.inspect_personal_readiness_evidence(
         output_dir=tmp_path,

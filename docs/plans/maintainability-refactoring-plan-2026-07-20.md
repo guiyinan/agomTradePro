@@ -1,7 +1,7 @@
 # 代码库可维护性定向重构计划
 
 > **文档日期**: 2026-07-20
-> **状态**: R0 与 R1 已完成；R1A 保持 deprecated，物理删除等待独立 sunset 评审
+> **状态**: R0、R1、R2 与 R3-lite 已完成；完整 R3 的 advisor/recommendation 拆分按真实开发需求延后；R1A 保持 deprecated，物理删除等待独立 sunset 评审
 > **适用对象**: 架构负责人 / 开发负责人 / 测试负责人
 > **依据**: 2026-07-20 全仓代码审计（两轮结构调查，逐文件统计）
 > **目标**: 不做推倒重写，通过"归位 + 收敛"定向重构，先将全仓 Python 从 ~69 万行收敛到保守可承诺的 ~61-63 万行；若 `filter` 完成 sunset 并满足物理下线条件，则进入 ~59-61 万行；在 R6 候选逐项证实且不牺牲语义后，再以 ~56-58 万行为延伸目标。可维护性收益以模块边界、稳定契约和单一真源为主，不以删行数作为单批验收门槛
@@ -14,8 +14,12 @@
 | R1A | deprecated 阶段完成 | Filter API/SDK/MCP 发布弃用契约；因 TUI 与 governed MCP 仍是登记消费者且无生产连续日志窗口，未物理删除 |
 | R1B | 完成 | readiness evidence provenance、quote freshness、workspace core 分类收敛为公共真源 |
 | R1C | 完成 | 新 owner 为 `apps.operational_readiness`；旧命令模块和旧 Celery task name 保留兼容代理，静态 Beat 与 setup 命令的 canonical task 已切换；专项、固定、治理与 Celery 注册回归均通过 |
+| R2 | 完成 | API fixture/root/auth 契约、TUI 静态源码契约、AI capability manifest 投影、SDK owner 同型 case 与 readiness 证据/调度矩阵已收敛；语义迁移映射和阶段记录见 `docs/plans/maintainability-r2/` |
+| R3-lite | 完成 | 新建 `apps.valuation` 作为估值快照、质量/新鲜度策略与估值选择用例的 canonical owner；`feature_providers.py` 估值段已迁出；旧 import、ORM app identity 和 `/api/valuation/**` 路径保持兼容 |
 
 R1A 的物理删除不属于本次完成项；必须等到 2026-09-30 前后的独立 sunset 评审且四重证据门槛全部满足。
+
+R2 + R3-lite 收口后不自动继续完整 R3。当前维护边界稳定在“测试重复收敛 + valuation canonical owner + 兼容 facade”；advisor/recommendation 仅在进入高频开发时再启动独立拆分。广域回归暴露的 macro canonical fixture、regime fallback fixture 与 strategy regime 枚举 fixture 漂移已登记为三个独立稳定性债务，避免与本次架构主线混改。
 
 ---
 
@@ -160,13 +164,15 @@ R1A 的物理删除不属于本次完成项；必须等到 2026-09-30 前后的�
 
 | 项 | 内容 |
 |---|---|
-| 范围 | ① 顶层 `tests/conftest.py` 提供共享 `api_client/auth_user/authenticated_client` 与实体工厂，消除 252 处 `create_user` 重复；② `tests/api/test_*_api_edges.py` 参数化为"端点×角色×断言"契约矩阵，同时保留端点特有副作用与错误语义测试；③ `test_tui_workbench.py` 静态字符串断言改为扫描脚本 + 少量契约测试；④ ai_capability per-owner 族参数化；⑤ readiness 测试族只在 R1C 合并后处理，R1A/R1B/R1C 期间不得并行重写 |
-| 行数影响 | tests 20 万 → 15-16 万（api_edges 14.7k→~7k；tui_workbench 7.8k→~2k；readiness 9.9k→~5k；ai_capability 12.5k→~5k） |
+| 范围 | ① `tests/api/conftest.py` 在 API 目录边界提供共享 `api_client/auth_user/authenticated_client`，特殊角色和 session 登录保留局部 override；② `tests/api/test_*_api_edges.py` 中已证实同型的 root/auth 契约迁入"端点×角色×断言"矩阵，端点特有副作用与错误语义测试原位保留；③ `test_tui_workbench.py` 的纯静态字符串断言改为扫描脚本 + 声明式规则 + 少量契约测试；④ ai_capability governed manifest 投影按完整清单参数化，SDK owner 只合并已证实同型 case；⑤ readiness 测试族在 R1C 合并后迁入 evidence/scheduler 矩阵 |
+| 行数影响 | 执行前候选族 46,485 行，执行后含新增 scanner、规则、fixture、support 的对应载体 41,563 行，净减少 4,922 行；其中 API 9,593→9,170、AI owner/projection 8,051→516、SDK owner/support 11,124→11,131、readiness 9,952→9,670。TUI Python 测试由 7,765→7,161 行，另新增 166 行 scanner 与 3,749 行可机读规则；规则数据不伪装为 Python 测试减行收益 |
 | 验收标准 | 建立“原测试 ID/语义 → 新矩阵 case/扫描规则”映射；权限、状态码、Content-Type、数据库副作用和错误分支覆盖不减少；pytest collected case 数仅作观察指标，不作为覆盖充分性的替代；无新增 skip/xfail；全量 pytest 通过 |
 | 回归范围 | 被参数化的每个测试族单独跑通后，运行全量 unit/API/integration；TUI 相关变更补 UAT/Playwright 抽样，不以全量 unit 替代用户流程验证 |
 | 回滚点 | 每个测试族一个 commit，可单独 revert |
 
 ### R3 decision_rhythm 拆分为 4 个模块（中风险，契约测试先行）
+
+> 执行调整：2026-07-20 已完成 R3-lite，仅拆 `valuation` 无状态引擎与 composition。`advisor`、`recommendation`、ORM state migration 和 API owner 物理切换不属于本批，待对应区域进入高频开发或具备独立迁移窗口后再启动。
 
 | 项 | 内容 |
 |---|---|

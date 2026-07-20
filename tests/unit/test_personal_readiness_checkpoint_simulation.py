@@ -53,10 +53,7 @@ def test_simulate_personal_readiness_checkpoints_uses_injected_times(monkeypatch
     assert payload["mutates_state"] is False
     assert payload["generates_evidence"] is False
     assert len(payload["checkpoints"]) == 4
-    assert (
-        payload["checkpoints"][0]["quote_pre_readiness"]["due_status"]
-        == "grace_period"
-    )
+    assert payload["checkpoints"][0]["quote_pre_readiness"]["due_status"] == "grace_period"
     assert payload["checkpoints"][1]["daily_readiness"]["due_status"] == "grace_period"
     assert payload["checkpoints"][2]["weekly_auto_advisor"] == {
         "due": False,

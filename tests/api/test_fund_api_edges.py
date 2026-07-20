@@ -3,8 +3,6 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.fund.domain.entities import FundHolding, FundInfo, FundNetValue, FundScore
 from apps.fund.infrastructure.models import (
@@ -15,37 +13,6 @@ from apps.fund.infrastructure.models import (
 )
 from apps.fund.infrastructure.repositories import DjangoFundRepository
 from apps.regime.infrastructure.models import RegimeLog
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="fund_user",
-        password="testpass123",
-        email="fund@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
-@pytest.mark.django_db
-def test_fund_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/fund/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["screen"] == "/api/fund/screen/"
-    assert payload["endpoints"]["multidim_screen"] == "/api/fund/multidim-screen/"
 
 
 @pytest.mark.django_db
@@ -149,8 +116,7 @@ def test_fund_screen_and_rank_use_persisted_snapshots_without_writes(
         RegimeLog,
     )
     before = {
-        model._meta.label: list(model.objects.order_by("pk").values())
-        for model in tracked_models
+        model._meta.label: list(model.objects.order_by("pk").values()) for model in tracked_models
     }
 
     with (
@@ -201,8 +167,7 @@ def test_fund_screen_and_rank_use_persisted_snapshots_without_writes(
     assert score_response.json()["score"]["fund_code"] == "000001"
     assert score_response.json()["score"]["rank"] == 1
     after = {
-        model._meta.label: list(model.objects.order_by("pk").values())
-        for model in tracked_models
+        model._meta.label: list(model.objects.order_by("pk").values()) for model in tracked_models
     }
     assert after == before
 
@@ -384,7 +349,9 @@ def test_fund_style_returns_404_when_use_case_reports_missing_fund(authenticated
         },
     )()
 
-    with patch("apps.fund.interface.views.AnalyzeFundStyleUseCase.execute", return_value=response_obj):
+    with patch(
+        "apps.fund.interface.views.AnalyzeFundStyleUseCase.execute", return_value=response_obj
+    ):
         response = authenticated_client.get("/api/fund/style/000001/")
 
     assert response.status_code == 404
@@ -394,7 +361,10 @@ def test_fund_style_returns_404_when_use_case_reports_missing_fund(authenticated
 
 @pytest.mark.django_db
 def test_fund_multidim_screen_returns_500_on_exception(authenticated_client):
-    with patch("apps.fund.application.services.FundMultiDimScorer.screen_funds", side_effect=RuntimeError("boom")):
+    with patch(
+        "apps.fund.application.services.FundMultiDimScorer.screen_funds",
+        side_effect=RuntimeError("boom"),
+    ):
         response = authenticated_client.post(
             "/api/fund/multidim-screen/",
             {

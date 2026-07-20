@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-20.v155",
+  "version": "2026-07-20.v157",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -16,8 +16,8 @@
     "unsupported_legacy_contract_count": 0,
     "raw_tool_file_count": 36
   },
-  "business_module_count": 38,
-  "static_test_function_count": 7056,
+  "business_module_count": 39,
+  "static_test_function_count": 6909,
   "module_shape_minimums": {
     "account": 9,
     "agent_runtime": 9,
@@ -56,7 +56,8 @@
     "simulated_trading": 10,
     "strategy": 11,
     "task_monitor": 8,
-    "terminal": 9
+    "terminal": 9,
+    "valuation": 11
   },
   "allowed_application_third_party_imports": {
     "apps/alpha/application/tasks.py": {

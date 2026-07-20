@@ -7,34 +7,11 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-
-class ValuationMethod(Enum):
-    """
-    估值方法枚举
-
-    定义支持的估值计算方法。
-    """
-
-    DCF = "DCF"
-    """现金流折现法"""
-
-    PE_BAND = "PE_BAND"
-    """PE 通道法"""
-
-    PB_BAND = "PB_BAND"
-    """PB 通道法"""
-
-    PEG = "PEG"
-    """PEG 估值法"""
-
-    DIVIDEND = "DIVIDEND"
-    """股息折现法"""
-
-    COMPOSITE = "COMPOSITE"
-    """综合估值法"""
-
-    FALLBACK = "FALLBACK"
-    """当前价兜底估值"""
+from apps.valuation.domain.entities import (
+    ValuationMethod,
+    ValuationSnapshot,
+    create_valuation_snapshot,
+)
 
 
 class ApprovalStatus(Enum):
@@ -76,126 +53,6 @@ class RecommendationSide(Enum):
 
     HOLD = "HOLD"
     """持有"""
-
-
-@dataclass(frozen=True)
-class ValuationSnapshot:
-    """
-    估值快照
-
-    捕获决策时的估值状态，用于后续追溯和审计。
-
-    Attributes:
-        snapshot_id: 快照唯一标识
-        security_code: 证券代码
-        valuation_method: 估值方法
-        fair_value: 公允价值
-        entry_price_low: 入场价格下限
-        entry_price_high: 入场价格上限
-        target_price_low: 目标价格下限
-        target_price_high: 目标价格上限
-        stop_loss_price: 止损价格
-        calculated_at: 计算时间
-        input_parameters: 输入参数
-        version: 版本号
-        is_legacy: 是否为历史数据迁移
-
-    Example:
-        >>> snapshot = ValuationSnapshot(
-        ...     snapshot_id="vs_001",
-        ...     security_code="000001.SH",
-        ...     valuation_method=ValuationMethod.COMPOSITE,
-        ...     fair_value=Decimal("12.50"),
-        ...     entry_price_low=Decimal("10.50"),
-        ...     entry_price_high=Decimal("11.00"),
-        ...     target_price_low=Decimal("13.00"),
-        ...     target_price_high=Decimal("14.50"),
-        ...     stop_loss_price=Decimal("9.50"),
-        ...     calculated_at=datetime.now(timezone.utc),
-        ...     input_parameters={"pe_percentile": 0.15, "pb_percentile": 0.20},
-        ... )
-    """
-
-    snapshot_id: str
-    security_code: str
-    valuation_method: str  # ValuationMethod enum value
-    fair_value: Decimal
-    entry_price_low: Decimal
-    entry_price_high: Decimal
-    target_price_low: Decimal
-    target_price_high: Decimal
-    stop_loss_price: Decimal
-    calculated_at: datetime
-    input_parameters: dict[str, Any]
-    version: int = 1
-    is_legacy: bool = False
-
-    @property
-    def entry_range(self) -> tuple[Decimal, Decimal]:
-        """入场价格区间"""
-        return (self.entry_price_low, self.entry_price_high)
-
-    @property
-    def target_range(self) -> tuple[Decimal, Decimal]:
-        """目标价格区间"""
-        return (self.target_price_low, self.target_price_high)
-
-    @property
-    def upside_potential(self) -> Decimal:
-        """上行空间（基于入场价中位）"""
-        entry_mid = (self.entry_price_low + self.entry_price_high) / 2
-        target_mid = (self.target_price_low + self.target_price_high) / 2
-        if entry_mid > 0:
-            return (target_mid - entry_mid) / entry_mid * 100
-        return Decimal("0")
-
-    @property
-    def downside_risk(self) -> Decimal:
-        """下行风险（基于入场价中位）"""
-        entry_mid = (self.entry_price_low + self.entry_price_high) / 2
-        if entry_mid > 0:
-            return (entry_mid - self.stop_loss_price) / entry_mid * 100
-        return Decimal("0")
-
-    @property
-    def risk_reward_ratio(self) -> Decimal:
-        """风险收益比"""
-        if self.downside_risk > 0:
-            return self.upside_potential / self.downside_risk
-        return Decimal("0")
-
-    def is_price_in_entry_range(self, price: Decimal) -> bool:
-        """检查价格是否在入场区间内"""
-        return self.entry_price_low <= price <= self.entry_price_high
-
-    def is_price_above_target(self, price: Decimal) -> bool:
-        """检查价格是否达到目标区间"""
-        return price >= self.target_price_low
-
-    def should_stop_loss(self, price: Decimal) -> bool:
-        """检查是否触发止损"""
-        return price <= self.stop_loss_price
-
-    def to_dict(self) -> dict[str, Any]:
-        """转换为字典"""
-        return {
-            "snapshot_id": self.snapshot_id,
-            "security_code": self.security_code,
-            "valuation_method": self.valuation_method,
-            "fair_value": str(self.fair_value),
-            "entry_price_low": str(self.entry_price_low),
-            "entry_price_high": str(self.entry_price_high),
-            "target_price_low": str(self.target_price_low),
-            "target_price_high": str(self.target_price_high),
-            "stop_loss_price": str(self.stop_loss_price),
-            "calculated_at": self.calculated_at.isoformat(),
-            "input_parameters": self.input_parameters,
-            "version": self.version,
-            "is_legacy": self.is_legacy,
-            "upside_potential": str(self.upside_potential),
-            "downside_risk": str(self.downside_risk),
-            "risk_reward_ratio": str(self.risk_reward_ratio),
-        }
 
 
 @dataclass(frozen=True)
@@ -507,52 +364,6 @@ class ExecutionApprovalRequest:
             "is_executed": self.is_executed,
             "is_rejected": self.is_rejected,
         }
-
-
-def create_valuation_snapshot(
-    security_code: str,
-    valuation_method: str,
-    fair_value: Decimal,
-    entry_price_low: Decimal,
-    entry_price_high: Decimal,
-    target_price_low: Decimal,
-    target_price_high: Decimal,
-    stop_loss_price: Decimal,
-    input_parameters: dict[str, Any],
-    is_legacy: bool = False,
-) -> ValuationSnapshot:
-    """
-    创建估值快照的便捷函数
-
-    Args:
-        security_code: 证券代码
-        valuation_method: 估值方法
-        fair_value: 公允价值
-        entry_price_low: 入场价格下限
-        entry_price_high: 入场价格上限
-        target_price_low: 目标价格下限
-        target_price_high: 目标价格上限
-        stop_loss_price: 止损价格
-        input_parameters: 输入参数
-        is_legacy: 是否为历史数据
-
-    Returns:
-        ValuationSnapshot 实例
-    """
-    return ValuationSnapshot(
-        snapshot_id=f"vs_{uuid4().hex[:12]}",
-        security_code=security_code,
-        valuation_method=valuation_method,
-        fair_value=fair_value,
-        entry_price_low=entry_price_low,
-        entry_price_high=entry_price_high,
-        target_price_low=target_price_low,
-        target_price_high=target_price_high,
-        stop_loss_price=stop_loss_price,
-        calculated_at=datetime.now(UTC),
-        input_parameters=input_parameters,
-        is_legacy=is_legacy,
-    )
 
 
 def create_investment_recommendation(

@@ -19,6 +19,18 @@ from agomtradepro_mcp.registry.manifest import (
 from agomtradepro_mcp.tools.core_tools import CORE_TOOL_NAMES
 
 
+@pytest.fixture(autouse=True)
+def _isolate_core_dispatcher_role(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give owner contract tests an explicit staff role for each test case."""
+    import agomtradepro_mcp.server as server_module
+
+    monkeypatch.setattr(
+        server_module.CORE_DISPATCHER,
+        "_role_provider",
+        lambda: "staff",
+    )
+
+
 def _capture_governed_audit_events(monkeypatch: pytest.MonkeyPatch, dispatcher) -> list[dict]:
     events: list[dict] = []
 

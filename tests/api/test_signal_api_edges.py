@@ -2,32 +2,10 @@ from datetime import date
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.regime.application.current_regime import CurrentRegimeResult
 from apps.signal.domain.rules import Eligibility
 from apps.signal.infrastructure.models import InvestmentSignalModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="signal_user",
-        password="testpass123",
-        email="signal@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture
@@ -58,7 +36,9 @@ def test_signal_retrieve_returns_success_contract(authenticated_client, sample_s
 
 @pytest.mark.django_db
 def test_signal_approve_updates_status(authenticated_client, sample_signal):
-    response = authenticated_client.post(f"/api/signal/{sample_signal.id}/approve/", {}, format="json")
+    response = authenticated_client.post(
+        f"/api/signal/{sample_signal.id}/approve/", {}, format="json"
+    )
 
     assert response.status_code == 200
     sample_signal.refresh_from_db()
@@ -108,12 +88,15 @@ def test_signal_check_eligibility_returns_success_contract(authenticated_client)
         data_source="test",
         warnings=[],
     )
-    with patch(
-        "apps.signal.application.query_services.resolve_current_regime",
-        return_value=current_regime,
-    ), patch(
-        "apps.signal.application.query_services.check_eligibility",
-        return_value=Eligibility.PREFERRED,
+    with (
+        patch(
+            "apps.signal.application.query_services.resolve_current_regime",
+            return_value=current_regime,
+        ),
+        patch(
+            "apps.signal.application.query_services.check_eligibility",
+            return_value=Eligibility.PREFERRED,
+        ),
     ):
         response = authenticated_client.post(
             "/api/signal/check_eligibility/",

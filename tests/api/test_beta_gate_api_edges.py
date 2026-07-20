@@ -7,26 +7,6 @@ from apps.events.infrastructure.event_store import StoredEventModel
 
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="beta_gate_user",
-        password="testpass123",
-        email="beta-gate@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
-@pytest.fixture
 def staff_user(db):
     return get_user_model().objects.create_user(
         username="beta_gate_staff",
@@ -64,17 +44,6 @@ def test_beta_gate_config_catalog_success_contract(authenticated_client):
         "count": 0,
         "results": [],
     }
-
-
-@pytest.mark.django_db
-def test_beta_gate_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/beta-gate/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["configs"] == "/api/beta-gate/configs/"
-    assert payload["endpoints"]["test"] == "/api/beta-gate/test/"
 
 
 @pytest.mark.django_db
@@ -317,15 +286,18 @@ def test_beta_gate_version_compare_is_authenticated_and_read_only(
         "policy_constraints",
         "portfolio_constraints",
     }
-    assert list(
-        GateConfigModel.objects.order_by("config_id").values(
-            "config_id",
-            "version",
-            "is_active",
-            "effective_date",
-            "updated_at",
+    assert (
+        list(
+            GateConfigModel.objects.order_by("config_id").values(
+                "config_id",
+                "version",
+                "is_active",
+                "effective_date",
+                "updated_at",
+            )
         )
-    ) == before
+        == before
+    )
 
 
 @pytest.mark.django_db
@@ -494,13 +466,16 @@ def test_beta_gate_all_config_catalog_is_read_only(staff_client):
     assert response.status_code == 200
     assert response.json()["count"] == 1
     assert response.json()["results"][0]["config_id"] == "beta-history"
-    assert list(
-        GateConfigModel.objects.values(
-            "config_id",
-            "version",
-            "is_active",
+    assert (
+        list(
+            GateConfigModel.objects.values(
+                "config_id",
+                "version",
+                "is_active",
+            )
         )
-    ) == before
+        == before
+    )
 
 
 @pytest.mark.django_db

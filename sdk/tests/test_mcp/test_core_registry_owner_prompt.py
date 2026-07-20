@@ -4,81 +4,76 @@
 from .core_registry_support import *
 
 
-def test_agom_capability_call_reads_prompt_template_catalog_in_core_only_mode(
+@pytest.mark.parametrize(
+    ("fallback_name", "capability_key", "payload", "expected_label"),
+    [
+        pytest.param(
+            "list_prompt_templates",
+            "prompt.read.template_catalog",
+            {
+                "templates": [
+                    {
+                        "id": 9,
+                        "name": "Macro Weekly Brief",
+                        "category": "report",
+                        "version": "1.2",
+                    }
+                ],
+                "total_count": 1,
+                "source": "core-only-fallback",
+            },
+            "Macro Weekly Brief",
+            id="template-catalog",
+        ),
+        pytest.param(
+            "list_prompt_chains",
+            "prompt.read.chain_catalog",
+            {
+                "chains": [
+                    {
+                        "id": 21,
+                        "name": "Macro Review Flow",
+                        "category": "analysis",
+                        "execution_mode": "serial",
+                    }
+                ],
+                "total_count": 1,
+                "source": "core-only-fallback",
+            },
+            "Macro Review Flow",
+            id="chain-catalog",
+        ),
+    ],
+)
+def test_agom_capability_call_reads_prompt_catalog_in_core_only_mode(
     monkeypatch: pytest.MonkeyPatch,
     core_only_mcp_server,
-):
+    fallback_name: str,
+    capability_key: str,
+    payload: dict,
+    expected_label: str,
+) -> None:
     import agomtradepro_mcp.server as server_module
 
     monkeypatch.setitem(
         server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
-        "list_prompt_templates",
-        lambda **kwargs: {
-            "templates": [
-                {
-                    "id": 9,
-                    "name": "Macro Weekly Brief",
-                    "category": "report",
-                    "version": "1.2",
-                }
-            ],
-            "total_count": 1,
-            "source": "core-only-fallback",
-        },
+        fallback_name,
+        lambda **kwargs: payload,
     )
 
     result = asyncio.run(
         core_only_mcp_server.call_tool(
             "agom_capability_call",
             {
-                "capability_key": "prompt.read.template_catalog",
+                "capability_key": capability_key,
                 "arguments": {},
             },
         )
     )
 
     rendered = str(result)
-    assert "prompt.read.template_catalog" in rendered
-    assert "Macro Weekly Brief" in rendered
-    assert "core-only-fallback" in rendered
-
-
-def test_agom_capability_call_reads_prompt_chain_catalog_in_core_only_mode(
-    monkeypatch: pytest.MonkeyPatch,
-    core_only_mcp_server,
-):
-    import agomtradepro_mcp.server as server_module
-
-    monkeypatch.setitem(
-        server_module.INTERNAL_LEGACY_TOOL_FALLBACKS,
-        "list_prompt_chains",
-        lambda **kwargs: {
-            "chains": [
-                {
-                    "id": 21,
-                    "name": "Macro Review Flow",
-                    "category": "analysis",
-                    "execution_mode": "serial",
-                }
-            ],
-            "total_count": 1,
-            "source": "core-only-fallback",
-        },
-    )
-
-    result = asyncio.run(
-        core_only_mcp_server.call_tool(
-            "agom_capability_call",
-            {
-                "capability_key": "prompt.read.chain_catalog",
-                "arguments": {},
-            },
-        )
-    )
-
-    rendered = str(result)
-    assert "prompt.read.chain_catalog" in rendered
-    assert "Macro Review Flow" in rendered
+    assert capability_key in rendered
+    assert expected_label in rendered
     assert "core-only-fallback" in rendered
 
 

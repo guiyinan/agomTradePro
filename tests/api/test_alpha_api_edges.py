@@ -4,23 +4,8 @@ from unittest.mock import patch
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.test import APIClient
 
 from apps.alpha.domain.entities import AlphaResult, StockScore
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="alpha_user",
-        password="testpass123",
-        email="alpha@example.com",
-    )
 
 
 @pytest.fixture
@@ -31,12 +16,6 @@ def staff_user(db):
         email="alpha-staff@example.com",
         is_staff=True,
     )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.mark.django_db
@@ -118,18 +97,6 @@ def test_alpha_health_success_contract(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_alpha_api_root_contract():
-    client = APIClient()
-    response = client.get("/api/alpha/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["module"] == "alpha"
-    assert "/api/alpha/scores/" in payload["endpoints"]
-
-
-@pytest.mark.django_db
 def test_alpha_scores_reject_invalid_top_n(authenticated_client):
     response = authenticated_client.get("/api/alpha/scores/?top_n=0")
 
@@ -167,9 +134,7 @@ def test_alpha_scores_support_limit_offset_pagination(authenticated_client):
         "apps.alpha.interface.views.AlphaService.get_stock_scores",
         return_value=result,
     ) as get_scores:
-        response = authenticated_client.get(
-            "/api/alpha/scores/?top_n=5&limit=2&offset=2"
-        )
+        response = authenticated_client.get("/api/alpha/scores/?top_n=5&limit=2&offset=2")
 
     assert response.status_code == 200
     payload = response.json()

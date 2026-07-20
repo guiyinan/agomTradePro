@@ -1,28 +1,6 @@
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.asset_analysis.infrastructure.models import AssetPoolEntry, WeightConfigModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="asset_pool_user",
-        password="testpass123",
-        email="asset-pool@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.mark.django_db
@@ -123,8 +101,7 @@ def test_asset_current_weight_contract_uses_requested_context(authenticated_clie
     )
 
     response = authenticated_client.get(
-        "/api/asset-analysis/current-weight/"
-        "?asset_type=equity&market_condition=crisis"
+        "/api/asset-analysis/current-weight/" "?asset_type=equity&market_condition=crisis"
     )
 
     assert response.status_code == 200

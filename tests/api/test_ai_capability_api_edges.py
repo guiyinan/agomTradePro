@@ -5,15 +5,9 @@ import pytest
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.urls import re_path
-from rest_framework.test import APIClient
 
 from apps.ai_capability.infrastructure.collectors.api_collector import ApiCapabilityCollector
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
 
 
 @pytest.fixture

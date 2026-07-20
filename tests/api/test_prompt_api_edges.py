@@ -2,30 +2,9 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.prompt.infrastructure.models import ChainConfigORM, PromptTemplateORM
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="prompt_user",
-        password="testpass123",
-        email="prompt@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture
@@ -42,17 +21,6 @@ def staff_user(db):
 def staff_client(api_client, staff_user):
     api_client.force_authenticate(user=staff_user)
     return api_client
-
-
-@pytest.mark.django_db
-def test_prompt_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/prompt/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["templates"] == "/api/prompt/templates/"
-    assert payload["endpoints"]["chat"] == "/api/prompt/chat"
 
 
 @pytest.mark.django_db

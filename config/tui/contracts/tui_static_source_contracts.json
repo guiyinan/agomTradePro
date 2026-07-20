@@ -1,0 +1,3749 @@
+{
+  "version": "tui-static-contracts.v1",
+  "description": "Static source rules migrated from test_tui_workbench.py during maintainability R2.",
+  "sources": {
+    "workbench_js": {
+      "paths": [
+        "frontend/tui-workbench/src/00-runtime.js",
+        "frontend/tui-workbench/src/10-navigation.js",
+        "frontend/tui-workbench/src/20-dashboard.js",
+        "frontend/tui-workbench/src/30-actions.js",
+        "frontend/tui-workbench/src/40-views.js",
+        "frontend/tui-workbench/src/50-shell.js"
+      ]
+    },
+    "tui_css": {
+      "paths": [
+        "static/css/tui-workbench.css"
+      ]
+    },
+    "host_adapter_js": {
+      "paths": [
+        "frontend/agomtradepro-host/src/index.js"
+      ]
+    },
+    "dashboard_layout_js": {
+      "paths": [
+        "frontend/agomtui-runtime/src/dashboard-layout.js"
+      ]
+    },
+    "tui_catalog_py": {
+      "paths": [
+        "apps/terminal/application/tui_workbench_catalog.py"
+      ]
+    }
+  },
+  "rules": [
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:001",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": ".tui-block-cursor",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:002",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "cursor: none",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:003",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "cursor: pointer",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:004",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "bindBlockCursor",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function toggleRail",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function toggleInspector",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function beginInspectorResize",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function requiredShellElementsAvailable",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:009",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function initializeWorkbench",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "工作台页面结构不完整",
+      "legacy_tests": [
+        "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "agom-tui-last-non-home-screen:v1",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "agom-tui-pinned-screen-keys:v1",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "agom-tui-preferred-home-lane:v1",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "agom-tui-resume-on-boot:v1",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "governanceQueueUrl()",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:006",
+      "source": "host_adapter_js",
+      "relation": "contains",
+      "value": "/operator/governance-queue/",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:007",
+      "source": "host_adapter_js",
+      "relation": "contains",
+      "value": "operator.home.enter_governance_flow",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:008",
+      "source": "host_adapter_js",
+      "relation": "contains",
+      "value": "operator.home.resume_last_workspace",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:009",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "operator.home.enter_governance_flow",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function resizeInspectorByKeyboard",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "inspectorWidthStorageKey",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-toggle-rail",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-toggle-inspector",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:014",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-inspector-resize-handle",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:015",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-app.is-rail-collapsed",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:016",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-app.is-inspector-collapsed",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:017",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-inspector-resize-handle",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks:018",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-row-fill-button:disabled",
+      "legacy_tests": [
+        "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_star_marks_favorites_without_reordering_catalog:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "收藏工作区",
+      "legacy_tests": [
+        "test_tui_workbench_star_marks_favorites_without_reordering_catalog"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_star_marks_favorites_without_reordering_catalog:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "取消收藏工作区",
+      "legacy_tests": [
+        "test_tui_workbench_star_marks_favorites_without_reordering_catalog"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_star_marks_favorites_without_reordering_catalog:003",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "置顶工作区",
+      "legacy_tests": [
+        "test_tui_workbench_star_marks_favorites_without_reordering_catalog"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_star_marks_favorites_without_reordering_catalog:004",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": ".slice().sort((left, right) => {",
+      "legacy_tests": [
+        "test_tui_workbench_star_marks_favorites_without_reordering_catalog"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const THEME_SEQUENCE = [\"A\", \"B\", \"C\"]",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const THEME_TOKENS = {",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "themeStorageKey",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "themeKey: \"B\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function applyTheme(themeKey",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "document.documentElement",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "root.style.setProperty",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "root.dataset.tuiTheme = resolvedThemeKey",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:009",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function cycleTheme()",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function showThemeStatus()",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "safeStorageSet(\"localStorage\", themeStorageKey, resolvedThemeKey)",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const HOTKEY_COMMANDS = {",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "F10: \"toggle-inspector\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:014",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function keyboardCommandForEvent(event)",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:015",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "event.altKey && !event.ctrlKey && !event.shiftKey && lowerKey === \"t\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:016",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "event.altKey && !event.ctrlKey && event.shiftKey && lowerKey === \"t\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:017",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.themeIndicatorCode.textContent = `T:${resolvedThemeKey}`",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:018",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.themeStatus.textContent = `STYLE: ${resolvedThemeKey}`",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:019",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "setStatus(`主题已切换: ${nextKey}`)",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:020",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "showModal(\"主题\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:021",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "showModal(\"帮助\"",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_supports_runtime_theme_switching:022",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "不刷新页面，不丢失当前状态",
+      "legacy_tests": [
+        "test_tui_workbench_supports_runtime_theme_switching"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:001",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "action.endpoint}</span>",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:002",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "${escapeHtml(action.method)} ${escapeHtml(action.endpoint)}",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "原始响应",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:004",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "Debug response",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:005",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "Read-only",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "read: \"立即打开\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:007",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "直接执行",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "ai: \"AI 协助\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:009",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "读取视图",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function resetCurrentScreenProgress",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function setCurrentLocation",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "[data-current-location]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function screenKeyFromLocationInput",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:014",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function resetLocationInput",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:015",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function submitLocationInput",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:016",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.currentLocation.value",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:017",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.currentLocation.dataset.currentAddress",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:018",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "rawValue.match(/^screen:([^\\s]+)(?:\\s+action:.+)?$/i)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:019",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "screen:${screenKey} action:${action.key}",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:020",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function loadStoredProgress",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:021",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function persistProgress",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:022",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "progressStorageKey",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:023",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "sessionStorage",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:024",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionVerbLabel",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:025",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionRoleLabel",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:026",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionMetaLabel",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:027",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "valueType === \"json\" || valueType === \"object\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:028",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionMatchesFilter",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:029",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function focusActionFilter",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:030",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-action-filter",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:031",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-clear-action-filter",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:032",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "筛选当前任务",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:033",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "没有匹配任务",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:034",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "F9",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:035",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "grid.classList.remove(\"is-dashboard\")",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:036",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "可执行操作",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:037",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "支撑检查",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:038",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return String(action.submit_label || \"执行\")",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:039",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "${escapeHtml(riskLabel(action.risk))} / ${escapeHtml(viewLabel(action.view_type))}",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:040",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "confirmation_required",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:041",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-confirm-action",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:042",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "window.__AGOMTUI_RUNTIME__",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:043",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function showMissingFieldsPrompt",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:044",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const promptAction = result.action || currentAction(actionKey)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:045",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "renderField(promptAction",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:046",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "coerceFieldValue(field, input.value, input.checked)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:047",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "form.querySelector(\"select, input, textarea\")?.focus()",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:048",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function showPasswordChallenge",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:049",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "requestBody.confirmation",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:050",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "requestBody.reauth",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:051",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-action-ui-key",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:052",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "data-action-key=",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:053",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionUiKey",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:054",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionRefFromForm",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:055",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-workflow-target",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:056",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderWorkflowStrip",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:057",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function loadWorkflowStep",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:058",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function businessContextSections",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:059",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function setWorkspaceViewKind(kind)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:060",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "grid.dataset.viewKind = String(kind);",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:061",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderDecisionCue",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:062",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindDecisionCueActions",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:063",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-decision-action",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:064",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "运行下一主流程",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:065",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "进入流程下一屏",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:066",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function resultEvidenceLabel",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:067",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderEmptyState",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:068",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "empty_guidance",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:069",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "清空筛选后查看全部记录",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:070",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function humanizeRowKey",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:071",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function rowLabelForKey",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:072",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function rowDisplayRows",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:073",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "Object.entries(row).slice(0, 14)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:074",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function fillActionFromSelectedRow",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:075",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function applySelectedRowToActionForm",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:076",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionCanFillFromRow",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:077",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function refreshRowFillButtons",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:078",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "button.disabled = !enabled",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:079",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "applySelectedRowToActionForm(form, { onlyIfEmpty: true, silent: true, focus: false });",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:080",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function triggerActionForm(form)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:081",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "state.lastFormTriggerRef",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:082",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.actions?.addEventListener(\"submit\", (event) => {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:083",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.actions?.addEventListener(\"click\", (event) => {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:084",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindRenderedActionForms()",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:085",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "form.addEventListener(\"submit\", (event) => {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:086",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "actionButton?.addEventListener(\"click\", (event) => {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:087",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "fillButton?.addEventListener(\"click\", (event) => {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:088",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "event.stopPropagation();",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons",
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:089",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "scroll-margin-top: 52px;",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:090",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "scroll-padding-top: 52px;",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:091",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function formFieldElement",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:092",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionResourceBase",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:093",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function rowContextWithSource",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:094",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionCompatibleWithRowSource",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:095",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "__tui_source_resource_base",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:096",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (![\"pk\", \"id\"].includes(key)) {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:097",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const dynamicSegments = new Set([\"pk\", \"id\", \"int\", \"str\", \"uuid\", \"slug\", \"path\", \"bool\", \"float\", \"decimal\", \"date\", \"datetime\"]);",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:098",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (segments[0] === \"auto\" || segments[0] === \"param\") {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons",
+        "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:099",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (segments[0] === \"api\" && segments[2] === \"api\") {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons",
+        "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:100",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "segments = segments.slice(3);",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons",
+        "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:101",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return rowResourceBase === targetResourceBase;",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons",
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:102",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "form.elements.namedItem",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:103",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function rowFieldCandidates",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:104",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "const builtInFieldAliases",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:105",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function fieldAliasRegistry",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:106",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "field.semantic",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:107",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "field.aliases",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:108",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "from_code: [\"from_code\", \"from_currency_code\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:109",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "to_code: [\"to_code\", \"to_currency_code\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:110",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "report_id: [\"report_id\", \"report.id\"]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:111",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "validation_id: [\"validation_id\", \"validation.id\"]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:112",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "summary_id: [\"summary_id\", \"summary.id\"]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:113",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "request_id: [\"request_id\", \"request.id\"]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:114",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "asset_class: [\"asset_class\", \"code\", \"category\", \"name\"]",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:115",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const rawKey = `__raw_${key}`",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:116",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (key.startsWith(\"__\")) {",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:117",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionsAvailableForRow",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:118",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function paramsFromRowForAction",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:119",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function runInspectorAction",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:120",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function inspectorFlowRows(result)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:121",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "选中行可做",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:122",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-inspector-action",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:123",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "直接使用选中记录填入参数",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:124",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function nextPrimaryAction",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:125",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function runNextPrimaryAction",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:126",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function markActionCompleted",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:127",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function screenProgress",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:128",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "completedActionsByScreen",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:129",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-fill-from-row",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:130",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "从选中行填充",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:131",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "<button class=\"tui-action-button\" type=\"button\">",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:132",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-action-ui-key=\"${escapeHtml(actionUiKey(action))}\" novalidate",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:133",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "业务目标",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:134",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "判断产出",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:135",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "当前证据",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:136",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "本屏下一项",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:137",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "本屏进度",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:139",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "本屏进度已重置",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:140",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "当前任务",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:141",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "操作",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:142",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "后续动作",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:143",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "rowsTitle",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:144",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "完整业务明细已在中间主面板显示。右栏不再重复渲染同一对象。",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:145",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "结果说明已在中间主面板显示。右栏保留流程导航、业务目标与后续动作。",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:146",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "Status board",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:147",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "快捷操作",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:148",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "系统信息",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:149",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "128MB / 512MB",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:150",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "2.3.1 (TUI)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:151",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "Page -/- | 0 rows",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:152",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": " rows</span>",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:153",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "NO MATCHING ROWS",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:154",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "NO GRID TO FILTER",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:155",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "NO PAGER",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons:156",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "FILTER READY",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "[\"current_regime\", \"dominant_regime\", \"regime\", \"regime_name\", \"state\", \"name\"]",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "cellClass(cell, headers[cellIndex])",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "[\"标的\", \"代码\", \"名称\", \"股票\", \"资产\", \"证券\"]",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "text.includes(\"观察\") || /(进行中|运行中|处理中|同步中|排队中)/.test(text)",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:005",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "text.includes(\"观察\") || text.includes(\"中\")",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe:006",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "text.includes(\"-\") || text.includes(\"暂停\")",
+      "legacy_tests": [
+        "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_limit_offset_pagination:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "pagerMode === \"limit_offset\" ? \"offset\" : pagerMode",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_limit_offset_pagination"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_limit_offset_pagination:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const mode = pagination.mode || (pagerMode === \"limit_offset\" ? \"offset\" : pagerMode) || inferPaginationMode(action);",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_limit_offset_pagination"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_limit_offset_pagination:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const nextOffset = Math.max(0, current + (delta * limit));",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_limit_offset_pagination"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_limit_offset_pagination:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return limitParam ? { [offsetParam]: nextOffset, [limitParam]: limit } : { [offsetParam]: nextOffset };",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_limit_offset_pagination"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "\"image\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderImage(viewModel)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderImageMarkup(viewModel",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function showImagePreview(trigger)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-image-preview",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "input_type === \"file\"",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function readTextFile(file)",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:008",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-image-view",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts:009",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-image-lightbox",
+      "legacy_tests": [
+        "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "selectedRowContext: null",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function selectedRowForActions()",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const byName = typeof form.elements.namedItem === \"function\"",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const row = rowContextWithSource(state.visibleRows[state.selectedRowIndex]);",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (state.currentViewModel && state.currentViewModel.kind === \"datagrid\") {",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return state.selectedRowContext;",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "resetGridState({ preserveRowContext: true });",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "state.selectedRowContext = rowContextWithSource(rows[state.selectedRowIndex]);",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions",
+        "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:009",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "state.selectedRowContext = rowContextWithSource(row);",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (rows.length) {",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions",
+        "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "} else {",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions",
+        "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const rowContext = rowContextWithSource(row);",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "暂无可显示数据",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:014",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "页 -/- | 0 行",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:015",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function groupActions",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:016",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "tui-action-group-title",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:017",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "function isAdvancedAction",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:018",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function actionTier",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:019",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function dashboardTargetScreen",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:020",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return String(panel.target_screen || panel.screen_key || \"\");",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:021",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "\"account-list\": \"execution.accounts\"",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:022",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "\"account-positions\": \"execution.accounts\"",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:023",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "positions: \"execution.accounts\"",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:024",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function dashboardLayout(panels, screen)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:025",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function dashboardAreaTemplate(areas, columns, expandToTwelve = false)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:026",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-toggle-support",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:027",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-toggle-advanced",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:028",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-dashboard-target",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:029",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-dashboard-action",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:030",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function activateDashboardPanel(targetScreen, actionKey)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:031",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (normalizedTarget && normalizedTarget !== currentScreenKey)",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:032",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "runAction(normalizedActionKey, null, { params: {} });",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:033",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "支撑检查已显示",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:034",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "高级查询已显示",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions:035",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "主流程",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const rowResourceBase = String(row && row.__tui_source_resource_base ? row.__tui_source_resource_base : \"\");",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const targetResourceBase = actionResourceBase(action && action.key);",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return fields.some((field) => rowValueForField(row, field.key, action) !== undefined);",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const value = rowValueForField(row, field.key, action);",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const params = paramsFromRowForAction(row, action);",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (element.type !== \"checkbox\" && String(element.value || \"\").trim() !== \"\") {",
+      "legacy_tests": [
+        "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "return collected.join(\".\");",
+      "legacy_tests": [
+        "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "state.selectedRowContext = null;",
+      "legacy_tests": [
+        "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:001",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-rail-body::-webkit-scrollbar",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:002",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-main-body::-webkit-scrollbar-thumb",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:003",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "scrollbar-gutter: stable",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:004",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "border-radius: 0",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:005",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "vertical:decrement",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:006",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "vertical:increment",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:007",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "horizontal:decrement",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:008",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "horizontal:increment",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:009",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-scroll-track: #263449",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:010",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-scroll-face: #58708F",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:011",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-menubar-bg:",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:012",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-footer-bg:",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:013",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-overlay:",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:014",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-scroll-arrow-up:",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:015",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "background-image: var(--tui-scroll-arrow-up);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:016",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "background-image: var(--tui-scroll-arrow-right);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:017",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "#c9c9c9",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:018",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "#02021f",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:019",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "#555",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:020",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "#d00",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:021",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-action-brief",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:022",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-action-filter",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:023",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-action-toggle",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:024",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-action-group-operation",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:025",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "border: 1px dashed var(--tui-border-dim);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:026",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "box-shadow: inset 0 0 0 1px var(--tui-accent);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:027",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-system-location input",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:028",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-system-location input:focus",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:029",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "margin: 6px 8px 0 32px",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:030",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-empty-guidance",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:031",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-inspector-actions",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:032",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-workspace-grid[data-view-kind=\"detail\"]",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:033",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-workspace-grid[data-view-kind=\"message\"]",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:034",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-inspector-width: var(--tui-inspector-user-width, var(--tui-inspector-default-width));",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:035",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-inspector-default-width: minmax(252px, 0.92fr);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:036",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "--tui-inspector-default-width: minmax(280px, 1.04fr);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:037",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "grid-template-columns: minmax(208px, 0.7fr) minmax(360px, 1.38fr) var(--tui-inspector-width);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:038",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "grid-template-columns: minmax(208px, 0.66fr) minmax(320px, 1.16fr) var(--tui-inspector-width);",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:039",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "min-inline-size: 24ch;",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:040",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "word-break: keep-all;",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:041",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "overflow-wrap: break-word;",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:042",
+      "source": "tui_css",
+      "relation": "not_contains",
+      "value": "data-inspector-action",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:043",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-decision-actions",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:044",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "position: sticky",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_css_uses_pc_tools_scrollbar_skin:045",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-dashboard-open:focus-visible",
+      "legacy_tests": [
+        "test_tui_workbench_css_uses_pc_tools_scrollbar_skin",
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function screenUserExperience(screen)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function userExperienceSections(screen)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function screenEmptyStateHint(screen, fallback = \"\")",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderSemanticDetailView(viewModel, semantics, options = {})",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderSemanticSecretFields(fields)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderSemanticCopyFields(fields)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderSemanticMultilineFields(fields)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindCopyButtons(root = document)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:009",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "fieldLooksLikePrompt",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:010",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "fieldLooksLikeCopyable",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "field?.presentation || \"metadata\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "fieldPresentation(field) === \"secret\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "fieldPresentation(field) === \"copyable\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:014",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "fieldPresentation(field) === \"multiline\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:015",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-secret-toggle",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:016",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "复制完整接入包",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:017",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function dashboardPanelShouldCollapse(panel)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:018",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "panelPriority(panel) === \"p2\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:019",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "!isOperatorHomeScreen(state.screen?.screen?.key)",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract",
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:020",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "tui-panel-disclosure",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:022",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "navigator.clipboard.writeText",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:023",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "loadScreen(normalizedKey, { suppressAutoAction: true })",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:024",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "button.addEventListener(\"click\", () => loadScreen(button.dataset.screenKey));",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:025",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "endpoint_list: \"地址\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:026",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "multiline_prompt: \"提示词\"",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:027",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-panel-priority",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:028",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-panel-semantic",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:029",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "entryState.empty_copy || screenEmptyStateHint(",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:030",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-dash-panel[data-panel-priority=\"p0\"]",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:031",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-panel-priority",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:032",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-status-hero",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:033",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-copy-block",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract:034",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-copy-action",
+      "legacy_tests": [
+        "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract"
+      ]
+    },
+    {
+      "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const isResumeAttempt",
+      "legacy_tests": [
+        "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
+      ]
+    },
+    {
+      "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "if (!loaded && isResumeAttempt)",
+      "legacy_tests": [
+        "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
+      ]
+    },
+    {
+      "id": "test_tui_bootstrap_only_falls_back_for_stale_resume_state:003",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "if (!loaded && initialScreen !== catalog.default_screen)",
+      "legacy_tests": [
+        "test_tui_bootstrap_only_falls_back_for_stale_resume_state"
+      ]
+    },
+    {
+      "id": "test_tui_script_uses_explicit_result_field_presentations_only:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "fieldPresentation(field)",
+      "legacy_tests": [
+        "test_tui_script_uses_explicit_result_field_presentations_only"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderDashboardRowActions(panel, row)",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindDashboardRowActions(root, panel)",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-dashboard-row-action",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "aria-label=",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardPanelKey",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const refreshesDashboard = ![\"GET\", \"HEAD\", \"OPTIONS\"].includes(method);",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "refreshesDashboard",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardResultPanelKey",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:009",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardRefreshPanelKey",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderDashboardActionResult(panelKey, viewModel, action)",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function refreshDashboardPanel(panelKey)",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_script_renders_accessible_native_dashboard_row_actions:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function restoreDashboardActionPanel(options = {})",
+      "legacy_tests": [
+        "test_tui_script_renders_accessible_native_dashboard_row_actions"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardLayout(panels, screen)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function dashboardDesktopColumns(screen)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "runtimeCore.dashboardDesktopColumns(screen, runtimeConfig.host || {})",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout",
+        "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:004",
+      "source": "dashboard_layout_js",
+      "relation": "contains",
+      "value": "export function dashboardDesktopColumns(screen = {}, host = {})",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:005",
+      "source": "dashboard_layout_js",
+      "relation": "contains",
+      "value": "layout === TASK_FLOW_LAYOUT",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:006",
+      "source": "dashboard_layout_js",
+      "relation": "contains",
+      "value": "TWO_COLUMN_JOURNEYS.has(journey) ? 2 : 3",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:007",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardAreaTemplate(areas, desktopColumns, true)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:008",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardAreaTemplate(areas, 2)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:009",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "dashboardAreaTemplate(areas, 1)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:010",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "expandToTwelve ? expandDashboardRow(row) : row",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:011",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const contentFlow = desktopColumns === 1 || isOperatorHomeScreen(screen?.key)",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout",
+        "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:012",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "const desktopRowSize = contentFlow ? \"auto\" : \"minmax(190px, auto)\"",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:013",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "class=\"tui-dashboard-grid${layout.contentFlow ? \" is-content-flow\" : \"\"}\"",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:014",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-dashboard-grid.is-content-flow .tui-dash-panel",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:015",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "overflow: auto;",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout:016",
+      "source": "tui_catalog_py",
+      "relation": "contains",
+      "value": "\"dashboard_layout\": str(screen.get(\"dashboard_layout\") or \"adaptive_grid\")",
+      "legacy_tests": [
+        "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout"
+      ]
+    },
+    {
+      "id": "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables:002",
+      "source": "dashboard_layout_js",
+      "relation": "contains",
+      "value": "singleColumnScreens.includes(screenKey)",
+      "legacy_tests": [
+        "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
+      ]
+    },
+    {
+      "id": "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables:003",
+      "source": "host_adapter_js",
+      "relation": "contains",
+      "value": "singleColumnScreens: [\"capability-router.mcp-center\"]",
+      "legacy_tests": [
+        "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
+      ]
+    },
+    {
+      "id": "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables:004",
+      "source": "dashboard_layout_js",
+      "relation": "contains",
+      "value": "return 1;",
+      "legacy_tests": [
+        "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function revealModuleScreen(screenButton)",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "screenButton.scrollIntoView({ block: \"nearest\", inline: \"nearest\" })",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.moduleTree.hidden = state.railCollapsed",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "els.moduleTree.inert = state.railCollapsed",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:005",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-app.is-rail-collapsed .tui-rail .tui-titlebar-text",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:006",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-app.is-rail-collapsed .tui-rail-body *::before",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:007",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-dashboard-grid.is-content-flow",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe:008",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "align-content: start;",
+      "legacy_tests": [
+        "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function boundedTuiError(error)",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:002",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function renderDashboardPanelError(panel, error)",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindDashboardPanelRecovery(root, panel)",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-panel-retry",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:005",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-panel-recovery-screen",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:006",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "bounded.traceId",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:007",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "renderPanelPlaceholder(panel, error.message)",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:008",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "renderError(error.message)",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_panel_recovery_is_contextual_and_bounded:009",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "error.payload?.detail",
+      "legacy_tests": [
+        "test_tui_panel_recovery_is_contextual_and_bounded"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:001",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "<article class=\"tui-dash-panel\"",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:002",
+      "source": "workbench_js",
+      "relation": "not_contains",
+      "value": "role=\"button\"",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:003",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "data-dashboard-open",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:004",
+      "source": "workbench_js",
+      "relation": "contains",
+      "value": "function bindDashboardPanelOpenControls(root)",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:006",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": ".tui-panel-retry:focus-visible",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    },
+    {
+      "id": "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus:007",
+      "source": "tui_css",
+      "relation": "contains",
+      "value": "min-height: 36px",
+      "legacy_tests": [
+        "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus"
+      ]
+    }
+  ],
+  "migration": {
+    "legacy_test_functions": {
+      "test_tui_workbench_uses_system_cursor_and_collapsible_sidebars": 10,
+      "test_tui_workbench_script_contains_operator_home_state_and_governance_hooks": 18,
+      "test_tui_workbench_star_marks_favorites_without_reordering_catalog": 4,
+      "test_tui_workbench_supports_runtime_theme_switching": 22,
+      "test_tui_workbench_javascript_keeps_api_endpoints_out_of_task_buttons": 156,
+      "test_tui_workbench_today_overview_regime_and_alpha_colors_are_column_safe": 6,
+      "test_tui_workbench_javascript_supports_limit_offset_pagination": 4,
+      "test_tui_workbench_javascript_supports_image_and_file_runtime_contracts": 9,
+      "test_tui_workbench_preserves_selected_row_context_for_follow_up_actions": 35,
+      "test_tui_workbench_limits_generic_pk_fill_to_matching_resource_source": 7,
+      "test_tui_workbench_normalizes_generated_and_hand_authored_action_keys_for_row_source_match": 4,
+      "test_tui_workbench_preserves_row_context_for_empty_server_datagrids_but_not_local_filter_misses": 4,
+      "test_tui_workbench_css_uses_pc_tools_scrollbar_skin": 45,
+      "test_tui_workbench_script_consumes_user_experience_and_semantic_detail_contract": 34,
+      "test_tui_bootstrap_only_falls_back_for_stale_resume_state": 3,
+      "test_tui_script_uses_explicit_result_field_presentations_only": 10,
+      "test_tui_script_renders_accessible_native_dashboard_row_actions": 12,
+      "test_tui_self_service_dashboard_uses_content_driven_task_flow_layout": 16,
+      "test_tui_mcp_governance_uses_full_width_rows_for_actionable_tables": 5,
+      "test_tui_module_rail_collapse_and_active_screen_reveal_are_presentation_safe": 8,
+      "test_tui_panel_recovery_is_contextual_and_bounded": 9,
+      "test_tui_dashboard_uses_native_accessible_controls_with_visible_focus": 7
+    },
+    "legacy_assertion_count": 428,
+    "deduplicated_rule_count": 407
+  }
+}

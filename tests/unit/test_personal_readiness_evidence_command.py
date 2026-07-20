@@ -698,17 +698,10 @@ def test_command_writes_json_and_markdown_evidence(monkeypatch, tmp_path):
     assert evidence_json["summary"]["macro_context"]["regime"]["dominant_regime"] == "Recovery"
     assert evidence_json["summary"]["macro_context"]["pulse"]["composite_score"] == 0.107
     assert (
-        evidence_json["summary"]["alpha_workspace_consistency"]["alpha"][
-            "provider_source"
-        ]
+        evidence_json["summary"]["alpha_workspace_consistency"]["alpha"]["provider_source"]
         == "qlib"
     )
-    assert (
-        evidence_json["summary"]["alpha_workspace_consistency"]["workspace"][
-            "total_count"
-        ]
-        == 30
-    )
+    assert evidence_json["summary"]["alpha_workspace_consistency"]["workspace"]["total_count"] == 30
     assert (
         evidence_json["summary"]["decision_data"]["skipped_latest_market_thermometer"][
             "skip_reason"

@@ -737,8 +737,7 @@ def test_inspect_personal_readiness_evidence_reports_degradation_observations(
             ),
             "target_date": "2026-07-01",
             "command": (
-                "python manage.py calculate_market_thermometer "
-                "--as-of-date 2026-07-01 --json"
+                "python manage.py calculate_market_thermometer " "--as-of-date 2026-07-01 --json"
             ),
         },
     ]
@@ -769,17 +768,13 @@ def test_inspect_personal_readiness_evidence_reports_degradation_observations(
         output_dir=tmp_path,
         target_date=date(2026, 7, 1),
     )
-    resolved_observations = {
-        item["component"]: item for item in resolved_payload["observations"]
-    }
+    resolved_observations = {item["component"]: item for item in resolved_payload["observations"]}
     assert (
         resolved_observations["decision_data.market_thermometer"]["status"]
         == "resolved_after_evidence"
     )
     assert (
-        resolved_observations["decision_data.skipped_latest_market_thermometer"][
-            "status"
-        ]
+        resolved_observations["decision_data.skipped_latest_market_thermometer"]["status"]
         == "resolved_after_evidence"
     )
     assert resolved_payload["follow_up_actions"] == [

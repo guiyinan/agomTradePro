@@ -7,20 +7,6 @@ from apps.ai_provider.infrastructure.models import AIProviderConfig, AIUsageLog,
 
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="ai_provider_user",
-        password="testpass123",
-        email="ai-provider@example.com",
-    )
-
-
-@pytest.fixture
 def admin_user(db):
     return get_user_model().objects.create_superuser(
         username="ai_provider_admin",
@@ -30,29 +16,10 @@ def admin_user(db):
 
 
 @pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
-@pytest.fixture
 def admin_client(admin_user):
     client = APIClient()
     client.force_authenticate(user=admin_user)
     return client
-
-
-@pytest.mark.django_db
-def test_ai_provider_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/ai/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["providers"] == "/api/ai/providers/"
-    assert payload["endpoints"]["logs"] == "/api/ai/logs/"
-    assert payload["endpoints"]["me_providers"] == "/api/ai/me/providers/"
-    assert payload["endpoints"]["me_quota"] == "/api/ai/me/quota/current/"
 
 
 @pytest.mark.django_db
@@ -110,20 +77,6 @@ def test_ai_provider_logs_list_success_contract(admin_client):
     assert payload[0]["response_time_ms"] == 45
     assert payload[0]["status"] == "success"
     assert "created_at" in payload[0]
-
-
-@pytest.mark.django_db
-def test_ai_provider_list_requires_authentication(api_client):
-    response = api_client.get("/api/ai/providers/")
-
-    assert response.status_code in {401, 403}
-
-
-@pytest.mark.django_db
-def test_ai_provider_system_list_requires_admin(authenticated_client):
-    response = authenticated_client.get("/api/ai/providers/")
-
-    assert response.status_code == 403
 
 
 @pytest.mark.django_db

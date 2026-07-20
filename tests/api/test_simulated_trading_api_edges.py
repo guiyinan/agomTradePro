@@ -1,24 +1,8 @@
 from decimal import Decimal
 
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedAccountModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="sim_api_user",
-        password="testpass123",
-        email="sim@example.com",
-    )
 
 
 @pytest.fixture
@@ -37,17 +21,6 @@ def owned_account(auth_user):
         current_cash=Decimal("100000.00"),
         total_value=Decimal("100000.00"),
     )
-
-
-@pytest.mark.django_db
-def test_simulated_trading_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/simulated-trading/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["module"] == "simulated-trading"
-    assert "/api/simulated-trading/accounts/" in payload["endpoints"]
 
 
 @pytest.mark.django_db

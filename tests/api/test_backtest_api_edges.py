@@ -4,29 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
-from rest_framework.test import APIClient
 
 from apps.backtest.infrastructure.models import BacktestResultModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="backtest_user",
-        password="testpass123",
-        email="backtest@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.mark.django_db
@@ -48,9 +27,7 @@ def test_backtest_list_success_contract(authenticated_client):
             "total_count": 1,
         },
     ) as mock_list:
-        response = authenticated_client.get(
-            "/api/backtest/backtests/?status=completed&limit=10"
-        )
+        response = authenticated_client.get("/api/backtest/backtests/?status=completed&limit=10")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
@@ -129,15 +106,11 @@ def test_backtest_equity_curve_is_staff_only_and_read_only(api_client, auth_user
     before_count = BacktestResultModel.objects.count()
 
     api_client.force_authenticate(user=auth_user)
-    forbidden = api_client.get(
-        f"/api/backtest/backtests/{backtest.id}/equity-curve/"
-    )
+    forbidden = api_client.get(f"/api/backtest/backtests/{backtest.id}/equity-curve/")
 
     api_client.force_authenticate(user=staff)
     with CaptureQueriesContext(connection) as queries:
-        response = api_client.get(
-            f"/api/backtest/backtests/{backtest.id}/equity-curve/"
-        )
+        response = api_client.get(f"/api/backtest/backtests/{backtest.id}/equity-curve/")
 
     assert forbidden.status_code == 403
     assert response.status_code == 200
@@ -153,22 +126,12 @@ def test_backtest_equity_curve_is_staff_only_and_read_only(api_client, auth_user
     }
     assert BacktestResultModel.objects.count() == before_count
     assert all(
-        not query["sql"].lstrip().upper().startswith(
-            ("INSERT", "UPDATE", "DELETE", "REPLACE", "ALTER", "CREATE", "DROP")
-        )
+        not query["sql"]
+        .lstrip()
+        .upper()
+        .startswith(("INSERT", "UPDATE", "DELETE", "REPLACE", "ALTER", "CREATE", "DROP"))
         for query in queries.captured_queries
     )
-
-
-@pytest.mark.django_db
-def test_backtest_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/backtest/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["backtests"] == "/api/backtest/backtests/"
-    assert payload["endpoints"]["run"] == "/api/backtest/run/"
 
 
 @pytest.mark.django_db

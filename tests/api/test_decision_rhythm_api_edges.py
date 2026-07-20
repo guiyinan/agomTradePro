@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.decision_rhythm.domain.entities import (
     DecisionPriority,
@@ -15,26 +14,6 @@ from apps.decision_rhythm.domain.entities import (
     QuotaPeriod,
 )
 from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="decision_rhythm_api_user",
-        password="testpass123",
-        email="decision-rhythm@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture
@@ -360,16 +339,3 @@ def test_decision_workspace_recommendations_reject_invalid_page(
     payload = response.json()
     assert payload["success"] is False
     assert "page" in payload["error"]
-
-
-@pytest.mark.django_db
-def test_decision_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/decision/")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert (
-        payload["endpoints"]["workspace_recommendations"]
-        == "/api/decision/workspace/recommendations/"
-    )
-    assert payload["endpoints"]["execute_preview"] == "/api/decision/execute/preview/"

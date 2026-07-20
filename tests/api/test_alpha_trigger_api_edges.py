@@ -2,8 +2,6 @@ from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.alpha_trigger.domain.entities import (
     AlphaCandidate,
@@ -17,26 +15,6 @@ from apps.alpha_trigger.infrastructure.models import (
     AlphaCandidateModel,
     AlphaTriggerModel,
 )
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="alpha_trigger_user",
-        password="testpass123",
-        email="alpha-trigger@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 def _trigger() -> AlphaTrigger:
@@ -135,16 +113,18 @@ def test_alpha_candidate_detail_success_contract(authenticated_client):
     repository = type(
         "CandidateRepository",
         (),
-        {"get_by_id": lambda self, candidate_id: candidate if candidate_id == "candidate-001" else None},
+        {
+            "get_by_id": lambda self, candidate_id: (
+                candidate if candidate_id == "candidate-001" else None
+            )
+        },
     )()
 
     with patch(
         "apps.alpha_trigger.interface.views.get_alpha_candidate_repository",
         return_value=repository,
     ):
-        response = authenticated_client.get(
-            "/api/alpha-triggers/candidates/candidate-001/"
-        )
+        response = authenticated_client.get("/api/alpha-triggers/candidates/candidate-001/")
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
@@ -153,13 +133,6 @@ def test_alpha_candidate_detail_success_contract(authenticated_client):
     assert payload["result"]["candidate_id"] == "candidate-001"
     assert payload["result"]["asset_code"] == "600519.SH"
     assert payload["result"]["custom_data"] == {}
-
-
-@pytest.mark.django_db
-def test_alpha_trigger_performance_requires_authentication(api_client):
-    response = api_client.get("/api/alpha-triggers/performance/")
-
-    assert response.status_code in {401, 403}
 
 
 @pytest.mark.django_db
@@ -215,9 +188,7 @@ def test_alpha_trigger_performance_is_pure_read_with_stable_contract(
         confidence=0.68,
         status="WATCH",
     )
-    trigger_before = list(
-        AlphaTriggerModel.objects.order_by("id").values_list("id", "created_at")
-    )
+    trigger_before = list(AlphaTriggerModel.objects.order_by("id").values_list("id", "created_at"))
     candidate_before = list(
         AlphaCandidateModel.objects.order_by("id").values_list(
             "id",
@@ -227,8 +198,7 @@ def test_alpha_trigger_performance_is_pure_read_with_stable_contract(
     )
 
     response = authenticated_client.get(
-        "/api/alpha-triggers/performance/"
-        "?days=30&trigger_id=trigger-performance-001"
+        "/api/alpha-triggers/performance/" "?days=30&trigger_id=trigger-performance-001"
     )
 
     assert response.status_code == 200
@@ -253,16 +223,20 @@ def test_alpha_trigger_performance_is_pure_read_with_stable_contract(
             "total_triggers": 1,
         },
     }
-    assert list(
-        AlphaTriggerModel.objects.order_by("id").values_list("id", "created_at")
-    ) == trigger_before
-    assert list(
-        AlphaCandidateModel.objects.order_by("id").values_list(
-            "id",
-            "created_at",
-            "updated_at",
+    assert (
+        list(AlphaTriggerModel.objects.order_by("id").values_list("id", "created_at"))
+        == trigger_before
+    )
+    assert (
+        list(
+            AlphaCandidateModel.objects.order_by("id").values_list(
+                "id",
+                "created_at",
+                "updated_at",
+            )
         )
-    ) == candidate_before
+        == candidate_before
+    )
 
 
 @pytest.mark.django_db

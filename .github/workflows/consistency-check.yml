@@ -35,6 +35,10 @@ jobs:
         run: |
           python scripts/check_routes.py --strict
 
+      - name: Run TUI static contract check
+        run: |
+          python scripts/check_tui_static_contracts.py
+
       - name: Run governance consistency check
         run: |
           python scripts/check_governance_consistency.py \

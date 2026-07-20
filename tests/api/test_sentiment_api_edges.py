@@ -7,15 +7,6 @@ from apps.sentiment.infrastructure.models import SentimentCache
 
 
 @pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="sentiment_user",
-        password="testpass123",
-        email="sentiment@example.com",
-    )
-
-
-@pytest.fixture
 def authenticated_client(client, auth_user):
     client.force_login(auth_user)
     return client
@@ -31,17 +22,6 @@ def staff_client(client, db):
     )
     client.force_login(staff_user)
     return client
-
-
-@pytest.mark.django_db
-def test_sentiment_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/sentiment/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["analyze"] == "/api/sentiment/analyze/"
-    assert payload["endpoints"]["health"] == "/api/sentiment/health/"
 
 
 @pytest.mark.django_db
@@ -94,7 +74,9 @@ def test_sentiment_index_returns_canonical_payload(authenticated_client):
 
 @pytest.mark.django_db
 def test_sentiment_recent_days_out_of_range_falls_back_to_default(authenticated_client):
-    with patch("apps.sentiment.interface.views.get_recent_sentiment_indices_payload") as mock_recent:
+    with patch(
+        "apps.sentiment.interface.views.get_recent_sentiment_indices_payload"
+    ) as mock_recent:
         mock_recent.return_value = {"indices": [], "total": 0}
         response = authenticated_client.get("/api/sentiment/index/recent/?days=999")
 

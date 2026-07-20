@@ -192,15 +192,11 @@ def test_validate_personal_readiness_window_accepts_required_trading_days(tmp_pa
     assert payload["accepted_evidence_quality"]["formal_quote_freshness_stale_record_count"] == 0
     assert payload["accepted_evidence_quality"]["formal_quote_freshness_blocked_record_count"] == 0
     assert (
-        payload["accepted_evidence_quality"][
-            "formal_quote_pre_readiness_scheduler_record_count"
-        ]
+        payload["accepted_evidence_quality"]["formal_quote_pre_readiness_scheduler_record_count"]
         == 20
     )
     assert (
-        payload["accepted_evidence_quality"][
-            "formal_quote_pre_readiness_scheduler_ok_record_count"
-        ]
+        payload["accepted_evidence_quality"]["formal_quote_pre_readiness_scheduler_ok_record_count"]
         == 20
     )
     assert (
@@ -218,10 +214,7 @@ def test_validate_personal_readiness_window_accepts_required_trading_days(tmp_pa
     assert payload["accepted_evidence_quality"]["formal_risk_record_count"] == 20
     assert payload["accepted_evidence_quality"]["formal_risk_ok_record_count"] == 20
     assert payload["accepted_evidence_quality"]["formal_risk_account_count"] == 20
-    assert (
-        payload["accepted_evidence_quality"]["formal_risk_persisted_report_account_count"]
-        == 20
-    )
+    assert payload["accepted_evidence_quality"]["formal_risk_persisted_report_account_count"] == 20
     assert payload["accepted_evidence_quality"]["formal_pre_trade_ok_account_count"] == 20
     assert payload["accepted_evidence_quality"]["formal_post_investment_ok_account_count"] == 20
     assert payload["accepted_evidence_quality"]["trigger_task_names"] == [
@@ -492,41 +485,6 @@ def test_validate_personal_readiness_window_rejects_formal_missing_pre_trade(tmp
     assert payload["blocking_issues"][0]["reason"] == "account 1 pre-trade risk status is missing"
 
 
-def test_validate_personal_readiness_window_rejects_formal_missing_decision_data(tmp_path):
-    _write_evidence(
-        tmp_path,
-        date(2026, 7, 1),
-        status="ok",
-        operation_context={
-            "mode": "formal",
-            "target_date_closed": True,
-            "latest_closed_date": "2026-07-01",
-            "allow_unclosed_target_date": False,
-        },
-    )
-    evidence_path = tmp_path / "2026-07-01-personal-readiness.json"
-    payload_data = json.loads(evidence_path.read_text(encoding="utf-8"))
-    del payload_data["system"]["checks"]["decision_data"]
-    evidence_path.write_text(json.dumps(payload_data), encoding="utf-8")
-
-    payload = command_module.validate_personal_readiness_window(
-        output_dir=tmp_path,
-        required_days=1,
-        calendar_source="weekday",
-    )
-
-    assert payload["status"] == "in_progress"
-    assert payload["accepted_days"] == 0
-    assert payload["blocking_issues"][0]["target_date"] == "2026-07-01"
-    assert payload["blocking_issues"][0]["reason"] == (
-        "decision_data readiness evidence is missing"
-    )
-    quality = payload["evidence_quality"]
-    assert quality["formal_decision_data_record_count"] == 1
-    assert quality["formal_decision_data_missing_record_count"] == 1
-    assert quality["formal_decision_data_ok_record_count"] == 0
-
-
 def test_validate_personal_readiness_window_rejects_formal_missing_qlib_evidence(tmp_path):
     _write_evidence(
         tmp_path,
@@ -558,41 +516,6 @@ def test_validate_personal_readiness_window_rejects_formal_missing_qlib_evidence
     assert quality["formal_qlib_record_count"] == 1
     assert quality["formal_qlib_missing_record_count"] == 1
     assert quality["formal_qlib_ok_record_count"] == 0
-
-
-def test_validate_personal_readiness_window_rejects_formal_missing_alpha_workspace(tmp_path):
-    _write_evidence(
-        tmp_path,
-        date(2026, 7, 1),
-        status="ok",
-        operation_context={
-            "mode": "formal",
-            "target_date_closed": True,
-            "latest_closed_date": "2026-07-01",
-            "allow_unclosed_target_date": False,
-        },
-    )
-    evidence_path = tmp_path / "2026-07-01-personal-readiness.json"
-    payload_data = json.loads(evidence_path.read_text(encoding="utf-8"))
-    del payload_data["system"]["checks"]["alpha_workspace_consistency"]
-    evidence_path.write_text(json.dumps(payload_data), encoding="utf-8")
-
-    payload = command_module.validate_personal_readiness_window(
-        output_dir=tmp_path,
-        required_days=1,
-        calendar_source="weekday",
-    )
-
-    assert payload["status"] == "in_progress"
-    assert payload["accepted_days"] == 0
-    assert payload["blocking_issues"][0]["target_date"] == "2026-07-01"
-    assert payload["blocking_issues"][0]["reason"] == (
-        "alpha_workspace_consistency evidence is missing"
-    )
-    quality = payload["evidence_quality"]
-    assert quality["formal_alpha_workspace_record_count"] == 1
-    assert quality["formal_alpha_workspace_missing_record_count"] == 1
-    assert quality["formal_alpha_workspace_ok_record_count"] == 0
 
 
 def test_validate_personal_readiness_window_rejects_formal_missing_workspace_core(tmp_path):
@@ -792,8 +715,7 @@ def test_validate_personal_readiness_window_reports_weekly_persistence_quality(t
     assert payload["evidence_quality"]["weekly_report_record_count"] == 2
     assert payload["evidence_quality"]["scheduled_weekly_report_record_count"] == 0
     assert (
-        payload["evidence_quality"]["scheduled_weekly_report_persistence_warning_record_count"]
-        == 0
+        payload["evidence_quality"]["scheduled_weekly_report_persistence_warning_record_count"] == 0
     )
 
 
@@ -973,3 +895,60 @@ def _write_evidence(
             }
     path = root / f"{target_date.isoformat()}-personal-readiness.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("check_key", "expected_reason", "quality_prefix"),
+    [
+        pytest.param(
+            "decision_data",
+            "decision_data readiness evidence is missing",
+            "decision_data",
+            id="decision-data",
+        ),
+        pytest.param(
+            "alpha_workspace_consistency",
+            "alpha_workspace_consistency evidence is missing",
+            "alpha_workspace",
+            id="alpha-workspace",
+        ),
+    ],
+)
+def test_validate_personal_readiness_window_missing_formal_evidence_matrix(
+    tmp_path,
+    check_key: str,
+    expected_reason: str,
+    quality_prefix: str,
+) -> None:
+    """Missing mandatory formal checks must remain rejected and counted."""
+
+    _write_evidence(
+        tmp_path,
+        date(2026, 7, 1),
+        status="ok",
+        operation_context={
+            "mode": "formal",
+            "target_date_closed": True,
+            "latest_closed_date": "2026-07-01",
+            "allow_unclosed_target_date": False,
+        },
+    )
+    evidence_path = tmp_path / "2026-07-01-personal-readiness.json"
+    payload_data = json.loads(evidence_path.read_text(encoding="utf-8"))
+    del payload_data["system"]["checks"][check_key]
+    evidence_path.write_text(json.dumps(payload_data), encoding="utf-8")
+
+    payload = command_module.validate_personal_readiness_window(
+        output_dir=tmp_path,
+        required_days=1,
+        calendar_source="weekday",
+    )
+
+    assert payload["status"] == "in_progress"
+    assert payload["accepted_days"] == 0
+    assert payload["blocking_issues"][0]["target_date"] == "2026-07-01"
+    assert payload["blocking_issues"][0]["reason"] == expected_reason
+    quality = payload["evidence_quality"]
+    assert quality[f"formal_{quality_prefix}_record_count"] == 1
+    assert quality[f"formal_{quality_prefix}_missing_record_count"] == 1
+    assert quality[f"formal_{quality_prefix}_ok_record_count"] == 0

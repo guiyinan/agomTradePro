@@ -152,6 +152,7 @@ AgomTradePro/
 │   ├── alpha_trigger/        # Alpha 离散触发
 │   ├── beta_gate/            # Beta 闸门
 │   ├── decision_rhythm/      # 决策频率约束
+│   ├── valuation/            # 独立估值引擎（快照、价格带、质量/新鲜度规则）
 │   ├── factor/               # 因子管理
 │   ├── rotation/             # 板块轮动
 │   ├── hedge/                # 对冲策略
@@ -652,6 +653,7 @@ ak.macro_china_money_supply()
 - ✅ Agent Runtime 模块（Terminal AI 后端）
 - ✅ Config Center 模块（全局运行时配置统一入口）
 - ✅ Risk Center 模块（风险规则、检查与状态统一入口）
+- ✅ Valuation 模块（估值快照、价格带、质量/新鲜度规则与来源选择）
 - ✅ Share 模块（决策分享）
 - ✅ Task Monitor 模块（任务监控）
 - ✅ Pulse 模块（脉搏层，战术指标聚合与转折预警）
@@ -727,6 +729,7 @@ ak.macro_china_money_supply()
 - `agent_runtime/` - Agent 运行时模块，Terminal AI 后端，支持任务编排和 Facade 模式
 - `ai_capability/` - AI 能力目录模块，系统级 AI 能力目录与统一路由
 - `data_center/` - 数据中台，统一外部数据源接入、标准化、同步与查询
+- `valuation/` - 独立估值引擎；R3-lite 阶段由 decision_rhythm 兼容承载现有 ORM 表与 `/api/valuation/**` 路径
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
 - `operational_readiness/` - 生产 readiness 证据、连续窗口验收与调度运行状态

@@ -13,6 +13,7 @@ from apps.task_monitor.management import quote_pre_readiness_scheduler_status as
 from apps.task_monitor.management import readiness_persistence_status
 from apps.task_monitor.management.commands import show_personal_readiness_status as command_module
 from apps.task_monitor.management.readiness_runtime import collect_local_scheduler_runtime
+from tests.support.readiness_contracts import build_formal_acceptance_window_result
 
 ORIGINAL_COLLECT_AUTO_ADVISOR_WEEKLY_SCHEDULER = (
     command_module._collect_auto_advisor_weekly_scheduler_status
@@ -203,8 +204,7 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                                     },
                                 ],
                             },
-                        }
-                        ,
+                        },
                         "regime": {
                             "status": "ok",
                             "observed_at": "2026-07-01",
@@ -279,7 +279,7 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
                                 "successful": 6,
                                 "skipped": 0,
                                 "failed": 0,
-                            }
+                            },
                         }
                     }
                 },
@@ -538,7 +538,7 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
             "successful": 6,
             "skipped": 0,
             "failed": 0,
-        }
+        },
     }
     assert payload["latest_evidence"]["summary"]["qlib_readiness"] == {
         "status": "ok",
@@ -644,8 +644,7 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     assert payload["acceptance_gate"]["projected_scheduler_completion_date"] == "2026-07-28"
     assert payload["acceptance_gate"]["projected_scheduler_remaining_calendar_days"] == 28
     assert (
-        payload["acceptance_gate"]["projected_scheduler_remaining_calendar_days_from_today"]
-        == 27
+        payload["acceptance_gate"]["projected_scheduler_remaining_calendar_days_from_today"] == 27
     )
     assert payload["current_macro_context"] is None
     assert payload["current_decision_data"] is None
@@ -673,12 +672,16 @@ def test_personal_readiness_status_builds_operational_summary(monkeypatch, tmp_p
     assert (
         payload_with_current_context["current_macro_context"]["pulse"]["composite_score"] == 0.107
     )
-    assert payload_with_current_context["current_decision_data"]["market_thermometer"][
-        "observed_at"
-    ] == "2026-07-01"
-    assert payload_with_current_context["current_decision_data"][
-        "skipped_latest_market_thermometer"
-    ]["observed_at"] == "2026-07-02"
+    assert (
+        payload_with_current_context["current_decision_data"]["market_thermometer"]["observed_at"]
+        == "2026-07-01"
+    )
+    assert (
+        payload_with_current_context["current_decision_data"]["skipped_latest_market_thermometer"][
+            "observed_at"
+        ]
+        == "2026-07-02"
+    )
     assert payload["acceptance_gate"]["scheduler_activity"]["status"] == "pending_window"
     assert payload["acceptance_gate"]["scheduler_activity"]["ok"] is True
     assert payload["acceptance_gate"]["requirements"]["evidence_window"]["ok"] is False
@@ -1617,16 +1620,12 @@ def test_personal_readiness_monitor_gate_blocks_unregistered_weekly_task():
     )
 
     assert runtime["status"] == "warning"
-    assert runtime["missing_registered_tasks"] == [
-        command_module.AUTO_ADVISOR_WEEKLY_TASK_PATH
-    ]
+    assert runtime["missing_registered_tasks"] == [command_module.AUTO_ADVISOR_WEEKLY_TASK_PATH]
     assert gate["ok"] is False
     assert gate["state"] == "local_scheduler_runtime_unavailable"
     assert gate["reason"] == "local_celery_required_task_unregistered"
     assert requirement["ok"] is False
-    assert requirement["missing_registered_tasks"] == [
-        command_module.AUTO_ADVISOR_WEEKLY_TASK_PATH
-    ]
+    assert requirement["missing_registered_tasks"] == [command_module.AUTO_ADVISOR_WEEKLY_TASK_PATH]
 
 
 def test_personal_readiness_local_scheduler_runtime_warns_when_worker_unresponsive():
@@ -2517,12 +2516,9 @@ def test_personal_readiness_status_accepts_when_scheduler_dispatch_history_cover
     assert payload["acceptance_gate"]["requirements"]["auto_advisor_weekly_activity"]["ok"] is True
     assert payload["acceptance_gate"]["requirements"]["scheduler_runtime"]["ok"] is True
     assert (
-        payload["acceptance_gate"]["requirements"]["scheduler_runtime"]["status"]
-        == "not_required"
+        payload["acceptance_gate"]["requirements"]["scheduler_runtime"]["status"] == "not_required"
     )
-    assert (
-        payload["acceptance_gate"]["requirements"]["quote_pre_readiness_activity"]["ok"] is True
-    )
+    assert payload["acceptance_gate"]["requirements"]["quote_pre_readiness_activity"]["ok"] is True
     assert payload["acceptance_gate"]["failed_requirements"] == []
     assert payload["acceptance_gate"]["operator_actions"] == []
     assert activity["status"] == "ok"
@@ -3166,333 +3162,6 @@ def test_personal_readiness_status_blocks_final_acceptance_with_insufficient_wee
     assert {item["name"] for item in payload["acceptance_gate"]["failed_requirements"]} == {
         "auto_advisor_weekly_persistence"
     }
-
-
-def test_personal_readiness_status_blocks_final_acceptance_without_alpha_workspace_evidence(
-    monkeypatch,
-    tmp_path,
-):
-    monkeypatch.setattr(
-        command_module,
-        "validate_personal_readiness_window",
-        lambda **kwargs: {
-            "status": "accepted",
-            "required_days": kwargs["required_days"],
-            "accepted_days": kwargs["required_days"],
-            "remaining_days": 0,
-            "next_required_date": None,
-            "next_required_reason": "window_accepted",
-            "accepted_evidence": [
-                {
-                    "target_date": f"2026-07-{day:02d}",
-                    "evidence_mode": "formal",
-                    "acceptance_candidate": True,
-                    "trigger_source": "scheduler",
-                    "trigger_task_id": f"task-{day}",
-                    "trigger_task_name": command_module.TASK_PATH,
-                }
-                for day in range(1, 21)
-            ],
-            "accepted_evidence_quality": {
-                "formal_record_count": 20,
-                "formal_workspace_core_record_count": 20,
-                "formal_workspace_core_ok_record_count": 20,
-                "formal_workspace_core_missing_record_count": 0,
-                "formal_qlib_record_count": 20,
-                "formal_qlib_ok_record_count": 20,
-                "formal_qlib_missing_record_count": 0,
-                "formal_qlib_blocked_record_count": 0,
-                "formal_alpha_workspace_record_count": 0,
-                "formal_alpha_workspace_ok_record_count": 0,
-                "formal_alpha_workspace_missing_record_count": 20,
-                "formal_decision_data_record_count": 20,
-                "formal_decision_data_ok_record_count": 20,
-                "formal_decision_data_missing_record_count": 0,
-                "formal_decision_data_blocked_record_count": 0,
-                "formal_quote_freshness_record_count": 20,
-                "formal_quote_freshness_ok_record_count": 20,
-                "formal_quote_freshness_missing_record_count": 0,
-                "formal_quote_freshness_stale_record_count": 0,
-                "formal_quote_freshness_blocked_record_count": 0,
-                "formal_risk_record_count": 20,
-                "formal_risk_ok_record_count": 20,
-                "formal_risk_missing_record_count": 0,
-                "formal_risk_account_count": 40,
-                "formal_risk_report_ok_account_count": 40,
-                "formal_pre_trade_ok_account_count": 40,
-                "formal_pre_trade_missing_account_count": 0,
-                "formal_post_investment_ok_account_count": 40,
-                "formal_post_investment_missing_account_count": 0,
-                "weekly_report_persistence_ok_record_count": 4,
-                "weekly_report_persistence_ok_account_count": 8,
-                "weekly_report_persistence_missing_record_count": 0,
-                "weekly_report_persistence_warning_record_count": 0,
-            },
-            "blocking_issues": [],
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "_collect_scheduler_status",
-        lambda: {
-            "status": "ok",
-            "task": command_module.TASK_PATH,
-            "run_metadata": {
-                "last_run_at": "2026-07-28T23:50:10+08:00",
-                "total_run_count": 20,
-            },
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "resolve_default_readiness_target_date",
-        lambda: date(2026, 7, 28),
-    )
-
-    payload = command_module.build_personal_readiness_status(
-        output_dir=tmp_path,
-        required_days=20,
-        calendar_source="weekday",
-        expected_latest_date=date(2026, 7, 28),
-    )
-
-    requirement = payload["acceptance_gate"]["requirements"]["alpha_workspace_formal_evidence"]
-    assert payload["status"] == "warning"
-    assert payload["acceptance_gate"]["accepted"] is False
-    assert payload["acceptance_gate"]["issue"] == "alpha_workspace_formal_evidence_missing"
-    assert requirement["ok"] is False
-    assert requirement["status"] == "missing"
-    assert requirement["formal_record_count"] == 20
-    assert requirement["alpha_workspace_record_count"] == 0
-    assert {item["name"] for item in payload["acceptance_gate"]["failed_requirements"]} == {
-        "alpha_workspace_formal_evidence"
-    }
-    assert payload["acceptance_gate"]["operator_actions"] == [
-        {
-            "requirement": "alpha_workspace_formal_evidence",
-            "action": "inspect_alpha_workspace_evidence",
-            "reason": "formal_alpha_workspace_evidence_incomplete",
-            "command": "python manage.py validate_personal_readiness_window --json",
-        }
-    ]
-
-
-def test_personal_readiness_status_blocks_final_acceptance_without_workspace_core_evidence(
-    monkeypatch,
-    tmp_path,
-):
-    monkeypatch.setattr(
-        command_module,
-        "validate_personal_readiness_window",
-        lambda **kwargs: {
-            "status": "accepted",
-            "required_days": kwargs["required_days"],
-            "accepted_days": kwargs["required_days"],
-            "remaining_days": 0,
-            "next_required_date": None,
-            "next_required_reason": "window_accepted",
-            "accepted_evidence": [
-                {
-                    "target_date": f"2026-07-{day:02d}",
-                    "evidence_mode": "formal",
-                    "acceptance_candidate": True,
-                    "trigger_source": "scheduler",
-                    "trigger_task_id": f"task-{day}",
-                    "trigger_task_name": command_module.TASK_PATH,
-                }
-                for day in range(1, 21)
-            ],
-            "accepted_evidence_quality": {
-                "formal_record_count": 20,
-                "formal_workspace_core_record_count": 0,
-                "formal_workspace_core_ok_record_count": 0,
-                "formal_workspace_core_missing_record_count": 20,
-                "formal_qlib_record_count": 20,
-                "formal_qlib_ok_record_count": 20,
-                "formal_qlib_missing_record_count": 0,
-                "formal_qlib_blocked_record_count": 0,
-                "formal_alpha_workspace_record_count": 20,
-                "formal_alpha_workspace_ok_record_count": 20,
-                "formal_alpha_workspace_missing_record_count": 0,
-                "formal_decision_data_record_count": 20,
-                "formal_decision_data_ok_record_count": 20,
-                "formal_decision_data_missing_record_count": 0,
-                "formal_decision_data_blocked_record_count": 0,
-                "formal_quote_freshness_record_count": 20,
-                "formal_quote_freshness_ok_record_count": 20,
-                "formal_quote_freshness_missing_record_count": 0,
-                "formal_quote_freshness_stale_record_count": 0,
-                "formal_quote_freshness_blocked_record_count": 0,
-                "formal_risk_record_count": 20,
-                "formal_risk_ok_record_count": 20,
-                "formal_risk_missing_record_count": 0,
-                "formal_risk_account_count": 40,
-                "formal_risk_report_ok_account_count": 40,
-                "formal_pre_trade_ok_account_count": 40,
-                "formal_pre_trade_missing_account_count": 0,
-                "formal_post_investment_ok_account_count": 40,
-                "formal_post_investment_missing_account_count": 0,
-                "weekly_report_persistence_ok_record_count": 4,
-                "weekly_report_persistence_ok_account_count": 8,
-                "weekly_report_persistence_missing_record_count": 0,
-                "weekly_report_persistence_warning_record_count": 0,
-            },
-            "blocking_issues": [],
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "_collect_scheduler_status",
-        lambda: {
-            "status": "ok",
-            "task": command_module.TASK_PATH,
-            "run_metadata": {
-                "last_run_at": "2026-07-28T23:50:10+08:00",
-                "total_run_count": 20,
-            },
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "resolve_default_readiness_target_date",
-        lambda: date(2026, 7, 28),
-    )
-
-    payload = command_module.build_personal_readiness_status(
-        output_dir=tmp_path,
-        required_days=20,
-        calendar_source="weekday",
-        expected_latest_date=date(2026, 7, 28),
-    )
-
-    requirement = payload["acceptance_gate"]["requirements"]["workspace_core_formal_evidence"]
-    assert payload["status"] == "warning"
-    assert payload["acceptance_gate"]["accepted"] is False
-    assert payload["acceptance_gate"]["issue"] == "workspace_core_formal_evidence_missing"
-    assert requirement["ok"] is False
-    assert requirement["status"] == "missing"
-    assert requirement["formal_record_count"] == 20
-    assert requirement["workspace_core_record_count"] == 0
-    assert {item["name"] for item in payload["acceptance_gate"]["failed_requirements"]} == {
-        "workspace_core_formal_evidence"
-    }
-    assert payload["acceptance_gate"]["operator_actions"] == [
-        {
-            "requirement": "workspace_core_formal_evidence",
-            "action": "inspect_workspace_core_evidence",
-            "reason": "formal_workspace_core_evidence_incomplete",
-            "command": "python manage.py validate_personal_readiness_window --json",
-        }
-    ]
-
-
-def test_personal_readiness_status_blocks_final_acceptance_without_qlib_evidence(
-    monkeypatch,
-    tmp_path,
-):
-    monkeypatch.setattr(
-        command_module,
-        "validate_personal_readiness_window",
-        lambda **kwargs: {
-            "status": "accepted",
-            "required_days": kwargs["required_days"],
-            "accepted_days": kwargs["required_days"],
-            "remaining_days": 0,
-            "next_required_date": None,
-            "next_required_reason": "window_accepted",
-            "accepted_evidence": [
-                {
-                    "target_date": f"2026-07-{day:02d}",
-                    "evidence_mode": "formal",
-                    "acceptance_candidate": True,
-                    "trigger_source": "scheduler",
-                    "trigger_task_id": f"task-{day}",
-                    "trigger_task_name": command_module.TASK_PATH,
-                }
-                for day in range(1, 21)
-            ],
-            "accepted_evidence_quality": {
-                "formal_record_count": 20,
-                "formal_workspace_core_record_count": 20,
-                "formal_workspace_core_ok_record_count": 20,
-                "formal_workspace_core_missing_record_count": 0,
-                "formal_qlib_record_count": 0,
-                "formal_qlib_ok_record_count": 0,
-                "formal_qlib_missing_record_count": 20,
-                "formal_qlib_blocked_record_count": 0,
-                "formal_alpha_workspace_record_count": 20,
-                "formal_alpha_workspace_ok_record_count": 20,
-                "formal_alpha_workspace_missing_record_count": 0,
-                "formal_decision_data_record_count": 20,
-                "formal_decision_data_ok_record_count": 20,
-                "formal_decision_data_missing_record_count": 0,
-                "formal_decision_data_blocked_record_count": 0,
-                "formal_quote_freshness_record_count": 20,
-                "formal_quote_freshness_ok_record_count": 20,
-                "formal_quote_freshness_missing_record_count": 0,
-                "formal_quote_freshness_stale_record_count": 0,
-                "formal_quote_freshness_blocked_record_count": 0,
-                "formal_risk_record_count": 20,
-                "formal_risk_ok_record_count": 20,
-                "formal_risk_missing_record_count": 0,
-                "formal_risk_account_count": 40,
-                "formal_risk_report_ok_account_count": 40,
-                "formal_pre_trade_ok_account_count": 40,
-                "formal_pre_trade_missing_account_count": 0,
-                "formal_post_investment_ok_account_count": 40,
-                "formal_post_investment_missing_account_count": 0,
-                "weekly_report_persistence_ok_record_count": 4,
-                "weekly_report_persistence_ok_account_count": 8,
-                "weekly_report_persistence_missing_record_count": 0,
-                "weekly_report_persistence_warning_record_count": 0,
-            },
-            "blocking_issues": [],
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "_collect_scheduler_status",
-        lambda: {
-            "status": "ok",
-            "task": command_module.TASK_PATH,
-            "run_metadata": {
-                "last_run_at": "2026-07-28T23:50:10+08:00",
-                "total_run_count": 20,
-            },
-        },
-    )
-    monkeypatch.setattr(
-        command_module,
-        "resolve_default_readiness_target_date",
-        lambda: date(2026, 7, 28),
-    )
-
-    payload = command_module.build_personal_readiness_status(
-        output_dir=tmp_path,
-        required_days=20,
-        calendar_source="weekday",
-        expected_latest_date=date(2026, 7, 28),
-    )
-
-    requirement = payload["acceptance_gate"]["requirements"]["qlib_formal_evidence"]
-    assert payload["status"] == "warning"
-    assert payload["acceptance_gate"]["accepted"] is False
-    assert payload["acceptance_gate"]["issue"] == "qlib_formal_evidence_missing"
-    assert requirement["ok"] is False
-    assert requirement["status"] == "missing"
-    assert requirement["formal_record_count"] == 20
-    assert requirement["qlib_record_count"] == 0
-    assert {item["name"] for item in payload["acceptance_gate"]["failed_requirements"]} == {
-        "qlib_formal_evidence"
-    }
-    assert payload["acceptance_gate"]["operator_actions"] == [
-        {
-            "requirement": "qlib_formal_evidence",
-            "action": "inspect_qlib_evidence",
-            "reason": "formal_qlib_evidence_incomplete",
-            "command": "python manage.py validate_personal_readiness_window --json",
-        }
-    ]
 
 
 def test_personal_readiness_status_blocks_final_acceptance_without_decision_data_evidence(
@@ -4712,48 +4381,6 @@ def test_auto_advisor_weekly_scheduler_accepts_configured_post_close_time(monkey
     assert payload["safety"]["issues"] == []
 
 
-def test_auto_advisor_weekly_scheduler_rejects_unsafe_pre_evidence_time():
-    issue = weekly_module._build_auto_advisor_weekly_schedule_safety_issue(
-        schedule={
-            "minute": "0",
-            "hour": "16",
-            "day_of_week": "fri",
-            "day_of_month": "*",
-            "month_of_year": "*",
-            "timezone": "Asia/Shanghai",
-        }
-    )
-
-    assert issue == {
-        "code": "unsafe_auto_advisor_weekly_time",
-        "message": (
-            "Scheduled weekly auto-advisor report should run after 16:00 "
-            "Asia/Shanghai, got 16:00."
-        ),
-    }
-
-
-def test_auto_advisor_weekly_scheduler_rejects_time_not_after_daily_evidence():
-    issue = weekly_module._build_auto_advisor_weekly_schedule_safety_issue(
-        schedule={
-            "minute": "10",
-            "hour": "16",
-            "day_of_week": "fri",
-            "day_of_month": "*",
-            "month_of_year": "*",
-            "timezone": "Asia/Shanghai",
-        }
-    )
-
-    assert issue == {
-        "code": "auto_advisor_weekly_not_after_daily_evidence",
-        "message": (
-            "Scheduled weekly auto-advisor report should run after "
-            "personal readiness daily evidence (16:10), got 16:10."
-        ),
-    }
-
-
 def test_personal_readiness_status_collects_quote_pre_readiness_scheduler(monkeypatch):
     monkeypatch.setattr(
         command_module,
@@ -4928,9 +4555,7 @@ def test_quote_pre_readiness_scheduler_warns_before_post_close(monkeypatch):
     payload = command_module._collect_quote_pre_readiness_scheduler_status()
 
     assert payload["status"] == "warning"
-    assert payload["safety"]["issues"][-1]["code"] == (
-        "quote_pre_readiness_before_post_close"
-    )
+    assert payload["safety"]["issues"][-1]["code"] == ("quote_pre_readiness_before_post_close")
 
 
 def test_personal_readiness_status_warns_when_quote_pre_readiness_scheduler_is_unsafe():
@@ -5496,170 +5121,6 @@ def test_personal_readiness_status_warns_when_scheduler_is_disabled(monkeypatch)
     assert "scheduler_disabled" in issue_codes
 
 
-def test_personal_readiness_status_warns_when_scheduler_runs_before_post_close(
-    monkeypatch,
-):
-    fake_task = SimpleNamespace(
-        name=command_module.TASK_NAME,
-        task=command_module.TASK_PATH,
-        enabled=True,
-        kwargs='{"calendar_source": "auto"}',
-        crontab=SimpleNamespace(
-            minute="0",
-            hour="14",
-            day_of_week="mon-fri",
-            day_of_month="*",
-            month_of_year="*",
-            timezone="Asia/Shanghai",
-        ),
-    )
-
-    class FakeQuery:
-        @staticmethod
-        def first():
-            return fake_task
-
-    class FakeManager:
-        @staticmethod
-        def filter(**kwargs):
-            assert kwargs == {"name": command_module.TASK_NAME}
-            return FakeQuery()
-
-    class FakePeriodicTask:
-        objects = FakeManager()
-
-    monkeypatch.setattr(command_module, "PeriodicTask", FakePeriodicTask)
-
-    payload = command_module._collect_scheduler_status()
-
-    issue_codes = {issue["code"] for issue in payload["safety"]["issues"]}
-    assert payload["status"] == "warning"
-    assert "scheduler_before_post_close" in issue_codes
-
-
-def test_personal_readiness_status_warns_when_scheduler_timezone_is_not_shanghai(
-    monkeypatch,
-):
-    fake_task = SimpleNamespace(
-        name=command_module.TASK_NAME,
-        task=command_module.TASK_PATH,
-        enabled=True,
-        kwargs='{"calendar_source": "auto"}',
-        crontab=SimpleNamespace(
-            minute="50",
-            hour="23",
-            day_of_week="mon-fri",
-            day_of_month="*",
-            month_of_year="*",
-            timezone="UTC",
-        ),
-    )
-
-    class FakeQuery:
-        @staticmethod
-        def first():
-            return fake_task
-
-    class FakeManager:
-        @staticmethod
-        def filter(**kwargs):
-            assert kwargs == {"name": command_module.TASK_NAME}
-            return FakeQuery()
-
-    class FakePeriodicTask:
-        objects = FakeManager()
-
-    monkeypatch.setattr(command_module, "PeriodicTask", FakePeriodicTask)
-
-    payload = command_module._collect_scheduler_status()
-
-    issue_codes = {issue["code"] for issue in payload["safety"]["issues"]}
-    assert payload["status"] == "warning"
-    assert "unexpected_scheduler_timezone" in issue_codes
-
-
-def test_personal_readiness_status_warns_when_scheduler_day_of_week_is_not_weekdays(
-    monkeypatch,
-):
-    fake_task = SimpleNamespace(
-        name=command_module.TASK_NAME,
-        task=command_module.TASK_PATH,
-        enabled=True,
-        kwargs='{"calendar_source": "auto"}',
-        crontab=SimpleNamespace(
-            minute="50",
-            hour="23",
-            day_of_week="mon-thu",
-            day_of_month="*",
-            month_of_year="*",
-            timezone="Asia/Shanghai",
-        ),
-    )
-
-    class FakeQuery:
-        @staticmethod
-        def first():
-            return fake_task
-
-    class FakeManager:
-        @staticmethod
-        def filter(**kwargs):
-            assert kwargs == {"name": command_module.TASK_NAME}
-            return FakeQuery()
-
-    class FakePeriodicTask:
-        objects = FakeManager()
-
-    monkeypatch.setattr(command_module, "PeriodicTask", FakePeriodicTask)
-
-    payload = command_module._collect_scheduler_status()
-
-    issue_codes = {issue["code"] for issue in payload["safety"]["issues"]}
-    assert payload["status"] == "warning"
-    assert "unexpected_scheduler_day_of_week" in issue_codes
-
-
-def test_personal_readiness_status_warns_when_scheduler_day_or_month_is_restricted(
-    monkeypatch,
-):
-    fake_task = SimpleNamespace(
-        name=command_module.TASK_NAME,
-        task=command_module.TASK_PATH,
-        enabled=True,
-        kwargs='{"calendar_source": "auto"}',
-        crontab=SimpleNamespace(
-            minute="50",
-            hour="23",
-            day_of_week="mon-fri",
-            day_of_month="1",
-            month_of_year="*",
-            timezone="Asia/Shanghai",
-        ),
-    )
-
-    class FakeQuery:
-        @staticmethod
-        def first():
-            return fake_task
-
-    class FakeManager:
-        @staticmethod
-        def filter(**kwargs):
-            assert kwargs == {"name": command_module.TASK_NAME}
-            return FakeQuery()
-
-    class FakePeriodicTask:
-        objects = FakeManager()
-
-    monkeypatch.setattr(command_module, "PeriodicTask", FakePeriodicTask)
-
-    payload = command_module._collect_scheduler_status()
-
-    issue_codes = {issue["code"] for issue in payload["safety"]["issues"]}
-    assert payload["status"] == "warning"
-    assert "unexpected_scheduler_day_of_month" in issue_codes
-
-
 def test_personal_readiness_status_warns_when_scheduler_has_run_limits(
     monkeypatch,
 ):
@@ -5809,3 +5270,218 @@ def test_personal_readiness_status_warns_when_scheduler_delivery_controls_are_cu
     assert "unexpected_scheduler_headers" in issue_codes
     assert command_module._parse_scheduler_headers("[]")["error"] == "headers_json_must_be_object"
     assert command_module._parse_scheduler_headers("not-json")["error"].startswith("invalid_json")
+
+
+@pytest.mark.parametrize(
+    ("quality_prefix", "requirement_key", "issue", "action", "reason"),
+    [
+        pytest.param(
+            "alpha_workspace",
+            "alpha_workspace_formal_evidence",
+            "alpha_workspace_formal_evidence_missing",
+            "inspect_alpha_workspace_evidence",
+            "formal_alpha_workspace_evidence_incomplete",
+            id="alpha-workspace",
+        ),
+        pytest.param(
+            "workspace_core",
+            "workspace_core_formal_evidence",
+            "workspace_core_formal_evidence_missing",
+            "inspect_workspace_core_evidence",
+            "formal_workspace_core_evidence_incomplete",
+            id="workspace-core",
+        ),
+        pytest.param(
+            "qlib",
+            "qlib_formal_evidence",
+            "qlib_formal_evidence_missing",
+            "inspect_qlib_evidence",
+            "formal_qlib_evidence_incomplete",
+            id="qlib",
+        ),
+    ],
+)
+def test_personal_readiness_status_blocks_final_acceptance_for_missing_formal_evidence(
+    monkeypatch,
+    tmp_path,
+    quality_prefix: str,
+    requirement_key: str,
+    issue: str,
+    action: str,
+    reason: str,
+) -> None:
+    """Each mandatory formal evidence family must independently block acceptance."""
+
+    quality_overrides = {
+        f"formal_{quality_prefix}_record_count": 0,
+        f"formal_{quality_prefix}_ok_record_count": 0,
+        f"formal_{quality_prefix}_missing_record_count": 20,
+    }
+    monkeypatch.setattr(
+        command_module,
+        "validate_personal_readiness_window",
+        lambda **kwargs: build_formal_acceptance_window_result(
+            task_path=command_module.TASK_PATH,
+            required_days=kwargs["required_days"],
+            quality_overrides=quality_overrides,
+        ),
+    )
+    monkeypatch.setattr(
+        command_module,
+        "_collect_scheduler_status",
+        lambda: {
+            "status": "ok",
+            "task": command_module.TASK_PATH,
+            "run_metadata": {
+                "last_run_at": "2026-07-28T23:50:10+08:00",
+                "total_run_count": 20,
+            },
+        },
+    )
+    monkeypatch.setattr(
+        command_module,
+        "resolve_default_readiness_target_date",
+        lambda: date(2026, 7, 28),
+    )
+
+    payload = command_module.build_personal_readiness_status(
+        output_dir=tmp_path,
+        required_days=20,
+        calendar_source="weekday",
+        expected_latest_date=date(2026, 7, 28),
+    )
+
+    requirement = payload["acceptance_gate"]["requirements"][requirement_key]
+    assert payload["status"] == "warning"
+    assert payload["acceptance_gate"]["accepted"] is False
+    assert payload["acceptance_gate"]["issue"] == issue
+    assert requirement["ok"] is False
+    assert requirement["status"] == "missing"
+    assert requirement["formal_record_count"] == 20
+    assert requirement[f"{quality_prefix}_record_count"] == 0
+    assert {item["name"] for item in payload["acceptance_gate"]["failed_requirements"]} == {
+        requirement_key
+    }
+    assert payload["acceptance_gate"]["operator_actions"] == [
+        {
+            "requirement": requirement_key,
+            "action": action,
+            "reason": reason,
+            "command": "python manage.py validate_personal_readiness_window --json",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("schedule_overrides", "issue_code"),
+    [
+        pytest.param(
+            {"minute": "0", "hour": "14"},
+            "scheduler_before_post_close",
+            id="before-post-close",
+        ),
+        pytest.param(
+            {"timezone": "UTC"},
+            "unexpected_scheduler_timezone",
+            id="timezone",
+        ),
+        pytest.param(
+            {"day_of_week": "mon-thu"},
+            "unexpected_scheduler_day_of_week",
+            id="day-of-week",
+        ),
+        pytest.param(
+            {"day_of_month": "1"},
+            "unexpected_scheduler_day_of_month",
+            id="day-of-month",
+        ),
+    ],
+)
+def test_personal_readiness_status_scheduler_safety_matrix(
+    monkeypatch,
+    schedule_overrides: dict[str, str],
+    issue_code: str,
+) -> None:
+    """Each unsafe scheduler field must publish its specific issue code."""
+
+    schedule = {
+        "minute": "50",
+        "hour": "23",
+        "day_of_week": "mon-fri",
+        "day_of_month": "*",
+        "month_of_year": "*",
+        "timezone": "Asia/Shanghai",
+    }
+    schedule.update(schedule_overrides)
+    fake_task = SimpleNamespace(
+        name=command_module.TASK_NAME,
+        task=command_module.TASK_PATH,
+        enabled=True,
+        kwargs='{"calendar_source": "auto"}',
+        crontab=SimpleNamespace(**schedule),
+    )
+
+    class FakeQuery:
+        @staticmethod
+        def first():
+            return fake_task
+
+    class FakeManager:
+        @staticmethod
+        def filter(**kwargs):
+            assert kwargs == {"name": command_module.TASK_NAME}
+            return FakeQuery()
+
+    class FakePeriodicTask:
+        objects = FakeManager()
+
+    monkeypatch.setattr(command_module, "PeriodicTask", FakePeriodicTask)
+
+    payload = command_module._collect_scheduler_status()
+
+    issue_codes = {item["code"] for item in payload["safety"]["issues"]}
+    assert payload["status"] == "warning"
+    assert issue_code in issue_codes
+
+
+@pytest.mark.parametrize(
+    ("hour", "minute", "expected_code", "expected_message"),
+    [
+        pytest.param(
+            "16",
+            "0",
+            "unsafe_auto_advisor_weekly_time",
+            "Scheduled weekly auto-advisor report should run after 16:00 "
+            "Asia/Shanghai, got 16:00.",
+            id="pre-evidence-window",
+        ),
+        pytest.param(
+            "16",
+            "10",
+            "auto_advisor_weekly_not_after_daily_evidence",
+            "Scheduled weekly auto-advisor report should run after "
+            "personal readiness daily evidence (16:10), got 16:10.",
+            id="same-as-daily-evidence",
+        ),
+    ],
+)
+def test_auto_advisor_weekly_scheduler_safety_matrix(
+    hour: str,
+    minute: str,
+    expected_code: str,
+    expected_message: str,
+) -> None:
+    """Weekly scheduler ordering failures must keep stable operator messages."""
+
+    issue = weekly_module._build_auto_advisor_weekly_schedule_safety_issue(
+        schedule={
+            "minute": minute,
+            "hour": hour,
+            "day_of_week": "fri",
+            "day_of_month": "*",
+            "month_of_year": "*",
+            "timezone": "Asia/Shanghai",
+        }
+    )
+
+    assert issue == {"code": expected_code, "message": expected_message}

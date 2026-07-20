@@ -4,7 +4,6 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from apps.account.application import interface_services as account_interface_services
 from apps.account.infrastructure.models import (
@@ -18,11 +17,6 @@ from apps.account.infrastructure.models import (
     SystemSettingsModel,
     UserAccessTokenModel,
 )
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
 
 
 @pytest.fixture
@@ -43,12 +37,6 @@ def auth_user(db):
         },
     )
     return user
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture

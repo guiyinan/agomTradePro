@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from apps.rotation.infrastructure.models import (
     AssetClassModel,
@@ -18,26 +17,6 @@ from apps.rotation.infrastructure.models import (
     RotationTemplateModel,
 )
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="rotation_user",
-        password="testpass123",
-        email="rotation@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture
@@ -67,25 +46,6 @@ def _create_account(user, name: str) -> SimulatedAccountModel:
         current_market_value=Decimal("0.00"),
         total_value=Decimal("100000.00"),
     )
-
-
-@pytest.mark.django_db
-def test_rotation_api_root_contract(api_client):
-    response = api_client.get("/api/rotation/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["assets"] == "/api/rotation/assets/"
-    assert payload["endpoints"]["actions"] == "/api/rotation/"
-
-
-@pytest.mark.django_db
-def test_rotation_config_catalog_requires_authentication(api_client):
-    response = api_client.get("/api/rotation/configs/")
-
-    assert response.status_code in {401, 403}
-    assert response["Content-Type"].startswith("application/json")
 
 
 @pytest.mark.django_db

@@ -1,7 +1,7 @@
 # 估值定价引擎业务文档
 
-> **版本**: V1.0
-> **最后更新**: 2026-03-02
+> **版本**: V1.1
+> **最后更新**: 2026-07-20
 > **状态**: 实施完成
 
 ---
@@ -14,6 +14,8 @@
 2. **价格区间生成** - 自动生成入场价、目标价、止损价区间
 3. **仓位建议** - 根据风险预算提供仓位建议
 4. **执行审批** - 标准化的交易审批流程
+
+自 R3-lite 起，估值快照、价格带、质量/新鲜度判定和估值来源选择的 canonical owner 为 `apps.valuation`。现有 ORM 表、migration 与 `/api/valuation/**` 路径仍由 `decision_rhythm` 保持兼容，不发生数据迁移。
 
 ---
 
@@ -406,7 +408,7 @@ GET /api/decision/execute/?regime_source=V2_CALCULATION
 对于历史建议，需要创建 legacy 估值快照：
 
 ```python
-from apps.decision_rhythm.domain.services import ValuationSnapshotService
+from apps.valuation.domain.services import ValuationSnapshotService
 
 service = ValuationSnapshotService()
 
@@ -433,13 +435,14 @@ python manage.py backfill_valuations
 
 | 测试文件 | 覆盖内容 |
 |----------|----------|
+| `tests/unit/valuation/` | canonical owner、依赖注入、质量/新鲜度与兼容 facade |
 | `tests/unit/decision_rhythm/test_valuation_services.py` | 估值快照、审批服务、状态机 |
 | `tests/unit/test_decision_rhythm_services.py` | 配额/冷却/节奏管理既有回归 |
 
 ### 运行测试
 
 ```bash
-pytest tests/unit/decision_rhythm/ -v --cov=apps/decision_rhythm
+pytest tests/unit/valuation tests/unit/decision_rhythm/test_valuation_services.py -v
 ```
 
 ---
@@ -468,4 +471,5 @@ A: 使用 `create_legacy_snapshot()` 方法创建历史快照，标记 `is_legac
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-07-20 | V1.1 | R3-lite 将无状态估值引擎迁入 `apps.valuation`，保留旧 ORM/API/import 兼容 |
 | 2026-03-02 | V1.0 | 初始版本，完成实施 |

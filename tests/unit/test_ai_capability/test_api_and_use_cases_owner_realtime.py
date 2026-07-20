@@ -60,6 +60,5 @@ def test_sync_mcp_tools_projects_all_realtime_management_capabilities() -> None:
     for raw_name in raw_names:
         legacy = by_key[f"mcp_tool.{raw_name}"]
         assert (
-            legacy.execution_target["replacement_capability_key"]
-            == expected_replacements[raw_name]
+            legacy.execution_target["replacement_capability_key"] == expected_replacements[raw_name]
         )

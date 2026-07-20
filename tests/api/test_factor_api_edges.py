@@ -1,39 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="factor_user",
-        password="testpass123",
-        email="factor@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
-@pytest.mark.django_db
-def test_factor_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/factor/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["definitions"] == "/api/factor/definitions/"
-    assert payload["endpoints"]["configs"] == "/api/factor/configs/"
 
 
 @pytest.mark.django_db
@@ -82,8 +49,7 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
         FactorPortfolioHoldingModel,
     )
     before_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
 
     definitions_response = authenticated_client.get("/api/factor/all-factors/")
@@ -96,19 +62,12 @@ def test_factor_catalog_get_endpoints_are_pure_reads(authenticated_client):
     assert definitions_response.status_code == 200
     assert configs_response.status_code == 200
     assert portfolio_response.status_code == 200
-    assert any(
-        item["code"] == "factor_read_contract"
-        for item in definitions_response.json()
-    )
-    assert any(
-        item["name"] == "Factor read config"
-        for item in configs_response.json()
-    )
+    assert any(item["code"] == "factor_read_contract" for item in definitions_response.json())
+    assert any(item["name"] == "Factor read config" for item in configs_response.json())
     assert portfolio_response.json()["config_name"] == config.name
     assert portfolio_response.json()["holdings"][0]["stock_code"] == "000001.SZ"
     after_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
     assert after_counts == before_counts
 
@@ -177,8 +136,7 @@ def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
         StockInfoModel,
     )
     before_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
 
     response = authenticated_client.post(
@@ -196,8 +154,7 @@ def test_factor_top_stocks_is_pure_compute_without_price_cache_writes(
     assert len(payload["stocks"]) == 2
     assert payload["stocks"][0]["stock_code"] == "600000.SH"
     after_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
     assert after_counts == before_counts
 
@@ -314,8 +271,7 @@ def test_factor_explain_stock_is_pure_compute_without_price_cache_writes(
         StockInfoModel,
     )
     before_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
 
     response = authenticated_client.post(
@@ -333,8 +289,7 @@ def test_factor_explain_stock_is_pure_compute_without_price_cache_writes(
     assert payload["stock_name"] == "浦发银行"
     assert "momentum_1m" in payload["factor_breakdown"]
     after_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
     assert after_counts == before_counts
 

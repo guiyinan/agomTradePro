@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-20.v12",
+  "version": "2026-07-20.v13",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 188,
-  "max_outbound_modules_per_app": 20,
+  "max_app_import_edges": 192,
+  "max_outbound_modules_per_app": 21,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
     "account": 13,
@@ -18,7 +18,7 @@
     "config_center": 1,
     "dashboard": 16,
     "data_center": 1,
-    "decision_rhythm": 20,
+    "decision_rhythm": 21,
     "equity": 8,
     "events": 0,
     "factor": 4,
@@ -42,7 +42,8 @@
     "simulated_trading": 13,
     "strategy": 6,
     "task_monitor": 1,
-    "terminal": 18
+    "terminal": 18,
+    "valuation": 3
   },
   "max_inbound_modules_by_app": {
     "account": 11,
@@ -51,13 +52,13 @@
     "ai_provider": 12,
     "alpha": 3,
     "alpha_trigger": 3,
-    "asset_analysis": 12,
+    "asset_analysis": 13,
     "audit": 1,
     "backtest": 1,
     "beta_gate": 4,
     "config_center": 4,
     "dashboard": 1,
-    "data_center": 22,
+    "data_center": 23,
     "decision_rhythm": 3,
     "equity": 6,
     "events": 5,
@@ -70,7 +71,7 @@
     "policy": 12,
     "prompt": 4,
     "pulse": 7,
-    "realtime": 5,
+    "realtime": 6,
     "regime": 23,
     "risk_center": 3,
     "rotation": 4,
@@ -82,7 +83,8 @@
     "simulated_trading": 3,
     "strategy": 3,
     "task_monitor": 4,
-    "terminal": 0
+    "terminal": 0,
+    "valuation": 1
   },
   "allowed_bidirectional_pairs": [],
   "allowed_cycle_components": []

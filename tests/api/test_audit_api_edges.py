@@ -1,11 +1,5 @@
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
 
 
 @pytest.fixture
@@ -16,23 +10,6 @@ def auth_user(db):
         email="audit@example.com",
         is_staff=True,
     )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
-@pytest.mark.django_db
-def test_audit_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/audit/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["summary"] == "/api/audit/summary/"
-    assert payload["endpoints"]["run_validation"] == "/api/audit/run-validation/"
 
 
 @pytest.mark.django_db

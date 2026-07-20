@@ -1,0 +1,38 @@
+"""Shared fixtures for API contract and edge tests."""
+
+from collections.abc import Iterator
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
+from rest_framework.test import APIClient
+
+
+@pytest.fixture
+def api_client() -> APIClient:
+    """Return an unauthenticated DRF client for permission contracts."""
+
+    return APIClient()
+
+
+@pytest.fixture
+def auth_user(db: object) -> AbstractBaseUser:
+    """Create the ordinary user shared by API edge tests."""
+
+    return get_user_model().objects.create_user(
+        username="api_edge_user",
+        password="testpass123",
+        email="api-edge@example.com",
+    )
+
+
+@pytest.fixture
+def authenticated_client(
+    api_client: APIClient,
+    auth_user: AbstractBaseUser,
+) -> Iterator[APIClient]:
+    """Authenticate the shared API client and clear credentials afterwards."""
+
+    api_client.force_authenticate(user=auth_user)
+    yield api_client
+    api_client.force_authenticate(user=None)

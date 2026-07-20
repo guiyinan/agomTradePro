@@ -6,7 +6,6 @@ import pytest
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from apps.simulated_trading.infrastructure.models import (
     PositionModel,
@@ -22,34 +21,9 @@ from apps.strategy.infrastructure.models import (
 
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="strategy_user",
-        password="testpass123",
-        email="strategy@example.com",
-    )
-
-
-@pytest.fixture
 def authenticated_client(api_client, auth_user):
     api_client.force_login(auth_user)
     return api_client
-
-
-@pytest.mark.django_db
-def test_strategy_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/strategy/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["strategies"] == "/api/strategy/strategies/"
-    assert payload["endpoints"]["execution_evaluate"] == "/api/strategy/execution/evaluate/"
 
 
 @pytest.mark.django_db
@@ -74,7 +48,9 @@ def test_strategy_execution_evaluate_rejects_invalid_json(authenticated_client):
 
 @pytest.mark.django_db
 def test_strategy_bind_requires_required_parameters(authenticated_client):
-    response = authenticated_client.post("/api/strategy/bind-strategy/", data={}, content_type="application/json")
+    response = authenticated_client.post(
+        "/api/strategy/bind-strategy/", data={}, content_type="application/json"
+    )
 
     assert response.status_code == 400
     assert response.json()["error"] == "缺少必要参数"
@@ -176,16 +152,12 @@ def test_strategy_detail_hides_other_owner_but_staff_can_read(
     )
     before = _strategy_table_counts()
 
-    hidden_response = authenticated_client.get(
-        f"/api/strategy/strategies/{strategy.id}/"
-    )
+    hidden_response = authenticated_client.get(f"/api/strategy/strategies/{strategy.id}/")
     assert hidden_response.status_code == 404
 
     auth_user.is_staff = True
     auth_user.save(update_fields=["is_staff"])
-    visible_response = authenticated_client.get(
-        f"/api/strategy/strategies/{strategy.id}/"
-    )
+    visible_response = authenticated_client.get(f"/api/strategy/strategies/{strategy.id}/")
 
     assert visible_response.status_code == 200
     assert visible_response.json()["id"] == strategy.id
@@ -231,15 +203,13 @@ def test_ai_strategy_config_api_is_owner_scoped_read_only_with_staff_override(
     rows = list_response.json().get("results", list_response.json())
     assert list_response.status_code == 200
     assert {row["id"] for row in rows} == {own_config.id}
-    assert authenticated_client.get(
-        f"/api/strategy/ai-configs/{other_config.id}/"
-    ).status_code == 404
+    assert (
+        authenticated_client.get(f"/api/strategy/ai-configs/{other_config.id}/").status_code == 404
+    )
 
     auth_user.is_staff = True
     auth_user.save(update_fields=["is_staff"])
-    staff_response = authenticated_client.get(
-        f"/api/strategy/ai-configs/{other_config.id}/"
-    )
+    staff_response = authenticated_client.get(f"/api/strategy/ai-configs/{other_config.id}/")
     assert staff_response.status_code == 200
     assert staff_response.json()["id"] == other_config.id
     assert _strategy_table_counts() == before
@@ -294,18 +264,20 @@ def test_position_rule_api_is_owner_scoped_read_only_with_staff_override(
     rows = list_response.json().get("results", list_response.json())
     assert list_response.status_code == 200
     assert {row["id"] for row in rows} == {own_rule.id}
-    assert authenticated_client.get(
-        f"/api/strategy/position-rules/{other_rule.id}/"
-    ).status_code == 404
-    assert authenticated_client.get(
-        f"/api/strategy/strategies/{other_strategy.id}/position_rule/"
-    ).status_code == 404
+    assert (
+        authenticated_client.get(f"/api/strategy/position-rules/{other_rule.id}/").status_code
+        == 404
+    )
+    assert (
+        authenticated_client.get(
+            f"/api/strategy/strategies/{other_strategy.id}/position_rule/"
+        ).status_code
+        == 404
+    )
 
     auth_user.is_staff = True
     auth_user.save(update_fields=["is_staff"])
-    staff_response = authenticated_client.get(
-        f"/api/strategy/position-rules/{other_rule.id}/"
-    )
+    staff_response = authenticated_client.get(f"/api/strategy/position-rules/{other_rule.id}/")
     assert staff_response.status_code == 200
     assert staff_response.json()["id"] == other_rule.id
     assert _strategy_table_counts() == before
@@ -372,16 +344,22 @@ def test_position_rule_calculations_are_owner_scoped_and_side_effect_free(
     assert strategy_response.status_code == 200
     assert rule_response.json()["position_size"] == 1000.0
     assert strategy_response.json() == rule_response.json()
-    assert authenticated_client.post(
-        f"/api/strategy/position-rules/{other_rule.id}/evaluate/",
-        {"context": context},
-        format="json",
-    ).status_code == 404
-    assert authenticated_client.post(
-        f"/api/strategy/strategies/{other_strategy.id}/evaluate_position_management/",
-        {"context": context},
-        format="json",
-    ).status_code == 404
+    assert (
+        authenticated_client.post(
+            f"/api/strategy/position-rules/{other_rule.id}/evaluate/",
+            {"context": context},
+            format="json",
+        ).status_code
+        == 404
+    )
+    assert (
+        authenticated_client.post(
+            f"/api/strategy/strategies/{other_strategy.id}/evaluate_position_management/",
+            {"context": context},
+            format="json",
+        ).status_code
+        == 404
+    )
     assert _strategy_table_counts() == before
 
     auth_user.is_staff = True
@@ -505,9 +483,7 @@ def test_strategy_sdk_reads_are_owner_scoped_strict_and_side_effect_free(
     )
     strategy_before = _strategy_table_counts()
     simulated_before = {
-        "accounts": list(
-            SimulatedAccountModel._default_manager.order_by("pk").values()
-        ),
+        "accounts": list(SimulatedAccountModel._default_manager.order_by("pk").values()),
         "positions": list(PositionModel._default_manager.order_by("pk").values()),
     }
 
@@ -543,9 +519,7 @@ def test_strategy_sdk_reads_are_owner_scoped_strict_and_side_effect_free(
     assert hidden_response.status_code == 404
     assert _strategy_table_counts() == strategy_before
     simulated_after = {
-        "accounts": list(
-            SimulatedAccountModel._default_manager.order_by("pk").values()
-        ),
+        "accounts": list(SimulatedAccountModel._default_manager.order_by("pk").values()),
         "positions": list(PositionModel._default_manager.order_by("pk").values()),
     }
     assert simulated_after == simulated_before

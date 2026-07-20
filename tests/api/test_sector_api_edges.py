@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
 
 from apps.sector.infrastructure.models import (
     SectorConstituentModel,
@@ -17,20 +16,6 @@ from apps.sector.infrastructure.models import (
 
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="sector_user",
-        password="testpass123",
-        email="sector@example.com",
-    )
-
-
-@pytest.fixture
 def staff_user(db):
     return get_user_model().objects.create_user(
         username="sector_staff",
@@ -38,12 +23,6 @@ def staff_user(db):
         email="sector-staff@example.com",
         is_staff=True,
     )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.fixture
@@ -65,7 +44,9 @@ def test_sector_analyze_maps_unavailable_result_to_200(authenticated_client):
         error="upstream unavailable",
     )
 
-    with patch("apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute", return_value=result):
+    with patch(
+        "apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute", return_value=result
+    ):
         response = authenticated_client.post(
             "/api/sector/analyze/",
             {"lookback_days": 20, "level": "SW1", "top_n": 5},
@@ -102,16 +83,6 @@ def test_sector_update_data_rejects_non_staff_user(authenticated_client):
     assert response.status_code == 403
 
 
-@pytest.mark.django_db
-def test_sector_api_root_contract(authenticated_client):
-    response = authenticated_client.get("/api/sector/")
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["endpoints"]["rotation"] == "/api/sector/rotation/"
-    assert payload["endpoints"]["analyze"] == "/api/sector/analyze/"
-
-
 def _sector_table_snapshot():
     models = (
         SectorInfoModel,
@@ -121,9 +92,7 @@ def _sector_table_snapshot():
         SectorPreferenceConfigModel,
     )
     return {
-        model._meta.label_lower: list(
-            model._default_manager.order_by("pk").values()
-        )
+        model._meta.label_lower: list(model._default_manager.order_by("pk").values())
         for model in models
     }
 
@@ -166,13 +135,16 @@ def test_sector_rotation_is_strict_persisted_read(authenticated_client):
     )
     before = _sector_table_snapshot()
 
-    with patch(
-        "apps.sector.interface.views.UpdateSectorDataUseCase.execute",
-        side_effect=AssertionError("GET must not synchronize sector providers"),
-    ) as sync_execute, patch(
-        "apps.equity.infrastructure.adapters.MarketDataRepositoryAdapter._load_remote_index_points",
-        side_effect=AssertionError("GET must not hydrate benchmark data"),
-    ) as remote_loader:
+    with (
+        patch(
+            "apps.sector.interface.views.UpdateSectorDataUseCase.execute",
+            side_effect=AssertionError("GET must not synchronize sector providers"),
+        ) as sync_execute,
+        patch(
+            "apps.equity.infrastructure.adapters.MarketDataRepositoryAdapter._load_remote_index_points",
+            side_effect=AssertionError("GET must not hydrate benchmark data"),
+        ) as remote_loader,
+    ):
         response = authenticated_client.get(
             "/api/sector/rotation/",
             {
@@ -220,13 +192,16 @@ def test_sector_rotation_does_not_bootstrap_missing_data(authenticated_client):
         data_source="persisted",
     )
 
-    with patch(
-        "apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute",
-        return_value=result,
-    ) as analyze_execute, patch(
-        "apps.sector.interface.views.UpdateSectorDataUseCase.execute",
-        side_effect=AssertionError("GET must not synchronize sector providers"),
-    ) as sync_execute:
+    with (
+        patch(
+            "apps.sector.interface.views.AnalyzeSectorRotationUseCase.execute",
+            return_value=result,
+        ) as analyze_execute,
+        patch(
+            "apps.sector.interface.views.UpdateSectorDataUseCase.execute",
+            side_effect=AssertionError("GET must not synchronize sector providers"),
+        ) as sync_execute,
+    ):
         response = authenticated_client.get("/api/sector/rotation/?level=SW1")
 
     assert response.status_code == 200
@@ -245,11 +220,3 @@ def test_sector_rotation_rejects_unknown_query_parameters(authenticated_client):
 
         assert response.status_code == 400
         assert "Unknown query parameters: payload" in str(response.json())
-
-
-@pytest.mark.django_db
-def test_sector_rotation_requires_authentication(api_client):
-    for path in ("/api/sector/rotation/", "/api/sector/score/801010/"):
-        response = api_client.get(path)
-
-        assert response.status_code in {401, 403}

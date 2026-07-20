@@ -15,30 +15,6 @@ from apps.data_center.infrastructure.models import AssetMasterModel
 from apps.fund.infrastructure.models import FundHoldingModel
 
 
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="dashboard_api_user",
-        password="testpass123",
-        email="dashboard@example.com",
-    )
-
-
-@pytest.mark.django_db
-def test_dashboard_api_root_contract(client):
-    response = client.get("/api/dashboard/")
-
-    assert response.status_code == 200
-    assert response["Content-Type"].startswith("application/json")
-    payload = response.json()
-    assert payload["endpoints"]["allocation"] == "/api/dashboard/allocation/"
-    assert payload["endpoints"]["positions_data"] == "/api/dashboard/positions/data/"
-    assert payload["endpoints"]["alpha_stocks"] == "/api/dashboard/alpha/stocks/"
-    assert (
-        payload["endpoints"]["v1_alpha_decision_chain"] == "/api/dashboard/v1/alpha-decision-chain/"
-    )
-
-
 @pytest.mark.django_db
 def test_dashboard_allocation_rejects_invalid_account_id(client, auth_user):
     client.force_login(auth_user)

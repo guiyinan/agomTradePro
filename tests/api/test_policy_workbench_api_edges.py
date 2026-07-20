@@ -1,11 +1,5 @@
 import pytest
 from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
 
 
 @pytest.fixture
@@ -18,12 +12,6 @@ def auth_user(db):
     user.is_staff = True
     user.save(update_fields=["is_staff"])
     return user
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
 
 
 @pytest.mark.django_db

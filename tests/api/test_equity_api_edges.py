@@ -4,9 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.test import APIClient
 
 from apps.data_center.infrastructure.models import (
     AssetAliasModel,
@@ -26,39 +24,23 @@ from apps.regime.infrastructure.models import RegimeLog
 from core.exceptions import DataFetchError
 
 
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_user(db):
-    return get_user_model().objects.create_user(
-        username="equity_user",
-        password="testpass123",
-        email="equity@example.com",
-    )
-
-
-@pytest.fixture
-def authenticated_client(api_client, auth_user):
-    api_client.force_authenticate(user=auth_user)
-    return api_client
-
-
 @pytest.mark.django_db
 def test_equity_pool_returns_empty_payload_when_no_pool(authenticated_client):
     regime = SimpleNamespace(dominant_regime="Recovery")
 
-    with patch(
-        "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_current_pool",
-        return_value=[],
-    ), patch(
-        "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_latest_pool_info",
-        return_value=None,
-    ), patch(
-        "apps.regime.application.current_regime.resolve_current_regime",
-        return_value=regime,
+    with (
+        patch(
+            "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_current_pool",
+            return_value=[],
+        ),
+        patch(
+            "apps.equity.infrastructure.adapters.StockPoolRepositoryAdapter.get_latest_pool_info",
+            return_value=None,
+        ),
+        patch(
+            "apps.regime.application.current_regime.resolve_current_regime",
+            return_value=regime,
+        ),
     ):
         response = authenticated_client.get("/api/equity/pool/")
 
@@ -307,7 +289,9 @@ def test_equity_technical_chart_returns_candles_and_latest_signal(authenticated_
         ]
     )
 
-    response = authenticated_client.get("/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30")
+    response = authenticated_client.get(
+        "/api/equity/technical/000001.SZ/?timeframe=day&lookback_days=30"
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -388,13 +372,6 @@ def test_equity_intraday_chart_degrades_cleanly_when_sources_fail(authenticated_
 
 
 @pytest.mark.django_db
-def test_equity_valuation_requires_authentication(api_client):
-    response = api_client.get("/api/equity/valuation/300308.SZ/")
-
-    assert response.status_code in {401, 403}
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "query",
     (
@@ -409,9 +386,7 @@ def test_equity_valuation_rejects_invalid_or_unknown_query(
     authenticated_client,
     query,
 ):
-    response = authenticated_client.get(
-        f"/api/equity/valuation/300308.SZ/?{query}"
-    )
+    response = authenticated_client.get(f"/api/equity/valuation/300308.SZ/?{query}")
 
     assert response.status_code == 400
 
@@ -453,12 +428,8 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
                 "updated_at",
             )
         ),
-        "aliases": list(
-            AssetAliasModel.objects.order_by("id").values_list("id", "created_at")
-        ),
-        "prices": list(
-            PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")
-        ),
+        "aliases": list(AssetAliasModel.objects.order_by("id").values_list("id", "created_at")),
+        "prices": list(PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")),
         "valuations": list(
             ValuationFactModel.objects.order_by("id").values_list("id", "fetched_at")
         ),
@@ -494,9 +465,7 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
         "apps.equity.infrastructure.repositories.make_on_demand_data_center_service",
         return_value=on_demand,
     ):
-        response = authenticated_client.get(
-            "/api/equity/valuation/300308.SZ/?lookback_days=365"
-        )
+        response = authenticated_client.get("/api/equity/valuation/300308.SZ/?lookback_days=365")
 
     assert response.status_code == 200
     payload = response.json()
@@ -514,12 +483,8 @@ def test_equity_valuation_returns_basic_info_when_valuation_missing(authenticate
                 "updated_at",
             )
         ),
-        "aliases": list(
-            AssetAliasModel.objects.order_by("id").values_list("id", "created_at")
-        ),
-        "prices": list(
-            PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")
-        ),
+        "aliases": list(AssetAliasModel.objects.order_by("id").values_list("id", "created_at")),
+        "prices": list(PriceBarModel.objects.order_by("id").values_list("id", "fetched_at")),
         "valuations": list(
             ValuationFactModel.objects.order_by("id").values_list("id", "fetched_at")
         ),
@@ -629,7 +594,9 @@ def test_equity_technical_chart_uses_tushare_gateway_bar_fallback(authenticated_
         "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
         return_value=remote_bars,
     ):
-        response = authenticated_client.get("/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30")
+        response = authenticated_client.get(
+            "/api/equity/technical/300308.SZ/?timeframe=day&lookback_days=30"
+        )
 
     assert response.status_code == 200
     payload = response.json()
@@ -705,17 +672,23 @@ def test_equity_regime_correlation_uses_tushare_gateway_daily_price_fallback(aut
         today: 0.001,
     }
 
-    with patch(
-        "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
-        return_value=remote_bars,
-    ), patch(
-        "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_regime_history",
-        return_value=regime_history,
-    ), patch(
-        "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_market_returns",
-        return_value=market_returns,
+    with (
+        patch(
+            "apps.equity.infrastructure.repositories.DjangoStockRepository._get_tushare_gateway_historical_bars",
+            return_value=remote_bars,
+        ),
+        patch(
+            "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_regime_history",
+            return_value=regime_history,
+        ),
+        patch(
+            "apps.equity.application.use_cases.AnalyzeRegimeCorrelationUseCase._get_market_returns",
+            return_value=market_returns,
+        ),
     ):
-        response = authenticated_client.get("/api/equity/regime-correlation/300308.SZ/?lookback_days=252")
+        response = authenticated_client.get(
+            "/api/equity/regime-correlation/300308.SZ/?lookback_days=252"
+        )
 
     assert response.status_code == 200
     payload = response.json()

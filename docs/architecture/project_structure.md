@@ -262,6 +262,11 @@ AgomTradePro/
 │   │   ├── application/
 │   │   └── infrastructure/
 │
+│   ├── valuation/               # ⭐ 独立估值引擎 owner
+│   │   ├── domain/              # 快照、价格带、质量与新鲜度规则
+│   │   ├── application/         # 来源 Protocol 与估值选择用例
+│   │   └── infrastructure/      # 正式估值、事实与行情适配器
+│
 │   ├── factor/                  # ⭐ 因子管理
 │   │   ├── domain/
 │   │   ├── application/
