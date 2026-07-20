@@ -9,20 +9,20 @@
     python manage.py recalculate_regime --clear-cache-only
     python manage.py recalculate_regime --start-date=2020-01-01
 
-架构说明 (2026-03-11):
-- 此命令使用 legacy CalculateRegimeUseCase，需要完整 Repository 接口
-- 当前通过 regime 侧 `MacroRepositoryAdapter` 访问 macro 数据
-- legacy use case 仍需要 `get_available_dates()` 等完整接口，但不再直接导入 macro repository
-- 主运行时链路（API/页面）使用 resolve_current_regime(V2)，已解耦
+架构说明:
+- 使用与主运行时一致的 CalculateRegimeV2UseCase 水平判定链
+- 先完成全部计算，再原子替换指定日期范围，失败时保留旧历史
+- 默认生成连续日历日快照；可通过 --frequency monthly 保留月度频率
 """
 
-from datetime import date
+from datetime import date, timedelta
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-# Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).
-from apps.regime.application.use_cases import CalculateRegimeRequest, CalculateRegimeUseCase
+from apps.regime.application.orchestration import build_regime_snapshot_from_v2_result
+from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
+from apps.regime.domain.entities import RegimeSnapshot
 from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
@@ -30,164 +30,187 @@ from shared.infrastructure.cache_service import CacheService
 
 
 class Command(BaseCommand):
-    help = '重新计算 Regime 数据（使用通胀绝对动量算法）'
+    help = "重新计算 Regime 数据（使用通胀绝对动量算法）"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--clear-cache-only',
-            action='store_true',
-            dest='clear_cache_only',
-            help='仅清除缓存，不重新计算',
+            "--clear-cache-only",
+            action="store_true",
+            dest="clear_cache_only",
+            help="仅清除缓存，不重新计算",
         )
         parser.add_argument(
-            '--start-date',
+            "--start-date",
             type=str,
-            default='2019-01-01',
-            help='重新计算的起始日期 (YYYY-MM-DD)，默认 2019-01-01',
+            default="2019-01-01",
+            help="重新计算的起始日期 (YYYY-MM-DD)，默认 2019-01-01",
         )
         parser.add_argument(
-            '--end-date',
+            "--end-date",
             type=str,
             default=None,
-            help='重新计算的结束日期 (YYYY-MM-DD)，默认今天',
+            help="重新计算的结束日期 (YYYY-MM-DD)，默认今天",
         )
         parser.add_argument(
-            '--skip-backup',
-            action='store_true',
-            dest='skip_backup',
-            help='跳过数据备份',
+            "--skip-backup",
+            action="store_true",
+            dest="skip_backup",
+            help="跳过数据备份",
+        )
+        parser.add_argument(
+            "--frequency",
+            choices=("daily", "monthly"),
+            default="daily",
+            help="历史快照频率，默认 daily 以生成连续日历日序列",
         )
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING('=== Regime 数据重新计算工具 ==='))
+        self.stdout.write(self.style.WARNING("=== Regime 数据重新计算工具 ==="))
 
         # 1. 清除缓存
-        self.stdout.write('\n[1/4] 清除 Redis 缓存...')
+        self.stdout.write("\n[1/4] 清除 Redis 缓存...")
         cache_cleared = CacheService.invalidate_regime()
         if cache_cleared:
-            self.stdout.write(self.style.SUCCESS('  缓存已清除'))
+            self.stdout.write(self.style.SUCCESS("  缓存已清除"))
         else:
-            self.stdout.write(self.style.WARNING('  缓存清除失败（可能不存在）'))
+            self.stdout.write(self.style.WARNING("  缓存清除失败（可能不存在）"))
 
-        if options.get('clear_cache_only'):
-            self.stdout.write(self.style.SUCCESS('仅清除缓存模式，结束执行'))
+        if options.get("clear_cache_only"):
+            self.stdout.write(self.style.SUCCESS("仅清除缓存模式，结束执行"))
             return
 
         # 2. 备份现有数据
-        if not options.get('skip_backup'):
-            self.stdout.write('\n[2/4] 备份现有数据...')
+        if not options.get("skip_backup"):
+            self.stdout.write("\n[2/4] 备份现有数据...")
             backup_count = self._backup_existing_data()
-            self.stdout.write(self.style.SUCCESS(f'  已备份 {backup_count} 条记录'))
+            self.stdout.write(self.style.SUCCESS(f"  已备份 {backup_count} 条记录"))
 
-        # 3. 删除旧数据
-        self.stdout.write('\n[3/4] 删除旧 Regime 数据...')
-        deleted_count = self._delete_old_data()
-        self.stdout.write(self.style.SUCCESS(f'  已删除 {deleted_count} 条记录'))
+        # 3. 先计算完整替换集；失败时不触碰现有历史
+        self.stdout.write("\n[3/4] 计算 Regime 替换集...")
+        start_date = date.fromisoformat(options["start_date"])
+        end_date = (
+            date.fromisoformat(options["end_date"]) if options.get("end_date") else date.today()
+        )
+        if start_date > end_date:
+            raise CommandError("start-date must be on or before end-date")
 
-        # 4. 重新计算
-        self.stdout.write('\n[4/4] 重新计算 Regime 数据...')
-        start_date = date.fromisoformat(options['start_date'])
-        end_date = date.fromisoformat(options['end_date']) if options.get('end_date') else date.today()
+        snapshots = self._calculate_regime_snapshots(
+            start_date,
+            end_date,
+            frequency=options["frequency"],
+        )
+        if not snapshots:
+            raise CommandError(
+                "No valid Regime snapshots were calculated; existing history is unchanged"
+            )
 
-        calculated_count = self._recalculate_regime(start_date, end_date)
+        # 4. 原子替换指定范围，避免计算中途失败造成历史丢失
+        self.stdout.write("\n[4/4] 原子替换 Regime 历史...")
+        calculated_count = DjangoRegimeRepository().replace_snapshots_in_range(
+            start_date=start_date,
+            end_date=end_date,
+            snapshots=snapshots,
+        )
 
-        self.stdout.write(self.style.SUCCESS(f'\n=== 完成！共计算 {calculated_count} 条 Regime 记录 ==='))
+        self.stdout.write(
+            self.style.SUCCESS(f"\n=== 完成！共计算 {calculated_count} 条 Regime 记录 ===")
+        )
 
     def _backup_existing_data(self) -> int:
         """备份现有数据到 JSON"""
         import json
         from pathlib import Path
 
-        records = list(RegimeLog._default_manager.all().order_by('observed_at').values(
-            'observed_at', 'growth_momentum_z', 'inflation_momentum_z',
-            'distribution', 'dominant_regime', 'confidence'
-        ))
+        records = list(
+            RegimeLog._default_manager.all()
+            .order_by("observed_at")
+            .values(
+                "observed_at",
+                "growth_momentum_z",
+                "inflation_momentum_z",
+                "distribution",
+                "dominant_regime",
+                "confidence",
+            )
+        )
 
         if not records:
-            self.stdout.write('  没有数据需要备份')
+            self.stdout.write("  没有数据需要备份")
             return 0
 
         # 保存到文件
-        backup_dir = Path('management/backups')
+        backup_dir = Path("management/backups")
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-        backup_file = backup_dir / f'regime_log_backup_{timestamp}.json'
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = backup_dir / f"regime_log_backup_{timestamp}.json"
 
-        with open(backup_file, 'w', encoding='utf-8') as f:
+        with open(backup_file, "w", encoding="utf-8") as f:
             json.dump(records, f, ensure_ascii=False, indent=2, default=str)
 
-        self.stdout.write(f'  备份文件: {backup_file}')
+        self.stdout.write(f"  备份文件: {backup_file}")
         return len(records)
 
-    def _delete_old_data(self) -> int:
-        """删除所有 RegimeLog 数据"""
-        count, _ = RegimeLog._default_manager.all().delete()
-        return count
-
-    def _recalculate_regime(self, start_date: date, end_date: date) -> int:
+    def _calculate_regime_snapshots(
+        self,
+        start_date: date,
+        end_date: date,
+        *,
+        frequency: str,
+    ) -> list[RegimeSnapshot]:
         """
-        重新计算 Regime 数据
+        使用当前 V2 水平判定链计算完整替换集。
 
-        策略：按月计算，确保有足够的数据
+        计算与持久化分离；只有全部日期尝试结束且至少有一条有效结果后，
+        调用方才会原子替换数据库中的目标日期范围。
         """
-        # 初始化
         macro_repository = MacroRepositoryAdapter()
-        regime_repository = DjangoRegimeRepository()
-
-        # 显式创建 RegimeCalculator，使用修复后的参数
-        # 2026-01-22 修复：调整参数以适应有限数据（35条记录）
-        from apps.regime.domain.services import RegimeCalculator
-        calculator = RegimeCalculator(
-            momentum_period=3,
-            zscore_window=24,      # 修复：从60降低到24
-            zscore_min_periods=12,  # 修复：从24降低到12
-            sigmoid_k=2.0,
-            use_absolute_inflation_momentum=True  # 关键：使用绝对动量
-        )
-
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repository,
-            regime_repository=regime_repository,
-            calculator=calculator
-        )
+        use_case = CalculateRegimeV2UseCase(macro_repository)
 
         # 获取可用日期范围
         available_dates = macro_repository.get_available_dates(
-            codes=['CN_PMI', 'CN_CPI'],
-            start_date=start_date,
-            end_date=end_date
+            codes=["CN_PMI", "CN_CPI"],
+            start_date=start_date - timedelta(days=365),
+            end_date=end_date,
         )
 
         if not available_dates:
-            self.stdout.write(self.style.WARNING('  没有可用的数据日期'))
-            return 0
+            self.stdout.write(self.style.WARNING("  没有可用的数据日期"))
+            return []
 
-        # 按月采样（每月最后一个可用日期）
-        monthly_dates = self._sample_monthly_dates(available_dates)
+        calculation_dates = self._build_calculation_dates(
+            available_dates=available_dates,
+            start_date=start_date,
+            end_date=end_date,
+            frequency=frequency,
+        )
+        self.stdout.write(
+            f"  从 {len(available_dates)} 个数据日期生成 "
+            f"{len(calculation_dates)} 个 {frequency} 计算日期"
+        )
 
-        self.stdout.write(f'  从 {len(available_dates)} 个可用日期中采样了 {len(monthly_dates)} 个月度日期')
-
-        success_count = 0
+        snapshots: list[RegimeSnapshot] = []
         error_count = 0
 
-        for i, calc_date in enumerate(monthly_dates):
+        for i, calc_date in enumerate(calculation_dates):
             try:
-                request = CalculateRegimeRequest(
+                request = CalculateRegimeV2Request(
                     as_of_date=calc_date,
                     use_pit=True,
                     growth_indicator="PMI",
                     inflation_indicator="CPI",
-                    data_source="akshare"
+                    data_source="akshare",
+                    skip_cache=True,
                 )
 
                 response = use_case.execute(request)
 
-                if response.success:
-                    snapshot = response.snapshot
-
-                    # 保存到数据库
-                    regime_repository.save_snapshot(snapshot)
+                if response.success and response.result:
+                    snapshot = build_regime_snapshot_from_v2_result(
+                        calculation_result=response.result,
+                        observed_at=calc_date,
+                    )
+                    snapshots.append(snapshot)
 
                     # 显示进度
                     regime_name = snapshot.dominant_regime
@@ -196,16 +219,15 @@ class Command(BaseCommand):
                     inflation_z = snapshot.inflation_momentum_z
 
                     self.stdout.write(
-                        f'  [{i+1}/{len(monthly_dates)}] {calc_date}: '
-                        f'{regime_name} ({confidence:.1%}) | '
-                        f'Z=[{growth_z:+.2f}, {inflation_z:+.2f}]'
+                        f"  [{i+1}/{len(calculation_dates)}] {calc_date}: "
+                        f"{regime_name} ({confidence:.1%}) | "
+                        f"Z=[{growth_z:+.2f}, {inflation_z:+.2f}]"
                     )
 
-                    success_count += 1
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f'  [{i+1}/{len(monthly_dates)}] {calc_date}: 计算失败 - {response.error}'
+                            f"  [{i+1}/{len(calculation_dates)}] {calc_date}: 计算失败 - {response.error}"
                         )
                     )
                     error_count += 1
@@ -213,16 +235,48 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f'  [{i+1}/{len(monthly_dates)}] {calc_date}: 异常 - {str(e)}'
+                        f"  [{i+1}/{len(calculation_dates)}] {calc_date}: 异常 - {str(e)}"
                     )
                 )
                 error_count += 1
 
-        self.stdout.write(f'\n  计算完成: 成功 {success_count} 条, 失败 {error_count} 条')
+        self.stdout.write(f"\n  计算完成: 成功 {len(snapshots)} 条, 失败 {error_count} 条")
 
-        return success_count
+        if error_count:
+            raise CommandError(
+                f"Regime recalculation failed for {error_count} dates; "
+                "existing history is unchanged"
+            )
 
-    def _sample_monthly_dates(self, dates: list) -> list:
+        return snapshots
+
+    @staticmethod
+    def _build_calculation_dates(
+        *,
+        available_dates: list[date],
+        start_date: date,
+        end_date: date,
+        frequency: str,
+    ) -> list[date]:
+        """Build either continuous daily dates or monthly reporting dates."""
+
+        dates_until_end = sorted(
+            current_date for current_date in available_dates if current_date <= end_date
+        )
+        if not dates_until_end:
+            return []
+        if frequency == "monthly":
+            filtered_dates = [
+                current_date for current_date in dates_until_end if current_date >= start_date
+            ]
+            return Command._sample_monthly_dates(filtered_dates)
+
+        first_date = max(start_date, dates_until_end[0])
+        day_count = (end_date - first_date).days
+        return [first_date + timedelta(days=offset) for offset in range(day_count + 1)]
+
+    @staticmethod
+    def _sample_monthly_dates(dates: list[date]) -> list[date]:
         """
         从日期列表中每月采样最后一个日期
 
@@ -243,4 +297,3 @@ class Command(BaseCommand):
 
         # 按时间排序返回
         return sorted(sampled.values())
-

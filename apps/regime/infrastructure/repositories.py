@@ -6,6 +6,7 @@ Infrastructure layer implementation using Django ORM.
 
 from datetime import date
 
+from django.db import transaction
 from django.db.models import Count
 
 from ..domain.entities import RegimeSnapshot
@@ -196,6 +197,7 @@ class DjangoRegimeRepository:
         end_date: date | None = None,
         regime: str | None = None,
         limit: int = 100,
+        offset: int = 0,
     ) -> list[dict]:
         """Return API-ready regime history payloads."""
 
@@ -207,8 +209,54 @@ class DjangoRegimeRepository:
         if regime:
             queryset = queryset.filter(dominant_regime=regime)
 
-        queryset = queryset.order_by("-observed_at")[:limit]
+        queryset = queryset.order_by("-observed_at")[offset : offset + limit]
         return [self._serialize_log(log) for log in queryset]
+
+    def count_history_payloads(
+        self,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        regime: str | None = None,
+    ) -> int:
+        """Count regime history rows matching the API filters."""
+
+        queryset = self._model._default_manager.all()
+        if start_date:
+            queryset = queryset.filter(observed_at__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(observed_at__lte=end_date)
+        if regime:
+            queryset = queryset.filter(dominant_regime=regime)
+        return queryset.count()
+
+    def replace_snapshots_in_range(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+        snapshots: list[RegimeSnapshot],
+    ) -> int:
+        """Atomically replace persisted snapshots inside one inclusive date range."""
+
+        rows = [
+            self._model(
+                observed_at=snapshot.observed_at,
+                growth_momentum_z=snapshot.growth_momentum_z,
+                inflation_momentum_z=snapshot.inflation_momentum_z,
+                distribution=snapshot.distribution,
+                dominant_regime=snapshot.dominant_regime,
+                confidence=snapshot.confidence,
+            )
+            for snapshot in snapshots
+        ]
+        with transaction.atomic():
+            self._model._default_manager.filter(
+                observed_at__gte=start_date,
+                observed_at__lte=end_date,
+            ).delete()
+            self._model._default_manager.bulk_create(rows)
+        return len(rows)
 
     def get_distribution_payload(
         self,

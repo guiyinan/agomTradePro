@@ -39,6 +39,8 @@ class CurrentRegimeResult:
     inflation_indicator: str = "CPI"
     growth_value: float | None = None
     inflation_value: float | None = None
+    growth_momentum_z: float = 0.0
+    inflation_momentum_z: float = 0.0
 
 
 # 全局提供者 (延迟初始化)
@@ -125,10 +127,9 @@ def resolve_current_regime(
     )
 
     if response.success and response.result:
-        trend_directions = {
-            trend.indicator_code.upper(): trend.direction
-            for trend in response.result.trend_indicators
-        }
+        trends = {trend.indicator_code.upper(): trend for trend in response.result.trend_indicators}
+        growth_trend = trends.get("PMI")
+        inflation_trend = trends.get("CPI")
         return CurrentRegimeResult(
             dominant_regime=response.result.regime.value,
             confidence=float(response.result.confidence),
@@ -137,10 +138,12 @@ def resolve_current_regime(
             warnings=list(response.warnings or []),
             distribution=dict(response.result.distribution or {}),
             is_fallback=False,
-            growth_level=trend_directions.get("PMI", "neutral"),
-            inflation_level=trend_directions.get("CPI", "neutral"),
+            growth_level=getattr(growth_trend, "direction", "neutral"),
+            inflation_level=getattr(inflation_trend, "direction", "neutral"),
             growth_value=float(response.result.growth_level),
             inflation_value=float(response.result.inflation_level),
+            growth_momentum_z=float(getattr(growth_trend, "momentum_z", 0.0)),
+            inflation_momentum_z=float(getattr(inflation_trend, "momentum_z", 0.0)),
         )
 
     latest = get_regime_repository().get_latest_snapshot()
@@ -155,6 +158,8 @@ def resolve_current_regime(
             warnings=warnings,
             distribution=dict(latest.distribution or {}),
             is_fallback=True,
+            growth_momentum_z=float(latest.growth_momentum_z),
+            inflation_momentum_z=float(latest.inflation_momentum_z),
         )
 
     warnings = list(response.warnings or [])

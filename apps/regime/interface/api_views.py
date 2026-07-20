@@ -95,12 +95,17 @@ class RegimeViewSet(viewsets.ViewSet):
                 end_date=params.get("end_date"),
                 regime=params.get("regime"),
                 limit=params.get("limit", 100),
+                page=params.get("page", 1),
             )
             serializer = RegimeLogSerializer(payload["data"], many=True)
             return Response(
                 {
                     "success": payload["success"],
                     "count": payload["count"],
+                    "total": payload.get("total", payload["count"]),
+                    "page": payload.get("page", params.get("page", 1)),
+                    "page_size": payload.get("page_size", params.get("limit", 100)),
+                    "total_pages": payload.get("total_pages", 1),
                     "data": serializer.data,
                 }
             )

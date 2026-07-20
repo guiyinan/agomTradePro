@@ -35,11 +35,7 @@ class RegimeCalculateRequestSerializer(serializers.Serializer):
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown fields: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
             )
         return super().to_internal_value(data)
 
@@ -75,3 +71,4 @@ class RegimeHistoryQuerySerializer(serializers.Serializer):
     end_date = serializers.DateField(required=False)
     regime = serializers.CharField(required=False, allow_null=True)
     limit = serializers.IntegerField(default=100, min_value=1, max_value=1000)
+    page = serializers.IntegerField(default=1, min_value=1)

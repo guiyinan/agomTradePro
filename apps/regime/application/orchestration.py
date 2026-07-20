@@ -33,7 +33,7 @@ from apps.regime.application.repository_provider import (
 logger = get_task_logger(__name__)
 
 
-def _build_regime_snapshot_from_v2_result(
+def build_regime_snapshot_from_v2_result(
     *,
     calculation_result: Any,
     observed_at: date,
@@ -286,7 +286,7 @@ def calculate_regime_after_sync(
         )
 
         if response.success and response.result:
-            snapshot = _build_regime_snapshot_from_v2_result(
+            snapshot = build_regime_snapshot_from_v2_result(
                 calculation_result=response.result,
                 observed_at=target_date,
             )

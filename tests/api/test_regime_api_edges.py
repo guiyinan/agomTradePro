@@ -85,6 +85,35 @@ def test_regime_history_returns_canonical_envelope(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_regime_history_page_parameter_returns_distinct_slices(authenticated_client):
+    for index in range(3):
+        RegimeLog.objects.create(
+            observed_at=date(2026, 7, 10) - timedelta(days=index),
+            dominant_regime="Recovery",
+            confidence=0.8,
+            growth_momentum_z=0.3 + index,
+            inflation_momentum_z=-0.2,
+            distribution={"Recovery": 0.8, "Deflation": 0.2},
+        )
+
+    first_page = authenticated_client.get("/api/regime/history/?page=1&limit=2")
+    second_page = authenticated_client.get("/api/regime/history/?page=2&limit=2")
+
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    first_payload = first_page.json()
+    second_payload = second_page.json()
+    assert [item["id"] for item in first_payload["data"]] != [
+        item["id"] for item in second_payload["data"]
+    ]
+    assert first_payload["total"] == 3
+    assert first_payload["page"] == 1
+    assert first_payload["total_pages"] == 2
+    assert second_payload["page"] == 2
+    assert second_payload["count"] == 1
+
+
+@pytest.mark.django_db
 def test_regime_distribution_returns_canonical_envelope(authenticated_client):
     distribution_payload = {
         "success": True,
@@ -270,6 +299,8 @@ def test_regime_current_exposes_latest_macro_values_and_directions(authenticated
     assert data["inflation_indicator"] == "CPI"
     assert data["growth_value"] == pytest.approx(50.3)
     assert data["inflation_value"] == pytest.approx(0.1)
+    assert data["growth_momentum_z"] != 0.0
+    assert data["inflation_momentum_z"] != 0.0
 
 
 @pytest.mark.django_db

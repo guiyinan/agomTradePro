@@ -38,8 +38,8 @@ def get_regime_current_payload(*, as_of_date: date | None = None) -> dict[str, A
             "observed_at": latest.observed_at,
             "dominant_regime": latest.dominant_regime,
             "confidence": latest.confidence,
-            "growth_momentum_z": 0.0,
-            "inflation_momentum_z": 0.0,
+            "growth_momentum_z": latest.growth_momentum_z,
+            "inflation_momentum_z": latest.inflation_momentum_z,
             "distribution": latest.distribution or {},
             "source": latest.data_source,
             "growth_level": latest.growth_level,
@@ -68,12 +68,17 @@ def calculate_regime_payload(*, data: dict[str, Any]) -> dict[str, Any]:
 
     snapshot_data = None
     if response.success and response.result:
+        trends = {trend.indicator_code.upper(): trend for trend in response.result.trend_indicators}
         snapshot_data = {
             "observed_at": request_obj.as_of_date,
             "dominant_regime": response.result.regime.value,
             "confidence": float(response.result.confidence),
-            "growth_momentum_z": 0.0,
-            "inflation_momentum_z": 0.0,
+            "growth_momentum_z": float(
+                getattr(trends.get(request_obj.growth_indicator.upper()), "momentum_z", 0.0)
+            ),
+            "inflation_momentum_z": float(
+                getattr(trends.get(request_obj.inflation_indicator.upper()), "momentum_z", 0.0)
+            ),
             "regime_distribution": response.result.distribution,
             "data_source": request_obj.data_source or "akshare",
             "created_at": timezone.now(),
@@ -95,6 +100,7 @@ def get_regime_history_payload(
     end_date: date | None = None,
     regime: str | None = None,
     limit: int = 100,
+    page: int = 1,
 ) -> dict[str, Any]:
     """Return a history payload for the regime API."""
 
@@ -103,10 +109,20 @@ def get_regime_history_payload(
         end_date=end_date,
         regime=regime,
         limit=limit,
+        offset=(page - 1) * limit,
+    )
+    total = get_regime_repository().count_history_payloads(
+        start_date=start_date,
+        end_date=end_date,
+        regime=regime,
     )
     return {
         "success": True,
         "count": len(data),
+        "total": total,
+        "page": page,
+        "page_size": limit,
+        "total_pages": (total + limit - 1) // limit,
         "data": data,
     }
 

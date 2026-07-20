@@ -9,11 +9,18 @@ from django.db.models import Q
 class RegimeLog(models.Model):
     """Regime 判定日志"""
 
+    REGIME_CHOICES = [
+        ("Recovery", "Recovery"),
+        ("Overheat", "Overheat"),
+        ("Stagflation", "Stagflation"),
+        ("Deflation", "Deflation"),
+    ]
+
     observed_at = models.DateField(unique=True, db_index=True)
     growth_momentum_z = models.FloatField()
     inflation_momentum_z = models.FloatField()
     distribution = models.JSONField()
-    dominant_regime = models.CharField(max_length=20)
+    dominant_regime = models.CharField(max_length=20, choices=REGIME_CHOICES)
     confidence = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -23,6 +30,19 @@ class RegimeLog(models.Model):
         indexes = [
             models.Index(fields=['dominant_regime']),
             models.Index(fields=['observed_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    dominant_regime__in=[
+                        "Recovery",
+                        "Overheat",
+                        "Stagflation",
+                        "Deflation",
+                    ]
+                ),
+                name="regime_log_valid_dominant_regime",
+            )
         ]
 
     def __str__(self):
