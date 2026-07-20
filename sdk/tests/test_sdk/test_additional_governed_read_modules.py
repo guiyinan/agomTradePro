@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 from agomtradepro import AgomTradeProClient
 
 
@@ -147,6 +149,8 @@ def test_beta_gate_batch_evaluation_endpoint_contract():
 
 
 def test_get_filter_health_endpoint_contract():
+    from agomtradepro.modules.filter import FilterModuleDeprecationWarning
+
     client = AgomTradeProClient(base_url="http://test.com", api_token="token")
     expected = {
         "status": "healthy",
@@ -154,7 +158,8 @@ def test_get_filter_health_endpoint_contract():
         "filters_available": ["HP", "Kalman"],
     }
     with patch.object(client, "_request", return_value=expected) as mock_request:
-        result = client.filter.health()
+        with pytest.warns(FilterModuleDeprecationWarning, match="2026-09-30"):
+            result = client.filter.health()
 
     assert result == expected
     args, kwargs = mock_request.call_args

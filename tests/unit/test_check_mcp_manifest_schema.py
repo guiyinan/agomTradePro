@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 from agomtradepro_mcp.registry.manifest import (
     CapabilityManifest,
@@ -92,3 +91,38 @@ def test_loader_rejects_manifest_with_invalid_audit_tags():
 
     with pytest.raises(CapabilityManifestValidationError, match="audit_tags entries"):
         loader.validate_manifests([manifest])
+
+
+def test_loader_requires_complete_deprecated_lifecycle_metadata():
+    loader = CapabilityRegistryLoader(module_paths=())
+    manifest = CapabilityManifest(
+        capability_key="system.read.deprecated-test",
+        title="Deprecated Test",
+        summary="Deprecated test",
+        description="Deprecated test",
+        owner_app="test",
+        risk_level="safe",
+        executor_kind="legacy_tool",
+        executor_ref="get_deprecated_test",
+        lifecycle_status="deprecated",
+    )
+
+    with pytest.raises(
+        CapabilityManifestValidationError,
+        match="deprecated_since must be a non-empty string",
+    ):
+        loader.validate_manifests([manifest])
+
+
+def test_filter_manifests_publish_complete_deprecation_contract():
+    manifests = [
+        manifest
+        for manifest in CapabilityRegistryLoader().load_manifests()
+        if manifest.owner_app == "filter"
+    ]
+
+    assert len(manifests) == 6
+    assert {manifest.lifecycle_status for manifest in manifests} == {"deprecated"}
+    assert {manifest.deprecated_since for manifest in manifests} == {"0.8.0"}
+    assert {manifest.sunset_on for manifest in manifests} == {"2026-09-30"}
+    assert all(manifest.replacement_hint for manifest in manifests)

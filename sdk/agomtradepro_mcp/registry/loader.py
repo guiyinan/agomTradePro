@@ -114,6 +114,21 @@ class CapabilityRegistryLoader:
             raise CapabilityManifestValidationError(
                 f"Unsupported executor_kind: {manifest.executor_kind}"
             )
+        if manifest.lifecycle_status not in {"active", "deprecated", "sunset"}:
+            raise CapabilityManifestValidationError(
+                f"Unsupported lifecycle_status: {manifest.lifecycle_status}"
+            )
+        if manifest.lifecycle_status != "active":
+            lifecycle_strings = {
+                "deprecated_since": manifest.deprecated_since,
+                "sunset_on": manifest.sunset_on,
+                "replacement_hint": manifest.replacement_hint,
+            }
+            for field_name, value in lifecycle_strings.items():
+                if not isinstance(value, str) or not value.strip():
+                    raise CapabilityManifestValidationError(
+                        f"Deprecated capability field {field_name} must be a non-empty string"
+                    )
 
         self._validate_schema(manifest.input_schema, "input_schema")
         self._validate_schema(manifest.output_schema, "output_schema")

@@ -19,6 +19,7 @@ from ..application.use_cases import (
     GetFilterDataUseCase,
 )
 from ..domain.entities import FilterType
+from .deprecation import FilterDeprecationHeaderMixin
 from .serializers import (
     ApplyFilterRequestSerializer,
     CompareFiltersRequestSerializer,
@@ -47,7 +48,7 @@ class DjangoFilterRepository:
         return getattr(self._repository, item)
 
 
-class FilterViewSet(viewsets.ViewSet):
+class FilterViewSet(FilterDeprecationHeaderMixin, viewsets.ViewSet):
     """
     滤波器 API ViewSet
 
@@ -100,38 +101,37 @@ class FilterViewSet(viewsets.ViewSet):
         serializer = ApplyFilterRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {'success': False, 'error': str(serializer.errors)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": str(serializer.errors)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
-        filter_type = FilterType.HP if data['filter_type'] == 'HP' else FilterType.KALMAN
+        filter_type = FilterType.HP if data["filter_type"] == "HP" else FilterType.KALMAN
 
         req = ApplyFilterRequest(
-            indicator_code=data['indicator_code'],
+            indicator_code=data["indicator_code"],
             filter_type=filter_type,
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
-            limit=data.get('limit', 200),
-            save_results=data.get('save_results', True),
+            start_date=data.get("start_date"),
+            end_date=data.get("end_date"),
+            limit=data.get("limit", 200),
+            save_results=data.get("save_results", True),
         )
 
         response = self.apply_use_case.execute(req)
 
         if response.success:
             response_data = {
-                'success': True,
-                'series': _serialize_series(response.series),
-                'warnings': response.warnings,
+                "success": True,
+                "series": _serialize_series(response.series),
+                "warnings": response.warnings,
             }
             return Response(response_data)
         else:
             return Response(
-                {'success': False, 'error': response.error},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST
             )
 
-    @action(detail=False, methods=['POST'], url_path='get-data')
+    @action(detail=False, methods=["POST"], url_path="get-data")
     def get_data(self, request):
         """
         获取已保存的滤波数据
@@ -145,37 +145,38 @@ class FilterViewSet(viewsets.ViewSet):
         serializer = GetFilterDataRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {'success': False, 'error': str(serializer.errors)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": str(serializer.errors)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
-        filter_type = FilterType.HP if data['filter_type'] == 'HP' else FilterType.KALMAN
+        filter_type = FilterType.HP if data["filter_type"] == "HP" else FilterType.KALMAN
 
         req = GetFilterDataRequest(
-            indicator_code=data['indicator_code'],
+            indicator_code=data["indicator_code"],
             filter_type=filter_type,
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
+            start_date=data.get("start_date"),
+            end_date=data.get("end_date"),
         )
 
         response = self.get_use_case.execute(req)
 
         if response.success:
-            return Response({
-                'success': True,
-                'dates': response.dates,
-                'original_values': response.original_values,
-                'filtered_values': response.filtered_values,
-                'slopes': response.slopes,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "dates": response.dates,
+                    "original_values": response.original_values,
+                    "filtered_values": response.filtered_values,
+                    "slopes": response.slopes,
+                }
+            )
         else:
             return Response(
-                {'success': False, 'error': response.error},
-                status=status.HTTP_404_NOT_FOUND
+                {"success": False, "error": response.error}, status=status.HTTP_404_NOT_FOUND
             )
 
-    @action(detail=False, methods=['POST'], url_path='compare')
+    @action(detail=False, methods=["POST"], url_path="compare")
     def compare(self, request):
         """
         对比 HP 和 Kalman 滤波
@@ -189,34 +190,36 @@ class FilterViewSet(viewsets.ViewSet):
         serializer = CompareFiltersRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {'success': False, 'error': str(serializer.errors)},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": str(serializer.errors)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         data = serializer.validated_data
 
         req = CompareFiltersRequest(
-            indicator_code=data['indicator_code'],
-            start_date=data.get('start_date'),
-            end_date=data.get('end_date'),
-            limit=data.get('limit', 200),
+            indicator_code=data["indicator_code"],
+            start_date=data.get("start_date"),
+            end_date=data.get("end_date"),
+            limit=data.get("limit", 200),
         )
 
         response = self.compare_use_case.execute(req)
 
         if response.success:
-            return Response({
-                'success': True,
-                'hp_results': response.hp_results,
-                'kalman_results': response.kalman_results,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "hp_results": response.hp_results,
+                    "kalman_results": response.kalman_results,
+                }
+            )
         else:
             return Response(
-                {'success': False, 'error': response.error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"success": False, "error": response.error},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=False, methods=['GET'], url_path='indicators')
+    @action(detail=False, methods=["GET"], url_path="indicators")
     def indicators(self, request):
         """
         获取可用指标列表
@@ -224,12 +227,14 @@ class FilterViewSet(viewsets.ViewSet):
         GET /api/filter/indicators/
         """
         indicators = self.repository.get_available_indicators()
-        return Response({
-            'success': True,
-            'indicators': indicators,
-        })
+        return Response(
+            {
+                "success": True,
+                "indicators": indicators,
+            }
+        )
 
-    @action(detail=False, methods=['GET'], url_path='config/(?P<indicator_code>[^/]+)')
+    @action(detail=False, methods=["GET"], url_path="config/(?P<indicator_code>[^/]+)")
     def config(self, request, indicator_code=None):
         """
         获取滤波器配置
@@ -238,30 +243,34 @@ class FilterViewSet(viewsets.ViewSet):
         """
         if not indicator_code:
             return Response(
-                {'success': False, 'error': 'Missing indicator_code'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"success": False, "error": "Missing indicator_code"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         config = self.repository.get_filter_config(indicator_code)
-        config['indicator_code'] = indicator_code
-        return Response({
-            'success': True,
-            'config': config,
-        })
+        config["indicator_code"] = indicator_code
+        return Response(
+            {
+                "success": True,
+                "config": config,
+            }
+        )
 
 
-class FilterHealthView(APIView):
+class FilterHealthView(FilterDeprecationHeaderMixin, APIView):
     """滤波器健康检查"""
 
     def get(self, request):
-        return Response({
-            'status': 'healthy',
-            'service': 'Filter API',
-            'filters_available': ['HP', 'Kalman'],
-        })
+        return Response(
+            {
+                "status": "healthy",
+                "service": "Filter API",
+                "filters_available": ["HP", "Kalman"],
+            }
+        )
 
 
-class FilterConfigDetailView(APIView):
+class FilterConfigDetailView(FilterDeprecationHeaderMixin, APIView):
     """Canonical filter-config detail endpoint by indicator code."""
 
     def __init__(self, **kwargs):
@@ -299,12 +308,12 @@ class FilterConfigDetailView(APIView):
 def _serialize_series(series) -> dict:
     """序列化滤波序列"""
     return {
-        'indicator_code': series.indicator_code,
-        'filter_type': series.filter_type.value,
-        'params': series.params,
-        'dates': [r.date.isoformat() for r in series.results],
-        'original_values': [r.original_value for r in series.results],
-        'filtered_values': [r.filtered_value for r in series.results],
-        'slopes': [r.slope for r in series.results],
-        'calculated_at': series.calculated_at.isoformat(),
+        "indicator_code": series.indicator_code,
+        "filter_type": series.filter_type.value,
+        "params": series.params,
+        "dates": [r.date.isoformat() for r in series.results],
+        "original_values": [r.original_value for r in series.results],
+        "filtered_values": [r.filtered_value for r in series.results],
+        "slopes": [r.slope for r in series.results],
+        "calculated_at": series.calculated_at.isoformat(),
     }

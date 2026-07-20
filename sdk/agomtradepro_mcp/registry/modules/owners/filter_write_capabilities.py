@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from agomtradepro_mcp.registry.manifest import CapabilityManifest
+from agomtradepro_mcp.registry.modules.owners.filter_lifecycle import FILTER_LIFECYCLE
 
 MANIFESTS = [
     CapabilityManifest(
@@ -47,6 +48,7 @@ MANIFESTS = [
         idempotency="required",
         audit_tags=("filter:create_filter", "mcp:write"),
         legacy_tool_names=("create_filter",),
+        **FILTER_LIFECYCLE,
     ),
     CapabilityManifest(
         capability_key="filter.update.filter",
@@ -97,6 +99,7 @@ MANIFESTS = [
         idempotency="required",
         audit_tags=("filter:update_filter", "mcp:write"),
         legacy_tool_names=("update_filter",),
+        **FILTER_LIFECYCLE,
     ),
     CapabilityManifest(
         capability_key="filter.delete.filter",
@@ -134,5 +137,6 @@ MANIFESTS = [
         idempotency="required",
         audit_tags=("filter:delete_filter", "mcp:write"),
         legacy_tool_names=("delete_filter",),
+        **FILTER_LIFECYCLE,
     ),
 ]

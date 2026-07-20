@@ -33,6 +33,10 @@ def test_filter_health_success_contract(authenticated_client):
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
+    assert response["Deprecation"] == "true"
+    assert response["Sunset"] == "Wed, 30 Sep 2026 00:00:00 GMT"
+    assert response["X-Agom-Deprecated-Since"] == "0.8.0"
+    assert "do not add new Filter API" in response["X-Agom-Deprecation-Notice"]
     assert response.json() == {
         "status": "healthy",
         "service": "Filter API",
@@ -47,7 +51,9 @@ def test_filter_get_data_returns_not_found_payload_when_no_series(authenticated_
         error="No saved filter data",
     )
 
-    with patch("apps.filter.interface.api_views.GetFilterDataUseCase.execute", return_value=response_dto):
+    with patch(
+        "apps.filter.interface.api_views.GetFilterDataUseCase.execute", return_value=response_dto
+    ):
         response = authenticated_client.post(
             "/api/filter/get-data/",
             {"indicator_code": "PMI", "filter_type": "HP"},
@@ -68,7 +74,9 @@ def test_filter_compare_returns_500_when_use_case_fails(authenticated_client):
         error="comparison failed",
     )
 
-    with patch("apps.filter.interface.api_views.CompareFiltersUseCase.execute", return_value=response_dto):
+    with patch(
+        "apps.filter.interface.api_views.CompareFiltersUseCase.execute", return_value=response_dto
+    ):
         response = authenticated_client.post(
             "/api/filter/compare/",
             {"indicator_code": "PMI", "limit": 120},

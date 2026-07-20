@@ -1,8 +1,15 @@
 """AgomTradePro SDK - Filter 模块。"""
 
+import warnings
 from typing import Any
 
 from .base import BaseModule
+
+FILTER_SUNSET_DATE = "2026-09-30"
+
+
+class FilterModuleDeprecationWarning(FutureWarning):
+    """Warning emitted when the deprecated Filter SDK module is used."""
 
 
 class FilterModule(BaseModule):
@@ -10,8 +17,11 @@ class FilterModule(BaseModule):
         super().__init__(client, "/api/filter")
 
     def list_filters(self) -> list[dict[str, Any]]:
+        self._warn_deprecated()
         response = self._get("indicators/")
-        indicators = response.get("indicators", response) if isinstance(response, dict) else response
+        indicators = (
+            response.get("indicators", response) if isinstance(response, dict) else response
+        )
         if not isinstance(indicators, list):
             return []
         return [
@@ -28,6 +38,7 @@ class FilterModule(BaseModule):
         filter_id: int | None = None,
         indicator_code: str | None = None,
     ) -> dict[str, Any]:
+        self._warn_deprecated()
         code = self._resolve_indicator_code(filter_id=filter_id, indicator_code=indicator_code)
         if not code:
             return {
@@ -42,6 +53,7 @@ class FilterModule(BaseModule):
         return response
 
     def create_filter(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._warn_deprecated()
         request_payload = dict(payload)
         request_payload.setdefault("filter_type", "HP")
         request_payload.setdefault("save_results", True)
@@ -53,6 +65,7 @@ class FilterModule(BaseModule):
         payload: dict[str, Any] | None = None,
         indicator_code: str | None = None,
     ) -> dict[str, Any]:
+        self._warn_deprecated()
         indicator_code = self._resolve_indicator_code(
             filter_id=filter_id,
             indicator_code=indicator_code,
@@ -67,6 +80,7 @@ class FilterModule(BaseModule):
         *,
         indicator_code: str | None = None,
     ) -> None:
+        self._warn_deprecated()
         indicator_code = self._resolve_indicator_code(
             filter_id=filter_id,
             indicator_code=indicator_code,
@@ -76,7 +90,19 @@ class FilterModule(BaseModule):
         self._delete(f"config/{indicator_code}/")
 
     def health(self) -> dict[str, Any]:
+        self._warn_deprecated()
         return self._get("health/")
+
+    @staticmethod
+    def _warn_deprecated() -> None:
+        """Warn callers without changing the existing SDK response contract."""
+
+        warnings.warn(
+            "FilterModule is deprecated and is scheduled for sunset on "
+            f"{FILTER_SUNSET_DATE}; do not add new consumers.",
+            FilterModuleDeprecationWarning,
+            stacklevel=3,
+        )
 
     def _resolve_indicator_code(
         self,

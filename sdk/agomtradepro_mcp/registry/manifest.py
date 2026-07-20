@@ -35,6 +35,22 @@ class CapabilityManifest:
     audit_tags: tuple[str, ...] = ()
     legacy_tool_names: tuple[str, ...] = ()
     enabled: bool = True
+    lifecycle_status: str = "active"
+    deprecated_since: str = ""
+    sunset_on: str = ""
+    replacement_hint: str = ""
+
+    def _lifecycle_dict(self) -> dict[str, Any]:
+        """Return lifecycle metadata only when a capability is not active."""
+
+        if self.lifecycle_status == "active":
+            return {}
+        return {
+            "lifecycle_status": self.lifecycle_status,
+            "deprecated_since": self.deprecated_since,
+            "sunset_on": self.sunset_on,
+            "replacement_hint": self.replacement_hint,
+        }
 
     def to_discovery_dict(self) -> dict[str, Any]:
         """Return compact metadata suitable for bounded capability search."""
@@ -47,6 +63,7 @@ class CapabilityManifest:
             "tags": list(self.tags),
             "requires_confirmation": self.requires_confirmation,
             "required_roles": list(self.required_roles),
+            **self._lifecycle_dict(),
         }
 
     def to_summary_dict(self) -> dict[str, Any]:
@@ -64,6 +81,7 @@ class CapabilityManifest:
             "required_roles": list(self.required_roles),
             "audit_tags": list(self.audit_tags),
             "legacy_tool_names": list(self.legacy_tool_names),
+            **self._lifecycle_dict(),
         }
 
     def to_schema_dict(self) -> dict[str, Any]:

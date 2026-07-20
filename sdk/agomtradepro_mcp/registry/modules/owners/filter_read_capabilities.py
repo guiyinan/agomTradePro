@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from agomtradepro_mcp.registry.manifest import CapabilityManifest
+from agomtradepro_mcp.registry.modules.owners.filter_lifecycle import FILTER_LIFECYCLE
 
 MANIFESTS = [
     CapabilityManifest(
@@ -32,6 +33,7 @@ MANIFESTS = [
             "required": [],
         },
         legacy_tool_names=("list_filters",),
+        **FILTER_LIFECYCLE,
     ),
     CapabilityManifest(
         capability_key="filter.read.config_detail",
@@ -70,6 +72,7 @@ MANIFESTS = [
             "required": [],
         },
         legacy_tool_names=("get_filter",),
+        **FILTER_LIFECYCLE,
     ),
     CapabilityManifest(
         capability_key="filter.read.health",
@@ -99,5 +102,6 @@ MANIFESTS = [
             "required": [],
         },
         legacy_tool_names=("get_filter_health",),
+        **FILTER_LIFECYCLE,
     ),
 ]
