@@ -108,12 +108,13 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install scanning tools
+      - name: Install Safety
         run: |
           python -m pip install --upgrade pip
-          # safety 2.3.x works offline without an API key (3.x requires one);
-          # pip-audit is pinned for reproducible CI behavior.
-          pip install 'safety==2.3.5' 'pip-audit==2.9.0'
+          # safety 2.3.x works offline without an API key (3.x requires one).
+          # safety and pip-audit have conflicting transitive pins, so they are
+          # installed and run sequentially instead of sharing one environment.
+          pip install 'safety==2.3.5'
 
       - name: Create reports directory
         run: mkdir -p reports/security
@@ -160,6 +161,12 @@ jobs:
           if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::warning::Found $VULN_COUNT known vulnerabilities in dependencies. Review reports/security/safety-report.json"
           fi
+
+      - name: Install pip-audit
+        run: |
+          # pip-audit is pinned for reproducible CI behavior; installed after
+          # the safety scan because the two tools have conflicting pins.
+          pip install 'pip-audit==2.9.0'
 
       - name: Run pip-audit
         id: pip-audit
