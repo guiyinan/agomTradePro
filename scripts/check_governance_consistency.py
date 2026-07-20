@@ -427,12 +427,14 @@ def check_docs_consistency(baseline: dict) -> tuple[list[Violation], dict]:
 
     actual_test_count = count_static_test_functions()
     expected_test_count = int(baseline["static_test_function_count"])
-    if actual_test_count != expected_test_count:
+    # Ratchet mode: adding tests never requires a baseline bump; removing tests
+    # below the recorded baseline fails so deletions stay deliberate.
+    if actual_test_count < expected_test_count:
         violations.append(
             Violation(
                 "static_test_count_baseline_mismatch",
                 "tests",
-                f"Actual static test function count is {actual_test_count}, baseline is {expected_test_count}.",
+                f"Actual static test function count is {actual_test_count}, below baseline {expected_test_count}.",
             )
         )
 
