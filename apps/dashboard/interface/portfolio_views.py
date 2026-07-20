@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+
+from apps.dashboard.interface.api_auth import dashboard_api_view
 
 
 def _dashboard_views():
@@ -23,18 +24,22 @@ def _generate_allocation_from_positions(positions: list[dict]) -> dict[str, floa
     return allocation
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def position_detail_htmx(request, asset_code: str):
     """Render one position detail modal for HTMX requests."""
 
-    context = _dashboard_views().get_dashboard_detail_query().get_position_detail(
-        user_id=request.user.id,
-        asset_code=asset_code,
+    context = (
+        _dashboard_views()
+        .get_dashboard_detail_query()
+        .get_position_detail(
+            user_id=request.user.id,
+            asset_code=asset_code,
+        )
     )
     return render(request, "dashboard/partials/position_detail.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def positions_list_htmx(request):
     """Render the holdings table partial with optional account and sort filters."""
 
@@ -62,7 +67,9 @@ def positions_list_htmx(request):
 
     sort_by = request.GET.get("sort", "market_value")
     if sort_by == "code":
-        positions.sort(key=lambda p: p.get("asset_code", "") if isinstance(p, dict) else p.asset_code)
+        positions.sort(
+            key=lambda p: p.get("asset_code", "") if isinstance(p, dict) else p.asset_code
+        )
     elif sort_by == "pnl_pct":
         positions.sort(
             key=lambda p: (
@@ -74,7 +81,9 @@ def positions_list_htmx(request):
         )
     elif sort_by == "market_value":
         positions.sort(
-            key=lambda p: p.get("market_value", 0) if isinstance(p, dict) else (p.market_value or 0),
+            key=lambda p: (
+                p.get("market_value", 0) if isinstance(p, dict) else (p.market_value or 0)
+            ),
             reverse=True,
         )
 
@@ -88,7 +97,7 @@ def positions_list_htmx(request):
     )
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def positions_json(request):
     """Return the authenticated user's persisted simulated positions as JSON."""
     positions = _dashboard_views()._load_simulated_positions_fallback(request.user.id)
@@ -103,7 +112,7 @@ def positions_json(request):
     )
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def allocation_chart_htmx(request):
     """Return allocation chart payload for one account or the aggregated portfolio."""
 
@@ -129,7 +138,7 @@ def allocation_chart_htmx(request):
     )
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def performance_chart_htmx(request):
     """Return performance chart payload for one account or the aggregated portfolio."""
 

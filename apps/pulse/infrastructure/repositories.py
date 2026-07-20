@@ -77,38 +77,6 @@ class PulseRepository:
 
     def _log_to_snapshot(self, log: PulseLog) -> PulseSnapshot:
         """将 PulseLog ORM 实例转换回 PulseSnapshot 域对象"""
-        # 重建维度分数
-        dim_scores = [
-            DimensionScore(
-                dimension="growth",
-                score=log.growth_score,
-                signal=_score_to_signal(log.growth_score),
-                indicator_count=0,
-                description="",
-            ),
-            DimensionScore(
-                dimension="inflation",
-                score=log.inflation_score,
-                signal=_score_to_signal(log.inflation_score),
-                indicator_count=0,
-                description="",
-            ),
-            DimensionScore(
-                dimension="liquidity",
-                score=log.liquidity_score,
-                signal=_score_to_signal(log.liquidity_score),
-                indicator_count=0,
-                description="",
-            ),
-            DimensionScore(
-                dimension="sentiment",
-                score=log.sentiment_score,
-                signal=_score_to_signal(log.sentiment_score),
-                indicator_count=0,
-                description="",
-            ),
-        ]
-
         # 重建指标读数
         readings = []
         for r in (log.indicator_readings or []):
@@ -126,6 +94,27 @@ class PulseRepository:
                     data_age_days=r.get("data_age_days", 0),
                     is_stale=r.get("is_stale", False),
                 ))
+
+        score_by_dimension = {
+            "growth": log.growth_score,
+            "inflation": log.inflation_score,
+            "liquidity": log.liquidity_score,
+            "sentiment": log.sentiment_score,
+        }
+        dim_scores = [
+            DimensionScore(
+                dimension=dimension,
+                score=score,
+                signal=_score_to_signal(score),
+                indicator_count=sum(
+                    1
+                    for reading in readings
+                    if reading.dimension == dimension and not reading.is_stale
+                ),
+                description="",
+            )
+            for dimension, score in score_by_dimension.items()
+        ]
 
         return PulseSnapshot(
             observed_at=log.observed_at,

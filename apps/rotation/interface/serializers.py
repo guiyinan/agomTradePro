@@ -8,6 +8,8 @@ from django.apps import apps as django_apps
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.rotation.domain.services import is_rotation_signal_stale
+
 AssetClassModel = django_apps.get_model('rotation', 'AssetClassModel')
 MomentumScoreModel = django_apps.get_model('rotation', 'MomentumScoreModel')
 PortfolioRotationConfigModel = django_apps.get_model('rotation', 'PortfolioRotationConfigModel')
@@ -107,8 +109,12 @@ class RotationSignalSerializer(serializers.ModelSerializer):
         }
 
     def get_is_stale(self, obj) -> bool:
-        """Whether the signal predates the local business date."""
-        return obj.signal_date < timezone.localdate()
+        """Whether the signal has crossed its configured rebalance period."""
+        return is_rotation_signal_stale(
+            obj.signal_date,
+            obj.config.rebalance_frequency,
+            timezone.localdate(),
+        )
 
     def get_staleness_days(self, obj) -> int:
         """Age of the signal in calendar days."""

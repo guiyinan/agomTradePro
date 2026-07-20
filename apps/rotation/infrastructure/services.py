@@ -16,6 +16,7 @@ from apps.rotation.domain.entities import (
 from apps.rotation.domain.services import (
     RotationContext,
     RotationService,
+    is_rotation_signal_stale,
 )
 from apps.rotation.infrastructure.adapters.price_adapter import (
     RotationPriceDataService,
@@ -274,7 +275,11 @@ class RotationIntegrationService:
 
         if prefer_persisted and latest_signal is not None:
             result = self._build_recommendation_from_signal_model(latest_signal)
-            is_stale = latest_signal.signal_date < date.today()
+            is_stale = is_rotation_signal_stale(
+                latest_signal.signal_date,
+                config.rebalance_frequency,
+                date.today(),
+            )
             self._apply_recommendation_metadata(
                 result=result,
                 data_source="stored_signal_fallback" if is_stale else "stored_signal",
@@ -291,7 +296,11 @@ class RotationIntegrationService:
 
         # Decision workspace is read-heavy; when today's signal is already persisted,
         # reuse it instead of re-fetching market data on every page request.
-        if latest_signal is not None and latest_signal.signal_date >= date.today():
+        if latest_signal is not None and not is_rotation_signal_stale(
+            latest_signal.signal_date,
+            config.rebalance_frequency,
+            date.today(),
+        ):
             result = self._build_recommendation_from_signal_model(latest_signal)
             self._apply_recommendation_metadata(
                 result=result,
@@ -354,9 +363,7 @@ class RotationIntegrationService:
             "signal_date": signal_model.signal_date.isoformat(),
             "target_allocation": signal_model.target_allocation,
             "current_regime": signal_model.current_regime,
-            "expected_volatility": float(
-                getattr(signal_model, "expected_volatility", 0.0) or 0.0
-            ),
+            "expected_volatility": float(getattr(signal_model, "expected_volatility", 0.0) or 0.0),
             "expected_return": float(getattr(signal_model, "expected_return", 0.0) or 0.0),
             "action_required": signal_model.action_required,
             "reason": signal_model.reason,
@@ -372,15 +379,15 @@ class RotationIntegrationService:
         universe_size = len(config.asset_universe or [])
         ranked_count = len(signal.momentum_ranking or [])
         selected_count = len(signal.target_allocation or {})
-        requires_ranking = (
-            getattr(getattr(config, "strategy_type", None), "value", None)
-            in {"momentum", "regime_based", "custom", "mean_reversion"}
-        )
+        requires_ranking = getattr(getattr(config, "strategy_type", None), "value", None) in {
+            "momentum",
+            "regime_based",
+            "custom",
+            "mean_reversion",
+        }
         coverage_count = ranked_count if requires_ranking else selected_count
         coverage_ratio = coverage_count / universe_size if universe_size else 0.0
-        metrics_available = (
-            signal.expected_return != 0.0 or signal.expected_volatility != 0.0
-        )
+        metrics_available = signal.expected_return != 0.0 or signal.expected_volatility != 0.0
         status = "ok"
         warnings = []
         if universe_size and coverage_count < universe_size:
@@ -460,9 +467,11 @@ class RotationIntegrationService:
         result["config_description"] = config_description
         result["warning_message"] = warning_message
         quality_status = (result.get("data_quality") or {}).get("status")
-        result["actionable"] = data_source in {"fresh_generation", "stored_signal"} and (
-            not is_stale
-        ) and quality_status == "ok"
+        result["actionable"] = (
+            data_source in {"fresh_generation", "stored_signal"}
+            and (not is_stale)
+            and quality_status == "ok"
+        )
         if result["actionable"]:
             result["execution_block_reason"] = None
         elif is_stale:

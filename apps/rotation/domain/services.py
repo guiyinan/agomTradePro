@@ -22,6 +22,27 @@ from apps.rotation.domain.entities import (
 )
 
 
+def is_rotation_signal_stale(
+    signal_date: date,
+    rebalance_frequency: str,
+    as_of: date,
+) -> bool:
+    """Return whether a signal has crossed its configured rebalance period."""
+    if signal_date > as_of:
+        return False
+
+    frequency = rebalance_frequency.strip().lower()
+    if frequency == "weekly":
+        return signal_date.isocalendar()[:2] != as_of.isocalendar()[:2]
+    if frequency == "monthly":
+        return (signal_date.year, signal_date.month) != (as_of.year, as_of.month)
+    if frequency == "quarterly":
+        signal_quarter = (signal_date.month - 1) // 3
+        as_of_quarter = (as_of.month - 1) // 3
+        return (signal_date.year, signal_quarter) != (as_of.year, as_of_quarter)
+    return signal_date < as_of
+
+
 @dataclass
 class RotationContext:
     """Context for rotation strategy calculation"""
@@ -322,9 +343,8 @@ class MomentumRotationEngine:
             portfolio_returns.append(daily_return)
 
         mean_daily_return = sum(portfolio_returns) / len(portfolio_returns)
-        variance = (
-            sum((item - mean_daily_return) ** 2 for item in portfolio_returns)
-            / len(portfolio_returns)
+        variance = sum((item - mean_daily_return) ** 2 for item in portfolio_returns) / len(
+            portfolio_returns
         )
         return mean_daily_return * 252, math.sqrt(variance) * math.sqrt(252)
 

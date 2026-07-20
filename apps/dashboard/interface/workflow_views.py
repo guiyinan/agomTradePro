@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseNotAllowed, JsonResponse
+
+from apps.dashboard.interface.api_auth import dashboard_api_view
 
 
 def _dashboard_views():
@@ -12,7 +13,7 @@ def _dashboard_views():
     return dashboard_views
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["POST"])
 def workflow_refresh_candidates(request):
     """
     主流程候选刷新：从活跃触发器补齐候选，并尝试提升高置信候选为 ACTIONABLE。

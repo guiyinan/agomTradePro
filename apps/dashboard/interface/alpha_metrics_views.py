@@ -7,10 +7,10 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
 from apps.dashboard.application.queries import get_alpha_visualization_query
+from apps.dashboard.interface.api_auth import dashboard_api_view
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ def get_alpha_ic_trends(
     return get_alpha_ic_trends_payload(days=days, user=user, query_factory=query_factory)["items"]
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_provider_status_htmx(request):
     """Return provider health for the dashboard Alpha panel."""
 
@@ -164,7 +164,7 @@ def alpha_provider_status_htmx(request):
     )
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_coverage_htmx(request):
     """Return coverage metrics for the dashboard Alpha panel."""
 
@@ -180,7 +180,7 @@ def alpha_coverage_htmx(request):
     )
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_ic_trends_htmx(request):
     """Return IC trend series for the dashboard Alpha panel."""
 

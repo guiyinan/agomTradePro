@@ -113,6 +113,9 @@ def test_pulse_current_api_contract(authenticated_client):
     assert payload["success"] is True
     assert payload["data"]["regime_context"] == "Recovery"
     assert "dimensions" in payload["data"]
+    dimensions = payload["data"]["dimensions"]
+    assert dimensions["growth"]["indicator_count"] == 1
+    assert dimensions["inflation"]["indicator_count"] == 0
     assert payload["data"]["must_not_use_for_decision"] is False
     assert payload["data"]["contract"]["must_not_use_for_decision"] is False
 
@@ -175,7 +178,9 @@ def test_pulse_current_requests_refresh_when_snapshot_missing(authenticated_clie
         captured.update(kwargs)
         return snapshot
 
-    monkeypatch.setattr("apps.pulse.application.use_cases.GetLatestPulseUseCase.execute", _fake_execute)
+    monkeypatch.setattr(
+        "apps.pulse.application.use_cases.GetLatestPulseUseCase.execute", _fake_execute
+    )
 
     response = authenticated_client.get("/api/pulse/current/")
 

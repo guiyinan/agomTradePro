@@ -45,7 +45,7 @@ def test_generate_rotation_signal_treats_empty_allocation_as_expected_gap(monkey
 
 
 @pytest.mark.django_db
-def test_get_rotation_recommendation_uses_stored_signal_fallback_without_warning(monkeypatch, caplog):
+def test_monthly_rotation_recommendation_stays_fresh_within_month(monkeypatch, caplog):
     service = rotation_services.RotationIntegrationService()
     config = RotationConfig(
         name="MomentumConfig",
@@ -72,10 +72,21 @@ def test_get_rotation_recommendation_uses_stored_signal_fallback_without_warning
     with caplog.at_level(logging.WARNING):
         result = service.get_rotation_recommendation("momentum")
 
-    assert result["data_source"] == "stored_signal_fallback"
-    assert result["is_stale"] is True
-    assert "最近一次已落库信号" in result["warning_message"]
+    assert result["data_source"] == "stored_signal"
+    assert result["is_stale"] is False
+    assert result["warning_message"] is None
     assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+def test_rotation_staleness_follows_rebalance_period():
+    is_stale = rotation_services.is_rotation_signal_stale
+
+    assert is_stale(date(2026, 7, 1), "monthly", date(2026, 7, 31)) is False
+    assert is_stale(date(2026, 6, 30), "monthly", date(2026, 7, 1)) is True
+    assert is_stale(date(2026, 7, 13), "weekly", date(2026, 7, 19)) is False
+    assert is_stale(date(2026, 7, 19), "weekly", date(2026, 7, 20)) is True
+    assert is_stale(date(2026, 7, 1), "quarterly", date(2026, 9, 30)) is False
+    assert is_stale(date(2026, 9, 30), "quarterly", date(2026, 10, 1)) is True
 
 
 def test_risk_parity_quality_uses_allocation_coverage_not_momentum_ranking():

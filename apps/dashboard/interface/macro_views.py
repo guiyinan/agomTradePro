@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+
+from apps.dashboard.interface.api_auth import dashboard_api_view
 
 
 def _dashboard_views():
@@ -12,7 +13,7 @@ def _dashboard_views():
     return dashboard_views
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def regime_status_htmx(request):
     """Render the regime status bar partial for HTMX refreshes."""
 
@@ -22,7 +23,7 @@ def regime_status_htmx(request):
     return render(request, "components/regime_status_bar.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def pulse_card_htmx(request):
     """Render the Pulse card partial for HTMX refreshes."""
 
@@ -32,7 +33,7 @@ def pulse_card_htmx(request):
     return render(request, "components/pulse_card.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def action_recommendation_htmx(request):
     """Render the action recommendation partial for HTMX refreshes."""
 
@@ -42,7 +43,7 @@ def action_recommendation_htmx(request):
     return render(request, "components/action_recommendation.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def attention_items_htmx(request):
     """Render today's attention-items partial for HTMX refreshes."""
 

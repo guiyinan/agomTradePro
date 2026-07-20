@@ -32,7 +32,9 @@ class TestTushareGateway:
         assert not gw.supports(DataCapability.CAPITAL_FLOW)
         assert not gw.supports(DataCapability.STOCK_NEWS)
 
-    @patch("apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots")
+    @patch(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots"
+    )
     def test_get_technical_snapshot_delegates(self, mock_quotes):
         from apps.data_center.infrastructure.gateways.tushare_gateway import (
             TushareGateway,
@@ -54,7 +56,9 @@ class TestTushareGateway:
         assert tech.close == Decimal("15.50")
         assert tech.source == "tushare"
 
-    @patch("apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots")
+    @patch(
+        "apps.data_center.infrastructure.gateways.tushare_gateway.TushareGateway.get_quote_snapshots"
+    )
     def test_get_technical_snapshot_empty(self, mock_quotes):
         from apps.data_center.infrastructure.gateways.tushare_gateway import (
             TushareGateway,
@@ -64,9 +68,13 @@ class TestTushareGateway:
         gw = TushareGateway()
         assert gw.get_technical_snapshot("000001.SZ") is None
 
-    @patch("apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices")
+    @patch(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices"
+    )
     @patch("shared.infrastructure.tushare_client.create_tushare_pro_client")
-    def test_history_falls_back_to_tencent_when_tushare_errors(self, mock_client_factory, mock_tencent_history):
+    def test_history_falls_back_to_tencent_when_tushare_errors(
+        self, mock_client_factory, mock_tencent_history
+    ):
         from apps.data_center.infrastructure.gateways.tushare_gateway import TushareGateway
         from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
 
@@ -190,20 +198,22 @@ class TestAKShareGeneralGateway:
             AKShareGeneralGateway,
         )
 
-        df = pd.DataFrame({
-            "代码": ["000001", "600000"],
-            "最新价": [15.50, 8.20],
-            "涨跌额": [0.30, -0.10],
-            "涨跌幅": [1.97, -1.20],
-            "成交量": [1000000, 500000],
-            "成交额": [15500000.0, 4100000.0],
-            "换手率": [3.2, 1.5],
-            "量比": [1.1, 0.9],
-            "最高": [15.80, 8.30],
-            "最低": [15.20, 8.10],
-            "今开": [15.30, 8.25],
-            "昨收": [15.20, 8.30],
-        })
+        df = pd.DataFrame(
+            {
+                "代码": ["000001", "600000"],
+                "最新价": [15.50, 8.20],
+                "涨跌额": [0.30, -0.10],
+                "涨跌幅": [1.97, -1.20],
+                "成交量": [1000000, 500000],
+                "成交额": [15500000.0, 4100000.0],
+                "换手率": [3.2, 1.5],
+                "量比": [1.1, 0.9],
+                "最高": [15.80, 8.30],
+                "最低": [15.20, 8.10],
+                "今开": [15.30, 8.25],
+                "昨收": [15.20, 8.30],
+            }
+        )
         mock_spot_em.return_value = df
 
         gw = AKShareGeneralGateway()
@@ -269,6 +279,49 @@ class TestCodeConversion:
 
 
 class TestAKShareEastMoneyGateway:
+    def test_single_quote_uses_eastmoney_price_precision_for_etf(self):
+        from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
+            AKShareEastMoneyGateway,
+        )
+
+        class _Response:
+            @staticmethod
+            def raise_for_status():
+                return None
+
+            @staticmethod
+            def json():
+                return {
+                    "data": {
+                        "f43": 4666,
+                        "f44": 4673,
+                        "f45": 4630,
+                        "f46": 4630,
+                        "f59": 3,
+                        "f60": 4589,
+                        "f169": 77,
+                        "f170": 168,
+                    }
+                }
+
+        class _Session:
+            @staticmethod
+            def get(*args, **kwargs):
+                return _Response()
+
+        quote = AKShareEastMoneyGateway()._fetch_quote_snapshot(
+            _Session(),
+            "510300.SH",
+        )
+
+        assert quote is not None
+        assert quote.price == Decimal("4.666")
+        assert quote.high == Decimal("4.673")
+        assert quote.low == Decimal("4.63")
+        assert quote.open == Decimal("4.63")
+        assert quote.pre_close == Decimal("4.589")
+        assert quote.change == Decimal("0.077")
+
     def test_quote_falls_back_to_ulist_when_single_quote_is_blocked(self):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
@@ -494,7 +547,9 @@ class TestAKShareEastMoneyGateway:
 
         assert mock_fund_flow.call_args.kwargs["market"] == "bj"
 
-    @patch("apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices")
+    @patch(
+        "apps.data_center.infrastructure.gateways.tencent_gateway.TencentGateway.get_historical_prices"
+    )
     def test_history_falls_back_to_tencent_when_akshare_errors(self, mock_tencent_history):
         from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
             AKShareEastMoneyGateway,
@@ -526,4 +581,3 @@ class TestAKShareEastMoneyGateway:
         assert len(bars) == 1
         assert bars[0].source == "tencent"
         mock_tencent_history.assert_called_once_with("000001.SZ", "20260401", "20260419")
-

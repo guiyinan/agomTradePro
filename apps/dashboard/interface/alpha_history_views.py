@@ -8,6 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
 
+from apps.dashboard.interface.api_auth import dashboard_api_view
+
 
 def _parse_positive_int_param(
     raw_value,
@@ -99,7 +101,7 @@ def alpha_history_page(request):
     return render(request, "dashboard/alpha_history.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_history_list_api(request):
     """Return recommendation history list for the current user."""
 
@@ -126,7 +128,7 @@ def alpha_history_list_api(request):
     return JsonResponse({"success": True, "data": runs})
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_history_detail_api(request, run_id: int):
     """Return one historical recommendation run detail."""
 

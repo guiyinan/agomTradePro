@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
+from apps.account.infrastructure.models import UserAccessTokenModel
 from apps.dashboard.infrastructure.models import (
     AlphaRecommendationRunModel,
     AlphaRecommendationSnapshotModel,
@@ -34,8 +35,7 @@ def test_dashboard_api_root_contract(client):
     assert payload["endpoints"]["positions_data"] == "/api/dashboard/positions/data/"
     assert payload["endpoints"]["alpha_stocks"] == "/api/dashboard/alpha/stocks/"
     assert (
-        payload["endpoints"]["v1_alpha_decision_chain"]
-        == "/api/dashboard/v1/alpha-decision-chain/"
+        payload["endpoints"]["v1_alpha_decision_chain"] == "/api/dashboard/v1/alpha-decision-chain/"
     )
 
 
@@ -89,6 +89,26 @@ def test_dashboard_allocation_is_user_scoped_json_without_database_writes(
         )
     ]
     assert mutation_sql == []
+
+
+@pytest.mark.django_db
+def test_dashboard_positions_data_accepts_api_token(client, auth_user, monkeypatch):
+    _, raw_key = UserAccessTokenModel.create_token(
+        user=auth_user,
+        name="dashboard-uat",
+        access_level=UserAccessTokenModel.ACCESS_LEVEL_READ_ONLY,
+    )
+    client.defaults["HTTP_AUTHORIZATION"] = f"Token {raw_key}"
+    monkeypatch.setattr(
+        "apps.dashboard.interface.views._load_simulated_positions_fallback",
+        lambda user_id, account_id=None: [],
+    )
+
+    response = client.get("/api/dashboard/positions/data/")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("application/json")
+    assert response.json()["data"]["positions"] == []
 
 
 @pytest.mark.django_db
@@ -458,9 +478,7 @@ def test_dashboard_alpha_history_is_user_scoped_and_read_only(client, auth_user)
 
     client.force_login(auth_user)
     list_response = client.get("/api/dashboard/alpha/history/")
-    other_detail_response = client.get(
-        f"/api/dashboard/alpha/history/{other_run.id}/"
-    )
+    other_detail_response = client.get(f"/api/dashboard/alpha/history/{other_run.id}/")
 
     assert list_response.status_code == 200
     payload = list_response.json()

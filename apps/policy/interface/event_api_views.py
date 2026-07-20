@@ -208,9 +208,7 @@ class PolicyEventListView(APIView):
                 "end_date": output.end_date.isoformat(),
             }
 
-            serializer = PolicyHistoryWithStatsSerializer(data=response_data)
-            serializer.is_valid(raise_exception=True)
-
+            serializer = PolicyHistoryWithStatsSerializer(instance=response_data)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except ValueError as e:

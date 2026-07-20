@@ -7,6 +7,8 @@ from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 
+from apps.dashboard.interface.api_auth import dashboard_api_view
+
 
 def _dashboard_views():
     from apps.dashboard.interface import views as dashboard_views
@@ -48,15 +50,21 @@ def alpha_ranking_page(request):
     )
     portfolio_options = dashboard_views._get_dashboard_portfolio_options(request.user.id)
     selected_alpha_scope = dashboard_views.normalize_alpha_scope(requested_alpha_scope)
-    if requested_alpha_scope in (None, "") and not portfolio_options and selected_portfolio_id is None:
+    if (
+        requested_alpha_scope in (None, "")
+        and not portfolio_options
+        and selected_portfolio_id is None
+    ):
         selected_alpha_scope = dashboard_views.ALPHA_SCOPE_GENERAL
 
     alpha_payload = dashboard_views._get_alpha_stock_scores_payload(
         top_n=top_n,
         user=request.user,
-        portfolio_id=None
-        if selected_alpha_scope == dashboard_views.ALPHA_SCOPE_GENERAL
-        else selected_portfolio_id,
+        portfolio_id=(
+            None
+            if selected_alpha_scope == dashboard_views.ALPHA_SCOPE_GENERAL
+            else selected_portfolio_id
+        ),
         pool_mode=selected_alpha_pool_mode,
         alpha_scope=selected_alpha_scope,
     )
@@ -90,7 +98,7 @@ def alpha_ranking_page(request):
     return render(request, "dashboard/alpha_ranking.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["POST"])
 def alpha_refresh_htmx(request):
     """Trigger a manual realtime Alpha refresh for today's dashboard universe."""
 
@@ -441,7 +449,7 @@ def _alpha_refresh_sync(
         dashboard_views.release_dashboard_alpha_refresh_lock(lock_key)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 @never_cache
 def alpha_stocks_htmx(request):
     """Return the dashboard Alpha stock table payload."""
@@ -568,7 +576,7 @@ def alpha_stocks_htmx(request):
     return render(request, "dashboard/partials/alpha_stocks_table.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_factor_panel_htmx(request):
     """HTMX factor panel for a selected alpha stock."""
 
@@ -579,9 +587,7 @@ def alpha_factor_panel_htmx(request):
     stock_code = (request.GET.get("code") or "").strip()
     source = (request.GET.get("source") or "").strip() or None
     raw_portfolio_id = request.GET.get("portfolio_id")
-    pool_mode = dashboard_views._normalize_dashboard_alpha_pool_mode(
-        request.GET.get("pool_mode")
-    )
+    pool_mode = dashboard_views._normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
     alpha_scope = dashboard_views.normalize_alpha_scope(request.GET.get("alpha_scope"))
     try:
         top_n = dashboard_views._parse_positive_int_param(
@@ -636,7 +642,7 @@ def alpha_factor_panel_htmx(request):
     return render(request, "dashboard/partials/alpha_factor_panel.html", context)
 
 
-@login_required(login_url="/account/login/")
+@dashboard_api_view(["GET"])
 def alpha_exit_panel_htmx(request):
     """HTMX sidebar detail panel for one exit-watchlist item."""
 
@@ -647,9 +653,7 @@ def alpha_exit_panel_htmx(request):
     asset_code = (request.GET.get("asset_code") or "").strip().upper()
     raw_account_id = request.GET.get("account_id")
     raw_portfolio_id = request.GET.get("portfolio_id")
-    pool_mode = dashboard_views._normalize_dashboard_alpha_pool_mode(
-        request.GET.get("pool_mode")
-    )
+    pool_mode = dashboard_views._normalize_dashboard_alpha_pool_mode(request.GET.get("pool_mode"))
     alpha_scope = dashboard_views.normalize_alpha_scope(request.GET.get("alpha_scope"))
     try:
         top_n = dashboard_views._parse_positive_int_param(

@@ -597,23 +597,25 @@ class AKShareEastMoneyGateway(MarketGatewayProtocol):
             return None
 
         data = payload.get("data") or {}
-        price = _safe_decimal(data.get("f43"), scale=100)
+        price_precision = _safe_int(data.get("f59"))
+        price_scale = 10**price_precision if price_precision is not None else 100
+        price = _safe_decimal(data.get("f43"), scale=price_scale)
         if price is None or price <= 0:
             return None
 
         return QuoteSnapshot(
             stock_code=stock_code,
             price=price,
-            change=_safe_decimal(data.get("f169"), scale=100),
+            change=_safe_decimal(data.get("f169"), scale=price_scale),
             change_pct=safe_float(data.get("f170"), scale=100),
             volume=_safe_int(data.get("f47")),
             amount=_safe_decimal(data.get("f48")),
             turnover_rate=safe_float(data.get("f168"), scale=100),
             volume_ratio=safe_float(data.get("f50"), scale=100),
-            high=_safe_decimal(data.get("f44"), scale=100),
-            low=_safe_decimal(data.get("f45"), scale=100),
-            open=_safe_decimal(data.get("f46"), scale=100),
-            pre_close=_safe_decimal(data.get("f60"), scale=100),
+            high=_safe_decimal(data.get("f44"), scale=price_scale),
+            low=_safe_decimal(data.get("f45"), scale=price_scale),
+            open=_safe_decimal(data.get("f46"), scale=price_scale),
+            pre_close=_safe_decimal(data.get("f60"), scale=price_scale),
             source="eastmoney",
         )
 

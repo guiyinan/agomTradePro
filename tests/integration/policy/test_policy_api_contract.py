@@ -78,6 +78,25 @@ def test_api_policy_events_returns_canonical_history_envelope():
 
 
 @pytest.mark.django_db
+def test_api_policy_events_does_not_fail_on_legacy_invalid_evidence_url():
+    client = _build_authenticated_api_client("policy_api_legacy_url")
+    PolicyLog._default_manager.create(
+        event_date=date(2026, 6, 2),
+        level="P1",
+        title="Legacy imported event",
+        description="Legacy data remains readable while new writes stay strictly validated.",
+        evidence_url="legacy-source-without-scheme",
+    )
+
+    response = client.get("/api/policy/events/?start_date=2026-06-02&end_date=2026-06-02")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_count"] == 1
+    assert payload["events"][0]["evidence_url"] == "legacy-source-without-scheme"
+
+
+@pytest.mark.django_db
 def test_create_policy_event_requires_staff():
     client = _build_authenticated_api_client("policy_api_create_forbidden")
 
