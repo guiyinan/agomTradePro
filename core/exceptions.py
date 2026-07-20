@@ -31,7 +31,7 @@ class AgomTradeProException(Exception):
         message: str | None = None,
         code: str | None = None,
         status_code: int | None = None,
-        details: dict[str, Any] | None = None
+        details: dict[str, Any] | None = None,
     ):
         self.message = message or self.default_message
         self.code = code or self.default_code
@@ -51,6 +51,7 @@ class AgomTradeProException(Exception):
 
 
 # ========== Validation Errors ==========
+
 
 class ValidationError(AgomTradeProException):
     """Raised when input validation fails."""
@@ -76,6 +77,7 @@ class MissingRequiredFieldError(ValidationError):
 
 # ========== Authentication & Authorization Errors ==========
 
+
 class AuthenticationError(AgomTradeProException):
     """Raised when authentication fails."""
 
@@ -94,6 +96,7 @@ class AuthorizationError(AgomTradeProException):
 
 # ========== Resource Errors ==========
 
+
 class ResourceNotFoundError(AgomTradeProException):
     """Raised when a requested resource is not found."""
 
@@ -111,6 +114,7 @@ class DuplicateResourceError(AgomTradeProException):
 
 
 # ========== Business Logic Errors ==========
+
 
 class BusinessLogicError(AgomTradeProException):
     """Raised when business rules are violated."""
@@ -142,6 +146,7 @@ class IneligibleAssetError(BusinessLogicError):
 
 
 # ========== External Service Errors ==========
+
 
 class ExternalServiceError(AgomTradeProException):
     """Base exception for external service errors."""
@@ -181,6 +186,7 @@ class AKShareError(DataFetchError):
 
 # ========== Timeout Errors ==========
 
+
 class TimeoutError(AgomTradeProException):
     """Raised when an operation times out."""
 
@@ -190,6 +196,7 @@ class TimeoutError(AgomTradeProException):
 
 
 # ========== Configuration Errors ==========
+
 
 class ConfigurationError(AgomTradeProException):
     """Raised when configuration is invalid."""
@@ -208,6 +215,7 @@ class MissingConfigError(ConfigurationError):
 
 # ========== Data Errors ==========
 
+
 class InsufficientDataError(BusinessLogicError):
     """Raised when there is insufficient data to perform an operation."""
 
@@ -223,6 +231,7 @@ class DataValidationError(BusinessLogicError):
 
 
 # ========== DRF Exception Handler ==========
+
 
 def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
     """
@@ -259,12 +268,9 @@ def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
                 "status_code": exc.status_code,
                 "details": exc.details,
                 "view": context.get("view").__class__.__name__ if context.get("view") else None,
-            }
+            },
         )
-        return Response(
-            exc.to_dict(),
-            status=exc.status_code
-        )
+        return Response(exc.to_dict(), status=exc.status_code)
 
     # If DRF already handled it, format the response
     if response is not None:
@@ -316,7 +322,7 @@ def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
                 "error": "资源不存在",
                 "code": "NOT_FOUND",
             },
-            status=status.HTTP_404_NOT_FOUND
+            status=status.HTTP_404_NOT_FOUND,
         )
 
     # For unhandled exceptions, return None to let DRF use default behavior
@@ -325,6 +331,6 @@ def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
         f"Unhandled exception in API: {type(exc).__name__}: {exc}",
         extra={
             "view": context.get("view").__class__.__name__ if context.get("view") else None,
-        }
+        },
     )
     return None

@@ -38,9 +38,7 @@ def test_etf_size_flow_metadata_backfill_preserves_canonical_values() -> None:
         source="data_center_consensus",
         extra={"source_type": "data_center_consensus", "original_unit": "万元"},
     )
-    migration = import_module(
-        "apps.data_center.migrations.0038_govern_etf_size_flow_unit"
-    )
+    migration = import_module("apps.data_center.migrations.0038_govern_etf_size_flow_unit")
 
     migration.govern_etf_size_flow_unit(apps, None)
     migration.govern_etf_size_flow_unit(apps, None)
@@ -78,9 +76,7 @@ def test_ten_thousand_yuan_etf_fact_is_normalized_before_real_persistence() -> N
             "is_active": True,
         },
     )
-    migration = import_module(
-        "apps.data_center.migrations.0038_govern_etf_size_flow_unit"
-    )
+    migration = import_module("apps.data_center.migrations.0038_govern_etf_size_flow_unit")
     migration.govern_etf_size_flow_unit(apps, None)
     normalizer = MacroFactGovernanceNormalizer(
         IndicatorCatalogRepository(),

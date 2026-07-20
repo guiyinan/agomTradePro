@@ -165,9 +165,7 @@ def test_rotation_asset_catalog_and_detail_return_persisted_master_data(
         "apps.rotation.application.interface_services.get_asset_info",
         return_value={"code": "510300.SH", "source": "persisted-test"},
     ):
-        action_response = authenticated_client.get(
-            "/api/rotation/assets/510300.SH/detail/"
-        )
+        action_response = authenticated_client.get("/api/rotation/assets/510300.SH/detail/")
 
     assert list_response.status_code == 200
     assets = _list_payload(list_response)
@@ -207,9 +205,7 @@ def test_rotation_asset_catalog_mutations_require_staff(authenticated_client):
         {"name": "未授权修改"},
         format="json",
     )
-    delete_response = authenticated_client.delete(
-        f"/api/rotation/assets/{asset.code}/"
-    )
+    delete_response = authenticated_client.delete(f"/api/rotation/assets/{asset.code}/")
     import_response = authenticated_client.post(
         "/api/rotation/assets/import-defaults/",
         {},
@@ -334,9 +330,7 @@ def test_rotation_staff_previews_and_imports_default_assets(staff_client):
     )
     count_before = AssetClassModel.objects.count()
 
-    preview_response = staff_client.get(
-        "/api/rotation/assets/import-defaults-preview/"
-    )
+    preview_response = staff_client.get("/api/rotation/assets/import-defaults-preview/")
 
     assert preview_response.status_code == 200
     preview = preview_response.json()
@@ -405,9 +399,7 @@ def test_rotation_account_config_reads_are_user_scoped(
     )
 
     list_response = authenticated_client.get("/api/rotation/account-configs/")
-    detail_response = authenticated_client.get(
-        f"/api/rotation/account-configs/{own_config.id}/"
-    )
+    detail_response = authenticated_client.get(f"/api/rotation/account-configs/{own_config.id}/")
     by_account_response = authenticated_client.get(
         f"/api/rotation/account-configs/by-account/{own_account.id}/"
     )
@@ -464,8 +456,7 @@ def test_rotation_compare_is_pure_compute_without_price_cache_writes(
         RotationTemplateModel,
     )
     before_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
 
     response = authenticated_client.post(
@@ -483,8 +474,7 @@ def test_rotation_compare_is_pure_compute_without_price_cache_writes(
     assert set(payload["assets"]) == {"510300", "511260"}
     assert payload["assets"]["510300"]["ma_signal"] == "bullish"
     after_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
     assert after_counts == before_counts
 
@@ -544,8 +534,7 @@ def test_rotation_correlation_is_pure_compute_without_price_cache_writes(
         RotationTemplateModel,
     )
     before_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
 
     response = authenticated_client.post(
@@ -563,12 +552,9 @@ def test_rotation_correlation_is_pure_compute_without_price_cache_writes(
     assert payload["window_days"] == 20
     cross_correlation = payload["correlation_matrix"]["510300"]["511260"]
     assert -1.0 <= cross_correlation <= 1.0
-    assert payload["correlation_matrix"]["511260"]["510300"] == pytest.approx(
-        cross_correlation
-    )
+    assert payload["correlation_matrix"]["511260"]["510300"] == pytest.approx(cross_correlation)
     after_counts = {
-        model._meta.label_lower: model._default_manager.count()
-        for model in tracked_models
+        model._meta.label_lower: model._default_manager.count() for model in tracked_models
     }
     assert after_counts == before_counts
 
