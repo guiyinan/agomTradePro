@@ -1,5 +1,27 @@
 {
-  "version": "2026-07-19.v6",
-  "rationale": "Legacy incremental mypy debt is closed; third-party untyped boundaries use precise line-level ignores.",
-  "modules": {}
+  "version": "2026-07-20.v7",
+  "rationale": "core/exceptions.py legacy debt closed 2026-07-20 with precise line-level ignores. The three modules below carry pre-existing legacy debt verified unchanged by the 2026-07-20 UAT/DevOps remediation commits; growth remains blocked per file and code.",
+  "modules": {
+    "apps/regime/application/orchestration.py": {
+      "arg-type": 1,
+      "import-untyped": 1,
+      "misc": 5,
+      "no-untyped-call": 10,
+      "type-arg": 5,
+      "union-attr": 2
+    },
+    "apps/rotation/infrastructure/repositories.py": {
+      "import-untyped": 1,
+      "no-any-return": 15,
+      "no-untyped-call": 1,
+      "no-untyped-def": 13,
+      "type-arg": 6
+    },
+    "apps/terminal/application/tui_workbench_catalog.py": {
+      "arg-type": 3,
+      "attr-defined": 25,
+      "import-untyped": 1,
+      "no-any-return": 4
+    }
+  }
 }

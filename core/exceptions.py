@@ -7,7 +7,7 @@ Provides standardized exception classes for consistent error handling across the
 import logging
 from typing import Any
 
-from django.http import Http404
+from django.http import Http404  # type: ignore[import-untyped]
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
@@ -41,7 +41,7 @@ class AgomTradeProException(Exception):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses."""
-        result = {
+        result: dict[str, Any] = {
             "error": self.message,
             "code": self.code,
         }
@@ -233,7 +233,7 @@ class DataValidationError(BusinessLogicError):
 # ========== DRF Exception Handler ==========
 
 
-def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
+def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
     """
     Custom exception handler for Django REST Framework.
 
