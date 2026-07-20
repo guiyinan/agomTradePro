@@ -1,15 +1,11 @@
 # Security Scan Workflow
-# P0-3: CI 安全扫描门禁
 #
-# This workflow runs security scans on every PR and push to main.
-# It includes:
-# - Bandit: Python code security analysis
-# - Safety: Dependency vulnerability scanning
-# - pip-audit: Additional dependency audit
-#
-# Baseline mechanism:
-# - Historical issues are logged as warnings
-# - New high-severity issues block PR merge
+# Gates:
+# - Bandit: HIGH-severity findings fail the build (MEDIUM logged as warnings).
+# - Dependencies: safety + pip-audit against requirements-dev.txt; any known
+#   vulnerability fails the build. Tool/parse errors are fail-closed.
+# - Secrets: gitleaks full-history scan; any leak fails the build.
+# - npm: `npm audit --audit-level=high` against the root package-lock.json.
 
 name: Security Scan
 
@@ -27,12 +23,11 @@ jobs:
   bandit-scan:
     name: Bandit Code Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0  # Need full history for baseline comparison
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -43,39 +38,52 @@ jobs:
       - name: Install Bandit
         run: |
           python -m pip install --upgrade pip
-          pip install bandit
-
-      - name: Create baseline file if not exists
-        run: |
-          mkdir -p reports/security
-          if [ ! -f reports/security/bandit-baseline.json ]; then
-            echo '{"results": [], "errors": [], "generated_at": "'$(date -Iseconds)'"}' > reports/security/bandit-baseline.json
-          fi
+          pip install 'bandit==1.9.*'
 
       - name: Run Bandit scan
-        id: bandit
         run: |
-          # Run Bandit with baseline comparison
-          bandit -r apps/ core/ shared/ -f json -o reports/security/bandit-report.json --baseline reports/security/bandit-baseline.json || true
+          mkdir -p reports/security
+          # Bandit exits non-zero whenever it finds issues (including LOW), so
+          # the gate below reads the JSON report instead of the exit code.
+          bandit -r apps/ core/ shared/ -f json -o reports/security/bandit-report.json || true
 
-          # Check for new critical-severity issues (HIGH issues are logged as warnings)
-          python3 -c "
-          import json, sys
+          python3 - <<'PY'
+          import json
+          import sys
+
           try:
               with open('reports/security/bandit-report.json') as f:
                   data = json.load(f)
-              results = data.get('results', [])
-              new_critical = [r for r in results if r.get('issue_severity') == 'CRITICAL' and not r.get('is_baseline', False)]
-              new_high = [r for r in results if r.get('issue_severity') == 'HIGH' and not r.get('is_baseline', False)]
-              if new_high:
-                  print(f'::warning::Found {len(new_high)} HIGH-severity issues. Review reports/security/bandit-report.json')
-              if new_critical:
-                  print(f'::error::Found {len(new_critical)} CRITICAL-severity issues. Must fix before merging.')
-                  sys.exit(1)
-              print(f'Bandit scan complete: {len(new_critical)} critical, {len(new_high)} high (warning only)')
-          except Exception as e:
-              print(f'Warning: Could not parse bandit report: {e}')
-          "
+          except Exception as exc:
+              # Fail closed: an unreadable report must never pass the gate.
+              print(f'::error::Could not parse bandit report: {exc}')
+              sys.exit(1)
+
+          results = data.get('results', [])
+          high = [r for r in results if r.get('issue_severity') == 'HIGH']
+          medium = [r for r in results if r.get('issue_severity') == 'MEDIUM']
+          for item in medium:
+              print(
+                  '::warning file={file},line={line}::Bandit MEDIUM {test_id}: {text}'.format(
+                      file=item.get('filename'),
+                      line=item.get('line_number'),
+                      test_id=item.get('test_id'),
+                      text=item.get('issue_text'),
+                  )
+              )
+          for item in high:
+              print(
+                  '::error file={file},line={line}::Bandit HIGH {test_id}: {text}'.format(
+                      file=item.get('filename'),
+                      line=item.get('line_number'),
+                      test_id=item.get('test_id'),
+                      text=item.get('issue_text'),
+                  )
+              )
+          print(f'Bandit scan complete: {len(high)} high, {len(medium)} medium')
+          if high:
+              sys.exit(1)
+          PY
 
       - name: Upload Bandit report
         if: always()
@@ -88,6 +96,7 @@ jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -102,7 +111,9 @@ jobs:
       - name: Install scanning tools
         run: |
           python -m pip install --upgrade pip
-          pip install safety pip-audit
+          # safety 2.3.x works offline without an API key (3.x requires one);
+          # pip-audit is pinned for reproducible CI behavior.
+          pip install 'safety==2.3.5' 'pip-audit==2.9.0'
 
       - name: Create reports directory
         run: mkdir -p reports/security
@@ -113,30 +124,39 @@ jobs:
           # Scan declared project dependencies instead of the runner's ambient environment.
           safety check -r requirements-dev.txt --json > reports/security/safety-report.json 2>&1 || true
 
-          # Parse results
-          VULN_COUNT=$(python3 -c "
+          VULN_COUNT=$(python3 - <<'PY'
           import json
           import sys
+
           try:
               with open('reports/security/safety-report.json') as f:
                   data = json.load(f)
-              if isinstance(data, dict):
-                  meta = data.get('report_meta', {})
-                  if isinstance(meta, dict) and 'vulnerabilities_found' in meta:
-                      print(meta.get('vulnerabilities_found', 0))
-                  else:
-                      vulns = data.get('vulnerabilities', [])
-                      print(len(vulns) if isinstance(vulns, list) else 0)
-              elif isinstance(data, list):
-                  print(len(data))
+          except Exception as exc:
+              # Fail closed: tool or parse errors must not silently pass.
+              print(f'::error::Could not parse safety report: {exc}', file=sys.stderr)
+              print(-1)
+              sys.exit(0)
+
+          if isinstance(data, dict):
+              meta = data.get('report_meta', {})
+              if isinstance(meta, dict) and 'vulnerabilities_found' in meta:
+                  print(meta.get('vulnerabilities_found', 0))
               else:
-                  print(0)
-          except Exception as e:
+                  vulns = data.get('vulnerabilities', [])
+                  print(len(vulns) if isinstance(vulns, list) else 0)
+          elif isinstance(data, list):
+              print(len(data))
+          else:
               print(0)
-          " || echo "0")
+          PY
+          )
 
           echo "vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
 
+          if [ "$VULN_COUNT" -lt 0 ]; then
+            echo "::error::safety scan failed or produced an unreadable report"
+            exit 1
+          fi
           if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::warning::Found $VULN_COUNT known vulnerabilities in dependencies. Review reports/security/safety-report.json"
           fi
@@ -156,20 +176,30 @@ jobs:
             --output reports/security/pip-audit-report.json \
             2>/dev/null || true
 
-          # Parse results
-          AUDIT_COUNT=$(python3 -c "
+          AUDIT_COUNT=$(python3 - <<'PY'
           import json
+          import sys
+
           try:
               with open('reports/security/pip-audit-report.json') as f:
                   data = json.load(f)
-              dependencies = data.get('dependencies', []) if isinstance(data, dict) else []
-              print(sum(len(dep.get('vulns', [])) for dep in dependencies))
-          except:
-              print(0)
-          " || echo "0")
+          except Exception as exc:
+              # Fail closed: tool or parse errors must not silently pass.
+              print(f'::error::Could not parse pip-audit report: {exc}', file=sys.stderr)
+              print(-1)
+              sys.exit(0)
+
+          dependencies = data.get('dependencies', []) if isinstance(data, dict) else []
+          print(sum(len(dep.get('vulns', [])) for dep in dependencies))
+          PY
+          )
 
           echo "audit_vulnerability_count=$AUDIT_COUNT" >> $GITHUB_OUTPUT
 
+          if [ "$AUDIT_COUNT" -lt 0 ]; then
+            echo "::error::pip-audit scan failed or produced an unreadable report"
+            exit 1
+          fi
           if [ "$AUDIT_COUNT" -gt 0 ]; then
             echo "::warning::pip-audit found $AUDIT_COUNT vulnerabilities. Review reports/security/pip-audit-report.json"
           fi
@@ -193,10 +223,45 @@ jobs:
             exit 1
           fi
 
+  secrets-scan:
+    name: Secrets Scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # gitleaks scans full history
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  npm-audit:
+    name: npm Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+
   security-summary:
     name: Security Scan Summary
     runs-on: ubuntu-latest
-    needs: [bandit-scan, dependency-scan]
+    timeout-minutes: 10
+    needs: [bandit-scan, dependency-scan, secrets-scan, npm-audit]
     if: always()
 
     steps:
@@ -212,24 +277,36 @@ jobs:
           echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.bandit-scan.result }}" == "success" ]; then
-            echo "| Bandit Code Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Bandit Code Scan | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ needs.dependency-scan.result }}" == "success" ]; then
-            echo "| Dependency Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| Dependency Scan | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
-          fi
+          for job in bandit-scan dependency-scan secrets-scan npm-audit; do
+            case "$job" in
+              bandit-scan) result="${{ needs.bandit-scan.result }}" ;;
+              dependency-scan) result="${{ needs.dependency-scan.result }}" ;;
+              secrets-scan) result="${{ needs.secrets-scan.result }}" ;;
+              npm-audit) result="${{ needs.npm-audit.result }}" ;;
+            esac
+            if [ "$result" == "success" ]; then
+              echo "| $job | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $job | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Reports are available as artifacts (retained for 30 days)." >> $GITHUB_STEP_SUMMARY
 
       - name: Overall status
         run: |
-          if [ "${{ needs.bandit-scan.result }}" != "success" ] || [ "${{ needs.dependency-scan.result }}" != "success" ]; then
+          FAILED=0
+          for result in \
+            "${{ needs.bandit-scan.result }}" \
+            "${{ needs.dependency-scan.result }}" \
+            "${{ needs.secrets-scan.result }}" \
+            "${{ needs.npm-audit.result }}"; do
+            if [ "$result" != "success" ]; then
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
             echo "::error::One or more security scans failed. Please review the reports."
             exit 1
           fi

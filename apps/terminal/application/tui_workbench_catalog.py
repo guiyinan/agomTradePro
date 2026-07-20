@@ -401,7 +401,9 @@ class TuiWorkbenchCatalogMixin:
         return payload
 
     def _action_ui_key(self, action: dict[str, Any]) -> str:
-        digest = hashlib.sha1(str(action.get("key") or "").encode("utf-8")).hexdigest()[:10]
+        digest = hashlib.sha1(
+            str(action.get("key") or "").encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:10]
         return f"task-{digest}"
 
     def _int_from_path(
