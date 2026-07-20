@@ -29,6 +29,7 @@
 
 ## 当前收口说明
 
+- 可维护性定向重构已完成 R0 边界冻结并进入 R1 收口：计划与五份契约矩阵见 [plans/maintainability-refactoring-plan-2026-07-20.md](plans/maintainability-refactoring-plan-2026-07-20.md) 和 [plans/maintainability-r0/r1-stage-record-2026-07-20.md](plans/maintainability-r0/r1-stage-record-2026-07-20.md)。
 - 宏观运行时入口已统一收口到 `data_center`：HTTP 走 `/api/data-center/*`，MCP 走 `data_center_*` 工具族。
 - 全局运行时配置 owner 已切到 `config_center`：`SystemSettingsModel` 归属 `apps/config_center`，Qlib runtime / 在线训练中心入口见 [business/config-center-matrix.md](business/config-center-matrix.md)。
 - 指标目录与量纲规则真源见 [development/macro-data-center-cutover.md](development/macro-data-center-cutover.md)。
@@ -584,4 +585,3 @@
 
 **文档维护**: AgomTradePro Team
 **最后更新**: 2026-06-20
-

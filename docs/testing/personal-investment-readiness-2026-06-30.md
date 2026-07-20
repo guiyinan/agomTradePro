@@ -2,6 +2,8 @@
 
 > Scope: local `dev/next-development` readiness for using AgomTradePro as a personal investment research and decision-support system. This is not approval for unattended real-money auto execution.
 
+> Owner update (2026-07-20): readiness evidence, acceptance, scheduler probes and command implementations now belong to `apps.operational_readiness`. Existing `manage.py` command names and the legacy `apps.task_monitor.application.tasks.run_personal_readiness_daily_task` Celery name remain compatible; new Beat/PeriodicTask configuration targets `apps.operational_readiness.application.tasks.run_personal_readiness_daily_task`.
+
 ## Result
 
 Status: **usable for personal research and assisted decision workflow**
