@@ -3,6 +3,8 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -671,3 +673,33 @@ def test_rotation_latest_signal_treats_risk_parity_allocation_as_quality_coverag
     assert row["data_quality"]["warnings"] == []
     assert row["actionable"] is True
     assert row["execution_block_reason"] is None
+
+
+@pytest.mark.django_db
+def test_rotation_signal_list_selects_config_without_n_plus_one(authenticated_client):
+    for index in range(4):
+        config = RotationConfigModel.objects.create(
+            name=f"查询优化轮动-{index}",
+            strategy_type="momentum",
+            asset_universe=["510300"],
+            is_active=True,
+        )
+        RotationSignalModel.objects.create(
+            config=config,
+            signal_date=timezone.localdate(),
+            target_allocation={"510300": 1.0},
+            momentum_ranking=[["510300", 0.1]],
+            expected_return=0.05,
+            expected_volatility=0.1,
+        )
+
+    with CaptureQueriesContext(connection) as queries:
+        response = authenticated_client.get("/api/rotation/signals/")
+
+    assert response.status_code == 200
+    config_queries = [
+        query["sql"]
+        for query in queries.captured_queries
+        if 'FROM "rotation_config"' in query["sql"]
+    ]
+    assert config_queries == []

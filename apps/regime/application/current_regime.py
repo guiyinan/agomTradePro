@@ -39,8 +39,8 @@ class CurrentRegimeResult:
     inflation_indicator: str = "CPI"
     growth_value: float | None = None
     inflation_value: float | None = None
-    growth_momentum_z: float = 0.0
-    inflation_momentum_z: float = 0.0
+    growth_momentum_z: float | None = None
+    inflation_momentum_z: float | None = None
 
 
 # 全局提供者 (延迟初始化)
@@ -130,20 +130,29 @@ def resolve_current_regime(
         trends = {trend.indicator_code.upper(): trend for trend in response.result.trend_indicators}
         growth_trend = trends.get("PMI")
         inflation_trend = trends.get("CPI")
+        warnings = list(response.warnings or [])
+        if growth_trend is None:
+            warnings.append("PMI 趋势数据缺失，growth_momentum_z 不可用")
+        if inflation_trend is None:
+            warnings.append("CPI 趋势数据缺失，inflation_momentum_z 不可用")
         return CurrentRegimeResult(
             dominant_regime=response.result.regime.value,
             confidence=float(response.result.confidence),
             observed_at=target_date,
             data_source=source,
-            warnings=list(response.warnings or []),
+            warnings=warnings,
             distribution=dict(response.result.distribution or {}),
             is_fallback=False,
             growth_level=getattr(growth_trend, "direction", "neutral"),
             inflation_level=getattr(inflation_trend, "direction", "neutral"),
             growth_value=float(response.result.growth_level),
             inflation_value=float(response.result.inflation_level),
-            growth_momentum_z=float(getattr(growth_trend, "momentum_z", 0.0)),
-            inflation_momentum_z=float(getattr(inflation_trend, "momentum_z", 0.0)),
+            growth_momentum_z=(
+                float(growth_trend.momentum_z) if growth_trend is not None else None
+            ),
+            inflation_momentum_z=(
+                float(inflation_trend.momentum_z) if inflation_trend is not None else None
+            ),
         )
 
     latest = get_regime_repository().get_latest_snapshot()

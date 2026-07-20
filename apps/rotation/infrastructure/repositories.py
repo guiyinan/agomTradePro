@@ -7,6 +7,8 @@ Data access layer for rotation module.
 from datetime import date, timedelta
 from typing import Any
 
+from django.db.models import OuterRef, Subquery
+
 from apps.rotation.domain.entities import (
     AssetClass,
     MomentumScore,
@@ -120,7 +122,7 @@ class RotationInterfaceRepository:
 
     def signal_queryset(self):
         """Return the base rotation signal queryset for DRF viewsets."""
-        return RotationSignalModel._default_manager.all()
+        return RotationSignalModel._default_manager.select_related('config')
 
     def active_template_queryset(self):
         """Return active template presets."""
@@ -358,15 +360,21 @@ class RotationInterfaceRepository:
 
     def get_latest_signal_models_for_active_configs(self) -> list:
         """Return latest persisted signals for each active config."""
-        configs = RotationConfigModel._default_manager.filter(is_active=True)
-        signals = []
-        for config in configs:
-            latest_signal = RotationSignalModel._default_manager.filter(
-                config=config
-            ).first()
-            if latest_signal:
-                signals.append(latest_signal)
-        return signals
+        latest_signal_id = (
+            RotationSignalModel._default_manager.filter(
+                config_id=OuterRef('config_id')
+            )
+            .order_by('-signal_date', '-created_at', '-id')
+            .values('id')[:1]
+        )
+        return list(
+            RotationSignalModel._default_manager.filter(
+                config__is_active=True,
+                id=Subquery(latest_signal_id),
+            )
+            .select_related('config')
+            .order_by('config_id')
+        )
 
 
 class RotationConfigRepository:

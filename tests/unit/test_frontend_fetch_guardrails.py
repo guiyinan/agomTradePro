@@ -277,6 +277,16 @@ def test_uat_frontend_regressions_remain_fixed():
     assert active_actions < public_link < inactive_branch
 
 
+def test_base_frontend_redirects_expired_api_sessions_to_login():
+    content = Path("core/templates/base.html").read_text(encoding="utf-8")
+
+    assert "window.redirectToLoginOnUnauthorized = function(status)" in content
+    assert "status !== 401" in content
+    assert "'/account/login/?next='" in content
+    assert "window.redirectToLoginOnUnauthorized(response.status)" in content
+    assert "window.redirectToLoginOnUnauthorized(evt.detail.xhr.status)" in content
+
+
 def test_legacy_mcp_pages_bound_mobile_width():
     guide_content = Path("core/templates/account/mcp_guide.html").read_text(encoding="utf-8")
     tools_content = Path("core/templates/ops/mcp_tools.html").read_text(encoding="utf-8")

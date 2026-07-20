@@ -7,6 +7,11 @@ from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.management.commands.recalculate_regime import Command
 
 
+def test_recalculate_regime_help_warns_about_daily_backfill_runtime() -> None:
+    assert "小时" in Command.help
+    assert "daily" in Command.help
+
+
 def test_recalculate_regime_daily_dates_fill_calendar_gaps() -> None:
     dates = Command._build_calculation_dates(
         available_dates=[date(2026, 1, 31), date(2026, 2, 28)],

@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from apps.regime.application.orchestration import (
+    build_regime_snapshot_from_v2_result,
     calculate_regime_after_sync,
     notify_regime_change_after_calculation,
 )
@@ -58,6 +59,17 @@ def test_calculate_regime_after_sync_persists_snapshot(mocker) -> None:
     assert result["status"] == "success"
     assert result["observed_at"] == "2026-04-08"
     assert result["is_fallback"] is False
+
+
+def test_build_regime_snapshot_rejects_missing_trend_indicators() -> None:
+    calculation_result = _mock_v2_response().result
+    calculation_result.trend_indicators = []
+
+    with pytest.raises(ValueError, match="missing required trend indicators"):
+        build_regime_snapshot_from_v2_result(
+            calculation_result=calculation_result,
+            observed_at=date(2026, 4, 8),
+        )
 
 
 def test_notify_regime_change_after_calculation_uses_previous_snapshot(mocker) -> None:

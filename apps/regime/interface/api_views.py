@@ -12,6 +12,7 @@ from datetime import date
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -110,6 +111,11 @@ class RegimeViewSet(viewsets.ViewSet):
                 }
             )
 
+        except ValidationError as exc:
+            return Response(
+                {"success": False, "error": exc.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             return Response(
                 {"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -30,7 +30,10 @@ from shared.infrastructure.cache_service import CacheService
 
 
 class Command(BaseCommand):
-    help = "重新计算 Regime 数据（使用通胀绝对动量算法）"
+    help = (
+        "重新计算 Regime 数据；daily 多年全量回填需要逐日执行 PIT 计算，"
+        "可能耗时数小时，建议先使用限定日期范围验证"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -61,7 +64,10 @@ class Command(BaseCommand):
             "--frequency",
             choices=("daily", "monthly"),
             default="daily",
-            help="历史快照频率，默认 daily 以生成连续日历日序列",
+            help=(
+                "历史快照频率；daily 生成连续日历日序列，多年范围可能耗时数小时，"
+                "monthly 仅计算每月最后可用数据日"
+            ),
         )
 
     def handle(self, *args, **options):

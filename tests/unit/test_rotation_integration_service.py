@@ -89,6 +89,39 @@ def test_rotation_staleness_follows_rebalance_period():
     assert is_stale(date(2026, 9, 30), "quarterly", date(2026, 10, 1)) is True
 
 
+def test_rotation_recommendation_uses_django_local_business_date(monkeypatch):
+    service = rotation_services.RotationIntegrationService()
+    config = RotationConfig(
+        name="MonthlyConfig",
+        strategy_type=RotationStrategyType.MOMENTUM,
+        asset_universe=["510300"],
+        rebalance_frequency="monthly",
+    )
+    latest_signal = SimpleNamespace(
+        config=SimpleNamespace(name="MonthlyConfig"),
+        signal_date=date(2026, 7, 31),
+        target_allocation={"510300": 1.0},
+        current_regime="Recovery",
+        action_required="hold",
+        reason="stored",
+        momentum_ranking=[["510300", 1.0]],
+    )
+
+    monkeypatch.setattr(rotation_services.timezone, "localdate", lambda: date(2026, 8, 1))
+    monkeypatch.setattr(service.config_repo, "get_active", lambda: [config])
+    monkeypatch.setattr(
+        service.config_repo,
+        "get_model_by_name",
+        lambda name: SimpleNamespace(id=7),
+    )
+    monkeypatch.setattr(service.signal_repo, "get_latest_signal", lambda config_id: latest_signal)
+
+    result = service.get_rotation_recommendation("momentum", prefer_persisted=True)
+
+    assert result["is_stale"] is True
+    assert result["data_source"] == "stored_signal_fallback"
+
+
 def test_risk_parity_quality_uses_allocation_coverage_not_momentum_ranking():
     config = RotationConfig(
         name="RiskParityConfig",

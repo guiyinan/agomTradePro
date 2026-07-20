@@ -46,10 +46,20 @@ def build_regime_snapshot_from_v2_result(
     }
     growth_trend = trend_by_indicator.get("PMI")
     inflation_trend = trend_by_indicator.get("CPI")
+    missing_indicators = [
+        code
+        for code, trend in (("PMI", growth_trend), ("CPI", inflation_trend))
+        if trend is None
+    ]
+    if missing_indicators:
+        raise ValueError(
+            "V2 result is missing required trend indicators: "
+            + ", ".join(missing_indicators)
+        )
 
     return RegimeSnapshot(
-        growth_momentum_z=float(getattr(growth_trend, "momentum_z", 0.0)),
-        inflation_momentum_z=float(getattr(inflation_trend, "momentum_z", 0.0)),
+        growth_momentum_z=float(growth_trend.momentum_z),
+        inflation_momentum_z=float(inflation_trend.momentum_z),
         distribution=dict(calculation_result.distribution or {}),
         dominant_regime=calculation_result.regime.value,
         confidence=float(calculation_result.confidence),

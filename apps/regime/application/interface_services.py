@@ -67,17 +67,28 @@ def calculate_regime_payload(*, data: dict[str, Any]) -> dict[str, Any]:
     response = CalculateRegimeV2UseCase(get_default_macro_repository()).execute(request_obj)
 
     snapshot_data = None
+    warnings = list(response.warnings or [])
     if response.success and response.result:
         trends = {trend.indicator_code.upper(): trend for trend in response.result.trend_indicators}
+        growth_trend = trends.get(request_obj.growth_indicator.upper())
+        inflation_trend = trends.get(request_obj.inflation_indicator.upper())
+        if growth_trend is None:
+            warnings.append(
+                f"{request_obj.growth_indicator} 趋势数据缺失，growth_momentum_z 不可用"
+            )
+        if inflation_trend is None:
+            warnings.append(
+                f"{request_obj.inflation_indicator} 趋势数据缺失，inflation_momentum_z 不可用"
+            )
         snapshot_data = {
             "observed_at": request_obj.as_of_date,
             "dominant_regime": response.result.regime.value,
             "confidence": float(response.result.confidence),
-            "growth_momentum_z": float(
-                getattr(trends.get(request_obj.growth_indicator.upper()), "momentum_z", 0.0)
+            "growth_momentum_z": (
+                float(growth_trend.momentum_z) if growth_trend is not None else None
             ),
-            "inflation_momentum_z": float(
-                getattr(trends.get(request_obj.inflation_indicator.upper()), "momentum_z", 0.0)
+            "inflation_momentum_z": (
+                float(inflation_trend.momentum_z) if inflation_trend is not None else None
             ),
             "regime_distribution": response.result.distribution,
             "data_source": request_obj.data_source or "akshare",
@@ -87,7 +98,7 @@ def calculate_regime_payload(*, data: dict[str, Any]) -> dict[str, Any]:
     return {
         "success": response.success,
         "snapshot": snapshot_data,
-        "warnings": response.warnings or [],
+        "warnings": warnings,
         "error": response.error,
         "raw_data": response.raw_data,
         "intermediate_data": None,

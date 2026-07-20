@@ -112,6 +112,15 @@ def test_dashboard_positions_data_accepts_api_token(client, auth_user, monkeypat
 
 
 @pytest.mark.django_db
+def test_dashboard_api_returns_401_for_missing_credentials(client):
+    response = client.get("/api/dashboard/positions/data/")
+
+    assert response.status_code == 401
+    assert response.headers["Content-Type"].startswith("application/json")
+    assert response.headers["WWW-Authenticate"].startswith("Token")
+
+
+@pytest.mark.django_db
 def test_dashboard_positions_data_is_user_scoped_json_without_database_writes(
     client,
     auth_user,

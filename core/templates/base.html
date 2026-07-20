@@ -575,9 +575,21 @@
             return nativeFetch(resource, buildFetchInit(resource, init));
         };
 
+        window.redirectToLoginOnUnauthorized = function(status) {
+            if (status !== 401) {
+                return false;
+            }
+            const nextPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.location.assign('/account/login/?next=' + encodeURIComponent(nextPath));
+            return true;
+        };
+
         window.assertOkResponse = async function(response) {
             if (response.ok) {
                 return response;
+            }
+            if (window.redirectToLoginOnUnauthorized(response.status)) {
+                throw new Error('Authentication required');
             }
             throw new Error(await extractResponseErrorMessage(response));
         };
@@ -608,6 +620,9 @@
 
     document.body.addEventListener('htmx:afterRequest', function(evt) {
         // 请求完成后隐藏加载指示器
+        if (window.redirectToLoginOnUnauthorized(evt.detail.xhr.status)) {
+            return;
+        }
         if (evt.detail.xhr.status >= 400) {
             // 处理错误
             const errorMsg = evt.detail.xhr.responseText || '请求失败';
@@ -632,6 +647,9 @@
 
     // HTMX 错误处理
     document.body.addEventListener('htmx:responseError', function(evt) {
+        if (window.redirectToLoginOnUnauthorized(evt.detail.xhr.status)) {
+            return;
+        }
         showToast('服务器错误: ' + evt.detail.xhr.status, 'error');
     });
 

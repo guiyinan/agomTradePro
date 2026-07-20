@@ -280,40 +280,32 @@ def custom_exception_handler(exc: Exception, context: dict) -> Response | None:
             # Wrap validation errors
             if "detail" in error_data:
                 # Single error message
-                return Response(
-                    {
-                        "error": str(error_data["detail"]),
-                        "code": "API_ERROR",
-                    },
-                    status=response.status_code
-                )
+                response.data = {
+                    "error": str(error_data["detail"]),
+                    "code": "API_ERROR",
+                }
+                return response
             else:
                 # Multiple field errors (e.g., serializer validation)
-                return Response(
-                    {
-                        "error": "请求参数验证失败",
-                        "code": "VALIDATION_ERROR",
-                        "details": error_data,
-                    },
-                    status=response.status_code
-                )
+                response.data = {
+                    "error": "请求参数验证失败",
+                    "code": "VALIDATION_ERROR",
+                    "details": error_data,
+                }
+                return response
         elif isinstance(error_data, list):
             # List of errors
-            return Response(
-                {
-                    "error": "; ".join(str(e) for e in error_data),
-                    "code": "API_ERROR",
-                },
-                status=response.status_code
-            )
+            response.data = {
+                "error": "; ".join(str(e) for e in error_data),
+                "code": "API_ERROR",
+            }
+            return response
         elif isinstance(error_data, str):
-            return Response(
-                {
-                    "error": error_data,
-                    "code": "API_ERROR",
-                },
-                status=response.status_code
-            )
+            response.data = {
+                "error": error_data,
+                "code": "API_ERROR",
+            }
+            return response
 
         return response
 

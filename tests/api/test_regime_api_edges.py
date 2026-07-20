@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -111,6 +112,50 @@ def test_regime_history_page_parameter_returns_distinct_slices(authenticated_cli
     assert first_payload["total_pages"] == 2
     assert second_payload["page"] == 2
     assert second_payload["count"] == 1
+
+
+@pytest.mark.django_db
+def test_regime_history_rejects_invalid_page_with_public_400_contract(authenticated_client):
+    response = authenticated_client.get("/api/regime/history/?page=abc")
+
+    assert response.status_code == 400
+    assert response["Content-Type"].startswith("application/json")
+    payload = response.json()
+    assert payload["success"] is False
+    assert "page" in payload["error"]
+    assert "500" not in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_regime_calculate_marks_missing_trend_z_scores_unavailable(authenticated_client):
+    v2_response = SimpleNamespace(
+        success=True,
+        result=SimpleNamespace(
+            regime=SimpleNamespace(value="Recovery"),
+            confidence=0.25,
+            distribution={"Recovery": 1.0},
+            trend_indicators=[],
+        ),
+        warnings=[],
+        error=None,
+        raw_data={},
+    )
+    with patch(
+        "apps.regime.application.interface_services.CalculateRegimeV2UseCase.execute",
+        return_value=v2_response,
+    ):
+        response = authenticated_client.post(
+            "/api/regime/calculate/",
+            {"as_of_date": "2026-07-20"},
+            format="json",
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["snapshot"]["growth_momentum_z"] is None
+    assert payload["snapshot"]["inflation_momentum_z"] is None
+    assert any("PMI" in warning and "不可用" in warning for warning in payload["warnings"])
+    assert any("CPI" in warning and "不可用" in warning for warning in payload["warnings"])
 
 
 @pytest.mark.django_db

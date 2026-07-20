@@ -21,7 +21,7 @@ def dashboard_api_view(
     def decorator(view_func: Callable[..., Any]) -> Callable[..., Any]:
         protected = permission_classes([IsAuthenticated])(view_func)
         authenticated = authentication_classes(
-            [SessionAuthentication, TerminalInternalAuthentication, MultiTokenAuthentication]
+            [MultiTokenAuthentication, TerminalInternalAuthentication, SessionAuthentication]
         )(protected)
         return api_view(list(methods))(authenticated)
 

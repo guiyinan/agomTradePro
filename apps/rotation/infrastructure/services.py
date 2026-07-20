@@ -10,6 +10,8 @@ import logging
 from datetime import date
 from typing import Any
 
+from django.utils import timezone
+
 from apps.rotation.domain.entities import (
     RotationStrategyType,
 )
@@ -61,7 +63,7 @@ class RotationIntegrationService:
         Returns:
             Dictionary with signal details
         """
-        signal_date = signal_date or date.today()
+        signal_date = signal_date or timezone.localdate()
 
         # Get configuration
         config = self.config_repo.get_by_name(config_name)
@@ -157,7 +159,7 @@ class RotationIntegrationService:
             return None
 
         context = RotationContext(
-            calc_date=date.today(),
+            calc_date=timezone.localdate(),
             asset_universe=asset_codes,
             get_asset_prices=get_prices,
             get_current_regime=get_regime,
@@ -168,7 +170,7 @@ class RotationIntegrationService:
         comparison = domain_service.compare_assets(asset_codes)
 
         return {
-            "calc_date": date.today().isoformat(),
+            "calc_date": timezone.localdate().isoformat(),
             "lookback_days": lookback_days,
             "assets": comparison,
         }
@@ -191,7 +193,7 @@ class RotationIntegrationService:
         for asset_code in asset_codes:
             prices = self.price_service.get_prices(
                 asset_code,
-                date.today(),
+                timezone.localdate(),
                 window_days + 30,
                 cache_result=False,
             )
@@ -201,7 +203,7 @@ class RotationIntegrationService:
         if not price_dict:
             return {
                 "error": "No price data available",
-                "calc_date": date.today().isoformat(),
+                "calc_date": timezone.localdate().isoformat(),
             }
 
         # Calculate correlation matrix
@@ -217,7 +219,7 @@ class RotationIntegrationService:
         }
 
         return {
-            "calc_date": date.today().isoformat(),
+            "calc_date": timezone.localdate().isoformat(),
             "window_days": window_days,
             "assets": asset_codes,
             "correlation_matrix": matrix_dict,
@@ -263,7 +265,7 @@ class RotationIntegrationService:
         if not config:
             return {
                 "error": "No active rotation configuration found",
-                "calc_date": date.today().isoformat(),
+                "calc_date": timezone.localdate().isoformat(),
             }
 
         config_model = self.config_repo.get_model_by_name(config.name)
@@ -278,7 +280,7 @@ class RotationIntegrationService:
             is_stale = is_rotation_signal_stale(
                 latest_signal.signal_date,
                 config.rebalance_frequency,
-                date.today(),
+                timezone.localdate(),
             )
             self._apply_recommendation_metadata(
                 result=result,
@@ -299,7 +301,7 @@ class RotationIntegrationService:
         if latest_signal is not None and not is_rotation_signal_stale(
             latest_signal.signal_date,
             config.rebalance_frequency,
-            date.today(),
+            timezone.localdate(),
         ):
             result = self._build_recommendation_from_signal_model(latest_signal)
             self._apply_recommendation_metadata(
@@ -345,7 +347,7 @@ class RotationIntegrationService:
 
         return {
             "error": "Failed to generate rotation signal",
-            "calc_date": date.today().isoformat(),
+            "calc_date": timezone.localdate().isoformat(),
         }
 
     @staticmethod
@@ -499,7 +501,7 @@ class RotationIntegrationService:
             return None
 
         # Get recent prices
-        prices = self.price_service.get_prices(asset_code, date.today(), 60)
+        prices = self.price_service.get_prices(asset_code, timezone.localdate(), 60)
 
         price_info = {}
         if prices and len(prices) > 1:
@@ -575,7 +577,7 @@ class RotationIntegrationService:
         try:
             from apps.regime.application.current_regime import resolve_current_regime
 
-            current_state = resolve_current_regime(as_of_date=date.today())
+            current_state = resolve_current_regime(as_of_date=timezone.localdate())
             if current_state:
                 return current_state.dominant_regime
         except Exception as e:
@@ -613,7 +615,7 @@ class RotationSignalScheduler:
         Returns:
             Summary of signal generation
         """
-        signal_date = signal_date or date.today()
+        signal_date = signal_date or timezone.localdate()
 
         configs = self.config_repo.get_active()
 
