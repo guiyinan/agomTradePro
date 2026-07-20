@@ -196,6 +196,7 @@ reporting_period,value
 - 日频 freshness 统一按工作日年龄计算，周末不消耗 stale 预算；月频仍按自然日计算。该规则同时用于市场温度计、Pulse 日频输入和决策可靠性价格检查。
 - 成交额的 provider timeout 以“交易日历 + 最近 5 个交易日全市场聚合”的生产耗时为基准设置；ETF 规模代理改成沪深两次区间批量请求，避免逐日逐市场调用天然越过 timeout。
 - AKShare 新增开户的原始“万户”通过精确单位规则转换为 canonical“户”；规则缺失或单位不匹配仍 fail closed。
+- 历史开户事实已经是 canonical“户”时只回填 `matched_rule_id` 与 `multiplier_to_storage` 审计元数据，不重复缩放数值；迁移可幂等重跑。
 - `etf_net_flow` 的 verified sync 现在也会应用组件级超时 override，不再误用全局默认 `4s`
 - 当本地环境因 `WinError 10013` 等权限限制直接阻断外网套接字时，ETF 的 EastMoney 直连 fallback 会快速失败并降级，不再在多轮重试里卡成超时
 - 同样的本地权限拒绝语义现在也覆盖了 turnover / Tencent 历史行情 / 市场新闻链路：检测到 `WinError 10013` 时会跳过多轮重试和跨源空转，直接进入降级结果
