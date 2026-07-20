@@ -7,6 +7,7 @@ Integration Tests for Strategy Execute Flow
 - 完整的策略执行流程
 - 响应格式验证（execution_id, generated_signals, failed_rules, duration_ms）
 """
+
 import json
 import uuid
 from datetime import date
@@ -42,20 +43,20 @@ class TestStrategyExecuteFlow(TestCase):
         # 创建 Django 用户
         unique_id = str(uuid.uuid4())[:8]
         self.django_user = User.objects.create_user(
-            username=f'test_strategy_{unique_id}',
-            email=f'test_strategy_{unique_id}@example.com',
-            password='testpass123'
+            username=f"test_strategy_{unique_id}",
+            email=f"test_strategy_{unique_id}@example.com",
+            password="testpass123",
         )
         self.test_user = AccountProfileModel.objects.get(user=self.django_user)
 
         # 创建测试客户端
         self.client = Client()
-        self.client.login(username=f'test_strategy_{unique_id}', password='testpass123')
+        self.client.login(username=f"test_strategy_{unique_id}", password="testpass123")
 
         # 创建费率配置
         self.fee_config = FeeConfigModel.objects.create(
-            config_name='标准费率',
-            asset_type='equity',
+            config_name="标准费率",
+            asset_type="equity",
             commission_rate_buy=0.0003,
             commission_rate_sell=0.0003,
             min_commission=5.0,
@@ -92,72 +93,72 @@ class TestStrategyExecuteFlow(TestCase):
 
         # 创建 Regime 状态
         RegimeLog.objects.create(
-            observed_at='2024-01-31',
-            dominant_regime='HG',
+            observed_at="2024-01-31",
+            dominant_regime="Overheat",
             confidence=0.85,
             growth_momentum_z=1.5,
             inflation_momentum_z=1.2,
-            distribution={}
+            distribution={},
         )
 
         # 创建资产评分
         AssetScoreCache.objects.create(
-            asset_code='000001.SH',
-            asset_name='上证指数',
-            asset_type='equity',
+            asset_code="000001.SH",
+            asset_name="上证指数",
+            asset_type="equity",
             total_score=75.0,
             regime_score=80.0,
             policy_score=70.0,
             sentiment_score=60.0,
             signal_score=70.0,
-            score_date='2024-01-31',
-            regime='HG',
-            policy_level='P2',
-            sentiment_index=0.5
+            score_date="2024-01-31",
+            regime="HG",
+            policy_level="P2",
+            sentiment_index=0.5,
         )
 
         AssetScoreCache.objects.create(
-            asset_code='510300.SH',
-            asset_name='沪深300ETF',
-            asset_type='equity',
+            asset_code="510300.SH",
+            asset_name="沪深300ETF",
+            asset_type="equity",
             total_score=68.0,
             regime_score=72.0,
             policy_score=65.0,
             sentiment_score=60.0,
             signal_score=65.0,
-            score_date='2024-01-31',
-            regime='HG',
-            policy_level='P2',
-            sentiment_index=0.5
+            score_date="2024-01-31",
+            regime="HG",
+            policy_level="P2",
+            sentiment_index=0.5,
         )
 
         AssetPoolEntry.objects.create(
-            asset_category='equity',
-            asset_code='000001.SH',
-            asset_name='上证指数',
-            pool_type='investable',
+            asset_category="equity",
+            asset_code="000001.SH",
+            asset_name="上证指数",
+            pool_type="investable",
             total_score=75.0,
             regime_score=80.0,
             policy_score=70.0,
             sentiment_score=60.0,
             signal_score=70.0,
-            entry_date='2024-01-31',
-            risk_level='中风险',
+            entry_date="2024-01-31",
+            risk_level="中风险",
             is_active=True,
         )
 
         AssetPoolEntry.objects.create(
-            asset_category='equity',
-            asset_code='510300.SH',
-            asset_name='沪深300ETF',
-            pool_type='investable',
+            asset_category="equity",
+            asset_code="510300.SH",
+            asset_name="沪深300ETF",
+            pool_type="investable",
             total_score=68.0,
             regime_score=72.0,
             policy_score=65.0,
             sentiment_score=60.0,
             signal_score=65.0,
-            entry_date='2024-01-31',
-            risk_level='中风险',
+            entry_date="2024-01-31",
+            risk_level="中风险",
             is_active=True,
         )
 
@@ -173,11 +174,11 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='测试规则策略',
-            strategy_type='rule_based',
+            name="测试规则策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
-            description='用于测试策略执行流程',
+            description="用于测试策略执行流程",
             max_position_pct=20.0,
             max_total_position_pct=95.0,
             created_by=self.test_user,
@@ -186,25 +187,21 @@ class TestStrategyExecuteFlow(TestCase):
         # 2. 创建规则条件（PMI > 50 时买入）
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI扩张买入',
-            rule_type='macro',
-            condition_json={
-                'operator': '>',
-                'indicator': 'CN_PMI_MANUFACTURING',
-                'threshold': 50
-            },
-            action='BUY',
+            rule_name="PMI扩张买入",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
+            action="BUY",
             weight=0.15,
             target_assets=[],
             priority=10,
-            is_enabled=True
+            is_enabled=True,
         )
 
         # 3. 创建模拟账户
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='测试账户',
-            account_type='simulated',
+            account_name="测试账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -220,11 +217,9 @@ class TestStrategyExecuteFlow(TestCase):
         )
 
         # 5. 执行策略
-        url = f'/strategy/{strategy.id}/execute/'
+        url = f"/strategy/{strategy.id}/execute/"
         response = self.client.post(
-            url,
-            data=json.dumps({'portfolio_id': account.id}),
-            content_type='application/json'
+            url, data=json.dumps({"portfolio_id": account.id}), content_type="application/json"
         )
 
         # 6. 验证响应
@@ -232,22 +227,19 @@ class TestStrategyExecuteFlow(TestCase):
         response_data = json.loads(response.content)
 
         # 验证新字段存在
-        self.assertIn('execution_id', response_data)
-        self.assertIn('generated_signals', response_data)
-        self.assertIn('failed_rules', response_data)
-        self.assertIn('duration_ms', response_data)
+        self.assertIn("execution_id", response_data)
+        self.assertIn("generated_signals", response_data)
+        self.assertIn("failed_rules", response_data)
+        self.assertIn("duration_ms", response_data)
 
         # 验证返回真实值（非占位值）
-        self.assertIsNotNone(response_data['execution_id'])
-        self.assertGreater(response_data['generated_signals'], 0)  # 应该有信号生成
-        self.assertGreaterEqual(response_data['duration_ms'], 0)
-        self.assertTrue(response_data['success'])
+        self.assertIsNotNone(response_data["execution_id"])
+        self.assertGreater(response_data["generated_signals"], 0)  # 应该有信号生成
+        self.assertGreaterEqual(response_data["duration_ms"], 0)
+        self.assertTrue(response_data["success"])
 
         # 验证执行日志已保存
-        logs = StrategyExecutionLogModel.objects.filter(
-            strategy=strategy,
-            portfolio=account
-        )
+        logs = StrategyExecutionLogModel.objects.filter(strategy=strategy, portfolio=account)
         self.assertEqual(logs.count(), 1)
 
         log = logs.first()
@@ -264,8 +256,8 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='多组合测试策略',
-            strategy_type='rule_based',
+            name="多组合测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -273,12 +265,12 @@ class TestStrategyExecuteFlow(TestCase):
 
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI扩张',
-            rule_type='macro',
-            condition_json={'operator': '>', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 50},
-            action='BUY',
+            rule_name="PMI扩张",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
+            action="BUY",
             weight=0.1,
-            is_enabled=True
+            is_enabled=True,
         )
 
         # 2. 创建多个账户
@@ -286,8 +278,8 @@ class TestStrategyExecuteFlow(TestCase):
         for i in range(3):
             account = SimulatedAccountModel.objects.create(
                 user=self.django_user,
-                account_name=f'测试账户{i}',
-                account_type='simulated',
+                account_name=f"测试账户{i}",
+                account_type="simulated",
                 initial_capital=100000.00,
                 current_cash=100000.00,
                 current_market_value=0.00,
@@ -304,20 +296,16 @@ class TestStrategyExecuteFlow(TestCase):
             )
 
         # 3. 执行策略（不指定 portfolio_id）
-        url = f'/strategy/{strategy.id}/execute/'
-        response = self.client.post(
-            url,
-            data=json.dumps({}),
-            content_type='application/json'
-        )
+        url = f"/strategy/{strategy.id}/execute/"
+        response = self.client.post(url, data=json.dumps({}), content_type="application/json")
 
         # 4. 验证响应
         self.assertEqual(response.status_code, 200)
         response_data = json.loads(response.content)
 
-        self.assertEqual(response_data['executed_portfolios'], 3)
-        self.assertIn('execution_id', response_data)
-        self.assertIsInstance(response_data['execution_id'], list)
+        self.assertEqual(response_data["executed_portfolios"], 3)
+        self.assertIn("execution_id", response_data)
+        self.assertIsInstance(response_data["execution_id"], list)
 
         # 验证所有账户都有执行日志
         logs = StrategyExecutionLogModel.objects.filter(strategy=strategy)
@@ -333,8 +321,8 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='失败测试策略',
-            strategy_type='rule_based',
+            name="失败测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -343,26 +331,27 @@ class TestStrategyExecuteFlow(TestCase):
         # 添加规则条件（规则驱动策略必须至少有一个规则）
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI扩张',
-            rule_type='macro',
-            condition_json={'operator': '>', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 50},
+            rule_name="PMI扩张",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
         )
 
         # 2. 创建空账户（有效 portfolio_id，但无持仓/数据）
         from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
         empty_account = SimulatedAccountModel.objects.create(
-            account_name='空测试账户',
+            account_name="空测试账户",
             initial_capital=0,
             current_cash=0,
             total_value=0,
             user=self.django_user,
         )
 
-        url = f'/strategy/{strategy.id}/execute/'
+        url = f"/strategy/{strategy.id}/execute/"
         response = self.client.post(
             url,
-            data=json.dumps({'portfolio_id': empty_account.id}),
-            content_type='application/json'
+            data=json.dumps({"portfolio_id": empty_account.id}),
+            content_type="application/json",
         )
 
         # 3. 验证响应
@@ -370,8 +359,8 @@ class TestStrategyExecuteFlow(TestCase):
         response_data = json.loads(response.content)
 
         # 策略对空账户执行，应该生成 0 信号
-        self.assertIn('failed_rules', response_data)
-        self.assertIn('generated_signals', response_data)
+        self.assertIn("failed_rules", response_data)
+        self.assertIn("generated_signals", response_data)
 
     def test_strategy_execute_response_format(self):
         """
@@ -381,8 +370,8 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
-            name='格式测试策略',
-            strategy_type='rule_based',
+            name="格式测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -390,18 +379,18 @@ class TestStrategyExecuteFlow(TestCase):
 
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='PMI扩张',
-            rule_type='macro',
-            condition_json={'operator': '>', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 50},
-            action='BUY',
+            rule_name="PMI扩张",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 50},
+            action="BUY",
             weight=0.1,
-            is_enabled=True
+            is_enabled=True,
         )
 
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='格式测试账户',
-            account_type='simulated',
+            account_name="格式测试账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -416,11 +405,9 @@ class TestStrategyExecuteFlow(TestCase):
         )
 
         # 2. 执行策略
-        url = f'/strategy/{strategy.id}/execute/'
+        url = f"/strategy/{strategy.id}/execute/"
         response = self.client.post(
-            url,
-            data=json.dumps({'portfolio_id': account.id}),
-            content_type='application/json'
+            url, data=json.dumps({"portfolio_id": account.id}), content_type="application/json"
         )
 
         # 3. 验证响应格式
@@ -429,24 +416,24 @@ class TestStrategyExecuteFlow(TestCase):
 
         # 验证必需字段
         required_fields = [
-            'success',
-            'execution_id',
-            'generated_signals',
-            'failed_rules',
-            'duration_ms',
-            'executed_portfolios',
-            'message'
+            "success",
+            "execution_id",
+            "generated_signals",
+            "failed_rules",
+            "duration_ms",
+            "executed_portfolios",
+            "message",
         ]
         for field in required_fields:
-            self.assertIn(field, response_data, f'Missing field: {field}')
+            self.assertIn(field, response_data, f"Missing field: {field}")
 
         # 验证字段类型
-        self.assertIsInstance(response_data['success'], bool)
-        self.assertIsInstance(response_data['generated_signals'], int)
-        self.assertIsInstance(response_data['failed_rules'], list)
-        self.assertIsInstance(response_data['duration_ms'], int)
-        self.assertIsInstance(response_data['executed_portfolios'], int)
-        self.assertIsInstance(response_data['message'], str)
+        self.assertIsInstance(response_data["success"], bool)
+        self.assertIsInstance(response_data["generated_signals"], int)
+        self.assertIsInstance(response_data["failed_rules"], list)
+        self.assertIsInstance(response_data["duration_ms"], int)
+        self.assertIsInstance(response_data["executed_portfolios"], int)
+        self.assertIsInstance(response_data["message"], str)
 
     def test_strategy_execute_no_matching_rules(self):
         """
@@ -458,8 +445,8 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建策略（规则不匹配）
         strategy = StrategyModel.objects.create(
-            name='不匹配测试策略',
-            strategy_type='rule_based',
+            name="不匹配测试策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=self.test_user,
@@ -468,18 +455,18 @@ class TestStrategyExecuteFlow(TestCase):
         # PMI > 100 的规则（永远不会满足）
         RuleConditionModel.objects.create(
             strategy=strategy,
-            rule_name='不可能的PMI',
-            rule_type='macro',
-            condition_json={'operator': '>', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 100},
-            action='BUY',
+            rule_name="不可能的PMI",
+            rule_type="macro",
+            condition_json={"operator": ">", "indicator": "CN_PMI_MANUFACTURING", "threshold": 100},
+            action="BUY",
             weight=0.1,
-            is_enabled=True
+            is_enabled=True,
         )
 
         account = SimulatedAccountModel.objects.create(
             user=self.django_user,
-            account_name='不匹配测试账户',
-            account_type='simulated',
+            account_name="不匹配测试账户",
+            account_type="simulated",
             initial_capital=100000.00,
             current_cash=100000.00,
             current_market_value=0.00,
@@ -494,21 +481,19 @@ class TestStrategyExecuteFlow(TestCase):
         )
 
         # 2. 执行策略
-        url = f'/strategy/{strategy.id}/execute/'
+        url = f"/strategy/{strategy.id}/execute/"
         response = self.client.post(
-            url,
-            data=json.dumps({'portfolio_id': account.id}),
-            content_type='application/json'
+            url, data=json.dumps({"portfolio_id": account.id}), content_type="application/json"
         )
 
         # 3. 验证响应
         self.assertEqual(response.status_code, 200)
         response_data = json.loads(response.content)
 
-        self.assertTrue(response_data['success'])
-        self.assertEqual(response_data['generated_signals'], 0)
-        self.assertIsNotNone(response_data['execution_id'])
-        self.assertEqual(len(response_data['failed_rules']), 0)
+        self.assertTrue(response_data["success"])
+        self.assertEqual(response_data["generated_signals"], 0)
+        self.assertIsNotNone(response_data["execution_id"])
+        self.assertEqual(len(response_data["failed_rules"]), 0)
 
     def test_strategy_execute_unauthorized_access(self):
         """
@@ -519,28 +504,22 @@ class TestStrategyExecuteFlow(TestCase):
         """
         # 1. 创建另一个用户
         other_user = User.objects.create_user(
-            username='other_user',
-            email='other@example.com',
-            password='otherpass123'
+            username="other_user", email="other@example.com", password="otherpass123"
         )
         other_profile = AccountProfileModel.objects.get(user=other_user)
 
         # 2. 创建属于其他用户的策略
         other_strategy = StrategyModel.objects.create(
-            name='其他用户策略',
-            strategy_type='rule_based',
+            name="其他用户策略",
+            strategy_type="rule_based",
             version=1,
             is_active=True,
             created_by=other_profile,
         )
 
         # 3. 尝试执行其他用户的策略
-        url = f'/strategy/{other_strategy.id}/execute/'
-        response = self.client.post(
-            url,
-            data=json.dumps({}),
-            content_type='application/json'
-        )
+        url = f"/strategy/{other_strategy.id}/execute/"
+        response = self.client.post(url, data=json.dumps({}), content_type="application/json")
 
         # 4. 验证返回404
         self.assertEqual(response.status_code, 404)

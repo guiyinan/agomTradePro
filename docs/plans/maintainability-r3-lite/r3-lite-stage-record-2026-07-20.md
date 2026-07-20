@@ -54,4 +54,6 @@ R3-lite 只修复当前最痛的 valuation 归属错位，不提前拆 advisor/r
 
 ## 收口结论
 
-R3-lite 的完成边界是 valuation 归位、旧消费者兼容、零状态迁移和架构护栏通过；不是宣称仓库既有集成测试全部无债务。下一步不自动展开完整 R3，优先以独立维护批次修复已登记的 canonical macro fixture、regime fallback fixture 与 strategy 枚举 fixture。
+R3-lite 的完成边界是 valuation 归位、旧消费者兼容、零状态迁移和架构护栏通过。后续独立稳定性批次已修复 canonical macro fixture、regime source propagation 与 strategy 枚举 fixture；不自动展开完整 R3。
+
+稳定性批次完成后的 unit/API/integration 单进程全量结果为 7,022 passed、14 skipped、0 failed。

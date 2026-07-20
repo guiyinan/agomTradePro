@@ -134,6 +134,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
+| [tui-ia-consolidation-2026-07-20.md](plans/tui-ia-consolidation-2026-07-20.md) | **TUI 信息架构重构计划（37 屏收敛为任务屏，保留终端风格，每日决策流优先）** | 已批准，待执行 |
 | [uat-remediation-2026-07-20.md](plans/uat-remediation-2026-07-20.md) | **外部 UAT 复核、代码整改与生产数据恢复边界** | 进行中：代码整改完成，待生产发布与数据回填 |
 | [implementation-progress-summary.md](plans/implementation-progress-summary.md) | **总体进度总结（Phase 1-5 完成）** | 最新 |
 | [AI-native-blueprint-260315.md](plans/AI-native-blueprint-260315.md) | **AI Native 升级蓝图** | 进行中 |
@@ -156,6 +157,7 @@
 | [maintainability-refactoring-plan-2026-07-20.md](plans/maintainability-refactoring-plan-2026-07-20.md) | **代码库可维护性定向重构计划（R0-R2）** | ✅ R2 已完成 |
 | [maintainability-r2/r2-stage-record-2026-07-20.md](plans/maintainability-r2/r2-stage-record-2026-07-20.md) | **R2 测试收敛阶段记录与回归证据** | ✅ 2026-07-20 已完成 |
 | [maintainability-r3-lite/r3-lite-stage-record-2026-07-20.md](plans/maintainability-r3-lite/r3-lite-stage-record-2026-07-20.md) | **R3-lite 估值 owner 拆分与稳定性收口记录** | ✅ 2026-07-20 已完成 |
+| [maintainability-stability/stability-closeout-2026-07-20.md](plans/maintainability-stability/stability-closeout-2026-07-20.md) | **R2 + R3-lite 集成契约稳定性收口记录** | ✅ 2026-07-20 已完成 |
 | [regime-navigator-pulse-redesign-260323.md](plans/regime-navigator/regime-navigator-pulse-redesign-260323.md) | **系统重新设计：Regime Navigator + Pulse 分层架构** | ✅ 已实施并收口 |
 | [phase-1-regime-navigator-pulse-mvp.md](plans/regime-navigator/phase-1-regime-navigator-pulse-mvp.md) | Phase 1: Regime Navigator + Pulse MVP + Dashboard 改造 | ✅ 已完成 |
 | [phase-2-decision-funnel.md](plans/regime-navigator/phase-2-decision-funnel.md) | Phase 2: 决策模式引导漏斗 | ✅ 已完成 |

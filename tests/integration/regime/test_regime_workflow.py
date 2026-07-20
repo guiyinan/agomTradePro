@@ -51,7 +51,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=observed_date + timedelta(days=1),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -70,23 +70,20 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=observed_date + timedelta(days=10),
-                    source="test"
+                    source="test",
                 )
             )
 
         # 2. 执行 Regime 计算
         regime_repo = DjangoRegimeRepository()
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         request = CalculateRegimeRequest(
             as_of_date=base_date + timedelta(days=30 * 29),  # 最后一个数据点
             use_pit=False,
             growth_indicator="PMI",
             inflation_indicator="CPI",
-            data_source="test"
+            data_source="test",
         )
 
         response = use_case.execute(request)
@@ -109,21 +106,30 @@ class TestRegimeCalculationWorkflow:
 
         # 5. 验证主导 Regime
         dominant = response.snapshot.dominant_regime
-        assert dominant in ["Recovery", "Overheat", "Stagflation", "Deflation"], \
-            f"无效的主导 Regime: {dominant}"
+        assert dominant in [
+            "Recovery",
+            "Overheat",
+            "Stagflation",
+            "Deflation",
+        ], f"无效的主导 Regime: {dominant}"
 
         # 验证主导 Regime 对应最高概率
         max_prob = max(distribution.values())
-        assert distribution[dominant] == max_prob, \
-            f"主导 Regime 应有最高概率: {dominant}={distribution[dominant]}, max={max_prob}"
+        assert (
+            distribution[dominant] == max_prob
+        ), f"主导 Regime 应有最高概率: {dominant}={distribution[dominant]}, max={max_prob}"
 
         # 6. 验证置信度
         confidence = response.snapshot.confidence
         assert 0 <= confidence <= 1, f"置信度应在 [0, 1] 范围内: {confidence}"
 
         # 7. 验证 Z-score
-        assert isinstance(response.snapshot.growth_momentum_z, float), "growth_momentum_z 应为浮点数"
-        assert isinstance(response.snapshot.inflation_momentum_z, float), "inflation_momentum_z 应为浮点数"
+        assert isinstance(
+            response.snapshot.growth_momentum_z, float
+        ), "growth_momentum_z 应为浮点数"
+        assert isinstance(
+            response.snapshot.inflation_momentum_z, float
+        ), "inflation_momentum_z 应为浮点数"
 
     def test_regime_log_persistence(self):
         """测试 RegimeLog 持久化
@@ -152,7 +158,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=observed_date + timedelta(days=1),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -166,21 +172,19 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=observed_date + timedelta(days=10),
-                    source="test"
+                    source="test",
                 )
             )
 
         # 2. 计算 Regime
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         request = CalculateRegimeRequest(
             as_of_date=base_date + timedelta(days=30 * 29),
             use_pit=False,
             growth_indicator="PMI",
-            inflation_indicator="CPI"
+            inflation_indicator="CPI",
+            data_source="test",
         )
 
         response = use_case.execute(request)
@@ -202,6 +206,7 @@ class TestRegimeCalculationWorkflow:
 
         # 6. 验证 distribution JSON 格式
         import json
+
         try:
             json_str = json.dumps(snapshot.distribution)
             parsed = json.loads(json_str)
@@ -212,8 +217,9 @@ class TestRegimeCalculationWorkflow:
         # 7. 验证 confidence 计算
         # confidence 应等于主导 Regime 的概率
         dominant_prob = snapshot.distribution[snapshot.dominant_regime]
-        assert abs(snapshot.confidence - dominant_prob) < 0.01, \
-            f"confidence 应等于主导 Regime 概率: {snapshot.confidence} vs {dominant_prob}"
+        assert (
+            abs(snapshot.confidence - dominant_prob) < 0.01
+        ), f"confidence 应等于主导 Regime 概率: {snapshot.confidence} vs {dominant_prob}"
 
     def test_regime_change_notification(self):
         """测试 Regime 变化通知
@@ -234,10 +240,15 @@ class TestRegimeCalculationWorkflow:
             RegimeSnapshot(
                 growth_momentum_z=1.0,
                 inflation_momentum_z=-0.5,
-                distribution={"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+                distribution={
+                    "Recovery": 0.6,
+                    "Overheat": 0.2,
+                    "Stagflation": 0.1,
+                    "Deflation": 0.1,
+                },
                 dominant_regime="Recovery",
                 confidence=0.6,
-                observed_at=base_date
+                observed_at=base_date,
             )
         )
 
@@ -256,7 +267,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=observed_date + timedelta(days=1),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -270,21 +281,19 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=observed_date + timedelta(days=10),
-                    source="test"
+                    source="test",
                 )
             )
 
         # 4. 计算新 Regime
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         request = CalculateRegimeRequest(
             as_of_date=base_date + timedelta(days=30 * 29),
             use_pit=False,
             growth_indicator="PMI",
-            inflation_indicator="CPI"
+            inflation_indicator="CPI",
+            data_source="test",
         )
 
         response = use_case.execute(request)
@@ -315,14 +324,15 @@ class TestRegimeCalculationWorkflow:
                         "old_distribution": old_snapshot.distribution,
                         "new_distribution": new_snapshot.distribution,
                         "confidence": new_snapshot.confidence,
-                        "observed_at": new_snapshot.observed_at.isoformat()
-                    }
+                        "observed_at": new_snapshot.observed_at.isoformat(),
+                    },
                 )
 
                 # 验证通知已发送（ConsoleAlertChannel 会记录到日志）
                 # 这里我们验证状态变化确实发生
-                assert old_snapshot.dominant_regime != new_snapshot.dominant_regime, \
-                    "测试数据应导致 Regime 变化"
+                assert (
+                    old_snapshot.dominant_regime != new_snapshot.dominant_regime
+                ), "测试数据应导致 Regime 变化"
 
     def test_insufficient_data_handling(self):
         """测试数据不足时的处理
@@ -349,7 +359,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=observed_date + timedelta(days=1),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -362,7 +372,7 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=observed_date + timedelta(days=10),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -371,24 +381,27 @@ class TestRegimeCalculationWorkflow:
             RegimeSnapshot(
                 growth_momentum_z=0.0,
                 inflation_momentum_z=0.0,
-                distribution={"Recovery": 0.4, "Overheat": 0.3, "Stagflation": 0.2, "Deflation": 0.1},
+                distribution={
+                    "Recovery": 0.4,
+                    "Overheat": 0.3,
+                    "Stagflation": 0.2,
+                    "Deflation": 0.1,
+                },
                 dominant_regime="Recovery",
                 confidence=0.4,
-                observed_at=base_date - timedelta(days=30)
+                observed_at=base_date - timedelta(days=30),
             )
         )
 
         # 尝试计算
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         request = CalculateRegimeRequest(
             as_of_date=base_date + timedelta(days=30 * 9),
             use_pit=False,
             growth_indicator="PMI",
-            inflation_indicator="CPI"
+            inflation_indicator="CPI",
+            data_source="test",
         )
 
         response = use_case.execute(request)
@@ -401,8 +414,9 @@ class TestRegimeCalculationWorkflow:
         # 验证降级快照的置信度被降低
         # 降级方案会降低 20% 置信度
         # 原始 0.4，降级后应为 0.32 (0.4 * 0.8)
-        assert response.snapshot.confidence < 0.4, \
-            f"降级快照置信度应降低: {response.snapshot.confidence}"
+        assert (
+            response.snapshot.confidence < 0.4
+        ), f"降级快照置信度应降低: {response.snapshot.confidence}"
 
     def test_pit_mode_regime_calculation(self):
         """测试 PIT 模式下的 Regime 计算
@@ -429,7 +443,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=published_date,
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -442,7 +456,7 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=published_date,
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -452,16 +466,14 @@ class TestRegimeCalculationWorkflow:
         second_last_date = base_date + timedelta(days=30 * 28)
         as_of_date = second_last_date + timedelta(days=10)  # 在最后一个月发布前
 
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         request = CalculateRegimeRequest(
             as_of_date=as_of_date,
             use_pit=True,  # 启用 PIT 模式
             growth_indicator="PMI",
-            inflation_indicator="CPI"
+            inflation_indicator="CPI",
+            data_source="test",
         )
 
         response = use_case.execute(request)
@@ -469,8 +481,9 @@ class TestRegimeCalculationWorkflow:
         assert response.success
 
         # 验证 observed_at 不超过 as_of_date
-        assert response.snapshot.observed_at <= as_of_date, \
-            f"PIT 模式下 observed_at 应不超过 as_of_date: {response.snapshot.observed_at} vs {as_of_date}"
+        assert (
+            response.snapshot.observed_at <= as_of_date
+        ), f"PIT 模式下 observed_at 应不超过 as_of_date: {response.snapshot.observed_at} vs {as_of_date}"
 
     def test_calculate_multiple_dates(self):
         """测试批量计算历史 Regime
@@ -494,7 +507,7 @@ class TestRegimeCalculationWorkflow:
                     unit="指数",
                     original_unit="指数",
                     published_at=observed_date + timedelta(days=1),
-                    source="test"
+                    source="test",
                 )
             )
 
@@ -507,15 +520,12 @@ class TestRegimeCalculationWorkflow:
                     unit="%",
                     original_unit="%",
                     published_at=observed_date + timedelta(days=10),
-                    source="test"
+                    source="test",
                 )
             )
 
         # 批量计算（最后 12 个月）
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repo,
-            regime_repository=regime_repo
-        )
+        use_case = CalculateRegimeUseCase(repository=macro_repo, regime_repository=regime_repo)
 
         start_date = base_date + timedelta(days=30 * 24)
         end_date = base_date + timedelta(days=30 * 35)
@@ -525,7 +535,8 @@ class TestRegimeCalculationWorkflow:
             end_date=end_date,
             growth_indicator="PMI",
             inflation_indicator="CPI",
-            use_pit=False
+            use_pit=False,
+            data_source="test",
         )
 
         # 验证结果
@@ -558,18 +569,17 @@ class TestRegimeCalculationWorkflow:
                         "Recovery": 0.4 if regime == "Recovery" else 0.2,
                         "Overheat": 0.4 if regime == "Overheat" else 0.2,
                         "Stagflation": 0.4 if regime == "Stagflation" else 0.2,
-                        "Deflation": 0.4 if regime == "Deflation" else 0.2
+                        "Deflation": 0.4 if regime == "Deflation" else 0.2,
                     },
                     dominant_regime=regime,
                     confidence=0.4,
-                    observed_at=base_date + timedelta(days=30 * i)
+                    observed_at=base_date + timedelta(days=30 * i),
                 )
             )
 
         # 获取统计
         stats = regime_repo.get_regime_distribution_stats(
-            start_date=base_date,
-            end_date=base_date + timedelta(days=30 * 5)
+            start_date=base_date, end_date=base_date + timedelta(days=30 * 5)
         )
 
         # 验证统计
@@ -580,5 +590,5 @@ class TestRegimeCalculationWorkflow:
         assert stats["by_regime"]["Deflation"]["count"] == 1
 
         # 验证百分比
-        assert abs(stats["by_regime"]["Recovery"]["percentage"] - 2/6) < 0.01
-        assert abs(stats["by_regime"]["Overheat"]["percentage"] - 2/6) < 0.01
+        assert abs(stats["by_regime"]["Recovery"]["percentage"] - 2 / 6) < 0.01
+        assert abs(stats["by_regime"]["Overheat"]["percentage"] - 2 / 6) < 0.01

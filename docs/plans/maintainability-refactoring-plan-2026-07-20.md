@@ -19,7 +19,7 @@
 
 R1A 的物理删除不属于本次完成项；必须等到 2026-09-30 前后的独立 sunset 评审且四重证据门槛全部满足。
 
-R2 + R3-lite 收口后不自动继续完整 R3。当前维护边界稳定在“测试重复收敛 + valuation canonical owner + 兼容 facade”；advisor/recommendation 仅在进入高频开发时再启动独立拆分。广域回归暴露的 macro canonical fixture、regime fallback fixture 与 strategy regime 枚举 fixture 漂移已登记为三个独立稳定性债务，避免与本次架构主线混改。
+R2 + R3-lite 收口后不自动继续完整 R3。当前维护边界稳定在“测试重复收敛 + valuation canonical owner + 兼容 facade”；advisor/recommendation 仅在进入高频开发时再启动独立拆分。广域回归暴露的 macro canonical fixture、regime source propagation 与 strategy regime 枚举 fixture 漂移已在独立稳定性批次修复，避免与架构主提交混改；验证记录见 `docs/plans/maintainability-stability/stability-closeout-2026-07-20.md`。
 
 ---
 

@@ -52,7 +52,7 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2024, 1, 2),
                 source="test",
                 unit="指数",
-                original_unit="指数"
+                original_unit="指数",
             ),
             MacroDataPoint(
                 code="CN_CPI_NATIONAL_YOY",
@@ -61,23 +61,26 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2024, 1, 10),
                 source="test",
                 unit="%",
-                original_unit="%"
+                original_unit="%",
             ),
         ]
-        mock_adapter.fetch = Mock(return_value=test_data_points)
+        mock_adapter.fetch = Mock(
+            side_effect=lambda indicator_code, *_args: [
+                point for point in test_data_points if point.code == indicator_code
+            ]
+        )
+        seed_indicator_rule(code="CN_PMI", original_unit="指数")
+        seed_indicator_rule(code="CN_CPI_NATIONAL_YOY", original_unit="%")
 
         # 2. 创建 Use Case
         repository = DataCenterMacroRepository()
-        use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"test": mock_adapter}
-        )
+        use_case = SyncMacroDataUseCase(repository=repository, adapters={"test": mock_adapter})
 
         # 3. 执行同步
         request = SyncMacroDataRequest(
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
-            indicators=["CN_PMI", "CN_CPI_NATIONAL_YOY"]
+            indicators=["CN_PMI", "CN_CPI_NATIONAL_YOY"],
         )
         response = use_case.execute(request)
 
@@ -86,18 +89,14 @@ class TestMacroDataSyncWorkflow:
         assert response.synced_count == 2, f"应同步 2 条数据，实际: {response.synced_count}"
 
         # 5. 验证数据已写入数据库
-        pmi_indicator = repository.get_by_code_and_date(
-            code="CN_PMI",
-            observed_at=date(2024, 1, 1)
-        )
+        pmi_indicator = repository.get_by_code_and_date(code="CN_PMI", observed_at=date(2024, 1, 1))
         assert pmi_indicator is not None, "PMI 数据未保存"
         assert pmi_indicator.value == 50.5, "PMI 值不正确"
         assert pmi_indicator.unit == "指数", "PMI 单位不正确"
         assert pmi_indicator.source == "test", "数据源不正确"
 
         cpi_indicator = repository.get_by_code_and_date(
-            code="CN_CPI_NATIONAL_YOY",
-            observed_at=date(2024, 1, 1)
+            code="CN_CPI_NATIONAL_YOY", observed_at=date(2024, 1, 1)
         )
         assert cpi_indicator is not None, "CPI 数据未保存"
         assert cpi_indicator.value == 2.1, "CPI 值不正确"
@@ -121,7 +120,7 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2024, 1, 15),
                 source="test",
                 unit="万亿元",
-                original_unit="万亿元"
+                original_unit="万亿元",
             ),
         ]
         mock_adapter.fetch = Mock(return_value=test_data_points)
@@ -134,15 +133,10 @@ class TestMacroDataSyncWorkflow:
         )
 
         repository = DataCenterMacroRepository()
-        use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"test": mock_adapter}
-        )
+        use_case = SyncMacroDataUseCase(repository=repository, adapters={"test": mock_adapter})
 
         request = SyncMacroDataRequest(
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-            indicators=["CN_NEW_CREDIT"]
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31), indicators=["CN_NEW_CREDIT"]
         )
         response = use_case.execute(request)
 
@@ -150,18 +144,20 @@ class TestMacroDataSyncWorkflow:
 
         # 验证数据已转换为"元"单位
         credit_indicator = repository.get_by_code_and_date(
-            code="CN_NEW_CREDIT",
-            observed_at=date(2024, 1, 1)
+            code="CN_NEW_CREDIT", observed_at=date(2024, 1, 1)
         )
         assert credit_indicator is not None
         # 万亿元转换为元需要乘以 1万亿
         expected_value = 3.5 * 1000000000000
-        assert credit_indicator.value == expected_value, \
-            f"新增信贷值应转换为元: 期望 {expected_value}, 实际 {credit_indicator.value}"
-        assert credit_indicator.unit == "元", \
-            f"新增信贷单位应为'元': 实际 '{credit_indicator.unit}'"
-        assert credit_indicator.original_unit == "万亿元", \
-            f"原始单位应保留: 实际 '{credit_indicator.original_unit}'"
+        assert (
+            credit_indicator.value == expected_value
+        ), f"新增信贷值应转换为元: 期望 {expected_value}, 实际 {credit_indicator.value}"
+        assert (
+            credit_indicator.unit == "元"
+        ), f"新增信贷单位应为'元': 实际 '{credit_indicator.unit}'"
+        assert (
+            credit_indicator.original_unit == "万亿元"
+        ), f"原始单位应保留: 实际 '{credit_indicator.original_unit}'"
 
     def test_sync_normalizes_gdp_and_m2_storage_units(self):
         """测试 GDP 和 M2 在同步时会统一转换为元存储。"""
@@ -177,7 +173,7 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2025, 12, 21),
                 source="test",
                 unit="亿元",
-                original_unit="亿元"
+                original_unit="亿元",
             ),
             MacroDataPoint(
                 code="CN_M2",
@@ -186,39 +182,45 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2026, 4, 15),
                 source="test",
                 unit="万亿元",
-                original_unit="万亿元"
+                original_unit="万亿元",
             ),
         ]
         mock_adapter.fetch = Mock(side_effect=[test_data_points[:1], test_data_points[1:]])
-
-        repository = DataCenterMacroRepository()
-        use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"test": mock_adapter}
+        seed_indicator_rule(
+            code="CN_GDP",
+            original_unit="亿元",
+            storage_unit="元",
+            display_unit="亿元",
+            multiplier_to_storage=100000000,
+            default_period_type="Q",
+        )
+        seed_indicator_rule(
+            code="CN_M2",
+            original_unit="万亿元",
+            storage_unit="元",
+            display_unit="万亿元",
+            multiplier_to_storage=1000000000000,
         )
 
+        repository = DataCenterMacroRepository()
+        use_case = SyncMacroDataUseCase(repository=repository, adapters={"test": mock_adapter})
+
         request = SyncMacroDataRequest(
-            start_date=date(2025, 1, 1),
-            end_date=date(2026, 12, 31),
-            indicators=["CN_GDP", "CN_M2"]
+            start_date=date(2025, 1, 1), end_date=date(2026, 12, 31), indicators=["CN_GDP", "CN_M2"]
         )
         response = use_case.execute(request)
 
         assert response.success
 
         gdp_indicator = repository.get_by_code_and_date(
-            code="CN_GDP",
-            observed_at=date(2025, 12, 1)
+            code="CN_GDP", observed_at=date(2025, 12, 1)
         )
         assert gdp_indicator is not None
         assert gdp_indicator.value == 1349084.0 * 100000000
         assert gdp_indicator.unit == "元"
         assert gdp_indicator.original_unit == "亿元"
 
-        m2_indicator = repository.get_by_code_and_date(
-            code="CN_M2",
-            observed_at=date(2026, 3, 31)
-        )
+        m2_indicator = repository.get_by_code_and_date(code="CN_M2", observed_at=date(2026, 3, 31))
         assert m2_indicator is not None
         assert m2_indicator.value == 353.863653 * 1000000000000
         assert m2_indicator.unit == "元"
@@ -241,21 +243,17 @@ class TestMacroDataSyncWorkflow:
                 published_at=date(2024, 1, 2),
                 source="test",
                 unit="指数",
-                original_unit="指数"
+                original_unit="指数",
             ),
         ]
         mock_adapter.fetch = Mock(return_value=test_data_points)
+        seed_indicator_rule(code="CN_PMI", original_unit="指数")
 
         repository = DataCenterMacroRepository()
-        use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"test": mock_adapter}
-        )
+        use_case = SyncMacroDataUseCase(repository=repository, adapters={"test": mock_adapter})
 
         request = SyncMacroDataRequest(
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-            indicators=["CN_PMI"]
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31), indicators=["CN_PMI"]
         )
 
         # 第一次同步
@@ -272,8 +270,7 @@ class TestMacroDataSyncWorkflow:
 
         # 验证目标日期不会产生重复记录
         same_day_count = MacroFactModel.objects.filter(
-            indicator_code="CN_PMI",
-            reporting_period=date(2024, 1, 1)
+            indicator_code="CN_PMI", reporting_period=date(2024, 1, 1)
         ).count()
         assert same_day_count == 1, f"目标日期应仅有 1 条记录，实际: {same_day_count}"
 
@@ -303,27 +300,23 @@ class TestFailoverMechanism:
                 published_at=date(2024, 1, 2),
                 source="secondary",
                 unit="指数",
-                original_unit="指数"
+                original_unit="指数",
             ),
         ]
         secondary_adapter.fetch = Mock(return_value=test_data_points)
 
         # 创建 Failover 适配器
         failover_adapter = FailoverAdapter(
-            adapters=[primary_adapter, secondary_adapter],
-            validate_consistency=False
+            adapters=[primary_adapter, secondary_adapter], validate_consistency=False
         )
 
         repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"failover": failover_adapter}
+            repository=repository, adapters={"failover": failover_adapter}
         )
 
         request = SyncMacroDataRequest(
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-            indicators=["CN_PMI"]
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31), indicators=["CN_PMI"]
         )
         response = use_case.execute(request)
 
@@ -355,7 +348,7 @@ class TestFailoverMechanism:
                 published_at=date(2024, 1, 2),
                 source="primary",
                 unit="指数",
-                original_unit="指数"
+                original_unit="指数",
             ),
         ]
         primary_adapter.fetch = Mock(return_value=primary_data)
@@ -373,7 +366,7 @@ class TestFailoverMechanism:
                 published_at=date(2024, 1, 2),
                 source="secondary",
                 unit="指数",
-                original_unit="指数"
+                original_unit="指数",
             ),
         ]
         secondary_adapter.fetch = Mock(return_value=secondary_data)
@@ -382,29 +375,28 @@ class TestFailoverMechanism:
         failover_adapter = FailoverAdapter(
             adapters=[primary_adapter, secondary_adapter],
             validate_consistency=True,
-            tolerance=0.01  # 1% 容差
+            tolerance=0.01,  # 1% 容差
+        )
+        seed_indicator_rule(
+            code="CN_PMI",
+            original_unit="指数",
+            source_type="primary",
         )
 
         repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"failover": failover_adapter}
+            repository=repository, adapters={"failover": failover_adapter}
         )
 
         request = SyncMacroDataRequest(
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-            indicators=["CN_PMI"]
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31), indicators=["CN_PMI"]
         )
         response = use_case.execute(request)
 
         # 验证使用主数据源的数据
         assert response.success
 
-        pmi_indicator = repository.get_by_code_and_date(
-            code="CN_PMI",
-            observed_at=date(2024, 1, 1)
-        )
+        pmi_indicator = repository.get_by_code_and_date(code="CN_PMI", observed_at=date(2024, 1, 1))
         assert pmi_indicator is not None
         assert pmi_indicator.value == 50.0, "应使用主数据源的值"
 
@@ -422,20 +414,15 @@ class TestFailoverMechanism:
         secondary_adapter.supports = Mock(return_value=True)
         secondary_adapter.fetch = Mock(side_effect=DataSourceUnavailableError("备用源失败"))
 
-        failover_adapter = FailoverAdapter(
-            adapters=[primary_adapter, secondary_adapter]
-        )
+        failover_adapter = FailoverAdapter(adapters=[primary_adapter, secondary_adapter])
 
         repository = DataCenterMacroRepository()
         use_case = SyncMacroDataUseCase(
-            repository=repository,
-            adapters={"failover": failover_adapter}
+            repository=repository, adapters={"failover": failover_adapter}
         )
 
         request = SyncMacroDataRequest(
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 1, 31),
-            indicators=["CN_PMI"]
+            start_date=date(2024, 1, 1), end_date=date(2024, 1, 31), indicators=["CN_PMI"]
         )
         response = use_case.execute(request)
 
@@ -469,7 +456,7 @@ class TestPitDataHandling:
                 source="test",
                 unit="指数",
                 original_unit="指数",
-                period_type=PeriodType.MONTH
+                period_type=PeriodType.MONTH,
             )
         )
 
@@ -483,28 +470,25 @@ class TestPitDataHandling:
                 source="test",
                 unit="指数",
                 original_unit="指数",
-                period_type=PeriodType.MONTH
+                period_type=PeriodType.MONTH,
             )
         )
 
         # 验证：在 2024-02-01 时，1 月份数据不可见（尚未发布）
         latest_date = repository.get_latest_observation_date(
-            code=test_code,
-            as_of_date=date(2024, 2, 1)
+            code=test_code, as_of_date=date(2024, 2, 1)
         )
         assert latest_date is None, "2024-02-01 时不应有可见数据"
 
         # 验证：在 2024-02-20 时，1 月份数据可见
         latest_date = repository.get_latest_observation_date(
-            code=test_code,
-            as_of_date=date(2024, 2, 20)
+            code=test_code, as_of_date=date(2024, 2, 20)
         )
         assert latest_date == date(2024, 1, 1), "2024-02-20 时应可见 1 月数据"
 
         # 验证：在 2024-03-20 时，2 月份数据可见
         latest_date = repository.get_latest_observation_date(
-            code=test_code,
-            as_of_date=date(2024, 3, 20)
+            code=test_code, as_of_date=date(2024, 3, 20)
         )
         assert latest_date == date(2024, 2, 1), "2024-03-20 时应可见 2 月数据"
 
@@ -514,6 +498,11 @@ class TestPitDataHandling:
         验证同一数据点的多次修订能正确保存和查询
         """
         repository = DataCenterMacroRepository()
+        seed_indicator_rule(
+            code="CN_GDP_YOY",
+            original_unit="%",
+            default_period_type="Q",
+        )
 
         # 第一次发布（修订版 1）
         repository.save_indicator(
@@ -525,9 +514,9 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.QUARTER
+                period_type=PeriodType.QUARTER,
             ),
-            revision_number=1
+            revision_number=1,
         )
 
         # 第二次发布（修订版 2 - 初步核实）
@@ -540,9 +529,9 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.QUARTER
+                period_type=PeriodType.QUARTER,
             ),
-            revision_number=2
+            revision_number=2,
         )
 
         # 第三次发布（修订版 3 - 最终核实）
@@ -555,33 +544,29 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.QUARTER
+                period_type=PeriodType.QUARTER,
             ),
-            revision_number=3
+            revision_number=3,
         )
 
         # 验证：获取最新修订版本
         latest = repository.get_by_code_and_date(
             code="CN_GDP_YOY",
             observed_at=date(2024, 1, 1),
-            revision_number=None  # None 表示获取最新版本
+            revision_number=None,  # None 表示获取最新版本
         )
         assert latest is not None
         assert latest.value == 5.25, "应获取最新修订版 3 的值"
 
         # 验证：获取特定修订版本
         rev1 = repository.get_by_code_and_date(
-            code="CN_GDP_YOY",
-            observed_at=date(2024, 1, 1),
-            revision_number=1
+            code="CN_GDP_YOY", observed_at=date(2024, 1, 1), revision_number=1
         )
         assert rev1 is not None
         assert rev1.value == 5.2, "修订版 1 的值应为 5.2"
 
         rev2 = repository.get_by_code_and_date(
-            code="CN_GDP_YOY",
-            observed_at=date(2024, 1, 1),
-            revision_number=2
+            code="CN_GDP_YOY", observed_at=date(2024, 1, 1), revision_number=2
         )
         assert rev2 is not None
         assert rev2.value == 5.3, "修订版 2 的值应为 5.3"
@@ -589,6 +574,7 @@ class TestPitDataHandling:
     def test_pit_mode_in_series_query(self):
         """测试 PIT 模式下的时序查询"""
         repository = DataCenterMacroRepository()
+        seed_indicator_rule(code="CN_CPI_NATIONAL_YOY", original_unit="%")
 
         # 准备测试数据：三个观测期，每期有修订
         # 1 月数据
@@ -601,9 +587,9 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.MONTH
+                period_type=PeriodType.MONTH,
             ),
-            revision_number=1
+            revision_number=1,
         )
         repository.save_indicator(
             MacroIndicator(
@@ -614,9 +600,9 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.MONTH
+                period_type=PeriodType.MONTH,
             ),
-            revision_number=2
+            revision_number=2,
         )
 
         # 2 月数据
@@ -629,9 +615,9 @@ class TestPitDataHandling:
                 source="test",
                 unit="%",
                 original_unit="%",
-                period_type=PeriodType.MONTH
+                period_type=PeriodType.MONTH,
             ),
-            revision_number=1
+            revision_number=1,
         )
 
         # 验证：PIT 模式查询
@@ -639,7 +625,7 @@ class TestPitDataHandling:
             code="CN_CPI_NATIONAL_YOY",
             start_date=date(2024, 1, 1),
             end_date=date(2024, 2, 28),
-            use_pit=True  # 启用 PIT 模式
+            use_pit=True,  # 启用 PIT 模式
         )
 
         # 应返回每个观测期的最新修订版本

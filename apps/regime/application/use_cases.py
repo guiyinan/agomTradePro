@@ -729,7 +729,9 @@ class CalculateRegimeUseCase:
                     )
                     # 在序列开头插入前值（如果序列为空或第一个值晚于 end_date - timedelta(days=60)）
                     if full_series and (end_date - full_series[0].reporting_period).days > 60:
-                        result["growth"] = [last_observation.value] + [ind.value for ind in full_series]
+                        result["growth"] = [last_observation.value] + [
+                            ind.value for ind in full_series
+                        ]
                     else:
                         result["growth"] = [ind.value for ind in full_series]
 
@@ -1094,6 +1096,7 @@ class CalculateRegimeUseCase:
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
         use_pit: bool = False,
+        data_source: str | None = None,
     ) -> list[CalculateRegimeResponse]:
         """
         批量计算历史 Regime
@@ -1104,6 +1107,7 @@ class CalculateRegimeUseCase:
             growth_indicator: 增长指标代码
             inflation_indicator: 通胀指标代码
             use_pit: 是否使用 Point-in-Time 模式
+            data_source: 可选的数据源过滤，与单次计算契约保持一致
 
         Returns:
             List[CalculateRegimeResponse]: 每个日期的计算结果
@@ -1128,6 +1132,7 @@ class CalculateRegimeUseCase:
                 use_pit=use_pit,
                 growth_indicator=growth_indicator,
                 inflation_indicator=inflation_indicator,
+                data_source=data_source,
             )
             result = self.execute(request)
             results.append(result)
