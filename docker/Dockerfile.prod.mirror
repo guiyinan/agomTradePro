@@ -50,6 +50,7 @@ LABEL org.opencontainers.image.revision=$SOURCE_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    postgresql-client \
     libgomp1 \
     curl \
     procps \

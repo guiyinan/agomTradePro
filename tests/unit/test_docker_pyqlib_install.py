@@ -25,6 +25,12 @@ def test_mirror_dockerfile_installs_pyqlib_distribution() -> None:
     assert " qlib>=0.9.0" not in dockerfile
 
 
+def test_production_images_include_postgresql_backup_client() -> None:
+    for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
+        dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "postgresql-client" in dockerfile, relative_path
+
+
 def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
     assert (REPO_ROOT / ".cache" / "pip-wheels" / "linux-py311" / ".keep").exists()
 
@@ -51,12 +57,10 @@ def test_vps_remote_deploy_defaults_and_celery_runtime_checks() -> None:
     dockerfile = (REPO_ROOT / "docker" / "Dockerfile.prod").read_text(encoding="utf-8")
     backup = (REPO_ROOT / "scripts" / "vps-backup.sh").read_text(encoding="utf-8")
     restore = (REPO_ROOT / "scripts" / "vps-restore.sh").read_text(encoding="utf-8")
-    migration = (
-        REPO_ROOT / "scripts" / "migrate-vps-sqlite-to-postgres.sh"
-    ).read_text(encoding="utf-8")
-    entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(
+    migration = (REPO_ROOT / "scripts" / "migrate-vps-sqlite-to-postgres.sh").read_text(
         encoding="utf-8"
     )
+    entrypoint = (REPO_ROOT / "docker" / "entrypoint.prod.sh").read_text(encoding="utf-8")
 
     assert 'os.environ.get("AGOM_VPS_TIMEOUT", "3600")' in script
     assert "[int]$BuildTimeoutSeconds = 3600" in one_click_script
@@ -120,9 +124,7 @@ def test_apps_with_infrastructure_models_have_django_discovery_bridge() -> None:
     """Every infrastructure model module must be discoverable by Django commands."""
 
     missing = []
-    for infrastructure_model in sorted(
-        (REPO_ROOT / "apps").glob("*/infrastructure/models.py")
-    ):
+    for infrastructure_model in sorted((REPO_ROOT / "apps").glob("*/infrastructure/models.py")):
         bridge = infrastructure_model.parents[1] / "models.py"
         if not bridge.exists():
             missing.append(str(bridge.relative_to(REPO_ROOT)))
@@ -185,18 +187,18 @@ def test_web_startup_does_not_run_alpha_bootstrap_by_default() -> None:
 
 
 def test_config_center_initial_migration_uses_portable_boolean_default() -> None:
-    migration = (
-        REPO_ROOT / "apps" / "config_center" / "migrations" / "0001_initial.py"
-    ).read_text(encoding="utf-8")
+    migration = (REPO_ROOT / "apps" / "config_center" / "migrations" / "0001_initial.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "bool NOT NULL DEFAULT FALSE" in migration
     assert "bool NOT NULL DEFAULT 0" not in migration
 
 
 def test_macro_source_field_accepts_existing_production_provenance() -> None:
-    model = (
-        REPO_ROOT / "apps" / "macro" / "infrastructure" / "models.py"
-    ).read_text(encoding="utf-8")
+    model = (REPO_ROOT / "apps" / "macro" / "infrastructure" / "models.py").read_text(
+        encoding="utf-8"
+    )
     migration = (
         REPO_ROOT / "apps" / "macro" / "migrations" / "0019_expand_macro_indicator_source.py"
     ).read_text(encoding="utf-8")
