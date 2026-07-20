@@ -173,6 +173,7 @@ INSTALLED_APPS = [
     "apps.hedge",  # 对冲组合模块（新增）
     # ========== 新模块：任务监控 ==========
     "apps.task_monitor",  # 任务监控模块（新增）
+    "apps.operational_readiness",  # 生产 readiness 取证与验收
     # ========== 新模块：账户分享 ==========
     "apps.share",  # 账户分享模块（新增）
     # ========== 新模块：AI-native Agent Runtime ==========
@@ -714,7 +715,7 @@ CELERY_BEAT_SCHEDULE = {
         },
     },
     "personal-readiness-daily-evidence": {
-        "task": "apps.task_monitor.application.tasks.run_personal_readiness_daily_task",
+        "task": "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task",
         "schedule": crontab(hour=16, minute=10, day_of_week="mon-fri"),
         "kwargs": {
             "calendar_source": "auto",

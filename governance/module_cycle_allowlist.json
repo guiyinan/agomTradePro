@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-18.v11",
+  "version": "2026-07-20.v12",
   "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 187,
+  "max_app_import_edges": 188,
   "max_outbound_modules_per_app": 20,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
@@ -26,6 +26,7 @@
     "fund": 6,
     "hedge": 2,
     "macro": 3,
+    "operational_readiness": 0,
     "policy": 3,
     "prompt": 2,
     "pulse": 1,
@@ -40,7 +41,7 @@
     "signal": 8,
     "simulated_trading": 13,
     "strategy": 6,
-    "task_monitor": 0,
+    "task_monitor": 1,
     "terminal": 18
   },
   "max_inbound_modules_by_app": {
@@ -65,6 +66,7 @@
     "fund": 5,
     "hedge": 2,
     "macro": 5,
+    "operational_readiness": 1,
     "policy": 12,
     "prompt": 4,
     "pulse": 7,

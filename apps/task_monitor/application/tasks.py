@@ -6,7 +6,6 @@ Celery 任务钩子和装饰器，用于自动记录任务执行状态。
 
 import logging
 import traceback as tb_module
-from pathlib import Path
 from typing import Any
 
 from celery import Task
@@ -19,6 +18,12 @@ from celery.signals import (
 )
 from django.utils import timezone  # type: ignore[import-untyped]
 
+from apps.operational_readiness.application.tasks import (
+    execute_personal_readiness_daily_task,
+)
+from apps.operational_readiness.management.commands.run_personal_readiness_daily import (
+    run_personal_readiness_daily,
+)
 from apps.task_monitor.application.repository_provider import (
     get_database_backup_service,
     get_task_record_repository,
@@ -30,11 +35,6 @@ from apps.task_monitor.domain.entities import (
     TaskStatus,
 )
 from apps.task_monitor.domain.interfaces import TaskRecordRepositoryProtocol
-from apps.task_monitor.management.commands.run_personal_readiness_daily import (
-    _parse_date,
-    _validate_target_date_is_closed,
-    run_personal_readiness_daily,
-)
 from shared.config.secrets import get_secrets
 from shared.infrastructure.alert_service import create_default_alert_service
 
@@ -521,21 +521,14 @@ def run_personal_readiness_daily_task(
     allow_unclosed_target_date: bool = False,
     trigger_source: str = "scheduler",
 ) -> dict[str, Any]:
-    """Run the personal readiness daily command from Celery beat."""
+    """Proxy the legacy task name to the canonical readiness owner."""
 
-    task_request = getattr(self, "request", None)
-    trigger_task_id = getattr(task_request, "id", None)
-    resolved_target_date = _parse_date(target_date)
-    _validate_target_date_is_closed(
-        target_date=resolved_target_date,
-        allow_unclosed_target_date=allow_unclosed_target_date,
-    )
-
-    payload = run_personal_readiness_daily(
-        target_date=resolved_target_date,
+    return execute_personal_readiness_daily_task(
+        task=self,
+        target_date=target_date,
         user_id=user_id,
         account_id=account_id,
-        output_dir=Path(output_dir),
+        output_dir=output_dir,
         required_days=required_days,
         calendar_source=calendar_source,
         max_qlib_staleness_days=max_qlib_staleness_days,
@@ -543,11 +536,8 @@ def run_personal_readiness_daily_task(
         run_workspace_refresh=run_workspace_refresh,
         include_weekly_advisor=include_weekly_advisor,
         persist_risk_report=persist_risk_report,
+        strict_daily=strict_daily,
         allow_unclosed_target_date=allow_unclosed_target_date,
         trigger_source=trigger_source,
-        trigger_task_id=trigger_task_id,
-        trigger_task_name=getattr(self, "name", None),
+        runner=run_personal_readiness_daily,
     )
-    if strict_daily and payload.get("status") != "ok":
-        raise RuntimeError(f"Personal readiness daily run is {payload.get('status')}")
-    return payload

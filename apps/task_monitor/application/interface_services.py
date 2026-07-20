@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.task_monitor.application.readiness_monitor_service import (
+from apps.operational_readiness.application.monitor_service import (
     get_personal_readiness_monitor_placeholder,
     get_personal_readiness_monitor_summary,
 )

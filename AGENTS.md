@@ -162,6 +162,7 @@ AgomTradePro/
 │   ├── pulse/                # Pulse 脉搏层（战术指标聚合与转折预警）
 │   ├── share/                # 分享功能
 │   ├── task_monitor/         # 任务监控
+│   ├── operational_readiness/ # 生产 readiness 取证与验收
 │   └── setup_wizard/         # 系统初始化向导
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
@@ -728,5 +729,6 @@ ak.macro_china_money_supply()
 - `data_center/` - 数据中台，统一外部数据源接入、标准化、同步与查询
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
+- `operational_readiness/` - 生产 readiness 证据、连续窗口验收与调度运行状态
 - `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源
 

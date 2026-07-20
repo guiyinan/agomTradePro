@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-20.v154",
+  "version": "2026-07-20.v155",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -16,7 +16,7 @@
     "unsupported_legacy_contract_count": 0,
     "raw_tool_file_count": 36
   },
-  "business_module_count": 37,
+  "business_module_count": 38,
   "static_test_function_count": 7056,
   "module_shape_minimums": {
     "account": 9,
@@ -40,6 +40,7 @@
     "fund": 9,
     "hedge": 10,
     "macro": 9,
+    "operational_readiness": 0,
     "policy": 8,
     "prompt": 11,
     "pulse": 11,

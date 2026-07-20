@@ -128,7 +128,9 @@ def test_setup_personal_readiness_daily_creates_periodic_task():
     )
 
     task = PeriodicTask.objects.get(name="personal-readiness-daily-evidence")
-    assert task.task == "apps.task_monitor.application.tasks.run_personal_readiness_daily_task"
+    assert task.task == (
+        "apps.operational_readiness.application.tasks." "run_personal_readiness_daily_task"
+    )
     assert task.enabled is True
     assert task.crontab is not None
     assert task.crontab.hour == "16"

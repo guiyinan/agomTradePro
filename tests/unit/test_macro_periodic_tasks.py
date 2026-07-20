@@ -39,7 +39,7 @@ def test_development_settings_use_database_scheduler_and_canonical_regime_tasks(
     readiness_entry = settings_module.CELERY_BEAT_SCHEDULE["personal-readiness-daily-evidence"]
     assert (
         readiness_entry["task"]
-        == "apps.task_monitor.application.tasks.run_personal_readiness_daily_task"
+        == "apps.operational_readiness.application.tasks.run_personal_readiness_daily_task"
     )
     assert readiness_entry["kwargs"]["calendar_source"] == "auto"
     assert readiness_entry["kwargs"]["repair_accounts"] is False

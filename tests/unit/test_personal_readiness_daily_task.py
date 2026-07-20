@@ -3,7 +3,26 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from apps.operational_readiness.application import tasks as canonical_task_module
 from apps.task_monitor.application import tasks as task_module
+from core.celery import app as celery_app
+
+
+def test_readiness_canonical_and_legacy_task_names_remain_registered_contracts():
+    assert canonical_task_module.run_personal_readiness_daily_task.name == (
+        "apps.operational_readiness.application.tasks." "run_personal_readiness_daily_task"
+    )
+    assert task_module.run_personal_readiness_daily_task.name == (
+        "apps.task_monitor.application.tasks.run_personal_readiness_daily_task"
+    )
+
+
+def test_readiness_canonical_and_legacy_tasks_are_registered_with_celery():
+    """Worker task discovery must retain both scheduler and compatibility names."""
+    celery_app.loader.import_default_modules()
+
+    assert canonical_task_module.CANONICAL_READINESS_TASK_NAME in celery_app.tasks
+    assert canonical_task_module.LEGACY_READINESS_TASK_NAME in celery_app.tasks
 
 
 def test_personal_readiness_daily_task_calls_runner(monkeypatch):
