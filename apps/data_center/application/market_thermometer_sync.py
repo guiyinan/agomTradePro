@@ -654,6 +654,10 @@ class SyncMarketThermometerInputsUseCase:
                 **dict(extra or {}),
                 "source_type": MARKET_THERMOMETER_CONSENSUS_SOURCE,
                 "provider_name": MARKET_THERMOMETER_CONSENSUS_SOURCE,
+                # Inputs are normalized before consensus. The derived row's
+                # original unit is therefore its canonical storage unit; raw
+                # provider units remain auditable on the atomic facts.
+                "original_unit": primary.unit,
                 "verification_status": verification_status,
                 "source_tolerance": MARKET_THERMOMETER_SOURCE_TOLERANCE,
                 "relative_spread": relative_spread,

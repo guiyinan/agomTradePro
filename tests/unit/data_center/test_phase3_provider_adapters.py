@@ -206,8 +206,8 @@ def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(m
     assert len(facts) == 1
     assert facts[0].indicator_code == "CN_A_ETF_SIZE_FLOW"
     assert facts[0].reporting_period == date(2026, 6, 1)
-    assert facts[0].value == 500_000.0
-    assert facts[0].unit == "元"
+    assert facts[0].value == 50.0
+    assert facts[0].unit == "万元"
     assert facts[0].extra["proxy"] == "tushare_etf_share_size_delta"
     assert facts[0].extra["flow_method"] == "etf_size_delta"
 

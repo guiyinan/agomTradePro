@@ -235,8 +235,8 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
                 MacroFact(
                     indicator_code="CN_A_ETF_SIZE_FLOW",
                     reporting_period=current_date,
-                    value=(current_size - previous_size) * 10_000.0,
-                    unit="元",
+                    value=current_size - previous_size,
+                    unit="万元",
                     source=self.provider_source(),
                     published_at=current_date,
                     quality=DataQualityStatus.VALID,

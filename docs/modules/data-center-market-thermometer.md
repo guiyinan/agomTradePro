@@ -70,6 +70,7 @@
   - EastMoney `clist/get` 直连回退，读取 `f62` 主力净流入和 `f297` 数据日期
 - Tushare 协议兼容源通过 `trade_cal` 找最近交易日，再用 `etf_share_size` 汇总沪深 ETF 总规模，计算当日规模变化
 - Tushare ETF 规模代理按短日期区间分别批量拉取 SSE/SZSE，再按交易日聚合；任一交易所当日数据缺失时整日 fail closed，禁止把单市场规模误当全市场。
+- Tushare `etf_share_size.total_size` 的原始“万元”差额由精确单位规则统一转换为“元”；适配器不再提前缩放。共识派生行只记录 canonical“元”，原始“万元”保留在 atomic fact 上。
 - Application `SyncMarketThermometerInputsUseCase` 会采集所有 active market providers，不再首个成功即停止。
 - 对 `CN_A_ETF_NET_FLOW_MAIN` 多个同口径渠道返回同一日期数据时，按 1% 容差做一致性校验。
 - 校验通过后只写入一条 `source=data_center_consensus` 的 canonical fact，`extra.candidates` 保留各渠道原始候选值。
