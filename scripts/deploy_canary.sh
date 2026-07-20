@@ -1,4 +1,15 @@
 #!/bin/bash
+#
+# ============================================================================
+# DEPRECATED - DO NOT USE
+#
+# This script dates from the retired venv-based deployment model and does
+# NOT work with the current docker-compose production topology (see
+# docker/docker-compose.vps.yml). It is kept for reference only.
+#
+# Use the supported deployment path instead:
+#   scripts/deploy-vps.ps1  (remote build + deploy + verify + auto-rollback)
+# ============================================================================
 # AgomSaaS Canary Deployment Script
 # Usage: ./scripts/deploy_canary.sh <version> [percentage]
 #

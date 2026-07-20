@@ -101,3 +101,16 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift():
     assert "python manage.py init_macro_indicator_governance --check" in script
     assert "python manage.py normalize_macro_fact_units --check" in script
     assert "macro data-governance drift check failed" in script
+
+
+def test_remote_deploy_installs_idempotent_daily_backup_cron():
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert (
+        'BACKUP_CRON_JOB="0 18 * * * $TARGET_DIR/current/scripts/vps-backup.sh'
+        ' --keep-days 14 >> /var/log/agomtradepro-backup.log 2>&1"' in script
+    )
+    assert 'grep -qF "vps-backup.sh"' in script
+    assert "backup cron already installed; skipping" in script

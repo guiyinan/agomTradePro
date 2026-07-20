@@ -250,6 +250,32 @@ use a verified custom-format `pg_dump`; legacy SQLite deployments retain the
 online backup and integrity-check path. Restore validates the selected archive
 before replacing the active database.
 
+## Rollback Semantics: Code Rollback Is Not Data Rollback
+
+The automated rollback paths (deploy-time EXIT trap and
+`scripts/deploy_vps_verify.py --auto-rollback`) restore **code and containers
+only**: they reactivate the previous release directory and repoint the
+`current` symlink. They do **not** roll back the database.
+
+Database migrations run mid-deploy, before the health gates. If a deploy is
+rolled back after migrations were applied, the previous code may run against
+a newer schema. Implications:
+
+- A pre-deploy backup is always created before migrations run. To recover
+  data, restore it manually with `scripts/vps-restore.sh` (see above).
+- Prefer backward-compatible migrations (additive changes) so a code rollback
+  remains safe against the newer schema.
+- After any rollback, verify application behavior against the current schema
+  before declaring the rollback complete.
+
+## Legacy Scripts (Deprecated)
+
+`scripts/deploy_canary.sh`, `scripts/promote_canary.sh`, and
+`scripts/rollback.sh` date from the retired venv-based deployment model and
+are kept for reference only. They do not work with the current
+docker-compose production topology. Use `scripts/deploy-vps.ps1` (remote
+build + deploy + verify) as the single supported deployment path.
+
 ## What is included
 
 - Docker image tars for app + postgres + redis + caddy

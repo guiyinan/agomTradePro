@@ -445,9 +445,13 @@ def build_security_backup_command(target_dir: str) -> str:
         'test "$(stat -c %a "$target/secrets.env")" = 600; '
         'test "$(stat -c %a "$target/current/deploy/.env")" = 600; '
         'test "$(stat -c %a "$target/backups")" = 700; '
-        'backup=$(find "$target/backups/database" -type f -name "*.gz" -mmin -1560 '
+        'backup=$(find "$target/backups/database" -type f '
+        '\\( -name "*.dump" -o -name "*.gz" \\) -mmin -1560 '
         '-printf "%T@ %p\\n" | sort -nr | head -1 | cut -d" " -f2-); '
-        'test -n "$backup"; gzip -t "$backup"; test "$(stat -c %a "$backup")" = 600; '
+        'test -n "$backup"; '
+        'case "$backup" in *.gz) gzip -t "$backup" ;; '
+        '*.dump) head -c 5 "$backup" | grep -q PGDMP ;; esac; '
+        'test "$(stat -c %a "$backup")" = 600; '
         'printf "backup=%s\\n" "$backup"'
     )
 

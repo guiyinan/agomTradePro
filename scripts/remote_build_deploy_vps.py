@@ -1532,6 +1532,16 @@ report = {
 Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
 
+# Idempotent daily backup cron: 18:00 UTC (02:00 Beijing), logging to /var/log/agomtradepro-backup.log.
+BACKUP_CRON_JOB="0 18 * * * $TARGET_DIR/current/scripts/vps-backup.sh --keep-days 14 >> /var/log/agomtradepro-backup.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "vps-backup.sh"; then
+  echo "[INFO] backup cron already installed; skipping"
+elif ( crontab -l 2>/dev/null || true; echo "$BACKUP_CRON_JOB" ) | crontab -; then
+  echo "[INFO] installed daily backup cron: $BACKUP_CRON_JOB"
+else
+  echo "[WARN] failed to install backup cron; schedule backups manually" >&2
+fi
+
 DEPLOY_SUCCEEDED=1
 [ -z "$OLD_IMAGE_ARCHIVE" ] || rm -f "$OLD_IMAGE_ARCHIVE" 2>/dev/null || true
 echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"

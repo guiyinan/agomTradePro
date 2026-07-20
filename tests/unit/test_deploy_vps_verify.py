@@ -260,7 +260,9 @@ def test_verification_commands_cover_identity_backup_resources_and_model_metadat
 
     assert "org.opencontainers.image.revision" in identity
     assert "-mmin -1560" in backup
+    assert '-name "*.dump"' in backup
     assert "gzip -t" in backup
+    assert "PGDMP" in backup
     assert "OOMKilled" in resources
     assert "_meta.db_table" in freshness
     assert "-checkend 1814400" in certificate
