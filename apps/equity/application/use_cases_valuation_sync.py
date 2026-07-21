@@ -89,7 +89,9 @@ class ValidateEquityValuationQualityUseCase:
         self.stock_repo = stock_repository
         self.quality_repo = quality_repository
 
-    def execute(self, request: ValidateEquityValuationQualityRequest) -> ValidateEquityValuationQualityResponse:
+    def execute(
+        self, request: ValidateEquityValuationQualityRequest
+    ) -> ValidateEquityValuationQualityResponse:
         try:
             as_of_date = request.as_of_date or self.stock_repo.get_latest_valuation_date()
             if not as_of_date:
@@ -104,7 +106,9 @@ class ValidateEquityValuationQualityUseCase:
                 primary_source=request.primary_source,
             )
             self.quality_repo.upsert_snapshot(snapshot)
-            return ValidateEquityValuationQualityResponse(success=True, data=_snapshot_to_dict(snapshot))
+            return ValidateEquityValuationQualityResponse(
+                success=True, data=_snapshot_to_dict(snapshot)
+            )
         except Exception as exc:
             logger.exception("估值数据质量校验失败")
             return ValidateEquityValuationQualityResponse(success=False, error=str(exc))
@@ -243,7 +247,7 @@ class BackfillEquityValuationUseCase:
 
             for batch_index in range(total_batches):
                 batch_codes = stock_codes[
-                    batch_index * request.batch_size:(batch_index + 1) * request.batch_size
+                    batch_index * request.batch_size : (batch_index + 1) * request.batch_size
                 ]
                 result = self.sync_use_case.execute(
                     SyncEquityValuationRequest(
@@ -252,12 +256,14 @@ class BackfillEquityValuationUseCase:
                         end_date=end_date,
                     )
                 )
-                batch_results.append({
-                    "batch": batch_index + 1,
-                    "success": result.success,
-                    "synced_count": result.data["synced_count"] if result.success else 0,
-                    "error": result.error,
-                })
+                batch_results.append(
+                    {
+                        "batch": batch_index + 1,
+                        "success": result.success,
+                        "synced_count": result.data["synced_count"] if result.success else 0,
+                        "error": result.error,
+                    }
+                )
 
             return BackfillEquityValuationResponse(
                 success=True,
@@ -294,6 +300,13 @@ class GetEquityValuationFreshnessUseCase:
             elif lag_days >= 2:
                 status = "warning"
 
+            is_gate_passed = getattr(latest_snapshot, "is_gate_passed", None)
+            if is_gate_passed is False:
+                # A current date is not sufficient evidence of freshness when
+                # the cross-section is incomplete or invalid.  Downstream
+                # consumers must see a blocking status instead of "fresh".
+                status = "critical"
+
             return GetEquityValuationFreshnessResponse(
                 success=True,
                 data={
@@ -301,7 +314,7 @@ class GetEquityValuationFreshnessUseCase:
                     "lag_days": lag_days,
                     "freshness_status": status,
                     "coverage_ratio": getattr(latest_snapshot, "coverage_ratio", None),
-                    "is_gate_passed": getattr(latest_snapshot, "is_gate_passed", None),
+                    "is_gate_passed": is_gate_passed,
                 },
             )
         except Exception as exc:

@@ -65,3 +65,21 @@ def test_freshness_returns_warning_for_two_day_lag():
 
     assert response.success is True
     assert response.data["freshness_status"] == "warning"
+
+
+def test_freshness_is_critical_when_current_date_fails_quality_gate():
+    quality_repo = DummyQualityRepo()
+    quality_repo.snapshot = {
+        "as_of_date": date.today(),
+        "coverage_ratio": 0.0255,
+        "is_gate_passed": False,
+    }
+    stock_repo = DummyStockRepo(date.today(), [], [])
+    use_case = GetEquityValuationFreshnessUseCase(stock_repo, quality_repo)
+
+    response = use_case.execute()
+
+    assert response.success is True
+    assert response.data["lag_days"] == 0
+    assert response.data["freshness_status"] == "critical"
+    assert response.data["is_gate_passed"] is False
