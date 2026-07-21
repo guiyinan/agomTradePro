@@ -7,7 +7,7 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_semantic_governance_migration_backfills_collected_key() -> None:
     """Existing effective keys become the initial collected-key evidence."""
 
@@ -40,9 +40,7 @@ def test_semantic_governance_migration_backfills_collected_key() -> None:
             "ai_capability",
             "CapabilityCatalogModel",
         )
-        migrated = new_catalog.objects.get(
-            capability_key="mcp_tool.replay_events"
-        )
+        migrated = new_catalog.objects.get(capability_key="mcp_tool.replay_events")
 
         assert migrated.collected_semantic_key == "legacy.mcp.replay_events"
     finally:

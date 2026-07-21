@@ -5,15 +5,13 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_realtime_alert_subscription_migration_is_reversible() -> None:
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
     try:
         executor.migrate([("realtime", "0001_alerts_subscriptions")])
-        apps = executor.loader.project_state(
-            [("realtime", "0001_alerts_subscriptions")]
-        ).apps
+        apps = executor.loader.project_state([("realtime", "0001_alerts_subscriptions")]).apps
         alert_model = apps.get_model("realtime", "PriceAlertModel")
         subscription_model = apps.get_model("realtime", "PriceSubscriptionModel")
         assert alert_model._meta.db_table == "realtime_price_alert"

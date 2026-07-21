@@ -5,15 +5,13 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_event_replay_run_migration_is_reversible() -> None:
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
     try:
         executor.migrate([("events", "0004_event_replay_run")])
-        apps = executor.loader.project_state(
-            [("events", "0004_event_replay_run")]
-        ).apps
+        apps = executor.loader.project_state([("events", "0004_event_replay_run")]).apps
         model = apps.get_model("events", "EventReplayRunModel")
         assert model._meta.db_table == "event_replay_run"
         assert any(
