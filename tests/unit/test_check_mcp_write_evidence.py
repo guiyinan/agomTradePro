@@ -136,6 +136,42 @@ def test_validate_write_evidence_accepts_internal_handler_write():
     assert summary["internal_handler_manifests"] == 1
 
 
+def test_validate_write_evidence_accepts_exhaustive_catalog_projection_matrix():
+    """A registry-wide alias matrix is evidence without per-manifest string duplication."""
+
+    module = _load_module()
+    manifest = _manifest(
+        "account.import.positions",
+        executor_ref="import_positions_json",
+        legacy_tool_names=("import_positions_json",),
+    )
+    matrix_test_text = """
+GOVERNED_MANIFESTS = load_manifests()
+def test_governed_manifest_legacy_projection_matrix_preserves_every_alias():
+    build_legacy_replacement_map(GOVERNED_MANIFESTS)
+    for manifest in GOVERNED_MANIFESTS:
+        for legacy_tool_name in manifest.legacy_tool_names:
+            legacy.execution_target["replacement_capability_key"] == manifest.capability_key
+"""
+
+    summary = module.validate_write_evidence_manifests(
+        [manifest],
+        raw_tool_index={"import_positions_json": "sdk/agomtradepro_mcp/tools/account_tools.py"},
+        server_evidence_index={
+            "function_bodies": {
+                "_fallback_import_positions_json": "AgomTradeProClient\nclient.account.import_positions"
+            },
+            "legacy_fallbacks": {"import_positions_json": "_fallback_import_positions_json"},
+            "internal_handlers": {},
+        },
+        core_registry_text="account.import.positions",
+        ai_capability_text=matrix_test_text,
+        unsupported_contract_keys=set(),
+    )
+
+    assert summary["contract_test_evidence_manifests"] == 1
+
+
 def test_server_evidence_loads_handlers_split_from_server_module():
     module = _load_module()
 

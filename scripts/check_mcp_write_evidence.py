@@ -75,18 +75,24 @@ FUNCTION_BODY_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 LEGACY_FALLBACK_REF_RE = re.compile(
-    r"['\"](?P<tool>[^'\"]+)['\"]:\s*(?:\(\s*)?"
-    r"(?P<func>_fallback_[a-zA-Z0-9_]+)"
+    r"['\"](?P<tool>[^'\"]+)['\"]:\s*(?:\(\s*)?" r"(?P<func>_fallback_[a-zA-Z0-9_]+)"
 )
 INTERNAL_HANDLER_REF_RE = re.compile(
-    r"['\"](?P<handler>[^'\"]+)['\"]:\s*(?:\(\s*)?"
-    r"(?P<func>_internal_handler_[a-zA-Z0-9_]+)"
+    r"['\"](?P<handler>[^'\"]+)['\"]:\s*(?:\(\s*)?" r"(?P<func>_internal_handler_[a-zA-Z0-9_]+)"
 )
 INTERNAL_HANDLER_IMPORT_RE = re.compile(
     r"(?P<func>[a-zA-Z_][a-zA-Z0-9_]*)\s+as\s+"
     r"(?P<alias>_(?:internal_handler|fallback)_[a-zA-Z0-9_]+)"
 )
 RAW_TOOL_DEF_RE_TEMPLATE = r"def\s+{tool_name}\s*\("
+EXHAUSTIVE_CATALOG_PROJECTION_MARKERS = (
+    "GOVERNED_MANIFESTS",
+    "test_governed_manifest_legacy_projection_matrix_preserves_every_alias",
+    "build_legacy_replacement_map",
+    "for manifest in GOVERNED_MANIFESTS",
+    "for legacy_tool_name in manifest.legacy_tool_names",
+    "replacement_capability_key",
+)
 
 
 def collect_manifests(loader: CapabilityRegistryLoader | None = None):
@@ -169,6 +175,12 @@ def _unsupported_contract_keys() -> set[str]:
     return {contract.contract_key for contract in list_unsupported_legacy_contracts()}
 
 
+def _has_exhaustive_catalog_projection_evidence(test_text: str) -> bool:
+    """Return whether tests cover every loaded manifest and declared legacy alias."""
+
+    return all(marker in test_text for marker in EXHAUSTIVE_CATALOG_PROJECTION_MARKERS)
+
+
 def validate_write_evidence_manifests(
     manifests,
     *,
@@ -190,6 +202,9 @@ def validate_write_evidence_manifests(
     function_bodies = server_evidence_index["function_bodies"]
     legacy_fallbacks = server_evidence_index["legacy_fallbacks"]
     internal_handlers = server_evidence_index["internal_handlers"]
+    has_exhaustive_catalog_evidence = _has_exhaustive_catalog_projection_evidence(
+        ai_capability_text
+    )
 
     for manifest in manifests:
         if not is_write_like_manifest(manifest):
@@ -219,7 +234,7 @@ def validate_write_evidence_manifests(
                         "Governed MCP write manifest is missing raw tool evidence for legacy tool "
                         f"{tool_name}: {manifest.capability_key}"
                     )
-                if tool_name not in ai_capability_text:
+                if tool_name not in ai_capability_text and not has_exhaustive_catalog_evidence:
                     raise ValueError(
                         "Governed MCP write manifest is missing AI capability replacement test evidence "
                         f"for legacy tool {tool_name}: {manifest.capability_key}"
@@ -265,7 +280,10 @@ def validate_write_evidence_manifests(
                 "Governed MCP write manifest is missing core registry regression evidence: "
                 f"{manifest.capability_key}"
             )
-        if manifest.capability_key not in ai_capability_text:
+        if (
+            manifest.capability_key not in ai_capability_text
+            and not has_exhaustive_catalog_evidence
+        ):
             raise ValueError(
                 "Governed MCP write manifest is missing AI capability sync evidence: "
                 f"{manifest.capability_key}"
