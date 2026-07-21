@@ -26,6 +26,36 @@
 
 > This section is maintained day by day and should focus on user-visible changes from the last 1-7 days.
 
+### 2026-07-21
+
+- TUI information architecture is now consolidated into an independent, versioned configuration source of truth; task-screen navigation, default actions, and contextual behavior share the same IA rules, backed by static-contract, accessibility, and security gates
+- VPS deployment now publishes and verifies TUI metadata together with the release, reducing drift between application code, the runtime manifest, and the published operation graph
+- MCP write-evidence checks are now generalized, while Alpha API, remote-dependency, and seed-migration tests have been isolated to make Nightly and CI more reliable in offline and replay scenarios
+
+### 2026-07-20
+
+- Maintainability stages R2 and R3-lite are closed out: a dedicated `valuation` module now owns valuation entities, rules, use cases, and repositories while preserving the existing Decision Rhythm integration surface
+- Readiness evidence, acceptance checks, scheduler state, and management commands have moved into the dedicated `operational_readiness` module; legacy `task_monitor` paths remain as compatibility forwarders
+- UAT and production paths received a focused hardening pass covering Regime, Dashboard, and Rotation API contracts, market-data freshness, unit governance, PostgreSQL 16 backup tooling, daily backup scheduling, and stronger CI/security gates
+
+### 2026-07-19
+
+- Macro reads now converge on the canonical macro fact source of truth, so Regime calculation, CPI projections, and deployment checks share the same governance boundary; Regime calculation also supports read-only environments
+- Large-file and single-owner remediation is effectively closed: Account ORM, Audit, Policy, Strategy, Equity, Data Center, and Decision Rhythm hot spots were split by responsibility, and the large-file exemption list is now empty
+- Data-provider abstractions, mypy module exemptions, and test isolation were tightened further, improving repeatability across fast-feedback CI and Data Center regression suites
+
+### 2026-07-18
+
+- TUI Workbench completed a user-facing remediation pass with operational navigation, contextual row actions, and regression coverage across narrow, wide, embedded-host, and accessibility layouts
+- Agent MCP execution, Terminal provider routing, and MCP welcome/self-service contracts were hardened further, including support for ingesting remote MCP audit evidence
+- VPS hot-update verification and realtime routing contracts are more robust, while Data Center use cases and Decision Rhythm models were split further to reduce large-file maintenance cost
+
+### 2026-07-17
+
+- The SQLite → PostgreSQL migration path now preserves all app data, macro-source provenance, and configuration through streaming migration, without triggering extra provisioning while fixtures are being migrated
+- Production Realtime now delivers over WebSockets and routes its page entry through TUI Workbench; the MCP self-service page and global TUI layout also gained fixed contracts and regression gates
+- A verified VPS PostgreSQL workflow now creates custom-format backups, downloads them over SFTP, and checks SHA-256 integrity; remote deployment streaming and TLS hostname validation were hardened in the same pass
+
 ### 2026-07-05
 
 - `0.8.0` is now the formal public release line, with version/build metadata unified across code, docs, README, and agent guidance as `0.8.0-build.20260705`
@@ -165,9 +195,12 @@ If what you want is not “another dashboard” but “a base for building your 
 > The more accurate way to read it right now is as a system that is gradually becoming a **data foundation and decision framework for AI**, rather than a frozen SaaS product; public updates will continue refining the UI, interaction flow, monitoring, and documentation.
 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
-- The new primary flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage
-- AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
-- Still being improved: more public demo paths, documentation polish, operations automation, and follow-up architecture debt reduction
+- The primary user flow is in place: Dashboard daily mode + Decision Workspace decision mode + Regime Navigator / Pulse linkage + TUI Operator / MCP Governance Center
+- AI-native surfaces are already in place: **governed MCP, Agents SDK Terminal, Agent Runtime, Capability Catalog**
+- The production operations loop keeps expanding: price streams, WebSockets, alert subscriptions, controlled event replay, task monitoring, and readiness evidence now share a governed path
+- Module ownership is more explicit: valuation and production-readiness acceptance now live in `valuation` and `operational_readiness`
+- Architecture governance remains strict: app-level bidirectional dependencies, cycle components, and large-file exemptions are all currently at zero
+- Still being improved: more public demo paths, README/docs internationalization, AgomTUI portability, and operations automation
 
 ---
 
@@ -382,6 +415,7 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 | **Policy Gate** | Tracks fiscal/monetary policy events and their impact on risk appetite |
 | **Signal Manager** | Creates, validates, and tracks investment signals with mandatory invalidation logic |
 | **Decision Workflow** | Pre-check → approval → execution pipeline with rhythm constraints |
+| **Valuation Engine** | Valuation snapshots, price bands, quality rules, and freshness checks |
 | **Backtest Engine** | Historical validation with Brinson attribution analysis |
 | **Audit System** | Post-trade review with full decision trace and performance attribution |
 
@@ -389,9 +423,10 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 | Module | What It Does |
 |--------|-------------|
 | **Simulated Trading** | Paper trading with margin tracking and daily inspection |
-| **Real-time Monitor** | Price alerts, top movers, market surveillance |
+| **Real-time Monitor** | Live price streams, WebSockets, price alerts, and subscription management |
 | **Strategy System** | DB-driven position rules, strategy binding per portfolio |
 | **Sector Rotation** | Regime-based sector allocation recommendations |
+| **Operational Readiness** | Scheduler state, readiness evidence, continuous-window acceptance, and repair commands |
 
 ### AI & Smart Analysis
 | Module | What It Does |
@@ -415,11 +450,134 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 
 AgomTradePro is not a bundle of pages and APIs. It is designed more like an **investment operating system**:
 
+### System Overview
+
+```mermaid
+flowchart TB
+    SOURCE["External data sources<br/>Tushare · AKShare · QMT · RSS"]
+
+    subgraph ACCESS["User and Integration Entry Points"]
+        direction LR
+        SETUP["setup_wizard<br/>First-run setup and initialization"]
+        DASH["dashboard<br/>Research and decision overview"]
+        TUI["terminal<br/>TUI / AI operations console"]
+        OPENAPI["HTTP API · Python SDK · MCP"]
+    end
+
+    subgraph AI["AI Capabilities and Agent Orchestration"]
+        direction LR
+        PROVIDER["ai_provider<br/>Model services and credentials"]
+        PROMPT["prompt<br/>Prompt templates"]
+        AGENT["agent_runtime<br/>Task orchestration and approval execution"]
+        CAPABILITY["ai_capability<br/>Capability catalog and unified routing"]
+    end
+
+    subgraph DATA["Data and Event Foundation"]
+        direction LR
+        CONFIG["config_center<br/>Global runtime configuration"]
+        DATA_CENTER["data_center<br/>Ingestion, normalization, and canonical truth"]
+        MACRO["macro<br/>Macro sync and domain semantics"]
+        MARKET["equity · fund · sector<br/>Equity, fund, and sector data"]
+        REALTIME["realtime<br/>Live prices, WebSockets, and alerts"]
+        EVENT_SENTIMENT["events · sentiment<br/>Events and market sentiment"]
+    end
+
+    subgraph RESEARCH["Research and Analysis"]
+        direction LR
+        REGIME["regime<br/>Growth × inflation quadrant"]
+        POLICY["policy<br/>Fiscal / monetary policy stance"]
+        PULSE["pulse<br/>Tactical indicators and inflection alerts"]
+        FACTOR_ALPHA["factor · alpha<br/>Factor evaluation and AI stock selection"]
+        ASSET_VALUATION["asset_analysis · valuation<br/>General analysis, snapshots, and price bands"]
+        ROTATION_HEDGE["rotation · hedge<br/>Sector rotation and portfolio hedging"]
+        BACKTEST["backtest<br/>Historical validation and strategy evaluation"]
+    end
+
+    subgraph DECISION["Signals, Constraints, and Strategy"]
+        direction LR
+        SIGNAL["signal<br/>Investment thesis and invalidation logic"]
+        GATES["beta_gate · alpha_trigger<br/>Macro gate and discrete triggers"]
+        RHYTHM["decision_rhythm<br/>Decision cadence, workspace, and approval"]
+        RISK["risk_center<br/>Risk rules and state"]
+        STRATEGY["strategy<br/>Strategy orchestration and position rules"]
+        FILTER["filter<br/>Deprecated screening compatibility surface"]
+    end
+
+    subgraph EXECUTION["Accounts, Execution, and Review"]
+        direction LR
+        ACCOUNT["account<br/>Identity and portfolio views"]
+        TRADING["simulated_trading<br/>Paper trading and automated execution"]
+        SHARE["share<br/>Decision snapshots and sharing"]
+        AUDIT["audit<br/>Audit, attribution, and review"]
+    end
+
+    subgraph OPS["Async Tasks and Production Readiness"]
+        direction LR
+        TASKS["task_monitor<br/>Celery tasks and scheduler state"]
+        READINESS["operational_readiness<br/>Evidence, continuous-window acceptance, and repair"]
+    end
+
+    SOURCE --> DATA_CENTER
+    DATA_CENTER --> MACRO
+    DATA_CENTER --> MARKET
+    DATA_CENTER --> REALTIME
+    DATA_CENTER --> EVENT_SENTIMENT
+
+    MACRO --> REGIME
+    MACRO --> POLICY
+    REGIME --> PULSE
+    MARKET --> FACTOR_ALPHA
+    MARKET --> ASSET_VALUATION
+    MARKET --> ROTATION_HEDGE
+    EVENT_SENTIMENT --> POLICY
+    EVENT_SENTIMENT --> SIGNAL
+
+    FACTOR_ALPHA --> SIGNAL
+    ASSET_VALUATION --> SIGNAL
+    REGIME --> GATES
+    POLICY --> GATES
+    SIGNAL --> GATES
+    GATES --> RHYTHM
+    PULSE --> RHYTHM
+    RISK --> RHYTHM
+    RHYTHM --> STRATEGY
+    ROTATION_HEDGE --> STRATEGY
+    BACKTEST --> STRATEGY
+    FILTER -.->|compatibility migration| ASSET_VALUATION
+
+    STRATEGY --> TRADING
+    TRADING --> ACCOUNT
+    RHYTHM --> SHARE
+    ACCOUNT --> AUDIT
+    STRATEGY --> AUDIT
+    AUDIT -.->|feedback| BACKTEST
+
+    SETUP --> CONFIG
+    SETUP --> PROVIDER
+    DASH --> DATA_CENTER
+    DASH --> RHYTHM
+    TUI --> AGENT
+    OPENAPI --> CAPABILITY
+    PROVIDER --> AGENT
+    PROMPT --> AGENT
+    AGENT --> CAPABILITY
+    CAPABILITY --> DATA_CENTER
+    CAPABILITY --> RHYTHM
+    CAPABILITY --> STRATEGY
+
+    CONFIG -.->|runtime configuration| DATA_CENTER
+    CONFIG -.->|runtime configuration| AGENT
+    CONFIG -.->|risk parameters| RISK
+    REALTIME -.->|async tasks| TASKS
+    TRADING -.->|async tasks| TASKS
+    AGENT -.->|async tasks| TASKS
+    TASKS --> READINESS
+    DATA_CENTER -.->|data-quality evidence| READINESS
+    REALTIME -.->|runtime state| READINESS
+    READINESS -.->|acceptance result| DASH
 ```
-Data sources → Macro judgment → Policy filter → Signal generation → Decision constraints → Approval/execution → Audit/review
-                ↓                ↓                ↓                  ↓
-             Regime           Policy           Signal          Workflow / Audit
-```
+
+Solid arrows show the primary data and decision-execution flow. Dashed arrows show configuration, asynchronous work, governance evidence, or compatibility relationships.
 
 That matters because when you fork it, you do not need to rewrite the whole thing. You can keep the existing seams and grow from there.
 
@@ -428,7 +586,8 @@ That matters because when you fork it, you do not need to rewrite the whole thin
 - **Macro layer**: `macro`, `regime`, `policy` answer "what environment are we in?"
 - **Decision layer**: `signal`, `beta_gate`, `alpha_trigger`, `decision_rhythm` answer "should we act now?"
 - **Execution layer**: `strategy`, `simulated_trading`, `realtime` answer "how do we execute and monitor it?"
-- **Analysis layer**: `backtest`, `audit`, `factor`, `rotation`, `hedge` answer "why did it work, and what failed?"
+- **Analysis layer**: `valuation`, `backtest`, `audit`, `factor`, `rotation`, `hedge` answer "is it worth it, why did it work, and what failed?"
+- **Platform layer**: `data_center`, `config_center`, `risk_center`, `task_monitor`, `operational_readiness` unify data, configuration, risk, and runtime evidence
 - **AI layer**: `terminal`, `agent_runtime`, `ai_capability`, `prompt`, `ai_provider` answer "how do real agents plug into the system?"
 
 ### 2. Technical Architecture

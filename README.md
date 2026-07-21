@@ -26,6 +26,36 @@
 
 > 这个区域按天维护，优先记录最近 1-7 天内对外可见、值得关注的变化。
 
+### 2026-07-21
+
+- TUI 信息架构收口为独立、可版本化的配置真源，任务页导航、默认操作和上下文行为由同一套 IA 规则驱动，并补齐静态契约、可访问性与安全门禁
+- VPS 部署现在会同步发布并校验 TUI metadata，降低代码、runtime manifest 与已发布操作图之间的版本漂移
+- MCP 写操作证据检查已泛化，Alpha API、远程依赖与种子迁移测试完成隔离，Nightly / CI 在离线和重放场景下更稳定
+
+### 2026-07-20
+
+- 可维护性 R2 与 R3-lite 阶段收口：新增独立 `valuation` 模块，将估值实体、规则、用例和仓储从 Decision Rhythm 的兼容承载中拆出，同时保留现有集成面
+- Readiness 证据、验收、调度状态与管理命令迁入独立 `operational_readiness` 模块；旧 `task_monitor` 路径保留兼容转发，模块责任更清晰
+- UAT 与生产链路完成一轮集中加固：修复 Regime / Dashboard / Rotation 等 API 契约和市场数据新鲜度问题，补齐单位治理、PostgreSQL 16 备份工具、每日备份调度及更严格的 CI / 安全扫描门禁
+
+### 2026-07-19
+
+- 宏观数据读链统一到 canonical macro fact 真源，Regime 计算、CPI 投影与部署校验共用一致的治理边界，并支持只读场景下的 Regime 计算
+- 大文件与单点职责整改基本清零：Account ORM、Audit、Policy、Strategy、Equity、Data Center 与 Decision Rhythm 等高风险文件按 owner 拆分，大文件豁免列表已清空
+- 数据 provider 抽象、mypy 模块豁免与测试隔离继续收口，快速反馈 CI 和数据中心回归的可重复性更好
+
+### 2026-07-18
+
+- TUI Workbench 完成一轮用户面整改：新增运维导航面，行操作在任务上下文中保持可见，并补齐窄屏、宽屏、嵌入宿主和可访问性回归
+- Agent MCP 执行、Terminal provider 路由与 MCP 欢迎/自助契约进一步加固，并支持远程 MCP 审计证据回传
+- VPS 热更新验证与实时路由契约更稳定；Data Center 用例和 Decision Rhythm 模型拆分继续降低大文件维护成本
+
+### 2026-07-17
+
+- SQLite → PostgreSQL 迁移链完成关键修复：采用流式迁移保留全部 App 数据、宏观数据来源证据与配置，并避免 fixture 迁移期间触发额外初始化
+- 生产 Realtime 链路已打通 WebSocket 交付，页面入口统一进入 TUI Workbench；MCP 自助页和全局 TUI 布局也增加了固定契约与回归门禁
+- 新增 VPS PostgreSQL 自定义格式备份、SFTP 下载与 SHA-256 校验工作流，同时加固远程部署输出与 TLS 域名校验
+
 ### 2026-07-16
 
 - TUI runtime 发布链继续稳定化：运行时清单现在记录明确的源提交并做确定性校验，bundle 换行符问题已收口；Dashboard 滚动、行详情渲染和上游 runtime 性能也完成一轮修复
@@ -262,9 +292,10 @@ AgomTradePro 和大多数“量化工具 / AI 投研 demo / 股票分析面板�
 - 核心宏观准入链路已可用：Regime / Policy / Signal / 审批 / 执行 / 审计
 - 用户工作流主线已落地：Dashboard 日常模式 + Decision Workspace 决策模式 + Regime Navigator / Pulse 联动 + TUI Operator / MCP 治理中心
 - AI 原生能力已成型：**治理化 MCP、Agents SDK Terminal、Agent Runtime、Capability Catalog**
-- 实时运行能力继续扩展：价格流、WebSocket、告警订阅、受控事件回放与任务监控已进入统一治理链路
-- 架构治理保持硬约束：App 级双向依赖与循环组件当前均已清零，大文件整改由机器基线持续跟踪
-- 仍在持续完善：更多 public demo 场景、README/文档国际化、运维自动化与剩余大文件治理
+- 生产运行闭环继续完善：价格流、WebSocket、告警订阅、受控事件回放、任务监控与 readiness 证据已进入统一治理链路
+- 模块职责进一步独立：估值引擎与生产就绪验收分别收口到 `valuation` 和 `operational_readiness`
+- 架构治理保持硬约束：App 级双向依赖、循环组件与大文件治理豁免当前均已清零
+- 仍在持续完善：更多 public demo 场景、README/文档国际化、AgomTUI 可移植性与运维自动化
 
 ---
 
@@ -573,6 +604,7 @@ PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹�
 | **Policy 闸门** | 追踪财政/货币政策事件，评估对风险偏好的影响 |
 | **信号管理器** | 创建、验证、追踪投资信号，强制要求证伪逻辑 |
 | **决策工作流** | 预检 → 审批 → 执行流水线，带频率约束 |
+| **估值引擎** | 估值快照、价格带、质量与新鲜度规则 |
 | **回测引擎** | 历史验证，支持 Brinson 归因分析 |
 | **审计系统** | 事后复盘，完整决策链路追踪和绩效归因 |
 
@@ -580,9 +612,10 @@ PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹�
 | 模块 | 做什么 |
 |------|--------|
 | **模拟交易** | 模拟盘交易，保证金追踪，每日巡检 |
-| **实时监控** | 价格预警、涨跌排行、市场监控 |
+| **实时监控** | 实时价格流、WebSocket、价格预警与订阅管理 |
 | **策略系统** | 数据库驱动的仓位规则，按组合绑定策略 |
 | **板块轮动** | 基于 Regime 的板块配置建议 |
+| **生产就绪验收** | 调度状态、readiness 证据、连续窗口验收与修复命令 |
 
 ### AI 与智能分析
 | 模块 | 做什么 |
@@ -606,11 +639,134 @@ PMI 发布了、CPI 出来了、M2 又变了、政策又吹风了…… 你淹�
 
 AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投资操作系统**”的思路来设计：
 
+### 系统全景图
+
+```mermaid
+flowchart TB
+    SOURCE["外部数据源<br/>Tushare · AKShare · QMT · RSS"]
+
+    subgraph ACCESS["用户与集成入口"]
+        direction LR
+        SETUP["setup_wizard<br/>首次安装与初始化"]
+        DASH["dashboard<br/>研究与决策总览"]
+        TUI["terminal<br/>TUI / AI 操作台"]
+        OPENAPI["HTTP API · Python SDK · MCP"]
+    end
+
+    subgraph AI["AI 能力与 Agent 编排"]
+        direction LR
+        PROVIDER["ai_provider<br/>模型服务与密钥"]
+        PROMPT["prompt<br/>Prompt 模板"]
+        AGENT["agent_runtime<br/>任务编排与审批执行"]
+        CAPABILITY["ai_capability<br/>能力目录与统一路由"]
+    end
+
+    subgraph DATA["数据与事件底座"]
+        direction LR
+        CONFIG["config_center<br/>全局运行时配置"]
+        DATA_CENTER["data_center<br/>接入、标准化与 canonical 真源"]
+        MACRO["macro<br/>宏观同步与领域语义"]
+        MARKET["equity · fund · sector<br/>证券、基金与板块数据"]
+        REALTIME["realtime<br/>实时价格、WebSocket 与告警"]
+        EVENT_SENTIMENT["events · sentiment<br/>事件与舆情"]
+    end
+
+    subgraph RESEARCH["研究与分析"]
+        direction LR
+        REGIME["regime<br/>增长 × 通胀象限"]
+        POLICY["policy<br/>财政 / 货币政策档位"]
+        PULSE["pulse<br/>战术指标与转折预警"]
+        FACTOR_ALPHA["factor · alpha<br/>因子评估与 AI 选股"]
+        ASSET_VALUATION["asset_analysis · valuation<br/>通用分析、估值快照与价格带"]
+        ROTATION_HEDGE["rotation · hedge<br/>板块轮动与组合对冲"]
+        BACKTEST["backtest<br/>历史验证与策略评估"]
+    end
+
+    subgraph DECISION["信号、约束与策略"]
+        direction LR
+        SIGNAL["signal<br/>投资逻辑与证伪条件"]
+        GATES["beta_gate · alpha_trigger<br/>宏观闸门与离散触发"]
+        RHYTHM["decision_rhythm<br/>决策频率、工作区与审批"]
+        RISK["risk_center<br/>风险规则与状态"]
+        STRATEGY["strategy<br/>策略编排与仓位规则"]
+        FILTER["filter<br/>旧筛选兼容面（已弃用）"]
+    end
+
+    subgraph EXECUTION["账户、执行与复盘"]
+        direction LR
+        ACCOUNT["account<br/>账户身份与持仓视图"]
+        TRADING["simulated_trading<br/>模拟交易与自动执行"]
+        SHARE["share<br/>决策快照与分享"]
+        AUDIT["audit<br/>审计、归因与复盘"]
+    end
+
+    subgraph OPS["异步任务与生产就绪"]
+        direction LR
+        TASKS["task_monitor<br/>Celery 任务与调度状态"]
+        READINESS["operational_readiness<br/>证据、连续窗口验收与修复"]
+    end
+
+    SOURCE --> DATA_CENTER
+    DATA_CENTER --> MACRO
+    DATA_CENTER --> MARKET
+    DATA_CENTER --> REALTIME
+    DATA_CENTER --> EVENT_SENTIMENT
+
+    MACRO --> REGIME
+    MACRO --> POLICY
+    REGIME --> PULSE
+    MARKET --> FACTOR_ALPHA
+    MARKET --> ASSET_VALUATION
+    MARKET --> ROTATION_HEDGE
+    EVENT_SENTIMENT --> POLICY
+    EVENT_SENTIMENT --> SIGNAL
+
+    FACTOR_ALPHA --> SIGNAL
+    ASSET_VALUATION --> SIGNAL
+    REGIME --> GATES
+    POLICY --> GATES
+    SIGNAL --> GATES
+    GATES --> RHYTHM
+    PULSE --> RHYTHM
+    RISK --> RHYTHM
+    RHYTHM --> STRATEGY
+    ROTATION_HEDGE --> STRATEGY
+    BACKTEST --> STRATEGY
+    FILTER -.->|兼容迁移| ASSET_VALUATION
+
+    STRATEGY --> TRADING
+    TRADING --> ACCOUNT
+    RHYTHM --> SHARE
+    ACCOUNT --> AUDIT
+    STRATEGY --> AUDIT
+    AUDIT -.->|反馈| BACKTEST
+
+    SETUP --> CONFIG
+    SETUP --> PROVIDER
+    DASH --> DATA_CENTER
+    DASH --> RHYTHM
+    TUI --> AGENT
+    OPENAPI --> CAPABILITY
+    PROVIDER --> AGENT
+    PROMPT --> AGENT
+    AGENT --> CAPABILITY
+    CAPABILITY --> DATA_CENTER
+    CAPABILITY --> RHYTHM
+    CAPABILITY --> STRATEGY
+
+    CONFIG -.->|运行时配置| DATA_CENTER
+    CONFIG -.->|运行时配置| AGENT
+    CONFIG -.->|风险参数| RISK
+    REALTIME -.->|异步任务| TASKS
+    TRADING -.->|异步任务| TASKS
+    AGENT -.->|异步任务| TASKS
+    TASKS --> READINESS
+    DATA_CENTER -.->|数据质量证据| READINESS
+    REALTIME -.->|运行状态| READINESS
+    READINESS -.->|验收结果| DASH
 ```
-数据源 → 宏观判定 → 政策过滤 → 信号生成 → 决策约束 → 审批执行 → 审计复盘
-         ↓             ↓             ↓             ↓
-      Regime        Policy        Signal      Workflow / Audit
-```
+
+实线表示主数据流和决策执行链，虚线表示配置、异步任务、治理证据或兼容关系。
 
 这意味着你 Fork 之后，不必推翻重写，只需要沿着现有边界继续加能力。
 
@@ -619,7 +775,8 @@ AgomTradePro 不是把几个页面和几个 API 拼在一起，而是按“**投
 - **宏观层**：`macro`、`regime`、`policy` 负责回答“现在是什么环境”
 - **决策层**：`signal`、`beta_gate`、`alpha_trigger`、`decision_rhythm` 负责回答“现在该不该做”
 - **执行层**：`strategy`、`simulated_trading`、`realtime` 负责回答“怎么执行、怎么跟踪”
-- **分析层**：`backtest`、`audit`、`factor`、`rotation`、`hedge` 负责回答“为什么有效、哪里错了”
+- **分析层**：`valuation`、`backtest`、`audit`、`factor`、`rotation`、`hedge` 负责回答“值不值得、为什么有效、哪里错了”
+- **平台层**：`data_center`、`config_center`、`risk_center`、`task_monitor`、`operational_readiness` 负责统一数据、配置、风险与运行证据
 - **AI 层**：`terminal`、`agent_runtime`、`ai_capability`、`prompt`、`ai_provider` 负责回答“怎么让 Agent 真正接进来”
 
 ### 2. 技术架构：严格 DDD 四层
