@@ -14,6 +14,8 @@ def test_macro_governance_closure_repairs_seeds_and_backfills_metadata() -> None
     executor = MigrationExecutor(connection)
     leaf_nodes = executor.loader.graph.leaf_nodes()
     try:
+        executor.migrate([("data_center", "0030_seed_market_thermometer_inputs")])
+        executor = MigrationExecutor(connection)
         executor.migrate([("data_center", "0032_productioncoverageuniverseconfigmodel")])
         old_apps = executor.loader.project_state(
             [("data_center", "0032_productioncoverageuniverseconfigmodel")]
