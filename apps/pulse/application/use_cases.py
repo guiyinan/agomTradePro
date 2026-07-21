@@ -164,11 +164,15 @@ class GetLatestPulseUseCase:
             repo = get_pulse_repository()
             snapshot = repo.get_latest_snapshot()
 
-            if snapshot and _is_snapshot_usable(
-                snapshot,
-                target_date=target_date,
-                require_reliable=require_reliable,
-                max_age_days=max_age_days,
+            if (
+                snapshot
+                and _is_snapshot_usable(
+                    snapshot,
+                    target_date=target_date,
+                    require_reliable=require_reliable,
+                    max_age_days=max_age_days,
+                )
+                and (not refresh_if_stale or snapshot.is_reliable)
             ):
                 return snapshot
 

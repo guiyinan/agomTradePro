@@ -17,19 +17,23 @@ class PulseRepository:
         # 序列化指标明细
         readings_data = []
         for r in snapshot.indicator_readings:
-            readings_data.append({
-                "code": r.code,
-                "name": r.name,
-                "dimension": r.dimension,
-                "value": r.value,
-                "z_score": r.z_score,
-                "direction": r.direction,
-                "signal": r.signal,
-                "signal_score": r.signal_score,
-                "weight": r.weight,
-                "data_age_days": r.data_age_days,
-                "is_stale": r.is_stale,
-            })
+            readings_data.append(
+                {
+                    "code": r.code,
+                    "name": r.name,
+                    "dimension": r.dimension,
+                    "value": r.value,
+                    "z_score": r.z_score,
+                    "direction": r.direction,
+                    "signal": r.signal,
+                    "signal_score": r.signal_score,
+                    "weight": r.weight,
+                    "data_age_days": r.data_age_days,
+                    "is_stale": r.is_stale,
+                    "observed_at": r.observed_at.isoformat() if r.observed_at else None,
+                    "source_kind": r.source_kind,
+                }
+            )
 
         defaults = {
             "regime_context": snapshot.regime_context,
@@ -79,21 +83,26 @@ class PulseRepository:
         """将 PulseLog ORM 实例转换回 PulseSnapshot 域对象"""
         # 重建指标读数
         readings = []
-        for r in (log.indicator_readings or []):
+        for r in log.indicator_readings or []:
             if isinstance(r, dict):
-                readings.append(PulseIndicatorReading(
-                    code=r.get("code", ""),
-                    name=r.get("name", ""),
-                    dimension=r.get("dimension", ""),
-                    value=r.get("value", 0.0),
-                    z_score=r.get("z_score", 0.0),
-                    direction=r.get("direction", "stable"),
-                    signal=r.get("signal", "neutral"),
-                    signal_score=r.get("signal_score", 0.0),
-                    weight=r.get("weight", 1.0),
-                    data_age_days=r.get("data_age_days", 0),
-                    is_stale=r.get("is_stale", False),
-                ))
+                reading_observed_at = _parse_date(r.get("observed_at"))
+                readings.append(
+                    PulseIndicatorReading(
+                        code=r.get("code", ""),
+                        name=r.get("name", ""),
+                        dimension=r.get("dimension", ""),
+                        value=r.get("value", 0.0),
+                        z_score=r.get("z_score", 0.0),
+                        direction=r.get("direction", "stable"),
+                        signal=r.get("signal", "neutral"),
+                        signal_score=r.get("signal_score", 0.0),
+                        weight=r.get("weight", 1.0),
+                        data_age_days=r.get("data_age_days", 0),
+                        is_stale=bool(r.get("is_stale", False)) or reading_observed_at is None,
+                        observed_at=reading_observed_at,
+                        source_kind=str(r.get("source_kind") or "legacy_unknown"),
+                    )
+                )
 
         score_by_dimension = {
             "growth": log.growth_score,
@@ -131,15 +140,26 @@ class PulseRepository:
         )
 
 
+def _parse_date(value: Any) -> date | None:
+    """Parse a JSON date while keeping legacy Pulse rows readable."""
+
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return date.fromisoformat(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
 class NavigatorAssetConfigRepository:
     """Navigator 资产配置仓储。"""
 
     def list_active_config_payloads(self) -> list[dict[str, Any]]:
         """返回激活配置的原始载荷，避免 Application 层直接接触 ORM。"""
         payloads: list[dict[str, Any]] = []
-        queryset = NavigatorAssetConfigModel.objects.filter(is_active=True).order_by(
-            "regime_name"
-        )
+        queryset = NavigatorAssetConfigModel.objects.filter(is_active=True).order_by("regime_name")
 
         for config in queryset:
             asset_weight_ranges: dict[str, tuple[float, float]] = {}

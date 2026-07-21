@@ -15,8 +15,20 @@ def test_agom_capability_call_reads_pulse_current_in_core_only_mode(
         "get_pulse_current",
         lambda **kwargs: {
             "composite_score": 0.73,
-            "observed_at": "2026-07-10T09:30:00+08:00",
-            "contract": {"must_not_use_for_decision": False},
+            "observed_at": "2026-07-10",
+            "indicators": [
+                {
+                    "code": "000300.SH",
+                    "value": 4739.23,
+                    "observed_at": "2026-07-10",
+                    "source_kind": "quote_current_price",
+                }
+            ],
+            "contract": {
+                "market_data_as_of": "2026-07-10",
+                "indicator_observed_at": {"000300.SH": "2026-07-10"},
+                "must_not_use_for_decision": False,
+            },
             "source": "core-only-fallback",
         },
     )
@@ -34,6 +46,8 @@ def test_agom_capability_call_reads_pulse_current_in_core_only_mode(
     rendered = str(result)
     assert "pulse.read.current" in rendered
     assert "0.73" in rendered
+    assert "quote_current_price" in rendered
+    assert "market_data_as_of" in rendered
     assert "core-only-fallback" in rendered
 
 

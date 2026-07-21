@@ -44,6 +44,8 @@ def _pulse_snapshot(
                 weight=1.0,
                 data_age_days=1,
                 is_stale=stale_indicator_count > 0,
+                observed_at=observed_at,
+                source_kind="macro_fact",
             )
         ],
         data_source=data_source,
@@ -62,6 +64,19 @@ def test_save_snapshot_updates_existing_observed_date():
     log = PulseLog.objects.get()
     assert log.composite_score == pytest.approx(-0.35)
     assert log.regime_strength == "weak"
+
+
+@pytest.mark.django_db
+def test_repository_round_trip_preserves_indicator_observation_metadata():
+    repo = PulseRepository()
+    repo.save_snapshot(_pulse_snapshot(observed_at=date(2026, 7, 21)))
+
+    restored = repo.get_latest_snapshot()
+
+    assert restored is not None
+    assert restored.indicator_readings[0].observed_at == date(2026, 7, 21)
+    assert restored.indicator_readings[0].source_kind == "macro_fact"
+    assert restored.indicator_readings[0].is_stale is False
 
 
 @pytest.mark.django_db
@@ -120,7 +135,9 @@ def test_get_latest_refreshes_stale_snapshot_when_requested(monkeypatch):
 
 @pytest.mark.django_db
 def test_calculate_pulse_skips_unknown_regime(monkeypatch):
-    def _fake_resolve_current_regime(*, as_of_date=None, data_source=None, use_pit=True, skip_cache=False):
+    def _fake_resolve_current_regime(
+        *, as_of_date=None, data_source=None, use_pit=True, skip_cache=False
+    ):
         return CurrentRegimeResult(
             dominant_regime="Unknown",
             confidence=0.0,

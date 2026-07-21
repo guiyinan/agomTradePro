@@ -38,6 +38,8 @@ def _pulse_snapshot() -> PulseSnapshot:
                 weight=1.0,
                 data_age_days=1,
                 is_stale=False,
+                observed_at=date(2026, 3, 24),
+                source_kind="macro_fact",
             )
         ],
         data_source="calculated",
@@ -73,6 +75,8 @@ def _stale_pulse_snapshot() -> PulseSnapshot:
                 weight=1.0,
                 data_age_days=3762,
                 is_stale=True,
+                observed_at=date(2016, 1, 1),
+                source_kind="macro_fact",
             ),
             PulseIndicatorReading(
                 code="000300.SH",
@@ -86,6 +90,8 @@ def _stale_pulse_snapshot() -> PulseSnapshot:
                 weight=1.0,
                 data_age_days=15,
                 is_stale=True,
+                observed_at=date(2026, 4, 6),
+                source_kind="price_bar_close",
             ),
         ],
         data_source="stale",
@@ -118,6 +124,12 @@ def test_pulse_current_api_contract(authenticated_client):
     assert dimensions["inflation"]["indicator_count"] == 0
     assert payload["data"]["must_not_use_for_decision"] is False
     assert payload["data"]["contract"]["must_not_use_for_decision"] is False
+    assert payload["data"]["indicators"][0]["observed_at"] == "2026-03-24"
+    assert payload["data"]["indicators"][0]["source_kind"] == "macro_fact"
+    assert payload["data"]["indicator_observed_at"] == {"CN_TERM_SPREAD_10Y2Y": "2026-03-24"}
+    assert payload["data"]["contract"]["indicator_observed_at"] == {
+        "CN_TERM_SPREAD_10Y2Y": "2026-03-24"
+    }
 
 
 @pytest.mark.django_db
@@ -137,6 +149,9 @@ def test_pulse_current_api_marks_stale_snapshot_as_diagnostic_only(authenticated
     assert payload["data"]["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
     assert contract["must_not_use_for_decision"] is True
     assert contract["stale_indicator_codes"] == ["CN_PMI", "000300.SH"]
+    assert payload["data"]["market_data_as_of"] == "2026-04-06"
+    assert contract["market_data_as_of"] == "2026-04-06"
+    assert contract["indicator_observed_at"]["000300.SH"] == "2026-04-06"
     assert "仅可用于诊断" in contract["blocked_reason"]
 
 

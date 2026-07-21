@@ -8,7 +8,8 @@ Pulse 数据提供者 — 从 macro 模块已入库的数据中读取指标。
 import logging
 import math
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from apps.data_center.infrastructure.macro_fact_selection import (
     configured_macro_source,
@@ -21,6 +22,7 @@ from apps.pulse.domain.entities import PulseConfig, PulseIndicatorReading
 from shared.date_utils import business_day_age
 
 logger = logging.getLogger(__name__)
+CN_MARKET_TIMEZONE = ZoneInfo("Asia/Shanghai")
 
 
 # ==================== Domain 层默认指标配置 ====================
@@ -42,6 +44,16 @@ class PulseIndicatorDef:
     bearish_threshold: float = -1.0
     neutral_band: float = 0.5  # |z| < neutral_band → neutral
     signal_multiplier: float = 0.4  # z_score → signal_score 的乘数
+
+
+@dataclass(frozen=True)
+class PulseSeriesPoint:
+    """One normalized source observation used by the Pulse calculator."""
+
+    observed_at: date
+    value: float
+    published_at: date | None
+    source_kind: str
 
 
 # Domain 层默认指标列表（用于 DB 无配置时 fallback）
@@ -217,7 +229,10 @@ class DjangoPulseDataProvider:
             if not series:
                 return None
 
-            observed_date, current_value, published_at = series[-1]
+            latest_point = series[-1]
+            observed_date = latest_point.observed_at
+            current_value = latest_point.value
+            published_at = latest_point.published_at
             freshness_anchor = published_at or observed_date
             # 判断是否过期
             stale_days = (
@@ -231,8 +246,17 @@ class DjangoPulseDataProvider:
                 else max((as_of_date - freshness_anchor).days, 0)
             )
             is_stale = data_age > stale_days
+            if (
+                self._is_asset_code(ind_def.code)
+                and as_of_date.weekday() < 5
+                and observed_date < as_of_date
+            ):
+                # A weekday market-sentiment reading must not masquerade as the
+                # current session merely because it is inside the generic
+                # seven-day tolerance used by other daily indicators.
+                is_stale = True
 
-            history = [value for _observed_at, value, _published_at in series]
+            history = [point.value for point in series]
 
             z_score = self._calculate_z_score(history, current_value)
             direction = self._determine_direction(history)
@@ -250,6 +274,8 @@ class DjangoPulseDataProvider:
                 weight=ind_def.weight,
                 data_age_days=data_age,
                 is_stale=is_stale,
+                observed_at=observed_date,
+                source_kind=latest_point.source_kind,
             )
 
         except Exception as e:
@@ -260,11 +286,14 @@ class DjangoPulseDataProvider:
         self,
         code: str,
         as_of_date: date,
-    ) -> list[tuple[date, float, date | None]]:
+    ) -> list[PulseSeriesPoint]:
         """Read Pulse inputs from Data Center facts before legacy macro tables."""
         lookback = as_of_date - timedelta(days=365)
         if self._is_asset_code(code):
-            from apps.data_center.infrastructure.models import PriceBarModel
+            from apps.data_center.infrastructure.models import (
+                PriceBarModel,
+                QuoteSnapshotModel,
+            )
 
             rows = (
                 PriceBarModel.objects.filter(
@@ -275,7 +304,41 @@ class DjangoPulseDataProvider:
                 .order_by("bar_date")
                 .values_list("bar_date", "close")
             )
-            return [(bar_date, float(close), None) for bar_date, close in rows]
+            series = [
+                PulseSeriesPoint(
+                    observed_at=bar_date,
+                    value=float(close),
+                    published_at=None,
+                    source_kind="price_bar_close",
+                )
+                for bar_date, close in rows
+            ]
+            quote_cutoff = datetime.combine(
+                as_of_date + timedelta(days=1),
+                time.min,
+                tzinfo=CN_MARKET_TIMEZONE,
+            ).astimezone(UTC)
+            latest_quote = (
+                QuoteSnapshotModel.objects.filter(
+                    asset_code=code,
+                    snapshot_at__lt=quote_cutoff,
+                )
+                .order_by("-snapshot_at")
+                .first()
+            )
+            if latest_quote is not None:
+                quote_date = latest_quote.snapshot_at.astimezone(CN_MARKET_TIMEZONE).date()
+                latest_bar_date = series[-1].observed_at if series else None
+                if latest_bar_date is None or quote_date > latest_bar_date:
+                    series.append(
+                        PulseSeriesPoint(
+                            observed_at=quote_date,
+                            value=float(latest_quote.current_price),
+                            published_at=quote_date,
+                            source_kind="quote_current_price",
+                        )
+                    )
+            return series
 
         if not self._is_pulse_direct_input_allowed(code):
             logger.warning(
@@ -301,7 +364,12 @@ class DjangoPulseDataProvider:
             logger.error("Blocked Pulse macro input %s: %s", code, selection.blocked_reason)
             return []
         return [
-            (fact.reporting_period, float(fact.value), fact.published_at)
+            PulseSeriesPoint(
+                observed_at=fact.reporting_period,
+                value=float(fact.value),
+                published_at=fact.published_at,
+                source_kind="macro_fact",
+            )
             for fact in selection.facts
         ]
 

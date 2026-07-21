@@ -30,6 +30,9 @@ def register_pulse_tools(server: FastMCP) -> None:
             - dimension_scores: 4 维度分数
             - transition_warning: 是否有转折预警
             - observed_at: 观测日期
+            - indicators[].observed_at: 每个指标值本身的实际数据日期
+            - indicators[].source_kind: 指标取值类型（实时快照或正式收盘等）
+            - contract.market_data_as_of: 市场情绪行情的实际数据日期
             - contract.must_not_use_for_decision: 当前快照是否禁止用于决策
             - contract.blocked_reason: 禁止用于决策时的原因
 

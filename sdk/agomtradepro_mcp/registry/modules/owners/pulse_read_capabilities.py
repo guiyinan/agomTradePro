@@ -26,6 +26,19 @@ MANIFESTS = [
             "type": "object",
             "properties": {
                 "composite_score": {"type": "number"},
+                "observed_at": {"type": "string"},
+                "market_data_as_of": {"type": ["string", "null"]},
+                "indicator_observed_at": {"type": "object"},
+                "indicators": {"type": "array"},
+                "contract": {
+                    "type": "object",
+                    "properties": {
+                        "market_data_as_of": {"type": ["string", "null"]},
+                        "indicator_observed_at": {"type": "object"},
+                        "must_not_use_for_decision": {"type": "boolean"},
+                        "blocked_reason": {"type": "string"},
+                    },
+                },
             },
             "required": [],
         },

@@ -33,5 +33,7 @@ class PulseSnapshotSerializer(serializers.Serializer):
     stale_indicator_codes = serializers.ListField(child=serializers.CharField())
     must_not_use_for_decision = serializers.BooleanField()
     blocked_reason = serializers.CharField(allow_blank=True)
+    market_data_as_of = serializers.DateField(allow_null=True)
+    indicator_observed_at = serializers.DictField(child=serializers.DateField(allow_null=True))
     contract = serializers.DictField()
     dimensions = serializers.DictField(child=PulseDimensionSerializer())

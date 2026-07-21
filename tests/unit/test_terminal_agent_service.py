@@ -278,6 +278,8 @@ def test_build_agent_instructions_use_compact_governed_discovery_summary():
     assert "terminal.search.user_actions" in instructions
     assert "execute it only through agom_capability_call" in instructions
     assert "Never call internal executor names" in instructions
+    assert "source observation date" in instructions
+    assert "must_not_use_for_decision=true" in instructions
     assert "account.read.capability_199" not in instructions
     assert "strategy.update.capability_99" not in instructions
     assert len(instructions) < 1_200

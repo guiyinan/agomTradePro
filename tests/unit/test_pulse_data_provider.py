@@ -1,8 +1,13 @@
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
-from apps.data_center.infrastructure.models import MacroFactModel, PriceBarModel
+from apps.data_center.infrastructure.models import (
+    MacroFactModel,
+    PriceBarModel,
+    QuoteSnapshotModel,
+)
 from apps.pulse.infrastructure.data_provider import (
     DEFAULT_PULSE_INDICATORS,
     DjangoPulseDataProvider,
@@ -120,10 +125,96 @@ def test_pulse_data_provider_reads_asset_code_from_data_center_price_bars():
     assert len(readings) == 1
     assert readings[0].code == "000300.SH"
     assert readings[0].value == 3925.5
+    assert readings[0].observed_at == date(2026, 4, 21)
+    assert readings[0].source_kind == "price_bar_close"
 
 
 @pytest.mark.django_db
-def test_pulse_daily_freshness_does_not_count_weekend_days():
+def test_pulse_market_indicator_prefers_same_day_current_quote_over_previous_close():
+    PulseIndicatorConfigModel.objects.create(
+        indicator_code="000300.SH",
+        indicator_name="沪深300",
+        dimension="sentiment",
+        frequency="daily",
+        weight=1.0,
+        signal_type="level",
+        bullish_threshold=4700.0,
+        bearish_threshold=4600.0,
+        neutral_band=0.5,
+        signal_multiplier=0.4,
+        is_active=True,
+    )
+    for day, close in [(17, 4550.0), (18, 4575.0), (20, 4598.32)]:
+        PriceBarModel.objects.create(
+            asset_code="000300.SH",
+            bar_date=date(2026, 7, day),
+            open=close,
+            high=close,
+            low=close,
+            close=close,
+            source="AKShare Public",
+        )
+    QuoteSnapshotModel.objects.create(
+        asset_code="000300.SH",
+        snapshot_at=datetime(
+            2026,
+            7,
+            21,
+            15,
+            5,
+            tzinfo=ZoneInfo("Asia/Shanghai"),
+        ),
+        current_price=4739.23,
+        prev_close=4598.32,
+        source="AKShare Public",
+    )
+
+    readings = DjangoPulseDataProvider().get_all_readings(date(2026, 7, 21))
+
+    assert len(readings) == 1
+    assert readings[0].value == pytest.approx(4739.23)
+    assert readings[0].observed_at == date(2026, 7, 21)
+    assert readings[0].source_kind == "quote_current_price"
+    assert readings[0].signal == "bullish"
+    assert readings[0].is_stale is False
+
+
+@pytest.mark.django_db
+def test_pulse_market_indicator_marks_previous_session_close_stale_on_weekday():
+    PulseIndicatorConfigModel.objects.create(
+        indicator_code="000300.SH",
+        indicator_name="沪深300",
+        dimension="sentiment",
+        frequency="daily",
+        weight=1.0,
+        signal_type="level",
+        bullish_threshold=4700.0,
+        bearish_threshold=4600.0,
+        neutral_band=0.5,
+        signal_multiplier=0.4,
+        is_active=True,
+    )
+    PriceBarModel.objects.create(
+        asset_code="000300.SH",
+        bar_date=date(2026, 7, 20),
+        open=4598.32,
+        high=4598.32,
+        low=4598.32,
+        close=4598.32,
+        source="AKShare Public",
+    )
+
+    readings = DjangoPulseDataProvider().get_all_readings(date(2026, 7, 21))
+
+    assert len(readings) == 1
+    assert readings[0].value == pytest.approx(4598.32)
+    assert readings[0].observed_at == date(2026, 7, 20)
+    assert readings[0].source_kind == "price_bar_close"
+    assert readings[0].is_stale is True
+
+
+@pytest.mark.django_db
+def test_pulse_daily_freshness_tracks_business_day_age_but_blocks_old_market_session():
     PulseIndicatorConfigModel.objects.create(
         indicator_code="000300.SH",
         indicator_name="沪深300",
@@ -151,7 +242,7 @@ def test_pulse_daily_freshness_does_not_count_weekend_days():
 
     assert len(readings) == 1
     assert readings[0].data_age_days == 3
-    assert readings[0].is_stale is False
+    assert readings[0].is_stale is True
 
 
 def test_default_pulse_indicators_use_m2_yoy_not_balance_level():

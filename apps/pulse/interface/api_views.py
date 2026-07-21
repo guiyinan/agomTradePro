@@ -16,6 +16,7 @@ class PulseCurrentView(APIView):
 
     GET /api/pulse/current/
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -50,6 +51,7 @@ class PulseHistoryView(APIView):
     GET /api/pulse/history/?months=6
     GET /api/pulse/history/?limit=30
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -76,6 +78,7 @@ class PulseCalculateView(APIView):
 
     POST /api/pulse/calculate/
     """
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -97,14 +100,16 @@ class PulseCalculateView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            return Response({
-                "success": True,
-                "data": {
-                    "composite_score": snapshot.composite_score,
-                    "regime_strength": snapshot.regime_strength,
-                    "transition_warning": snapshot.transition_warning,
-                },
-            })
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "composite_score": snapshot.composite_score,
+                        "regime_strength": snapshot.regime_strength,
+                        "transition_warning": snapshot.transition_warning,
+                    },
+                }
+            )
 
         except Exception as e:
             logger.exception(f"Error calculating pulse: {e}")
@@ -116,6 +121,16 @@ class PulseCalculateView(APIView):
 
 def _serialize_snapshot(snapshot) -> dict:
     """Serialize a pulse snapshot into the public API contract."""
+    indicator_observed_at = {
+        str(reading.code): (reading.observed_at.isoformat() if reading.observed_at else None)
+        for reading in snapshot.indicator_readings
+    }
+    market_observed_dates = [
+        reading.observed_at
+        for reading in snapshot.indicator_readings
+        if reading.dimension == "sentiment" and reading.observed_at is not None
+    ]
+    market_data_as_of = max(market_observed_dates).isoformat() if market_observed_dates else None
     stale_indicator_codes = [
         str(reading.code)
         for reading in snapshot.indicator_readings
@@ -136,6 +151,8 @@ def _serialize_snapshot(snapshot) -> dict:
         "stale_indicator_codes": stale_indicator_codes,
         "must_not_use_for_decision": must_not_use_for_decision,
         "blocked_reason": blocked_reason,
+        "market_data_as_of": market_data_as_of,
+        "indicator_observed_at": indicator_observed_at,
     }
     return {
         "observed_at": snapshot.observed_at.isoformat(),
@@ -151,6 +168,8 @@ def _serialize_snapshot(snapshot) -> dict:
         "stale_indicator_codes": stale_indicator_codes,
         "must_not_use_for_decision": must_not_use_for_decision,
         "blocked_reason": blocked_reason,
+        "market_data_as_of": market_data_as_of,
+        "indicator_observed_at": indicator_observed_at,
         "contract": contract,
         "dimensions": {
             ds.dimension: {
@@ -171,6 +190,9 @@ def _serialize_snapshot(snapshot) -> dict:
                 "signal_score": r.signal_score,
                 "direction": r.direction,
                 "is_stale": r.is_stale,
+                "data_age_days": r.data_age_days,
+                "observed_at": r.observed_at.isoformat() if r.observed_at else None,
+                "source_kind": r.source_kind,
             }
             for r in snapshot.indicator_readings
         ],

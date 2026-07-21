@@ -4,6 +4,43 @@
 > 背景：2026-04-21 本地 UAT / E2E / MCP live 验证确认“流程可跑通”，但当前数据链仍不足以支撑真实投资决策。
 > 补充更新：2026-04-21 已完成 P0 第一批落地，见“已落地状态”。
 
+## 2026-07-21 Pulse 行情日期完整性修复
+
+### 已完成
+
+- Pulse 的市场类指标不再只读取 `PriceBarModel.close`。当 Data Center 存在更新日期的
+  `QuoteSnapshotModel` 时，计算使用 `current_price`，不会把 `prev_close` 当作当天现价。
+- `PulseIndicatorReading` 新增真实观测日期 `observed_at` 与取值类型 `source_kind`；持久化、
+  Pulse API、SDK/MCP contract 均透传这两个字段。
+- Pulse API 新增 `market_data_as_of` 与 `indicator_observed_at`；若工作日只有前一交易日收盘价，
+  市场指标进入 stale，整个快照标记 `must_not_use_for_decision=true`。
+- `GetLatestPulseUseCase(refresh_if_stale=True)` 不再直接复用同日期但不可靠的旧快照，会尝试
+  重新计算，让新行情可以替换旧的前收数据。
+- Terminal Agent 被要求逐项说明市场数据实际日期；指标日期不等于请求日期时，不得称为
+  “今天”或“当前”，决策阻断必须放在结论之前。
+
+### 2026-07-21 诊断分流结论
+
+- `fresh` 与估值覆盖率是两个独立维度：8/314 可以在日期上 fresh，但覆盖质量门仍失败。
+  用户态总状态必须服从 coverage quality gate，不能只展示 freshness。
+- `fund_nav`、`financial`、`valuation`、`sector_membership`、`capital_flow`、`news` 当前只有
+  按需同步接口，没有与宏观、决策行情同等的周期调度；多能力停在同一天更符合“此后未再触发”而
+  不是“两个供应商同日同时故障”。是否需要周期同步应作为独立 data-center 主线处理。
+- Tushare `realtime_quote` 旧而 AKShare 当天成功，说明当前有效路由由 AKShare 承担；这本身是
+  failover/路由状态，不等于实时行情整体中断，但需要单独核对 Tushare 的启用策略和遥测语义。
+- 月频 PMI、信贷等输入连续多日不变是预期行为，不能仅凭 `growth_score` 重复判定 Pulse 故障。
+  Regime 连续 Recovery 且低置信度需要输入完整性和切换阈值审计，不能从标签持续时间直接定性。
+- Qlib 直接推理收到中文展示名 `A股` 时，会按原字符串寻找 `instruments/a股.txt`；而标准运行时
+  使用 `csi300`、`all` 或 scoped universe ID。股票池 ID 的边界校验/别名归一化需在 Alpha/Qlib
+  独立主线修复，避免与本次 Pulse/Terminal 数据语义修复耦合。
+
+### 验证与剩余风险
+
+- 已覆盖：当天 quote 覆盖昨日 close、无当天 quote 时工作日 stale、观测日期持久化往返、
+  Pulse API contract、Terminal 提示词、MCP Pulse schema。
+- 本地未配置生产远端 API token，本次没有读取或修改生产数据，也没有部署。
+- 估值全量调度、Tushare 实时链路、Qlib 股票池 ID、Regime 低置信度分别保留为独立整改项。
+
 ## 已落地状态
 
 ### REL-001 已落地
