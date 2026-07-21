@@ -9,7 +9,10 @@ class Command(BaseCommand):
     help = "Create/update periodic tasks for equity valuation sync and quality validation."
 
     def add_arguments(self, parser):
-        parser.add_argument("--hour", type=int, default=18)
+        # AKShare's daily valuation cross-section can still be incomplete in the
+        # early evening.  The production run on 2026-07-21 returned only 8/314
+        # stocks at 18:30, but the same request completed after 21:30.
+        parser.add_argument("--hour", type=int, default=21)
         parser.add_argument("--minute", type=int, default=30)
         parser.add_argument("--disable", action="store_true")
 
@@ -37,13 +40,15 @@ class Command(BaseCommand):
             sync_task, _ = PeriodicTask.objects.get_or_create(name="equity-valuation-daily-sync")
             sync_task.task = "apps.equity.application.tasks_valuation_sync.sync_validate_scan_equity_valuation_task"
             sync_task.enabled = enabled
-            sync_task.kwargs = json.dumps({
-                "days_back": 1,
-                "primary_source": "akshare",
-                "fallback_source": "tushare",
-                "universe": "all_active",
-                "lookback_days": 756,
-            })
+            sync_task.kwargs = json.dumps(
+                {
+                    "days_back": 1,
+                    "primary_source": "akshare",
+                    "fallback_source": "tushare",
+                    "universe": "all_active",
+                    "lookback_days": 756,
+                }
+            )
             sync_task.description = "Daily equity valuation sync + validate + repair scan"
             sync_task.interval = None
             sync_task.solar = None
@@ -51,18 +56,24 @@ class Command(BaseCommand):
             sync_task.crontab = daily_crontab
             sync_task.save()
 
-            validate_task, _ = PeriodicTask.objects.get_or_create(name="equity-valuation-quality-validate")
+            validate_task, _ = PeriodicTask.objects.get_or_create(
+                name="equity-valuation-quality-validate"
+            )
             validate_task.task = "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
             validate_task.enabled = enabled
             validate_task.kwargs = json.dumps({"primary_source": "akshare"})
-            validate_task.description = "Standalone quality validation for local equity valuation data"
+            validate_task.description = (
+                "Standalone quality validation for local equity valuation data"
+            )
             validate_task.interval = None
             validate_task.solar = None
             validate_task.clocked = None
             validate_task.crontab = daily_crontab
             validate_task.save()
 
-            freshness_task, _ = PeriodicTask.objects.get_or_create(name="equity-valuation-freshness-check")
+            freshness_task, _ = PeriodicTask.objects.get_or_create(
+                name="equity-valuation-freshness-check"
+            )
             freshness_task.task = "apps.equity.application.tasks_valuation_sync.validate_equity_valuation_quality_task"
             freshness_task.enabled = enabled
             freshness_task.kwargs = json.dumps({"primary_source": "akshare"})
@@ -76,5 +87,7 @@ class Command(BaseCommand):
         status = "enabled" if enabled else "disabled"
         self.stdout.write(self.style.SUCCESS("Equity valuation periodic tasks configured"))
         self.stdout.write(f"  - equity-valuation-daily-sync: {status} @ {hour:02d}:{minute:02d}")
-        self.stdout.write(f"  - equity-valuation-quality-validate: {status} @ {hour:02d}:{minute:02d}")
+        self.stdout.write(
+            f"  - equity-valuation-quality-validate: {status} @ {hour:02d}:{minute:02d}"
+        )
         self.stdout.write("  - equity-valuation-freshness-check: every 6 hours")

@@ -466,3 +466,12 @@ POST /api/equity/comprehensive-valuation/
     "industry_avg_pb": 2.0
 }
 ```
+
+---
+
+## 生产同步窗口与质量门
+
+- 默认估值全量同步时间为北京时间 21:30，避开上游日终截面尚未完整的早晚间窗口。
+- 314 只股票的逐股同步生产实测约 37 分钟；同步及“同步 → 校验 → scan”编排任务默认超时均为 60 分钟，软超时为 3500 秒。
+- 同步完成后必须重新计算质量快照。覆盖率低于 95% 时保持 gate blocked，不得仅凭 `latest_trade_date` 当日就标记为可用于决策。
+- `equity-valuation-freshness-check` 只复检已有数据，不负责补拉；当日覆盖不足应重跑全量同步任务。

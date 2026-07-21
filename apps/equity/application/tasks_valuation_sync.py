@@ -25,10 +25,12 @@ from apps.equity.application.use_cases_valuation_sync import (
 
 
 @shared_task(
-    time_limit=getattr(settings, 'EQUITY_VALUATION_SYNC_TASK_TIMEOUT', 1800),
-    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_SYNC_TASK_SOFT_TIMEOUT', 1700)
+    time_limit=getattr(settings, "EQUITY_VALUATION_SYNC_TASK_TIMEOUT", 3600),
+    soft_time_limit=getattr(settings, "EQUITY_VALUATION_SYNC_TASK_SOFT_TIMEOUT", 3500),
 )
-def sync_equity_valuation_task(days_back: int = 1, primary_source: str = "akshare", fallback_source: str = "tushare") -> dict:
+def sync_equity_valuation_task(
+    days_back: int = 1, primary_source: str = "akshare", fallback_source: str = "tushare"
+) -> dict:
     use_case = SyncEquityValuationUseCase(stock_repository=DjangoStockRepository())
     response = use_case.execute(
         SyncEquityValuationRequest(
@@ -41,8 +43,8 @@ def sync_equity_valuation_task(days_back: int = 1, primary_source: str = "akshar
 
 
 @shared_task(
-    time_limit=getattr(settings, 'EQUITY_VALUATION_VALIDATE_TASK_TIMEOUT', 600),
-    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_VALIDATE_TASK_SOFT_TIMEOUT', 570)
+    time_limit=getattr(settings, "EQUITY_VALUATION_VALIDATE_TASK_TIMEOUT", 600),
+    soft_time_limit=getattr(settings, "EQUITY_VALUATION_VALIDATE_TASK_SOFT_TIMEOUT", 570),
 )
 def validate_equity_valuation_quality_task(primary_source: str = "akshare") -> dict:
     use_case = ValidateEquityValuationQualityUseCase(
@@ -56,8 +58,8 @@ def validate_equity_valuation_quality_task(primary_source: str = "akshare") -> d
 
 
 @shared_task(
-    time_limit=getattr(settings, 'EQUITY_VALUATION_SCAN_TASK_TIMEOUT', 2400),
-    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_SCAN_TASK_SOFT_TIMEOUT', 2300)
+    time_limit=getattr(settings, "EQUITY_VALUATION_SCAN_TASK_TIMEOUT", 3600),
+    soft_time_limit=getattr(settings, "EQUITY_VALUATION_SCAN_TASK_SOFT_TIMEOUT", 3500),
 )
 def sync_validate_scan_equity_valuation_task(
     days_back: int = 1,
@@ -72,7 +74,7 @@ def sync_validate_scan_equity_valuation_task(
 
     # 从 settings 获取默认值
     if lookback_days is None:
-        lookback_days = getattr(settings, 'EQUITY_VALUATION_DEFAULT_LOOKBACK_DAYS', 756)
+        lookback_days = getattr(settings, "EQUITY_VALUATION_DEFAULT_LOOKBACK_DAYS", 756)
 
     sync_response = SyncEquityValuationUseCase(stock_repository=stock_repo).execute(
         SyncEquityValuationRequest(
@@ -91,9 +93,7 @@ def sync_validate_scan_equity_valuation_task(
     validate_response = ValidateEquityValuationQualityUseCase(
         stock_repository=stock_repo,
         quality_repository=quality_repo,
-    ).execute(
-        ValidateEquityValuationQualityRequest(primary_source=primary_source)
-    )
+    ).execute(ValidateEquityValuationQualityRequest(primary_source=primary_source))
     if not validate_response.success:
         return {
             "success": False,
@@ -140,8 +140,8 @@ def sync_validate_scan_equity_valuation_task(
 
 
 @shared_task(
-    time_limit=getattr(settings, 'EQUITY_FINANCIAL_SYNC_TASK_TIMEOUT', 3600),
-    soft_time_limit=getattr(settings, 'EQUITY_FINANCIAL_SYNC_TASK_SOFT_TIMEOUT', 3500)
+    time_limit=getattr(settings, "EQUITY_FINANCIAL_SYNC_TASK_TIMEOUT", 3600),
+    soft_time_limit=getattr(settings, "EQUITY_FINANCIAL_SYNC_TASK_SOFT_TIMEOUT", 3500),
 )
 def sync_financial_data_task(
     source: str = "akshare",
