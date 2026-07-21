@@ -50,20 +50,23 @@ def resolve_pyqlib_status(repo_root: Path) -> PyQlibStatus:
             module_file=module_file,
         )
 
-    if repo_root in module_file.parents:
-        return PyQlibStatus(
-            available=False,
-            reason=f"qlib resolved inside the repository ({module_file}); expected installed pyqlib",
-            misconfigured=True,
-            module_file=module_file,
-            version=dist.version,
-        )
-
     expected_init = locate_pyqlib_init(dist)
     if expected_init is not None and module_file != expected_init:
         return PyQlibStatus(
             available=False,
             reason=f"qlib resolved to {module_file}, expected pyqlib at {expected_init}",
+            misconfigured=True,
+            module_file=module_file,
+            version=dist.version,
+        )
+
+    if expected_init is None and repo_root in module_file.parents:
+        return PyQlibStatus(
+            available=False,
+            reason=(
+                f"qlib resolved inside the repository ({module_file}), but the pyqlib "
+                "distribution did not expose its installed package files"
+            ),
             misconfigured=True,
             module_file=module_file,
             version=dist.version,

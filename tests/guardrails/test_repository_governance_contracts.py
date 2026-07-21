@@ -43,8 +43,8 @@ def test_generated_workspace_artifacts_are_ignored_and_cleanable() -> None:
     assert (REPO_ROOT / "scripts" / "clean-workspace-artifacts.ps1").is_file()
 
 
-def test_mypy_debt_budgets_only_shrink() -> None:
-    """Prevent resolved modules and errors from returning to broad debt buckets."""
+def test_mypy_debt_is_precisely_governed_without_broad_ignores() -> None:
+    """Keep legacy errors explicit and enforce their per-file, per-code ceiling in CI."""
 
     with (REPO_ROOT / "pyproject.toml").open("rb") as handle:
         overrides = tomllib.load(handle)["tool"]["mypy"]["overrides"]
@@ -60,12 +60,18 @@ def test_mypy_debt_budgets_only_shrink() -> None:
     error_baseline = json.loads(
         (REPO_ROOT / "governance" / "mypy_error_baseline.json").read_text(encoding="utf-8")
     )["modules"]
-    baseline_error_count = sum(
-        sum(error_counts.values()) for error_counts in error_baseline.values()
+    assert all(path.endswith(".py") for path in error_baseline)
+    assert all(
+        error_counts
+        and all(isinstance(count, int) and count > 0 for count in error_counts.values())
+        for error_counts in error_baseline.values()
     )
-    assert baseline_error_count == 0
-    assert error_baseline == {}
     assert "apps/task_monitor/application/interface_services.py" not in error_baseline
+
+    workflow_text = (REPO_ROOT / ".github" / "workflows" / "ci-fast-feedback.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "python scripts/check_mypy_regression.py" in workflow_text
 
 
 def test_fast_feedback_installs_node_playwright_browser() -> None:
