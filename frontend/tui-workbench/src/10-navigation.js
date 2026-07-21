@@ -9,13 +9,15 @@
                 <div class="tui-group-title">${escapeHtml(group.label)}</div>
                 ${(group.modules || []).map((module) => `
                     <div class="tui-tree-module">
-                        <div class="tui-tree-module-title">
-                            <span>${escapeHtml(module.label)}</span>
-                            <div class="tui-tree-module-meta">
-                                <span data-module-badge-screens="${escapeHtml((module.screens || []).map((screen) => screen.key).join(","))}">${badgeMarkup(badgeCountsForScreenKeys((module.screens || []).map((screen) => screen.key)), { compact: true })}</span>
-                                <small>${escapeHtml(module.action_count || 0)}</small>
+                        ${isRedundantModuleTitle(group, module) ? "" : `
+                            <div class="tui-tree-module-title">
+                                <span>${escapeHtml(module.label)}</span>
+                                <div class="tui-tree-module-meta">
+                                    <span data-module-badge-screens="${escapeHtml((module.screens || []).map((screen) => screen.key).join(","))}">${badgeMarkup(badgeCountsForScreenKeys((module.screens || []).map((screen) => screen.key)), { compact: true })}</span>
+                                    <small>${escapeHtml(module.action_count || 0)}</small>
+                                </div>
                             </div>
-                        </div>
+                        `}
                         ${(module.screens || []).map((screen) => `
                             <div class="tui-screen-row">
                                 <button class="tui-screen-button" type="button" data-screen-key="${escapeHtml(screen.key)}">
@@ -66,6 +68,13 @@
         if (state.screen?.screen?.key) {
             markActiveScreen(state.screen.screen.key);
         }
+    }
+
+    function isRedundantModuleTitle(group, module) {
+        const modules = Array.isArray(group?.modules) ? group.modules : [];
+        const groupLabel = String(group?.label || "").trim().toLocaleLowerCase();
+        const moduleLabel = String(module?.label || "").trim().toLocaleLowerCase();
+        return modules.length === 1 && groupLabel !== "" && groupLabel === moduleLabel;
     }
 
     function bindCatalogBadgeButtons() {

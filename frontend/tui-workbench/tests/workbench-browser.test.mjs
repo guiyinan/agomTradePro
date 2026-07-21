@@ -89,7 +89,7 @@ const catalog = {
     default_screen: "test.grid",
     groups: [{
         key: "test",
-        label: "测试",
+        label: "测试模块",
         modules: [{
             key: "test",
             label: "测试模块",
@@ -331,6 +331,20 @@ async function openHarness() {
         throw new Error(`${error.message}\nstatus=${status}\nmain=${main}\nbrowser=${browserErrors.join(" | ")}\nrequests=${requestLog.join(" | ")}`);
     }
 }
+
+test("catalog suppresses a redundant single-module heading", async () => {
+    const { browser, page } = await openHarness();
+    try {
+        assert.equal(
+            await page.locator('[data-module-tree]').getByText("测试模块", { exact: true }).count(),
+            1,
+        );
+        assert.equal(await page.locator(".tui-group-title").innerText(), "测试模块");
+        assert.equal(await page.locator(".tui-tree-module-title").count(), 0);
+    } finally {
+        await browser.close();
+    }
+});
 
 test("client pagination keeps second-page row selection aligned", async () => {
     const { browser, page } = await openHarness();

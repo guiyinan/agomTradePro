@@ -1,5 +1,4 @@
 from decimal import Decimal
-from types import SimpleNamespace
 
 import pytest
 from django.apps import apps
@@ -7,7 +6,10 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from apps.decision_rhythm.application.today_queue import TodayDecisionQueueQueryService
+from apps.decision_rhythm.application.today_queue import (
+    TodayDecisionQueueQueryService,
+    TodayDecisionQueueResult,
+)
 from apps.decision_rhythm.domain.entities import (
     ApprovalStatus,
     RecommendationStatus,
@@ -228,6 +230,29 @@ def test_today_queue_returns_empty_items_for_authenticated_user():
     assert payload["success"] is True
     assert payload["items"] == []
     assert payload["total"] == 0
+
+
+@pytest.mark.django_db
+def test_today_queue_api_skips_synchronous_system_health(monkeypatch):
+    user = User.objects.create_user(username="today_queue_fast_path", password="x")
+    client = Client()
+    client.force_login(user)
+    captured = {}
+
+    def fake_execute(self, *, account_id="default", include_system_health=True):
+        captured["account_id"] = account_id
+        captured["include_system_health"] = include_system_health
+        return TodayDecisionQueueResult(account_id=account_id, items=[])
+
+    monkeypatch.setattr(TodayDecisionQueueQueryService, "execute", fake_execute)
+
+    response = client.get("/api/decision/workspace/today-queue/?account_id=default")
+
+    assert response.status_code == 200
+    assert captured == {
+        "account_id": "default",
+        "include_system_health": False,
+    }
 
 
 @pytest.mark.django_db

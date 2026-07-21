@@ -53,6 +53,7 @@ This change closes the TUI operator experience around a single unified `/tui/` h
 - Runtime screen patch filtering now drops dashboard panels whose `target_screen` does not exist in the active payload, which keeps metadata validation stable for minimal test payloads.
 - Operator-home performance now uses lighter summary paths than the detailed governance screens:
   - the home decision queue calls `TodayDecisionQueueQueryService(..., include_system_health=False)` so `/tui/` does not block on expensive Celery and Alpha consistency probes that already have dedicated治理面板
+  - the canonical `GET /api/decision/workspace/today-queue/` fast path follows the same rule, so IA consolidation cannot accidentally reintroduce synchronous health probes into the P0 home panel
   - the home `config-center` governance card reads runtime config, active model, local qlib trade-date lag, and training-run presence directly instead of building the full Alpha/Qlib ops overview payloads
   - the home six-panel dashboard reads `GET /api/tui/operator/home/<section>/` directly for fixed summaries instead of routing those cards back through the generic action runner
 

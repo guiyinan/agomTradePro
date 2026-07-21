@@ -26,5 +26,11 @@ class TodayDecisionQueueView(APIView):
                     {"success": False, "error": access.error},
                     status=access.status_code,
                 )
-        result = TodayDecisionQueueQueryService().execute(account_id=account_id)
+        # System health has dedicated TUI governance panels. Keeping those remote
+        # probes out of the P0 business queue avoids blocking the first useful
+        # paint on Celery and Alpha readiness checks.
+        result = TodayDecisionQueueQueryService().execute(
+            account_id=account_id,
+            include_system_health=False,
+        )
         return Response({"success": True, **result.to_dict()})

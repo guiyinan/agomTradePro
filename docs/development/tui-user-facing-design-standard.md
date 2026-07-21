@@ -42,6 +42,8 @@ The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is t
 
 The current contract has three groups (`daily`, `research`, `system`), 12 published screens, four retained runtime screens, and an eight-step daily workflow. The registry separates `sources` (published inputs) from `runtime_sources` (runtime inputs) so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
 
+The navigation renderer must collapse a redundant module heading when a group contains exactly one module with the same user-facing label. Multi-module groups retain both levels so their hierarchy remains explicit.
+
 ## Screen Rules
 
 Each screen must publish `user_experience`:
