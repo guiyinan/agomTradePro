@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Any
 
 from apps.ai_provider.application.query_services import has_user_personal_providers
@@ -53,7 +54,7 @@ USER_HIDDEN_SCREEN_ACTION_KEYS = {
     "param.api.get.api.audit.indicator-performance.str.indicator_code",
     "param.api.get.api.system.status.str.task_id",
 }
-USER_CONDITIONAL_SCREEN_ACTIONS = {
+USER_CONDITIONAL_SCREEN_ACTIONS: dict[str, Callable[[Any], bool]] = {
     "param.api.get.api.ai.me.providers.pk": lambda user: has_user_personal_providers(user),
     "param.api.get.api.dashboard.alpha.history.int.run_id": lambda user: has_dashboard_alpha_history(
         user
@@ -519,9 +520,7 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             resolved_params,
             user=user,
             session=session,
-            outcome=(
-                "succeeded" if 200 <= int(envelope["response"]["status_code"]) < 400 else "failed"
-            ),
+            outcome=("succeeded" if 200 <= status_code < 400 else "failed"),
             confirmation_evidence=confirmation,
             reauth_evidence=reauth_evidence,
             result=envelope,

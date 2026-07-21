@@ -10,11 +10,13 @@ from string import Formatter
 from typing import Any
 
 try:
-    from jsonschema import Draft202012Validator
-    from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
+    from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
+    from jsonschema import exceptions as jsonschema_exceptions
+
+    JsonSchemaValidationError = jsonschema_exceptions.ValidationError
 except ImportError:  # pragma: no cover - local validator still protects runtime.
-    Draft202012Validator = None  # type: ignore[assignment]
-    JsonSchemaValidationError = Exception  # type: ignore[assignment]
+    Draft202012Validator = None
+    JsonSchemaValidationError = Exception
 
 TUI_METADATA_SCHEMA_VERSION = "tui-metadata.v3"
 TUI_METADATA_SCHEMA_PATH = (

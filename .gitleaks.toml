@@ -1,0 +1,12 @@
+title = "AgomTradePro gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow exact correlation window field keys in generated TUI projections"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''"key"\s*:\s*"correlation_(20d|60d)"''']
+paths = ['''^config/tui/(generated/tui_operation_graph\.generated|published/tui_operation_graph\.published)\.json$''']

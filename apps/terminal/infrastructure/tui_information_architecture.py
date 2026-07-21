@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 TUI_IA_PATH = (
     Path(__file__).resolve().parents[3]
@@ -20,7 +20,10 @@ TUI_IA_PATH = (
 def load_tui_information_architecture() -> dict[str, Any]:
     """Return the validated declarative TUI IA registry."""
 
-    payload = json.loads(TUI_IA_PATH.read_text(encoding="utf-8"))
+    raw_payload = json.loads(TUI_IA_PATH.read_text(encoding="utf-8"))
+    if not isinstance(raw_payload, dict):
+        raise ValueError("TUI IA registry root must be an object")
+    payload = cast(dict[str, Any], raw_payload)
     _validate_tui_information_architecture(payload)
     return payload
 

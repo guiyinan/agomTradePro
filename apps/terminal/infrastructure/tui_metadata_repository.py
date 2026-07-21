@@ -7,12 +7,12 @@ import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from django.conf import settings
-from django.core.cache import cache
-from django.db import OperationalError, ProgrammingError
-from django.utils import timezone
+from django.conf import settings  # type: ignore[import-untyped]
+from django.core.cache import cache  # type: ignore[import-untyped]
+from django.db import OperationalError, ProgrammingError  # type: ignore[import-untyped]
+from django.utils import timezone  # type: ignore[import-untyped]
 
 from apps.terminal.application.tui_metadata import (
     compact_tui_metadata_payload,
@@ -153,22 +153,27 @@ class PublishedTuiMetadataRepository:
             registry_key=registry_key,
             status="published",
         ).update(status="archived", updated_at=now)
-        created = TuiMetadataRegistryORM._default_manager.create(
-            registry_key=registry_key,
-            version=str(validated.get("version", "tui-workbench.v2")),
-            schema_version=str(validated.get("schema_version", "tui-metadata.v3")),
-            status="published",
-            review_status="approved",
-            generation_source=generation_source,
-            backend_version=backend_version,
-            payload=compacted,
-            source_hash=source_hash,
-            source_evidence_hash=source_evidence_hash,
-            changed_fields=resolved_changed_fields,
-            review_note=review_note,
-            approved_by=approved_by if getattr(approved_by, "is_authenticated", False) else None,
-            rollback_of=rollback_of,
-            published_at=now,
+        created = cast(
+            TuiMetadataRegistryORM,
+            TuiMetadataRegistryORM._default_manager.create(
+                registry_key=registry_key,
+                version=str(validated.get("version", "tui-workbench.v2")),
+                schema_version=str(validated.get("schema_version", "tui-metadata.v3")),
+                status="published",
+                review_status="approved",
+                generation_source=generation_source,
+                backend_version=backend_version,
+                payload=compacted,
+                source_hash=source_hash,
+                source_evidence_hash=source_evidence_hash,
+                changed_fields=resolved_changed_fields,
+                review_note=review_note,
+                approved_by=(
+                    approved_by if getattr(approved_by, "is_authenticated", False) else None
+                ),
+                rollback_of=rollback_of,
+                published_at=now,
+            ),
         )
         runtime_payload = self._normalize_runtime_payload(
             validate_tui_metadata(dict(created.payload or {}))
@@ -198,13 +203,16 @@ class PublishedTuiMetadataRepository:
         """Return the active database registry row for one TUI channel."""
 
         try:
-            return (
-                TuiMetadataRegistryORM._default_manager.filter(
-                    registry_key=registry_key,
-                    status="published",
-                )
-                .order_by("-published_at", "-updated_at")
-                .first()
+            return cast(
+                TuiMetadataRegistryORM | None,
+                (
+                    TuiMetadataRegistryORM._default_manager.filter(
+                        registry_key=registry_key,
+                        status="published",
+                    )
+                    .order_by("-published_at", "-updated_at")
+                    .first()
+                ),
             )
         except (OperationalError, ProgrammingError):
             return None
