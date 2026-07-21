@@ -394,6 +394,23 @@ def build_migration_check_command(target_dir: str) -> str:
     )
 
 
+def build_tui_metadata_check_command(target_dir: str) -> str:
+    """Require the active TUI registry to match the deployed release artifact."""
+
+    return build_compose_command(
+        target_dir,
+        "exec",
+        "-T",
+        "web",
+        "python",
+        "tui-metadata-compiler/scripts/publish_tui_metadata.py",
+        "config/tui/published/tui_operation_graph.published.json",
+        "--check",
+        "--registry-key",
+        "default",
+    )
+
+
 def build_qlib_identity_command(target_dir: str) -> str:
     """Build a command that reports the installed Qlib distribution identity."""
 
@@ -528,6 +545,13 @@ def build_rollback_command(target_dir: str, http_port: int, expect_celery: bool)
         'cd "$current"; compose="docker compose -p agomtradepro -f '
         'docker/docker-compose.vps.yml --env-file deploy/.env"; '
         '$compose down --remove-orphans; cd "$previous"; $compose up -d; '
+        "if test -f scripts/publish-tui-release.sh; then "
+        '$compose run --rm --no-deps web sh scripts/publish-tui-release.sh "rollback-$(basename "$previous")"; '
+        "else test -f config/tui/published/tui_operation_graph.published.json; "
+        "$compose run --rm --no-deps web python tui-metadata-compiler/scripts/publish_tui_metadata.py "
+        "config/tui/published/tui_operation_graph.published.json --approve "
+        '--generation-source mixed --backend-version "rollback-$(basename "$previous")" '
+        '--review-note "Automatic rollback publish $(basename "$previous")"; fi; '
         'rm -f "$target/.current-rollback"; '
         'ln -s "$previous" "$target/.current-rollback"; '
         'mv -Tf "$target/.current-rollback" "$target/current"; '
@@ -623,6 +647,11 @@ def main() -> int:
             (
                 "Migrations",
                 build_migration_check_command(args.target_dir),
+                max(args.timeout, 30),
+            ),
+            (
+                "TUI metadata registry",
+                build_tui_metadata_check_command(args.target_dir),
                 max(args.timeout, 30),
             ),
         )

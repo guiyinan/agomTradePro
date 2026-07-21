@@ -156,6 +156,14 @@ def test_build_migration_check_command_rejects_unapplied_migrations():
     assert "exec -T web python manage.py migrate --check --noinput" in command
 
 
+def test_build_tui_metadata_check_command_compares_registry_with_release():
+    command = deploy_vps_verify.build_tui_metadata_check_command("/opt/agomtradepro")
+
+    assert "publish_tui_metadata.py" in command
+    assert "tui_operation_graph.published.json" in command
+    assert "--check --registry-key default" in command
+
+
 def test_evaluate_runtime_command_result_accepts_empty_success_output():
     ok, summary = deploy_vps_verify.evaluate_runtime_command_result(
         exit_code=0,
@@ -269,3 +277,5 @@ def test_verification_commands_cover_identity_backup_resources_and_model_metadat
     assert 'readlink -f "$target/previous"' in rollback
     assert "mv -Tf" in rollback
     assert "celery -A core inspect ping" in rollback
+    assert "publish-tui-release.sh" in rollback
+    assert "Automatic rollback publish" in rollback

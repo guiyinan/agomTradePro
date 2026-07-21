@@ -103,6 +103,30 @@ def test_remote_deploy_blocks_release_on_macro_governance_drift():
     assert "macro data-governance drift check failed" in script
 
 
+def test_remote_deploy_publishes_and_verifies_tui_release_metadata():
+    script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'sh scripts/publish-tui-release.sh "$RELEASE_TAG"' in script
+    assert "TUI metadata publish or verification failed" in script
+    assert 'rollback-$(basename "$PREVIOUS_RELEASE")' in script
+    assert "Automatic rollback publish" in script
+    assert "Previous release TUI registry restore failed" in script
+
+    deploy_script = (
+        Path(__file__).resolve().parents[2] / "scripts" / "deploy-on-vps.sh"
+    ).read_text(encoding="utf-8")
+    release_helper = (
+        Path(__file__).resolve().parents[2] / "scripts" / "publish-tui-release.sh"
+    ).read_text(encoding="utf-8")
+
+    assert 'sh scripts/publish-tui-release.sh "$release_name"' in deploy_script
+    assert "--approve" in release_helper
+    assert "--check" in release_helper
+    assert "reviewed TUI metadata is missing" in release_helper
+
+
 def test_remote_deploy_installs_idempotent_daily_backup_cron():
     script = (
         Path(__file__).resolve().parents[2] / "scripts" / "remote_build_deploy_vps.py"

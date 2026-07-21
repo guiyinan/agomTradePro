@@ -932,6 +932,17 @@ rollback_deployment() {
     cd "$PREVIOUS_RELEASE"
     $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env down --remove-orphans >/dev/null 2>&1 || true
     $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env up -d >/dev/null 2>&1 || true
+    if [ -f scripts/publish-tui-release.sh ]; then
+      if ! $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env run --rm --no-deps web sh scripts/publish-tui-release.sh "rollback-$(basename "$PREVIOUS_RELEASE")"; then
+        echo "[ERROR] Previous release TUI registry restore failed" >&2
+      fi
+    elif [ -f config/tui/published/tui_operation_graph.published.json ]; then
+      if ! $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env run --rm --no-deps web python tui-metadata-compiler/scripts/publish_tui_metadata.py config/tui/published/tui_operation_graph.published.json --approve --generation-source mixed --backend-version "rollback-$(basename "$PREVIOUS_RELEASE")" --review-note "Automatic rollback publish $(basename "$PREVIOUS_RELEASE")"; then
+        echo "[ERROR] Previous release TUI registry restore failed" >&2
+      fi
+    else
+      echo "[ERROR] Previous release has no reviewed TUI metadata artifact" >&2
+    fi
     rm -f "$TARGET_DIR/.current-rollback"
     ln -s "$PREVIOUS_RELEASE" "$TARGET_DIR/.current-rollback"
     mv -Tf "$TARGET_DIR/.current-rollback" "$TARGET_DIR/current"
@@ -1379,17 +1390,9 @@ if ! bash scripts/migrate-vps-sqlite-to-postgres.sh "$TARGET_DIR"; then
   exit 1
 fi
 
-TUI_METADATA_PATH="config/tui/published/tui_operation_graph.published.json"
-if [ -f "$TUI_METADATA_PATH" ]; then
-  echo "[INFO] publishing reviewed TUI metadata"
-  TUI_PUBLISH_CMD="python tui-metadata-compiler/scripts/publish_tui_metadata.py $TUI_METADATA_PATH --approve --generation-source mixed --backend-version $RELEASE_TAG --review-note 'Automatic deploy publish $RELEASE_TAG'"
-  if [ -f "config/tui/generated/tui_operation_evidence.generated.json" ]; then
-    TUI_PUBLISH_CMD="$TUI_PUBLISH_CMD --source-evidence-path config/tui/generated/tui_operation_evidence.generated.json"
-  fi
-  if ! compose run --rm --no-deps web sh -lc "$TUI_PUBLISH_CMD"; then
-    echo "[ERROR] TUI metadata publish failed" >&2
-    exit 1
-  fi
+if ! compose run --rm --no-deps web sh scripts/publish-tui-release.sh "$RELEASE_TAG"; then
+  echo "[ERROR] TUI metadata publish or verification failed" >&2
+  exit 1
 fi
 
 BOOTSTRAP_ALPHA="${AGOMTRADEPRO_BOOTSTRAP_WITH_ALPHA:-0}"
