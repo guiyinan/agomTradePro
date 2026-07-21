@@ -17,6 +17,16 @@ from rest_framework.test import APIClient
 User = get_user_model()
 
 
+@pytest.fixture(autouse=True)
+def stub_stock_context_lookup(monkeypatch):
+    """Keep Alpha API unit tests isolated from external stock-name providers."""
+
+    monkeypatch.setattr(
+        "apps.equity.application.query_services.get_stock_context_map",
+        lambda _codes: {},
+    )
+
+
 @pytest.fixture
 def admin_user(db):
     return User.objects.create_superuser(
