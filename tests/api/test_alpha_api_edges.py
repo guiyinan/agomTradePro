@@ -8,6 +8,16 @@ from django.core.cache import cache
 from apps.alpha.domain.entities import AlphaResult, StockScore
 
 
+@pytest.fixture(autouse=True)
+def stub_stock_context_lookup(monkeypatch):
+    """Keep Alpha API contracts isolated from read-through market-data backfills."""
+
+    monkeypatch.setattr(
+        "apps.equity.application.query_services.get_stock_context_map",
+        lambda _codes: {},
+    )
+
+
 @pytest.fixture
 def staff_user(db):
     return get_user_model().objects.create_user(
