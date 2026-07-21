@@ -87,7 +87,11 @@ def test_dashboard_homepage_uses_unified_decision_workflow_entry():
 
 
 @pytest.mark.django_db
-def test_dashboard_renders_pending_queue_from_real_decision_request_models():
+def test_dashboard_renders_pending_queue_from_real_decision_request_models(monkeypatch):
+    monkeypatch.setattr(
+        "apps.asset_analysis.application.asset_name_service.resolve_asset_names",
+        lambda _codes: {},
+    )
     user = get_user_model().objects.create_user(
         username="dashboard_pending_queue_user",
         password="x",

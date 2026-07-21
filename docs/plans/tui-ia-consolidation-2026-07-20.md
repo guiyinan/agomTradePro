@@ -395,6 +395,6 @@ AgomTradePro 侧已完成：
 - AgomTUI 单向同步检查只发现 5 个白名单 Runtime 差异；未执行 `--apply`。
 - VPS 发布/验收/回滚合同测试 31 passed；本地 `--check` 已确认 DB registry id 3 与 release canonical hash 一致。
 - 高风险固定回归包连同部署测试 260 passed；IA、metadata compiler 与用户面契约补充回归 54 passed；TUI JavaScript 行为测试 15 passed，`check:tui` 通过。
-- dev 分支首次远端验证暴露的四类门禁问题已完成代码收口：TUI 增量 mypy 类型回归已消除；Gitleaks 仅对生成图中两个明确的相关性窗口字段键放行；governed MCP read/write 均由目录投影契约覆盖，write guard 直接识别遍历全部 manifest 与 legacy alias 的矩阵证据，不再重复硬编码能力名；Alpha unit/API 契约测试均隔离股票名称 read-through backfill，避免 Nightly 因 AKShare 公网调用超时。
+- dev 分支首次远端验证暴露的四类门禁问题已完成代码收口：TUI 增量 mypy 类型回归已消除；Gitleaks 仅对生成图中两个明确的相关性窗口字段键放行；governed MCP read/write 均由目录投影契约覆盖，write guard 直接识别遍历全部 manifest 与 legacy alias 的矩阵证据，不再重复硬编码能力名；Alpha 与 Dashboard 契约测试均隔离股票名称 read-through backfill，Nightly API/迁移阶段增加单测级 timeout 与 faulthandler，杜绝 AKShare 公网调用把整阶段拖到总超时且无堆栈。
 
 配套整改剩余项：AgomTUI 当前 validator 尚未支持本项目既有的 panel `empty_message/error_message/stale_message/row_actions` 契约，跨仓库 validator/check-usability 与同源 UAT 继续由 `agomtui-portability-remediation-2026-07-21.md` 独立收口，不在本次 AgomTradePro 业务 metadata 发布中修改外部仓库。

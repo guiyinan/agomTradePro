@@ -54,8 +54,14 @@ jobs:
 
       - name: Run API And Migration Tests
         timeout-minutes: 20
+        env:
+          PYTHONFAULTHANDLER: "1"
         run: |
           python -m pytest tests/api/ tests/migrations/ -v \
+            -o faulthandler_timeout=180 \
+            --timeout=120 \
+            --timeout-method=thread \
+            --durations=20 \
             --cov=apps \
             --cov-append \
             --cov-report=term-missing
