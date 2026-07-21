@@ -73,6 +73,7 @@ nbs_response.html
 # Scripts (not needed in container)
 scripts/*.ps1
 scripts/*.sh
+!scripts/publish-tui-release.sh
 scripts/dev.bat
 
 # Distribution files

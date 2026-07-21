@@ -37,6 +37,22 @@ def test_production_images_include_postgresql_backup_client() -> None:
         assert "postgresql-client \\" not in instructions, relative_path
 
 
+def test_production_image_includes_tui_release_publisher() -> None:
+    """The deploy-time TUI publisher must survive Docker context filtering."""
+
+    dockerignore_lines = (REPO_ROOT / ".dockerignore").read_text(
+        encoding="utf-8"
+    ).splitlines()
+    shell_script_exclusion = dockerignore_lines.index("scripts/*.sh")
+    publisher_inclusion = dockerignore_lines.index("!scripts/publish-tui-release.sh")
+
+    assert publisher_inclusion > shell_script_exclusion
+    assert (REPO_ROOT / "scripts" / "publish-tui-release.sh").is_file()
+    for relative_path in ("docker/Dockerfile.prod", "docker/Dockerfile.prod.mirror"):
+        dockerfile = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "COPY . /app" in dockerfile, relative_path
+
+
 def test_linux_wheelhouse_directory_is_preserved_for_docker_copy() -> None:
     assert (REPO_ROOT / ".cache" / "pip-wheels" / "linux-py311" / ".keep").exists()
 
