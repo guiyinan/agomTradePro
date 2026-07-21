@@ -964,9 +964,9 @@ def _query_fields_from_summary(summary: str) -> list[dict[str, Any]]:
             "binding": "query",
             "value_type": value_type,
             "default": "",
-            "placeholder": f"输入{FIELD_LABELS.get(name, _humanize(name))}"
-            if input_type != "checkbox"
-            else "",
+            "placeholder": (
+                f"输入{FIELD_LABELS.get(name, _humanize(name))}" if input_type != "checkbox" else ""
+            ),
         }
         if name == "period":
             field["input_type"] = "select"
@@ -1145,6 +1145,25 @@ def _screen_bucket(record: dict[str, Any]) -> str:
 
 
 def _ensure_auto_library_screens(payload: dict[str, Any]) -> None:
+    groups = payload.setdefault("groups", [])
+    group_keys = {str(group.get("key") or "") for group in groups if isinstance(group, dict)}
+    if "system" not in group_keys:
+        groups.append({"key": "system", "label": "系统治理", "audience": "admin"})
+
+    modules = payload.setdefault("modules", [])
+    module_keys = {str(module.get("key") or "") for module in modules if isinstance(module, dict)}
+    if "api-library" not in module_keys:
+        modules.append(
+            {
+                "key": "api-library",
+                "label": "编译期工具候选",
+                "group": "system",
+                "summary": "仅用于候选图审核；发布时必须归并到 IA registry 定义的任务屏。",
+                "status": "online",
+                "audience": "admin",
+            }
+        )
+
     screens = payload.setdefault("screens", [])
     existing_screen_keys = {screen.get("key") for screen in screens if isinstance(screen, dict)}
     for spec in AUTO_LIBRARY_SCREENS.values():
@@ -1204,6 +1223,33 @@ def _assign_auto_library_default_actions(payload: dict[str, Any]) -> None:
             ),
         )
         screen["default_action_key"] = str(ordered[0].get("key") or "")
+
+
+def _prune_empty_auto_library_screens(payload: dict[str, Any]) -> None:
+    """Remove compile-time buckets that received no new candidate actions."""
+
+    auto_library_keys = {spec["key"] for spec in AUTO_LIBRARY_SCREENS.values()}
+    used_screen_keys = {
+        str(action.get("screen_key") or "")
+        for action in payload.get("actions", [])
+        if isinstance(action, dict)
+    }
+    payload["screens"] = [
+        screen
+        for screen in payload.get("screens", [])
+        if str(screen.get("key") or "") not in auto_library_keys
+        or str(screen.get("key") or "") in used_screen_keys
+    ]
+    if not any(
+        str(screen.get("module_key") or "") == "api-library"
+        for screen in payload.get("screens", [])
+        if isinstance(screen, dict)
+    ):
+        payload["modules"] = [
+            module
+            for module in payload.get("modules", [])
+            if str(module.get("key") or "") != "api-library"
+        ]
 
 
 def _is_safe_api(record: dict[str, Any]) -> bool:
@@ -1308,7 +1354,9 @@ def collect_api_capability_records() -> list[dict[str, Any]]:
                 "category": capability.category,
                 "method": method,
                 "endpoint": endpoint,
-                "route_group": getattr(capability.route_group, "value", str(capability.route_group)),
+                "route_group": getattr(
+                    capability.route_group, "value", str(capability.route_group)
+                ),
                 "risk_level": getattr(capability.risk_level, "value", str(capability.risk_level)),
                 "visibility": getattr(capability.visibility, "value", str(capability.visibility)),
                 "requires_confirmation": capability.requires_confirmation,
@@ -1515,7 +1563,10 @@ def remove_stale_parameterized_safe_actions(
     removed = 0
     for action in actions:
         source = str(action.get("source") or "")
-        if source not in {"api-collector:parameterized-candidate", "approved:parameterized-promoted"}:
+        if source not in {
+            "api-collector:parameterized-candidate",
+            "approved:parameterized-promoted",
+        }:
             kept.append(action)
             continue
         if str(action.get("intent") or "") != "parameterized_safe_read":
@@ -1650,7 +1701,8 @@ def build_coverage_summary(
     covered_parameterized_actions = {
         str(action.get("endpoint", ""))
         for action in payload.get("actions", [])
-        if str(action.get("endpoint", "")) in parameterized_candidate_endpoints | query_candidate_endpoints
+        if str(action.get("endpoint", ""))
+        in parameterized_candidate_endpoints | query_candidate_endpoints
         and action.get("fields")
         and str(action.get("risk", "read")) == "read"
     }
@@ -1786,6 +1838,7 @@ def main() -> int:
         payload=payload,
     )
     _assign_auto_library_default_actions(payload)
+    _prune_empty_auto_library_screens(payload)
     source_evidence = {
         "api_safe_read": api_evidence,
         "sdk_methods": sdk_evidence,

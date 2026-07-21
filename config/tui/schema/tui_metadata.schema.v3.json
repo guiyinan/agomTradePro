@@ -8,6 +8,12 @@
     "schema_version": { "const": "tui-metadata.v3" },
     "version": { "type": "string", "minLength": 1 },
     "registry_key": { "type": "string" },
+    "ia_version": { "type": "string", "minLength": 1 },
+    "legacy_screen_aliases": {
+      "type": "object",
+      "propertyNames": { "type": "string", "minLength": 1 },
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
     "default_screen": { "type": "string", "minLength": 1 },
     "interaction_model": { "type": "string" },
     "field_aliases": {
@@ -84,6 +90,15 @@
         "user_experience": { "$ref": "#/$defs/userExperience" },
         "workflow": { "$ref": "#/$defs/workflow" },
         "business_context": { "type": "object" }
+        ,"action_density": {
+          "type": "object",
+          "required": ["primary_operation_limit", "task_group_limit"],
+          "properties": {
+            "primary_operation_limit": { "type": "integer", "minimum": 1 },
+            "task_group_limit": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": true
     },
@@ -225,6 +240,8 @@
         "status": { "type": "string" },
         "note": { "type": "string" },
         "empty_message": { "type": "string" },
+        "error_message": { "type": "string" },
+        "stale_message": { "type": "string" },
         "max_rows": { "type": "integer" },
         "user_priority": { "enum": ["p0", "p1", "p2"] },
         "presentation_semantic": { "$ref": "#/$defs/presentationSemantic" },

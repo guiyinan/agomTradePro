@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_MACRO_DATA: dict[str, dict[str, Any]] = {
     "macro-regime.beta-gate": {
         "default_action_key": "auto.api.get.api.beta-gate.decisions",
@@ -252,7 +251,7 @@ RUNTIME_SCREEN_PATCHES_MACRO_DATA: dict[str, dict[str, Any]] = {
 }
 
 RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS_MACRO_DATA: dict[str, set[str]] = {
-    "api-library.data-center": {"auto.api.get.api.data-center"},
+    "api-library.data-center": set(),
     "macro-regime.beta-gate": {
         "auto.api.get.api.beta-gate",
         "auto.api.get.api.beta-gate.health",

@@ -228,8 +228,11 @@
         }
         const method = String(action.method || "GET").trim().toUpperCase();
         const risk = String(action.risk || "read").trim().toLowerCase();
+        const screen = state.screen?.screen || {};
+        const sameAdminScreen = String(screen.audience || "") === "admin"
+            && String(action.screen_key || "") === String(screen.key || "");
         return ["GET", "HEAD", "OPTIONS"].includes(method)
-            && risk === "read"
+            && (risk === "read" || (risk === "admin" && sameAdminScreen))
             && unresolvedRequiredFields(action).length === 0;
     }
 
@@ -409,7 +412,10 @@
 
     function renderDashboardPanelBody(panel, viewModel) {
         if (!viewModel) {
-            return renderPanelPlaceholder(panel, "暂无可显示数据。");
+            return renderPanelPlaceholder(panel, panel.empty_message || "暂无可显示数据。");
+        }
+        if (viewModel.stale && panel.stale_message) {
+            return renderPanelPlaceholder(panel, panel.stale_message);
         }
         if (requiresMissingRendererFallback(viewModel)) {
             return renderExtensionFallback(viewModel);
@@ -514,7 +520,7 @@
         const sourceColumns = preferredColumns.length ? preferredColumns : (viewModel.columns || []);
         const columns = sourceColumns.filter((column) => rows.some((row) => Object.prototype.hasOwnProperty.call(row, column.key))).slice(0, 6);
         if (!rows.length || !columns.length) {
-            return renderPanelPlaceholder(panel, "暂无表格数据。");
+            return renderPanelPlaceholder(panel, panel.empty_message || "暂无表格数据。");
         }
         const rowActions = Array.isArray(panel.row_actions) ? panel.row_actions : [];
         const headers = columns.map((column) => column.label || column.key);

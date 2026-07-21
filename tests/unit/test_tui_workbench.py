@@ -349,7 +349,7 @@ def test_tui_registry_api_returns_module_contracts(client, tui_user):
     assert payload["interaction_model"] == "user-task-workbench-to-approved-tools"
     assert payload["groups"]
     assert any(
-        module["key"] == "command-center"
+        module["key"] == "daily-decisions"
         for group in payload["groups"]
         for module in group["modules"]
     )
@@ -362,7 +362,7 @@ def test_tui_module_snapshot_api_returns_renderable_spec(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["module"]["key"] == "macro-regime"
+    assert payload["module"]["key"] == "daily-decisions"
     assert payload["layout"]["type"] == "pc-tools-workbench"
     assert {block["type"] for block in payload["blocks"]} >= {
         "screen-context",
@@ -398,7 +398,7 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     text = str(payload)
     labels = {action["label"] for action in payload["actions"]}
 
-    assert payload["screen"]["label"] == "提示词与模型配置"
+    assert payload["screen"]["label"] == "AI 工具与我的服务商"
     assert "提示词模板" in labels
     assert "Prompt" not in text
     assert "Chat" not in text
@@ -407,7 +407,7 @@ def test_tui_screen_payload_uses_operator_vocabulary(client, tui_user):
     providers_payload = providers_response.json()
     provider_text = str(providers_payload)
     provider_labels = {action["label"] for action in providers_payload["actions"]}
-    assert providers_payload["screen"]["label"] == "AI 服务商与用量"
+    assert providers_payload["screen"]["label"] == "AI 工具与我的服务商"
     assert "我的 AI 服务商" in provider_labels
     assert "对话模型" in provider_labels
     assert "AI Provider" not in provider_text
@@ -444,12 +444,13 @@ def test_tui_realtime_monitor_exposes_one_owner_workflow(client, tui_user):
     screen = payload["screen"]
     actions = {action["key"]: action for action in payload["actions"]}
     panels = {panel["key"]: panel for panel in screen["dashboard_panels"]}
-    assert payload["module"]["key"] == "realtime-monitor"
-    assert screen["default_action_key"] == "realtime-monitor.list-alerts"
+    assert payload["module"]["key"] == "daily-decisions"
+    assert screen["key"] == "execution.audit"
+    assert screen["default_action_key"] == "auto.api.get.api.audit.health"
     assert screen["user_experience"]["primary_task"]
     assert screen["user_experience"]["primary_outcome"]
-    assert panels["active-alerts"]["user_priority"] == "p0"
-    assert panels["active-alerts"]["presentation_semantic"] == "primary_list"
+    assert panels["audit-health"]["user_priority"] == "p0"
+    assert panels["event-metrics"]["presentation_semantic"] == "primary_status"
     assert {
         "realtime-monitor.list-alerts",
         "realtime-monitor.create-alert",
@@ -500,11 +501,10 @@ def test_tui_risk_center_screen_exposes_read_and_confirmed_write_actions(client,
     assert response.status_code == 200
     payload = response.json()
     action_by_key = {action["key"]: action for action in payload["actions"]}
-    assert payload["module"]["key"] == "risk-center"
-    assert payload["screen"]["label"] == "集中风控中心"
-    assert payload["screen"]["default_action_key"] == "risk-center.effective-policy"
-    assert payload["screen"]["entry_state"]["mode"] == "parameter_gate"
-    assert payload["screen"]["entry_state"]["field_key"] == "account_id"
+    assert payload["module"]["key"] == "daily-decisions"
+    assert payload["screen"]["label"] == "策略与风控"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.beta-gate.decisions"
+    assert payload["screen"]["entry_state"]["mode"] == "dashboard"
     assert action_by_key["risk-center.effective-policy"]["risk"] == "read"
     assert action_by_key["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert action_by_key["risk-center.pre-trade-check"]["risk"] == "read"
@@ -549,17 +549,21 @@ def test_tui_auto_advisor_screen_defaults_to_account_selector(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "advisor.today_sheet"
-    assert payload["screen"]["entry_state"]["mode"] == "parameter_gate"
-    assert payload["screen"]["entry_state"]["field_key"] == "account_id"
+    assert payload["screen"]["key"] == "command-center.decision-flow"
+    assert (
+        payload["screen"]["default_action_key"] == "auto.api.get.api.decision.workspace.aggregated"
+    )
+    assert payload["screen"]["entry_state"]["mode"] == "dashboard"
     action_by_key = {action["key"]: action for action in payload["actions"]}
     assert "advisor.account_selector" in action_by_key
     assert "advisor.factor_breakdown" in action_by_key
     assert action_by_key["advisor.account_selector"]["fields"] == []
     assert action_by_key["advisor.today_sheet"]["fields"][0]["key"] == "account_id"
     panels = payload["screen"]["dashboard_panels"]
-    assert len(panels) == 1
-    assert panels[0]["action_key"] == "advisor.account_selector"
+    assert {panel["action_key"] for panel in panels} == {
+        "auto.api.get.api.decision.workspace.aggregated",
+        "auto.api.get.api.dashboard.action-recommendation",
+    }
 
 
 def test_tui_operation_fields_use_business_labels(client, tui_user):
@@ -672,11 +676,8 @@ def test_tui_catalog_shows_admin_only_config_center_to_admin_user(client, tui_ad
         for screen in module["screens"]
     }
 
-    assert "api-library.config-center" in screens
-    assert (
-        screens["api-library.config-center"]["default_action_key"]
-        == "operator.governance.config_center_summary"
-    )
+    assert "api-library.data-center" in screens
+    assert screens["api-library.data-center"]["default_action_key"] == "auto.api.get.api.health"
 
 
 def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_user):
@@ -693,11 +694,10 @@ def test_tui_catalog_hides_admin_only_mcp_center_from_regular_user(client, tui_u
     assert "capability-router.admin-access" not in screen_keys
     assert "capability-router.gateway" not in screen_keys
     assert "capability-router.self-service" in screen_keys
-    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
-        "capability-router.self-service"
-    ]
-    assert "mcp-governance" not in modules
-    assert "capability-router-debug" not in modules
+    assert "capability-router.self-service" in {
+        screen["key"] for screen in modules["research-tools"]["screens"]
+    }
+    assert "system-governance" not in modules
 
 
 def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin_user):
@@ -711,19 +711,15 @@ def test_tui_catalog_shows_admin_only_mcp_center_to_admin_user(client, tui_admin
     screens = {screen["key"]: screen for module in modules.values() for screen in module["screens"]}
 
     assert "capability-router.mcp-center" in screens
-    assert "capability-router.admin-access" in screens
     assert "capability-router.self-service" in screens
-    assert "capability-router.gateway" in screens
-    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
-        "capability-router.self-service"
-    ]
-    assert [screen["key"] for screen in modules["mcp-governance"]["screens"]] == [
-        "capability-router.mcp-center",
-        "capability-router.admin-access",
-    ]
-    assert [screen["key"] for screen in modules["capability-router-debug"]["screens"]] == [
-        "capability-router.gateway"
-    ]
+    assert "capability-router.admin-access" not in screens
+    assert "capability-router.gateway" not in screens
+    assert "capability-router.self-service" in {
+        screen["key"] for screen in modules["research-tools"]["screens"]
+    }
+    assert "capability-router.mcp-center" in {
+        screen["key"] for screen in modules["system-governance"]["screens"]
+    }
     assert screens["capability-router.mcp-center"]["default_action_key"] == (
         "capability-router.mcp-tools-stats"
     )
@@ -745,26 +741,13 @@ def test_tui_catalog_promotes_smoke_checked_tools_into_business_screens(client, 
         for screen in module["screens"]
     }
     expected_defaults = {
-        "command-center.decision-flow": "auto.api.get.api.decision.context.step1",
-        "execution.accounts": "auto.api.get.api.account.accounts",
-        "execution.trading-ledger": "execution.trading-ledger.account-selector",
-        "execution.portfolio-performance": "auto.api.get.api.account.portfolios",
-        "execution.account-settings": "operator.governance.account_settings_summary",
-        "macro-regime.strategy": "auto.api.get.api.strategy.strategies",
-        "macro-regime.rotation": "auto.api.get.api.rotation.assets",
-        "macro-regime.risk-controls": "auto.api.get.api.decision-rhythm.summary",
-        "macro-regime.beta-gate": "auto.api.get.api.beta-gate.decisions",
-        "macro-regime.hedge": "auto.api.get.api.hedge.snapshots",
+        "command-center.decision-flow": "auto.api.get.api.decision.workspace.aggregated",
+        "execution.accounts": "auto.api.get.api.account.health",
+        "macro-regime.strategy": "auto.api.get.api.beta-gate.decisions",
         "research.asset-lab": "auto.api.get.api.asset-analysis.pool-summary",
-        "research.fund-sector": "auto.api.get.api.fund.rank",
-        "research.screening-sentiment": "auto.api.get.api.filter.indicators",
-        "ai-ops.providers": "operator.governance.ai_provider_summary",
-        "ai-ops.prompt-workbench": "auto.api.get.api.prompt.templates",
-        "api-library.data-center": "operator.governance.data_center_summary",
-        "api-library.market-thermometer": "auto.api.get.api.data-center.market-thermometer.history",
-        "execution.events": "auto.api.get.api.events.query",
-        "execution.share": "auto.api.get.api.share.links",
-        "research.alpha-triggers": "auto.api.get.api.alpha-triggers.candidates.actionable",
+        "ai-ops.providers": "auto.api.get.api.ai.me.providers",
+        "execution.audit": "auto.api.get.api.audit.health",
+        "research.signals": "auto.api.get.api.alpha-triggers.candidates.actionable",
     }
 
     for screen_key, default_action_key in expected_defaults.items():
@@ -782,7 +765,7 @@ def test_tui_business_screen_actions_are_grouped_by_user_task(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["label"] == "账户清单与当前持仓"
+    assert payload["screen"]["label"] == "账户与持仓"
     actions = payload["actions"]
     action_by_key = {action["key"]: action for action in actions}
     groups = {action["task_group"] for action in actions}
@@ -821,15 +804,15 @@ def test_tui_actions_expose_business_task_tiers(client, tui_user):
     assert settings_actions["auto.api.get.api.account.assets"]["task_tier"] == "support"
 
 
-def test_tui_data_center_screen_exposes_selector_reads(client, tui_user):
-    client.force_login(tui_user)
+def test_tui_data_center_screen_exposes_selector_reads(client, tui_admin_user):
+    client.force_login(tui_admin_user)
 
     response = client.get("/api/tui/screens/api-library.data-center/")
 
     assert response.status_code == 200
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
-    assert "auto.api.get.api.data-center" not in actions
+    assert "auto.api.get.api.data-center" in actions
     assert actions["auto.api.get.api.data-center.indicators"]["task_tier"] == "support"
     assert actions["auto.api.get.api.data-center.indicators"]["task_group"] == "02 指标目录"
     assert actions["auto.api.get.api.data-center.providers"]["task_group"] == "04 服务商"
@@ -843,7 +826,8 @@ def test_tui_account_settings_screen_defaults_to_row_backed_selector(client, tui
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "operator.governance.account_settings_summary"
+    assert payload["screen"]["key"] == "execution.accounts"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.account.health"
 
 
 def test_tui_trading_ledger_screen_exposes_account_selector_default(client, tui_user):
@@ -854,7 +838,8 @@ def test_tui_trading_ledger_screen_exposes_account_selector_default(client, tui_
     assert response.status_code == 200
     payload = response.json()
     actions = {action["key"]: action for action in payload["actions"]}
-    assert payload["screen"]["default_action_key"] == "execution.trading-ledger.account-selector"
+    assert payload["screen"]["key"] == "execution.accounts"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.account.health"
     assert actions["execution.trading-ledger.account-selector"]["task_group"] == "02 账户选择"
 
 
@@ -865,7 +850,8 @@ def test_tui_share_screen_defaults_to_non_empty_overview(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "auto.api.get.api.share.links"
+    assert payload["screen"]["key"] == "execution.audit"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.audit.health"
 
 
 def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoints(
@@ -875,10 +861,7 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     runtime_response = client.get("/api/tui/screens/ai-ops.agent-runtime/")
     runtime_payload = runtime_response.json()
-    assert (
-        runtime_payload["screen"]["default_action_key"]
-        == "operator.governance.agent_runtime_summary"
-    )
+    assert runtime_payload["screen"]["default_action_key"] == "terminal.agent_chat"
 
     alpha_response = client.get("/api/tui/screens/research.alpha-triggers/")
     alpha_payload = alpha_response.json()
@@ -889,10 +872,7 @@ def test_tui_agent_runtime_and_alpha_trigger_defaults_prefer_non_empty_entrypoin
 
     providers_response = client.get("/api/tui/screens/ai-ops.providers/")
     providers_payload = providers_response.json()
-    assert (
-        providers_payload["screen"]["default_action_key"]
-        == "operator.governance.ai_provider_summary"
-    )
+    assert providers_payload["screen"]["default_action_key"] == "auto.api.get.api.ai.me.providers"
 
 
 def test_tui_providers_screen_hides_personal_provider_detail_without_rows(client, tui_user):
@@ -938,7 +918,8 @@ def test_tui_my_providers_screen_exposes_self_service_actions(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     action_keys = {action["key"] for action in payload["actions"]}
-    assert payload["screen"]["default_action_key"] == "ai-ops.list-my-providers"
+    assert payload["screen"]["key"] == "ai-ops.providers"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.ai.me.providers"
     assert "ai-ops.create-my-provider" in action_keys
     assert "ai-ops.update-my-provider" in action_keys
     assert "ai-ops.toggle-my-provider" in action_keys
@@ -978,7 +959,7 @@ def test_tui_catalog_shows_admin_ai_management_screens_to_admin_user(client, tui
         for screen in module["screens"]
     }
     assert "ai-ops.system-providers" in screen_keys
-    assert "ai-ops.user-quotas" in screen_keys
+    assert "ai-ops.user-quotas" not in screen_keys
 
 
 def test_tui_dashboard_screen_hides_alpha_history_detail_without_history_rows(
@@ -1051,11 +1032,11 @@ def test_tui_risk_controls_screen_shows_conditional_queries_with_rows(
 
 def test_tui_runtime_screen_hides_system_statistics_without_task_rows(
     client,
-    tui_user,
+    tui_admin_user,
     monkeypatch,
 ):
     monkeypatch.setattr(tui_workbench_module, "has_recent_task_failures", lambda: False)
-    client.force_login(tui_user)
+    client.force_login(tui_admin_user)
 
     response = client.get("/api/tui/screens/api-library.runtime/")
 
@@ -1067,11 +1048,11 @@ def test_tui_runtime_screen_hides_system_statistics_without_task_rows(
 
 def test_tui_runtime_screen_shows_system_statistics_with_task_rows(
     client,
-    tui_user,
+    tui_admin_user,
     monkeypatch,
 ):
     monkeypatch.setattr(tui_workbench_module, "has_recent_task_failures", lambda: True)
-    client.force_login(tui_user)
+    client.force_login(tui_admin_user)
 
     response = client.get("/api/tui/screens/api-library.runtime/")
 
@@ -1133,7 +1114,8 @@ def test_tui_rotation_screen_defaults_to_row_backed_assets(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "auto.api.get.api.rotation.assets"
+    assert payload["screen"]["key"] == "macro-regime.strategy"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.beta-gate.decisions"
 
 
 def test_tui_hedge_screen_defaults_to_row_backed_snapshots(client, tui_user):
@@ -1143,7 +1125,8 @@ def test_tui_hedge_screen_defaults_to_row_backed_snapshots(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "auto.api.get.api.hedge.snapshots"
+    assert payload["screen"]["key"] == "macro-regime.strategy"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.beta-gate.decisions"
 
 
 def test_tui_screens_expose_daily_workflow_navigation(client, tui_user):
@@ -1154,72 +1137,23 @@ def test_tui_screens_expose_daily_workflow_navigation(client, tui_user):
     assert response.status_code == 200
     workflow = response.json()["screen"]["workflow"]
     assert workflow["name"] == "每日投研流程"
-    assert workflow["label"] == "账户组合"
-    assert workflow["previous"]["key"] == "research.asset-lab"
+    assert workflow["label"] == "账户与持仓"
+    assert workflow["previous"]["key"] == "research.signals"
     assert workflow["next"]["key"] == "macro-regime.strategy"
 
 
 @pytest.mark.parametrize(
-    ("screen_key", "step", "total", "previous_key", "next_key", "default_action_key"),
+    ("screen_key", "default_action_key"),
     [
-        (
-            "api-library.runtime",
-            1,
-            6,
-            None,
-            "api-library.data-center",
-            "operator.governance.runtime_summary",
-        ),
-        (
-            "api-library.data-center",
-            2,
-            6,
-            "api-library.runtime",
-            "ai-ops.providers",
-            "operator.governance.data_center_summary",
-        ),
-        (
-            "ai-ops.providers",
-            3,
-            6,
-            "api-library.data-center",
-            "ai-ops.agent-runtime",
-            "operator.governance.ai_provider_summary",
-        ),
-        (
-            "ai-ops.agent-runtime",
-            4,
-            6,
-            "ai-ops.providers",
-            "execution.account-settings",
-            "operator.governance.agent_runtime_summary",
-        ),
-        (
-            "execution.account-settings",
-            5,
-            6,
-            "ai-ops.agent-runtime",
-            "api-library.config-center",
-            "operator.governance.account_settings_summary",
-        ),
-        (
-            "api-library.config-center",
-            6,
-            6,
-            "execution.account-settings",
-            None,
-            "operator.governance.config_center_summary",
-        ),
+        ("api-library.data-center", "auto.api.get.api.health"),
+        ("ai-ops.system-providers", "ai-ops.system-provider-overall-stats"),
+        ("capability-router.mcp-center", "capability-router.mcp-tools-stats"),
     ],
 )
 def test_tui_governance_screens_expose_operator_workflow_contract(
     client,
     tui_admin_user,
     screen_key,
-    step,
-    total,
-    previous_key,
-    next_key,
     default_action_key,
 ):
     client.force_login(tui_admin_user)
@@ -1229,16 +1163,11 @@ def test_tui_governance_screens_expose_operator_workflow_contract(
     assert response.status_code == 200
     payload = response.json()
     screen = payload["screen"]
-    workflow = screen["workflow"]
     assert screen["default_action_key"] == default_action_key
-    assert workflow["name"] == "系统治理流程"
-    assert workflow["step"] == step
-    assert workflow["total"] == total
+    assert screen["audience"] == "admin"
     assert screen["business_context"]["objective"]
     assert screen["business_context"]["decision_output"]
     assert screen["business_context"]["checkpoints"]
-    assert workflow.get("previous", {}).get("key") == previous_key
-    assert workflow.get("next", {}).get("key") == next_key
 
 
 def test_tui_governance_flow_keeps_config_center_admin_only(client, tui_user, tui_admin_user):
@@ -1250,7 +1179,7 @@ def test_tui_governance_flow_keeps_config_center_admin_only(client, tui_user, tu
         for module in group["modules"]
         for screen in module["screens"]
     }
-    assert "api-library.config-center" not in regular_screen_keys
+    assert "api-library.data-center" not in regular_screen_keys
 
     client.force_login(tui_admin_user)
     admin_catalog = client.get("/api/tui/catalog/").json()
@@ -1260,8 +1189,8 @@ def test_tui_governance_flow_keeps_config_center_admin_only(client, tui_user, tu
         for module in group["modules"]
         for screen in module["screens"]
     }
-    assert admin_screens["api-library.config-center"]["default_action_key"] == (
-        "operator.governance.config_center_summary"
+    assert (
+        admin_screens["api-library.data-center"]["default_action_key"] == "auto.api.get.api.health"
     )
 
 
@@ -1272,9 +1201,9 @@ def test_tui_screens_expose_business_context_for_operator_flow(client, tui_user)
 
     assert response.status_code == 200
     context = response.json()["screen"]["business_context"]
-    assert "环境、信号、约束" in context["objective"]
-    assert "当天行动结论" in context["decision_output"]
-    assert context["checkpoints"][0].startswith("按第一步到第六步")
+    assert "决策证据" in context["objective"]
+    assert "今日建议" in context["decision_output"]
+    assert context["checkpoints"][0] == "聚合上下文"
 
 
 def test_tui_catalog_exposes_confirmation_ready_operations(client, tui_user):
@@ -1397,8 +1326,8 @@ def test_tui_screen_api_returns_pc_tools_contract(client, tui_user):
         "status_bar",
         "raw_drawer",
     ]
-    assert payload["screen"]["key"] == "ai-ops.capabilities"
-    assert payload["screen"]["default_action_key"] == "ai_capability.list"
+    assert payload["screen"]["key"] == "ai-ops.providers"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.ai.me.providers"
     assert any(action["key"] == "ai_capability.list" for action in payload["actions"])
 
 
@@ -1424,7 +1353,7 @@ def test_tui_user_screens_hide_selectorless_technical_queries(client, tui_user):
             "param.api.get.api.decision.workspace.plans.str.plan_id",
         },
         "execution.audit": {"param.api.get.api.audit.indicator-performance.str.indicator_code"},
-        "api-library.runtime": {"param.api.get.api.system.status.str.task_id"},
+        "api-library.data-center": {"param.api.get.api.system.status.str.task_id"},
         "macro-regime.risk-controls": {
             "param.api.get.api.decision-rhythm.cooldowns.by-asset.asset_code",
             "param.api.get.api.decision-rhythm.requests.pk",
@@ -1442,6 +1371,9 @@ def test_tui_user_screens_hide_selectorless_technical_queries(client, tui_user):
     }
 
     for screen_key, hidden_keys in hidden_by_screen.items():
+        if screen_key == "api-library.data-center":
+            tui_user.is_staff = True
+            tui_user.save(update_fields=["is_staff"])
         response = client.get(f"/api/tui/screens/{screen_key}/")
         assert response.status_code == 200
         actions = {action["key"] for action in response.json()["actions"]}
@@ -1511,7 +1443,7 @@ def test_tui_account_performance_actions_are_rehomed_to_account_screen(client, t
 
     for moved_key in moved_keys:
         assert moved_key in account_actions
-        assert moved_key not in portfolio_actions
+        assert moved_key in portfolio_actions
 
 
 def test_tui_strategy_portfolio_queries_are_rehomed_to_portfolio_screen(client, tui_user):
@@ -1542,7 +1474,7 @@ def test_tui_terminal_screen_defaults_to_interactive_chat(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["label"] == "AI 交互终端"
+    assert payload["screen"]["label"] == "AI 助手"
     assert payload["screen"]["default_action_key"] == "terminal.agent_chat"
     action = next(action for action in payload["actions"] if action["key"] == "terminal.agent_chat")
     assert action["label"] == "发送 AI 请求"
@@ -1559,10 +1491,12 @@ def test_tui_catalog_registers_cli_module_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["cli"]["label"] == "AI 助手"
-    assert modules["cli"]["group"] == "ops"
-    assert [screen["key"] for screen in modules["cli"]["screens"]] == ["cli.terminal"]
-    assert modules["cli"]["screens"][0]["default_action_key"] == "cli.agent_chat"
+    assert modules["research-tools"]["label"] == "研究与工具"
+    assert modules["research-tools"]["group"] == "research"
+    cli_screen = next(
+        screen for screen in modules["research-tools"]["screens"] if screen["key"] == "cli.terminal"
+    )
+    assert cli_screen["default_action_key"] == "cli.agent_chat"
 
 
 def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
@@ -1572,8 +1506,8 @@ def test_tui_cli_screen_defaults_to_runtime_chat_entry(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["module"]["key"] == "cli"
-    assert payload["screen"]["label"] == "助手终端"
+    assert payload["module"]["key"] == "research-tools"
+    assert payload["screen"]["label"] == "CLI 终端"
     assert payload["screen"]["default_action_key"] == "cli.agent_chat"
     action = next(action for action in payload["actions"] if action["key"] == "cli.agent_chat")
     assert action["label"] == "发送助手请求"
@@ -1590,15 +1524,13 @@ def test_tui_catalog_registers_capability_router_entry(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     modules = {module["key"]: module for group in payload["groups"] for module in group["modules"]}
-    assert modules["mcp-access"]["label"] == "我的 MCP 接入"
-    assert modules["mcp-access"]["group"] == "ops"
-    assert [screen["key"] for screen in modules["mcp-access"]["screens"]] == [
-        "capability-router.self-service",
-    ]
-    assert (
-        modules["mcp-access"]["screens"][0]["default_action_key"]
-        == "capability-router.mcp-self-status"
+    assert modules["research-tools"]["label"] == "研究与工具"
+    self_service = next(
+        screen
+        for screen in modules["research-tools"]["screens"]
+        if screen["key"] == "capability-router.self-service"
     )
+    assert self_service["default_action_key"] == "capability-router.mcp-self-status"
 
 
 def test_tui_screen_api_returns_bounded_not_found_error(client, tui_user):
@@ -1706,8 +1638,8 @@ def test_tui_capability_router_screen_uses_unified_route_api(client, tui_admin_u
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["module"]["key"] == "capability-router-debug"
-    assert payload["screen"]["label"] == "能力路由接入"
+    assert payload["module"]["key"] == "system-governance"
+    assert payload["screen"]["label"] == "MCP 与能力治理"
     action = next(
         action
         for action in payload["actions"]
@@ -1754,39 +1686,33 @@ def test_tui_default_screen_returns_user_dashboard_panels(client, tui_user):
     assert response.status_code == 200
     payload = response.json()
     assert payload["screen"]["chrome_mode"] == "immersive"
-    assert payload["screen"]["default_action_key"] == "operator.home.decision_queue"
+    assert payload["screen"]["default_action_key"] == "decision.workspace.today_queue"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["layout_area"] for panel in panels] == [
-        "decision_queue",
-        "market_context",
-        "account_signal_summary",
-        "system_exception_summary",
-        "data_task_summary",
-        "ai_config_summary",
+    assert [panel["key"] for panel in panels] == [
+        "today-queue",
+        "market-context",
+        "account-signal-summary",
+        "data-task-summary",
+        "portfolio-summary",
     ]
     assert [panel["target_screen"] for panel in panels] == [
-        "command-center.decision-flow",
+        "",
         "macro-regime.overview",
         "execution.accounts",
-        "api-library.runtime",
         "api-library.data-center",
-        "ai-ops.providers",
+        "execution.accounts",
     ]
-    assert panels[0]["action_key"] == "operator.home.decision_queue"
+    assert panels[0]["action_key"] == "decision.workspace.today_queue"
     assert panels[1]["action_key"] == "operator.home.market_context"
     assert panels[2]["action_key"] == "operator.home.account_signal_summary"
-    assert panels[3]["kind"] == "datagrid"
-    assert panels[3]["action_key"] == "operator.home.system_exception_summary"
-    assert panels[4]["kind"] == "datagrid"
-    assert panels[4]["action_key"] == "operator.home.data_task_summary"
-    assert panels[5]["action_key"] == "operator.home.ai_config_summary"
+    assert panels[3]["action_key"] == "operator.home.data_task_summary"
+    assert panels[4]["action_key"] == "dashboard.v1_summary"
     assert [panel["title"] for panel in panels] == [
-        "一、今日待办队列",
-        "二、环境与脉搏摘要",
-        "三、账户与信号摘要",
-        "四、系统异常总览",
-        "五、数据与任务异常",
-        "六、AI / 配置异常",
+        "今日待办",
+        "环境与脉搏",
+        "账户与信号",
+        "数据与任务",
+        "组合摘要",
     ]
     action_keys = {action["key"] for action in payload["actions"]}
     assert {
@@ -1807,22 +1733,11 @@ def test_tui_research_asset_lab_screen_returns_overview_panels(client, tui_user)
     assert payload["screen"]["chrome_mode"] == ""
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["layout_area"] for panel in panels] == [
-        "pool_summary",
-        "current_weight",
-        "weight_configs",
-    ]
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.asset-analysis.pool-summary",
-        "auto.api.get.api.asset-analysis.current-weight",
-        "auto.api.get.api.asset-analysis.weight-configs",
+        "backtest.statistics",
     ]
-    assert [panel["kind"] for panel in panels] == ["detail", "detail", "detail"]
-    assert [panel["target_screen"] for panel in panels] == [
-        "research.asset-lab",
-        "research.asset-lab",
-        "research.asset-lab",
-    ]
+    assert [panel["kind"] for panel in panels] == ["detail", "detail"]
 
 
 def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
@@ -1836,60 +1751,31 @@ def test_tui_beta_gate_screen_returns_overview_panels(client, tui_user):
     assert payload["screen"]["default_action_key"] == "auto.api.get.api.beta-gate.decisions"
     panels = payload["screen"]["dashboard_panels"]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert [panel["layout_area"] for panel in panels] == [
-        "decisions",
-        "configs",
-        "universe",
-        "versions",
-    ]
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.beta-gate.decisions",
-        "auto.api.get.api.beta-gate.configs",
-        "auto.api.get.api.beta-gate.universe",
-        "auto.api.get.api.beta-gate.version.compare",
+        "auto.api.get.api.hedge.alerts.active",
     ]
-    assert [panel["kind"] for panel in panels] == [
-        "datagrid",
-        "datagrid",
-        "datagrid",
-        "datagrid",
-    ]
-    assert all(panel["target_screen"] == "macro-regime.beta-gate" for panel in panels)
-    assert [panel["title"] for panel in panels] == [
-        "一、最近闸门决策",
-        "二、当前配置版本",
-        "三、最近标的池快照",
-        "四、最近配置版本",
-    ]
-    assert action_keys == [
-        "auto.api.get.api.beta-gate.configs",
+    assert set(action_keys) >= {
         "auto.api.get.api.beta-gate.decisions",
-        "auto.api.get.api.beta-gate.universe",
-        "auto.api.get.api.beta-gate.version.compare",
-    ]
+        "auto.api.get.api.hedge.alerts.active",
+    }
 
 
-def test_tui_data_center_screen_returns_overview_panels(client, tui_user):
-    client.force_login(tui_user)
+def test_tui_data_center_screen_returns_overview_panels(client, tui_admin_user):
+    client.force_login(tui_admin_user)
 
     response = client.get("/api/tui/screens/api-library.data-center/")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "operator.governance.data_center_summary"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.health"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["layout_area"] for panel in panels] == [
-        "governance_summary",
-        "providers",
-        "indicators",
-    ]
     assert [panel["action_key"] for panel in panels] == [
-        "operator.governance.data_center_summary",
-        "auto.api.get.api.data-center.providers",
-        "auto.api.get.api.data-center.indicators",
+        "auto.api.get.api.health",
+        "auto.api.get.api.data-center",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert "auto.api.get.api.data-center" not in action_keys
+    assert "auto.api.get.api.data-center" in action_keys
 
 
 def test_tui_events_screen_returns_overview_panels(client, tui_user):
@@ -1899,20 +1785,14 @@ def test_tui_events_screen_returns_overview_panels(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "auto.api.get.api.events.query"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.audit.health"
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["layout_area"] for panel in panels] == [
-        "events",
-        "metrics",
-        "status",
-    ]
     assert [panel["action_key"] for panel in panels] == [
-        "auto.api.get.api.events.query",
+        "auto.api.get.api.audit.health",
         "auto.api.get.api.events.metrics",
-        "auto.api.get.api.events.status",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert "auto.api.get.api.events" not in action_keys
+    assert "auto.api.get.api.events" in action_keys
 
 
 def test_tui_share_screen_defaults_to_share_links(client, tui_user):
@@ -1922,12 +1802,14 @@ def test_tui_share_screen_defaults_to_share_links(client, tui_user):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["screen"]["default_action_key"] == "auto.api.get.api.share.links"
+    assert payload["screen"]["default_action_key"] == "auto.api.get.api.audit.health"
     panels = payload["screen"]["dashboard_panels"]
-    assert len(panels) == 1
-    assert panels[0]["action_key"] == "auto.api.get.api.share.links"
+    assert [panel["action_key"] for panel in panels] == [
+        "auto.api.get.api.audit.health",
+        "auto.api.get.api.events.metrics",
+    ]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert "auto.api.get.api.share" not in action_keys
+    assert "auto.api.get.api.share" in action_keys
 
 
 def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
@@ -1942,18 +1824,12 @@ def test_tui_alpha_triggers_screen_returns_overview_panels(client, tui_user):
         == "auto.api.get.api.alpha-triggers.candidates.actionable"
     )
     panels = payload["screen"]["dashboard_panels"]
-    assert [panel["layout_area"] for panel in panels] == [
-        "actionable",
-        "triggers",
-        "watch_list",
-    ]
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.alpha-triggers.candidates.actionable",
-        "auto.api.get.api.alpha-triggers.triggers.active",
-        "auto.api.get.api.alpha-triggers.candidates.watch-list",
+        "signal.active",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
-    assert "auto.api.get.api.alpha-triggers" not in action_keys
+    assert "auto.api.get.api.alpha-triggers" in action_keys
 
 
 def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
@@ -1969,13 +1845,13 @@ def test_tui_pulse_and_hedge_screens_return_overview_panels(client, tui_user):
     hedge_panels = hedge_response.json()["screen"]["dashboard_panels"]
 
     assert [panel["action_key"] for panel in pulse_panels] == [
+        "regime.current",
         "pulse.current",
-        "pulse.history",
+        "data_center.market_thermometer",
     ]
     assert [panel["action_key"] for panel in hedge_panels] == [
-        "auto.api.get.api.hedge.snapshots.latest",
+        "auto.api.get.api.beta-gate.decisions",
         "auto.api.get.api.hedge.alerts.active",
-        "auto.api.get.api.hedge.pairs.all_effectiveness",
     ]
 
 
@@ -1986,7 +1862,7 @@ def test_tui_business_labels_do_not_leak_endpoint_generated_words(client, tui_us
         "command-center.dashboard",
         "macro-regime.strategy",
         "execution.audit",
-        "api-library.runtime",
+        "execution.accounts",
         "ai-ops.capabilities",
     ]
     forbidden_fragments = {
@@ -2011,7 +1887,6 @@ def test_tui_business_labels_do_not_leak_endpoint_generated_words(client, tui_us
     for fragment in forbidden_fragments:
         assert fragment not in joined_labels
     assert "今日仪表盘" in labels
-    assert "系统任务列表" in labels
     assert "复盘审计总览" in labels
 
 
@@ -5765,16 +5640,18 @@ def test_tui_metadata_repository_skips_dashboard_patch_when_panel_actions_are_ab
     assert screen["user_experience"]["journey"] == "workspace"
 
 
-def test_tui_metadata_repository_injects_ai_ops_module_for_identity_access_screens():
+def test_tui_metadata_repository_injects_canonical_modules_for_identity_access_screens():
     payload = _metadata_payload()
     repository = PublishedTuiMetadataRepository()
 
     loaded = repository._normalize_runtime_payload(validate_tui_metadata(payload))
-    ai_ops_module = next(module for module in loaded["modules"] if module["key"] == "ai-ops")
-
-    assert ai_ops_module["label"] == "AI 助手"
-    assert ai_ops_module["group"] == "ops"
-    assert any(screen["module_key"] == "ai-ops" for screen in loaded["screens"])
+    modules = {module["key"]: module for module in loaded["modules"]}
+    assert modules["research-tools"]["group"] == "research"
+    assert modules["system-governance"]["group"] == "system"
+    assert any(
+        screen["module_key"] in {"research-tools", "system-governance"}
+        for screen in loaded["screens"]
+    )
 
 
 @pytest.mark.django_db
@@ -5881,7 +5758,7 @@ def test_tui_metadata_repository_rehomes_strategy_portfolio_queries_to_portfolio
 
     assert set(actions) == moved_keys
     for action in actions.values():
-        assert action["screen_key"] == "execution.portfolio-performance"
+        assert action["screen_key"] == "execution.accounts"
 
 
 @pytest.mark.django_db
@@ -6081,6 +5958,32 @@ def test_tui_metadata_repository_publish_is_noop_for_same_compacted_payload():
     assert getattr(second, "_publish_was_noop", False) is True
     assert len(records) == 1
     assert records[0].status == "published"
+
+
+@pytest.mark.django_db
+def test_tui_metadata_repository_verifies_active_release_payload_and_detects_drift():
+    payload = _metadata_payload()
+    repository = PublishedTuiMetadataRepository()
+    published = repository.publish_payload(
+        payload=payload,
+        review_note="Initial reviewed metadata",
+    )
+
+    matches, active, expected_hash = repository.verify_active_payload(payload=payload)
+
+    assert matches is True
+    assert active is not None
+    assert active.pk == published.pk
+    assert expected_hash == published.source_hash
+
+    drifted = deepcopy(payload)
+    drifted["actions"][0]["label"] = "Changed release action"
+    drift_matches, drift_active, drift_hash = repository.verify_active_payload(payload=drifted)
+
+    assert drift_matches is False
+    assert drift_active is not None
+    assert drift_active.pk == published.pk
+    assert drift_hash != published.source_hash
 
 
 def test_tui_service_derives_business_context_for_unannotated_screens():
@@ -6844,15 +6747,15 @@ def test_tui_dashboard_screens_publish_explicit_user_task_contracts(client, tui_
     events_screen = events_payload["screen"]
     events_panels = {panel["key"]: panel for panel in events_screen["dashboard_panels"]}
     assert events_screen["user_experience"]["primary_task"]
-    assert events_panels["events-query"]["user_priority"] == "p0"
-    assert events_panels["events-status"]["presentation_semantic"] == "primary_status"
+    assert events_panels["audit-health"]["user_priority"] == "p0"
+    assert events_panels["event-metrics"]["presentation_semantic"] == "primary_status"
 
     asset_payload = client.get("/api/tui/screens/research.asset-lab/").json()
     asset_screen = asset_payload["screen"]
     asset_panels = {panel["key"]: panel for panel in asset_screen["dashboard_panels"]}
     assert asset_screen["default_action_key"] == "auto.api.get.api.asset-analysis.pool-summary"
-    assert asset_panels["asset-pool-summary"]["presentation_semantic"] == "primary_status"
-    assert asset_panels["asset-pool-summary"]["user_priority"] == "p0"
+    assert asset_panels["asset-pool"]["presentation_semantic"] == "primary_status"
+    assert asset_panels["asset-pool"]["user_priority"] == "p0"
 
 
 def test_tui_macro_strategy_empty_state_exposes_recovery_actions():

@@ -208,7 +208,11 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
 
         catalog = self.get_catalog(user=user)
         requested = str(requested_screen or "").strip()
-        resolved = requested or str(catalog["default_screen"])
+        metadata = self._metadata()
+        resolved = self._canonical_screen_key(
+            metadata,
+            requested or str(catalog["default_screen"]),
+        )
         try:
             screen = self.get_screen(resolved, user=user)
         except TuiScreenNotFoundError:
@@ -221,7 +225,9 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
             "requested_screen": requested,
             "resolved_screen": resolved,
             "restored": bool(
-                requested and requested == resolved and requested != catalog["default_screen"]
+                requested
+                and self._canonical_screen_key(metadata, requested) == resolved
+                and resolved != catalog["default_screen"]
             ),
         }
 
@@ -235,7 +241,8 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         """Return a renderable screen contract from published metadata."""
 
         metadata = self._metadata()
-        screen = self._screen_by_key(metadata).get(screen_key)
+        canonical_screen_key = self._canonical_screen_key(metadata, screen_key)
+        screen = self._screen_by_key(metadata).get(canonical_screen_key)
         if screen is None:
             raise TuiScreenNotFoundError(screen_key)
         if not self._screen_is_available_for_user(screen, user=user):
@@ -964,6 +971,16 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
         if self._screen_index is None:
             self._screen_index = {screen["key"]: screen for screen in metadata["screens"]}
         return self._screen_index
+
+    @staticmethod
+    def _canonical_screen_key(metadata: dict[str, Any], screen_key: str) -> str:
+        """Resolve a legacy navigation key from the published IA alias contract."""
+
+        requested = str(screen_key or "").strip()
+        aliases = metadata.get("legacy_screen_aliases") or {}
+        if not isinstance(aliases, dict):
+            return requested
+        return str(aliases.get(requested) or requested)
 
     def _resolve_asset_names(self, codes: list[str]) -> dict[str, str]:
         return resolve_asset_names(codes)

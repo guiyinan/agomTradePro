@@ -26,7 +26,7 @@ def _file_hash(root: Path, value: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Publish reviewed TUI metadata to the DB registry."
+        description="Publish or verify reviewed TUI metadata in the DB registry."
     )
     parser.add_argument("path", help="Path to reviewed TUI metadata JSON")
     parser.add_argument("--registry-key", default="default")
@@ -34,14 +34,17 @@ def main() -> int:
     parser.add_argument("--generation-source", choices=("ai", "manual", "mixed"), default="mixed")
     parser.add_argument("--backend-version", default="")
     parser.add_argument("--source-evidence-path", default="")
-    parser.add_argument("--review-note", required=True)
-    parser.add_argument("--approve", action="store_true", help="Required guard flag for DB writes")
+    parser.add_argument("--review-note", default="")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--approve", action="store_true", help="Required guard flag for DB writes")
+    mode.add_argument(
+        "--check",
+        action="store_true",
+        help="Verify the active DB payload without writing",
+    )
     args = parser.parse_args()
 
-    if not args.approve:
-        print("Refusing to write DB registry without --approve", file=sys.stderr)
-        return 2
-    if len(args.review_note.strip()) < 8:
+    if args.approve and len(args.review_note.strip()) < 8:
         print("Refusing to publish without a meaningful --review-note", file=sys.stderr)
         return 2
 
@@ -53,12 +56,38 @@ def main() -> int:
 
     django.setup()
 
-    from django.contrib.auth import get_user_model
-
     from apps.terminal.infrastructure.tui_metadata_repository import PublishedTuiMetadataRepository
 
     path = (root / args.path).resolve() if not Path(args.path).is_absolute() else Path(args.path)
     payload = json.loads(path.read_text(encoding="utf-8"))
+
+    repository = PublishedTuiMetadataRepository()
+    if args.check:
+        matches, model, expected_hash = repository.verify_active_payload(
+            payload=payload,
+            registry_key=args.registry_key,
+        )
+        print(
+            json.dumps(
+                {
+                    "ok": matches,
+                    "mode": "check",
+                    "registry_id": model.pk if model is not None else None,
+                    "registry_key": args.registry_key,
+                    "status": model.status if model is not None else None,
+                    "schema_version": model.schema_version if model is not None else None,
+                    "backend_version": model.backend_version if model is not None else None,
+                    "expected_source_hash": expected_hash,
+                    "active_source_hash": model.source_hash if model is not None else None,
+                    "reason": "matched" if matches else "active registry does not match release",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0 if matches else 1
+
+    from django.contrib.auth import get_user_model
 
     user = None
     if args.approved_by_username:
@@ -67,7 +96,7 @@ def main() -> int:
             print(f"Approved-by user not found: {args.approved_by_username}", file=sys.stderr)
             return 2
 
-    model = PublishedTuiMetadataRepository().publish_payload(
+    model = repository.publish_payload(
         payload=payload,
         registry_key=args.registry_key,
         approved_by=user,
@@ -81,6 +110,7 @@ def main() -> int:
         json.dumps(
             {
                 "ok": True,
+                "mode": "publish",
                 "noop": noop,
                 "registry_id": model.pk,
                 "registry_key": model.registry_key,

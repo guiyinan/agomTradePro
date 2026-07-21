@@ -931,7 +931,7 @@ def test_generated_metadata_is_not_using_old_evidence_caps():
 def test_promoter_routes_decision_rhythm_before_generic_decision(promoter_module):
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.decision-rhythm.summary")
-        == "macro-regime.risk-controls"
+        == "macro-regime.strategy"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.decision.context.step1")
@@ -942,26 +942,26 @@ def test_promoter_routes_decision_rhythm_before_generic_decision(promoter_module
 def test_promoter_routes_classic_page_clusters_to_business_screens(promoter_module):
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.account.positions")
-        == "execution.trading-ledger"
+        == "execution.accounts"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.account.trading-cost-configs")
-        == "execution.account-settings"
+        == "execution.accounts"
     )
     assert (
-        promoter_module._promoted_screen_for("auto.api.get.api.fund.rank") == "research.fund-sector"
+        promoter_module._promoted_screen_for("auto.api.get.api.fund.rank") == "research.asset-lab"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.filter.indicators")
-        == "research.screening-sentiment"
+        == "research.signals"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.beta-gate")
-        == "macro-regime.beta-gate"
+        == "macro-regime.strategy"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.hedge.alerts.active")
-        == "macro-regime.hedge"
+        == "macro-regime.strategy"
     )
 
 
@@ -970,15 +970,15 @@ def test_promoter_routes_portfolio_pk_and_valuation_snapshot_to_row_compatible_s
 ):
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.account.portfolios.pk")
-        == "execution.portfolio-performance"
+        == "execution.accounts"
     )
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.account.portfolios.pk.statistics")
-        == "execution.portfolio-performance"
+        == "execution.accounts"
     )
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.account.portfolios.pk.positions")
-        == "execution.portfolio-performance"
+        == "execution.accounts"
     )
     assert (
         promoter_module._promoted_screen_for("param.api.get.api.valuation.snapshot.str.snapshot_id")
@@ -991,11 +991,11 @@ def test_promoter_routes_alpha_trigger_and_agent_runtime_to_operator_screens(pro
         promoter_module._promoted_screen_for(
             "auto.api.get.api.alpha-triggers.candidates.actionable"
         )
-        == "research.alpha-triggers"
+        == "research.signals"
     )
     assert (
         promoter_module._promoted_screen_for("auto.api.get.api.agent-runtime.tasks.needs_attention")
-        == "ai-ops.agent-runtime"
+        == "ai-ops.terminal"
     )
 
 
@@ -1044,8 +1044,8 @@ def test_promoter_merges_share_public_access_operation(promoter_module):
     payload = {
         "screens": [
             {
-                "key": "execution.share",
-                "module_key": "execution",
+                "key": "execution.audit",
+                "module_key": "daily-decisions",
             }
         ],
         "actions": [],
@@ -1058,10 +1058,10 @@ def test_promoter_merges_share_public_access_operation(promoter_module):
     assert action["method"] == "POST"
     assert action["endpoint"] == "/api/share/public/<str:short_code>/access/"
     assert action["risk"] == "read"
-    assert action["screen_key"] == "execution.share"
+    assert action["screen_key"] == "execution.audit"
     assert action["fields"][0]["key"] == "short_code"
     assert action["fields"][1]["key"] == "password"
-    assert action["module_key"] == "execution"
+    assert action["module_key"] == "daily-decisions"
 
 
 def test_promoter_merges_data_center_selector_reads(promoter_module):
@@ -1102,8 +1102,8 @@ def test_promoter_merges_trading_ledger_account_selector(promoter_module):
     payload = {
         "screens": [
             {
-                "key": "execution.trading-ledger",
-                "module_key": "execution",
+                "key": "execution.accounts",
+                "module_key": "daily-decisions",
             }
         ],
         "actions": [],
@@ -1117,7 +1117,7 @@ def test_promoter_merges_trading_ledger_account_selector(promoter_module):
     assert selector["endpoint"] == "/api/account/accounts/"
     assert selector["risk"] == "read"
     assert selector["task_group"] == "02 账户选择"
-    assert selector["module_key"] == "execution"
+    assert selector["module_key"] == "daily-decisions"
 
 
 def test_promoter_applies_user_facing_design_metadata(promoter_module):

@@ -30,6 +30,7 @@ TUI_SCREEN_PUBLIC_SOURCE_FIELDS = frozenset(
         "workflow",
         "user_experience",
         "business_context",
+        "action_density",
     }
 )
 TUI_SCREEN_DERIVED_INPUT_FIELDS = frozenset({"entry_mode", "entry_field_key"})
@@ -108,6 +109,7 @@ class TuiWorkbenchCatalogMixin:
             "workflow": dict(screen.get("workflow") or {}),
             "user_experience": dict(screen.get("user_experience") or {}),
             "business_context": self._screen_business_context(screen, actions),
+            "action_density": dict(screen.get("action_density") or {}),
             "entry_state": self._screen_entry_state(screen, actions, user=user),
         }
         missing_fields = TUI_SCREEN_PUBLIC_SOURCE_FIELDS.difference(summary)
@@ -457,10 +459,10 @@ class TuiWorkbenchCatalogMixin:
         if resolved_default not in (None, "") and payload.get("default") in (None, ""):
             payload["default"] = resolved_default
         placeholder = str(payload.get("placeholder") or "").strip()
-        if payload.get("required") and (
-            not placeholder
-            or canonical_label
+        if str(payload.get("input_type") or "").lower() != "checkbox" and (
+            canonical_label
             or self._is_technical_placeholder(key=key, placeholder=placeholder)
+            or (payload.get("required") and not placeholder)
         ):
             payload["placeholder"] = f"请输入{payload['label']}"
         self._decorate_dynamic_field_options(payload, action=action, user=user)

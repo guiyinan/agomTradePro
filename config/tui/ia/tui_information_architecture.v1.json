@@ -1,0 +1,143 @@
+{
+  "version": "2026-07-21",
+  "groups": [
+    {"key": "daily", "label": "每日决策"},
+    {"key": "research", "label": "研究与工具"},
+    {"key": "system", "label": "系统治理", "audience": "admin"}
+  ],
+  "modules": [
+    {"key": "daily-decisions", "label": "每日决策", "group": "daily", "summary": "按八步工作流完成当天的环境判断、决策、执行检查与复盘。"},
+    {"key": "research-tools", "label": "研究与工具", "group": "research", "summary": "完成资产研究、AI 辅助和个人自助接入。"},
+    {"key": "system-governance", "label": "系统治理", "group": "system", "summary": "管理员维护数据、AI 与 MCP 运行面。", "audience": "admin"}
+  ],
+  "published_screens": [
+    {
+      "key": "command-center.overview", "label": "今日总览", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看今日待办、环境、账户、信号和运行阻断。", "view_type": "status", "status": "online", "chrome_mode": "immersive", "default_action_key": "",
+      "sources": ["command-center.overview", "command-center.dashboard"],
+      "user_experience": {"journey": "dashboard", "primary_task": "判断今天是否继续投研，以及最先处理哪项任务。", "primary_outcome": "明确今日主线、阻断点和下一工作区。", "empty_state_hint": "暂无待办时先检查环境与账户摘要。", "next_step_hint": "进入环境与脉搏，开始每日决策链。"},
+      "business_context": {"objective": "用一屏建立今日决策上下文。", "decision_output": "今日优先级与阻断清单。", "checkpoints": ["今日待办", "环境与脉搏", "账户与信号", "数据与任务"]},
+      "dashboard_panels": [
+        {"key": "today-queue", "title": "今日待办", "kind": "datagrid", "action_key": "decision.workspace.today_queue", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "今日暂无待处理事项。", "error_message": "今日待办加载失败，请稍后重试。", "stale_message": "待办信息可能已过期，请刷新。"},
+        {"key": "market-context", "title": "环境与脉搏", "kind": "detail", "action_key": "operator.home.market_context", "target_screen": "macro-regime.overview", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无环境摘要，请进入环境与脉搏检查数据。"},
+        {"key": "account-signal-summary", "title": "账户与信号", "kind": "detail", "action_key": "operator.home.account_signal_summary", "target_screen": "execution.accounts", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无账户与信号摘要。"},
+        {"key": "data-task-summary", "title": "数据与任务", "kind": "detail", "action_key": "operator.home.data_task_summary", "target_screen": "api-library.data-center", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无数据与任务异常。"},
+        {"key": "portfolio-summary", "title": "组合摘要", "kind": "detail", "action_key": "dashboard.v1_summary", "target_screen": "execution.accounts", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无组合摘要。"}
+      ]
+    },
+    {
+      "key": "macro-regime.overview", "label": "环境与脉搏", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "判断 Regime、脉搏、政策上下文和市场温度。", "view_type": "status", "status": "online", "default_action_key": "regime.current",
+      "sources": ["macro-regime.overview", "macro-regime.navigator", "macro-regime.pulse", "api-library.market-thermometer"],
+      "user_experience": {"journey": "workspace", "primary_task": "确认当前宏观象限与战术脉搏。", "primary_outcome": "形成当天环境判断。", "empty_state_hint": "无数据时检查数据新鲜度与同步状态。", "next_step_hint": "进入政策与热点补充政策上下文。"},
+      "business_context": {"objective": "形成无后视偏差的环境判断。", "decision_output": "Regime、脉搏与市场温度结论。", "checkpoints": ["当前象限", "脉搏转折", "市场温度", "历史一致性"]},
+      "dashboard_panels": [
+        {"key": "regime-quadrant", "title": "当前 Regime", "kind": "regime_quadrant", "action_key": "regime.current", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无 Regime 结果，请检查宏观数据。", "error_message": "Regime 加载失败。", "stale_message": "Regime 结果已过期，请刷新。"},
+        {"key": "pulse-turning", "title": "脉搏转折", "kind": "detail", "action_key": "pulse.current", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无脉搏指标。"},
+        {"key": "market-temperature", "title": "市场温度", "kind": "detail", "action_key": "data_center.market_thermometer", "user_priority": "p1", "presentation_semantic": "supporting_detail", "empty_message": "暂无市场温度。"}
+      ]
+    },
+    {
+      "key": "policy.workbench", "label": "政策与热点", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "确认政策档位、待审事件和市场热点。", "view_type": "datagrid", "status": "online", "default_action_key": "policy.queue_summary", "sources": ["policy.workbench"],
+      "user_experience": {"journey": "workspace", "primary_task": "确认政策档位与待处理政策事件。", "primary_outcome": "形成政策上下文和待审清单。", "empty_state_hint": "暂无政策事件时检查采集状态。", "next_step_hint": "进入每日决策流形成建议。"},
+      "business_context": {"objective": "把政策事实转成可审阅上下文。", "decision_output": "政策档位、热点和待审事项。", "checkpoints": ["政策摘要", "待审事项", "政策状态"]},
+      "dashboard_panels": [
+        {"key": "policy-summary", "title": "政策摘要", "kind": "detail", "action_key": "policy.queue_summary", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无政策摘要。"},
+        {"key": "policy-items", "title": "待处理政策", "kind": "datagrid", "action_key": "policy.workbench_items", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "暂无待处理政策事件。"}
+      ]
+    },
+    {
+      "key": "command-center.decision-flow", "label": "每日决策流", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "聚合环境、信号和约束，形成今日建议与执行计划。", "view_type": "detail", "status": "online", "default_action_key": "auto.api.get.api.decision.workspace.aggregated", "sources": ["command-center.decision-flow"], "runtime_sources": ["command-center.auto-advisor"],
+      "user_experience": {"journey": "workspace", "primary_task": "形成今日决策建议或执行计划。", "primary_outcome": "得到可解释、可证伪的行动结论。", "empty_state_hint": "上下文不足时按提示补齐环境、信号或账户信息。", "next_step_hint": "进入信号与候选核对标的。"},
+      "business_context": {"objective": "汇总决策证据并形成行动建议。", "decision_output": "今日建议、约束和证伪条件。", "checkpoints": ["聚合上下文", "行动建议", "自动投顾", "执行确认"]},
+      "dashboard_panels": [
+        {"key": "decision-summary", "title": "决策摘要", "kind": "detail", "action_key": "auto.api.get.api.decision.workspace.aggregated", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无聚合决策上下文。"},
+        {"key": "action-recommendation", "title": "行动建议", "kind": "detail", "action_key": "auto.api.get.api.dashboard.action-recommendation", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无行动建议。"}
+      ]
+    },
+    {
+      "key": "research.signals", "label": "信号与候选", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "确认有效信号、Alpha 候选、触发器和情绪过滤。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.alpha-triggers.candidates.actionable", "sources": ["research.signals", "research.alpha", "research.alpha-triggers", "research.screening-sentiment"],
+      "user_experience": {"journey": "workspace", "primary_task": "筛出今天最值得推进的有效候选。", "primary_outcome": "得到候选优先级与信号依据。", "empty_state_hint": "无候选时核对信号、触发器与情绪过滤条件。", "next_step_hint": "进入账户与持仓做执行前检查。"},
+      "business_context": {"objective": "把信号收敛成可行动候选。", "decision_output": "有效信号和候选清单。", "checkpoints": ["可行动候选", "活跃信号", "Alpha 分数", "情绪过滤"]},
+      "dashboard_panels": [
+        {"key": "actionable-candidates", "title": "可行动候选", "kind": "datagrid", "action_key": "auto.api.get.api.alpha-triggers.candidates.actionable", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有可行动候选。"},
+        {"key": "active-signals", "title": "活跃信号", "kind": "datagrid", "action_key": "signal.active", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有活跃信号。"}
+      ]
+    },
+    {
+      "key": "execution.accounts", "label": "账户与持仓", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "检查账户健康、持仓、组合、流水和绩效。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.account.health", "sources": ["execution.accounts", "execution.trading-ledger", "execution.portfolio-performance", "execution.account-settings"],
+      "user_experience": {"journey": "workspace", "primary_task": "确认账户健康、持仓和组合状态。", "primary_outcome": "得到执行前账户与仓位结论。", "empty_state_hint": "无账户数据时先完成账户初始化或授权。", "next_step_hint": "进入策略与风控确认约束。"},
+      "business_context": {"objective": "在行动前检查资金、持仓与组合。", "decision_output": "账户健康和执行准备度。", "checkpoints": ["账户健康", "当前持仓", "组合状态", "交易流水"]},
+      "dashboard_panels": [
+        {"key": "account-health", "title": "账户健康", "kind": "detail", "action_key": "auto.api.get.api.account.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无账户健康结果。"},
+        {"key": "positions", "title": "当前持仓", "kind": "datagrid", "action_key": "auto.api.get.api.account.positions", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前账户没有持仓。"}
+      ]
+    },
+    {
+      "key": "macro-regime.strategy", "label": "策略与风控", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "确认 Beta Gate、主动风控、轮动、对冲和策略约束。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.beta-gate.decisions", "sources": ["macro-regime.strategy", "macro-regime.rotation", "macro-regime.risk-controls", "macro-regime.beta-gate", "macro-regime.hedge"], "runtime_sources": ["risk-center.overview"],
+      "user_experience": {"journey": "workspace", "primary_task": "确认市场暴露是否放行以及当前主动风控约束。", "primary_outcome": "得到策略、仓位、对冲与风险边界。", "empty_state_hint": "无决策时先检查 Beta Gate 配置和风控策略。", "next_step_hint": "进入事件与复盘完成留痕。"},
+      "business_context": {"objective": "把策略选择限制在当前风险边界内。", "decision_output": "Beta Gate、主动风控和策略约束。", "checkpoints": ["Beta Gate", "主动预警", "轮动建议", "对冲有效性"]},
+      "dashboard_panels": [
+        {"key": "beta-gate", "title": "Beta Gate", "kind": "detail", "action_key": "auto.api.get.api.beta-gate.decisions", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无 Beta Gate 决策。"},
+        {"key": "active-hedge-alerts", "title": "主动风控提醒", "kind": "datagrid", "action_key": "auto.api.get.api.hedge.alerts.active", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有主动风控提醒。"}
+      ]
+    },
+    {
+      "key": "execution.audit", "label": "事件与复盘", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看事件、实时提醒、审计、分享和复盘证据。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.audit.health", "sources": ["execution.audit", "execution.events", "execution.share"], "runtime_sources": ["realtime-monitor.alerts"],
+      "user_experience": {"journey": "workspace", "primary_task": "检查事件与审计证据并完成今日留痕。", "primary_outcome": "形成可追溯的事件、提醒和复盘记录。", "empty_state_hint": "暂无事件时确认审计健康与订阅状态。", "next_step_hint": "返回今日总览结束或开启下一轮。"},
+      "business_context": {"objective": "完成事件检查和决策留痕。", "decision_output": "审计健康、事件指标与复盘证据。", "checkpoints": ["审计健康", "事件指标", "实时提醒", "决策痕迹"]},
+      "dashboard_panels": [
+        {"key": "audit-health", "title": "审计健康", "kind": "detail", "action_key": "auto.api.get.api.audit.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无审计健康结果。"},
+        {"key": "event-metrics", "title": "事件指标", "kind": "detail", "action_key": "auto.api.get.api.events.metrics", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无事件指标。"}
+      ]
+    },
+    {
+      "key": "research.asset-lab", "label": "资产研究", "module_key": "research-tools", "group": "research", "audience": "authenticated", "summary": "研究资产、因子、回测、基金和板块。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.asset-analysis.pool-summary", "sources": ["research.asset-lab", "research.factors", "research.backtests", "research.fund-sector"],
+      "user_experience": {"journey": "workspace", "primary_task": "从资产池、因子和回测证据完成资产研究。", "primary_outcome": "得到可比较的资产研究结论。", "empty_state_hint": "资产池为空时检查数据和筛选条件。", "next_step_hint": "把研究结论带回信号与候选。"},
+      "business_context": {"objective": "整合资产、因子与回测研究。", "decision_output": "资产池与回测证据。", "checkpoints": ["资产池", "回测统计", "因子", "基金与板块"]},
+      "dashboard_panels": [
+        {"key": "asset-pool", "title": "资产池", "kind": "detail", "action_key": "auto.api.get.api.asset-analysis.pool-summary", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "资产池暂无数据。"},
+        {"key": "backtest-stats", "title": "回测统计", "kind": "detail", "action_key": "backtest.statistics", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无回测统计。"}
+      ]
+    },
+    {
+      "key": "ai-ops.terminal", "label": "AI 助手", "module_key": "research-tools", "group": "research", "audience": "authenticated", "summary": "与 AI 助手交互并处理智能任务。", "view_type": "detail", "status": "online", "default_action_key": "terminal.agent_chat", "sources": ["ai-ops.terminal", "ai-ops.agent-runtime"],
+      "user_experience": {"journey": "workspace", "primary_task": "向 AI 助手提问并处理需要人工关注的任务。", "primary_outcome": "得到可执行的分析或任务结果。", "empty_state_hint": "输入问题开始对话。", "next_step_hint": "把结果带回对应业务工作区。"},
+      "business_context": {"objective": "以自然语言调用已授权能力。", "decision_output": "AI 回答、任务状态与产物。", "checkpoints": ["助手对话", "待处理任务", "任务队列"]},
+      "dashboard_panels": [{"key": "agent-attention", "title": "待人工处理", "kind": "datagrid", "action_key": "agent_runtime.needs_attention", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有待人工处理任务。"}]
+    },
+    {
+      "key": "ai-ops.providers", "label": "AI 工具与我的服务商", "module_key": "research-tools", "group": "research", "audience": "authenticated", "summary": "管理个人 AI 服务商并查看能力、模型、提示词和日志。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.ai.me.providers", "sources": ["ai-ops.providers", "ai-ops.capabilities", "ai-ops.prompt-workbench"], "runtime_sources": ["ai-ops.my-providers"],
+      "user_experience": {"journey": "self_service", "primary_task": "确认个人 AI 服务可用并完成自助配置。", "primary_outcome": "得到个人服务商、配额和调用状态。", "empty_state_hint": "没有服务商时使用新增个人服务商操作。", "next_step_hint": "返回 AI 助手验证配置。"},
+      "business_context": {"objective": "完成个人 AI 能力自助管理。", "decision_output": "个人服务商与调用健康。", "checkpoints": ["我的服务商", "我的日志", "能力与模型", "提示词"]},
+      "dashboard_panels": [
+        {"key": "my-providers", "title": "我的服务商", "kind": "datagrid", "action_key": "auto.api.get.api.ai.me.providers", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "尚未配置个人 AI 服务商。"},
+        {"key": "my-ai-logs", "title": "我的 AI 日志", "kind": "datagrid", "action_key": "auto.api.get.api.ai.me.logs", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "暂无个人 AI 调用日志。"}
+      ]
+    },
+    {
+      "key": "api-library.data-center", "label": "数据与系统健康", "module_key": "system-governance", "group": "system", "audience": "admin", "summary": "管理数据中心、任务、运行状态和全局配置。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.health", "sources": ["api-library.data-center", "execution.tasks", "api-library.runtime", "api-library.config-center"],
+      "user_experience": {"journey": "admin", "primary_task": "确认系统和数据链路是否满足投研运行条件。", "primary_outcome": "得到系统健康、数据状态和任务阻断。", "empty_state_hint": "无状态时检查 readiness 与任务监控。", "next_step_hint": "处理阻断后回到今日总览。"},
+      "business_context": {"objective": "维护投研平台运行准备度。", "decision_output": "系统健康与数据治理结论。", "checkpoints": ["系统健康", "数据中心", "任务监控", "全局配置"]},
+      "dashboard_panels": [
+        {"key": "system-health", "title": "系统健康", "kind": "detail", "action_key": "auto.api.get.api.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无系统健康结果。"},
+        {"key": "data-center-status", "title": "数据中心状态", "kind": "detail", "action_key": "auto.api.get.api.data-center", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无数据中心状态。"}
+      ]
+    }
+  ],
+  "runtime_screens": [
+    {"key": "cli.terminal", "label": "CLI 终端", "module_key": "research-tools", "group": "research", "audience": "authenticated", "sources": ["cli.terminal"]},
+    {"key": "capability-router.self-service", "label": "MCP 自助接入", "module_key": "research-tools", "group": "research", "audience": "authenticated", "sources": ["capability-router.self-service"]},
+    {"key": "ai-ops.system-providers", "label": "AI 系统治理", "module_key": "system-governance", "group": "system", "audience": "admin", "sources": ["ai-ops.system-providers", "ai-ops.user-quotas"]},
+    {"key": "capability-router.mcp-center", "label": "MCP 与能力治理", "module_key": "system-governance", "group": "system", "audience": "admin", "sources": ["capability-router.mcp-center", "capability-router.gateway", "capability-router.admin-access"]}
+  ],
+  "workflow": [
+    {"screen_key": "command-center.overview", "label": "今日总览", "role": "判断待办和阻断"},
+    {"screen_key": "macro-regime.overview", "label": "环境与脉搏", "role": "判断环境"},
+    {"screen_key": "policy.workbench", "label": "政策与热点", "role": "补充政策上下文"},
+    {"screen_key": "command-center.decision-flow", "label": "每日决策流", "role": "形成建议"},
+    {"screen_key": "research.signals", "label": "信号与候选", "role": "确认候选"},
+    {"screen_key": "execution.accounts", "label": "账户与持仓", "role": "执行前检查"},
+    {"screen_key": "macro-regime.strategy", "label": "策略与风控", "role": "确认约束"},
+    {"screen_key": "execution.audit", "label": "事件与复盘", "role": "复盘留痕"}
+  ],
+  "action_density": {"default_primary_operation_limit": 10, "screen_limits": {"command-center.decision-flow": 12}, "task_group_limit": 6}
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from functools import lru_cache
@@ -19,6 +20,12 @@ from apps.terminal.application.tui_metadata import (
 )
 
 from .models import TuiMetadataRegistryORM
+from .tui_information_architecture import (
+    load_tui_information_architecture,
+    public_screen_spec,
+    screen_aliases,
+    screen_specs,
+)
 from .tui_metadata_runtime_constants import (
     RUNTIME_ACTION_PATCHES,
     RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS,
@@ -114,19 +121,11 @@ class PublishedTuiMetadataRepository:
     ) -> TuiMetadataRegistryORM:
         """Validate and publish one metadata payload to the database."""
 
+        compacted, source_hash = self.prepare_payload_for_publish(payload)
         validated = validate_tui_metadata(dict(payload))
         validated["status"] = "published"
-        compacted = compact_tui_metadata_payload(self._normalize_runtime_payload(validated))
-        source_hash = self.payload_hash(compacted)
         now = timezone.now()
-        previous_model = (
-            TuiMetadataRegistryORM._default_manager.filter(
-                registry_key=registry_key,
-                status="published",
-            )
-            .order_by("-published_at", "-updated_at")
-            .first()
-        )
+        previous_model = self.get_active_registry(registry_key)
         if previous_model is not None and self._is_same_published_payload(
             previous_model=previous_model,
             compacted_payload=compacted,
@@ -182,6 +181,52 @@ class PublishedTuiMetadataRepository:
             payload=runtime_payload,
         )
         return created
+
+    def prepare_payload_for_publish(
+        self,
+        payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], str]:
+        """Return the canonical published payload and its deterministic hash."""
+
+        validated = validate_tui_metadata(dict(payload))
+        validated["status"] = "published"
+        compacted = compact_tui_metadata_payload(self._normalize_runtime_payload(validated))
+        return compacted, self.payload_hash(compacted)
+
+    @staticmethod
+    def get_active_registry(registry_key: str = "default") -> TuiMetadataRegistryORM | None:
+        """Return the active database registry row for one TUI channel."""
+
+        try:
+            return (
+                TuiMetadataRegistryORM._default_manager.filter(
+                    registry_key=registry_key,
+                    status="published",
+                )
+                .order_by("-published_at", "-updated_at")
+                .first()
+            )
+        except (OperationalError, ProgrammingError):
+            return None
+
+    def verify_active_payload(
+        self,
+        *,
+        payload: dict[str, Any],
+        registry_key: str = "default",
+    ) -> tuple[bool, TuiMetadataRegistryORM | None, str]:
+        """Verify that the active DB registry matches a reviewed release payload."""
+
+        compacted, expected_hash = self.prepare_payload_for_publish(payload)
+        model = self.get_active_registry(registry_key)
+        if model is None:
+            return False, None, expected_hash
+        matches = self._is_same_published_payload(
+            previous_model=model,
+            compacted_payload=compacted,
+            source_hash=expected_hash,
+        )
+        return matches, model, expected_hash
 
     @staticmethod
     def invalidate_runtime_cache(registry_key: str = "default") -> None:
@@ -323,12 +368,25 @@ class PublishedTuiMetadataRepository:
 
         redundant_map = RUNTIME_REDUNDANT_SCREEN_ACTION_KEYS
         patches = RUNTIME_ACTION_PATCHES
-        screen_patches = RUNTIME_SCREEN_PATCHES
+        published_screen_keys = {
+            str(screen["key"])
+            for screen in load_tui_information_architecture()["published_screens"]
+        }
+        is_ia_payload = self._is_information_architecture_payload(payload)
+        screen_patches = {
+            key: patch
+            for key, patch in RUNTIME_SCREEN_PATCHES.items()
+            if not is_ia_payload or key not in published_screen_keys
+        }
+        ia_aliases = screen_aliases()
+        ia_screen_specs = screen_specs()
 
-        normalized = dict(payload)
-        groups = list(payload.get("groups") or [])
-        modules = list(payload.get("modules") or [])
-        screens = list(payload.get("screens") or [])
+        normalized = (
+            self._apply_information_architecture(payload) if is_ia_payload else dict(payload)
+        )
+        groups = list(normalized.get("groups") or [])
+        modules = list(normalized.get("modules") or [])
+        screens = list(normalized.get("screens") or [])
         actions = list(normalized.get("actions") or [])
         injected_counts = self._apply_runtime_injections(
             groups=groups,
@@ -366,6 +424,16 @@ class PublishedTuiMetadataRepository:
             patch = patches.get(action_key)
             if patch:
                 updated, changed = self._apply_runtime_patch(action, patch)
+                target_screen = ia_aliases.get(str(updated.get("screen_key") or ""), "")
+                target_spec = ia_screen_specs.get(target_screen)
+                current_screen_keys = {
+                    str(screen.get("key") or "")
+                    for screen in normalized.get("screens", [])
+                    if isinstance(screen, dict)
+                }
+                if target_spec and target_screen in current_screen_keys:
+                    updated["screen_key"] = target_screen
+                    updated["module_key"] = target_spec["module_key"]
                 kept.append(updated)
                 if changed:
                     patched += 1
@@ -375,8 +443,9 @@ class PublishedTuiMetadataRepository:
             if injected == 0:
                 if patched_screens:
                     coverage = dict(normalized.get("coverage_summary") or {})
-                    coverage["runtime_patched_screens"] = patched_screens + int(
-                        coverage.get("runtime_patched_screens", 0) or 0
+                    coverage["runtime_patched_screens"] = max(
+                        patched_screens,
+                        int(coverage.get("runtime_patched_screens", 0) or 0),
                     )
                     normalized["coverage_summary"] = coverage
                     self._repair_runtime_screen_contracts(
@@ -390,8 +459,9 @@ class PublishedTuiMetadataRepository:
                 injected_counts=injected_counts,
             )
             if patched_screens:
-                coverage["runtime_patched_screens"] = patched_screens + int(
-                    coverage.get("runtime_patched_screens", 0) or 0
+                coverage["runtime_patched_screens"] = max(
+                    patched_screens,
+                    int(coverage.get("runtime_patched_screens", 0) or 0),
                 )
             normalized["coverage_summary"] = coverage
             self._repair_runtime_screen_contracts(
@@ -402,15 +472,18 @@ class PublishedTuiMetadataRepository:
 
         normalized["actions"] = kept
         coverage = dict(normalized.get("coverage_summary") or {})
-        coverage["runtime_pruned_redundant_screen_actions"] = removed + int(
-            coverage.get("runtime_pruned_redundant_screen_actions", 0) or 0
+        coverage["runtime_pruned_redundant_screen_actions"] = max(
+            removed,
+            int(coverage.get("runtime_pruned_redundant_screen_actions", 0) or 0),
         )
-        coverage["runtime_patched_actions"] = patched + int(
-            coverage.get("runtime_patched_actions", 0) or 0
+        coverage["runtime_patched_actions"] = max(
+            patched,
+            int(coverage.get("runtime_patched_actions", 0) or 0),
         )
         if patched_screens:
-            coverage["runtime_patched_screens"] = patched_screens + int(
-                coverage.get("runtime_patched_screens", 0) or 0
+            coverage["runtime_patched_screens"] = max(
+                patched_screens,
+                int(coverage.get("runtime_patched_screens", 0) or 0),
             )
         coverage = self._merge_runtime_coverage(
             coverage,
@@ -424,6 +497,104 @@ class PublishedTuiMetadataRepository:
         return validate_tui_metadata(normalized)
 
     @staticmethod
+    def _is_information_architecture_payload(payload: dict[str, Any]) -> bool:
+        """Identify full catalog payloads without rewriting small test/custom registries."""
+
+        if str(payload.get("ia_version") or "").strip():
+            return True
+        aliases = screen_aliases()
+        known_screens = {
+            str(screen.get("key") or "")
+            for screen in payload.get("screens", [])
+            if isinstance(screen, dict)
+        }
+        return len(known_screens.intersection(aliases)) >= 8
+
+    @staticmethod
+    def _apply_information_architecture(payload: dict[str, Any]) -> dict[str, Any]:
+        """Converge file, database and legacy payloads on the configured IA graph."""
+
+        registry = load_tui_information_architecture()
+        aliases = screen_aliases(registry)
+        specs = screen_specs(registry)
+        published_specs = {str(screen["key"]): screen for screen in registry["published_screens"]}
+        existing_screens = {
+            str(screen.get("key") or ""): screen
+            for screen in payload.get("screens", [])
+            if isinstance(screen, dict)
+        }
+        density = registry.get("action_density") or {}
+        density_overrides = density.get("screen_limits") or {}
+        workflow = list(registry.get("workflow") or [])
+        workflow_by_key = {str(step["screen_key"]): index for index, step in enumerate(workflow)}
+
+        screens: list[dict[str, Any]] = []
+        for screen_key, configured in published_specs.items():
+            screen = dict(existing_screens.get(screen_key) or {})
+            screen.update(copy.deepcopy(public_screen_spec(configured)))
+            screen["action_density"] = {
+                "primary_operation_limit": int(
+                    density_overrides.get(
+                        screen_key,
+                        density.get("default_primary_operation_limit", 10),
+                    )
+                ),
+                "task_group_limit": int(density.get("task_group_limit", 6)),
+            }
+            screen.pop("workflow", None)
+            workflow_index = workflow_by_key.get(screen_key)
+            if workflow_index is not None:
+                previous_step = workflow[workflow_index - 1] if workflow_index > 0 else None
+                next_step = (
+                    workflow[workflow_index + 1] if workflow_index + 1 < len(workflow) else None
+                )
+                screen["workflow"] = {
+                    "name": "每日投研流程",
+                    "step": workflow_index + 1,
+                    "total": len(workflow),
+                    "label": workflow[workflow_index]["label"],
+                    "role": workflow[workflow_index]["role"],
+                    "previous": (
+                        {"key": previous_step["screen_key"], "label": previous_step["label"]}
+                        if previous_step
+                        else {}
+                    ),
+                    "next": (
+                        {"key": next_step["screen_key"], "label": next_step["label"]}
+                        if next_step
+                        else {}
+                    ),
+                }
+            screens.append(screen)
+
+        actions: list[dict[str, Any]] = []
+        for source_action in payload.get("actions", []):
+            if not isinstance(source_action, dict):
+                continue
+            if str(source_action.get("source") or "").startswith("approved:runtime-"):
+                continue
+            target = aliases.get(str(source_action.get("screen_key") or ""), "")
+            spec = specs.get(target)
+            if not spec:
+                continue
+            action = dict(source_action)
+            action["screen_key"] = target
+            action["module_key"] = spec["module_key"]
+            actions.append(action)
+
+        normalized = dict(payload)
+        normalized["groups"] = copy.deepcopy(registry["groups"])
+        normalized["modules"] = copy.deepcopy(registry["modules"])
+        normalized["screens"] = screens
+        normalized["actions"] = actions
+        normalized["default_screen"] = "command-center.overview"
+        normalized["ia_version"] = str(registry["version"])
+        normalized["legacy_screen_aliases"] = {
+            source: target for source, target in aliases.items() if source != target
+        }
+        return normalized
+
+    @staticmethod
     def _merge_runtime_coverage(
         coverage_summary: Any,
         *,
@@ -435,7 +606,10 @@ class PublishedTuiMetadataRepository:
         for coverage_key, injected_count in injected_counts.items():
             if injected_count <= 0:
                 continue
-            coverage[coverage_key] = injected_count + int(coverage.get(coverage_key, 0) or 0)
+            coverage[coverage_key] = max(
+                injected_count,
+                int(coverage.get(coverage_key, 0) or 0),
+            )
         return coverage
 
     @staticmethod

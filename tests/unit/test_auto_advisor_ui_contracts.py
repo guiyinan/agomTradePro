@@ -24,9 +24,10 @@ def test_tui_metadata_injects_auto_advisor_screen_and_action(settings):
     screens = {screen["key"]: screen for screen in payload["screens"]}
     actions = {action["key"]: action for action in payload["actions"]}
 
-    assert "command-center.auto-advisor" in screens
-    assert screens["command-center.auto-advisor"]["default_action_key"] == "advisor.today_sheet"
-    assert screens["command-center.auto-advisor"]["entry_mode"] == "parameter_gate"
+    assert "command-center.auto-advisor" not in screens
+    assert screens["command-center.decision-flow"]["default_action_key"] == (
+        "auto.api.get.api.decision.workspace.aggregated"
+    )
     assert "advisor.today_sheet" in actions
     assert "advisor.factor_breakdown" in actions
     assert actions["advisor.today_sheet"]["endpoint"] == "/api/decision/advisor/sheet/"
@@ -41,9 +42,11 @@ def test_tui_metadata_injects_risk_center_screen_and_actions(settings):
     screens = {screen["key"]: screen for screen in payload["screens"]}
     actions = {action["key"]: action for action in payload["actions"]}
 
-    assert modules["risk-center"]["label"] == "风控中心"
-    assert screens["risk-center.overview"]["default_action_key"] == "risk-center.effective-policy"
-    assert screens["risk-center.overview"]["entry_mode"] == "parameter_gate"
+    assert modules["daily-decisions"]["label"] == "每日决策"
+    assert "risk-center.overview" not in screens
+    assert screens["macro-regime.strategy"]["default_action_key"] == (
+        "auto.api.get.api.beta-gate.decisions"
+    )
     assert actions["risk-center.floor"]["endpoint"] == "/api/risk-center/floor/"
     assert actions["risk-center.effective-policy"]["fields"][0]["key"] == "account_id"
     assert actions["risk-center.pre-trade-check"]["endpoint"] == "/api/risk-center/pre-trade-check/"

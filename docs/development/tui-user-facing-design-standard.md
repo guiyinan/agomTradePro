@@ -1,6 +1,6 @@
 # TUI User-Facing Design Standard
 
-> Last updated: 2026-07-18
+> Last updated: 2026-07-21
 
 This standard defines the user-facing contract for AgomTradePro `/tui/`. It exists to stop TUI screens from degenerating into route browsers, endpoint lists, or raw JSON shells.
 
@@ -24,6 +24,7 @@ The executable contract lives in:
 New user-facing semantics:
 
 - `screen.user_experience`
+- `screen.action_density`
 - `screen.dashboard_layout`
 - `dashboard_panels[].user_priority`
 - `dashboard_panels[].presentation_semantic`
@@ -34,6 +35,12 @@ New user-facing semantics:
 - `dashboard_panels[].row_actions`
 - `dashboard_panels[].row_actions[].result_panel_key`
 - `dashboard_panels[].row_actions[].refresh_panel_key`
+
+## Information Architecture Source Of Truth
+
+The versioned registry `config/tui/ia/tui_information_architecture.v1.json` is the only source of truth for TUI groups, modules, canonical screens, legacy aliases, the daily workflow, audiences, panels, and action-density budgets. Compiler promotion, database normalization, runtime injection, and deep-link resolution must load this registry; they must not maintain parallel screen-routing dictionaries.
+
+The current contract has three groups (`daily`, `research`, `system`), 12 published screens, four retained runtime screens, and an eight-step daily workflow. The registry separates `sources` (published inputs) from `runtime_sources` (runtime inputs) so both inventories are mechanically testable. Adding, merging, or retiring a screen starts with this registry and its contract tests.
 
 ## Screen Rules
 
@@ -55,6 +62,8 @@ Hard rules:
 - An explicit request for an unknown or forbidden screen must return a bounded 404/403 result. It must not silently substitute the home screen or another published screen.
 - Access, governance, and debugging are independent journeys. Do not use shared step counters across roles.
 - Runtime-owned journey screens/actions replace stale database-published entries by key. Deployment must not leave an obsolete self-service contract active merely because it was published earlier.
+- Legacy screen keys resolve only through the registry alias map. Unknown keys retain the normal bounded 404 behavior.
+- `action_density.primary_operation_limit` and `task_group_limit` control the visible action budget. The renderer may collapse overflow, but it must not hardcode per-screen business keys or limits.
 
 ## Panel Rules
 
@@ -81,6 +90,7 @@ Hard rules:
 - Any screen with panels must expose at least one `p0` panel.
 - `copyable_secret`, `endpoint_list`, and `multiline_prompt` panels must use `kind: detail`.
 - A `p0` panel must point to an action or a target screen.
+- Automatic panel loading is limited to passive reads. Admin reads may auto-load only when both the screen and action are admin-owned and the action belongs to the current screen; write/AI actions always require an explicit user action.
 
 ## Action And Field Rules
 

@@ -41,6 +41,8 @@
         const summary = summarizeActions(actions);
         const progress = screenProgress(actions);
         const groups = groupActions(actions);
+        const density = screenActionDensity(screen);
+        const visibilityBudget = { remaining: density.primaryOperationLimit };
         els.actions.innerHTML = `
             <div class="tui-action-brief">
                 <div>
@@ -63,12 +65,7 @@
                     </button>
                 ` : ""}
             </div>
-            ${groups.map((group) => `
-                <section class="tui-action-group tui-action-group-${escapeHtml(group.tier)}">
-                    <div class="tui-action-group-title">${escapeHtml(group.label)}</div>
-                    ${group.actions.map((action) => renderActionForm(action)).join("")}
-                </section>
-            `).join("")}
+            ${groups.map((group) => renderActionGroup(group, density, visibilityBudget)).join("")}
             <div class="tui-empty-state" data-action-filter-empty hidden>没有匹配任务。清空筛选后查看全部。</div>
         `;
         els.actions.dataset.renderedScreenKey = (screen && screen.key) || "";
@@ -235,6 +232,53 @@
             group.actions.sort((left, right) => Number(left.sequence || 999) - Number(right.sequence || 999));
         });
         return groups;
+    }
+
+    function screenActionDensity(screen) {
+        const density = screen?.action_density || {};
+        const primaryOperationLimit = Number(density.primary_operation_limit);
+        const taskGroupLimit = Number(density.task_group_limit);
+        return {
+            primaryOperationLimit: Number.isFinite(primaryOperationLimit) && primaryOperationLimit > 0
+                ? primaryOperationLimit
+                : Number.POSITIVE_INFINITY,
+            taskGroupLimit: Number.isFinite(taskGroupLimit) && taskGroupLimit > 0
+                ? taskGroupLimit
+                : Number.POSITIVE_INFINITY,
+        };
+    }
+
+    function renderActionGroup(group, density, visibilityBudget) {
+        const direct = [];
+        const overflow = [];
+        let groupPrimaryOperationCount = 0;
+        group.actions.forEach((action) => {
+            const tier = actionTier(action);
+            const budgeted = tier === "primary" || tier === "operation";
+            const withinGroup = groupPrimaryOperationCount < density.taskGroupLimit;
+            const withinScreen = visibilityBudget.remaining > 0;
+            if (!budgeted || (withinGroup && withinScreen)) {
+                direct.push(action);
+                if (budgeted) {
+                    groupPrimaryOperationCount += 1;
+                    visibilityBudget.remaining -= 1;
+                }
+                return;
+            }
+            overflow.push(action);
+        });
+        return `
+            <section class="tui-action-group tui-action-group-${escapeHtml(group.tier)}">
+                <div class="tui-action-group-title">${escapeHtml(group.label)}</div>
+                ${direct.map((action) => renderActionForm(action)).join("")}
+                ${overflow.length ? `
+                    <details class="tui-action-overflow">
+                        <summary>更多任务（${overflow.length}）</summary>
+                        ${overflow.map((action) => renderActionForm(action)).join("")}
+                    </details>
+                ` : ""}
+            </section>
+        `;
     }
 
     function renderActionForm(action) {

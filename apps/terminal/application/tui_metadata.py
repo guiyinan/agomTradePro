@@ -167,6 +167,8 @@ ALLOWED_TUI_DASHBOARD_PANEL_KEYS = {
     "status",
     "note",
     "empty_message",
+    "error_message",
+    "stale_message",
     "max_rows",
     "user_priority",
     "presentation_semantic",
@@ -924,9 +926,10 @@ def _validate_governance_contract(action: dict[str, Any]) -> None:
         "operation",
     }:
         raise TuiMetadataValidationError(f"Action has unsupported task_tier: {action['key']}")
-    if not isinstance(action.get("submit_label"), str) or not str(
-        action.get("submit_label") or ""
-    ).strip():
+    if (
+        not isinstance(action.get("submit_label"), str)
+        or not str(action.get("submit_label") or "").strip()
+    ):
         raise TuiMetadataValidationError(f"Action submit_label must be non-empty: {action['key']}")
     try:
         action["sequence"] = int(action.get("sequence", 999))

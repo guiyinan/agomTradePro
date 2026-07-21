@@ -137,7 +137,9 @@ Do not delete deferred evidence. Keep it in `tui_operation_evidence.generated.js
 
 When adding a screen:
 
-- Keep modules stable: Workflow, Macro, Research, Execution, AI Ops, System.
+- Edit `config/tui/ia/tui_information_architecture.v1.json`; do not add a second screen map in compiler, runtime, or JavaScript code.
+- Keep the canonical groups/modules stable: `daily/daily-decisions`, `research/research-tools`, and admin-only `system/system-governance`.
+- Classify legacy inputs explicitly as published `sources` or `runtime_sources`; all aliases must have one canonical target.
 - Prefer a small number of task-oriented screens over one screen per endpoint.
 - Use `status` for status boards, `detail` for object summaries, and `datagrid` for list/table workflows.
 - Use `dashboard_panels` for overview pages that compose multiple approved actions into a single PC tools dashboard.
@@ -149,6 +151,7 @@ When adding a screen:
 - Add fields only when the operator should set them. Do not expose raw JSON request bodies.
 - Field `input_type` and `value_type` are fixed enums. Do not invent widget names such as `money_input` or `asset-picker` inside generated metadata; add a schema version upgrade first.
 - Use `dashboard_panels[].user_priority` and `dashboard_panels[].presentation_semantic` to mark P0/P1/P2 information hierarchy and artifact-specific presentation.
+- Set `action_density` in the IA registry. Frontend overflow behavior reads this contract and must not use screen-specific limits.
 - Use `actions[].result_semantics` when an action returns copyable token, endpoint, prompt, or other specialized self-service artifacts.
 - Use `actions[].fields[].presentation_semantic` for `primary_selector`, `api_token`, `endpoint_url`, and `prompt_text` inputs.
 - Add `view_model.rows_path` for list responses whose rows are nested inside a named field.
@@ -224,3 +227,21 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metada
 If a published DB row exists, it overrides the repository JSON fallback. Use the publish command when the running local `/tui/` must reflect the reviewed file baseline.
 
 The DB registry stores `schema_version`, `generation_source`, `backend_version`, `source_hash`, `source_evidence_hash`, `changed_fields`, `review_status`, approver, review note, and publish time. This is the rollback and audit trail for TUI-first UI releases.
+
+Verify the active registry without writing:
+
+```powershell
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metadata.py config\tui\published\tui_operation_graph.published.json --check --registry-key default
+```
+
+The command canonicalizes the reviewed file through the same validation, IA normalization, runtime injection, and compacting path used by publishing. It exits with code `1` when the active database row is missing or its source hash differs.
+
+### VPS release synchronization
+
+VPS deployment must not call the publisher ad hoc. Both supported deployment paths call:
+
+```sh
+sh scripts/publish-tui-release.sh "$RELEASE_TAG"
+```
+
+The release helper requires the reviewed JSON to exist, publishes it idempotently, records the optional evidence hash, and immediately runs the read-only active-registry check. The post-deploy verifier repeats that check from the running `web` container. Deployment rollback starts the previous release and republishes that release's reviewed JSON before switching the `current` symlink, because a database registry row overrides repository files even after the application image is rolled back.

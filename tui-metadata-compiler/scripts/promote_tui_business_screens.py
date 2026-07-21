@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import sys
@@ -269,7 +270,6 @@ EXACT_DEFAULT_ACTION_OVERRIDES = {
     "execution.events": "auto.api.get.api.events.query",
     "execution.share": "auto.api.get.api.share.links",
 }
-
 SCREEN_USER_EXPERIENCE_OVERRIDES = {
     "command-center.overview": {
         "journey": "dashboard",
@@ -356,7 +356,7 @@ SCREEN_USER_EXPERIENCE_OVERRIDES = {
         "primary_outcome": "明确当前开通状态，并拿到外部代理立刻可用的接入材料。",
         "empty_state_hint": "先读取当前 MCP 状态；如果还没开通，回到接入入口完成开通。",
         "next_step_hint": "复制连接地址和接入提示词后，把它们交给外部代理；旧令牌不再使用时立即撤销。",
-    }
+    },
 }
 
 PANEL_PRESENTATION_OVERRIDES = {
@@ -371,9 +371,12 @@ PANEL_PRESENTATION_OVERRIDES = {
     "capability-router.self-service": {
         "mcp-self-status": {"user_priority": "p0", "presentation_semantic": "copyable_secret"},
         "mcp-self-endpoints": {"user_priority": "p0", "presentation_semantic": "endpoint_list"},
-        "mcp-self-prompt-guide": {"user_priority": "p1", "presentation_semantic": "multiline_prompt"},
+        "mcp-self-prompt-guide": {
+            "user_priority": "p1",
+            "presentation_semantic": "multiline_prompt",
+        },
         "mcp-self-tokens": {"user_priority": "p2", "presentation_semantic": "supporting_list"},
-    }
+    },
 }
 
 ACTION_RESULT_SEMANTIC_OVERRIDES = {
@@ -452,15 +455,42 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("param.api.get.api.decision.workspace", "command-center.decision-flow"),
     ("param.api.get.api.dashboard", "command-center.dashboard"),
     ("param.api.get.api.valuation", "execution.accounts"),
-    ("param.api.get.api.account.accounts.int.account_id.performance", "execution.portfolio-performance"),
-    ("param.api.get.api.account.accounts.int.account_id.performance-report", "execution.portfolio-performance"),
-    ("param.api.get.api.account.accounts.int.account_id.valuation", "execution.portfolio-performance"),
-    ("param.api.get.api.account.accounts.int.account_id.benchmarks", "execution.portfolio-performance"),
-    ("param.api.get.api.account.accounts.int.account_id.equity-curve", "execution.portfolio-performance"),
-    ("param.api.get.api.account.accounts.int.account_id.inspections", "execution.portfolio-performance"),
-    ("param.api.get.api.account.portfolios.int.portfolio_id.performance-report", "execution.portfolio-performance"),
-    ("param.api.get.api.account.portfolios.int.portfolio_id.valuation", "execution.portfolio-performance"),
-    ("param.api.get.api.account.portfolios.int.portfolio_id.benchmarks", "execution.portfolio-performance"),
+    (
+        "param.api.get.api.account.accounts.int.account_id.performance",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.accounts.int.account_id.performance-report",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.accounts.int.account_id.valuation",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.accounts.int.account_id.benchmarks",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.accounts.int.account_id.equity-curve",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.accounts.int.account_id.inspections",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.portfolios.int.portfolio_id.performance-report",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.portfolios.int.portfolio_id.valuation",
+        "execution.portfolio-performance",
+    ),
+    (
+        "param.api.get.api.account.portfolios.int.portfolio_id.benchmarks",
+        "execution.portfolio-performance",
+    ),
     ("param.api.get.api.account.accounts.int.account_id.positions", "execution.trading-ledger"),
     ("param.api.get.api.account.accounts.int.account_id.trades", "execution.trading-ledger"),
     ("param.api.get.api.account.portfolios.pk.positions", "execution.trading-ledger"),
@@ -473,7 +503,10 @@ ACTION_SCREEN_RULES: tuple[tuple[str, str], ...] = (
     ("param.api.get.api.account.categories", "execution.account-settings"),
     ("param.api.get.api.account.currencies", "execution.account-settings"),
     ("param.api.get.api.account.exchange-rates", "execution.account-settings"),
-    ("param.api.get.api.account.portfolios.int.portfolio_id.allocation", "execution.account-settings"),
+    (
+        "param.api.get.api.account.portfolios.int.portfolio_id.allocation",
+        "execution.account-settings",
+    ),
     ("param.api.get.api.account", "execution.accounts"),
     ("param.api.get.api.simulated-trading", "execution.trading-ledger"),
     ("param.api.get.api.strategy", "macro-regime.strategy"),
@@ -669,7 +702,13 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "risk": "write",
         "fields": [
             {"key": "target_date", "label": "目标日期", "input_type": "date", "required": False},
-            {"key": "portfolio_id", "label": "组合 ID", "input_type": "number", "required": False, "value_type": "integer"},
+            {
+                "key": "portfolio_id",
+                "label": "组合 ID",
+                "input_type": "number",
+                "required": False,
+                "value_type": "integer",
+            },
             {
                 "key": "asset_codes",
                 "label": "资产代码",
@@ -686,8 +725,22 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
                 "placeholder": "逗号分隔",
                 "value_type": "list",
             },
-            {"key": "strict", "label": "严格模式", "input_type": "checkbox", "required": False, "default": True, "value_type": "boolean"},
-            {"key": "quote_max_age_hours", "label": "报价最大小时", "input_type": "number", "required": False, "default": 4, "value_type": "float"},
+            {
+                "key": "strict",
+                "label": "严格模式",
+                "input_type": "checkbox",
+                "required": False,
+                "default": True,
+                "value_type": "boolean",
+            },
+            {
+                "key": "quote_max_age_hours",
+                "label": "报价最大小时",
+                "input_type": "number",
+                "required": False,
+                "default": 4,
+                "value_type": "float",
+            },
         ],
         "description": "检查并修复决策前需要的宏观、报价、Pulse 和 Alpha 输入。",
         "source": "approved:operation",
@@ -738,7 +791,13 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "write",
         "fields": [
-            {"key": "provider_id", "label": "服务商 ID", "input_type": "number", "required": True, "value_type": "integer"},
+            {
+                "key": "provider_id",
+                "label": "服务商 ID",
+                "input_type": "number",
+                "required": True,
+                "value_type": "integer",
+            },
             {
                 "key": "asset_codes",
                 "label": "资产代码",
@@ -823,8 +882,21 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "write",
         "fields": [
-            {"key": "mode", "label": "模式", "input_type": "hidden", "required": True, "default": "daily_scoped_batch"},
-            {"key": "top_n", "label": "Top N", "input_type": "number", "required": False, "default": 30, "value_type": "integer"},
+            {
+                "key": "mode",
+                "label": "模式",
+                "input_type": "hidden",
+                "required": True,
+                "default": "daily_scoped_batch",
+            },
+            {
+                "key": "top_n",
+                "label": "Top N",
+                "input_type": "number",
+                "required": False,
+                "default": 30,
+                "value_type": "integer",
+            },
             {
                 "key": "pool_mode",
                 "label": "资产池",
@@ -852,11 +924,38 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "write",
         "fields": [
-            {"key": "mode", "label": "模式", "input_type": "hidden", "required": True, "default": "scoped_codes"},
+            {
+                "key": "mode",
+                "label": "模式",
+                "input_type": "hidden",
+                "required": True,
+                "default": "scoped_codes",
+            },
             {"key": "target_date", "label": "目标日期", "input_type": "date", "required": True},
-            {"key": "lookback_days", "label": "回看天数", "input_type": "number", "required": False, "default": 400, "value_type": "integer"},
-            {"key": "portfolio_ids", "label": "组合 ID", "input_type": "text", "required": False, "placeholder": "逗号分隔", "value_type": "list"},
-            {"key": "all_active_portfolios", "label": "全部启用组合", "input_type": "checkbox", "required": False, "default": False, "value_type": "boolean"},
+            {
+                "key": "lookback_days",
+                "label": "回看天数",
+                "input_type": "number",
+                "required": False,
+                "default": 400,
+                "value_type": "integer",
+            },
+            {
+                "key": "portfolio_ids",
+                "label": "组合 ID",
+                "input_type": "text",
+                "required": False,
+                "placeholder": "逗号分隔",
+                "value_type": "list",
+            },
+            {
+                "key": "all_active_portfolios",
+                "label": "全部启用组合",
+                "input_type": "checkbox",
+                "required": False,
+                "default": False,
+                "value_type": "boolean",
+            },
             {
                 "key": "pool_mode",
                 "label": "资产池",
@@ -899,18 +998,65 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "admin",
         "fields": [
-            {"key": "enabled", "label": "启用", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+            {
+                "key": "enabled",
+                "label": "启用",
+                "input_type": "checkbox",
+                "required": False,
+                "value_type": "boolean",
+            },
             {"key": "provider_uri", "label": "服务商地址", "input_type": "text", "required": False},
             {"key": "region", "label": "区域", "input_type": "text", "required": False},
             {"key": "model_root", "label": "模型目录", "input_type": "text", "required": False},
-            {"key": "default_universe", "label": "默认标的池", "input_type": "text", "required": False},
-            {"key": "default_feature_set_id", "label": "默认特征集", "input_type": "text", "required": False},
-            {"key": "default_label_id", "label": "默认标签集", "input_type": "text", "required": False},
-            {"key": "train_queue_name", "label": "训练队列", "input_type": "text", "required": False},
-            {"key": "infer_queue_name", "label": "推理队列", "input_type": "text", "required": False},
-            {"key": "allow_auto_activate", "label": "允许自动激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
-            {"key": "alpha_fixed_provider", "label": "固定服务商", "input_type": "text", "required": False},
-            {"key": "alpha_pool_mode", "label": "资产池模式", "input_type": "text", "required": False},
+            {
+                "key": "default_universe",
+                "label": "默认标的池",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "default_feature_set_id",
+                "label": "默认特征集",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "default_label_id",
+                "label": "默认标签集",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "train_queue_name",
+                "label": "训练队列",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "infer_queue_name",
+                "label": "推理队列",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "allow_auto_activate",
+                "label": "允许自动激活",
+                "input_type": "checkbox",
+                "required": False,
+                "value_type": "boolean",
+            },
+            {
+                "key": "alpha_fixed_provider",
+                "label": "固定服务商",
+                "input_type": "text",
+                "required": False,
+            },
+            {
+                "key": "alpha_pool_mode",
+                "label": "资产池模式",
+                "input_type": "text",
+                "required": False,
+            },
         ],
         "description": "更新 Qlib 运行时配置。",
         "source": "approved:admin",
@@ -943,22 +1089,79 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "admin",
         "fields": [
-            {"key": "id", "label": "模板 ID", "input_type": "number", "required": False, "value_type": "integer"},
+            {
+                "key": "id",
+                "label": "模板 ID",
+                "input_type": "number",
+                "required": False,
+                "value_type": "integer",
+            },
             {"key": "profile_key", "label": "模板键", "input_type": "text", "required": True},
             {"key": "name", "label": "模板名称", "input_type": "text", "required": True},
             {"key": "model_name", "label": "模型名称", "input_type": "text", "required": True},
             {"key": "model_type", "label": "模型类型", "input_type": "text", "required": True},
             {"key": "universe", "label": "标的池", "input_type": "text", "required": False},
-            {"key": "start_date", "label": "开始日期", "input_type": "date", "required": False, "value_type": "date"},
-            {"key": "end_date", "label": "结束日期", "input_type": "date", "required": False, "value_type": "date"},
+            {
+                "key": "start_date",
+                "label": "开始日期",
+                "input_type": "date",
+                "required": False,
+                "value_type": "date",
+            },
+            {
+                "key": "end_date",
+                "label": "结束日期",
+                "input_type": "date",
+                "required": False,
+                "value_type": "date",
+            },
             {"key": "feature_set_id", "label": "特征集", "input_type": "text", "required": False},
             {"key": "label_id", "label": "标签集", "input_type": "text", "required": False},
-            {"key": "learning_rate", "label": "学习率", "input_type": "number", "required": False, "value_type": "float"},
-            {"key": "epochs", "label": "轮数", "input_type": "number", "required": False, "value_type": "integer"},
-            {"key": "model_params", "label": "模型参数", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
-            {"key": "extra_train_config", "label": "额外训练配置", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
-            {"key": "activate_after_train", "label": "训练后激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
-            {"key": "is_active", "label": "启用模板", "input_type": "checkbox", "required": False, "default": True, "value_type": "boolean"},
+            {
+                "key": "learning_rate",
+                "label": "学习率",
+                "input_type": "number",
+                "required": False,
+                "value_type": "float",
+            },
+            {
+                "key": "epochs",
+                "label": "轮数",
+                "input_type": "number",
+                "required": False,
+                "value_type": "integer",
+            },
+            {
+                "key": "model_params",
+                "label": "模型参数",
+                "input_type": "textarea",
+                "required": False,
+                "placeholder": '{"key": "value"}',
+                "value_type": "object",
+            },
+            {
+                "key": "extra_train_config",
+                "label": "额外训练配置",
+                "input_type": "textarea",
+                "required": False,
+                "placeholder": '{"key": "value"}',
+                "value_type": "object",
+            },
+            {
+                "key": "activate_after_train",
+                "label": "训练后激活",
+                "input_type": "checkbox",
+                "required": False,
+                "value_type": "boolean",
+            },
+            {
+                "key": "is_active",
+                "label": "启用模板",
+                "input_type": "checkbox",
+                "required": False,
+                "default": True,
+                "value_type": "boolean",
+            },
             {"key": "notes", "label": "备注", "input_type": "textarea", "required": False},
         ],
         "description": "创建或更新一个 Qlib 训练模板。",
@@ -992,7 +1195,13 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
         "view_type": "detail",
         "risk": "admin",
         "fields": [
-            {"key": "run_id", "label": "运行 ID", "input_type": "text", "required": True, "binding": "path"},
+            {
+                "key": "run_id",
+                "label": "运行 ID",
+                "input_type": "text",
+                "required": True,
+                "binding": "path",
+            },
         ],
         "description": "按运行 ID 查看一条训练运行详情。",
         "source": "approved:admin",
@@ -1013,15 +1222,59 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
             {"key": "model_name", "label": "模型名称", "input_type": "text", "required": False},
             {"key": "model_type", "label": "模型类型", "input_type": "text", "required": False},
             {"key": "universe", "label": "标的池", "input_type": "text", "required": False},
-            {"key": "start_date", "label": "开始日期", "input_type": "date", "required": False, "value_type": "date"},
-            {"key": "end_date", "label": "结束日期", "input_type": "date", "required": False, "value_type": "date"},
+            {
+                "key": "start_date",
+                "label": "开始日期",
+                "input_type": "date",
+                "required": False,
+                "value_type": "date",
+            },
+            {
+                "key": "end_date",
+                "label": "结束日期",
+                "input_type": "date",
+                "required": False,
+                "value_type": "date",
+            },
             {"key": "feature_set_id", "label": "特征集", "input_type": "text", "required": False},
             {"key": "label_id", "label": "标签集", "input_type": "text", "required": False},
-            {"key": "learning_rate", "label": "学习率", "input_type": "number", "required": False, "value_type": "float"},
-            {"key": "epochs", "label": "轮数", "input_type": "number", "required": False, "value_type": "integer"},
-            {"key": "model_params", "label": "模型参数", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
-            {"key": "extra_train_config", "label": "额外训练配置", "input_type": "textarea", "required": False, "placeholder": "{\"key\": \"value\"}", "value_type": "object"},
-            {"key": "activate", "label": "训练后激活", "input_type": "checkbox", "required": False, "value_type": "boolean"},
+            {
+                "key": "learning_rate",
+                "label": "学习率",
+                "input_type": "number",
+                "required": False,
+                "value_type": "float",
+            },
+            {
+                "key": "epochs",
+                "label": "轮数",
+                "input_type": "number",
+                "required": False,
+                "value_type": "integer",
+            },
+            {
+                "key": "model_params",
+                "label": "模型参数",
+                "input_type": "textarea",
+                "required": False,
+                "placeholder": '{"key": "value"}',
+                "value_type": "object",
+            },
+            {
+                "key": "extra_train_config",
+                "label": "额外训练配置",
+                "input_type": "textarea",
+                "required": False,
+                "placeholder": '{"key": "value"}',
+                "value_type": "object",
+            },
+            {
+                "key": "activate",
+                "label": "训练后激活",
+                "input_type": "checkbox",
+                "required": False,
+                "value_type": "boolean",
+            },
         ],
         "description": "提交一个新的 Qlib 训练任务。",
         "source": "approved:admin",
@@ -1030,6 +1283,56 @@ APPROVED_OPERATION_ACTIONS: tuple[dict[str, Any], ...] = (
     },
 )
 
+
+APPROVED_OPERATION_ACTIONS = (
+    *APPROVED_OPERATION_ACTIONS,
+    *(
+        {
+            "key": key,
+            "label": label,
+            "method": "GET",
+            "endpoint": endpoint,
+            "intent": intent,
+            "screen_key": "command-center.overview",
+            "module_key": "daily-decisions",
+            "view_type": "datagrid",
+            "risk": "read",
+            "fields": [],
+            "view_model": {"kind": "datagrid", "rows_path": "rows", "total_path": "total"},
+            "description": description,
+            "source": "approved:operator-home",
+            "task_group": "01 首页摘要",
+            "sequence": sequence,
+            "task_tier": "primary",
+        }
+        for key, label, endpoint, intent, description, sequence in (
+            (
+                "operator.home.market_context",
+                "环境与脉搏摘要",
+                "/api/tui/operator/home/market_context/",
+                "read_operator_home_market_context",
+                "读取统一首页的环境、政策、脉搏与数据就绪摘要。",
+                21,
+            ),
+            (
+                "operator.home.account_signal_summary",
+                "账户与信号摘要",
+                "/api/tui/operator/home/account_signal_summary/",
+                "read_operator_home_account_signal_summary",
+                "读取统一首页的账户与信号摘要。",
+                22,
+            ),
+            (
+                "operator.home.data_task_summary",
+                "数据与任务异常",
+                "/api/tui/operator/home/data_task_summary/",
+                "read_operator_home_data_task_summary",
+                "读取统一首页的数据、任务与运行时异常摘要。",
+                24,
+            ),
+        )
+    ),
+)
 
 EXACT_LABELS = {
     "auto.api.get.api.setup.password-strength": "初始化密码强度",
@@ -1869,13 +2172,77 @@ EXACT_TASK_GROUPS = {
     "auto.api.get.api.agent-runtime.proposals": "04 提案",
 }
 
+# Information architecture is data, not Python routing logic.  The registry is
+# deliberately loaded after the legacy curation tables above so one versioned
+# file is the effective source of truth while the old label/view-model rules
+# remain available during the migration.
+_IA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "config"
+    / "tui"
+    / "ia"
+    / "tui_information_architecture.v1.json"
+)
+TUI_INFORMATION_ARCHITECTURE = json.loads(_IA_PATH.read_text(encoding="utf-8"))
+LEGACY_SCREEN_ALIASES = {
+    str(source): str(screen["key"])
+    for screen in [
+        *TUI_INFORMATION_ARCHITECTURE["published_screens"],
+        *TUI_INFORMATION_ARCHITECTURE["runtime_screens"],
+    ]
+    for source in [
+        *screen.get("sources", []),
+        *screen.get("runtime_sources", []),
+        screen["key"],
+    ]
+}
+SCREEN_SPECS = {
+    str(screen["key"]): {
+        key: copy.deepcopy(value)
+        for key, value in screen.items()
+        if key not in {"sources", "runtime_sources"}
+    }
+    for screen in TUI_INFORMATION_ARCHITECTURE["published_screens"]
+}
+_ACTION_DENSITY = TUI_INFORMATION_ARCHITECTURE["action_density"]
+for _screen_key, _screen_spec in SCREEN_SPECS.items():
+    _screen_spec["action_density"] = {
+        "primary_operation_limit": int(
+            _ACTION_DENSITY.get("screen_limits", {}).get(
+                _screen_key,
+                _ACTION_DENSITY["default_primary_operation_limit"],
+            )
+        ),
+        "task_group_limit": int(_ACTION_DENSITY["task_group_limit"]),
+    }
+DAILY_WORKFLOW_STEPS = tuple(TUI_INFORMATION_ARCHITECTURE["workflow"])
+BUSINESS_CONTEXTS = {
+    **BUSINESS_CONTEXTS,
+    **{key: copy.deepcopy(spec.get("business_context", {})) for key, spec in SCREEN_SPECS.items()},
+}
+SCREEN_USER_EXPERIENCE_OVERRIDES = {
+    **SCREEN_USER_EXPERIENCE_OVERRIDES,
+    **{key: copy.deepcopy(spec.get("user_experience", {})) for key, spec in SCREEN_SPECS.items()},
+}
+EXACT_DEFAULT_ACTION_OVERRIDES = {
+    **EXACT_DEFAULT_ACTION_OVERRIDES,
+    **{
+        key: str(spec.get("default_action_key") or "")
+        for key, spec in SCREEN_SPECS.items()
+        if str(spec.get("default_action_key") or "")
+    },
+}
 
-def _promoted_screen_for(action_key: str) -> str:
+
+def _promoted_screen_for(action_key: str, source_screen_key: str = "") -> str:
+    configured_target = LEGACY_SCREEN_ALIASES.get(source_screen_key)
+    if configured_target in SCREEN_SPECS:
+        return configured_target
     if action_key in EXACT_SCREEN_RULES:
-        return EXACT_SCREEN_RULES[action_key]
+        return LEGACY_SCREEN_ALIASES.get(EXACT_SCREEN_RULES[action_key], "")
     for prefix, screen_key in ACTION_SCREEN_RULES:
         if action_key.startswith(prefix):
-            return screen_key
+            return LEGACY_SCREEN_ALIASES.get(screen_key, "")
     return ""
 
 
@@ -1982,7 +2349,9 @@ def _best_operator_first_default_action(
     screen_actions: list[dict[str, Any]],
 ) -> str:
     override_key = EXACT_DEFAULT_ACTION_OVERRIDES.get(str(screen.get("key") or ""))
-    if override_key and any(str(action.get("key") or "") == override_key for action in screen_actions):
+    if override_key and any(
+        str(action.get("key") or "") == override_key for action in screen_actions
+    ):
         return override_key
 
     candidates = [
@@ -2026,7 +2395,11 @@ def _apply_operator_first_default_actions(payload: dict[str, Any]) -> int:
             continue
         current_default = str(screen.get("default_action_key") or "")
         current_action = next(
-            (action for action in screen_actions if str(action.get("key") or "") == current_default),
+            (
+                action
+                for action in screen_actions
+                if str(action.get("key") or "") == current_default
+            ),
             None,
         )
         best_default = _best_operator_first_default_action(screen, screen_actions)
@@ -2054,9 +2427,11 @@ def _merge_approved_operation_actions(payload: dict[str, Any]) -> int:
     merged = 0
     for spec in APPROVED_OPERATION_ACTIONS:
         action = dict(spec)
-        screen = screen_by_key.get(str(action["screen_key"]))
+        target_screen_key = LEGACY_SCREEN_ALIASES.get(str(action["screen_key"]), "")
+        screen = screen_by_key.get(target_screen_key)
         if not screen:
             continue
+        action["screen_key"] = target_screen_key
         action["module_key"] = screen["module_key"]
         if action["key"] in action_by_key:
             action_by_key[action["key"]].update(action)
@@ -2082,26 +2457,30 @@ def _apply_user_facing_design_metadata(payload: dict[str, Any]) -> int:
             user_experience["journey"] = (
                 "dashboard"
                 if screen.get("dashboard_panels")
-                else "self_service"
-                if "self-service" in screen_key
-                else "workspace"
+                else "self_service" if "self-service" in screen_key else "workspace"
             )
         user_experience.setdefault("primary_task", summary)
         user_experience.setdefault(
             "primary_outcome",
-            str(business_context.get("decision_output") or summary or screen.get("label") or "").strip(),
+            str(
+                business_context.get("decision_output") or summary or screen.get("label") or ""
+            ).strip(),
         )
         user_experience.setdefault(
             "empty_state_hint",
-            "先查看 P0 面板，再进入需要展开的任务。"
-            if screen.get("dashboard_panels")
-            else "先运行本屏主任务，必要时补充参数或切换到支撑检查。",
+            (
+                "先查看 P0 面板，再进入需要展开的任务。"
+                if screen.get("dashboard_panels")
+                else "先运行本屏主任务，必要时补充参数或切换到支撑检查。"
+            ),
         )
         user_experience.setdefault(
             "next_step_hint",
-            f"完成当前检查后进入「{next_label}」。"
-            if next_label
-            else "根据结果继续下一项主流程，或进入可执行操作。",
+            (
+                f"完成当前检查后进入「{next_label}」。"
+                if next_label
+                else "根据结果继续下一项主流程，或进入可执行操作。"
+            ),
         )
         override = SCREEN_USER_EXPERIENCE_OVERRIDES.get(screen_key)
         if override:
@@ -2210,9 +2589,7 @@ def _apply_business_context_metadata(payload: dict[str, Any]) -> None:
             "objective": str(context.get("objective") or ""),
             "decision_output": str(context.get("decision_output") or ""),
             "checkpoints": [
-                str(item)
-                for item in context.get("checkpoints", [])
-                if str(item).strip()
+                str(item) for item in context.get("checkpoints", []) if str(item).strip()
             ][:6],
         }
 
@@ -2269,7 +2646,11 @@ def _prune_empty_screens(payload: dict[str, Any]) -> int:
     for screen in payload.get("screens", []):
         screen_key = str(screen.get("key") or "")
         has_dashboard = bool(screen.get("dashboard_panels") or [])
-        if screen_key != default_screen and screen_key not in action_screen_keys and not has_dashboard:
+        if (
+            screen_key != default_screen
+            and screen_key not in action_screen_keys
+            and not has_dashboard
+        ):
             removed += 1
             continue
         kept.append(screen)
@@ -2288,7 +2669,14 @@ def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
     for action in payload.get("actions", []):
         screen_key = str(action.get("screen_key") or "")
         action_key = str(action.get("key") or "")
-        redundant_keys = REDUNDANT_SCREEN_ACTION_KEYS.get(screen_key, set())
+        redundant_keys = {
+            redundant_action_key
+            for source_screen_key, source_action_keys in REDUNDANT_SCREEN_ACTION_KEYS.items()
+            if source_screen_key == screen_key
+            or LEGACY_SCREEN_ALIASES.get(source_screen_key, source_screen_key)
+            == LEGACY_SCREEN_ALIASES.get(screen_key, screen_key)
+            for redundant_action_key in source_action_keys
+        }
         if action_key in redundant_keys:
             removed += 1
             continue
@@ -2298,39 +2686,25 @@ def _prune_redundant_screen_actions(payload: dict[str, Any]) -> int:
 
 
 def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    for module in payload.get("modules", []):
-        if module.get("key") == "api-library":
-            module["label"] = "系统工具"
-            module["summary"] = "系统运行、数据中心和低频条件查询工具。"
-
+    payload["groups"] = copy.deepcopy(TUI_INFORMATION_ARCHITECTURE["groups"])
+    payload["modules"] = copy.deepcopy(TUI_INFORMATION_ARCHITECTURE["modules"])
+    payload["screens"] = [copy.deepcopy(spec) for spec in SCREEN_SPECS.values()]
+    payload["default_screen"] = "command-center.overview"
+    payload["ia_version"] = str(TUI_INFORMATION_ARCHITECTURE["version"])
+    payload["legacy_screen_aliases"] = {
+        source: target for source, target in LEGACY_SCREEN_ALIASES.items() if source != target
+    }
     screen_by_key = {screen["key"]: screen for screen in payload["screens"]}
-    for screen_key, spec in SCREEN_SPECS.items():
-        if screen_key in screen_by_key:
-            screen_by_key[screen_key].update(spec)
-        else:
-            payload["screens"].append({**spec, "dashboard_panels": []})
-            screen_by_key[screen_key] = payload["screens"][-1]
-    home_screen = screen_by_key.get("command-center.overview")
-    if home_screen:
-        for panel in home_screen.get("dashboard_panels", []) or []:
-            title = HOME_DASHBOARD_PANEL_TITLES.get(str(panel.get("key") or ""))
-            if title:
-                panel["title"] = title
     _apply_workflow_metadata(payload)
     _apply_business_context_metadata(payload)
     approved_operation_actions = _merge_approved_operation_actions(payload)
+    curated_action_keys = {str(action.get("key") or "") for action in APPROVED_OPERATION_ACTIONS}
 
     promoted = 0
     for action in payload["actions"]:
         action_key = str(action.get("key") or "")
-        if action_key not in EXACT_SCREEN_RULES and str(action.get("source")) not in {
-            "api-collector:candidate",
-            "api-collector:parameterized-candidate",
-            "approved:smoke-promoted",
-            "approved:parameterized-promoted",
-        }:
-            continue
-        screen_key = _promoted_screen_for(action_key)
+        source_screen_key = str(action.get("screen_key") or "")
+        screen_key = _promoted_screen_for(action_key, source_screen_key)
         if not screen_key:
             continue
         spec = SCREEN_SPECS.get(screen_key) or screen_by_key.get(screen_key)
@@ -2339,21 +2713,33 @@ def promote_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], int]:
         action["screen_key"] = screen_key
         action["module_key"] = spec["module_key"]
         action["label"] = _operator_label(action)
-        risk = str(action.get("risk") or "read")
-        suffix = "需确认" if risk == "write" else ("交互" if risk == "ai" else "查看")
-        action["description"] = f"{spec['summary']}（{suffix}）"
-        source = str(action.get("source"))
-        action["source"] = (
-            "approved:parameterized-promoted"
-            if source in {"api-collector:parameterized-candidate", "approved:parameterized-promoted"}
-            else "approved:smoke-promoted"
-        )
-        action["task_group"] = _task_group(action_key)
-        action["sequence"] = _sequence(action_key)
-        if spec["view_type"] in {"datagrid", "detail", "status"} and str(action.get("view_type")) == "auto":
+        if action_key not in curated_action_keys:
+            risk = str(action.get("risk") or "read")
+            suffix = "需确认" if risk == "write" else ("交互" if risk == "ai" else "查看")
+            action["description"] = f"{spec['summary']}（{suffix}）"
+            source = str(action.get("source"))
+            action["source"] = (
+                "approved:parameterized-promoted"
+                if source
+                in {"api-collector:parameterized-candidate", "approved:parameterized-promoted"}
+                else "approved:smoke-promoted"
+            )
+            action["task_group"] = _task_group(action_key)
+            action["sequence"] = _sequence(action_key)
+        if (
+            spec["view_type"] in {"datagrid", "detail", "status"}
+            and str(action.get("view_type")) == "auto"
+        ):
             action["view_type"] = spec["view_type"]
         _normalize_special_action(action)
         promoted += 1
+
+    published_screen_keys = set(SCREEN_SPECS)
+    payload["actions"] = [
+        action
+        for action in payload["actions"]
+        if str(action.get("screen_key") or "") in published_screen_keys
+    ]
 
     for action in payload["actions"]:
         action_key = str(action.get("key") or "")
@@ -2402,7 +2788,12 @@ def main() -> int:
         json.dumps(compact_tui_metadata_payload(validated), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps({"ok": True, "path": str(output), "business_promoted_actions": promoted}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {"ok": True, "path": str(output), "business_promoted_actions": promoted},
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

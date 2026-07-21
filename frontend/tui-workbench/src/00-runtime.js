@@ -1202,10 +1202,11 @@
 
     function renderDashboardPanelError(panel, error) {
         const bounded = boundedTuiError(error);
+        const detail = String(panel?.error_message || bounded.detail);
         return `
             <div class="tui-panel-error" role="status">
                 <strong>${escapeHtml(bounded.title)}</strong>
-                <p>${escapeHtml(bounded.detail)}</p>
+                <p>${escapeHtml(detail)}</p>
                 ${bounded.traceId ? `<small>追踪编号：${escapeHtml(bounded.traceId)}</small>` : ""}
                 <div class="tui-panel-error-actions">
                     <button class="tui-panel-retry" type="button" data-panel-retry>重试</button>

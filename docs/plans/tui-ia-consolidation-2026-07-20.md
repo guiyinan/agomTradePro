@@ -2,9 +2,10 @@
 
 > **日期**: 2026-07-20  
 > **修订日期**: 2026-07-21  
-> **状态**: 修订完成，待复核  
+> **状态**: AgomTradePro 重构与本地发布完成；AgomTUI schema 同步转配套整改
 > **范围决策**: 重构信息架构；保留终端仿真 chrome、F 键、三栏布局和 CLI 风格；每日决策流优先；普通用户自助与管理员治理严格分层  
 > **目标口径**: 37 个 published 屏与 11 个 runtime 注入屏，收敛为普通用户 13 个任务屏；管理员在此基础上增加 3 个治理屏，共 16 个最终可导航屏
+> **配套整改**: [AgomTUI 可移植性整改方案](agomtui-portability-remediation-2026-07-21.md)，负责跨仓库 Runtime 同步、schema 兼容、宿主接入与双端发布门禁
 
 ## 一、现状诊断
 
@@ -120,7 +121,7 @@ runtime 归位必须修改 `tui_metadata_runtime_injection_registry.py` 及对�
 
 | 最终屏 | default action | P0 panel key / kind / action | P1/P2 方向 |
 |---|---|---|---|
-| `command-center.overview` | dashboard 屏不强制 default | 保留 `today-queue` / datagrid / `decision.workspace.today_queue` | 保留现有 Regime、Pulse、账户、Alpha、任务面板；新增 `auto.api.get.api.dashboard.performance` 为 P1 绩效摘要 |
+| `command-center.overview` | dashboard 屏不强制 default | 保留 `today-queue` / datagrid / `decision.workspace.today_queue` | Regime/Pulse 改绑本屏 `operator.home.market_context`，账户/Alpha 改绑 `operator.home.account_signal_summary`，任务改绑 `operator.home.data_task_summary`；详情通过 `target_screen` 导航；新增 `dashboard.v1_summary` 为 P1 组合摘要 |
 | `macro-regime.overview` | `regime.current` | `regime-quadrant` / regime_quadrant / `regime.current`；`pulse-turning` / detail / `pulse.current` | P1 `policy.workbench_summary`、`data_center.market_thermometer`；P2 `regime.navigator_history` |
 | `policy.workbench` | `policy.queue_summary` | `policy-summary` / detail / `policy.queue_summary`；`policy-items` / datagrid / `policy.workbench_items` | P1 `auto.api.get.api.policy.status`；P2 RSS/采集配置 |
 | `command-center.decision-flow` | `auto.api.get.api.decision.workspace.aggregated` | `decision-summary` / detail / `auto.api.get.api.decision.workspace.aggregated`；`action-recommendation` / detail / `auto.api.get.api.dashboard.action-recommendation` | P1 六步上下文与自动投顾；写操作进入可执行操作区 |
@@ -165,8 +166,9 @@ runtime 归位必须修改 `tui_metadata_runtime_injection_registry.py` 及对�
 3. `DAILY_WORKFLOW_STEPS` 改为 8 步链。
 4. `BUSINESS_CONTEXTS`、`EXACT_LABELS`、`TASK_GROUP_RULES`、`SCREEN_USER_EXPERIENCE_OVERRIDES` 同步更新。
 5. 新增 `SCREEN_DASHBOARD_PANELS` curated 结构，在 `_apply_user_facing_design_metadata` 之前注入目标屏。
-6. groups/modules 显式重建为 `daily/research/system`；不能依赖 `_prune_empty_screens` 删除空 group/module。
-7. promotion 完成后断言 37 个来源屏全部有唯一目标，不允许 action 留在已删除屏。
+6. 将首页稳定使用的 `operator.home.market_context`、`operator.home.account_signal_summary`、`operator.home.data_task_summary` 等 aggregate action 提升到 curated `APPROVED_OPERATION_ACTIONS`，确保 panel action 与 `command-center.overview` 同屏；`target_screen` 只负责打开详情，不替代数据 action 归属。
+7. groups/modules 显式重建为 `daily/research/system`；不能依赖 `_prune_empty_screens` 删除空 group/module。
+8. promotion 完成后断言 37 个来源屏全部有唯一目标，不允许 action 留在已删除屏。
 
 ### 4.3 runtime 改动点
 
@@ -186,6 +188,16 @@ runtime 归位必须修改 `tui_metadata_runtime_injection_registry.py` 及对�
 - 分享快照、收藏和 workflow 中保存的旧 key 使用同一 alias resolver。
 - 未知且不在 alias 表中的 key 才回退 `default_screen`。
 - alias 至少保留两个正式版本周期，移除前必须先扫描文档和持久化引用。
+
+### 4.5 AgomTUI 可移植性边界
+
+本计划只收敛 AgomTradePro 产品 IA；跨仓库交付按 `agomtui-portability-remediation-2026-07-21.md` 执行：
+
+- 通用 Runtime/Workbench 改动必须先在 AgomTradePro 上游实现，再通过既有 manifest 单向同步到 AgomTUI。
+- 13/16 屏业务 metadata、published graph、runtime injection、权限和 action executor 继续由 AgomTradePro 持有，不进入 AgomTUI core/runtime。
+- AgomTUI 壳通过同源 `/api/tui` 使用 AgomTradePro 的角色过滤后 catalog、screen 和 action contract。
+- 本计划删除旧屏前必须同步修复 `frontend/agomtradepro-host/src/index.js` 中的 `api-library.runtime`、`capability-router.gateway` 等旧 key。
+- 本地发布前必须用 AgomTradePro 与 AgomTUI 两套 validator 校验最终 published graph；AgomTUI 实际同步与集成 UAT 由配套整改方案独立收口。
 
 ## 五、分阶段实施
 
@@ -232,6 +244,8 @@ runtime 归位必须修改 `tui_metadata_runtime_injection_registry.py` 及对�
 ### Phase 4 — 发布与文档收口
 
 - 运行第六节全量验证。
+- 完成 4.5 的本地可移植性门禁：双 validator 通过、host adapter 无已删除 key、上游 Runtime build/check/test 全绿。
+- 按配套整改方案生成 AgomTUI 交接证据；AgomTUI 的 schema 独立提交、`--apply` 同步和同源 UAT 不与本计划的业务 metadata commit 混合。
 - 人工复核 compact published graph 后，执行 `publish_tui_metadata.py --approve` 写入 DB registry。
 - 更新 `tui-user-facing-design-standard.md`、`tui-metadata-promotion-guide.md`、`docs/INDEX.md`、相关 quick reference 和本文件状态。
 - 交付总结按 AGENTS.md 列明：已完成项、未完成项、已验证测试、未验证风险。
@@ -297,6 +311,26 @@ agomtradepro\Scripts\python.exe -m pytest tests/unit/test_tui_workbench.py tests
 - 逐一验证旧 key 深链、screen API 和分享快照恢复。
 - 记录并断言无意外 console error、无 panel overlap、无持续 loading。
 
+### 6.4 AgomTUI 可移植性门禁
+
+在 AgomTradePro 本地发布前至少运行：
+
+```powershell
+npm run build:tui
+npm run check:tui
+npm run test:tui-js
+$agomTradeProRoot = (Resolve-Path ".").Path
+$agomTuiRoot = "D:\githv\AgomTUI"
+Push-Location $agomTuiRoot
+$env:PYTHONPATH="$agomTuiRoot\packages\agomtui-core\src;$agomTuiRoot\packages\agomtui-compiler\src;$agomTuiRoot\packages\agomtui-runtime\src"
+python -m agomtui_compiler.cli validate-metadata --metadata-file "$agomTradeProRoot\config\tui\published\tui_operation_graph.published.json"
+python -m agomtui_compiler.cli check-usability --metadata-file "$agomTradeProRoot\config\tui\published\tui_operation_graph.published.json"
+python scripts\sync_from_agomtradepro.py --source-root $agomTradeProRoot --check
+Pop-Location
+```
+
+若 Runtime 源码发生变化，`--check` 在 AgomTUI 尚未应用同步时预期报告差异；该差异必须全部属于同步白名单。实际执行 `--apply`、AgomTUI 全量回归和同源集成 UAT 按配套整改方案独立完成。
+
 ## 七、发布、回滚与完成定义
 
 ### 7.1 发布
@@ -309,10 +343,13 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metada
 
 DB registry 优先于仓库 JSON；未执行 publish 时，本地或服务器 `/tui/` 可能继续读取旧图。
 
+VPS 发布必须调用 `scripts/publish-tui-release.sh <release-version>`，由同一入口完成幂等 publish 与 active registry 哈希校验；部署后验收再次执行 `publish_tui_metadata.py --check`。发布文件缺失、DB 行缺失或哈希漂移均阻止 release 通过。
+
 ### 7.2 回滚
 
 - 保留重构前 reviewed baseline 的文件副本、source hash 和 registry 版本号。
 - 回滚时用旧 baseline 再次执行 `publish_tui_metadata.py --approve`，不得直接修改 DB payload。
+- VPS 自动回滚必须从 `previous` release 重新发布其 reviewed baseline，不能只回退镜像和软链接。
 - 前端若增加 admin GET 自动加载或组级折叠，必须保持为独立 commit，可单独回滚。
 - alias resolver 在回滚后仍需兼容新旧两套 key，避免回滚造成二次断链。
 
@@ -325,6 +362,8 @@ DB registry 优先于仓库 JSON；未执行 publish 时，本地或服务器 `/
 - 旧 key 解析到对应新任务屏，而不是无差别回首页。
 - action 密度、workflow、panel、权限和 console 验收全部通过。
 - published JSON、DB registry、文档和测试使用同一 IA 口径。
+- 最终 published graph 通过 AgomTUI validator，host adapter 不引用被删除 key，并已形成可复核的 Runtime 同步差异或 `UNCHANGED` 证据。
+- AgomTUI `check-usability` error 为 0，首页 panel 使用本屏 aggregate action；存量 warning 已分类且本次不新增。
 
 ## 八、边界
 
@@ -334,3 +373,27 @@ DB registry 优先于仓库 JSON；未执行 publish 时，本地或服务器 `/
 - 不在本主线加入导航收藏、全局搜索等独立产品增强。
 - 允许为本计划完成定义做两类受控前端改动：admin GET dashboard 自动加载；Phase 0 证明必要时增加 task group 折叠。除此之外的前端增强另起主线。
 - 不手工编辑生成投影或 DB payload；所有发布变更必须走 generate、smoke、promote、validate、publish 流程。
+- 不把 AgomTradePro 业务 metadata、金融业务 action 或 runtime injection 加入 AgomTUI 通用 Runtime 同步白名单。
+
+## 九、实施结果（2026-07-21）
+
+AgomTradePro 侧已完成：
+
+- 新增版本化 IA 真源 `config/tui/ia/tui_information_architecture.v1.json`，显式覆盖 37 个 published 来源和 11 个 runtime 来源；编译器、runtime injection、DB 旧图归一化、深链 alias 与前端 action density 均读取同一契约。
+- 发布图收敛为 3 组、3 模块、12 个 published 屏；运行时追加 4 个 retained 屏。普通用户目录为 13 屏，管理员目录为 16 屏。
+- 每日流程固定为 8 步；每屏的 audience、主任务、主结果、P0/P1 panel、默认动作和密度预算均进入 metadata，不再由前端按业务 key 判断。
+- admin 自动加载只允许当前 admin 屏内的被动读取；写入和 AI action 必须显式触发。
+- 旧屏 key 通过 registry alias 归并，未知 key 继续返回有界 404；宿主 adapter 已移除 `api-library.runtime` 和 `capability-router.gateway` 旧引用。
+- 最终 compact graph 为 12 screens / 402 actions；严格 smoke 为 241 ok / 142 needs_input / 0 error；本地 DB registry 已发布为 id 3。
+- VPS 部署已形成“迁移 → 幂等发布 → 哈希校验 → 启动 → 二次验收”闭环；自动回滚同步恢复上一 release 的 TUI registry。
+
+验证结果：
+
+- Python 固定回归包及新增 IA/权限/兼容测试：288 passed。
+- 前端浏览器行为测试：15 passed；`npm run build:tui` 与 `npm run check:tui` 通过。
+- published/generated 双 validator 与 `manage.py check` 通过；Ruff 通过。
+- AgomTUI 单向同步检查只发现 5 个白名单 Runtime 差异；未执行 `--apply`。
+- VPS 发布/验收/回滚合同测试 31 passed；本地 `--check` 已确认 DB registry id 3 与 release canonical hash 一致。
+- 高风险固定回归包连同部署测试 260 passed；IA、metadata compiler 与用户面契约补充回归 54 passed；TUI JavaScript 行为测试 15 passed，`check:tui` 通过。
+
+配套整改剩余项：AgomTUI 当前 validator 尚未支持本项目既有的 panel `empty_message/error_message/stale_message/row_actions` 契约，跨仓库 validator/check-usability 与同源 UAT 继续由 `agomtui-portability-remediation-2026-07-21.md` 独立收口，不在本次 AgomTradePro 业务 metadata 发布中修改外部仓库。

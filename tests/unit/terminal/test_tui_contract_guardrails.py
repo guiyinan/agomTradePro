@@ -70,6 +70,10 @@ def test_screen_public_contract_fields_survive_the_server_projection() -> None:
         "workflow": {"name": "Guardrail"},
         "user_experience": {"journey": "self_service"},
         "business_context": {"objective": "Keep the contract intact."},
+        "action_density": {
+            "primary_operation_limit": 10,
+            "task_group_limit": 6,
+        },
         "entry_mode": "parameter_gate",
         "entry_field_key": "account_id",
     }

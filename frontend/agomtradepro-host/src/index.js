@@ -46,7 +46,7 @@ runtime.hooks = {
         }
         if (actionKey === "operator.home.enter_governance_flow") {
             context.persistPreferredLane("governance");
-            context.loadScreen("api-library.runtime");
+            context.loadScreen("api-library.data-center");
             return true;
         }
         if (actionKey === "operator.home.resume_last_workspace") {
@@ -75,7 +75,7 @@ runtime.host = {
     workflowActionsLane: "governance",
     slowActionScreens: [
         { key: "ai-ops.terminal", label: "打开 AI 交互终端" },
-        { key: "capability-router.gateway", label: "打开能力路由接入" },
+        { key: "capability-router.self-service", label: "打开 MCP 自助接入" },
     ],
     slowActionKeys: [
         "cli.chat_router",

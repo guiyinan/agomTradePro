@@ -174,6 +174,8 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 - 所有颜色必须走统一 theme token：`background / panelBackground / primaryText / secondaryText / border / highlight / accent / success / warning / error / grid`；不得在组件内新增写死颜色。
 - 经典页面平替 screen 应提供 `default_action_key`，避免进入页面后只是空任务选择器。
 - 首页/总览用 `dashboard_panels` 组合已审核 action，不在 JavaScript 里硬编码业务行。
+- TUI 信息架构唯一真源为 `config/tui/ia/tui_information_architecture.v1.json`；groups/modules、12 个 published 目标屏、4 个 retained runtime 屏、旧 key aliases、8 步 workflow、audience、panel 与 action density 不得在编译器、runtime 或前端重复硬编码。
+- action 超量折叠读取 `screen.action_density`；admin panel 只允许同一 admin 屏内的被动 GET 自动加载，写入和 AI action 必须显式触发。
 - 发布规模、action 分类、smoke 结果和 deferred 记录只读取 `config/tui/published/tui_operation_graph.published.json` 与当前生成报告，本快速参考不维护数字副本。已验证行为包括必填参数提示、写入确认、admin 可见性、session 保留、公开分享密码挑战和 detail/datagrid 语义选择。
 
 ```powershell
@@ -204,11 +206,16 @@ agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\validate_tui_metad
 # 发布已审核 metadata 到本地 DB registry
 agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metadata.py config\tui\published\tui_operation_graph.published.json --approve --generation-source mixed --backend-version "local-dev" --source-evidence-path config\tui\generated\tui_operation_evidence.generated.json --review-note "Reviewed TUI metadata"
 
+# 只读校验 DB 当前生效 payload 与本 release 文件一致；不一致时退出码为 1
+agomtradepro\Scripts\python.exe tui-metadata-compiler\scripts\publish_tui_metadata.py config\tui\published\tui_operation_graph.published.json --check --registry-key default
+
 # 重复发布同一份 compacted payload 时会 no-op，不再新增 registry 历史行
 
 # TUI 契约与渲染核心回归
 agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests\unit\test_tui_ui_mode.py tests\unit\test_tui_metadata_compiler.py -q -p no:cacheprovider
 ```
+
+VPS 发布统一调用 `scripts/publish-tui-release.sh <release-version>`。部署顺序固定为数据库迁移、TUI 幂等发布、active registry 哈希校验、冷启动 bootstrap、服务切换和部署后验收；任一步失败即阻止 release 生效。`scripts/deploy_vps_verify.py` 会再次执行只读 registry 校验。自动回滚会从 `previous` release 重新发布旧 JSON，避免代码已经回退而数据库仍覆盖为新 TUI 图。
 
 ### 能力路由网关
 
@@ -220,7 +227,7 @@ agomtradepro\Scripts\python.exe -m pytest tests\unit\test_tui_workbench.py tests
 - `python manage.py govern_ai_capability_catalog --apply`：治理 AI Capability Catalog，清理不在当前 API/MCP 源内的历史自动采集项；安全只读能力自动放行，写入能力保留确认，高风险 MCP 保持待人工复核，unsafe API 标记拒绝。
 - MCP 可执行工具以 `sdk/agomtradepro_mcp/tools/*` 中的 `@server.tool()` 代码注册为真源；数据库中的 `ai_capability_catalog` 是同步快照和治理投影，不作为任意可执行代码入口。
 - `sync_ai_capability_catalog` 默认会在 API/MCP 同步后执行治理；如需只看原始采集结果，可加 `--skip-governance`。
-- TUI 运行时保留 4 个稳定 screen key，并按 audience 拆成独立旅程：普通登录用户只看到 `capability-router.self-service`（“我的 MCP 接入”）；管理员额外看到 `capability-router.mcp-center`、`capability-router.admin-access`（“MCP 管理”）和 `capability-router.gateway`（“能力路由调试”）。未知或越权 screen 分别返回结构化 404/403，不再静默回首页。
+- TUI 运行时保留 4 个稳定 screen key：普通登录用户可见 `cli.terminal` 与 `capability-router.self-service`；管理员额外可见 `ai-ops.system-providers` 与 `capability-router.mcp-center`。`ai-ops.user-quotas`、`capability-router.gateway`、`capability-router.admin-access` 等旧 key 由 IA alias 归并到对应治理屏；未知或越权 screen 分别返回结构化 404/403。
 
 ```powershell
 # 同步 MCP 工具到 Capability Catalog

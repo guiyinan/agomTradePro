@@ -41,7 +41,7 @@ function action(key, options = {}) {
         method: options.method || "GET",
         endpoint: `/api/test/${key}/`,
         intent: key,
-        screen_key: "test.grid",
+        screen_key: options.screen_key || "test.grid",
         module_key: "test",
         view_type: options.view_type || "detail",
         risk: options.risk || "read",
@@ -75,6 +75,14 @@ const actions = [
     action("test.fast", { label: "快请求", sequence: 6 }),
     action("test.next", { label: "下一动作", sequence: 7 }),
     action("test.regime", { label: "Regime 面板", sequence: 8 }),
+    action("test.admin-read", {
+        label: "管理员只读状态",
+        risk: "admin",
+        method: "GET",
+        task_tier: "primary",
+        screen_key: "test.dashboard",
+        sequence: 9,
+    }),
 ];
 
 const catalog = {
@@ -118,6 +126,7 @@ const dashboardScreen = {
         summary: "验证被动 dashboard 行为。",
         view_type: "status",
         status: "online",
+        audience: "admin",
         entry_state: { mode: "dashboard" },
         workflow: {},
         dashboard_panels: [
@@ -137,10 +146,18 @@ const dashboardScreen = {
                 presentation_semantic: "supporting_detail",
                 action_key: "test.secure",
             },
+            {
+                key: "admin-read",
+                title: "管理员只读状态",
+                kind: "detail",
+                user_priority: "p1",
+                presentation_semantic: "supporting_detail",
+                action_key: "test.admin-read",
+            },
         ],
         user_experience: { primary_task: "查看概览", primary_outcome: "不自动执行写操作" },
     },
-    actions: actions.filter((item) => ["test.regime", "test.secure"].includes(item.key)),
+    actions: actions.filter((item) => ["test.regime", "test.secure", "test.admin-read"].includes(item.key)),
 };
 
 function listResult() {
@@ -238,6 +255,22 @@ async function openHarness() {
                     password_challenge_required: true,
                     password_challenge: { challenge_id: "challenge-1", message: "请验证密码" },
                     view_model: { kind: "message", title: "等待验证", status: "等待", message: "需要验证" },
+                }),
+            });
+            return;
+        }
+        if (url.pathname.includes("/actions/test.admin-read/run/")) {
+            await route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({
+                    action: actions.find((item) => item.key === "test.admin-read"),
+                    view_model: {
+                        kind: "detail",
+                        title: "管理员只读状态",
+                        status: "正常",
+                        fields: [{ label: "状态", value: "可用" }],
+                    },
                 }),
             });
             return;
@@ -356,9 +389,13 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
     const { browser, page } = await openHarness();
     try {
         let secureRequests = 0;
+        let adminReadRequests = 0;
         page.on("request", (request) => {
             if (request.url().includes("/actions/test.secure/run/")) {
                 secureRequests += 1;
+            }
+            if (request.url().includes("/actions/test.admin-read/run/")) {
+                adminReadRequests += 1;
             }
         });
         const location = page.locator("[data-current-location]");
@@ -372,6 +409,7 @@ test("dashboard auto-loads passive reads and never auto-runs sensitive actions",
             /需要填写参数或确认操作/,
         );
         assert.equal(secureRequests, 0);
+        assert.equal(adminReadRequests, 1);
     } finally {
         await browser.close();
     }

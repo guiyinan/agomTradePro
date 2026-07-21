@@ -2,9 +2,9 @@
   "version": "tui-workbench.v2",
   "registry_key": "default",
   "source_evidence_counts": {
-    "api_safe_read": 488,
-    "sdk_methods": 433,
-    "mcp_tools": 369,
+    "api_safe_read": 520,
+    "sdk_methods": 463,
+    "mcp_tools": 378,
     "classic_templates": 130
   },
   "source_evidence": {
@@ -51,6 +51,15 @@
         "method": "GET",
         "endpoint": "/api/ready/",
         "category": "ready",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.tui",
+        "name": "Get Tui",
+        "method": "GET",
+        "endpoint": "/api/tui/",
+        "category": "tui",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -559,6 +568,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.alpha.factor-exposure.str:stock_code",
+        "name": "Get Alpha Factor Exposure Str:Stock Code",
+        "method": "GET",
+        "endpoint": "/api/alpha/factor-exposure/<str:stock_code>/",
+        "category": "alpha",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.alpha.universes",
         "name": "Get Alpha Universes",
         "method": "GET",
@@ -779,6 +797,15 @@
         "name": "Get Account Positions",
         "method": "GET",
         "endpoint": "/api/account/positions/",
+        "category": "account",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.account.positions.read-only",
+        "name": "Get Account Positions Read Only",
+        "method": "GET",
+        "endpoint": "/api/account/positions/read-only/",
         "category": "account",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1324,10 +1351,28 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.strategy.strategies.pk.performance",
+        "name": "Get Strategies Pk Performance",
+        "method": "GET",
+        "endpoint": "/api/strategy/strategies/<pk>/performance/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.strategy.strategies.pk.position_rule",
         "name": "Get Strategies Pk Position_Rule",
         "method": "GET",
         "endpoint": "/api/strategy/strategies/<pk>/position_rule/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.strategies.pk.positions",
+        "name": "Get Strategies Pk Positions",
+        "method": "GET",
+        "endpoint": "/api/strategy/strategies/<pk>/positions/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1346,6 +1391,24 @@
         "name": "Get Strategies Pk Script_Config",
         "method": "GET",
         "endpoint": "/api/strategy/strategies/<pk>/script_config/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.strategies.pk.signals",
+        "name": "Get Strategies Pk Signals",
+        "method": "GET",
+        "endpoint": "/api/strategy/strategies/<pk>/signals/",
+        "category": "strategy",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.strategy.strategies.pk.trades",
+        "name": "Get Strategies Pk Trades",
+        "method": "GET",
+        "endpoint": "/api/strategy/strategies/<pk>/trades/",
         "category": "strategy",
         "risk_level": "safe",
         "visibility": "internal"
@@ -1999,6 +2062,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.filter.config.str:indicator_code",
+        "name": "Get Filter Config Str:Indicator Code",
+        "method": "GET",
+        "endpoint": "/api/filter/config/<str:indicator_code>/",
+        "category": "filter",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.filter",
         "name": "Get Filter",
         "method": "GET",
@@ -2111,6 +2183,15 @@
         "name": "Get Backtest Backtests Pk",
         "method": "GET",
         "endpoint": "/api/backtest/backtests/<pk>/",
+        "category": "backtest",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.backtest.backtests.pk.equity-curve",
+        "name": "Get Backtests Pk Equity Curve",
+        "method": "GET",
+        "endpoint": "/api/backtest/backtests/<pk>/equity-curve/",
         "category": "backtest",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2300,6 +2381,15 @@
         "name": "Get Fund Rank",
         "method": "GET",
         "endpoint": "/api/fund/rank/",
+        "category": "fund",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.fund.score.str:fund_code",
+        "name": "Get Fund Score Str:Fund Code",
+        "method": "GET",
+        "endpoint": "/api/fund/score/<str:fund_code>/",
         "category": "fund",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2620,10 +2710,73 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.terminal.tui.actions.search",
+        "name": "Get Tui Actions Search",
+        "method": "GET",
+        "endpoint": "/api/terminal/tui/actions/search/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.terminal.tui.actions.path:action_key.schema",
+        "name": "Get Actions Path:Action Key Schema",
+        "method": "GET",
+        "endpoint": "/api/terminal/tui/actions/<path:action_key>/schema/",
+        "category": "terminal",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.realtime",
         "name": "Get Realtime",
         "method": "GET",
         "endpoint": "/api/realtime/",
+        "category": "realtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.realtime.alerts",
+        "name": "Get Realtime Alerts",
+        "method": "GET",
+        "endpoint": "/api/realtime/alerts/",
+        "category": "realtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.realtime.alerts.int:alert_id",
+        "name": "Get Realtime Alerts Int:Alert Id",
+        "method": "GET",
+        "endpoint": "/api/realtime/alerts/<int:alert_id>/",
+        "category": "realtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.realtime.subscriptions",
+        "name": "Get Realtime Subscriptions",
+        "method": "GET",
+        "endpoint": "/api/realtime/subscriptions/",
+        "category": "realtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.realtime.sector-performance",
+        "name": "Get Realtime Sector Performance",
+        "method": "GET",
+        "endpoint": "/api/realtime/sector-performance/",
+        "category": "realtime",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.realtime.top-movers",
+        "name": "Get Realtime Top Movers",
+        "method": "GET",
+        "endpoint": "/api/realtime/top-movers/",
         "category": "realtime",
         "risk_level": "safe",
         "visibility": "internal"
@@ -2755,6 +2908,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.factor.portfolio",
+        "name": "Get Factor Portfolio",
+        "method": "GET",
+        "endpoint": "/api/factor/portfolio/",
+        "category": "factor",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.factor.top-stocks",
         "name": "Get Factor Top Stocks",
         "method": "GET",
@@ -2827,6 +2989,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.rotation.assets.import-defaults-preview",
+        "name": "Get Rotation Assets Import Defaults Preview",
+        "method": "GET",
+        "endpoint": "/api/rotation/assets/import-defaults-preview/",
+        "category": "rotation",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.rotation.assets.with_prices",
         "name": "Get Rotation Assets With_Prices",
         "method": "GET",
@@ -2881,6 +3052,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.rotation.asset-classes.import-defaults-preview",
+        "name": "Get Rotation Asset Classes Import Defaults Preview",
+        "method": "GET",
+        "endpoint": "/api/rotation/asset-classes/import-defaults-preview/",
+        "category": "rotation",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.rotation.asset-classes.with_prices",
         "name": "Get Rotation Asset Classes With_Prices",
         "method": "GET",
@@ -2894,6 +3074,15 @@
         "name": "Get Rotation Asset Classes Code",
         "method": "GET",
         "endpoint": "/api/rotation/asset-classes/<code>/",
+        "category": "rotation",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.rotation.asset-classes.code.detail",
+        "name": "Get Asset Classes Code Detail",
+        "method": "GET",
+        "endpoint": "/api/rotation/asset-classes/<code>/detail/",
         "category": "rotation",
         "risk_level": "safe",
         "visibility": "internal"
@@ -3736,6 +3925,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.dashboard.positions.data",
+        "name": "Get Dashboard Positions Data",
+        "method": "GET",
+        "endpoint": "/api/dashboard/positions/data/",
+        "category": "dashboard",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.dashboard.allocation",
         "name": "Get Dashboard Allocation",
         "method": "GET",
@@ -3853,15 +4051,6 @@
         "visibility": "internal"
       },
       {
-        "key": "api.get.api.dashboard.alpha.refresh",
-        "name": "Get Dashboard Alpha Refresh",
-        "method": "GET",
-        "endpoint": "/api/dashboard/alpha/refresh/",
-        "category": "dashboard",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
         "key": "api.get.api.dashboard.alpha.exit-panel",
         "name": "Get Dashboard Alpha Exit Panel",
         "method": "GET",
@@ -3920,15 +4109,6 @@
         "name": "Get Dashboard Alpha Ic Trends",
         "method": "GET",
         "endpoint": "/api/dashboard/alpha/ic-trends/",
-        "category": "dashboard",
-        "risk_level": "safe",
-        "visibility": "internal"
-      },
-      {
-        "key": "api.get.api.dashboard.workflow.refresh-candidates",
-        "name": "Get Dashboard Workflow Refresh Candidates",
-        "method": "GET",
-        "endpoint": "/api/dashboard/workflow/refresh-candidates/",
         "category": "dashboard",
         "risk_level": "safe",
         "visibility": "internal"
@@ -4231,6 +4411,15 @@
         "visibility": "internal"
       },
       {
+        "key": "api.get.api.ai-capability.mcp-access.verify",
+        "name": "Get Ai Capability Mcp Access Verify",
+        "method": "GET",
+        "endpoint": "/api/ai-capability/mcp-access/verify/",
+        "category": "ai-capability",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
         "key": "api.get.api.ai-capability.capabilities",
         "name": "Get Ai Capability Capabilities",
         "method": "GET",
@@ -4263,6 +4452,105 @@
         "method": "GET",
         "endpoint": "/api/ai-capability/<drf_format_suffix:format>",
         "category": "ai-capability",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities",
+        "name": "Get Ai Capabilities",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.capabilities",
+        "name": "Get Ai Capabilities Capabilities",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/capabilities/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.capabilities.str:capability_key",
+        "name": "Get Ai Capabilities Capabilities Str:Capability Key",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/capabilities/<str:capability_key>/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.stats",
+        "name": "Get Ai Capabilities Stats",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/stats/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.mcp-tools",
+        "name": "Get Ai Capabilities Mcp Tools",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/mcp-tools/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.mcp-tools.stats",
+        "name": "Get Ai Capabilities Mcp Tools Stats",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/mcp-tools/stats/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.mcp-access.verify",
+        "name": "Get Ai Capabilities Mcp Access Verify",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/mcp-access/verify/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.capabilities",
+        "name": "Get Ai Capabilities Capabilities",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/capabilities/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.capabilities.pk",
+        "name": "Get Ai Capabilities Capabilities Pk",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/capabilities/<pk>/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities",
+        "name": "Get Ai Capabilities",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/",
+        "category": "ai-capabilities",
+        "risk_level": "safe",
+        "visibility": "internal"
+      },
+      {
+        "key": "api.get.api.ai-capabilities.drf_format_suffix:format",
+        "name": "Get Ai Capabilities Drf Format Suffix:Format",
+        "method": "GET",
+        "endpoint": "/api/ai-capabilities/<drf_format_suffix:format>",
+        "category": "ai-capabilities",
         "risk_level": "safe",
         "visibility": "internal"
       },
@@ -4507,6 +4795,28 @@
       },
       {
         "module": "account",
+        "method": "preview_broker_trades",
+        "args": [
+          "portfolio_id",
+          "trades",
+          "broker_name"
+        ],
+        "summary": "Preview structured broker trades through the canonical multipart API.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "import_broker_trades",
+        "args": [
+          "portfolio_id",
+          "trades",
+          "broker_name"
+        ],
+        "summary": "Import structured broker trades through the canonical multipart API.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
         "method": "get_macro_sizing_config",
         "args": [],
         "summary": "获取当前生效的宏观仓位系数配置。",
@@ -4532,11 +4842,29 @@
       },
       {
         "module": "account",
+        "method": "list_portfolio_records",
+        "args": [
+          "limit"
+        ],
+        "summary": "Return raw accessible portfolio records from the canonical API.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
         "method": "get_portfolio",
         "args": [
           "portfolio_id"
         ],
         "summary": "获取单个投资组合详情（兼容接口）。",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "get_portfolio_record",
+        "args": [
+          "portfolio_id"
+        ],
+        "summary": "Return one raw accessible portfolio record.",
         "source": "sdk/agomtradepro/modules/account.py"
       },
       {
@@ -4548,6 +4876,47 @@
           "limit"
         ],
         "summary": "获取持仓列表",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "list_position_records",
+        "args": [
+          "portfolio_id",
+          "asset_code",
+          "include_closed",
+          "limit"
+        ],
+        "summary": "Return read-only position records without ledger synchronization.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "list_transaction_records",
+        "args": [
+          "portfolio_id",
+          "limit"
+        ],
+        "summary": "Return transaction records visible to the authenticated owner.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "list_capital_flow_records",
+        "args": [
+          "portfolio_id",
+          "limit"
+        ],
+        "summary": "Return capital-flow records visible to the authenticated owner.",
+        "source": "sdk/agomtradepro/modules/account.py"
+      },
+      {
+        "module": "account",
+        "method": "get_portfolio_statistics",
+        "args": [
+          "portfolio_id"
+        ],
+        "summary": "Return canonical summary statistics for one portfolio.",
         "source": "sdk/agomtradepro/modules/account.py"
       },
       {
@@ -4953,6 +5322,13 @@
       },
       {
         "module": "alpha",
+        "method": "preview_score_upload",
+        "args": [],
+        "summary": "Preview one score-cache upsert without changing persisted scores.",
+        "source": "sdk/agomtradepro/modules/alpha.py"
+      },
+      {
+        "module": "alpha",
         "method": "get_provider_status",
         "args": [],
         "summary": "获取 Provider 状态",
@@ -5088,9 +5464,7 @@
       {
         "module": "alpha_trigger",
         "method": "performance",
-        "args": [
-          "payload"
-        ],
+        "args": [],
         "summary": "",
         "source": "sdk/agomtradepro/modules/alpha_trigger.py"
       },
@@ -5173,6 +5547,15 @@
       },
       {
         "module": "audit",
+        "method": "preview_report_generation",
+        "args": [
+          "payload"
+        ],
+        "summary": "Read generation targets and side effects without creating a report.",
+        "source": "sdk/agomtradepro/modules/audit.py"
+      },
+      {
+        "module": "audit",
         "method": "get_summary",
         "args": [
           "backtest_id",
@@ -5227,6 +5610,15 @@
       },
       {
         "module": "audit",
+        "method": "preview_threshold_update",
+        "args": [
+          "payload"
+        ],
+        "summary": "Read current and target threshold levels without updating them.",
+        "source": "sdk/agomtradepro/modules/audit.py"
+      },
+      {
+        "module": "audit",
         "method": "threshold_validation_data",
         "args": [
           "summary_id"
@@ -5241,6 +5633,15 @@
           "payload"
         ],
         "summary": "",
+        "source": "sdk/agomtradepro/modules/audit.py"
+      },
+      {
+        "module": "audit",
+        "method": "preview_validation",
+        "args": [
+          "payload"
+        ],
+        "summary": "Read validation targets and impact without running or persisting validation.",
         "source": "sdk/agomtradepro/modules/audit.py"
       },
       {
@@ -5315,6 +5716,15 @@
           "backtest_id"
         ],
         "summary": "获取回测净值曲线",
+        "source": "sdk/agomtradepro/modules/backtest.py"
+      },
+      {
+        "module": "backtest",
+        "method": "get_equity_curve_payload",
+        "args": [
+          "backtest_id"
+        ],
+        "summary": "Return the canonical persisted equity-curve envelope.",
         "source": "sdk/agomtradepro/modules/backtest.py"
       },
       {
@@ -5661,11 +6071,33 @@
       },
       {
         "module": "dashboard",
+        "method": "alpha_history_payload",
+        "args": [
+          "portfolio_id",
+          "trade_date",
+          "stock_code",
+          "stage",
+          "source"
+        ],
+        "summary": "Return Alpha history using the stable governed list envelope.",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
         "method": "alpha_history_detail",
         "args": [
           "run_id"
         ],
         "summary": "",
+        "source": "sdk/agomtradepro/modules/dashboard.py"
+      },
+      {
+        "module": "dashboard",
+        "method": "alpha_history_detail_payload",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Return one Alpha history run using the stable governed envelope.",
         "source": "sdk/agomtradepro/modules/dashboard.py"
       },
       {
@@ -6099,7 +6531,8 @@
         "method": "get_capital_flows",
         "args": [
           "asset_code",
-          "period",
+          "start",
+          "end",
           "limit"
         ],
         "summary": "",
@@ -6329,6 +6762,18 @@
       },
       {
         "module": "equity",
+        "method": "get_stock_pool",
+        "args": [
+          "sector",
+          "min_score",
+          "max_score",
+          "limit"
+        ],
+        "summary": "Read the current persisted stock-pool snapshot with stable metadata.",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
         "method": "get_stock_detail",
         "args": [
           "stock_code"
@@ -6381,7 +6826,7 @@
         "method": "get_valuation",
         "args": [
           "stock_code",
-          "as_of_date"
+          "lookback_days"
         ],
         "summary": "获取股票估值详情（完整数据）",
         "source": "sdk/agomtradepro/modules/equity.py"
@@ -6404,6 +6849,16 @@
           "lookback_days"
         ],
         "summary": "获取估值修复历史百分位序列",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
+        "method": "get_valuation_repair_history_payload",
+        "args": [
+          "stock_code",
+          "lookback_days"
+        ],
+        "summary": "Return the canonical valuation-repair history envelope.",
         "source": "sdk/agomtradepro/modules/equity.py"
       },
       {
@@ -6484,6 +6939,15 @@
       },
       {
         "module": "equity",
+        "method": "get_valuation_repair_config_by_id",
+        "args": [
+          "config_id"
+        ],
+        "summary": "Get one persisted valuation repair config by numeric ID.",
+        "source": "sdk/agomtradepro/modules/equity.py"
+      },
+      {
+        "module": "equity",
         "method": "create_valuation_repair_config",
         "args": [
           "change_reason",
@@ -6535,7 +6999,14 @@
         "args": [
           "payload"
         ],
-        "summary": "",
+        "summary": "Publish an event using the legacy payload-shaped SDK contract.",
+        "source": "sdk/agomtradepro/modules/events.py"
+      },
+      {
+        "module": "events",
+        "method": "publish_event",
+        "args": [],
+        "summary": "Publish one canonical event with an explicit stable identity.",
         "source": "sdk/agomtradepro/modules/events.py"
       },
       {
@@ -6567,8 +7038,44 @@
         "args": [
           "payload"
         ],
-        "summary": "",
+        "summary": "Compatibility alias for a controlled replay commit.",
         "source": "sdk/agomtradepro/modules/events.py"
+      },
+      {
+        "module": "events",
+        "method": "preview_event_replay",
+        "args": [
+          "payload"
+        ],
+        "summary": "Preview a registered replay target without invoking its handler.",
+        "source": "sdk/agomtradepro/modules/events.py"
+      },
+      {
+        "module": "events",
+        "method": "commit_event_replay",
+        "args": [
+          "payload"
+        ],
+        "summary": "Commit one idempotent, staff-scoped controlled replay.",
+        "source": "sdk/agomtradepro/modules/events.py"
+      },
+      {
+        "module": "events",
+        "method": "replay_events",
+        "args": [
+          "payload"
+        ],
+        "summary": "Compatibility wrapper requiring target and idempotency identity.",
+        "source": "sdk/agomtradepro/modules/events.py"
+      },
+      {
+        "module": "factor",
+        "method": "resolve_factor_focus_weights",
+        "args": [
+          "focus"
+        ],
+        "summary": "Return the stable factor-weight contract for one explanation focus.",
+        "source": "sdk/agomtradepro/modules/factor.py"
       },
       {
         "module": "factor",
@@ -6616,6 +7123,16 @@
       },
       {
         "module": "factor",
+        "method": "explain_stock_by_focus",
+        "args": [
+          "stock_code",
+          "focus"
+        ],
+        "summary": "Explain one stock using the stable named focus contract.",
+        "source": "sdk/agomtradepro/modules/factor.py"
+      },
+      {
+        "module": "factor",
         "method": "get_portfolio",
         "args": [
           "config_name"
@@ -6654,7 +7171,8 @@
         "method": "update_filter",
         "args": [
           "filter_id",
-          "payload"
+          "payload",
+          "indicator_code"
         ],
         "summary": "",
         "source": "sdk/agomtradepro/modules/filter.py"
@@ -6716,7 +7234,7 @@
           "min_scale",
           "limit"
         ],
-        "summary": "Call the canonical fund screening endpoint.",
+        "summary": "Screen persisted fund snapshots through the canonical pure-compute endpoint.",
         "source": "sdk/agomtradepro/modules/fund.py"
       },
       {
@@ -7005,6 +7523,7 @@
         "args": [
           "event_id",
           "reason",
+          "new_level",
           "expires_in_hours"
         ],
         "summary": "临时豁免事件",
@@ -7043,6 +7562,22 @@
           "force_refetch"
         ],
         "summary": "触发 RSS 抓取",
+        "source": "sdk/agomtradepro/modules/policy.py"
+      },
+      {
+        "module": "policy",
+        "method": "list_rss_sources",
+        "args": [],
+        "summary": "Return persisted RSS source metadata without triggering a fetch.",
+        "source": "sdk/agomtradepro/modules/policy.py"
+      },
+      {
+        "module": "policy",
+        "method": "get_rss_source",
+        "args": [
+          "source_id"
+        ],
+        "summary": "Return one persisted RSS source without triggering a fetch.",
         "source": "sdk/agomtradepro/modules/policy.py"
       },
       {
@@ -7283,6 +7818,15 @@
       },
       {
         "module": "realtime",
+        "method": "update_alert",
+        "args": [
+          "alert_id"
+        ],
+        "summary": "Update mutable fields on one owner-scoped price alert.",
+        "source": "sdk/agomtradepro/modules/realtime.py"
+      },
+      {
+        "module": "realtime",
         "method": "delete_alert",
         "args": [
           "alert_id"
@@ -7387,9 +7931,23 @@
           "as_of_date",
           "growth_indicator",
           "inflation_indicator",
-          "use_kalman"
+          "use_pit",
+          "data_source"
         ],
         "summary": "计算指定日期的 Regime 判定",
+        "source": "sdk/agomtradepro/modules/regime.py"
+      },
+      {
+        "module": "regime",
+        "method": "calculate_snapshot",
+        "args": [
+          "as_of_date",
+          "growth_indicator",
+          "inflation_indicator",
+          "use_pit",
+          "data_source"
+        ],
+        "summary": "Return the canonical pure-calculation response envelope.",
         "source": "sdk/agomtradepro/modules/regime.py"
       },
       {
@@ -7692,6 +8250,13 @@
       },
       {
         "module": "rotation",
+        "method": "preview_default_asset_import",
+        "args": [],
+        "summary": "预览默认轮动资产池导入计划，不执行写入。",
+        "source": "sdk/agomtradepro/modules/rotation.py"
+      },
+      {
+        "module": "rotation",
         "method": "export_assets",
         "args": [
           "export_format"
@@ -7800,6 +8365,13 @@
           "limit"
         ],
         "summary": "获取板块列表",
+        "source": "sdk/agomtradepro/modules/sector.py"
+      },
+      {
+        "module": "sector",
+        "method": "get_rotation_ranking",
+        "args": [],
+        "summary": "Read the persisted sector rotation ranking.",
         "source": "sdk/agomtradepro/modules/sector.py"
       },
       {
@@ -8068,7 +8640,11 @@
           "name",
           "initial_capital",
           "start_date",
-          "account_type"
+          "account_type",
+          "max_position_pct",
+          "stop_loss_pct",
+          "commission_rate",
+          "slippage_rate"
         ],
         "summary": "创建账户",
         "source": "sdk/agomtradepro/modules/simulated_trading.py"
@@ -9121,7 +9697,8 @@
       {
         "tool": "alpha_trigger_performance",
         "args": [
-          "payload"
+          "days",
+          "trigger_id"
         ],
         "summary": "",
         "source": "sdk/agomtradepro_mcp/tools/alpha_trigger_tools.py"
@@ -9508,6 +10085,84 @@
         "source": "sdk/agomtradepro_mcp/tools/config_center_tools.py"
       },
       {
+        "tool": "agom_bootstrap",
+        "args": [],
+        "summary": "Return startup guidance and capability registry summary.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_get_agent_contract",
+        "args": [
+          "task_type"
+        ],
+        "summary": "Return the versioned Agent operating contract for one task type.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_get_workflow_playbook",
+        "args": [
+          "playbook_key"
+        ],
+        "summary": "Return one governed playbook, or the compact catalog when key is empty.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_capability_search",
+        "args": [
+          "query",
+          "tags",
+          "owner_app",
+          "risk_level",
+          "limit"
+        ],
+        "summary": "Search capabilities in English or Chinese; returns at most 20 summaries.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_capability_schema",
+        "args": [
+          "capability_key"
+        ],
+        "summary": "Return schema metadata for a capability key.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_capability_call",
+        "args": [
+          "capability_key",
+          "arguments",
+          "context"
+        ],
+        "summary": "Execute one capability after contract guidance, discovery and Schema inspection.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_confirmation_resume",
+        "args": [
+          "confirmation_token",
+          "approve"
+        ],
+        "summary": "Resume or cancel a pending confirmation.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_workflow_start",
+        "args": [
+          "workflow_key",
+          "arguments"
+        ],
+        "summary": "Run a small approved workflow over registry capabilities.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
+        "tool": "agom_workflow_status",
+        "args": [
+          "run_id"
+        ],
+        "summary": "Return the current status for a previously started workflow.",
+        "source": "sdk/agomtradepro_mcp/tools/core_tools.py"
+      },
+      {
         "tool": "get_dashboard_summary_v1",
         "args": [],
         "summary": "",
@@ -9887,7 +10542,9 @@
         "tool": "data_center_get_capital_flows",
         "args": [
           "asset_code",
-          "period"
+          "start",
+          "end",
+          "limit"
         ],
         "summary": "读取指定资产的资金流数据。",
         "source": "sdk/agomtradepro_mcp/tools/data_center_tools.py"
@@ -10148,7 +10805,7 @@
         "tool": "get_stock_valuation",
         "args": [
           "stock_code",
-          "as_of_date"
+          "lookback_days"
         ],
         "summary": "获取股票估值数据",
         "source": "sdk/agomtradepro_mcp/tools/equity_tools.py"
@@ -10695,6 +11352,7 @@
         "args": [
           "event_id",
           "reason",
+          "new_level",
           "expires_in_hours"
         ],
         "summary": "临时豁免工作台事件",
@@ -10894,7 +11552,8 @@
           "as_of_date",
           "growth_indicator",
           "inflation_indicator",
-          "use_kalman"
+          "use_pit",
+          "data_source"
         ],
         "summary": "计算指定日期的 Regime 判定",
         "source": "sdk/agomtradepro_mcp/tools/regime_tools.py"
@@ -11267,7 +11926,10 @@
       {
         "tool": "list_sectors",
         "args": [
-          "limit"
+          "limit",
+          "regime",
+          "lookback_days",
+          "level"
         ],
         "summary": "获取板块列表",
         "source": "sdk/agomtradepro_mcp/tools/sector_tools.py"
@@ -11285,7 +11947,9 @@
         "tool": "get_sector_recommendations",
         "args": [
           "regime",
-          "limit"
+          "limit",
+          "lookback_days",
+          "level"
         ],
         "summary": "获取板块推荐",
         "source": "sdk/agomtradepro_mcp/tools/sector_tools.py"
@@ -11312,7 +11976,10 @@
       {
         "tool": "get_hot_sectors",
         "args": [
-          "limit"
+          "limit",
+          "regime",
+          "lookback_days",
+          "level"
         ],
         "summary": "获取热门板块",
         "source": "sdk/agomtradepro_mcp/tools/sector_tools.py"
@@ -12573,13 +13240,15 @@
         "features": {
           "status_cards": 0,
           "tabs": 0,
-          "filters": 7,
-          "tables": 3,
+          "filters": 11,
+          "tables": 4,
           "modals": 0,
           "batch_actions": 0,
-          "pagination": 2,
+          "pagination": 3,
           "onclick_actions": [
-            "copyNewToken"
+            "copyNewToken",
+            "copyTokenValue",
+            "toggleTokenVisibility"
           ]
         }
       },
@@ -13260,7 +13929,7 @@
           "tabs": 0,
           "filters": 1,
           "tables": 0,
-          "modals": 34,
+          "modals": 32,
           "batch_actions": 0,
           "pagination": 0,
           "onclick_actions": [
@@ -13331,7 +14000,7 @@
         "features": {
           "status_cards": 0,
           "tabs": 0,
-          "filters": 1,
+          "filters": 2,
           "tables": 0,
           "modals": 0,
           "batch_actions": 0,
