@@ -54,4 +54,4 @@
 | SDK registry owner | 2 个同型 prompt catalog case 参数化；共享 fixture 显式隔离 staff 角色 | 其余 handler、preview、RBAC、幂等与审计行为不合并 |
 | Readiness | 11 个同型分支迁为 required-evidence 与 scheduler 矩阵；formal window builder 进入 `tests/support` | repair、checkpoint、inspection、历史 evidence 与 acceptance 特例原位保留 |
 
-仓库静态 test function 治理基线从 7,056 收紧到 6,903；参数 case 数继续由 pytest collection 观察，不以静态函数数量代替覆盖判断。
+仓库静态 test function 治理基线从 7,056 收紧到 6,909；参数 case 数继续由 pytest collection 观察，不以静态函数数量代替覆盖判断。
