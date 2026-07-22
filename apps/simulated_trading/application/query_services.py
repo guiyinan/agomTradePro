@@ -135,6 +135,49 @@ def list_user_position_payloads(
     return payloads
 
 
+def get_account_execution_projection(*, user_id: int, account_id: int) -> dict | None:
+    """Return the authoritative account/position inputs required by live risk checks.
+
+    This application facade intentionally hides ORM models from broker execution and
+    gives cross-app callers a stable, read-only projection.
+    """
+
+    account_repo = get_simulated_account_repository()
+    position_repo = get_simulated_position_repository()
+    account = next(
+        (
+            item
+            for item in account_repo.get_by_user(user_id)
+            if int(item.account_id) == int(account_id)
+        ),
+        None,
+    )
+    if account is None:
+        return None
+    positions = [
+        {
+            "asset_code": position.asset_code,
+            "quantity": float(position.quantity or 0),
+            # The unified ledger does not currently expose a separate frozen
+            # quantity, so this is an account projection, not a broker fact.
+            "available_quantity": float(position.quantity or 0),
+            "current_price": float(position.current_price or 0),
+            "market_value": float(position.market_value or 0),
+        }
+        for position in position_repo.get_by_account(account.account_id)
+    ]
+    return {
+        "account_id": int(account.account_id),
+        "user_id": int(user_id),
+        "account_type": _normalize_account_type(account.account_type),
+        "is_active": bool(account.is_active),
+        "total_asset": float(account.total_value or 0),
+        "cash_available": float(account.current_cash or 0),
+        "total_position_value": float(account.current_market_value or 0),
+        "positions": positions,
+    }
+
+
 def get_user_performance_payload(
     *,
     user_id: int,

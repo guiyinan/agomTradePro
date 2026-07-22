@@ -335,6 +335,13 @@ module_patterns = [
         "risk-center/",
         include(("apps.risk_center.interface.urls", "risk_center"), namespace="risk_center"),
     ),
+    path(
+        "broker-execution/",
+        include(
+            ("apps.broker_execution.interface.urls", "broker_execution"),
+            namespace="broker_execution",
+        ),
+    ),
     path("", include("apps.alpha_trigger.interface.urls")),
     # Factor / Rotation / Hedge.
     path("factor/", include(("apps.factor.interface.urls", "factor"), namespace="factor")),
@@ -507,6 +514,13 @@ module_patterns = [
         include(
             ("apps.ai_capability.interface.api_urls", "ai_capability"),
             namespace="api_ai_capability",
+        ),
+    ),
+    path(
+        "api/broker-execution/",
+        include(
+            ("apps.broker_execution.interface.api_urls", "broker_execution_api"),
+            namespace="api_broker_execution",
         ),
     ),
     path(

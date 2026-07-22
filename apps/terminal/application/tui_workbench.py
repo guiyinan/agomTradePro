@@ -472,11 +472,14 @@ class TuiWorkbenchService(TuiWorkbenchCatalogMixin, TuiWorkbenchResultModelMixin
                 endpoint=str(action["endpoint"]),
                 params=resolved_params,
             )
+            executor_params = dict(request_params)
+            if method != "GET" and self._requires_password(action):
+                executor_params["reauth"] = dict(reauth or {})
             result = self.action_executor.execute(
                 method=method,
                 endpoint=endpoint,
-                params=request_params if method == "GET" else {},
-                body=request_params if method != "GET" else {},
+                params=executor_params if method == "GET" else {},
+                body=executor_params if method != "GET" else {},
                 user=user,
                 session=session,
             )

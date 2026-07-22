@@ -40,6 +40,15 @@ def _closed_trade_date(monkeypatch):
             "safety": {"status": "ok", "issues": []},
         },
     )
+    monkeypatch.setattr(
+        command_module,
+        "get_broker_execution_readiness_evidence",
+        lambda **kwargs: {
+            "status": "skipped",
+            "reason": "live_broker_binding_not_configured",
+            "account_id": kwargs["account_id"],
+        },
+    )
 
 
 def test_parse_date_defaults_to_latest_closed_trading_day():

@@ -37,6 +37,7 @@ from .modules.asset_analysis import AssetAnalysisModule
 from .modules.audit import AuditModule
 from .modules.backtest import BacktestModule
 from .modules.beta_gate import BetaGateModule
+from .modules.broker_execution import BrokerExecutionModule
 from .modules.config_center import ConfigCenterModule
 from .modules.dashboard import DashboardModule
 from .modules.data_center import DataCenterModule
@@ -105,6 +106,7 @@ class AgomTradeProClient:
     _dashboard: DashboardModule | None = None
     _config_center: ConfigCenterModule | None = None
     _risk_center: RiskCenterModule | None = None
+    _broker_execution: BrokerExecutionModule | None = None
     _asset_analysis: AssetAnalysisModule | None = None
     _sentiment: SentimentModule | None = None
     _task_monitor: TaskMonitorModule | None = None
@@ -707,6 +709,14 @@ class AgomTradeProClient:
         if self._risk_center is None:
             self._risk_center = RiskCenterModule(self)
         return self._risk_center
+
+    @property
+    def broker_execution(self) -> BrokerExecutionModule:
+        """Governed QMT live execution client."""
+
+        if self._broker_execution is None:
+            self._broker_execution = BrokerExecutionModule(self)
+        return self._broker_execution
 
     @property
     def asset_analysis(self) -> AssetAnalysisModule:

@@ -1790,6 +1790,8 @@ def test_tui_events_screen_returns_overview_panels(client, tui_user):
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.audit.health",
         "auto.api.get.api.events.metrics",
+        "broker-execution.reconciliation-list",
+        "broker-execution.audit-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.events" in action_keys
@@ -1807,6 +1809,8 @@ def test_tui_share_screen_defaults_to_share_links(client, tui_user):
     assert [panel["action_key"] for panel in panels] == [
         "auto.api.get.api.audit.health",
         "auto.api.get.api.events.metrics",
+        "broker-execution.reconciliation-list",
+        "broker-execution.audit-list",
     ]
     action_keys = [action["key"] for action in payload["actions"]]
     assert "auto.api.get.api.share" in action_keys
@@ -3347,9 +3351,11 @@ def test_tui_service_requires_password_before_sensitive_action(tui_user):
     class FakeExecutor:
         def __init__(self):
             self.calls = 0
+            self.last_kwargs = None
 
         def execute(self, **kwargs):
             self.calls += 1
+            self.last_kwargs = kwargs
             return {"status_code": 200, "payload": {"status": "ok"}}
 
     executor = FakeExecutor()
@@ -3419,6 +3425,12 @@ def test_tui_service_requires_password_before_sensitive_action(tui_user):
     assert payload["confirmation_required"] is False
     assert payload["response"]["status_code"] == 200
     assert executor.calls == 1
+    assert executor.last_kwargs["body"]["reauth"] == {
+        "method": "password",
+        "credential": "test-password",
+    }
+    assert "reauth" not in payload["view_model"]
+    assert "test-password" not in json.dumps(payload)
 
 
 def test_tui_service_validates_required_fields_before_write_confirmation(tui_user):

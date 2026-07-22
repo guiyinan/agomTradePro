@@ -17,6 +17,10 @@ from .tui_metadata_runtime_injection_advisor import (
     RUNTIME_ADVISOR_SCREEN,
     RUNTIME_ADVISOR_SELECTOR_ACTION,
 )
+from .tui_metadata_runtime_injection_broker_execution import (
+    RUNTIME_BROKER_EXECUTION_ACTIONS,
+    RUNTIME_BROKER_EXECUTION_SCREENS,
+)
 from .tui_metadata_runtime_injection_capability_router import (
     RUNTIME_CAPABILITY_ROUTER_ACTIONS,
     RUNTIME_CAPABILITY_ROUTER_DEBUG_MODULE,
@@ -83,12 +87,11 @@ def _canonical_screen_reference(value: Any) -> Any:
     if not isinstance(value, dict):
         return value
     resolved = {key: _canonical_screen_reference(item) for key, item in value.items()}
-    for key in ("screen_key", "target_screen", "key"):
+    for key in ("screen_key", "target_screen"):
         if key not in resolved:
             continue
         current = str(resolved.get(key) or "")
-        if key != "key" or current in _SCREEN_ALIASES:
-            resolved[key] = _SCREEN_ALIASES.get(current, current)
+        resolved[key] = _SCREEN_ALIASES.get(current, current)
     return resolved
 
 
@@ -199,6 +202,11 @@ _LEGACY_RUNTIME_METADATA_INJECTIONS: tuple[RuntimeMetadataInjectionBundle, ...] 
         modules=(RUNTIME_RISK_CENTER_MODULE,),
         screens=(RUNTIME_RISK_CENTER_SCREEN,),
         actions=RUNTIME_RISK_CENTER_ACTIONS,
+    ),
+    RuntimeMetadataInjectionBundle(
+        coverage_key="runtime_injected_broker_execution_metadata",
+        screens=RUNTIME_BROKER_EXECUTION_SCREENS,
+        actions=RUNTIME_BROKER_EXECUTION_ACTIONS,
     ),
     RuntimeMetadataInjectionBundle(
         coverage_key="runtime_injected_realtime_metadata",

@@ -465,11 +465,13 @@ def _build_advisor_execution_plan(
         "orders": [
             {
                 "order_intent_id": order.get("order_intent_id"),
+                "account_id": order.get("account_id"),
                 "asset_code": order.get("asset_code"),
                 "asset_name": order.get("asset_name"),
                 "side": order.get("side"),
                 "suggested_quantity": abs(_to_decimal(order.get("delta_quantity"))),
                 "suggested_amount": order.get("estimated_amount"),
+                "estimated_price": order.get("estimated_price"),
                 "price_band": order.get("price_band") or {},
                 "priority": order.get("priority"),
                 "pre_trade_checks": {
@@ -480,6 +482,12 @@ def _build_advisor_execution_plan(
                 },
                 "valid_until": (order.get("decision_card") or {}).get("valid_until"),
                 "confirmation": order.get("confirmation") or {},
+                "source_recommendation_ids": order.get("source_recommendation_ids") or [],
+                "source_signal_ids": list(
+                    ((order.get("risk_gate") or {}).get("checks") or {}).get(
+                        "source_signal_ids", []
+                    )
+                ),
             }
             for order in executable_orders
         ],

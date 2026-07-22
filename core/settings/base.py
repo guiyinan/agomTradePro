@@ -166,6 +166,7 @@ INSTALLED_APPS = [
     "apps.events",  # 事件总线模块（新增）
     "apps.beta_gate",  # Beta 闸门模块（新增）
     "apps.risk_center",  # 集中风控中心（新增）
+    "apps.broker_execution",  # QMT 实盘执行桥（默认关闭真实执行）
     "apps.alpha",  # Alpha AI 选股模块（新增）
     # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
     "apps.factor",  # 因子选股模块（新增）
@@ -525,6 +526,21 @@ CELERY_TASK_ACKS_LATE = True
 
 # Celery Beat 定时任务配置
 CELERY_BEAT_SCHEDULE = {
+    "broker-execution-maintenance": {
+        "task": "broker_execution.run_maintenance",
+        "schedule": crontab(minute="*"),
+        "options": {"expires": 50},
+    },
+    "broker-execution-reconciliation-intraday": {
+        "task": "broker_execution.generate_reconciliation_runs",
+        "schedule": crontab(minute="*/5", hour="9-11,13-14", day_of_week="mon-fri"),
+        "options": {"expires": 240},
+    },
+    "broker-execution-reconciliation-eod": {
+        "task": "broker_execution.generate_reconciliation_runs",
+        "schedule": crontab(hour=16, minute=20, day_of_week="mon-fri"),
+        "options": {"expires": 1800},
+    },
     "daily-sync-and-calculate": {
         "task": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
         "schedule": crontab(hour=8, minute=5),  # 每天 8:05 执行

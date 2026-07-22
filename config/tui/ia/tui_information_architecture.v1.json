@@ -63,12 +63,15 @@
       ]
     },
     {
-      "key": "execution.accounts", "label": "账户与持仓", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "检查账户健康、持仓、组合、流水和绩效。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.account.health", "sources": ["execution.accounts", "execution.trading-ledger", "execution.portfolio-performance", "execution.account-settings"],
+      "key": "execution.accounts", "label": "账户与持仓", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "检查账户健康、持仓、组合、流水和绩效。", "view_type": "datagrid", "status": "online", "default_action_key": "auto.api.get.api.account.health", "sources": ["execution.accounts", "execution.trading-ledger", "execution.portfolio-performance", "execution.account-settings"], "runtime_sources": ["broker-execution.overview"],
       "user_experience": {"journey": "workspace", "primary_task": "确认账户健康、持仓和组合状态。", "primary_outcome": "得到执行前账户与仓位结论。", "empty_state_hint": "无账户数据时先完成账户初始化或授权。", "next_step_hint": "进入策略与风控确认约束。"},
       "business_context": {"objective": "在行动前检查资金、持仓与组合。", "decision_output": "账户健康和执行准备度。", "checkpoints": ["账户健康", "当前持仓", "组合状态", "交易流水"]},
       "dashboard_panels": [
         {"key": "account-health", "title": "账户健康", "kind": "detail", "action_key": "auto.api.get.api.account.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无账户健康结果。"},
-        {"key": "positions", "title": "当前持仓", "kind": "datagrid", "action_key": "auto.api.get.api.account.positions", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前账户没有持仓。"}
+        {"key": "positions", "title": "当前持仓", "kind": "datagrid", "action_key": "auto.api.get.api.account.positions", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前账户没有持仓。"},
+        {"key": "broker-execution-readiness", "title": "实盘就绪结论", "kind": "detail", "action_key": "broker-execution.overview", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "本地 Agent 尚未连接。"},
+        {"key": "broker-execution-orders", "title": "待确认与执行中订单", "kind": "datagrid", "action_key": "broker-execution.order-list", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有实盘订单。"},
+        {"key": "broker-execution-connections", "title": "本地连接", "kind": "datagrid", "action_key": "broker-execution.connection-status", "user_priority": "p1", "presentation_semantic": "supporting_list", "empty_message": "本地 Agent 尚未连接。"}
       ]
     },
     {
@@ -81,12 +84,14 @@
       ]
     },
     {
-      "key": "execution.audit", "label": "事件与复盘", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看事件、实时提醒、审计、分享和复盘证据。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.audit.health", "sources": ["execution.audit", "execution.events", "execution.share"], "runtime_sources": ["realtime-monitor.alerts"],
+      "key": "execution.audit", "label": "事件与复盘", "module_key": "daily-decisions", "group": "daily", "audience": "authenticated", "summary": "查看事件、实时提醒、审计、分享和复盘证据。", "view_type": "status", "status": "online", "default_action_key": "auto.api.get.api.audit.health", "sources": ["execution.audit", "execution.events", "execution.share"], "runtime_sources": ["realtime-monitor.alerts", "broker-execution.audit"],
       "user_experience": {"journey": "workspace", "primary_task": "检查事件与审计证据并完成今日留痕。", "primary_outcome": "形成可追溯的事件、提醒和复盘记录。", "empty_state_hint": "暂无事件时确认审计健康与订阅状态。", "next_step_hint": "返回今日总览结束或开启下一轮。"},
       "business_context": {"objective": "完成事件检查和决策留痕。", "decision_output": "审计健康、事件指标与复盘证据。", "checkpoints": ["审计健康", "事件指标", "实时提醒", "决策痕迹"]},
       "dashboard_panels": [
         {"key": "audit-health", "title": "审计健康", "kind": "detail", "action_key": "auto.api.get.api.audit.health", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无审计健康结果。"},
-        {"key": "event-metrics", "title": "事件指标", "kind": "detail", "action_key": "auto.api.get.api.events.metrics", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无事件指标。"}
+        {"key": "event-metrics", "title": "事件指标", "kind": "detail", "action_key": "auto.api.get.api.events.metrics", "user_priority": "p0", "presentation_semantic": "primary_status", "empty_message": "暂无事件指标。"},
+        {"key": "broker-execution-reconciliation", "title": "实盘对账差异", "kind": "datagrid", "action_key": "broker-execution.reconciliation-list", "user_priority": "p0", "presentation_semantic": "primary_list", "empty_message": "当前没有未处置差异。"},
+        {"key": "broker-execution-audit", "title": "实盘操作审计", "kind": "datagrid", "action_key": "broker-execution.audit-list", "user_priority": "p1", "presentation_semantic": "supporting_list", "empty_message": "暂无实盘操作审计。"}
       ]
     },
     {

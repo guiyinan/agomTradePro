@@ -82,6 +82,11 @@ def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
     return module.list_dashboard_account_payloads(user_id)
 
 
+def get_broker_execution_readiness_evidence(**kwargs: Any) -> dict[str, Any]:
+    module = import_module("apps.broker_execution.application.readiness")
+    return module.get_broker_execution_readiness_evidence(**kwargs)
+
+
 class Command(BaseCommand):
     help = "Collect daily evidence for personal investment system readiness."
     stealth_options = ("trigger_source", "trigger_task_id", "trigger_task_name")
@@ -540,7 +545,17 @@ def _collect_account_evidence(
         target_date=target_date,
         include_weekly=include_weekly_advisor,
     )
-    status = _rollup_status([str(risk.get("status") or ""), str(advisor.get("status") or "")])
+    broker_execution = get_broker_execution_readiness_evidence(
+        user_id=user_id,
+        account_id=account_id,
+    )
+    status = _rollup_status(
+        [
+            str(risk.get("status") or ""),
+            str(advisor.get("status") or ""),
+            str(broker_execution.get("status") or ""),
+        ]
+    )
     return {
         "status": status,
         "user_id": user_id,
@@ -548,6 +563,7 @@ def _collect_account_evidence(
         "account": account_payload or {},
         "risk_center_daily_report": risk,
         "auto_advisor": advisor,
+        "broker_execution": broker_execution,
     }
 
 

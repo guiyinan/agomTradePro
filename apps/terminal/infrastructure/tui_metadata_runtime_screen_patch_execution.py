@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
     "execution.accounts": {
         "label": "账户清单与当前持仓",
-        "summary": "集中查看当前账户清单、组合、持仓和账户级绩效检查。",
+        "summary": "集中查看账户、持仓、实盘连接、订单和执行就绪状态。",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先确认本地连接和实盘门禁，再处理待确认订单。",
+            "primary_outcome": "得到可交易、需复核、已停止或离线的明确结论。",
+            "empty_state_hint": "若本地连接为空，请先完成 Windows Agent 和账户绑定。",
+            "next_step_hint": "连接正常后复核待确认订单；出现异常时先停止并对账。",
+        },
         "business_context": {
             "objective": "在执行前确认当前账户、现金、组合和持仓都支持今天的动作。",
             "decision_output": "账户与持仓检查结论：可执行、资金不足、持仓冲突或需调整账户。",
@@ -18,6 +24,75 @@ RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
                 "需要单账户明细时，用账户下拉选择后查看账户持仓和绩效。",
             ],
         },
+        "dashboard_panels": [
+            {
+                "key": "broker-execution-readiness",
+                "title": "实盘就绪结论",
+                "kind": "detail",
+                "action_key": "broker-execution.overview",
+                "layout_area": "broker_readiness",
+                "target_screen": "execution.accounts",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_status",
+            },
+            {
+                "key": "broker-execution-orders",
+                "title": "待确认与执行中订单",
+                "kind": "datagrid",
+                "action_key": "broker-execution.order-list",
+                "max_rows": 8,
+                "layout_area": "broker_orders",
+                "target_screen": "execution.accounts",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
+            },
+            {
+                "key": "broker-execution-connections",
+                "title": "本地连接",
+                "kind": "datagrid",
+                "action_key": "broker-execution.connection-status",
+                "max_rows": 6,
+                "layout_area": "broker_connections",
+                "target_screen": "execution.accounts",
+                "user_priority": "p1",
+                "presentation_semantic": "supporting_list",
+            },
+        ],
+    },
+    "execution.audit": {
+        "label": "事件、实盘对账与复盘",
+        "summary": "查看事件、实盘对账差异、审计和复盘证据。",
+        "user_experience": {
+            "journey": "dashboard",
+            "primary_task": "先处理未处置对账差异，再检查实盘操作审计。",
+            "primary_outcome": "所有差异都有明确处置状态，关键操作可追溯。",
+            "empty_state_hint": "尚无差异时继续查看最近实盘审计事件。",
+            "next_step_hint": "未知订单不得补单，先接受券商事实或升级复核。",
+        },
+        "dashboard_panels": [
+            {
+                "key": "broker-execution-reconciliation",
+                "title": "实盘对账差异",
+                "kind": "datagrid",
+                "action_key": "broker-execution.reconciliation-list",
+                "max_rows": 8,
+                "layout_area": "broker_reconciliation",
+                "target_screen": "execution.audit",
+                "user_priority": "p0",
+                "presentation_semantic": "primary_list",
+            },
+            {
+                "key": "broker-execution-audit",
+                "title": "实盘操作审计",
+                "kind": "datagrid",
+                "action_key": "broker-execution.audit-list",
+                "max_rows": 8,
+                "layout_area": "broker_audit",
+                "target_screen": "execution.audit",
+                "user_priority": "p1",
+                "presentation_semantic": "supporting_list",
+            },
+        ],
     },
     "execution.account-settings": {
         "default_action_key": "operator.governance.account_settings_summary",
