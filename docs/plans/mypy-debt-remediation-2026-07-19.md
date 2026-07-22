@@ -494,3 +494,14 @@
 
 - 5 个变更生产 Python 文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8131 errors / 902 files` 收紧为 `8082 errors / 895 files`，净减少 `49 errors / 7 files`，无文件或错误码反弹。
 - Equity stock context/scoring/structure、Policy RSS 与共享告警回归共 `33 passed`；依赖投影检查通过，架构 delta 扫描 `6 files / 107 added lines / 0 violations`，Ruff 通过。
+
+## 第三十六批
+
+- 延续 Equity 组合仓储公共边界，收口 `apps/equity/infrastructure/market_data_repository.py`：显式声明 Data Center on-demand service、PriceBar repository 和宿主数值/代码 helper 契约，清除 16 个 mixin 隐式属性错误。
+- 将 Data Center `PriceBar` 与远端 Gateway `HistoricalPriceBar` 分成两类强类型序列，替换六处裸 `list`；Tushare 兼容适配器只在局部 composition boundary 收窄构造器，不把动态构造类型扩散到行情算法。
+- Data Center 的成交量允许 `float | None`，Equity `TechnicalBar` 要求整数手数；转换边界现显式归一化为 `int`，避免浮点成交量进入技术指标领域对象。日收益率映射同步补齐精确键值类型。
+
+## 第三十六批验证结果
+
+- Market Data repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8082 errors / 895 files` 收紧为 `8059 errors / 894 files`，净减少 `23 errors / 1 file`，无文件或错误码反弹。
+- Equity 日线、远端 fallback、技术 K 线与 stock context 回归共 `15 passed`；架构 delta 扫描 `1 file / 50 added lines / 0 violations`，Ruff、diff check 通过。

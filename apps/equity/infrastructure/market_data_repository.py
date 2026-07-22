@@ -6,15 +6,22 @@ indicator recalculation. Shared helpers and dependency wiring live in
 `stock_repository.py`; do not import the compatibility facade here.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING, cast
 
 from apps.data_center.composition import (
     fetch_akshare_eastmoney_historical_prices,
     fetch_tushare_historical_prices,
     get_akshare_module,
 )
+from apps.data_center.domain.entities import PriceBar
+from apps.data_center.domain.protocols import PriceBarRepositoryProtocol
+from apps.data_center.infrastructure.market_gateway_entities import HistoricalPriceBar
 from apps.equity.domain.entities import TechnicalBar
 from core.exceptions import DataFetchError
 
@@ -23,9 +30,21 @@ from .models import StockDailyModel
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from apps.data_center.application.on_demand import OnDemandDataCenterService
+
 
 class StockMarketDataRepositoryMixin:
     """Daily prices, technical bars, and remote market-data fallbacks."""
+
+    _dc_on_demand: OnDemandDataCenterService
+    _dc_price_bar_repo: PriceBarRepositoryProtocol
+
+    if TYPE_CHECKING:
+
+        def _safe_decimal(self, value: object) -> Decimal | None: ...
+
+        def _to_akshare_symbol(self, stock_code: str) -> str: ...
 
     def get_daily_prices(
         self,
@@ -167,7 +186,7 @@ class StockMarketDataRepositoryMixin:
                     high=Decimal(str(bar.high)),
                     low=Decimal(str(bar.low)),
                     close=Decimal(str(bar.close)),
-                    volume=bar.volume or 0,
+                    volume=int(bar.volume) if bar.volume is not None else 0,
                     amount=self._safe_decimal(getattr(bar, "amount", None)) or Decimal("0"),
                     ma5=None,
                     ma20=None,
@@ -235,7 +254,7 @@ class StockMarketDataRepositoryMixin:
         """
         prices = self.get_daily_prices(stock_code, start_date, end_date, hydrate=hydrate)
 
-        returns = {}
+        returns: dict[date, float] = {}
         for i in range(1, len(prices)):
             prev_date, prev_price = prices[i - 1]
             curr_date, curr_price = prices[i]
@@ -274,7 +293,7 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list:
+    ) -> list[HistoricalPriceBar]:
         """在数据中台价格事实缺失时，通过数据中台 Gateway 拉取历史 K 线。"""
         tushare_bars = self._get_tushare_gateway_historical_bars(
             stock_code,
@@ -286,7 +305,9 @@ class StockMarketDataRepositoryMixin:
 
         return self._get_akshare_gateway_historical_bars(stock_code, start_date, end_date)
 
-    def _bars_to_daily_prices(self, bars: list) -> list[tuple[date, Decimal]]:
+    def _bars_to_daily_prices(
+        self, bars: list[HistoricalPriceBar]
+    ) -> list[tuple[date, Decimal]]:
         prices: list[tuple[date, Decimal]] = []
         for bar in bars:
             trade_date = getattr(bar, "trade_date", None)
@@ -299,7 +320,7 @@ class StockMarketDataRepositoryMixin:
     def _price_bars_to_technical_bars(
         self,
         stock_code: str,
-        bars: list,
+        bars: list[PriceBar],
     ) -> list[TechnicalBar]:
         return self._recalculate_technical_bars(
             [
@@ -310,7 +331,7 @@ class StockMarketDataRepositoryMixin:
                     high=Decimal(str(bar.high)),
                     low=Decimal(str(bar.low)),
                     close=Decimal(str(bar.close)),
-                    volume=bar.volume or 0,
+                    volume=int(bar.volume) if bar.volume is not None else 0,
                     amount=self._safe_decimal(bar.amount) or Decimal("0"),
                     ma5=None,
                     ma20=None,
@@ -394,13 +415,16 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list:
+    ) -> list[HistoricalPriceBar]:
         """通过 Data Center 的 Tushare Gateway 获取历史 K 线。"""
         try:
-            return fetch_tushare_historical_prices(
-                asset_code=stock_code,
-                start_date=start_date.strftime("%Y%m%d"),
-                end_date=end_date.strftime("%Y%m%d"),
+            return cast(
+                list[HistoricalPriceBar],
+                fetch_tushare_historical_prices(
+                    asset_code=stock_code,
+                    start_date=start_date.strftime("%Y%m%d"),
+                    end_date=end_date.strftime("%Y%m%d"),
+                ),
             )
         except Exception as exc:
             logger.warning(
@@ -410,7 +434,11 @@ class StockMarketDataRepositoryMixin:
             )
             return []
 
-    def _cache_remote_historical_bars(self, stock_code: str, bars: list) -> None:
+    def _cache_remote_historical_bars(
+        self,
+        stock_code: str,
+        bars: list[HistoricalPriceBar],
+    ) -> None:
         """将远端历史 K 线幂等写入本地日线表，作为 read-through cache。"""
         if not bars:
             return
@@ -463,13 +491,16 @@ class StockMarketDataRepositoryMixin:
         stock_code: str,
         start_date: date,
         end_date: date,
-    ) -> list:
+    ) -> list[HistoricalPriceBar]:
         """通过 AKShare EastMoney Gateway 获取历史 K 线。"""
         try:
-            return fetch_akshare_eastmoney_historical_prices(
-                asset_code=stock_code,
-                start_date=start_date.strftime("%Y%m%d"),
-                end_date=end_date.strftime("%Y%m%d"),
+            return cast(
+                list[HistoricalPriceBar],
+                fetch_akshare_eastmoney_historical_prices(
+                    asset_code=stock_code,
+                    start_date=start_date.strftime("%Y%m%d"),
+                    end_date=end_date.strftime("%Y%m%d"),
+                ),
             )
         except Exception as exc:
             logger.warning(
@@ -487,7 +518,8 @@ class StockMarketDataRepositoryMixin:
     ) -> list[tuple[date, Decimal]]:
         """从 Tushare 获取远端日线价格。"""
         try:
-            frame = TushareStockAdapter().fetch_daily_data(stock_code, start_date, end_date)
+            adapter_factory = cast(Callable[[], TushareStockAdapter], TushareStockAdapter)
+            frame = adapter_factory().fetch_daily_data(stock_code, start_date, end_date)
         except Exception as exc:
             logger.warning(
                 "Failed to fetch Tushare daily prices for %s: %s",

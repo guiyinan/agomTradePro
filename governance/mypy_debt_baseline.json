@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8082,
-    "files_with_errors": 895
+    "errors": 8059,
+    "files_with_errors": 894
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1963,11 +1963,6 @@
       "attr-defined": 15,
       "import-untyped": 1,
       "no-any-return": 3
-    },
-    "apps/equity/infrastructure/market_data_repository.py": {
-      "attr-defined": 16,
-      "no-untyped-call": 1,
-      "type-arg": 6
     },
     "apps/equity/infrastructure/models.py": {
       "no-untyped-def": 16
