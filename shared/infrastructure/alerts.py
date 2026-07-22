@@ -8,13 +8,13 @@ import json
 import logging
 import os
 import smtplib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +22,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AlertMessage:
     """告警消息"""
+
     title: str
     content: str
     level: str = "INFO"  # INFO, WARNING, ERROR, CRITICAL
-    timestamp: datetime | None = None
-    metadata: dict[str, Any] | None = None
-
-    def __post_init__(self):
-        if self.timestamp is None:
-            self.timestamp = datetime.now(UTC)
-        if self.metadata is None:
-            self.metadata = {}
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class AlertChannel:
@@ -54,8 +49,8 @@ class EmailAlertChannel(AlertChannel):
         password: str,
         from_addr: str,
         to_addrs: list[str],
-        use_tls: bool = True
-    ):
+        use_tls: bool = True,
+    ) -> None:
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
         self.username = username
@@ -67,17 +62,17 @@ class EmailAlertChannel(AlertChannel):
     def send(self, message: AlertMessage) -> bool:
         """发送邮件告警"""
         try:
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"[{message.level}] {message.title}"
-            msg['From'] = self.from_addr
-            msg['To'] = ', '.join(self.to_addrs)
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = f"[{message.level}] {message.title}"
+            msg["From"] = self.from_addr
+            msg["To"] = ", ".join(self.to_addrs)
 
             # 构建邮件内容
             html_content = self._format_html(message)
             text_content = self._format_text(message)
 
-            msg.attach(MIMEText(text_content, 'plain', 'utf-8'))
-            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+            msg.attach(MIMEText(text_content, "plain", "utf-8"))
+            msg.attach(MIMEText(html_content, "html", "utf-8"))
 
             # 发送邮件
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
@@ -117,7 +112,7 @@ class EmailAlertChannel(AlertChannel):
             "INFO": "#2196F3",
             "WARNING": "#FF9800",
             "ERROR": "#F44336",
-            "CRITICAL": "#D32F2F"
+            "CRITICAL": "#D32F2F",
         }
         color = colors.get(message.level, "#666666")
 
@@ -163,7 +158,9 @@ class EmailAlertChannel(AlertChannel):
 class SlackAlertChannel(AlertChannel):
     """Slack 告警渠道"""
 
-    def __init__(self, webhook_url: str, channel: str | None = None, username: str = "AgomTradePro Bot"):
+    def __init__(
+        self, webhook_url: str, channel: str | None = None, username: str = "AgomTradePro Bot"
+    ):
         self.webhook_url = webhook_url
         self.channel = channel
         self.username = username
@@ -176,12 +173,12 @@ class SlackAlertChannel(AlertChannel):
                 "INFO": "#2196F3",
                 "WARNING": "#FF9800",
                 "ERROR": "#F44336",
-                "CRITICAL": "#D32F2F"
+                "CRITICAL": "#D32F2F",
             }
             color = colors.get(message.level, "#666666")
 
             # 构建消息
-            payload = {
+            payload: dict[str, Any] = {
                 "username": self.username,
                 "attachments": [
                     {
@@ -189,21 +186,17 @@ class SlackAlertChannel(AlertChannel):
                         "title": message.title,
                         "text": message.content,
                         "fields": [
-                            {
-                                "title": "级别",
-                                "value": message.level,
-                                "short": True
-                            },
+                            {"title": "级别", "value": message.level, "short": True},
                             {
                                 "title": "时间",
-                                "value": message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                                "short": True
-                            }
+                                "value": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                                "short": True,
+                            },
                         ],
                         "footer": "AgomTradePro Alert System",
-                        "ts": int(message.timestamp.timestamp())
+                        "ts": int(message.timestamp.timestamp()),
                     }
-                ]
+                ],
             }
 
             if self.channel:
@@ -212,11 +205,9 @@ class SlackAlertChannel(AlertChannel):
             # 添加元数据
             if message.metadata:
                 for key, value in message.metadata.items():
-                    payload["attachments"][0]["fields"].append({
-                        "title": key,
-                        "value": str(value),
-                        "short": True
-                    })
+                    payload["attachments"][0]["fields"].append(
+                        {"title": key, "value": str(value), "short": True}
+                    )
 
             # 发送请求
             response = requests.post(self.webhook_url, json=payload, timeout=10)
@@ -251,21 +242,12 @@ class DingTalkAlertChannel(AlertChannel):
                 for key, value in message.metadata.items():
                     text += f"- {key}: {value}\n"
 
-            payload = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "title": message.title,
-                    "text": text
-                }
-            }
+            payload = {"msgtype": "markdown", "markdown": {"title": message.title, "text": text}}
 
             # 发送请求
             headers = {"Content-Type": "application/json;charset=utf-8"}
             response = requests.post(
-                self.webhook_url,
-                data=json.dumps(payload),
-                headers=headers,
-                timeout=10
+                self.webhook_url, data=json.dumps(payload), headers=headers, timeout=10
             )
             response.raise_for_status()
 
@@ -297,20 +279,12 @@ class WeChatWorkAlertChannel(AlertChannel):
                 for key, value in message.metadata.items():
                     content += f"{key}: {value}\n"
 
-            payload = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "content": content
-                }
-            }
+            payload = {"msgtype": "markdown", "markdown": {"content": content}}
 
             # 发送请求
             headers = {"Content-Type": "application/json;charset=utf-8"}
             response = requests.post(
-                self.webhook_url,
-                data=json.dumps(payload),
-                headers=headers,
-                timeout=10
+                self.webhook_url, data=json.dumps(payload), headers=headers, timeout=10
             )
             response.raise_for_status()
 
@@ -328,17 +302,17 @@ class AlertService:
     支持多渠道发送告警消息。
     """
 
-    def __init__(self, channels: list[AlertChannel] | None = None):
+    def __init__(self, channels: list[AlertChannel] | None = None) -> None:
         self.channels = channels or []
         self.logger = logging.getLogger(__name__)
 
-    def add_channel(self, channel: AlertChannel):
+    def add_channel(self, channel: AlertChannel) -> None:
         """添加告警渠道"""
         self.channels.append(channel)
 
     def send(self, message: AlertMessage) -> dict[str, bool]:
         """发送告警到所有渠道"""
-        results = {}
+        results: dict[str, bool] = {}
         for _i, channel in enumerate(self.channels):
             channel_name = channel.__class__.__name__
             try:
@@ -354,22 +328,22 @@ class AlertService:
 
         return results
 
-    def send_info(self, title: str, content: str, **kwargs) -> dict[str, bool]:
+    def send_info(self, title: str, content: str, **kwargs: Any) -> dict[str, bool]:
         """发送 INFO 级别告警"""
         message = AlertMessage(title=title, content=content, level="INFO", **kwargs)
         return self.send(message)
 
-    def send_warning(self, title: str, content: str, **kwargs) -> dict[str, bool]:
+    def send_warning(self, title: str, content: str, **kwargs: Any) -> dict[str, bool]:
         """发送 WARNING 级别告警"""
         message = AlertMessage(title=title, content=content, level="WARNING", **kwargs)
         return self.send(message)
 
-    def send_error(self, title: str, content: str, **kwargs) -> dict[str, bool]:
+    def send_error(self, title: str, content: str, **kwargs: Any) -> dict[str, bool]:
         """发送 ERROR 级别告警"""
         message = AlertMessage(title=title, content=content, level="ERROR", **kwargs)
         return self.send(message)
 
-    def send_critical(self, title: str, content: str, **kwargs) -> dict[str, bool]:
+    def send_critical(self, title: str, content: str, **kwargs: Any) -> dict[str, bool]:
         """发送 CRITICAL 级别告警"""
         message = AlertMessage(title=title, content=content, level="CRITICAL", **kwargs)
         return self.send(message)
@@ -389,39 +363,37 @@ def get_alert_service() -> AlertService:
         # 邮件告警
         smtp_host = os.getenv("ALERT_SMTP_HOST")
         if smtp_host:
-            channel = EmailAlertChannel(
-                smtp_host=smtp_host,
-                smtp_port=int(os.getenv("ALERT_SMTP_PORT", "587")),
-                username=os.getenv("ALERT_SMTP_USERNAME", ""),
-                password=os.getenv("ALERT_SMTP_PASSWORD", ""),
-                from_addr=os.getenv("ALERT_EMAIL_FROM", ""),
-                to_addrs=os.getenv("ALERT_EMAIL_TO", "").split(","),
+            _alert_service.add_channel(
+                EmailAlertChannel(
+                    smtp_host=smtp_host,
+                    smtp_port=int(os.getenv("ALERT_SMTP_PORT", "587")),
+                    username=os.getenv("ALERT_SMTP_USERNAME", ""),
+                    password=os.getenv("ALERT_SMTP_PASSWORD", ""),
+                    from_addr=os.getenv("ALERT_EMAIL_FROM", ""),
+                    to_addrs=os.getenv("ALERT_EMAIL_TO", "").split(","),
+                )
             )
-            _alert_service.add_channel(channel)
 
         # Slack 告警
         slack_webhook = os.getenv("ALERT_SLACK_WEBHOOK")
         if slack_webhook:
-            channel = SlackAlertChannel(webhook_url=slack_webhook)
-            _alert_service.add_channel(channel)
+            _alert_service.add_channel(SlackAlertChannel(webhook_url=slack_webhook))
 
         # 钉钉告警
         dingtalk_webhook = os.getenv("ALERT_DINGTALK_WEBHOOK")
         if dingtalk_webhook:
-            channel = DingTalkAlertChannel(webhook_url=dingtalk_webhook)
-            _alert_service.add_channel(channel)
+            _alert_service.add_channel(DingTalkAlertChannel(webhook_url=dingtalk_webhook))
 
         # 企业微信告警
         wechat_webhook = os.getenv("ALERT_WECHAT_WEBHOOK")
         if wechat_webhook:
-            channel = WeChatWorkAlertChannel(webhook_url=wechat_webhook)
-            _alert_service.add_channel(channel)
+            _alert_service.add_channel(WeChatWorkAlertChannel(webhook_url=wechat_webhook))
 
     return _alert_service
 
 
 # 便捷函数
-def send_alert(title: str, content: str, level: str = "INFO", **kwargs) -> dict[str, bool]:
+def send_alert(title: str, content: str, level: str = "INFO", **kwargs: Any) -> dict[str, bool]:
     """发送告警（便捷函数）"""
     service = get_alert_service()
     message = AlertMessage(title=title, content=content, level=level, **kwargs)
