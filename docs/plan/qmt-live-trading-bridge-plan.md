@@ -61,24 +61,27 @@ VPS AgomTradePro
 
 ## 3. 前置确认项
 
-- [ ] 确认券商名称、账户类型和交易市场；
-- [ ] 确认使用 QMT 还是 MiniQMT，以及 API 文档和授权方式；
+- [x] 确认券商名称和客户端版本：国金证券 QMT 交易端 `2.1.19.0`；
+- [ ] 确认目标账户类型和实际可交易市场；当前服务端首版只接受 `STOCK`，但尚未通过券商 API 查询验证目标账户；
+- [x] 确认当前使用普通 QMT（不是 MiniQMT）；外部 `xtquant` 授权方式仍被券商侧 `QMT_SERVER_NOT_ALLOWED` 阻断，须由国金开通或提供专用客户端；
 - [ ] 确认 QMT 是否提供模拟账户或仿真环境；
 - [ ] 确认本地 Windows 主机能够在交易时段持续运行；
-- [ ] 确认本地 Agent 的部署方式、运行账户和日志目录；
+- [x] 确认本地 Agent 的部署方式、默认运行账户和目录约定；安装包使用当前 Windows 用户、私有 venv、DPAPI Token、滚动日志和 SQLite 状态目录；目标机常驻安装仍待券商权限开通后执行；
 - [ ] 确认实盘启用人、人工确认策略和紧急联系人。
 
 ### 3.1 本地最小安装清单
 
+本清单按“目标机可正式运行”口径勾选；安装包中已经提供但尚未在目标机常驻启用的能力，不视为生产完成。
+
 - [ ] 受支持的 Windows 主机，交易时段保持开机且时间自动同步；
 - [ ] 券商提供的 QMT/MiniQMT 客户端及程序化交易权限；
 - [ ] 可用于联调的仿真或低风险测试账户；
-- [ ] 与券商 QMT 安装包匹配的 Python 和 `xtquant`；
-- [ ] 独立的 QMT Agent 运行环境，不复用 VPS Django 运行环境；Agent HTTPS 客户端使用标准库，YAML 配置仅额外需要 `PyYAML`；
-- [ ] Agent 配置目录、滚动日志目录和本地状态目录；
-- [ ] Windows 任务计划或服务托管方式；
+- [x] 已在隔离环境验证 Python `3.11.14` 与 `xtquant 250807.1.2` 可导入；与国金客户端的实际 API 兼容性仍受券商权限门禁约束；
+- [x] 已交付独立 QMT Agent 安装包，不复用 VPS Django 运行环境；Agent HTTPS 客户端使用标准库，YAML 配置仅额外需要 `PyYAML`；
+- [x] 安装包已定义 Agent 配置目录、滚动日志目录和本地 SQLite 状态目录，并通过临时安装 smoke；
+- [x] 安装包已提供 Windows 任务计划安装选项；目标机是否启用由正式部署时决定；
 - [ ] VPS HTTPS 地址、Agent 凭证和可信 CA 配置；
-- [ ] 本地紧急停止文件或控制入口。
+- [x] 安装包已提供本地 `STOP` 紧急停止文件和启动/停止控制脚本；目标机常驻运行验收待 WP0 通过后执行。
 
 本地依赖边界如下，避免把 VPS 组件整套搬到交易电脑：
 
@@ -1026,7 +1029,7 @@ P0 告警：疑似重复下单、账户映射错误、未知提交状态、停�
 
 ## 23. 待批准决策
 
-- [ ] 目标券商及 QMT/MiniQMT 版本；
+- [x] 目标券商及客户端已确定为国金证券 QMT 交易端 `2.1.19.0`；当前不是 MiniQMT，且券商尚未允许启动 XtQuantServer；
 - [x] 首版仅支持普通股票账户（`STOCK`）；信用账户在融资融券委托语义完成专门适配和验收前拒绝绑定；
 - [x] 首版交易品种由账户白名单约束，默认按 A 股和场内 ETF 的 100 股买入单位校验；
 - [x] 首版禁用市价单，只允许正数量、正价格的限价单；
@@ -1036,13 +1039,13 @@ P0 告警：疑似重复下单、账户映射错误、未知提交状态、停�
 - [ ] 哪些金额和配置变更必须双人复核；
 - [x] 个人单用户模式允许 `owner` 审批本人已授权账户订单；恢复交易、绑定、限额和凭证管理仍仅限管理员；
 - [ ] 小额实盘的单笔、单日和总资金上限；
-- [ ] 自动实盘是否纳入首版，还是只交付人工逐单确认；
+- [x] 首版只启用人工逐单确认；自动投顾只能创建经过服务端风控的草稿，Agent 只执行已人工批准且提交前复核仍通过的订单，不提供自动批准实盘订单能力；
 - [x] Classic Web 已交付 overview、订单列表/详情、对账、连接、设置和审计七个路由；管理写操作仅管理员可用；
 - [x] MCP 首版只允许批准、拒绝、撤单请求、停止/恢复和差异处置；冻结“任意创建订单”和“直接 QMT 下单”；
 - [x] Terminal/TUI 通过 governed catalog 发现 broker execution 能力，不暴露 Agent 机器接口；
 - [x] TUI 不创建或轮换 Agent 凭证，凭证治理仅在管理员 Classic Web 提供；
-- [ ] 是否将 QMT 行情也通过本地 Agent 转发，或继续保留现有本地 `data_center` 接入方式；
-- [ ] 仿真和小额实盘连续验收天数。
+- [x] QMT 行情继续由既有 `data_center` 接入作为服务端风控真源；Agent 可读取本地 QMT 行情做提交前防御性复核，但不把它升级为新的行情转发真源；
+- [x] 最低连续验收门槛固定为 QMT 仿真 5 个交易日、小额实盘 3 个交易日；正式批准可以提高，不得降低为单次联调。
 
 在剩余关键决策、WP0 探针和 WP7 验收完成前，不启用真实账户自动下单。
 
@@ -1074,16 +1077,17 @@ P0 告警：疑似重复下单、账户映射错误、未知提交状态、停�
 - `ruff check`：broker execution、QMT Agent 及对应测试通过；
 - `python manage.py check`：0 issue；`makemigrations --check --dry-run`：无迁移漂移；
 - 架构 full guard：1783 个文件、0 个边界违规、0 个审计违规；模块依赖审计 40 个 App、198 条边、0 个双向依赖、0 个循环，`broker_execution` 预算已登记为治理基线 v14；
-- broker execution 单元完整组：58 个测试通过；集成 Fake Agent 全链路：1 个测试通过。覆盖服务端权威风控、自动投顾桥、账户绑定、账户授权 preview/commit/越权/Django Admin 防旁路、资源版本、交易时段、凭证账户 scope、登录/Agent 认证失败审计、恢复交易密码重认证及来源 IP、Agent 契约与安装/只读 QMT 探针、本地预检、四维对账、撤单最终态、超额成交/P0 自动停机、幂等和权限；
+- broker execution 单元完整组：64 个测试通过；集成 Fake Agent 全链路：1 个测试通过，合计 65 个。覆盖服务端权威风控、自动投顾桥、账户绑定、账户授权 preview/commit/越权/Django Admin 防旁路、资源版本、交易时段、凭证账户 scope、登录/Agent 认证失败审计、恢复交易密码重认证及来源 IP、Agent 契约与安装/只读 QMT 探针、本地预检、QMT 服务端权限拒绝诊断、四维对账、撤单最终态、超额成交/P0 自动停机、幂等和权限；
 - 真实 Chromium Classic Web smoke：1 个浏览器场景通过，顺序验证七个页面、管理员执行门禁/凭证/账户授权控制项、审计 CSV 下载，并断言 JavaScript console error 与 page error 均为零；
 - readiness + 自动投顾相关聚焦组：221 个测试通过；
 - TUI workbench 194 个测试 + broker metadata 2 个测试，共 196 个测试通过；MCP TUI action coverage 为 506 个唯一 action、0 缺口；
-- 项目规定的 Terminal/SDK/SSL 最小回归包：35 个测试通过；broker SDK/MCP/catalog/manifest 聚焦组：16 个测试通过；
+- 本轮 Terminal/SDK/SSL/broker SDK 聚焦组：38 个测试通过；broker MCP/catalog 聚焦组：7 个测试通过；此前完整 broker SDK/MCP/catalog/manifest 聚焦组 16 个测试通过；
 - MCP schema、read/write evidence、preview、confirmation、audit、catalog dedup、tool budget、no-raw-tools、TUI action coverage 全部通过。
 
 ### 24.3 未由仓库环境验证
 
-- 目标券商 QMT/MiniQMT 与 `xtquant` 版本、Python ABI 和账户 API 权限；
+- 国金侧外部 XtQuantServer、函数查询和函数下单权限；当前真实只读探针已稳定归一为 `QMT_SERVER_NOT_ALLOWED`；
+- 目标账户类型、市场范围、仿真账户能力及券商侧频率/品种限制；
 - 真实 QMT 的字段/状态常量差异、回调时序、断线重连、部分成交和撤单结果；
 - 连续 5 个交易日仿真、连续 3 个交易日小额实盘及真实券商四类事实对账；
 - MFA、双人复核（如生产审批要求）和目标券商 CSV/XLSX 列映射样本。
