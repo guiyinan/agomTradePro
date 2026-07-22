@@ -782,3 +782,15 @@
 - AI Strategy Executor 单元回归 `20 passed`；Black、Ruff、diff check 通过。
 - 刷新后债务中 `no-untyped-def/type-arg/no-untyped-call` 共 `5125` 项，约占全部债务 `74%`；`arg-type/return-value/assignment/union-attr` 共 `490` 项，后续优先按真实契约风险治理，而不是按文件机械清扫。
 - 公共依赖热点分析显示 Policy repository provider 被 `25` 个生产文件直接引用；其 Infrastructure repository 仍有 `3 arg-type + 3 assignment + 1 return-value`，因此列为下一批高杠杆目标。
+
+## 第六十一批
+
+- 按“高风险错误码 + 公共 Repository 杠杆”收口 Policy repository：`save_event()` 使用 overload 区分默认领域实体与显式 ORM 返回，调用方不再依赖动态返回类型；更新查找结果使用 `ExistingPolicyRecord` 固定持久化 ID 与日期契约。
+- ORM `values()` 结果在 Infrastructure 边界局部转换为现有 `dict[str, Any]` 消费契约；近期政策查询补齐 aware `datetime` 参数，RSS source、fetch log、keyword rule 的可空参数、动态 ORM kwargs 与容器元素全部显式建模。
+- 最新政策排序不再依赖 Django mypy plugin 无法解析的临时 annotate 字段名，改为语义等价的 `Case` 排序表达式；计数、聚合、删除与更新结果在 ORM 边界收窄为 `int` / `bool`。
+
+## 第六十一批验证结果
+
+- Policy repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6889 errors / 840 files` 收紧为 `6865 errors / 839 files`，净减少 `24 errors / 1 file`。
+- 目标文件的 `3 arg-type + 3 assignment + 1 return-value` 等 22 项债务全部清零，并连带清除 Policy repository provider 与 Decision Rhythm feature provider 各 1 项 `no-untyped-call`，验证了公共契约修复的跨模块杠杆。
+- Policy integration、Signal policy influence 与 RSS/Sentiment repository 回归共 `41 passed`；Ruff、Black、diff check 通过。

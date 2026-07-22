@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6889,
-    "files_with_errors": 840
+    "errors": 6865,
+    "files_with_errors": 839
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1571,7 +1571,7 @@
     },
     "apps/decision_rhythm/infrastructure/feature_providers.py": {
       "arg-type": 2,
-      "no-untyped-call": 19,
+      "no-untyped-call": 18,
       "no-untyped-def": 15,
       "override": 1,
       "union-attr": 1
@@ -2267,7 +2267,7 @@
     },
     "apps/policy/application/repository_provider.py": {
       "attr-defined": 1,
-      "no-untyped-call": 6
+      "no-untyped-call": 5
     },
     "apps/policy/application/services.py": {
       "assignment": 2,
@@ -2333,15 +2333,6 @@
       "type-arg": 5,
       "union-attr": 1,
       "var-annotated": 1
-    },
-    "apps/policy/infrastructure/repositories.py": {
-      "arg-type": 3,
-      "assignment": 3,
-      "misc": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 11,
-      "return-value": 1,
-      "type-arg": 2
     },
     "apps/policy/infrastructure/workbench_repositories.py": {
       "index": 3,

@@ -4,8 +4,8 @@ Repositories for Policy Events.
 Infrastructure layer implementation using Django ORM.
 """
 
-from datetime import date
-from typing import Any
+from datetime import date, datetime
+from typing import Any, Literal, TypedDict, cast, overload
 
 from django.db import models
 from django.db.models import Case, IntegerField, Value, When
@@ -38,6 +38,13 @@ class PolicyRepositoryError(Exception):
     pass
 
 
+class ExistingPolicyRecord(TypedDict):
+    """Minimal persisted identity used by the policy update flow."""
+
+    id: int
+    event_date: date
+
+
 class DjangoPolicyRepository:
     """
     Django ORM 实现的政策事件仓储
@@ -45,10 +52,31 @@ class DjangoPolicyRepository:
     提供政策事件的增删改查操作。
     """
 
-    def __init__(self):
-        self._model = PolicyLog
+    def __init__(self) -> None:
+        self._model: type[PolicyLog] = PolicyLog
 
-    def save_event(self, event: PolicyEvent, return_orm: bool = False, **kwargs):
+    @overload
+    def save_event(
+        self,
+        event: PolicyEvent,
+        return_orm: Literal[False] = False,
+        **kwargs: Any,
+    ) -> PolicyEvent: ...
+
+    @overload
+    def save_event(
+        self,
+        event: PolicyEvent,
+        return_orm: Literal[True],
+        **kwargs: Any,
+    ) -> PolicyLog: ...
+
+    def save_event(
+        self,
+        event: PolicyEvent,
+        return_orm: bool = False,
+        **kwargs: Any,
+    ) -> PolicyEvent | PolicyLog:
         """
         保存政策事件
 
@@ -168,21 +196,19 @@ class DjangoPolicyRepository:
         if before_date:
             query = query.filter(event_date__lte=before_date)
 
-        query = query.annotate(
-            _event_type_priority=Case(
-                When(event_type="policy", then=Value(0)),
-                When(event_type="mixed", then=Value(1)),
-                When(event_type="hotspot", then=Value(2)),
-                When(event_type="sentiment", then=Value(3)),
-                default=Value(4),
-                output_field=IntegerField(),
-            )
+        event_type_priority = Case(
+            When(event_type="policy", then=Value(0)),
+            When(event_type="mixed", then=Value(1)),
+            When(event_type="hotspot", then=Value(2)),
+            When(event_type="sentiment", then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
         )
 
         orm_obj = query.order_by(
             "-event_date",
             "-gate_effective",
-            "_event_type_priority",
+            event_type_priority,
             "-effective_at",
             "-created_at",
         ).first()
@@ -304,7 +330,7 @@ class DjangoPolicyRepository:
             bool: 是否成功删除
         """
         count, _ = self._model.objects.filter(event_date=event_date).delete()
-        return count > 0
+        return int(count) > 0
 
     def delete_event_by_id(self, event_id: int) -> bool:
         """
@@ -330,11 +356,11 @@ class DjangoPolicyRepository:
         Returns:
             int: 事件数量
         """
-        return self._model.objects.count()
+        return int(self._model.objects.count())
 
     def get_policy_level_stats(
         self, start_date: date | None = None, end_date: date | None = None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         获取政策档位统计
 
@@ -352,17 +378,17 @@ class DjangoPolicyRepository:
         if end_date:
             query = query.filter(event_date__lte=end_date)
 
-        total = query.count()
+        total = int(query.count())
 
         # 统计各档位数量
         from django.db.models import Count
 
         level_counts = query.values("level").annotate(count=Count("id")).order_by("-count")
 
-        stats = {}
+        stats: dict[str, dict[str, int | float]] = {}
         for item in level_counts:
-            level = item["level"]
-            count = item["count"]
+            level = str(item["level"])
+            count = int(item["count"])
             stats[level] = {"count": count, "percentage": count / total if total > 0 else 0}
 
         return {"total": total, "by_level": stats}
@@ -370,78 +396,95 @@ class DjangoPolicyRepository:
     def delete_events_before(self, cutoff_date: date) -> int:
         """Delete policy events older than the cutoff date."""
 
-        return self._model._default_manager.filter(event_date__lt=cutoff_date).delete()[0]
+        deleted_count, _ = self._model._default_manager.filter(event_date__lt=cutoff_date).delete()
+        return int(deleted_count)
 
     def get_category_stats(self) -> dict[str, int]:
         """Return aggregate counts grouped by info category."""
 
-        return self._model._default_manager.aggregate(
+        raw_counts = self._model._default_manager.aggregate(
             macro=models.Count("id", filter=models.Q(info_category="macro")),
             sector=models.Count("id", filter=models.Q(info_category="sector")),
             individual=models.Count("id", filter=models.Q(info_category="individual")),
             sentiment=models.Count("id", filter=models.Q(info_category="sentiment")),
             other=models.Count("id", filter=models.Q(info_category="other")),
         )
+        return {key: int(value or 0) for key, value in raw_counts.items()}
 
     def list_blacklist_policies(self, asset_code: str) -> list[dict[str, Any]]:
         """Return blacklist and high-risk macro policies affecting one asset."""
 
-        direct_blacklist = list(
-            self._model._default_manager.filter(
-                is_blacklist=True,
-                structured_data__affected_stocks__contains=asset_code,
-            ).values("id", "title", "level", "info_category", "structured_data")
+        direct_blacklist = cast(
+            list[dict[str, Any]],
+            list(
+                self._model._default_manager.filter(
+                    is_blacklist=True,
+                    structured_data__affected_stocks__contains=asset_code,
+                ).values("id", "title", "level", "info_category", "structured_data")
+            ),
         )
-        high_risk_macro = list(
-            self._model._default_manager.filter(
-                info_category="macro",
-                level__in=["P2", "P3"],
-                risk_impact="high_risk",
-            ).values("id", "title", "level", "info_category", "structured_data")
+        high_risk_macro = cast(
+            list[dict[str, Any]],
+            list(
+                self._model._default_manager.filter(
+                    info_category="macro",
+                    level__in=["P2", "P3"],
+                    risk_impact="high_risk",
+                ).values("id", "title", "level", "info_category", "structured_data")
+            ),
         )
         return direct_blacklist + high_risk_macro
 
     def list_whitelist_policies(self, asset_code: str) -> list[dict[str, Any]]:
         """Return whitelist policies affecting one asset."""
 
-        return list(
-            self._model._default_manager.filter(
-                is_whitelist=True,
-                structured_data__affected_stocks__contains=asset_code,
-            ).values("id", "title", "level", "info_category", "structured_data")
+        return cast(
+            list[dict[str, Any]],
+            list(
+                self._model._default_manager.filter(
+                    is_whitelist=True,
+                    structured_data__affected_stocks__contains=asset_code,
+                ).values("id", "title", "level", "info_category", "structured_data")
+            ),
         )
 
-    def list_recent_sector_policies(self, cutoff_datetime) -> list[dict[str, Any]]:
+    def list_recent_sector_policies(self, cutoff_datetime: datetime) -> list[dict[str, Any]]:
         """Return recent approved sector policies."""
 
-        return list(
-            self._model._default_manager.filter(
-                info_category="sector",
-                audit_status__in=["auto_approved", "manual_approved"],
-                created_at__gte=cutoff_datetime,
-            ).values("id", "title", "level", "info_category", "structured_data")
+        return cast(
+            list[dict[str, Any]],
+            list(
+                self._model._default_manager.filter(
+                    info_category="sector",
+                    audit_status__in=["auto_approved", "manual_approved"],
+                    created_at__gte=cutoff_datetime,
+                ).values("id", "title", "level", "info_category", "structured_data")
+            ),
         )
 
     def list_recent_sentiment_policies(
         self,
         *,
         asset_code: str,
-        cutoff_datetime,
+        cutoff_datetime: datetime,
     ) -> list[dict[str, Any]]:
         """Return recent approved individual sentiment policies for one asset."""
 
-        return list(
-            self._model._default_manager.filter(
-                info_category="individual",
-                audit_status__in=["auto_approved", "manual_approved"],
-                structured_data__affected_stocks__contains=asset_code,
-                created_at__gte=cutoff_datetime,
-            ).values("id", "title", "level", "info_category", "structured_data")
+        return cast(
+            list[dict[str, Any]],
+            list(
+                self._model._default_manager.filter(
+                    info_category="individual",
+                    audit_status__in=["auto_approved", "manual_approved"],
+                    structured_data__affected_stocks__contains=asset_code,
+                    created_at__gte=cutoff_datetime,
+                ).values("id", "title", "level", "info_category", "structured_data")
+            ),
         )
 
     def get_existing_for_update(
         self, event_id: int | None = None, event_date: date | None = None
-    ) -> dict | None:
+    ) -> ExistingPolicyRecord | None:
         """
         获取现有事件用于更新检查
 
@@ -499,10 +542,11 @@ class DjangoPolicyRepository:
             "processing_metadata": orm_obj.processing_metadata or {},
         }
 
-    def update_policy_log_fields(self, policy_log_id: int, **fields) -> bool:
+    def update_policy_log_fields(self, policy_log_id: int, **fields: Any) -> bool:
         """Update one policy log row by id."""
 
-        return self._model._default_manager.filter(id=policy_log_id).update(**fields) > 0
+        updated_count = self._model._default_manager.filter(id=policy_log_id).update(**fields)
+        return int(updated_count) > 0
 
     def append_policy_log_processing_metadata(
         self,
@@ -557,10 +601,10 @@ class RSSRepository:
     提供RSS源配置、抓取日志和关键词规则的数据访问操作。
     """
 
-    def __init__(self):
-        self._source_model = RSSSourceConfigModel
-        self._keyword_model = PolicyLevelKeywordModel
-        self._log_model = RSSFetchLog
+    def __init__(self) -> None:
+        self._source_model: type[RSSSourceConfigModel] = RSSSourceConfigModel
+        self._keyword_model: type[PolicyLevelKeywordModel] = PolicyLevelKeywordModel
+        self._log_model: type[RSSFetchLog] = RSSFetchLog
 
     # ========== RSS源配置 ==========
 
@@ -576,23 +620,28 @@ class RSSRepository:
         """获取所有RSS源"""
         return list(self._source_model.objects.all())
 
-    def create_source(self, **kwargs) -> RSSSourceConfigModel:
+    def create_source(self, **kwargs: Any) -> RSSSourceConfigModel:
         """创建RSS源"""
         return self._source_model.objects.create(**kwargs)
 
-    def update_source(self, source_id: int, **kwargs) -> bool:
+    def update_source(self, source_id: int, **kwargs: Any) -> bool:
         """更新RSS源"""
         count = self._source_model.objects.filter(id=source_id).update(**kwargs)
-        return count > 0
+        return int(count) > 0
 
-    def update_source_last_fetch(self, source_id: int, status: str, error_msg: str = None) -> bool:
+    def update_source_last_fetch(
+        self,
+        source_id: int,
+        status: str,
+        error_msg: str | None = None,
+    ) -> bool:
         """更新源的抓取状态"""
         count = self._source_model.objects.filter(id=source_id).update(
             last_fetch_at=timezone.now(),
             last_fetch_status=status,
             last_error_message=error_msg or "",
         )
-        return count > 0
+        return int(count) > 0
 
     # ========== 抓取日志 ==========
 
@@ -602,8 +651,8 @@ class RSSRepository:
         status: str,
         items_count: int,
         new_items_count: int,
-        error_message: str = None,
-        duration: float = None,
+        error_message: str | None = None,
+        duration: float | None = None,
     ) -> RSSFetchLog:
         """保存抓取日志"""
         return self._log_model.objects.create(
@@ -630,7 +679,7 @@ class RSSRepository:
 
         cutoff = timezone.now() - timedelta(days=days_to_keep)
         count, _ = self._log_model.objects.filter(fetched_at__lt=cutoff).delete()
-        return count
+        return int(count)
 
     # ========== 去重检查 ==========
 
@@ -647,7 +696,7 @@ class RSSRepository:
         Returns:
             bool: 是否已存在
         """
-        return PolicyLog._default_manager.filter(evidence_url=link).exists()
+        return bool(PolicyLog._default_manager.filter(evidence_url=link).exists())
 
     # ========== 关键词规则 ==========
 
@@ -674,12 +723,12 @@ class RSSRepository:
         rules_orm = list(query.order_by("-weight", "level"))
 
         # 转换为Domain实体
-        rules = []
+        rules: list[PolicyLevelKeywordRule] = []
         for orm_obj in rules_orm:
             level = PolicyLevel(orm_obj.level)
             rule = PolicyLevelKeywordRule(
                 level=level,
-                keywords=orm_obj.keywords,
+                keywords=cast(list[str], orm_obj.keywords),
                 weight=orm_obj.weight,
                 category=orm_obj.category,
             )
@@ -687,19 +736,19 @@ class RSSRepository:
 
         return rules
 
-    def create_keyword_rule(self, **kwargs) -> PolicyLevelKeywordModel:
+    def create_keyword_rule(self, **kwargs: Any) -> PolicyLevelKeywordModel:
         """创建关键词规则"""
         return self._keyword_model.objects.create(**kwargs)
 
-    def update_keyword_rule(self, rule_id: int, **kwargs) -> bool:
+    def update_keyword_rule(self, rule_id: int, **kwargs: Any) -> bool:
         """更新关键词规则"""
         count = self._keyword_model.objects.filter(id=rule_id).update(**kwargs)
-        return count > 0
+        return int(count) > 0
 
     def delete_keyword_rule(self, rule_id: int) -> bool:
         """删除关键词规则"""
         count, _ = self._keyword_model.objects.filter(id=rule_id).delete()
-        return count > 0
+        return int(count) > 0
 
 
 def get_policy_repository() -> DjangoPolicyRepository:
