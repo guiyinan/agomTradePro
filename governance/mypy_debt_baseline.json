@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6728,
-    "files_with_errors": 834
+    "errors": 6678,
+    "files_with_errors": 833
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2352,12 +2352,6 @@
       "no-untyped-call": 5,
       "no-untyped-def": 15,
       "type-arg": 3
-    },
-    "apps/policy/interface/serializers.py": {
-      "assignment": 4,
-      "misc": 2,
-      "no-untyped-def": 11,
-      "type-arg": 33
     },
     "apps/policy/interface/workbench_api_views.py": {
       "no-untyped-call": 15,

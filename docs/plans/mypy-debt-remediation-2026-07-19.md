@@ -842,3 +842,15 @@
 - Audit serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6756 errors / 835 files` 收紧为 `6728 errors / 834 files`，净减少 `28 errors / 1 file`。
 - 目标文件的 `5 assignment + 3 no-untyped-def + 20 type-arg` 全部清零，跨文件无新增。
 - 字段契约、Audit API edges、内部日志写入、阈值验证/配置和归因治理回归共 `27 passed`；Ruff、Black、diff check 通过。
+
+## 第六十六批
+
+- 按 Policy API/Workbench/RSS 公共边界收口 serializers：输入和 read-model 使用字典 instance，PolicyEvent 与 WorkbenchSummary 使用真实领域实体，PolicyLog/RSS Source/Keyword/FetchLog 作为 ORM 边界局部使用 `Any`。
+- `PolicyLevelField` 显式建模 `object -> PolicyLevel -> str` 往返；OpenAPI schema decorator 通过保留函数签名的 typed wrapper 使用，不再让两个 SerializerMethodField 退化为 untyped。
+- Policy/Create、RSS Fetch、Workbench Fetch 的 `errors` 及 RSS Fetch Log 的 `source` 改由 `get_fields()` 注册，保留既有外部字段名和 required/read-only 语义；WorkbenchSummary 直接读取领域枚举，不再动态 getattr/hasattr。
+
+## 第六十六批验证结果
+
+- Policy serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6728 errors / 834 files` 收紧为 `6678 errors / 833 files`，净减少 `50 errors / 1 file`，跨文件无新增。
+- 目标文件的 `4 assignment + 2 misc + 11 no-untyped-def + 33 type-arg` 全部清零。
+- Policy 字段/枚举契约、Policy API edges 与完整 Workbench API 回归共 `34 passed`；Ruff、Black、diff check 通过。

@@ -6,8 +6,8 @@ Interface Layer - Serializers for Policy Management
 P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
-
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from typing import Any, TypeAlias, TypeVar, cast
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -15,7 +15,14 @@ from rest_framework import serializers
 
 from shared.sanitization import sanitize_plain_text
 
-from ..domain.entities import PolicyLevel
+from ..domain.entities import PolicyEvent, PolicyLevel, WorkbenchSummary
+
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
+SchemaDecorated = TypeVar("SchemaDecorated", bound=Callable[..., Any])
+schema_string_field = cast(
+    Callable[[SchemaDecorated], SchemaDecorated],
+    extend_schema_field(OpenApiTypes.STR),
+)
 
 POLICY_LEVEL_CHOICES = [
     ("PX", "PX - 待分类"),
@@ -59,17 +66,17 @@ RSSHUB_FORMAT_CHOICES = [
 ]
 
 
-@extend_schema_field(OpenApiTypes.STR)
-class PolicyLevelField(serializers.Field):
+@schema_string_field
+class PolicyLevelField(serializers.Field[PolicyLevel | str, object, str, Any]):
     """政策档位字段"""
 
-    def to_representation(self, value):
+    def to_representation(self, value: PolicyLevel | str) -> str:
         """序列化"""
         if isinstance(value, PolicyLevel):
             return value.value
-        return value
+        return str(value)
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: object) -> PolicyLevel:
         """反序列化"""
         if isinstance(data, PolicyLevel):
             return data
@@ -78,49 +85,42 @@ class PolicyLevelField(serializers.Field):
             return PolicyLevel(data)
         except ValueError:
             raise serializers.ValidationError(
-                f"Invalid policy level. Must be one of: "
-                f"{[lvl.value for lvl in PolicyLevel]}"
+                f"Invalid policy level. Must be one of: " f"{[lvl.value for lvl in PolicyLevel]}"
             ) from None
 
 
-class PolicyEventSerializer(serializers.Serializer):
+class PolicyEventSerializer(serializers.Serializer[PolicyEvent]):
     """政策事件序列化器"""
 
     event_date = serializers.DateField(required=True)
     level = PolicyLevelField(required=True)
     title = serializers.CharField(max_length=200, required=True)
     description = serializers.CharField(required=True, allow_blank=False)
-    evidence_url = serializers.URLField(
-        max_length=500,
-        required=True,
-        allow_blank=False
-    )
+    evidence_url = serializers.URLField(max_length=500, required=True, allow_blank=False)
 
-    def validate_title(self, value):
+    def validate_title(self, value: str) -> str:
         """验证标题（含 XSS 消毒）"""
         # P1-4: XSS 消毒
         return sanitize_plain_text(value)
 
-    def validate_description(self, value):
+    def validate_description(self, value: str) -> str:
         """验证描述（含 XSS 消毒）"""
         # P1-4: XSS 消毒
         return sanitize_plain_text(value)
 
-    def validate_level(self, value):
+    def validate_level(self, value: PolicyLevel) -> PolicyLevel:
         """验证档位"""
         if not isinstance(value, PolicyLevel):
             raise serializers.ValidationError("Invalid policy level")
         return value
 
-    def validate_evidence_url(self, value):
+    def validate_evidence_url(self, value: str) -> str:
         """验证证据 URL"""
         if not value.startswith(("http://", "https://")):
-            raise serializers.ValidationError(
-                "Evidence URL must start with http:// or https://"
-            )
+            raise serializers.ValidationError("Evidence URL must start with http:// or https://")
         return value
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """整体验证"""
         level = attrs.get("level")
         description = attrs.get("description", "")
@@ -128,14 +128,14 @@ class PolicyEventSerializer(serializers.Serializer):
         # P2/P3 需要详细描述
         if level in [PolicyLevel.P2, PolicyLevel.P3]:
             if len(description) < 20:
-                raise serializers.ValidationError({
-                    "description": f"{level.value} level requires at least 20 characters"
-                })
+                raise serializers.ValidationError(
+                    {"description": f"{level.value} level requires at least 20 characters"}
+                )
 
         return attrs
 
 
-class PolicyLogSerializer(serializers.Serializer):
+class PolicyLogSerializer(serializers.Serializer[Any]):
     """Policy log output serializer."""
 
     id = serializers.IntegerField(read_only=True)
@@ -148,7 +148,7 @@ class PolicyLogSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class PolicyStatusSerializer(serializers.Serializer):
+class PolicyStatusSerializer(serializers.Serializer[dict[str, Any]]):
     """政策状态序列化器"""
 
     current_level = PolicyLevelField()
@@ -168,17 +168,26 @@ class PolicyStatusSerializer(serializers.Serializer):
     latest_event = PolicyEventSerializer(allow_null=True)
 
 
-class PolicyCreateResponseSerializer(serializers.Serializer):
+class PolicyCreateResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """创建政策事件响应序列化器"""
 
     success = serializers.BooleanField()
     event = PolicyEventSerializer(allow_null=True)
-    errors = serializers.ListField(child=serializers.CharField(), required=False)
     warnings = serializers.ListField(child=serializers.CharField(), required=False)
     alert_triggered = serializers.BooleanField()
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register response errors without overriding DRF serializer state."""
 
-class PolicyHistorySerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["errors"] = serializers.ListField(
+            child=serializers.CharField(),
+            required=False,
+        )
+        return fields
+
+
+class PolicyHistorySerializer(serializers.Serializer[dict[str, Any]]):
     """政策历史序列化器"""
 
     events = PolicyEventSerializer(many=True)
@@ -187,23 +196,21 @@ class PolicyHistorySerializer(serializers.Serializer):
     end_date = serializers.DateField()
 
 
-class PolicyLevelStatsSerializer(serializers.Serializer):
+class PolicyLevelStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """政策档位统计序列化器"""
 
     count = serializers.IntegerField()
     percentage = serializers.FloatField()
 
 
-class PolicyStatsSerializer(serializers.Serializer):
+class PolicyStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """政策统计序列化器"""
 
     total = serializers.IntegerField()
-    by_level = serializers.DictField(
-        child=PolicyLevelStatsSerializer()
-    )
+    by_level = serializers.DictField(child=PolicyLevelStatsSerializer())
 
 
-class PolicyHistoryWithStatsSerializer(serializers.Serializer):
+class PolicyHistoryWithStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """政策历史（含统计）序列化器"""
 
     events = PolicyEventSerializer(many=True)
@@ -215,7 +222,8 @@ class PolicyHistoryWithStatsSerializer(serializers.Serializer):
 
 # ========== RSS 相关序列化器 ==========
 
-class RSSSourceConfigSerializer(serializers.Serializer):
+
+class RSSSourceConfigSerializer(serializers.Serializer[Any]):
     """RSS source config serializer."""
 
     id = serializers.IntegerField(read_only=True)
@@ -289,7 +297,7 @@ class RSSSourceConfigCreateSerializer(RSSSourceConfigSerializer):
     """RSS source write serializer."""
 
 
-class PolicyLevelKeywordSerializer(serializers.Serializer):
+class PolicyLevelKeywordSerializer(serializers.Serializer[Any]):
     """Policy level keyword serializer."""
 
     id = serializers.IntegerField(read_only=True)
@@ -310,18 +318,17 @@ class PolicyLevelKeywordSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
 
-    def validate_keywords(self, value):
+    def validate_keywords(self, value: list[str]) -> list[str]:
         cleaned = [keyword.strip() for keyword in value if keyword.strip()]
         if not cleaned:
             raise serializers.ValidationError("至少填写一个关键词")
         return cleaned
 
 
-class RSSFetchLogSerializer(serializers.Serializer):
+class RSSFetchLogSerializer(serializers.Serializer[Any]):
     """RSS fetch log serializer."""
 
     id = serializers.IntegerField(read_only=True)
-    source = serializers.IntegerField(source="source_id", read_only=True)
     source_name = serializers.CharField(source="source.name", read_only=True)
     fetched_at = serializers.DateTimeField(read_only=True)
     status = serializers.ChoiceField(choices=RSS_FETCH_STATUS_CHOICES, read_only=True)
@@ -331,19 +338,32 @@ class RSSFetchLogSerializer(serializers.Serializer):
     error_message = serializers.CharField(read_only=True)
     fetch_duration_seconds = serializers.FloatField(read_only=True, allow_null=True)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register source id without overriding DRF field internals."""
 
-class RSSFetchOutputSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["source"] = serializers.IntegerField(source="source_id", read_only=True)
+        return fields
+
+
+class RSSFetchOutputSerializer(serializers.Serializer[dict[str, Any]]):
     """RSS抓取输出序列化器"""
 
     success = serializers.BooleanField()
     sources_processed = serializers.IntegerField()
     total_items = serializers.IntegerField()
     new_policy_events = serializers.IntegerField()
-    errors = serializers.ListField(child=serializers.CharField())
     details = serializers.ListField(child=serializers.DictField())
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register response errors without overriding DRF serializer state."""
 
-class RSSTriggerSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["errors"] = serializers.ListField(child=serializers.CharField())
+        return fields
+
+
+class RSSTriggerSerializer(serializers.Serializer[dict[str, Any]]):
     """RSS触发抓取序列化器"""
 
     source_id = serializers.IntegerField(required=False, allow_null=True)
@@ -354,7 +374,8 @@ class RSSTriggerSerializer(serializers.Serializer):
 # 工作台序列化器
 # ============================================================
 
-class WorkbenchSummarySerializer(serializers.Serializer):
+
+class WorkbenchSummarySerializer(serializers.Serializer[WorkbenchSummary]):
     """工作台概览序列化器"""
 
     policy_level = serializers.SerializerMethodField()
@@ -367,24 +388,21 @@ class WorkbenchSummarySerializer(serializers.Serializer):
     effective_today_count = serializers.IntegerField()
     last_fetch_at = serializers.DateTimeField(allow_null=True)
 
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_policy_level(self, obj) -> str | None:
+    @schema_string_field
+    def get_policy_level(self, obj: WorkbenchSummary) -> str | None:
         """获取政策档位字符串值"""
-        level = getattr(obj, 'policy_level', None)
-        if level is None:
-            return None
-        return level.value if hasattr(level, 'value') else str(level)
+        return obj.policy_level.value
 
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_global_gate_level(self, obj) -> str | None:
+    @schema_string_field
+    def get_global_gate_level(self, obj: WorkbenchSummary) -> str | None:
         """获取闸门等级字符串值"""
-        level = getattr(obj, 'global_gate_level', None)
+        level = obj.global_gate_level
         if level is None:
             return None
-        return level.value if hasattr(level, 'value') else str(level)
+        return level.value
 
 
-class WorkbenchItemSerializer(serializers.Serializer):
+class WorkbenchItemSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台事件项序列化器"""
 
     id = serializers.IntegerField()
@@ -409,32 +427,23 @@ class WorkbenchItemSerializer(serializers.Serializer):
     rollback_reason = serializers.CharField(allow_blank=True)
 
 
-class WorkbenchItemsQuerySerializer(serializers.Serializer):
+class WorkbenchItemsQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """工作台事件列表查询序列化器"""
 
-    tab = serializers.ChoiceField(
-        choices=['pending', 'effective', 'all'],
-        default='all'
-    )
+    tab = serializers.ChoiceField(choices=["pending", "effective", "all"], default="all")
     event_type = serializers.ChoiceField(
-        choices=['policy', 'hotspot', 'sentiment', 'mixed'],
-        required=False,
-        allow_null=True
+        choices=["policy", "hotspot", "sentiment", "mixed"], required=False, allow_null=True
     )
     level = serializers.ChoiceField(
-        choices=['P0', 'P1', 'P2', 'P3', 'PX'],
-        required=False,
-        allow_null=True
+        choices=["P0", "P1", "P2", "P3", "PX"], required=False, allow_null=True
     )
     gate_level = serializers.ChoiceField(
-        choices=['L0', 'L1', 'L2', 'L3'],
-        required=False,
-        allow_null=True
+        choices=["L0", "L1", "L2", "L3"], required=False, allow_null=True
     )
     asset_class = serializers.ChoiceField(
-        choices=['equity', 'bond', 'commodity', 'fx', 'crypto', 'all'],
+        choices=["equity", "bond", "commodity", "fx", "crypto", "all"],
         required=False,
-        allow_null=True
+        allow_null=True,
     )
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
@@ -443,7 +452,7 @@ class WorkbenchItemsQuerySerializer(serializers.Serializer):
     offset = serializers.IntegerField(default=0, min_value=0)
 
 
-class WorkbenchItemsResponseSerializer(serializers.Serializer):
+class WorkbenchItemsResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台事件列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -456,36 +465,34 @@ class WorkbenchItemsResponseSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class ApproveEventSerializer(serializers.Serializer):
+class ApproveEventSerializer(serializers.Serializer[dict[str, Any]]):
     """审核通过序列化器"""
 
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
-class RejectEventSerializer(serializers.Serializer):
+class RejectEventSerializer(serializers.Serializer[dict[str, Any]]):
     """审核拒绝序列化器"""
 
     reason = serializers.CharField(required=True, allow_blank=False)
 
 
-class RollbackEventSerializer(serializers.Serializer):
+class RollbackEventSerializer(serializers.Serializer[dict[str, Any]]):
     """回滚生效序列化器"""
 
     reason = serializers.CharField(required=True, allow_blank=False)
 
 
-class OverrideEventSerializer(serializers.Serializer):
+class OverrideEventSerializer(serializers.Serializer[dict[str, Any]]):
     """临时豁免序列化器"""
 
     reason = serializers.CharField(required=True, allow_blank=False)
     new_level = serializers.ChoiceField(
-        choices=['P0', 'P1', 'P2', 'P3'],
-        required=False,
-        allow_null=True
+        choices=["P0", "P1", "P2", "P3"], required=False, allow_null=True
     )
 
 
-class ActionResponseSerializer(serializers.Serializer):
+class ActionResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """操作响应序列化器"""
 
     success = serializers.BooleanField()
@@ -493,7 +500,7 @@ class ActionResponseSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class SentimentGateStateSerializer(serializers.Serializer):
+class SentimentGateStateSerializer(serializers.Serializer[dict[str, Any]]):
     """热点情绪闸门状态序列化器"""
 
     success = serializers.BooleanField()
@@ -506,7 +513,7 @@ class SentimentGateStateSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class IngestionConfigSerializer(serializers.Serializer):
+class IngestionConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """摄入配置序列化器"""
 
     auto_approve_enabled = serializers.BooleanField()
@@ -517,7 +524,7 @@ class IngestionConfigSerializer(serializers.Serializer):
     version = serializers.IntegerField(read_only=True)
 
 
-class SentimentGateConfigSerializer(serializers.Serializer):
+class SentimentGateConfigSerializer(serializers.Serializer[dict[str, Any]]):
     """闸门配置序列化器"""
 
     asset_class = serializers.CharField()
@@ -537,7 +544,8 @@ class SentimentGateConfigSerializer(serializers.Serializer):
 # 工作台 Bootstrap/Detail/Fetch 序列化器
 # ============================================================
 
-class WorkbenchFilterOptionsSerializer(serializers.Serializer):
+
+class WorkbenchFilterOptionsSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台筛选选项序列化器"""
 
     event_types = serializers.ListField(child=serializers.DictField())
@@ -547,14 +555,14 @@ class WorkbenchFilterOptionsSerializer(serializers.Serializer):
     sources = serializers.ListField(child=serializers.DictField())
 
 
-class WorkbenchTrendSerializer(serializers.Serializer):
+class WorkbenchTrendSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台趋势数据序列化器"""
 
     sentiment_recent_30d = serializers.ListField(child=serializers.DictField())
     effective_events_recent_30d = serializers.ListField(child=serializers.DictField())
 
 
-class WorkbenchFetchStatusSerializer(serializers.Serializer):
+class WorkbenchFetchStatusSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台抓取状态序列化器"""
 
     last_fetch_at = serializers.DateTimeField(allow_null=True)
@@ -562,7 +570,7 @@ class WorkbenchFetchStatusSerializer(serializers.Serializer):
     recent_fetch_errors = serializers.ListField(child=serializers.DictField())
 
 
-class WorkbenchBootstrapSerializer(serializers.Serializer):
+class WorkbenchBootstrapSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台启动数据序列化器"""
 
     summary = WorkbenchSummarySerializer()
@@ -572,7 +580,7 @@ class WorkbenchBootstrapSerializer(serializers.Serializer):
     fetch_status = WorkbenchFetchStatusSerializer()
 
 
-class WorkbenchItemDetailSerializer(serializers.Serializer):
+class WorkbenchItemDetailSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台事件详情序列化器"""
 
     # 基础字段
@@ -621,7 +629,7 @@ class WorkbenchItemDetailSerializer(serializers.Serializer):
     updated_at = serializers.DateTimeField(allow_null=True)
 
 
-class WorkbenchFetchInputSerializer(serializers.Serializer):
+class WorkbenchFetchInputSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台抓取输入序列化器"""
 
     source_id = serializers.IntegerField(
@@ -631,24 +639,20 @@ class WorkbenchFetchInputSerializer(serializers.Serializer):
     )
     force_refetch = serializers.BooleanField(required=False, default=False)
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject fields outside the canonical synchronous fetch contract."""
         if not isinstance(data, Mapping):
-            return super().to_internal_value(data)
+            return cast(dict[str, Any], super().to_internal_value(data))
 
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown fields: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
-class WorkbenchFetchOutputSerializer(serializers.Serializer):
+class WorkbenchFetchOutputSerializer(serializers.Serializer[dict[str, Any]]):
     """工作台抓取输出序列化器"""
 
     success = serializers.BooleanField()
@@ -657,5 +661,11 @@ class WorkbenchFetchOutputSerializer(serializers.Serializer):
     sources_processed = serializers.IntegerField()
     total_items = serializers.IntegerField()
     new_policy_events = serializers.IntegerField()
-    errors = serializers.ListField(child=serializers.CharField())
     details = serializers.ListField(child=serializers.DictField())
+
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register response errors without overriding DRF serializer state."""
+
+        fields = super().get_fields()
+        fields["errors"] = serializers.ListField(child=serializers.CharField())
+        return fields
