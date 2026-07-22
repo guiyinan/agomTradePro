@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -59,6 +60,125 @@ class ShareOwnedTradeSnapshot:
     reason: str | None
     execution_time: datetime | time | None
     status: str | None
+
+
+class ShareOwnerView(Protocol):
+    """Owner fields exposed by a share-link read model."""
+
+    username: str
+    email: str
+
+    def get_full_name(self) -> str:
+        """Return the owner's display name."""
+
+
+class ShareLinkView(Protocol):
+    """Share-link fields consumed by interface serializers and views."""
+
+    id: int
+    owner_id: int
+    owner: ShareOwnerView
+    account_id: int
+    account_name: str
+    short_code: str
+    title: str
+    subtitle: str | None
+    theme: str
+    status: str
+    password_hash: str | None
+    expires_at: datetime | None
+    max_access_count: int | None
+    access_count: int
+    last_snapshot_at: datetime | None
+    allow_indexing: bool
+    show_amounts: bool
+    show_positions: bool
+    show_transactions: bool
+    show_decision_summary: bool
+    show_decision_evidence: bool
+    show_invalidation_logic: bool
+    created_at: datetime
+
+    def is_accessible(self) -> bool:
+        """Return whether the public link may be accessed."""
+
+    def requires_password(self) -> bool:
+        """Return whether the public link requires a password."""
+
+
+class ShareSnapshotView(Protocol):
+    """Marker protocol for snapshot ORM rows passed to serializers."""
+
+    id: int
+
+
+class ShareDisclaimerConfigView(Protocol):
+    """Disclaimer fields consumed by share management and public pages."""
+
+    is_enabled: bool
+    modal_enabled: bool
+    modal_title: str
+    modal_confirm_text: str
+    lines: list[str]
+
+
+class ShareDecisionFeatureSnapshot(Protocol):
+    """Decision feature fields embedded in a public share snapshot."""
+
+    regime: str
+    regime_confidence: float
+    policy_level: str
+    beta_gate_passed: bool
+    sentiment_score: float
+    flow_score: float
+    technical_score: float
+    fundamental_score: float
+    alpha_model_score: float
+
+
+class ShareDecisionRecommendation(ShareDecisionFeatureSnapshot, Protocol):
+    """Recommendation fields embedded in a public share snapshot."""
+
+    side: str
+    confidence: float
+    reason_codes: Sequence[str]
+    human_rationale: str
+    entry_price_low: Decimal
+    entry_price_high: Decimal
+    target_price_low: Decimal
+    target_price_high: Decimal
+    stop_loss_price: Decimal
+    position_pct: float
+    feature_snapshot: ShareDecisionFeatureSnapshot | None
+
+
+class ShareDecisionResponse(Protocol):
+    """Approval response fields embedded in a public share snapshot."""
+
+    approved: bool
+    approval_reason: str
+    rejection_reason: str
+    cooldown_status: str
+    quota_status: object | None
+    alternative_suggestions: object | None
+    responded_at: datetime
+
+
+class ShareDecisionRequest(Protocol):
+    """Decision request shape returned through the cross-app query boundary."""
+
+    asset_code: str
+    direction: str
+    reason: str
+    expected_confidence: float
+    requested_at: datetime
+    executed_at: datetime | None
+    execution_target: str
+    execution_status: str
+    execution_ref: dict[str, object] | None
+    unified_recommendation: ShareDecisionRecommendation | None
+    feature_snapshot: ShareDecisionFeatureSnapshot | None
+    response: ShareDecisionResponse
 
 
 class ShareApplicationRepositoryProtocol(Protocol):
@@ -150,27 +270,27 @@ class ShareApplicationRepositoryProtocol(Protocol):
 class ShareInterfaceRepositoryProtocol(Protocol):
     """Repository operations required by share interface services."""
 
-    def get_share_link_queryset_for_owner(self, owner_id: int) -> object:
+    def get_share_link_queryset_for_owner(self, owner_id: int) -> Iterable[ShareLinkView]:
         """Return owner-scoped share links ordered newest first."""
 
     def get_share_link_for_owner(
         self, *, owner_id: int, share_link_id: int
-    ) -> object | None:
+    ) -> ShareLinkView | None:
         """Return one owner-scoped share link when available."""
 
-    def get_share_link_by_id(self, share_link_id: int) -> object | None:
+    def get_share_link_by_id(self, share_link_id: int) -> ShareLinkView | None:
         """Return one share link by id when available."""
 
-    def get_share_link_by_code(self, short_code: str) -> object | None:
+    def get_share_link_by_code(self, short_code: str) -> ShareLinkView | None:
         """Return one share link by short code when available."""
 
-    def list_share_snapshots(self, *, share_link_id: int) -> list[object]:
+    def list_share_snapshots(self, *, share_link_id: int) -> Iterable[ShareSnapshotView]:
         """Return snapshots for one share link."""
 
     def increment_share_link_access_count(self, *, share_link_id: int) -> None:
         """Increment one share link access counter."""
 
-    def list_owner_accounts(self, owner_id: int) -> list[object]:
+    def list_owner_accounts(self, owner_id: int) -> list[ShareOwnedAccountSnapshot]:
         """Return owner accounts for share management screens."""
 
     def get_owned_account_for_snapshot(
@@ -203,10 +323,10 @@ class ShareInterfaceRepositoryProtocol(Protocol):
 
     def list_decision_requests_for_account_assets(
         self, *, account_id: int, asset_codes: set[str]
-    ) -> list[object]:
+    ) -> list[ShareDecisionRequest]:
         """Return decision requests relevant to one account and asset set."""
 
-    def get_share_disclaimer_config(self) -> object | None:
+    def get_share_disclaimer_config(self) -> ShareDisclaimerConfigView:
         """Return the singleton share disclaimer config."""
 
     def has_share_disclaimer_config(self) -> bool:
@@ -220,7 +340,7 @@ class ShareInterfaceRepositoryProtocol(Protocol):
         modal_title: str,
         modal_confirm_text: str,
         lines: list[str],
-    ) -> object:
+    ) -> ShareDisclaimerConfigView:
         """Persist the singleton share disclaimer config."""
 
     def get_owner_account_name_map(self, owner_id: int) -> dict[int, str]:

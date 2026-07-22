@@ -2,18 +2,32 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
+from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any
+from typing import Any, TypeVar
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.share.application.repository_provider import get_share_interface_repository
 from apps.share.application.use_cases import ShareSnapshotUseCases
+from apps.share.domain.interfaces import (
+    ShareDecisionRequest,
+    ShareDecisionResponse,
+    ShareDisclaimerConfigView,
+    ShareLinkView,
+    ShareOwnedAccountSnapshot,
+    ShareOwnedPositionSnapshot,
+    ShareSnapshotView,
+)
 
 _repo = get_share_interface_repository
+logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
-DECISION_STATUS_DISPLAY = {
+DECISION_STATUS_DISPLAY: dict[str, str] = {
     "pending": "待处理",
     "approved": "已批准",
     "rejected": "已拒绝",
@@ -30,19 +44,19 @@ def _normalize_portfolio_type(value: str | None) -> str:
     return "simulated"
 
 
-def _as_float(value) -> float | None:
-    if value in (None, ""):
+def _as_float(value: Decimal | float | int | str | None) -> float | None:
+    if value is None or value == "":
         return None
     return float(value)
 
 
-def _as_iso_datetime(value) -> str | None:
+def _as_iso_datetime(value: date | datetime | time | None) -> str | None:
     if not value:
         return None
     return value.isoformat()
 
 
-def _non_empty(*values):
+def _non_empty(*values: T | None) -> T | None:
     for value in values:
         if value not in (None, "", [], {}, ()):
             return value
@@ -71,14 +85,17 @@ def _asset_type_label(asset_type: str | None) -> str:
     return mapping.get((asset_type or "").strip().lower(), "其他")
 
 
-def _decision_response(decision_request: Any):
+def _decision_response(decision_request: ShareDecisionRequest) -> ShareDecisionResponse | None:
     try:
         return decision_request.response
     except ObjectDoesNotExist:
         return None
 
 
-def _decision_status(decision_request: Any, response: Any) -> tuple[str, str]:
+def _decision_status(
+    decision_request: ShareDecisionRequest,
+    response: ShareDecisionResponse | None,
+) -> tuple[str, str]:
     if decision_request.execution_status == "executed":
         return "executed", DECISION_STATUS_DISPLAY["executed"]
     if decision_request.execution_status == "failed":
@@ -95,7 +112,7 @@ def _decision_status(decision_request: Any, response: Any) -> tuple[str, str]:
 def _build_decision_chain(
     account_id: int,
     asset_codes: set[str],
-    positions_by_code: dict[str, object],
+    positions_by_code: dict[str, ShareOwnedPositionSnapshot],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     decision_requests = _repo().list_decision_requests_for_account_assets(
         account_id=account_id,
@@ -110,35 +127,35 @@ def _build_decision_chain(
     for decision_request in decision_requests:
         response = _decision_response(decision_request)
         recommendation = decision_request.unified_recommendation
-        feature_snapshot = decision_request.feature_snapshot or getattr(
-            recommendation, "feature_snapshot", None
+        feature_snapshot = decision_request.feature_snapshot or (
+            recommendation.feature_snapshot if recommendation else None
         )
         position = positions_by_code.get(decision_request.asset_code)
         status, status_display = _decision_status(decision_request, response)
-        reason_codes = list(getattr(recommendation, "reason_codes", []) or [])
+        reason_codes = list(recommendation.reason_codes) if recommendation else []
         invalidation_logic = _non_empty(
-            getattr(position, "invalidation_description", None),
+            position.invalidation_description if position else None,
             (
                 f"止损价 {float(recommendation.stop_loss_price):.4f}"
                 if recommendation
-                and getattr(recommendation, "stop_loss_price", None)
+                and recommendation.stop_loss_price
                 and recommendation.stop_loss_price > Decimal("0")
                 else None
             ),
         )
 
         item = {
-            "title": f"{_direction_label(_non_empty(decision_request.direction, getattr(recommendation, 'side', '')))} {decision_request.asset_code}",
+            "title": f"{_direction_label(_non_empty(decision_request.direction, recommendation.side if recommendation else '') or '')} {decision_request.asset_code}",
             "status": status,
             "get_status_display": status_display,
             "description": _non_empty(
                 decision_request.reason,
                 response.approval_reason if response else None,
                 response.rejection_reason if response else None,
-                getattr(recommendation, "human_rationale", None),
+                recommendation.human_rationale if recommendation else None,
             ),
             "rationale": _non_empty(
-                getattr(recommendation, "human_rationale", None),
+                recommendation.human_rationale if recommendation else None,
                 response.approval_reason if response else None,
                 response.rejection_reason if response else None,
                 decision_request.reason,
@@ -148,7 +165,7 @@ def _build_decision_chain(
             "responded_at": _as_iso_datetime(response.responded_at) if response else None,
             "executed_at": _as_iso_datetime(decision_request.executed_at),
             "confidence": _non_empty(
-                _as_float(getattr(recommendation, "confidence", None)),
+                _as_float(recommendation.confidence if recommendation else None),
                 _as_float(decision_request.expected_confidence),
             ),
             "reason_codes": reason_codes,
@@ -174,70 +191,58 @@ def _build_decision_chain(
                 "reason_codes": reason_codes,
                 "confidence": item["confidence"],
                 "regime": _non_empty(
-                    getattr(feature_snapshot, "regime", None),
-                    getattr(recommendation, "regime", None),
+                    feature_snapshot.regime if feature_snapshot else None,
+                    recommendation.regime if recommendation else None,
                 ),
                 "regime_confidence": _non_empty(
-                    _as_float(getattr(feature_snapshot, "regime_confidence", None)),
-                    _as_float(getattr(recommendation, "regime_confidence", None)),
+                    _as_float(feature_snapshot.regime_confidence if feature_snapshot else None),
+                    _as_float(recommendation.regime_confidence if recommendation else None),
                 ),
                 "policy_level": _non_empty(
-                    getattr(feature_snapshot, "policy_level", None),
-                    getattr(recommendation, "policy_level", None),
+                    feature_snapshot.policy_level if feature_snapshot else None,
+                    recommendation.policy_level if recommendation else None,
                 ),
                 "beta_gate_passed": _non_empty(
-                    getattr(feature_snapshot, "beta_gate_passed", None),
-                    getattr(recommendation, "beta_gate_passed", None),
+                    feature_snapshot.beta_gate_passed if feature_snapshot else None,
+                    recommendation.beta_gate_passed if recommendation else None,
                 ),
                 "sentiment_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "sentiment_score", None)),
-                    _as_float(getattr(recommendation, "sentiment_score", None)),
+                    _as_float(feature_snapshot.sentiment_score if feature_snapshot else None),
+                    _as_float(recommendation.sentiment_score if recommendation else None),
                 ),
                 "flow_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "flow_score", None)),
-                    _as_float(getattr(recommendation, "flow_score", None)),
+                    _as_float(feature_snapshot.flow_score if feature_snapshot else None),
+                    _as_float(recommendation.flow_score if recommendation else None),
                 ),
                 "technical_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "technical_score", None)),
-                    _as_float(getattr(recommendation, "technical_score", None)),
+                    _as_float(feature_snapshot.technical_score if feature_snapshot else None),
+                    _as_float(recommendation.technical_score if recommendation else None),
                 ),
                 "fundamental_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "fundamental_score", None)),
-                    _as_float(getattr(recommendation, "fundamental_score", None)),
+                    _as_float(feature_snapshot.fundamental_score if feature_snapshot else None),
+                    _as_float(recommendation.fundamental_score if recommendation else None),
                 ),
                 "alpha_model_score": _non_empty(
-                    _as_float(getattr(feature_snapshot, "alpha_model_score", None)),
-                    _as_float(getattr(recommendation, "alpha_model_score", None)),
+                    _as_float(feature_snapshot.alpha_model_score if feature_snapshot else None),
+                    _as_float(recommendation.alpha_model_score if recommendation else None),
                 ),
                 "entry_price_low": (
-                    _as_float(getattr(recommendation, "entry_price_low", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.entry_price_low) if recommendation else None
                 ),
                 "entry_price_high": (
-                    _as_float(getattr(recommendation, "entry_price_high", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.entry_price_high) if recommendation else None
                 ),
                 "target_price_low": (
-                    _as_float(getattr(recommendation, "target_price_low", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.target_price_low) if recommendation else None
                 ),
                 "target_price_high": (
-                    _as_float(getattr(recommendation, "target_price_high", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.target_price_high) if recommendation else None
                 ),
                 "stop_loss_price": (
-                    _as_float(getattr(recommendation, "stop_loss_price", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.stop_loss_price) if recommendation else None
                 ),
                 "position_pct": (
-                    _as_float(getattr(recommendation, "position_pct", None))
-                    if recommendation
-                    else None
+                    _as_float(recommendation.position_pct) if recommendation else None
                 ),
                 "execution_target": decision_request.execution_target,
                 "execution_status": decision_request.execution_status,
@@ -249,37 +254,37 @@ def _build_decision_chain(
     return decision_items, evidence_items
 
 
-def get_share_link_queryset(owner_id: int):
+def get_share_link_queryset(owner_id: int) -> Iterable[ShareLinkView]:
     """Return owner share links for API listing."""
 
     return _repo().get_share_link_queryset_for_owner(owner_id)
 
 
-def get_share_link_model(share_link_id: int):
+def get_share_link_model(share_link_id: int) -> ShareLinkView | None:
     """Return one share link model by id when available."""
 
     return _repo().get_share_link_by_id(share_link_id)
 
 
-def get_public_share_link_model(short_code: str):
+def get_public_share_link_model(short_code: str) -> ShareLinkView | None:
     """Return one share link model by short code when available."""
 
     return _repo().get_share_link_by_code(short_code)
 
 
-def get_owner_share_link(owner_id: int, share_link_id: int):
+def get_owner_share_link(owner_id: int, share_link_id: int) -> ShareLinkView | None:
     """Return one owner-scoped share link when available."""
 
     return _repo().get_share_link_for_owner(owner_id=owner_id, share_link_id=share_link_id)
 
 
-def list_share_snapshots(share_link_id: int):
+def list_share_snapshots(share_link_id: int) -> Iterable[ShareSnapshotView]:
     """Return snapshots for one share link."""
 
     return _repo().list_share_snapshots(share_link_id=share_link_id)
 
 
-def list_owner_share_accounts(owner_id: int):
+def list_owner_share_accounts(owner_id: int) -> list[ShareOwnedAccountSnapshot]:
     """Return owner accounts for share management views."""
 
     return _repo().list_owner_accounts(owner_id)
@@ -320,7 +325,9 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         account_id=share_link.account_id,
         limit=20,
     )
-    positions_by_code = {position.asset_code: position for position in positions}
+    positions_by_code = {
+        position.asset_code: position for position in positions if position.asset_code
+    }
     asset_codes = {
         asset_code
         for asset_code in [
@@ -410,7 +417,7 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
     if not decision_items:
         for trade in trades[:10]:
             if trade.reason:
-                position = positions_by_code.get(trade.asset_code)
+                fallback_position = positions_by_code.get(trade.asset_code or "")
                 decision_items.append(
                     {
                         "title": f"{'买入' if trade.action == 'buy' else '卖出'} {trade.asset_name or trade.asset_code}",
@@ -421,11 +428,15 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
                         "asset_code": trade.asset_code,
                         "created_at": _as_iso_datetime(trade.execution_time),
                         "execution_status": trade.status,
-                        "invalidation_logic": getattr(position, "invalidation_description", None),
+                        "invalidation_logic": (
+                            fallback_position.invalidation_description
+                            if fallback_position
+                            else None
+                        ),
                     }
                 )
 
-    summary_payload = {
+    summary_payload: dict[str, Any] = {
         "account_name": account.account_name,
         "portfolio_type": _normalize_portfolio_type(account.account_type),
         "current_position": current_position,
@@ -433,7 +444,7 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         "total_assets": total_assets,
         "cash_balance": cash_value,
     }
-    performance_payload = {
+    performance_payload: dict[str, Any] = {
         "total_return": float(account.total_return or 0),
         "annualized_return": float(account.annual_return or 0),
         "max_drawdown": float(account.max_drawdown or 0),
@@ -446,7 +457,7 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         "portfolio_values": [],
         "benchmark_values": [],
     }
-    positions_payload = {
+    positions_payload: dict[str, Any] = {
         "items": position_items,
         "summary": {
             "total_value": market_value,
@@ -458,11 +469,11 @@ def build_share_snapshot_from_account(*, share_link_id: int) -> int | None:
         },
         "position_count": len(position_items),
     }
-    transactions_payload = {
+    transactions_payload: dict[str, Any] = {
         "items": transaction_items,
         "total_trades": account.total_trades,
     }
-    decision_payload = {
+    decision_payload: dict[str, Any] = {
         "items": decision_items,
         "evidence": evidence_items,
     }
@@ -485,7 +496,7 @@ def get_live_share_snapshot(*, share_link_id: int) -> dict[str, Any] | None:
     try:
         build_share_snapshot_from_account(share_link_id=share_link_id)
     except Exception:
-        pass
+        logger.warning("Unable to refresh share snapshot %s", share_link_id, exc_info=True)
     return ShareSnapshotUseCases().get_latest_snapshot(share_link_id)
 
 
@@ -518,7 +529,7 @@ def build_share_manage_context(
     }
 
 
-def get_share_disclaimer_config():
+def get_share_disclaimer_config() -> ShareDisclaimerConfigView:
     """Return the share disclaimer config model."""
 
     return _repo().get_share_disclaimer_config()
@@ -551,7 +562,7 @@ def update_share_disclaimer_config(
     modal_title: str,
     modal_confirm_text: str,
     lines: list[str],
-):
+) -> ShareDisclaimerConfigView:
     """Persist the share disclaimer config."""
 
     return _repo().update_share_disclaimer_config(

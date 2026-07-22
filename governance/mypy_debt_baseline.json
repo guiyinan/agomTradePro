@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7995,
-    "files_with_errors": 890
+    "errors": 7941,
+    "files_with_errors": 889
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3138,15 +3138,6 @@
     "apps/setup_wizard/management/commands/bootstrap_local_env.py": {
       "no-untyped-def": 2
     },
-    "apps/share/application/interface_services.py": {
-      "arg-type": 1,
-      "assignment": 1,
-      "attr-defined": 21,
-      "no-any-return": 1,
-      "no-untyped-call": 15,
-      "no-untyped-def": 12,
-      "var-annotated": 1
-    },
     "apps/share/application/use_cases.py": {
       "type-arg": 8
     },
@@ -3169,7 +3160,7 @@
     "apps/share/interface/views.py": {
       "arg-type": 7,
       "no-any-return": 3,
-      "no-untyped-call": 18,
+      "no-untyped-call": 16,
       "no-untyped-def": 33,
       "type-arg": 5
     },

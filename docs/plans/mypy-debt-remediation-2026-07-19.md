@@ -549,3 +549,14 @@
 
 - Filter use cases 与 provider 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8013 errors / 891 files` 收紧为 `7995 errors / 890 files`，净减少 `18 errors / 1 file`，无错误码反弹。
 - Filter API edge 回归 `8 passed`；架构 delta 扫描 `2 files / 36 added lines / 0 violations`，Ruff、diff check 通过。
+
+## 第四十一批
+
+- 按“公共 Repository 边界 + 真实风险错误码”收口 Share 快照编排：在 consumer-owned Domain 接口中补齐分享链接、免责声明、决策请求、审批响应、推荐和特征快照的只读 Protocol，替换跨 App 查询返回的裸 `object`，不新增 Application 对其他 App Infrastructure 的依赖。
+- 决策链不再通过 `getattr(..., Any)` 读取推荐和特征字段；响应缺失、可空 recommendation、Decimal 价格、异构 JSON payload 和日期序列化都在明确契约内收窄。公共函数返回类型向 Interface 继续传播，连带减少 2 个未类型化调用。
+- 修复两个运行风险：空 `asset_code` 不再成为持仓索引键；实时快照刷新失败保留 best-effort 行为但写入异常日志，不再静默吞掉故障。
+
+## 第四十一批验证结果
+
+- Share interface service 与 Domain interfaces 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7995 errors / 890 files` 收紧为 `7941 errors / 889 files`，净减少 `54 errors / 1 file`，无文件或错误码反弹。
+- Share 页面、快照 Decimal/JSON guardrail 与架构治理回归共 `46 passed`；Black、Ruff、diff check 通过。
