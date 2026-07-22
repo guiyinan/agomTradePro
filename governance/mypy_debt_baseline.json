@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9252,
-    "files_with_errors": 949
+    "errors": 9204,
+    "files_with_errors": 948
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2384,7 +2384,6 @@
     "apps/fund/infrastructure/adapters/hybrid_fund_adapter.py": {
       "assignment": 2,
       "import-untyped": 1,
-      "misc": 4,
       "no-untyped-call": 1,
       "no-untyped-def": 2,
       "type-arg": 1
@@ -4201,17 +4200,8 @@
     },
     "shared/infrastructure/notification_service.py": {
       "assignment": 1,
-      "misc": 1,
       "no-untyped-call": 4,
       "no-untyped-def": 4
-    },
-    "shared/infrastructure/resilience.py": {
-      "attr-defined": 6,
-      "no-any-return": 2,
-      "no-untyped-call": 3,
-      "no-untyped-def": 21,
-      "operator": 1,
-      "type-arg": 10
     },
     "shared/infrastructure/sanitization.py": {
       "no-untyped-def": 3,

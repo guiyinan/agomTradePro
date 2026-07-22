@@ -348,8 +348,9 @@ class EmailNotificationChannel(NotificationChannelInterface):
         Returns:
             NotificationResult: 发送结果
         """
-        # 验证接收者
-        if not self.validate_recipient(recipient):
+        # 验证并收窄可选邮箱，避免在发送路径继续传播 Optional。
+        recipient_email = recipient.email
+        if not recipient_email or not self.validate_recipient(recipient):
             return NotificationResult(
                 success=False,
                 channel=self.get_channel_type(),
@@ -369,7 +370,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
             )
 
         # 检查频率限制
-        rate_limit_key = f"email_rate_limit:{recipient.email}"
+        rate_limit_key = f"email_rate_limit:{recipient_email}"
         if cache.get(rate_limit_key):
             return NotificationResult(
                 success=False,
@@ -390,7 +391,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
 
         for attempt in range(config.max_retries + 1):
             try:
-                self._send_email(subject, body, recipient.email, html_body)
+                self._send_email(subject, body, recipient_email, html_body)
 
                 # 发送成功
                 self._success_count += 1

@@ -12,24 +12,62 @@ import logging
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, Literal, ParamSpec, Protocol, TypedDict, TypeVar, cast
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+
+
+class CachedCallable(Protocol[P, T_co]):
+    """Callable decorated with explicit cache invalidation support."""
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T_co: ...
+
+    def invalidate(self, *args: P.args, **kwargs: P.kwargs) -> None: ...
+
+
+class StatsCallable(Protocol[P, T_co]):
+    """Callable decorated with cache statistics support."""
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T_co: ...
+
+    def get_cache_stats(self) -> dict[str, int]: ...
+
+
+class PreservingDecorator(Protocol):
+    """Decorator whose parameter and return types are inferred at application time."""
+
+    def __call__(self, func: Callable[P, T], /) -> Callable[P, T]: ...
+
+
+class CacheDecorator(Protocol):
+    """Cache decorator whose callable type is inferred at application time."""
+
+    def __call__(self, func: Callable[P, T], /) -> CachedCallable[P, T]: ...
+
+
+class HealthStatus(TypedDict, total=False):
+    """Mutable health snapshot for one data source."""
+
+    last_check: float | None
+    last_success: float | None
+    last_error: str
+    failure_count: int
 
 
 class NetworkError(Exception):
     """网络错误"""
-    pass
 
 
 class DataSourceUnavailable(Exception):
     """数据源不可用"""
-    pass
 
 
 class MaxRetriesExceeded(Exception):
     """超过最大重试次数"""
-    pass
 
 
 def retry_on_error(
@@ -38,8 +76,8 @@ def retry_on_error(
     backoff_factor: float = 2.0,
     max_delay: float = 60.0,
     exceptions: tuple[type[Exception], ...] = (Exception,),
-    on_retry: Callable | None = None
-):
+    on_retry: Callable[[int, Exception], None] | None = None,
+) -> PreservingDecorator:
     """
     重试装饰器 - 指数退避重试
 
@@ -56,23 +94,19 @@ def retry_on_error(
         def fetch_data():
             return api_call()
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             delay = initial_delay
-            last_exception = None
 
             for attempt in range(max_retries + 1):
                 try:
                     return func(*args, **kwargs)
 
                 except exceptions as e:
-                    last_exception = e
-
                     if attempt == max_retries:
-                        logger.error(
-                            f"{func.__name__} failed after {max_retries} retries: {e}"
-                        )
+                        logger.error(f"{func.__name__} failed after {max_retries} retries: {e}")
                         raise MaxRetriesExceeded(
                             f"{func.__name__} 超过最大重试次数 {max_retries}"
                         ) from e
@@ -93,13 +127,14 @@ def retry_on_error(
                     # 指数退避
                     delay *= backoff_factor
 
-            raise last_exception  # type: ignore
+            raise RuntimeError("Retry loop ended unexpectedly")
 
         return wrapper
-    return decorator
+
+    return cast(PreservingDecorator, decorator)
 
 
-def timeout(seconds: float = 30.0):
+def timeout(seconds: float = 30.0) -> PreservingDecorator:
     """
     超时装饰器 - 限制函数执行时间
 
@@ -111,35 +146,45 @@ def timeout(seconds: float = 30.0):
         def fetch_data():
             return slow_api_call()
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             import signal
 
-            def timeout_handler(signum, frame):
+            alarm_signal = getattr(signal, "SIGALRM", None)
+            alarm = getattr(signal, "alarm", None)
+            if alarm_signal is None or not callable(alarm):
+                logger.warning(
+                    "SIGALRM is unavailable; executing %s without signal timeout", func.__name__
+                )
+                return func(*args, **kwargs)
+
+            def timeout_handler(signum: int, frame: Any) -> None:
                 raise TimeoutError(f"{func.__name__} 执行超时 ({seconds}秒)")
 
             # 设置超时信号
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(seconds))
+            old_handler = signal.signal(alarm_signal, timeout_handler)
+            alarm(int(seconds))
 
             try:
                 result = func(*args, **kwargs)
             finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
+                alarm(0)
+                signal.signal(alarm_signal, old_handler)
 
             return result
 
         return wrapper
-    return decorator
+
+    return cast(PreservingDecorator, decorator)
 
 
 def circuit_breaker(
     failure_threshold: int = 5,
     reset_timeout: float = 60.0,
-    exceptions: tuple[type[Exception], ...] = (Exception,)
-):
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+) -> PreservingDecorator:
     """
     熔断器装饰器 - 连续失败时快速失败
 
@@ -153,36 +198,38 @@ def circuit_breaker(
         def fetch_data():
             return api_call()
     """
+
     class CircuitBreakerState:
-        def __init__(self):
-            self.failure_count = 0
-            self.last_failure_time = None
-            self.state = 'closed'  # closed, open, half-open
+        def __init__(self) -> None:
+            self.failure_count: int = 0
+            self.last_failure_time: float | None = None
+            self.state: Literal["closed", "open", "half-open"] = "closed"
 
     state = CircuitBreakerState()
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             now = time.time()
 
             # 检查是否需要重置
-            if state.state == 'open':
-                if now - state.last_failure_time >= reset_timeout:
+            if state.state == "open":
+                if (
+                    state.last_failure_time is None
+                    or now - state.last_failure_time >= reset_timeout
+                ):
                     logger.info(f"{func.__name__} 断路器进入半开状态")
-                    state.state = 'half-open'
+                    state.state = "half-open"
                 else:
-                    raise DataSourceUnavailable(
-                        f"{func.__name__} 断路器打开，服务暂时不可用"
-                    )
+                    raise DataSourceUnavailable(f"{func.__name__} 断路器打开，服务暂时不可用")
 
             try:
                 result = func(*args, **kwargs)
 
                 # 成功，重置失败计数
-                if state.state == 'half-open':
+                if state.state == "half-open":
                     logger.info(f"{func.__name__} 断路器恢复正常")
-                    state.state = 'closed'
+                    state.state = "closed"
 
                 state.failure_count = 0
                 return result
@@ -192,7 +239,7 @@ def circuit_breaker(
                 state.last_failure_time = now
 
                 if state.failure_count >= failure_threshold:
-                    state.state = 'open'
+                    state.state = "open"
                     logger.error(
                         f"{func.__name__} 失败次数达到阈值 {failure_threshold}，"
                         f"断路器打开 {reset_timeout} 秒"
@@ -201,14 +248,15 @@ def circuit_breaker(
                 raise e
 
         return wrapper
-    return decorator
+
+    return cast(PreservingDecorator, decorator)
 
 
 def fallback_to(
-    fallback_func: Callable,
+    fallback_func: Callable[P, T],
     exceptions: tuple[type[Exception], ...] = (Exception,),
-    log_fallback: bool = True
-):
+    log_fallback: bool = True,
+) -> PreservingDecorator:
     """
     降级装饰器 - 失败时使用备用函数
 
@@ -225,30 +273,30 @@ def fallback_to(
         def fetch_data():
             return api_call()
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             try:
                 return func(*args, **kwargs)
 
             except exceptions as e:
                 if log_fallback:
-                    logger.warning(
-                        f"{func.__name__} 失败: {e}, 降级到 {fallback_func.__name__}"
-                    )
+                    logger.warning(f"{func.__name__} 失败: {e}, 降级到 {fallback_func.__name__}")
 
                 return fallback_func(*args, **kwargs)
 
         return wrapper
-    return decorator
+
+    return cast(PreservingDecorator, decorator)
 
 
 class CacheManager:
     """缓存管理器 - 简单的内存缓存实现"""
 
-    def __init__(self):
-        self._cache = {}
-        self._timestamps = {}
+    def __init__(self) -> None:
+        self._cache: dict[str, Any] = {}
+        self._timestamps: dict[str, float] = {}
 
     def get(self, key: str, max_age: float | None = None) -> Any | None:
         """获取缓存
@@ -271,9 +319,9 @@ class CacheManager:
                 del self._timestamps[key]
                 return None
 
-        return self._cache[key]
+        return self._cache.get(key)
 
-    def set(self, key: str, value: Any, ttl: float | None = None):
+    def set(self, key: str, value: Any, ttl: float | None = None) -> None:
         """设置缓存
 
         Args:
@@ -288,11 +336,12 @@ class CacheManager:
         if ttl is not None:
             try:
                 from django.core.cache import cache
+
                 cache.set(key, value, ttl)
             except ImportError:
                 pass
 
-    def delete(self, key: str):
+    def delete(self, key: str) -> None:
         """删除缓存"""
         if key in self._cache:
             del self._cache[key]
@@ -301,17 +350,19 @@ class CacheManager:
 
         try:
             from django.core.cache import cache
+
             cache.delete(key)
         except ImportError:
             pass
 
-    def clear(self):
+    def clear(self) -> None:
         """清空缓存"""
         self._cache.clear()
         self._timestamps.clear()
 
         try:
             from django.core.cache import cache
+
             cache.clear()
         except ImportError:
             pass
@@ -323,9 +374,9 @@ _cache_manager = CacheManager()
 
 def cached(
     ttl: float = 3600,
-    key_func: Callable | None = None,
-    cache_null: bool = False
-):
+    key_func: Callable[P, str] | None = None,
+    cache_null: bool = False,
+) -> CacheDecorator:
     """
     缓存装饰器
 
@@ -343,23 +394,24 @@ def cached(
         def fetch_stock_info(code):
             return api_call(code)
     """
-    def decorator(func: Callable) -> Callable:
+
+    def decorator(func: Callable[P, T]) -> CachedCallable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 生成缓存键
             if key_func:
                 cache_key = key_func(*args, **kwargs)
             else:
                 # 使用函数名和参数生成键
-                args_str = '_'.join(str(a) for a in args)
-                kwargs_str = '_'.join(f"{k}={v}" for k, v in sorted(kwargs.items()))
+                args_str = "_".join(str(a) for a in args)
+                kwargs_str = "_".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
                 cache_key = f"{func.__name__}_{args_str}_{kwargs_str}"
 
             # 尝试从缓存获取
             cached_value = _cache_manager.get(cache_key, max_age=ttl)
             if cached_value is not None:
                 logger.debug(f"{func.__name__} 缓存命中: {cache_key}")
-                return cached_value
+                return cast(T, cached_value)
 
             # 缓存未命中，调用原函数
             result = func(*args, **kwargs)
@@ -371,71 +423,71 @@ def cached(
             return result
 
         # 添加清除缓存方法
-        def invalidate(*args, **kwargs):
+        def invalidate(*args: P.args, **kwargs: P.kwargs) -> None:
             if key_func:
                 cache_key = key_func(*args, **kwargs)
             else:
-                args_str = '_'.join(str(a) for a in args)
-                kwargs_str = '_'.join(f"{k}={v}" for k, v in sorted(kwargs.items()))
+                args_str = "_".join(str(a) for a in args)
+                kwargs_str = "_".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
                 cache_key = f"{func.__name__}_{args_str}_{kwargs_str}"
 
             _cache_manager.delete(cache_key)
 
-        wrapper.invalidate = invalidate
+        typed_wrapper = cast(Any, wrapper)
+        typed_wrapper.invalidate = invalidate
 
-        return wrapper
-    return decorator
+        return cast(CachedCallable[P, T], wrapper)
+
+    return cast(CacheDecorator, decorator)
 
 
-def with_cache_stats(func: Callable) -> Callable:
+def with_cache_stats(func: Callable[P, T]) -> StatsCallable[P, T]:
     """缓存统计装饰器 - 记录缓存命中率"""
-    stats = {'hits': 0, 'misses': 0}
+    stats = {"hits": 0, "misses": 0}
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        stats['misses'] += 1
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        stats["misses"] += 1
         return func(*args, **kwargs)
 
-    wrapper.get_cache_stats = lambda: stats.copy()
-    return wrapper
+    typed_wrapper = cast(Any, wrapper)
+    typed_wrapper.get_cache_stats = lambda: stats.copy()
+    return cast(StatsCallable[P, T], wrapper)
 
 
 class DataSourceHealth:
     """数据源健康状态管理"""
 
-    def __init__(self):
-        self._health = {}  # {source_name: {last_check, last_success, last_error, failure_count}}
+    def __init__(self) -> None:
+        self._health: dict[str, HealthStatus] = {}
         self._threshold = 3  # 连续失败次数阈值
 
-    def record_success(self, source: str):
+    def record_success(self, source: str) -> None:
         """记录成功"""
         if source not in self._health:
             self._health[source] = {}
 
-        self._health[source].update({
-            'last_check': time.time(),
-            'last_success': time.time(),
-            'failure_count': 0
-        })
+        self._health[source].update(
+            {"last_check": time.time(), "last_success": time.time(), "failure_count": 0}
+        )
 
         logger.debug(f"{source} 健康状态: 正常")
 
-    def record_failure(self, source: str, error: str):
+    def record_failure(self, source: str, error: str) -> None:
         """记录失败"""
         if source not in self._health:
-            self._health[source] = {
-                'failure_count': 0
-            }
+            self._health[source] = {"failure_count": 0}
 
-        self._health[source].update({
-            'last_check': time.time(),
-            'last_error': error,
-            'failure_count': self._health[source].get('failure_count', 0) + 1
-        })
+        self._health[source].update(
+            {
+                "last_check": time.time(),
+                "last_error": error,
+                "failure_count": self._health[source].get("failure_count", 0) + 1,
+            }
+        )
 
         logger.warning(
-            f"{source} 健康状态: 异常 "
-            f"(失败次数: {self._health[source]['failure_count']})"
+            f"{source} 健康状态: 异常 " f"(失败次数: {self._health[source]['failure_count']})"
         )
 
     def is_healthy(self, source: str) -> bool:
@@ -443,15 +495,13 @@ class DataSourceHealth:
         if source not in self._health:
             return True  # 未知状态，认为健康
 
-        return self._health[source]['failure_count'] < self._threshold
+        return self._health[source].get("failure_count", 0) < self._threshold
 
-    def get_health_status(self, source: str) -> dict:
+    def get_health_status(self, source: str) -> HealthStatus:
         """获取健康状态详情"""
-        return self._health.get(source, {
-            'failure_count': 0,
-            'last_check': None,
-            'last_success': None
-        })
+        return self._health.get(
+            source, {"failure_count": 0, "last_check": None, "last_success": None}
+        )
 
 
 # 全局健康状态管理器
