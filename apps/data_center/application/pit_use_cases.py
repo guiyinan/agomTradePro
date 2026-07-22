@@ -12,7 +12,15 @@ from apps.data_center.domain.pit import KnowledgeScope, PITDatasetManifest
 class PITManifestGateway(Protocol):
     """Persistence boundary for manifest operations."""
 
-    def build(self, **kwargs: Any) -> PITDatasetManifest:
+    def build(
+        self,
+        *,
+        as_of_time: datetime,
+        knowledge_scope: KnowledgeScope,
+        calendar_version: str,
+        query_spec: dict[str, dict[str, Any]],
+        required_keys: dict[str, list[str]] | None = None,
+    ) -> PITDatasetManifest:
         """Build and persist a manifest."""
 
     def get(self, manifest_id: str) -> PITDatasetManifest | None:

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, cast
 
 from apps.data_center.application.pit_use_cases import (
     BuildPITManifestUseCase,
@@ -41,6 +42,68 @@ from apps.data_center.infrastructure.repositories import (
     SectorMembershipRepository,
     ValuationFactRepository,
 )
+
+__all__ = [
+    "AssetRepository",
+    "CapitalFlowRepository",
+    "DataCenterDiagnosticRepository",
+    "DataProviderSettingsRepository",
+    "FinancialFactRepository",
+    "FundNavRepository",
+    "IndicatorCatalogRepository",
+    "IndicatorUnitRuleRepository",
+    "MacroFactCacheWarmupRepository",
+    "MacroFactRepository",
+    "MacroGovernanceRepository",
+    "MarketThermometerConfigRepository",
+    "MarketThermometerSnapshotRepository",
+    "MarketThermometerUserOverrideRepository",
+    "NewsRepository",
+    "PITManifestRepository",
+    "PriceBarRepository",
+    "ProductionCoverageUniverseConfigRepository",
+    "ProviderConfigRepository",
+    "ProviderRegistry",
+    "PublisherCatalogRepository",
+    "QuoteSnapshotRepository",
+    "RawAuditRepository",
+    "SectorMembershipRepository",
+    "ValuationFactRepository",
+    "build_provider_registry_for_repo",
+    "fetch_akshare_eastmoney_historical_prices",
+    "fetch_tushare_historical_prices",
+    "get_akshare_module",
+    "get_asset_repository",
+    "get_capital_flow_repository",
+    "get_data_center_diagnostic_repository",
+    "get_data_provider_settings_repository",
+    "get_financial_fact_repository",
+    "get_fund_nav_repository",
+    "get_indicator_catalog_repository",
+    "get_indicator_unit_rule_repository",
+    "get_macro_fact_cache_warmup_repository",
+    "get_macro_fact_repository",
+    "get_market_thermometer_config_repository",
+    "get_market_thermometer_snapshot_repository",
+    "get_market_thermometer_user_override_repository",
+    "get_news_repository",
+    "get_price_bar_repository",
+    "get_production_coverage_universe_config_repository",
+    "get_provider_config_repository",
+    "get_provider_registry",
+    "get_publisher_catalog_repository",
+    "get_quote_snapshot_repository",
+    "get_raw_audit_repository",
+    "get_sector_membership_repository",
+    "get_valuation_fact_repository",
+    "list_active_provider_configs",
+    "load_data_provider_settings",
+    "make_build_pit_manifest_use_case",
+    "make_manifest_bound_pit_data_view",
+    "make_query_pit_manifest_use_case",
+    "refresh_provider_registry",
+    "run_data_center_connection_test",
+]
 
 
 def get_macro_fact_repository() -> MacroFactRepository:
@@ -227,12 +290,13 @@ def list_active_provider_configs() -> list[ProviderConfig]:
     return get_provider_config_repository().list_active()
 
 
-def run_data_center_connection_test(*args, **kwargs):
+def run_data_center_connection_test(*args: Any, **kwargs: Any) -> Any:
     """Run a data-center connection test via the infrastructure implementation."""
 
     from apps.data_center.infrastructure.connection_tester import run_connection_test
 
-    return run_connection_test(*args, **kwargs)
+    runner = cast(Callable[..., Any], run_connection_test)
+    return runner(*args, **kwargs)
 
 
 def make_build_pit_manifest_use_case() -> BuildPITManifestUseCase:

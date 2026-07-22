@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7794,
-    "files_with_errors": 884
+    "errors": 7755,
+    "files_with_errors": 882
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -551,7 +551,6 @@
     },
     "apps/alpha/infrastructure/adapters/etf_adapter.py": {
       "arg-type": 2,
-      "attr-defined": 1,
       "misc": 2,
       "no-untyped-def": 4,
       "return-value": 1,
@@ -1333,9 +1332,8 @@
       "no-any-return": 2
     },
     "apps/data_center/application/interface_services.py": {
-      "attr-defined": 21,
       "import-untyped": 1,
-      "no-untyped-call": 15,
+      "no-untyped-call": 14,
       "no-untyped-def": 13,
       "type-arg": 4
     },
@@ -1348,7 +1346,6 @@
     },
     "apps/data_center/application/price_service.py": {
       "arg-type": 6,
-      "attr-defined": 3,
       "no-untyped-def": 3
     },
     "apps/data_center/application/reliability_use_cases.py": {
@@ -1362,17 +1359,11 @@
     "apps/data_center/application/tasks.py": {
       "unused-ignore": 1
     },
-    "apps/data_center/composition.py": {
-      "arg-type": 2,
-      "attr-defined": 1,
-      "no-untyped-def": 1
-    },
     "apps/data_center/domain/rules.py": {
       "arg-type": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_akshare.py": {
       "arg-type": 6,
-      "attr-defined": 5,
       "no-untyped-call": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
@@ -1402,14 +1393,12 @@
     },
     "apps/data_center/infrastructure/gateways/akshare_eastmoney_gateway.py": {
       "arg-type": 1,
-      "attr-defined": 1,
       "import-untyped": 1,
       "no-untyped-def": 3,
       "type-arg": 2
     },
     "apps/data_center/infrastructure/gateways/akshare_general_gateway.py": {
-      "arg-type": 1,
-      "attr-defined": 1
+      "arg-type": 1
     },
     "apps/data_center/infrastructure/gateways/qmt_gateway.py": {
       "arg-type": 1,
@@ -1538,9 +1527,6 @@
     "apps/data_center/infrastructure/provider_state_repositories.py": {
       "no-any-return": 7,
       "no-untyped-call": 10
-    },
-    "apps/data_center/infrastructure/sse_investor_accounts.py": {
-      "attr-defined": 1
     },
     "apps/data_center/interface/admin.py": {
       "no-untyped-def": 4,
@@ -2301,7 +2287,6 @@
     "apps/macro/application/data_management.py": {
       "assignment": 1,
       "no-any-return": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 3
     },
     "apps/macro/application/indicator_service.py": {

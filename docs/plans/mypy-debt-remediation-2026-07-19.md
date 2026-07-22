@@ -583,3 +583,14 @@
 
 - TUI workbench catalog 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7826 errors / 885 files` 收紧为 `7794 errors / 884 files`，净减少 `32 errors / 1 file`，无文件或错误码反弹。
 - TUI workbench、TUI contract、Terminal Agent、SDK client、SSL redirect 固定回归包与架构治理共 `251 passed`；Black、Ruff、diff check 通过。
+
+## 第四十四批
+
+- 修复 Data Center 公共 composition root：以显式 `__all__` 固定 repository、provider registry、SDK bridge、PIT factory 和配置读取 API，替代“导入即隐式导出”的不稳定契约。
+- 类型传播一次清除 Data Center interface service、price service、AKShare provider adapter/网关、ETF adapter、SSE investor accounts 与 Macro data-management 的公共导出和未类型调用债务。
+- PIT Manifest Gateway 的 `build(**kwargs)` 过宽协议改为与真实 repository 一致的 keyword-only 参数契约；连接测试动态实现通过局部 typed callable 收窄，legacy AKShare bridge 使用显式同名导出。
+
+## 第四十四批验证结果
+
+- Data Center composition、PIT use cases 与 legacy SDK bridge 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7794 errors / 884 files` 收紧为 `7755 errors / 882 files`，净减少 `39 errors / 2 files`，无文件或错误码反弹。
+- Data Center use cases、市场网关、PIT research integrity、provider abstraction/adapters 与架构治理回归共 `115 passed`；Black、Ruff、diff check 通过。
