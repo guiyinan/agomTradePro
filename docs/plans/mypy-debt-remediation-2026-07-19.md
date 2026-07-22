@@ -806,3 +806,15 @@
 - Sentiment repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6865 errors / 839 files` 收紧为 `6856 errors / 838 files`，净减少 `9 errors / 1 file`。
 - 目标文件的 `7 assignment + 1 type-arg` 全部清零，并连带清除 Sentiment interface service 1 项 `arg-type`。
 - Sentiment 单元与 Decision Rhythm feature provider 回归共 `56 passed`；新增 UTC-aware index date 断言，Ruff、Black、diff check 通过。
+
+## 第六十三批
+
+- 按“公共 ORM→Domain 转换 + Repository 返回契约”纵向收口 Rotation：两个 `to_domain()` 与全部 ORM `__str__()` 补齐返回类型，JSON asset universe、strategy params、regime allocations 与 momentum periods 在模型边界收窄为领域类型。
+- Rotation Interface Repository 的 QuerySet、template/config、choice、导出行和页面字典全部具化；声明返回 `list` 的 Signal、Momentum、Portfolio 查询现在真正物化列表，不再把 lazy QuerySet 冒充 list。
+- URL/query 中的 account/config 标识在进入关系字段查询前显式转换为整数；非法标识返回空结果，修复原先可能由 Django field conversion 抛出 `ValueError` 并形成 500 的风险。
+
+## 第六十三批验证结果
+
+- Rotation models/repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6856 errors / 838 files` 收紧为 `6799 errors / 836 files`，净减少 `57 errors / 2 files`。
+- Rotation repository 38 项、models 9 项全部清零，并连带让 Application interface service 的 `no-untyped-call` 从 14 项降到 4 项，再减少 10 项公共契约传播债务。
+- Rotation Repository/Integration、分页排序与 API edges 回归共 `31 passed`；新增非法关系过滤器回归，Ruff、Black、diff check 通过。

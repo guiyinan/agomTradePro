@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6856,
-    "files_with_errors": 838
+    "errors": 6799,
+    "files_with_errors": 836
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2713,7 +2713,7 @@
     },
     "apps/rotation/application/interface_services.py": {
       "attr-defined": 2,
-      "no-untyped-call": 14,
+      "no-untyped-call": 4,
       "no-untyped-def": 13,
       "type-arg": 10
     },
@@ -2728,18 +2728,6 @@
     },
     "apps/rotation/apps.py": {
       "no-untyped-def": 1
-    },
-    "apps/rotation/infrastructure/models.py": {
-      "no-untyped-def": 9
-    },
-    "apps/rotation/infrastructure/repositories.py": {
-      "arg-type": 1,
-      "misc": 1,
-      "no-any-return": 3,
-      "no-untyped-call": 10,
-      "no-untyped-def": 13,
-      "return-value": 4,
-      "type-arg": 6
     },
     "apps/rotation/infrastructure/services.py": {
       "attr-defined": 1,

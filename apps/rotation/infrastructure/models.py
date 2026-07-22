@@ -5,66 +5,50 @@ Django ORM models for asset rotation system.
 Follows four-layer architecture.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
 
 from django.db import models
+
+if TYPE_CHECKING:
+    from apps.rotation.domain.entities import AssetClass, RotationConfig
 
 
 class AssetClassModel(models.Model):
     """Asset class table"""
 
-    code = models.CharField(
-        max_length=20,
-        unique=True,
-        db_index=True,
-        verbose_name="资产代码"
-    )
-    name = models.CharField(
-        max_length=100,
-        verbose_name="资产名称"
-    )
+    code = models.CharField(max_length=20, unique=True, db_index=True, verbose_name="资产代码")
+    name = models.CharField(max_length=100, verbose_name="资产名称")
     category = models.CharField(
         max_length=20,
         choices=[
-            ('equity', '股票'),
-            ('bond', '债券'),
-            ('commodity', '商品'),
-            ('currency', '货币'),
-            ('alternative', '另类'),
+            ("equity", "股票"),
+            ("bond", "债券"),
+            ("commodity", "商品"),
+            ("currency", "货币"),
+            ("alternative", "另类"),
         ],
-        verbose_name="资产类别"
+        verbose_name="资产类别",
     )
-    description = models.TextField(
-        blank=True,
-        verbose_name="资产描述"
-    )
-    underlying_index = models.CharField(
-        max_length=50,
-        blank=True,
-        verbose_name="标的指数"
-    )
-    currency = models.CharField(
-        max_length=10,
-        default='CNY',
-        verbose_name="计价货币"
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="是否启用"
-    )
+    description = models.TextField(blank=True, verbose_name="资产描述")
+    underlying_index = models.CharField(max_length=50, blank=True, verbose_name="标的指数")
+    currency = models.CharField(max_length=10, default="CNY", verbose_name="计价货币")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'rotation_asset_class'
-        verbose_name = '资产类别'
-        verbose_name_plural = '资产类别'
-        ordering = ['category', 'code']
+        db_table = "rotation_asset_class"
+        verbose_name = "资产类别"
+        verbose_name_plural = "资产类别"
+        ordering = ["category", "code"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.code} - {self.name}"
 
-    def to_domain(self):
+    def to_domain(self) -> AssetClass:
         """Convert to domain entity"""
         from apps.rotation.domain.entities import AssetCategory, AssetClass
 
@@ -82,111 +66,71 @@ class AssetClassModel(models.Model):
 class RotationConfigModel(models.Model):
     """Rotation configuration table"""
 
-    name = models.CharField(
-        max_length=100,
-        unique=True,
-        verbose_name="配置名称"
-    )
-    description = models.TextField(
-        blank=True,
-        verbose_name="配置描述"
-    )
+    name = models.CharField(max_length=100, unique=True, verbose_name="配置名称")
+    description = models.TextField(blank=True, verbose_name="配置描述")
     strategy_type = models.CharField(
         max_length=50,
         choices=[
-            ('regime_based', '基于象限'),
-            ('momentum', '动量轮动'),
-            ('risk_parity', '风险平价'),
-            ('mean_reversion', '均值回归'),
-            ('custom', '自定义'),
+            ("regime_based", "基于象限"),
+            ("momentum", "动量轮动"),
+            ("risk_parity", "风险平价"),
+            ("mean_reversion", "均值回归"),
+            ("custom", "自定义"),
         ],
-        default='momentum',
-        verbose_name="策略类型"
+        default="momentum",
+        verbose_name="策略类型",
     )
-    asset_universe = models.JSONField(
-        default=list,
-        verbose_name="资产池"
-    )
-    params = models.JSONField(
-        default=dict,
-        verbose_name="策略参数"
-    )
+    asset_universe = models.JSONField(default=list, verbose_name="资产池")
+    params = models.JSONField(default=dict, verbose_name="策略参数")
     rebalance_frequency = models.CharField(
-        max_length=20,
-        default='monthly',
-        verbose_name="调仓频率"
+        max_length=20, default="monthly", verbose_name="调仓频率"
     )
-    min_weight = models.FloatField(
-        default=0.0,
-        verbose_name="最小权重"
-    )
-    max_weight = models.FloatField(
-        default=1.0,
-        verbose_name="最大权重"
-    )
-    max_turnover = models.FloatField(
-        default=1.0,
-        verbose_name="最大换手率"
-    )
-    lookback_period = models.IntegerField(
-        default=252,
-        verbose_name="回溯周期（天）"
-    )
-    regime_allocations = models.JSONField(
-        default=dict,
-        blank=True,
-        verbose_name="象限配置"
-    )
-    momentum_periods = models.JSONField(
-        default=list,
-        verbose_name="动量周期"
-    )
-    top_n = models.IntegerField(
-        default=3,
-        verbose_name="选资产数量"
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="是否启用"
-    )
+    min_weight = models.FloatField(default=0.0, verbose_name="最小权重")
+    max_weight = models.FloatField(default=1.0, verbose_name="最大权重")
+    max_turnover = models.FloatField(default=1.0, verbose_name="最大换手率")
+    lookback_period = models.IntegerField(default=252, verbose_name="回溯周期（天）")
+    regime_allocations = models.JSONField(default=dict, blank=True, verbose_name="象限配置")
+    momentum_periods = models.JSONField(default=list, verbose_name="动量周期")
+    top_n = models.IntegerField(default=3, verbose_name="选资产数量")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'rotation_config'
-        verbose_name = '轮动配置'
-        verbose_name_plural = '轮动配置'
-        ordering = ['-is_active', '-created_at']
+        db_table = "rotation_config"
+        verbose_name = "轮动配置"
+        verbose_name_plural = "轮动配置"
+        ordering = ["-is_active", "-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({'启用' if self.is_active else '未启用'})"
 
-    def to_domain(self):
+    def to_domain(self) -> RotationConfig:
         """Convert to domain entity"""
         from apps.rotation.domain.entities import RotationConfig, RotationStrategyType
 
         strategy_map = {
-            'regime_based': RotationStrategyType.REGIME_BASED,
-            'momentum': RotationStrategyType.MOMENTUM,
-            'risk_parity': RotationStrategyType.RISK_PARITY,
-            'mean_reversion': RotationStrategyType.MEAN_REVERSION,
-            'custom': RotationStrategyType.CUSTOM,
+            "regime_based": RotationStrategyType.REGIME_BASED,
+            "momentum": RotationStrategyType.MOMENTUM,
+            "risk_parity": RotationStrategyType.RISK_PARITY,
+            "mean_reversion": RotationStrategyType.MEAN_REVERSION,
+            "custom": RotationStrategyType.CUSTOM,
         }
 
         return RotationConfig(
             name=self.name,
             description=self.description or "",
             strategy_type=strategy_map.get(self.strategy_type, RotationStrategyType.MOMENTUM),
-            asset_universe=self.asset_universe,
-            params=self.params,
+            asset_universe=cast(list[str], self.asset_universe),
+            params=cast(dict[str, object], self.params),
             rebalance_frequency=self.rebalance_frequency,
             min_weight=self.min_weight,
             max_weight=self.max_weight,
             max_turnover=self.max_turnover,
             lookback_period=self.lookback_period,
-            regime_allocations=self.regime_allocations,
-            momentum_periods=self.momentum_periods or [20, 60, 120, 252],
+            regime_allocations=cast(dict[str, dict[str, float]], self.regime_allocations),
+            momentum_periods=cast(list[int], self.momentum_periods) or [20, 60, 120, 252],
             is_active=self.is_active,
             top_n=self.top_n,
         )
@@ -196,60 +140,31 @@ class RotationSignalModel(models.Model):
     """Rotation signal history table"""
 
     config = models.ForeignKey(
-        RotationConfigModel,
-        on_delete=models.CASCADE,
-        related_name='signals',
-        verbose_name="配置"
+        RotationConfigModel, on_delete=models.CASCADE, related_name="signals", verbose_name="配置"
     )
-    signal_date = models.DateField(
-        db_index=True,
-        verbose_name="信号日期"
-    )
-    target_allocation = models.JSONField(
-        verbose_name="目标配置"
-    )
-    current_regime = models.CharField(
-        max_length=30,
-        blank=True,
-        verbose_name="当前象限"
-    )
-    momentum_ranking = models.JSONField(
-        default=list,
-        blank=True,
-        verbose_name="动量排名"
-    )
-    expected_volatility = models.FloatField(
-        default=0.0,
-        verbose_name="预期波动率"
-    )
-    expected_return = models.FloatField(
-        default=0.0,
-        verbose_name="预期收益"
-    )
-    action_required = models.CharField(
-        max_length=50,
-        default='hold',
-        verbose_name="建议操作"
-    )
-    reason = models.TextField(
-        blank=True,
-        verbose_name="原因说明"
-    )
+    signal_date = models.DateField(db_index=True, verbose_name="信号日期")
+    target_allocation = models.JSONField(verbose_name="目标配置")
+    current_regime = models.CharField(max_length=30, blank=True, verbose_name="当前象限")
+    momentum_ranking = models.JSONField(default=list, blank=True, verbose_name="动量排名")
+    expected_volatility = models.FloatField(default=0.0, verbose_name="预期波动率")
+    expected_return = models.FloatField(default=0.0, verbose_name="预期收益")
+    action_required = models.CharField(max_length=50, default="hold", verbose_name="建议操作")
+    reason = models.TextField(blank=True, verbose_name="原因说明")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'rotation_signal'
-        verbose_name = '轮动信号'
-        verbose_name_plural = '轮动信号'
-        unique_together = [('config', 'signal_date')]
+        db_table = "rotation_signal"
+        verbose_name = "轮动信号"
+        verbose_name_plural = "轮动信号"
+        unique_together = [("config", "signal_date")]
         indexes = [
-            models.Index(fields=['signal_date']),
-            models.Index(fields=['config', 'signal_date']),
+            models.Index(fields=["signal_date"]),
+            models.Index(fields=["config", "signal_date"]),
         ]
-        ordering = ['-signal_date']
+        ordering = ["-signal_date"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.config.name} - {self.signal_date}"
 
 
@@ -259,121 +174,63 @@ class RotationPortfolioModel(models.Model):
     config = models.ForeignKey(
         RotationConfigModel,
         on_delete=models.CASCADE,
-        related_name='portfolios',
-        verbose_name="配置"
+        related_name="portfolios",
+        verbose_name="配置",
     )
-    trade_date = models.DateField(
-        db_index=True,
-        verbose_name="交易日期"
-    )
-    current_allocation = models.JSONField(
-        verbose_name="当前配置"
-    )
-    daily_return = models.FloatField(
-        default=0.0,
-        verbose_name="日收益率"
-    )
-    cumulative_return = models.FloatField(
-        default=0.0,
-        verbose_name="累计收益率"
-    )
-    portfolio_volatility = models.FloatField(
-        default=0.0,
-        verbose_name="组合波动率"
-    )
-    max_drawdown = models.FloatField(
-        default=0.0,
-        verbose_name="最大回撤"
-    )
-    turnover_since_last = models.FloatField(
-        default=0.0,
-        verbose_name="换手率"
-    )
+    trade_date = models.DateField(db_index=True, verbose_name="交易日期")
+    current_allocation = models.JSONField(verbose_name="当前配置")
+    daily_return = models.FloatField(default=0.0, verbose_name="日收益率")
+    cumulative_return = models.FloatField(default=0.0, verbose_name="累计收益率")
+    portfolio_volatility = models.FloatField(default=0.0, verbose_name="组合波动率")
+    max_drawdown = models.FloatField(default=0.0, verbose_name="最大回撤")
+    turnover_since_last = models.FloatField(default=0.0, verbose_name="换手率")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'rotation_portfolio'
-        verbose_name = '轮动组合'
-        verbose_name_plural = '轮动组合'
-        unique_together = [('config', 'trade_date')]
+        db_table = "rotation_portfolio"
+        verbose_name = "轮动组合"
+        verbose_name_plural = "轮动组合"
+        unique_together = [("config", "trade_date")]
         indexes = [
-            models.Index(fields=['config', 'trade_date']),
+            models.Index(fields=["config", "trade_date"]),
         ]
-        ordering = ['-trade_date']
+        ordering = ["-trade_date"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.config.name} - {self.trade_date}"
 
 
 class MomentumScoreModel(models.Model):
     """Momentum score cache table"""
 
-    asset_code = models.CharField(
-        max_length=20,
-        db_index=True,
-        verbose_name="资产代码"
-    )
-    calc_date = models.DateField(
-        db_index=True,
-        verbose_name="计算日期"
-    )
-    momentum_1m = models.FloatField(
-        default=0.0,
-        verbose_name="1月动量"
-    )
-    momentum_3m = models.FloatField(
-        default=0.0,
-        verbose_name="3月动量"
-    )
-    momentum_6m = models.FloatField(
-        default=0.0,
-        verbose_name="6月动量"
-    )
-    momentum_12m = models.FloatField(
-        default=0.0,
-        verbose_name="12月动量"
-    )
-    composite_score = models.FloatField(
-        default=0.0,
-        verbose_name="综合得分"
-    )
-    rank = models.IntegerField(
-        default=0,
-        verbose_name="排名"
-    )
-    sharpe_1m = models.FloatField(
-        default=0.0,
-        verbose_name="1月夏普"
-    )
-    sharpe_3m = models.FloatField(
-        default=0.0,
-        verbose_name="3月夏普"
-    )
-    ma_signal = models.CharField(
-        max_length=20,
-        default='neutral',
-        verbose_name="均线信号"
-    )
-    trend_strength = models.FloatField(
-        default=0.0,
-        verbose_name="趋势强度"
-    )
+    asset_code = models.CharField(max_length=20, db_index=True, verbose_name="资产代码")
+    calc_date = models.DateField(db_index=True, verbose_name="计算日期")
+    momentum_1m = models.FloatField(default=0.0, verbose_name="1月动量")
+    momentum_3m = models.FloatField(default=0.0, verbose_name="3月动量")
+    momentum_6m = models.FloatField(default=0.0, verbose_name="6月动量")
+    momentum_12m = models.FloatField(default=0.0, verbose_name="12月动量")
+    composite_score = models.FloatField(default=0.0, verbose_name="综合得分")
+    rank = models.IntegerField(default=0, verbose_name="排名")
+    sharpe_1m = models.FloatField(default=0.0, verbose_name="1月夏普")
+    sharpe_3m = models.FloatField(default=0.0, verbose_name="3月夏普")
+    ma_signal = models.CharField(max_length=20, default="neutral", verbose_name="均线信号")
+    trend_strength = models.FloatField(default=0.0, verbose_name="趋势强度")
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'rotation_momentum_score'
-        verbose_name = '动量得分'
-        verbose_name_plural = '动量得分'
-        unique_together = [('asset_code', 'calc_date')]
+        db_table = "rotation_momentum_score"
+        verbose_name = "动量得分"
+        verbose_name_plural = "动量得分"
+        unique_together = [("asset_code", "calc_date")]
         indexes = [
-            models.Index(fields=['calc_date', 'rank']),
-            models.Index(fields=['calc_date', 'composite_score']),
+            models.Index(fields=["calc_date", "rank"]),
+            models.Index(fields=["calc_date", "composite_score"]),
         ]
-        ordering = ['-calc_date', '-composite_score']
+        ordering = ["-calc_date", "-composite_score"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.asset_code} - {self.calc_date}"
 
 
@@ -384,24 +241,18 @@ class RotationTemplateModel(models.Model):
     保守/稳健/激进三种模板的象限配置，存储在数据库。
     通过 init_rotation 管理命令初始化，禁止在代码中硬编码权重数据。
     """
-    name = models.CharField(
-        max_length=50,
-        unique=True,
-        verbose_name="模板名称"
-    )
+
+    name = models.CharField(max_length=50, unique=True, verbose_name="模板名称")
     key = models.CharField(
         max_length=20,
         unique=True,
         verbose_name="模板标识",
-        help_text="conservative / moderate / aggressive"
+        help_text="conservative / moderate / aggressive",
     )
     description = models.TextField(blank=True, verbose_name="模板描述")
 
     # 格式：{regime_name: {asset_code: weight(0.0-1.0)}}
-    regime_allocations = models.JSONField(
-        default=dict,
-        verbose_name="象限配置"
-    )
+    regime_allocations = models.JSONField(default=dict, verbose_name="象限配置")
 
     display_order = models.IntegerField(default=0, verbose_name="展示顺序")
     is_active = models.BooleanField(default=True, verbose_name="是否启用")
@@ -410,12 +261,12 @@ class RotationTemplateModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'rotation_template'
-        verbose_name = '轮动预设模板'
-        verbose_name_plural = '轮动预设模板'
-        ordering = ['display_order']
+        db_table = "rotation_template"
+        verbose_name = "轮动预设模板"
+        verbose_name_plural = "轮动预设模板"
+        ordering = ["display_order"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -431,54 +282,48 @@ class PortfolioRotationConfigModel(models.Model):
     - PortfolioRotationConfigModel 是账户实例层（每用户每账户独立）
     - 两者通过 base_config 可选关联，账户可以从模板派生也可以完全自定义
     """
+
     account = models.OneToOneField(
-        'simulated_trading.SimulatedAccountModel',
+        "simulated_trading.SimulatedAccountModel",
         on_delete=models.CASCADE,
-        related_name='rotation_config',
-        verbose_name="投资组合账户"
+        related_name="rotation_config",
+        verbose_name="投资组合账户",
     )
     base_config = models.ForeignKey(
         RotationConfigModel,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='account_instances',
-        verbose_name="基础模板（可选）"
+        related_name="account_instances",
+        verbose_name="基础模板（可选）",
     )
 
     RISK_TOLERANCE_CHOICES = [
-        ('conservative', '保守型'),
-        ('moderate', '稳健型'),
-        ('aggressive', '激进型'),
+        ("conservative", "保守型"),
+        ("moderate", "稳健型"),
+        ("aggressive", "激进型"),
     ]
     risk_tolerance = models.CharField(
-        max_length=20,
-        choices=RISK_TOLERANCE_CHOICES,
-        default='moderate',
-        verbose_name="风险偏好"
+        max_length=20, choices=RISK_TOLERANCE_CHOICES, default="moderate", verbose_name="风险偏好"
     )
 
     # 格式：{regime_name: {asset_code: weight(0.0-1.0)}}
     # 每个象限的权重之和必须为 1.0（后端序列化器验证）
-    regime_allocations = models.JSONField(
-        default=dict,
-        blank=True,
-        verbose_name="象限资产配置"
-    )
+    regime_allocations = models.JSONField(default=dict, blank=True, verbose_name="象限资产配置")
 
     is_enabled = models.BooleanField(
         default=False,
         verbose_name="启用轮动",
-        help_text="启用后，自动交易将根据当前 Regime 使用此配置调仓"
+        help_text="启用后，自动交易将根据当前 Regime 使用此配置调仓",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'portfolio_rotation_config'
-        verbose_name = '账户轮动配置'
-        verbose_name_plural = '账户轮动配置'
+        db_table = "portfolio_rotation_config"
+        verbose_name = "账户轮动配置"
+        verbose_name_plural = "账户轮动配置"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.account.account_name} - {self.risk_tolerance}"

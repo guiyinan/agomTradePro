@@ -5,9 +5,9 @@ Data access layer for rotation module.
 """
 
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, cast
 
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, QuerySet, Subquery
 
 from apps.rotation.domain.entities import (
     AssetClass,
@@ -74,23 +74,26 @@ class AssetClassRepository:
 
         if not base_codes:
             return []
-        return list(
-            AssetClassModel._default_manager.filter(
-                code__in=base_codes,
-                is_active=True,
-            ).values(
-                "code",
-                "name",
-                "category",
-                "currency",
-            )
+        return cast(
+            list[dict[str, Any]],
+            list(
+                AssetClassModel._default_manager.filter(
+                    code__in=base_codes,
+                    is_active=True,
+                ).values(
+                    "code",
+                    "name",
+                    "category",
+                    "currency",
+                )
+            ),
         )
 
 
 class RotationInterfaceRepository:
     """Query helpers used by rotation application services for interface data."""
 
-    ASSET_EXPORT_FIELDS = [
+    ASSET_EXPORT_FIELDS: list[str] = [
         "code",
         "name",
         "category",
@@ -100,29 +103,32 @@ class RotationInterfaceRepository:
         "is_active",
     ]
 
-    def asset_queryset(self):
+    def asset_queryset(self) -> QuerySet[AssetClassModel]:
         """Return the base asset queryset for DRF viewsets."""
         return AssetClassModel._default_manager.all()
 
-    def active_asset_queryset(self):
+    def active_asset_queryset(self) -> QuerySet[AssetClassModel]:
         """Return active assets ordered for template pickers."""
         return AssetClassModel._default_manager.filter(is_active=True).order_by("category", "code")
 
-    def config_queryset(self):
+    def config_queryset(self) -> QuerySet[RotationConfigModel]:
         """Return the base rotation config queryset for DRF viewsets."""
         return RotationConfigModel._default_manager.all()
 
-    def signal_queryset(self):
+    def signal_queryset(self) -> QuerySet[RotationSignalModel]:
         """Return the base rotation signal queryset for DRF viewsets."""
         return RotationSignalModel._default_manager.select_related("config")
 
-    def active_template_queryset(self):
+    def active_template_queryset(self) -> QuerySet[RotationTemplateModel]:
         """Return active template presets."""
         return RotationTemplateModel._default_manager.filter(is_active=True).order_by(
             "display_order"
         )
 
-    def portfolio_config_queryset_for_user(self, user):
+    def portfolio_config_queryset_for_user(
+        self,
+        user: Any,
+    ) -> QuerySet[PortfolioRotationConfigModel]:
         """Return account-level rotation configs visible to a user."""
         return (
             PortfolioRotationConfigModel._default_manager.filter(account__user=user)
@@ -130,18 +136,30 @@ class RotationInterfaceRepository:
             .order_by("account_id", "id")
         )
 
-    def get_portfolio_config_for_account(self, account_id: int | str, user):
+    def get_portfolio_config_for_account(
+        self,
+        account_id: int | str,
+        user: Any,
+    ) -> PortfolioRotationConfigModel | None:
         """Return one account-level rotation config visible to a user."""
-        return self.portfolio_config_queryset_for_user(user).filter(account_id=account_id).first()
+        try:
+            account_pk = int(account_id)
+        except (TypeError, ValueError):
+            return None
+        return self.portfolio_config_queryset_for_user(user).filter(account_id=account_pk).first()
 
-    def get_active_template_by_key(self, template_key: str):
+    def get_active_template_by_key(self, template_key: str) -> RotationTemplateModel | None:
         """Return an active template by key."""
         return RotationTemplateModel._default_manager.filter(
             key=template_key,
             is_active=True,
         ).first()
 
-    def apply_template_to_portfolio_config(self, config, template_key: str):
+    def apply_template_to_portfolio_config(
+        self,
+        config: PortfolioRotationConfigModel,
+        template_key: str,
+    ) -> PortfolioRotationConfigModel | None:
         """Apply a DB-backed preset template to a portfolio rotation config."""
         template = self.get_active_template_by_key(template_key)
         if template is None:
@@ -197,15 +215,15 @@ class RotationInterfaceRepository:
             "total_defaults": len(DEFAULT_ROTATION_ASSETS),
         }
 
-    def preview_default_asset_import(self) -> dict:
+    def preview_default_asset_import(self) -> dict[str, Any]:
         """Return a read-only import plan for the default rotation asset pool."""
         default_codes = [item["code"] for item in DEFAULT_ROTATION_ASSETS]
         existing_assets = {
             asset.code: asset
             for asset in AssetClassModel._default_manager.filter(code__in=default_codes)
         }
-        items = []
-        summary = {
+        items: list[dict[str, Any]] = []
+        summary: dict[str, int] = {
             "created": 0,
             "reactivated": 0,
             "updated": 0,
@@ -256,24 +274,30 @@ class RotationInterfaceRepository:
             "items": items,
         }
 
-    def export_asset_rows(self) -> tuple[list[str], list[dict]]:
+    def export_asset_rows(self) -> tuple[list[str], list[dict[str, Any]]]:
         """Return exportable asset rows and field order."""
-        rows = list(
-            AssetClassModel._default_manager.order_by("category", "code").values(
-                *self.ASSET_EXPORT_FIELDS
-            )
+        rows = cast(
+            list[dict[str, Any]],
+            list(
+                AssetClassModel._default_manager.order_by("category", "code").values(
+                    *self.ASSET_EXPORT_FIELDS
+                )
+            ),
         )
         return self.ASSET_EXPORT_FIELDS, rows
 
-    def get_asset_category_choices(self):
+    def get_asset_category_choices(self) -> list[tuple[str, str]]:
         """Return asset category display choices."""
-        return AssetClassModel._meta.get_field("category").choices
+        return cast(
+            list[tuple[str, str]],
+            AssetClassModel._meta.get_field("category").choices,
+        )
 
-    def get_risk_tolerance_choices(self):
+    def get_risk_tolerance_choices(self) -> list[tuple[str, str]]:
         """Return account-level rotation risk choices."""
         return PortfolioRotationConfigModel.RISK_TOLERANCE_CHOICES
 
-    def list_config_rows(self) -> list[dict]:
+    def list_config_rows(self) -> list[dict[str, Any]]:
         """Return rotation configs as template-friendly dictionaries."""
         models = RotationConfigModel._default_manager.all().order_by(
             "-is_active",
@@ -299,7 +323,7 @@ class RotationInterfaceRepository:
             for model in models
         ]
 
-    def list_active_config_rows(self) -> list[dict]:
+    def list_active_config_rows(self) -> list[dict[str, Any]]:
         """Return active configs as lightweight dictionaries."""
         models = RotationConfigModel._default_manager.filter(is_active=True)
         return [
@@ -319,11 +343,15 @@ class RotationInterfaceRepository:
         action_filter: str = "",
         cutoff_date: date,
         limit: int = 50,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return recent signal rows for the signal history page."""
         queryset = RotationSignalModel._default_manager.select_related("config")
         if config_filter:
-            queryset = queryset.filter(config_id=config_filter)
+            try:
+                config_id = int(config_filter)
+            except ValueError:
+                return []
+            queryset = queryset.filter(config_id=config_id)
         if regime_filter:
             queryset = queryset.filter(current_regime=regime_filter)
         if action_filter:
@@ -348,7 +376,7 @@ class RotationInterfaceRepository:
             for model in signal_models
         ]
 
-    def get_latest_signal_models_for_active_configs(self) -> list:
+    def get_latest_signal_models_for_active_configs(self) -> list[RotationSignalModel]:
         """Return latest persisted signals for each active config."""
         latest_signal_id = (
             RotationSignalModel._default_manager.filter(config_id=OuterRef("config_id"))
@@ -412,7 +440,7 @@ class RotationConfigRepository:
             RotationStrategyType.CUSTOM: "custom",
         }
 
-        model, created = RotationConfigModel._default_manager.update_or_create(
+        model, _ = RotationConfigModel._default_manager.update_or_create(
             name=config.name,
             defaults={
                 "description": config.description,
@@ -464,16 +492,18 @@ class RotationSignalRepository:
         self, config_id: int, start_date: date, end_date: date
     ) -> list[RotationSignalModel]:
         """Get signals for a date range"""
-        return RotationSignalModel._default_manager.filter(
-            config_id=config_id,
-            signal_date__gte=start_date,
-            signal_date__lte=end_date,
-        ).order_by("-signal_date")
+        return list(
+            RotationSignalModel._default_manager.filter(
+                config_id=config_id,
+                signal_date__gte=start_date,
+                signal_date__lte=end_date,
+            ).order_by("-signal_date")
+        )
 
     def get_latest_for_all_configs(self) -> list[RotationSignalModel]:
         """Get latest signal for each active configuration"""
         configs = RotationConfigModel._default_manager.filter(is_active=True)
-        signals = []
+        signals: list[RotationSignalModel] = []
 
         for config in configs:
             latest = self.get_latest_signal(config.id)
@@ -488,7 +518,7 @@ class MomentumScoreRepository:
 
     def save(self, score: MomentumScore) -> MomentumScoreModel:
         """Save momentum score"""
-        model, created = MomentumScoreModel._default_manager.update_or_create(
+        model, _ = MomentumScoreModel._default_manager.update_or_create(
             asset_code=score.asset_code,
             calc_date=score.calc_date,
             defaults={
@@ -515,12 +545,14 @@ class MomentumScoreRepository:
         )
         if asset_code:
             queryset = queryset.filter(asset_code=asset_code)
-        return queryset.order_by("-calc_date", "-composite_score")[:limit]
+        return list(queryset.order_by("-calc_date", "-composite_score")[:limit])
 
     def get_scores_by_date(self, calc_date: date) -> list[MomentumScoreModel]:
         """Get all momentum scores for a specific date"""
-        return MomentumScoreModel._default_manager.filter(calc_date=calc_date).order_by(
-            "-composite_score"
+        return list(
+            MomentumScoreModel._default_manager.filter(calc_date=calc_date).order_by(
+                "-composite_score"
+            )
         )
 
     def get_asset_score(self, asset_code: str, calc_date: date) -> MomentumScoreModel | None:
@@ -538,7 +570,7 @@ class RotationPortfolioRepository:
 
     def save(self, portfolio: RotationPortfolio, config_id: int) -> RotationPortfolioModel:
         """Save rotation portfolio state"""
-        model, created = RotationPortfolioModel._default_manager.update_or_create(
+        model, _ = RotationPortfolioModel._default_manager.update_or_create(
             config_id=config_id,
             trade_date=portfolio.trade_date,
             defaults={
@@ -564,8 +596,10 @@ class RotationPortfolioRepository:
         self, config_id: int, start_date: date, end_date: date
     ) -> list[RotationPortfolioModel]:
         """Get portfolio history for a date range"""
-        return RotationPortfolioModel._default_manager.filter(
-            config_id=config_id,
-            trade_date__gte=start_date,
-            trade_date__lte=end_date,
-        ).order_by("-trade_date")
+        return list(
+            RotationPortfolioModel._default_manager.filter(
+                config_id=config_id,
+                trade_date__gte=start_date,
+                trade_date__lte=end_date,
+            ).order_by("-trade_date")
+        )
