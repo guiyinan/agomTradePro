@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agomtradepro.local/contracts/qmt-agent-v1.schema.json",
+  "title": "AgomTradePro QMT Agent v1 request contracts",
+  "description": "Documentation projection of the broker_execution DRF serializers. Runtime validation remains authoritative.",
+  "type": "object",
+  "$defs": {
+    "contractVersion": {"const": "1.0"},
+    "decimal": {
+      "type": ["string", "number"],
+      "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$"
+    },
+    "heartbeatRequest": {
+      "type": "object",
+      "required": ["contract_version", "qmt_connected", "account_ids", "agent_version"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "qmt_connected": {"type": "boolean"},
+        "account_ids": {"type": "array", "maxItems": 50, "items": {"type": "integer", "minimum": 1}},
+        "agent_version": {"type": "string", "maxLength": 32},
+        "qmt_version": {"type": "string", "maxLength": 64},
+        "dry_run": {"type": "boolean", "default": true},
+        "message": {"type": "string", "maxLength": 500}
+      },
+      "additionalProperties": false
+    },
+    "leaseRequest": {
+      "type": "object",
+      "required": ["contract_version"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
+        "lease_seconds": {"type": "integer", "minimum": 10, "maximum": 120, "default": 30}
+      },
+      "additionalProperties": false
+    },
+    "submittingRequest": {
+      "type": "object",
+      "required": ["contract_version", "client_order_id", "lease_token"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "client_order_id": {"type": "string", "format": "uuid"},
+        "lease_token": {"type": "string", "maxLength": 256}
+      },
+      "additionalProperties": false
+    },
+    "fill": {
+      "type": "object",
+      "required": ["broker_trade_id", "quantity", "price", "occurred_at"],
+      "properties": {
+        "broker_account_ref": {"type": "string", "maxLength": 128},
+        "broker_trade_id": {"type": "string", "maxLength": 128},
+        "quantity": {"$ref": "#/$defs/decimal"},
+        "price": {"$ref": "#/$defs/decimal"},
+        "occurred_at": {"type": "string", "format": "date-time"},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["event_id", "client_order_id", "event_type", "occurred_at"],
+      "properties": {
+        "event_id": {"type": "string", "maxLength": 96},
+        "client_order_id": {"type": "string", "format": "uuid"},
+        "event_type": {"type": "string", "maxLength": 64},
+        "status": {"type": "string", "maxLength": 32},
+        "occurred_at": {"type": "string", "format": "date-time"},
+        "broker_order_id": {"type": "string", "maxLength": 128},
+        "payload": {"type": "object"},
+        "fill": {"$ref": "#/$defs/fill"}
+      },
+      "additionalProperties": false
+    },
+    "eventsRequest": {
+      "type": "object",
+      "required": ["contract_version", "events"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "events": {"type": "array", "minItems": 1, "maxItems": 200, "items": {"$ref": "#/$defs/event"}}
+      },
+      "additionalProperties": false
+    },
+    "position": {
+      "type": "object",
+      "required": ["asset_code", "quantity", "available_quantity"],
+      "properties": {
+        "asset_code": {"type": "string", "maxLength": 32},
+        "quantity": {"$ref": "#/$defs/decimal"},
+        "available_quantity": {"$ref": "#/$defs/decimal"},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "snapshotOrder": {
+      "type": "object",
+      "required": ["broker_order_id", "asset_code", "side", "quantity", "status"],
+      "properties": {
+        "broker_order_id": {"type": "string", "maxLength": 128},
+        "client_order_id": {"type": "string", "maxLength": 128},
+        "asset_code": {"type": "string", "maxLength": 32},
+        "side": {"type": "string", "maxLength": 8},
+        "quantity": {"$ref": "#/$defs/decimal"},
+        "traded_quantity": {"$ref": "#/$defs/decimal"},
+        "limit_price": {"$ref": "#/$defs/decimal"},
+        "status": {"type": "string", "maxLength": 32}
+      },
+      "additionalProperties": false
+    },
+    "snapshotTrade": {
+      "type": "object",
+      "required": ["broker_trade_id", "broker_order_id", "asset_code", "quantity", "price"],
+      "properties": {
+        "broker_trade_id": {"type": "string", "maxLength": 128},
+        "broker_order_id": {"type": "string", "maxLength": 128},
+        "client_order_id": {"type": "string", "maxLength": 128},
+        "asset_code": {"type": "string", "maxLength": 32},
+        "quantity": {"$ref": "#/$defs/decimal"},
+        "price": {"$ref": "#/$defs/decimal"},
+        "occurred_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "snapshotRequest": {
+      "type": "object",
+      "required": ["contract_version", "account_id", "captured_at", "cash_available", "total_asset", "positions"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "account_id": {"type": "integer", "minimum": 1},
+        "captured_at": {"type": "string", "format": "date-time"},
+        "cash_available": {"$ref": "#/$defs/decimal"},
+        "total_asset": {"$ref": "#/$defs/decimal"},
+        "positions": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/position"}},
+        "orders": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/snapshotOrder"}},
+        "trades": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/snapshotTrade"}},
+        "payload": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "commandLeaseRequest": {
+      "type": "object",
+      "required": ["contract_version"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}
+      },
+      "additionalProperties": false
+    },
+    "commandCompleteRequest": {
+      "type": "object",
+      "required": ["contract_version", "command_id", "success"],
+      "properties": {
+        "contract_version": {"$ref": "#/$defs/contractVersion"},
+        "command_id": {"type": "string", "format": "uuid"},
+        "success": {"type": "boolean"},
+        "result": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
