@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
+from apps.account.domain.interfaces import StopLossNotificationPort
+from apps.account.domain.transaction_cost_contracts import (
+    AssetMetadataLookupProtocol,
+    TransactionCostConfigRepositoryProtocol,
+    TransactionCostRepositoryProtocol,
+)
 from apps.account.infrastructure.providers import (
     AccountClassificationRepository,
     AccountDiagnosticRepository,
@@ -23,6 +29,21 @@ from apps.account.infrastructure.providers import (
     TransactionCostConfigRepository,
     TransactionRepository,
 )
+
+if TYPE_CHECKING:
+    from django.core.mail.backends.base import BaseEmailBackend
+
+    from apps.account.infrastructure.backup_service import GeneratedBackup
+    from apps.account.infrastructure.broker_import_parser import BrokerTradeFileParser
+    from apps.account.infrastructure.market_price_service import MarketPriceService
+
+
+class BackupPackageDescription(TypedDict):
+    """Public metadata describing a generated backup package."""
+
+    format: str
+    extension: str
+    magic: str
 
 
 def get_account_read_repository() -> AccountReadRepository:
@@ -79,7 +100,27 @@ def get_manual_trade_sync_repository() -> ManualTradeSyncRepository:
     return ManualTradeSyncRepository()
 
 
-def build_broker_trade_file_parser():
+def get_asset_metadata_repository() -> AssetMetadataLookupProtocol:
+    """Return the asset metadata lookup repository."""
+
+    return cast(AssetMetadataLookupProtocol, AssetMetadataRepository())
+
+
+def get_transaction_cost_config_repository() -> TransactionCostConfigRepositoryProtocol:
+    """Return the transaction-cost configuration repository."""
+
+    return cast(
+        TransactionCostConfigRepositoryProtocol, TransactionCostConfigRepository()
+    )
+
+
+def get_transaction_cost_repository() -> TransactionCostRepositoryProtocol:
+    """Return the transaction-cost read/write repository."""
+
+    return cast(TransactionCostRepositoryProtocol, TransactionRepository())
+
+
+def build_broker_trade_file_parser() -> BrokerTradeFileParser:
     """Build the default broker trade file parser lazily."""
 
     from apps.account.infrastructure.broker_import_parser import BrokerTradeFileParser
@@ -87,7 +128,7 @@ def build_broker_trade_file_parser():
     return BrokerTradeFileParser()
 
 
-def build_market_price_service() -> Any:
+def build_market_price_service() -> MarketPriceService:
     """Build the default market price service lazily."""
 
     from apps.account.infrastructure.market_price_service import MarketPriceService
@@ -95,14 +136,14 @@ def build_market_price_service() -> Any:
     return MarketPriceService()
 
 
-def build_in_memory_stop_loss_notification_service():
+def build_in_memory_stop_loss_notification_service() -> StopLossNotificationPort:
     """Build the default in-memory stop-loss notification service lazily."""
 
     from apps.account.infrastructure.notification_service import (
         InMemoryStopLossNotificationService,
     )
 
-    return InMemoryStopLossNotificationService()
+    return cast(StopLossNotificationPort, InMemoryStopLossNotificationService())
 
 
 def build_backup_download_url(token: str) -> str:
@@ -113,15 +154,15 @@ def build_backup_download_url(token: str) -> str:
     return _impl(token)
 
 
-def describe_backup_package() -> dict:
+def describe_backup_package() -> BackupPackageDescription:
     """Describe the backup package lazily."""
 
     from apps.account.infrastructure.backup_service import describe_backup_package as _impl
 
-    return _impl()
+    return cast(BackupPackageDescription, _impl())
 
 
-def generate_download_token(config) -> str:
+def generate_download_token(config: Any) -> str:
     """Generate a backup download token lazily."""
 
     from apps.account.infrastructure.backup_service import generate_download_token as _impl
@@ -129,7 +170,7 @@ def generate_download_token(config) -> str:
     return _impl(config)
 
 
-def generate_backup_archive(config):
+def generate_backup_archive(config: Any) -> GeneratedBackup:
     """Generate the backup archive lazily."""
 
     from apps.account.infrastructure.backup_service import generate_backup_archive as _impl
@@ -137,12 +178,12 @@ def generate_backup_archive(config):
     return _impl(config)
 
 
-def get_backup_email_connection(config):
+def get_backup_email_connection(config: Any) -> BaseEmailBackend:
     """Build the backup email connection lazily."""
 
     from apps.account.infrastructure.backup_service import get_backup_email_connection as _impl
 
-    return _impl(config)
+    return cast("BaseEmailBackend", _impl(config))
 
 
 __all__ = [
@@ -175,8 +216,11 @@ __all__ = [
     "get_account_interface_repository",
     "get_account_position_repository",
     "get_account_repository",
+    "get_asset_metadata_repository",
     "get_backup_email_connection",
     "get_portfolio_repository",
     "get_portfolio_api_repository",
     "get_manual_trade_sync_repository",
+    "get_transaction_cost_config_repository",
+    "get_transaction_cost_repository",
 ]

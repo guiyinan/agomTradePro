@@ -388,3 +388,15 @@
 
 - Simple Alpha adapter 的真实风险错误归零；全仓基线从 `8488 errors / 923 files` 收紧为 `8456 errors / 923 files`，净减少 `32 errors`，无文件或错误码反弹。
 - Simple Adapter、Alpha cache fallback 与 Alpha provider 回归：`36 passed`；Ruff 通过。
+
+## 第二十七批
+
+- 按真实风险与公共边界杠杆收口 Account 交易成本链路：新增 `TypedDict + Protocol` 契约统一资产元数据、费率配置、交易成本记录和高成本分析结果，Application 用例改为通过 provider factory 注入，不再直接依赖 concrete repository。
+- 强类型传播暴露并修复两个真实运行缺陷：历史分析代码把映射记录误写成 `t.notional`，会在有交易数据时触发 `AttributeError`；平均成本率跳过零金额交易却仍以全部交易数为分母，会系统性低估结果。无效交易方向现在也会被明确拒绝，不再静默按卖出计税。
+- Infrastructure repository 在 ORM 出口把 FloatField 费率显式归一化为 `Decimal(str(value))`，避免金额计算重新引入二进制浮点误差；交易记录和资产元数据出口改为精确 TypedDict。
+- 补齐公共 Account repository provider 的 parser、行情、通知、备份与 repository factory 返回契约，并清理 ORM 插件已能推断出的冗余 cast/失效 ignore；类型传播连带清除 Manual Trade Sync、Stop Loss 和 Account Task 调用侧债务。
+
+## 第二十七批验证结果
+
+- 6 个变更生产文件通过增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8456 errors / 923 files` 收紧为 `8412 errors / 919 files`，净减少 `44 errors / 4 files`，无文件或错误码反弹。
+- Transaction Cost、Manual Trade Sync、Stop Loss 与 DB Backup 回归：`19 passed`；架构 guardrail：`19 passed`；Django system check、Ruff 通过。

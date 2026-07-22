@@ -1,15 +1,15 @@
 """Compatibility exports plus focused transaction, risk, and settings repositories."""
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, cast
 
-from django.db import transaction  # type: ignore[import-untyped]
-from django.db.models import Q  # type: ignore[import-untyped]
-from django.db.utils import OperationalError, ProgrammingError  # type: ignore[import-untyped]
-from django.utils import timezone  # type: ignore[import-untyped]
+from django.db import transaction
+from django.db.models import Q
+from django.db.utils import OperationalError, ProgrammingError
+from django.utils import timezone
 
 from apps.account.domain.entities import (
     DrawdownTier,
@@ -18,6 +18,11 @@ from apps.account.domain.entities import (
     PulseTier,
     RegimeTier,
     Transaction,
+)
+from apps.account.domain.transaction_cost_contracts import (
+    AssetMetadataRecord,
+    TransactionCostConfigRecord,
+    TransactionCostRecord,
 )
 from apps.account.infrastructure.account_interface_repository import (
     AccountInterfaceRepository as AccountInterfaceRepository,
@@ -88,7 +93,9 @@ class TransactionRepository:
             )
         return transactions
 
-    def get_transaction_cost_record(self, transaction_id: int) -> dict[str, Any] | None:
+    def get_transaction_cost_record(
+        self, transaction_id: int
+    ) -> TransactionCostRecord | None:
         """获取交易成本分析所需的交易明细。"""
         try:
             model = TransactionModel._default_manager.get(id=transaction_id)
@@ -105,7 +112,7 @@ class TransactionRepository:
         slippage: Decimal | None = None,
         stamp_duty: Decimal | None = None,
         transfer_fee: Decimal | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> TransactionCostRecord | None:
         """更新交易的实际成本并返回最新明细。"""
         try:
             model = TransactionModel._default_manager.get(id=transaction_id)
@@ -143,7 +150,7 @@ class TransactionRepository:
         *,
         portfolio_id: int | None = None,
         since_date: datetime | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[TransactionCostRecord]:
         """列出用户指定时间范围内的交易成本明细。"""
         queryset = TransactionModel._default_manager.filter(portfolio__user_id=user_id)
         if portfolio_id is not None:
@@ -156,7 +163,7 @@ class TransactionRepository:
         ]
 
     @staticmethod
-    def _to_transaction_cost_dict(model: TransactionModel) -> dict[str, Any]:
+    def _to_transaction_cost_dict(model: TransactionModel) -> TransactionCostRecord:
         """转换为交易成本分析用的字典。"""
         return {
             "id": model.id,
@@ -180,8 +187,9 @@ class ManualTradeSyncRepository:
     """Persistence operations for manual broker trade imports."""
 
     def get_owned_portfolio(self, *, user_id: int, portfolio_id: int) -> PortfolioModel | None:
-        result = PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).first()
-        return cast(PortfolioModel | None, result)
+        return PortfolioModel._default_manager.filter(
+            id=portfolio_id, user_id=user_id
+        ).first()
 
     def broker_trade_key_exists(self, broker_trade_key: str) -> bool:
         return bool(
@@ -217,7 +225,7 @@ class ManualTradeSyncRepository:
                 "preview_rows": preview_rows,
             },
         )
-        return cast(BrokerTradeImportBatchModel, batch)
+        return batch
 
     def update_import_batch_result(
         self,
@@ -270,7 +278,7 @@ class ManualTradeSyncRepository:
         raw_payload: dict[str, Any],
         import_batch: BrokerTradeImportBatchModel,
     ) -> TransactionModel:
-        result = TransactionModel._default_manager.create(
+        return TransactionModel._default_manager.create(
             portfolio=portfolio,
             position=position,
             action=action,
@@ -289,7 +297,6 @@ class ManualTradeSyncRepository:
             raw_payload=raw_payload,
             import_batch=import_batch,
         )
-        return cast(TransactionModel, result)
 
     def list_recent_import_batches(
         self, *, user_id: int, limit: int = 20
@@ -443,7 +450,7 @@ class AssetMetadataRepository:
 
         return updated_count
 
-    def get_asset_by_code(self, asset_code: str) -> dict[str, Any] | None:
+    def get_asset_by_code(self, asset_code: str) -> AssetMetadataRecord | None:
         """
         Get asset metadata by code.
 
@@ -753,7 +760,9 @@ class PortfolioSnapshotRepository:
 class TransactionCostConfigRepository:
     """交易成本配置仓储"""
 
-    def get_cost_config(self, market: str, asset_class: str) -> dict[str, Any] | None:
+    def get_cost_config(
+        self, market: str, asset_class: str
+    ) -> TransactionCostConfigRecord | None:
         """
         Get transaction cost configuration for market and asset class.
 
@@ -770,17 +779,19 @@ class TransactionCostConfigRepository:
                 "id": config.id,
                 "market": config.market,
                 "asset_class": config.asset_class,
-                "commission_rate": config.commission_rate,
-                "slippage_rate": config.slippage_rate,
-                "stamp_duty_rate": config.stamp_duty_rate,
-                "transfer_fee_rate": config.transfer_fee_rate,
+                "commission_rate": Decimal(str(config.commission_rate)),
+                "slippage_rate": Decimal(str(config.slippage_rate)),
+                "stamp_duty_rate": Decimal(str(config.stamp_duty_rate)),
+                "transfer_fee_rate": Decimal(str(config.transfer_fee_rate)),
                 "min_commission": config.min_commission,
                 "cost_warning_threshold": config.cost_warning_threshold,
             }
         except TransactionCostConfigModel.DoesNotExist:
             return None
 
-    def get_default_cost_config(self, market: str, asset_class: str) -> dict[str, Any]:
+    def get_default_cost_config(
+        self, market: str, asset_class: str
+    ) -> TransactionCostConfigRecord:
         """
         Get default cost configuration.
 
@@ -805,7 +816,10 @@ class SystemSettingsRepository:
     def get_settings(self) -> SystemSettingsModel:
         """返回系统设置模型实例。"""
 
-        return cast(SystemSettingsModel, SystemSettingsModel.get_settings())
+        get_settings = cast(
+            Callable[[], SystemSettingsModel], SystemSettingsModel.get_settings
+        )
+        return get_settings()
 
     def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """获取运行时资产代理代码。"""
@@ -901,12 +915,11 @@ class MacroSizingConfigRepository:
 
     def _get_active_model(self) -> MacroSizingConfigModel | None:
         try:
-            result = (
+            return (
                 MacroSizingConfigModel._default_manager.filter(is_active=True)
                 .order_by("-version")
                 .first()
             )
-            return cast(MacroSizingConfigModel | None, result)
         except (OperationalError, ProgrammingError):
             logger.warning("MacroSizingConfigModel table unavailable; using default sizing config")
             return None

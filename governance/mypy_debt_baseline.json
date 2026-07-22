@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8456,
-    "files_with_errors": 923
+    "errors": 8412,
+    "files_with_errors": 919
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -19,7 +19,6 @@
     },
     "apps/account/application/manual_trade_sync.py": {
       "no-any-return": 2,
-      "no-untyped-call": 1,
       "no-untyped-def": 4,
       "union-attr": 6
     },
@@ -29,18 +28,12 @@
       "no-untyped-call": 40,
       "no-untyped-def": 7
     },
-    "apps/account/application/repository_provider.py": {
-      "attr-defined": 2,
-      "no-untyped-call": 1,
-      "no-untyped-def": 5,
-      "type-arg": 1
-    },
     "apps/account/application/simulated_trading_gateway.py": {
       "no-any-return": 2
     },
     "apps/account/application/stop_loss_use_cases.py": {
       "no-any-return": 4,
-      "no-untyped-call": 5,
+      "no-untyped-call": 3,
       "no-untyped-def": 6
     },
     "apps/account/application/stress_testing_use_cases.py": {
@@ -51,17 +44,8 @@
     "apps/account/application/tasks.py": {
       "assignment": 6,
       "misc": 4,
-      "no-untyped-call": 1,
       "no-untyped-def": 15,
       "type-arg": 3
-    },
-    "apps/account/application/transaction_cost_use_cases.py": {
-      "arg-type": 9,
-      "assignment": 7,
-      "attr-defined": 1,
-      "no-untyped-def": 2,
-      "operator": 1,
-      "type-arg": 1
     },
     "apps/account/application/use_cases.py": {
       "unused-ignore": 1
@@ -133,9 +117,6 @@
       "no-untyped-def": 1,
       "type-arg": 2
     },
-    "apps/account/infrastructure/portfolio_api_repository.py": {
-      "no-untyped-def": 1
-    },
     "apps/account/infrastructure/portfolio_models.py": {
       "unused-ignore": 10
     },
@@ -148,11 +129,6 @@
       "misc": 1,
       "operator": 1,
       "union-attr": 1
-    },
-    "apps/account/infrastructure/repositories.py": {
-      "no-untyped-call": 1,
-      "redundant-cast": 4,
-      "unused-ignore": 4
     },
     "apps/account/infrastructure/signals.py": {
       "no-untyped-def": 1
