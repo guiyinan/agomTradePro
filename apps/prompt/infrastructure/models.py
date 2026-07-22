@@ -282,6 +282,10 @@ class PromptExecutionLogORM(models.Model):
         blank=True,
         help_text="使用的模型"
     )
+    prompt_version_id = models.CharField(max_length=64, blank=True, db_index=True)
+    output_schema_version = models.CharField(max_length=64, blank=True)
+    eval_baseline_id = models.CharField(max_length=64, blank=True)
+    decision_snapshot_id = models.CharField(max_length=64, blank=True, db_index=True)
 
     # 状态
     status = models.CharField(

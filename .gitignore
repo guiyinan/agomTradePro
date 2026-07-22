@@ -136,3 +136,4 @@ cookies.txt
 *.stackdump
 docs/xiaohongshu-draft-2026-04-24.md
 .playwright-cli/
+/.codex-test-deps

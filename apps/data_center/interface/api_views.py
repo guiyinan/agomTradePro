@@ -93,10 +93,20 @@ from apps.data_center.application.interface_services import (
     save_production_coverage_universe_config_payload,
     save_provider_settings_payload,
 )
+from apps.data_center.application.pit_use_cases import BuildPITManifestRequest
 from apps.data_center.application.query_services import get_active_stock_fact_coverage_payload
 from apps.data_center.application.use_cases import (
     QueryLatestQuoteUseCase,
     RepairDecisionDataReliabilityUseCase,
+)
+from apps.data_center.composition import (
+    make_build_pit_manifest_use_case,
+    make_query_pit_manifest_use_case,
+)
+from apps.data_center.domain.pit import KnowledgeScope
+from apps.data_center.interface.pit_serializers import (
+    BuildPITManifestSerializer,
+    serialize_pit_manifest,
 )
 from apps.data_center.interface.serializers import (
     CapitalFlowQuerySerializer,
@@ -1215,3 +1225,38 @@ def sync_capital_flows(request: Request) -> Response:
     req = SyncCapitalFlowRequest(**serializer.validated_data)
     result = make_sync_capital_flow_use_case().execute(req)
     return Response(result.to_dict())
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def pit_manifest_list_create(request: Request) -> Response:
+    """List PIT manifests or freeze a new evidence set."""
+
+    if request.method == "GET":
+        limit = int(request.query_params.get("limit", 100))
+        manifests = make_query_pit_manifest_use_case().list_recent(limit)
+        return Response({"results": [serialize_pit_manifest(item) for item in manifests]})
+    serializer = BuildPITManifestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    manifest = make_build_pit_manifest_use_case().execute(
+        BuildPITManifestRequest(
+            as_of_time=data["as_of_time"],
+            knowledge_scope=KnowledgeScope(data["knowledge_scope"]),
+            calendar_version=data["calendar_version"],
+            query_spec=data["query_spec"],
+            required_keys=data["required_keys"],
+        )
+    )
+    return Response(serialize_pit_manifest(manifest), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def pit_manifest_detail(request: Request, manifest_id: str) -> Response:
+    """Return one immutable PIT manifest."""
+
+    manifest = make_query_pit_manifest_use_case().get(manifest_id)
+    if manifest is None:
+        return Response({"detail": "Manifest not found."}, status=status.HTTP_404_NOT_FOUND)
+    return Response(serialize_pit_manifest(manifest))

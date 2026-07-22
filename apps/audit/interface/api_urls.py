@@ -9,6 +9,7 @@ from .attribution_report_api_views import (
     GenerateAttributionReportView,
     PreviewAttributionReportView,
 )
+from .forecast_scoreboard_api_views import ForecastScoreboardView
 from .threshold_config_api_views import PreviewThresholdLevelsView, UpdateThresholdLevelsView
 from .validation_api_views import PreviewValidationView, RunValidationView
 
@@ -44,6 +45,7 @@ class AuditApiRootView(APIView):
                     "health": "/api/audit/health/",
                     "failure_counter": "/api/audit/failure-counter/",
                     "metrics": "/api/audit/metrics/",
+                    "forecast_scoreboard": "/api/audit/forecast-scoreboard/",
                 }
             }
         )
@@ -120,4 +122,5 @@ urlpatterns = [
     path("health/", views.AuditHealthCheckView.as_view(), name="audit-health-check"),
     path("failure-counter/", views.AuditFailureCounterView.as_view(), name="audit-failure-counter"),
     path("metrics/", views.AuditMetricsView.as_view(), name="audit-metrics"),
+    path("forecast-scoreboard/", ForecastScoreboardView.as_view(), name="forecast-scoreboard"),
 ]

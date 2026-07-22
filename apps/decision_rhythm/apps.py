@@ -28,6 +28,16 @@ class DecisionRhythmConfig(AppConfig):
         configure_decision_rhythm_global_alert_repository(
             DjangoDecisionRhythmGlobalAlertRepository()
         )
+        from core.integration.research_integrity_registry import (
+            configure_decision_snapshot_getter,
+        )
+
+        from .infrastructure.input_snapshot_repository import (
+            DecisionInputSnapshotRepository,
+        )
+
+        snapshot_repository = DecisionInputSnapshotRepository()
+        configure_decision_snapshot_getter(snapshot_repository.get)
 
         # 导入admin以注册模型
         try:

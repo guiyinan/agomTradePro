@@ -26,11 +26,11 @@ def _json_safe_value(value: Any) -> Any:
     """Convert nested plan snapshots into JSON-safe primitives."""
     if isinstance(value, Decimal):
         return str(value)
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, datetime | date):
         return value.isoformat()
     if isinstance(value, dict):
         return {str(key): _json_safe_value(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set)):
+    if isinstance(value, list | tuple | set):
         return [_json_safe_value(item) for item in value]
     return value
 
@@ -364,13 +364,19 @@ class PortfolioTransitionPlanRepository:
                 "as_of": plan.as_of,
             },
         )
-        return model.to_domain()
+        from .transition_models import transition_model_to_domain
+
+        return transition_model_to_domain(model)
 
     def get_by_id(self, plan_id: str) -> Any | None:
         from .models import PortfolioTransitionPlanModel
 
         try:
-            return PortfolioTransitionPlanModel.objects.get(plan_id=plan_id).to_domain()
+            from .transition_models import transition_model_to_domain
+
+            return transition_model_to_domain(
+                PortfolioTransitionPlanModel.objects.get(plan_id=plan_id)
+            )
         except PortfolioTransitionPlanModel.DoesNotExist:
             return None
 
@@ -382,7 +388,11 @@ class PortfolioTransitionPlanRepository:
             .order_by("-created_at")
             .first()
         )
-        return model.to_domain() if model else None
+        if model is None:
+            return None
+        from .transition_models import transition_model_to_domain
+
+        return transition_model_to_domain(model)
 
     def update_status(
         self,
@@ -401,7 +411,9 @@ class PortfolioTransitionPlanRepository:
         if approval_request_id is not None:
             model.approval_request_id = approval_request_id
         model.save(update_fields=["status", "approval_request_id", "updated_at"])
-        return model.to_domain()
+        from .transition_models import transition_model_to_domain
+
+        return transition_model_to_domain(model)
 
 
 class ExecutionApprovalRequestRepository:

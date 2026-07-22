@@ -11,6 +11,8 @@ Phase 2: Master data (AssetMasterModel, IndicatorCatalogModel) and eight fact ta
 from django.conf import settings
 from django.db import models
 
+from .pit_models import PITDatasetManifestModel, PITFactVersionModel  # noqa: F401
+
 
 class ProviderConfigModel(models.Model):
     """Configurable external data-provider entry.

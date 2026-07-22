@@ -16,6 +16,9 @@ from apps.signal.application.repository_provider import (
     get_user_repository,
 )
 from core.exceptions import BusinessLogicError, DataFetchError
+from core.integration.research_integrity_registry import (
+    record_forecast_evaluation_for_signal,
+)
 from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
@@ -91,7 +94,10 @@ def check_single_signal_invalidation(self, signal_id: int):
 
     try:
         repository = get_signal_repository()
-        service = InvalidationCheckService(signal_repository=repository)
+        service = InvalidationCheckService(
+            signal_repository=repository,
+            forecast_recorder=record_forecast_evaluation_for_signal,
+        )
         result = service.check_signal(signal_id)
 
         if result:

@@ -463,7 +463,7 @@ class ExecutionApprovalRequestModel(models.Model):  # type: ignore[misc]
     )
 
     transition_plan = models.ForeignKey(
-        "PortfolioTransitionPlanModel",
+        "portfolio.PortfolioTransitionPlanModel",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

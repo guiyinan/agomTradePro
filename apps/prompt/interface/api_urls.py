@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
+from .evaluation_api_views import PromptEvaluationView, PromptVersionActivateView
 from .views import (
     AgentExecuteView,
     ChainConfigViewSet,
@@ -39,6 +40,7 @@ class PromptApiRootView(APIView):
                     "chat_providers": "/api/prompt/chat/providers",
                     "chat_models": "/api/prompt/chat/models",
                     "agent_execute": "/api/prompt/agent/execute",
+                    "evaluations": "/api/prompt/evaluations/",
                 }
             }
         )
@@ -53,4 +55,10 @@ urlpatterns = [
     path("chat/providers", ChatProvidersView.as_view(), name="chat-providers"),
     path("chat/models", ChatModelsView.as_view(), name="chat-models"),
     path("agent/execute", AgentExecuteView.as_view(), name="agent-execute"),
+    path("evaluations/", PromptEvaluationView.as_view(), name="prompt-evaluations"),
+    path(
+        "versions/<str:version_id>/activate/",
+        PromptVersionActivateView.as_view(),
+        name="prompt-version-activate",
+    ),
 ]

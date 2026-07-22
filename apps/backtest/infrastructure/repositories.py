@@ -56,6 +56,14 @@ class DjangoBacktestRepository:
             rebalance_frequency=config.rebalance_frequency,
             use_pit_data=config.use_pit_data,
             transaction_cost_bps=config.transaction_cost_bps,
+            data_manifest_id=config.data_manifest_id,
+            pit_coverage=config.pit_coverage,
+            trust_status=config.trust_status,
+            config_hash=config.config_hash,
+            code_commit=config.code_commit,
+            engine_version=config.engine_version,
+            research_trial_id=config.research_trial_id,
+            decision_snapshot_id=config.decision_snapshot_id,
         )
 
     def get_backtest_by_id(self, backtest_id: int) -> BacktestResultModel | None:
@@ -279,6 +287,14 @@ class DjangoBacktestRepository:
             rebalance_frequency=orm_obj.rebalance_frequency,
             use_pit_data=orm_obj.use_pit_data,
             transaction_cost_bps=orm_obj.transaction_cost_bps,
+            trust_status=orm_obj.trust_status,
+            data_manifest_id=orm_obj.data_manifest_id,
+            pit_coverage=dict(orm_obj.pit_coverage or {}),
+            config_hash=orm_obj.config_hash,
+            code_commit=orm_obj.code_commit,
+            engine_version=orm_obj.engine_version,
+            research_trial_id=orm_obj.research_trial_id,
+            decision_snapshot_id=orm_obj.decision_snapshot_id,
         )
 
         # 转换交易记录

@@ -1,7 +1,7 @@
 {
-  "version": "2026-07-20.v13",
-  "description": "Accepted app-import dependency baseline while cycle remediation remains in progress.",
-  "max_app_import_edges": 192,
+  "version": "2026-07-22.v14",
+  "description": "Accepted acyclic app-import baseline after portfolio and research bounded contexts were added.",
+  "max_app_import_edges": 193,
   "max_outbound_modules_per_app": 21,
   "max_inbound_modules_per_app": 23,
   "max_outbound_modules_by_app": {
@@ -28,6 +28,7 @@
     "macro": 3,
     "operational_readiness": 0,
     "policy": 3,
+    "portfolio": 0,
     "prompt": 2,
     "pulse": 1,
     "realtime": 3,
@@ -40,10 +41,11 @@
     "share": 0,
     "signal": 8,
     "simulated_trading": 13,
-    "strategy": 6,
+    "strategy": 7,
     "task_monitor": 1,
     "terminal": 18,
-    "valuation": 3
+    "valuation": 3,
+    "research": 0
   },
   "max_inbound_modules_by_app": {
     "account": 11,
@@ -69,6 +71,7 @@
     "macro": 5,
     "operational_readiness": 1,
     "policy": 12,
+    "portfolio": 1,
     "prompt": 4,
     "pulse": 7,
     "realtime": 6,
@@ -84,7 +87,8 @@
     "strategy": 3,
     "task_monitor": 4,
     "terminal": 0,
-    "valuation": 1
+    "valuation": 1,
+    "research": 0
   },
   "allowed_bidirectional_pairs": [],
   "allowed_cycle_components": []

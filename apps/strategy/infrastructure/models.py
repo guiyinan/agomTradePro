@@ -6,9 +6,9 @@ Infrastructure层:
 - 对应Domain层的实体
 - 包含索引优化和约束
 """
+from django.apps import apps as django_apps
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils import timezone
 
 
 class StrategyModel(models.Model):
@@ -514,6 +514,14 @@ class StrategyParamVersionModel(models.Model):
         db_index=True,
         help_text="同一策略只能有一个激活版本"
     )
+    promotion_decision_id = models.CharField(
+        "研究晋级决策 ID",
+        max_length=64,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="启用研究门禁后必须引用已批准的 research PromotionDecision",
+    )
 
     # 变更说明
     change_description = models.TextField(
@@ -552,75 +560,11 @@ class StrategyParamVersionModel(models.Model):
         return f"{self.strategy.name} 参数版本 v{self.version} ({status})"
 
 
-class OrderIntentModel(models.Model):
-    """订单意图持久化模型（M0/M2 幂等与审计链路）"""
+def __getattr__(name: str):
+    """Resolve the portfolio-owned order intent for legacy imports."""
 
-    intent_id = models.CharField("意图ID", max_length=64, unique=True, db_index=True)
-    idempotency_key = models.CharField("幂等键", max_length=128, unique=True, db_index=True)
+    if name == "OrderIntentModel":
+        return django_apps.get_model("portfolio", "OrderIntentModel")
+    raise AttributeError(name)
 
-    strategy = models.ForeignKey(
-        StrategyModel,
-        on_delete=models.CASCADE,
-        related_name='order_intents',
-        verbose_name="策略"
-    )
-    portfolio = models.ForeignKey(
-        'simulated_trading.SimulatedAccountModel',
-        on_delete=models.CASCADE,
-        related_name='strategy_order_intents',
-        verbose_name="投资组合"
-    )
 
-    symbol = models.CharField("资产代码", max_length=32, db_index=True)
-    side = models.CharField(
-        "方向",
-        max_length=8,
-        choices=[('buy', '买入'), ('sell', '卖出')],
-    )
-    qty = models.PositiveIntegerField("数量")
-    limit_price = models.FloatField("限价", null=True, blank=True)
-    time_in_force = models.CharField(
-        "订单时效",
-        max_length=8,
-        default='day',
-        choices=[('day', 'DAY'), ('gtc', 'GTC'), ('ioc', 'IOC'), ('fok', 'FOK')],
-    )
-    reason = models.TextField("原因", blank=True)
-    status = models.CharField(
-        "状态",
-        max_length=32,
-        default='draft',
-        db_index=True,
-        choices=[
-            ('draft', '草稿'),
-            ('pending_approval', '待审批'),
-            ('approved', '已批准'),
-            ('rejected', '已拒绝'),
-            ('sent', '已发送'),
-            ('partial_filled', '部分成交'),
-            ('filled', '已成交'),
-            ('canceled', '已取消'),
-            ('failed', '失败'),
-        ],
-    )
-
-    decision_json = models.JSONField("决策快照", default=dict)
-    sizing_json = models.JSONField("仓位快照", default=dict)
-    risk_snapshot_json = models.JSONField("风控快照", default=dict)
-
-    created_at = models.DateTimeField("创建时间", default=timezone.now, db_index=True)
-    updated_at = models.DateTimeField("更新时间", auto_now=True)
-
-    class Meta:
-        db_table = 'order_intent'
-        verbose_name = "订单意图"
-        verbose_name_plural = "订单意图"
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['portfolio', 'status']),
-            models.Index(fields=['strategy', '-created_at']),
-            models.Index(fields=['symbol', '-created_at']),
-        ]
-
-    def __str__(self):
-        return f"{self.intent_id} {self.symbol} {self.side} {self.qty} ({self.status})"

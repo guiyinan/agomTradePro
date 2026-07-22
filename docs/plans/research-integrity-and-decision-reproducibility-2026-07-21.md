@@ -314,6 +314,7 @@ HTTP API 放入各 App 的 `interface/api_urls.py`：
 - `/api/decision-rhythm/input-snapshots/`
 - `/api/portfolio/transition-plans/`
 - `/api/research/experiments/` 与 `/trials/`
+- `/api/signal/forecast-ledger/`、`/evaluations/` 与 `/outcome/`
 - `/api/audit/forecast-scoreboard/`
 - `/api/prompts/evaluations/` 与 `/versions/{id}/activate/`
 
@@ -391,3 +392,32 @@ v1 不新增 MCP 写能力；先稳定 canonical API、权限、幂等和审计�
 - PIT 是第一优先级；在 PIT 晋级门禁完成前，现有 Sharpe 等指标只保留展示，不再作为策略激活依据。
 - 无法证明历史发布时间的数据宁可标记 unknown，也不通过固定滞后推造 verified vintage。
 - 兼容入口至少保留一个稳定版本，确认无旧写入后再删除。
+
+## 八、实施状态（2026-07-22）
+
+开发分支：`dev/feat-research-integrity-reproducibility`。
+
+| 阶段 | 状态 | 本阶段交付 |
+|---|---|---|
+| M0 | 已完成 | 责任/迁移盘点及 ADR 0002-0005 已落库，canonical owner 和回滚边界已冻结。 |
+| M1 | 代码完成，待数据源推广 | 已实现追加式双时间事实、不可变 PIT manifest、manifest-bound 查询、回测可信度元数据和 `pit_verified` 硬门禁。真实宏观/财报/成分股/公司行动的 provider 回填仍按数据源逐项推进，缺失项保持 `unknown`。 |
+| M2 | 代码完成，待影子窗口 | 已实现不可变决策输入快照、事件聚合索引、独立 `portfolio` 四层模块、state-only owner 迁移、数据库版本化规划策略、确定性差额/交易约束/审批/执行交接及 strategy 兼容只读入口。客户端不能自行覆盖规划阈值。 |
+| M3 | 已完成 | 已实现实验、trial、切分、指标、multiple-test family、FDR、Deflated Sharpe 和不可变 PromotionDecision；strategy 参数激活可由开关强制验证批准证据。 |
+| M4 | 代码完成，待 PIT 数据版本接线 | 已实现 Forecast Ledger、逐次检查、期后结果、分组记分板及 HTTP API。每日证伪链路会追加全部检查；旧宏观读取无法提供 PIT 版本时明确记录 `legacy_invalidation_source_has_no_pit_version_ids`，不伪造版本证据。 |
+| M5 | 门禁与证据模型完成，待生产 runner | 已实现 Prompt 不可变版本、离线/在线评测证据、预算停止、完整数据集覆盖、激活门禁和 Agent 执行版本/成本/决策快照关联。实际 provider 调用、定时同集回归由生产 evaluation runner 接入 canonical API。 |
+| M6 | 本地切换基础完成 | 五个 feature flag 均已落地且默认关闭；SQLite 全新迁移、架构/模块环检查和本地回归已通过。PostgreSQL migration smoke、生产影子对比及连续稳定窗口必须在部署环境执行。 |
+
+### 已验证
+
+- 新增 PIT、决策快照、portfolio、research、forecast、prompt、backtest 与 API 契约用例通过。
+- 架构边界测试通过；App 依赖图为 41 个模块、193 条边、0 双向依赖、0 环。
+- `manage.py check`、`makemigrations --check --dry-run` 与 SQLite 全新建库迁移通过。
+- Terminal/TUI 固定回归包通过；Agent Runtime/MCP 回归通过。
+- 本次新增/修改 Python 文件的 Ruff 检查通过；核心新增 Domain/Application 的定向 mypy 检查通过。
+
+### 未验证风险与回滚点
+
+- 当前开发环境没有可用 PostgreSQL 实例，因此未执行 PostgreSQL migration smoke；上线前不得跳过。
+- feature flag 尚未在生产开启，也未完成新旧结果的连续影子窗口；任何异常先关闭对应 flag，保留追加式证据表，不删除或回写历史记录。
+- 旧数据源没有可靠发布时间或 PIT 版本映射时继续标记 `unknown`/缺失；不得为提升 coverage 人工填造 verified 时间。
+- Prompt 在线评测需要受控生产 runner 和配置中心预算策略；在 runner 验收前保持 `PROMPT_EVAL_GATE_ENABLED=False`。

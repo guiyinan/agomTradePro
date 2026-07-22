@@ -131,6 +131,12 @@ class DjangoPromptRepository:
         Returns:
             创建后的模板实体
         """
+        from django.conf import settings
+
+        if settings.PROMPT_EVAL_GATE_ENABLED and template.is_active:
+            raise ValueError(
+                "active prompts must be created through immutable version evaluation"
+            )
         # 转换为ORM格式
         placeholders_data = [
             {
@@ -174,6 +180,13 @@ class DjangoPromptRepository:
             orm_obj = self._model.objects.get(id=template_id)
         except self._model.DoesNotExist:
             return None
+
+        from django.conf import settings
+
+        if settings.PROMPT_EVAL_GATE_ENABLED and (orm_obj.is_active or template.is_active):
+            raise ValueError(
+                "active prompts are immutable; create and evaluate a PromptVersion"
+            )
 
         # 转换占位符
         placeholders_data = [

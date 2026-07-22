@@ -12,6 +12,10 @@ from .command_api_views import (
     SubmitDecisionRequestView,
 )
 from .cooldown_api_views import CooldownPeriodViewSet
+from .input_snapshot_api_views import (
+    DecisionInputSnapshotDetailView,
+    DecisionInputSnapshotListCreateView,
+)
 from .quota_api_views import DecisionQuotaViewSet, ResetQuotaView, TrendDataView
 from .recommendation_api_views import (
     ConflictsView,
@@ -87,6 +91,16 @@ urlpatterns = [
         "api/decision-rhythm/submit-batch/", SubmitBatchRequestView.as_view(), name="submit-batch"
     ),
     path("api/decision-rhythm/summary/", GetRhythmSummaryView.as_view(), name="rhythm-summary"),
+    path(
+        "api/decision-rhythm/input-snapshots/",
+        DecisionInputSnapshotListCreateView.as_view(),
+        name="decision-input-snapshot-list",
+    ),
+    path(
+        "api/decision-rhythm/input-snapshots/<str:snapshot_id>/",
+        DecisionInputSnapshotDetailView.as_view(),
+        name="decision-input-snapshot-detail",
+    ),
     path("api/decision-rhythm/reset-quota/", ResetQuotaView.as_view(), name="reset-quota"),
     path("api/decision-rhythm/trend-data/", TrendDataView.as_view(), name="api_trend_data"),
     path("api/decision-workflow/precheck/", PrecheckDecisionView.as_view(), name="precheck"),

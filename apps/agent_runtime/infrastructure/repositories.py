@@ -274,6 +274,33 @@ class AgentProposalRepository:
         started_at,
         completed_at,
     ) -> int:
+        from django.conf import settings
+
+        if settings.DECISION_SNAPSHOT_REQUIRED:
+            snapshot_id = str(execution_output.get("decision_input_snapshot_id") or "")
+            from core.integration.research_integrity_registry import get_decision_snapshot
+
+            snapshot = get_decision_snapshot(snapshot_id) if snapshot_id else None
+            if snapshot is None or snapshot.must_not_use:
+                raise ValueError("agent execution requires a valid decision input snapshot")
+        if settings.PROMPT_EVAL_GATE_ENABLED:
+            required = (
+                "prompt_version_id",
+                "model_version",
+                "output_schema_version",
+                "eval_baseline_id",
+            )
+            missing = [field for field in required if not execution_output.get(field)]
+            if missing:
+                raise ValueError(
+                    f"agent execution lacks prompt evidence: {', '.join(missing)}"
+                )
+            from core.integration.research_integrity_registry import (
+                is_prompt_version_active,
+            )
+
+            if not is_prompt_version_active(execution_output["prompt_version_id"]):
+                raise ValueError("agent execution prompt version is not active")
         model = AgentExecutionRecordModel._default_manager.create(
             request_id=request_id,
             task_id=task_id,
@@ -282,6 +309,15 @@ class AgentProposalRepository:
             execution_output=execution_output,
             started_at=started_at,
             completed_at=completed_at,
+            prompt_version_id=str(execution_output.get("prompt_version_id") or ""),
+            model_version=str(execution_output.get("model_version") or ""),
+            output_schema_version=str(execution_output.get("output_schema_version") or ""),
+            eval_baseline_id=str(execution_output.get("eval_baseline_id") or ""),
+            decision_input_snapshot_id=str(
+                execution_output.get("decision_input_snapshot_id") or ""
+            ),
+            actual_tokens=int(execution_output.get("actual_tokens") or 0),
+            actual_cost=execution_output.get("actual_cost") or 0,
         )
         return model.id
 
@@ -336,6 +372,7 @@ class AgentContextRepository:
             "snapshot_id": snapshot.id,
             "domain": snapshot.domain,
             "generated_at": snapshot.generated_at.isoformat() if snapshot.generated_at else None,
+            "decision_input_snapshot_id": snapshot.decision_input_snapshot_id or None,
         }
 
     def list_task_steps(self, task_id: int) -> list[dict[str, Any]]:

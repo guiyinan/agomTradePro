@@ -7,6 +7,12 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from .forecast_models import (  # noqa: F401
+    ForecastEvaluation,
+    ForecastLedgerEntry,
+    ForecastOutcome,
+)
+
 
 class InvestmentSignalModel(models.Model):
     """投资信号 ORM 模型"""

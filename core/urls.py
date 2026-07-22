@@ -34,10 +34,10 @@ from apps.terminal.interface.api_views import (
     TuiOperatorHomeSectionView,
     TuiOperatorHomeView,
     TuiWorkbenchActionRunView,
+    TuiWorkbenchApiRootView,
     TuiWorkbenchBootstrapView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
-    TuiWorkbenchApiRootView,
     TuiWorkbenchRegistryView,
     TuiWorkbenchScreenView,
 )
@@ -426,6 +426,10 @@ module_patterns = [
         include(("apps.prompt.interface.api_urls", "api_prompt"), namespace="api_prompt"),
     ),
     path(
+        "api/prompts/",
+        include(("apps.prompt.interface.api_urls", "api_prompts"), namespace="api_prompts"),
+    ),
+    path(
         "api/terminal/",
         include(("apps.terminal.interface.api_urls", "api_terminal"), namespace="api_terminal"),
     ),
@@ -530,6 +534,14 @@ module_patterns = [
             ("apps.data_center.interface.api_urls", "api_data_center"),
             namespace="api_data_center",
         ),
+    ),
+    path(
+        "api/portfolio/",
+        include(("apps.portfolio.interface.api_urls", "portfolio"), namespace="api_portfolio"),
+    ),
+    path(
+        "api/research/",
+        include(("apps.research.interface.api_urls", "research"), namespace="api_research"),
     ),
 ]
 
