@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9133,
-    "files_with_errors": 945
+    "errors": 9088,
+    "files_with_errors": 944
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -4153,11 +4153,6 @@
     "shared/infrastructure/django_sdk_transport.py": {
       "attr-defined": 1,
       "no-any-return": 1
-    },
-    "shared/infrastructure/htmx/decorators.py": {
-      "misc": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 42
     },
     "shared/infrastructure/htmx/views.py": {
       "assignment": 2,
