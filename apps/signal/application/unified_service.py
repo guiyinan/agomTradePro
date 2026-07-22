@@ -6,9 +6,11 @@ into a unified signal system.
 """
 
 import logging
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Literal, Protocol, TypedDict, cast
 
+from apps.hedge.domain.entities import HedgeAlert
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.repository_provider import UnifiedSignalRepository
 from core.integration.unified_signal_registry import fetch_alpha_scores, get_factor_service
@@ -27,39 +29,141 @@ RECOVERABLE_UNIFIED_SIGNAL_EXCEPTIONS = (
     ValueError,
 )
 
-# Optional imports for rotation, factor, hedge modules
-try:
-    from apps.rotation.application.integration_service import RotationIntegrationService
+SignalPayload = dict[str, Any]
+SignalCollector = Callable[[date], list[SignalPayload]]
+SignalCountKey = Literal[
+    "regime_signals",
+    "rotation_signals",
+    "factor_signals",
+    "hedge_signals",
+    "alpha_signals",
+]
 
+
+class UnifiedSignalCollectionResult(TypedDict):
+    """Counts and recoverable errors produced by one aggregation run."""
+
+    regime_signals: int
+    rotation_signals: int
+    factor_signals: int
+    hedge_signals: int
+    alpha_signals: int
+    total_signals: int
+    errors: list[str]
+
+
+class AllocationRecommendation(TypedDict):
+    """Typed allocation recommendation for a macro regime."""
+
+    weight: float
+    name: str
+
+
+class AlphaStockScore(Protocol):
+    """Minimum Alpha score shape consumed by Signal."""
+
+    code: str
+    score: float
+    rank: int
+    factors: dict[str, float]
+    source: str
+    confidence: float
+    model_id: str | None
+    model_artifact_hash: str | None
+    asof_date: date | None
+    universe_id: str | None
+
+
+class AlphaScoreResult(Protocol):
+    """Minimum Alpha result shape consumed by Signal."""
+
+    success: bool
+    scores: list[AlphaStockScore]
+    source: str
+    error_message: str | None
+    status: str
+    staleness_days: int | None
+
+
+class AlphaScoreFetcher(Protocol):
+    """Alpha query contract consumed by unified Signal aggregation."""
+
+    def __call__(
+        self,
+        *,
+        universe_id: str,
+        intended_trade_date: date,
+        top_n: int = 10,
+    ) -> AlphaScoreResult: ...
+
+
+class FactorSignalService(Protocol):
+    """Factor operations required by unified Signal aggregation."""
+
+    def get_all_configs(self) -> list[SignalPayload]: ...
+
+    def create_factor_portfolio(
+        self,
+        config_name: str,
+        calc_date: date | None = None,
+    ) -> SignalPayload | None: ...
+
+
+class HedgeSignalService(Protocol):
+    """Hedge operations required by unified Signal aggregation."""
+
+    def monitor_hedge_pairs(self, calc_date: date | None = None) -> list[HedgeAlert]: ...
+
+    def get_all_effectiveness(
+        self,
+        calc_date: date | None = None,
+        *,
+        cache_price_reads: bool = True,
+    ) -> list[SignalPayload]: ...
+
+
+# Optional imports for rotation, factor, hedge modules
+RotationSignalBatchFetcher = Callable[[date], SignalPayload]
+_rotation_signal_batch_fetcher: RotationSignalBatchFetcher | None
+try:
+    from apps.rotation.application.repository_provider import generate_rotation_signals
+
+    _rotation_signal_batch_fetcher = generate_rotation_signals
     ROTATION_AVAILABLE = True
 except ImportError:
+    _rotation_signal_batch_fetcher = None
     ROTATION_AVAILABLE = False
-    RotationIntegrationService = None
 
 FACTOR_AVAILABLE = True
-
+_hedge_service_factory: Callable[[], HedgeSignalService] | None
 try:
-    from apps.hedge.application.integration_service import HedgeIntegrationService
+    from apps.hedge.application.repository_provider import get_hedge_integration_service
 
+    _hedge_service_factory = get_hedge_integration_service
     HEDGE_AVAILABLE = True
 except ImportError:
+    _hedge_service_factory = None
     HEDGE_AVAILABLE = False
-    HedgeIntegrationService = None
 
 
-def fetch_stock_scores(*, universe_id: str, intended_trade_date: date, top_n: int = 10):
+def fetch_stock_scores(
+    *, universe_id: str, intended_trade_date: date, top_n: int = 10
+) -> AlphaScoreResult:
     """Return alpha stock scores through the owning alpha application service."""
-    return fetch_alpha_scores(
-        universe_id=universe_id,
-        intended_trade_date=intended_trade_date,
-        top_n=top_n,
+    return cast(
+        AlphaScoreResult,
+        fetch_alpha_scores(
+            universe_id=universe_id,
+            intended_trade_date=intended_trade_date,
+            top_n=top_n,
+        ),
     )
 
 
-def get_factor_integration_service():
+def get_factor_integration_service() -> FactorSignalService:
     """Return the registered Factor integration service."""
 
-    return get_factor_service()
+    return cast(FactorSignalService, get_factor_service())
 
 
 class UnifiedSignalService:
@@ -69,23 +173,27 @@ class UnifiedSignalService:
     从所有模块收集信号并统一管理。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.unified_repo = UnifiedSignalRepository()
-        self.rotation_service = RotationIntegrationService() if ROTATION_AVAILABLE else None
-        self.factor_service = get_factor_integration_service() if FACTOR_AVAILABLE else None
-        self.hedge_service = HedgeIntegrationService() if HEDGE_AVAILABLE else None
+        self.rotation_signal_fetcher = (
+            _rotation_signal_batch_fetcher if ROTATION_AVAILABLE else None
+        )
+        self.factor_service: FactorSignalService | None = (
+            get_factor_integration_service() if FACTOR_AVAILABLE else None
+        )
+        self.hedge_service: HedgeSignalService | None = (
+            _hedge_service_factory()
+            if HEDGE_AVAILABLE and _hedge_service_factory is not None
+            else None
+        )
         # Alpha service - 延迟导入避免循环依赖
-        self._alpha_service = None
+        self._alpha_service: AlphaScoreFetcher | None = None
 
     @property
-    def alpha_service(self):
+    def alpha_service(self) -> AlphaScoreFetcher:
         """获取 Alpha 服务（延迟初始化）"""
         if self._alpha_service is None:
-            try:
-                self._alpha_service = fetch_stock_scores
-            except ImportError:
-                logger.warning("Alpha 模块不可用")
-                self._alpha_service = False
+            self._alpha_service = fetch_stock_scores
         return self._alpha_service
 
     def _get_current_regime(self, calc_date: date) -> str | None:
@@ -101,8 +209,8 @@ class UnifiedSignalService:
         *,
         module_name: str,
         calc_date: date,
-        collector,
-    ) -> tuple[list[dict], str | None]:
+        collector: SignalCollector,
+    ) -> tuple[list[SignalPayload], str | None]:
         """Collect a module's signals while preserving best-effort aggregation."""
 
         try:
@@ -112,7 +220,9 @@ class UnifiedSignalService:
             logger.error("Error collecting %s signals: %s", module_name, e)
             return [], f"{module_name.capitalize()}: {str(e)}"
 
-    def collect_all_signals(self, calc_date: date = None) -> dict[str, Any]:
+    def collect_all_signals(
+        self, calc_date: date | None = None
+    ) -> UnifiedSignalCollectionResult:
         """
         收集所有模块的信号
 
@@ -125,7 +235,7 @@ class UnifiedSignalService:
         if calc_date is None:
             calc_date = date.today()
 
-        results = {
+        results: UnifiedSignalCollectionResult = {
             "regime_signals": 0,
             "rotation_signals": 0,
             "factor_signals": 0,
@@ -135,7 +245,7 @@ class UnifiedSignalService:
             "errors": [],
         }
 
-        collectors = (
+        collectors: tuple[tuple[str, SignalCountKey, SignalCollector], ...] = (
             ("regime", "regime_signals", self._collect_regime_signals),
             ("rotation", "rotation_signals", self._collect_rotation_signals),
             ("factor", "factor_signals", self._collect_factor_signals),
@@ -162,9 +272,9 @@ class UnifiedSignalService:
 
         return results
 
-    def _collect_regime_signals(self, calc_date: date) -> list[dict]:
+    def _collect_regime_signals(self, calc_date: date) -> list[SignalPayload]:
         """收集 Regime 模块信号"""
-        signals = []
+        signals: list[SignalPayload] = []
         regime = resolve_current_regime(as_of_date=calc_date)
 
         if regime and regime.dominant_regime and regime.dominant_regime != "Unknown":
@@ -210,48 +320,57 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_rotation_signals(self, calc_date: date) -> list[dict]:
+    def _collect_rotation_signals(self, calc_date: date) -> list[SignalPayload]:
         """收集 Rotation 模块信号"""
-        signals = []
-        if self.rotation_service is None:
+        signals: list[SignalPayload] = []
+        if self.rotation_signal_fetcher is None:
             return signals
 
-        # 获取轮动信号
-        configs = self.rotation_service.get_all_configs() or []
+        batch_result = self.rotation_signal_fetcher(calc_date)
+        raw_rotation_signals = batch_result.get("signals", [])
+        if not isinstance(raw_rotation_signals, list):
+            raise TypeError("Rotation signal batch must contain a list of signals")
 
-        for config in configs:
-            if not config.get("is_active"):
+        for signal_result in raw_rotation_signals:
+            if not isinstance(signal_result, dict):
                 continue
 
-            config_name = config["name"]
-            signal_result = self.rotation_service.generate_signal(config_name, calc_date)
+            target_allocation = signal_result.get("target_allocation")
+            if not isinstance(target_allocation, dict):
+                continue
 
-            if signal_result and "target_allocation" in signal_result:
-                target_allocation = signal_result["target_allocation"]
-
-                # 为每个资产生成信号
-                for asset_code, weight in target_allocation.items():
-                    signal = self.unified_repo.create_signal(
-                        signal_date=calc_date,
-                        signal_source="rotation",
-                        signal_type="rebalance",
-                        asset_code=asset_code,
-                        reason=f"{config_name} 轮动信号",
-                        target_weight=weight,
-                        priority=5,
-                        action_required=f"配置权重 {weight:.1%}",
-                        extra_data={
-                            "config_name": config_name,
-                            "strategy_type": config.get("strategy_type"),
-                        },
+            config_name = str(signal_result.get("config_name") or "rotation")
+            for asset_code, raw_weight in target_allocation.items():
+                if not isinstance(asset_code, str) or not isinstance(raw_weight, (int, float)):
+                    logger.warning(
+                        "Skip invalid rotation allocation for %s: %r=%r",
+                        config_name,
+                        asset_code,
+                        raw_weight,
                     )
-                    signals.append(signal)
+                    continue
+                weight = float(raw_weight)
+                signal = self.unified_repo.create_signal(
+                    signal_date=calc_date,
+                    signal_source="rotation",
+                    signal_type="rebalance",
+                    asset_code=asset_code,
+                    reason=f"{config_name} 轮动信号",
+                    target_weight=weight,
+                    priority=5,
+                    action_required=f"配置权重 {weight:.1%}",
+                    extra_data={
+                        "config_name": config_name,
+                        "strategy_type": signal_result.get("strategy_type"),
+                    },
+                )
+                signals.append(signal)
 
         return signals
 
-    def _collect_factor_signals(self, calc_date: date) -> list[dict]:
+    def _collect_factor_signals(self, calc_date: date) -> list[SignalPayload]:
         """收集 Factor 模块信号"""
-        signals = []
+        signals: list[SignalPayload] = []
         if self.factor_service is None:
             return signals
 
@@ -290,9 +409,9 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_hedge_signals(self, calc_date: date) -> list[dict]:
+    def _collect_hedge_signals(self, calc_date: date) -> list[SignalPayload]:
         """收集 Hedge 模块信号"""
-        signals = []
+        signals: list[SignalPayload] = []
         if self.hedge_service is None:
             return signals
 
@@ -324,8 +443,8 @@ class UnifiedSignalService:
         effectiveness_results = self.hedge_service.get_all_effectiveness(calc_date) or []
 
         for result in effectiveness_results:
-            effectiveness = result.get("effectiveness", 0)
-            pair_name = result.get("pair_name", "")
+            effectiveness = float(result.get("effectiveness", 0))
+            pair_name = str(result.get("pair_name", ""))
 
             # 低有效性告警
             if effectiveness < 0.4:
@@ -347,16 +466,9 @@ class UnifiedSignalService:
 
         return signals
 
-    def _collect_alpha_signals(self, calc_date: date) -> list[dict]:
+    def _collect_alpha_signals(self, calc_date: date) -> list[SignalPayload]:
         """收集 Alpha 模块信号"""
-        signals = []
-        # 检查 Alpha 服务是否可用
-        if self.alpha_service is False:
-            logger.debug("Alpha 服务不可用，跳过 Alpha 信号收集")
-            return signals
-
-        if self.alpha_service is None:
-            return signals
+        signals: list[SignalPayload] = []
 
         # 获取 Alpha 评分
         alpha_result = self.alpha_service(
@@ -418,7 +530,9 @@ class UnifiedSignalService:
 
         return signals
 
-    def _get_regime_allocation(self, regime_type: str) -> dict[str, dict]:
+    def _get_regime_allocation(
+        self, regime_type: str
+    ) -> dict[str, AllocationRecommendation]:
         """
         根据宏观象限获取建议配置
 
@@ -428,7 +542,7 @@ class UnifiedSignalService:
         Returns:
             {asset_code: {weight, name}}
         """
-        allocations = {
+        allocations: dict[str, dict[str, AllocationRecommendation]] = {
             "Recovery": {
                 "510300": {"weight": 0.30, "name": "沪深300"},
                 "510500": {"weight": 0.20, "name": "中证500"},
@@ -460,8 +574,11 @@ class UnifiedSignalService:
         return allocations.get(regime_type, {})
 
     def get_unified_signals(
-        self, signal_date: date = None, signal_source: str = None, min_priority: int = 1
-    ) -> list[dict]:
+        self,
+        signal_date: date | None = None,
+        signal_source: str | None = None,
+        min_priority: int = 1,
+    ) -> list[SignalPayload]:
         """
         获取统一信号列表
 
@@ -476,11 +593,20 @@ class UnifiedSignalService:
         if signal_date is None:
             signal_date = date.today()
 
-        return self.unified_repo.get_signals_by_date(
+        signals = self.unified_repo.get_signals_by_date(
             signal_date=signal_date, signal_source=signal_source
         )
+        return [
+            signal
+            for signal in signals
+            if int(signal.get("priority", 0)) >= min_priority
+        ]
 
-    def get_signal_summary(self, start_date: date = None, end_date: date = None) -> dict[str, Any]:
+    def get_signal_summary(
+        self,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> dict[str, Any]:
         """
         获取信号汇总
 

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7755,
-    "files_with_errors": 882
+    "errors": 7720,
+    "files_with_errors": 881
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3149,16 +3149,6 @@
       "type-arg": 2,
       "var-annotated": 1
     },
-    "apps/signal/application/unified_service.py": {
-      "assignment": 7,
-      "attr-defined": 3,
-      "misc": 2,
-      "no-untyped-call": 2,
-      "no-untyped-def": 5,
-      "operator": 1,
-      "type-arg": 8,
-      "var-annotated": 4
-    },
     "apps/signal/application/use_cases.py": {
       "arg-type": 2,
       "attr-defined": 2,
@@ -3219,7 +3209,7 @@
     "apps/signal/interface/views.py": {
       "attr-defined": 2,
       "import-not-found": 1,
-      "no-untyped-call": 5,
+      "no-untyped-call": 2,
       "no-untyped-def": 19,
       "type-arg": 1,
       "var-annotated": 1

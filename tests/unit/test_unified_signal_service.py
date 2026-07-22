@@ -87,3 +87,37 @@ def test_collect_alpha_signals_emits_buy_and_degraded_alert(mocker) -> None:
     assert signals[1]["signal_type"] == "alert"
     assert signals[1]["asset_code"] == "ALPHA_SYSTEM"
     assert signals[1]["extra_data"]["staleness_days"] == 2
+
+
+def test_collect_rotation_signals_uses_application_batch_provider(mocker) -> None:
+    service = _build_service(mocker)
+    calc_date = date(2026, 5, 1)
+    service.unified_repo.create_signal.side_effect = lambda **kwargs: kwargs
+    service.rotation_signal_fetcher = lambda requested_date: {
+        "signal_date": requested_date.isoformat(),
+        "signals": [
+            {
+                "config_name": "cross-asset-momentum",
+                "target_allocation": {"510300": 0.6, "511260": 0.4},
+            }
+        ],
+    }
+
+    signals = service._collect_rotation_signals(calc_date)
+
+    assert [signal["asset_code"] for signal in signals] == ["510300", "511260"]
+    assert signals[0]["target_weight"] == 0.6
+    assert signals[0]["extra_data"]["config_name"] == "cross-asset-momentum"
+
+
+def test_get_unified_signals_applies_minimum_priority(mocker) -> None:
+    service = _build_service(mocker)
+    calc_date = date(2026, 5, 1)
+    service.unified_repo.get_signals_by_date.return_value = [
+        {"id": 1, "priority": 7},
+        {"id": 2, "priority": 3},
+    ]
+
+    signals = service.get_unified_signals(calc_date, min_priority=5)
+
+    assert signals == [{"id": 1, "priority": 7}]

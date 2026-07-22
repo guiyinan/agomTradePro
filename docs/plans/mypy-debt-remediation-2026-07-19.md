@@ -594,3 +594,15 @@
 
 - Data Center composition、PIT use cases 与 legacy SDK bridge 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7794 errors / 884 files` 收紧为 `7755 errors / 882 files`，净减少 `39 errors / 2 files`，无文件或错误码反弹。
 - Data Center use cases、市场网关、PIT research integrity、provider abstraction/adapters 与架构治理回归共 `115 passed`；Black、Ruff、diff check 通过。
+
+## 第四十五批
+
+- 按“真实运行风险 + 聚合服务杠杆”收口 `apps/signal/application/unified_service.py`：以消费方 Protocol 固定 Alpha、Factor、Hedge 的最小契约，以 TypedDict 固定聚合计数和 Regime 配置结构，动态数据只保留在 JSON/第三方边界。
+- 类型检查揭示 Rotation 调用的是不存在的 `get_all_configs()` 与 `generate_signal()`；现改为调用 Rotation Application 已发布的批量生成入口，并对批次、信号、资产代码和权重逐层校验，避免模块启用后持续退化为 best-effort 错误。
+- Alpha 类型不直接导入对方 Domain 实体，而由 Signal 声明最小只读形状；架构门禁曾捕获直接导入引入的 `signal -> alpha` 新依赖和模块环，撤回后恢复为 `199 edges / 0 cycles`，没有用类型治理换取跨 App 耦合。
+- `get_unified_signals(min_priority=...)` 现在实际执行最低优先级过滤，修复参数长期声明但未生效的查询语义缺陷；新增 Rotation 正式入口和优先级过滤回归。
+
+## 第四十五批验证结果
+
+- Signal unified service 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7755 errors / 882 files` 收紧为 `7720 errors / 881 files`，净减少 `35 errors / 1 file`，其中目标文件 32 项全部归零，并连带清除 Signal Interface 的 3 项未类型调用。
+- Unified Signal 单元与 Alpha 全链路集成回归共 `24 passed`；模块依赖门禁 `199 edges / 0 cycles`，全仓架构边界违规为 `0`。完整架构审计仍报告 Realtime repository provider 的 7 条既存审计债务，与本批改动无关；Ruff、diff check 通过。
