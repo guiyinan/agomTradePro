@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6799,
-    "files_with_errors": 836
+    "errors": 6756,
+    "files_with_errors": 835
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1817,11 +1817,6 @@
     },
     "apps/equity/interface/sdk_contract_actions.py": {
       "no-untyped-def": 2
-    },
-    "apps/equity/interface/serializers.py": {
-      "assignment": 5,
-      "no-untyped-def": 2,
-      "type-arg": 36
     },
     "apps/equity/interface/valuation_actions.py": {
       "attr-defined": 1,

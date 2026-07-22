@@ -818,3 +818,15 @@
 - Rotation models/repository 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6856 errors / 838 files` 收紧为 `6799 errors / 836 files`，净减少 `57 errors / 2 files`。
 - Rotation repository 38 项、models 9 项全部清零，并连带让 Application interface service 的 `no-untyped-call` 从 14 项降到 4 项，再减少 10 项公共契约传播债务。
 - Rotation Repository/Integration、分页排序与 API edges 回归共 `31 passed`；新增非法关系过滤器回归，Ruff、Black、diff check 通过。
+
+## 第六十四批
+
+- 按“公共 API 输入输出边界 + 高风险 assignment”收口 Equity serializers：全部 DRF `Serializer` 声明实例泛型，响应 serializer 使用真实 Application Response DTO，输入与 JSON payload 使用字典边界，估值配置 ORM 兼容边界局部保留 `Any`。
+- `source` 与 `errors` 这 5 个 API 字段会与 DRF `Field.source` / `Serializer.errors` 基类属性发生静态覆盖冲突；改由 `get_fields()` 注册，保留外部 JSON 字段名、required/default/allow_null 行为，不使用 `type: ignore`。
+- 首次统一为 `dict` 泛型后，全仓门禁准确拦截 Analysis/Config 调用方新增的 7 项 `arg-type`；随后按真实 DTO/ORM instance 类型修正，证明增量文件归零不能替代全仓传播门禁。
+
+## 第六十四批验证结果
+
+- Equity serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6799 errors / 836 files` 收紧为 `6756 errors / 835 files`，净减少 `43 errors / 1 file`，且跨文件无新增。
+- 目标文件的 `5 assignment + 2 no-untyped-def + 36 type-arg` 全部清零。
+- 保留字段名契约测试 `5 passed`；Equity API、Valuation Repair API 与配置集成回归 `44 passed`；Ruff、Black、diff check 通过。
