@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Any
 
 from django.db import models
@@ -22,23 +23,25 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+Endpoint = tuple[str, str, str, Callable[..., Any]]
 
-class EmptyResponseSerializer(Serializer):
+
+class EmptyResponseSerializer(Serializer[dict[str, object]]):
     """Fallback object schema for APIViews without explicit serializers."""
 
 
-@extend_schema_field(OpenApiTypes.STR)
+@extend_schema_field(OpenApiTypes.STR)  # type: ignore[misc]  # untyped third-party decorator
 def _string_schema_hint(value: Any) -> str:
     """Provide a stable string hint for schema-only serializer method fields."""
     return str(value)
 
 
-def api_only_endpoints_preprocessing_hook(endpoints: list[tuple]) -> list[tuple]:
+def api_only_endpoints_preprocessing_hook(endpoints: list[Endpoint]) -> list[Endpoint]:
     """Keep only canonical /api/ endpoints in the generated OpenAPI schema."""
     return [endpoint for endpoint in endpoints if endpoint[0].startswith("/api/")]
 
 
-class AgomAutoSchema(AutoSchema):
+class AgomAutoSchema(AutoSchema):  # type: ignore[misc]  # drf-spectacular lacks typing
     """Project-specific AutoSchema with better fallbacks for legacy views."""
 
     _INT_PATH_PARAMS = {
@@ -74,7 +77,7 @@ class AgomAutoSchema(AutoSchema):
         method = self.method.lower()
         return f"{normalized}_{method}"
 
-    def _get_serializer(self):  # type: ignore[override]
+    def _get_serializer(self) -> Any:
         """Fallback to a generic object schema instead of dropping APIViews."""
         view = self.view
         context = build_serializer_context(view)
@@ -88,28 +91,38 @@ class AgomAutoSchema(AutoSchema):
                 return view.get_serializer(context=context)
 
             if isinstance(view, APIView):
-                if callable(getattr(view, "get_serializer", None)):
-                    return view.get_serializer(context=context)
-                if callable(getattr(view, "get_serializer_class", None)):
-                    serializer_class = view.get_serializer_class()
+                get_serializer = getattr(view, "get_serializer", None)
+                if callable(get_serializer):
+                    return get_serializer(context=context)
+                get_serializer_class = getattr(view, "get_serializer_class", None)
+                if callable(get_serializer_class):
+                    serializer_class = get_serializer_class()
                     if serializer_class is not None:
                         return serializer_class(context=context)
-                serializer_class = getattr(view, "serializer_class", None)
-                if serializer_class is not None:
-                    return serializer_class() if isinstance(serializer_class, type) else serializer_class
+                serializer_candidate: Any = getattr(view, "serializer_class", None)
+                if serializer_candidate is not None:
+                    return (
+                        serializer_candidate()
+                        if isinstance(serializer_candidate, type)
+                        else serializer_candidate
+                    )
                 return EmptyResponseSerializer
         except Exception:
-            serializer_class = getattr(view, "serializer_class", None)
-            if serializer_class is not None:
+            fallback_serializer: Any = getattr(view, "serializer_class", None)
+            if fallback_serializer is not None:
                 try:
-                    return serializer_class() if isinstance(serializer_class, type) else serializer_class
+                    return (
+                        fallback_serializer()
+                        if isinstance(fallback_serializer, type)
+                        else fallback_serializer
+                    )
                 except Exception:
                     pass
             return EmptyResponseSerializer
 
         return EmptyResponseSerializer
 
-    def _resolve_path_parameters(self, variables):  # type: ignore[override]
+    def _resolve_path_parameters(self, variables: list[str]) -> list[dict[str, Any]]:
         """Infer integer path params more aggressively to avoid string fallbacks."""
         parameters = []
         model = getattr(getattr(self.view, "queryset", None), "model", None)
@@ -137,7 +150,11 @@ class AgomAutoSchema(AutoSchema):
                     )
                     model_field = follow_model_field_lookup(model, model_field_name)
                     schema = self._map_model_field(model_field, direction=None)
-                    if "description" not in schema and isinstance(model_field, models.Field) and model_field.primary_key:
+                    if (
+                        "description" not in schema
+                        and isinstance(model_field, models.Field)
+                        and model_field.primary_key
+                    ):
                         description = f"Primary key of {model._meta.object_name}"
                 except Exception:
                     pass

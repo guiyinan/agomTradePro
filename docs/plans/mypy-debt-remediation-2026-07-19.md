@@ -300,3 +300,14 @@
 
 - 决策漏斗 3 个目标文件联合定向 mypy：`0 errors`；全仓基线从 `8935 errors / 936 files` 收紧为 `8864 errors / 933 files`，净减少 `71 errors / 3 files`，无文件或错误码反弹。
 - Decision context、六步漏斗 E2E、Dashboard Regime 摘要、Regime navigator 与 API 回归：`13 passed`；Django system check、Ruff 通过。
+
+## 第二十批
+
+- 收口 `core/admin_log_views.py` 的管理员日志页面、流式响应、导出响应、debug token/IP 边界和认证装饰器类型契约，清除 13 个历史错误。
+- Debug API 从 `HttpRequest.META` 与动态 settings 读取的值先归一化为字符串；认证装饰器使用 `ParamSpec + Concatenate` 保留被包装视图签名，避免把 header/settings 的 Any 传播到 `hmac.compare_digest`。
+- 收口 `core/schema.py` 的 OpenAPI endpoint tuple、fallback serializer、API view 动态 serializer 和路径参数推断类型，清除 12 个历史错误；仅在 drf-spectacular 确实缺少类型信息的类基座与装饰器各保留一行精确 ignore。
+
+## 第二十批验证结果
+
+- Admin log views 与 OpenAPI schema helper 联合定向 mypy：`0 errors`；全仓基线从 `8864 errors / 933 files` 收紧为 `8839 errors / 931 files`，净减少 `25 errors / 2 files`，无文件或错误码反弹。
+- OpenAPI schema 可访问性与管理员日志页面契约回归：`2 passed`；Ruff 通过。

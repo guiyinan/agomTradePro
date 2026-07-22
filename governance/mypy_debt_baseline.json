@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8864,
-    "files_with_errors": 933
+    "errors": 8839,
+    "files_with_errors": 931
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3937,10 +3937,6 @@
     "apps/valuation/infrastructure/providers.py": {
       "attr-defined": 1
     },
-    "core/admin_log_views.py": {
-      "no-any-return": 4,
-      "no-untyped-def": 9
-    },
     "core/api_views.py": {
       "no-untyped-def": 2
     },
@@ -4036,14 +4032,6 @@
     },
     "core/middleware/security.py": {
       "no-untyped-def": 3
-    },
-    "core/schema.py": {
-      "assignment": 2,
-      "attr-defined": 2,
-      "misc": 2,
-      "no-untyped-def": 2,
-      "type-arg": 2,
-      "unused-ignore": 2
     },
     "core/security.py": {
       "no-any-return": 1,
