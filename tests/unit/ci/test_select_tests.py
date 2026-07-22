@@ -1,6 +1,7 @@
 """
 select_tests.py 单元测试
 """
+
 import importlib.util
 import os
 import sys
@@ -32,17 +33,52 @@ class TestSelectTests(unittest.TestCase):
         self.assertIsInstance(CORE_GUARDRAIL_TESTS, list)
         self.assertGreater(len(CORE_GUARDRAIL_TESTS), 0)
         for test in CORE_GUARDRAIL_TESTS:
-            self.assertTrue(test.startswith("tests/"), f"Test path should start with tests/: {test}")
+            self.assertTrue(
+                test.startswith("tests/"), f"Test path should start with tests/: {test}"
+            )
 
     def test_module_test_map_has_key_modules(self):
         """关键模块必须在映射表中"""
         key_modules = [
-            "regime", "policy", "signal", "audit", "backtest",
-            "alpha", "account", "simulated_trading", "strategy",
-            "share", "data_center", "agent_runtime", "asset_analysis",
-            "ai_capability", "ai_provider", "beta_gate", "setup_wizard", "task_monitor", "terminal", "hedge",
-            "realtime", "filter", "prompt", "sentiment", "sector", "fund",
-            "events", "factor", "rotation", "macro", "equity", "alpha_trigger",
+            "regime",
+            "policy",
+            "signal",
+            "audit",
+            "backtest",
+            "alpha",
+            "account",
+            "simulated_trading",
+            "strategy",
+            "share",
+            "data_center",
+            "agent_runtime",
+            "asset_analysis",
+            "ai_capability",
+            "ai_provider",
+            "beta_gate",
+            "setup_wizard",
+            "task_monitor",
+            "terminal",
+            "hedge",
+            "realtime",
+            "filter",
+            "prompt",
+            "sentiment",
+            "sector",
+            "fund",
+            "events",
+            "factor",
+            "rotation",
+            "macro",
+            "equity",
+            "alpha_trigger",
+            "broker_execution",
+            "operational_readiness",
+            "risk_center",
+            "portfolio",
+            "research",
+            "valuation",
+            "config_center",
         ]
         for module in key_modules:
             self.assertIn(module, MODULE_TEST_MAP, f"Module {module} should be in test map")
@@ -106,8 +142,7 @@ class TestSelectTests(unittest.TestCase):
     def test_select_tests_with_multiple_modules(self):
         """多模块变更时选择所有相关测试"""
         tests = select_tests_func(
-            {"regime", "policy"},
-            ["apps/regime/services.py", "apps/policy/use_cases.py"]
+            {"regime", "policy"}, ["apps/regime/services.py", "apps/policy/use_cases.py"]
         )
         # 应包含核心测试
         for core_test in CORE_GUARDRAIL_TESTS:
@@ -158,7 +193,9 @@ class TestSelectTests(unittest.TestCase):
 
     def test_select_tests_with_simulated_trading_changes_include_api_tests(self):
         """simulated_trading 变更必须带上 API 测试。"""
-        tests = select_tests_func({"simulated_trading"}, ["apps/simulated_trading/interface/views.py"])
+        tests = select_tests_func(
+            {"simulated_trading"}, ["apps/simulated_trading/interface/views.py"]
+        )
         self.assertIn("tests/api/test_simulated_trading_api_edges.py", tests)
 
     def test_select_tests_with_agent_runtime_changes_include_api_and_migration_tests(self):
@@ -182,7 +219,9 @@ class TestSelectTests(unittest.TestCase):
 
     def test_select_tests_with_ai_provider_changes_include_api_tests(self):
         """ai_provider 变更必须带上 API 测试。"""
-        tests = select_tests_func({"ai_provider"}, ["apps/ai_provider/interface/views/api_views.py"])
+        tests = select_tests_func(
+            {"ai_provider"}, ["apps/ai_provider/interface/views/api_views.py"]
+        )
         self.assertIn("tests/api/test_ai_provider_api_edges.py", tests)
 
     def test_select_tests_with_beta_gate_changes_include_api_tests(self):
@@ -192,7 +231,9 @@ class TestSelectTests(unittest.TestCase):
 
     def test_select_tests_with_decision_rhythm_changes_include_api_tests(self):
         """decision_rhythm 变更必须带上 API 测试。"""
-        tests = select_tests_func({"decision_rhythm"}, ["apps/decision_rhythm/interface/command_api_views.py"])
+        tests = select_tests_func(
+            {"decision_rhythm"}, ["apps/decision_rhythm/interface/command_api_views.py"]
+        )
         self.assertIn("tests/api/test_decision_rhythm_api_edges.py", tests)
         self.assertIn("tests/api/test_workspace_execution_api_edges.py", tests)
         self.assertIn("tests/api/test_workspace_recommendations_api_edges.py", tests)
@@ -319,23 +360,44 @@ class TestSelectTests(unittest.TestCase):
         self.assertIn("tests/api/", FULL_TEST_SUITES)
         self.assertIn("tests/migrations/", FULL_TEST_SUITES)
         self.assertIn("tests/unit/", FULL_TEST_SUITES)
+        self.assertIn("tests/critical/", FULL_TEST_SUITES)
         self.assertIn("apps/dashboard/tests/", FULL_TEST_SUITES)
         self.assertIn("apps/share/tests/", FULL_TEST_SUITES)
 
     @patch.dict(os.environ, {"GITHUB_ACTIONS": "true"})
     def test_module_map_coverage(self):
-        """所有有测试的模块都应在映射表中"""
-        # 检查 tests/ 目录下的模块
-        tests_path = Path(__file__).parent.parent.parent / "tests"
-        if tests_path.exists():
-            integration_path = tests_path / "integration"
-            if integration_path.exists():
-                # 检查 integration 目录下的模块测试
-                for item in integration_path.iterdir():
-                    if item.is_dir() and not item.name.startswith("_") and item.name != "__pycache__":
-                        # 这些模块应该在映射表中有对应的测试路径
-                        # 某些模块可能不需要独立映射（如通用测试），这里只记录
-                        pass
+        """所有生产 App 必须有测试映射，禁止静默漏测。"""
+        apps_path = PROJECT_ROOT / "apps"
+        production_apps = {
+            item.name
+            for item in apps_path.iterdir()
+            if item.is_dir() and (item / "__init__.py").is_file()
+        }
+        self.assertEqual(production_apps - set(MODULE_TEST_MAP), set())
+
+    def test_unmapped_changed_app_falls_back_to_full_suite(self):
+        """未来新增但未映射的生产 App 必须保守回退全量。"""
+        tests = select_tests_func(
+            {"future_reliability_app"},
+            ["apps/future_reliability_app/domain/entities.py"],
+        )
+        self.assertEqual(tests, FULL_TEST_SUITES)
+
+    def test_unmapped_changed_app_logic_profile_keeps_full_fast_scope(self):
+        """快速档遇到未知 App 时也不能只运行通用护栏。"""
+        tests = select_tests_func(
+            {"future_reliability_app"},
+            ["apps/future_reliability_app/domain/entities.py"],
+            profile="logic_guardrails",
+        )
+        self.assertIn("tests/critical/", tests)
+        self.assertIn("tests/unit/", tests)
+        self.assertIn("tests/api/", tests)
+
+    def test_critical_reliability_suite_is_always_selected(self):
+        """任意已映射模块变更都必须带上关键可靠性集合。"""
+        tests = select_tests_func({"regime"}, ["apps/regime/domain/services.py"])
+        self.assertIn("tests/critical/", tests)
 
 
 if __name__ == "__main__":

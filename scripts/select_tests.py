@@ -32,14 +32,12 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
     "core": [
         "tests/guardrails/",
     ],
-
     # 宏观相关
     "macro": [
         "tests/api/test_data_center_route_cleanup.py",
         "tests/integration/macro/",
         "tests/unit/domain/test_macro_entities.py",
     ],
-
     # Regime 模块
     "regime": [
         "tests/api/test_regime_action_api.py",
@@ -49,7 +47,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/integration/regime/",
         "tests/unit/regime/test_config_threshold_regression.py",
     ],
-
     # Policy 模块
     "policy": [
         "tests/api/test_policy_api_edges.py",
@@ -57,8 +54,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/policy/",
         "tests/integration/policy/",
     ],
-
-
     # Audit 模块
     "audit": [
         "tests/api/test_audit_api_edges.py",
@@ -66,7 +61,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/domain/audit/",
         "tests/unit/application/audit/",
     ],
-
     # Backtest 模块
     "backtest": [
         "tests/api/test_backtest_api_edges.py",
@@ -74,7 +68,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/integration/test_backtesting_flow.py",
         "tests/unit/domain/test_backtest_services.py",
     ],
-
     # Alpha 模块
     "alpha": [
         "tests/api/test_alpha_api_edges.py",
@@ -83,12 +76,10 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/test_alpha_exit_loop_end_to_end.py",
         "tests/e2e/test_alpha_dashboard_e2e.py",
     ],
-
     "alpha_trigger": [
         "tests/api/test_alpha_trigger_api_edges.py",
         "tests/unit/test_alpha_trigger*.py",
     ],
-
     # Account 模块
     "account": [
         "tests/api/test_account_api_edges.py",
@@ -97,7 +88,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/integration/test_unified_account_api.py",
         "tests/unit/test_account*.py",
     ],
-
     # Agent Runtime
     "agent_runtime": [
         "tests/api/test_agent_runtime_api.py",
@@ -105,20 +95,17 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/agent_runtime/",
         "tests/unit/test_agent_runtime*.py",
     ],
-
     # AI Capability
     "ai_capability": [
         "tests/api/test_ai_capability_api_edges.py",
         "tests/unit/test_ai_capability/",
     ],
-
     # AI Provider
     "ai_provider": [
         "tests/api/test_ai_provider_api_edges.py",
         "tests/unit/test_ai_provider*.py",
         "tests/unit/domain/test_ai_provider*.py",
     ],
-
     # Simulated Trading
     "simulated_trading": [
         "tests/api/test_simulated_trading_api_edges.py",
@@ -128,7 +115,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/test_auto_trading_task_wiring.py",
         "tests/unit/test_position_invalidation_tasks.py",
     ],
-
     # Strategy
     "strategy": [
         "tests/api/test_strategy_api_edges.py",
@@ -136,7 +122,6 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/domain/strategy/",
         "tests/unit/strategy/",
     ],
-
     # Equity
     "equity": [
         "tests/api/test_equity_api_edges.py",
@@ -145,20 +130,17 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/unit/test_equity*.py",
         "tests/unit/domain/test_equity*.py",
     ],
-
     # Fund
     "fund": [
         "tests/api/test_fund_api_edges.py",
         "tests/integration/test_fund_*.py",
         "tests/unit/domain/test_fund*.py",
     ],
-
     # Beta Gate
     "beta_gate": [
         "tests/api/test_beta_gate_api_edges.py",
         "tests/unit/test_beta_gate*.py",
     ],
-
     # Decision Rhythm
     "decision_rhythm": [
         "tests/api/test_decision_rhythm_api_edges.py",
@@ -176,118 +158,155 @@ MODULE_TEST_MAP: dict[str, list[str]] = {
         "tests/guardrails/test_alpha_workspace_consistency_guardrail.py",
         "tests/guardrails/test_decision_rhythm_api_error_mapping.py",
     ],
-
+    # Broker execution and critical live-trading safety chain
+    "broker_execution": [
+        "tests/unit/broker_execution/",
+        "tests/integration/broker_execution/",
+        "tests/critical/",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
+    # Global runtime configuration
+    "config_center": [
+        "tests/api/test_config_center_alpha_universe_api.py",
+        "tests/integration/config_center/",
+        "tests/integration/test_config_center_*.py",
+        "tests/unit/config_center/",
+        "tests/unit/core/test_config_center.py",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
     # Events
     "events": [
         "tests/api/test_events_api_edges.py",
         "tests/integration/events/",
         "tests/unit/domain/test_events_services.py",
     ],
-
     # Factor
     "factor": [
         "tests/api/test_factor_api_edges.py",
         "tests/integration/test_factor_*.py",
         "tests/unit/domain/test_factor*.py",
     ],
-
     # Asset Analysis
     "asset_analysis": [
         "tests/integration/asset_analysis/",
         "tests/integration/test_*asset_analysis*.py",
         "tests/unit/test_asset_analysis.py",
     ],
-
     # Filter
     "filter": [
         "tests/api/test_filter_api_edges.py",
         "tests/api/test_macro_filter_compat_api.py",
         "tests/unit/domain/test_filter*.py",
     ],
-
     # Hedge
     "hedge": [
         "tests/api/test_hedge_api.py",
         "tests/unit/domain/test_hedge*.py",
     ],
-
     # Prompt
     "prompt": [
         "tests/api/test_prompt_api_edges.py",
         "tests/unit/domain/test_prompt*.py",
     ],
-
     # Pulse
     "pulse": [
         "tests/api/test_pulse_api.py",
         "tests/unit/test_pulse*.py",
     ],
-
     # Realtime
     "realtime": [
         "tests/api/test_realtime_api.py",
         "tests/integration/test_realtime_*.py",
         "tests/unit/test_realtime*.py",
     ],
-
     # Sector
     "sector": [
         "tests/api/test_sector_api_edges.py",
         "tests/unit/sector/",
         "tests/unit/domain/test_sector*.py",
     ],
-
     # Setup Wizard
     "setup_wizard": [
         "tests/integration/test_setup_wizard*.py",
         "tests/unit/test_setup_wizard*.py",
     ],
-
     # Task Monitor
     "task_monitor": [
         "tests/api/test_task_monitor_api.py",
         "tests/unit/test_task_monitor.py",
     ],
-
     # Terminal
     "terminal": [
         "tests/api/test_terminal_api_edges.py",
         "tests/unit/test_terminal*.py",
     ],
-
     # Dashboard
     "dashboard": [
         "tests/api/test_dashboard_api_edges.py",
         "apps/dashboard/tests/",
         "tests/e2e/",
     ],
-
     # Data Center
     "data_center": [
         "tests/api/test_data_center_route_cleanup.py",
         "tests/integration/data_center/",
         "tests/unit/data_center/",
+        "tests/critical/",
+        "tests/migrations/test_research_integrity_migrations.py",
     ],
-
+    # Production readiness evidence and scheduler closure
+    "operational_readiness": [
+        "tests/unit/test_*readiness*.py",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
+    # Canonical portfolio ownership and transition plans
+    "portfolio": [
+        "tests/api/test_research_integrity_contracts.py",
+        "tests/integration/test_portfolio_observer_access.py",
+        "tests/unit/portfolio/",
+        "tests/critical/",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
+    # Reproducible research and promotion governance
+    "research": [
+        "tests/api/test_research_integrity_contracts.py",
+        "tests/unit/research/",
+        "tests/unit/data_center/test_pit_research_integrity.py",
+        "tests/critical/",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
+    # Authoritative risk service and execution guard
+    "risk_center": [
+        "tests/integration/risk_center/",
+        "tests/unit/risk_center/",
+        "tests/unit/broker_execution/test_risk_and_reconciliation.py",
+        "tests/critical/",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
+    # Independent valuation owner and compatibility API
+    "valuation": [
+        "tests/api/test_valuation_repair_api.py",
+        "tests/integration/test_valuation_repair_config_api.py",
+        "tests/unit/valuation/",
+        "tests/unit/decision_rhythm/test_valuation_services.py",
+        "tests/migrations/test_research_integrity_migrations.py",
+    ],
     # Share
     "share": [
         "apps/share/tests/",
     ],
-
     # Sentiment
     "sentiment": [
         "tests/api/test_sentiment_api_edges.py",
         "tests/unit/test_sentiment*.py",
         "tests/unit/domain/test_sentiment*.py",
     ],
-
     # Rotation
     "rotation": [
         "tests/api/test_rotation_api_edges.py",
         "tests/unit/test_rotation_integration_service.py",
         "tests/unit/domain/test_rotation*.py",
     ],
-
     # Signal
     "signal": [
         "tests/api/test_signal_api_edges.py",
@@ -305,11 +324,13 @@ CORE_GUARDRAIL_TESTS = [
     "tests/guardrails/test_no_501_on_primary_paths.py",
     "tests/guardrails/test_security_hardening_guardrails.py",
     "tests/guardrails/test_api_contract_minimal.py",  # API 合同最小集测试
+    "tests/critical/",
 ]
 
 # 全量测试路径（当无法确定范围或检测到广泛变更时使用）
 FULL_TEST_SUITES = [
     "tests/api/",
+    "tests/critical/",
     "tests/migrations/",
     "tests/unit/",
     "tests/guardrails/",
@@ -318,6 +339,7 @@ FULL_TEST_SUITES = [
 
 LOGIC_GUARDRAILS_ALLOWED_PREFIXES = (
     "tests/api/",
+    "tests/critical/",
     "tests/guardrails/",
     "tests/migrations/",
     "tests/unit/",
@@ -405,6 +427,27 @@ def select_tests(
 
     use_logic_guardrails_profile = profile == "logic_guardrails"
 
+    changed_app_modules = {
+        Path(path).parts[1]
+        for path in changed_files
+        if len(Path(path).parts) >= 2 and Path(path).parts[0] == "apps"
+    }
+    unmapped_app_modules = {
+        module
+        for module in modules
+        if module not in MODULE_TEST_MAP
+        and (
+            module in changed_app_modules
+            or (PROJECT_ROOT / "apps" / module / "__init__.py").is_file()
+        )
+    }
+    if unmapped_app_modules:
+        if use_logic_guardrails_profile:
+            return sorted(
+                target for target in FULL_TEST_SUITES if _is_logic_guardrails_target(target)
+            )
+        return FULL_TEST_SUITES
+
     # 如果没有检测到模块变更，运行全量测试
     if not modules:
         if use_logic_guardrails_profile:
@@ -454,9 +497,7 @@ def select_tests(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="根据代码变更智能选择相关测试"
-    )
+    parser = argparse.ArgumentParser(description="根据代码变更智能选择相关测试")
     parser.add_argument(
         "--base",
         default="origin/main",
