@@ -377,3 +377,14 @@
 
 - Signal repositories 定向与全量上下文均无本文件错误；全仓基线从 `8560 errors / 925 files` 收紧为 `8488 errors / 923 files`，净减少 `72 errors / 2 files`，无文件或错误码反弹。
 - Repository、Signal Query、Unified Signal 与 Auto Trading Engine 回归：`53 passed`；Ruff 通过。
+
+## 第二十六批
+
+- 按真实风险密度收口 Alpha 四层降级链路中的 `SimpleAlphaProvider`：以 TypedDict 分离基本面数值、字段完整性和数据质量统计，不再把嵌套布尔元数据伪装成 `dict[str, float]`。
+- 估值与财务 Optional 记录先局部绑定 PE/PB/股息率/ROE 字段，再执行正值检查和默认值降级；实时行情动量行同样使用强类型结构，避免动态 key 与 `object -> float` 转换掩盖空值或错误形状。
+- 本批清除该 adapter 全部 `arg-type`、`assignment`、`operator`、`union-attr` 等 32 项历史错误；仅保留基类/装饰器未类型化造成的 2 项低风险 `misc`，留待 decorator 公共治理批次统一处理。
+
+## 第二十六批验证结果
+
+- Simple Alpha adapter 的真实风险错误归零；全仓基线从 `8488 errors / 923 files` 收紧为 `8456 errors / 923 files`，净减少 `32 errors`，无文件或错误码反弹。
+- Simple Adapter、Alpha cache fallback 与 Alpha provider 回归：`36 passed`；Ruff 通过。

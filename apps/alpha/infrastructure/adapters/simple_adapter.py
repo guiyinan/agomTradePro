@@ -11,7 +11,8 @@ Simple Alpha Provider
 
 import logging
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any, TypedDict
 
 from django.conf import settings
 from django.db.models import Max
@@ -22,6 +23,39 @@ from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, provider_safe
 
 logger = logging.getLogger(__name__)
+
+
+class _FundamentalQuality(TypedDict):
+    has_pe: bool
+    has_pb: bool
+    has_roe: bool
+    has_dividend: bool
+
+
+class _FundamentalRecord(TypedDict):
+    pe: float
+    pb: float
+    roe: float
+    dividend_yield: float
+    _data_quality: _FundamentalQuality
+
+
+class _FundamentalDataQuality(TypedDict):
+    valuation_count: int
+    financial_count: int
+    complete_count: int
+    partial_count: int
+    missing_count: int
+    error: str | None
+
+
+class _QuoteMomentumRow(TypedDict):
+    code: str
+    snapshot_at: datetime
+    intraday_return: float
+    range_position: float
+    liquidity: float
+    open_gap: float
 
 
 class SimpleAlphaProvider(BaseAlphaProvider):
@@ -124,7 +158,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         intended_trade_date: date,
         top_n: int = 30,
         pool_scope: AlphaPoolScope | None = None,
-        user=None,
+        user: Any | None = None,
     ) -> AlphaResult:
         """
         计算股票评分
@@ -311,7 +345,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         self,
         stock_list: list[str],
         trade_date: date
-    ) -> tuple[dict[str, dict[str, float]], dict[str, any]]:
+    ) -> tuple[dict[str, _FundamentalRecord], _FundamentalDataQuality]:
         """
         从数据库获取真实的基本面数据。
 
@@ -326,8 +360,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             (基本面数据字典, 数据质量信息)
         """
-        fundamentals: dict[str, dict[str, float]] = {}
-        data_quality = {
+        fundamentals: dict[str, _FundamentalRecord] = {}
+        data_quality: _FundamentalDataQuality = {
             "valuation_count": 0,
             "financial_count": 0,
             "complete_count": 0,
@@ -379,13 +413,14 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 valuation = valuations.get(stock_code)
                 financial = financials.get(stock_code)
 
-                # 检查数据完整性
-                has_valuation = valuation is not None
-                has_financial = financial is not None
-                has_pe = has_valuation and valuation.pe is not None and valuation.pe > 0
-                has_pb = has_valuation and valuation.pb is not None and valuation.pb > 0
-                has_dividend = has_valuation and valuation.dividend_yield is not None
-                has_roe = has_financial and financial.roe is not None
+                pe_value = valuation.pe if valuation is not None else None
+                pb_value = valuation.pb if valuation is not None else None
+                dividend_value = valuation.dividend_yield if valuation is not None else None
+                roe_value = financial.roe if financial is not None else None
+                has_pe = pe_value is not None and pe_value > 0
+                has_pb = pb_value is not None and pb_value > 0
+                has_dividend = dividend_value is not None
+                has_roe = roe_value is not None
 
                 # 至少需要 PE 或 PB 才能计算评分
                 if not has_pe and not has_pb:
@@ -393,16 +428,16 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                     continue
 
                 # 提取数据
-                pe = float(valuation.pe) if has_pe else None
-                pb = float(valuation.pb) if has_pb else None
-                dividend_yield = float(valuation.dividend_yield) if has_dividend else 0.0
-                roe = float(financial.roe) if has_roe else None
+                pe = float(pe_value) if pe_value is not None and pe_value > 0 else 50.0
+                pb = float(pb_value) if pb_value is not None and pb_value > 0 else 3.0
+                dividend_yield = float(dividend_value) if dividend_value is not None else 0.0
+                roe = float(roe_value) if roe_value is not None else 0.08
 
                 # 使用默认值填充缺失的数据
                 fundamentals[stock_code] = {
-                    "pe": pe if pe is not None else 50.0,  # 默认中等 PE
-                    "pb": pb if pb is not None else 3.0,   # 默认中等 PB
-                    "roe": roe if roe is not None else 0.08,  # 默认 8% ROE
+                    "pe": pe,  # 默认中等 PE
+                    "pb": pb,   # 默认中等 PB
+                    "roe": roe,  # 默认 8% ROE
                     "dividend_yield": dividend_yield if dividend_yield > 0 else 0.02,  # 默认 2% 股息率
                     "_data_quality": {
                         "has_pe": has_pe,
@@ -437,7 +472,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
     def _compute_scores(
         self,
-        fundamental_data: dict[str, dict[str, float]],
+        fundamental_data: dict[str, _FundamentalRecord],
         universe_id: str,
         trade_date: date
     ) -> list[StockScore]:
@@ -452,10 +487,12 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             股票评分列表
         """
-        scores = []
+        scores: list[StockScore] = []
 
         # 1. 提取因子值
-        factor_values = {name: [] for name in self._factor_weights}
+        factor_values: dict[str, list[float]] = {
+            name: [] for name in self._factor_weights
+        }
         stock_list = list(fundamental_data.keys())
 
         for stock in stock_list:
@@ -472,7 +509,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             factor_values["dividend_yield"].append(max(dividend, 0))
 
         # 2. 归一化（0-1）
-        normalized_factors = {}
+        normalized_factors: dict[str, list[float]] = {}
         for factor_name, values in factor_values.items():
             if values:
                 min_val = min(values)
@@ -489,9 +526,9 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         # 3. 计算加权得分
         for i, stock in enumerate(stock_list):
             data = fundamental_data[stock]
-            data_quality = data.get("_data_quality", {})
+            data_quality = data["_data_quality"]
 
-            factor_scores = {}
+            factor_scores: dict[str, float] = {}
             total_score = 0.0
 
             for factor_name, weight in self._factor_weights.items():
@@ -544,23 +581,23 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             )
             .order_by("asset_code", "-snapshot_at")
         )
-        latest_by_code = {}
+        latest_by_code: dict[str, Any] = {}
         for snapshot in snapshots:
             code = str(snapshot.asset_code or "").upper()
             latest_by_code.setdefault(code, snapshot)
 
-        raw_rows: list[dict[str, object]] = []
-        latest_snapshot_at = None
+        raw_rows: list[_QuoteMomentumRow] = []
+        latest_snapshot_at: datetime | None = None
         for code in normalized_codes:
-            snapshot = latest_by_code.get(code)
-            if snapshot is None:
+            quote = latest_by_code.get(code)
+            if quote is None:
                 continue
-            current_price = float(snapshot.current_price or 0.0)
-            prev_close = float(snapshot.prev_close or 0.0)
-            open_price = float(snapshot.open or 0.0)
-            high = float(snapshot.high or 0.0)
-            low = float(snapshot.low or 0.0)
-            volume = float(snapshot.volume or 0.0)
+            current_price = float(quote.current_price or 0.0)
+            prev_close = float(quote.prev_close or 0.0)
+            open_price = float(quote.open or 0.0)
+            high = float(quote.high or 0.0)
+            low = float(quote.low or 0.0)
+            volume = float(quote.volume or 0.0)
             if current_price <= 0 or prev_close <= 0:
                 continue
 
@@ -572,15 +609,15 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             raw_rows.append(
                 {
                     "code": code,
-                    "snapshot_at": snapshot.snapshot_at,
+                    "snapshot_at": quote.snapshot_at,
                     "intraday_return": intraday_return,
                     "range_position": range_position,
                     "liquidity": math.log1p(max(volume, 0.0)),
                     "open_gap": open_gap,
                 }
             )
-            if latest_snapshot_at is None or snapshot.snapshot_at > latest_snapshot_at:
-                latest_snapshot_at = snapshot.snapshot_at
+            if latest_snapshot_at is None or quote.snapshot_at > latest_snapshot_at:
+                latest_snapshot_at = quote.snapshot_at
 
         if not raw_rows:
             return [], {
@@ -590,8 +627,16 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             }, None
 
         normalized_factors = {
-            factor: self._normalize_factor_values([float(row[factor]) for row in raw_rows])
-            for factor in ("intraday_return", "range_position", "liquidity", "open_gap")
+            "intraday_return": self._normalize_factor_values(
+                [row["intraday_return"] for row in raw_rows]
+            ),
+            "range_position": self._normalize_factor_values(
+                [row["range_position"] for row in raw_rows]
+            ),
+            "liquidity": self._normalize_factor_values(
+                [row["liquidity"] for row in raw_rows]
+            ),
+            "open_gap": self._normalize_factor_values([row["open_gap"] for row in raw_rows]),
         }
         weights = {
             "intraday_return": 0.45,

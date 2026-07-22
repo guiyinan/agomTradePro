@@ -10,7 +10,7 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8488,
+    "errors": 8456,
     "files_with_errors": 923
   },
   "modules": {
@@ -634,15 +634,7 @@
       "type-arg": 2
     },
     "apps/alpha/infrastructure/adapters/simple_adapter.py": {
-      "arg-type": 6,
-      "assignment": 5,
-      "dict-item": 1,
-      "misc": 2,
-      "no-untyped-def": 1,
-      "operator": 3,
-      "union-attr": 12,
-      "valid-type": 1,
-      "var-annotated": 3
+      "misc": 2
     },
     "apps/alpha/infrastructure/alerts.py": {
       "import-untyped": 1,
