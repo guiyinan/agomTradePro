@@ -2,7 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from apps.fund.infrastructure.providers import DjangoFundAssetRepository, DjangoFundRepository
+
+if TYPE_CHECKING:
+    from apps.fund.infrastructure.adapters.akshare_fund_adapter import (
+        AkShareFundAdapter as AkShareFundAdapter,
+    )
+    from apps.fund.infrastructure.adapters.hybrid_fund_adapter import (
+        HybridFundAdapter as HybridFundAdapter,
+    )
+    from apps.fund.infrastructure.adapters.tushare_fund_adapter import (
+        TushareFundAdapter as TushareFundAdapter,
+    )
 
 
 def get_fund_repository() -> DjangoFundRepository:
@@ -29,7 +42,7 @@ def get_fund_asset_repository() -> DjangoFundAssetRepository:
     return DjangoFundAssetRepository()
 
 
-def build_tushare_fund_adapter(*, token: str, http_url: str | None = None):
+def build_tushare_fund_adapter(*, token: str, http_url: str | None = None) -> TushareFundAdapter:
     """Build the Tushare fund adapter."""
 
     from apps.fund.infrastructure.adapters.tushare_fund_adapter import TushareFundAdapter
@@ -37,7 +50,7 @@ def build_tushare_fund_adapter(*, token: str, http_url: str | None = None):
     return TushareFundAdapter(token=token, http_url=http_url)
 
 
-def build_akshare_fund_adapter():
+def build_akshare_fund_adapter() -> AkShareFundAdapter:
     """Build the AKShare fund adapter."""
 
     from apps.fund.infrastructure.adapters.akshare_fund_adapter import AkShareFundAdapter
@@ -45,7 +58,7 @@ def build_akshare_fund_adapter():
     return AkShareFundAdapter()
 
 
-def build_hybrid_fund_adapter():
+def build_hybrid_fund_adapter() -> HybridFundAdapter:
     """Build the hybrid fund adapter."""
 
     from apps.fund.infrastructure.adapters.hybrid_fund_adapter import HybridFundAdapter

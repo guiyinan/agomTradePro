@@ -7,6 +7,7 @@ standardized data_center domain entities only.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import date, timedelta
 from typing import Any
 
@@ -40,6 +41,33 @@ from core.integration.data_center_business_sources import (
 from shared.numeric import safe_float
 
 logger = logging.getLogger(__name__)
+
+
+def _financial_fact_builder(
+    *,
+    asset_code: str,
+    period_end: date,
+    report_type: str,
+    source: str,
+    extra: dict[str, Any],
+) -> Callable[[str, float, str], FinancialFact]:
+    """Bind one financial period's shared fields to a typed fact constructor."""
+
+    period_type = _to_period_type(report_type)
+
+    def build(metric_code: str, value: float, unit: str) -> FinancialFact:
+        return FinancialFact(
+            asset_code=asset_code,
+            period_end=period_end,
+            period_type=period_type,
+            metric_code=metric_code,
+            value=value,
+            unit=unit,
+            source=source,
+            extra=extra,
+        )
+
+    return build
 
 
 class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
@@ -403,67 +431,31 @@ class TushareUnifiedProviderAdapter(BaseUnifiedProviderAdapter):
         batch = gateway.fetch(asset_code, periods=periods)
         facts: list[FinancialFact] = []
         for record in batch.records:
-            common = {
-                "asset_code": record.stock_code,
-                "period_end": record.report_date,
-                "period_type": _to_period_type(record.report_type),
-                "source": self.provider_source(),
-                "extra": self._provider_extra(),
-            }
+            build_fact = _financial_fact_builder(
+                asset_code=record.stock_code,
+                period_end=record.report_date,
+                report_type=record.report_type,
+                source=self.provider_source(),
+                extra=self._provider_extra(),
+            )
+
             facts.extend(
                 [
-                    FinancialFact(
-                        metric_code="revenue", value=float(record.revenue), unit="元", **common
-                    ),
-                    FinancialFact(
-                        metric_code="net_profit",
-                        value=float(record.net_profit),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="total_assets",
-                        value=float(record.total_assets),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="total_liabilities",
-                        value=float(record.total_liabilities),
-                        unit="元",
-                        **common,
-                    ),
-                    FinancialFact(
-                        metric_code="equity", value=float(record.equity), unit="元", **common
-                    ),
-                    FinancialFact(metric_code="roe", value=float(record.roe), unit="%", **common),
-                    FinancialFact(
-                        metric_code="debt_ratio", value=float(record.debt_ratio), unit="%", **common
-                    ),
+                    build_fact("revenue", float(record.revenue), "元"),
+                    build_fact("net_profit", float(record.net_profit), "元"),
+                    build_fact("total_assets", float(record.total_assets), "元"),
+                    build_fact("total_liabilities", float(record.total_liabilities), "元"),
+                    build_fact("equity", float(record.equity), "元"),
+                    build_fact("roe", float(record.roe), "%"),
+                    build_fact("debt_ratio", float(record.debt_ratio), "%"),
                 ]
             )
             if record.roa is not None:
-                facts.append(
-                    FinancialFact(metric_code="roa", value=float(record.roa), unit="%", **common)
-                )
+                facts.append(build_fact("roa", float(record.roa), "%"))
             if record.revenue_growth is not None:
-                facts.append(
-                    FinancialFact(
-                        metric_code="revenue_growth",
-                        value=float(record.revenue_growth),
-                        unit="%",
-                        **common,
-                    )
-                )
+                facts.append(build_fact("revenue_growth", float(record.revenue_growth), "%"))
             if record.net_profit_growth is not None:
-                facts.append(
-                    FinancialFact(
-                        metric_code="net_profit_growth",
-                        value=float(record.net_profit_growth),
-                        unit="%",
-                        **common,
-                    )
-                )
+                facts.append(build_fact("net_profit_growth", float(record.net_profit_growth), "%"))
         return facts
 
     def fetch_valuations(

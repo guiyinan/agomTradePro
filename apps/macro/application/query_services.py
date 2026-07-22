@@ -10,6 +10,7 @@ from apps.macro.application.use_cases import (
     SyncMacroDataRequest,
     build_sync_macro_data_use_case,
 )
+from apps.macro.domain.entities import MacroIndicator
 
 
 def get_latest_macro_indicator_date(indicator_code: str) -> date | None:
@@ -24,7 +25,7 @@ def get_legacy_macro_series(
     start_date: date | None,
     end_date: date | None,
     source: str | None,
-):
+) -> list[MacroIndicator]:
     """Return legacy macro series rows through the macro boundary."""
 
     return get_macro_repository().get_series(

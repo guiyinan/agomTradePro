@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from apps.sector.infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
+from apps.sector.infrastructure.adapters.akshare_sector_adapter import (
+    AKShareSectorAdapter as AKShareSectorAdapter,
+)
 from apps.sector.infrastructure.providers import DjangoSectorRepository
 
 

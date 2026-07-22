@@ -311,3 +311,15 @@
 
 - Admin log views 与 OpenAPI schema helper 联合定向 mypy：`0 errors`；全仓基线从 `8864 errors / 933 files` 收紧为 `8839 errors / 931 files`，净减少 `25 errors / 2 files`，无文件或错误码反弹。
 - OpenAPI schema 可访问性与管理员日志页面契约回归：`2 passed`；Ruff 通过。
+
+## 第二十一批
+
+- 收口 `core/integration/data_center_business_sources.py` 的 Macro、Fund、Equity、Sector 业务桥接返回类型，清除该文件 10 个历史错误。
+- 补齐 Fund 三类 adapter、Equity 财务 gateway、Macro legacy series 的 application provider/query 返回契约，使 Data Center price service、AKShare/Tushare provider adapter 和 gateway 获得真实类型，额外消除 10 个下游历史错误。
+- 类型传播一度暴露 Tushare 财务事实构造的 60 个参数错误：原实现以 `dict[str, object]` 通过 `**common` 注入 dataclass，无法保证字段与值类型一一对应；改为绑定期间公共字段的强类型构造器，未将这些新错误写入基线。
+- 新增 Tushare 财务事实映射回归，覆盖十类指标、期间类型、单位、来源与 provider 元数据。
+
+## 第二十一批验证结果
+
+- Data Center 业务桥接定向 mypy：`0 errors`；全仓基线从 `8839 errors / 931 files` 收紧为 `8819 errors / 929 files`，净减少 `20 errors / 2 files`，无文件或错误码反弹。
+- Data Center Phase 3 provider adapter 回归：`27 passed`；Ruff 通过。

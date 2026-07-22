@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8839,
-    "files_with_errors": 931
+    "errors": 8819,
+    "files_with_errors": 929
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1444,7 +1444,6 @@
     "apps/data_center/application/price_service.py": {
       "arg-type": 6,
       "attr-defined": 3,
-      "no-untyped-call": 1,
       "no-untyped-def": 3
     },
     "apps/data_center/application/reliability_use_cases.py": {
@@ -1471,7 +1470,7 @@
       "arg-type": 6,
       "attr-defined": 5,
       "import-untyped": 1,
-      "no-untyped-call": 8
+      "no-untyped-call": 6
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "import-untyped": 1,
@@ -1531,8 +1530,7 @@
     },
     "apps/data_center/infrastructure/gateways/tushare_gateway.py": {
       "arg-type": 1,
-      "attr-defined": 3,
-      "no-untyped-call": 1
+      "attr-defined": 3
     },
     "apps/data_center/infrastructure/macro_fact_repositories.py": {
       "assignment": 1,
@@ -1944,7 +1942,7 @@
     },
     "apps/equity/application/repository_provider.py": {
       "no-untyped-call": 4,
-      "no-untyped-def": 2
+      "no-untyped-def": 1
     },
     "apps/equity/application/sector_market_gateway.py": {
       "type-arg": 1
@@ -2347,8 +2345,7 @@
       "type-arg": 1
     },
     "apps/fund/application/repository_provider.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 3
+      "no-untyped-call": 3
     },
     "apps/fund/application/services.py": {
       "attr-defined": 1,
@@ -2474,9 +2471,6 @@
     "apps/macro/application/indicator_service.py": {
       "assignment": 2,
       "type-arg": 7
-    },
-    "apps/macro/application/query_services.py": {
-      "no-untyped-def": 1
     },
     "apps/macro/application/use_cases.py": {
       "arg-type": 1,
@@ -3213,7 +3207,7 @@
     },
     "apps/sector/application/tasks.py": {
       "assignment": 1,
-      "attr-defined": 2,
+      "attr-defined": 1,
       "misc": 2,
       "no-untyped-def": 4
     },
@@ -3965,10 +3959,6 @@
     "core/integration/alpha_cache.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "core/integration/data_center_business_sources.py": {
-      "no-untyped-call": 2,
-      "no-untyped-def": 8
     },
     "core/integration/decision_execution_links.py": {
       "no-any-return": 3,

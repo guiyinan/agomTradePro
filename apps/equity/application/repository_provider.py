@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from apps.equity.infrastructure.adapters import (
     MarketDataRepositoryAdapter,
     RegimeRepositoryAdapter,
     StockPoolRepositoryAdapter,
-    TushareStockAdapter,
 )
+from apps.equity.infrastructure.adapters import TushareStockAdapter as TushareStockAdapter
 from apps.equity.infrastructure.asset_master_queries import EquityAssetMasterQueryRepository
 from apps.equity.infrastructure.config_loader import get_stock_screening_rule  # noqa: F401
 from apps.equity.infrastructure.providers import (
@@ -22,9 +24,16 @@ from apps.equity.infrastructure.providers import (
 )
 from apps.equity.infrastructure.valuation_source_gateways import (
     AKShareValuationGateway,
-    TushareValuationGateway,
+)
+from apps.equity.infrastructure.valuation_source_gateways import (
+    TushareValuationGateway as TushareValuationGateway,
 )
 from apps.regime.application.repository_provider import get_regime_repository
+
+if TYPE_CHECKING:
+    from apps.equity.infrastructure.financial_source_gateway import (
+        TushareFinancialGateway as TushareFinancialGateway,
+    )
 
 
 def get_equity_stock_repository() -> DjangoStockRepository:
@@ -87,7 +96,9 @@ def get_tushare_stock_adapter() -> TushareStockAdapter:
     return TushareStockAdapter()
 
 
-def build_tushare_financial_gateway(*, token: str, http_url: str | None = None):
+def build_tushare_financial_gateway(
+    *, token: str, http_url: str | None = None
+) -> TushareFinancialGateway:
     """Build the Tushare financial gateway."""
 
     from apps.equity.infrastructure.financial_source_gateway import TushareFinancialGateway

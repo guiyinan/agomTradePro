@@ -160,6 +160,44 @@ def test_tushare_unified_provider_adapter_maps_fund_nav(monkeypatch):
     assert facts[0].extra["source_type"] == "tushare"
 
 
+def test_tushare_unified_provider_adapter_builds_typed_financial_facts(monkeypatch):
+    record = SimpleNamespace(
+        stock_code="001979.SZ",
+        report_date=date(2025, 12, 31),
+        report_type="4Q",
+        revenue=154_728_000_000.0,
+        net_profit=1_023_784_000.0,
+        total_assets=835_603_407_407.0,
+        total_liabilities=564_032_300_000.0,
+        equity=271_571_107_407.0,
+        roe=0.73,
+        roa=0.083,
+        debt_ratio=67.5,
+        revenue_growth=-13.53,
+        net_profit_growth=-74.65,
+    )
+    gateway = SimpleNamespace(
+        fetch=lambda asset_code, periods: SimpleNamespace(records=[record])
+    )
+    monkeypatch.setattr(
+        "apps.data_center.infrastructure._provider_adapter_tushare.build_tushare_financial_gateway",
+        lambda **kwargs: gateway,
+    )
+
+    adapter = TushareUnifiedProviderAdapter(_config("tushare", "tushare-main"))
+    facts = adapter.fetch_financials("001979.SZ", periods=8)
+    by_metric = {fact.metric_code: fact for fact in facts}
+
+    assert len(facts) == 10
+    assert by_metric["revenue"].period_end == date(2025, 12, 31)
+    assert by_metric["revenue"].period_type.value == "annual"
+    assert by_metric["revenue"].unit == "元"
+    assert by_metric["roa"].value == 0.083
+    assert by_metric["net_profit_growth"].value == -74.65
+    assert by_metric["revenue"].source == "tushare"
+    assert by_metric["revenue"].extra["provider_name"] == "tushare-main"
+
+
 def test_tushare_unified_provider_adapter_fetches_etf_net_flow_from_size_delta(monkeypatch):
     class _FakePro:
         def trade_cal(self, exchange, start_date, end_date):
