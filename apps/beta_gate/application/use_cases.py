@@ -9,9 +9,9 @@ Beta Gate Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
-from apps.events.domain.entities import EventType, create_event
+from apps.events.domain.entities import DomainEvent, EventType, create_event
 
 from ..domain.entities import (
     GateConfig,
@@ -24,6 +24,39 @@ from ..domain.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class GateConfigSelectorProtocol(Protocol):
+    """Select the effective Beta Gate config for a risk profile."""
+
+    def get_config(self, risk_profile: RiskProfile) -> GateConfig:
+        """Return one effective config."""
+        ...
+
+
+class EventPublisherProtocol(Protocol):
+    """Publish Beta Gate domain events."""
+
+    def publish(self, event: DomainEvent) -> None:
+        """Publish one event."""
+        ...
+
+
+class VisibilityUniverseBuilderProtocol(Protocol):
+    """Build a visibility universe from the current policy context."""
+
+    def build(
+        self,
+        current_regime: str,
+        regime_confidence: float,
+        policy_level: int,
+        risk_profile: RiskProfile,
+        regime_snapshot_id: str = "",
+        policy_snapshot_id: str = "",
+        candidate_assets: list[tuple[str, str]] | None = None,
+    ) -> VisibilityUniverse:
+        """Return the current visibility universe."""
+        ...
 
 
 # ========== DTOs ==========
@@ -208,7 +241,11 @@ class EvaluateBetaGateUseCase:
         ... ))
     """
 
-    def __init__(self, config_selector, event_bus=None):
+    def __init__(
+        self,
+        config_selector: GateConfigSelectorProtocol,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -236,7 +273,7 @@ class EvaluateBetaGateUseCase:
         Returns:
             评估响应
         """
-        warnings = []
+        warnings: list[str] = []
 
         try:
             # 获取配置
@@ -280,12 +317,14 @@ class EvaluateBetaGateUseCase:
                 error=str(e),
             )
 
-    def _publish_event(self, decision: GateDecision, request: EvaluateGateRequest):
+    def _publish_event(self, decision: GateDecision, request: EvaluateGateRequest) -> None:
         """发布事件"""
         if self.event_bus is None:
             return
 
-        event_type = EventType.BETA_GATE_PASSED if decision.is_passed else EventType.BETA_GATE_BLOCKED
+        event_type = (
+            EventType.BETA_GATE_PASSED if decision.is_passed else EventType.BETA_GATE_BLOCKED
+        )
 
         event = create_event(
             event_type=event_type,
@@ -303,7 +342,7 @@ class EvaluateBetaGateUseCase:
 
         self.event_bus.publish(event)
 
-    def _log_decision(self, decision: GateDecision):
+    def _log_decision(self, decision: GateDecision) -> None:
         """记录决策"""
         if decision.is_passed:
             logger.info(f"Beta Gate PASSED: {decision.asset_code} in {decision.current_regime}")
@@ -331,7 +370,11 @@ class EvaluateBatchUseCase:
         ... ))
     """
 
-    def __init__(self, config_selector, event_bus=None):
+    def __init__(
+        self,
+        config_selector: GateConfigSelectorProtocol,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -395,10 +438,10 @@ class EvaluateBatchUseCase:
         blocked = total - passed
 
         # 按拦截原因分组
-        blocked_by_reason = {}
+        blocked_by_reason: dict[str, int] = {}
         for decision in decisions:
             if decision.is_blocked:
-                reason = decision.blocking_reason
+                reason = decision.blocking_reason or "unknown"
                 blocked_by_reason[reason] = blocked_by_reason.get(reason, 0) + 1
 
         return {
@@ -414,7 +457,7 @@ class EvaluateBatchUseCase:
         decisions: list[GateDecision],
         summary: dict[str, Any],
         request: EvaluateBatchRequest,
-    ):
+    ) -> None:
         """发布汇总事件"""
         if self.event_bus is None:
             return
@@ -449,7 +492,7 @@ class GetGateConfigUseCase:
         >>> response = use_case.execute(GetGateConfigRequest(RiskProfile.BALANCED))
     """
 
-    def __init__(self, config_selector):
+    def __init__(self, config_selector: GateConfigSelectorProtocol) -> None:
         """
         初始化用例
 
@@ -503,7 +546,11 @@ class BuildVisibilityUniverseUseCase:
         ... ))
     """
 
-    def __init__(self, universe_builder, event_bus=None):
+    def __init__(
+        self,
+        universe_builder: VisibilityUniverseBuilderProtocol,
+        event_bus: EventPublisherProtocol | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -553,7 +600,7 @@ class BuildVisibilityUniverseUseCase:
                 error=str(e),
             )
 
-    def _publish_event(self, universe: VisibilityUniverse, request: BuildUniverseRequest):
+    def _publish_event(self, universe: VisibilityUniverse, request: BuildUniverseRequest) -> None:
         """发布事件"""
         if self.event_bus is None:
             return
@@ -573,7 +620,7 @@ class BuildVisibilityUniverseUseCase:
 
         self.event_bus.publish(event)
 
-    def _log_universe(self, universe: VisibilityUniverse):
+    def _log_universe(self, universe: VisibilityUniverse) -> None:
         """记录宇宙"""
         logger.info(
             f"Visibility Universe built: "

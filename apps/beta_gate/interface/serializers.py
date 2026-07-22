@@ -7,28 +7,29 @@ Beta Gate DRF Serializers
 """
 
 import math
+from typing import Any
 
 from rest_framework import serializers
 
-from ..domain.entities import GateStatus, RiskProfile
+from ..domain.entities import RiskProfile
 
 REGIME_CHOICES = ("Recovery", "Overheat", "Deflation", "Stagflation")
 
 
-class RiskProfileSerializer(serializers.Field):
+class RiskProfileSerializer(serializers.Field[RiskProfile, Any, str, Any]):
     """风险画像序列化器"""
 
-    def to_representation(self, obj):
+    def to_representation(self, obj: RiskProfile) -> str:
         return obj.value
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> RiskProfile:
         try:
             return RiskProfile(data)
         except ValueError:
             raise serializers.ValidationError(f"Invalid risk profile: {data}") from None
 
 
-class GateConfigSerializer(serializers.Serializer):
+class GateConfigSerializer(serializers.Serializer[Any]):
     """闸门配置序列化器（简化版）"""
 
     config_id = serializers.CharField(read_only=True)
@@ -42,7 +43,7 @@ class GateConfigSerializer(serializers.Serializer):
     expires_at = serializers.DateField(allow_null=True, read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Any) -> dict[str, Any]:
         """转换为表示"""
         return {
             "config_id": instance.config_id,
@@ -52,13 +53,17 @@ class GateConfigSerializer(serializers.Serializer):
             "regime_constraints": instance.regime_constraints,
             "policy_constraints": instance.policy_constraints,
             "portfolio_constraints": instance.portfolio_constraints,
-            "effective_date": instance.effective_date.isoformat() if instance.effective_date else None,
+            "effective_date": (
+                instance.effective_date.isoformat() if instance.effective_date else None
+            ),
             "expires_at": instance.expires_at.isoformat() if instance.expires_at else None,
-            "created_at": instance.created_at.isoformat() if hasattr(instance, "created_at") else None,
+            "created_at": (
+                instance.created_at.isoformat() if hasattr(instance, "created_at") else None
+            ),
         }
 
 
-class GateConfigCreateSerializer(serializers.Serializer):
+class GateConfigCreateSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the canonical Beta Gate config creation contract."""
 
     config_id = serializers.CharField(
@@ -71,9 +76,7 @@ class GateConfigCreateSerializer(serializers.Serializer):
         default=RiskProfile.BALANCED.value,
     )
     allowed_regimes = serializers.ListField(
-        child=serializers.ChoiceField(
-            choices=("Recovery", "Overheat", "Deflation", "Stagflation")
-        ),
+        child=serializers.ChoiceField(choices=("Recovery", "Overheat", "Deflation", "Stagflation")),
         required=False,
         allow_empty=False,
     )
@@ -99,21 +102,17 @@ class GateConfigCreateSerializer(serializers.Serializer):
         default=20.0,
     )
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Reject a single-position cap above the total-position cap."""
 
         if attrs["max_single_position"] > attrs["max_total_position"]:
             raise serializers.ValidationError(
-                {
-                    "max_single_position": (
-                        "max_single_position must not exceed max_total_position"
-                    )
-                }
+                {"max_single_position": ("max_single_position must not exceed max_total_position")}
             )
         return attrs
 
 
-class GateConfigUpdateSerializer(serializers.Serializer):
+class GateConfigUpdateSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the immutable-config replacement contract."""
 
     risk_profile = serializers.ChoiceField(
@@ -124,7 +123,7 @@ class GateConfigUpdateSerializer(serializers.Serializer):
     policy_constraints = serializers.DictField(required=False)
     portfolio_constraints = serializers.DictField(required=False)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         """Require at least one replacement field."""
 
         if not attrs:
@@ -132,7 +131,7 @@ class GateConfigUpdateSerializer(serializers.Serializer):
         return attrs
 
 
-class BetaGateTestSerializer(serializers.Serializer):
+class BetaGateTestSerializer(serializers.Serializer[dict[str, Any]]):
     """Validate the canonical side-effect-free Beta Gate batch evaluation input."""
 
     asset_codes = serializers.ListField(
@@ -157,7 +156,7 @@ class BetaGateTestSerializer(serializers.Serializer):
         default=RiskProfile.BALANCED.value,
     )
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         """Reject unknown fields instead of silently accepting contract drift."""
 
         if not isinstance(data, dict):
@@ -165,15 +164,14 @@ class BetaGateTestSerializer(serializers.Serializer):
         unknown_fields = sorted(set(data) - set(self.fields))
         if unknown_fields:
             raise serializers.ValidationError(
-                {
-                    "non_field_errors": [
-                        f"Unknown fields: {', '.join(unknown_fields)}"
-                    ]
-                }
+                {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
             )
-        return super().to_internal_value(data)
+        validated = super().to_internal_value(data)
+        if not isinstance(validated, dict):
+            raise serializers.ValidationError("Expected validated object data.")
+        return validated
 
-    def validate_asset_codes(self, value):
+    def validate_asset_codes(self, value: list[str]) -> list[str]:
         """Require unique normalized asset codes."""
 
         normalized = [code.strip() for code in value]
@@ -181,7 +179,7 @@ class BetaGateTestSerializer(serializers.Serializer):
             raise serializers.ValidationError("asset_codes must not contain duplicates")
         return normalized
 
-    def validate_regime_confidence(self, value):
+    def validate_regime_confidence(self, value: float) -> float:
         """Reject non-finite values that bypass ordinary numeric range comparisons."""
 
         if not math.isfinite(value):
@@ -189,7 +187,7 @@ class BetaGateTestSerializer(serializers.Serializer):
         return value
 
 
-class GateDecisionSerializer(serializers.Serializer):
+class GateDecisionSerializer(serializers.Serializer[Any]):
     """闸门决策序列化器（简化版）"""
 
     decision_id = serializers.CharField(read_only=True)
@@ -202,7 +200,7 @@ class GateDecisionSerializer(serializers.Serializer):
     evaluated_at = serializers.DateTimeField(read_only=True)
     evaluation_details = serializers.DictField(read_only=True)
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Any) -> dict[str, Any]:
         """转换为表示"""
         return {
             "decision_id": getattr(instance, "decision_id", ""),
@@ -216,18 +214,8 @@ class GateDecisionSerializer(serializers.Serializer):
             "evaluation_details": instance.evaluation_details or {},
         }
 
-    @property
-    def is_passed(self):
-        """是否通过"""
-        return self.status == GateStatus.PASSED
 
-    @property
-    def is_blocked(self):
-        """是否被拦截"""
-        return self.status.value.startswith("blocked_")
-
-
-class VisibilityUniverseSerializer(serializers.Serializer):
+class VisibilityUniverseSerializer(serializers.Serializer[Any]):
     """可见性宇宙序列化器（简化版）"""
 
     snapshot_id = serializers.CharField(read_only=True)
@@ -242,7 +230,7 @@ class VisibilityUniverseSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
 
 
-class EvaluateGateRequestSerializer(serializers.Serializer):
+class EvaluateGateRequestSerializer(serializers.Serializer[dict[str, Any]]):
     """评估闸门请求序列化器"""
 
     asset_code = serializers.CharField(help_text="资产代码")

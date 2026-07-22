@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7316,
-    "files_with_errors": 869
+    "errors": 7184,
+    "files_with_errors": 860
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1009,9 +1009,6 @@
       "no-untyped-call": 2,
       "no-untyped-def": 13
     },
-    "apps/beta_gate/application/config_query_service.py": {
-      "assignment": 1
-    },
     "apps/beta_gate/application/handlers.py": {
       "no-untyped-def": 5
     },
@@ -1020,53 +1017,11 @@
       "no-untyped-def": 2,
       "type-arg": 1
     },
-    "apps/beta_gate/application/use_cases.py": {
-      "no-untyped-def": 9,
-      "var-annotated": 1
-    },
     "apps/beta_gate/apps.py": {
       "no-untyped-def": 1
     },
-    "apps/beta_gate/domain/entities.py": {
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-redef": 1,
-      "no-untyped-def": 2,
-      "union-attr": 4
-    },
-    "apps/beta_gate/domain/services.py": {
-      "assignment": 1,
-      "attr-defined": 2,
-      "union-attr": 3
-    },
-    "apps/beta_gate/infrastructure/models.py": {
-      "no-any-return": 1,
-      "no-untyped-def": 15,
-      "type-arg": 2
-    },
-    "apps/beta_gate/infrastructure/repositories.py": {
-      "assignment": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 11,
-      "type-arg": 4
-    },
     "apps/beta_gate/interface/api_urls.py": {
       "no-untyped-def": 1
-    },
-    "apps/beta_gate/interface/forms.py": {
-      "no-untyped-def": 2
-    },
-    "apps/beta_gate/interface/serializers.py": {
-      "attr-defined": 1,
-      "comparison-overlap": 1,
-      "no-untyped-def": 11,
-      "type-arg": 8
-    },
-    "apps/beta_gate/interface/views.py": {
-      "no-untyped-call": 6,
-      "no-untyped-def": 30,
-      "type-arg": 1,
-      "union-attr": 10
     },
     "apps/broker_execution/admin.py": {
       "no-untyped-def": 3,
@@ -1656,7 +1611,7 @@
     },
     "apps/decision_rhythm/infrastructure/feature_providers.py": {
       "arg-type": 2,
-      "no-untyped-call": 20,
+      "no-untyped-call": 19,
       "no-untyped-def": 15,
       "override": 1,
       "union-attr": 1

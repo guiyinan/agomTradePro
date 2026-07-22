@@ -9,24 +9,31 @@ Beta Gate DRF Views
 import json
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import replace
+from typing import Any, Protocol, TypedDict
 
 from django.contrib import messages
 from django.db import transaction
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from rest_framework import serializers, status, viewsets
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..application.config_mutation_service import deactivate_gate_config, replace_gate_config
-from ..application.config_query_service import get_beta_gate_config_query_service
+from ..application.config_query_service import (
+    GateConfigViewData,
+    get_beta_gate_config_query_service,
+)
 from ..application.repository_provider import (
     get_beta_gate_config_repository,
     get_beta_gate_decision_repository,
     get_beta_gate_universe_repository,
 )
-from ..domain.entities import RiskProfile, create_gate_config, get_default_configs
+from ..domain.entities import GateConfig, RiskProfile, create_gate_config, get_default_configs
 from .forms import GateConfigForm
 from .serializers import (
     BetaGateTestSerializer,
@@ -37,13 +44,49 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-def _activate_gate_config_model(target_config):
-    """Atomically switch the active Beta Gate config."""
-    with transaction.atomic():
-        return get_beta_gate_config_query_service().activate_config(target_config.config_id)
+class JsonSuggestionConfig(TypedDict):
+    """Prompt and fallback template for one suggestion target."""
+
+    template: dict[str, Any]
+    hint: str
 
 
-def _save_gate_config_form(form: GateConfigForm):
+class StoredGateConfigProtocol(Protocol):
+    """Persisted config shape required by the batch selector."""
+
+    def to_domain(self) -> GateConfig:
+        """Return the domain config."""
+        ...
+
+
+class GateConfigReadRepositoryProtocol(Protocol):
+    """Minimal repository contract required by the batch API."""
+
+    def get_by_risk_profile(self, risk_profile: RiskProfile) -> StoredGateConfigProtocol | None:
+        """Return the latest config for a risk profile."""
+        ...
+
+
+class RepositoryConfigSelector:
+    """Adapt persisted configs to the domain selector contract."""
+
+    def __init__(self, config_repository: GateConfigReadRepositoryProtocol) -> None:
+        self.config_repository = config_repository
+
+    def get_config(self, risk_profile: RiskProfile) -> GateConfig:
+        """Return a persisted config or a stable default."""
+
+        stored = self.config_repository.get_by_risk_profile(risk_profile)
+        if stored is not None:
+            return stored.to_domain()
+        return replace(
+            get_default_configs()[risk_profile],
+            config_id=f"default-{risk_profile.value}",
+            version=1,
+        )
+
+
+def _save_gate_config_form(form: GateConfigForm) -> GateConfigViewData:
     """Persist a GateConfig form with single-active semantics."""
     with transaction.atomic():
         return get_beta_gate_config_query_service().save_form_data(form.save(commit=False))
@@ -58,7 +101,7 @@ class BetaGateVersionCompareAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         """
         获取两个版本的差异
 
@@ -113,34 +156,6 @@ class BetaGateVersionCompareAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _compare_configs(self, config1, config2):
-        """对比两个配置，返回差异列表"""
-        differences = []
-        fields = [
-            "risk_profile",
-            "is_active",
-            "effective_date",
-            "expires_at",
-            "regime_constraints",
-            "policy_constraints",
-            "portfolio_constraints",
-        ]
-
-        for field in fields:
-            val1 = config1.get(field)
-            val2 = config2.get(field)
-
-            if val1 != val2:
-                differences.append(
-                    {
-                        "field": field,
-                        "config1": val1,
-                        "config2": val2,
-                    }
-                )
-
-        return differences
-
 
 class RollbackConfigView(APIView):
     """
@@ -151,7 +166,7 @@ class RollbackConfigView(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request, config_id=None) -> Response:
+    def post(self, request: Request, config_id: str | None = None) -> Response:
         """Activate the exact persisted config identified by the route."""
         try:
             if not config_id:
@@ -178,6 +193,11 @@ class RollbackConfigView(APIView):
                 )
 
             activated = config_service.activate_config(config_id)
+            if activated is None:
+                return Response(
+                    {"success": False, "error": f"Config {config_id} no longer exists"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             return Response(
                 {
                     "success": True,
@@ -207,7 +227,7 @@ class RollbackConfigView(APIView):
 class BetaGateJsonSuggestAPIView(APIView):
     """根据自然语言建议生成 Beta Gate JSON。"""
 
-    TARGET_CONFIG = {
+    TARGET_CONFIG: dict[str, JsonSuggestionConfig] = {
         "regime": {
             "template": {
                 "current_regime": "Recovery",
@@ -234,7 +254,7 @@ class BetaGateJsonSuggestAPIView(APIView):
         },
     }
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         data = request.data if isinstance(request.data, dict) else {}
         target = (data.get("target") or "").strip().lower()
         requirement = (data.get("requirement") or "").strip()
@@ -306,7 +326,7 @@ class BetaGateJsonSuggestAPIView(APIView):
                 }
             )
 
-    def _build_messages(self, target: str, requirement: str) -> list[dict]:
+    def _build_messages(self, target: str, requirement: str) -> list[dict[str, str]]:
         config = self.TARGET_CONFIG[target]
         system_prompt = (
             "你是配置助手。只输出一个 JSON 对象，不要输出解释、markdown、代码块。"
@@ -324,25 +344,28 @@ class BetaGateJsonSuggestAPIView(APIView):
             {"role": "user", "content": user_prompt},
         ]
 
-    def _parse_json_from_text(self, text: str):
+    def _parse_json_from_text(self, text: str) -> object | None:
         if not text:
             return None
         try:
-            return json.loads(text)
+            parsed: object = json.loads(text)
+            return parsed
         except json.JSONDecodeError:
             pass
 
         fenced_match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
         if fenced_match:
             try:
-                return json.loads(fenced_match.group(1))
+                parsed = json.loads(fenced_match.group(1))
+                return parsed
             except json.JSONDecodeError:
                 pass
 
         brace_match = re.search(r"\{.*\}", text, re.DOTALL)
         if brace_match:
             try:
-                return json.loads(brace_match.group(0))
+                parsed = json.loads(brace_match.group(0))
+                return parsed
             except json.JSONDecodeError:
                 return None
         return None
@@ -351,7 +374,7 @@ class BetaGateJsonSuggestAPIView(APIView):
 # ========== Template Views ==========
 
 
-def beta_gate_test_view(request):
+def beta_gate_test_view(request: HttpRequest) -> HttpResponse:
     """
     Beta Gate 资产测试工具页面
 
@@ -429,7 +452,7 @@ def beta_gate_test_view(request):
         return render(request, "beta_gate/test_asset.html", context, status=500)
 
 
-def beta_gate_version_view(request):
+def beta_gate_version_view(request: HttpRequest) -> HttpResponse:
     """
     Beta Gate 版本对比页面
 
@@ -458,7 +481,7 @@ class BetaGateTestAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request) -> Response:
+    def post(self, request: Request) -> Response:
         """Evaluate a bounded asset batch without persisting decisions or events."""
         try:
             from ..application.use_cases import EvaluateBatchRequest, EvaluateBatchUseCase
@@ -469,22 +492,7 @@ class BetaGateTestAPIView(APIView):
             risk_profile = RiskProfile(data["risk_profile"])
             assets = [(code, data["asset_class"]) for code in data["asset_codes"]]
 
-            # 创建配置选择器
-            class SimpleConfigSelector:
-                def __init__(self, config_repo):
-                    self.config_repo = config_repo
-
-                def get_config(self, risk_profile):
-                    config = self.config_repo.get_by_risk_profile(risk_profile)
-                    if config is not None:
-                        return config.to_domain() if hasattr(config, "to_domain") else config
-                    return replace(
-                        get_default_configs()[risk_profile],
-                        config_id=f"default-{risk_profile.value}",
-                        version=1,
-                    )
-
-            config_selector = SimpleConfigSelector(get_beta_gate_config_repository())
+            config_selector = RepositoryConfigSelector(get_beta_gate_config_repository())
             use_case = EvaluateBatchUseCase(config_selector)
             eval_request = EvaluateBatchRequest(
                 assets=assets,
@@ -495,8 +503,8 @@ class BetaGateTestAPIView(APIView):
             )
             response = use_case.execute(eval_request)
 
-            if response.success:
-                results = []
+            if response.success and response.config is not None:
+                results: list[dict[str, Any]] = []
                 for decision in response.decisions:
                     results.append(
                         {
@@ -504,9 +512,9 @@ class BetaGateTestAPIView(APIView):
                             "asset_class": decision.asset_class,
                             "passed": decision.is_passed,
                             "status": decision.status.value,
-                            "blocking_reason": decision.blocking_reason
-                            if not decision.is_passed
-                            else None,
+                            "blocking_reason": (
+                                decision.blocking_reason if not decision.is_passed else None
+                            ),
                             "evaluated_at": decision.evaluated_at.isoformat(),
                         }
                     )
@@ -555,11 +563,11 @@ class GateConfigViewSet(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.config_repository = get_beta_gate_config_repository()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """Return active configs by default, or all configs when explicitly requested."""
         try:
             active_only = str(request.query_params.get("active_only", "true")).lower()
@@ -575,7 +583,7 @@ class GateConfigViewSet(viewsets.ViewSet):
             )
             results = []
             for config in configs:
-                config_entity = config.to_domain() if hasattr(config, "to_domain") else config
+                config_entity = config.to_domain()
                 results.append(
                     {
                         "config_id": config_entity.config_id,
@@ -586,12 +594,16 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "regime_constraints": config_entity.regime_constraint.to_dict(),
                         "policy_constraints": config_entity.policy_constraint.to_dict(),
                         "portfolio_constraints": config_entity.portfolio_constraint.to_dict(),
-                        "effective_date": config_entity.effective_date.isoformat()
-                        if config_entity.effective_date
-                        else None,
-                        "expires_at": config_entity.expires_at.isoformat()
-                        if config_entity.expires_at
-                        else None,
+                        "effective_date": (
+                            config_entity.effective_date.isoformat()
+                            if config_entity.effective_date
+                            else None
+                        ),
+                        "expires_at": (
+                            config_entity.expires_at.isoformat()
+                            if config_entity.expires_at
+                            else None
+                        ),
                     }
                 )
             return Response(
@@ -608,16 +620,21 @@ class GateConfigViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """获取指定配置"""
         try:
+            if pk is None:
+                return Response(
+                    {"success": False, "error": "Config id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             config = self.config_repository.get_by_id(pk)
             if config is None:
                 return Response(
                     {"success": False, "error": "Config not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            config_entity = config.to_domain() if hasattr(config, "to_domain") else config
+            config_entity = config.to_domain()
             return Response(
                 {
                     "success": True,
@@ -630,12 +647,16 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "regime_constraints": config_entity.regime_constraint.to_dict(),
                         "policy_constraints": config_entity.policy_constraint.to_dict(),
                         "portfolio_constraints": config_entity.portfolio_constraint.to_dict(),
-                        "effective_date": config_entity.effective_date.isoformat()
-                        if config_entity.effective_date
-                        else None,
-                        "expires_at": config_entity.expires_at.isoformat()
-                        if config_entity.expires_at
-                        else None,
+                        "effective_date": (
+                            config_entity.effective_date.isoformat()
+                            if config_entity.effective_date
+                            else None
+                        ),
+                        "expires_at": (
+                            config_entity.expires_at.isoformat()
+                            if config_entity.expires_at
+                            else None
+                        ),
                     },
                 }
             )
@@ -646,7 +667,7 @@ class GateConfigViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def create(self, request) -> Response:
+    def create(self, request: Request) -> Response:
         """创建新的 Beta Gate 配置。"""
         try:
             payload = request.data if isinstance(request.data, dict) else {}
@@ -717,9 +738,9 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "regime_constraints": saved.regime_constraints,
                         "policy_constraints": saved.policy_constraints,
                         "portfolio_constraints": saved.portfolio_constraints,
-                        "effective_date": saved.effective_date.isoformat()
-                        if saved.effective_date
-                        else None,
+                        "effective_date": (
+                            saved.effective_date.isoformat() if saved.effective_date else None
+                        ),
                         "expires_at": saved.expires_at.isoformat() if saved.expires_at else None,
                     },
                 },
@@ -742,12 +763,17 @@ class GateConfigViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def partial_update(self, request, pk=None) -> Response:
+    def partial_update(self, request: Request, pk: str | None = None) -> Response:
         """Replace an immutable config with a newly versioned config."""
 
+        if pk is None:
+            return Response(
+                {"success": False, "error": "Config id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         serializer = GateConfigUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = replace_gate_config(str(pk), dict(serializer.validated_data))
+        result = replace_gate_config(pk, dict(serializer.validated_data))
         if result is None:
             return Response(
                 {"success": False, "error": "Config not found"},
@@ -755,37 +781,42 @@ class GateConfigViewSet(viewsets.ViewSet):
             )
         return Response({"success": True, "result": result})
 
-    def update(self, request, pk=None) -> Response:
+    def update(self, request: Request, pk: str | None = None) -> Response:
         """Use immutable replacement semantics for PUT as well as PATCH."""
 
         return self.partial_update(request, pk=pk)
 
-    def destroy(self, request, pk=None) -> Response:
+    def destroy(self, request: Request, pk: str | None = None) -> Response:
         """Soft-delete a config so historical versions remain auditable."""
 
-        if not deactivate_gate_config(str(pk)):
+        if pk is None:
+            return Response(
+                {"success": False, "error": "Config id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not deactivate_gate_config(pk):
             return Response(
                 {"success": False, "error": "Config not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def get_permissions(self):
+    def get_permissions(self) -> Sequence[BasePermission]:
         """Require staff authorization for config mutation."""
 
         if self.action in {"create", "update", "partial_update", "destroy"}:
             return [IsAdminUser()]
-        return [permission() for permission in self.permission_classes]
+        return [IsAuthenticated()]
 
 
 class GateDecisionViewSet(viewsets.ViewSet):
     """闸门决策视图集（简化版）"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.decision_repository = get_beta_gate_decision_repository()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """获取决策历史"""
         try:
             try:
@@ -803,7 +834,7 @@ class GateDecisionViewSet(viewsets.ViewSet):
                         "decision_id": getattr(decision, "decision_id", ""),
                         "asset_code": decision.asset_code,
                         "asset_class": decision.asset_class,
-                        "status": decision.status.value,
+                        "status": decision.status,
                         "current_regime": decision.current_regime,
                         "policy_level": decision.policy_level,
                         "regime_confidence": decision.regime_confidence,
@@ -824,9 +855,14 @@ class GateDecisionViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """获取指定决策"""
         try:
+            if pk is None:
+                return Response(
+                    {"success": False, "error": "Decision id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             decision = self.decision_repository.get_by_id(pk)
             if decision is None:
                 return Response(
@@ -840,7 +876,7 @@ class GateDecisionViewSet(viewsets.ViewSet):
                         "decision_id": getattr(decision, "decision_id", ""),
                         "asset_code": decision.asset_code,
                         "asset_class": decision.asset_class,
-                        "status": decision.status.value,
+                        "status": decision.status,
                         "current_regime": decision.current_regime,
                         "policy_level": decision.policy_level,
                         "regime_confidence": decision.regime_confidence,
@@ -859,20 +895,27 @@ class GateDecisionViewSet(viewsets.ViewSet):
 class VisibilityUniverseViewSet(viewsets.ViewSet):
     """可见性宇宙视图集（简化版）"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.universe_repository = get_beta_gate_universe_repository()
 
-    def list(self, request) -> Response:
+    def list(self, request: Request) -> Response:
         """获取历史快照"""
         try:
             regime = request.query_params.get("regime", None)
-            policy_level = request.query_params.get("policy_level", None)
+            policy_level_raw = request.query_params.get("policy_level", None)
             try:
                 limit = int(request.query_params.get("limit", 100))
             except (TypeError, ValueError):
                 return Response(
                     {"success": False, "error": "limit must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                policy_level = int(policy_level_raw) if policy_level_raw is not None else None
+            except (TypeError, ValueError):
+                return Response(
+                    {"success": False, "error": "policy_level must be an integer"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -891,9 +934,14 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def retrieve(self, request, pk=None) -> Response:
+    def retrieve(self, request: Request, pk: str | None = None) -> Response:
         """获取指定快照"""
         try:
+            if pk is None:
+                return Response(
+                    {"success": False, "error": "Snapshot id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             snapshot = self.universe_repository.get_by_id(pk)
             if snapshot is None:
                 return Response(
@@ -917,7 +965,7 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
 # ========== Template Views ==========
 
 
-def beta_gate_config_view(request):
+def beta_gate_config_view(request: HttpRequest) -> HttpResponse:
     """
     Beta 闸门配置页面
 
@@ -946,7 +994,7 @@ def beta_gate_config_view(request):
         return render(request, "beta_gate/config.html", context, status=500)
 
 
-def beta_gate_config_create_view(request):
+def beta_gate_config_create_view(request: HttpRequest) -> HttpResponse:
     """创建 Beta Gate 配置（非 Admin）。"""
     if request.method == "POST":
         form = GateConfigForm(request.POST)
@@ -968,7 +1016,7 @@ def beta_gate_config_create_view(request):
     )
 
 
-def beta_gate_config_edit_view(request, config_id):
+def beta_gate_config_edit_view(request: HttpRequest, config_id: str) -> HttpResponse:
     """编辑 Beta Gate 配置（非 Admin）。"""
     config = get_beta_gate_config_query_service().get_config_for_edit(config_id)
     if config is None:
@@ -996,7 +1044,7 @@ def beta_gate_config_edit_view(request, config_id):
     )
 
 
-def beta_gate_config_activate_view(request, config_id):
+def beta_gate_config_activate_view(request: HttpRequest, config_id: str) -> HttpResponse:
     """将指定配置设为激活。"""
     if request.method != "POST":
         return redirect("beta_gate:version")

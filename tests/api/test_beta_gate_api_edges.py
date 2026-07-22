@@ -67,6 +67,34 @@ def test_beta_gate_universe_rejects_invalid_limit(authenticated_client):
 
 
 @pytest.mark.django_db
+def test_beta_gate_universe_rejects_invalid_policy_level(authenticated_client):
+    response = authenticated_client.get(
+        "/api/beta-gate/universe/?policy_level=not-an-integer"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "policy_level must be an integer"
+
+
+@pytest.mark.django_db
+def test_beta_gate_decision_list_serializes_persisted_status(authenticated_client):
+    GateDecisionModel.objects.create(
+        decision_id="decision-api-status",
+        asset_code="000001.SH",
+        asset_class="equity",
+        status=GateDecisionModel.PASSED,
+        current_regime="Recovery",
+        policy_level=0,
+        regime_confidence=0.8,
+    )
+
+    response = authenticated_client.get("/api/beta-gate/decisions/")
+
+    assert response.status_code == 200
+    assert response.json()["results"][0]["status"] == GateDecisionModel.PASSED
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("field", "value"),
     (

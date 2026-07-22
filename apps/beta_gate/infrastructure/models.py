@@ -6,53 +6,55 @@ Beta Gate Django ORM Models
 简化版本，与现有 domain entities 兼容。
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Collection
+from datetime import date, datetime
 
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from ..domain.entities import RiskProfile
+from ..domain.entities import GateConfig, GateDecision, RiskProfile
 
 logger = logging.getLogger(__name__)
 
 
-class GateConfigQuerySet(models.QuerySet):
+class GateConfigQuerySet(models.QuerySet["GateConfigModel"]):
     """GateConfig 查询集扩展"""
 
-    def active(self):
+    def active(self) -> GateConfigQuerySet:
         """获取激活的配置"""
         return self.filter(is_active=True)
 
-    def valid_at(self, timestamp):
+    def valid_at(self, timestamp: date | datetime) -> GateConfigQuerySet:
         """获取指定时间有效的配置"""
-        return self.filter(
-            effective_date__lte=timestamp
-        ).filter(
+        return self.filter(effective_date__lte=timestamp).filter(
             models.Q(expires_at__isnull=True) | models.Q(expires_at__gte=timestamp)
         )
 
-    def by_risk_profile(self, risk_profile):
+    def by_risk_profile(self, risk_profile: RiskProfile) -> GateConfigQuerySet:
         """按风险画像过滤"""
         return self.filter(risk_profile=risk_profile.value)
 
 
-class GateDecisionQuerySet(models.QuerySet):
+class GateDecisionQuerySet(models.QuerySet["GateDecisionModel"]):
     """GateDecision 查询集扩展"""
 
-    def passed(self):
+    def passed(self) -> GateDecisionQuerySet:
         """获取通过的决策"""
         return self.filter(status=self.model.PASSED)
 
-    def blocked(self):
+    def blocked(self) -> GateDecisionQuerySet:
         """获取拦截的决策"""
         return self.exclude(status=self.model.PASSED)
 
-    def by_asset(self, asset_code):
+    def by_asset(self, asset_code: str) -> GateDecisionQuerySet:
         """按资产过滤"""
         return self.filter(asset_code=asset_code)
 
-    def by_regime(self, regime):
+    def by_regime(self, regime: str) -> GateDecisionQuerySet:
         """按 Regime 过滤"""
         return self.filter(current_regime=regime)
 
@@ -76,10 +78,7 @@ class GateConfigModel(models.Model):
 
     # 字段定义
     config_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="配置唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="配置唯一标识符"
     )
 
     risk_profile = models.CharField(
@@ -87,56 +86,27 @@ class GateConfigModel(models.Model):
         choices=RISK_PROFILE_CHOICES,
         default=BALANCED,
         db_index=True,
-        help_text="风险画像"
+        help_text="风险画像",
     )
 
-    version = models.IntegerField(
-        default=1,
-        help_text="配置版本号"
-    )
+    version = models.IntegerField(default=1, help_text="配置版本号")
 
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="是否激活"
-    )
+    is_active = models.BooleanField(default=True, db_index=True, help_text="是否激活")
 
     # JSON 字段存储配置
-    regime_constraints = models.JSONField(
-        default=dict,
-        help_text="Regime 约束配置"
-    )
+    regime_constraints = models.JSONField(default=dict, help_text="Regime 约束配置")
 
-    policy_constraints = models.JSONField(
-        default=dict,
-        help_text="Policy 约束配置"
-    )
+    policy_constraints = models.JSONField(default=dict, help_text="Policy 约束配置")
 
-    portfolio_constraints = models.JSONField(
-        default=dict,
-        help_text="组合约束配置"
-    )
+    portfolio_constraints = models.JSONField(default=dict, help_text="组合约束配置")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
 
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="更新时间"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
-    effective_date = models.DateField(
-        default=timezone.now,
-        help_text="生效日期"
-    )
+    effective_date = models.DateField(default=timezone.now, help_text="生效日期")
 
-    expires_at = models.DateField(
-        null=True,
-        blank=True,
-        help_text="过期日期（可选）"
-    )
+    expires_at = models.DateField(null=True, blank=True, help_text="过期日期（可选）")
     objects = GateConfigQuerySet.as_manager()
 
     class Meta:
@@ -157,14 +127,14 @@ class GateConfigModel(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"GateConfig({self.config_id}, {self.risk_profile}, v{self.version})"
 
-    def clean(self):
+    def clean(self) -> None:
         """验证模型"""
         super().clean()
 
-    def validate_constraints(self, exclude=None):
+    def validate_constraints(self, exclude: Collection[str] | None = None) -> None:
         """Allow same-profile activation switches to validate before old rows are deactivated."""
         if self.is_active:
             exclude = set(exclude or [])
@@ -183,11 +153,10 @@ class GateConfigModel(models.Model):
         """是否有效（激活且未过期）"""
         return self.is_active and not self.is_expired
 
-    def to_domain(self):
+    def to_domain(self) -> GateConfig:
         """转换为 Domain 层实体"""
 
         from ..domain.entities import (
-            GateConfig,
             PolicyConstraint,
             PortfolioConstraint,
             RegimeConstraint,
@@ -206,7 +175,7 @@ class GateConfigModel(models.Model):
         )
 
     @classmethod
-    def from_domain(cls, config):
+    def from_domain(cls, config: GateConfig) -> GateConfigModel:
         """从 Domain 层实体创建"""
         return cls(
             config_id=config.config_id,
@@ -248,54 +217,24 @@ class GateDecisionModel(models.Model):
 
     # 字段定义
     decision_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="决策唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="决策唯一标识符"
     )
 
-    asset_code = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="资产代码"
-    )
+    asset_code = models.CharField(max_length=32, db_index=True, help_text="资产代码")
 
-    asset_class = models.CharField(
-        max_length=64,
-        help_text="资产类别"
-    )
+    asset_class = models.CharField(max_length=64, help_text="资产类别")
 
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        help_text="决策状态"
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, help_text="决策状态")
 
-    current_regime = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="当前 Regime"
-    )
+    current_regime = models.CharField(max_length=32, db_index=True, help_text="当前 Regime")
 
-    policy_level = models.IntegerField(
-        help_text="Policy 档位"
-    )
+    policy_level = models.IntegerField(help_text="Policy 档位")
 
-    regime_confidence = models.FloatField(
-        help_text="Regime 置信度"
-    )
+    regime_confidence = models.FloatField(help_text="Regime 置信度")
 
-    evaluation_details = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="评估详情"
-    )
+    evaluation_details = models.JSONField(default=dict, blank=True, help_text="评估详情")
 
-    evaluated_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="评估时间"
-    )
+    evaluated_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="评估时间")
     objects = GateDecisionQuerySet.as_manager()
 
     class Meta:
@@ -310,17 +249,16 @@ class GateDecisionModel(models.Model):
             models.Index(fields=["status", "-evaluated_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"GateDecision({self.asset_code}, {self.status}, {self.evaluated_at})"
 
-    def to_domain(self):
+    def to_domain(self) -> GateDecision:
         """转换为 Domain 层实体"""
-        from ..domain.entities import GateDecision as DomainGateDecision
         from ..domain.entities import GateStatus
 
         details = self.evaluation_details or {}
 
-        return DomainGateDecision(
+        return GateDecision(
             status=GateStatus(self.status),
             asset_code=self.asset_code,
             asset_class=self.asset_class,
@@ -353,7 +291,8 @@ class GateDecisionModel(models.Model):
         if self.is_passed:
             return ""
         details = self.evaluation_details or {}
-        return details.get("blocking_reason", "")
+        reason = details.get("blocking_reason", "")
+        return reason if isinstance(reason, str) else str(reason)
 
 
 class VisibilityUniverseSnapshotModel(models.Model):
@@ -364,75 +303,37 @@ class VisibilityUniverseSnapshotModel(models.Model):
     """
 
     snapshot_id = models.CharField(
-        max_length=64,
-        unique=True,
-        db_index=True,
-        help_text="快照唯一标识符"
+        max_length=64, unique=True, db_index=True, help_text="快照唯一标识符"
     )
 
-    regime_snapshot_id = models.CharField(
-        max_length=64,
-        blank=True,
-        help_text="Regime 快照 ID"
-    )
+    regime_snapshot_id = models.CharField(max_length=64, blank=True, help_text="Regime 快照 ID")
 
-    policy_snapshot_id = models.CharField(
-        max_length=64,
-        blank=True,
-        help_text="Policy 快照 ID"
-    )
+    policy_snapshot_id = models.CharField(max_length=64, blank=True, help_text="Policy 快照 ID")
 
-    current_regime = models.CharField(
-        max_length=32,
-        db_index=True,
-        help_text="当前 Regime"
-    )
+    current_regime = models.CharField(max_length=32, db_index=True, help_text="当前 Regime")
 
-    policy_level = models.IntegerField(
-        help_text="Policy 档位"
-    )
+    policy_level = models.IntegerField(help_text="Policy 档位")
 
-    regime_confidence = models.FloatField(
-        help_text="Regime 置信度"
-    )
+    regime_confidence = models.FloatField(help_text="Regime 置信度")
 
     risk_profile = models.CharField(
         max_length=20,
         choices=GateConfigModel.RISK_PROFILE_CHOICES,
         default=GateConfigModel.BALANCED,
-        help_text="风险画像"
+        help_text="风险画像",
     )
 
-    visible_asset_categories = models.JSONField(
-        default=list,
-        help_text="可见资产类别列表"
-    )
+    visible_asset_categories = models.JSONField(default=list, help_text="可见资产类别列表")
 
-    visible_strategies = models.JSONField(
-        default=list,
-        help_text="可见策略列表"
-    )
+    visible_strategies = models.JSONField(default=list, help_text="可见策略列表")
 
-    hard_exclusions = models.JSONField(
-        default=list,
-        help_text="硬排除列表"
-    )
+    hard_exclusions = models.JSONField(default=list, help_text="硬排除列表")
 
-    watch_list = models.JSONField(
-        default=list,
-        help_text="观察列表"
-    )
+    watch_list = models.JSONField(default=list, help_text="观察列表")
 
-    as_of = models.DateField(
-        default=timezone.now,
-        help_text="截止日期"
-    )
+    as_of = models.DateField(default=timezone.now, help_text="截止日期")
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="创建时间"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="创建时间")
 
     class Meta:
         app_label = "beta_gate"
@@ -444,5 +345,5 @@ class VisibilityUniverseSnapshotModel(models.Model):
             models.Index(fields=["current_regime", "policy_level", "-as_of"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"UniverseSnapshot({self.snapshot_id}, {self.current_regime}, P{self.policy_level})"

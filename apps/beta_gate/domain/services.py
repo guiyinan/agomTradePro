@@ -118,9 +118,7 @@ class BetaGateEvaluator:
             )
 
         # 2. Policy 检查
-        policy_passed, policy_reason = self.config.policy_constraint.is_policy_allowed(
-            policy_level
-        )
+        policy_passed, policy_reason = self.config.policy_constraint.is_policy_allowed(policy_level)
 
         if not policy_passed:
             return self._create_blocked_decision(
@@ -136,11 +134,13 @@ class BetaGateEvaluator:
 
         # 3. 组合约束检查（仅在提供了组合参数时执行）
         if current_portfolio_value > 0 or new_position_value > 0:
-            portfolio_passed, portfolio_reason = self.config.portfolio_constraint.check_position_limit(
-                current_value=current_portfolio_value,
-                new_position_value=new_position_value,
-                total_portfolio_value=current_portfolio_value + new_position_value,
-                existing_positions=existing_positions,
+            portfolio_passed, portfolio_reason = (
+                self.config.portfolio_constraint.check_position_limit(
+                    current_value=current_portfolio_value,
+                    new_position_value=new_position_value,
+                    total_portfolio_value=current_portfolio_value + new_position_value,
+                    existing_positions=existing_positions,
+                )
             )
 
             if not portfolio_passed:
@@ -209,7 +209,9 @@ class BetaGateEvaluator:
                 evaluation_details={"regime_check": "failed"},
             )
 
-        if asset_code in regime_match.forbidden_assets or asset_class in [str(x).lower() for x in regime_match.forbidden_categories]:
+        if asset_code in regime_match.forbidden_assets or asset_class in [
+            str(x).lower() for x in regime_match.forbidden_categories
+        ]:
             return GateDecision(
                 status=GateStatus.BLOCKED_REGIME,
                 asset_code=asset_code,
@@ -226,7 +228,10 @@ class BetaGateEvaluator:
             allowed_categories = {str(x).lower() for x in regime_match.allowed_categories}
             if asset_class.lower() not in allowed_categories:
                 # fallback: allow if caller passes broad chinese class names for A-share.
-                if not (asset_class.startswith("a_share") and any("a_share" in x for x in allowed_categories)):
+                if not (
+                    asset_class.startswith("a_share")
+                    and any("a_share" in x for x in allowed_categories)
+                ):
                     return GateDecision(
                         status=GateStatus.BLOCKED_REGIME,
                         asset_code=asset_code,
@@ -240,7 +245,9 @@ class BetaGateEvaluator:
                     )
 
         policy_match = self.config.policy_constraints.get(policy_level)
-        if policy_match and asset_class in [str(x).lower() for x in policy_match.forbidden_categories]:
+        if policy_match and asset_class in [
+            str(x).lower() for x in policy_match.forbidden_categories
+        ]:
             return GateDecision(
                 status=GateStatus.BLOCKED_POLICY,
                 asset_code=asset_code,
@@ -400,12 +407,12 @@ class VisibilityUniverseBuilder:
         """
         from datetime import date
 
+        config: GateConfig
         if config_selector is not None:
             config = config_selector.get_config(risk_profile)
         else:
-            config = self.configs.get(risk_profile)
-            if config is None:
-                config = get_default_configs()[risk_profile]
+            selected_config = self.configs.get(risk_profile)
+            config = selected_config or get_default_configs()[risk_profile]
 
         # 评估候选资产
         visible_assets = []
@@ -432,7 +439,9 @@ class VisibilityUniverseBuilder:
         # 提取可见资产类别（legacy: prefer explicit visibility map if provided）
         if config.asset_category_visibility:
             visible_asset_categories = [k for k, v in config.asset_category_visibility.items() if v]
-            hard_exclusions.extend([k for k, v in config.asset_category_visibility.items() if not v])
+            hard_exclusions.extend(
+                [k for k, v in config.asset_category_visibility.items() if not v]
+            )
         else:
             visible_asset_categories = list({asset_class for _, asset_class in visible_assets})
 

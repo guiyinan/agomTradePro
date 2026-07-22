@@ -675,3 +675,15 @@
 
 - 三个 Admin 文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7381 errors / 872 files` 收紧为 `7316 errors / 869 files`，净减少 `65 errors / 3 files`，其中 `attr-defined`、`no-untyped-def`、`type-arg` 全部归零。
 - Events task、Alpha Trigger repository、Beta Gate activation 与 Admin migration 回归共 `13 passed`；Django system check、Ruff、diff check 通过。
+
+## 第五十二批
+
+- 按“真实风险优先 + 公共契约杠杆”纵向收口 Beta Gate：将 `GateConfig` 的 Regime、Policy、Portfolio 约束改为构造后必定非空的领域不变量，移除 `InitVar is_valid` 与同名 property 的冲突；`GateDecision.evaluated_at` 同样固定为非空 aware datetime。
+- Application UseCase 以 selector、event publisher、universe builder Protocol 取代动态依赖；配置查询服务在 ORM 边界构造 `GateConfigViewData` / `GateDecisionViewData`，不再向表单和视图传播 `Any | None`。
+- Repository、typed QuerySet、ORM 转换、DRF serializer/form/view 全链路具化。类型传播修复四类真实故障：决策保存不再写入空 `decision_id`；Universe 保存不再因 eager `getattr` fallback 访问不存在的 `created_at`；决策 API 不再对数据库字符串状态调用 `.value`；detail 路径缺少 ID 和 Universe 非整数 `policy_level` 会返回 400，而不是查询字符串 `None` 或触发 500。
+- 删除两个无引用的视图内 helper，并把批量评估配置选择器提升为显式 repository adapter；成功响应必须同时持有非空配置，版本回滚也处理目标在查询与激活之间消失的竞态。
+
+## 第五十二批验证结果
+
+- Beta Gate Domain、Application、Infrastructure、Serializer/Form/View 共 9 个生产文件的增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7316 errors / 869 files` 收紧为 `7184 errors / 860 files`，净减少 `132 errors / 9 files`，其中 Beta Gate 本身清除 131 项，并连带清除 Decision Rhythm 1 项未类型调用。
+- Beta Gate API edges、领域实体/服务、repository typing contract、激活一致性与 Decision Platform 集成回归共 `66 passed`；Django system check、架构增量门禁 `0 violations`、模块依赖门禁 `199 edges / 0 cycles`，Ruff、Black、diff check 通过。

@@ -77,7 +77,7 @@ class GateConfigForm(forms.Form):
         help_text="字段建议：max_positions(最多持仓数)、max_single_position_weight(单仓上限%)、max_concentration_ratio(集中度上限%)",
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.instance = kwargs.pop("instance", None)
         super().__init__(*args, **kwargs)
         self._configure_widgets()
@@ -86,7 +86,7 @@ class GateConfigForm(forms.Form):
         else:
             self._apply_create_initial()
 
-    def save(self, commit=True) -> GateConfigFormData:
+    def save(self, commit: bool = True) -> GateConfigFormData:
         """Return validated data for the application service."""
 
         if not self.is_valid():

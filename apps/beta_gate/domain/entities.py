@@ -137,7 +137,10 @@ class RegimeConstraint:
 
         # 检查是否在允许列表中
         if self.allowed_regimes and regime not in self.allowed_regimes:
-            return False, f"Regime {regime} 不在允许列表中（需要: {', '.join(self.allowed_regimes)}）"
+            return (
+                False,
+                f"Regime {regime} 不在允许列表中（需要: {', '.join(self.allowed_regimes)}）",
+            )
 
         # 检查置信度下限
         if confidence < self.min_confidence:
@@ -278,7 +281,7 @@ class PortfolioConstraint:
     max_single_position_weight: float | None = None
     max_concentration_ratio: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.max_single_position_weight is not None:
             object.__setattr__(self, "max_single_position_pct", self.max_single_position_weight)
         if self.max_concentration_ratio is not None:
@@ -316,7 +319,10 @@ class PortfolioConstraint:
 
         # 检查单资产仓位限制
         if (new_position_value / total_portfolio_value * 100) > self.max_single_position_pct:
-            return False, f"单资产仓位 {new_position_value / total_portfolio_value * 100:.1f}% 超过限制 {self.max_single_position_pct}%"
+            return (
+                False,
+                f"单资产仓位 {new_position_value / total_portfolio_value * 100:.1f}% 超过限制 {self.max_single_position_pct}%",
+            )
 
         # 检查最低现金要求
         cash_pct = ((total_portfolio_value - new_total) / total_portfolio_value) * 100
@@ -390,7 +396,7 @@ class GateDecision:
     current_regime: str
     policy_level: int
     regime_confidence: float
-    evaluated_at: datetime | None = None
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     # Backward-compatible aliases
     is_passed: bool | None = None
     blocking_reason: str | None = None
@@ -407,8 +413,6 @@ class GateDecision:
     score: float | None = None
 
     def __post_init__(self) -> None:
-        if self.evaluated_at is None:
-            self.evaluated_at = self.created_at or datetime.now(UTC)
         if self.created_at is None:
             self.created_at = self.evaluated_at
         if self.is_passed is None:
@@ -468,7 +472,10 @@ class GateDecision:
             "regime_check": {"passed": self.regime_check[0], "reason": self.regime_check[1]},
             "policy_check": {"passed": self.policy_check[0], "reason": self.policy_check[1]},
             "risk_check": {"passed": self.risk_check[0], "reason": self.risk_check[1]},
-            "portfolio_check": {"passed": self.portfolio_check[0], "reason": self.portfolio_check[1]},
+            "portfolio_check": {
+                "passed": self.portfolio_check[0],
+                "reason": self.portfolio_check[1],
+            },
             "suggested_alternatives": self.suggested_alternatives,
             "waiting_period_days": self.waiting_period_days,
             "score": self.score,
@@ -505,9 +512,13 @@ class GateConfig:
 
     config_id: str
     risk_profile: RiskProfile
-    regime_constraint: RegimeConstraint | None = None
-    policy_constraint: PolicyConstraint | None = None
-    portfolio_constraint: PortfolioConstraint | None = None
+    regime_constraint: RegimeConstraint = field(
+        default_factory=lambda: RegimeConstraint(min_confidence=0.3)
+    )
+    policy_constraint: PolicyConstraint = field(default_factory=PolicyConstraint)
+    portfolio_constraint: PortfolioConstraint = field(
+        default_factory=lambda: PortfolioConstraint(max_total_position_pct=80.0)
+    )
     version: int = 1
     is_active: bool = True
     effective_date: date = field(default_factory=date.today)
@@ -523,40 +534,30 @@ class GateConfig:
     created_at: datetime | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
-    is_valid: InitVar[bool | None] = None
     _is_valid_init: InitVar[bool | None] = None
     _is_valid_override: bool | None = field(default=None, init=False, repr=False)
 
     def __post_init__(
         self,
-        is_valid: bool | None = None,
         _is_valid_init: bool | None = None,
-    ):
+    ) -> None:
         now = datetime.now(UTC)
-        # dataclass InitVar and same-name @property can leak the property object
-        # into __post_init__ when caller doesn't pass is_valid.
-        normalized_is_valid = None if isinstance(is_valid, property) else is_valid
-        if normalized_is_valid is None and not isinstance(_is_valid_init, property):
-            normalized_is_valid = _is_valid_init
-        self._is_valid_override = normalized_is_valid
+        self._is_valid_override = _is_valid_init
         if self.created_at is None:
             self.created_at = now
         if self.valid_from is None:
             self.valid_from = self.created_at
-        if self.regime_constraint is None:
-            self.regime_constraint = RegimeConstraint(min_confidence=self.confidence_threshold)
-        if self.policy_constraint is None:
-            self.policy_constraint = PolicyConstraint()
-        if self.portfolio_constraint is None:
-            max_total = self.portfolio_exposure_limit * 100 if self.portfolio_exposure_limit <= 1 else self.portfolio_exposure_limit
-            self.portfolio_constraint = PortfolioConstraint(max_total_position_pct=max_total)
 
     @property
-    def is_valid(self) -> bool:  # noqa: F811
+    def is_valid(self) -> bool:
         """配置当前是否有效（兼容旧版 valid_from/valid_until 语义）。"""
         if self._is_valid_override is not None:
             return self._is_valid_override
-        tz = self.valid_from.tzinfo if self.valid_from and getattr(self.valid_from, "tzinfo", None) else None
+        tz = (
+            self.valid_from.tzinfo
+            if self.valid_from and getattr(self.valid_from, "tzinfo", None)
+            else None
+        )
         now = datetime.now(tz) if tz else datetime.now(UTC)
         if not self.is_active or self.is_expired:
             return False
@@ -686,7 +687,7 @@ class VisibilityUniverse:
             if isinstance(item, tuple) and len(item) >= 2:
                 excluded_asset, reason = item[0], item[1]
                 if excluded_asset == asset_class:
-                    return reason
+                    return str(reason)
             elif item == asset_class:
                 return "hard excluded"
         return None

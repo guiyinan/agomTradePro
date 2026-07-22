@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
+from datetime import date, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -10,6 +12,43 @@ from .repository_provider import (
     get_beta_gate_config_repository,
     get_beta_gate_decision_repository,
 )
+
+
+@dataclass
+class GateConfigViewData:
+    """ORM-independent config data consumed by forms and interface views."""
+
+    pk: int | None
+    config_id: str
+    risk_profile: str
+    version: int
+    is_active: bool
+    effective_date: date
+    expires_at: date | None
+    regime_constraints: dict[str, Any] = field(default_factory=dict)
+    policy_constraints: dict[str, Any] = field(default_factory=dict)
+    portfolio_constraints: dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
+
+    @property
+    def is_expired(self) -> bool:
+        """Return whether the config is past its expiry date."""
+
+        return self.expires_at is not None and date.today() > self.expires_at
+
+
+@dataclass
+class GateDecisionViewData:
+    """Decision data prepared for template rendering."""
+
+    asset_code: str
+    asset_class: str
+    status: str
+    current_regime: str
+    policy_level: int
+    regime_confidence: float
+    evaluated_at: datetime
+    asset_name: str = ""
 
 
 class BetaGateConfigQueryService:
@@ -24,40 +63,47 @@ class BetaGateConfigQueryService:
         self.config_repository = config_repository or get_beta_gate_config_repository()
         self.decision_repository = decision_repository or get_beta_gate_decision_repository()
 
-    def save_form_data(self, form_data: Any) -> Any:
+    def save_form_data(self, form_data: Any) -> GateConfigViewData:
         """Persist validated form data through the repository."""
 
-        return self.config_repository.save_form_data(form_data)
+        return self._to_config_view_data(self.config_repository.save_form_data(form_data))
 
-    def activate_config(self, config_id: str) -> Any | None:
+    def activate_config(self, config_id: str) -> GateConfigViewData | None:
         """Activate one config by config id."""
 
-        return self.config_repository.activate_by_config_id(config_id)
+        config = self.config_repository.activate_by_config_id(config_id)
+        return self._to_config_view_data(config) if config is not None else None
 
-    def rollback_to_version(self, version: int) -> Any | None:
+    def rollback_to_version(self, version: int) -> GateConfigViewData | None:
         """Activate the config for a historical version."""
 
-        return self.config_repository.activate_by_version(version)
+        config = self.config_repository.activate_by_version(version)
+        return self._to_config_view_data(config) if config is not None else None
 
     def resolve_version_for_config_id(self, config_id: str) -> int | None:
         """Resolve a config id to its numeric version."""
 
         return self.config_repository.resolve_version_by_config_id(config_id)
 
-    def get_config_for_edit(self, config_id: str) -> Any | None:
+    def get_config_for_edit(self, config_id: str) -> GateConfigViewData | None:
         """Return a config object suitable for form initialisation."""
 
-        return self.config_repository.get_by_id(config_id)
+        config = self.config_repository.get_by_id(config_id)
+        return self._to_config_view_data(config) if config is not None else None
 
-    def get_active_config(self) -> Any | None:
+    def get_active_config(self) -> GateConfigViewData | None:
         """Return the first active config model for template use."""
 
-        return self.config_repository.get_active_model()
+        config = self.config_repository.get_active_model()
+        return self._to_config_view_data(config) if config is not None else None
 
-    def get_recent_decisions(self, limit: int = 10) -> list[Any]:
+    def get_recent_decisions(self, limit: int = 10) -> list[GateDecisionViewData]:
         """Return the latest decision models for template use."""
 
-        return self.decision_repository.get_latest(limit)
+        return [
+            self._to_decision_view_data(decision)
+            for decision in self.decision_repository.get_latest(limit)
+        ]
 
     def list_recent_versions(self, limit: int = 10) -> list[dict[str, Any]]:
         """Return recent config versions formatted for the API."""
@@ -108,7 +154,7 @@ class BetaGateConfigQueryService:
 
         active_config = self.get_active_config()
         recent_decisions = self.get_recent_decisions(limit=10)
-        context_data = {
+        context_data: dict[str, Any] = {
             "active_config": None,
             "recent_decisions": recent_decisions,
             "page_title": "Beta 闸门配置",
@@ -118,15 +164,43 @@ class BetaGateConfigQueryService:
             context_data["active_config"] = self._template_config(active_config)
         return context_data
 
+    def _to_config_view_data(self, config: Any) -> GateConfigViewData:
+        """Narrow one dynamic ORM config at the application boundary."""
+
+        return GateConfigViewData(
+            pk=config.pk,
+            config_id=str(config.config_id),
+            risk_profile=str(config.risk_profile),
+            version=int(config.version),
+            is_active=bool(config.is_active),
+            effective_date=config.effective_date,
+            expires_at=config.expires_at,
+            regime_constraints=self._parse_constraints(config.regime_constraints),
+            policy_constraints=self._parse_constraints(config.policy_constraints),
+            portfolio_constraints=self._parse_constraints(config.portfolio_constraints),
+            created_at=config.created_at,
+        )
+
+    def _to_decision_view_data(self, decision: Any) -> GateDecisionViewData:
+        """Narrow one dynamic ORM decision at the application boundary."""
+
+        return GateDecisionViewData(
+            asset_code=str(decision.asset_code),
+            asset_class=str(decision.asset_class),
+            status=str(decision.status),
+            current_regime=str(decision.current_regime),
+            policy_level=int(decision.policy_level),
+            regime_confidence=float(decision.regime_confidence),
+            evaluated_at=decision.evaluated_at,
+        )
+
     def _config_version_dict(self, config: Any) -> dict[str, Any]:
         return {
             "config_id": config.config_id,
             "version": config.version,
             "risk_profile": config.risk_profile,
             "is_active": config.is_active,
-            "effective_date": config.effective_date.isoformat()
-            if config.effective_date
-            else None,
+            "effective_date": config.effective_date.isoformat() if config.effective_date else None,
             "expires_at": config.expires_at.isoformat() if config.expires_at else None,
             "created_at": config.created_at.isoformat() if config.created_at else None,
         }
@@ -137,9 +211,7 @@ class BetaGateConfigQueryService:
             "version": config.version,
             "risk_profile": config.risk_profile,
             "is_active": config.is_active,
-            "effective_date": config.effective_date.isoformat()
-            if config.effective_date
-            else None,
+            "effective_date": config.effective_date.isoformat() if config.effective_date else None,
             "expires_at": config.expires_at.isoformat() if config.expires_at else None,
             "regime_constraints": self._parse_constraints(config.regime_constraints),
             "policy_constraints": self._parse_constraints(config.policy_constraints),
