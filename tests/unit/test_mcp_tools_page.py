@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 
 from apps.account.infrastructure.models import SystemSettingsModel, UserAccessTokenModel
+from apps.ai_capability.application.interface_services import toggle_mcp_tool_flag
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 
 
@@ -137,3 +138,15 @@ def test_toggle_mcp_tool_flag_updates_model(client, admin_user, mcp_tool):
     assert response.status_code == 302
     mcp_tool.refresh_from_db()
     assert mcp_tool.enabled_for_terminal is False
+
+
+@pytest.mark.django_db
+def test_toggle_mcp_tool_flag_rejects_unknown_field(mcp_tool):
+    with pytest.raises(ValueError, match="Unsupported MCP flag"):
+        toggle_mcp_tool_flag(
+            capability_key=mcp_tool.capability_key,
+            flag="requires_confirmation",
+        )
+
+    mcp_tool.refresh_from_db()
+    assert mcp_tool.requires_confirmation is False

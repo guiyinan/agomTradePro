@@ -20,6 +20,7 @@ from apps.ai_capability.application.use_cases import (
     GetCapabilityDetailUseCase,
     GetCapabilityListUseCase,
 )
+from apps.ai_capability.domain.entities import CapabilityDefinition
 from apps.ai_capability.domain.services import CapabilityCatalogSearch
 
 
@@ -205,7 +206,7 @@ def _filter_mcp_tools(
     return filtered
 
 
-def _mcp_tool_page_payload(capability) -> dict[str, Any]:
+def _mcp_tool_page_payload(capability: CapabilityDefinition) -> dict[str, Any]:
     input_schema = dict(capability.input_schema or {})
     return {
         "capability_key": capability.capability_key,
@@ -416,7 +417,11 @@ def _source_summary(source_type: str) -> dict[str, Any]:
     }
 
 
-def toggle_mcp_tool_flag(*, capability_key: str, flag: str):
+def toggle_mcp_tool_flag(
+    *,
+    capability_key: str,
+    flag: str,
+) -> CapabilityDefinition | None:
     """Toggle one MCP tool flag and persist the updated capability."""
 
     capability = GetCapabilityDetailUseCase(capability_repo=get_capability_repository()).execute(
@@ -425,6 +430,16 @@ def toggle_mcp_tool_flag(*, capability_key: str, flag: str):
     if capability is None or capability.source_type.value != "mcp_tool":
         return None
 
-    current = bool(getattr(capability, flag))
-    updated = replace(capability, **{flag: not current})
+    if flag == "enabled_for_routing":
+        updated = replace(
+            capability,
+            enabled_for_routing=not capability.enabled_for_routing,
+        )
+    elif flag == "enabled_for_terminal":
+        updated = replace(
+            capability,
+            enabled_for_terminal=not capability.enabled_for_terminal,
+        )
+    else:
+        raise ValueError(f"Unsupported MCP flag: {flag}")
     return get_capability_repository().save(updated)

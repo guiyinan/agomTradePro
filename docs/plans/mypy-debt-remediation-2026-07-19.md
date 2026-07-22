@@ -458,3 +458,14 @@
 
 - Equity financial source gateway 的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8251 errors / 912 files` 收紧为 `8240 errors / 911 files`，净减少 `11 errors / 1 file`。
 - 财务网关回归：`6 passed`；架构 delta 扫描 `1 file / 29 added lines / 0 violations`；Ruff、diff check 通过。
+
+## 第三十三批
+
+- 收口 AI Capability 公共 Interface Service 的 MCP 工具 DTO 参数和 toggle 返回契约，页面 payload 入口明确接收 `CapabilityDefinition`，公共切换函数明确返回更新后的领域实体或 `None`。
+- 删除 `replace(capability, **{flag: ...})` 动态字段更新；Application 层自身现在只允许 `enabled_for_routing` 与 `enabled_for_terminal`，非法字段直接拒绝，避免调用者绕过 HTTP Interface 白名单后修改其他布尔治理字段。
+- 新增非法字段回归，验证 `requires_confirmation` 等非白名单字段不会被公共 facade 更改。
+
+## 第三十三批验证结果
+
+- AI Capability interface service 的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8240 errors / 911 files` 收紧为 `8228 errors / 910 files`，净减少 `12 errors / 1 file`。
+- MCP tools 页面与切换回归：`6 passed`；架构 delta 扫描 `1 file / 19 added lines / 0 violations`；Ruff、diff check 通过。

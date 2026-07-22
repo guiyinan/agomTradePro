@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8240,
-    "files_with_errors": 911
+    "errors": 8228,
+    "files_with_errors": 910
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -343,10 +343,6 @@
     "apps/ai_capability/application/governance_services.py": {
       "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "apps/ai_capability/application/interface_services.py": {
-      "arg-type": 10,
-      "no-untyped-def": 2
     },
     "apps/ai_capability/application/mcp_catalog_projection.py": {
       "arg-type": 2
