@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, cast
 
 from apps.alpha.application.repository_provider import (
     get_alpha_score_cache_repository,
@@ -30,17 +30,25 @@ def get_alpha_ic_trends(days: int) -> list[dict[str, Any]]:
     base_date = date.today()
     for offset in range(days - 1, -1, -1):
         check_date = (base_date - timedelta(days=offset)).isoformat()
-        row = row_by_date.get(check_date)
+        metric_row = row_by_date.get(check_date)
         trends.append(
             {
                 "date": check_date,
-                "ic": round(float(row["ic"]), 4) if row and row.get("ic") is not None else None,
-                "icir": round(float(row["icir"]), 4)
-                if row and row.get("icir") is not None
-                else None,
-                "rank_ic": round(float(row["rank_ic"]), 4)
-                if row and row.get("rank_ic") is not None
-                else None,
+                "ic": (
+                    round(float(metric_row["ic"]), 4)
+                    if metric_row and metric_row.get("ic") is not None
+                    else None
+                ),
+                "icir": (
+                    round(float(metric_row["icir"]), 4)
+                    if metric_row and metric_row.get("icir") is not None
+                    else None
+                ),
+                "rank_ic": (
+                    round(float(metric_row["rank_ic"]), 4)
+                    if metric_row and metric_row.get("rank_ic") is not None
+                    else None
+                ),
             }
         )
     return trends
@@ -83,7 +91,9 @@ def collect_alpha_cache_codes(
     )
 
 
-def get_alpha_cache_earliest_trade_date():
+def get_alpha_cache_earliest_trade_date() -> date | None:
     """Return the earliest intended trade date present in alpha score cache."""
 
-    return get_alpha_score_cache_repository().get_earliest_trade_date()
+    repository = get_alpha_score_cache_repository()
+    get_earliest = cast(Callable[[], date | None], repository.get_earliest_trade_date)
+    return get_earliest()

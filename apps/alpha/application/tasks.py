@@ -8,10 +8,10 @@ Alpha 信号相关的异步任务。
 # ruff: noqa: I001
 
 import logging
+from collections.abc import Callable
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Protocol, cast
 
-from celery import shared_task
 from django.utils import timezone
 
 from apps.alpha.application.ops_services import QlibRuntimeDataRefreshService
@@ -60,7 +60,7 @@ from apps.alpha.application.repository_provider import (
 from apps.alpha.application.repository_provider import (
     install_qlib_pandas_compat as _install_qlib_pandas_compat,
 )
-from apps.alpha.application.repository_provider import make_json_safe as _make_json_safe
+from apps.alpha.application.repository_provider import make_json_safe as _make_json_safe_runtime
 from apps.alpha.application.repository_provider import (
     normalize_calendar_date as _normalize_calendar_date,
 )
@@ -97,8 +97,9 @@ from apps.alpha.application.repository_provider import train_qlib_model as _trai
 from apps.alpha.application.repository_provider import upsert_qlib_cache as _upsert_qlib_cache
 from apps.alpha.application.trade_dates import resolve_recent_closed_trade_date
 from apps.alpha.application.workspace_sync import sync_default_workspace_after_alpha_update
-from apps.alpha.domain.entities import normalize_stock_code
+from apps.alpha.domain.entities import AlphaPoolScope, normalize_stock_code
 from apps.config_center.application.repository_provider import get_qlib_training_run_repository
+from shared.infrastructure.celery_typing import BoundTask, typed_shared_task
 
 __all__ = [
     "_build_outdated_qlib_reason",
@@ -145,12 +146,35 @@ logger = logging.getLogger(__name__)
 _resolve_recent_closed_trade_date = resolve_recent_closed_trade_date
 
 
-def _execute_qlib_prediction(*args, **kwargs):
+def _make_json_safe(value: Any) -> Any:
+    """Serialize dynamic Qlib values through a typed compatibility boundary."""
+
+    serializer = cast(Callable[[Any], Any], _make_json_safe_runtime)
+    return serializer(value)
+
+
+class _PredictionProxy(Protocol):
+    """Typed prediction proxy with the legacy implementation marker."""
+
+    runtime_implementation: Callable[..., Any]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]: ...
+
+
+def _run_qlib_prediction_proxy(
+    *args: Any,
+    **kwargs: Any,
+) -> list[dict[str, Any]]:
     """Proxy prediction runtime while preserving the legacy patch surface."""
     kwargs.setdefault("outdated_reason_builder", _build_outdated_qlib_reason)
-    return _execute_qlib_prediction_runtime(*args, **kwargs)
+    runtime = cast(
+        Callable[..., list[dict[str, Any]]],
+        _execute_qlib_prediction_runtime,
+    )
+    return runtime(*args, **kwargs)
 
 
+_execute_qlib_prediction = cast(_PredictionProxy, _run_qlib_prediction_proxy)
 _execute_qlib_prediction.runtime_implementation = _execute_qlib_prediction_runtime
 
 
@@ -170,7 +194,7 @@ def _refresh_qlib_runtime_data(
     target_date: date,
     universes: str | list[str] | tuple[str, ...] | None = None,
     lookback_days: int = 400,
-) -> dict:
+) -> dict[str, Any]:
     """Refresh local qlib data before inference so scheduled runs do not rely on manual repair."""
     try:
         return QlibRuntimeDataRefreshService().refresh_universes(
@@ -188,7 +212,7 @@ def _refresh_qlib_runtime_data_for_codes(
     stock_codes: list[str] | tuple[str, ...] | set[str],
     universe_id: str = "scoped_portfolios",
     lookback_days: int = 120,
-) -> dict:
+) -> dict[str, Any]:
     """Refresh qlib data for explicit account/portfolio stock scopes."""
     try:
         return QlibRuntimeDataRefreshService().refresh_codes(
@@ -205,7 +229,7 @@ def _maybe_refresh_qlib_runtime_data_for_prediction(
     *,
     trade_date: date,
     universe_id: str,
-    pool_scope=None,
+    pool_scope: AlphaPoolScope | None = None,
     latest_qlib_data_date: date | None,
 ) -> tuple[date | None, dict[str, Any]]:
     """Try refreshing local qlib data inline before prediction when the request is newer."""
@@ -251,19 +275,19 @@ def _maybe_refresh_qlib_runtime_data_for_prediction(
     return latest_after_refresh, metadata
 
 
-@shared_task(
+@typed_shared_task(
     bind=True,
     max_retries=3,
     default_retry_delay=300,
     autoretry_for=(Exception,),
 )
 def qlib_predict_scores(
-    self,
+    self: BoundTask,
     universe_id: str,
     intended_trade_date: str,
     top_n: int = 30,
-    scope_payload: dict | None = None,
-) -> dict:
+    scope_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Qlib 推理任务（运行在 qlib_infer 队列）
 
@@ -280,8 +304,6 @@ def qlib_predict_scores(
 
     """
     try:
-        from ..domain.entities import AlphaPoolScope
-
         logger.info(
             f"开始 Qlib 推理: universe={universe_id}, " f"date={intended_trade_date}, top_n={top_n}"
         )
@@ -478,18 +500,18 @@ def qlib_predict_scores(
         raise self.retry(exc=exc, countdown=60) from exc
 
 
-@shared_task(
+@typed_shared_task(
     bind=True,
     max_retries=1,
     time_limit=3600,
     soft_time_limit=3300,
 )
 def qlib_train_model(
-    self,
+    self: BoundTask,
     model_name: str,
     model_type: str,
-    train_config: dict,
-) -> dict:
+    train_config: dict[str, Any],
+) -> dict[str, Any]:
     """
     Qlib 训练任务（运行在 qlib_train 队列）
 
@@ -644,16 +666,16 @@ def qlib_train_model(
         raise
 
 
-@shared_task(
+@typed_shared_task(
     bind=True,
     max_retries=1,
     time_limit=3600,
     soft_time_limit=3300,
 )
 def qlib_evaluate_model(
-    self,
+    self: BoundTask,
     model_artifact_hash: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Qlib 模型评估任务
 
@@ -714,7 +736,7 @@ def qlib_evaluate_model(
         raise
 
 
-@shared_task(
+@typed_shared_task(
     name="alpha.qlib_refresh_cache",
     bind=True,
     max_retries=2,
@@ -723,11 +745,11 @@ def qlib_evaluate_model(
     soft_time_limit=3300,
 )
 def qlib_refresh_cache(
-    self,
+    self: BoundTask,
     universe_id: str,
     days_back: int = 7,
     top_n: int = 30,
-) -> dict:
+) -> dict[str, Any]:
     """
     刷新 Qlib 缓存任务
 
@@ -783,7 +805,7 @@ def qlib_refresh_cache(
         return {"status": "error", "error": str(exc)}
 
 
-@shared_task(
+@typed_shared_task(
     name="alpha.qlib_daily_inference",
     bind=True,
     max_retries=2,
@@ -792,14 +814,14 @@ def qlib_refresh_cache(
     soft_time_limit=3300,
 )
 def qlib_daily_inference(
-    self,
+    self: BoundTask,
     universe_id: str = "csi300",
     top_n: int = 30,
     refresh_data: bool = True,
     refresh_universes: str | list[str] | tuple[str, ...] | None = None,
     lookback_days: int = 400,
     trade_date: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """
     每日触发 Qlib 推理任务。
 
@@ -808,7 +830,7 @@ def qlib_daily_inference(
     trade_date_obj = (
         date.fromisoformat(trade_date) if trade_date else _resolve_recent_closed_trade_date()
     )
-    refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
+    refresh_result: dict[str, Any] = {"status": "skipped", "reason": "refresh_disabled"}
     if refresh_data:
         try:
             refresh_result = _refresh_qlib_runtime_data(
@@ -835,7 +857,7 @@ def qlib_daily_inference(
     }
 
 
-@shared_task(name="apps.alpha.application.tasks.qlib_daily_inference")
+@typed_shared_task(name="apps.alpha.application.tasks.qlib_daily_inference")
 def qlib_daily_inference_alias(
     universe_id: str = "csi300",
     top_n: int = 30,
@@ -843,7 +865,7 @@ def qlib_daily_inference_alias(
     refresh_universes: str | list[str] | tuple[str, ...] | None = None,
     lookback_days: int = 400,
     trade_date: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_daily_inference.run(
         universe_id=universe_id,
@@ -855,7 +877,7 @@ def qlib_daily_inference_alias(
     )
 
 
-@shared_task(
+@typed_shared_task(
     name="alpha.qlib_daily_scoped_inference",
     bind=True,
     max_retries=2,
@@ -864,7 +886,7 @@ def qlib_daily_inference_alias(
     soft_time_limit=3300,
 )
 def qlib_daily_scoped_inference(
-    self,
+    self: BoundTask,
     top_n: int = 30,
     portfolio_limit: int = 0,
     pool_mode: str = "price_covered",
@@ -872,7 +894,7 @@ def qlib_daily_scoped_inference(
     lookback_days: int = 120,
     trade_date: str | None = None,
     only_missing: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Queue daily scoped Qlib inference for active portfolios used by the dashboard."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 
@@ -893,11 +915,11 @@ def qlib_daily_scoped_inference(
     )
     resolver = PortfolioAlphaPoolResolver()
 
-    resolved_scopes: list[tuple[dict, Any]] = []
+    resolved_scopes: list[tuple[dict[str, Any], AlphaPoolScope]] = []
     scoped_codes: set[str] = set()
     seen_scope_keys: set[tuple[str, str | None]] = set()
-    queued: list[dict] = []
-    skipped: list[dict] = []
+    queued: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
     fresh_cache_count = 0
     for ref in portfolio_refs:
         try:
@@ -933,7 +955,9 @@ def qlib_daily_scoped_inference(
                     model_artifact_hash=getattr(active_model, "artifact_hash", None),
                     scope_hash=resolved.scope.scope_hash,
                 )
-                if _cache_is_fresh_for_trade_date(existing_cache, target_trade_date):
+                if existing_cache is not None and _cache_is_fresh_for_trade_date(
+                    existing_cache, target_trade_date
+                ):
                     fresh_cache_count += 1
                     skipped.append(
                         {
@@ -967,7 +991,7 @@ def qlib_daily_scoped_inference(
                 }
             )
 
-    refresh_result = {"status": "skipped", "reason": "refresh_disabled"}
+    refresh_result: dict[str, Any] = {"status": "skipped", "reason": "refresh_disabled"}
     if refresh_data and scoped_codes and resolved_scopes:
         try:
             refresh_result = _refresh_qlib_runtime_data_for_codes(
@@ -1045,7 +1069,7 @@ def qlib_daily_scoped_inference(
     }
 
 
-@shared_task(name="apps.alpha.application.tasks.qlib_daily_scoped_inference")
+@typed_shared_task(name="apps.alpha.application.tasks.qlib_daily_scoped_inference")
 def qlib_daily_scoped_inference_alias(
     top_n: int = 30,
     portfolio_limit: int = 0,
@@ -1054,7 +1078,7 @@ def qlib_daily_scoped_inference_alias(
     lookback_days: int = 120,
     trade_date: str | None = None,
     only_missing: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_daily_scoped_inference.run(
         top_n=top_n,
@@ -1067,13 +1091,13 @@ def qlib_daily_scoped_inference_alias(
     )
 
 
-@shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_task")
+@typed_shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_task")
 def qlib_refresh_runtime_data_task(
     *,
     target_date: str,
     universes: list[str] | tuple[str, ...] | str | None = None,
     lookback_days: int = 400,
-) -> dict:
+) -> dict[str, Any]:
     """Refresh local qlib data for named universes from the ops page."""
     trade_date = date.fromisoformat(target_date)
     summary = _refresh_qlib_runtime_data(
@@ -1088,7 +1112,7 @@ def qlib_refresh_runtime_data_task(
     }
 
 
-@shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task")
+@typed_shared_task(name="apps.alpha.application.tasks.qlib_refresh_runtime_data_for_codes_task")
 def qlib_refresh_runtime_data_for_codes_task(
     *,
     target_date: str,
@@ -1096,7 +1120,7 @@ def qlib_refresh_runtime_data_for_codes_task(
     all_active_portfolios: bool = False,
     pool_mode: str = "price_covered",
     lookback_days: int = 120,
-) -> dict:
+) -> dict[str, Any]:
     """Refresh qlib data for active or selected portfolio-driven stock scopes."""
     from apps.alpha.application.pool_resolver import PortfolioAlphaPoolResolver
 
@@ -1173,12 +1197,12 @@ def qlib_refresh_runtime_data_for_codes_task(
     }
 
 
-@shared_task(name="apps.alpha.application.tasks.qlib_refresh_cache")
+@typed_shared_task(name="apps.alpha.application.tasks.qlib_refresh_cache")
 def qlib_refresh_cache_alias(
     universe_id: str = "csi300",
     days_back: int = 7,
     top_n: int = 30,
-) -> dict:
+) -> dict[str, Any]:
     """Backwards-compatible alias for database/beat task paths."""
     return qlib_refresh_cache.run(universe_id=universe_id, days_back=days_back, top_n=top_n)
 

@@ -4,6 +4,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from apps.alpha.domain.interfaces import AlphaProvider
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
@@ -54,8 +57,57 @@ from apps.alpha.infrastructure.qlib_runtime_init import (
 )
 from apps.alpha.infrastructure.scientific_runtime import get_numpy, get_pandas
 
+__all__ = [
+    "AlphaAlertRepository",
+    "AlphaPoolDataRepository",
+    "AlphaScoreCacheRepository",
+    "CacheAlphaProvider",
+    "ETFFallbackProvider",
+    "QlibModelRegistryRepository",
+    "SimpleAlphaProvider",
+    "TushareQlibBuilder",
+    "build_outdated_qlib_reason",
+    "build_qlib_alpha_provider",
+    "build_qlib_runtime_failure_reason",
+    "cache_is_fresh_for_trade_date",
+    "calculate_artifact_hash",
+    "calculate_rolling_metrics",
+    "evaluate_model_from_cache",
+    "evaluate_model_metrics",
+    "execute_qlib_prediction",
+    "extract_model_filename",
+    "find_broader_qlib_cache_for_scope",
+    "get_alpha_alert_repository",
+    "get_alpha_pool_data_repository",
+    "get_alpha_score_cache_repository",
+    "get_default_metrics",
+    "get_numpy",
+    "get_pandas",
+    "get_qlib_data_latest_date",
+    "get_qlib_model_registry_repository",
+    "get_runtime_qlib_config",
+    "inspect_latest_trade_date",
+    "install_qlib_pandas_compat",
+    "make_json_safe",
+    "normalize_calendar_date",
+    "normalize_qlib_instrument_code",
+    "normalize_qlib_instrument_list",
+    "normalize_qlib_region",
+    "normalize_qlib_symbol",
+    "normalize_reused_scores",
+    "parse_universe_list",
+    "resolve_effective_trade_date",
+    "resolve_qlib_handler_class",
+    "resolve_qlib_model_path",
+    "resolve_qlib_stock_list",
+    "reuse_latest_qlib_cache",
+    "save_model_artifact",
+    "train_qlib_model",
+    "upsert_qlib_cache",
+]
 
-def get_alpha_score_cache_repository():
+
+def get_alpha_score_cache_repository() -> AlphaScoreCacheRepository:
     """Return the alpha score cache repository."""
 
     from apps.alpha.infrastructure.providers import AlphaScoreCacheRepository  # noqa: F811
@@ -63,7 +115,7 @@ def get_alpha_score_cache_repository():
     return AlphaScoreCacheRepository()
 
 
-def get_qlib_model_registry_repository():
+def get_qlib_model_registry_repository() -> QlibModelRegistryRepository:
     """Return the qlib model registry repository."""
 
     from apps.alpha.infrastructure.providers import QlibModelRegistryRepository  # noqa: F811
@@ -71,7 +123,7 @@ def get_qlib_model_registry_repository():
     return QlibModelRegistryRepository()
 
 
-def get_alpha_alert_repository():
+def get_alpha_alert_repository() -> AlphaAlertRepository:
     """Return the alpha alert repository."""
 
     from apps.alpha.infrastructure.providers import AlphaAlertRepository  # noqa: F811
@@ -79,7 +131,7 @@ def get_alpha_alert_repository():
     return AlphaAlertRepository()
 
 
-def get_alpha_pool_data_repository():
+def get_alpha_pool_data_repository() -> AlphaPoolDataRepository:
     """Return the alpha pool data repository."""
 
     from apps.alpha.infrastructure.providers import AlphaPoolDataRepository  # noqa: F811
@@ -87,7 +139,7 @@ def get_alpha_pool_data_repository():
     return AlphaPoolDataRepository()
 
 
-def evaluate_model_from_cache(*args, **kwargs):
+def evaluate_model_from_cache(*args: Any, **kwargs: Any) -> Any:
     """Evaluate cached model predictions through the infrastructure evaluator."""
 
     from apps.alpha.infrastructure.cache_evaluation import evaluate_model_from_cache as _impl
@@ -95,7 +147,7 @@ def evaluate_model_from_cache(*args, **kwargs):
     return _impl(*args, **kwargs)
 
 
-def build_qlib_alpha_provider(*, provider_uri: str, model_path: str, region: str):
+def build_qlib_alpha_provider(*, provider_uri: str, model_path: str, region: str) -> AlphaProvider:
     """Build the default qlib alpha provider."""
 
     from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider

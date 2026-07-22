@@ -560,3 +560,15 @@
 
 - Share interface service 与 Domain interfaces 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7995 errors / 890 files` 收紧为 `7941 errors / 889 files`，净减少 `54 errors / 1 file`，无文件或错误码反弹。
 - Share 页面、快照 Decimal/JSON guardrail 与架构治理回归共 `46 passed`；Black、Ruff、diff check 通过。
+
+## 第四十二批
+
+- 按“异步任务入口 + 公共 Provider 杠杆”收口 Alpha/Qlib 链路：Repository Provider 以显式 `__all__` 固定公开 API，并为四类 repository factory 补齐返回契约，消除 facade 仅靠隐式 re-export 导致的跨模块类型漂移。
+- 新增共享 Celery typed adapter，完整描述 task 的 `run`、`delay`、`apply/apply_async`、bound request 与 retry 表面；Alpha 的预测、训练、评估、缓存、每日批处理和运行时数据刷新任务统一使用该适配器，任务 body 的输入与 JSON 返回全部具化。
+- Prediction proxy 保留既有 patch/inspection 接缝，同时把 Qlib 动态实现限制在局部 `Callable` 边界；scoped inference 的 portfolio ref、scope、queued/skipped payload 和 refresh result 均显式分型。
+- 类型传播修复两个真实风险：fresh-cache 分支在读取 `asof_date` 前明确排除空 cache；IC trend 构建不再复用循环变量 `row`，避免可空查找结果与源记录变量发生错误赋值覆盖。
+
+## 第四十二批验证结果
+
+- 4 个变更生产文件的增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7941 errors / 889 files` 收紧为 `7826 errors / 885 files`，净减少 `115 errors / 4 files`，无文件或错误码反弹。
+- Alpha 预测、缓存 fallback、Ops、Qlib 训练、任务结构/别名、Alpha cache 与架构治理回归共 `67 passed`；Black、Ruff、diff check 通过。

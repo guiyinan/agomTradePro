@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7941,
-    "files_with_errors": 889
+    "errors": 7826,
+    "files_with_errors": 885
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -494,7 +494,6 @@
     "apps/alpha/admin.py": {
       "assignment": 2,
       "import-untyped": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 12,
       "type-arg": 7
     },
@@ -502,13 +501,10 @@
       "no-any-return": 1
     },
     "apps/alpha/application/interface_services.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 2,
       "no-untyped-def": 4
     },
     "apps/alpha/application/monitoring_tasks.py": {
       "assignment": 1,
-      "attr-defined": 3,
       "misc": 2,
       "no-untyped-def": 15
     },
@@ -517,46 +513,22 @@
     },
     "apps/alpha/application/ops_services.py": {
       "arg-type": 1,
-      "attr-defined": 2,
-      "no-any-return": 3,
-      "no-untyped-call": 3
-    },
-    "apps/alpha/application/ops_use_cases.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 1
+      "no-any-return": 3
     },
     "apps/alpha/application/pool_resolver.py": {
-      "attr-defined": 1,
       "no-untyped-def": 2
-    },
-    "apps/alpha/application/query_services.py": {
-      "no-any-return": 1,
-      "no-untyped-call": 5,
-      "no-untyped-def": 1
-    },
-    "apps/alpha/application/repository_provider.py": {
-      "no-untyped-def": 6
     },
     "apps/alpha/application/services.py": {
       "arg-type": 4,
       "assignment": 1,
-      "attr-defined": 4,
+      "attr-defined": 1,
       "has-type": 2,
       "misc": 5,
-      "no-untyped-call": 4,
+      "no-untyped-call": 2,
       "no-untyped-def": 5,
       "return-value": 1,
       "type-arg": 1,
       "union-attr": 3
-    },
-    "apps/alpha/application/tasks.py": {
-      "attr-defined": 28,
-      "dict-item": 1,
-      "misc": 11,
-      "no-any-return": 3,
-      "no-untyped-call": 9,
-      "no-untyped-def": 8,
-      "type-arg": 18
     },
     "apps/alpha/apps.py": {
       "no-untyped-def": 2
@@ -664,7 +636,6 @@
       "no-untyped-def": 2
     },
     "apps/alpha/management/commands/bootstrap_alpha_cold_start.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 2
     },
     "apps/alpha/management/commands/build_qlib_data.py": {
@@ -3596,9 +3567,8 @@
       "no-untyped-def": 4
     },
     "apps/terminal/application/tui_operator_services.py": {
-      "attr-defined": 2,
-      "no-any-return": 1,
-      "no-untyped-call": 1
+      "attr-defined": 1,
+      "no-any-return": 1
     },
     "apps/terminal/application/tui_workbench_catalog.py": {
       "arg-type": 3,
@@ -3695,7 +3665,6 @@
       "no-untyped-def": 6
     },
     "core/integration/alpha_cache.py": {
-      "no-untyped-call": 1,
       "no-untyped-def": 1
     },
     "core/integration/decision_execution_links.py": {
