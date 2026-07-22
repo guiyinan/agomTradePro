@@ -2,8 +2,8 @@
 
 import logging
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from decimal import Decimal, InvalidOperation
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
@@ -11,7 +11,7 @@ from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.account.application.repository_provider import get_account_position_repository
-from apps.alpha_trigger.domain.entities import CandidateStatus
+from apps.alpha_trigger.domain.entities import AlphaCandidate, CandidateStatus
 from apps.events.domain.entities import EventType, create_event
 
 from ..domain.entities import (
@@ -40,12 +40,35 @@ RECOVERABLE_DECISION_RHYTHM_EXCEPTIONS = (
     DatabaseError,
     ImportError,
     ImproperlyConfigured,
+    InvalidOperation,
     LookupError,
     RuntimeError,
     TimeoutError,
     TypeError,
     ValueError,
 )
+
+
+@dataclass(frozen=True)
+class _SimulatedExecutionInput:
+    """Validated fields required by a simulated execution."""
+
+    account_id: int
+    asset_code: str
+    action: Literal["buy", "sell"]
+    quantity: int
+    price: float
+
+
+@dataclass(frozen=True)
+class _AccountExecutionInput:
+    """Validated fields required by an account position execution."""
+
+    portfolio_id: int
+    asset_code: str
+    shares: int
+    avg_cost: Decimal
+    current_price: Decimal
 
 
 def update_or_create_account_position(
@@ -251,13 +274,13 @@ class PrecheckDecisionUseCase:
 
     def __init__(
         self,
-        candidate_repo,
-        quota_repo,
-        cooldown_repo,
-        regime_provider=None,
-        policy_provider=None,
-        beta_gate_config_selector=None,
-    ):
+        candidate_repo: Any,
+        quota_repo: Any,
+        cooldown_repo: Any,
+        regime_provider: Any | None = None,
+        policy_provider: Any | None = None,
+        beta_gate_config_selector: Any | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -332,7 +355,7 @@ class PrecheckDecisionUseCase:
                         regime_confidence=regime_confidence,
                         policy_level=policy_level,
                     )
-                    beta_gate_passed = decision.is_passed
+                    beta_gate_passed = decision.is_passed is True
                     details["beta_gate_decision"] = (
                         decision.to_dict() if hasattr(decision, "to_dict") else {}
                     )
@@ -414,14 +437,14 @@ class ExecuteDecisionUseCase:
 
     def __init__(
         self,
-        request_repo,
-        candidate_repo,
-        simulated_account_repo=None,
-        position_repo=None,
-        trade_repo=None,
-        signal_repo=None,
-        event_bus=None,
-    ):
+        request_repo: Any,
+        candidate_repo: Any,
+        simulated_account_repo: Any | None = None,
+        position_repo: Any | None = None,
+        trade_repo: Any | None = None,
+        signal_repo: Any | None = None,
+        event_bus: Any | None = None,
+    ) -> None:
         """
         初始化用例
 
@@ -470,7 +493,7 @@ class ExecuteDecisionUseCase:
                 )
 
             # 3. 如果有关联候选，验证候选状态
-            candidate = None
+            candidate: AlphaCandidate | None = None
             if decision_request.candidate_id:
                 candidate = self.candidate_repo.get_by_id(decision_request.candidate_id)
                 if candidate:
@@ -485,7 +508,7 @@ class ExecuteDecisionUseCase:
                         )
 
             # 4. 根据执行目标执行
-            execution_ref = None
+            execution_ref: dict[str, Any]
             if request.target == ExecutionTarget.SIMULATED:
                 execution_ref = self._execute_simulated(request, decision_request)
             elif request.target == ExecutionTarget.ACCOUNT:
@@ -570,50 +593,80 @@ class ExecuteDecisionUseCase:
         if not self.simulated_account_repo or not self.position_repo or not self.trade_repo:
             raise ValueError("模拟盘仓储未配置")
 
+        execution_input = self._validate_simulated_execution_input(request)
+
         from apps.simulated_trading.application.use_cases import (
             ExecuteBuyOrderUseCase,
             ExecuteSellOrderUseCase,
         )
 
-        if request.action == "buy":
+        if execution_input.action == "buy":
             signal_id = self._resolve_simulated_buy_signal_id(request, decision_request)
-            use_case = ExecuteBuyOrderUseCase(
+            buy_use_case = ExecuteBuyOrderUseCase(
                 account_repo=self.simulated_account_repo,
                 position_repo=self.position_repo,
                 trade_repo=self.trade_repo,
                 signal_repo=self.signal_repo,
             )
-            trade = use_case.execute(
-                account_id=request.sim_account_id,
-                asset_code=request.asset_code,
-                asset_name=request.asset_code,  # 简化处理
+            trade = buy_use_case.execute(
+                account_id=execution_input.account_id,
+                asset_code=execution_input.asset_code,
+                asset_name=execution_input.asset_code,  # 简化处理
                 asset_type="equity",
-                quantity=request.quantity,
-                price=request.price,
+                quantity=execution_input.quantity,
+                price=execution_input.price,
                 reason=request.reason,
                 signal_id=signal_id,
             )
         else:
-            use_case = ExecuteSellOrderUseCase(
+            sell_use_case = ExecuteSellOrderUseCase(
                 account_repo=self.simulated_account_repo,
                 position_repo=self.position_repo,
                 trade_repo=self.trade_repo,
             )
-            trade = use_case.execute(
-                account_id=request.sim_account_id,
-                asset_code=request.asset_code,
-                quantity=request.quantity,
-                price=request.price,
+            trade = sell_use_case.execute(
+                account_id=execution_input.account_id,
+                asset_code=execution_input.asset_code,
+                quantity=execution_input.quantity,
+                price=execution_input.price,
                 reason=request.reason,
             )
 
         return {
             "trade_id": trade.trade_id,
-            "account_id": request.sim_account_id,
-            "action": request.action,
-            "quantity": request.quantity,
-            "price": request.price,
+            "account_id": execution_input.account_id,
+            "action": execution_input.action,
+            "quantity": execution_input.quantity,
+            "price": execution_input.price,
         }
+
+    @staticmethod
+    def _validate_simulated_execution_input(
+        request: ExecuteDecisionRequest,
+    ) -> _SimulatedExecutionInput:
+        """Validate and narrow fields required by simulated trading."""
+
+        if request.sim_account_id is None:
+            raise ValueError("sim_account_id is required for simulated execution")
+        if not request.asset_code:
+            raise ValueError("asset_code is required for simulated execution")
+        if request.action == "buy":
+            action: Literal["buy", "sell"] = "buy"
+        elif request.action == "sell":
+            action = "sell"
+        else:
+            raise ValueError("action must be 'buy' or 'sell'")
+        if request.quantity is None or request.quantity <= 0:
+            raise ValueError("quantity must be greater than zero")
+        if request.price is None or request.price <= 0:
+            raise ValueError("price must be greater than zero")
+        return _SimulatedExecutionInput(
+            account_id=request.sim_account_id,
+            asset_code=request.asset_code,
+            action=action,
+            quantity=request.quantity,
+            price=request.price,
+        )
 
     def _resolve_simulated_buy_signal_id(
         self,
@@ -632,12 +685,11 @@ class ExecuteDecisionUseCase:
                 candidate = None
 
         for field_name in ("signal_id", "source_signal_id"):
-            value = getattr(candidate, field_name, None)
-            if value in (None, ""):
-                continue
-            try:
-                return int(value)
-            except (TypeError, ValueError):
+            value: object = getattr(candidate, field_name, None)
+            signal_id = self._coerce_signal_id(value)
+            if signal_id is not None:
+                return signal_id
+            if value not in (None, ""):
                 logger.warning("Unsupported candidate signal id: %s", value)
 
         if not self.signal_repo or not request.asset_code:
@@ -652,11 +704,21 @@ class ExecuteDecisionUseCase:
         if not summaries:
             return None
 
-        signal_id = summaries[0].get("id")
+        raw_signal_id: object = summaries[0].get("id")
+        signal_id = self._coerce_signal_id(raw_signal_id)
+        if signal_id is None and raw_signal_id is not None:
+            logger.warning("Unsupported signal summary id: %s", raw_signal_id)
+        return signal_id
+
+    @staticmethod
+    def _coerce_signal_id(value: object) -> int | None:
+        """Convert supported signal ID values without accepting arbitrary objects."""
+
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            return None
         try:
-            return int(signal_id) if signal_id is not None else None
-        except (TypeError, ValueError):
-            logger.warning("Unsupported signal summary id: %s", signal_id)
+            return int(value)
+        except ValueError:
             return None
 
     def _execute_account(
@@ -676,32 +738,55 @@ class ExecuteDecisionUseCase:
         Returns:
             执行引用
         """
-        # P2-11: 使用仓储而非直接操作 ORM
-        from decimal import Decimal
+        execution_input = self._validate_account_execution_input(request)
 
         position = update_or_create_account_position(
-            portfolio_id=request.portfolio_id,
-            asset_code=request.asset_code,
-            shares=request.shares,
-            avg_cost=Decimal(str(request.avg_cost)),
-            current_price=Decimal(str(request.current_price)),
+            portfolio_id=execution_input.portfolio_id,
+            asset_code=execution_input.asset_code,
+            shares=execution_input.shares,
+            avg_cost=execution_input.avg_cost,
+            current_price=execution_input.current_price,
             source="decision",
         )
 
         return {
             "position_id": position.id,
-            "portfolio_id": request.portfolio_id,
-            "asset_code": request.asset_code,
-            "shares": request.shares,
-            "avg_cost": request.avg_cost,
+            "portfolio_id": execution_input.portfolio_id,
+            "asset_code": execution_input.asset_code,
+            "shares": execution_input.shares,
+            "avg_cost": float(execution_input.avg_cost),
         }
+
+    @staticmethod
+    def _validate_account_execution_input(
+        request: ExecuteDecisionRequest,
+    ) -> _AccountExecutionInput:
+        """Validate and narrow fields required by account execution."""
+
+        if request.portfolio_id is None:
+            raise ValueError("portfolio_id is required for account execution")
+        if not request.asset_code:
+            raise ValueError("asset_code is required for account execution")
+        if request.shares is None or request.shares <= 0:
+            raise ValueError("shares must be greater than zero")
+        if request.avg_cost is None or request.avg_cost <= 0:
+            raise ValueError("avg_cost must be greater than zero")
+        if request.current_price is None or request.current_price <= 0:
+            raise ValueError("current_price must be greater than zero")
+        return _AccountExecutionInput(
+            portfolio_id=request.portfolio_id,
+            asset_code=request.asset_code,
+            shares=request.shares,
+            avg_cost=Decimal(str(request.avg_cost)),
+            current_price=Decimal(str(request.current_price)),
+        )
 
     def _publish_event(
         self,
         decision_request: DecisionRequest,
-        candidate,
+        candidate: AlphaCandidate | None,
         execution_ref: dict[str, Any],
-    ):
+    ) -> None:
         """发布事件"""
         if self.event_bus is None:
             return
@@ -727,7 +812,7 @@ class CancelDecisionRequestUseCase:
     将执行状态从 PENDING/FAILED 迁移到 CANCELLED，并同步候选执行跟踪。
     """
 
-    def __init__(self, request_repo, candidate_repo):
+    def __init__(self, request_repo: Any, candidate_repo: Any) -> None:
         self.request_repo = request_repo
         self.candidate_repo = candidate_repo
 
@@ -791,7 +876,7 @@ class UpdateQuotaConfigUseCase:
     通过注入的配额仓储更新或创建账户级配额配置。
     """
 
-    def __init__(self, quota_repo):
+    def __init__(self, quota_repo: Any) -> None:
         self.quota_repo = quota_repo
 
     def execute(self, request: UpdateQuotaConfigRequest) -> UpdateQuotaConfigResponse:

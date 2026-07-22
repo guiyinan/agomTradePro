@@ -411,3 +411,15 @@
 
 - Timeline service 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8412 errors / 919 files` 收紧为 `8396 errors / 918 files`，净减少 `16 errors / 1 file`，无文件或错误码反弹。
 - Timeline service 回归：`22 passed`；架构 delta 扫描 `1 file / 63 added lines / 0 violations`；Ruff 通过。
+
+## 第二十九批
+
+- 收口 `apps/decision_rhythm/application/decision_execution_use_cases.py` 的模拟盘与账户执行输入：按执行目标建立不可空的内部 DTO，在进入交易用例或 Account repository 前统一校验账户、资产、动作、数量和价格，不再把 Optional 字段直接传入公共写入边界。
+- 修复三个真实失败模式：未知 action 原先静默进入卖出路径；模拟盘缺字段会在下游以无关 Mock/数值异常失败；账户缺字段会抛出未捕获的 `decimal.InvalidOperation`。现在均返回结构化执行失败并回写 FAILED 状态。
+- Signal ID 只接受 `int | str`，拒绝 bool 和任意动态对象；Beta Gate 的 `bool | None` 明确归一化，买卖用例使用独立局部变量，消除错误的方法签名传播。
+- 补齐四个 Application 用例构造器和事件发布入口的参数/返回类型，目标文件 22 项历史债务全部归零，并连带减少 interface dependency 的 4 个未类型调用。
+
+## 第二十九批验证结果
+
+- Decision execution 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8396 errors / 918 files` 收紧为 `8370 errors / 917 files`，净减少 `26 errors / 1 file`，无文件或错误码反弹。
+- Decision execution、workflow 与结构回归：`21 passed`；架构 delta 扫描 `1 file / 149 added lines / 0 violations`；Ruff、diff check 通过。

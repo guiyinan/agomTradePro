@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8396,
-    "files_with_errors": 918
+    "errors": 8370,
+    "files_with_errors": 917
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1692,12 +1692,6 @@
       "attr-defined": 2,
       "operator": 1
     },
-    "apps/decision_rhythm/application/decision_execution_use_cases.py": {
-      "arg-type": 13,
-      "assignment": 2,
-      "call-arg": 1,
-      "no-untyped-def": 6
-    },
     "apps/decision_rhythm/application/decision_model_param_use_cases.py": {
       "attr-defined": 2
     },
@@ -1824,7 +1818,7 @@
     },
     "apps/decision_rhythm/interface/dependencies.py": {
       "call-arg": 1,
-      "no-untyped-call": 51,
+      "no-untyped-call": 47,
       "no-untyped-def": 13
     },
     "apps/decision_rhythm/interface/page_views.py": {
