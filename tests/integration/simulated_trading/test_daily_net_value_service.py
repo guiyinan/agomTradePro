@@ -354,6 +354,24 @@ class TestDailyNetValueService(TestCase):
         expected_daily_return = ((float(nv2.net_value) - float(nv1.net_value)) / float(nv1.net_value)) * 100
         self.assertAlmostEqual(nv2.daily_return, expected_daily_return, places=2)
 
+    def test_zero_initial_capital_records_zero_cumulative_return(self):
+        """零本金账户记录净值时不应触发除零异常。"""
+        zero_account = CreateSimulatedAccountUseCase(self.account_repo).execute(
+            account_name="零本金净值测试账户",
+            initial_capital=0.0,
+        )
+        metrics = self.net_value_service.record_and_update_performance(
+            account_id=zero_account.account_id,
+            record_date=date.today(),
+        )
+
+        record = DailyNetValueModel.objects.get(
+            account_id=zero_account.account_id,
+            record_date=date.today(),
+        )
+        self.assertEqual(record.cumulative_return, 0.0)
+        self.assertEqual(metrics["total_return"], 0.0)
+
     def test_drawdown_field_accuracy(self):
         """测试回撤字段准确性"""
         buy_use_case = ExecuteBuyOrderUseCase(

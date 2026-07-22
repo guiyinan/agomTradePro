@@ -435,3 +435,15 @@
 
 - Simulated Trading tasks 定向与增量 mypy：`0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8370 errors / 917 files` 收紧为 `8321 errors / 916 files`，净减少 `49 errors / 1 file`，该文件全部十类历史错误归零且无错误码反弹。
 - Celery 注册别名、自动交易 wiring、持仓失效、通知投递和再平衡流程回归：`52 passed`；架构 delta 扫描 `1 file / 129 added lines / 0 violations`；Ruff、diff check 通过。
+
+## 第三十一批
+
+- 按风险密度和公共 repository 杠杆收口 Simulated Trading 净值链路：`ports.py` 为每日净值写入、完整记录、上一日记录及账户/持仓/交易依赖建立 TypedDict 与 Protocol 契约；`DjangoDailyNetValueRepository` 在 ORM 出口构造精确记录，不再向 Application 传播裸字典。
+- `DailyNetValueService` 以异构 `PerformanceMetrics` 保留 `winning_trades: int`，避免指标字典把整数字段宽化成 float；净值曲线、回撤和夏普计算统一消费强类型记录。
+- 类型传播修复三个真实失败模式：零初始本金计算累计收益率时原会除零；允许空用户的账户目标原会执行 `int(None)`；ORM 保存后主键仍为空时原会把 `None` 当作成功 ID 返回。现在分别安全降级、保留可空用户标识并在持久化边界显式失败。
+- 同步收口公共 Account/Position/Trade/Fee/Inspection repository 的 Decimal 到 Domain float 映射、可空主键、动态 payload、日期参数和聚合返回类型；下游 `query_services.py` 收窄账户 ID 和净值序列化契约，消除 repository 类型增强引出的调用侧回归。
+
+## 第三十一批验证结果
+
+- 4 个变更生产文件的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8321 errors / 916 files` 收紧为 `8251 errors / 912 files`，净减少 `70 errors / 4 files`，并连带减少 interface service 的 2 个未类型调用。
+- 每日净值、策略自动交易、模拟交易、绩效曲线、任务 wiring、持仓失效、通知/再平衡、Dashboard、readiness 和持仓查询回归共 `127 passed`；架构 delta 扫描 `4 files / 373 added lines / 0 violations`；Django system check、Ruff、diff check 通过。

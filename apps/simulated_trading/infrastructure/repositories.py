@@ -6,14 +6,20 @@ Infrastructure层:
 - 负责Domain实体与ORM模型之间的转换
 - 封装数据库操作细节
 """
-from datetime import date
+from collections.abc import Callable
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 
+from apps.simulated_trading.application.ports import (
+    DailyNetValueRecord,
+    DailyNetValueWritePayload,
+    PreviousDailyNetValueRecord,
+)
 from apps.simulated_trading.domain.entities import (
     AccountType,
     FeeConfig,
@@ -34,6 +40,21 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     SimulatedTradeModel,
 )
+
+
+def _require_saved_id(model_id: int | None, entity_name: str) -> int:
+    """Return a persisted ORM identifier or fail at the repository boundary."""
+
+    if model_id is None:
+        raise RuntimeError(f"{entity_name} was saved without a primary key")
+    return model_id
+
+
+def _save_fee_config_model(model: FeeConfigModel) -> None:
+    """Narrow the legacy untyped model override at the ORM boundary."""
+
+    save = cast(Callable[..., None], model.save)
+    save()
 
 
 class SimulatedAccountMapper:
@@ -136,8 +157,8 @@ class PositionMapper:
             asset_code=model.asset_code,
             asset_name=model.asset_name,
             asset_type=model.asset_type,
-            quantity=model.quantity,
-            available_quantity=model.available_quantity,
+            quantity=float(model.quantity),
+            available_quantity=float(model.available_quantity),
             avg_cost=float(model.avg_cost),
             total_cost=float(model.total_cost),
             current_price=float(model.current_price),
@@ -203,7 +224,7 @@ class SimulatedTradeMapper:
             asset_name=model.asset_name,
             asset_type=model.asset_type,
             action=TradeAction(model.action),
-            quantity=model.quantity,
+            quantity=float(model.quantity),
             price=float(model.price),
             amount=float(model.amount),
             commission=float(model.commission),
@@ -306,7 +327,7 @@ class DjangoSimulatedAccountRepository:
                 user_model = get_user_model()
                 model.user = user_model._default_manager.get(id=user_id)
             model.save()
-            return model.id
+            return _require_saved_id(model.id, "simulated account")
         else:
             # 更新现有账户
             model = SimulatedAccountModel._default_manager.get(id=account.account_id)
@@ -325,7 +346,7 @@ class DjangoSimulatedAccountRepository:
             model.is_active = account.is_active
             model.auto_trading_enabled = account.auto_trading_enabled
             model.save()
-            return account.account_id
+            return int(account.account_id)
 
     def get_by_id(self, account_id: int) -> SimulatedAccount | None:
         """根据ID获取账户"""
@@ -382,7 +403,7 @@ class DjangoSimulatedAccountRepository:
         return [
             {
                 "account_id": int(row.id),
-                "user_id": int(row.user_id),
+                "user_id": row.user_id,
                 "account_name": row.account_name,
                 "account_type": row.account_type,
             }
@@ -392,17 +413,15 @@ class DjangoSimulatedAccountRepository:
     def count_active_account_models(self) -> int:
         """Return the number of active account ORM rows."""
 
-        return SimulatedAccountModel._default_manager.filter(is_active=True).count()
+        return int(SimulatedAccountModel._default_manager.filter(is_active=True).count())
 
-    def sum_active_total_value(self):
+    def sum_active_total_value(self) -> Decimal:
         """Return the aggregate total value across active accounts."""
 
-        return (
-            SimulatedAccountModel._default_manager.filter(is_active=True).aggregate(
-                total=Sum("total_value")
-            )["total"]
-            or 0
+        total = SimulatedAccountModel._default_manager.filter(is_active=True).aggregate(
+            total=Sum("total_value")
         )
+        return Decimal(str(total["total"] or 0))
 
     def get_by_user(self, user_id: int) -> list[SimulatedAccount]:
         """
@@ -484,12 +503,14 @@ class DjangoSimulatedAccountRepository:
 
     def user_owns_account(self, account_id: int, user_id: int) -> bool:
         """判断账户是否属于指定用户。"""
-        return SimulatedAccountModel._default_manager.filter(
-            id=account_id,
-            user_id=user_id,
-        ).exists()
+        return bool(
+            SimulatedAccountModel._default_manager.filter(
+                id=account_id,
+                user_id=user_id,
+            ).exists()
+        )
 
-    def delete_account_with_summary(self, account_id: int) -> dict | None:
+    def delete_account_with_summary(self, account_id: int) -> dict[str, Any] | None:
         """Delete an account row and return small cascade counts for UI feedback."""
 
         account = self.get_account_model_by_id(account_id)
@@ -595,15 +616,18 @@ class DjangoPositionRepository:
     def count_position_models(self) -> int:
         """Return the total number of position ORM rows."""
 
-        return PositionModel._default_manager.count()
+        return int(PositionModel._default_manager.count())
 
-    def update_position_prices(self, price_by_code: dict[str, Any]) -> list[dict]:
+    def update_position_prices(
+        self,
+        price_by_code: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """Update open positions and account totals from latest prices."""
 
         if not price_by_code:
             return []
 
-        updates = []
+        updates: list[dict[str, Any]] = []
         positions = PositionModel._default_manager.select_related("account").filter(
             asset_code__in=price_by_code.keys(),
             quantity__gt=0,
@@ -645,7 +669,7 @@ class DjangoPositionRepository:
 
         return updates
 
-    def _update_account_value(self, account: Any) -> None:
+    def _update_account_value(self, account: SimulatedAccountModel) -> None:
         """Recalculate account totals after position price changes."""
 
         positions = PositionModel._default_manager.filter(account=account)
@@ -670,7 +694,7 @@ class DjangoPositionRepository:
         *,
         account_id: int,
         asset_code: str,
-        defaults: dict,
+        defaults: dict[str, Any],
     ) -> PositionModel:
         """Create or update one ORM position row and return it."""
 
@@ -707,13 +731,13 @@ class DjangoPositionRepository:
             model.unrealized_pnl_pct = position.unrealized_pnl_pct
             model.last_update_date = position.last_update_date
             model.save()
-            return model.id
+            return _require_saved_id(model.id, "position")
         else:
             # 创建新持仓
             model = PositionMapper.to_model(position)
             model.id = None
             model.save()
-            return model.id
+            return _require_saved_id(model.id, "position")
 
     def get_by_account(self, account_id: int) -> list[Position]:
         """获取账户的所有持仓"""
@@ -728,19 +752,18 @@ class DjangoPositionRepository:
             queryset = queryset[:limit]
         return list(queryset)
 
-    def get_position_snapshots(self, account_id: int) -> list[dict]:
+    def get_position_snapshots(self, account_id: int) -> list[dict[str, Any]]:
         """返回交易计划所需的持仓快照。"""
-        return list(
-            PositionModel._default_manager.filter(account_id=account_id).values(
-                "asset_code",
-                "asset_name",
-                "quantity",
-                "avg_cost",
-                "current_price",
-                "market_value",
-                "unrealized_pnl_pct",
-            )
+        rows = PositionModel._default_manager.filter(account_id=account_id).values(
+            "asset_code",
+            "asset_name",
+            "quantity",
+            "avg_cost",
+            "current_price",
+            "market_value",
+            "unrealized_pnl_pct",
         )
+        return [dict(row) for row in rows]
 
     def list_held_asset_codes(self) -> list[str]:
         """Return distinct asset codes for currently held positions."""
@@ -771,7 +794,7 @@ class DjangoPositionRepository:
             account_id=account_id,
             asset_code=asset_code
         ).delete()
-        return deleted > 0
+        return int(deleted) > 0
 
     def get_pending_invalidation_positions(self) -> list[Position]:
         """获取需要做证伪检查的持仓。"""
@@ -789,19 +812,24 @@ class DjangoPositionRepository:
         except PositionModel.DoesNotExist:
             return None
 
-    def mark_invalidation_checked(self, account_id: int, asset_code: str, checked_at) -> bool:
+    def mark_invalidation_checked(
+        self,
+        account_id: int,
+        asset_code: str,
+        checked_at: datetime,
+    ) -> bool:
         updated = PositionModel._default_manager.filter(
             account_id=account_id,
             asset_code=asset_code,
         ).update(invalidation_checked_at=checked_at)
-        return updated > 0
+        return int(updated) > 0
 
     def mark_invalidated(
         self,
         account_id: int,
         asset_code: str,
         reason: str,
-        checked_at,
+        checked_at: datetime,
     ) -> bool:
         updated = PositionModel._default_manager.filter(
             account_id=account_id,
@@ -811,14 +839,16 @@ class DjangoPositionRepository:
             invalidation_reason=reason,
             invalidation_checked_at=checked_at,
         )
-        return updated > 0
+        return int(updated) > 0
 
     def count_positions_with_invalidation_rules(self) -> int:
-        return PositionModel._default_manager.filter(
-            invalidation_rule_json__isnull=False
-        ).exclude(invalidation_rule_json={}).count()
+        return int(
+            PositionModel._default_manager.filter(
+                invalidation_rule_json__isnull=False
+            ).exclude(invalidation_rule_json={}).count()
+        )
 
-    def get_invalidated_position_summaries(self) -> list[dict]:
+    def get_invalidated_position_summaries(self) -> list[dict[str, Any]]:
         models = PositionModel._default_manager.filter(
             is_invalidated=True,
             quantity__gt=0,
@@ -846,7 +876,7 @@ class DjangoPositionRepository:
 class DjangoTradeRepository:
     """交易记录Repository实现"""
 
-    def create_trade_record(self, **payload) -> SimulatedTradeModel:
+    def create_trade_record(self, **payload: Any) -> SimulatedTradeModel:
         """Create one ORM trade row and return it."""
 
         return SimulatedTradeModel._default_manager.create(**payload)
@@ -861,7 +891,7 @@ class DjangoTradeRepository:
         model = SimulatedTradeMapper.to_model(trade)
         model.id = None  # 确保是新记录
         model.save()
-        return model.id
+        return _require_saved_id(model.id, "simulated trade")
 
     def get_by_account(self, account_id: int) -> list[SimulatedTrade]:
         """获取账户的所有交易记录"""
@@ -873,27 +903,25 @@ class DjangoTradeRepository:
     def count_trade_models(self) -> int:
         """Return the total number of trade ORM rows."""
 
-        return SimulatedTradeModel._default_manager.count()
+        return int(SimulatedTradeModel._default_manager.count())
 
-    def summarize_trade_models_for_date(self, execution_date) -> dict[str, int]:
+    def summarize_trade_models_for_date(self, execution_date: date) -> dict[str, int]:
         """Return buy/sell counts for one execution date."""
 
         queryset = SimulatedTradeModel._default_manager.filter(execution_date=execution_date)
         return {
-            "buy_count": queryset.filter(action="buy").count(),
-            "sell_count": queryset.filter(action="sell").count(),
+            "buy_count": int(queryset.filter(action="buy").count()),
+            "sell_count": int(queryset.filter(action="sell").count()),
         }
 
-    def sum_realized_pnl_for_closed_trades(self):
+    def sum_realized_pnl_for_closed_trades(self) -> Decimal:
         """Return aggregated realized pnl for completed sell trades."""
 
-        return (
-            SimulatedTradeModel._default_manager.filter(
-                action="sell",
-                realized_pnl__isnull=False,
-            ).aggregate(total=Sum("realized_pnl"))["total"]
-            or 0
-        )
+        total = SimulatedTradeModel._default_manager.filter(
+            action="sell",
+            realized_pnl__isnull=False,
+        ).aggregate(total=Sum("realized_pnl"))
+        return Decimal(str(total["total"] or 0))
 
     def list_trade_models_for_account(self, account_id: int, limit: int | None = None) -> list[Any]:
         """Return trade ORM rows for template rendering."""
@@ -903,7 +931,11 @@ class DjangoTradeRepository:
             queryset = queryset[:limit]
         return list(queryset)
 
-    def get_trade_model_summary_for_account(self, account_id: int, limit: int = 100) -> dict:
+    def get_trade_model_summary_for_account(
+        self,
+        account_id: int,
+        limit: int = 100,
+    ) -> dict[str, Any]:
         """Return trade rows plus lightweight counts for account trade pages."""
 
         queryset = SimulatedTradeModel._default_manager.filter(account_id=account_id)
@@ -945,10 +977,12 @@ class DjangoTradeRepository:
     def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
         """按执行日期统计交易数。"""
 
-        return SimulatedTradeModel._default_manager.filter(
-            account_id=account_id,
-            execution_date=execution_date,
-        ).count()
+        return int(
+            SimulatedTradeModel._default_manager.filter(
+                account_id=account_id,
+                execution_date=execution_date,
+            ).count()
+        )
 
 
 class DjangoPositionMutationRepository:
@@ -1025,16 +1059,23 @@ class DjangoPositionMutationRepository:
 
     def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
         """按执行日期统计交易数。"""
-        return SimulatedTradeModel._default_manager.filter(
-            account_id=account_id,
-            execution_date=execution_date,
-        ).count()
+        return int(
+            SimulatedTradeModel._default_manager.filter(
+                account_id=account_id,
+                execution_date=execution_date,
+            ).count()
+        )
 
 
 class DjangoDailyNetValueRepository:
     """日净值记录仓储。"""
 
-    def upsert_daily_record(self, account_id: int, record_date: date, payload: dict) -> None:
+    def upsert_daily_record(
+        self,
+        account_id: int,
+        record_date: date,
+        payload: DailyNetValueWritePayload,
+    ) -> None:
         DailyNetValueModel._default_manager.update_or_create(
             account_id=account_id,
             record_date=record_date,
@@ -1046,28 +1087,44 @@ class DjangoDailyNetValueRepository:
         account_id: int,
         start_date: date | None = None,
         end_date: date | None = None,
-    ) -> list[dict]:
+    ) -> list[DailyNetValueRecord]:
         queryset = DailyNetValueModel._default_manager.filter(account_id=account_id).order_by("record_date")
         if start_date:
             queryset = queryset.filter(record_date__gte=start_date)
         if end_date:
             queryset = queryset.filter(record_date__lte=end_date)
-        return list(
-            queryset.values(
-                "record_date",
-                "net_value",
-                "cash",
-                "market_value",
-                "daily_return",
-                "cumulative_return",
-                "drawdown",
-                "total_trades",
-                "positions_count",
-            )
+        rows = queryset.values(
+            "record_date",
+            "net_value",
+            "cash",
+            "market_value",
+            "daily_return",
+            "cumulative_return",
+            "drawdown",
+            "total_trades",
+            "positions_count",
         )
+        return [
+            DailyNetValueRecord(
+                record_date=row["record_date"],
+                net_value=row["net_value"],
+                cash=row["cash"],
+                market_value=row["market_value"],
+                daily_return=row["daily_return"],
+                cumulative_return=row["cumulative_return"],
+                drawdown=row["drawdown"],
+                total_trades=row["total_trades"],
+                positions_count=row["positions_count"],
+            )
+            for row in rows
+        ]
 
-    def get_latest_record_before(self, account_id: int, current_date: date) -> dict | None:
-        return DailyNetValueModel._default_manager.filter(
+    def get_latest_record_before(
+        self,
+        account_id: int,
+        current_date: date,
+    ) -> PreviousDailyNetValueRecord | None:
+        row = DailyNetValueModel._default_manager.filter(
             account_id=account_id,
             record_date__lt=current_date,
         ).order_by("-record_date").values(
@@ -1075,6 +1132,13 @@ class DjangoDailyNetValueRepository:
             "net_value",
             "cumulative_return",
         ).first()
+        if row is None:
+            return None
+        return PreviousDailyNetValueRecord(
+            record_date=row["record_date"],
+            net_value=row["net_value"],
+            cumulative_return=row["cumulative_return"],
+        )
 
     def get_max_net_value_before(self, account_id: int, before_date: date) -> float | None:
         record = DailyNetValueModel._default_manager.filter(
@@ -1135,8 +1199,8 @@ class DjangoFeeConfigRepository:
             # 创建新配置
             model = FeeConfigMapper.to_model(config)
             model.id = None
-            model.save()
-            return model.id
+            _save_fee_config_model(model)
+            return _require_saved_id(model.id, "fee config")
         else:
             # 更新现有配置
             model = FeeConfigModel._default_manager.get(id=config.config_id)
@@ -1152,8 +1216,8 @@ class DjangoFeeConfigRepository:
             model.is_default = config.is_default
             model.is_active = config.is_active
             model.description = config.description
-            model.save()
-            return config.config_id
+            _save_fee_config_model(model)
+            return int(config.config_id)
 
     def get_by_id(self, config_id: int) -> FeeConfig | None:
         """根据ID获取费率配置"""
@@ -1177,7 +1241,7 @@ class DjangoFeeConfigRepository:
         except FeeConfigModel.DoesNotExist:
             return None
 
-    def get_all_configs(self, asset_type: str = None) -> list[FeeConfig]:
+    def get_all_configs(self, asset_type: str | None = None) -> list[FeeConfig]:
         """获取所有费率配置"""
         if asset_type:
             models = FeeConfigModel._default_manager.filter(
@@ -1229,7 +1293,7 @@ class DjangoInspectionRepository:
         *,
         limit: int,
         inspection_date: date | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Return serialized daily inspection reports for API responses."""
 
         queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
@@ -1259,8 +1323,8 @@ class DjangoInspectionRepository:
         self,
         account_id: int,
         inspection_date: date,
-        defaults: dict,
-    ) -> dict:
+        defaults: dict[str, Any],
+    ) -> dict[str, Any]:
         report, _ = DailyInspectionReportModel._default_manager.update_or_create(
             account_id=account_id,
             inspection_date=inspection_date,
@@ -1273,7 +1337,10 @@ class DjangoInspectionRepository:
             "policy_gear": report.policy_gear,
         }
 
-    def create_rebalance_proposal(self, payload: dict) -> dict:
+    def create_rebalance_proposal(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
         proposal = RebalanceProposalModel._default_manager.create(**payload)
         return {
             "proposal_id": proposal.id,
@@ -1290,7 +1357,10 @@ class DjangoInspectionRepository:
             "proposed_by": proposal.proposed_by,
         }
 
-    def get_account_notification_context(self, account_id: int) -> dict | None:
+    def get_account_notification_context(
+        self,
+        account_id: int,
+    ) -> dict[str, Any] | None:
         account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
         if not account:
             return None
@@ -1308,7 +1378,10 @@ class DjangoInspectionRepository:
             },
         }
 
-    def get_rebalance_proposal_detail(self, proposal_id: int) -> dict | None:
+    def get_rebalance_proposal_detail(
+        self,
+        proposal_id: int,
+    ) -> dict[str, Any] | None:
         proposal = RebalanceProposalModel._default_manager.filter(id=proposal_id).first()
         if not proposal:
             return None

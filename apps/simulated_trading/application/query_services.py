@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Any
 
+from apps.simulated_trading.application.ports import DailyNetValueRecord
 from apps.simulated_trading.application.repository_provider import (
     get_simulated_account_repository,
     get_simulated_daily_net_value_repository,
@@ -11,26 +13,42 @@ from apps.simulated_trading.application.repository_provider import (
 )
 
 
-def get_position_snapshots(account_id: int | str) -> list[dict]:
+def get_position_snapshots(account_id: int | str) -> list[dict[str, Any]]:
     """Return lightweight position snapshots for account-level planning."""
-    return get_simulated_position_repository().get_position_snapshots(account_id=account_id)
+    try:
+        resolved_account_id = int(account_id)
+    except ValueError as exc:
+        raise ValueError("account_id must be an integer") from exc
+    snapshots: list[dict[str, Any]] = (
+        get_simulated_position_repository().get_position_snapshots(
+            account_id=resolved_account_id
+        )
+    )
+    return snapshots
 
 
 def list_held_asset_codes() -> list[str]:
     """Return distinct asset codes held in simulated-trading positions."""
 
-    return get_simulated_position_repository().list_held_asset_codes()
+    asset_codes: list[str] = get_simulated_position_repository().list_held_asset_codes()
+    return asset_codes
 
 
-def list_active_account_models_for_user(user_id: int) -> list:
+def list_active_account_models_for_user(user_id: int) -> list[Any]:
     """Return active account rows for UI contexts that rely on model display helpers."""
-    return get_simulated_account_repository().get_active_account_models_for_user(user_id)
+    accounts: list[Any] = (
+        get_simulated_account_repository().get_active_account_models_for_user(user_id)
+    )
+    return accounts
 
 
-def list_active_account_targets() -> list[dict]:
+def list_active_account_targets() -> list[dict[str, Any]]:
     """Return active account/user id pairs for scheduled application jobs."""
 
-    return get_simulated_account_repository().list_active_account_targets()
+    targets: list[dict[str, Any]] = (
+        get_simulated_account_repository().list_active_account_targets()
+    )
+    return targets
 
 
 def get_user_account_totals(user_id: int) -> dict[str, float] | None:
@@ -59,7 +77,7 @@ def get_user_account_totals(user_id: int) -> dict[str, float] | None:
     }
 
 
-def list_dashboard_account_payloads(user_id: int) -> list[dict]:
+def list_dashboard_account_payloads(user_id: int) -> list[dict[str, Any]]:
     """Return dashboard account cards from simulated-trading entities."""
 
     accounts = get_simulated_account_repository().get_by_user(user_id)
@@ -91,7 +109,7 @@ def list_user_position_payloads(
     user_id: int,
     account_id: int | None = None,
     include_account_meta: bool = False,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return serialized position payloads for dashboard reads."""
 
     account_repo = get_simulated_account_repository()
@@ -101,10 +119,10 @@ def list_user_position_payloads(
         accounts = [account for account in accounts if int(account.account_id) == int(account_id)]
 
     account_name_map = {int(account.account_id): account.account_name for account in accounts}
-    payloads: list[dict] = []
+    payloads: list[dict[str, Any]] = []
     for account in accounts:
         for position in position_repo.get_by_account(account.account_id):
-            payload = {
+            payload: dict[str, Any] = {
                 "id": None,
                 "asset_code": position.asset_code,
                 "asset_name": position.asset_name,
@@ -135,7 +153,11 @@ def list_user_position_payloads(
     return payloads
 
 
-def get_account_execution_projection(*, user_id: int, account_id: int) -> dict | None:
+def get_account_execution_projection(
+    *,
+    user_id: int,
+    account_id: int,
+) -> dict[str, Any] | None:
     """Return the authoritative account/position inputs required by live risk checks.
 
     This application facade intentionally hides ORM models from broker execution and
@@ -183,7 +205,7 @@ def get_user_performance_payload(
     user_id: int,
     account_id: int | None,
     days: int,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return serialized performance history from simulated daily net values."""
 
     if days <= 0:
@@ -242,7 +264,7 @@ def get_user_performance_payload(
     if total_initial <= 0:
         total_initial = next(iter(daily_totals.values()))["net_value"] if daily_totals else 1.0
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for record_date in sorted(daily_totals.keys()):
         bucket = daily_totals[record_date]
         return_pct = (
@@ -261,7 +283,7 @@ def get_user_performance_payload(
     return rows
 
 
-def _serialize_daily_record(record: dict) -> dict:
+def _serialize_daily_record(record: DailyNetValueRecord) -> dict[str, Any]:
     """Normalize one daily net-value record for dashboard consumers."""
 
     return {
@@ -274,12 +296,12 @@ def _serialize_daily_record(record: dict) -> dict:
     }
 
 
-def _normalize_account_type(account_type) -> str:
+def _normalize_account_type(account_type: object) -> str:
     value = getattr(account_type, "value", account_type)
     return str(value or "simulated")
 
 
-def _account_type_label(account_type) -> str:
+def _account_type_label(account_type: object) -> str:
     return "实仓" if _normalize_account_type(account_type) == "real" else "模拟仓"
 
 

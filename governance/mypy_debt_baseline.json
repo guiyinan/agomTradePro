@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8321,
-    "files_with_errors": 916
+    "errors": 8251,
+    "files_with_errors": 912
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3412,22 +3412,13 @@
       "no-untyped-def": 4,
       "type-arg": 1
     },
-    "apps/simulated_trading/application/daily_net_value_service.py": {
-      "arg-type": 11,
-      "attr-defined": 3,
-      "no-any-return": 1,
-      "operator": 1,
-      "type-arg": 1,
-      "union-attr": 1,
-      "var-annotated": 1
-    },
     "apps/simulated_trading/application/facade.py": {
       "arg-type": 1,
       "attr-defined": 2
     },
     "apps/simulated_trading/application/interface_services.py": {
       "attr-defined": 1,
-      "no-untyped-call": 3,
+      "no-untyped-call": 1,
       "type-arg": 2
     },
     "apps/simulated_trading/application/performance_calculator.py": {
@@ -3444,20 +3435,11 @@
       "assignment": 1,
       "operator": 1
     },
-    "apps/simulated_trading/application/ports.py": {
-      "no-untyped-def": 1,
-      "type-arg": 4
-    },
     "apps/simulated_trading/application/position_invalidation_checker.py": {
       "arg-type": 1,
       "no-untyped-call": 2,
       "no-untyped-def": 2,
       "type-arg": 4
-    },
-    "apps/simulated_trading/application/query_services.py": {
-      "arg-type": 1,
-      "no-untyped-def": 2,
-      "type-arg": 10
     },
     "apps/simulated_trading/application/unified_position_service.py": {
       "arg-type": 1,
@@ -3494,14 +3476,6 @@
     },
     "apps/simulated_trading/infrastructure/price_provider.py": {
       "assignment": 3
-    },
-    "apps/simulated_trading/infrastructure/repositories.py": {
-      "arg-type": 6,
-      "assignment": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 6,
-      "return-value": 1,
-      "type-arg": 15
     },
     "apps/simulated_trading/interface/admin.py": {
       "attr-defined": 28,

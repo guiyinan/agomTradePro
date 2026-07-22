@@ -8,14 +8,20 @@ Application层:
 """
 
 import logging
+import statistics
 from dataclasses import replace
 from datetime import date
+from typing import TypedDict
 
-from apps.simulated_trading.application.ports import DailyNetValueRepositoryProtocol
+from apps.simulated_trading.application.ports import (
+    DailyNetValueAccountRepositoryProtocol,
+    DailyNetValuePositionRepositoryProtocol,
+    DailyNetValueRecord,
+    DailyNetValueRepositoryProtocol,
+    DailyNetValueTradeRepositoryProtocol,
+    DailyNetValueWritePayload,
+)
 from apps.simulated_trading.application.repository_provider import (
-    DjangoPositionRepository,
-    DjangoSimulatedAccountRepository,
-    DjangoTradeRepository,
     get_simulated_account_repository,
     get_simulated_daily_net_value_repository,
     get_simulated_position_repository,
@@ -23,6 +29,31 @@ from apps.simulated_trading.application.repository_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PerformanceMetrics(TypedDict, total=False):
+    """Performance values calculated from an account's net-value history."""
+
+    total_return: float
+    annual_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    win_rate: float
+    winning_trades: int
+
+
+class EquityCurvePoint(TypedDict):
+    """Serializable point exposed by the equity-curve query."""
+
+    date: str
+    net_value: float
+    cash: float
+    market_value: float
+    daily_return: float
+    cumulative_return: float
+    drawdown: float
+    total_trades: int
+    positions_count: int
 
 
 class DailyNetValueService:
@@ -38,11 +69,11 @@ class DailyNetValueService:
 
     def __init__(
         self,
-        account_repo: DjangoSimulatedAccountRepository | None = None,
-        position_repo: DjangoPositionRepository | None = None,
-        trade_repo: DjangoTradeRepository | None = None,
+        account_repo: DailyNetValueAccountRepositoryProtocol | None = None,
+        position_repo: DailyNetValuePositionRepositoryProtocol | None = None,
+        trade_repo: DailyNetValueTradeRepositoryProtocol | None = None,
         daily_net_value_repo: DailyNetValueRepositoryProtocol | None = None,
-    ):
+    ) -> None:
         self.account_repo = account_repo or get_simulated_account_repository()
         self.position_repo = position_repo or get_simulated_position_repository()
         self.trade_repo = trade_repo or get_simulated_trade_repository()
@@ -50,7 +81,11 @@ class DailyNetValueService:
             daily_net_value_repo or get_simulated_daily_net_value_repository()
         )
 
-    def record_and_update_performance(self, account_id: int, record_date: date) -> dict[str, float]:
+    def record_and_update_performance(
+        self,
+        account_id: int,
+        record_date: date,
+    ) -> PerformanceMetrics:
         """
         记录当日净值并更新绩效指标
 
@@ -86,10 +121,12 @@ class DailyNetValueService:
             daily_return = 0.0
 
         # 5. 计算累计收益率
+        initial_capital = float(account.initial_capital)
         cumulative_return = (
-            (float(account.total_value) - float(account.initial_capital))
-            / float(account.initial_capital)
-        ) * 100
+            ((float(account.total_value) - initial_capital) / initial_capital) * 100
+            if initial_capital > 0
+            else 0.0
+        )
 
         # 6. 计算回撤
         # 回撤 = (历史最高点 - 当前值) / 历史最高点 * 100
@@ -108,19 +145,20 @@ class DailyNetValueService:
         daily_trades_count = self._get_daily_trades_count(account_id, record_date)
 
         # 8. 创建或更新净值记录
+        payload = DailyNetValueWritePayload(
+            net_value=account.total_value,
+            cash=account.current_cash,
+            market_value=account.current_market_value,
+            daily_return=daily_return,
+            cumulative_return=cumulative_return,
+            drawdown=drawdown,
+            total_trades=daily_trades_count,
+            positions_count=len(positions),
+        )
         self.daily_net_value_repo.upsert_daily_record(
             account_id=account_id,
             record_date=record_date,
-            payload={
-                "net_value": account.total_value,
-                "cash": account.current_cash,
-                "market_value": account.current_market_value,
-                "daily_return": daily_return,
-                "cumulative_return": cumulative_return,
-                "drawdown": drawdown,
-                "total_trades": daily_trades_count,
-                "positions_count": len(positions),
-            },
+            payload=payload,
         )
 
         # 9. 重新计算并更新账户绩效指标
@@ -141,8 +179,11 @@ class DailyNetValueService:
         return metrics
 
     def get_equity_curve(
-        self, account_id: int, start_date: date | None = None, end_date: date | None = None
-    ) -> list[dict]:
+        self,
+        account_id: int,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[EquityCurvePoint]:
         """
         获取净值曲线数据
 
@@ -235,7 +276,7 @@ class DailyNetValueService:
 
     def _recalculate_performance_metrics(
         self, account_id: int, as_of_date: date
-    ) -> dict[str, float]:
+    ) -> PerformanceMetrics:
         """
         重新计算绩效指标（基于净值曲线）
 
@@ -253,7 +294,7 @@ class DailyNetValueService:
         Returns:
             绩效指标字典
         """
-        metrics = {}
+        metrics: PerformanceMetrics = {}
 
         # 获取账户信息
         account = self.account_repo.get_by_id(account_id)
@@ -300,7 +341,10 @@ class DailyNetValueService:
 
         return metrics
 
-    def _calculate_max_drawdown_from_records(self, records: list[dict[str, object]]) -> float:
+    def _calculate_max_drawdown_from_records(
+        self,
+        records: list[DailyNetValueRecord],
+    ) -> float:
         """
         从净值记录计算最大回撤
 
@@ -332,7 +376,10 @@ class DailyNetValueService:
 
         return max_drawdown
 
-    def _calculate_sharpe_ratio_from_records(self, records: list[dict[str, object]]) -> float:
+    def _calculate_sharpe_ratio_from_records(
+        self,
+        records: list[DailyNetValueRecord],
+    ) -> float:
         """
         从净值记录计算夏普比率
 
@@ -348,7 +395,7 @@ class DailyNetValueService:
             return 0.0
 
         # 计算日收益率序列
-        daily_returns = []
+        daily_returns: list[float] = []
         for i in range(1, len(records)):
             prev_value = float(records[i - 1]["net_value"])
             curr_value = float(records[i]["net_value"])
@@ -361,8 +408,6 @@ class DailyNetValueService:
             return 0.0
 
         # 计算均值和标准差
-        import statistics
-
         mean_return = statistics.mean(daily_returns)
         std_return = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
 
@@ -377,8 +422,7 @@ class DailyNetValueService:
         if annual_volatility == 0:
             return 0.0
 
-        sharpe = (annual_return - risk_free_rate) / annual_volatility
-        return sharpe
+        return float((annual_return - risk_free_rate) / annual_volatility)
 
     def _calculate_win_rate(self, account_id: int) -> tuple[float, int]:
         """
