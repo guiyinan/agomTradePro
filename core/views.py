@@ -4,10 +4,13 @@ Core Views for AgomTradePro
 项目级视图函数
 """
 
+from collections.abc import Iterable
 from datetime import UTC, date, datetime
+from typing import Any, TypedDict
 
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import Http404, JsonResponse
+from django.contrib.auth.models import AnonymousUser, User
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -20,14 +23,27 @@ from core.health_checks import check_database, is_healthy, run_readiness_checks
 from core.ui_modes import DEFAULT_TUI_PATH, UI_MODE_TUI, set_ui_mode_cookie
 
 
-def index_view(request):
+class AuthenticatedHttpRequest(HttpRequest):
+    """Request after AuthenticationMiddleware has populated ``user``."""
+
+    user: User | AnonymousUser
+
+
+class AssetCodeGroup(TypedDict):
+    """Mutable aggregation bucket used by the decision workspace."""
+
+    items: list[Any]
+    directions: set[str]
+
+
+def index_view(request: HttpRequest) -> HttpResponse:
     """首页视图 - 默认进入 TUI 工作台。"""
 
     response = redirect(DEFAULT_TUI_PATH)
     return set_ui_mode_cookie(response, mode=UI_MODE_TUI)
 
 
-def health_view(request):
+def health_view(request: HttpRequest) -> JsonResponse:
     """
     健康检查 - Liveness Probe（存活检查）
 
@@ -38,7 +54,7 @@ def health_view(request):
     return JsonResponse({"status": "ok", "timestamp": datetime.now(UTC).isoformat()})
 
 
-def readiness_view(request):
+def readiness_view(request: HttpRequest) -> JsonResponse:
     """
     就绪检查 - Readiness Probe（就绪检查）
 
@@ -52,7 +68,7 @@ def readiness_view(request):
     checks = run_readiness_checks()
 
     if is_healthy(checks):
-        response_data = {
+        response_data: dict[str, Any] = {
             "status": "ok",
             "timestamp": datetime.now(UTC).isoformat(),
             "checks": checks,
@@ -67,7 +83,7 @@ def readiness_view(request):
         return JsonResponse(response_data, status=503)
 
 
-def database_health_view(request):
+def database_health_view(request: HttpRequest) -> JsonResponse:
     """
     数据库健康检查
 
@@ -87,13 +103,13 @@ def database_health_view(request):
     )
 
 
-def chat_example_view(request):
+def chat_example_view(request: HttpRequest) -> HttpResponse:
     """聊天组件示例页面"""
     return render(request, "components/chat_example.html")
 
 
 # @login_required  # 临时禁用登录验证用于测试
-def terminal_view(request):
+def terminal_view(request: HttpRequest) -> HttpResponse:
     """
     CLI Terminal 风格的 AI 聊天界面
 
@@ -129,7 +145,7 @@ def terminal_view(request):
 
 
 @login_required
-def terminal_config_view(request):
+def terminal_config_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """
     终端命令配置页面
 
@@ -149,7 +165,7 @@ def terminal_config_view(request):
 
 
 @login_required
-def asset_screen_view(request):
+def asset_screen_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """
     资产筛选页面
 
@@ -198,7 +214,7 @@ def asset_screen_view(request):
     return render(request, "asset_analysis/screen.html", context)
 
 
-def docs_view(request, doc_slug=""):
+def docs_view(request: HttpRequest, doc_slug: str = "") -> HttpResponse:
     """文档查看视图"""
     documentation_service = get_documentation_service()
 
@@ -220,7 +236,7 @@ def docs_view(request, doc_slug=""):
         docs = documentation_service.list_published_docs()
 
         # 按分类分组
-        categories = {
+        categories: dict[str, dict[str, Any]] = {
             "user_guide": {"name": "用户指南", "docs": []},
             "concept": {"name": "概念说明", "docs": []},
             "api": {"name": "API 文档", "docs": []},
@@ -238,11 +254,11 @@ def docs_view(request, doc_slug=""):
         return render(request, "docs/list.html", context)
 
 
-def _group_by_asset_code(items, direction_attr="direction"):
+def _group_by_asset_code(items: Iterable[Any], direction_attr: str = "direction") -> list[Any]:
     """
     按证券代码归并请求/候选，默认保留每组最新一条作为操作入口。
     """
-    grouped = {}
+    grouped: dict[str, AssetCodeGroup] = {}
     for item in items:
         code = (getattr(item, "asset_code", "") or "").upper()
         if not code:
@@ -253,7 +269,7 @@ def _group_by_asset_code(items, direction_attr="direction"):
         if direction:
             bucket["directions"].add(direction)
 
-    merged = []
+    merged: list[Any] = []
     for code, bucket in grouped.items():
         # query 本身按时间倒序，取第一条作为最新记录
         representative = bucket["items"][0]
@@ -271,7 +287,7 @@ def _group_by_asset_code(items, direction_attr="direction"):
 
 
 @login_required
-def decision_workspace_view(request):
+def decision_workspace_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """
     统一决策工作台
 
@@ -286,7 +302,7 @@ def decision_workspace_view(request):
     requested_workspace_account_id = str(request.GET.get("account_id") or "").strip()
     requested_security_code = str(request.GET.get("security_code") or "").strip().upper()
 
-    context = {
+    context: dict[str, Any] = {
         "page_title": "决策工作台",
         "page_description": "统一管理投资决策流程",
     }
@@ -444,7 +460,7 @@ def decision_workspace_view(request):
         context["workspace_selected_exit_item"] = None
 
     # ========== 告警信息 ==========
-    alerts = []
+    alerts: list[dict[str, str]] = []
 
     # 配额告警
     if context.get("quota_usage_percent", 0) >= 100:
@@ -503,7 +519,7 @@ def decision_workspace_view(request):
 
 
 @login_required
-def settings_center_view(request):
+def settings_center_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """Unified settings center for account, system, and strategy configuration."""
     from core.application.config_center import build_config_center_snapshot
 
@@ -532,7 +548,7 @@ def settings_center_view(request):
 
 
 @user_passes_test(lambda user: user.is_superuser, login_url="/account/login/")
-def admin_console_view(request):
+def admin_console_view(request: AuthenticatedHttpRequest) -> HttpResponse:
     """Unified admin operations console for superusers."""
     from apps.account.application.config_summary_service import (
         get_account_config_summary_service,

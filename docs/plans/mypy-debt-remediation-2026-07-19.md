@@ -276,3 +276,15 @@
 
 - Shared alert service 定向 mypy：`0 errors`；全仓基线从 `9042 errors / 940 files` 收紧为 `9038 errors / 939 files`，无文件或错误码反弹。
 - 异构默认通道组装、通道移除与 Policy 通知回归：`31 passed`；Ruff 通过。
+
+## 第十八批
+
+- 收口 `core/views.py` 的请求/响应、页面 context、文档分类和资产代码聚合类型契约，清除该文件 55 个历史错误。
+- 补齐 Policy application provider 的 7 个工厂返回类型，使仓储、页面服务、通知服务和 AI 分类器不再以隐式 `Any` 向调用方传播；完整类型额外消除 48 个下游 `no-untyped-call` 等历史错误。
+- 类型传播暴露出两个既有运行时契约缺口：Policy 告警工厂返回的服务缺少用例要求的通用 `send_alert()`，Sentiment task 调用了不存在的 `PolicyEvent.id` 和仓储 `get_by_id()`；本批补齐通用告警交付与按持久化 ID 查询，并以领域实体已有的标题和日期记录日志。
+- Provider 的 application 协议仅在 `TYPE_CHECKING` 下导入，避免与现有 use case 反向引用形成运行时循环依赖。
+
+## 第十八批验证结果
+
+- Core views 与 Policy provider 联合定向 mypy：`0 errors`；全仓基线从 `9038 errors / 939 files` 收紧为 `8935 errors / 936 files`，净减少 `103 errors / 3 files`，无文件或错误码反弹。
+- Core health、decision workspace、Config Center、Policy 通知与 Policy repository 回归：`103 passed`；Django system check、Ruff 通过。

@@ -84,9 +84,19 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
                 text = f"{event.title}\n{event.description or ''}"
                 result = analyzer.analyze_text(text)
                 policy_scores.append(result.sentiment_score)
-                logger.info(f"政策事件 {event.id} 情感评分: {result.sentiment_score}")
+                logger.info(
+                    "政策事件 %s (%s) 情感评分: %s",
+                    event.title,
+                    event.event_date,
+                    result.sentiment_score,
+                )
             except Exception as e:
-                logger.error(f"分析政策事件 {event.id} 失败: {e}")
+                logger.error(
+                    "分析政策事件 %s (%s) 失败: %s",
+                    event.title,
+                    event.event_date,
+                    e,
+                )
                 continue
 
         # 4. 获取当日市场新闻并分析
@@ -96,9 +106,7 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> dict[str, 
         for news_item in news_items:
             try:
                 if getattr(news_item, "sentiment_score", None) is not None:
-                    news_scores.append(
-                        _normalize_news_sentiment_score(news_item.sentiment_score)
-                    )
+                    news_scores.append(_normalize_news_sentiment_score(news_item.sentiment_score))
                     continue
 
                 text = _build_news_text(news_item)
@@ -169,7 +177,7 @@ def analyze_policy_event_sentiment(self, event_id: int) -> dict[str, Any]:
     try:
         # 获取政策事件
         policy_repo = get_current_policy_repository()
-        event = policy_repo.get_by_id(event_id)
+        event = policy_repo.get_event_by_id(event_id)
 
         if not event:
             return {"status": "error", "message": f"政策事件 {event_id} 不存在"}

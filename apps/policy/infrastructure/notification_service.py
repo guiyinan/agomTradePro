@@ -92,9 +92,7 @@ class EmailNotificationService(LoggingNotificationService):
         default_recipients: list[str] | None = None,
     ):
         super().__init__(enabled)
-        self.default_recipients = default_recipients or getattr(
-            settings, "POLICY_ALERT_EMAILS", []
-        )
+        self.default_recipients = default_recipients or getattr(settings, "POLICY_ALERT_EMAILS", [])
 
     def send(self, message: NotificationMessage) -> bool:
         """发送邮件通知"""
@@ -263,12 +261,43 @@ class PolicyAlertService(PolicyAlertServicePort):
         self.email_service = email_service
         self.in_app_service = in_app_service
 
-    def send_policy_alert(
+    def send_alert(
         self,
-        level: PolicyLevel,
-        event: PolicyEvent,
-        status: Any
+        level: str,
+        title: str,
+        message: str,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
+        """Send a generic policy alert through every configured channel."""
+
+        alert_metadata = metadata or {}
+        email_sent = True
+        if self.email_service:
+            email_sent = self.email_service.send(
+                NotificationMessage(
+                    title=title,
+                    content=message,
+                    channel=NotificationChannel.EMAIL,
+                    priority=level,
+                    metadata=alert_metadata,
+                )
+            )
+
+        in_app_sent = True
+        if self.in_app_service:
+            in_app_sent = self.in_app_service.send(
+                NotificationMessage(
+                    title=title,
+                    content=message,
+                    channel=NotificationChannel.IN_APP,
+                    priority=level,
+                    metadata=alert_metadata,
+                )
+            )
+
+        return email_sent and in_app_sent
+
+    def send_policy_alert(self, level: PolicyLevel, event: PolicyEvent, status: Any) -> bool:
         """发送政策档位告警
 
         构建告警消息并通过配置的渠道发送。
@@ -293,7 +322,7 @@ class PolicyAlertService(PolicyAlertServicePort):
                         "level": level.value,
                         "event_date": event.event_date.isoformat(),
                         "event_title": event.title,
-                    }
+                    },
                 )
                 email_sent = self.email_service.send(message)
 
@@ -309,7 +338,7 @@ class PolicyAlertService(PolicyAlertServicePort):
                         "level": level.value,
                         "event_date": event.event_date.isoformat(),
                         "evidence_url": event.evidence_url,
-                    }
+                    },
                 )
                 in_app_sent = self.in_app_service.send(message)
 
@@ -406,11 +435,7 @@ P2/P3 超时: {p23_count} 项
             return False
 
     def _build_alert_content(
-        self,
-        level: PolicyLevel,
-        event: PolicyEvent,
-        status: Any,
-        alert_level: str
+        self, level: PolicyLevel, event: PolicyEvent, status: Any, alert_level: str
     ) -> str:
         """构建告警消息内容"""
         content = f"""**政策状态告警**
@@ -425,7 +450,9 @@ P2/P3 超时: {p23_count} 项
 - 行动: {getattr(status.response_config, 'market_action', 'N/A').value if hasattr(getattr(status, 'response_config', None), 'market_action') else 'N/A'}
 """
 
-        if hasattr(status, 'response_config') and hasattr(status.response_config, 'signal_pause_hours'):
+        if hasattr(status, "response_config") and hasattr(
+            status.response_config, "signal_pause_hours"
+        ):
             if status.response_config.signal_pause_hours:
                 content += f"- 信号暂停: {status.response_config.signal_pause_hours} 小时\n"
 
@@ -470,11 +497,11 @@ class NotificationServiceFactory:
         """获取邮件通知服务（单例）"""
         if cls._email_service is None:
             from django.conf import settings
+
             default_recipients = getattr(settings, "POLICY_ALERT_EMAILS", [])
             enabled = getattr(settings, "POLICY_EMAIL_NOTIFICATIONS_ENABLED", True)
             cls._email_service = EmailNotificationService(
-                enabled=enabled,
-                default_recipients=default_recipients
+                enabled=enabled, default_recipients=default_recipients
             )
         return cls._email_service
 
@@ -483,6 +510,7 @@ class NotificationServiceFactory:
         """获取站内通知服务（单例）"""
         if cls._in_app_service is None:
             from django.conf import settings
+
             enabled = getattr(settings, "POLICY_IN_APP_NOTIFICATIONS_ENABLED", True)
             cls._in_app_service = InAppNotificationService(enabled=enabled)
         return cls._in_app_service

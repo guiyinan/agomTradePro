@@ -34,10 +34,7 @@ class TestNotificationMessage:
 
     def test_create_minimal_message(self):
         """测试创建最小消息"""
-        msg = NotificationMessage(
-            title="Test",
-            content="Test content"
-        )
+        msg = NotificationMessage(title="Test", content="Test content")
         assert msg.title == "Test"
         assert msg.content == "Test content"
         assert msg.channel == NotificationChannel.IN_APP
@@ -53,7 +50,7 @@ class TestNotificationMessage:
             channel=NotificationChannel.EMAIL,
             priority="high",
             recipients=["user@example.com"],
-            metadata={"key": "value"}
+            metadata={"key": "value"},
         )
         assert msg.title == "Alert"
         assert msg.channel == NotificationChannel.EMAIL
@@ -71,11 +68,7 @@ class TestLoggingNotificationService:
 
     def test_send_logs_message(self, service, caplog):
         """测试发送消息记录日志"""
-        msg = NotificationMessage(
-            title="Test Alert",
-            content="Test content",
-            priority="high"
-        )
+        msg = NotificationMessage(title="Test Alert", content="Test content", priority="high")
 
         result = service.send(msg)
 
@@ -95,10 +88,7 @@ class TestLoggingNotificationService:
 
     def test_send_batch(self, service):
         """测试批量发送"""
-        messages = [
-            NotificationMessage(title=f"Msg {i}", content=f"Content {i}")
-            for i in range(3)
-        ]
+        messages = [NotificationMessage(title=f"Msg {i}", content=f"Content {i}") for i in range(3)]
 
         result = service.send_batch(messages)
 
@@ -120,10 +110,7 @@ class TestEmailNotificationService:
 
     @pytest.fixture
     def service(self):
-        return EmailNotificationService(
-            enabled=True,
-            default_recipients=["admin@example.com"]
-        )
+        return EmailNotificationService(enabled=True, default_recipients=["admin@example.com"])
 
     def test_send_with_recipients(self, service):
         """测试发送邮件给指定收件人"""
@@ -131,10 +118,10 @@ class TestEmailNotificationService:
             title="Test Alert",
             content="Test content",
             channel=NotificationChannel.EMAIL,
-            recipients=["user@example.com"]
+            recipients=["user@example.com"],
         )
 
-        with patch('apps.policy.infrastructure.notification_service.send_mail') as mock_send:
+        with patch("apps.policy.infrastructure.notification_service.send_mail") as mock_send:
             mock_send.return_value = True
             result = service.send(msg)
 
@@ -144,12 +131,10 @@ class TestEmailNotificationService:
     def test_send_uses_default_recipients(self, service):
         """测试使用默认收件人"""
         msg = NotificationMessage(
-            title="Test",
-            content="Content",
-            channel=NotificationChannel.EMAIL
+            title="Test", content="Content", channel=NotificationChannel.EMAIL
         )
 
-        with patch('apps.policy.infrastructure.notification_service.send_mail') as mock_send:
+        with patch("apps.policy.infrastructure.notification_service.send_mail") as mock_send:
             mock_send.return_value = True
             result = service.send(msg)
 
@@ -163,10 +148,7 @@ class TestEmailNotificationService:
         # 创建没有默认收件人的服务
         service = EmailNotificationService(enabled=True, default_recipients=[])
         msg = NotificationMessage(
-            title="Test",
-            content="Content",
-            channel=NotificationChannel.EMAIL,
-            recipients=[]
+            title="Test", content="Content", channel=NotificationChannel.EMAIL, recipients=[]
         )
 
         result = service.send(msg)
@@ -177,12 +159,10 @@ class TestEmailNotificationService:
         """测试邮件发送失败时降级到日志"""
         caplog.set_level(logging.DEBUG)
         msg = NotificationMessage(
-            title="Test",
-            content="Content",
-            channel=NotificationChannel.EMAIL
+            title="Test", content="Content", channel=NotificationChannel.EMAIL
         )
 
-        with patch('apps.policy.infrastructure.notification_service.send_mail') as mock_send:
+        with patch("apps.policy.infrastructure.notification_service.send_mail") as mock_send:
             mock_send.side_effect = Exception("SMTP error")
             result = service.send(msg)
 
@@ -195,14 +175,12 @@ class TestEmailNotificationService:
         """测试批量发送合并邮件"""
         messages = [
             NotificationMessage(
-                title=f"Msg {i}",
-                content=f"Content {i}",
-                channel=NotificationChannel.EMAIL
+                title=f"Msg {i}", content=f"Content {i}", channel=NotificationChannel.EMAIL
             )
             for i in range(3)
         ]
 
-        with patch('apps.policy.infrastructure.notification_service.send_mail') as mock_send:
+        with patch("apps.policy.infrastructure.notification_service.send_mail") as mock_send:
             mock_send.return_value = True
             result = service.send_batch(messages)
 
@@ -227,13 +205,9 @@ class TestInAppNotificationService:
 
     def test_send_with_recipients(self, service):
         """测试发送给指定用户"""
-        msg = NotificationMessage(
-            title="Test",
-            content="Content",
-            recipients=["user1", "user2"]
-        )
+        msg = NotificationMessage(title="Test", content="Content", recipients=["user1", "user2"])
 
-        with patch('apps.policy.infrastructure.models.InAppNotification.objects') as mock_manager:
+        with patch("apps.policy.infrastructure.models.InAppNotification.objects") as mock_manager:
             result = service.send(msg)
 
             assert result is True
@@ -242,12 +216,9 @@ class TestInAppNotificationService:
 
     def test_send_global_notification(self, service):
         """测试发送全局通知"""
-        msg = NotificationMessage(
-            title="Global Alert",
-            content="Important"
-        )
+        msg = NotificationMessage(title="Global Alert", content="Important")
 
-        with patch('apps.policy.infrastructure.models.InAppNotification.objects') as mock_manager:
+        with patch("apps.policy.infrastructure.models.InAppNotification.objects") as mock_manager:
             result = service.send(msg)
 
             assert result is True
@@ -265,12 +236,9 @@ class TestInAppNotificationService:
 
     def test_send_batch(self, service):
         """测试批量发送"""
-        messages = [
-            NotificationMessage(title=f"Msg {i}", content=f"Content {i}")
-            for i in range(3)
-        ]
+        messages = [NotificationMessage(title=f"Msg {i}", content=f"Content {i}") for i in range(3)]
 
-        with patch('apps.policy.infrastructure.models.InAppNotification.objects'):
+        with patch("apps.policy.infrastructure.models.InAppNotification.objects"):
             result = service.send_batch(messages)
 
             assert result["success"] == 3
@@ -290,8 +258,7 @@ class TestPolicyAlertService:
     @pytest.fixture
     def service(self, mock_email_service, mock_in_app_service):
         return PolicyAlertService(
-            email_service=mock_email_service,
-            in_app_service=mock_in_app_service
+            email_service=mock_email_service, in_app_service=mock_in_app_service
         )
 
     @pytest.fixture
@@ -301,7 +268,7 @@ class TestPolicyAlertService:
             level=PolicyLevel.P2,
             title="Test Policy Event",
             description="Test description",
-            evidence_url="https://example.com/evidence"
+            evidence_url="https://example.com/evidence",
         )
 
     @pytest.fixture
@@ -315,14 +282,16 @@ class TestPolicyAlertService:
         status.recommendations = ["建议1", "建议2"]
         return status
 
-    def test_send_policy_alert_p3(self, service, sample_event, sample_status, mock_email_service, mock_in_app_service):
+    def test_send_policy_alert_p3(
+        self, service, sample_event, sample_status, mock_email_service, mock_in_app_service
+    ):
         """测试发送 P3 告警"""
         sample_event = PolicyEvent(
             event_date=date(2026, 3, 4),
             level=PolicyLevel.P3,
             title="Critical Event",
             description="Critical description",
-            evidence_url="https://example.com"
+            evidence_url="https://example.com",
         )
 
         mock_email_service.send.return_value = True
@@ -338,7 +307,9 @@ class TestPolicyAlertService:
         email_msg = mock_email_service.send.call_args[0][0]
         assert email_msg.priority == "critical"
 
-    def test_send_policy_alert_p2(self, service, sample_event, sample_status, mock_email_service, mock_in_app_service):
+    def test_send_policy_alert_p2(
+        self, service, sample_event, sample_status, mock_email_service, mock_in_app_service
+    ):
         """测试发送 P2 告警"""
         mock_email_service.send.return_value = True
         mock_in_app_service.send.return_value = True
@@ -349,6 +320,25 @@ class TestPolicyAlertService:
 
         email_msg = mock_email_service.send.call_args[0][0]
         assert email_msg.priority == "warning"
+
+    def test_send_generic_alert(self, service, mock_email_service, mock_in_app_service):
+        """Generic use-case alerts are delivered to every configured channel."""
+        mock_email_service.send.return_value = True
+        mock_in_app_service.send.return_value = True
+
+        result = service.send_alert(
+            level="warning",
+            title="Policy changed",
+            message="A policy event requires review.",
+            metadata={"event_id": 7},
+        )
+
+        assert result is True
+        email_message = mock_email_service.send.call_args.args[0]
+        in_app_message = mock_in_app_service.send.call_args.args[0]
+        assert email_message.channel == NotificationChannel.EMAIL
+        assert in_app_message.channel == NotificationChannel.IN_APP
+        assert email_message.metadata == {"event_id": 7}
 
     def test_send_transition_summary(self, service, mock_email_service, mock_in_app_service):
         """测试发送变更摘要"""
@@ -402,10 +392,7 @@ class TestPolicyAlertService:
     def test_build_alert_content(self, service, sample_event, sample_status):
         """测试告警内容构建"""
         content = service._build_alert_content(
-            PolicyLevel.P2,
-            sample_event,
-            sample_status,
-            "warning"
+            PolicyLevel.P2, sample_event, sample_status, "warning"
         )
 
         assert "政策状态告警" in content
@@ -454,7 +441,7 @@ class TestNotificationServiceFactory:
 
         assert service1 is service2
 
-    @patch('apps.policy.infrastructure.notification_service.settings')
+    @patch("apps.policy.infrastructure.notification_service.settings")
     def test_email_service_uses_settings(self, mock_settings):
         """测试邮件服务使用设置"""
         mock_settings.POLICY_ALERT_EMAILS = ["test@example.com"]

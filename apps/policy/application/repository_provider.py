@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from apps.policy.domain.interfaces import PolicyClassifierProtocol
 from apps.policy.infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from apps.policy.infrastructure.adapters.ai_policy_classifier import (
     create_ai_policy_classifier,
@@ -23,8 +26,17 @@ from apps.policy.infrastructure.providers import (
     get_policy_repository,
 )
 
+if TYPE_CHECKING:
+    from apps.policy.application.event_use_cases import AlertServiceProtocol
+    from apps.policy.application.interface_services import (
+        PolicyAdminInterfaceService,
+        PolicyPageInterfaceService,
+        PolicyRssApiInterfaceService,
+        PolicyWorkbenchInterfaceService,
+    )
 
-def get_current_policy_repository():
+
+def get_current_policy_repository() -> DjangoPolicyRepository:
     """Return the configured policy repository."""
 
     return get_policy_repository()
@@ -75,7 +87,7 @@ __all__ = [
 ]
 
 
-def get_policy_admin_interface_service():
+def get_policy_admin_interface_service() -> PolicyAdminInterfaceService:
     """Return the policy admin interface service."""
 
     from apps.policy.application.interface_services import PolicyAdminInterfaceService
@@ -83,7 +95,7 @@ def get_policy_admin_interface_service():
     return PolicyAdminInterfaceService(admin_repo=PolicyAdminInterfaceRepository())
 
 
-def get_policy_workbench_interface_service():
+def get_policy_workbench_interface_service() -> PolicyWorkbenchInterfaceService:
     """Return the policy workbench interface service."""
 
     from apps.policy.application.interface_services import PolicyWorkbenchInterfaceService
@@ -94,7 +106,7 @@ def get_policy_workbench_interface_service():
     )
 
 
-def get_policy_page_interface_service():
+def get_policy_page_interface_service() -> PolicyPageInterfaceService:
     """Return the policy page interface service."""
 
     from apps.policy.application.interface_services import PolicyPageInterfaceService
@@ -102,7 +114,7 @@ def get_policy_page_interface_service():
     return PolicyPageInterfaceService(page_repo=PolicyPageInterfaceRepository())
 
 
-def get_policy_rss_api_interface_service():
+def get_policy_rss_api_interface_service() -> PolicyRssApiInterfaceService:
     """Return the policy RSS API interface service."""
 
     from apps.policy.application.interface_services import PolicyRssApiInterfaceService
@@ -116,13 +128,13 @@ def get_hedge_position_repository() -> HedgePositionRepository:
     return HedgePositionRepository()
 
 
-def get_policy_notification_service():
+def get_policy_notification_service() -> AlertServiceProtocol:
     """Return the alert notification service."""
 
     return NotificationServiceFactory.get_alert_service()
 
 
-def get_ai_policy_classifier():
+def get_ai_policy_classifier() -> PolicyClassifierProtocol | None:
     """Return the configured AI policy classifier, if available."""
 
     return create_ai_policy_classifier()

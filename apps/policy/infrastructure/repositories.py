@@ -34,6 +34,7 @@ __all__ = [
 
 class PolicyRepositoryError(Exception):
     """政策仓储异常"""
+
     pass
 
 
@@ -47,12 +48,7 @@ class DjangoPolicyRepository:
     def __init__(self):
         self._model = PolicyLog
 
-    def save_event(
-        self,
-        event: PolicyEvent,
-        return_orm: bool = False,
-        **kwargs
-    ):
+    def save_event(self, event: PolicyEvent, return_orm: bool = False, **kwargs):
         """
         保存政策事件
 
@@ -65,10 +61,7 @@ class DjangoPolicyRepository:
             Union[PolicyEvent, PolicyLog]: 根据return_orm参数返回Domain实体或ORM对象
         """
         # 转换 level 枚举
-        level_value = (
-            event.level.value if isinstance(event.level, PolicyLevel)
-            else event.level
-        )
+        level_value = event.level.value if isinstance(event.level, PolicyLevel) else event.level
 
         # 控制参数（不落库）
         upsert_by_date = kwargs.pop("_upsert_by_date", False)
@@ -87,9 +80,7 @@ class DjangoPolicyRepository:
         else:
             # 默认安全行为：同日不同事件不应互相覆盖
             existing = self._model.objects.filter(
-                event_date=event.event_date,
-                title=event.title,
-                evidence_url=event.evidence_url
+                event_date=event.event_date, title=event.title, evidence_url=event.evidence_url
             ).first()
 
         if existing:
@@ -107,11 +98,11 @@ class DjangoPolicyRepository:
         else:
             # 新建
             create_data = {
-                'event_date': event.event_date,
-                'level': level_value,
-                'title': event.title,
-                'description': event.description,
-                'evidence_url': event.evidence_url,
+                "event_date": event.event_date,
+                "level": level_value,
+                "title": event.title,
+                "description": event.description,
+                "evidence_url": event.evidence_url,
             }
             # 添加额外字段
             create_data.update(kwargs)
@@ -121,10 +112,7 @@ class DjangoPolicyRepository:
             return orm_obj
         return self._orm_to_entity(orm_obj)
 
-    def get_event_by_date(
-        self,
-        event_date: date
-    ) -> PolicyEvent | None:
+    def get_event_by_date(self, event_date: date) -> PolicyEvent | None:
         """
         按日期获取政策事件（返回第一个匹配）
 
@@ -137,18 +125,21 @@ class DjangoPolicyRepository:
         Returns:
             Optional[PolicyEvent]: 事件实体，不存在则返回 None
         """
-        orm_obj = self._model.objects.filter(
-            event_date=event_date
-        ).first()
+        orm_obj = self._model.objects.filter(event_date=event_date).first()
 
         if orm_obj:
             return self._orm_to_entity(orm_obj)
         return None
 
-    def get_events_by_date(
-        self,
-        event_date: date
-    ) -> list[PolicyEvent]:
+    def get_event_by_id(self, event_id: int) -> PolicyEvent | None:
+        """Return one policy event by its persistence identifier."""
+
+        orm_obj = self._model.objects.filter(id=event_id).first()
+        if orm_obj:
+            return self._orm_to_entity(orm_obj)
+        return None
+
+    def get_events_by_date(self, event_date: date) -> list[PolicyEvent]:
         """
         按日期获取所有政策事件
 
@@ -158,16 +149,11 @@ class DjangoPolicyRepository:
         Returns:
             List[PolicyEvent]: 该日期的所有事件列表
         """
-        query = self._model.objects.filter(
-            event_date=event_date
-        ).order_by('created_at')
+        query = self._model.objects.filter(event_date=event_date).order_by("created_at")
 
         return [self._orm_to_entity(obj) for obj in query]
 
-    def get_latest_event(
-        self,
-        before_date: date | None = None
-    ) -> PolicyEvent | None:
+    def get_latest_event(self, before_date: date | None = None) -> PolicyEvent | None:
         """
         获取最新政策事件
 
@@ -205,11 +191,7 @@ class DjangoPolicyRepository:
             return self._orm_to_entity(orm_obj)
         return None
 
-    def get_events_in_range(
-        self,
-        start_date: date,
-        end_date: date
-    ) -> list[PolicyEvent]:
+    def get_events_in_range(self, start_date: date, end_date: date) -> list[PolicyEvent]:
         """
         获取日期范围内的事件列表
 
@@ -221,17 +203,13 @@ class DjangoPolicyRepository:
             List[PolicyEvent]: 事件列表，按时间升序排列
         """
         query = self._model.objects.filter(
-            event_date__gte=start_date,
-            event_date__lte=end_date
-        ).order_by('event_date')
+            event_date__gte=start_date, event_date__lte=end_date
+        ).order_by("event_date")
 
         return [self._orm_to_entity(obj) for obj in query]
 
     def get_events_by_level(
-        self,
-        level: PolicyLevel,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, level: PolicyLevel, start_date: date | None = None, end_date: date | None = None
     ) -> list[PolicyEvent]:
         """
         按档位获取事件列表
@@ -252,14 +230,11 @@ class DjangoPolicyRepository:
         if end_date:
             query = query.filter(event_date__lte=end_date)
 
-        query = query.order_by('event_date')
+        query = query.order_by("event_date")
 
         return [self._orm_to_entity(obj) for obj in query]
 
-    def get_current_policy_level(
-        self,
-        as_of_date: date | None = None
-    ) -> PolicyLevel:
+    def get_current_policy_level(self, as_of_date: date | None = None) -> PolicyLevel:
         """
         获取当前政策档位
 
@@ -272,14 +247,12 @@ class DjangoPolicyRepository:
         Returns:
             PolicyLevel: 当前政策档位
         """
-        query = self._model.objects.filter(
-            gate_effective=True
-        )
+        query = self._model.objects.filter(gate_effective=True)
 
         if as_of_date:
             query = query.filter(event_date__lte=as_of_date)
 
-        orm_obj = query.order_by('-event_date', '-effective_at').first()
+        orm_obj = query.order_by("-event_date", "-effective_at").first()
 
         if orm_obj:
             return PolicyLevel(orm_obj.level)
@@ -287,10 +260,7 @@ class DjangoPolicyRepository:
         # 默认返回 P0（常态）
         return PolicyLevel.P0
 
-    def is_intervention_active(
-        self,
-        as_of_date: date | None = None
-    ) -> bool:
+    def is_intervention_active(self, as_of_date: date | None = None) -> bool:
         """
         检查是否有干预性政策生效
 
@@ -305,10 +275,7 @@ class DjangoPolicyRepository:
         current_level = self.get_current_policy_level(as_of_date)
         return current_level in [PolicyLevel.P2, PolicyLevel.P3]
 
-    def is_crisis_mode(
-        self,
-        as_of_date: date | None = None
-    ) -> bool:
+    def is_crisis_mode(self, as_of_date: date | None = None) -> bool:
         """
         检查是否处于危机模式
 
@@ -336,9 +303,7 @@ class DjangoPolicyRepository:
         Returns:
             bool: 是否成功删除
         """
-        count, _ = self._model.objects.filter(
-            event_date=event_date
-        ).delete()
+        count, _ = self._model.objects.filter(event_date=event_date).delete()
         return count > 0
 
     def delete_event_by_id(self, event_id: int) -> bool:
@@ -368,9 +333,7 @@ class DjangoPolicyRepository:
         return self._model.objects.count()
 
     def get_policy_level_stats(
-        self,
-        start_date: date | None = None,
-        end_date: date | None = None
+        self, start_date: date | None = None, end_date: date | None = None
     ) -> dict:
         """
         获取政策档位统计
@@ -393,23 +356,16 @@ class DjangoPolicyRepository:
 
         # 统计各档位数量
         from django.db.models import Count
-        level_counts = query.values('level').annotate(
-            count=Count('id')
-        ).order_by('-count')
+
+        level_counts = query.values("level").annotate(count=Count("id")).order_by("-count")
 
         stats = {}
         for item in level_counts:
-            level = item['level']
-            count = item['count']
-            stats[level] = {
-                'count': count,
-                'percentage': count / total if total > 0 else 0
-            }
+            level = item["level"]
+            count = item["count"]
+            stats[level] = {"count": count, "percentage": count / total if total > 0 else 0}
 
-        return {
-            'total': total,
-            'by_level': stats
-        }
+        return {"total": total, "by_level": stats}
 
     def delete_events_before(self, cutoff_date: date) -> int:
         """Delete policy events older than the cutoff date."""
@@ -484,9 +440,7 @@ class DjangoPolicyRepository:
         )
 
     def get_existing_for_update(
-        self,
-        event_id: int | None = None,
-        event_date: date | None = None
+        self, event_id: int | None = None, event_date: date | None = None
     ) -> dict | None:
         """
         获取现有事件用于更新检查
@@ -507,8 +461,8 @@ class DjangoPolicyRepository:
 
         if obj:
             return {
-                'id': obj.id,
-                'event_date': obj.event_date,
+                "id": obj.id,
+                "event_date": obj.event_date,
             }
         return None
 
@@ -592,7 +546,7 @@ class DjangoPolicyRepository:
             level=PolicyLevel(orm_obj.level),
             title=orm_obj.title,
             description=orm_obj.description,
-            evidence_url=orm_obj.evidence_url
+            evidence_url=orm_obj.evidence_url,
         )
 
 
@@ -631,17 +585,12 @@ class RSSRepository:
         count = self._source_model.objects.filter(id=source_id).update(**kwargs)
         return count > 0
 
-    def update_source_last_fetch(
-        self,
-        source_id: int,
-        status: str,
-        error_msg: str = None
-    ) -> bool:
+    def update_source_last_fetch(self, source_id: int, status: str, error_msg: str = None) -> bool:
         """更新源的抓取状态"""
         count = self._source_model.objects.filter(id=source_id).update(
             last_fetch_at=timezone.now(),
             last_fetch_status=status,
-            last_error_message=error_msg or ''
+            last_error_message=error_msg or "",
         )
         return count > 0
 
@@ -654,7 +603,7 @@ class RSSRepository:
         items_count: int,
         new_items_count: int,
         error_message: str = None,
-        duration: float = None
+        duration: float = None,
     ) -> RSSFetchLog:
         """保存抓取日志"""
         return self._log_model.objects.create(
@@ -662,20 +611,16 @@ class RSSRepository:
             status=status,
             items_count=items_count,
             new_items_count=new_items_count,
-            error_message=error_message or '',
-            fetch_duration_seconds=duration
+            error_message=error_message or "",
+            fetch_duration_seconds=duration,
         )
 
-    def get_fetch_logs(
-        self,
-        source_id: int | None = None,
-        limit: int = 100
-    ) -> list[RSSFetchLog]:
+    def get_fetch_logs(self, source_id: int | None = None, limit: int = 100) -> list[RSSFetchLog]:
         """获取抓取日志"""
         query = self._log_model.objects.all()
         if source_id:
             query = query.filter(source_id=source_id)
-        return list(query.order_by('-fetched_at')[:limit])
+        return list(query.order_by("-fetched_at")[:limit])
 
     def cleanup_old_logs(self, days_to_keep: int = 90) -> int:
         """清理旧的抓取日志"""
@@ -706,28 +651,27 @@ class RSSRepository:
 
     # ========== 关键词规则 ==========
 
-    def get_active_keyword_rules(
-        self,
-        category: str | None = None
-    ) -> list[PolicyLevelKeywordRule]:
+    def get_active_keyword_rules(self, category: str | None = None) -> list[PolicyLevelKeywordRule]:
         """
-       获取启用的关键词规则
+        获取启用的关键词规则
 
-        Args:
-            category: RSS源分类（可选），None表示获取所有规则
+         Args:
+             category: RSS源分类（可选），None表示获取所有规则
 
-        Returns:
-            List[PolicyLevelKeywordRule]: 关键词规则列表
+         Returns:
+             List[PolicyLevelKeywordRule]: 关键词规则列表
         """
         query = self._keyword_model.objects.filter(is_active=True)
 
         if category:
             # 获取通用规则（category为空）和指定分类的规则
             query = query.filter(
-                models.Q(category__isnull=True) | models.Q(category__exact='') | models.Q(category=category)
+                models.Q(category__isnull=True)
+                | models.Q(category__exact="")
+                | models.Q(category=category)
             )
 
-        rules_orm = list(query.order_by('-weight', 'level'))
+        rules_orm = list(query.order_by("-weight", "level"))
 
         # 转换为Domain实体
         rules = []
@@ -737,7 +681,7 @@ class RSSRepository:
                 level=level,
                 keywords=orm_obj.keywords,
                 weight=orm_obj.weight,
-                category=orm_obj.category
+                category=orm_obj.category,
             )
             rules.append(rule)
 
@@ -761,6 +705,3 @@ class RSSRepository:
 def get_policy_repository() -> DjangoPolicyRepository:
     """Backward-compatible repository factory."""
     return DjangoPolicyRepository()
-
-
-

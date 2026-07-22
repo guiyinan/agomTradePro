@@ -48,7 +48,7 @@ class TestPolicyRepository:
             level=PolicyLevel.P2,
             title="测试政策",
             description="这是一个测试政策事件",
-            evidence_url="https://example.com/test"
+            evidence_url="https://example.com/test",
         )
 
         # 保存
@@ -61,6 +61,9 @@ class TestPolicyRepository:
         assert retrieved is not None
         assert retrieved.title == "测试政策"
 
+        persisted = PolicyLog.objects.get(event_date=event.event_date)
+        assert repo.get_event_by_id(persisted.id) == retrieved
+
     def test_update_existing_event(self):
         """测试更新已有事件"""
         repo = DjangoPolicyRepository()
@@ -71,7 +74,7 @@ class TestPolicyRepository:
             level=PolicyLevel.P1,
             title="原标题",
             description="原描述",
-            evidence_url="https://example.com/1"
+            evidence_url="https://example.com/1",
         )
 
         repo.save_event(event1)
@@ -82,7 +85,7 @@ class TestPolicyRepository:
             level=PolicyLevel.P2,
             title="原标题",
             description="新描述",
-            evidence_url="https://example.com/1"
+            evidence_url="https://example.com/1",
         )
 
         saved = repo.save_event(event2)
@@ -101,20 +104,24 @@ class TestPolicyRepository:
         repo = DjangoPolicyRepository()
         event_date = date.today()
 
-        repo.save_event(PolicyEvent(
-            event_date=event_date,
-            level=PolicyLevel.P1,
-            title="事件A",
-            description="描述A",
-            evidence_url="https://example.com/a"
-        ))
-        repo.save_event(PolicyEvent(
-            event_date=event_date,
-            level=PolicyLevel.P2,
-            title="事件B",
-            description="描述B",
-            evidence_url="https://example.com/b"
-        ))
+        repo.save_event(
+            PolicyEvent(
+                event_date=event_date,
+                level=PolicyLevel.P1,
+                title="事件A",
+                description="描述A",
+                evidence_url="https://example.com/a",
+            )
+        )
+        repo.save_event(
+            PolicyEvent(
+                event_date=event_date,
+                level=PolicyLevel.P2,
+                title="事件B",
+                description="描述B",
+                evidence_url="https://example.com/b",
+            )
+        )
 
         assert repo.get_event_count() == 2
 
@@ -133,7 +140,7 @@ class TestPolicyRepository:
                 level=PolicyLevel.P1,
                 title=f"事件 {i}",
                 description=f"描述 {i}",
-                evidence_url=f"https://example.com/{i}"
+                evidence_url=f"https://example.com/{i}",
             )
             repo.save_event(event)
 
@@ -164,7 +171,7 @@ class TestPolicyRepository:
                 level=level,
                 title=f"{level.value} 事件",
                 description="测试描述内容",
-                evidence_url="https://example.com"
+                evidence_url="https://example.com",
             )
             repo.save_event(event)
 
@@ -186,7 +193,7 @@ class TestPolicyRepository:
             level=PolicyLevel.P2,
             title="测试",
             description="这是档位测试的详细描述，至少二十个字符",
-            evidence_url="https://example.com"
+            evidence_url="https://example.com",
         )
         repo.save_event(event, gate_effective=True)
 
@@ -229,13 +236,16 @@ class TestPolicyRepository:
 
         assert not repo.is_intervention_active()
 
-        repo.save_event(PolicyEvent(
-            event_date=date.today(),
-            level=PolicyLevel.P2,
-            title="测试",
-            description="这是干预档位的详细描述，至少二十个字符",
-            evidence_url="https://example.com"
-        ), gate_effective=True)
+        repo.save_event(
+            PolicyEvent(
+                event_date=date.today(),
+                level=PolicyLevel.P2,
+                title="测试",
+                description="这是干预档位的详细描述，至少二十个字符",
+                evidence_url="https://example.com",
+            ),
+            gate_effective=True,
+        )
 
         assert repo.is_intervention_active()
 
@@ -245,13 +255,16 @@ class TestPolicyRepository:
 
         assert not repo.is_crisis_mode()
 
-        repo.save_event(PolicyEvent(
-            event_date=date.today(),
-            level=PolicyLevel.P3,
-            title="危机",
-            description="这是危机模式的详细描述，至少二十个字符",
-            evidence_url="https://example.com"
-        ), gate_effective=True)
+        repo.save_event(
+            PolicyEvent(
+                event_date=date.today(),
+                level=PolicyLevel.P3,
+                title="危机",
+                description="这是危机模式的详细描述，至少二十个字符",
+                evidence_url="https://example.com",
+            ),
+            gate_effective=True,
+        )
 
         assert repo.is_crisis_mode()
 
@@ -260,13 +273,15 @@ class TestPolicyRepository:
         repo = DjangoPolicyRepository()
 
         event_date = date.today()
-        repo.save_event(PolicyEvent(
-            event_date=event_date,
-            level=PolicyLevel.P1,
-            title="测试",
-            description="测试",
-            evidence_url="https://example.com"
-        ))
+        repo.save_event(
+            PolicyEvent(
+                event_date=event_date,
+                level=PolicyLevel.P1,
+                title="测试",
+                description="测试",
+                evidence_url="https://example.com",
+            )
+        )
 
         assert repo.get_event_by_date(event_date) is not None
 
@@ -295,19 +310,21 @@ class TestPolicyRepository:
             (PolicyLevel.P2, four_days_ago),
         ]
         for level, event_date in levels_and_dates:
-            repo.save_event(PolicyEvent(
-                event_date=event_date,
-                level=level,
-                title=f"{level.value}",
-                description="测试描述内容",
-                evidence_url="https://example.com"
-            ))
+            repo.save_event(
+                PolicyEvent(
+                    event_date=event_date,
+                    level=level,
+                    title=f"{level.value}",
+                    description="测试描述内容",
+                    evidence_url="https://example.com",
+                )
+            )
 
         stats = repo.get_policy_level_stats()
 
-        assert stats['total'] == 5
-        assert stats['by_level']['P2']['count'] == 3
-        assert stats['by_level']['P0']['count'] == 1
+        assert stats["total"] == 5
+        assert stats["by_level"]["P2"]["count"] == 3
+        assert stats["by_level"]["P0"]["count"] == 1
 
 
 @pytest.mark.django_db
@@ -319,17 +336,14 @@ class TestCreatePolicyEventUseCase:
         repo = DjangoPolicyRepository()
         alert_channel = ConsoleAlertChannel()
 
-        use_case = CreatePolicyEventUseCase(
-            event_store=repo,
-            alert_service=alert_channel
-        )
+        use_case = CreatePolicyEventUseCase(event_store=repo, alert_service=alert_channel)
 
         input_data = CreatePolicyEventInput(
             event_date=date.today(),
             level=PolicyLevel.P2,
             title="央行降准",
             description="中国人民银行决定下调存款准备金率 0.5 个百分点",
-            evidence_url="https://example.com/news/1"
+            evidence_url="https://example.com/news/1",
         )
 
         output = use_case.execute(input_data)
@@ -349,7 +363,7 @@ class TestCreatePolicyEventUseCase:
             level=PolicyLevel.P2,
             title="",  # 空标题
             description="描述",
-            evidence_url="https://example.com"
+            evidence_url="https://example.com",
         )
 
         output = use_case.execute(input_data)
@@ -377,13 +391,16 @@ class TestGetPolicyStatusUseCase:
         """测试 P2 事件的状态"""
         repo = DjangoPolicyRepository()
 
-        repo.save_event(PolicyEvent(
-            event_date=date.today(),
-            level=PolicyLevel.P2,
-            title="干预政策",
-            description="测试",
-            evidence_url="https://example.com"
-        ), gate_effective=True)
+        repo.save_event(
+            PolicyEvent(
+                event_date=date.today(),
+                level=PolicyLevel.P2,
+                title="干预政策",
+                description="测试",
+                evidence_url="https://example.com",
+            ),
+            gate_effective=True,
+        )
 
         use_case = GetPolicyStatusUseCase(event_store=repo)
         status = use_case.execute()
@@ -403,13 +420,15 @@ class TestUpdateAndDeleteUseCases:
         repo = DjangoPolicyRepository()
 
         event_date = date.today()
-        repo.save_event(PolicyEvent(
-            event_date=event_date,
-            level=PolicyLevel.P1,
-            title="原标题",
-            description="原描述",
-            evidence_url="https://example.com/1"
-        ))
+        repo.save_event(
+            PolicyEvent(
+                event_date=event_date,
+                level=PolicyLevel.P1,
+                title="原标题",
+                description="原描述",
+                evidence_url="https://example.com/1",
+            )
+        )
 
         use_case = UpdatePolicyEventUseCase(event_store=repo)
         output = use_case.execute(
@@ -417,7 +436,7 @@ class TestUpdateAndDeleteUseCases:
             level=PolicyLevel.P2,
             title="新标题",
             description="这是一个新的描述内容，长度超过二十个字符以通过验证",
-            evidence_url="https://example.com/2"
+            evidence_url="https://example.com/2",
         )
 
         assert output.success
@@ -428,13 +447,15 @@ class TestUpdateAndDeleteUseCases:
         repo = DjangoPolicyRepository()
 
         event_date = date.today()
-        repo.save_event(PolicyEvent(
-            event_date=event_date,
-            level=PolicyLevel.P1,
-            title="测试",
-            description="测试",
-            evidence_url="https://example.com"
-        ))
+        repo.save_event(
+            PolicyEvent(
+                event_date=event_date,
+                level=PolicyLevel.P1,
+                title="测试",
+                description="测试",
+                evidence_url="https://example.com",
+            )
+        )
 
         use_case = DeletePolicyEventUseCase(event_store=repo)
         success, message = use_case.execute(event_date)
