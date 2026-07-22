@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-21.v158",
+  "version": "2026-07-22.v159",
   "mcp_tool_count": 377,
   "mcp_governance": {
     "default_top_level_tool_count": 9,
@@ -16,7 +16,7 @@
     "unsupported_legacy_contract_count": 0,
     "raw_tool_file_count": 36
   },
-  "business_module_count": 39,
+  "business_module_count": 42,
   "static_test_function_count": 6918,
   "module_shape_minimums": {
     "account": 9,
@@ -29,6 +29,7 @@
     "audit": 9,
     "backtest": 9,
     "beta_gate": 9,
+    "broker_execution": 10,
     "config_center": 8,
     "dashboard": 11,
     "data_center": 10,
@@ -42,10 +43,12 @@
     "macro": 9,
     "operational_readiness": 0,
     "policy": 8,
+    "portfolio": 6,
     "prompt": 11,
     "pulse": 11,
     "realtime": 11,
     "regime": 9,
+    "research": 4,
     "risk_center": 9,
     "rotation": 10,
     "sector": 9,
@@ -70,6 +73,18 @@
   "core_management_command_app_infrastructure_import_count": 0,
   "core_management_command_orm_access_count": 0,
   "python_file_non_empty_line_limit": 1200,
-  "allowed_large_python_files": {},
-  "large_file_remediation": {}
+  "allowed_large_python_files": {
+    "apps/broker_execution/infrastructure/repositories.py": 2790
+  },
+  "large_file_remediation": {
+    "apps/broker_execution/infrastructure/repositories.py": {
+      "owner": "broker-execution-maintainers",
+      "kind": "repository-decomposition",
+      "rationale": "Merged QMT execution bridge repository is above the repository size guard while the research-integrity merge keeps the existing execution boundary intact.",
+      "plan_path": "docs/plans/research-integrity-and-decision-reproducibility-2026-07-21.md",
+      "priority": "P1",
+      "target_non_empty_lines": 1200,
+      "review_by": "2026-08-31"
+    }
+  }
 }
