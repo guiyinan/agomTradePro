@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9204,
-    "files_with_errors": 948
+    "errors": 9167,
+    "files_with_errors": 947
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -550,7 +550,6 @@
       "assignment": 1,
       "attr-defined": 3,
       "misc": 2,
-      "no-untyped-call": 1,
       "no-untyped-def": 15
     },
     "apps/alpha/application/ops_locks.py": {
@@ -4183,14 +4182,6 @@
     },
     "shared/infrastructure/mcp_runtime.py": {
       "import-untyped": 1
-    },
-    "shared/infrastructure/metrics.py": {
-      "assignment": 3,
-      "attr-defined": 2,
-      "has-type": 2,
-      "no-untyped-call": 3,
-      "no-untyped-def": 22,
-      "type-arg": 4
     },
     "shared/infrastructure/model_evaluation.py": {
       "arg-type": 2,

@@ -7,29 +7,46 @@ Alpha 模块监控指标定义和导出。
 仅使用 Python 标准库。
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from functools import wraps
+from typing import ClassVar, ParamSpec, Protocol, TypeVar, cast
 
 logger = logging.getLogger(__name__)
+
+LabelKey = tuple[tuple[str, str], ...]
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+class PreservingDecorator(Protocol):
+    """Decorator whose callable signature is inferred when it is applied."""
+
+    def __call__(self, func: Callable[P, T], /) -> Callable[P, T]: ...
 
 
 class MetricType(Enum):
     """指标类型"""
-    COUNTER = "counter"      # 单调递增计数器
-    GAUGE = "gauge"          # 可增减的仪表盘
+
+    COUNTER = "counter"  # 单调递增计数器
+    GAUGE = "gauge"  # 可增减的仪表盘
     HISTOGRAM = "histogram"  # 分布直方图
-    SUMMARY = "summary"      # 摘要统计
+    SUMMARY = "summary"  # 摘要统计
 
 
 @dataclass
 class MetricValue:
     """单个指标值"""
+
     name: str
     value: float
     labels: dict[str, str] = field(default_factory=dict)
@@ -53,18 +70,21 @@ class MetricValue:
 
     def to_json(self) -> str:
         """转换为 JSON 格式"""
-        return json.dumps({
-            "name": self.name,
-            "value": self.value,
-            "labels": self.labels,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "type": self.metric_type.value
-        })
+        return json.dumps(
+            {
+                "name": self.name,
+                "value": self.value,
+                "labels": self.labels,
+                "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+                "type": self.metric_type.value,
+            }
+        )
 
 
 @dataclass
 class HistogramBucket:
     """直方图桶"""
+
     upper_bound: float
     count: int
 
@@ -72,6 +92,7 @@ class HistogramBucket:
 @dataclass
 class HistogramValue:
     """直方图指标值"""
+
     name: str
     buckets: list[HistogramBucket] = field(default_factory=list)
     sum: float = 0.0
@@ -79,7 +100,7 @@ class HistogramValue:
     labels: dict[str, str] = field(default_factory=dict)
     timestamp: datetime | None = None
 
-    def observe(self, value: float):
+    def observe(self, value: float) -> None:
         """观测一个值"""
         self.count += 1
         self.sum += value
@@ -98,21 +119,19 @@ class HistogramValue:
         timestamp_ms = int(self.timestamp.timestamp() * 1000)
 
         # 格式化标签
-        label_str = ""
-        if self.labels:
-            label_pairs = [f'{k}="{v}"' for k, v in self.labels.items()]
-            label_str = "{" + ",".join(label_pairs) + "}"
+        label_pairs = [f'{key}="{value}"' for key, value in self.labels.items()]
+        label_str = "{" + ",".join(label_pairs) + "}" if label_pairs else ""
 
         # 输出桶
         for bucket in self.buckets:
-            le_label = label_str.replace("}", ',le="') if label_str else "{le="
-            bucket_label = f'{self.name}_bucket{le_label}{bucket.upper_bound}'
-            lines.append(f"{bucket_label} {bucket.count} {timestamp_ms}")
+            bucket_labels = [*label_pairs, f'le="{bucket.upper_bound}"']
+            lines.append(
+                f"{self.name}_bucket{{{','.join(bucket_labels)}}} " f"{bucket.count} {timestamp_ms}"
+            )
 
         # 输出 +Inf 桶
-        le_label = label_str.replace("}", ',le="') if label_str else "{le="
-        inf_label = f'{self.name}_bucket{le_label}+Inf"'
-        lines.append(f"{inf_label} {self.count} {timestamp_ms}")
+        inf_labels = [*label_pairs, 'le="+Inf"']
+        lines.append(f"{self.name}_bucket{{{','.join(inf_labels)}}} {self.count} {timestamp_ms}")
 
         # 输出 sum 和 count
         lines.append(f"{self.name}_sum{label_str} {self.sum} {timestamp_ms}")
@@ -128,15 +147,17 @@ class MetricsRegistry:
     单例模式，管理所有监控指标。
     """
 
-    _instance = None
+    _instance: ClassVar[MetricsRegistry | None] = None
+    _initialized: bool
+    _last_pytest_test: str | None
 
-    def __new__(cls):
+    def __new__(cls) -> MetricsRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         current_test = os.getenv("PYTEST_CURRENT_TEST")
         if self._initialized:
             # Keep singleton semantics, but isolate metrics across pytest test cases.
@@ -146,9 +167,9 @@ class MetricsRegistry:
             return
 
         # 存储: {metric_name: {label_tuple: MetricValue}}
-        self._counters: dict[str, dict[tuple, MetricValue]] = defaultdict(dict)
-        self._gauges: dict[str, dict[tuple, MetricValue]] = defaultdict(dict)
-        self._histograms: dict[str, dict[tuple, HistogramValue]] = defaultdict(dict)
+        self._counters: dict[str, dict[LabelKey, MetricValue]] = defaultdict(dict)
+        self._gauges: dict[str, dict[LabelKey, MetricValue]] = defaultdict(dict)
+        self._histograms: dict[str, dict[LabelKey, HistogramValue]] = defaultdict(dict)
 
         # 指标元数据
         self._metric_help: dict[str, str] = {}
@@ -157,13 +178,13 @@ class MetricsRegistry:
 
         self._initialized = True
 
-    def _make_label_key(self, labels: dict[str, str]) -> tuple:
+    def _make_label_key(self, labels: dict[str, str]) -> LabelKey:
         """将标签字典转换为不可变的键"""
         if not labels:
             return ()
         return tuple(sorted(labels.items()))
 
-    def define_metric(self, name: str, metric_type: MetricType, help_text: str = ""):
+    def define_metric(self, name: str, metric_type: MetricType, help_text: str = "") -> None:
         """定义指标元数据"""
         self._metric_help[name] = help_text
         logger.debug(f"定义指标: {name} ({metric_type.value})")
@@ -172,17 +193,14 @@ class MetricsRegistry:
         self,
         name: str,
         value: float = 1.0,
-        labels: dict[str, str] | None = None
-    ):
+        labels: dict[str, str] | None = None,
+    ) -> None:
         """增加计数器"""
         label_key = self._make_label_key(labels or {})
 
         if label_key not in self._counters[name]:
             self._counters[name][label_key] = MetricValue(
-                name=name,
-                value=0.0,
-                labels=labels or {},
-                metric_type=MetricType.COUNTER
+                name=name, value=0.0, labels=labels or {}, metric_type=MetricType.COUNTER
             )
 
         self._counters[name][label_key].value += value
@@ -191,17 +209,14 @@ class MetricsRegistry:
         self,
         name: str,
         value: float,
-        labels: dict[str, str] | None = None
-    ):
+        labels: dict[str, str] | None = None,
+    ) -> None:
         """设置仪表盘值"""
         label_key = self._make_label_key(labels or {})
 
         if label_key not in self._gauges[name]:
             self._gauges[name][label_key] = MetricValue(
-                name=name,
-                value=value,
-                labels=labels or {},
-                metric_type=MetricType.GAUGE
+                name=name, value=value, labels=labels or {}, metric_type=MetricType.GAUGE
             )
         else:
             self._gauges[name][label_key].value = value
@@ -211,8 +226,8 @@ class MetricsRegistry:
         name: str,
         value: float,
         buckets: list[float] | None = None,
-        labels: dict[str, str] | None = None
-    ):
+        labels: dict[str, str] | None = None,
+    ) -> None:
         """观测直方图值"""
         if buckets is None:
             buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
@@ -221,9 +236,7 @@ class MetricsRegistry:
 
         if label_key not in self._histograms[name]:
             self._histograms[name][label_key] = HistogramValue(
-                name=name,
-                buckets=[HistogramBucket(b, 0) for b in buckets],
-                labels=labels or {}
+                name=name, buckets=[HistogramBucket(b, 0) for b in buckets], labels=labels or {}
             )
 
         self._histograms[name][label_key].observe(value)
@@ -253,55 +266,63 @@ class MetricsRegistry:
 
     def to_prometheus(self) -> str:
         """导出所有指标为 Prometheus 格式"""
-        lines = []
+        lines: list[str] = []
 
         # 添加 HELP 信息
         for name, help_text in self._metric_help.items():
             lines.append(f"# HELP {name} {help_text}")
 
         # 导出 counters
-        for _metric_name, label_dict in self._counters.items():
-            for metric_value in label_dict.values():
+        for counter_labels in self._counters.values():
+            for metric_value in counter_labels.values():
                 lines.append(metric_value.to_prometheus().strip())
 
         # 导出 gauges
-        for _metric_name, label_dict in self._gauges.items():
-            for metric_value in label_dict.values():
+        for gauge_labels in self._gauges.values():
+            for metric_value in gauge_labels.values():
                 lines.append(metric_value.to_prometheus().strip())
 
         # 导出 histograms
-        for _metric_name, label_dict in self._histograms.items():
-            for histogram_value in label_dict.values():
+        for histogram_labels in self._histograms.values():
+            for histogram_value in histogram_labels.values():
                 lines.append(histogram_value.to_prometheus().strip())
 
         return "\n".join(lines) + "\n"
 
     def to_json_lines(self) -> str:
         """导出所有指标为 JSON Lines 格式（日志友好）"""
-        lines = []
+        lines: list[str] = []
 
-        for _metric_name, label_dict in self._counters.items():
-            for metric_value in label_dict.values():
+        for counter_labels in self._counters.values():
+            for metric_value in counter_labels.values():
                 lines.append(metric_value.to_json())
 
-        for _metric_name, label_dict in self._gauges.items():
-            for metric_value in label_dict.values():
+        for gauge_labels in self._gauges.values():
+            for metric_value in gauge_labels.values():
                 lines.append(metric_value.to_json())
 
-        for metric_name, label_dict in self._histograms.items():
-            for histogram_value in label_dict.values():
-                lines.append(json.dumps({
-                    "name": metric_name,
-                    "count": histogram_value.count,
-                    "sum": histogram_value.sum,
-                    "labels": histogram_value.labels,
-                    "timestamp": histogram_value.timestamp.isoformat() if histogram_value.timestamp else None,
-                    "type": "histogram"
-                }))
+        for metric_name, histogram_labels in self._histograms.items():
+            for histogram_value in histogram_labels.values():
+                lines.append(
+                    json.dumps(
+                        {
+                            "name": metric_name,
+                            "count": histogram_value.count,
+                            "sum": histogram_value.sum,
+                            "labels": histogram_value.labels,
+                            "timestamp": (
+                                histogram_value.timestamp.isoformat()
+                                if histogram_value.timestamp
+                                else None
+                            ),
+                            "type": "histogram",
+                        }
+                    )
+                )
 
         return "\n".join(lines) + "\n"
 
-    def reset_metrics(self, pattern: str | None = None):
+    def reset_metrics(self, pattern: str | None = None) -> None:
         """重置指标"""
         if pattern:
             # 重置匹配模式的指标
@@ -325,6 +346,7 @@ class MetricsRegistry:
 # Alpha 模块专用指标
 # ============================================================================
 
+
 class AlphaMetrics:
     """
     Alpha 模块指标收集器
@@ -346,91 +368,51 @@ class AlphaMetrics:
     CACHE_HIT_RATE = "alpha_cache_hit_rate"
     SCORE_REQUEST_COUNT = "alpha_score_request_count"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.registry = MetricsRegistry()
         self._setup_metrics()
 
-    def _setup_metrics(self):
+    def _setup_metrics(self) -> None:
         """初始化指标定义"""
         # Provider 相关
         self.registry.define_metric(
-            self.PROVIDER_SUCCESS_RATE,
-            MetricType.GAUGE,
-            "Alpha Provider 成功率（0-1）"
+            self.PROVIDER_SUCCESS_RATE, MetricType.GAUGE, "Alpha Provider 成功率（0-1）"
         )
         self.registry.define_metric(
-            self.PROVIDER_LATENCY_MS,
-            MetricType.HISTOGRAM,
-            "Alpha Provider 延迟（毫秒）"
+            self.PROVIDER_LATENCY_MS, MetricType.HISTOGRAM, "Alpha Provider 延迟（毫秒）"
         )
         self.registry.define_metric(
-            self.PROVIDER_STALENESS_DAYS,
-            MetricType.GAUGE,
-            "Alpha Provider 数据陈旧天数"
+            self.PROVIDER_STALENESS_DAYS, MetricType.GAUGE, "Alpha Provider 数据陈旧天数"
         )
 
         # 覆盖率
         self.registry.define_metric(
-            self.COVERAGE_RATIO,
-            MetricType.GAUGE,
-            "Alpha 信号覆盖率（0-1）"
+            self.COVERAGE_RATIO, MetricType.GAUGE, "Alpha 信号覆盖率（0-1）"
         )
 
         # IC 相关
-        self.registry.define_metric(
-            self.IC_DRIFT,
-            MetricType.GAUGE,
-            "IC 值漂移（与历史均值差值）"
-        )
-        self.registry.define_metric(
-            self.RANK_IC_ROLLING,
-            MetricType.GAUGE,
-            "滚动 Rank IC 值"
-        )
+        self.registry.define_metric(self.IC_DRIFT, MetricType.GAUGE, "IC 值漂移（与历史均值差值）")
+        self.registry.define_metric(self.RANK_IC_ROLLING, MetricType.GAUGE, "滚动 Rank IC 值")
 
         # 队列相关
-        self.registry.define_metric(
-            self.INFER_QUEUE_LAG,
-            MetricType.GAUGE,
-            "推理队列积压数量"
-        )
-        self.registry.define_metric(
-            self.TRAIN_QUEUE_LAG,
-            MetricType.GAUGE,
-            "训练队列积压数量"
-        )
+        self.registry.define_metric(self.INFER_QUEUE_LAG, MetricType.GAUGE, "推理队列积压数量")
+        self.registry.define_metric(self.TRAIN_QUEUE_LAG, MetricType.GAUGE, "训练队列积压数量")
 
         # 模型管理
-        self.registry.define_metric(
-            self.MODEL_ACTIVATION_COUNT,
-            MetricType.COUNTER,
-            "模型激活次数"
-        )
-        self.registry.define_metric(
-            self.MODEL_ROLLBACK_COUNT,
-            MetricType.COUNTER,
-            "模型回滚次数"
-        )
+        self.registry.define_metric(self.MODEL_ACTIVATION_COUNT, MetricType.COUNTER, "模型激活次数")
+        self.registry.define_metric(self.MODEL_ROLLBACK_COUNT, MetricType.COUNTER, "模型回滚次数")
 
         # 缓存相关
-        self.registry.define_metric(
-            self.CACHE_HIT_RATE,
-            MetricType.GAUGE,
-            "缓存命中率（0-1）"
-        )
-        self.registry.define_metric(
-            self.SCORE_REQUEST_COUNT,
-            MetricType.COUNTER,
-            "评分请求总数"
-        )
+        self.registry.define_metric(self.CACHE_HIT_RATE, MetricType.GAUGE, "缓存命中率（0-1）")
+        self.registry.define_metric(self.SCORE_REQUEST_COUNT, MetricType.COUNTER, "评分请求总数")
 
     def record_provider_call(
         self,
         provider_name: str,
         success: bool,
         latency_ms: float,
-        staleness_days: float | None = None
-    ):
+        staleness_days: float | None = None,
+    ) -> None:
         """记录 Provider 调用"""
         labels = {"provider": provider_name}
 
@@ -454,7 +436,7 @@ class AlphaMetrics:
         # 请求计数
         self.registry.inc_counter(self.SCORE_REQUEST_COUNT, 1.0, labels)
 
-    def record_coverage(self, scored_count: int, universe_count: int):
+    def record_coverage(self, scored_count: int, universe_count: int) -> None:
         """记录覆盖率"""
         if universe_count > 0:
             ratio = scored_count / universe_count
@@ -464,8 +446,8 @@ class AlphaMetrics:
         self,
         current_ic: float,
         historical_ics: list[float],
-        window: int = 20
-    ):
+        window: int = 20,
+    ) -> None:
         """记录 IC 指标"""
         if not historical_ics:
             return
@@ -480,35 +462,30 @@ class AlphaMetrics:
         # Rank IC（假设 current_ic 就是 Rank IC）
         self.registry.set_gauge(self.RANK_IC_ROLLING, current_ic)
 
-    def record_queue_lag(self, queue_name: str, lag_count: int):
+    def record_queue_lag(self, queue_name: str, lag_count: int) -> None:
         """记录队列积压"""
         metric_name = (
-            self.INFER_QUEUE_LAG if "infer" in queue_name.lower()
-            else self.TRAIN_QUEUE_LAG
+            self.INFER_QUEUE_LAG if "infer" in queue_name.lower() else self.TRAIN_QUEUE_LAG
         )
         self.registry.set_gauge(metric_name, float(lag_count), labels={"queue": queue_name})
 
-    def record_model_activation(self, model_name: str, artifact_hash: str):
+    def record_model_activation(self, model_name: str, artifact_hash: str) -> None:
         """记录模型激活"""
         self.registry.inc_counter(
             self.MODEL_ACTIVATION_COUNT,
             1.0,
-            labels={"model_name": model_name, "hash": artifact_hash[:8]}
+            labels={"model_name": model_name, "hash": artifact_hash[:8]},
         )
 
-    def record_model_rollback(self, model_name: str, from_hash: str, to_hash: str):
+    def record_model_rollback(self, model_name: str, from_hash: str, to_hash: str) -> None:
         """记录模型回滚"""
         self.registry.inc_counter(
             self.MODEL_ROLLBACK_COUNT,
             1.0,
-            labels={
-                "model_name": model_name,
-                "from": from_hash[:8],
-                "to": to_hash[:8]
-            }
+            labels={"model_name": model_name, "from": from_hash[:8], "to": to_hash[:8]},
         )
 
-    def record_cache_hit(self, hit: bool):
+    def record_cache_hit(self, hit: bool) -> None:
         """记录缓存命中"""
         current = self.registry.get_metric(self.CACHE_HIT_RATE)
         if current is None:
@@ -527,7 +504,7 @@ class AlphaMetrics:
         """获取所有指标（JSON 格式）"""
         return self.registry.to_json_lines()
 
-    def log_metrics(self):
+    def log_metrics(self) -> None:
         """将指标记录到日志"""
         logger.info("=== Alpha 模块监控指标 ===")
         logger.info(self.get_metrics_json())
@@ -549,7 +526,8 @@ def get_alpha_metrics() -> AlphaMetrics:
 # 装饰器：自动记录指标
 # ============================================================================
 
-def track_provider_latency(provider_name: str):
+
+def track_provider_latency(provider_name: str) -> PreservingDecorator:
     """
     装饰器：自动记录 Provider 调用延迟
 
@@ -558,38 +536,39 @@ def track_provider_latency(provider_name: str):
     def get_stock_scores(...):
         ...
     """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             start = time.time()
             success = True
-            result = None
 
             try:
-                result = func(*args, **kwargs)
-                return result
-            except Exception as e:
+                return func(*args, **kwargs)
+            except Exception:
                 success = False
-                raise e
+                raise
             finally:
                 latency_ms = (time.time() - start) * 1000
                 metrics = get_alpha_metrics()
                 metrics.record_provider_call(
-                    provider_name=provider_name,
-                    success=success,
-                    latency_ms=latency_ms
+                    provider_name=provider_name, success=success, latency_ms=latency_ms
                 )
 
         return wrapper
-    return decorator
+
+    return cast(PreservingDecorator, decorator)
 
 
 # ============================================================================
 # 告警规则
 # ============================================================================
 
+
 @dataclass
 class AlertRule:
     """告警规则"""
+
     name: str
     metric_name: str
     condition: str  # "gt", "lt", "eq", "ne"
@@ -613,9 +592,7 @@ class AlertRule:
 
         if triggered:
             return self.message_template.format(
-                metric=self.metric_name,
-                value=current_value,
-                threshold=self.threshold
+                metric=self.metric_name, value=current_value, threshold=self.threshold
             )
 
         return None
@@ -637,7 +614,7 @@ class AlertManager:
             threshold=0.5,
             severity="critical",
             duration_seconds=60,
-            message_template="Alpha Provider 成功率过低: {value:.2%} < {threshold:.2%}"
+            message_template="Alpha Provider 成功率过低: {value:.2%} < {threshold:.2%}",
         ),
         AlertRule(
             name="high_latency",
@@ -646,7 +623,7 @@ class AlertManager:
             threshold=5000,
             severity="warning",
             duration_seconds=300,
-            message_template="Alpha Provider 延迟过高: {value:.0f}ms > {threshold:.0f}ms"
+            message_template="Alpha Provider 延迟过高: {value:.0f}ms > {threshold:.0f}ms",
         ),
         AlertRule(
             name="stale_data",
@@ -655,7 +632,7 @@ class AlertManager:
             threshold=3.0,
             severity="warning",
             duration_seconds=3600,
-            message_template="Alpha 数据陈旧: {value:.1f} 天 > {threshold:.1f} 天"
+            message_template="Alpha 数据陈旧: {value:.1f} 天 > {threshold:.1f} 天",
         ),
         AlertRule(
             name="low_coverage",
@@ -664,7 +641,7 @@ class AlertManager:
             threshold=0.7,
             severity="warning",
             duration_seconds=600,
-            message_template="Alpha 覆盖率过低: {value:.2%} < {threshold:.2%}"
+            message_template="Alpha 覆盖率过低: {value:.2%} < {threshold:.2%}",
         ),
         AlertRule(
             name="ic_drift",
@@ -673,7 +650,7 @@ class AlertManager:
             threshold=-0.03,
             severity="warning",
             duration_seconds=86400,
-            message_template="IC 值显著漂移: {value:.4f} < {threshold:.4f}"
+            message_template="IC 值显著漂移: {value:.4f} < {threshold:.4f}",
         ),
         AlertRule(
             name="queue_backlog",
@@ -682,18 +659,18 @@ class AlertManager:
             threshold=100,
             severity="warning",
             duration_seconds=300,
-            message_template="Qlib 推理队列积压: {value:.0f} 个任务 > {threshold:.0f}"
+            message_template="Qlib 推理队列积压: {value:.0f} 个任务 > {threshold:.0f}",
         ),
     ]
 
-    def __init__(self, rules: list[AlertRule] | None = None):
+    def __init__(self, rules: list[AlertRule] | None = None) -> None:
         self.rules = rules or self.ALPHA_ALERT_RULES
         self.metrics = get_alpha_metrics()
         self._alert_states: dict[str, float] = {}  # 记录首次触发时间
 
     def evaluate_all(self) -> list[str]:
         """评估所有告警规则"""
-        alerts = []
+        alerts: list[str] = []
 
         for rule in self.rules:
             # 获取当前指标值（简化：取第一个匹配的）
@@ -721,7 +698,7 @@ class AlertManager:
 
         return alerts
 
-    def log_alerts(self):
+    def log_alerts(self) -> None:
         """将告警记录到日志"""
         alerts = self.evaluate_all()
 
