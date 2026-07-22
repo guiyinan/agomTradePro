@@ -1,0 +1,159 @@
+# 关键可靠性测试补齐计划
+
+> 日期：2026-07-22
+> 状态：代码实施完成，本地 SQLite 已验证；等待 PostgreSQL Nightly，真实 QMT 因券商外部 XtQuant 权限阻断
+> 主线：测试与可靠性治理收口
+
+## 目标
+
+把现有分散测试收拢为可阻断发布的关键链路测试，重点保护：
+
+```text
+数据 → 决策快照 → 风险检查 → 订单审批 → Agent 执行 → 回报对账
+```
+
+当前首要缺口是增量测试选择器未映射 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`。这些模块发生变化时，目前只会选中通用护栏。
+
+## 实施内容
+
+### 1. 修复测试选择器
+
+- 为上述 7 个模块补齐单元、API、迁移和集成测试映射。
+- 新增 `tests/critical/`，加入快速 CI、全量回归和 RC 测试集合。
+- 未映射的新 App 必须保守回退到全量测试，禁止静默只跑通用护栏。
+- 扩展选择器自测，要求所有生产 App 都有测试映射或明确豁免。
+- 更新 RTM 检查，确保关键测试文件不能被误删。
+
+### 2. 新增关键链路测试
+
+在 `tests/critical/` 建立三个稳定、无外部网络依赖的测试组。
+
+#### 决策与数据安全
+
+- 数据缺失、过期或来自未来时，决策快照失败关闭。
+- 被阻断时不得创建订单或产生执行副作用。
+- PIT manifest 冻结后新增版本不改变历史结果，篡改必须被识别。
+
+#### 风险与订单安全
+
+- 服务端风险拒绝、账户或全局 kill switch、过期 Broker 快照均阻止审批或领单。
+- 停止状态仍允许拒绝、撤单和对账等降风险操作。
+- 重复创建、审批、Agent 事件和成交回报只产生一份持久化结果。
+- 日限额、允许标的、账户授权在最终提交前再次检查。
+
+#### Agent 与恢复安全
+
+- 心跳过期或 QMT 断开后停止领单。
+- 未知报单结果进入 `RECONCILIATION_REQUIRED`，不得盲目重试。
+- P0 对账差异自动触发 kill switch，未完成处置前禁止恢复。
+- Fake Agent 正常链路覆盖审批、领单、提交、部分或全部成交和幂等回放。
+
+测试复用现有工厂和 Fake Agent，不复制已有 Domain 规则测试。
+
+### 3. 补齐迁移与数据库验证
+
+- 新增研究完整性迁移测试，覆盖：
+  - `data_center 0039`
+  - `decision_rhythm 0015–0016`
+  - `signal 0009`
+  - `prompt 0002`
+  - `events 0005`
+  - `portfolio 0001–0004`
+  - `research 0001`
+- 对有历史数据转换的迁移验证升级前后数据保留、默认值和关联关系。
+- 对新表验证幂等唯一约束、外键和关键索引。
+- Nightly 增加 PostgreSQL 服务，在空库执行完整迁移后运行 `tests/critical/` 和关键迁移测试；普通 PR 继续使用 SQLite 保持速度。
+
+### 4. 接入 CI 与发布门禁
+
+#### PR 快速 CI
+
+- 根据模块映射运行对应测试。
+- `tests/critical/` 使用 SQLite 和 Fake Agent。
+- 不连接真实 QMT、Redis 或外部数据源。
+
+#### Nightly
+
+- 保留全量单元、API 和集成测试。
+- 增加 PostgreSQL 关键链路测试。
+
+#### RC Gate
+
+- 增加独立的 `Critical Reliability` 阻断步骤。
+- 任一关键链路、迁移或 PostgreSQL 测试失败即阻止发布。
+
+#### 真实 QMT
+
+- 不阻断普通提交。
+- 实盘启用前必须运行现有 preflight 和只读探针并保存证据。
+- 券商权限未开通时阻止实盘激活，不阻止代码合并。
+
+## 验收标准
+
+- 7 个缺失模块均能被增量选择器命中对应测试。
+- 未映射 App 的选择器自测失败或保守回退全量测试。
+- 关键链路至少覆盖正常、过期数据、风险拒绝、kill switch、重复请求、断线、未知结果和 P0 对账差异。
+- SQLite PR 套件、PostgreSQL Nightly 套件、API 和迁移测试、架构扫描全部通过。
+- 不修改生产 API、数据库业务语义或真实交易逻辑；本阶段仅补测试、测试选择器、CI 和配套治理文档。
+- 阶段文档持续记录已完成项、未完成项、测试耗时、失败样例和真实 QMT 未验证事项。
+
+## 分阶段实施与提交
+
+1. `test: cover critical module test selection`
+2. `test: add critical reliability chains`
+3. `test: verify critical migrations on postgres`
+4. `ci: enforce critical reliability gate`
+5. `docs: document critical reliability closure`
+
+每个阶段独立验证和提交，避免把测试实现、CI 改造和文档治理无边界混入同一批次。
+
+## 当前进度
+
+- [x] 完成现有护栏和关键测试盘点。
+- [x] 确认采用分层验证：PR 使用 Fake Agent，Nightly 执行完整后端链路，真实 QMT 作为发布前现场验收。
+- [x] 保存本阶段实施计划。
+- [x] 补齐关键模块测试选择映射。
+- [x] 新增关键链路测试。
+- [x] 补齐关键迁移验证并配置 PostgreSQL Nightly 入口。
+- [x] 接入 PR、Nightly 和 RC 门禁。
+- [ ] 在 GitHub Nightly 完成 PostgreSQL 实际运行取证。
+- [x] 记录真实 QMT 发布前验证证据；当前结论为 `QMT_SERVER_NOT_ALLOWED`，保持实盘禁用。
+
+## 2026-07-22 实施记录
+
+### 已完成项
+
+- `scripts/select_tests.py` 已补齐 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center` 映射。
+- 所有生产 App 都必须存在显式映射；未来新增但未映射的 `apps/*` 变更会保守回退全量测试，快速档也会保留 API、单元、迁移、关键可靠性和 App-local 范围。
+- `tests/critical/` 已建立三个发布阻断测试组：
+  - 决策与数据安全：缺失、过期、未来证据失败关闭，PIT manifest 冻结与篡改识别。
+  - 风险与订单安全：服务端风险拒绝、账户与全局 kill switch、Broker 快照过期、最终提交重检、审批幂等、QMT 断连与心跳过期。
+  - Agent 与恢复安全：未知报单结果、Agent 本地幂等、P0 对账自动停止、未处置差异阻止恢复、Fake Agent 审批到成交与事件回放。
+- 新增研究完整性迁移测试，覆盖计划列出的 11 个迁移节点，验证应用记录、物理表、唯一约束、外键、关键索引，以及 `decision_rhythm` → `portfolio` 所有权转移时历史数据和默认值保留。
+- PR 快速 CI 始终运行 `tests/critical/`，RTM 文件存在性检查已保护三组关键测试和迁移测试。
+- Nightly 已增加 SQLite 关键集合步骤和独立 PostgreSQL 16 空库迁移/关键测试 Job。
+- RC Gate 已增加独立 `Critical Reliability` 阻断步骤。
+
+### 本地验证结果
+
+| 验证项 | 结果 | 耗时/说明 |
+|---|---:|---|
+| 选择器自测 | 49 passed | 0.61s |
+| `tests/critical/`（SQLite + Fake Agent） | 18 passed | 83.40s；首次测试库迁移约 72.76s |
+| 研究完整性迁移测试 | 3 passed | 101.54s；历史所有权迁移重放约 15.46s |
+| 7 模块权威单元/API/集成回归 | 133 passed | 163.76s；含 Broker、Risk、Config、Research、Portfolio、Valuation 与 Fake Agent |
+| 架构工具与边界护栏 | 18 passed | 31.21s；新增生产代码违规 0，结构审计违规 0 |
+| Ruff | passed | 新增/修改 Python 文件 |
+| Black / isort | passed | 新增/修改 Python 文件 |
+| GitHub Actions YAML 解析 | passed | PR、Nightly、RC 三份工作流 |
+| 7 个模块选择器抽检 | passed | 均命中 `tests/critical/` 和关键迁移测试 |
+
+### 失败样例与处置
+
+- 首次迁移测试失败：`MigrationExecutor.project_state()` 不接受 `("portfolio", None)` 伪节点。迁移动作本身已完成；测试改为只用有效的 `decision_rhythm 0014` 节点读取迁移前状态，重跑通过。
+
+### 未完成项与未验证风险
+
+- PostgreSQL Job 已配置，但本地没有使用生产或共享 PostgreSQL 实例执行；必须保存下一次 GitHub Nightly 的成功运行证据。
+- 真实 QMT 不进入普通 CI。本阶段引用 `docs/operations/qmt-agent-runbook.md` 中 2026-07-22 的目标机证据：国金 QMT `2.1.19.0`、Python 3.11、`xtquant 250807.1.2` 隔离导入成功，但真实只读探针返回 `QMT_SERVER_NOT_ALLOWED`。本次收口不重复连接、不提交或撤销真实订单。
+- 实盘激活前仍必须按 `docs/operations/qmt-agent-runbook.md` 运行 preflight 和只读探针；券商权限未开通或版本矩阵未记录时必须保持实盘禁用。
