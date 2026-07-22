@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
 
@@ -38,6 +38,19 @@ TUI_SCREEN_DERIVED_INPUT_FIELDS = frozenset({"entry_mode", "entry_field_key"})
 
 class TuiWorkbenchCatalogMixin:
     """Catalog and action payload helpers shared by the TUI workbench service."""
+
+    if TYPE_CHECKING:
+        _account_options_cache: dict[int, list[dict[str, Any]]]
+
+        def _action_title(self, action: dict[str, Any]) -> str: ...
+
+        def _operator_text(self, value: Any) -> str: ...
+
+        def _requires_confirmation(self, action: dict[str, Any]) -> bool: ...
+
+        def _value_at_path(self, payload: Any, path: str) -> Any: ...
+
+        def _view_model_path(self, action: dict[str, Any], key: str) -> str: ...
 
     def _catalog_stats(
         self, metadata: dict[str, Any], visible_actions: list[dict[str, Any]]
@@ -420,8 +433,10 @@ class TuiWorkbenchCatalogMixin:
             return default
         path = self._view_model_path(action, key)
         value = self._value_at_path(envelope, path) if path else None
+        if value is None or value == "":
+            return default
         try:
-            return int(value) if value not in (None, "") else default
+            return int(value)
         except (TypeError, ValueError):
             return default
 
@@ -434,9 +449,11 @@ class TuiWorkbenchCatalogMixin:
     ) -> int:
         if not params:
             return default
+        value = params.get(key)
+        if value is None or value == "":
+            return default
         try:
-            value = params.get(key)
-            return int(value) if value not in (None, "") else default
+            return int(value)
         except (TypeError, ValueError):
             return default
 
@@ -495,7 +512,7 @@ class TuiWorkbenchCatalogMixin:
 
     def _account_options_for_user(self, user: Any | None) -> list[dict[str, Any]]:
         user_id = getattr(user, "id", None)
-        if user_id in (None, ""):
+        if user_id is None or user_id == "":
             return []
         try:
             normalized_user_id = int(user_id)

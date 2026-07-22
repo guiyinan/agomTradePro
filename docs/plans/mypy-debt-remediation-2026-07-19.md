@@ -572,3 +572,14 @@
 
 - 4 个变更生产文件的增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7941 errors / 889 files` 收紧为 `7826 errors / 885 files`，净减少 `115 errors / 4 files`，无文件或错误码反弹。
 - Alpha 预测、缓存 fallback、Ops、Qlib 训练、任务结构/别名、Alpha cache 与架构治理回归共 `67 passed`；Black、Ruff、diff check 通过。
+
+## 第四十三批
+
+- 按高风险密度收口 TUI workbench catalog mixin：使用仅在类型检查阶段可见的宿主契约声明 `_operator_text`、确认判断、view-model 路径解析、action 标题和账户选项缓存，不向运行时 MRO 注入占位实现。
+- 三处动态整数转换先显式排除 `None` 与空字符串，再进入 `int()` 边界；账户 ID 缓存保持 `dict[int, list[dict[str, Any]]]`，消除动态宿主属性带来的 Any 返回传播。
+- Catalog 的 screen/action/field 投影逻辑和现有 TUI metadata 行为保持不变，类型契约仅固定横向 mixin 与最终 `TuiWorkbenchService` 的组合要求。
+
+## 第四十三批验证结果
+
+- TUI workbench catalog 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7826 errors / 885 files` 收紧为 `7794 errors / 884 files`，净减少 `32 errors / 1 file`，无文件或错误码反弹。
+- TUI workbench、TUI contract、Terminal Agent、SDK client、SSL redirect 固定回归包与架构治理共 `251 passed`；Black、Ruff、diff check 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7826,
-    "files_with_errors": 885
+    "errors": 7794,
+    "files_with_errors": 884
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3569,11 +3569,6 @@
     "apps/terminal/application/tui_operator_services.py": {
       "attr-defined": 1,
       "no-any-return": 1
-    },
-    "apps/terminal/application/tui_workbench_catalog.py": {
-      "arg-type": 3,
-      "attr-defined": 25,
-      "no-any-return": 4
     },
     "apps/terminal/application/tui_workbench_result_models.py": {
       "attr-defined": 11
