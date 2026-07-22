@@ -365,7 +365,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
             return 0
         sample = rows[:5]
         dict_rows = sum(1 for row in sample if isinstance(row, dict))
-        scalar_rows = sum(1 for row in sample if not isinstance(row, (dict, list)))
+        scalar_rows = sum(1 for row in sample if not isinstance(row, dict | list))
         nested_penalty = depth * 4
         return dict_rows * 10 + scalar_rows * 4 + min(len(rows), 20) - nested_penalty
 
@@ -447,7 +447,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
             normalized_key = str(key)
             if normalized_key.startswith("__"):
                 normalized_key = normalized_key[2:]
-            if normalized_key in payload or isinstance(value, (dict, list)):
+            if normalized_key in payload or isinstance(value, dict | list):
                 continue
             if not self._should_preserve_row_identifier(normalized_key):
                 continue
@@ -464,7 +464,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         raw_value: Any,
         display_value: str,
     ) -> bool:
-        if raw_value in (None, "") or isinstance(raw_value, (dict, list)):
+        if raw_value in (None, "") or isinstance(raw_value, dict | list):
             return False
         normalized = str(key or "").strip().lower().replace("-", "_")
         if not (
@@ -658,7 +658,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
     def _message_list_text(self, rows: list[Any]) -> str:
         if not rows or len(rows) > 12:
             return ""
-        if any(isinstance(row, (dict, list, tuple, set)) for row in rows):
+        if any(isinstance(row, dict | list | tuple | set) for row in rows):
             return ""
         messages = [str(row).strip() for row in rows if str(row).strip()]
         if len(messages) != len(rows):
@@ -816,7 +816,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         scalar_values = [
             (str(key), value)
             for key, value in payload.items()
-            if not isinstance(value, (dict, list))
+            if not isinstance(value, dict | list)
         ]
         html_values = [
             self._html_to_text(str(value))
@@ -895,7 +895,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         if len(business_items) == 1 and isinstance(business_items[0][1], dict):
             return True
         list_keys = [key for key, value in business_items if isinstance(value, list)]
-        scalar_count = sum(1 for _, value in business_items if not isinstance(value, (dict, list)))
+        scalar_count = sum(1 for _, value in business_items if not isinstance(value, dict | list))
         nested_dict_count = sum(1 for _, value in business_items if isinstance(value, dict))
         has_identifier = any(
             key in {"id", "pk", "name", "title", "code"} for key, _ in business_items
@@ -969,7 +969,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
         return self._display_value(value)
 
     def _field_value_label(self, key: str, value: Any) -> str | None:
-        if value is None or isinstance(value, (bool, dict, list)):
+        if value is None or isinstance(value, bool | dict | list):
             return None
         normalized_key = str(key or "").strip().lower().replace("-", "_").split(".")[-1]
         value_labels = FIELD_VALUE_LABELS.get(normalized_key)
@@ -1032,7 +1032,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
             for key, value in row.items():
                 if str(key).startswith("__"):
                     continue
-                if key not in keys and not isinstance(value, (dict, list)):
+                if key not in keys and not isinstance(value, dict | list):
                     keys.append(key)
         if not keys and rows:
             keys = [key for key in rows[0].keys() if not str(key).startswith("__")][:6]
@@ -1058,7 +1058,7 @@ class TuiWorkbenchResultModelMixin(TuiWorkbenchSpecializedResultMixin):
             return "-"
         if isinstance(value, bool):
             return "是" if value else "否"
-        if isinstance(value, (dict, list)):
+        if isinstance(value, dict | list):
             return f"{len(value)} 项" if isinstance(value, list) else f"{len(value)} 个字段"
         text = str(value)
         if self._looks_like_html(text):

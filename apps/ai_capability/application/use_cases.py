@@ -443,7 +443,7 @@ class CapabilityExecutionDispatcher:
 
         reply = (
             json.dumps(result, indent=2, ensure_ascii=False)
-            if isinstance(result, (dict, list))
+            if isinstance(result, dict | list)
             else str(result)
         )
         return {"reply": reply, "result": result}
@@ -523,7 +523,7 @@ class CapabilityExecutionDispatcher:
         payload = enrich_security_names(payload)
         reply = (
             json.dumps(payload, indent=2, ensure_ascii=False)
-            if isinstance(payload, (dict, list))
+            if isinstance(payload, dict | list)
             else str(payload)
         )
         return {

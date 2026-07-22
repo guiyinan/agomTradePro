@@ -294,7 +294,6 @@ def test_database_operations_with_cache():
 
     try:
         from apps.equity.infrastructure.adapters.hybrid_stock_adapter import HybridStockAdapter
-
         from apps.equity.infrastructure.models import StockInfoModel
 
         adapter = HybridStockAdapter(tushare_token=None)

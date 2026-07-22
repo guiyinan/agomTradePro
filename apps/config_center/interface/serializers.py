@@ -83,7 +83,7 @@ def _parse_stock_codes(value) -> list[str]:
         for line in normalized.splitlines():
             codes.extend(part.strip() for part in line.split() if part.strip())
         return codes
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [str(item).strip() for item in value if str(item).strip()]
     raise serializers.ValidationError({"stock_codes": "stock_codes 必须是数组或分隔字符串"})
 

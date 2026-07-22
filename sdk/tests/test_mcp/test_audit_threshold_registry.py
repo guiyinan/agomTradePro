@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+
 from agomtradepro_mcp.registry.loader import CapabilityRegistryLoader
 
 

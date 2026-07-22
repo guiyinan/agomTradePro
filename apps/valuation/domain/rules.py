@@ -162,7 +162,7 @@ class ValuationPayloadPolicy:
     def _is_unusable_quality_flag(cls, quality_flag: Any) -> bool:
         if quality_flag is None:
             return False
-        if isinstance(quality_flag, (list, tuple, set)):
+        if isinstance(quality_flag, list | tuple | set):
             return any(cls._is_unusable_quality_flag(item) for item in quality_flag)
         return str(quality_flag).strip().lower() in cls.UNUSABLE_QUALITY_FLAGS
 

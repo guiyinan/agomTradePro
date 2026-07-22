@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_RESEARCH: dict[str, dict[str, Any]] = {
     "research.asset-lab": {
         "view_type": "detail",

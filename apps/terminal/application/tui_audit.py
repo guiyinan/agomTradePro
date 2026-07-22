@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import copy
 import json
-from datetime import datetime, timezone
-from typing import Any, Mapping
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
 
 from apps.terminal.domain.entities import TerminalAuditEntry
 from apps.terminal.domain.interfaces import TerminalAuditRepository
@@ -218,4 +219,4 @@ def _is_sensitive_param_key(key: str) -> bool:
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

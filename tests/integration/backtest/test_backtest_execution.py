@@ -224,13 +224,13 @@ class TestBacktestExecution:
 
             # 验证 Sharpe 比率是有效数字
             if 'sharpe_ratio' in result:
-                assert isinstance(result['sharpe_ratio'], (int, float)), "Sharpe 应为数值"
+                assert isinstance(result['sharpe_ratio'], int | float), "Sharpe 应为数值"
                 # Mock 数据可能产生极端值，只验证类型
                 assert result['sharpe_ratio'] > -1000, "Sharpe 应在合理范围内"
 
             # 验证最大回撤是有效数字
             if 'max_drawdown' in result:
-                assert isinstance(result['max_drawdown'], (int, float)), "最大回撤应为数值"
+                assert isinstance(result['max_drawdown'], int | float), "最大回撤应为数值"
                 # Mock 数据和浮点误差可能导致微小的正值或零
                 # 允许 -100 到 0.01 的范围（容忍小的浮点误差）
                 assert -100 <= result['max_drawdown'] <= 0.01, \

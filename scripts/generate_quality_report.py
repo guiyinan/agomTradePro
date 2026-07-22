@@ -89,7 +89,7 @@ def generate_nightly_report(args: argparse.Namespace) -> dict[str, Any]:
     coverages = [
         s["coverage"]
         for s in report["test_suites"].values()
-        if isinstance(s.get("coverage"), (int, float))
+        if isinstance(s.get("coverage"), int | float)
     ]
     if coverages:
         report["overall_coverage"] = round(sum(coverages) / len(coverages), 2)

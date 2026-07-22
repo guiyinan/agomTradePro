@@ -25,8 +25,8 @@ import django
 
 django.setup()
 
-from apps.macro.domain.entities import MacroIndicator
 from apps.data_center.infrastructure.macro_sources import PUBLICATION_LAGS, create_default_adapter
+from apps.macro.domain.entities import MacroIndicator
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
 
 # Configure logging

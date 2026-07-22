@@ -4,7 +4,7 @@ Unit Tests for Alpha Providers
 测试 Alpha Provider 的核心功能。
 """
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
@@ -486,7 +486,7 @@ class TestAlphaService:
             success=True,
             scores=[],
             source="test",
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
         with patch.object(

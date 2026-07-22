@@ -145,7 +145,7 @@ class BaseMacroAdapter:
         if not point.code:
             raise DataValidationError("指标代码不能为空")
 
-        if not isinstance(point.value, (int, float)):
+        if not isinstance(point.value, int | float):
             raise DataValidationError(f"指标值必须是数值类型: {type(point.value)}")
 
         if point.value < 0 and point.code not in ["CN_M2", "SHIBOR", "LPR"]:

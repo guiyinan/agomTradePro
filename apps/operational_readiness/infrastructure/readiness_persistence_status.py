@@ -495,6 +495,6 @@ def _object_or_dict_get(value: Any, key: str) -> Any:
 def _format_optional_date(value: Any) -> str | None:
     if value is None:
         return None
-    if isinstance(value, (date, datetime)):
+    if isinstance(value, date | datetime):
         return value.date().isoformat() if isinstance(value, datetime) else value.isoformat()
     return str(value)

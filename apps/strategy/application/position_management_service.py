@@ -57,7 +57,7 @@ class _SafeExpressionValidator(ast.NodeVisitor):
         if isinstance(node, ast.Expression):
             return self.visit(node.body)
         if isinstance(node, ast.Constant):
-            if isinstance(node.value, (int, float, bool)):
+            if isinstance(node.value, int | float | bool):
                 return
             raise PositionRuleError("仅允许数字和布尔常量")
         if isinstance(node, ast.Name):

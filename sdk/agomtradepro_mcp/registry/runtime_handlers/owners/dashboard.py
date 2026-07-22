@@ -166,7 +166,7 @@ def _fallback_dashboard_read_asset_allocation() -> dict[str, Any]:
     allocation = {
         str(asset_class): float(value)
         for asset_class, value in data.items()
-        if isinstance(value, (int, float)) and not isinstance(value, bool)
+        if isinstance(value, int | float) and not isinstance(value, bool)
     }
     return {
         "allocation": allocation,

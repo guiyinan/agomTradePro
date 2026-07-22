@@ -420,11 +420,11 @@ class TestAuditAPIResponseSerialization:
         # Check field types
         assert isinstance(response.data["id"], int)
         assert isinstance(response.data["backtest_id"], int)
-        assert isinstance(response.data["total_pnl"], (int, float))
-        assert isinstance(response.data["regime_timing_pnl"], (int, float))
-        assert isinstance(response.data["asset_selection_pnl"], (int, float))
-        assert isinstance(response.data["interaction_pnl"], (int, float))
-        assert isinstance(response.data["regime_accuracy"], (int, float))
+        assert isinstance(response.data["total_pnl"], int | float)
+        assert isinstance(response.data["regime_timing_pnl"], int | float)
+        assert isinstance(response.data["asset_selection_pnl"], int | float)
+        assert isinstance(response.data["interaction_pnl"], int | float)
+        assert isinstance(response.data["regime_accuracy"], int | float)
 
     def test_summary_response_is_list(self, api_client, sample_backtest):
         """Test that summary API returns a list."""

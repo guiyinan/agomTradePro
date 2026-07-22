@@ -47,7 +47,7 @@ def _parse_factor_explanation_input(
             not isinstance(code, str)
             or not code.strip()
             or isinstance(weight, bool)
-            or not isinstance(weight, (int, float))
+            or not isinstance(weight, int | float)
             or not -1.0 <= float(weight) <= 1.0
         ):
             raise ValueError(

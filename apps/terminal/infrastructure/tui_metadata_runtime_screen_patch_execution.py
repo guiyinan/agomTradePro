@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_SCREEN_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {
     "execution.accounts": {
         "label": "账户清单与当前持仓",

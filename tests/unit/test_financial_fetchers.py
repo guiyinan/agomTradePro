@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from apps.data_center.infrastructure.macro_sources.fetchers.financial_fetchers import FinancialIndicatorFetcher
+from apps.data_center.infrastructure.macro_sources.fetchers.financial_fetchers import (
+    FinancialIndicatorFetcher,
+)
 
 
 @pytest.fixture(autouse=True)

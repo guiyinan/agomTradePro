@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 from apps.backtest.infrastructure.providers import DjangoBacktestRepository
 

@@ -29,7 +29,7 @@ def _missing_name_codes(value: Any) -> set[str]:
                 codes.add(code)
         for item in value.values():
             codes.update(_missing_name_codes(item))
-    elif isinstance(value, (list, tuple)):
+    elif isinstance(value, list | tuple):
         for item in value:
             codes.update(_missing_name_codes(item))
     return codes

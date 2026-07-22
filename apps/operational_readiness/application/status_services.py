@@ -797,7 +797,7 @@ def _as_dict(value: Any) -> dict[str, Any]:
 
 
 def _isoformat_or_value(value: Any) -> Any:
-    return value.isoformat() if isinstance(value, (date, datetime)) else value
+    return value.isoformat() if isinstance(value, date | datetime) else value
 
 
 def _summarize_thermometer_component_details(thermometer: dict[str, Any]) -> list[dict[str, Any]]:

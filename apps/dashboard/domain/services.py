@@ -286,7 +286,7 @@ class DashboardMetricService:
         trend_value = None
         if previous_data:
             previous_value = self._extract_metric_value(metric_name, previous_data)
-            if previous_value is not None and isinstance(value, (int, float)):
+            if previous_value is not None and isinstance(value, int | float):
                 trend_value = float(value) - float(previous_value)
                 if trend_value > 0:
                     trend = "up"

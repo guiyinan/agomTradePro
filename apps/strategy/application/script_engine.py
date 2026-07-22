@@ -593,7 +593,7 @@ class ScriptExecutionEnvironment:
 
             for node in ast.walk(tree):
                 # 检查导入语句
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                if isinstance(node, ast.Import | ast.ImportFrom):
                     module_name = None
                     if isinstance(node, ast.Import):
                         module_name = node.names[0].name.split(".")[0]

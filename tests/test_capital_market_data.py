@@ -289,7 +289,6 @@ def test_database_operations():
     print("\n--- 测试股票数据保存 ---")
     try:
         from apps.equity.infrastructure.adapters.akshare_stock_adapter import AKShareStockAdapter
-
         from apps.equity.infrastructure.models import StockInfoModel
 
         adapter = AKShareStockAdapter()

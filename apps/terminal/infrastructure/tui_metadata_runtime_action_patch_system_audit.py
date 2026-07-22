@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_ACTION_PATCHES_SYSTEM_AUDIT: dict[str, dict[str, Any]] = {'auto.api.get.api.system.list': {'view_type': 'datagrid',
                                   'view_model': {'rows_path': 'items', 'total_path': 'total'}},
  'param.api.get.api.audit.operation-logs.str.log_id': {'fields': [{'key': 'log_id',

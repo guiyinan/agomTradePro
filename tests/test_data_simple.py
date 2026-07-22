@@ -135,7 +135,9 @@ class DataConnectionTester:
         print("="*60)
 
         try:
-            from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
+            from apps.macro.infrastructure.data_center_fact_repository import (
+                DataCenterMacroRepository,
+            )
             repo = DataCenterMacroRepository()
 
             # Check PMI data

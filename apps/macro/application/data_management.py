@@ -322,7 +322,7 @@ class ScheduleDataFetchUseCase:
             if day_of_month is not None:
                 schedule["day_of_month"] = int(day_of_month)
             release_months = metadata.get("schedule_release_months") or []
-            if isinstance(release_months, (list, tuple)) and release_months:
+            if isinstance(release_months, list | tuple) and release_months:
                 schedule["release_months"] = [
                     int(month)
                     for month in release_months

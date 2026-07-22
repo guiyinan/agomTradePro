@@ -84,6 +84,8 @@ def test_advisor_sheet_default_chain_is_pure_read_for_manual_portfolio(
 ):
     from apps.account.infrastructure.models import (
         PortfolioModel,
+    )
+    from apps.account.infrastructure.models import (
         PositionModel as LegacyPositionModel,
     )
     from apps.dashboard.infrastructure.models import (
@@ -110,8 +112,10 @@ def test_advisor_sheet_default_chain_is_pure_read_for_manual_portfolio(
     )
     from apps.simulated_trading.infrastructure.models import (
         LedgerMigrationMapModel,
-        PositionModel as UnifiedPositionModel,
         SimulatedAccountModel,
+    )
+    from apps.simulated_trading.infrastructure.models import (
+        PositionModel as UnifiedPositionModel,
     )
 
     user = User.objects.get(username="advisor_api_user")

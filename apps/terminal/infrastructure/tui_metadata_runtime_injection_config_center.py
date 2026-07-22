@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_CONFIG_CENTER_ACTIONS: tuple[dict[str, Any], ...] = (
     {
         "key": "config_center.alpha_universes",

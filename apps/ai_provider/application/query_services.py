@@ -66,7 +66,7 @@ def _supported_models(provider: Any) -> list[str]:
 
     extra = provider.extra_config or {}
     configured = extra.get("supported_models")
-    if isinstance(configured, (list, tuple)):
+    if isinstance(configured, list | tuple):
         models = [str(model).strip() for model in configured if str(model).strip()]
         if models:
             return list(dict.fromkeys(models))

@@ -31,8 +31,8 @@ from apps.account.infrastructure.models import (
 # Import models and repositories
 from apps.data_center.infrastructure.models import ProviderConfigModel as DataSourceConfig
 from apps.macro.application.use_cases import SyncMacroDataUseCase
-from apps.macro.infrastructure.models import MacroIndicator
 from apps.macro.infrastructure.data_center_fact_repository import DataCenterMacroRepository
+from apps.macro.infrastructure.models import MacroIndicator
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.use_cases import CalculateRegimeUseCase

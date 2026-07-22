@@ -7,8 +7,8 @@ import pytest
 from apps.alpha.application.services import AlphaProviderRegistry
 from apps.alpha.domain.entities import AlphaResult, StockScore
 from apps.alpha.domain.interfaces import AlphaProvider
-from apps.hedge.infrastructure.adapters import FailoverHedgeAdapter, HedgeDataSource
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
+from apps.hedge.infrastructure.adapters import FailoverHedgeAdapter, HedgeDataSource
 from apps.rotation.infrastructure.adapters import price_adapter as rotation_price_adapter
 from apps.task_monitor.infrastructure import repositories as task_monitor_repositories
 

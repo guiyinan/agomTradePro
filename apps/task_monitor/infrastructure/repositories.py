@@ -61,7 +61,7 @@ def _to_json_compatible(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _to_json_compatible(item) for key, item in value.items()}
 
-    if isinstance(value, (list, tuple, set)):
+    if isinstance(value, list | tuple | set):
         return [_to_json_compatible(item) for item in value]
 
     if isinstance(value, Enum):

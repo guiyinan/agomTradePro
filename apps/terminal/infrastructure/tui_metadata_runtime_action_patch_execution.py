@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 RUNTIME_ACTION_PATCHES_EXECUTION: dict[str, dict[str, Any]] = {'auto.api.get.api.account.accounts': {'task_group': '01 账户清单',
                                        'sequence': 100,
                                        'task_tier': 'primary',
