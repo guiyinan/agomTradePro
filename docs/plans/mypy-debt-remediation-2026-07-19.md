@@ -266,3 +266,13 @@
 
 - 两个 Shared sanitization 模块联合定向 mypy：`0 errors`；全仓基线从 `9051 errors / 942 files` 收紧为 `9042 errors / 940 files`，无文件或错误码反弹。
 - Plain/rich text、属性、URL scheme、字段与装饰器安全回归：`26 passed`；Ruff 通过。
+
+## 第十七批
+
+- 收口 `shared/infrastructure/alert_service.py` 的 requests 边界和异构告警通道组装契约，清除最后 4 个历史错误。
+- 默认服务的 channel 容器显式声明为 `list[AlertChannel]`，Slack、Email、Console 不再因首个 append 被错误收窄；移除通道参数限定为 AlertChannel 子类。
+
+## 第十七批验证结果
+
+- Shared alert service 定向 mypy：`0 errors`；全仓基线从 `9042 errors / 940 files` 收紧为 `9038 errors / 939 files`，无文件或错误码反弹。
+- 异构默认通道组装、通道移除与 Policy 通知回归：`31 passed`；Ruff 通过。

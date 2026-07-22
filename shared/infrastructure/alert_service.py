@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ def _current_timestamp_text() -> str:
 
 class AlertLevel(Enum):
     """告警级别"""
+
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -31,6 +32,7 @@ class AlertLevel(Enum):
 @dataclass
 class AlertResult:
     """告警结果"""
+
     success: bool
     channel: str
     level: AlertLevel
@@ -43,11 +45,7 @@ class AlertChannel(ABC):
 
     @abstractmethod
     def send(
-        self,
-        level: AlertLevel,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: AlertLevel, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """
         发送告警
@@ -61,19 +59,15 @@ class AlertChannel(ABC):
         Returns:
             AlertResult: 告警结果
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def is_available(self) -> bool:
         """检查渠道是否可用"""
-        pass
+        raise NotImplementedError
 
     def send_alert(
-        self,
-        level: AlertLevel,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: AlertLevel, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """
         兼容旧接口：send_alert -> send
@@ -94,11 +88,7 @@ class SlackAlertChannel(AlertChannel):
         self.webhook_url = webhook_url
 
     def send(
-        self,
-        level: AlertLevel,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: AlertLevel, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """发送 Slack 告警"""
         try:
@@ -117,7 +107,7 @@ class SlackAlertChannel(AlertChannel):
                         "title": title,
                         "text": message,
                         "footer": "AgomTradePro Policy Alert",
-                        "ts": int(__import__("time").time())
+                        "ts": int(__import__("time").time()),
                     }
                 ]
             }
@@ -126,47 +116,26 @@ class SlackAlertChannel(AlertChannel):
             if metadata:
                 fields = []
                 for key, value in metadata.items():
-                    fields.append({
-                        "title": key,
-                        "value": str(value),
-                        "short": True
-                    })
+                    fields.append({"title": key, "value": str(value), "short": True})
                 if fields:
                     slack_message["attachments"][0]["fields"] = fields
 
-            response = requests.post(
-                self.webhook_url,
-                json=slack_message,
-                timeout=10
-            )
+            response = requests.post(self.webhook_url, json=slack_message, timeout=10)
 
             if response.status_code == 200:
                 logger.info(f"Slack alert sent successfully: {title}")
-                return AlertResult(
-                    success=True,
-                    channel="slack",
-                    level=level,
-                    message=message
-                )
+                return AlertResult(success=True, channel="slack", level=level, message=message)
             else:
                 error_msg = f"Slack API returned {response.status_code}"
                 logger.error(f"Failed to send Slack alert: {error_msg}")
                 return AlertResult(
-                    success=False,
-                    channel="slack",
-                    level=level,
-                    message=message,
-                    error=error_msg
+                    success=False, channel="slack", level=level, message=message, error=error_msg
                 )
 
         except Exception as e:
             logger.error(f"Failed to send Slack alert: {e}", exc_info=True)
             return AlertResult(
-                success=False,
-                channel="slack",
-                level=level,
-                message=message,
-                error=str(e)
+                success=False, channel="slack", level=level, message=message, error=str(e)
             )
 
     def is_available(self) -> bool:
@@ -189,7 +158,7 @@ class EmailAlertChannel(AlertChannel):
         username: str,
         password: str,
         from_email: str,
-        to_emails: list[str]
+        to_emails: list[str],
     ):
         """
         初始化邮件告警渠道
@@ -210,11 +179,7 @@ class EmailAlertChannel(AlertChannel):
         self.to_emails = to_emails
 
     def send(
-        self,
-        level: AlertLevel,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: AlertLevel, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """发送邮件告警"""
         try:
@@ -251,34 +216,27 @@ class EmailAlertChannel(AlertChannel):
                 server.send_message(msg)
 
             logger.info(f"Email alert sent successfully: {title}")
-            return AlertResult(
-                success=True,
-                channel="email",
-                level=level,
-                message=message
-            )
+            return AlertResult(success=True, channel="email", level=level, message=message)
 
         except Exception as e:
             logger.error(f"Failed to send email alert: {e}", exc_info=True)
             return AlertResult(
-                success=False,
-                channel="email",
-                level=level,
-                message=message,
-                error=str(e)
+                success=False, channel="email", level=level, message=message, error=str(e)
             )
 
     def is_available(self) -> bool:
         """检查邮件服务是否可用"""
         try:
-            return all([
-                self.smtp_host,
-                self.smtp_port > 0,
-                self.username,
-                self.password,
-                self.from_email,
-                self.to_emails
-            ])
+            return all(
+                [
+                    self.smtp_host,
+                    self.smtp_port > 0,
+                    self.username,
+                    self.password,
+                    self.from_email,
+                    self.to_emails,
+                ]
+            )
         except Exception:
             return False
 
@@ -287,11 +245,7 @@ class ConsoleAlertChannel(AlertChannel):
     """控制台告警渠道（用于测试和开发）"""
 
     def send(
-        self,
-        level: AlertLevel,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: AlertLevel, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> AlertResult:
         """打印告警到控制台"""
         try:
@@ -315,21 +269,12 @@ class ConsoleAlertChannel(AlertChannel):
                     print(f"  {key}: {value}")
             print("-" * 50)
 
-            return AlertResult(
-                success=True,
-                channel="console",
-                level=level,
-                message=message
-            )
+            return AlertResult(success=True, channel="console", level=level, message=message)
 
         except Exception as e:
             logger.error(f"Failed to print alert: {e}")
             return AlertResult(
-                success=False,
-                channel="console",
-                level=level,
-                message=message,
-                error=str(e)
+                success=False, channel="console", level=level, message=message, error=str(e)
             )
 
     def is_available(self) -> bool:
@@ -354,11 +299,7 @@ class MultiChannelAlertService:
         self.channels = channels
 
     def send_alert(
-        self,
-        level: str,
-        title: str,
-        message: str,
-        metadata: dict[str, Any] | None = None
+        self, level: str, title: str, message: str, metadata: dict[str, Any] | None = None
     ) -> bool:
         """
         发送告警到所有可用渠道
@@ -390,9 +331,7 @@ class MultiChannelAlertService:
                 result = channel.send(alert_level, title, message, metadata)
                 results.append(result)
             except Exception as e:
-                logger.error(
-                    f"Failed to send alert via {channel.__class__.__name__}: {e}"
-                )
+                logger.error(f"Failed to send alert via {channel.__class__.__name__}: {e}")
 
         # 至少有一个成功即返回 True
         success_count = sum(1 for r in results if r.success)
@@ -409,7 +348,7 @@ class MultiChannelAlertService:
         """添加告警渠道"""
         self.channels.append(channel)
 
-    def remove_channel(self, channel_class: type) -> None:
+    def remove_channel(self, channel_class: type[AlertChannel]) -> None:
         """移除指定类型的渠道"""
         self.channels = [c for c in self.channels if not isinstance(c, channel_class)]
 
@@ -417,7 +356,7 @@ class MultiChannelAlertService:
 def create_default_alert_service(
     slack_webhook: str | None = None,
     email_config: dict[str, Any] | None = None,
-    use_console: bool = True
+    use_console: bool = True,
 ) -> MultiChannelAlertService:
     """
     创建默认的告警服务
@@ -430,7 +369,7 @@ def create_default_alert_service(
     Returns:
         MultiChannelAlertService: 告警服务实例
     """
-    channels = []
+    channels: list[AlertChannel] = []
 
     # 添加 Slack 渠道
     if slack_webhook:
@@ -438,14 +377,16 @@ def create_default_alert_service(
 
     # 添加邮件渠道
     if email_config:
-        channels.append(EmailAlertChannel(
-            smtp_host=email_config.get("smtp_host", ""),
-            smtp_port=email_config.get("smtp_port", 587),
-            username=email_config.get("username", ""),
-            password=email_config.get("password", ""),
-            from_email=email_config.get("from_email", ""),
-            to_emails=email_config.get("to_emails", [])
-        ))
+        channels.append(
+            EmailAlertChannel(
+                smtp_host=email_config.get("smtp_host", ""),
+                smtp_port=email_config.get("smtp_port", 587),
+                username=email_config.get("username", ""),
+                password=email_config.get("password", ""),
+                from_email=email_config.get("from_email", ""),
+                to_emails=email_config.get("to_emails", []),
+            )
+        )
 
     # 添加控制台渠道（开发环境）
     if use_console:

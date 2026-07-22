@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9042,
-    "files_with_errors": 940
+    "errors": 9038,
+    "files_with_errors": 939
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -4124,10 +4124,6 @@
     },
     "shared/apps.py": {
       "no-untyped-def": 1
-    },
-    "shared/infrastructure/alert_service.py": {
-      "arg-type": 3,
-      "import-untyped": 1
     },
     "shared/infrastructure/async_runtime.py": {
       "arg-type": 2
