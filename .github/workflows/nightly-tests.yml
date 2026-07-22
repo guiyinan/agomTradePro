@@ -37,6 +37,9 @@ jobs:
       - name: Prepare database
         run: python manage.py migrate --noinput
 
+      - name: Enforce full-production mypy debt ceiling
+        run: python scripts/check_mypy_debt_ceiling.py
+
       - name: Run Unit Tests (full)
         timeout-minutes: 25
         env:

@@ -215,6 +215,11 @@ jobs:
           python scripts/check_mypy_regression.py \
             ${{ steps.targets.outputs.typecheck-targets }}
 
+      - name: Enforce full-production mypy debt ceiling
+        run: |
+          python scripts/check_mypy_debt_ceiling.py \
+            --reference-ref "${{ needs.detect-tests.outputs.base-ref }}"
+
       - name: Run incremental domain coverage gate
         if: steps.targets.outputs.domain-coverage-count != '0'
         run: |

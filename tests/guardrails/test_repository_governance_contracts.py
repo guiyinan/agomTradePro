@@ -72,6 +72,24 @@ def test_mypy_debt_is_precisely_governed_without_broad_ignores() -> None:
         encoding="utf-8"
     )
     assert "python scripts/check_mypy_regression.py" in workflow_text
+    assert "python scripts/check_mypy_debt_ceiling.py" in workflow_text
+    assert '--reference-ref "${{ needs.detect-tests.outputs.base-ref }}"' in workflow_text
+
+    full_baseline = json.loads(
+        (REPO_ROOT / "governance" / "mypy_debt_baseline.json").read_text(encoding="utf-8")
+    )
+    assert full_baseline["scope"] == {
+        "targets": ["apps", "core", "shared"],
+        "exclude": r"(^|[\\/])(tests|migrations)([\\/]|$)",
+        "follow_imports": "skip",
+    }
+    assert full_baseline["summary"]["errors"] > 0
+    assert full_baseline["summary"]["files_with_errors"] == len(full_baseline["modules"])
+
+    nightly_text = (REPO_ROOT / ".github" / "workflows" / "nightly-tests.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "python scripts/check_mypy_debt_ceiling.py" in nightly_text
 
 
 def test_fast_feedback_installs_node_playwright_browser() -> None:

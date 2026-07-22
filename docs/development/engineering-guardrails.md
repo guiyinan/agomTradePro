@@ -149,6 +149,7 @@ python scripts/scaffold_application_providers.py \
 17. Provider 边界收紧返回结构时，适配层必须先做兼容归一化；例如 ETF 成分股 fixture 仍返回旧版 2-tuple 时，不能让降级链路直接在解包阶段崩掉。
 18. `ci-fast-feedback` 现在会对变更的 Python 文件执行增量 `ruff` / `black --check` / `isort --check-only`，并对变更的 `apps|core|shared` Python 文件执行增量 `mypy`。
 19. 领域层变更必须在日常 PR 阶段通过增量覆盖率门禁；当前阈值为 `Domain >= 70%`。
+20. `ci-fast-feedback` 与 nightly 必须执行 `python scripts/check_mypy_debt_ceiling.py`；该门禁按生产代码文件和错误码精确记录全仓债务，PR 基线不得高于目标分支，修复后必须用 `--write-baseline` 同步下调。
 
 ### 4.1) 本地 pre-commit
 

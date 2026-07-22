@@ -164,6 +164,9 @@ AgomTradePro/
 │   ├── share/                # 分享功能
 │   ├── task_monitor/         # 任务监控
 │   ├── operational_readiness/ # 生产 readiness 取证与验收
+│   ├── broker_execution/     # 券商执行与成交回报接入
+│   ├── portfolio/            # 投资组合与持仓管理
+│   ├── research/             # 投研完整性与可复现性
 │   └── setup_wizard/         # 系统初始化向导
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
@@ -444,7 +447,13 @@ test_score = StockScore(
 
 ## 代码风格
 
-- 类型标注：强制，所有函数必须有类型提示
+- 类型标注：强制，所有生产代码函数必须完整标注参数与返回值
+- 禁止裸 `dict` / `list` / `tuple` / `set` / `Callable`；必须声明元素、键值或调用签名类型
+- 可空值必须显式使用 `T | None`，不得依赖隐式 Optional
+- `Any` 只能停留在 JSON、ORM、动态导入和第三方 API 等边界，并在进入 Domain/Application 前通过 `TypedDict`、dataclass、Protocol、类型守卫或局部 `cast` 收窄
+- 禁止模块级或文件级 `ignore_errors`，禁止用宽泛 `type: ignore` 掩盖历史债务
+- 新增或修改的 `apps/`、`core/`、`shared/` 生产 Python 文件必须通过增量 mypy 门禁
+- 全仓生产代码 mypy 债务按文件和错误码治理，只允许下降；修复后必须同步收紧 `governance/mypy_debt_baseline.json`，不得为接受新增错误而抬高基线
 - 格式化：black + isort + ruff
 - 测试：Domain 层覆盖率 ≥ 90%
 - 文档：所有 public 函数必须有 docstring
@@ -456,7 +465,11 @@ isort .
 ruff check .
 
 # 类型检查
-mypy apps/ --strict
+python scripts/check_mypy_regression.py <changed-production-python-files>
+python scripts/check_mypy_debt_ceiling.py
+
+# 仅在历史债务实际下降后刷新全仓基线
+python scripts/check_mypy_debt_ceiling.py --write-baseline
 
 # 测试
 pytest tests/ -v --cov=apps
@@ -733,5 +746,8 @@ ak.macro_china_money_supply()
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
 - `operational_readiness/` - 生产 readiness 证据、连续窗口验收与调度运行状态
+- `broker_execution/` - 券商执行模块，负责订单提交、状态同步与成交回报
+- `portfolio/` - 投资组合模块，负责组合、持仓、交易流水与组合读模型
+- `research/` - 投研治理模块，负责研究证据、运行快照和结果可复现性
 - `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源
 
