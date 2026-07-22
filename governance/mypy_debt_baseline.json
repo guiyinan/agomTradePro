@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7160,
-    "files_with_errors": 859
+    "errors": 7135,
+    "files_with_errors": 858
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -504,18 +504,6 @@
     },
     "apps/alpha/application/pool_resolver.py": {
       "no-untyped-def": 2
-    },
-    "apps/alpha/application/services.py": {
-      "arg-type": 4,
-      "assignment": 1,
-      "attr-defined": 1,
-      "has-type": 2,
-      "misc": 5,
-      "no-untyped-call": 2,
-      "no-untyped-def": 5,
-      "return-value": 1,
-      "type-arg": 1,
-      "union-attr": 3
     },
     "apps/alpha/apps.py": {
       "no-untyped-def": 2

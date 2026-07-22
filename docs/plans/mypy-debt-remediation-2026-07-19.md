@@ -698,3 +698,14 @@
 
 - Event Store 与 Events Domain 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7184 errors / 860 files` 收紧为 `7160 errors / 859 files`，净减少 `24 errors / 1 file`，其中 Event Store 清除 22 项，并连带清除 Account notification 与 Event Bus initializer 各 1 项未类型调用。
 - Events task、Aggregate Snapshot 数据库往返和 Events API contract 回归共 `23 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。
+
+## 第五十四批
+
+- 按高风险 Application 编排优先收口 Alpha provider registry/service：修复 `_get_runtime_qlib_config()` 与导入桥接函数同名造成的无限自递归；Qlib 启用配置现在真正读取 runtime integration，而不是触发 `RecursionError` 后静默跳过 Qlib Provider。
+- 修复 fallback 告警误用标准库 `datetime.timezone.now()` 的运行时错误，统一使用 Django aware timezone；该异常此前被非阻塞副作用包装器吞掉，会让既有降级告警无法更新且只留下 debug 日志。
+- 将 AlphaMetrics 边界、provider health 可空状态、单例初始化状态、provider filter、attempted providers、用户动态边界和 provider status payload 全部具化；多副作用 tuple lambda 收口为单一 `_record_provider_metrics`，保持 provider 调用、cache hit 与 coverage 指标语义。
+
+## 第五十四批验证结果
+
+- Alpha Application service 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7160 errors / 859 files` 收紧为 `7135 errors / 858 files`，净减少 `25 errors / 1 file`，目标文件全部历史错误码归零。
+- Alpha runtime config、fallback alert、providers、interface service、monitoring 与 integration 回归共 `88 passed`；Django system check、架构增量门禁 `0 violations`、Ruff、Black、diff check 通过。

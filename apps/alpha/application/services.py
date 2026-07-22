@@ -8,18 +8,22 @@ import inspect
 import logging
 import time
 from collections.abc import Callable
-from datetime import date, timezone
-from typing import Any, Optional
+from datetime import date
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError
+from django.utils import timezone as django_timezone
 
 from core.integration.runtime_settings import (
     get_runtime_alpha_fixed_provider as load_runtime_alpha_fixed_provider,
 )
 from core.integration.runtime_settings import (
-    get_runtime_qlib_config,
+    get_runtime_qlib_config as load_runtime_qlib_config,
 )
+
+if TYPE_CHECKING:
+    from shared.infrastructure.metrics import AlphaMetrics
 
 from ..domain.entities import AlphaPoolScope, AlphaResult
 from ..domain.interfaces import AlphaProvider, AlphaProviderStatus
@@ -36,7 +40,7 @@ from .repository_provider import (
 logger = logging.getLogger(__name__)
 
 # 延迟导入监控模块（避免循环依赖）
-_alpha_metrics_instance = None
+_alpha_metrics_instance: "AlphaMetrics | None" = None
 
 RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS = (
     AttributeError,
@@ -53,7 +57,7 @@ RECOVERABLE_ALPHA_SERVICE_EXCEPTIONS = (
 )
 
 
-def get_alpha_metrics():
+def get_alpha_metrics() -> "AlphaMetrics":
     """获取 Alpha 指标收集器"""
     global _alpha_metrics_instance
     if _alpha_metrics_instance is None:
@@ -80,7 +84,7 @@ def _run_non_blocking_alpha_side_effect(
 
 
 def _record_metrics(
-    callback: Callable[[Any], None],
+    callback: Callable[["AlphaMetrics"], None],
     *,
     context: str,
 ) -> None:
@@ -90,6 +94,33 @@ def _record_metrics(
         lambda: callback(get_alpha_metrics()),
         context=context,
     )
+
+
+def _record_provider_metrics(
+    *,
+    provider_name: str,
+    success: bool,
+    latency_ms: float,
+    context: str,
+    staleness_days: int | None = None,
+    cache_hit: bool = False,
+    scored_count: int | None = None,
+) -> None:
+    """Record one provider attempt and its optional cache/coverage metrics."""
+
+    def _record(metrics: "AlphaMetrics") -> None:
+        metrics.record_provider_call(
+            provider_name,
+            success=success,
+            latency_ms=latency_ms,
+            staleness_days=staleness_days,
+        )
+        if cache_hit:
+            metrics.record_cache_hit(True)
+        if scored_count is not None:
+            metrics.record_coverage(scored_count, 300)
+
+    _record_metrics(_record, context=context)
 
 
 def _get_provider_health_or_unavailable(
@@ -109,7 +140,7 @@ def _get_provider_health_or_unavailable(
 def _get_runtime_qlib_config() -> dict[str, Any]:
     """Return runtime qlib config through account-owned application service."""
 
-    return get_runtime_qlib_config()
+    return load_runtime_qlib_config()
 
 
 def _get_runtime_alpha_fixed_provider() -> str:
@@ -125,8 +156,9 @@ def _derive_result_asof_date(result: AlphaResult) -> str | None:
     if asof_date:
         return str(asof_date)
     for score in result.scores:
-        if getattr(score, "asof_date", None):
-            return score.asof_date.isoformat()
+        score_asof_date = score.asof_date
+        if score_asof_date is not None:
+            return score_asof_date.isoformat()
     return None
 
 
@@ -299,7 +331,7 @@ class AlphaProviderRegistry:
         >>> result = registry.get_scores_with_fallback("csi300", date.today())
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化注册中心"""
         self._providers: list[AlphaProvider] = []
 
@@ -383,13 +415,13 @@ class AlphaProviderRegistry:
         Returns:
             可用 Provider 列表（按优先级排序）
         """
-        active = []
+        active: list[AlphaProvider] = []
         for provider in self._providers:
             status, error = _get_provider_health_or_unavailable(
                 provider,
                 context="get_active_providers",
             )
-            if error is None and status != AlphaProviderStatus.UNAVAILABLE:
+            if error is None and status is not None and status != AlphaProviderStatus.UNAVAILABLE:
                 active.append(provider)
                 logger.debug(f"Provider {provider.name}: {status.value}")
 
@@ -400,8 +432,8 @@ class AlphaProviderRegistry:
         universe_id: str,
         intended_trade_date: date,
         top_n: int = 30,
-        user=None,
-        provider_filter: str = None,
+        user: Any = None,
+        provider_filter: str | None = None,
         pool_scope: AlphaPoolScope | None = None,
     ) -> AlphaResult:
         """
@@ -481,12 +513,10 @@ class AlphaProviderRegistry:
             logger.warning("[AlphaRequest] 没有可用的 Provider")
 
             # 记录失败指标
-            _record_metrics(
-                lambda metrics: metrics.record_provider_call(
-                    "none",
-                    success=False,
-                    latency_ms=0,
-                ),
+            _record_provider_metrics(
+                provider_name="none",
+                success=False,
+                latency_ms=0,
                 context="no_active_providers",
             )
 
@@ -500,7 +530,7 @@ class AlphaProviderRegistry:
             )
 
         # 遍历 Provider
-        attempted_providers = []
+        attempted_providers: list[str] = []
         best_degraded_result: AlphaResult | None = None
         best_degraded_provider_name: str | None = None
         for i, provider in enumerate(active_providers):
@@ -548,12 +578,10 @@ class AlphaProviderRegistry:
                     )
 
                     # 记录失败指标
-                    _record_metrics(
-                        lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
-                            _p.name,
-                            success=False,
-                            latency_ms=_lat,
-                        ),
+                    _record_provider_metrics(
+                        provider_name=provider.name,
+                        success=False,
+                        latency_ms=latency_ms,
                         context=f"{provider.name}_failed_result",
                     )
 
@@ -591,20 +619,12 @@ class AlphaProviderRegistry:
                         )
 
                         # 记录指标
-                        _record_metrics(
-                            lambda metrics, _p=provider, _lat=latency_ms, _r=result: (
-                                metrics.record_provider_call(
-                                    _p.name,
-                                    success=True,
-                                    latency_ms=_lat,
-                                    staleness_days=_r.staleness_days,
-                                ),
-                                (
-                                    metrics.record_coverage(len(_r.scores), 300)
-                                    if _r.scores
-                                    else None
-                                ),
-                            ),
+                        _record_provider_metrics(
+                            provider_name=provider.name,
+                            success=True,
+                            latency_ms=latency_ms,
+                            staleness_days=result.staleness_days,
+                            scored_count=len(result.scores) if result.scores else None,
                             context=f"{provider.name}_degraded_result",
                         )
 
@@ -637,17 +657,13 @@ class AlphaProviderRegistry:
                     )
 
                 # 记录成功指标
-                _record_metrics(
-                    lambda metrics, _p=provider, _lat=latency_ms, _r=result, _ch=cache_hit: (
-                        metrics.record_provider_call(
-                            _p.name,
-                            success=True,
-                            latency_ms=_lat,
-                            staleness_days=_r.staleness_days,
-                        ),
-                        metrics.record_cache_hit(True) if _ch else None,
-                        metrics.record_coverage(len(_r.scores), 300) if _r.scores else None,
-                    ),
+                _record_provider_metrics(
+                    provider_name=provider.name,
+                    success=True,
+                    latency_ms=latency_ms,
+                    staleness_days=result.staleness_days,
+                    cache_hit=cache_hit,
+                    scored_count=len(result.scores) if result.scores else None,
                     context=f"{provider.name}_provider_success",
                 )
 
@@ -660,12 +676,10 @@ class AlphaProviderRegistry:
                 )
 
                 # 记录异常指标
-                _record_metrics(
-                    lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
-                        _p.name,
-                        success=False,
-                        latency_ms=_lat,
-                    ),
+                _record_provider_metrics(
+                    provider_name=provider.name,
+                    success=False,
+                    latency_ms=latency_ms,
                     context=f"{provider.name}_provider_exception",
                 )
 
@@ -676,12 +690,10 @@ class AlphaProviderRegistry:
                     f"[AlphaProvider] Provider {provider.name} 出现未分类异常: {e}",
                     exc_info=True,
                 )
-                _record_metrics(
-                    lambda metrics, _p=provider, _lat=latency_ms: metrics.record_provider_call(
-                        _p.name,
-                        success=False,
-                        latency_ms=_lat,
-                    ),
+                _record_provider_metrics(
+                    provider_name=provider.name,
+                    success=False,
+                    latency_ms=latency_ms,
                     context=f"{provider.name}_provider_unclassified_exception",
                 )
                 continue
@@ -702,19 +714,13 @@ class AlphaProviderRegistry:
                 ),
             )
 
-            _record_metrics(
-                lambda metrics: (
-                    metrics.record_provider_call(
-                        best_degraded_provider_name,
-                        success=True,
-                        latency_ms=best_degraded_result.latency_ms or 0,
-                        staleness_days=best_degraded_result.staleness_days,
-                    ),
-                    (
-                        metrics.record_coverage(len(best_degraded_result.scores), 300)
-                        if best_degraded_result.scores
-                        else None
-                    ),
+            _record_provider_metrics(
+                provider_name=best_degraded_provider_name,
+                success=True,
+                latency_ms=best_degraded_result.latency_ms or 0,
+                staleness_days=best_degraded_result.staleness_days,
+                scored_count=(
+                    len(best_degraded_result.scores) if best_degraded_result.scores else None
                 ),
                 context=f"{best_degraded_provider_name}_stale_fallback",
             )
@@ -773,7 +779,7 @@ class AlphaProviderRegistry:
         intended_trade_date: date,
         top_n: int,
         pool_scope: AlphaPoolScope | None,
-        user,
+        user: Any,
     ) -> AlphaResult:
         """Call providers with only the optional context parameters they support."""
         signature = inspect.signature(provider.get_stock_scores)
@@ -811,7 +817,7 @@ class AlphaProviderRegistry:
         return provider.supports(universe_id)
 
     def _create_fallback_alert(
-        self, current_provider: str, attempted_providers: list, reason: str
+        self, current_provider: str, attempted_providers: list[str], reason: str
     ) -> None:
         """
         创建 Provider 降级告警
@@ -835,7 +841,7 @@ class AlphaProviderRegistry:
                     metadata={
                         "current_provider": current_provider,
                         "attempted_providers": attempted_providers,
-                        "alert_updated_at": timezone.now().isoformat(),
+                        "alert_updated_at": django_timezone.now().isoformat(),
                     },
                 )
                 logger.info(f"[AlphaAlert] 更新降级告警: {reason}")
@@ -878,7 +884,8 @@ class AlphaService:
         ...         print(f"{stock.rank}. {stock.code}: {stock.score:.3f}")
     """
 
-    _instance: Optional["AlphaService"] = None
+    _instance: "AlphaService | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "AlphaService":
         """实现单例模式"""
@@ -962,7 +969,7 @@ class AlphaService:
         universe_id: str = "csi300",
         intended_trade_date: date | None = None,
         top_n: int = 30,
-        user=None,
+        user: Any = None,
         provider_filter: str | None = None,
         pool_scope: AlphaPoolScope | None = None,
         ai_filter: bool = False,
@@ -1045,7 +1052,7 @@ class AlphaService:
         )
         return resolved.scope
 
-    def get_provider_status(self) -> dict[str, dict[str, str]]:
+    def get_provider_status(self) -> dict[str, dict[str, Any]]:
         """
         获取所有 Provider 状态
 
@@ -1060,7 +1067,7 @@ class AlphaService:
             >>> for name, info in status.items():
             ...     print(f"{name}: {info['status']} (priority={info['priority']})")
         """
-        status = {}
+        status: dict[str, dict[str, Any]] = {}
 
         for provider in self._registry.get_all_providers():
             health, error = _get_provider_health_or_unavailable(
@@ -1072,6 +1079,14 @@ class AlphaService:
                     "priority": provider.priority,
                     "status": "error",
                     "error": error,
+                }
+                continue
+
+            if health is None:
+                status[provider.name] = {
+                    "priority": provider.priority,
+                    "status": "error",
+                    "error": "Provider health check returned no status",
                 }
                 continue
 
