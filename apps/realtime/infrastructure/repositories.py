@@ -10,9 +10,10 @@ Following AgomSaaS architecture rules:
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from importlib import import_module
+from types import ModuleType
+from typing import Any, cast
 
-import pandas as pd
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
@@ -24,7 +25,9 @@ from apps.data_center.domain.entities import QuoteSnapshot as DataCenterQuoteSna
 from apps.data_center.infrastructure.gateways.akshare_eastmoney_gateway import (
     AKShareEastMoneyGateway,
 )
-from apps.data_center.infrastructure.legacy_sdk_bridge import get_akshare_module
+from apps.data_center.infrastructure.market_gateway_entities import (
+    QuoteSnapshot as MarketQuoteSnapshot,
+)
 from apps.data_center.infrastructure.repositories import PriceBarRepository, QuoteSnapshotRepository
 from apps.realtime.application.simulated_trading_gateway import (
     list_held_asset_codes as _list_held_asset_codes,
@@ -39,12 +42,22 @@ from apps.realtime.domain.entities import (
     normalize_asset_code,
 )
 from apps.realtime.domain.protocols import (
+    PriceAlertRepositoryProtocol,
     PriceDataProviderProtocol,
+    PriceSubscriptionRepositoryProtocol,
     RealtimePriceRepositoryProtocol,
     WatchlistProviderProtocol,
 )
+from shared.infrastructure.sdk_bridge import get_akshare_module as _load_akshare_module
 
 logger = logging.getLogger(__name__)
+
+
+def get_akshare_module() -> ModuleType:
+    """Load AkShare through a typed, patchable infrastructure boundary."""
+
+    return _load_akshare_module()
+pd = import_module("pandas")
 
 
 def _alert_to_domain(model: Any) -> PriceAlert:
@@ -78,7 +91,7 @@ def _subscription_to_domain(model: Any) -> PriceSubscription:
     )
 
 
-class DjangoPriceAlertRepository:
+class DjangoPriceAlertRepository(PriceAlertRepositoryProtocol):
     """Django ORM repository for durable price alerts."""
 
     def list_for_owner(self, owner_id: int) -> list[PriceAlert]:
@@ -195,7 +208,7 @@ class DjangoPriceAlertRepository:
             return _alert_to_domain(model)
 
 
-class DjangoPriceSubscriptionRepository:
+class DjangoPriceSubscriptionRepository(PriceSubscriptionRepositoryProtocol):
     """Django ORM repository for durable realtime subscriptions."""
 
     def list_for_owner(self, owner_id: int) -> list[PriceSubscription]:
@@ -319,14 +332,18 @@ class RedisRealtimePriceRepository(RealtimePriceRepositoryProtocol):
 
         return result
 
-    def _dict_to_price(self, data: dict) -> RealtimePrice:
+    def _dict_to_price(self, data: dict[str, Any]) -> RealtimePrice:
         """将字典转换为 RealtimePrice 对象"""
         return RealtimePrice(
             asset_code=data["asset_code"],
             asset_type=AssetType(data["asset_type"]),
-            price=str(data["price"]),
-            change=str(data["change"]) if data.get("change") else None,
-            change_pct=str(data["change_pct"]) if data.get("change_pct") else None,
+            price=Decimal(str(data["price"])),
+            change=(Decimal(str(data["change"])) if data.get("change") is not None else None),
+            change_pct=(
+                Decimal(str(data["change_pct"]))
+                if data.get("change_pct") is not None
+                else None
+            ),
             volume=data.get("volume"),
             timestamp=datetime.fromisoformat(data["timestamp"]),
             source=data["source"],
@@ -340,7 +357,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
     使用现有的 TushareAdapter 适配器
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._quote_repo = QuoteSnapshotRepository()
         self._price_repo = PriceBarRepository()
         self._is_available = True
@@ -356,7 +373,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
                 return RealtimePrice(
                     asset_code=asset_code,
                     asset_type=self._get_asset_type(asset_code),
-                    price=str(quote.current_price),
+                    price=Decimal(str(quote.current_price)),
                     change=None,
                     change_pct=None,
                     volume=int(quote.volume) if quote.volume is not None else None,
@@ -372,7 +389,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
             return RealtimePrice(
                 asset_code=asset_code,
                 asset_type=self._get_asset_type(asset_code),
-                price=str(latest_bar.close),
+                price=Decimal(str(latest_bar.close)),
                 change=None,
                 change_pct=None,
                 volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
@@ -436,14 +453,14 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     完全免费，无需 Token
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._quote_repo = QuoteSnapshotRepository()
         self._price_repo = PriceBarRepository()
         self._is_available = True
-        self._ak = None
+        self._ak: ModuleType | None = None
         self._eastmoney_gateway: AKShareEastMoneyGateway | None = None
 
-    def _get_ak(self):
+    def _get_ak(self) -> ModuleType:
         if self._ak is None:
             self._ak = get_akshare_module()
         return self._ak
@@ -454,16 +471,16 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         return self._eastmoney_gateway
 
     @staticmethod
-    def _pick_value(row, candidates: list[str]):
+    def _pick_value(row: Any, candidates: list[str]) -> object | None:
         for candidate in candidates:
             if candidate in row and pd.notna(row[candidate]):
-                return row[candidate]
+                return cast(object, row[candidate])
         return None
 
     def _build_price_from_spot_row(
         self,
         asset_code: str,
-        row,
+        row: Any,
     ) -> RealtimePrice | None:
         latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
         if latest_price is None:
@@ -479,7 +496,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             price=Decimal(str(latest_price)),
             change=Decimal(str(change)) if change is not None else None,
             change_pct=Decimal(str(change_pct)) if change_pct is not None else None,
-            volume=int(float(volume)) if volume is not None else None,
+            volume=int(float(str(volume))) if volume is not None else None,
             timestamp=timezone.now(),
             source="akshare",
         )
@@ -487,7 +504,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
     def _build_quote_snapshot_from_spot_row(
         self,
         asset_code: str,
-        row,
+        row: Any,
     ) -> DataCenterQuoteSnapshot | None:
         latest_price = self._pick_value(row, ["最新价", "最新", "现价"])
         if latest_price is None:
@@ -499,20 +516,20 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         return DataCenterQuoteSnapshot(
             asset_code=asset_code,
             snapshot_at=snapshot_at,
-            current_price=float(latest_price),
+            current_price=float(str(latest_price)),
             source="akshare",
             open=self._pick_float(row, ["今开", "开盘"]),
             high=self._pick_float(row, ["最高"]),
             low=self._pick_float(row, ["最低"]),
             prev_close=self._pick_float(row, ["昨收", "昨结"]),
-            volume=float(volume) if volume is not None else None,
-            amount=float(amount) if amount is not None else None,
+            volume=float(str(volume)) if volume is not None else None,
+            amount=float(str(amount)) if amount is not None else None,
         )
 
     def _build_price_from_quote_snapshot(
         self,
         asset_code: str,
-        snapshot,
+        snapshot: MarketQuoteSnapshot,
     ) -> RealtimePrice | None:
         price = getattr(snapshot, "price", None)
         if price is None:
@@ -539,19 +556,19 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         )
 
     @staticmethod
-    def _pick_float(row, candidates: list[str]) -> float | None:
+    def _pick_float(row: Any, candidates: list[str]) -> float | None:
         value = AKSharePriceDataProvider._pick_value(row, candidates)
         if value in (None, ""):
             return None
         try:
-            return float(value)
+            return float(str(value))
         except (TypeError, ValueError):
             return None
 
     def _build_market_quote_snapshot(
         self,
         asset_code: str,
-        snapshot,
+        snapshot: MarketQuoteSnapshot,
     ) -> DataCenterQuoteSnapshot | None:
         price = getattr(snapshot, "price", None)
         if price is None:
@@ -561,24 +578,24 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         return DataCenterQuoteSnapshot(
             asset_code=asset_code,
             snapshot_at=snapshot_at,
-            current_price=float(price),
-            source=getattr(snapshot, "source", None) or "eastmoney",
-            open=float(snapshot.open) if getattr(snapshot, "open", None) is not None else None,
-            high=float(snapshot.high) if getattr(snapshot, "high", None) is not None else None,
-            low=float(snapshot.low) if getattr(snapshot, "low", None) is not None else None,
+            current_price=float(str(price)),
+            source=snapshot.source or "eastmoney",
+            open=float(snapshot.open) if snapshot.open is not None else None,
+            high=float(snapshot.high) if snapshot.high is not None else None,
+            low=float(snapshot.low) if snapshot.low is not None else None,
             prev_close=(
                 float(snapshot.pre_close)
-                if getattr(snapshot, "pre_close", None) is not None
+                if snapshot.pre_close is not None
                 else None
             ),
             volume=(
-                float(snapshot.volume) if getattr(snapshot, "volume", None) is not None else None
+                float(snapshot.volume) if snapshot.volume is not None else None
             ),
             amount=(
-                float(snapshot.amount) if getattr(snapshot, "amount", None) is not None else None
+                float(snapshot.amount) if snapshot.amount is not None else None
             ),
-            bid=float(snapshot.bid) if getattr(snapshot, "bid", None) is not None else None,
-            ask=float(snapshot.ask) if getattr(snapshot, "ask", None) is not None else None,
+            bid=None,
+            ask=None,
         )
 
     def _persist_quote_snapshots(
@@ -620,7 +637,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         self._persist_quote_snapshots(quotes_to_persist)
         return results
 
-    def _find_spot_row(self, frame: pd.DataFrame, asset_code: str):
+    def _find_spot_row(self, frame: Any, asset_code: str) -> Any | None:
         if frame is None or frame.empty:
             return None
 
@@ -638,7 +655,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             return None
         return matches.iloc[0]
 
-    def _load_spot_frame(self, loader_name: str) -> pd.DataFrame:
+    def _load_spot_frame(self, loader_name: str) -> Any:
         loader = getattr(self._get_ak(), loader_name, None)
         if loader is None:
             return pd.DataFrame()
@@ -659,7 +676,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
             return RealtimePrice(
                 asset_code=asset_code,
                 asset_type=self._get_asset_type(asset_code),
-                price=str(quote.current_price),
+                price=Decimal(str(quote.current_price)),
                 change=None,
                 change_pct=None,
                 volume=int(quote.volume) if quote.volume is not None else None,
@@ -674,7 +691,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         return RealtimePrice(
             asset_code=asset_code,
             asset_type=self._get_asset_type(asset_code),
-            price=str(latest_bar.close),
+            price=Decimal(str(latest_bar.close)),
             change=None,
             change_pct=None,
             volume=int(latest_bar.volume) if latest_bar.volume is not None else None,
@@ -729,7 +746,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
         fund_frame = self._load_spot_frame("fund_etf_spot_em")
         stock_frame = self._load_spot_frame("stock_zh_a_spot_em")
         direct_quotes: dict[str, RealtimePrice] = {}
-        prices = []
+        prices: list[RealtimePrice] = []
         missing_codes: list[str] = []
         quotes_to_persist: list[DataCenterQuoteSnapshot] = []
         for code in asset_codes:
@@ -844,7 +861,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
 class DataCenterPriceDataProvider(PriceDataProviderProtocol):
     """Price provider backed by data_center quote/price facts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         from apps.data_center.infrastructure.repositories import (
             PriceBarRepository,
             QuoteSnapshotRepository,

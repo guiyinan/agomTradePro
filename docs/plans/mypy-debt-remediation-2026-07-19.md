@@ -469,3 +469,16 @@
 
 - AI Capability interface service 的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8240 errors / 911 files` 收紧为 `8228 errors / 910 files`，净减少 `12 errors / 1 file`。
 - MCP tools 页面与切换回归：`6 passed`；架构 delta 扫描 `1 file / 19 added lines / 0 violations`；Ruff、diff check 通过。
+
+## 第三十四批
+
+- 按“真实风险 + 公共链路杠杆”收口 Realtime 的 Repository、Provider composition、Polling Service 与 Interface：Redis、Tushare、AKShare 和 Data Center 行情出口统一构造 `Decimal` 领域价格，不再把字符串价格带入持仓、提醒和推送链路。
+- 修复缓存反序列化的零值语义：`change=0` 与 `change_pct=0` 现在保持为 `Decimal("0")`，不再因 truthy 判断被误写成缺失值；新增专门回归锁定价格精度与零涨跌值。
+- 为提醒、订阅和 Channels notifier concrete repository 显式实现领域 ABC；Provider 列表、模拟持仓更新结果和 API payload 分别使用 Protocol、TypedDict 与局部动态边界，消除 composition 中隐式 `Any` 和名义协议不匹配。
+- Interface 层统一校验已认证用户具有持久化主键，并补齐 Django/DRF handler 参数、市场汇总异构 payload 和健康检查状态类型，避免把 `pk=None` 传入 owner-scoped repository。
+- 共享 AkShare SDK bridge 改为带 `ModuleType` 返回值的动态导入边界，同时保留 Realtime 可 patch 的加载接缝；类型传播连带清除 Alpha、Data Center、Equity 和 Realtime 其他调用点的 18 项 `no-untyped-call`。模拟交易任务中因此失效的冗余 cast 同步删除。
+
+## 第三十四批验证结果
+
+- 7 个变更生产文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8228 errors / 910 files` 收紧为 `8131 errors / 902 files`，净减少 `97 errors / 8 files`，无文件或错误码反弹。
+- Realtime repository、AKShare/Data Center provider、Polling、Interface、价格交付与模拟交易 task wiring 回归共 `32 passed`；架构 delta 扫描 `7 files / 202 added lines / 0 violations`，Django system check、Ruff 和 diff check 通过。

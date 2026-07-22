@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8228,
-    "files_with_errors": 910
+    "errors": 8131,
+    "files_with_errors": 902
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -589,7 +589,6 @@
       "arg-type": 2,
       "attr-defined": 1,
       "misc": 2,
-      "no-untyped-call": 1,
       "no-untyped-def": 4,
       "return-value": 1,
       "type-arg": 5
@@ -1406,7 +1405,6 @@
     "apps/data_center/composition.py": {
       "arg-type": 2,
       "attr-defined": 1,
-      "no-untyped-call": 1,
       "no-untyped-def": 1
     },
     "apps/data_center/domain/rules.py": {
@@ -1416,7 +1414,7 @@
       "arg-type": 6,
       "attr-defined": 5,
       "import-untyped": 1,
-      "no-untyped-call": 6
+      "no-untyped-call": 1
     },
     "apps/data_center/infrastructure/_provider_adapter_base.py": {
       "import-untyped": 1,
@@ -1454,14 +1452,12 @@
       "arg-type": 1,
       "attr-defined": 1,
       "import-untyped": 2,
-      "no-untyped-call": 4,
       "no-untyped-def": 3,
       "type-arg": 2
     },
     "apps/data_center/infrastructure/gateways/akshare_general_gateway.py": {
       "arg-type": 1,
-      "attr-defined": 1,
-      "no-untyped-call": 1
+      "attr-defined": 1
     },
     "apps/data_center/infrastructure/gateways/qmt_gateway.py": {
       "arg-type": 1,
@@ -1486,7 +1482,6 @@
     },
     "apps/data_center/infrastructure/macro_sources/akshare_adapter.py": {
       "no-any-return": 54,
-      "no-untyped-call": 1,
       "no-untyped-def": 10
     },
     "apps/data_center/infrastructure/macro_sources/base.py": {
@@ -1595,8 +1590,7 @@
     },
     "apps/data_center/infrastructure/sse_investor_accounts.py": {
       "attr-defined": 1,
-      "import-untyped": 1,
-      "no-untyped-call": 1
+      "import-untyped": 1
     },
     "apps/data_center/interface/admin.py": {
       "no-untyped-def": 4,
@@ -1985,8 +1979,7 @@
       "assignment": 1,
       "attr-defined": 15,
       "import-untyped": 1,
-      "no-any-return": 3,
-      "no-untyped-call": 1
+      "no-any-return": 3
     },
     "apps/equity/infrastructure/market_data_repository.py": {
       "attr-defined": 16,
@@ -2842,30 +2835,8 @@
     "apps/pulse/management/commands/show_pulse_config.py": {
       "no-untyped-def": 1
     },
-    "apps/realtime/application/data_center_gateway.py": {
-      "no-untyped-call": 1
-    },
-    "apps/realtime/application/price_polling_service.py": {
-      "arg-type": 2,
-      "assignment": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 3,
-      "type-arg": 3,
-      "union-attr": 1
-    },
-    "apps/realtime/application/query_services.py": {
-      "no-untyped-call": 1
-    },
-    "apps/realtime/application/repository_provider.py": {
-      "arg-type": 4,
-      "attr-defined": 2,
-      "list-item": 2,
-      "no-untyped-call": 3,
-      "return-value": 3
-    },
     "apps/realtime/application/tasks.py": {
       "misc": 1,
-      "no-untyped-call": 1,
       "type-arg": 1
     },
     "apps/realtime/domain/entities.py": {
@@ -2873,17 +2844,6 @@
     },
     "apps/realtime/domain/services.py": {
       "no-untyped-def": 1
-    },
-    "apps/realtime/infrastructure/channel_notifier.py": {
-      "import-untyped": 1
-    },
-    "apps/realtime/infrastructure/repositories.py": {
-      "arg-type": 7,
-      "attr-defined": 1,
-      "import-untyped": 1,
-      "no-untyped-call": 2,
-      "no-untyped-def": 12,
-      "type-arg": 1
     },
     "apps/realtime/interface/__init__.py": {
       "misc": 3,
@@ -2906,13 +2866,6 @@
       "no-any-return": 1,
       "no-untyped-def": 2,
       "type-arg": 6
-    },
-    "apps/realtime/interface/views.py": {
-      "arg-type": 8,
-      "assignment": 2,
-      "no-untyped-call": 5,
-      "no-untyped-def": 12,
-      "var-annotated": 1
     },
     "apps/realtime/interface/websocket_auth.py": {
       "import-untyped": 2,
@@ -3951,9 +3904,6 @@
       "no-untyped-def": 1,
       "type-arg": 1,
       "var-annotated": 1
-    },
-    "shared/infrastructure/sdk_bridge.py": {
-      "no-untyped-def": 1
     },
     "shared/infrastructure/tushare_client.py": {
       "attr-defined": 1

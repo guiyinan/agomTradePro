@@ -10,11 +10,13 @@ Following AgomSaaS architecture rules:
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
+from typing import Any
 
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.views import View
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -44,6 +46,15 @@ from core.integration.realtime_sector_performance import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _authenticated_owner_id(request: Request) -> int:
+    """Return the persisted integer owner ID for an authenticated request."""
+
+    owner_id = request.user.pk
+    if owner_id is None:
+        raise NotAuthenticated("Authenticated user must be persisted.")
+    return int(owner_id)
 
 
 class RealtimeAuthenticatedAPIView(APIView):
@@ -81,7 +92,7 @@ class PriceAlertListCreateView(RealtimeAuthenticatedAPIView):
     def get(self, request: Request) -> Response:
         """List only the authenticated owner's alerts."""
 
-        results = get_realtime_alert_service().list(int(request.user.pk))
+        results = get_realtime_alert_service().list(_authenticated_owner_id(request))
         payload = PriceAlertResponseSerializer(results, many=True).data
         return Response({"results": payload, "count": len(payload)})
 
@@ -91,7 +102,7 @@ class PriceAlertListCreateView(RealtimeAuthenticatedAPIView):
         serializer = PriceAlertCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         created = get_realtime_alert_service().create(
-            int(request.user.pk),
+            _authenticated_owner_id(request),
             **serializer.validated_data,
         )
         return Response(
@@ -106,7 +117,7 @@ class PriceAlertDetailView(RealtimeAuthenticatedAPIView):
     def get(self, request: Request, alert_id: int) -> Response:
         """Return one alert or an owner-scoped 404."""
 
-        result = get_realtime_alert_service().get(int(request.user.pk), alert_id)
+        result = get_realtime_alert_service().get(_authenticated_owner_id(request), alert_id)
         if result is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(PriceAlertResponseSerializer(result).data)
@@ -117,7 +128,7 @@ class PriceAlertDetailView(RealtimeAuthenticatedAPIView):
         serializer = PriceAlertUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = get_realtime_alert_service().update(
-            int(request.user.pk),
+            _authenticated_owner_id(request),
             alert_id,
             dict(serializer.validated_data),
         )
@@ -128,7 +139,9 @@ class PriceAlertDetailView(RealtimeAuthenticatedAPIView):
     def delete(self, request: Request, alert_id: int) -> Response:
         """Delete one alert within the authenticated owner scope."""
 
-        deleted = get_realtime_alert_service().delete(int(request.user.pk), alert_id)
+        deleted = get_realtime_alert_service().delete(
+            _authenticated_owner_id(request), alert_id
+        )
         if not deleted:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -140,7 +153,9 @@ class PriceSubscriptionListCreateView(RealtimeAuthenticatedAPIView):
     def get(self, request: Request) -> Response:
         """List the authenticated owner's active subscriptions."""
 
-        results = get_realtime_subscription_service().list(int(request.user.pk))
+        results = get_realtime_subscription_service().list(
+            _authenticated_owner_id(request)
+        )
         payload = PriceSubscriptionResponseSerializer(results, many=True).data
         return Response({"results": payload, "count": len(payload)})
 
@@ -151,7 +166,7 @@ class PriceSubscriptionListCreateView(RealtimeAuthenticatedAPIView):
         serializer.is_valid(raise_exception=True)
         try:
             result = get_realtime_subscription_service().subscribe(
-                int(request.user.pk),
+                _authenticated_owner_id(request),
                 serializer.validated_data["asset_code"],
             )
         except SubscriptionLimitExceeded as exc:
@@ -172,7 +187,7 @@ class PriceSubscriptionDetailView(RealtimeAuthenticatedAPIView):
         """Deactivate a subscription or return an owner-scoped 404."""
 
         removed = get_realtime_subscription_service().unsubscribe(
-            int(request.user.pk),
+            _authenticated_owner_id(request),
             asset_code,
         )
         if not removed:
@@ -189,17 +204,19 @@ class MarketSummaryView(View):
         "cyb_index": "399006.SZ",
     }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def get(self, request, *args, **kwargs):
+    def get(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> JsonResponse:
         """GET /api/realtime/market-summary/"""
         prices = self.use_case.get_latest_prices(list(self.INDEX_CODES.values()))
         prices_by_code = {item["asset_code"]: item for item in prices}
-        index_payload = {}
-        latest_timestamp = None
-        total_volume = 0
+        index_payload: dict[str, Any] = {}
+        latest_timestamp: str | None = None
+        total_volume: int | float = 0
         available_count = 0
 
         for field_name, asset_code in self.INDEX_CODES.items():
@@ -221,10 +238,12 @@ class MarketSummaryView(View):
                         timestamp,
                     )
                 )
-            total_volume += price.get("volume") or 0
+            volume = price.get("volume")
+            if isinstance(volume, (int, float)) and not isinstance(volume, bool):
+                total_volume += volume
             available_count += 1
 
-        payload = {
+        payload: dict[str, Any] = {
             "success": available_count > 0,
             "stats_available": False,
             "message": (
@@ -248,11 +267,13 @@ class MarketSummaryView(View):
 class RealtimePriceView(View):
     """实时价格 API 视图"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def get(self, request, *args, **kwargs):
+    def get(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> JsonResponse:
         """GET /api/realtime/prices/
 
         查询参数:
@@ -301,7 +322,9 @@ class RealtimePriceView(View):
             snapshot.setdefault("success_flag", True)
             return JsonResponse(snapshot)
 
-    def post(self, request, *args, **kwargs):
+    def post(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> JsonResponse:
         """POST /api/realtime/prices/
 
         手动触发价格轮询
@@ -317,11 +340,17 @@ class RealtimePriceView(View):
 class SingleAssetPriceView(View):
     """单个资产价格 API 视图"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def get(self, request, asset_code, *args, **kwargs):
+    def get(
+        self,
+        request: HttpRequest,
+        asset_code: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> JsonResponse:
         """GET /api/realtime/prices/{asset_code}/
 
         获取单个资产的最新价格
@@ -345,7 +374,7 @@ class SingleAssetPriceView(View):
                 {"success": False, "error": f"Price not found for asset: {asset_code}"}, status=404
             )
 
-        payload = {"success": True}
+        payload: dict[str, Any] = {"success": True}
         payload.update(prices[0])
         return JsonResponse(payload)
 
@@ -355,7 +384,7 @@ class SectorPerformanceView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         query = SectorPerformanceQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         results = list_realtime_sector_performance_payloads()
@@ -367,7 +396,7 @@ class TopMoversView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request) -> Response:
+    def get(self, request: Request) -> Response:
         query = TopMoversQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         results = list_cached_top_movers_payloads(**query.validated_data)
@@ -386,11 +415,13 @@ class PricePollingTriggerView(View):
     用于手动触发价格更新或定时任务调用
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.use_case = PricePollingUseCase()
 
-    def post(self, request, *args, **kwargs):
+    def post(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> JsonResponse:
         """POST /api/realtime/poll/
 
         触发价格轮询
@@ -410,7 +441,9 @@ class HealthCheckView(View):
     检查实时价格服务是否正常
     """
 
-    def get(self, request, *args, **kwargs):
+    def get(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> JsonResponse:
         """GET /api/realtime/health/
 
         Returns:
@@ -422,6 +455,8 @@ class HealthCheckView(View):
         """
         use_case = PricePollingUseCase()
         check_provider_availability = getattr(type(use_case), "check_provider_availability", None)
+        is_available: bool
+        health_error: str | None
         if callable(check_provider_availability):
             is_available, health_error = use_case.check_provider_availability(timeout_seconds=2.0)
         else:

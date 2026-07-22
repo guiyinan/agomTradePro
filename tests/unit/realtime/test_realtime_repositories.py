@@ -16,7 +16,30 @@ from apps.realtime.infrastructure.models import (
 from apps.realtime.infrastructure.repositories import (
     DjangoPriceAlertRepository,
     DjangoPriceSubscriptionRepository,
+    RedisRealtimePriceRepository,
 )
+
+
+def test_cached_price_deserialization_preserves_decimal_zero_values() -> None:
+    """Cached numeric strings and zero changes retain their domain semantics."""
+
+    cached = {
+        "asset_code": "510300.SH",
+        "asset_type": "fund",
+        "price": "3.500001",
+        "change": 0,
+        "change_pct": "0",
+        "volume": 123,
+        "timestamp": "2026-07-22T09:30:00+08:00",
+        "source": "redis-test",
+    }
+
+    price = RedisRealtimePriceRepository()._dict_to_price(cached)
+
+    assert price.price == Decimal("3.500001")
+    assert isinstance(price.price, Decimal)
+    assert price.change == Decimal("0")
+    assert price.change_pct == Decimal("0")
 
 
 @pytest.fixture

@@ -12,6 +12,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from decimal import Decimal
+from typing import Any, Protocol, TypedDict, cast
 
 from django.utils import timezone
 
@@ -27,10 +28,12 @@ from apps.realtime.application.simulated_trading_gateway import (
     get_simulated_position_repository,
 )
 from apps.realtime.domain.entities import (
+    PriceAlert,
     PricePollingConfig,
     PriceSnapshot,
     PriceUpdate,
     PriceUpdateStatus,
+    RealtimePrice,
 )
 from apps.realtime.domain.protocols import (
     PriceAlertRepositoryProtocol,
@@ -44,10 +47,29 @@ from apps.realtime.domain.protocols import (
 logger = logging.getLogger(__name__)
 
 
-def get_simulated_position_price_updater():
+class PositionPriceUpdate(TypedDict):
+    """Normalized result returned after updating one simulated position."""
+
+    asset_code: str
+    old_price: Decimal
+    new_price: Decimal
+    price_changed: bool
+
+
+class PositionPriceUpdaterProtocol(Protocol):
+    """Application-facing contract for simulated position price updates."""
+
+    def update_position_prices(
+        self,
+        price_by_code: dict[str, Decimal],
+    ) -> list[PositionPriceUpdate]:
+        """Update positions and return normalized per-position changes."""
+
+
+def get_simulated_position_price_updater() -> PositionPriceUpdaterProtocol:
     """Return the default simulated position repository for price updates."""
 
-    return get_simulated_position_repository()
+    return cast(PositionPriceUpdaterProtocol, get_simulated_position_repository())
 
 
 class PricePollingService:
@@ -62,7 +84,7 @@ class PricePollingService:
         price_provider: PriceDataProviderProtocol,
         watchlist_provider: WatchlistProviderProtocol,
         config: PricePollingConfig | None = None,
-        position_repository: object | None = None,
+        position_repository: PositionPriceUpdaterProtocol | None = None,
         subscription_repository: PriceSubscriptionRepositoryProtocol | None = None,
         alert_repository: PriceAlertRepositoryProtocol | None = None,
         notifier: RealtimeChannelNotifierProtocol | None = None,
@@ -85,10 +107,12 @@ class PricePollingService:
         logger.info("Starting price polling...")
 
         # 1. 获取需要监控的资产列表
-        asset_codes = set(self.watchlist_provider.get_all_monitored_assets())
+        monitored_asset_codes = set(self.watchlist_provider.get_all_monitored_assets())
         if self.subscription_repository is not None:
-            asset_codes.update(self.subscription_repository.list_active_asset_codes())
-        asset_codes = sorted(asset_codes)
+            monitored_asset_codes.update(
+                self.subscription_repository.list_active_asset_codes()
+            )
+        asset_codes = sorted(monitored_asset_codes)
         total_assets = len(asset_codes)
 
         if total_assets == 0:
@@ -115,7 +139,7 @@ class PricePollingService:
         # 5. 更新持仓模型中的价格
         self._update_position_prices(prices)
 
-        claimed_alerts = []
+        claimed_alerts: list[PriceAlert] = []
         if prices and self.alert_repository is not None:
             try:
                 active_alerts = self.alert_repository.list_active_for_assets(
@@ -203,7 +227,7 @@ class PricePollingService:
             logger.warning(f"Failed to get price for {asset_code}")
             return PriceUpdate(
                 asset_code=asset_code,
-                old_price=Decimal(old_price.price) if old_price else None,
+                old_price=old_price.price if old_price else None,
                 new_price=None,
                 status=PriceUpdateStatus.FAILED,
                 timestamp=timezone.now(),
@@ -216,15 +240,15 @@ class PricePollingService:
         # 判断状态
         if old_price is None:
             status = PriceUpdateStatus.SUCCESS
-        elif Decimal(old_price.price) == Decimal(new_price.price):
+        elif old_price.price == new_price.price:
             status = PriceUpdateStatus.NO_CHANGE
         else:
             status = PriceUpdateStatus.SUCCESS
 
         update = PriceUpdate(
             asset_code=asset_code,
-            old_price=Decimal(old_price.price) if old_price else None,
-            new_price=Decimal(new_price.price),
+            old_price=old_price.price if old_price else None,
+            new_price=new_price.price,
             status=status,
             timestamp=timezone.now(),
         )
@@ -236,7 +260,7 @@ class PricePollingService:
 
         return update
 
-    def _update_position_prices(self, prices) -> list[PriceUpdate]:
+    def _update_position_prices(self, prices: list[RealtimePrice]) -> list[PriceUpdate]:
         """更新持仓模型中的当前价格
 
         Args:
@@ -245,8 +269,8 @@ class PricePollingService:
         Returns:
             PriceUpdate 对象列表
         """
-        updates = []
-        price_by_code = {price.asset_code: Decimal(price.price) for price in prices}
+        updates: list[PriceUpdate] = []
+        price_by_code = {price.asset_code: price.price for price in prices}
 
         for result in self.position_repository.update_position_prices(price_by_code):
             updates.append(
@@ -281,9 +305,7 @@ class PricePollingUseCase:
     提供给上层使用的接口
     """
 
-    def __init__(self):
-        from apps.realtime.domain.entities import PricePollingConfig
-
+    def __init__(self) -> None:
         # 初始化依赖
         self.price_repository = get_realtime_price_repository()
         self.price_provider = get_realtime_price_provider()
@@ -300,16 +322,16 @@ class PricePollingUseCase:
             notifier=get_realtime_channel_notifier(),
         )
 
-    def execute_price_polling(self) -> dict:
+    def execute_price_polling(self) -> dict[str, Any]:
         """执行价格轮询
 
         Returns:
             价格快照字典
         """
         snapshot = self.service.poll_and_update_prices()
-        return snapshot.to_dict()
+        return cast(dict[str, Any], snapshot.to_dict())
 
-    def get_latest_prices(self, asset_codes: list[str]) -> list[dict]:
+    def get_latest_prices(self, asset_codes: list[str]) -> list[dict[str, Any]]:
         """获取最新价格
 
         Args:
@@ -330,22 +352,25 @@ class PricePollingUseCase:
                     prices_by_code[price.asset_code] = price
 
         return [
-            prices_by_code[asset_code].to_dict()
+            cast(dict[str, Any], prices_by_code[asset_code].to_dict())
             for asset_code in asset_codes
             if asset_code in prices_by_code
         ]
 
-    def get_cached_monitored_prices(self) -> list[dict]:
+    def get_cached_monitored_prices(self) -> list[dict[str, Any]]:
         """Return cached prices for monitored assets without provider fallback or writes."""
 
         asset_codes = sorted(set(self.watchlist_provider.get_all_monitored_assets()))
-        return [price.to_dict() for price in self.price_repository.get_latest_prices(asset_codes)]
+        return [
+            cast(dict[str, Any], price.to_dict())
+            for price in self.price_repository.get_latest_prices(asset_codes)
+        ]
 
     def check_provider_availability(self, timeout_seconds: float = 2.0) -> tuple[bool, str | None]:
         """Check whether the configured price provider responds within timeout."""
 
-        health_error = None
-        is_available = False
+        health_error: str | None = None
+        is_available: bool = False
         executor = ThreadPoolExecutor(max_workers=1)
         try:
             future = executor.submit(self.price_provider.is_available)

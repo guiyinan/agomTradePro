@@ -97,7 +97,7 @@ def execute_realtime_price_polling() -> dict[str, Any]:
     """Execute one realtime polling cycle through the owning realtime app."""
 
     polling_factory = cast(Callable[[], PricePollingUseCase], PricePollingUseCase)
-    return cast(dict[str, Any], polling_factory().execute_price_polling())
+    return polling_factory().execute_price_polling()
 
 
 def _require_int_field(payload: dict[str, Any], field_name: str) -> int:

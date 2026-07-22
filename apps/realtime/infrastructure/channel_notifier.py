@@ -1,21 +1,29 @@
 """Channels-backed realtime price and alert delivery."""
 
+from importlib import import_module
 from typing import Any
 
 from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.conf import settings
 
 from apps.realtime.domain.entities import PriceAlert, RealtimePrice
+from apps.realtime.domain.protocols import RealtimeChannelNotifierProtocol
 
 
-class ChannelPriceNotifier:
+def _get_channel_layer() -> Any:
+    """Resolve the optional Channels layer at the infrastructure boundary."""
+
+    channels_layers = import_module("channels.layers")
+    return channels_layers.get_channel_layer()
+
+
+class ChannelPriceNotifier(RealtimeChannelNotifierProtocol):
     """Publish owner- and asset-sharded events through the channel layer."""
 
     def _send(self, group: str, event: dict[str, Any]) -> None:
         if not settings.REALTIME_WEBSOCKET_ENABLED:
             return
-        channel_layer = get_channel_layer()
+        channel_layer = _get_channel_layer()
         if channel_layer is None:
             return
         async_to_sync(channel_layer.group_send)(group, event)

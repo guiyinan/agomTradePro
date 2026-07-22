@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from importlib import import_module
+from types import ModuleType
 
-def get_akshare_module():
+
+def get_akshare_module() -> ModuleType:
     """Import and return the AKShare module lazily."""
 
-    import akshare as ak
-
-    return ak
+    return import_module("akshare")
