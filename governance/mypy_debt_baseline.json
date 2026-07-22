@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9051,
-    "files_with_errors": 942
+    "errors": 9042,
+    "files_with_errors": 940
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -4163,11 +4163,6 @@
       "type-arg": 1,
       "var-annotated": 1
     },
-    "shared/infrastructure/sanitization.py": {
-      "no-untyped-def": 3,
-      "type-arg": 2,
-      "valid-type": 1
-    },
     "shared/infrastructure/sdk_bridge.py": {
       "no-untyped-def": 1
     },
@@ -4176,9 +4171,6 @@
     },
     "shared/model_loading.py": {
       "no-any-return": 1
-    },
-    "shared/sanitization.py": {
-      "no-untyped-def": 3
     }
   }
 }

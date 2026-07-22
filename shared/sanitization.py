@@ -3,10 +3,21 @@
 import html
 import logging
 import re
+from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, ParamSpec, Protocol, TypeVar, cast
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+class SanitizingDecorator(Protocol):
+    """Decorator that preserves the wrapped callable signature."""
+
+    def __call__(self, func: Callable[P, T], /) -> Callable[P, T]: ...
+
 
 SAFE_TAGS = {
     "p",
@@ -72,7 +83,7 @@ def sanitize_rich_text(text: str | None, allowed_tags: set[str] | None = None) -
             result.append(html.escape(text[pos:]))
             break
 
-        result.append(html.escape(text[pos:match.start()]))
+        result.append(html.escape(text[pos : match.start()]))
         is_closing, tag_name, attrs = match.groups()
         tag_name = tag_name.lower()
 
@@ -129,14 +140,14 @@ def sanitize_field(field_name: str, value: Any, is_rich_text: bool = False) -> A
     return sanitize_plain_text(value)
 
 
-def sanitize_inputs(*fields: str, rich_text_fields: list[str] | None = None):
+def sanitize_inputs(*fields: str, rich_text_fields: list[str] | None = None) -> SanitizingDecorator:
     """Decorator that sanitizes selected keyword arguments."""
     rich_text_fields = rich_text_fields or []
     all_fields = set(fields) | set(rich_text_fields)
 
-    def decorator(func):
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             for field in all_fields:
                 if field in kwargs:
                     kwargs[field] = sanitize_field(
@@ -148,7 +159,7 @@ def sanitize_inputs(*fields: str, rich_text_fields: list[str] | None = None):
 
         return wrapper
 
-    return decorator
+    return cast(SanitizingDecorator, decorator)
 
 
 SANITIZATION_WHITELIST = {
