@@ -160,7 +160,7 @@ def test_exit_advisor_sell_allows_stop_loss_even_below_target_band():
 def test_exit_advisor_absent_falls_back_to_legacy_signal_invalid_logic():
     position = _build_position(signal_id=11)
     signal_service = Mock()
-    signal_service.get_signal_by_id.return_value = {"is_valid": False}
+    signal_service.get_signal_snapshot.return_value = {"is_valid": False}
     engine = _build_engine(positions=[position], signal_service=signal_service)
 
     advice = engine._get_position_exit_advice(

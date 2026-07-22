@@ -353,3 +353,16 @@
 
 - Terminal specialized result model 定向 mypy：`0 errors`；全仓基线从 `8734 errors / 928 files` 收紧为 `8643 errors / 927 files`，净减少 `91 errors / 1 file`，无文件或错误码反弹。
 - TUI Workbench、Terminal Agent、SDK Client 与内部 SSL redirect 固定回归包：`229 passed`；Ruff 通过。
+
+## 第二十四批
+
+- 按风险与公共聚合杠杆收口 `apps/dashboard/application/use_cases.py`：以 Account、Portfolio、Regime、Signal 和 Dashboard Overview Protocol 替代六组 `Any` 仓储依赖，补齐 Dashboard DTO 的 Optional 与 `default_factory` 契约，该文件在全量上下文清除全部 59 项历史错误。
+- 类型传播发现默认组合快照可能为 `None` 却被直接解引用，且真实 `PortfolioSnapshot` 不存在历史代码读取的 `initial_capital` 属性；现对缺失快照抛出结构化 `ResourceNotFoundError`，回退本金优先取 Account Profile，并在 Profile 缺失时由总资产与累计收益反推。
+- Signal repository provider 与 infrastructure factory 补齐具体返回类型，连带清除 Dashboard、Signal application 的历史 Any 传播；Dashboard composition provider 改为显式工厂导出，避免公共函数依赖隐式借名导入。
+- 类型传播同时暴露自动交易信号校验接错接口：引擎原调用返回领域实体的 `get_signal_by_id()`，随后却按字典执行 `.get()`；现统一调用 repository 已有的 `get_signal_snapshot()` 字典契约，并以布尔归一化处理有效状态。
+- Allocation Service 的持仓输入改为只读 `Sequence[PositionLikeProtocol]`，Protocol 属性改为只读 property，使真实 Domain `Position` 在不复制、不强转的情况下满足结构契约。
+
+## 第二十四批验证结果
+
+- Dashboard use case 在定向和全量上下文均为 `0 errors`；全仓基线从 `8643 errors / 927 files` 收紧为 `8560 errors / 925 files`，净减少 `83 errors / 2 files`，无文件或错误码反弹。
+- Dashboard、Strategy Allocation、Auto Trading Engine/Task wiring 与 Alpha exit-loop 回归：`30 passed`；Ruff 通过。

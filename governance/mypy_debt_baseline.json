@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8643,
-    "files_with_errors": 927
+    "errors": 8560,
+    "files_with_errors": 925
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1269,8 +1269,7 @@
       "no-untyped-def": 2
     },
     "apps/dashboard/application/alpha_homepage_exit_watch.py": {
-      "attr-defined": 2,
-      "no-any-return": 1
+      "attr-defined": 2
     },
     "apps/dashboard/application/alpha_homepage_history.py": {
       "attr-defined": 5,
@@ -1289,7 +1288,6 @@
     },
     "apps/dashboard/application/interface_services.py": {
       "arg-type": 1,
-      "attr-defined": 1,
       "no-any-return": 1,
       "no-untyped-def": 11,
       "type-arg": 6
@@ -1307,23 +1305,11 @@
       "index": 1,
       "no-untyped-call": 1
     },
-    "apps/dashboard/application/repository_provider.py": {
-      "attr-defined": 1,
-      "no-untyped-def": 1
-    },
     "apps/dashboard/application/tasks.py": {
       "misc": 1
     },
     "apps/dashboard/application/use_cases.py": {
-      "arg-type": 1,
-      "assignment": 11,
-      "attr-defined": 4,
-      "call-overload": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 1,
-      "no-untyped-def": 8,
-      "type-arg": 20,
-      "union-attr": 13
+      "arg-type": 1
     },
     "apps/dashboard/domain/entities.py": {
       "type-arg": 1
@@ -3351,7 +3337,6 @@
     },
     "apps/signal/application/invalidation_checker.py": {
       "attr-defined": 8,
-      "no-untyped-call": 1,
       "no-untyped-def": 2,
       "return-value": 2,
       "type-arg": 1,
@@ -3362,17 +3347,11 @@
     },
     "apps/signal/application/query_services.py": {
       "arg-type": 4,
-      "attr-defined": 4,
+      "attr-defined": 2,
       "no-any-return": 1,
       "no-untyped-call": 17,
       "type-arg": 1,
       "union-attr": 2
-    },
-    "apps/signal/application/repository_provider.py": {
-      "attr-defined": 1,
-      "no-any-return": 1,
-      "no-untyped-call": 4,
-      "no-untyped-def": 2
     },
     "apps/signal/application/services.py": {
       "attr-defined": 8,
@@ -3381,7 +3360,6 @@
     },
     "apps/signal/application/tasks.py": {
       "misc": 2,
-      "no-untyped-call": 1,
       "no-untyped-def": 5,
       "type-arg": 2,
       "var-annotated": 1
@@ -3389,7 +3367,7 @@
     "apps/signal/application/unified_service.py": {
       "arg-type": 1,
       "assignment": 7,
-      "attr-defined": 4,
+      "attr-defined": 3,
       "misc": 2,
       "no-untyped-call": 3,
       "no-untyped-def": 5,
@@ -3433,8 +3411,7 @@
       "no-untyped-def": 9
     },
     "apps/signal/infrastructure/providers.py": {
-      "no-untyped-call": 3,
-      "no-untyped-def": 4
+      "no-untyped-call": 3
     },
     "apps/signal/infrastructure/repositories.py": {
       "arg-type": 4,
@@ -3481,11 +3458,10 @@
     },
     "apps/simulated_trading/application/auto_trading_engine.py": {
       "arg-type": 6,
-      "assignment": 1,
       "attr-defined": 2,
       "no-any-return": 2,
       "no-untyped-def": 3,
-      "type-arg": 8
+      "type-arg": 6
     },
     "apps/simulated_trading/application/daily_inspection_service.py": {
       "no-untyped-def": 4,

@@ -5,6 +5,7 @@ Provides business logic for calculating asset allocation recommendations
 based on current portfolio, regime, and risk profile.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -72,7 +73,7 @@ class AllocationService:
         risk_profile: str,
         policy_level: str | None,
         total_assets: float,
-        current_positions: list[PositionLikeProtocol],
+        current_positions: Sequence[PositionLikeProtocol],
         asset_name_resolver: AssetNameResolverProtocol | None = None,
     ) -> AllocationAdvice:
         """
@@ -134,7 +135,7 @@ class AllocationService:
     @classmethod
     def _calculate_current_allocation(
         cls,
-        positions: list[PositionLikeProtocol],
+        positions: Sequence[PositionLikeProtocol],
         total_assets: float,
     ) -> dict[str, float]:
         """计算当前资产配置"""
@@ -186,7 +187,7 @@ class AllocationService:
     @classmethod
     def _generate_trade_actions(
         cls,
-        positions: list[PositionLikeProtocol],
+        positions: Sequence[PositionLikeProtocol],
         current_allocation: dict[str, float],
         target_allocation: AssetAllocation,
         total_assets: float,
@@ -304,7 +305,8 @@ class AllocationService:
         code_set = {code for code in codes if code}
         if not code_set or asset_name_resolver is None:
             return {}
-        return asset_name_resolver.resolve_asset_names(list(code_set))
+        resolved: dict[str, str] = asset_name_resolver.resolve_asset_names(list(code_set))
+        return resolved
 
     @classmethod
     def _get_sell_reason(cls, asset_class: str, regime: str) -> str:

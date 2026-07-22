@@ -2,11 +2,14 @@ import logging
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from apps.account.domain import services as account_services
 from apps.dashboard.application.use_cases import (
     GetDashboardDataUseCase,
     _normalize_regime_distribution,
 )
+from core.exceptions import ResourceNotFoundError
 
 
 def test_normalize_regime_distribution_returns_zeroes_without_real_distribution():
@@ -44,7 +47,6 @@ class _FakeProfile:
 
 
 class _FakeSnapshot:
-    initial_capital = 100000.0
     total_value = 120000.0
     cash_balance = 20000.0
     invested_value = 100000.0
@@ -88,9 +90,39 @@ class _FakeOverviewRepo:
         return []
 
 
+class _FallbackOverviewRepo(_FakeOverviewRepo):
+    def get_user_simulated_account_totals(self, user_id: int):
+        return None
+
+
 class _FakeSignalRepo:
     def get_user_signals(self, user_id: int, status: str | None = None, limit: int | None = None):
         return []
+
+
+def _fallback_totals_use_case(portfolio_repo):
+    return GetDashboardDataUseCase(
+        account_repo=_FakeAccountRepo(),
+        portfolio_repo=portfolio_repo,
+        position_repo=object(),
+        regime_repo=object(),
+        signal_repo=_FakeSignalRepo(),
+        overview_repo=_FallbackOverviewRepo(),
+    )
+
+
+def test_account_totals_fallback_uses_profile_initial_capital():
+    totals = _fallback_totals_use_case(_FakePortfolioRepo())._get_user_account_totals(7)
+
+    assert totals["initial_capital"] == 100000.0
+    assert totals["total_assets"] == 120000.0
+
+
+def test_account_totals_fallback_rejects_missing_portfolio_snapshot():
+    portfolio_repo = SimpleNamespace(get_portfolio_snapshot=lambda _portfolio_id: None)
+
+    with pytest.raises(ResourceNotFoundError, match="默认投资组合快照不存在"):
+        _fallback_totals_use_case(portfolio_repo)._get_user_account_totals(7)
 
 
 def test_get_dashboard_data_use_case_logs_step_timings(monkeypatch, caplog):

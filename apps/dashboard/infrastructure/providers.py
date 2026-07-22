@@ -1,6 +1,6 @@
 """Repository provider re-exports for application composition roots."""
 
-from .ai_insight_client import DashboardAIInsightClient
+from .ai_insight_client import DashboardAIInsightClient as DashboardAIInsightClient
 from .repositories import *  # noqa: F401,F403
 
 

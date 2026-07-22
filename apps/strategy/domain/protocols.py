@@ -406,9 +406,14 @@ class AssetClassValueProtocol(Protocol):
 class PositionLikeProtocol(Protocol):
     """Minimal position interface required by allocation advice generation."""
 
-    asset_code: str
-    market_value: Any
-    asset_class: AssetClassValueProtocol
+    @property
+    def asset_code(self) -> str: ...
+
+    @property
+    def market_value(self) -> Any: ...
+
+    @property
+    def asset_class(self) -> AssetClassValueProtocol: ...
 
 
 # ========================================================================

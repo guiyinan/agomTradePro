@@ -85,7 +85,7 @@ class StubSignalRepo:
 
 
 class StaticSignalService:
-    def get_signal_by_id(self, signal_id: int) -> dict | None:
+    def get_signal_snapshot(self, signal_id: int) -> dict | None:
         return {"id": signal_id, "is_valid": True}
 
 

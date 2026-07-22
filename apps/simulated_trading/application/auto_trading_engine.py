@@ -9,7 +9,7 @@ Application层核心组件：
 """
 import logging
 from datetime import date
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from apps.risk_center.application.trade_guard import (
     EvaluatePreTradeRiskUseCase,
@@ -44,11 +44,8 @@ class AssetPoolServiceProtocol(Protocol):
 
 class SignalServiceProtocol(Protocol):
     """信号服务接口"""
-    def get_valid_signals(self) -> list[dict]:
-        """获取有效信号"""
-        ...
 
-    def get_signal_by_id(self, signal_id: int) -> dict | None:
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, Any] | None:
         """按ID获取信号快照"""
         ...
 
@@ -587,8 +584,8 @@ class AutoTradingEngine:
         signal_valid = True
         if position.signal_id:
             if self.signal_service:
-                signal = self.signal_service.get_signal_by_id(position.signal_id)
-                signal_valid = signal and signal.get('is_valid', False) if signal else False
+                signal = self.signal_service.get_signal_snapshot(position.signal_id)
+                signal_valid = bool(signal and signal.get("is_valid", False))
             else:
                 logger.warning("signal_service 未配置，跳过信号有效性校验: %s", position.signal_id)
                 signal_valid = True

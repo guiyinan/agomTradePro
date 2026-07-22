@@ -5,14 +5,21 @@ Dashboard Application Use Cases
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from time import perf_counter
-from typing import Any
+from typing import Any, Protocol, TypedDict
 
 from apps.account.domain.entities import (
+    AccountProfile,
+    PortfolioSnapshot,
     Position,
     RegimeMatchAnalysis,
+)
+from apps.account.domain.interfaces import (
+    AccountRepositoryProtocol,
+    PortfolioRepositoryProtocol,
+    PositionRepositoryProtocol,
 )
 from apps.dashboard.application.repository_provider import (
     get_account_repository,
@@ -23,12 +30,92 @@ from apps.dashboard.application.repository_provider import (
     get_regime_repository,
     get_signal_repository,
 )
+from apps.regime.domain.entities import RegimeSnapshot
+from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+from core.exceptions import ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
 _DASHBOARD_DATA_PERF_WARNING_MS = 3000
 
 
-def _display_risk_tolerance(risk_tolerance) -> str:
+class _MacroDataHealth(TypedDict):
+    """Health summary for the macro inputs used by the dashboard."""
+
+    is_healthy: bool
+    warnings: list[str]
+
+
+class _MacroObservation(Protocol):
+    """Date fields required to assess macro observation staleness."""
+
+    published_at: date | None
+    reporting_period: date
+
+
+class _RegimeRepository(Protocol):
+    """Dashboard-facing Regime repository contract."""
+
+    def get_latest_snapshot(self, before_date: date | None = None) -> RegimeSnapshot | None: ...
+
+
+class _SignalRepository(Protocol):
+    """Dashboard-facing signal repository contract."""
+
+    def get_user_signals(
+        self,
+        user_id: int,
+        status: str | None = None,
+        limit: int | None = None,
+    ) -> list[InvestmentSignal]: ...
+
+
+class _DashboardOverviewRepository(Protocol):
+    """Cross-app read model consumed by the dashboard overview use case."""
+
+    def get_user_simulated_account_totals(self, user_id: int) -> dict[str, float] | None: ...
+
+    def get_simulated_positions(self, user_id: int) -> list[dict[str, Any]]: ...
+
+    def get_policy_environment(
+        self, user_id: int
+    ) -> tuple[str | None, date | None, int, list[dict[str, Any]]]: ...
+
+    def get_growth_series(
+        self,
+        indicator_code: str,
+        end_date: date,
+        *,
+        use_pit: bool = False,
+        full: bool = False,
+    ) -> list[Any]: ...
+
+    def get_inflation_series(
+        self,
+        indicator_code: str,
+        end_date: date,
+        *,
+        use_pit: bool = False,
+        full: bool = False,
+    ) -> list[Any]: ...
+
+    def get_primary_system_ai_provider_payload(self) -> dict[str, Any] | None: ...
+
+    def list_global_investment_rule_payloads(self) -> list[dict[str, Any]]: ...
+
+    def get_portfolio_snapshot_performance_data(
+        self, portfolio_id: int
+    ) -> list[dict[str, Any]]: ...
+
+    def get_simulated_performance_data(
+        self,
+        *,
+        user_id: int,
+        account_id: int | None,
+        days: int,
+    ) -> list[dict[str, Any]]: ...
+
+
+def _display_risk_tolerance(risk_tolerance: Any) -> str:
     """Return a human-readable risk tolerance label for domain or ORM values."""
     value = getattr(risk_tolerance, "value", risk_tolerance)
     labels = {
@@ -40,7 +127,7 @@ def _display_risk_tolerance(risk_tolerance) -> str:
     return labels.get(str(value), str(value))
 
 
-def _risk_tolerance_value(risk_tolerance) -> str:
+def _risk_tolerance_value(risk_tolerance: Any) -> str:
     """Normalize risk tolerance enum/value to the string expected by strategy layer."""
     return str(getattr(risk_tolerance, "value", risk_tolerance))
 
@@ -87,52 +174,42 @@ class DashboardData:
     invested_ratio: float
 
     # 持仓分析
-    positions: list[dict]
+    positions: list[dict[str, Any]]
     position_count: int
     regime_match_score: float
     regime_recommendations: list[str]
 
     # 投资信号
-    active_signals: list[dict]
+    active_signals: list[dict[str, Any]]
     signal_stats: dict[str, int]
 
     # 资产配置
-    asset_allocation: list[dict]
+    asset_allocation: list[dict[str, Any]]
 
     # AI建议
     ai_insights: list[str]
 
     # 资产配置建议（新增）
-    allocation_advice: dict | None = None
+    allocation_advice: dict[str, Any] | None = None
 
     # 图表数据（用于前端渲染）
-    allocation_data: dict[str, float] = None  # 资产配置饼图数据
-    performance_data: list[dict] = None  # 收益趋势图数据
+    allocation_data: dict[str, float] = field(default_factory=dict)  # 资产配置饼图数据
+    performance_data: list[dict[str, Any]] = field(default_factory=list)  # 收益趋势图数据
 
     # 有默认值的字段放最后
     # 政策环境（新增）
-    current_policy_level: str = None
-    current_policy_date: date = None
+    current_policy_level: str | None = None
+    current_policy_date: date | None = None
     pending_review_count: int = 0
-    recent_policies: list[dict] = None
+    recent_policies: list[dict[str, Any]] = field(default_factory=list)
     # 宏观环境额外数据
     growth_momentum_z: float = 0.0
     inflation_momentum_z: float = 0.0
-    regime_distribution: dict = None
-    pmi_value: float = None
-    cpi_value: float = None
+    regime_distribution: dict[str, float] = field(default_factory=dict)
+    pmi_value: float | None = None
+    cpi_value: float | None = None
     regime_data_health: str = "unknown"
-    regime_warnings: list[str] = None
-
-    def __post_init__(self):
-        if self.recent_policies is None:
-            self.recent_policies = []
-        if self.allocation_data is None:
-            self.allocation_data = {}
-        if self.performance_data is None:
-            self.performance_data = []
-        if self.regime_warnings is None:
-            self.regime_warnings = []
+    regime_warnings: list[str] = field(default_factory=list)
 
 
 class GetDashboardDataUseCase:
@@ -147,13 +224,13 @@ class GetDashboardDataUseCase:
 
     def __init__(
         self,
-        account_repo: Any | None = None,
-        portfolio_repo: Any | None = None,
-        position_repo: Any | None = None,
-        regime_repo: Any | None = None,
-        signal_repo: Any | None = None,
-        overview_repo: Any | None = None,
-    ):
+        account_repo: AccountRepositoryProtocol | None = None,
+        portfolio_repo: PortfolioRepositoryProtocol | None = None,
+        position_repo: PositionRepositoryProtocol | None = None,
+        regime_repo: _RegimeRepository | None = None,
+        signal_repo: _SignalRepository | None = None,
+        overview_repo: _DashboardOverviewRepository | None = None,
+    ) -> None:
         self.account_repo = account_repo or get_account_repository()
         self.portfolio_repo = portfolio_repo or get_portfolio_repository()
         self.position_repo = position_repo or get_position_repository()
@@ -255,6 +332,11 @@ class GetDashboardDataUseCase:
         step_started_at = perf_counter()
         portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
         snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
+        if snapshot is None:
+            raise ResourceNotFoundError(
+                "默认投资组合快照不存在",
+                details={"portfolio_id": portfolio_id, "user_id": user_id},
+            )
         account_totals = self._get_user_account_totals(user_id)
         _track_step("portfolio_snapshot", step_started_at)
 
@@ -391,13 +473,24 @@ class GetDashboardDataUseCase:
         if account_totals is None:
             portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
             snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
+            if snapshot is None:
+                raise ResourceNotFoundError(
+                    "默认投资组合快照不存在",
+                    details={"portfolio_id": portfolio_id, "user_id": user_id},
+                )
+            profile = self.account_repo.get_by_user_id(user_id)
+            initial_capital = (
+                float(profile.initial_capital)
+                if profile is not None
+                else float(snapshot.total_value - snapshot.total_return)
+            )
             total_assets = float(snapshot.total_value)
             cash_balance = float(snapshot.cash_balance)
             invested_value = float(snapshot.invested_value)
             invested_ratio = snapshot.get_invested_ratio()
             return {
                 "total_assets": total_assets,
-                "initial_capital": float(snapshot.initial_capital),
+                "initial_capital": initial_capital,
                 "cash_balance": cash_balance,
                 "invested_value": invested_value,
                 "invested_ratio": invested_ratio,
@@ -411,7 +504,7 @@ class GetDashboardDataUseCase:
         growth_indicator: str,
         inflation_indicator: str,
         as_of_date: date,
-    ) -> dict[str, object]:
+    ) -> _MacroDataHealth:
         """评估 Regime 输入数据健康度（时效+完整性）。"""
         warnings: list[str] = []
 
@@ -464,12 +557,12 @@ class GetDashboardDataUseCase:
         }
 
     @staticmethod
-    def _get_staleness_days(indicator, as_of_date: date) -> int:
+    def _get_staleness_days(indicator: _MacroObservation, as_of_date: date) -> int:
         """优先用 published_at 计算时效，缺失时回退 reporting_period。"""
         anchor_date = indicator.published_at or indicator.reporting_period
         return (as_of_date - anchor_date).days
 
-    def _format_positions(self, positions: list[Position]) -> list[dict]:
+    def _format_positions(self, positions: list[Position]) -> list[dict[str, Any]]:
         """格式化持仓数据为字典"""
         return [
             {
@@ -490,7 +583,7 @@ class GetDashboardDataUseCase:
             for p in positions
         ]
 
-    def _get_simulated_positions(self, user_id: int) -> list[dict]:
+    def _get_simulated_positions(self, user_id: int) -> list[dict[str, Any]]:
         """Load holdings from the active simulated-account system."""
         sim_positions = self.overview_repo.get_simulated_positions(user_id)
         if not sim_positions:
@@ -543,7 +636,7 @@ class GetDashboardDataUseCase:
         }
         return display_map.get(value, value)
 
-    def _get_user_signals(self, user_id: int, limit: int = 5) -> list[dict]:
+    def _get_user_signals(self, user_id: int, limit: int = 5) -> list[dict[str, Any]]:
         """获取用户活跃信号"""
         signals = self.signal_repo.get_user_signals(
             user_id=user_id,
@@ -564,11 +657,11 @@ class GetDashboardDataUseCase:
                 "asset_code": s.asset_code,
                 "asset_name": asset_name_map.get(s.asset_code, s.asset_code),
                 "direction": s.direction,
-                "status": s.status,
+                "status": s.status.value,
                 "logic_desc": (
                     s.logic_desc[:100] + "..." if len(s.logic_desc) > 100 else s.logic_desc
                 ),
-                "created_at": s.created_at.strftime("%Y-%m-%d"),
+                "created_at": s.created_at.strftime("%Y-%m-%d") if s.created_at else "",
             }
             for s in signal_list
         ]
@@ -578,12 +671,12 @@ class GetDashboardDataUseCase:
         all_signals = self.signal_repo.get_user_signals(user_id)
         return {
             "total": len(all_signals),
-            "approved": len([s for s in all_signals if s.status == "approved"]),
-            "pending": len([s for s in all_signals if s.status == "pending"]),
-            "rejected": len([s for s in all_signals if s.status == "rejected"]),
+            "approved": len([s for s in all_signals if s.status is SignalStatus.APPROVED]),
+            "pending": len([s for s in all_signals if s.status is SignalStatus.PENDING]),
+            "rejected": len([s for s in all_signals if s.status is SignalStatus.REJECTED]),
         }
 
-    def _format_asset_allocation(self, positions: list[Position]) -> list[dict]:
+    def _format_asset_allocation(self, positions: list[Position]) -> list[dict[str, Any]]:
         """格式化资产配置"""
         from apps.account.domain.services import PositionService
 
@@ -600,7 +693,9 @@ class GetDashboardDataUseCase:
             for a in allocations
         ]
 
-    def _format_simulated_asset_allocation(self, positions: list[dict]) -> list[dict]:
+    def _format_simulated_asset_allocation(
+        self, positions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Format allocation data from simulated positions."""
         total_market_value = sum(float(item.get("market_value") or 0.0) for item in positions)
         if total_market_value <= 0:
@@ -630,10 +725,10 @@ class GetDashboardDataUseCase:
     def _generate_ai_insights(
         self,
         current_regime: str,
-        snapshot,
+        snapshot: PortfolioSnapshot,
         match_analysis: RegimeMatchAnalysis,
-        active_signals: list[dict],
-        policy_level: str = None,
+        active_signals: list[dict[str, Any]],
+        policy_level: str | None = None,
     ) -> list[str]:
         """调用 AI 生成投资建议"""
         from django.conf import settings
@@ -716,10 +811,10 @@ class GetDashboardDataUseCase:
     def _enhanced_fallback_insights(
         self,
         current_regime: str,
-        snapshot,
+        snapshot: PortfolioSnapshot,
         match_analysis: RegimeMatchAnalysis,
-        active_signals: list[dict],
-        policy_level: str = None,
+        active_signals: list[dict[str, Any]],
+        policy_level: str | None = None,
     ) -> list[str]:
         """
         从数据库规则生成投资建议（AI 失败时的增强后备方案）
@@ -923,16 +1018,16 @@ class GetDashboardDataUseCase:
     def _fallback_insights(
         self,
         current_regime: str,
-        snapshot,
+        snapshot: PortfolioSnapshot,
         match_analysis: RegimeMatchAnalysis,
-        active_signals: list[dict],
+        active_signals: list[dict[str, Any]],
     ) -> list[str]:
         """从数据库规则生成投资建议（AI 失败时的后备方案）- 保留兼容性"""
         return self._enhanced_fallback_insights(
             current_regime, snapshot, match_analysis, active_signals, None
         )
 
-    def _get_latest_macro_values(self) -> tuple:
+    def _get_latest_macro_values(self) -> tuple[float | None, float | None]:
         """获取最新的 PMI 和 CPI 值"""
         # 获取最新 PMI
         try:
@@ -954,7 +1049,9 @@ class GetDashboardDataUseCase:
 
         return pmi_value, cpi_value
 
-    def _get_policy_environment(self, user_id: int) -> tuple:
+    def _get_policy_environment(
+        self, user_id: int
+    ) -> tuple[str | None, date | None, int, list[dict[str, Any]]]:
         """获取政策环境信息"""
         return self.overview_repo.get_policy_environment(user_id)
 
@@ -968,11 +1065,11 @@ class GetDashboardDataUseCase:
     def _generate_allocation_advice(
         self,
         current_regime: str,
-        policy_level: str,
-        profile,
+        policy_level: str | None,
+        profile: AccountProfile,
         total_assets: float,
-        positions,
-    ) -> dict | None:
+        positions: list[Position],
+    ) -> dict[str, Any] | None:
         """生成资产配置建议"""
         try:
             from apps.strategy.application.allocation_service import AllocationService
@@ -1019,7 +1116,9 @@ class GetDashboardDataUseCase:
             logger.warning(f"生成资产配置建议失败: {e}")
             return None
 
-    def _generate_allocation_chart_data(self, asset_allocation: list[dict]) -> dict[str, float]:
+    def _generate_allocation_chart_data(
+        self, asset_allocation: list[dict[str, Any]]
+    ) -> dict[str, float]:
         """
         生成资产配置图表数据
 
@@ -1029,12 +1128,12 @@ class GetDashboardDataUseCase:
         Returns:
             Dict[str, float]: {"股票": 100000, "债券": 50000, ...}
         """
-        allocation_chart_data = {}
+        allocation_chart_data: dict[str, float] = {}
         for alloc in asset_allocation:
-            dimension_display = alloc.get(
-                "dimension_display", alloc.get("dimension_value", "Unknown")
+            dimension_display = str(
+                alloc.get("dimension_display", alloc.get("dimension_value", "Unknown"))
             )
-            market_value = alloc.get("market_value", 0)
+            market_value = float(alloc.get("market_value") or 0.0)
             allocation_chart_data[dimension_display] = market_value
         return allocation_chart_data
 
@@ -1045,7 +1144,7 @@ class GetDashboardDataUseCase:
         days: int = 30,
         portfolio_id: int | None = None,
         current_total_return_pct: float | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         生成收益趋势图表数据。
 

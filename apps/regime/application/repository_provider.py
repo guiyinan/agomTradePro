@@ -3,8 +3,10 @@
 from apps.regime.domain.protocols import MacroSourceConfigGatewayProtocol
 from apps.regime.infrastructure.providers import (
     DjangoNavigatorRepository,
-    DjangoRegimeRepository,
     RegimeDiagnosticRepository,
+)
+from apps.regime.infrastructure.providers import (
+    DjangoRegimeRepository as DjangoRegimeRepository,
 )
 from apps.regime.infrastructure.providers import (
     get_navigator_repository as _get_navigator_repository,
