@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8560,
-    "files_with_errors": 925
+    "errors": 8488,
+    "files_with_errors": 923
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3346,10 +3346,10 @@
       "no-untyped-call": 1
     },
     "apps/signal/application/query_services.py": {
-      "arg-type": 4,
+      "arg-type": 2,
       "attr-defined": 2,
       "no-any-return": 1,
-      "no-untyped-call": 17,
+      "no-untyped-call": 2,
       "type-arg": 1,
       "union-attr": 2
     },
@@ -3365,11 +3365,10 @@
       "var-annotated": 1
     },
     "apps/signal/application/unified_service.py": {
-      "arg-type": 1,
       "assignment": 7,
       "attr-defined": 3,
       "misc": 2,
-      "no-untyped-call": 3,
+      "no-untyped-call": 2,
       "no-untyped-def": 5,
       "operator": 1,
       "type-arg": 8,
@@ -3408,19 +3407,7 @@
     },
     "apps/signal/infrastructure/models.py": {
       "no-untyped-call": 2,
-      "no-untyped-def": 9
-    },
-    "apps/signal/infrastructure/providers.py": {
-      "no-untyped-call": 3
-    },
-    "apps/signal/infrastructure/repositories.py": {
-      "arg-type": 4,
-      "assignment": 11,
-      "misc": 7,
-      "no-untyped-call": 3,
-      "no-untyped-def": 7,
-      "return-value": 1,
-      "type-arg": 15
+      "no-untyped-def": 7
     },
     "apps/signal/interface/admin.py": {
       "type-arg": 1

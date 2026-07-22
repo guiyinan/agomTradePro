@@ -4,16 +4,18 @@ Repositories for Investment Signals.
 Infrastructure layer implementation using Django ORM.
 """
 
+from __future__ import annotations
+
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from ..domain.entities import InvestmentSignal, SignalStatus
-from .models import InvestmentSignalModel
+from .models import InvestmentSignalModel, UnifiedSignalModel
 
 
 class SignalRepositoryError(Exception):
@@ -28,7 +30,7 @@ class DjangoSignalRepository:
     提供投资信号的增删改查操作。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._model = InvestmentSignalModel
 
     _NON_PRODUCTION_ASSET_CODE_PREFIXES = (
@@ -66,7 +68,7 @@ class DjangoSignalRepository:
         return [self._orm_to_entity(obj) for obj in query]
 
     def count(self, **criteria: Any) -> int:
-        return self._model.objects.filter(**criteria).count()
+        return int(self._model.objects.filter(**criteria).count())
 
     def save_signal(
         self,
@@ -96,11 +98,11 @@ class DjangoSignalRepository:
                 existing.asset_class = signal.asset_class
                 existing.direction = signal.direction
                 existing.logic_desc = signal.logic_desc
-                existing.invalidation_logic = signal.invalidation_logic
+                existing.invalidation_logic = signal.invalidation_logic or ""
                 existing.invalidation_threshold = signal.invalidation_threshold
                 existing.target_regime = signal.target_regime
                 existing.status = status_value
-                existing.rejection_reason = signal.rejection_reason
+                existing.rejection_reason = signal.rejection_reason or ""
                 existing.save()
                 orm_obj = existing
             except self._model.DoesNotExist:
@@ -110,11 +112,11 @@ class DjangoSignalRepository:
                     asset_class=signal.asset_class,
                     direction=signal.direction,
                     logic_desc=signal.logic_desc,
-                    invalidation_logic=signal.invalidation_logic,
+                    invalidation_logic=signal.invalidation_logic or "",
                     invalidation_threshold=signal.invalidation_threshold,
                     target_regime=signal.target_regime,
                     status=status_value,
-                    rejection_reason=signal.rejection_reason
+                    rejection_reason=signal.rejection_reason or "",
                 )
         else:
             # 新建
@@ -123,11 +125,11 @@ class DjangoSignalRepository:
                 asset_class=signal.asset_class,
                 direction=signal.direction,
                 logic_desc=signal.logic_desc,
-                invalidation_logic=signal.invalidation_logic,
+                invalidation_logic=signal.invalidation_logic or "",
                 invalidation_threshold=signal.invalidation_threshold,
                 target_regime=signal.target_regime,
                 status=status_value,
-                rejection_reason=signal.rejection_reason
+                rejection_reason=signal.rejection_reason or "",
             )
 
         return self._orm_to_entity(orm_obj)
@@ -284,7 +286,9 @@ class DjangoSignalRepository:
             )
         ]
 
-    def _exclude_non_production_records(self, queryset):
+    def _exclude_non_production_records(
+        self, queryset: QuerySet[InvestmentSignalModel]
+    ) -> QuerySet[InvestmentSignalModel]:
         """Hide obvious UAT/demo records from production-facing list responses."""
 
         filter_q = Q()
@@ -311,7 +315,7 @@ class DjangoSignalRepository:
         logic_desc: str,
         invalidation_logic: str,
         invalidation_threshold: float | None,
-        invalidation_rules: dict | None,
+        invalidation_rules: dict[str, Any] | None,
         invalidation_description: str | None = None,
         invalidation_rule_json: dict[str, Any] | None = None,
         target_regime: str,
@@ -387,12 +391,12 @@ class DjangoSignalRepository:
             return None
         asset_code = signal.asset_code
         signal.delete()
-        return asset_code
+        return str(asset_code)
 
     def count_signal_records(self) -> int:
         """Return the total number of investment signal records."""
 
-        return self._model._default_manager.count()
+        return int(self._model._default_manager.count())
 
     def find_signals_with_invalidation_rules(
         self,
@@ -437,7 +441,7 @@ class DjangoSignalRepository:
         self,
         signal_id: str,
         reason: str,
-        details: dict
+        details: dict[str, Any]
     ) -> bool:
         """
         标记信号为已证伪
@@ -538,13 +542,13 @@ class DjangoSignalRepository:
         Returns:
             int: 信号数量
         """
-        return self._model.objects.filter(status=status).count()
+        return int(self._model.objects.filter(status=status).count())
 
     def get_signals_created_between(
         self,
-        start_datetime,
-        end_datetime
-    ) -> list[dict]:
+        start_datetime: datetime,
+        end_datetime: datetime,
+    ) -> list[dict[str, Any]]:
         """
         获取指定时间范围内创建的信号（返回字典格式，用于摘要报告）
 
@@ -555,17 +559,16 @@ class DjangoSignalRepository:
         Returns:
             List[dict]: 信号字典列表
         """
-        return list(
-            self._model.objects.filter(
-                created_at__range=[start_datetime, end_datetime]
-            ).values('asset_code', 'logic_desc', 'user_id')[:10]
-        )
+        rows = self._model.objects.filter(
+            created_at__range=[start_datetime, end_datetime]
+        ).values("asset_code", "logic_desc", "user_id")[:10]
+        return [dict(row) for row in rows]
 
     def get_signals_invalidated_between(
         self,
-        start_datetime,
-        end_datetime
-    ) -> list[dict]:
+        start_datetime: datetime,
+        end_datetime: datetime,
+    ) -> list[dict[str, Any]]:
         """
         获取指定时间范围内证伪的信号（返回字典格式，用于摘要报告）
 
@@ -576,13 +579,12 @@ class DjangoSignalRepository:
         Returns:
             List[dict]: 信号字典列表
         """
-        return list(
-            self._model.objects.filter(
-                invalidated_at__range=[start_datetime, end_datetime]
-            ).values('asset_code', 'logic_desc', 'invalidation_details', 'id')[:10]
-        )
+        rows = self._model.objects.filter(
+            invalidated_at__range=[start_datetime, end_datetime]
+        ).values("asset_code", "logic_desc", "invalidation_details", "id")[:10]
+        return [dict(row) for row in rows]
 
-    def get_old_invalidated_signals(self, days: int) -> list[dict]:
+    def get_old_invalidated_signals(self, days: int) -> list[int]:
         """
         获取旧的已证伪信号
 
@@ -667,7 +669,7 @@ class DjangoSignalRepository:
             bool: 是否成功删除
         """
         count, _ = self._model.objects.filter(id=signal_id).delete()
-        return count > 0
+        return bool(count)
 
     def get_signal_count(
         self,
@@ -688,7 +690,7 @@ class DjangoSignalRepository:
             status_value = status.value if isinstance(status, SignalStatus) else status
             query = query.filter(status=status_value)
 
-        return query.count()
+        return int(query.count())
 
     def get_user_signals(
         self,
@@ -717,7 +719,7 @@ class DjangoSignalRepository:
 
         return [self._orm_to_entity(obj) for obj in query]
 
-    def get_statistics(self) -> dict:
+    def get_statistics(self) -> dict[str, Any]:
         """
         获取信号统计信息
 
@@ -754,22 +756,25 @@ class DjangoSignalRepository:
             'by_asset_class': asset_stats
         }
 
-    def get_valid_signal_summaries(self, asset_codes: list[str] | None = None) -> list[dict]:
+    def get_valid_signal_summaries(
+        self, asset_codes: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         query = self._model.objects.filter(status='approved')
         if asset_codes:
             query = query.filter(asset_code__in=asset_codes)
         query = query.order_by('-created_at')
-        return list(query.values('id', 'asset_code', 'logic_desc'))
+        return [dict(row) for row in query.values("id", "asset_code", "logic_desc")]
 
-    def get_signal_snapshot(self, signal_id: int) -> dict | None:
+    def get_signal_snapshot(self, signal_id: int) -> dict[str, Any] | None:
         signal = self._model.objects.filter(id=signal_id).values(
             'id', 'asset_code', 'status', 'logic_desc', 'user_id'
         ).first()
         if signal is None:
             return None
-        signal['is_valid'] = signal['status'] == 'approved'
-        signal['signal_id'] = signal.pop('id')
-        return signal
+        payload: dict[str, Any] = dict(signal)
+        payload["is_valid"] = payload["status"] == "approved"
+        payload["signal_id"] = payload.pop("id")
+        return payload
 
     def get_signal_invalidation_payload(self, signal_id: int) -> tuple[str | None, str]:
         signal = self._model.objects.filter(id=signal_id).values(
@@ -866,8 +871,7 @@ class UnifiedSignalRepository:
     管理来自所有模块（Regime、Factor、Rotation、Hedge）的统一信号。
     """
 
-    def __init__(self):
-        from .models import UnifiedSignalModel
+    def __init__(self) -> None:
         self._model = UnifiedSignalModel
 
     def create_signal(
@@ -878,13 +882,13 @@ class UnifiedSignalRepository:
         asset_code: str,
         reason: str,
         asset_name: str = "",
-        target_weight: float = None,
-        current_weight: float = None,
+        target_weight: float | None = None,
+        current_weight: float | None = None,
         priority: int = 5,
         action_required: str = "",
-        extra_data: dict = None,
+        extra_data: dict[str, Any] | None = None,
         related_signal_id: str = ""
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         创建新的统一信号
 
@@ -925,10 +929,10 @@ class UnifiedSignalRepository:
     def get_signals_by_date(
         self,
         signal_date: date,
-        signal_source: str = None,
-        signal_type: str = None,
-        is_executed: bool = None
-    ) -> list:
+        signal_source: str | None = None,
+        signal_type: str | None = None,
+        is_executed: bool | None = None,
+    ) -> list[dict[str, Any]]:
         """
         按日期获取信号
 
@@ -956,8 +960,8 @@ class UnifiedSignalRepository:
         self,
         asset_code: str,
         days: int = 30,
-        signal_source: str = None
-    ) -> list:
+        signal_source: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         按资产获取最近的信号
 
@@ -985,8 +989,8 @@ class UnifiedSignalRepository:
     def get_pending_signals(
         self,
         min_priority: int = 1,
-        signal_type: str = None
-    ) -> list:
+        signal_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         获取待处理的信号
 
@@ -1027,8 +1031,8 @@ class UnifiedSignalRepository:
     def get_signal_summary(
         self,
         start_date: date,
-        end_date: date = None
-    ) -> dict:
+        end_date: date | None = None,
+    ) -> dict[str, Any]:
         """
         获取信号汇总
 
@@ -1093,10 +1097,10 @@ class UnifiedSignalRepository:
             is_executed=True
         ).delete()
 
-        return count
+        return int(count)
 
     @staticmethod
-    def _orm_to_dict(orm_obj) -> dict:
+    def _orm_to_dict(orm_obj: UnifiedSignalModel) -> dict[str, Any]:
         """将 ORM 对象转换为字典"""
         return {
             'id': orm_obj.id,
@@ -1125,7 +1129,7 @@ class DjangoUserRepository:
     提供用户相关的数据访问操作。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         from django.contrib.auth import get_user_model
         self._model = get_user_model()
 

@@ -366,3 +366,14 @@
 
 - Dashboard use case 在定向和全量上下文均为 `0 errors`；全仓基线从 `8643 errors / 927 files` 收紧为 `8560 errors / 925 files`，净减少 `83 errors / 2 files`，无文件或错误码反弹。
 - Dashboard、Strategy Allocation、Auto Trading Engine/Task wiring 与 Alpha exit-loop 回归：`30 passed`；Ruff 通过。
+
+## 第二十五批
+
+- 收口公共 `DjangoSignalRepository` 与 `UnifiedSignalRepository` 的 ORM QuerySet、动态 values payload、时间区间、统计返回值和 Optional 参数契约，Signal repository 在全量上下文清除全部 48 项历史错误。
+- `InvestmentSignal` 领域实体允许缺省的 `invalidation_logic/rejection_reason`，但对应 ORM TextField 仅允许空字符串、不允许数据库 NULL；保存与更新路径现统一在持久化边界归一化为 `""`，并增加真实数据库回归锁定约束。
+- `.values()` 返回的具体 TypedDict 行显式复制为普通 `dict[str, Any]` payload，避免把 QuerySet 的只读精确行类型冒充可变通用字典；统一信号模型 helper 补齐返回类型，使 provider、query service 与 unified service 获得完整类型传播。
+
+## 第二十五批验证结果
+
+- Signal repositories 定向与全量上下文均无本文件错误；全仓基线从 `8560 errors / 925 files` 收紧为 `8488 errors / 923 files`，净减少 `72 errors / 2 files`，无文件或错误码反弹。
+- Repository、Signal Query、Unified Signal 与 Auto Trading Engine 回归：`53 passed`；Ruff 通过。

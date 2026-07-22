@@ -216,7 +216,7 @@ class InvestmentSignalModel(models.Model):
             avg_backtest_return=signal.avg_backtest_return,
         )
 
-    def get_human_readable_rules(self):
+    def get_human_readable_rules(self) -> str:
         """生成人类可读的规则描述"""
         # 优先使用新格式
         if self.invalidation_rule_json:
@@ -411,7 +411,7 @@ class UnifiedSignalModel(models.Model):
     def __str__(self):
         return f"{self.signal_date} {self.signal_source} {self.signal_type}: {self.asset_code}"
 
-    def mark_executed(self):
+    def mark_executed(self) -> None:
         """标记信号为已执行"""
         from django.utils import timezone
         self.is_executed = True

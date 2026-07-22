@@ -549,6 +549,25 @@ class TestDjangoSignalRepository:
         assert saved.asset_code == "000001.SH"
         assert saved.status == SignalStatus.PENDING
 
+    def test_save_signal_normalizes_optional_text_for_non_null_columns(self):
+        """Optional domain text is normalized at the non-null ORM boundary."""
+
+        saved = DjangoSignalRepository().save_signal(
+            InvestmentSignal(
+                id=None,
+                asset_code="000002.SH",
+                asset_class="a_share_value",
+                direction="LONG",
+                logic_desc="估值回归信号",
+                target_regime="Recovery",
+                status=SignalStatus.PENDING,
+            )
+        )
+
+        model = InvestmentSignalModel._default_manager.get(pk=saved.id)
+        assert model.invalidation_logic == ""
+        assert model.rejection_reason == ""
+
     def test_filter_by_status(self):
         """测试按状态过滤信号"""
         repository = DjangoSignalRepository()
