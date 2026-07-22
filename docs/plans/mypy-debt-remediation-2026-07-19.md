@@ -830,3 +830,15 @@
 - Equity serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6799 errors / 836 files` 收紧为 `6756 errors / 835 files`，净减少 `43 errors / 1 file`，且跨文件无新增。
 - 目标文件的 `5 assignment + 2 no-untyped-def + 36 type-arg` 全部清零。
 - 保留字段名契约测试 `5 passed`；Equity API、Valuation Repair API 与配置集成回归 `44 passed`；Ruff、Black、diff check 通过。
+
+## 第六十五批
+
+- 按同类公共 API 边界收口 Audit serializers：StrictFields 输入校验与全部普通 serializer 声明 `dict[str, Any]` instance 契约，三个 validate/to_internal_value 方法补齐输入输出和 DRF 动态返回收窄。
+- Operation Log/Query/Ingest 与 Decision Trace 的 `source`、Export Operation Logs 的 `data` 会覆盖 DRF 基类属性；统一通过 `get_fields()` 注册，保持既有外部字段名、默认值和可选行为，不新增 ignore。
+- 与 Equity 响应 DTO 场景不同，Audit 的真实调用方全部传入字典/read-model payload；全仓传播门禁确认该泛型不会收窄跨文件调用。
+
+## 第六十五批验证结果
+
+- Audit serializers 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6756 errors / 835 files` 收紧为 `6728 errors / 834 files`，净减少 `28 errors / 1 file`。
+- 目标文件的 `5 assignment + 3 no-untyped-def + 20 type-arg` 全部清零，跨文件无新增。
+- 字段契约、Audit API edges、内部日志写入、阈值验证/配置和归因治理回归共 `27 passed`；Ruff、Black、diff check 通过。

@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6756,
-    "files_with_errors": 835
+    "errors": 6728,
+    "files_with_errors": 834
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -850,11 +850,6 @@
     "apps/audit/interface/permissions.py": {
       "no-untyped-call": 2,
       "no-untyped-def": 6
-    },
-    "apps/audit/interface/serializers.py": {
-      "assignment": 5,
-      "no-untyped-def": 3,
-      "type-arg": 20
     },
     "apps/audit/interface/urls.py": {
       "no-untyped-def": 1

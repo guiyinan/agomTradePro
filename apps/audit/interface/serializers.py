@@ -4,21 +4,24 @@ Serializers for Audit API.
 
 import math
 from collections.abc import Mapping
+from typing import Any, TypeAlias, cast
 
 from rest_framework import serializers
 
+SerializerField: TypeAlias = serializers.Field[Any, Any, Any, Any]
 
-class StrictFieldsSerializer(serializers.Serializer):
+
+class StrictFieldsSerializer(serializers.Serializer[dict[str, Any]]):
     """Reject request fields that are not declared by the canonical contract."""
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: Any) -> dict[str, Any]:
         if isinstance(data, Mapping):
             unknown_fields = sorted(set(data) - set(self.fields))
             if unknown_fields:
                 raise serializers.ValidationError(
                     {"non_field_errors": [f"Unknown fields: {', '.join(unknown_fields)}"]}
                 )
-        return super().to_internal_value(data)
+        return cast(dict[str, Any], super().to_internal_value(data))
 
 
 class AuditValidationRequestSerializer(StrictFieldsSerializer):
@@ -27,7 +30,7 @@ class AuditValidationRequestSerializer(StrictFieldsSerializer):
     start_date = serializers.DateField(required=True)
     end_date = serializers.DateField(required=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         start_date = attrs["start_date"]
         end_date = attrs["end_date"]
         if start_date > end_date:
@@ -44,7 +47,7 @@ class AuditThresholdLevelsRequestSerializer(StrictFieldsSerializer):
     level_low = serializers.FloatField(required=True)
     level_high = serializers.FloatField(required=True)
 
-    def validate(self, attrs):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         level_low = attrs["level_low"]
         level_high = attrs["level_high"]
         if not math.isfinite(level_low) or not math.isfinite(level_high):
@@ -54,7 +57,7 @@ class AuditThresholdLevelsRequestSerializer(StrictFieldsSerializer):
         return attrs
 
 
-class IndicatorPerformanceReportSerializer(serializers.Serializer):
+class IndicatorPerformanceReportSerializer(serializers.Serializer[dict[str, Any]]):
     """指标表现报告序列化器。"""
 
     indicator_code = serializers.CharField()
@@ -80,7 +83,7 @@ class IndicatorPerformanceReportSerializer(serializers.Serializer):
     signal_strength = serializers.FloatField()
 
 
-class ThresholdValidationReportSerializer(serializers.Serializer):
+class ThresholdValidationReportSerializer(serializers.Serializer[dict[str, Any]]):
     """阈值验证报告序列化器。"""
 
     validation_run_id = serializers.CharField()
@@ -96,7 +99,7 @@ class ThresholdValidationReportSerializer(serializers.Serializer):
     status = serializers.CharField()
 
 
-class LossAnalysisSerializer(serializers.Serializer):
+class LossAnalysisSerializer(serializers.Serializer[dict[str, Any]]):
     """损失分析序列化器"""
 
     id = serializers.IntegerField()
@@ -108,7 +111,7 @@ class LossAnalysisSerializer(serializers.Serializer):
     improvement_suggestion = serializers.CharField(allow_blank=True)
 
 
-class ExperienceSummarySerializer(serializers.Serializer):
+class ExperienceSummarySerializer(serializers.Serializer[dict[str, Any]]):
     """经验总结序列化器"""
 
     id = serializers.IntegerField()
@@ -119,7 +122,7 @@ class ExperienceSummarySerializer(serializers.Serializer):
     applied_at = serializers.CharField(allow_null=True)
 
 
-class AttributionReportSerializer(serializers.Serializer):
+class AttributionReportSerializer(serializers.Serializer[dict[str, Any]]):
     """归因报告序列化器"""
 
     id = serializers.IntegerField()
@@ -146,7 +149,7 @@ class GenerateAttributionReportRequestSerializer(StrictFieldsSerializer):
     backtest_id = serializers.IntegerField(required=True, min_value=1)
 
 
-class GenerateAttributionReportResponseSerializer(serializers.Serializer):
+class GenerateAttributionReportResponseSerializer(serializers.Serializer[dict[str, Any]]):
     """生成归因报告响应序列化器"""
 
     success = serializers.BooleanField()
@@ -157,7 +160,7 @@ class GenerateAttributionReportResponseSerializer(serializers.Serializer):
 # ============ MCP/SDK 操作审计日志序列化器 ============
 
 
-class OperationLogSerializer(serializers.Serializer):
+class OperationLogSerializer(serializers.Serializer[dict[str, Any]]):
     """操作审计日志序列化器"""
 
     id = serializers.CharField()
@@ -166,7 +169,6 @@ class OperationLogSerializer(serializers.Serializer):
     username = serializers.CharField()
     ip_address = serializers.CharField(allow_null=True)
     user_agent = serializers.CharField()
-    source = serializers.CharField()
     client_id = serializers.CharField()
     operation_type = serializers.CharField()
     module = serializers.CharField()
@@ -190,8 +192,15 @@ class OperationLogSerializer(serializers.Serializer):
     duration_ms = serializers.IntegerField(allow_null=True)
     checksum = serializers.CharField()
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the API ``source`` field without overriding DRF internals."""
 
-class OperationLogListSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField()
+        return fields
+
+
+class OperationLogListSerializer(serializers.Serializer[dict[str, Any]]):
     """操作日志列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -201,7 +210,7 @@ class OperationLogListSerializer(serializers.Serializer):
     page_size = serializers.IntegerField()
 
 
-class OperationLogDetailSerializer(serializers.Serializer):
+class OperationLogDetailSerializer(serializers.Serializer[dict[str, Any]]):
     """操作日志详情响应序列化器"""
 
     success = serializers.BooleanField()
@@ -209,7 +218,7 @@ class OperationLogDetailSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class OperationLogQuerySerializer(serializers.Serializer):
+class OperationLogQuerySerializer(serializers.Serializer[dict[str, Any]]):
     """操作日志查询参数序列化器"""
 
     user_id = serializers.IntegerField(required=False, allow_null=True)
@@ -224,19 +233,24 @@ class OperationLogQuerySerializer(serializers.Serializer):
     start_date = serializers.DateField(required=False, allow_null=True)
     end_date = serializers.DateField(required=False, allow_null=True)
     resource_id = serializers.CharField(required=False, allow_blank=True)
-    source = serializers.CharField(required=False, allow_blank=True)
     ordering = serializers.CharField(required=False, default="-timestamp")
     page = serializers.IntegerField(required=False, default=1, min_value=1)
     page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the query ``source`` field without overriding DRF internals."""
 
-class OperationLogIngestSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(required=False, allow_blank=True)
+        return fields
+
+
+class OperationLogIngestSerializer(serializers.Serializer[dict[str, Any]]):
     """操作日志内部写入序列化器"""
 
     request_id = serializers.CharField(required=True)
     user_id = serializers.IntegerField(required=False, allow_null=True)
     username = serializers.CharField(required=False, default="anonymous")
-    source = serializers.CharField(required=False, default="MCP")
     operation_type = serializers.CharField(required=False, default="MCP_CALL")
     module = serializers.CharField(required=False, default="")
     action = serializers.CharField(required=False, default="READ")
@@ -260,8 +274,15 @@ class OperationLogIngestSerializer(serializers.Serializer):
     request_method = serializers.CharField(required=False, default="MCP")
     request_path = serializers.CharField(required=False, allow_blank=True, default="")
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the ingest ``source`` field without overriding DRF internals."""
 
-class OperationStatsSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField(required=False, default="MCP")
+        return fields
+
+
+class OperationStatsSerializer(serializers.Serializer[dict[str, Any]]):
     """操作统计序列化器"""
 
     total_count = serializers.IntegerField()
@@ -275,17 +296,23 @@ class OperationStatsSerializer(serializers.Serializer):
     by_status = serializers.ListField(required=False)
 
 
-class ExportOperationLogsSerializer(serializers.Serializer):
+class ExportOperationLogsSerializer(serializers.Serializer[dict[str, Any]]):
     """导出操作日志响应序列化器"""
 
     success = serializers.BooleanField()
-    data = serializers.CharField(allow_null=True, required=False)
     filename = serializers.CharField(allow_null=True, required=False)
     row_count = serializers.IntegerField()
     error = serializers.CharField(allow_null=True, required=False)
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the API ``data`` field without overriding serializer state."""
 
-class DecisionTraceStepSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["data"] = serializers.CharField(allow_null=True, required=False)
+        return fields
+
+
+class DecisionTraceStepSerializer(serializers.Serializer[dict[str, Any]]):
     """决策链步骤序列化器"""
 
     step_index = serializers.IntegerField()
@@ -301,14 +328,13 @@ class DecisionTraceStepSerializer(serializers.Serializer):
     response_message = serializers.CharField()
 
 
-class DecisionTraceSummarySerializer(serializers.Serializer):
+class DecisionTraceSummarySerializer(serializers.Serializer[dict[str, Any]]):
     """决策链摘要序列化器"""
 
     request_id = serializers.CharField()
     mcp_client_id = serializers.CharField()
     username = serializers.CharField()
     user_id = serializers.IntegerField(allow_null=True)
-    source = serializers.CharField()
     started_at = serializers.CharField(allow_null=True)
     finished_at = serializers.CharField(allow_null=True)
     step_count = serializers.IntegerField()
@@ -318,8 +344,15 @@ class DecisionTraceSummarySerializer(serializers.Serializer):
     tools = serializers.ListField(child=serializers.CharField())
     summary = serializers.CharField()
 
+    def get_fields(self) -> dict[str, SerializerField]:
+        """Register the trace ``source`` field without overriding DRF internals."""
 
-class DecisionTraceListSerializer(serializers.Serializer):
+        fields = super().get_fields()
+        fields["source"] = serializers.CharField()
+        return fields
+
+
+class DecisionTraceListSerializer(serializers.Serializer[dict[str, Any]]):
     """决策链列表响应序列化器"""
 
     success = serializers.BooleanField()
@@ -329,7 +362,7 @@ class DecisionTraceListSerializer(serializers.Serializer):
     page_size = serializers.IntegerField()
 
 
-class DecisionTraceDetailSerializer(serializers.Serializer):
+class DecisionTraceDetailSerializer(serializers.Serializer[dict[str, Any]]):
     """决策链详情响应序列化器"""
 
     success = serializers.BooleanField()
@@ -337,7 +370,7 @@ class DecisionTraceDetailSerializer(serializers.Serializer):
     error = serializers.CharField(allow_null=True, required=False)
 
 
-class ExecutionLinkSerializer(serializers.Serializer):
+class ExecutionLinkSerializer(serializers.Serializer[dict[str, Any]]):
     """推荐执行关联序列化器"""
 
     id = serializers.IntegerField()
@@ -353,7 +386,7 @@ class ExecutionLinkSerializer(serializers.Serializer):
     created_at = serializers.CharField(allow_null=True)
 
 
-class ExecutionLinkListSerializer(serializers.Serializer):
+class ExecutionLinkListSerializer(serializers.Serializer[dict[str, Any]]):
     """推荐执行关联列表响应序列化器"""
 
     success = serializers.BooleanField()
