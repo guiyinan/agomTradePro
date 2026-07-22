@@ -7,11 +7,19 @@ Supports Redis as backend with fallback to in-memory cache.
 
 import hashlib
 import logging
+from collections.abc import Callable
+from functools import wraps
+from typing import Any, ParamSpec, TypeVar, cast
 
 from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+CachePayload = dict[str, Any]
+CacheInfo = dict[str, Any]
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 class CacheService:
@@ -38,7 +46,7 @@ class CacheService:
     TTL_ALLOCATION = 600  # 10分钟
 
     @classmethod
-    def _make_key(cls, prefix: str, **kwargs) -> str:
+    def _make_key(cls, prefix: str, **kwargs: Any) -> str:
         """
         生成缓存键
 
@@ -62,7 +70,7 @@ class CacheService:
         as_of_date: str,
         growth_indicator: str,
         inflation_indicator: str,
-    ) -> dict | None:
+    ) -> CachePayload | None:
         """
         获取缓存的Regime计算结果
 
@@ -82,10 +90,13 @@ class CacheService:
         )
 
         data = cache.get(key)
-        if data:
+        if isinstance(data, dict):
             logger.debug(f"Regime缓存命中: {key}")
+            return cast(CachePayload, data)
+        if data is not None:
+            logger.warning("忽略类型异常的Regime缓存: %s", key)
 
-        return data
+        return None
 
     @classmethod
     def set_regime(
@@ -93,7 +104,7 @@ class CacheService:
         as_of_date: str,
         growth_indicator: str,
         inflation_indicator: str,
-        data: dict,
+        data: CachePayload,
         timeout: int | None = None,
     ) -> bool:
         """
@@ -116,20 +127,17 @@ class CacheService:
             inflation=inflation_indicator,
         )
 
-        timeout = timeout or cls.TTL_REGIME
-        result = cache.set(key, data, timeout=timeout)
-
-        if result:
-            logger.debug(f"Regime缓存已设置: {key}, TTL={timeout}s")
-
-        return result
+        effective_timeout = cls.TTL_REGIME if timeout is None else timeout
+        cache.set(key, data, timeout=effective_timeout)
+        logger.debug(f"Regime缓存已设置: {key}, TTL={effective_timeout}s")
+        return True
 
     @classmethod
     def get_macro_series(
         cls,
         indicator_code: str,
         end_date: str,
-    ) -> dict | None:
+    ) -> CachePayload | None:
         """
         获取缓存的宏观数据序列
 
@@ -147,17 +155,20 @@ class CacheService:
         )
 
         data = cache.get(key)
-        if data:
+        if isinstance(data, dict):
             logger.debug(f"宏观数据缓存命中: {key}")
+            return cast(CachePayload, data)
+        if data is not None:
+            logger.warning("忽略类型异常的宏观数据缓存: %s", key)
 
-        return data
+        return None
 
     @classmethod
     def set_macro_series(
         cls,
         indicator_code: str,
         end_date: str,
-        data: dict,
+        data: CachePayload,
         timeout: int | None = None,
     ) -> bool:
         """
@@ -178,13 +189,10 @@ class CacheService:
             end_date=end_date,
         )
 
-        timeout = timeout or cls.TTL_MACRO_SERIES
-        result = cache.set(key, data, timeout=timeout)
-
-        if result:
-            logger.debug(f"宏观数据缓存已设置: {key}, TTL={timeout}s")
-
-        return result
+        effective_timeout = cls.TTL_MACRO_SERIES if timeout is None else timeout
+        cache.set(key, data, timeout=effective_timeout)
+        logger.debug(f"宏观数据缓存已设置: {key}, TTL={effective_timeout}s")
+        return True
 
     @classmethod
     def get_ai_insights(
@@ -192,7 +200,7 @@ class CacheService:
         regime: str,
         match_score: float,
         invested_ratio: float,
-    ) -> dict | None:
+    ) -> CachePayload | None:
         """
         获取缓存的AI建议
 
@@ -212,10 +220,13 @@ class CacheService:
         )
 
         data = cache.get(key)
-        if data:
+        if isinstance(data, dict):
             logger.debug(f"AI建议缓存命中: {key}")
+            return cast(CachePayload, data)
+        if data is not None:
+            logger.warning("忽略类型异常的AI建议缓存: %s", key)
 
-        return data
+        return None
 
     @classmethod
     def set_ai_insights(
@@ -223,7 +234,7 @@ class CacheService:
         regime: str,
         match_score: float,
         invested_ratio: float,
-        data: dict,
+        data: CachePayload,
         timeout: int | None = None,
     ) -> bool:
         """
@@ -246,13 +257,10 @@ class CacheService:
             ratio=f"{invested_ratio:.2f}",
         )
 
-        timeout = timeout or cls.TTL_AI_INSIGHTS
-        result = cache.set(key, data, timeout=timeout)
-
-        if result:
-            logger.debug(f"AI建议缓存已设置: {key}, TTL={timeout}s")
-
-        return result
+        effective_timeout = cls.TTL_AI_INSIGHTS if timeout is None else timeout
+        cache.set(key, data, timeout=effective_timeout)
+        logger.debug(f"AI建议缓存已设置: {key}, TTL={effective_timeout}s")
+        return True
 
     @classmethod
     def get_allocation_advice(
@@ -260,7 +268,7 @@ class CacheService:
         regime: str,
         risk_profile: str,
         policy_level: str,
-    ) -> dict | None:
+    ) -> CachePayload | None:
         """
         获取缓存的资产配置建议
 
@@ -280,10 +288,13 @@ class CacheService:
         )
 
         data = cache.get(key)
-        if data:
+        if isinstance(data, dict):
             logger.debug(f"配置建议缓存命中: {key}")
+            return cast(CachePayload, data)
+        if data is not None:
+            logger.warning("忽略类型异常的配置建议缓存: %s", key)
 
-        return data
+        return None
 
     @classmethod
     def set_allocation_advice(
@@ -291,7 +302,7 @@ class CacheService:
         regime: str,
         risk_profile: str,
         policy_level: str,
-        data: dict,
+        data: CachePayload,
         timeout: int | None = None,
     ) -> bool:
         """
@@ -314,13 +325,10 @@ class CacheService:
             policy=policy_level,
         )
 
-        timeout = timeout or cls.TTL_ALLOCATION
-        result = cache.set(key, data, timeout=timeout)
-
-        if result:
-            logger.debug(f"配置建议缓存已设置: {key}, TTL={timeout}s")
-
-        return result
+        effective_timeout = cls.TTL_ALLOCATION if timeout is None else timeout
+        cache.set(key, data, timeout=effective_timeout)
+        logger.debug(f"配置建议缓存已设置: {key}, TTL={effective_timeout}s")
+        return True
 
     @classmethod
     def invalidate_regime(cls) -> bool:
@@ -342,14 +350,14 @@ class CacheService:
             return False
 
     @classmethod
-    def get_cache_info(cls) -> dict:
+    def get_cache_info(cls) -> CacheInfo:
         """
         获取缓存信息（用于监控）
 
         Returns:
             Dict: 缓存统计信息
         """
-        info = {
+        info: CacheInfo = {
             "backend": settings.CACHES["default"]["BACKEND"],
             "default_timeout": cache.default_timeout,
         }
@@ -357,6 +365,7 @@ class CacheService:
         # 如果使用Redis，获取额外信息
         try:
             from django.core.cache.backends.redis import RedisCache
+
             if isinstance(cache, RedisCache):
                 info["type"] = "redis"
                 info["location"] = settings.CACHES["default"]["LOCATION"]
@@ -373,7 +382,7 @@ class CacheDecorator:
     用于快速缓存函数结果
     """
 
-    def __init__(self, prefix: str, ttl: int = 900):
+    def __init__(self, prefix: str, ttl: int = 900) -> None:
         """
         Args:
             prefix: 缓存键前缀
@@ -382,8 +391,9 @@ class CacheDecorator:
         self.prefix = prefix
         self.ttl = ttl
 
-    def __call__(self, func):
-        def wrapper(*args, **kwargs):
+    def __call__(self, func: Callable[P, T]) -> Callable[P, T]:
+        @wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # 生成缓存键
             key_parts = [self.prefix, func.__name__]
             key_parts.extend(str(arg) for arg in args)
@@ -393,7 +403,7 @@ class CacheDecorator:
             # 尝试获取缓存
             cached = cache.get(key)
             if cached is not None:
-                return cached
+                return cast(T, cached)
 
             # 执行函数
             result = func(*args, **kwargs)

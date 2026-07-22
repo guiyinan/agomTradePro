@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9167,
-    "files_with_errors": 947
+    "errors": 9143,
+    "files_with_errors": 946
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -4138,12 +4138,6 @@
     },
     "shared/infrastructure/async_runtime.py": {
       "arg-type": 2
-    },
-    "shared/infrastructure/cache_service.py": {
-      "func-returns-value": 4,
-      "no-any-return": 8,
-      "no-untyped-def": 3,
-      "type-arg": 9
     },
     "shared/infrastructure/calculators.py": {
       "import-untyped": 2
