@@ -447,3 +447,14 @@
 
 - 4 个变更生产文件的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8321 errors / 916 files` 收紧为 `8251 errors / 912 files`，净减少 `70 errors / 4 files`，并连带减少 interface service 的 2 个未类型调用。
 - 每日净值、策略自动交易、模拟交易、绩效曲线、任务 wiring、持仓失效、通知/再平衡、Dashboard、readiness 和持仓查询回归共 `127 passed`；架构 delta 扫描 `4 files / 373 added lines / 0 violations`；Django system check、Ruff、diff check 通过。
+
+## 第三十二批
+
+- 按可空访问风险收口 `apps/equity/infrastructure/financial_source_gateway.py`：财务指标从 `metric_map` 单次读取并通过统一 helper 返回数值或显式默认值，不再重复执行 `get()` 后解引用可能为空的事实对象。
+- Decimal 边界补齐参数类型与精确异常处理，非数值、NaN 和 Infinity 统一归一化为有限零值；Tushare 网关构造器补齐返回类型。
+- 新增稀疏财务事实回归，验证仅有收入指标时仍能生成完整记录，缺失增长率保持 `None`，金额与比率使用明确默认值。
+
+## 第三十二批验证结果
+
+- Equity financial source gateway 的直接与增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `8251 errors / 912 files` 收紧为 `8240 errors / 911 files`，净减少 `11 errors / 1 file`。
+- 财务网关回归：`6 passed`；架构 delta 扫描 `1 file / 29 added lines / 0 violations`；Ruff、diff check 通过。

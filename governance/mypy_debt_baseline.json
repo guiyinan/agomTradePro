@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8251,
-    "files_with_errors": 912
+    "errors": 8240,
+    "files_with_errors": 911
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -1984,10 +1984,6 @@
       "no-untyped-call": 11,
       "no-untyped-def": 12,
       "type-arg": 3
-    },
-    "apps/equity/infrastructure/financial_source_gateway.py": {
-      "no-untyped-def": 1,
-      "union-attr": 10
     },
     "apps/equity/infrastructure/intraday_repository.py": {
       "assignment": 1,

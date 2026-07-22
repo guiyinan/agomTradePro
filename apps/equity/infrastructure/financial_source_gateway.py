@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from apps.data_center.composition import get_financial_fact_repository
 from apps.data_center.domain.entities import FinancialFact
@@ -81,43 +81,30 @@ class _BaseFinancialGateway:
                     report_date=anchor.report_date or period_end,
                     report_type=_to_report_type(period_end),
                     revenue=self._safe_decimal(
-                        metric_map.get("revenue").value if metric_map.get("revenue") else 0
+                        self._metric_value(metric_map, "revenue", 0.0)
                     ),
                     net_profit=self._safe_decimal(
-                        metric_map.get("net_profit").value if metric_map.get("net_profit") else 0
+                        self._metric_value(metric_map, "net_profit", 0.0)
                     ),
                     revenue_growth=safe_float(
-                        metric_map.get("revenue_growth").value
-                        if metric_map.get("revenue_growth")
-                        else None
+                        self._metric_value(metric_map, "revenue_growth", None)
                     ),
                     net_profit_growth=safe_float(
-                        metric_map.get("net_profit_growth").value
-                        if metric_map.get("net_profit_growth")
-                        else None
+                        self._metric_value(metric_map, "net_profit_growth", None)
                     ),
                     total_assets=self._safe_decimal(
-                        metric_map.get("total_assets").value
-                        if metric_map.get("total_assets")
-                        else 0
+                        self._metric_value(metric_map, "total_assets", 0.0)
                     ),
                     total_liabilities=self._safe_decimal(
-                        metric_map.get("total_liabilities").value
-                        if metric_map.get("total_liabilities")
-                        else 0
+                        self._metric_value(metric_map, "total_liabilities", 0.0)
                     ),
                     equity=self._safe_decimal(
-                        metric_map.get("equity").value if metric_map.get("equity") else 0
+                        self._metric_value(metric_map, "equity", 0.0)
                     ),
-                    roe=safe_float(
-                        metric_map.get("roe").value if metric_map.get("roe") else 0
-                    )
-                    or 0.0,
-                    roa=safe_float(
-                        metric_map.get("roa").value if metric_map.get("roa") else None
-                    ),
+                    roe=safe_float(self._metric_value(metric_map, "roe", 0.0)) or 0.0,
+                    roa=safe_float(self._metric_value(metric_map, "roa", None)),
                     debt_ratio=safe_float(
-                        metric_map.get("debt_ratio").value if metric_map.get("debt_ratio") else 0
+                        self._metric_value(metric_map, "debt_ratio", 0.0)
                     )
                     or 0.0,
                 )
@@ -132,12 +119,26 @@ class _BaseFinancialGateway:
         )
 
     @staticmethod
-    def _safe_decimal(value) -> Decimal:
+    def _metric_value(
+        metric_map: dict[str, FinancialFact],
+        metric_code: str,
+        default: float | None,
+    ) -> float | None:
+        """Read one optional fact exactly once and return its numeric value."""
+
+        fact = metric_map.get(metric_code)
+        return fact.value if fact is not None else default
+
+    @staticmethod
+    def _safe_decimal(value: object) -> Decimal:
+        """Normalize a numeric fact into a finite Decimal-compatible value."""
+
         try:
             if value in (None, ""):
                 return Decimal("0")
-            return Decimal(str(value))
-        except Exception:
+            parsed = Decimal(str(value))
+            return parsed if parsed.is_finite() else Decimal("0")
+        except (InvalidOperation, ValueError):
             return Decimal("0")
 
 
@@ -146,7 +147,7 @@ class TushareFinancialGateway(_BaseFinancialGateway):
 
     provider_name = "tushare"
 
-    def __init__(self, token: str, http_url: str | None = None):
+    def __init__(self, token: str, http_url: str | None = None) -> None:
         super().__init__()
         self.token = token
         self.http_url = http_url
