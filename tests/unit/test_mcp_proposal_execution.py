@@ -5,6 +5,8 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
+import pytest
+
 from apps.agent_runtime.application.proposal_use_cases import ExecuteProposalUseCase
 from apps.agent_runtime.domain.entities import (
     AgentProposal,
@@ -38,9 +40,7 @@ def _approved_proposal() -> AgentProposal:
     )
 
 
-@patch(
-    "apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool"
-)
+@patch("apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool")
 def test_approved_executor_stages_and_resumes_through_core_mcp_tools(mock_call):
     """An approved proposal must execute through both governed MCP core calls."""
 
@@ -88,9 +88,7 @@ def test_approved_executor_stages_and_resumes_through_core_mcp_tools(mock_call):
     ]
 
 
-@patch(
-    "apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool"
-)
+@patch("apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool")
 def test_approved_executor_rejects_mcp_failure_envelope(mock_call):
     """A failed MCP envelope must not be recorded as successful execution."""
 
@@ -114,12 +112,8 @@ def test_approved_executor_rejects_mcp_failure_envelope(mock_call):
         raise AssertionError("Expected MCP execution failure")
 
 
-@patch(
-    "apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool"
-)
-def test_approved_executor_uses_staff_role_only_during_mcp_execution(
-    mock_call, monkeypatch
-):
+@patch("apps.agent_runtime.infrastructure.mcp_proposal_executor.call_sdk_mcp_tool")
+def test_approved_executor_uses_staff_role_only_during_mcp_execution(mock_call, monkeypatch):
     """The trusted approval actor role is scoped to the guarded MCP call."""
 
     observed_contexts = []
@@ -207,9 +201,7 @@ def test_execute_use_case_records_real_mcp_result_before_marking_executed():
     )
 
     assert output.execution_record_id == 88
-    execution_output = proposal_repo.create_execution_record.call_args.kwargs[
-        "execution_output"
-    ]
+    execution_output = proposal_repo.create_execution_record.call_args.kwargs["execution_output"]
     assert execution_output["mcp_result"]["result"]["rebalanced"] is True
     proposal_repo.update_proposal_status.assert_called_once_with(
         9,
@@ -257,3 +249,52 @@ def test_execute_use_case_marks_failed_when_mcp_execution_raises():
         9,
         status=ProposalStatus.EXECUTION_FAILED.value,
     )
+
+
+def test_execute_use_case_supports_a_standalone_persisted_proposal():
+    """Execution records preserve the model's optional task relationship."""
+
+    proposal = replace(_approved_proposal(), task_id=None)
+    executed_proposal = replace(proposal, status=ProposalStatus.EXECUTED)
+    proposal_repo = Mock()
+    proposal_repo.get_proposal.return_value = proposal
+    proposal_repo.create_guardrail_decision.return_value = {"decision": "allowed"}
+    proposal_repo.create_execution_record.return_value = 90
+    proposal_repo.update_proposal_status.return_value = executed_proposal
+    guardrails = Mock()
+    guardrails.check_pre_execution.return_value = SimpleNamespace(
+        overall_decision=GuardrailDecision.ALLOWED,
+        reason_code="allowed",
+        message="allowed",
+        evidence={},
+        requires_human=False,
+    )
+    executor = Mock()
+    executor.execute.return_value = {"ok": True, "status": "completed"}
+
+    ExecuteProposalUseCase(
+        guardrail_engine=guardrails,
+        timeline_service=Mock(),
+        audit_service=Mock(),
+        proposal_repo=proposal_repo,
+        approved_capability_executor=executor,
+    ).execute(proposal_id=9)
+
+    assert proposal_repo.create_execution_record.call_args.kwargs["task_id"] is None
+
+
+def test_execute_use_case_rejects_an_unpersisted_proposal_before_writes():
+    proposal_repo = Mock()
+    proposal_repo.get_proposal.return_value = replace(_approved_proposal(), id=None)
+
+    with pytest.raises(ValueError, match="AgentProposal must be persisted"):
+        ExecuteProposalUseCase(
+            guardrail_engine=Mock(),
+            timeline_service=Mock(),
+            audit_service=Mock(),
+            proposal_repo=proposal_repo,
+            approved_capability_executor=Mock(),
+        ).execute(proposal_id=9)
+
+    proposal_repo.create_guardrail_decision.assert_not_called()
+    proposal_repo.create_execution_record.assert_not_called()

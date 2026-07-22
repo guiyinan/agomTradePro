@@ -12,8 +12,17 @@ from enum import Enum
 from typing import Any
 
 
+def require_persisted_id(entity_id: int | None, *, entity_name: str) -> int:
+    """Return a persisted entity ID or fail before a write-side operation."""
+
+    if entity_id is None:
+        raise ValueError(f"{entity_name} must be persisted before this operation")
+    return entity_id
+
+
 class TaskDomain(str, Enum):
     """FROZEN: Task domain values"""
+
     RESEARCH = "research"
     MONITORING = "monitoring"
     DECISION = "decision"
@@ -23,6 +32,7 @@ class TaskDomain(str, Enum):
 
 class TaskStatus(str, Enum):
     """FROZEN: Task status values"""
+
     DRAFT = "draft"
     CONTEXT_READY = "context_ready"
     PROPOSAL_GENERATED = "proposal_generated"
@@ -38,6 +48,7 @@ class TaskStatus(str, Enum):
 
 class ProposalStatus(str, Enum):
     """FROZEN: Proposal status values"""
+
     DRAFT = "draft"
     GENERATED = "generated"
     SUBMITTED = "submitted"
@@ -50,6 +61,7 @@ class ProposalStatus(str, Enum):
 
 class ApprovalStatus(str, Enum):
     """FROZEN: Approval status values"""
+
     NOT_REQUIRED = "not_required"
     PENDING = "pending"
     APPROVED = "approved"
@@ -58,6 +70,7 @@ class ApprovalStatus(str, Enum):
 
 class RiskLevel(str, Enum):
     """Risk level for proposals"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -66,6 +79,7 @@ class RiskLevel(str, Enum):
 
 class EventSource(str, Enum):
     """Source of timeline events"""
+
     API = "api"
     SDK = "sdk"
     MCP = "mcp"
@@ -75,6 +89,7 @@ class EventSource(str, Enum):
 
 class GuardrailDecision(str, Enum):
     """Guardrail decision outcomes"""
+
     ALLOWED = "allowed"
     BLOCKED = "blocked"
     NEEDS_HUMAN = "needs_human"
@@ -83,6 +98,7 @@ class GuardrailDecision(str, Enum):
 
 class TimelineEventType(str, Enum):
     """Timeline event types"""
+
     TASK_CREATED = "task_created"
     STATE_CHANGED = "state_changed"
     STEP_STARTED = "step_started"
@@ -115,6 +131,7 @@ class AgentTask:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     schema_version: str = "v1"
@@ -152,6 +169,7 @@ class AgentTaskStep:
         error_message: Error if failed
         output_data: Step output
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int | None = None
@@ -180,6 +198,7 @@ class AgentContextSnapshot:
         generated_at: Snapshot generation time
         data_freshness: Data freshness metrics
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int = 0
@@ -213,6 +232,7 @@ class AgentProposal:
         created_at: Server timestamp
         updated_at: Server timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     schema_version: str = "v1"
@@ -245,6 +265,7 @@ class AgentExecutionRecord:
         completed_at: Execution completion time
         error_details: Error details if failed
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int = 0
@@ -273,6 +294,7 @@ class AgentArtifact:
         content_type: MIME type
         created_at: Creation timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int = 0
@@ -302,6 +324,7 @@ class AgentTimelineEvent:
         event_payload: Event details
         created_at: Server timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int = 0
@@ -329,6 +352,7 @@ class AgentHandoff:
         handoff_status: Handoff status
         created_at: Creation timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int = 0
@@ -359,6 +383,7 @@ class AgentGuardrailDecision:
         requires_human: Convenience flag
         created_at: Server timestamp
     """
+
     id: int | None = None
     request_id: str = ""
     task_id: int | None = None
@@ -372,13 +397,17 @@ class AgentGuardrailDecision:
 
 
 # Terminal states for tasks (no further transitions allowed)
-TERMINAL_TASK_STATUSES = frozenset([
-    TaskStatus.COMPLETED,
-    TaskStatus.CANCELLED,
-])
+TERMINAL_TASK_STATUSES = frozenset(
+    [
+        TaskStatus.COMPLETED,
+        TaskStatus.CANCELLED,
+    ]
+)
 
 # Terminal states for proposals
-TERMINAL_PROPOSAL_STATUSES = frozenset([
-    ProposalStatus.EXECUTED,
-    ProposalStatus.EXPIRED,
-])
+TERMINAL_PROPOSAL_STATUSES = frozenset(
+    [
+        ProposalStatus.EXECUTED,
+        ProposalStatus.EXPIRED,
+    ]
+)

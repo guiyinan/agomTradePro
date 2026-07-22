@@ -5,10 +5,11 @@ Provide a thin Django ORM wrapper so application use cases do not
 import ORM models directly.
 """
 
+from datetime import datetime
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Prefetch, Q, QuerySet
 
 from apps.agent_runtime.domain.entities import AgentProposal, AgentTask
 from apps.agent_runtime.infrastructure.models import (
@@ -22,6 +23,21 @@ from apps.agent_runtime.infrastructure.models import (
     AgentTaskStepModel,
     AgentTimelineEventModel,
 )
+
+
+def _flat_string_choices(choices: object) -> list[tuple[str, str]]:
+    """Normalize flat Django field choices for interface filters."""
+
+    if not isinstance(choices, (list, tuple)):
+        return []
+    normalized: list[tuple[str, str]] = []
+    for item in choices:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            continue
+        value, label = item
+        if isinstance(label, str):
+            normalized.append((str(value), label))
+    return sorted(normalized)
 
 
 class AgentTaskRepository:
@@ -154,7 +170,7 @@ class AgentTimelineRepository:
         self,
         *,
         request_id: str,
-        task_id: int | None,
+        task_id: int,
         proposal_id: int | None,
         event_type: str,
         event_source: str,
@@ -267,12 +283,12 @@ class AgentProposalRepository:
         self,
         *,
         request_id: str,
-        task_id: int,
+        task_id: int | None,
         proposal_id: int,
         execution_status: str,
         execution_output: dict[str, Any],
-        started_at,
-        completed_at,
+        started_at: datetime,
+        completed_at: datetime,
     ) -> int:
         from django.conf import settings
 
@@ -292,9 +308,7 @@ class AgentProposalRepository:
             )
             missing = [field for field in required if not execution_output.get(field)]
             if missing:
-                raise ValueError(
-                    f"agent execution lacks prompt evidence: {', '.join(missing)}"
-                )
+                raise ValueError(f"agent execution lacks prompt evidence: {', '.join(missing)}")
             from core.integration.research_integrity_registry import (
                 is_prompt_version_active,
             )
@@ -319,16 +333,17 @@ class AgentProposalRepository:
             actual_tokens=int(execution_output.get("actual_tokens") or 0),
             actual_cost=execution_output.get("actual_cost") or 0,
         )
-        return model.id
+        return int(model.id)
 
     def list_open_proposals(
         self, task_id: int, terminal_statuses: list[str]
     ) -> list[dict[str, Any]]:
-        return list(
+        rows = (
             AgentProposalModel._default_manager.filter(task_id=task_id)
             .exclude(status__in=terminal_statuses)
             .values("id", "proposal_type", "status", "risk_level")
         )
+        return [dict(row) for row in rows]
 
 
 class AgentHandoffRepository:
@@ -423,7 +438,7 @@ class AgentOperatorRepository:
         attention_only: bool = False,
         limit: int = 100,
         offset: int = 0,
-    ):
+    ) -> QuerySet[AgentTaskModel]:
         """Return task queryset with operator-facing annotations."""
 
         tasks = (
@@ -445,7 +460,12 @@ class AgentOperatorRepository:
             tasks = tasks.filter(Q(requires_human=True) | Q(status__in=["needs_human", "failed"]))
         return tasks[offset : offset + limit]
 
-    def get_task_queryset(self, *, user_id: int | None, is_staff: bool):
+    def get_task_queryset(
+        self,
+        *,
+        user_id: int | None,
+        is_staff: bool,
+    ) -> QuerySet[AgentTaskModel]:
         """Return base task queryset with ownership filtering."""
 
         queryset = AgentTaskModel._default_manager.all()
@@ -460,7 +480,7 @@ class AgentOperatorRepository:
         rid = getattr(task_model, "request_id", None)
         return rid if isinstance(rid, str) else None
 
-    def get_task_models_by_ids(self, task_ids: list[int]):
+    def get_task_models_by_ids(self, task_ids: list[int]) -> QuerySet[AgentTaskModel]:
         """Return task ORM models by ids."""
 
         return AgentTaskModel._default_manager.filter(id__in=task_ids)
@@ -468,14 +488,14 @@ class AgentOperatorRepository:
     def get_task_status_choices(self) -> list[tuple[str, str]]:
         """Return task status filter choices."""
 
-        return sorted(AgentTaskModel._meta.get_field("status").choices)
+        return _flat_string_choices(AgentTaskModel._meta.get_field("status").choices)
 
     def get_task_domain_choices(self) -> list[tuple[str, str]]:
         """Return task domain filter choices."""
 
-        return sorted(AgentTaskModel._meta.get_field("task_domain").choices)
+        return _flat_string_choices(AgentTaskModel._meta.get_field("task_domain").choices)
 
-    def get_task_detail(self, task_id: int):
+    def get_task_detail(self, task_id: int) -> AgentTaskModel | None:
         """Return one task with related operator data prefetched."""
 
         return (
@@ -505,7 +525,7 @@ class AgentOperatorRepository:
             .first()
         )
 
-    def get_latest_context(self, task_id: int):
+    def get_latest_context(self, task_id: int) -> AgentContextSnapshotModel | None:
         """Return the latest context snapshot for a task."""
 
         return (
@@ -522,7 +542,7 @@ class AgentOperatorRepository:
         risk_filter: str = "",
         search: str = "",
         limit: int = 100,
-    ):
+    ) -> QuerySet[AgentProposalModel]:
         """Return proposal queryset for the operator queue."""
 
         proposals = AgentProposalModel._default_manager.select_related(
@@ -542,7 +562,7 @@ class AgentOperatorRepository:
             )
         return proposals[:limit]
 
-    def list_proposals_for_task(self, task_id: int):
+    def list_proposals_for_task(self, task_id: int) -> QuerySet[AgentProposalModel]:
         """Return proposals linked to one task."""
 
         return AgentProposalModel._default_manager.filter(task_id=task_id).order_by("-created_at")
@@ -550,19 +570,19 @@ class AgentOperatorRepository:
     def get_proposal_status_choices(self) -> list[tuple[str, str]]:
         """Return proposal status filter choices."""
 
-        return sorted(AgentProposalModel._meta.get_field("status").choices)
+        return _flat_string_choices(AgentProposalModel._meta.get_field("status").choices)
 
     def get_proposal_approval_choices(self) -> list[tuple[str, str]]:
         """Return proposal approval filter choices."""
 
-        return sorted(AgentProposalModel._meta.get_field("approval_status").choices)
+        return _flat_string_choices(AgentProposalModel._meta.get_field("approval_status").choices)
 
     def get_proposal_risk_choices(self) -> list[tuple[str, str]]:
         """Return proposal risk filter choices."""
 
-        return sorted(AgentProposalModel._meta.get_field("risk_level").choices)
+        return _flat_string_choices(AgentProposalModel._meta.get_field("risk_level").choices)
 
-    def get_proposal_detail(self, proposal_id: int):
+    def get_proposal_detail(self, proposal_id: int) -> AgentProposalModel | None:
         """Return one proposal with linked task and creator."""
 
         return (
@@ -571,47 +591,59 @@ class AgentOperatorRepository:
             .first()
         )
 
-    def list_guardrails_for_proposal(self, proposal_id: int):
+    def list_guardrails_for_proposal(
+        self,
+        proposal_id: int,
+    ) -> QuerySet[AgentGuardrailDecisionModel]:
         """Return guardrail decisions for one proposal."""
 
         return AgentGuardrailDecisionModel._default_manager.filter(
             proposal_id=proposal_id
         ).order_by("-created_at")
 
-    def list_executions_for_proposal(self, proposal_id: int):
+    def list_executions_for_proposal(
+        self,
+        proposal_id: int,
+    ) -> QuerySet[AgentExecutionRecordModel]:
         """Return execution records for one proposal."""
 
         return AgentExecutionRecordModel._default_manager.filter(proposal_id=proposal_id).order_by(
             "-created_at"
         )
 
-    def list_guardrails_for_task(self, task_id: int):
+    def list_guardrails_for_task(
+        self,
+        task_id: int,
+    ) -> QuerySet[AgentGuardrailDecisionModel]:
         """Return guardrail decisions for one task."""
 
         return AgentGuardrailDecisionModel._default_manager.filter(task_id=task_id).order_by(
             "-created_at"
         )
 
-    def list_executions_for_task(self, task_id: int):
+    def list_executions_for_task(
+        self,
+        task_id: int,
+    ) -> QuerySet[AgentExecutionRecordModel]:
         """Return execution records for one task."""
 
         return AgentExecutionRecordModel._default_manager.filter(task_id=task_id).order_by(
             "-created_at"
         )
 
-    def list_timeline_for_task(self, task_id: int):
+    def list_timeline_for_task(self, task_id: int) -> QuerySet[AgentTimelineEventModel]:
         """Return timeline events for one task."""
 
         return AgentTimelineEventModel._default_manager.filter(task_id=task_id).order_by(
             "created_at"
         )
 
-    def list_artifacts_for_task(self, task_id: int):
+    def list_artifacts_for_task(self, task_id: int) -> QuerySet[AgentArtifactModel]:
         """Return task artifacts ordered newest first."""
 
         return AgentArtifactModel._default_manager.filter(task_id=task_id).order_by("-created_at")
 
-    def get_proposal_model(self, proposal_id: int):
+    def get_proposal_model(self, proposal_id: int) -> AgentProposalModel | None:
         """Return one proposal ORM model when available."""
 
         return AgentProposalModel._default_manager.filter(pk=proposal_id).first()
@@ -622,7 +654,7 @@ class AgentOperatorRepository:
         status_filter: str | None,
         limit: int,
         offset: int,
-    ):
+    ) -> tuple[QuerySet[AgentProposalModel], int]:
         """Return proposal queryset page plus total count."""
 
         queryset = AgentProposalModel._default_manager.all()
@@ -631,12 +663,20 @@ class AgentOperatorRepository:
         total = queryset.count()
         return queryset.order_by("-created_at")[offset : offset + limit], total
 
-    def list_recent_guardrails(self, *, limit: int):
+    def list_recent_guardrails(
+        self,
+        *,
+        limit: int,
+    ) -> QuerySet[AgentGuardrailDecisionModel]:
         """Return recent guardrail decisions."""
 
         return AgentGuardrailDecisionModel._default_manager.order_by("-created_at")[:limit]
 
-    def list_recent_executions(self, *, limit: int):
+    def list_recent_executions(
+        self,
+        *,
+        limit: int,
+    ) -> QuerySet[AgentExecutionRecordModel]:
         """Return recent execution records."""
 
         return AgentExecutionRecordModel._default_manager.order_by("-created_at")[:limit]

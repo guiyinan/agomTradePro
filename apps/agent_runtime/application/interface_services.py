@@ -37,7 +37,7 @@ def get_operator_task_list_context(
     }
 
 
-def get_task_queryset_for_actor(*, user_id: int | None, is_staff: bool):
+def get_task_queryset_for_actor(*, user_id: int | None, is_staff: bool) -> Any:
     """Return the base task queryset for API object lookups."""
 
     return get_operator_repository().get_task_queryset(user_id=user_id, is_staff=is_staff)
@@ -49,31 +49,38 @@ def get_task_request_id(*, task_id: int) -> str | None:
     return get_operator_repository().get_task_request_id(task_id)
 
 
-def get_task_for_actor(*, task_id: Any, user_id: int | None, is_staff: bool):
+def get_task_for_actor(
+    *,
+    task_id: Any,
+    user_id: int | None,
+    is_staff: bool,
+) -> Any | None:
     """Return one task model subject to actor ownership rules."""
 
-    return get_task_queryset_for_actor(user_id=user_id, is_staff=is_staff).filter(pk=task_id).first()
+    return (
+        get_task_queryset_for_actor(user_id=user_id, is_staff=is_staff).filter(pk=task_id).first()
+    )
 
 
-def get_task_models_by_ids(*, task_ids: list[int]):
+def get_task_models_by_ids(*, task_ids: list[int]) -> Any:
     """Return task ORM models for serializer-backed list output."""
 
     return get_operator_repository().get_task_models_by_ids(task_ids)
 
 
-def get_task_timeline_events(*, task_id: int):
+def get_task_timeline_events(*, task_id: int) -> Any:
     """Return timeline events for one task."""
 
     return get_operator_repository().list_timeline_for_task(task_id)
 
 
-def get_task_artifacts(*, task_id: int):
+def get_task_artifacts(*, task_id: int) -> Any:
     """Return artifacts for one task."""
 
     return get_operator_repository().list_artifacts_for_task(task_id)
 
 
-def get_needs_attention_tasks(*, base_queryset: Any, limit: int):
+def get_needs_attention_tasks(*, base_queryset: Any, limit: int) -> tuple[Any, int]:
     """Return tasks needing attention plus total count."""
 
     queryset = base_queryset.filter(requires_human=True) | base_queryset.filter(
@@ -144,9 +151,9 @@ def get_operator_proposal_detail_context(*, proposal_id: int) -> dict[str, Any] 
     if proposal is None:
         return None
 
-    task_timeline = []
+    task_timeline: list[Any] = []
     if proposal.task_id:
-        task_timeline = repository.list_timeline_for_task(proposal.task_id)
+        task_timeline = list(repository.list_timeline_for_task(proposal.task_id))
 
     return {
         "page_title": f"Proposal {proposal.request_id}",
@@ -158,7 +165,7 @@ def get_operator_proposal_detail_context(*, proposal_id: int) -> dict[str, Any] 
     }
 
 
-def get_proposal_model(*, proposal_id: int):
+def get_proposal_model(*, proposal_id: int) -> Any | None:
     """Return one proposal ORM model when available."""
 
     return get_operator_repository().get_proposal_model(proposal_id)
@@ -193,7 +200,12 @@ def get_dashboard_task_detail_payload(*, task_id: int) -> dict[str, Any] | None:
     }
 
 
-def get_dashboard_proposals_payload(*, status_filter: str | None, limit: int, offset: int):
+def get_dashboard_proposals_payload(
+    *,
+    status_filter: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[Any, int]:
     """Return proposal page plus total count for dashboard API."""
 
     return get_operator_repository().list_proposals_paginated(
@@ -203,13 +215,13 @@ def get_dashboard_proposals_payload(*, status_filter: str | None, limit: int, of
     )
 
 
-def get_dashboard_guardrails_payload(*, limit: int):
+def get_dashboard_guardrails_payload(*, limit: int) -> Any:
     """Return recent guardrail decisions for dashboard API."""
 
     return get_operator_repository().list_recent_guardrails(limit=limit)
 
 
-def get_dashboard_executions_payload(*, limit: int):
+def get_dashboard_executions_payload(*, limit: int) -> Any:
     """Return recent execution records for dashboard API."""
 
     return get_operator_repository().list_recent_executions(limit=limit)

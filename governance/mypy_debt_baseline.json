@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7021,
-    "files_with_errors": 849
+    "errors": 6929,
+    "files_with_errors": 843
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -248,23 +248,7 @@
     },
     "apps/agent_runtime/application/facades/base.py": {
       "no-any-return": 8,
-      "no-untyped-call": 1,
       "no-untyped-def": 1
-    },
-    "apps/agent_runtime/application/handoff_use_cases.py": {
-      "arg-type": 6,
-      "attr-defined": 4
-    },
-    "apps/agent_runtime/application/interface_services.py": {
-      "no-untyped-def": 10
-    },
-    "apps/agent_runtime/application/proposal_use_cases.py": {
-      "arg-type": 7,
-      "attr-defined": 2
-    },
-    "apps/agent_runtime/application/repository_provider.py": {
-      "no-untyped-call": 1,
-      "no-untyped-def": 4
     },
     "apps/agent_runtime/application/services/audit_service.py": {
       "no-untyped-call": 1,
@@ -274,8 +258,7 @@
       "arg-type": 1
     },
     "apps/agent_runtime/application/use_cases.py": {
-      "arg-type": 1,
-      "attr-defined": 1
+      "arg-type": 1
     },
     "apps/agent_runtime/apps.py": {
       "no-untyped-def": 1
@@ -289,22 +272,12 @@
       "import-untyped": 2,
       "no-untyped-def": 2
     },
-    "apps/agent_runtime/infrastructure/models.py": {
-      "no-untyped-def": 13
-    },
     "apps/agent_runtime/infrastructure/repositories.py": {
-      "arg-type": 6,
-      "misc": 3,
-      "no-any-return": 6,
-      "no-untyped-call": 7,
-      "no-untyped-def": 19
+      "misc": 2
     },
     "apps/agent_runtime/infrastructure/terminal_agent_service.py": {
       "attr-defined": 1,
       "no-untyped-def": 2
-    },
-    "apps/agent_runtime/interface/page_views.py": {
-      "no-untyped-call": 1
     },
     "apps/agent_runtime/interface/serializers.py": {
       "attr-defined": 4,
@@ -315,7 +288,7 @@
     "apps/agent_runtime/interface/views.py": {
       "arg-type": 3,
       "no-any-return": 2,
-      "no-untyped-call": 2,
+      "no-untyped-call": 1,
       "no-untyped-def": 32,
       "type-arg": 1,
       "union-attr": 4,
@@ -3409,7 +3382,7 @@
     "apps/terminal/interface/api_views.py": {
       "assignment": 1,
       "attr-defined": 2,
-      "no-untyped-call": 14,
+      "no-untyped-call": 12,
       "no-untyped-def": 39,
       "type-arg": 1
     },

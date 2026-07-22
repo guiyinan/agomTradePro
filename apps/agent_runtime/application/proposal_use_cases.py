@@ -24,6 +24,7 @@ from apps.agent_runtime.domain.entities import (
     GuardrailDecision,
     ProposalStatus,
     RiskLevel,
+    require_persisted_id,
 )
 from apps.agent_runtime.domain.guardrails import (
     HIGH_RISK_PROPOSAL_TYPES,
@@ -203,7 +204,9 @@ class CreateProposalUseCase:
         try:
             risk = RiskLevel(inp.risk_level)
         except ValueError:
-            raise ValueError(f"Invalid risk_level. Must be one of: {[r.value for r in RiskLevel]}") from None
+            raise ValueError(
+                f"Invalid risk_level. Must be one of: {[r.value for r in RiskLevel]}"
+            ) from None
 
         # Auto-detect approval_required for high-risk types
         approval_required = inp.approval_required
@@ -307,6 +310,10 @@ class SubmitProposalForApprovalUseCase:
         context: dict[str, Any] | None = None,
     ) -> SubmitApprovalOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
+        persisted_proposal_id = require_persisted_id(
+            proposal.id,
+            entity_name="AgentProposal",
+        )
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.SUBMITTED.value)
 
@@ -335,7 +342,7 @@ class SubmitProposalForApprovalUseCase:
 
         # Transition
         proposal = self.proposal_repo.update_proposal_status(
-            proposal.id,
+            persisted_proposal_id,
             status=ProposalStatus.SUBMITTED.value,
         )
 
@@ -469,6 +476,10 @@ class ExecuteProposalUseCase:
         context: dict[str, Any] | None = None,
     ) -> ExecuteProposalOutput:
         proposal = self.proposal_repo.get_proposal(proposal_id)
+        persisted_proposal_id = require_persisted_id(
+            proposal.id,
+            entity_name="AgentProposal",
+        )
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.EXECUTED.value)
 
@@ -499,9 +510,7 @@ class ExecuteProposalUseCase:
         exec_started = timezone.now()
         if proposal.proposal_type == TERMINAL_MCP_PROPOSAL_TYPE:
             if self.approved_capability_executor is None:
-                raise ProposalExecutionError(
-                    "Approved MCP capability executor is not configured"
-                )
+                raise ProposalExecutionError("Approved MCP capability executor is not configured")
             try:
                 execution_result = self.approved_capability_executor.execute(
                     proposal=proposal,
@@ -512,7 +521,7 @@ class ExecuteProposalUseCase:
                 execution_record_id = self.proposal_repo.create_execution_record(
                     request_id=proposal.request_id,
                     task_id=proposal.task_id,
-                    proposal_id=int(proposal.id),
+                    proposal_id=persisted_proposal_id,
                     execution_status="failed",
                     execution_output={
                         "proposal_type": proposal.proposal_type,
@@ -523,7 +532,7 @@ class ExecuteProposalUseCase:
                     completed_at=timezone.now(),
                 )
                 self.proposal_repo.update_proposal_status(
-                    int(proposal.id),
+                    persisted_proposal_id,
                     status=ProposalStatus.EXECUTION_FAILED.value,
                 )
                 raise ProposalExecutionError(
@@ -534,7 +543,7 @@ class ExecuteProposalUseCase:
         execution_record_id = self.proposal_repo.create_execution_record(
             request_id=proposal.request_id,
             task_id=proposal.task_id,
-            proposal_id=proposal.id,
+            proposal_id=persisted_proposal_id,
             execution_status="success",
             execution_output={
                 "proposal_type": proposal.proposal_type,
@@ -548,7 +557,7 @@ class ExecuteProposalUseCase:
 
         # Transition proposal
         proposal = self.proposal_repo.update_proposal_status(
-            proposal.id,
+            persisted_proposal_id,
             status=ProposalStatus.EXECUTED.value,
         )
 

@@ -734,3 +734,16 @@
 - Hedge 领域、Application、API 与持久化回归共 `99 passed`；Unified Signal 契约传播回归 `4 passed`；Django system check、架构边界 `0 violations`、模块循环回归 `5 passed`，Ruff、Black、diff check 通过。
 - 完整架构审计仍报告 11 条既存 audit 债务（4 条共享 Admin import、7 条 Realtime repository provider import），与本批变更无关；普通强制边界规则保持通过。
 - Governance consistency 仍报告 2 条既存大文件债务（AI Capability use cases 与 Simulated Trading repository 超过 1200 非空行且未进入允许基线），与本批变更无关。
+
+## 第五十七批
+
+- 按“持久化身份不变量 + Repository 公共杠杆”收口 Agent Runtime handoff/proposal 链：新增 `require_persisted_id()` 领域断言，handoff、提交审批与执行在任何写操作前显式验证数据库身份，不再把 `int | None` 传给 repository 或用 `int(None)` 隐式失败。
+- 修正 execution record 的任务关联契约：ORM 明确支持 standalone approved capability，因此 repository 的 `task_id` 同步改为 `int | None`；proposal 关联仍要求真实持久化 ID。Timeline event 的 task 关联按非空模型约束收紧为 `int`。
+- Agent Runtime ORM 的领域转换和字符串方法全部补齐返回类型；Operator repository 的 QuerySet、详情、分页、choices 与时间参数具化，动态 values row 在 ORM 边界转换为普通字典。
+- Repository provider 使用显式同名导出固定公开类型表面；Interface service 在 ORM 输出边界使用显式 opaque 类型，并统一把 proposal timeline 物化为列表，避免空列表与 QuerySet 复用同一变量。
+
+## 第五十七批验证结果
+
+- 7 个变更生产文件的增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7021 errors / 849 files` 收紧为 `6929 errors / 843 files`，净减少 `92 errors / 6 files`，并连带清除 Facade、通用 UseCase、Page View、Agent Runtime View 与 Terminal API 的未类型调用。
+- Agent Runtime 领域、审批、handoff、operator 与 API 完整联合回归 `164 passed`；Django system check、架构边界 `0 violations`、模块循环回归 `4 passed`。
+- Ruff、Black、diff check 通过；Agent Runtime repository 仅剩 2 项 Django plugin `misc` 历史债务，其余高风险、Any 返回和未类型调用债务归零。

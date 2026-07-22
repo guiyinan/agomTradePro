@@ -4,6 +4,7 @@ Unit Tests for M4 WP-M4-02: Handoff Use Case.
 Tests verify handoff payload structure and timeline event creation.
 """
 
+from unittest.mock import Mock
 
 import pytest
 
@@ -11,6 +12,35 @@ from apps.agent_runtime.application.handoff_use_cases import (
     HandoffInput,
     HandoffTaskUseCase,
 )
+from apps.agent_runtime.domain.entities import AgentTask
+
+
+def test_handoff_rejects_an_unpersisted_task_before_writes():
+    task_repo = Mock()
+    task_repo.get_task.return_value = AgentTask(request_id="atr_unpersisted")
+    context_repo = Mock()
+    proposal_repo = Mock()
+    handoff_repo = Mock()
+
+    use_case = HandoffTaskUseCase(
+        timeline_service=Mock(),
+        task_repo=task_repo,
+        context_repo=context_repo,
+        proposal_repo=proposal_repo,
+        handoff_repo=handoff_repo,
+    )
+
+    with pytest.raises(ValueError, match="AgentTask must be persisted"):
+        use_case.execute(
+            HandoffInput(
+                task_id=1,
+                to_agent="human",
+                handoff_reason="missing persistence identity",
+            )
+        )
+
+    context_repo.list_task_steps.assert_not_called()
+    handoff_repo.create_handoff.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -20,6 +50,7 @@ class TestHandoffUseCase:
     @pytest.fixture
     def task_model(self):
         from apps.agent_runtime.infrastructure.models import AgentTaskModel
+
         return AgentTaskModel._default_manager.create(
             request_id="atr_test_handoff",
             task_domain="research",
@@ -32,13 +63,15 @@ class TestHandoffUseCase:
         from apps.agent_runtime.infrastructure.models import AgentHandoffModel
 
         use_case = HandoffTaskUseCase()
-        output = use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="human_operator",
-            handoff_reason="Needs domain expertise",
-            open_risks=["macro data may be stale"],
-            actor={"user_id": 1, "agent_id": "research_agent"},
-        ))
+        output = use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="human_operator",
+                handoff_reason="Needs domain expertise",
+                open_risks=["macro data may be stale"],
+                actor={"user_id": 1, "agent_id": "research_agent"},
+            )
+        )
 
         assert output.handoff_id is not None
         assert output.request_id == task_model.request_id
@@ -51,11 +84,13 @@ class TestHandoffUseCase:
 
     def test_handoff_payload_has_required_fields(self, task_model):
         use_case = HandoffTaskUseCase()
-        output = use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="human_operator",
-            handoff_reason="Test reason",
-        ))
+        output = use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="human_operator",
+                handoff_reason="Test reason",
+            )
+        )
 
         payload = output.handoff_payload
         assert "current_status" in payload
@@ -70,11 +105,13 @@ class TestHandoffUseCase:
 
     def test_handoff_captures_current_status(self, task_model):
         use_case = HandoffTaskUseCase()
-        output = use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="ops_team",
-            handoff_reason="Escalation",
-        ))
+        output = use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="ops_team",
+                handoff_reason="Escalation",
+            )
+        )
 
         assert output.handoff_payload["current_status"] == "needs_human"
         assert output.handoff_payload["recommended_next_actor"] == "ops_team"
@@ -83,11 +120,13 @@ class TestHandoffUseCase:
         from apps.agent_runtime.infrastructure.models import AgentTimelineEventModel
 
         use_case = HandoffTaskUseCase()
-        use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="human_operator",
-            handoff_reason="Escalation",
-        ))
+        use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="human_operator",
+                handoff_reason="Escalation",
+            )
+        )
 
         events = AgentTimelineEventModel._default_manager.filter(
             task_id=task_model.id,
@@ -98,12 +137,14 @@ class TestHandoffUseCase:
 
     def test_handoff_includes_open_risks(self, task_model):
         use_case = HandoffTaskUseCase()
-        output = use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="human",
-            handoff_reason="Risk",
-            open_risks=["regime shift", "data lag"],
-        ))
+        output = use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="human",
+                handoff_reason="Risk",
+                open_risks=["regime shift", "data lag"],
+            )
+        )
 
         assert output.handoff_payload["open_risks"] == ["regime shift", "data lag"]
 
@@ -129,11 +170,13 @@ class TestHandoffUseCase:
         )
 
         use_case = HandoffTaskUseCase()
-        output = use_case.execute(HandoffInput(
-            task_id=task_model.id,
-            to_agent="human",
-            handoff_reason="Review",
-        ))
+        output = use_case.execute(
+            HandoffInput(
+                task_id=task_model.id,
+                to_agent="human",
+                handoff_reason="Review",
+            )
+        )
 
         assert len(output.handoff_payload["completed_steps"]) == 1
         assert output.handoff_payload["completed_steps"][0]["step_key"] == "fetch_macro"

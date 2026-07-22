@@ -9,6 +9,10 @@ from django.conf import settings
 from django.db import models
 
 from apps.agent_runtime.domain.entities import (
+    AgentGuardrailDecision,
+    AgentProposal,
+    AgentTask,
+    AgentTimelineEvent,
     ApprovalStatus,
     EventSource,
     GuardrailDecision,
@@ -88,13 +92,11 @@ class AgentTaskModel(models.Model):
             models.Index(fields=["created_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Task {self.request_id}: {self.task_domain}/{self.task_type} [{self.status}]"
 
-    def to_domain_entity(self):
+    def to_domain_entity(self) -> AgentTask:
         """Convert to domain entity."""
-        from apps.agent_runtime.domain.entities import AgentTask
-
         return AgentTask(
             id=self.id,
             request_id=self.request_id,
@@ -137,7 +139,7 @@ class AgentTaskStepModel(models.Model):
             models.Index(fields=["task", "step_index"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Step {self.step_key}: {self.status}"
 
 
@@ -167,7 +169,7 @@ class AgentContextSnapshotModel(models.Model):
             models.Index(fields=["domain"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Context for task {self.task_id}"
 
 
@@ -251,13 +253,11 @@ class AgentProposalModel(models.Model):
             models.Index(fields=["task"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Proposal {self.request_id}: {self.proposal_type} [{self.status}]"
 
-    def to_domain_entity(self):
+    def to_domain_entity(self) -> AgentProposal:
         """Convert to domain entity."""
-        from apps.agent_runtime.domain.entities import AgentProposal
-
         return AgentProposal(
             id=self.id,
             request_id=self.request_id,
@@ -323,7 +323,7 @@ class AgentExecutionRecordModel(models.Model):
             models.Index(fields=["proposal"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Execution {self.request_id}: {self.execution_status}"
 
 
@@ -354,7 +354,7 @@ class AgentArtifactModel(models.Model):
             models.Index(fields=["artifact_type"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Artifact {self.artifact_name}: {self.artifact_type}"
 
 
@@ -405,13 +405,11 @@ class AgentTimelineEventModel(models.Model):
             models.Index(fields=["created_at"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Event {self.event_type} for task {self.task_id}"
 
-    def to_domain_entity(self):
+    def to_domain_entity(self) -> AgentTimelineEvent:
         """Convert to domain entity."""
-        from apps.agent_runtime.domain.entities import AgentTimelineEvent
-
         return AgentTimelineEvent(
             id=self.id,
             request_id=self.request_id,
@@ -449,7 +447,7 @@ class AgentHandoffModel(models.Model):
             models.Index(fields=["task"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Handoff {self.from_agent} -> {self.to_agent}"
 
 
@@ -499,13 +497,11 @@ class AgentGuardrailDecisionModel(models.Model):
             models.Index(fields=["decision"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Guardrail {self.decision}: {self.reason_code}"
 
-    def to_domain_entity(self):
+    def to_domain_entity(self) -> AgentGuardrailDecision:
         """Convert to domain entity."""
-        from apps.agent_runtime.domain.entities import AgentGuardrailDecision
-
         return AgentGuardrailDecision(
             id=self.id,
             request_id=self.request_id,

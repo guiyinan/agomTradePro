@@ -1,13 +1,25 @@
 """Repository providers for agent runtime application services."""
 
+from typing import Any
+
 from apps.agent_runtime.infrastructure.providers import (
-    AgentContextRepository,
-    AgentHandoffRepository,
-    AgentOperatorRepository,
-    AgentProposalRepository,
-    AgentRuntimeUserRepository,
-    AgentTaskRepository,
-    AgentTimelineRepository,
+    AgentContextRepository as AgentContextRepository,
+)
+from apps.agent_runtime.infrastructure.providers import (
+    AgentHandoffRepository as AgentHandoffRepository,
+)
+from apps.agent_runtime.infrastructure.providers import (
+    AgentOperatorRepository as AgentOperatorRepository,
+)
+from apps.agent_runtime.infrastructure.providers import (
+    AgentProposalRepository as AgentProposalRepository,
+)
+from apps.agent_runtime.infrastructure.providers import (
+    AgentRuntimeUserRepository as AgentRuntimeUserRepository,
+)
+from apps.agent_runtime.infrastructure.providers import AgentTaskRepository as AgentTaskRepository
+from apps.agent_runtime.infrastructure.providers import (
+    AgentTimelineRepository as AgentTimelineRepository,
 )
 
 
@@ -51,7 +63,7 @@ def get_context_repository() -> AgentContextRepository:
     return AgentContextRepository()
 
 
-def get_context_snapshot_repository():
+def get_context_snapshot_repository() -> Any:
     """Return the context snapshot repository used by facades."""
 
     from apps.agent_runtime.infrastructure.context_snapshot_repository import (
@@ -61,7 +73,7 @@ def get_context_snapshot_repository():
     return DjangoContextSnapshotRepository()
 
 
-def get_terminal_agent_service(*, capability_gateway=None):
+def get_terminal_agent_service(*, capability_gateway: Any | None = None) -> Any:
     """Return the default terminal agent execution service."""
 
     from apps.agent_runtime.infrastructure.terminal_agent_service import (
@@ -74,7 +86,7 @@ def get_terminal_agent_service(*, capability_gateway=None):
     )
 
 
-def get_terminal_mcp_approval_gateway():
+def get_terminal_mcp_approval_gateway() -> Any:
     """Return the durable Terminal MCP approval facade."""
 
     from apps.agent_runtime.application.terminal_approval import (
@@ -84,7 +96,7 @@ def get_terminal_mcp_approval_gateway():
     return TerminalMcpApprovalFacade()
 
 
-def get_approved_mcp_capability_executor():
+def get_approved_mcp_capability_executor() -> Any:
     """Return the infrastructure adapter that executes an approved MCP proposal."""
 
     from apps.agent_runtime.infrastructure.mcp_proposal_executor import (

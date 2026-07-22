@@ -18,6 +18,7 @@ from apps.agent_runtime.application.services import TimelineEventWriterService
 from apps.agent_runtime.domain.entities import (
     TERMINAL_PROPOSAL_STATUSES,
     EventSource,
+    require_persisted_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class HandoffTaskUseCase:
         context_repo: AgentContextRepository | None = None,
         proposal_repo: AgentProposalRepository | None = None,
         handoff_repo: AgentHandoffRepository | None = None,
-    ):
+    ) -> None:
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.task_repo = task_repo or AgentTaskRepository()
         self.context_repo = context_repo or AgentContextRepository()
@@ -70,23 +71,18 @@ class HandoffTaskUseCase:
 
     def execute(self, inp: HandoffInput) -> HandoffOutput:
         task = self.task_repo.get_task(inp.task_id)
-        steps = self.context_repo.list_task_steps(task.id)
+        task_id = require_persisted_id(task.id, entity_name="AgentTask")
+        steps = self.context_repo.list_task_steps(task_id)
 
-        completed_steps = [
-            step
-            for step in steps if step["status"] == "completed"
-        ]
-        pending_steps = [
-            step
-            for step in steps if step["status"] != "completed"
-        ]
+        completed_steps = [step for step in steps if step["status"] == "completed"]
+        pending_steps = [step for step in steps if step["status"] != "completed"]
 
         # Latest context snapshot
-        context_ref = self.context_repo.get_latest_context_reference(task.id)
+        context_ref = self.context_repo.get_latest_context_reference(task_id)
 
         # Open proposals
         open_proposals = self.proposal_repo.list_open_proposals(
-            task.id,
+            task_id,
             terminal_statuses=list(TERMINAL_PROPOSAL_STATUSES),
         )
 
@@ -107,7 +103,7 @@ class HandoffTaskUseCase:
         # Create handoff record
         handoff_id = self.handoff_repo.create_handoff(
             request_id=task.request_id,
-            task_id=task.id,
+            task_id=task_id,
             from_agent=inp.actor.get("agent_id", "system") if inp.actor else "system",
             to_agent=inp.to_agent,
             handoff_reason=inp.handoff_reason,
@@ -116,7 +112,7 @@ class HandoffTaskUseCase:
 
         # Timeline event
         self.timeline_service.write_task_escalated_event(
-            task=task.id,
+            task=task_id,
             reason=inp.handoff_reason,
             event_source=EventSource.SYSTEM,
             actor=inp.actor,
@@ -124,7 +120,7 @@ class HandoffTaskUseCase:
         )
 
         return HandoffOutput(
-            task_id=task.id,
+            task_id=task_id,
             request_id=task.request_id,
             handoff_id=handoff_id,
             handoff_payload=handoff_payload,
