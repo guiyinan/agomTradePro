@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 7677,
-    "files_with_errors": 878
+    "errors": 7662,
+    "files_with_errors": 876
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3103,13 +3103,6 @@
       "no-untyped-def": 33,
       "type-arg": 5
     },
-    "apps/signal/application/invalidation_checker.py": {
-      "attr-defined": 8,
-      "no-untyped-def": 2,
-      "return-value": 2,
-      "type-arg": 1,
-      "var-annotated": 1
-    },
     "apps/signal/application/policy_gateway.py": {
       "no-untyped-call": 1
     },
@@ -3141,9 +3134,6 @@
     },
     "apps/signal/apps.py": {
       "no-untyped-call": 1
-    },
-    "apps/signal/domain/interfaces.py": {
-      "type-arg": 1
     },
     "apps/signal/domain/parser.py": {
       "type-arg": 1

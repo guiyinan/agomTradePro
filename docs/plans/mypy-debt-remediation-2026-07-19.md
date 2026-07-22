@@ -618,3 +618,15 @@
 
 - Workspace service、Decision Rhythm repository provider 与 rhythm repository 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7720 errors / 881 files` 收紧为 `7677 errors / 878 files`，净减少 `43 errors / 3 files`，三文件历史债务全部归零。
 - Workspace 推荐/API、模拟持仓、交易计划和审批链回归共 `30 passed`；模块依赖门禁保持 `199 edges / 0 cycles`，Ruff、Black、diff check 通过。
+
+## 第四十七批
+
+- 按“返回值风险 + 通知公共边界”收口 Signal 证伪检查器：为宏观观测、宏观 repository、研究完整性 recorder、通知服务和通知结果建立最小 Protocol，动态依赖不再向规则编排扩散 `Any`。
+- 类型检查揭示通知代码把领域契约 `checked_conditions: list[dict[str, Any]]` 错当对象访问；真实发送证伪邮件时会触发 `AttributeError`。现统一按映射读取 `is_met/indicator_code/description/actual_value/threshold`，缺失描述时安全回退到指标代码。
+- 未持久化的 `InvestmentSignal(id=None)` 不再进入失效写入；批量检查结果也只返回非空信号 ID。管理员邮箱配置先验证容器和字符串元素，避免动态 settings 值污染收件人列表。
+- Signal repository Protocol 的失效详情从裸 `dict` 收紧为 `dict[str, Any]`，与 concrete repository 和 Application payload 一致。
+
+## 第四十七批验证结果
+
+- Signal invalidation checker 与 Domain repository interfaces 增量 mypy 均为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `7677 errors / 878 files` 收紧为 `7662 errors / 876 files`，净减少 `15 errors / 2 files`，两文件历史债务全部归零。
+- Signal 证伪检查、Data Center 宏观读取、legacy repository 路径和通知映射渲染回归共 `14 passed`；Ruff、Black、diff check 通过。

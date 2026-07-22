@@ -13,7 +13,9 @@ from shared.domain.interfaces import FilterableRepositoryProtocol
 from .entities import InvestmentSignal, SignalStatus
 
 
-class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[InvestmentSignal, str], Protocol):
+class InvestmentSignalRepositoryProtocol(
+    FilterableRepositoryProtocol[InvestmentSignal, str], Protocol
+):
     """
     Protocol for Investment Signal Repository.
 
@@ -86,10 +88,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
 
     # Signal-specific methods
 
-    def find_signals_with_invalidation_rules(
-        self,
-        status: SignalStatus
-    ) -> list[InvestmentSignal]:
+    def find_signals_with_invalidation_rules(self, status: SignalStatus) -> list[InvestmentSignal]:
         """Find signals that have invalidation rules and match the given status.
 
         Args:
@@ -115,7 +114,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         self,
         signal_id: str,
         reason: str,
-        details: dict
+        details: dict[str, Any],
     ) -> bool:
         """Mark a signal as invalidated.
 
@@ -129,11 +128,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         """
         ...
 
-    def mark_rejected(
-        self,
-        signal_id: str,
-        reason: str
-    ) -> bool:
+    def mark_rejected(self, signal_id: str, reason: str) -> bool:
         """Mark a signal as rejected.
 
         Args:
@@ -167,10 +162,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         ...
 
     def update_signal_status(
-        self,
-        signal_id: str,
-        new_status: SignalStatus,
-        rejection_reason: str | None = None
+        self, signal_id: str, new_status: SignalStatus, rejection_reason: str | None = None
     ) -> bool:
         """Update a signal's status.
 
@@ -201,9 +193,7 @@ class InvestmentSignalRepositoryProtocol(FilterableRepositoryProtocol[Investment
         ...
 
     def get_signals_by_asset(
-        self,
-        asset_code: str,
-        status: SignalStatus | None = None
+        self, asset_code: str, status: SignalStatus | None = None
     ) -> list[InvestmentSignal]:
         """Get signals by asset code.
 

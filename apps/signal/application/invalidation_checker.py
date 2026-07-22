@@ -10,10 +10,9 @@ Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获�
 """
 
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Protocol
+from datetime import date, datetime
+from typing import Any, Protocol, cast
 
 from django.utils import timezone
 
@@ -49,16 +48,59 @@ class NotificationServiceProtocol(Protocol):
         recipients: list[str],
         html_body: str | None = None,
         priority: Any = None,
-    ) -> list[Any]:
+    ) -> list["NotificationDeliveryProtocol"]:
         """Send email notification"""
         ...
+
+
+class NotificationDeliveryProtocol(Protocol):
+    """Minimum notification result consumed by the checker."""
+
+    success: bool
+
+
+class MacroObservationProtocol(Protocol):
+    """Minimum macro observation consumed by invalidation rules."""
+
+    @property
+    def value(self) -> float: ...
+
+    @property
+    def observed_at(self) -> date | datetime: ...
+
+    @property
+    def unit(self) -> str: ...
+
+
+class MacroRepositoryProtocol(Protocol):
+    """Macro query contract consumed by the checker."""
+
+    def get_latest_by_code(self, code: str) -> MacroObservationProtocol | None: ...
+
+    def get_history_by_code(
+        self, code: str, periods: int = 12
+    ) -> list[MacroObservationProtocol]: ...
+
+
+class ForecastRecorderProtocol(Protocol):
+    """Research-integrity append contract for one invalidation check."""
+
+    def __call__(
+        self,
+        *,
+        signal_id: str,
+        checked_at: datetime,
+        data_version_ids: list[int],
+        conditions: list[dict[str, Any]],
+        missing_reason: str,
+    ) -> Any: ...
 
 
 @dataclass(frozen=True)
 class _MacroObservation:
     code: str
     value: float
-    observed_at: Any
+    observed_at: date | datetime
     unit: str
 
 
@@ -70,7 +112,7 @@ class _DataCenterMacroRepository:
 
         self._repository = get_macro_fact_repository()
 
-    def get_latest_by_code(self, code: str) -> _MacroObservation | None:
+    def get_latest_by_code(self, code: str) -> MacroObservationProtocol | None:
         fact = self._repository.get_latest(code)
         if fact is None:
             return None
@@ -81,7 +123,7 @@ class _DataCenterMacroRepository:
             unit=fact.unit or "",
         )
 
-    def get_history_by_code(self, code: str, periods: int = 12) -> list[_MacroObservation]:
+    def get_history_by_code(self, code: str, periods: int = 12) -> list[MacroObservationProtocol]:
         facts = self._repository.get_series(code, limit=periods)
         facts = list(reversed(facts))
         return [
@@ -106,8 +148,8 @@ class InvalidationCheckService:
         signal_repository: InvestmentSignalRepositoryProtocol | None = None,
         user_repository: UserRepositoryProtocol | None = None,
         notification_service: NotificationServiceProtocol | None = None,
-        macro_repository: Any | None = None,
-        forecast_recorder: Callable[..., Any] | None = None,
+        macro_repository: MacroRepositoryProtocol | None = None,
+        forecast_recorder: ForecastRecorderProtocol | None = None,
     ):
         """初始化服务
 
@@ -127,7 +169,7 @@ class InvalidationCheckService:
 
         # 延迟加载 macro_repository（避免循环依赖）
         if macro_repository is not None:
-            self.macro_repo = macro_repository
+            self.macro_repo: MacroRepositoryProtocol = macro_repository
         else:
             self.macro_repo = _DataCenterMacroRepository()
 
@@ -200,9 +242,7 @@ class InvalidationCheckService:
 
         return result
 
-    def _record_forecast_evaluation(
-        self, signal_id: str, result: InvalidationCheckResult
-    ) -> None:
+    def _record_forecast_evaluation(self, signal_id: str, result: InvalidationCheckResult) -> None:
         """Append every scheduled check without pretending legacy facts are PIT versions."""
 
         if self.forecast_recorder is None:
@@ -229,7 +269,7 @@ class InvalidationCheckService:
         Returns:
             Dict[str, IndicatorValue]: 指标值字典
         """
-        values = {}
+        values: dict[str, IndicatorValue] = {}
 
         for condition in rule.conditions:
             code = condition.indicator_code
@@ -275,7 +315,7 @@ class InvalidationCheckService:
         signal: Any,
         result: InvalidationCheckResult,
         current_status: str | None = None,
-    ):
+    ) -> None:
         """标记信号为已证伪或已拒绝
 
         Args:
@@ -298,6 +338,10 @@ class InvalidationCheckService:
             )
             return
 
+        signal_id = signal.id
+        if signal_id is None:
+            raise ValueError("Cannot invalidate an unpersisted signal without an id")
+
         details = {
             "reason": result.reason,
             "checked_conditions": result.checked_conditions,
@@ -307,21 +351,21 @@ class InvalidationCheckService:
         # approved 状态的信号证伪条件满足时，应标记为 invalidated
         if signal.status == SignalStatus.PENDING:
             self.signal_repository.mark_rejected(
-                signal_id=signal.id,
+                signal_id=signal_id,
                 reason=result.reason,
             )
             logger.info(
-                f"Pending 信号 #{signal.id} ({signal.asset_code}) "
+                f"Pending 信号 #{signal_id} ({signal.asset_code}) "
                 f"因证伪条件满足而被拒绝: {result.reason}"
             )
         else:  # approved
             self.signal_repository.mark_invalidated(
-                signal_id=signal.id,
+                signal_id=signal_id,
                 reason=result.reason,
                 details=details,
             )
             logger.info(
-                f"Approved 信号 #{signal.id} ({signal.asset_code}) " f"已被证伪: {result.reason}"
+                f"Approved 信号 #{signal_id} ({signal.asset_code}) " f"已被证伪: {result.reason}"
             )
 
             # 发送证伪通知（仅对已批准的信号）
@@ -329,7 +373,7 @@ class InvalidationCheckService:
 
     def _send_invalidation_notification(
         self, signal: InvestmentSignal, result: InvalidationCheckResult
-    ):
+    ) -> None:
         """
         发送信号证伪通知
 
@@ -345,7 +389,10 @@ class InvalidationCheckService:
 
             # 如果没有注入通知服务，使用默认的
             if self.notification_service is None:
-                self.notification_service = get_notification_service()
+                self.notification_service = cast(
+                    NotificationServiceProtocol,
+                    get_notification_service(),
+                )
 
             # 获取通知收件人
             recipients = self._get_signal_recipients(signal)
@@ -359,12 +406,15 @@ class InvalidationCheckService:
             subject = f"[AgomTradePro] 信号{status_text}: {signal.asset_code}"
 
             # 构建详情
-            condition_details = []
+            condition_details: list[str] = []
             for cond in result.checked_conditions:
-                status = "Y" if cond.is_met else "N"
+                status = "Y" if bool(cond.get("is_met")) else "N"
+                description = str(
+                    cond.get("description") or cond.get("indicator_code") or "未知条件"
+                )
                 condition_details.append(
-                    f"{status} {cond.description}: "
-                    f"当前值={cond.actual_value}, 阈值={cond.threshold}"
+                    f"{status} {description}: "
+                    f"当前值={cond.get('actual_value')}, 阈值={cond.get('threshold')}"
                 )
 
             body_lines = [
@@ -435,11 +485,14 @@ class InvalidationCheckService:
             """
 
             for cond in result.checked_conditions:
-                css_class = "met" if cond.is_met else ""
+                css_class = "met" if bool(cond.get("is_met")) else ""
+                description = str(
+                    cond.get("description") or cond.get("indicator_code") or "未知条件"
+                )
                 html_body += f"""
                     <div class="condition {css_class}">
-                        <strong>{cond.description}</strong><br>
-                        当前值: {cond.actual_value} | 阈值: {cond.threshold}
+                        <strong>{description}</strong><br>
+                        当前值: {cond.get('actual_value')} | 阈值: {cond.get('threshold')}
                     </div>
                 """
 
@@ -489,11 +542,12 @@ class InvalidationCheckService:
         """
         from django.conf import settings
 
-        recipients = []
+        recipients: list[str] = []
 
         # 1. 从配置获取管理员列表
         admin_emails = getattr(settings, "SIGNAL_NOTIFICATION_EMAILS", [])
-        recipients.extend(admin_emails)
+        if isinstance(admin_emails, (list, tuple, set)):
+            recipients.extend(email for email in admin_emails if isinstance(email, str))
 
         # 2. 获取所有 staff 用户的邮箱
         if self.user_repository is not None:
@@ -527,7 +581,8 @@ class InvalidationCheckService:
         for signal in approved_signals:
             result = self._check_signal_entity(signal)
             if result and result.is_invalidated:
-                invalidated_ids.append(signal.id)
+                if signal.id is not None:
+                    invalidated_ids.append(signal.id)
 
         return invalidated_ids
 
@@ -549,7 +604,8 @@ class InvalidationCheckService:
         for signal in pending_signals:
             result = self._check_signal_entity(signal)
             if result and result.is_invalidated:
-                rejected_ids.append(signal.id)
+                if signal.id is not None:
+                    rejected_ids.append(signal.id)
 
         return rejected_ids
 
@@ -568,7 +624,7 @@ class InvalidationCheckService:
 # ==================== 导出函数，供 Celery 任务使用 ====================
 
 
-def check_and_invalidate_signals() -> dict:
+def check_and_invalidate_signals() -> dict[str, Any]:
     """检查并证伪满足条件的信号
 
     这是一个导出函数，供 Celery 任务调用。
@@ -600,7 +656,7 @@ def check_and_invalidate_signals() -> dict:
         "checked": approved_count + pending_count,
         "invalidated": len(invalidated_ids),
         "rejected": len(rejected_ids),
-        "invalidated_ids": [int(id) for id in invalidated_ids],
-        "rejected_ids": [int(id) for id in rejected_ids],
-        "signal_ids": [int(id) for id in invalidated_ids],  # backward compatible
+        "invalidated_ids": [int(signal_id) for signal_id in invalidated_ids],
+        "rejected_ids": [int(signal_id) for signal_id in rejected_ids],
+        "signal_ids": [int(signal_id) for signal_id in invalidated_ids],
     }
