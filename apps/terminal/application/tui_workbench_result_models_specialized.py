@@ -2,11 +2,29 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 
 class TuiWorkbenchSpecializedResultMixin:
     """Specialized view-model builders layered on top of the base mixin."""
+
+    if TYPE_CHECKING:
+
+        def _action_title(self, action: dict[str, Any]) -> str: ...
+
+        def _default_blocking_reason(self, payload: Any, status_code: int) -> str: ...
+
+        def _display_value(self, value: Any) -> str: ...
+
+        def _operator_text(self, value: Any) -> str: ...
+
+        def _status_label(self, status_code: int, payload: Any | None = None) -> str: ...
+
+    @staticmethod
+    def _mapping(value: Any) -> dict[str, Any]:
+        """Return a mapping payload or an empty mapping for malformed API data."""
+
+        return value if isinstance(value, dict) else {}
 
     def _custom_view_model(
         self,
@@ -47,13 +65,9 @@ class TuiWorkbenchSpecializedResultMixin:
     def _advisor_today_sheet_model(
         self, action: dict[str, Any], payload: dict[str, Any]
     ) -> dict[str, Any]:
-        account = payload.get("account") if isinstance(payload.get("account"), dict) else {}
-        order_summary = (
-            payload.get("order_summary") if isinstance(payload.get("order_summary"), dict) else {}
-        )
-        execution_plan = (
-            payload.get("execution_plan") if isinstance(payload.get("execution_plan"), dict) else {}
-        )
+        account = self._mapping(payload.get("account"))
+        order_summary = self._mapping(payload.get("order_summary"))
+        execution_plan = self._mapping(payload.get("execution_plan"))
         blockers = list(payload.get("blockers") or [])
         next_actions = list(payload.get("next_actions") or [])
         conclusion = self._advisor_verdict_label(payload.get("today_conclusion"))
@@ -144,7 +158,7 @@ class TuiWorkbenchSpecializedResultMixin:
             payload.get("reply") or payload.get("message") or payload.get("error") or ""
         )
         error_code, mapped_reply = self._map_user_facing_ai_error(payload, reply)
-        metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+        metadata = self._mapping(payload.get("metadata"))
         selected_capability = self._display_value(
             payload.get("selected_capability_key")
             or metadata.get("selected_capability_key")
@@ -304,11 +318,7 @@ class TuiWorkbenchSpecializedResultMixin:
         action_key = str(action.get("key") or "")
         username = self._display_value(payload.get("username") or action.get("label"))
         mcp_status = "已开启" if bool(payload.get("mcp_enabled")) else "已关闭"
-        preferred_token = (
-            payload.get("preferred_token")
-            if isinstance(payload.get("preferred_token"), dict)
-            else {}
-        )
+        preferred_token = self._mapping(payload.get("preferred_token"))
         token_name = self._display_value(
             preferred_token.get("name") or payload.get("agent_bootstrap_token_name") or "未配置"
         )
@@ -337,9 +347,7 @@ class TuiWorkbenchSpecializedResultMixin:
             else "当前账号未开通 MCP/SDK 接入，请先让管理员开启权限。"
         )
 
-        access_package = (
-            payload.get("access_package") if isinstance(payload.get("access_package"), dict) else {}
-        )
+        access_package = self._mapping(payload.get("access_package"))
         if action_key == "capability-router.mcp-self-status" and access_package:
             state_labels = {
                 "disabled": "未开通",
@@ -556,17 +564,9 @@ class TuiWorkbenchSpecializedResultMixin:
         payload: dict[str, Any],
     ) -> dict[str, Any]:
         action_key = str(action.get("key") or "")
-        self_service = (
-            payload.get("self_service") if isinstance(payload.get("self_service"), dict) else {}
-        )
-        token_payload = (
-            payload.get("token_payload") if isinstance(payload.get("token_payload"), dict) else {}
-        )
-        created_prompt = (
-            payload.get("created_agent_prompt")
-            if isinstance(payload.get("created_agent_prompt"), dict)
-            else {}
-        )
+        self_service = self._mapping(payload.get("self_service"))
+        token_payload = self._mapping(payload.get("token_payload"))
+        created_prompt = self._mapping(payload.get("created_agent_prompt"))
         username = self._display_value(
             self_service.get("username") or token_payload.get("username") or action.get("label")
         )
@@ -637,11 +637,7 @@ class TuiWorkbenchSpecializedResultMixin:
                 ),
             }
 
-        preferred_token = (
-            self_service.get("preferred_token")
-            if isinstance(self_service.get("preferred_token"), dict)
-            else {}
-        )
+        preferred_token = self._mapping(self_service.get("preferred_token"))
         token_display = self._display_value(
             self_service.get("current_token_value")
             or self_service.get("current_token_display")

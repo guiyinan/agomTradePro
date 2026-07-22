@@ -342,3 +342,14 @@
 
 - Equity fundamentals repository 在定向和全量上下文均为 `0 errors`；全仓基线从 `8819 errors / 929 files` 收紧为 `8734 errors / 928 files`，净减少 `85 errors / 1 file`，无文件或错误码反弹。
 - Equity repository Data Center 映射与 Equity API 边界回归：`22 passed`；Django system check、Ruff 通过。
+
+## 第二十三批
+
+- 按风险错误密度优先收口 `apps/terminal/application/tui_workbench_result_models_specialized.py`：该工作台公共结果模型集中承载 Advisor、AI Router 与 MCP 自助接入的用户态展示，原有 91 项债务全部属于 `attr-defined`、`union-attr`、`no-any-return` 风险类别。
+- 为 specialized mixin 在 `TYPE_CHECKING` 分支显式声明组合宿主提供的标题、状态、文本和阻断原因格式化契约，不增加运行时占位实现，清除 49 个隐式宿主属性错误及 3 个 Any 返回错误。
+- 新增统一的映射 payload 归一化 helper；每个动态子结构只读取一次并收窄为 `dict[str, Any]`，清除 39 个重复 `.get()` 无法保持类型收窄导致的 Optional 访问错误，同时让畸形 API 数据继续安全降级为空映射。
+
+## 第二十三批验证结果
+
+- Terminal specialized result model 定向 mypy：`0 errors`；全仓基线从 `8734 errors / 928 files` 收紧为 `8643 errors / 927 files`，净减少 `91 errors / 1 file`，无文件或错误码反弹。
+- TUI Workbench、Terminal Agent、SDK Client 与内部 SSL redirect 固定回归包：`229 passed`；Ruff 通过。

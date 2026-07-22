@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 8734,
-    "files_with_errors": 928
+    "errors": 8643,
+    "files_with_errors": 927
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3853,11 +3853,6 @@
     },
     "apps/terminal/application/tui_workbench_result_models.py": {
       "attr-defined": 11
-    },
-    "apps/terminal/application/tui_workbench_result_models_specialized.py": {
-      "attr-defined": 49,
-      "no-any-return": 3,
-      "union-attr": 39
     },
     "apps/terminal/application/use_cases.py": {
       "no-any-return": 1,
