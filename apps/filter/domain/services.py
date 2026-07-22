@@ -6,7 +6,7 @@ Pure business logic using only Python standard library.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Protocol
+from typing import Any, Protocol
 
 from .entities import FilterResult, FilterSeries, FilterType, HPFilterParams, KalmanFilterParams
 
@@ -18,7 +18,7 @@ class FilterProtocol(Protocol):
         self,
         dates: list[date],
         values: list[float],
-        params: dict | None = None
+        params: dict[str, Any] | None = None
     ) -> FilterSeries:
         """对完整序列进行滤波"""
         ...
@@ -31,7 +31,7 @@ class HPFilterService:
     使用扩张窗口模式，避免后视偏差。
     """
 
-    def __init__(self, params: HPFilterParams = None):
+    def __init__(self, params: HPFilterParams | None = None):
         """
         Args:
             params: HP 滤波参数
@@ -121,7 +121,7 @@ class KalmanFilterService:
     定义接口和业务逻辑，具体实现由 Infrastructure 层提供。
     """
 
-    def __init__(self, params: KalmanFilterParams = None):
+    def __init__(self, params: KalmanFilterParams | None = None):
         """
         Args:
             params: Kalman 滤波参数
@@ -133,7 +133,7 @@ class KalmanFilterService:
         dates: list[date],
         values: list[float],
         params: KalmanFilterParams | None = None,
-        initial_state: dict | None = None
+        initial_state: dict[str, Any] | None = None
     ) -> FilterSeries:
         """
         Kalman 滤波
@@ -205,7 +205,7 @@ def compare_filters(
 def detect_turning_points(
     results: list[FilterResult],
     window: int = 3
-) -> list[dict]:
+) -> list[dict[str, object]]:
     """
     检测趋势转折点
 
@@ -219,7 +219,7 @@ def detect_turning_points(
     if len(results) < window * 2:
         return []
 
-    turning_points = []
+    turning_points: list[dict[str, object]] = []
     slopes = []
 
     # 计算斜率

@@ -133,7 +133,7 @@ class CorrelationMonitor:
         Returns:
             {asset1: {asset2: correlation}}
         """
-        correlation_matrix = {}
+        correlation_matrix: dict[str, dict[str, float]] = {}
 
         for _i, asset1 in enumerate(asset_codes):
             correlation_matrix[asset1] = {}
@@ -295,7 +295,7 @@ class CorrelationMonitor:
         if not correlations:
             return 0.0
 
-        return sum(correlations) / len(correlations)
+        return float(sum(correlations) / len(correlations))
 
 
 class HedgeRatioCalculator:
@@ -312,7 +312,7 @@ class HedgeRatioCalculator:
     def calculate_hedge_ratio(
         self,
         pair: HedgePair
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict[str, object]]:
         """
         Calculate optimal hedge ratio for a hedge pair.
 
@@ -377,7 +377,7 @@ class HedgeRatioCalculator:
         long_prices: list[float],
         hedge_prices: list[float],
         beta_target: float | None = None
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict[str, object]]:
         """Calculate beta-based hedge ratio"""
         beta = self.correlation_calculator.calculate_beta(
             long_prices,
@@ -401,7 +401,7 @@ class HedgeRatioCalculator:
         self,
         long_prices: list[float],
         hedge_prices: list[float]
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict[str, object]]:
         """
         Calculate minimum variance hedge ratio.
 
@@ -448,7 +448,7 @@ class HedgeRatioCalculator:
         self,
         long_prices: list[float],
         hedge_prices: list[float]
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict[str, object]]:
         """
         Calculate equal risk contribution hedge ratio.
 
@@ -483,7 +483,7 @@ class HedgeRatioCalculator:
         self,
         long_prices: list[float],
         hedge_prices: list[float]
-    ) -> tuple[float, dict]:
+    ) -> tuple[float, dict[str, object]]:
         """
         Calculate dollar neutral hedge ratio.
 
@@ -614,7 +614,7 @@ class HedgePortfolioService:
     def check_hedge_effectiveness(
         self,
         pair: HedgePair
-    ) -> dict:
+    ) -> dict[str, object]:
         """
         Check effectiveness of a hedge pair.
 

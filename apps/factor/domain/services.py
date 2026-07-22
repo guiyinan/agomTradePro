@@ -14,6 +14,7 @@ from bisect import bisect_right
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import date
+from typing import Any
 
 from apps.factor.domain.entities import (
     FactorDefinition,
@@ -35,7 +36,7 @@ class FactorCalculationContext:
 
     # Data accessors (injected from Infrastructure layer)
     get_factor_value: Callable[[str, str, date], float | None]  # (stock_code, factor_code, date) -> value
-    get_stock_info: Callable[[str], dict | None]  # (stock_code) -> {name, sector, market_cap, ...}
+    get_stock_info: Callable[[str], dict[str, Any] | None]
 
 
 class FactorEngine:
@@ -54,7 +55,7 @@ class FactorEngine:
         self._factor_distribution_cache: dict[str, list[float]] = {}
         self._factor_stats_cache: dict[str, tuple[float, float]] = {}
         self._factor_exposure_cache: dict[tuple[str, str], FactorExposure | None] = {}
-        self._stock_info_cache: dict[str, dict | None] = {}
+        self._stock_info_cache: dict[str, dict[str, Any] | None] = {}
 
     def calculate_factor_exposure(
         self,
@@ -326,7 +327,7 @@ class FactorEngine:
 
         return category_scores
 
-    def _get_stock_info(self, stock_code: str) -> dict | None:
+    def _get_stock_info(self, stock_code: str) -> dict[str, Any] | None:
         if stock_code not in self._stock_info_cache:
             self._stock_info_cache[stock_code] = self.context.get_stock_info(stock_code)
         return self._stock_info_cache[stock_code]
@@ -511,7 +512,7 @@ class ScoringService:
         self,
         stock_code: str,
         factor_weights: dict[str, float]
-    ) -> dict | None:
+    ) -> dict[str, Any] | None:
         """
         Explain a stock's factor score breakdown.
 
@@ -524,7 +525,7 @@ class ScoringService:
             return None
 
         # Build explanation
-        explanation = {
+        explanation: dict[str, Any] = {
             "stock_code": score.stock_code,
             "stock_name": score.stock_name,
             "composite_score": round(score.composite_score, 2),

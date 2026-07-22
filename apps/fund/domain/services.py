@@ -117,7 +117,7 @@ class FundScreener:
             # 根据基金类型和风格匹配 Regime 权重
             regime_fit = self._calculate_regime_fit_score(
                 fund_info.fund_type,
-                fund_info.investment_style,
+                fund_info.investment_style or "",
                 regime_weights
             )
 
@@ -198,7 +198,7 @@ class FundScreener:
         risk_adj_score = (fund_perf.sharpe_ratio or 0) * 10
 
         total_score = perf_score * 0.7 + risk_adj_score * 0.3
-        return total_score
+        return float(total_score)
 
     def _calculate_regime_fit_score(
         self,
@@ -427,7 +427,7 @@ class FundPerformanceCalculator:
             return 0.0
 
         annualized = ((1 + total_return / 100) ** (1 / years) - 1) * 100
-        return annualized
+        return float(annualized)
 
     def calculate_volatility(
         self,
@@ -452,7 +452,7 @@ class FundPerformanceCalculator:
 
         # 年化波动率（假设252个交易日）
         volatility = (variance ** 0.5) * (252 ** 0.5)
-        return volatility
+        return float(volatility)
 
     def calculate_sharpe_ratio(
         self,

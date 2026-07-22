@@ -67,7 +67,9 @@ class MomentumRotationEngine:
     def __init__(self, context: RotationContext):
         self.context = context
 
-    def calculate_momentum_scores(self, periods: list[int] = None) -> list[MomentumScore]:
+    def calculate_momentum_scores(
+        self, periods: list[int] | None = None
+    ) -> list[MomentumScore]:
         """
         Calculate momentum scores for all assets in universe.
 
@@ -109,7 +111,13 @@ class MomentumRotationEngine:
             RotationSignal with target allocation
         """
         # Calculate momentum scores
-        periods = config.params.get("momentum_periods") or config.momentum_periods
+        configured_periods = config.params.get("momentum_periods")
+        periods = (
+            [int(item) for item in configured_periods]
+            if isinstance(configured_periods, list)
+            and all(isinstance(item, int) for item in configured_periods)
+            else config.momentum_periods
+        )
         scores = self.calculate_momentum_scores(periods)
 
         # Select top N assets
@@ -399,7 +407,13 @@ class RegimeBasedRotationEngine:
 
         # Build momentum ranking for context
         momentum_engine = MomentumRotationEngine(self.context)
-        periods = config.params.get("momentum_periods", [20, 60])
+        configured_periods = config.params.get("momentum_periods")
+        periods = (
+            [int(item) for item in configured_periods]
+            if isinstance(configured_periods, list)
+            and all(isinstance(item, int) for item in configured_periods)
+            else [20, 60]
+        )
         momentum_scores = momentum_engine.calculate_momentum_scores(periods)
         momentum_ranking = [(s.asset_code, s.composite_score) for s in momentum_scores[:10]]
         expected_return, expected_volatility = momentum_engine._estimate_portfolio_metrics(
@@ -546,23 +560,19 @@ class RotationService:
             RotationSignal with target allocation
         """
         if config.strategy_type == RotationStrategyType.MOMENTUM:
-            engine = MomentumRotationEngine(self.context)
-            return engine.generate_signal(config)
+            return MomentumRotationEngine(self.context).generate_signal(config)
 
         elif config.strategy_type == RotationStrategyType.REGIME_BASED:
-            engine = RegimeBasedRotationEngine(self.context)
-            return engine.generate_signal(config)
+            return RegimeBasedRotationEngine(self.context).generate_signal(config)
 
         elif config.strategy_type == RotationStrategyType.RISK_PARITY:
-            engine = RiskParityRotationEngine(self.context)
-            return engine.generate_signal(config)
+            return RiskParityRotationEngine(self.context).generate_signal(config)
 
         else:
             # Default to momentum
-            engine = MomentumRotationEngine(self.context)
-            return engine.generate_signal(config)
+            return MomentumRotationEngine(self.context).generate_signal(config)
 
-    def compare_assets(self, asset_codes: list[str]) -> dict[str, dict]:
+    def compare_assets(self, asset_codes: list[str]) -> dict[str, dict[str, object]]:
         """
         Compare multiple assets across multiple dimensions.
 
@@ -578,7 +588,7 @@ class RotationService:
         asset_scores = {s.asset_code: s for s in scores if s.asset_code in asset_codes}
 
         # Build comparison result
-        comparison = {}
+        comparison: dict[str, dict[str, object]] = {}
         for asset_code in asset_codes:
             if asset_code in asset_scores:
                 score = asset_scores[asset_code]
