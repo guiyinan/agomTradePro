@@ -34,10 +34,10 @@ from apps.terminal.interface.api_views import (
     TuiOperatorHomeSectionView,
     TuiOperatorHomeView,
     TuiWorkbenchActionRunView,
+    TuiWorkbenchApiRootView,
     TuiWorkbenchBootstrapView,
     TuiWorkbenchCatalogView,
     TuiWorkbenchModuleSnapshotView,
-    TuiWorkbenchApiRootView,
     TuiWorkbenchRegistryView,
     TuiWorkbenchScreenView,
 )
