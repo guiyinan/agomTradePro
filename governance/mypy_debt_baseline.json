@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 9070,
-    "files_with_errors": 943
+    "errors": 9051,
+    "files_with_errors": 942
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -4146,14 +4146,6 @@
     "shared/infrastructure/django_sdk_transport.py": {
       "attr-defined": 1,
       "no-any-return": 1
-    },
-    "shared/infrastructure/htmx/views.py": {
-      "assignment": 2,
-      "attr-defined": 6,
-      "misc": 1,
-      "no-any-return": 3,
-      "override": 2,
-      "type-arg": 5
     },
     "shared/infrastructure/kalman_filter.py": {
       "type-arg": 2

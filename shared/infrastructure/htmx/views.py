@@ -4,14 +4,30 @@ AgomTradePro - HTMX 视图基类
 提供基于 HTMX 的视图基类，简化 HTMX 请求处理。
 """
 
-from typing import Any
+from typing import Any, Protocol, cast
 
 from django.contrib.auth.mixins import UserPassesTestMixin
-from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.contrib.auth.models import AnonymousUser, User
+from django.core.exceptions import ImproperlyConfigured
+from django.db.models import Model, QuerySet
+from django.http import HttpRequest, HttpResponse, HttpResponseBase, JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import DetailView, FormView, ListView, TemplateView
+
+
+class AuthenticatedHttpRequest(HttpRequest):
+    """Django request after AuthenticationMiddleware has populated ``user``."""
+
+    user: User | AnonymousUser
+
+
+class ResponseRendererProtocol(Protocol):
+    """Cooperative superclass contract required by ``HtmxResponseMixin``."""
+
+    def render_to_response(
+        self, context: dict[str, Any], **response_kwargs: Any
+    ) -> HttpResponse: ...
 
 
 def is_htmx(request: HttpRequest) -> bool:
@@ -24,7 +40,7 @@ def is_htmx(request: HttpRequest) -> bool:
     Returns:
         是否为 HTMX 请求
     """
-    return request.headers.get('HX-Request') == 'true'
+    return request.headers.get("HX-Request") == "true"
 
 
 class HtmxTemplateView(TemplateView):
@@ -59,7 +75,7 @@ class HtmxTemplateView(TemplateView):
             模板上下文字典
         """
         context = super().get_context_data(**kwargs)
-        context['is_htmx'] = is_htmx(self.request)
+        context["is_htmx"] = is_htmx(self.request)
         return context
 
     def render_to_response(self, context: dict[str, Any], **response_kwargs: Any) -> HttpResponse:
@@ -76,12 +92,12 @@ class HtmxTemplateView(TemplateView):
         if is_htmx(self.request):
             # HTMX 请求：添加自定义响应头
             response = super().render_to_response(context, **response_kwargs)
-            response['HX-Trigger'] = 'contentUpdated'
+            response["HX-Trigger"] = "contentUpdated"
             return response
         return super().render_to_response(context, **response_kwargs)
 
 
-class HtmxListView(ListView):
+class HtmxListView(ListView):  # type: ignore[type-arg]
     """
     HTMX 列表视图基类
 
@@ -100,7 +116,7 @@ class HtmxListView(ListView):
     ordering_fields: dict[str, str] = {}
     """可排序的字段映射（字段名 -> 模型字段路径）"""
 
-    def get_queryset(self) -> QuerySet:
+    def get_queryset(self) -> QuerySet[Any]:
         """
         获取查询集，应用搜索和排序
 
@@ -110,23 +126,21 @@ class HtmxListView(ListView):
         queryset = super().get_queryset()
 
         # 应用搜索
-        search_query = self.request.GET.get('q', '').strip()
+        search_query = self.request.GET.get("q", "").strip()
         if search_query and self.search_fields:
             from django.db.models import Q
 
             q_objects = Q()
             for field in self.search_fields:
-                q_objects |= Q(**{f'{field}__icontains': search_query})
+                q_objects |= Q(**{f"{field}__icontains": search_query})
             queryset = queryset.filter(q_objects)
 
         # 应用排序
-        sort_by = self.request.GET.get('sort', '')
+        sort_by = self.request.GET.get("sort", "")
         if sort_by and sort_by in self.ordering_fields:
             order_field = self.ordering_fields[sort_by]
-            sort_order = self.request.GET.get('order', 'asc')
-            queryset = queryset.order_by(
-                f'-{order_field}' if sort_order == 'desc' else order_field
-            )
+            sort_order = self.request.GET.get("order", "asc")
+            queryset = queryset.order_by(f"-{order_field}" if sort_order == "desc" else order_field)
 
         return queryset
 
@@ -152,14 +166,14 @@ class HtmxListView(ListView):
             模板上下文字典
         """
         context = super().get_context_data(**kwargs)
-        context['is_htmx'] = is_htmx(self.request)
-        context['search_query'] = self.request.GET.get('q', '')
-        context['sort_by'] = self.request.GET.get('sort', '')
-        context['sort_order'] = self.request.GET.get('order', 'asc')
+        context["is_htmx"] = is_htmx(self.request)
+        context["search_query"] = self.request.GET.get("q", "")
+        context["sort_by"] = self.request.GET.get("sort", "")
+        context["sort_order"] = self.request.GET.get("order", "asc")
         return context
 
 
-class HtmxFormView(FormView):
+class HtmxFormView(FormView):  # type: ignore[type-arg]
     """
     HTMX 表单视图基类
 
@@ -169,7 +183,7 @@ class HtmxFormView(FormView):
     htmx_template_name: str | None = None
     """HTMX 请求使用的模板（通常是表单片段）"""
 
-    success_message: str = '操作成功'
+    success_message: str = "操作成功"
     """成功消息"""
 
     def get_template_names(self) -> list[str]:
@@ -197,13 +211,14 @@ class HtmxFormView(FormView):
 
         if is_htmx(self.request):
             # HTMX 请求：返回成功消息
-            return JsonResponse({
-                'success': True,
-                'message': self.success_message,
-                'redirect_url': self.get_success_url()
-            }, headers={
-                'X-Success-Message': self.success_message
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": self.success_message,
+                    "redirect_url": self.get_success_url(),
+                },
+                headers={"X-Success-Message": self.success_message},
+            )
 
         return response
 
@@ -220,21 +235,22 @@ class HtmxFormView(FormView):
         if is_htmx(self.request):
             # HTMX 请求：返回表单错误
             errors = {
-                field: errors[0]['message'] if isinstance(errors, list) else str(errors)
-                for field, errors in form.errors.items()
+                field: "; ".join(str(error) for error in field_errors)
+                for field, field_errors in form.errors.items()
             }
-            return JsonResponse({
-                'success': False,
-                'errors': errors
-            }, status=400, headers={
-                'X-Error-Title': '表单验证失败',
-                'X-Error-Message': '; '.join(f'{k}: {v}' for k, v in errors.items())
-            })
+            return JsonResponse(
+                {"success": False, "errors": errors},
+                status=400,
+                headers={
+                    "X-Error-Title": "表单验证失败",
+                    "X-Error-Message": "; ".join(f"{k}: {v}" for k, v in errors.items()),
+                },
+            )
 
         return super().form_invalid(form)
 
 
-class HtmxDetailView(DetailView):
+class HtmxDetailView(DetailView):  # type: ignore[type-arg]
     """
     HTMX 详情视图基类
     """
@@ -264,7 +280,7 @@ class HtmxDetailView(DetailView):
             模板上下文字典
         """
         context = super().get_context_data(**kwargs)
-        context['is_htmx'] = is_htmx(self.request)
+        context["is_htmx"] = is_htmx(self.request)
         return context
 
 
@@ -275,16 +291,16 @@ class HtmxDeleteView(View):
     支持删除确认和操作。
     """
 
-    model = None
+    model: type[Model] | None = None
     """要删除的模型类"""
 
-    success_url: str = None
+    success_url: str | None = None
     """删除成功后的重定向 URL"""
 
-    success_message: str = '删除成功'
+    success_message: str = "删除成功"
     """成功消息"""
 
-    def get_object(self, queryset: QuerySet | None = None) -> Any:
+    def get_object(self, queryset: QuerySet[Model] | None = None) -> Model:
         """
         获取要删除的对象
 
@@ -294,8 +310,12 @@ class HtmxDeleteView(View):
         Returns:
             模型实例
         """
-        pk = self.kwargs.get('pk')
-        return self.model.objects.get(pk=pk)
+        pk = self.kwargs.get("pk")
+        if queryset is not None:
+            return queryset.get(pk=pk)
+        if self.model is None:
+            raise ImproperlyConfigured("HtmxDeleteView requires a model")
+        return self.model._default_manager.get(pk=pk)
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         """
@@ -313,16 +333,16 @@ class HtmxDeleteView(View):
         obj.delete()
 
         if is_htmx(request):
-            return JsonResponse({
-                'success': True,
-                'message': self.success_message
-            }, headers={
-                'X-Success-Message': self.success_message
-            })
+            return JsonResponse(
+                {"success": True, "message": self.success_message},
+                headers={"X-Success-Message": self.success_message},
+            )
 
-        if request.headers.get('HX-Trigger') == 'delete-confirm':
-            return JsonResponse({'success': True})
+        if request.headers.get("HX-Trigger") == "delete-confirm":
+            return JsonResponse({"success": True})
 
+        if self.success_url is None:
+            raise ImproperlyConfigured("HtmxDeleteView requires success_url")
         return redirect(self.success_url)
 
 
@@ -333,7 +353,7 @@ class HtmxPartialView(View):
     用于返回可被 HTMX 替换的部分 HTML 内容。
     """
 
-    template_name: str = None
+    template_name: str | None = None
     """模板名称"""
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
@@ -349,7 +369,7 @@ class HtmxPartialView(View):
             HTTP 响应
         """
         context = self.get_context_data(**kwargs)
-        return render(request, self.template_name, context)
+        return render(request, self.get_template_name(), context)
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         """
@@ -364,7 +384,13 @@ class HtmxPartialView(View):
             HTTP 响应
         """
         context = self.get_context_data(**kwargs)
-        return render(request, self.template_name, context)
+        return render(request, self.get_template_name(), context)
+
+    def get_template_name(self) -> str:
+        """Return the configured partial template or fail with a clear error."""
+        if self.template_name is None:
+            raise ImproperlyConfigured("HtmxPartialView requires template_name")
+        return self.template_name
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
@@ -376,20 +402,20 @@ class HtmxPartialView(View):
         Returns:
             模板上下文字典
         """
-        context = {
-            'params': kwargs,
-            'request': self.request
-        }
-        context['is_htmx'] = is_htmx(self.request)
+        context = {"params": kwargs, "request": self.request}
+        context["is_htmx"] = is_htmx(self.request)
         return context
 
 
 # 混合类（Mixins）
 
+
 class StaffRequiredMixin(UserPassesTestMixin):
     """
     要求用户为工作人员（staff）的混合类
     """
+
+    request: AuthenticatedHttpRequest
 
     def test_func(self) -> bool:
         """
@@ -398,9 +424,9 @@ class StaffRequiredMixin(UserPassesTestMixin):
         Returns:
             用户是否为 staff
         """
-        return self.request.user.is_staff
+        return bool(self.request.user.is_staff)
 
-    def handle_no_permission(self) -> HttpResponse:
+    def handle_no_permission(self) -> HttpResponseBase:  # type: ignore[override]
         """
         处理无权限情况
 
@@ -408,13 +434,11 @@ class StaffRequiredMixin(UserPassesTestMixin):
             HTTP 响应
         """
         if is_htmx(self.request):
-            return JsonResponse({
-                'success': False,
-                'message': '需要管理员权限'
-            }, status=403, headers={
-                'X-Error-Title': '权限不足',
-                'X-Error-Message': '此操作需要管理员权限'
-            })
+            return JsonResponse(
+                {"success": False, "message": "需要管理员权限"},
+                status=403,
+                headers={"X-Error-Title": "权限不足", "X-Error-Message": "此操作需要管理员权限"},
+            )
 
         return super().handle_no_permission()
 
@@ -424,6 +448,8 @@ class SuperuserRequiredMixin(UserPassesTestMixin):
     要求用户为超级用户的混合类
     """
 
+    request: AuthenticatedHttpRequest
+
     def test_func(self) -> bool:
         """
         测试用户是否为超级用户
@@ -431,9 +457,9 @@ class SuperuserRequiredMixin(UserPassesTestMixin):
         Returns:
             用户是否为超级用户
         """
-        return self.request.user.is_superuser
+        return bool(self.request.user.is_superuser)
 
-    def handle_no_permission(self) -> HttpResponse:
+    def handle_no_permission(self) -> HttpResponseBase:  # type: ignore[override]
         """
         处理无权限情况
 
@@ -441,13 +467,14 @@ class SuperuserRequiredMixin(UserPassesTestMixin):
             HTTP 响应
         """
         if is_htmx(self.request):
-            return JsonResponse({
-                'success': False,
-                'message': '需要超级管理员权限'
-            }, status=403, headers={
-                'X-Error-Title': '权限不足',
-                'X-Error-Message': '此操作需要超级管理员权限'
-            })
+            return JsonResponse(
+                {"success": False, "message": "需要超级管理员权限"},
+                status=403,
+                headers={
+                    "X-Error-Title": "权限不足",
+                    "X-Error-Message": "此操作需要超级管理员权限",
+                },
+            )
 
         return super().handle_no_permission()
 
@@ -458,6 +485,8 @@ class HtmxResponseMixin:
 
     为视图添加 HTMX 响应头支持。
     """
+
+    request: HttpRequest
 
     def render_to_response(self, context: dict[str, Any], **response_kwargs: Any) -> HttpResponse:
         """
@@ -470,14 +499,15 @@ class HtmxResponseMixin:
         Returns:
             HTTP 响应
         """
-        response = super().render_to_response(context, **response_kwargs)
+        renderer = cast(ResponseRendererProtocol, super())
+        response = renderer.render_to_response(context, **response_kwargs)
 
         if is_htmx(self.request):
             # 触发客户端事件
-            response['HX-Trigger'] = 'contentUpdated'
+            response["HX-Trigger"] = "contentUpdated"
 
             # 可以添加其他自定义头部
-            if hasattr(self, 'htmx_trigger'):
-                response['HX-Trigger'] = self.htmx_trigger
+            if hasattr(self, "htmx_trigger"):
+                response["HX-Trigger"] = self.htmx_trigger
 
         return response
