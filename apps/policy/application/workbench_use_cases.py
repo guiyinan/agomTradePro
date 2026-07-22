@@ -6,14 +6,20 @@ query.
 """
 
 import logging
-from dataclasses import dataclass
-from datetime import date
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import date, datetime
+from typing import Any, cast
 
 from ..domain.entities import SentimentGateThresholds, WorkbenchSummary
 from ..domain.rules import calculate_gate_level, get_max_position_cap
 from .event_use_cases import RECOVERABLE_POLICY_USE_CASE_EXCEPTIONS
-from .repository_provider import DjangoPolicyRepository, WorkbenchRepository
+from .repository_provider import (
+    DjangoPolicyRepository,
+    WorkbenchRepository,
+    get_current_policy_repository,
+    get_workbench_repository,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +74,14 @@ class GetWorkbenchSummaryUseCase:
         self,
         workbench_repo: WorkbenchRepository | None = None,
         policy_repo: DjangoPolicyRepository | None = None,
-    ):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
-        self.policy_repo = policy_repo or DjangoPolicyRepository()
+    ) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
+        self.policy_repo = policy_repo or get_current_policy_repository()
 
-    def execute(self, input_dto: WorkbenchSummaryInput = None) -> WorkbenchSummaryOutput:
+    def execute(
+        self,
+        input_dto: WorkbenchSummaryInput | None = None,
+    ) -> WorkbenchSummaryOutput:
         """
         获取工作台概览数据
 
@@ -115,7 +124,11 @@ class GetWorkbenchSummaryUseCase:
             effective_today_count = self.workbench_repo.get_effective_today_count()
 
             # 获取最后抓取时间
-            last_fetch_at = self.workbench_repo.get_last_fetch_at()
+            get_last_fetch_at = cast(
+                Callable[[], datetime | None],
+                self.workbench_repo.get_last_fetch_at,
+            )
+            last_fetch_at = get_last_fetch_at()
 
             summary = WorkbenchSummary(
                 policy_level=policy_level,
@@ -157,7 +170,7 @@ class WorkbenchItemsOutput:
     """工作台事件列表输出 DTO"""
 
     success: bool
-    items: list[dict[str, Any]] = None
+    items: list[dict[str, Any]] = field(default_factory=list)
     total: int = 0
     error: str | None = None
 
@@ -165,8 +178,8 @@ class WorkbenchItemsOutput:
 class GetWorkbenchItemsUseCase:
     """获取工作台事件列表用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: WorkbenchItemsInput) -> WorkbenchItemsOutput:
         """
@@ -223,8 +236,8 @@ class ApproveEventOutput:
 class ApproveEventUseCase:
     """审核通过用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: ApproveEventInput) -> ApproveEventOutput:
         """
@@ -273,8 +286,8 @@ class RejectEventOutput:
 class RejectEventUseCase:
     """审核拒绝用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: RejectEventInput) -> RejectEventOutput:
         """
@@ -326,8 +339,8 @@ class RollbackEventOutput:
 class RollbackEventUseCase:
     """回滚生效用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: RollbackEventInput) -> RollbackEventOutput:
         """
@@ -380,8 +393,8 @@ class OverrideEventOutput:
 class OverrideEventUseCase:
     """临时豁免用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: OverrideEventInput) -> OverrideEventOutput:
         """
@@ -439,8 +452,8 @@ class SentimentGateStateOutput:
 class GetSentimentGateStateUseCase:
     """获取热点情绪闸门状态用例"""
 
-    def __init__(self, workbench_repo: WorkbenchRepository = None):
-        self.workbench_repo = workbench_repo or WorkbenchRepository()
+    def __init__(self, workbench_repo: WorkbenchRepository | None = None) -> None:
+        self.workbench_repo = workbench_repo or get_workbench_repository()
 
     def execute(self, input_dto: SentimentGateStateInput) -> SentimentGateStateOutput:
         """

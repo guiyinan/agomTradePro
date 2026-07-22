@@ -757,3 +757,14 @@
 
 - TUI result-model 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6929 errors / 843 files` 收紧为 `6918 errors / 842 files`，净减少 `11 errors / 1 file`。
 - TUI workbench、Terminal Agent、SDK client 与 SSL redirect 固定最小回归包 `229 passed`；Black、Ruff、diff check 通过。
+
+## 第五十九批
+
+- 收口 Policy workbench Application：所有默认 repository 统一通过 Application provider 获取，不再直接构造未标注的 concrete repository；构造器的可空依赖全部使用显式 `T | None`。
+- `WorkbenchItemsOutput.items` 改用 `default_factory=list`，消除可空列表和跨实例共享默认值；summary 的兼容输入显式建模为 Optional。
+- 旧 Workbench repository 的最后抓取时间在 Application 边界局部收窄为 `Callable[[], datetime | None]`，动态 Infrastructure 类型不再向 `WorkbenchSummary` 传播。
+
+## 第五十九批验证结果
+
+- Policy workbench UseCase 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6918 errors / 842 files` 收紧为 `6901 errors / 841 files`，净减少 `17 errors / 1 file`。
+- Policy workbench 单元、结构、集成与 API 回归 `48 passed`；Black、Ruff、diff check 通过。

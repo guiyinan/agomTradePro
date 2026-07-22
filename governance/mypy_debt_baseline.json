@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6918,
-    "files_with_errors": 842
+    "errors": 6901,
+    "files_with_errors": 841
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -2283,10 +2283,6 @@
       "no-untyped-call": 3,
       "no-untyped-def": 18,
       "type-arg": 2
-    },
-    "apps/policy/application/workbench_use_cases.py": {
-      "assignment": 8,
-      "no-untyped-call": 9
     },
     "apps/policy/domain/entities.py": {
       "no-untyped-def": 1
