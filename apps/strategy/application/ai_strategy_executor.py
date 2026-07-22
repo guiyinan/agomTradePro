@@ -9,23 +9,27 @@ AI 策略执行器 - Application 层
 
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from django.utils import timezone
 
-from apps.ai_provider.application.repository_provider import AIClientFactory
+from apps.ai_provider.application.repository_provider import get_ai_client_factory
+from apps.prompt.application.dtos import ExecuteChainRequest, ExecutePromptRequest
+from apps.prompt.application.repository_provider import (
+    build_macro_adapter,
+    build_regime_adapter,
+    get_execution_log_repository,
+)
 
 # 复用系统内置的 AI 中台
 from apps.prompt.application.runtime_provider import (
     build_strategy_agent_runtime,
     get_chain_repository,
-    get_execution_log_repository,
     get_prompt_repository,
 )
 from apps.prompt.application.use_cases import (
-    ExecuteChainRequest,
     ExecuteChainUseCase,
-    ExecutePromptRequest,
     ExecutePromptUseCase,
 )
 from apps.strategy.domain.entities import ActionType, AIConfig, SignalRecommendation, Strategy
@@ -254,7 +258,7 @@ class AIStrategyExecutor:
         asset_pool_provider: AssetPoolProviderProtocol,
         signal_provider: SignalProviderProtocol,
         portfolio_provider: PortfolioDataProviderProtocol,
-    ):
+    ) -> None:
         """
         初始化 AI 策略执行器
 
@@ -272,7 +276,7 @@ class AIStrategyExecutor:
         self.portfolio_provider = portfolio_provider
 
         # 初始化 AI 中台组件
-        self.ai_client_factory = AIClientFactory()
+        self.ai_client_factory = get_ai_client_factory()
 
         # 初始化 Prompt 系统组件
         self.prompt_repository = get_prompt_repository()
@@ -284,8 +288,8 @@ class AIStrategyExecutor:
             prompt_repository=self.prompt_repository,
             execution_log_repository=self.execution_log_repository,
             ai_client_factory=self.ai_client_factory,
-            macro_adapter=None,  # 暂不使用
-            regime_adapter=None,  # 暂不使用
+            macro_adapter=build_macro_adapter(),
+            regime_adapter=build_regime_adapter(),
         )
 
         self.execute_chain_use_case = ExecuteChainUseCase(
@@ -336,7 +340,9 @@ class AIStrategyExecutor:
 
             # 4. 根据审核模式过滤信号
             filtered_signals = self._apply_approval_mode(
-                signals, ai_config.approval_mode, ai_config.confidence_threshold
+                signals,
+                ai_config.approval_mode.value,
+                ai_config.confidence_threshold,
             )
 
             logger.info(
@@ -456,7 +462,7 @@ class AIStrategyExecutor:
         context: dict[str, Any],
         *,
         key: str,
-        loader,
+        loader: Callable[[], Any],
         warning_message: str,
     ) -> None:
         """Best-effort context hydration for optional AI inputs."""
@@ -540,8 +546,11 @@ class AIStrategyExecutor:
             AI 响应内容
         """
         # 构建 Prompt 执行请求
+        template_id = ai_config.prompt_template_id
+        if template_id is None:
+            raise ValueError("AI strategy prompt_template_id is required")
         request = ExecutePromptRequest(
-            template_id=ai_config.prompt_template_id,
+            template_id=template_id,
             placeholder_values=context,
             provider_ref=ai_config.ai_provider_id or 1,  # 默认使用第一个服务商
             model=None,  # 使用服务商默认模型
@@ -569,8 +578,11 @@ class AIStrategyExecutor:
             AI 响应内容（最终输出）
         """
         # 构建 Chain 执行请求
+        chain_id = ai_config.chain_config_id
+        if chain_id is None:
+            raise ValueError("AI strategy chain_config_id is required")
         request = ExecuteChainRequest(
-            chain_id=ai_config.chain_config_id,
+            chain_id=chain_id,
             placeholder_values=context,
             provider_ref=ai_config.ai_provider_id or 1,
         )
@@ -652,8 +664,8 @@ class PendingApprovalQueue:
     管理需要人工审核的 AI 信号
     """
 
-    def __init__(self):
-        self._queue = {}  # {strategy_id: [signals]}
+    def __init__(self) -> None:
+        self._queue: dict[str, list[SignalRecommendation]] = {}
 
     def add_pending_signals(
         self, strategy_id: int, portfolio_id: int, signals: list[SignalRecommendation]

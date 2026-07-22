@@ -768,3 +768,17 @@
 
 - Policy workbench UseCase 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6918 errors / 842 files` 收紧为 `6901 errors / 841 files`，净减少 `17 errors / 1 file`。
 - Policy workbench 单元、结构、集成与 API 回归 `48 passed`；Black、Ruff、diff check 通过。
+
+## 第六十批
+
+- 按“真实执行风险 + 公共 Provider 契约”收口 AI Strategy Executor：改用 AI Provider 与 Prompt 模块正式导出的 factory、DTO 和 repository provider，不再从实现模块导入未公开符号。
+- Prompt 策略执行现在注入真实 Macro/Regime adapter；原先传入 `None` 会在模板需要宏观或 Regime 上下文时导致执行失败。
+- ApprovalMode 在进入字符串过滤边界前显式转换为枚举值；Prompt/Chain 模式在构造请求前验证必需 ID，缺失配置返回明确错误，不再把 `None` 传播到下游查询。
+- Pending approval queue 与可选上下文 loader 补齐容器和调用签名，固定队列元素类型及动态边界。
+
+## 第六十批验证结果
+
+- AI Strategy Executor 增量 mypy 为 `0 errors / 0 legacy errors / 0 regressions`；全仓基线从 `6901 errors / 841 files` 收紧为 `6889 errors / 840 files`，净减少 `12 errors / 1 file`。
+- AI Strategy Executor 单元回归 `20 passed`；Black、Ruff、diff check 通过。
+- 刷新后债务中 `no-untyped-def/type-arg/no-untyped-call` 共 `5125` 项，约占全部债务 `74%`；`arg-type/return-value/assignment/union-attr` 共 `490` 项，后续优先按真实契约风险治理，而不是按文件机械清扫。
+- 公共依赖热点分析显示 Policy repository provider 被 `25` 个生产文件直接引用；其 Infrastructure repository 仍有 `3 arg-type + 3 assignment + 1 return-value`，因此列为下一批高杠杆目标。

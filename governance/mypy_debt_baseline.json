@@ -10,8 +10,8 @@
     "follow_imports": "skip"
   },
   "summary": {
-    "errors": 6901,
-    "files_with_errors": 841
+    "errors": 6889,
+    "files_with_errors": 840
   },
   "modules": {
     "apps/account/application/interface_services.py": {
@@ -3122,12 +3122,6 @@
     },
     "apps/simulated_trading/management/commands/repair_personal_account_readiness.py": {
       "no-untyped-def": 1
-    },
-    "apps/strategy/application/ai_strategy_executor.py": {
-      "arg-type": 5,
-      "attr-defined": 4,
-      "no-any-return": 1,
-      "no-untyped-def": 2
     },
     "apps/strategy/application/execution_gateway.py": {
       "attr-defined": 4,
