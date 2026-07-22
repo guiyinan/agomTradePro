@@ -88,7 +88,7 @@ class PromptTemplate:
     is_active: bool = True
     created_at: date | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据一致性"""
         # 确保temperature在有效范围内
         if self.temperature < 0 or self.temperature > 2:
@@ -150,7 +150,7 @@ class ChainConfig:
     is_active: bool = True
     created_at: date | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """验证数据一致性"""
         # 验证步骤order的唯一性
         # - 非并行步骤的order必须唯一
@@ -193,7 +193,7 @@ class PromptExecutionContext:
         step_outputs: 前序步骤输出
     """
     placeholder_values: dict[str, Any]
-    regime_snapshot: dict | None = None
+    regime_snapshot: dict[str, Any] | None = None
     policy_level: int | None = None
     provider_ref: Any | None = None
     provider_name: str | None = None

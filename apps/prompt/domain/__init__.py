@@ -9,7 +9,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Optional, Protocol
+from typing import Any
 
 
 @dataclass
@@ -25,7 +25,7 @@ class ToolDefinition:
     name: str
     description: str
     parameters: dict[str, Any]
-    function: Callable
+    function: Callable[..., Any]
 
     def to_openai_format(self) -> dict[str, Any]:
         """转换为OpenAI Function Calling格式"""
@@ -46,10 +46,10 @@ class FunctionRegistry:
     管理AI可调用的所有函数。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._tools: dict[str, ToolDefinition] = {}
 
-    def register(self, tool: ToolDefinition):
+    def register(self, tool: ToolDefinition) -> None:
         """
         注册工具
 
@@ -58,7 +58,7 @@ class FunctionRegistry:
         """
         self._tools[tool.name] = tool
 
-    def unregister(self, name: str):
+    def unregister(self, name: str) -> None:
         """
         注销工具
 
@@ -136,8 +136,8 @@ class FunctionRegistry:
 
 
 def create_builtin_tools(
-    macro_adapter,
-    regime_adapter
+    macro_adapter: Any,
+    regime_adapter: Any,
 ) -> FunctionRegistry:
     """
     创建内置工具注册表
@@ -313,7 +313,7 @@ def create_custom_function(
     name: str,
     description: str,
     parameters: dict[str, Any],
-    func: Callable
+    func: Callable[..., Any]
 ) -> ToolDefinition:
     """
     创建自定义工具

@@ -6,6 +6,9 @@ This file contains pure validation logic using only Python standard library.
 
 import re
 from dataclasses import dataclass
+from typing import Any
+
+from .entities import ChainStep
 
 
 @dataclass(frozen=True)
@@ -130,7 +133,7 @@ def validate_placeholder_name(name: str) -> ValidationResult:
 
 
 def validate_chain_steps(
-    steps: list,
+    steps: list[ChainStep],
     execution_mode: str
 ) -> ValidationResult:
     """验证链式步骤配置
@@ -189,7 +192,7 @@ def validate_chain_steps(
     )
 
 
-def _detect_cycle(steps: list) -> list[str] | None:
+def _detect_cycle(steps: list[ChainStep]) -> list[str] | None:
     """检测步骤依赖中的循环
 
     Args:
@@ -199,7 +202,7 @@ def _detect_cycle(steps: list) -> list[str] | None:
         循环路径，如果没有循环返回None
     """
     # 构建依赖图
-    graph = {}
+    graph: dict[str, list[str]] = {}
     step_map = {s.step_id: s for s in steps}
 
     for step in steps:
@@ -214,19 +217,20 @@ def _detect_cycle(steps: list) -> list[str] | None:
                     graph[step.step_id].append(parts[0])
 
     # DFS检测环
-    visited = set()
-    rec_stack = set()
-    path = []
+    visited: set[str] = set()
+    rec_stack: set[str] = set()
+    path: list[str] = []
 
-    def dfs(node: str) -> bool:
+    def dfs(node: str) -> list[str] | None:
         visited.add(node)
         rec_stack.add(node)
         path.append(node)
 
         for neighbor in graph.get(node, []):
             if neighbor not in visited:
-                if dfs(neighbor):
-                    return True
+                cycle = dfs(neighbor)
+                if cycle:
+                    return cycle
             elif neighbor in rec_stack:
                 # 找到环
                 cycle_start = path.index(neighbor)
@@ -234,13 +238,13 @@ def _detect_cycle(steps: list) -> list[str] | None:
 
         path.pop()
         rec_stack.remove(node)
-        return False
+        return None
 
     for node in graph:
         if node not in visited:
-            if dfs(node):
-                cycle_start = path.index(path[-1])
-                return path[cycle_start:]
+            cycle = dfs(node)
+            if cycle:
+                return cycle
 
     return None
 
@@ -266,7 +270,7 @@ def validate_temperature(value: float) -> ValidationResult:
     )
 
 
-def validate_function_params(params: dict) -> ValidationResult:
+def validate_function_params(params: dict[str, Any]) -> ValidationResult:
     """验证函数调用参数
 
     Args:
@@ -276,7 +280,7 @@ def validate_function_params(params: dict) -> ValidationResult:
         验证结果
     """
     errors = []
-    warnings = []
+    warnings: list[str] = []
 
     if not isinstance(params, dict):
         errors.append("函数参数必须是字典类型")

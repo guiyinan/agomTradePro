@@ -7,7 +7,7 @@ No Django, Pandas, or external dependencies allowed.
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 
@@ -26,10 +26,10 @@ class TemplateRenderer:
     这里只定义接口和基础逻辑。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.resolvers: dict[str, PlaceholderResolverProtocol] = {}
 
-    def register_resolver(self, prefix: str, resolver: PlaceholderResolverProtocol):
+    def register_resolver(self, prefix: str, resolver: PlaceholderResolverProtocol) -> None:
         """注册解析器"""
         self.resolvers[prefix] = resolver
 
@@ -83,13 +83,15 @@ class OutputParser:
         if match:
             json_str = match.group(1).strip()
             try:
-                return json.loads(json_str)
+                parsed = json.loads(json_str)
+                return parsed if isinstance(parsed, dict) else None
             except json.JSONDecodeError:
                 pass
 
         # 尝试直接解析
         try:
-            return json.loads(response.strip())
+            parsed = json.loads(response.strip())
+            return parsed if isinstance(parsed, dict) else None
         except json.JSONDecodeError:
             return None
 
@@ -161,7 +163,7 @@ class OutputParser:
         pattern = r'<tool_call>\s*(.*?)\s*</tool_call>'
         matches = re.findall(pattern, response, re.DOTALL)
 
-        function_calls = []
+        function_calls: list[dict[str, Any]] = []
         for match in matches:
             try:
                 data = json.loads(match.strip())
@@ -186,12 +188,12 @@ class ChainExecutionPlan:
         template_id: str
         order: int
         parallel_group: str | None = None
-        dependencies: list[str] = None  # 依赖的step_id列表
+        dependencies: list[str] = field(default_factory=list)  # 依赖的step_id列表
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.steps: list[ChainExecutionPlan.ExecutionStep] = []
 
-    def add_step(self, step: "ChainExecutionPlan.ExecutionStep"):
+    def add_step(self, step: "ChainExecutionPlan.ExecutionStep") -> None:
         """添加执行步骤"""
         self.steps.append(step)
 
@@ -217,7 +219,7 @@ class ChainExecutor:
     负责构建执行计划，实际执行在Application层完成。
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._plan: ChainExecutionPlan | None = None
 
     def build_execution_plan(
@@ -247,7 +249,13 @@ class ChainExecutor:
 
         return self._plan
 
-    def _build_serial_plan(self, steps: list["ChainStep"]):
+    def _add_step(self, step: ChainExecutionPlan.ExecutionStep) -> None:
+        """Add a step to the active plan."""
+        if self._plan is None:
+            raise RuntimeError("Execution plan has not been initialized")
+        self._plan.add_step(step)
+
+    def _build_serial_plan(self, steps: list["ChainStep"]) -> None:
         """构建串行执行计划"""
         # 按order排序
         sorted_steps = sorted(steps, key=lambda s: s.order)
@@ -265,9 +273,9 @@ class ChainExecutor:
                 parallel_group=None,
                 dependencies=dependencies
             )
-            self._plan.add_step(exec_step)
+            self._add_step(exec_step)
 
-    def _build_parallel_plan(self, steps: list["ChainStep"]):
+    def _build_parallel_plan(self, steps: list["ChainStep"]) -> None:
         """构建并行执行计划"""
         # 按parallel_group分组
         groups: dict[str, list[ChainStep]] = {}
@@ -295,10 +303,10 @@ class ChainExecutor:
                     parallel_group=group_name,
                     dependencies=prev_group_steps.copy()
                 )
-                self._plan.add_step(exec_step)
+                self._add_step(exec_step)
             prev_group_steps = [s.step_id for s in group_steps_sorted]
 
-    def _build_tool_calling_plan(self, steps: list["ChainStep"]):
+    def _build_tool_calling_plan(self, steps: list["ChainStep"]) -> None:
         """构建工具调用执行计划"""
         # 工具调用模式通常是单步执行
         for step in sorted(steps, key=lambda s: s.order):
@@ -309,9 +317,9 @@ class ChainExecutor:
                 parallel_group=None,
                 dependencies=[]
             )
-            self._plan.add_step(exec_step)
+            self._add_step(exec_step)
 
-    def _build_hybrid_plan(self, steps: list["ChainStep"]):
+    def _build_hybrid_plan(self, steps: list["ChainStep"]) -> None:
         """构建混合执行计划"""
         # 混合模式：根据parallel_group决定是否并行
         self._build_parallel_plan(steps)
