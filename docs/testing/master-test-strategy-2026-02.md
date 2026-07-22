@@ -1,6 +1,8 @@
 # AgomTradePro 全面测试策略（2026-02）
 
 > 目标：让系统“可演示”升级为“可验收、可发布、可回滚”。
+>
+> 最近更新：2026-07-22
 
 ## 1. 范围与原则
 
@@ -8,6 +10,7 @@
 2. 架构分层验证：Domain/Application/Infrastructure/Interface 分层测试，不跨层替代。  
 3. 工程护栏前置：配置唯一来源、两阶段入库、环境无关测试作为门禁。  
 4. 验收指标量化：所有结论以可计算指标输出，不接受“主观通过”。
+5. 关键链路失败关闭：`数据 → 决策快照 → 风险检查 → 订单审批 → Agent 执行 → 回报对账` 必须有独立发布阻断集合。
 
 ## 2. 测试分层模型
 
@@ -26,6 +29,12 @@
 4. L3 集成层  
 - 内容：模块内/模块间流程（policy/regime/backtest/audit/decision_platform）。  
 - 资产：`tests/integration/`。
+
+关键可靠性子层：
+
+- 内容：跨层验证数据时点、决策证据、风险停止、订单幂等、Agent 不确定状态和对账恢复。
+- 资产：`tests/critical/`。
+- 约束：PR 使用 SQLite + Fake Agent；不得连接真实 QMT、Redis 或外部数据源。
 
 5. L4 API 合同层  
 - 内容：OpenAPI、鉴权、状态码、字段契约、兼容性。  
@@ -51,6 +60,8 @@
 1. Guardrail 回归（含 policy/regime 关键集）。  
 2. 变更影响范围单元测试。  
 3. 关键 API 合同测试（至少覆盖本次改动接口）。
+4. `tests/critical/` 关键可靠性集合（SQLite + Fake Agent）。
+5. 新增生产 App 必须有显式测试映射；未知 App 触发保守扩大范围。
 
 建议命令：
 
@@ -70,6 +81,8 @@ pytest -q \
 1. 全量 `tests/unit`。  
 2. 核心 `tests/integration`。  
 3. Playwright smoke。
+4. `tests/critical/` 关键可靠性集合。
+5. PostgreSQL 16 空库完整迁移后运行关键可靠性与研究完整性迁移测试。
 
 ### 3.3 RC Gate（发布前）
 
@@ -80,6 +93,8 @@ pytest -q \
 3. P0 缺陷 = 0。  
 4. P1 缺陷 <= 2。  
 5. API 命名规范覆盖率 = 100%。
+6. `Critical Reliability` 独立步骤全部通过。
+7. 关键迁移测试通过；候选版本必须引用最近一次成功的 PostgreSQL Nightly 证据。
 
 ### 3.4 Post-Deploy Gate（上线后 30 分钟）
 
@@ -91,6 +106,15 @@ pytest -q \
 4. 告警链路可触发。  
 
 任一失败：立即触发回滚流程。
+
+### 3.5 真实 QMT 发布前现场门禁
+
+真实 QMT 不进入普通 PR CI，也不能由 Fake Agent 结果替代。实盘激活前必须：
+
+1. 记录券商、QMT、Python、`xtquant` 和账户类型版本矩阵。
+2. 运行 Agent preflight 与只读探针，确认 `read_only=true`、`submitted_order=false`、`canceled_order=false`、`ready=true`。
+3. 券商权限未开通、探针断线或版本矩阵缺失时，阻止实盘激活，但不阻止代码合并。
+4. 报单、撤单、部分成交、callback、断线与重启恢复必须在券商仿真环境另行授权验收。
 
 ## 4. E2E/UAT 执行方案
 
@@ -141,13 +165,13 @@ pytest -q tests/uat/test_api_naming_compliance.py tests/uat/test_route_baseline_
 
 P0（立即修）：
 
-1. UAT 统计与退出码不可信（解析逻辑为占位实现）。  
-2. 基线路由与真实路由不一致导致误报。
+1. PostgreSQL 关键可靠性 Job 尚待首次成功 Nightly 证据，候选版本不得跳过该证据。
+2. 真实 QMT 只读探针被券商外部 XtQuant 权限阻断，权限开通前保持实盘禁用。
 
 P1（本迭代修）：
 
-1. 仅 guardrail CI，缺少 Nightly/RC 自动门禁。  
-2. API 合同自动校验覆盖不足。
+1. 监控 `tests/critical/` 首次建库耗时，避免 PR Fast Feedback 超过 45 分钟上限。
+2. 新增生产 App 时同步维护测试映射和 RTM，防止长期依赖全量回退。
 
 P2（持续优化）：
 
@@ -175,6 +199,27 @@ P2（持续优化）：
 3. 每次发布的测试证据包：日志、报告、截图、缺陷清单。
 
 ## 9. 测试执行记录
+
+### 2026-07-22 关键可靠性测试收口
+
+#### 门禁与测试资产
+
+1. 智能选择器补齐 `broker_execution`、`operational_readiness`、`risk_center`、`portfolio`、`research`、`valuation`、`config_center`，未知生产 App 保守回退全量。
+2. 新增 `tests/critical/` 三组稳定、无外部网络依赖的关键链路测试。
+3. 新增研究完整性迁移测试，验证 11 个迁移节点、物理约束/索引/外键和历史所有权转移。
+4. PR、Nightly、RC 均接入关键可靠性门禁；Nightly 增加独立 PostgreSQL 16 Job。
+
+#### 本地验证
+
+| 测试集 | 结果 | 耗时 |
+|---|---:|---:|
+| 选择器自测 | 49 passed | 0.61s |
+| SQLite + Fake Agent 关键集合 | 18 passed | 83.40s |
+| 研究完整性迁移 | 3 passed | 101.54s |
+| 相关模块单元/API/集成 | 133 passed | 163.76s |
+| 架构工具与边界护栏 | 18 passed | 31.21s |
+
+PostgreSQL Job 已配置但尚待 GitHub Nightly 实际取证。真实 QMT 只读探针因券商外部 XtQuant 权限返回 `QMT_SERVER_NOT_ALLOWED`，因此继续保持实盘禁用。
 
 ### 2026-03-30 测试基线收口
 

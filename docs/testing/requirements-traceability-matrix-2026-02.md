@@ -1,6 +1,8 @@
 # AgomTradePro 需求-测试追踪矩阵（RTM，2026-02）
 
 > 用途：把"需求完成"与"测试证据"强绑定，支持验收与发布决策。
+>
+> 最近更新：2026-07-22
 
 ## 1. 使用说明
 
@@ -36,6 +38,12 @@
 | R-UAT-002 | 主导航无 404 | P0 | UAT | `tests/uat/test_route_baseline_consistency.py` | 导航抽样确认 | RC | Claude | 2026-02-24 | Passed (2/2) | - |
 | R-API-001 | API 命名/路由规范一致 | P1 | API+UAT | `tests/uat/test_api_naming_compliance.py` | OpenAPI 对照检查 | RC | Claude | 2026-02-24 | **Passed (10/10)** | - |
 | R-OPS-001 | 上线后健康检查与关键任务正常 | P0 | PostDeploy | `health check script` | 运维检查单 | PostDeploy | - | - | NotStart | 需生产环境 |
+| R-REL-SEL-001 | 所有生产 App 有显式测试映射；未知 App 保守回退全量 | P0 | Unit+Guardrail | `tests/unit/ci/test_select_tests.py` | 抽检新增 App 选择结果 | PR+Nightly | Codex | 2026-07-22 | **Passed (49/49)** | - |
+| R-REL-DATA-001 | 缺失、过期、未来数据失败关闭；PIT 冻结结果不可被新增版本或篡改改变 | P0 | Unit+Integration | `tests/critical/test_decision_and_data_safety.py` | 核对阻断原因与无持久化副作用 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
+| R-REL-RISK-001 | 风险拒绝、kill switch、过期 Broker 快照和最终提交重检阻止不安全执行 | P0 | API+Integration | `tests/critical/test_risk_and_order_safety.py` | 核对停止时仍可拒绝/撤单/对账 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
+| R-REL-AGENT-001 | 断线、未知报单结果、重复事件和 P0 对账差异保守处理 | P0 | Integration | `tests/critical/test_agent_and_recovery_safety.py` | Fake Agent 回放与恢复状态核验 | PR+Nightly+RC | Codex | 2026-07-22 | **Passed** | - |
+| R-REL-MIG-001 | 研究完整性迁移保留历史数据、约束、外键和关键索引 | P0 | Migration | `tests/migrations/test_research_integrity_migrations.py` | PostgreSQL Nightly 空库迁移证据 | Nightly+RC | Codex | 2026-07-22 | **SQLite Passed；PostgreSQL Pending** | 等待 Nightly |
+| R-REL-QMT-001 | 真实 QMT 启用前 preflight 与只读探针通过且不报单/不撤单 | P0 | Manual+PostDeploy | `docs/operations/qmt-agent-runbook.md` | 目标机只读探针证据 | PreRelease | Operator | 2026-07-22 | **InProgress: QMT_SERVER_NOT_ALLOWED** | 券商外部 XtQuant 权限未开通，实盘禁用 |
 
 ## 3. 发布验收汇总
 
@@ -72,6 +80,16 @@
 | 产品负责人 |  |  |  |
 
 ## 6. 修复记录
+
+### 2026-07-22 关键可靠性门禁收口
+
+- 新增 `tests/critical/` 三个发布阻断测试组，覆盖数据与决策安全、风险与订单安全、Agent 与恢复安全。
+- 新增 `tests/migrations/test_research_integrity_migrations.py`，覆盖关键迁移节点、物理约束/索引/外键，以及 `decision_rhythm` → `portfolio` 所有权转移时的历史数据保留。
+- PR Fast Feedback 固定运行 SQLite + Fake Agent 关键集合；RTM 文件存在性检查保护关键测试文件不被误删。
+- Nightly 新增独立 PostgreSQL 16 空库迁移与关键可靠性 Job；实际成功证据仍等待 GitHub Nightly。
+- RC Gate 新增独立 `Critical Reliability` 阻断步骤。
+- 本地证据：选择器 `49 passed`、关键集合 `18 passed`、迁移 `3 passed`、相关模块回归 `133 passed`、架构护栏 `18 passed`。
+- 真实 QMT 当天只读探针归一为 `QMT_SERVER_NOT_ALLOWED`；按门禁保持自动执行关闭，不以降低 Python 版本或绕过权限处理。
 
 ### 2026-03-30 测试基线收口
 
